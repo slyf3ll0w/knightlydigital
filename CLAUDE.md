@@ -852,7 +852,7 @@ build mechanics are in `docs/plans/mobile-app-runbook-mac.md`.
 
 ## Business details to update (marketing site)
 
-- **Phone**: Replace `(214) 555-0100` / `tel:2145550100`
+- **Phone**: `(833) 495-0229` — one constant, `WB_PHONE` in `lib/wb-site.ts` (nav, footer, CTA band, JSON-LD, agency header/footer)
 - **Email**: `info@streamflaire.com` (real contact address as of 2026-07-09; Resend still SENDS from streamflaremedia.com)
 - **Contact form**: `components/ContactForm.tsx` currently fakes submission. Wire to Formspree, Resend, or an API route.
 - **Social links**: Header social icons link to `#` — update when accounts are set up.

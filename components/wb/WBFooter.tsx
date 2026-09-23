@@ -1,9 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { WB_HOME } from "./WBNav";
-import { WB_EMAIL, WB_EMAIL_HREF, WB_PHONE } from "@/lib/wb-site";
-
-const APP_STORE_URL = "https://apps.apple.com/app/workbench-fsm/id6789991103";
+import { APP_STORE_URL, WB_EMAIL, WB_EMAIL_HREF, WB_PHONE } from "@/lib/wb-site";
 
 const columns: {
   heading: string;
@@ -28,18 +26,19 @@ const columns: {
     ],
   },
   {
-    heading: "Get started",
+    heading: "Account",
     links: [
       { label: "Get started", href: "/apply" },
       { label: "Log in", href: "/app/login" },
     ],
   },
   {
-    heading: "Company",
+    heading: "Contact",
     links: [
-      { label: "Streamflaire", href: "https://streamflaire.com", external: true },
       { label: WB_PHONE.display, href: WB_PHONE.href, external: true },
       { label: WB_EMAIL, href: WB_EMAIL_HREF, external: true },
+      { label: "Contact page", href: "/contact" },
+      { label: "Streamflaire", href: "https://streamflaire.com", external: true },
     ],
   },
   {
@@ -63,9 +62,9 @@ export default function WBFooter() {
             height={285}
             className="h-6 w-auto"
           />
-          <p className="mt-4 text-[13px] leading-relaxed text-gray-500">
-            Field service management for home-service teams. Free to run,
-            fair when you get paid. A{" "}
+          <p className="mt-4 text-[13.5px] leading-relaxed text-gray-500">
+            Field service management software for home-service companies.
+            Free to use, funded by payment processing. Built by{" "}
             <a
               href="https://streamflaire.com"
               target="_blank"
@@ -73,8 +72,8 @@ export default function WBFooter() {
               className="font-semibold text-gray-600 hover:text-gray-900"
             >
               Streamflaire
-            </a>{" "}
-            product.
+            </a>
+            .
           </p>
           <a
             href={APP_STORE_URL}
@@ -95,7 +94,7 @@ export default function WBFooter() {
         </div>
         {columns.map((col) => (
           <div key={col.heading}>
-            <p className="text-xs font-bold uppercase tracking-wide text-gray-400">
+            <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
               {col.heading}
             </p>
             <ul className="mt-3 space-y-2 text-[13.5px] text-gray-600">
@@ -126,8 +125,8 @@ export default function WBFooter() {
       </div>
       <div className="border-t border-gray-100">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8">
-          <p className="text-[11.5px] text-gray-400">© 2026 WorkBench</p>
-          <p className="text-[11.5px] text-gray-400">Dallas–Fort Worth, TX</p>
+          <p className="text-[12px] text-gray-400">© 2026 WorkBench</p>
+          <p className="text-[12px] text-gray-400">Dallas–Fort Worth, TX</p>
         </div>
       </div>
     </footer>

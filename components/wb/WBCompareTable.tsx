@@ -17,7 +17,7 @@ export default function WBCompareTable({
   rows: CompareRow[];
 }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
+    <div className="overflow-x-auto rounded-md border border-gray-200 bg-white">
       <table className="w-full min-w-[560px] border-collapse text-left">
         <thead>
           <tr className="border-b border-gray-200 bg-gray-50">

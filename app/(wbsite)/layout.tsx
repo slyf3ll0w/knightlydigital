@@ -61,7 +61,7 @@ export default function WBSiteLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className="wb-site min-h-screen bg-[#FAFBFD] text-gray-900">
+    <div className="wb-site min-h-screen bg-white text-gray-900">
       <script
         type="application/ld+json"
         // eslint-disable-next-line react/no-danger

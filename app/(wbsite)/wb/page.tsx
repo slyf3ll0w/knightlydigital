@@ -2,25 +2,30 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { AnimateIn } from "@/components/AnimateIn";
+import WBCta from "@/components/wb/WBCta";
 import WBFaq from "@/components/wb/WBFaq";
 import WBPhoneShowcase from "@/components/wb/WBPhoneShowcase";
 import WBShowcase from "@/components/wb/WBShowcase";
-import { WB_PHONE } from "@/lib/wb-site";
+import { APP_STORE_URL, WB_EMAIL, WB_EMAIL_HREF, WB_PHONE, WB_PHOTOS } from "@/lib/wb-site";
 import {
   ArrowRight,
   Bug,
   CalendarClock,
-  CheckCircle2,
-  ChevronRight,
+  CalendarRange,
+  Check,
+  Clock4,
   Compass,
   CreditCard,
   Droplets,
   Fan,
   FileText,
+  Globe,
   Hammer,
   Home,
   Leaf,
-  PenLine,
+  Mail,
+  MessageSquare,
+  Phone,
   Plug,
   Smartphone,
   Sparkles,
@@ -33,23 +38,10 @@ import {
 } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "WorkBench — Field service management, free to run",
+  title: "WorkBench — Free field service management software",
   description:
-    "WorkBench runs the whole day for home-service teams: scheduling, quotes, invoices, online booking, client hub, team chat, an AI assistant, and built-in payments. Free to use. Now on the App Store.",
+    "WorkBench is free scheduling, quoting, invoicing, and payment software for home-service companies. Online booking, dispatch, a client portal, team chat, an AI assistant, and a native iPhone app. Funded by payment processing, not subscriptions.",
 };
-
-const APP_STORE_URL = "https://apps.apple.com/app/workbench-fsm/id6789991103";
-
-const moreFeatures = [
-  { label: "Time tracking", href: "/features#run" },
-  { label: "Team map", href: "/features#run" },
-  { label: "Lead pipeline", href: "/features#win" },
-  { label: "Recurring plans", href: "/features#paid" },
-  { label: "Team chat", href: "/features#run" },
-  { label: "Review requests", href: "/features#clients" },
-  { label: "Atlas AI", href: "/features#atlas" },
-  { label: "iPhone app", href: "/features#mobile" },
-];
 
 const trades = [
   { icon: Droplets, label: "Plumbing" },
@@ -66,10 +58,50 @@ const trades = [
   { icon: SprayCan, label: "Pressure washing" },
 ];
 
+const features = [
+  {
+    icon: Globe,
+    title: "Online booking and leads",
+    body: "A booking page on your website fills the calendar, and every request lands in a pipeline so nothing waits in voicemail.",
+    href: "/features#win",
+  },
+  {
+    icon: FileText,
+    title: "Quotes with e-signature",
+    body: "Line items, optional add-ons, deposits, and a signature from the client's phone. Automatic follow-ups if they sit on it.",
+    href: "/features/quotes-and-invoicing",
+  },
+  {
+    icon: CalendarRange,
+    title: "Scheduling and dispatch",
+    body: "Month, week, and day views with drag-to-schedule, recurring visits, time blocks, and per-tech filtering.",
+    href: "/features/scheduling-dispatch",
+  },
+  {
+    icon: CreditCard,
+    title: "Invoicing and payments",
+    body: "One-click invoices with card and ACH built in at one flat rate. Deposits, partial payments, autopay, and reminders.",
+    href: "/features/payments",
+  },
+  {
+    icon: Users,
+    title: "Client portal",
+    body: "Clients see visits, sign agreements, message your team, and pay from a link. No account or password needed.",
+    href: "/features/client-portal",
+  },
+  {
+    icon: Clock4,
+    title: "Time tracking and team chat",
+    body: "Clock in on the job, keep timesheets straight for payroll, and talk to the office without a second app.",
+    href: "/features/time-tracking",
+  },
+];
+
 const atlasExamples = [
-  "“Send the Hendersons their quote”",
-  "“Reschedule Tuesday’s jobs to Friday”",
-  "“Who still owes me money?”",
+  "Send the Hendersons their quote.",
+  "Reschedule Tuesday's jobs to Friday.",
+  "Who still owes me money?",
+  "Book a follow-up visit for the Elm Street job.",
 ];
 
 const faqItems = [
@@ -77,11 +109,11 @@ const faqItems = [
     q: "Is WorkBench really free?",
     a: (
       <p>
-        Yes — every essential feature, for unlimited users, with no trial
-        clock and no credit card required. The software is funded by built-in
-        payment processing: when a client pays an invoice through WorkBench,
-        a small slice of the flat processing fee is what keeps the lights on.
-        The full breakdown is on the{" "}
+        Yes. Every essential feature, for unlimited users, with no trial clock
+        and no credit card required. The software is funded by built-in payment
+        processing: when a client pays an invoice through WorkBench, a small
+        slice of the flat processing fee is what keeps the lights on. The full
+        breakdown is on the{" "}
         <Link href="/pricing" className="font-semibold text-[#0B57D8] hover:underline">
           pricing page
         </Link>
@@ -93,9 +125,9 @@ const faqItems = [
     q: "What does payment processing cost?",
     a: (
       <p>
-        One flat rate: 2.9% + 30¢ per successful card transaction and 0.75%
-        per ACH bank transfer. There are no monthly fees, no minimums, and no
-        charge on failed payments.
+        One flat rate: 2.9% + 30¢ per successful card transaction and 0.75% per
+        ACH bank transfer. There are no monthly fees, no minimums, and no charge
+        on failed payments.
       </p>
     ),
   },
@@ -104,9 +136,8 @@ const faqItems = [
     a: (
       <p>
         No. Cash and check payments can be recorded on any invoice, and the
-        software stays free either way. Card and ACH are simply built in for
-        when you want them — on invoices, quotes with deposits, and online
-        bookings.
+        software stays free either way. Card and ACH are built in for when you
+        want them, on invoices, quotes with deposits, and online bookings.
       </p>
     ),
   },
@@ -116,10 +147,14 @@ const faqItems = [
       <p>
         Because WorkBench moves real money, every company on it is verified.
         Tell us about your business, then complete a short payment-verification
-        form (the same KYC check every payments provider runs) and your
-        account opens. A person also reviews every application within a
-        business day — most companies are quoting and scheduling the same day
-        they sign up.
+        form (the same KYC check every payments provider runs) and your account
+        opens. A person also reviews every application within a business day,
+        and most companies are quoting and scheduling the same day they sign
+        up. If you would rather talk first, call{" "}
+        <a href={WB_PHONE.href} className="font-semibold text-[#0B57D8] hover:underline">
+          {WB_PHONE.display}
+        </a>
+        .
       </p>
     ),
   },
@@ -127,7 +162,7 @@ const faqItems = [
     q: "Is there a mobile app?",
     a: (
       <p>
-        Yes — a native iPhone app on the{" "}
+        Yes. A native iPhone app on the{" "}
         <a
           href={APP_STORE_URL}
           target="_blank"
@@ -137,8 +172,8 @@ const faqItems = [
           App Store
         </a>
         , with push notifications for requests, bookings, chat, and payments,
-        plus offline viewing of the schedule when a job site has no signal.
-        The web app works on any device.
+        plus offline viewing of the schedule when a job site has no signal. The
+        web app works on any device.
       </p>
     ),
   },
@@ -147,8 +182,7 @@ const faqItems = [
     a: (
       <p>
         Any time. There are no contracts, and your clients, jobs, quotes, and
-        invoices export whenever you want them — WorkBench earns its place on
-        your bench every day or not at all.
+        invoices export whenever you want them.
       </p>
     ),
   },
@@ -157,39 +191,39 @@ const faqItems = [
 export default function WBHomePage() {
   return (
     <>
-      {/* ── Hero — deep navy, workflow card cluster ── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#0B2250] via-[#0A1B3D] to-[#0A1428]">
-        <div className="wb-grid-lines pointer-events-none absolute inset-0" aria-hidden />
-        <div
-          className="pointer-events-none absolute -right-40 -top-40 h-[480px] w-[480px] rounded-full bg-[#0B57D8]/25 blur-3xl"
-          aria-hidden
-        />
-        <div className="relative mx-auto grid max-w-6xl gap-12 px-5 pb-20 pt-16 sm:px-8 sm:pt-24 lg:grid-cols-[1.12fr_0.88fr] lg:items-center">
-          <AnimateIn>
-            <h1 className="max-w-2xl text-4xl font-extrabold leading-[1.08] text-white sm:text-[3.4rem]">
-              Field service software that&apos;s{" "}
-              <span className="text-[#FF8B33]">actually free</span>.
-            </h1>
-            <p className="mt-6 max-w-xl text-[17px] leading-relaxed text-blue-100/85">
-              WorkBench runs the day for home-service companies — online
-              booking, scheduling and dispatch, quotes, invoices, team chat,
-              a client portal, and built-in card &amp; ACH payments. No
-              per-seat pricing, no feature tiers, no trial clock.
+      {/* ── Hero ── */}
+      <section className="border-b border-gray-200 bg-white">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-14 sm:px-8 sm:py-20 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
+          <div>
+            <p className="text-[12.5px] font-bold uppercase tracking-[0.14em] text-[#F86A0A]">
+              Field service management software
             </p>
-            <div className="mt-9 flex flex-wrap items-center gap-4">
+            <h1 className="mt-3 max-w-2xl text-4xl font-extrabold leading-[1.1] text-gray-900 sm:text-[2.7rem]">
+              Scheduling, quotes, and invoicing for home-service companies. Free to use.
+            </h1>
+            <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-gray-600">
+              WorkBench runs the day for plumbers, electricians, HVAC techs,
+              cleaners, and every other trade: online booking, dispatch,
+              quotes, invoices, a client portal, team chat, and built-in card
+              and ACH payments. No per-seat pricing and no feature tiers.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
                 href="/apply"
-                className="wb-btn-tool inline-flex items-center gap-2 rounded-lg bg-[#F86A0A] px-6 py-3 text-[15px] font-bold text-white"
+                className="wb-btn inline-flex items-center gap-2 rounded-md bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white"
               >
                 Get started
                 <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
               </Link>
-              <Link
-                href="/features"
-                className="inline-flex items-center gap-2 rounded-lg border-2 border-white/25 px-6 py-3 text-[15px] font-bold text-white transition-colors hover:border-white/60"
+              <a
+                href={WB_PHONE.href}
+                className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-6 py-3 text-[15px] font-bold text-gray-900 transition-colors hover:border-gray-900"
               >
-                Explore the features
-              </Link>
+                <Phone className="h-4 w-4 text-[#F86A0A]" strokeWidth={2.25} aria-hidden />
+                Call {WB_PHONE.display}
+              </a>
+            </div>
+            <div className="mt-7 flex flex-wrap items-center gap-4">
               <a
                 href={APP_STORE_URL}
                 target="_blank"
@@ -203,138 +237,112 @@ export default function WBHomePage() {
                   width={120}
                   height={40}
                   unoptimized
-                  className="h-[46px] w-auto"
+                  className="h-10 w-auto"
                 />
               </a>
-            </div>
-            <p className="mt-5 text-[13px] font-semibold text-blue-200/60">
-              Invite-only while we onboard companies personally.
-            </p>
-          </AnimateIn>
-
-          {/* The day drawn as a workflow: booking → scheduled → paid, connected
-              by a marching blueprint path. Only the Atlas chip floats. */}
-          <AnimateIn delay={150} className="relative hidden min-h-[400px] lg:block">
-            {/* blueprint registration marks */}
-            <span className="pointer-events-none absolute -left-6 top-0 select-none text-2xl font-light text-blue-400/40" aria-hidden>+</span>
-            <span className="pointer-events-none absolute right-0 top-24 select-none text-xl font-light text-orange-400/40" aria-hidden>+</span>
-            <span className="pointer-events-none absolute -bottom-2 left-2 select-none text-2xl font-light text-blue-400/40" aria-hidden>+</span>
-
-            {/* connector path behind the cards */}
-            <svg
-              className="pointer-events-none absolute inset-0 h-full w-full"
-              viewBox="0 0 460 400"
-              preserveAspectRatio="none"
-              aria-hidden
-            >
-              <path
-                d="M 150 68 C 300 78, 360 110, 330 172 C 305 224, 200 218, 172 268"
-                fill="none"
-                stroke="#3B6FD9"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeDasharray="7 9"
-                className="wb-dash"
-              />
-              <circle cx="150" cy="68" r="4" fill="#5B8DEF" />
-              <circle cx="330" cy="172" r="4" fill="#F86A0A" />
-              <circle cx="172" cy="268" r="4" fill="#5B8DEF" />
-            </svg>
-
-            <div className="absolute left-0 top-0 w-64 -rotate-1 rounded-2xl bg-white p-4 shadow-2xl">
-              <span className="absolute -left-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#0B57D8] text-[11px] font-bold text-white ring-2 ring-white">1</span>
-              <div className="flex items-center gap-3">
-                <Image
-                  src="/workbench-icon.png"
-                  alt=""
-                  width={339}
-                  height={296}
-                  className="h-9 w-auto"
-                />
-                <div>
-                  <p className="text-[14px] font-bold text-gray-900">New booking confirmed</p>
-                  <p className="text-[12.5px] text-gray-500">Gutter cleaning · Sat 9:00 AM</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="absolute right-0 top-[136px] w-60 rotate-1 rounded-2xl bg-white p-4 shadow-2xl">
-              <span className="absolute -left-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#F86A0A] text-[11px] font-bold text-white ring-2 ring-white">2</span>
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50">
-                  <CalendarClock className="h-5 w-5 text-[#F86A0A]" strokeWidth={2} />
-                </div>
-                <div>
-                  <p className="text-[14px] font-bold text-gray-900">Tue · 2:00 PM</p>
-                  <p className="text-[12.5px] text-gray-500">AC repair — Ravenwood Dr</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="absolute left-6 top-[268px] w-64 -rotate-1 rounded-2xl bg-white p-4 shadow-2xl">
-              <span className="absolute -left-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#0B57D8] text-[11px] font-bold text-white ring-2 ring-white">3</span>
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
-                  <CheckCircle2 className="h-5 w-5 text-[#0B57D8]" strokeWidth={2} />
-                </div>
-                <div>
-                  <p className="text-[14px] font-bold text-gray-900">Invoice #2481</p>
-                  <p className="text-[12.5px] text-gray-500">
-                    $1,240.00 · <span className="font-semibold text-[#0B57D8]">Paid</span>
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div
-              className="wb-float absolute -bottom-1 right-4 w-fit rounded-full bg-white px-4 py-2.5 shadow-xl"
-              style={{ "--wb-tilt": "-2deg" } as React.CSSProperties}
-            >
-              <p className="flex items-center gap-2 text-[13px] font-semibold text-gray-700">
-                <Compass className="h-4 w-4 text-[#0B57D8]" strokeWidth={2} />
-                “Atlas, send Friday&apos;s invoices”
+              <p className="text-[13.5px] text-gray-500">
+                iPhone app and web app. Unlimited users.
               </p>
             </div>
-          </AnimateIn>
-        </div>
-      </section>
-
-      {/* ── Trades ticker ── */}
-      <section className="bg-white py-8">
-        <p className="text-center text-[11.5px] font-bold uppercase tracking-[0.16em] text-gray-400">
-          Built for every trade
-        </p>
-        <div className="wb-marquee mt-5">
-          <div className="wb-marquee-track">
-            {[0, 1].map((dup) => (
-              <div key={dup} className="flex items-center gap-3 pr-3" aria-hidden={dup === 1}>
-                {trades.map(({ icon: Icon, label }, i) => (
-                  <span
-                    key={label}
-                    className="flex items-center gap-2.5 whitespace-nowrap rounded-full bg-white py-2 pl-2.5 pr-4 ring-1 ring-inset ring-gray-200"
-                  >
-                    <span className={`flex h-7 w-7 items-center justify-center rounded-full ${i % 2 ? "bg-orange-50" : "bg-blue-50"}`}>
-                      <Icon className={`h-3.5 w-3.5 ${i % 2 ? "text-[#F86A0A]" : "text-[#0B57D8]"}`} strokeWidth={2.2} />
-                    </span>
-                    <span className="text-[13.5px] font-bold text-gray-700">{label}</span>
-                  </span>
-                ))}
-              </div>
-            ))}
+          </div>
+          <div className="relative aspect-[4/3] overflow-hidden rounded-md bg-gray-100 lg:aspect-[4/3]">
+            <Image
+              src={WB_PHOTOS.hero.src}
+              alt={WB_PHOTOS.hero.alt}
+              fill
+              priority
+              sizes="(max-width: 1024px) 100vw, 560px"
+              className="object-cover"
+            />
           </div>
         </div>
       </section>
 
-      {/* ── Product showcase ── */}
-      <section className="border-b border-gray-200 bg-white pb-20 pt-10 sm:pb-24">
-        <div className="mx-auto max-w-5xl px-5 sm:px-8">
+      {/* ── Three facts ── */}
+      <section className="border-b border-gray-200 bg-[#F5F7FA]">
+        <div className="mx-auto grid max-w-6xl gap-6 px-5 py-10 sm:px-8 md:grid-cols-3 md:gap-10">
+          {[
+            {
+              icon: Users,
+              title: "Free for unlimited users",
+              body: "Every essential feature, for the whole team, with no trial and no card required.",
+            },
+            {
+              icon: CreditCard,
+              title: "One flat payment rate",
+              body: "2.9% + 30¢ per card transaction and 0.75% per ACH transfer. No monthly fees.",
+            },
+            {
+              icon: Smartphone,
+              title: "Native iPhone app",
+              body: "Push notifications, offline schedule, and invoicing from the driveway.",
+            },
+          ].map(({ icon: Icon, title, body }) => (
+            <div key={title} className="flex gap-4">
+              <div className="flex h-11 w-11 flex-none items-center justify-center rounded-md bg-white ring-1 ring-inset ring-gray-200">
+                <Icon className="h-5 w-5 text-[#0B57D8]" strokeWidth={2} />
+              </div>
+              <div>
+                <p className="text-[15.5px] font-bold text-gray-900">{title}</p>
+                <p className="mt-1 text-[14px] leading-relaxed text-gray-600">{body}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── What it does ── */}
+      <section className="bg-white">
+        <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-20">
+          <AnimateIn className="max-w-2xl">
+            <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
+              What WorkBench does
+            </h2>
+            <p className="mt-4 text-[16px] leading-relaxed text-gray-600">
+              One system from the first booking request to the paid invoice.
+              Everything below is included, for every seat on your team.
+            </p>
+          </AnimateIn>
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map(({ icon: Icon, title, body, href }, i) => (
+              <AnimateIn key={title} delay={(i % 3) * 80}>
+                <Link
+                  href={href}
+                  className="group flex h-full flex-col rounded-md border border-gray-200 bg-white p-6 transition-colors hover:border-[#0B57D8]"
+                >
+                  <div className="flex h-11 w-11 items-center justify-center rounded-md bg-blue-50">
+                    <Icon className="h-5 w-5 text-[#0B57D8]" strokeWidth={2} />
+                  </div>
+                  <h3 className="mt-5 text-[17px] font-extrabold text-gray-900">{title}</h3>
+                  <p className="mt-2 flex-1 text-[14.5px] leading-relaxed text-gray-600">{body}</p>
+                  <span className="mt-5 inline-flex items-center gap-1.5 text-[14px] font-bold text-[#0B57D8]">
+                    Learn more
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" strokeWidth={2.5} />
+                  </span>
+                </Link>
+              </AnimateIn>
+            ))}
+          </div>
+          <p className="mt-8 text-[14.5px] text-gray-600">
+            Also included: lead pipeline, recurring plans, review requests, a
+            team map, contracts, and one-click refunds.{" "}
+            <Link href="/features" className="font-bold text-[#0B57D8] hover:underline">
+              See every feature
+            </Link>
+          </p>
+        </div>
+      </section>
+
+      {/* ── Product screenshots ── */}
+      <section className="border-y border-gray-200 bg-[#F5F7FA]">
+        <div className="mx-auto max-w-5xl px-5 py-16 sm:px-8 sm:py-20">
           <AnimateIn>
-            <h2 className="mx-auto max-w-2xl text-center text-3xl font-extrabold leading-tight sm:text-4xl">
+            <h2 className="text-center text-3xl font-extrabold leading-tight sm:text-4xl">
               A look inside
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-center text-[15.5px] leading-relaxed text-gray-600">
-              Real screens from the app your team will live in — from the
-              morning dashboard to the paid invoice.
+            <p className="mx-auto mt-4 max-w-xl text-center text-[16px] leading-relaxed text-gray-600">
+              Real screens from the software, from the morning dashboard to the
+              paid invoice.
             </p>
           </AnimateIn>
           <AnimateIn delay={130} className="mt-10">
@@ -343,248 +351,79 @@ export default function WBHomePage() {
         </div>
       </section>
 
-      {/* ── Feature bento grid ── */}
-      <section className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
-        <AnimateIn>
-          <h2 className="mx-auto max-w-2xl text-center text-3xl font-extrabold leading-tight sm:text-4xl">
-            Everything a service company{" "}
-            <span className="text-[#0B57D8]">runs on</span>
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-center text-[15.5px] leading-relaxed text-gray-600">
-            From the first booking request to the paid invoice — every step
-            lives in one system, and every piece below is in the free plan.
-          </p>
-        </AnimateIn>
-
-        <div className="mt-12 grid gap-5 lg:grid-cols-5">
-          {/* Quotes — cream */}
-          <AnimateIn className="lg:col-span-2">
-            <Link
-              href="/features#win"
-              className="card-lift group flex h-full flex-col justify-between rounded-3xl border border-[#F0E7D8] bg-[#FBF7EF] p-7"
-            >
-              <div>
-                <h3 className="text-xl font-extrabold text-gray-900">Quotes that close</h3>
-                <p className="mt-2 text-[14.5px] leading-relaxed text-gray-600">
-                  Optional line items, discounts, deposits, and e-signature —
-                  approved from the client&apos;s phone in a tap, with
-                  automatic follow-ups if they sit on it.
-                </p>
-              </div>
-              <div className="mt-6">
-                <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-center justify-between text-[13px]">
-                    <span className="font-bold text-gray-900">Quote #Q-1042</span>
-                    <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11.5px] font-bold text-[#0B57D8]">
-                      Signed ✓
-                    </span>
-                  </div>
-                  <div className="mt-3 space-y-2 text-[12.5px] text-gray-500">
-                    <div className="flex justify-between"><span>Water heater install</span><span>$1,850</span></div>
-                    <div className="flex justify-between"><span>Haul away old unit</span><span>$120</span></div>
-                    <div className="flex justify-between border-t border-gray-100 pt-2 font-bold text-gray-900"><span>Deposit due</span><span>$500</span></div>
-                  </div>
-                </div>
-                <span className="mt-5 inline-flex items-center gap-1.5 text-[14px] font-bold text-[#0B57D8]">
-                  Learn more
-                  <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" strokeWidth={2.5} />
-                </span>
-              </div>
-            </Link>
-          </AnimateIn>
-
-          {/* Invoicing & payments — brand blue */}
-          <AnimateIn delay={100} className="lg:col-span-3">
-            <Link
-              href="/features#paid"
-              className="card-lift group flex h-full flex-col justify-between rounded-3xl bg-gradient-to-br from-[#0B57D8] to-[#0847AE] p-7 text-white"
-            >
-              <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
-                <div className="max-w-sm">
-                  <h3 className="text-xl font-extrabold">Invoicing &amp; payments</h3>
-                  <p className="mt-2 text-[14.5px] leading-relaxed text-blue-100/90">
-                    One-click invoices with card and ACH built in at one flat
-                    rate. Deposits, partial payments, saved cards with
-                    autopay, and reminders that chase the money so you
-                    don&apos;t have to.
-                  </p>
-                </div>
-                <div className="w-full max-w-[240px] flex-none rounded-2xl bg-white p-4 text-gray-900 shadow-lg">
-                  <div className="flex items-center justify-between text-[13px]">
-                    <span className="font-bold">Invoice #2481</span>
-                    <span className="font-bold text-[#0B57D8]">Paid</span>
-                  </div>
-                  <p className="mt-1 text-[20px] font-extrabold">$1,240.00</p>
-                  <div className="mt-3 flex items-center gap-1.5">
-                    {["Visa", "MC", "Amex", "ACH"].map((m) => (
-                      <span key={m} className="rounded-md border border-gray-200 px-2 py-1 text-[10px] font-bold text-gray-500">
-                        {m}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
-                <p className="text-[13px] font-semibold text-blue-100/80">
-                  2.9% + 30¢ per card transaction · 0.75% ACH · no monthly fees
-                </p>
-                <span className="inline-flex items-center gap-1.5 text-[14px] font-bold">
-                  Learn more
-                  <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" strokeWidth={2.5} />
-                </span>
-              </div>
-            </Link>
-          </AnimateIn>
-
-          {/* Scheduling — white */}
-          <AnimateIn className="lg:col-span-2">
-            <Link
-              href="/features#run"
-              className="card-lift group flex h-full flex-col justify-between rounded-3xl border border-gray-200 bg-white p-7"
-            >
-              <div>
-                <h3 className="text-xl font-extrabold text-gray-900">Scheduling &amp; dispatch</h3>
-                <p className="mt-2 text-[14.5px] leading-relaxed text-gray-600">
-                  Month, week, and day views with drag-to-schedule, time
-                  blocks, recurring visit series, and per-tech filtering.
-                </p>
-              </div>
-              <div className="mt-6">
-                <div className="grid grid-cols-5 gap-1.5">
-                  {["M", "T", "W", "T", "F"].map((d, i) => (
-                    <div key={i} className="rounded-lg border border-gray-100 bg-gray-50 p-1.5 text-center">
-                      <p className="text-[10px] font-bold text-gray-400">{d}</p>
-                      <div className={`mt-1 h-1.5 rounded-full ${i === 1 || i === 3 ? "bg-[#F86A0A]/70" : "bg-[#0B57D8]/60"}`} />
-                      {i !== 4 && <div className="mt-1 h-1.5 rounded-full bg-[#0B57D8]/30" />}
-                    </div>
-                  ))}
-                </div>
-                <span className="mt-5 inline-flex items-center gap-1.5 text-[14px] font-bold text-[#0B57D8]">
-                  Learn more
-                  <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" strokeWidth={2.5} />
-                </span>
-              </div>
-            </Link>
-          </AnimateIn>
-
-          {/* Client hub — navy */}
-          <AnimateIn delay={100} className="lg:col-span-2">
-            <Link
-              href="/features#clients"
-              className="card-lift group flex h-full flex-col justify-between rounded-3xl bg-[#0A1428] p-7 text-white"
-            >
-              <div>
-                <h3 className="text-xl font-extrabold">Client hub &amp; messaging</h3>
-                <p className="mt-2 text-[14.5px] leading-relaxed text-gray-300">
-                  A magic-link portal where clients see visits, sign
-                  agreements, message your team, and pay — no account or
-                  password required. Confirmations, reminders, and receipts
-                  go out automatically, from your business.
-                </p>
-              </div>
-              <span className="mt-6 inline-flex items-center gap-1.5 text-[14px] font-bold text-[#FF8B33]">
-                Learn more
-                <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" strokeWidth={2.5} />
-              </span>
-            </Link>
-          </AnimateIn>
-
-          {/* More features — orange */}
-          <AnimateIn delay={200} className="lg:col-span-1">
-            <div className="card-lift flex h-full flex-col rounded-3xl bg-gradient-to-br from-[#F86A0A] to-[#E05500] p-7 text-white">
-              <h3 className="text-xl font-extrabold">More features</h3>
-              <ul className="mt-4 space-y-2.5">
-                {moreFeatures.map(({ label, href }) => (
-                  <li key={label}>
-                    <Link
-                      href={href}
-                      className="group/mf inline-flex items-center gap-1 text-[13.5px] font-bold text-orange-50 hover:text-white"
-                    >
-                      {label}
-                      <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover/mf:translate-x-0.5" strokeWidth={2.5} />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+      {/* ── Built for the trades ── */}
+      <section className="bg-white">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-16 sm:px-8 sm:py-20 lg:grid-cols-2 lg:gap-16">
+          <AnimateIn>
+            <div className="relative aspect-[4/3] overflow-hidden rounded-md bg-gray-100">
+              <Image
+                src={WB_PHOTOS.trades.src}
+                alt={WB_PHOTOS.trades.alt}
+                fill
+                sizes="(max-width: 1024px) 100vw, 540px"
+                className="object-cover"
+              />
             </div>
+          </AnimateIn>
+          <AnimateIn delay={120}>
+            <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
+              Built for the trades
+            </h2>
+            <p className="mt-4 text-[16px] leading-relaxed text-gray-600">
+              WorkBench is made for companies that send people to a customer's
+              home. Quotes are priced by the job, schedules are built around
+              drive time, and invoices are sent from the driveway. If your
+              trade is on this list, it fits.
+            </p>
+            <ul className="mt-7 grid grid-cols-2 gap-x-6 gap-y-3">
+              {trades.map(({ icon: Icon, label }) => (
+                <li key={label} className="flex items-center gap-2.5 text-[15px] font-semibold text-gray-800">
+                  <Icon className="h-4 w-4 flex-none text-[#0B57D8]" strokeWidth={2.2} />
+                  {label}
+                </li>
+              ))}
+            </ul>
           </AnimateIn>
         </div>
       </section>
 
-      {/* ── Atlas callout ── */}
-      <section className="mx-auto max-w-6xl px-5 pb-20 sm:px-8">
-        <AnimateIn>
-          <div className="relative overflow-hidden rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50/70 via-white to-white">
-            <div className="wb-grid-paper pointer-events-none absolute inset-0 [mask-image:none]" aria-hidden />
-            <div className="relative flex flex-col gap-8 px-6 py-10 sm:px-10 lg:flex-row lg:items-center lg:justify-between">
-              <div className="max-w-lg">
-                <div className="flex items-center gap-3">
-                  <Compass className="h-6 w-6 text-[#0B57D8]" strokeWidth={1.9} />
-                  <h3 className="text-2xl font-extrabold">Or just ask Atlas.</h3>
-                </div>
-                <p className="mt-3 text-[15px] leading-relaxed text-gray-600">
-                  Every WorkBench account comes with Atlas, an AI assistant
-                  that works the same tools your team does — with the same
-                  permissions and a confirmation before anything goes out the
-                  door. Every account gets 10,000 Atlas tokens free each
-                  month; Atlas Full adds 150,000 a month for $20.
-                </p>
-              </div>
-              <ul className="flex flex-col gap-3">
-                {atlasExamples.map((line) => (
-                  <li
-                    key={line}
-                    className="w-fit rounded-full border border-gray-200 bg-white px-4 py-2 text-[13.5px] text-gray-700 shadow-sm"
-                  >
-                    {line}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </AnimateIn>
-      </section>
-
       {/* ── iPhone app ── */}
-      <section className="border-t border-gray-200 bg-white">
-        <div className="mx-auto grid max-w-6xl gap-12 px-5 py-20 sm:px-8 sm:py-24 lg:grid-cols-[1.15fr_1fr] lg:items-center lg:gap-16">
+      <section className="border-y border-gray-200 bg-[#F5F7FA]">
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 sm:px-8 sm:py-20 lg:grid-cols-[1.15fr_1fr] lg:gap-16">
           <AnimateIn>
-            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#F86A0A]">
-              WorkBench on iPhone
-            </p>
-            <h2 className="mt-3 text-3xl font-extrabold leading-tight sm:text-4xl">
-              The field runs from a pocket.
+            <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
+              Take the office into the field
             </h2>
-            <p className="mt-5 max-w-lg text-[15.5px] leading-relaxed text-gray-600">
-              The native iPhone app carries the whole system — schedule,
-              jobs, chat, invoices, Atlas — so techs never need a laptop
-              between the truck and the crawl space.
+            <p className="mt-4 max-w-lg text-[16px] leading-relaxed text-gray-600">
+              The native iPhone app carries the whole system: schedule, jobs,
+              chat, invoices, and Atlas. Techs never need a laptop between the
+              truck and the crawl space.
             </p>
             <ul className="mt-8 grid gap-5">
               {[
                 {
                   icon: Smartphone,
-                  title: "Push that matters",
+                  title: "Notifications that matter",
                   body: "New requests, bookings, chat messages, and payments land on the phone the moment they happen.",
                 },
                 {
                   icon: WifiOff,
                   title: "Works offline",
-                  body: "Today's schedule and job details stay viewable with no signal — basements and dead zones included.",
+                  body: "Today's schedule and job details stay viewable with no signal, basements and dead zones included.",
                 },
                 {
                   icon: CalendarClock,
                   title: "Field work, start to finish",
                   body: "Clock in on the job, add photos and notes, message the office, and send the invoice before leaving the driveway.",
                 },
-              ].map(({ icon: Icon, title, body }, i) => (
+              ].map(({ icon: Icon, title, body }) => (
                 <li key={title} className="flex gap-4">
-                  <div className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl ${i === 1 ? "bg-blue-50" : "bg-orange-50"}`}>
-                    <Icon className={`h-[18px] w-[18px] ${i === 1 ? "text-[#0B57D8]" : "text-[#F86A0A]"}`} strokeWidth={2} />
+                  <div className="flex h-10 w-10 flex-none items-center justify-center rounded-md bg-white ring-1 ring-inset ring-gray-200">
+                    <Icon className="h-[18px] w-[18px] text-[#0B57D8]" strokeWidth={2} />
                   </div>
                   <div>
                     <p className="text-[15px] font-bold text-gray-900">{title}</p>
-                    <p className="mt-0.5 text-[14px] leading-relaxed text-gray-500">{body}</p>
+                    <p className="mt-0.5 text-[14px] leading-relaxed text-gray-600">{body}</p>
                   </div>
                 </li>
               ))}
@@ -602,7 +441,7 @@ export default function WBHomePage() {
                 width={120}
                 height={40}
                 unoptimized
-                className="h-[46px] w-auto"
+                className="h-[44px] w-auto"
               />
             </a>
           </AnimateIn>
@@ -612,113 +451,157 @@ export default function WBHomePage() {
         </div>
       </section>
 
-      {/* ── Pricing teaser ── */}
-      <section className="border-t border-gray-200 bg-white">
-        <div className="mx-auto grid max-w-6xl gap-10 px-5 py-20 sm:px-8 sm:py-24 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:gap-20">
+      {/* ── Atlas ── */}
+      <section className="bg-white">
+        <div className="mx-auto grid max-w-6xl gap-10 px-5 py-16 sm:px-8 sm:py-20 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:gap-16">
+          <AnimateIn>
+            <div className="flex items-center gap-3">
+              <Compass className="h-6 w-6 text-[#0B57D8]" strokeWidth={1.9} />
+              <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
+                Atlas, the built-in assistant
+              </h2>
+            </div>
+            <p className="mt-4 max-w-lg text-[16px] leading-relaxed text-gray-600">
+              Every WorkBench account includes Atlas, an AI assistant that
+              works the same tools your team does, with the same permissions
+              and a confirmation before anything goes out the door. Ask it to
+              do the busywork in plain English.
+            </p>
+            <p className="mt-3 max-w-lg text-[14.5px] text-gray-600">
+              Every account gets 10,000 Atlas tokens free each month. Atlas
+              Full adds 150,000 a month for $20.{" "}
+              <Link href="/features/atlas" className="font-bold text-[#0B57D8] hover:underline">
+                More about Atlas
+              </Link>
+            </p>
+          </AnimateIn>
+          <AnimateIn delay={120}>
+            <div className="rounded-md border border-gray-200 bg-[#F5F7FA] p-6">
+              <p className="text-[13px] font-bold uppercase tracking-wide text-gray-500">
+                Things you can ask
+              </p>
+              <ul className="mt-4 divide-y divide-gray-200">
+                {atlasExamples.map((line) => (
+                  <li key={line} className="flex items-start gap-3 py-3 text-[15px] text-gray-800">
+                    <MessageSquare className="mt-0.5 h-4 w-4 flex-none text-[#0B57D8]" strokeWidth={2} />
+                    “{line}”
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </AnimateIn>
+        </div>
+      </section>
+
+      {/* ── Pricing ── */}
+      <section className="border-y border-gray-200 bg-[#F5F7FA]">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-16 sm:px-8 sm:py-20 lg:grid-cols-2 lg:gap-16">
           <AnimateIn>
             <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
-              Free. <span className="text-[#0B57D8]">Yes, actually.</span>
+              Free for your whole team. We earn when the job gets paid.
             </h2>
-            <p className="mt-5 max-w-lg text-[15.5px] leading-relaxed text-gray-600">
-              WorkBench doesn&apos;t charge per seat, per month, or per
-              feature. The software earns the same way you do — when a job
-              gets paid — through built-in payment processing at one flat
-              rate. Every essential feature is free, for your whole team,
-              forever.
+            <p className="mt-4 max-w-lg text-[16px] leading-relaxed text-gray-600">
+              WorkBench does not charge per seat, per month, or per feature.
+              The software is funded by built-in payment processing at one
+              flat rate, so it costs nothing until a client pays you through
+              it.
             </p>
+            <ul className="mt-7 grid gap-3">
+              {[
+                "Unlimited team members, all roles included",
+                "Every essential feature on, no tiers to climb",
+                "Card and ACH at 2.9% + 30¢ per transaction, 0.75% for ACH",
+                "No contracts. Your data exports any time",
+              ].map((line) => (
+                <li key={line} className="flex items-start gap-3 text-[15px] text-gray-800">
+                  <Check className="mt-1 h-4 w-4 flex-none text-[#0B57D8]" strokeWidth={3} />
+                  {line}
+                </li>
+              ))}
+            </ul>
             <Link
               href="/pricing"
-              className="mt-7 inline-flex items-center gap-2 rounded-lg border-2 border-gray-300 bg-white px-6 py-3 text-[15px] font-bold text-gray-900 transition-colors hover:border-gray-900"
+              className="mt-7 inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-6 py-3 text-[15px] font-bold text-gray-900 transition-colors hover:border-gray-900"
             >
               How the pricing works
               <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
             </Link>
           </AnimateIn>
-          <AnimateIn delay={130}>
-            <ul className="grid content-center gap-4">
-              {[
-                { icon: Users, line: "Unlimited team members, all roles included" },
-                { icon: FileText, line: "Every essential feature on, no tiers to climb" },
-                { icon: CreditCard, line: "Card & ACH at 2.9% + 30¢ per transaction" },
-                { icon: PenLine, line: "No contracts — your data exports any time" },
-              ].map(({ icon: Icon, line }, i) => (
-                <li key={line} className="flex items-center gap-3.5">
-                  <div className={`flex h-9 w-9 flex-none items-center justify-center rounded-xl ${i % 2 ? "bg-orange-50" : "bg-blue-50"}`}>
-                    <Icon className={`h-4 w-4 ${i % 2 ? "text-[#F86A0A]" : "text-[#0B57D8]"}`} strokeWidth={2} />
-                  </div>
-                  <span className="text-[15px] text-gray-700">{line}</span>
-                </li>
-              ))}
-            </ul>
+          <AnimateIn delay={120}>
+            <div className="relative aspect-[4/3] overflow-hidden rounded-md bg-gray-100">
+              <Image
+                src={WB_PHOTOS.paid.src}
+                alt={WB_PHOTOS.paid.alt}
+                fill
+                sizes="(max-width: 1024px) 100vw, 540px"
+                className="object-cover"
+              />
+            </div>
+          </AnimateIn>
+        </div>
+      </section>
+
+      {/* ── About and contact ── */}
+      <section id="contact" className="scroll-mt-24 bg-white">
+        <div className="mx-auto grid max-w-6xl gap-10 px-5 py-16 sm:px-8 sm:py-20 lg:grid-cols-[1.2fr_1fr] lg:gap-16">
+          <AnimateIn>
+            <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
+              Who is behind WorkBench
+            </h2>
+            <p className="mt-4 text-[16px] leading-relaxed text-gray-600">
+              WorkBench is built and supported by Streamflaire, a small software
+              company in Allen, Texas. We build the software, answer the phone,
+              and review every application ourselves. When you call, you reach
+              the people who can actually change something.
+            </p>
+            <p className="mt-4 text-[16px] leading-relaxed text-gray-600">
+              Because WorkBench moves real money, every company is verified
+              before its account opens. That takes a short form and a business
+              day, and most companies are scheduling and quoting the same day
+              they are approved.
+            </p>
+          </AnimateIn>
+          <AnimateIn delay={120}>
+            <div className="rounded-md border border-gray-200 bg-[#F5F7FA] p-7">
+              <p className="text-[13px] font-bold uppercase tracking-wide text-gray-500">
+                Get in touch
+              </p>
+              <a href={WB_PHONE.href} className="mt-4 flex items-center gap-3 text-gray-900 hover:text-[#0B57D8]">
+                <Phone className="h-5 w-5 flex-none text-[#F86A0A]" strokeWidth={2.25} aria-hidden />
+                <span className="text-[22px] font-extrabold">{WB_PHONE.display}</span>
+              </a>
+              <a href={WB_EMAIL_HREF} className="mt-3 flex items-center gap-3 text-[15.5px] font-semibold text-gray-800 hover:text-[#0B57D8]">
+                <Mail className="h-5 w-5 flex-none text-[#F86A0A]" strokeWidth={2.25} aria-hidden />
+                {WB_EMAIL}
+              </a>
+              <p className="mt-5 text-[14px] leading-relaxed text-gray-600">
+                Call with questions about the software, pricing, or your trade.
+                If nobody picks up, leave a message and we call you back.
+              </p>
+              <Link href="/contact" className="mt-4 inline-flex items-center gap-1.5 text-[14px] font-bold text-[#0B57D8] hover:underline">
+                Contact page
+                <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+              </Link>
+            </div>
           </AnimateIn>
         </div>
       </section>
 
       {/* ── FAQ ── */}
-      <section className="mx-auto max-w-3xl px-5 py-20 sm:px-8 sm:py-24">
-        <AnimateIn>
-          <h2 className="text-center text-3xl font-extrabold leading-tight sm:text-4xl">
-            Frequently asked questions
-          </h2>
-        </AnimateIn>
-        <AnimateIn delay={120} className="mt-10">
-          <WBFaq items={faqItems} />
-        </AnimateIn>
+      <section className="border-t border-gray-200 bg-[#F5F7FA]">
+        <div className="mx-auto max-w-3xl px-5 py-16 sm:px-8 sm:py-20">
+          <AnimateIn>
+            <h2 className="text-center text-3xl font-extrabold leading-tight sm:text-4xl">
+              Frequently asked questions
+            </h2>
+          </AnimateIn>
+          <AnimateIn delay={120} className="mt-10">
+            <WBFaq items={faqItems} />
+          </AnimateIn>
+        </div>
       </section>
 
-      {/* ── Apply band ── */}
-      <section className="mx-auto max-w-6xl px-5 pb-16 sm:px-8">
-        <AnimateIn>
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0B2250] via-[#0A1B3D] to-[#0A1428] px-6 py-14 text-center sm:px-12">
-            <div className="wb-grid-lines pointer-events-none absolute inset-0" aria-hidden />
-            <div className="relative">
-              <h2 className="mx-auto max-w-xl text-3xl font-extrabold leading-tight text-white sm:text-4xl">
-                Your account opens today.
-              </h2>
-              <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-blue-100/85">
-                Tell us about your business, verify payments, and start
-                setting up — most companies are quoting and scheduling the
-                same day they sign up.
-              </p>
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-                <Link
-                  href="/apply"
-                  className="wb-btn-tool inline-flex items-center gap-2 rounded-lg bg-[#F86A0A] px-7 py-3 text-[15px] font-bold text-white"
-                >
-                  Get started
-                  <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-                </Link>
-                <a
-                  href={APP_STORE_URL}
-                  target="_blank"
-                  rel="noopener"
-                  aria-label="Download WorkBench on the App Store"
-                  className="transition-opacity hover:opacity-80"
-                >
-                  <Image
-                    src="/app-store-badge.svg"
-                    alt="Download on the App Store"
-                    width={120}
-                    height={40}
-                    unoptimized
-                    className="h-[44px] w-auto"
-                  />
-                </a>
-              </div>
-              <p className="mt-6 text-[14px] text-blue-100/75">
-                Questions first? Call us at{" "}
-                <a
-                  href={WB_PHONE.href}
-                  className="font-bold text-white underline decoration-white/40 underline-offset-4 hover:decoration-white"
-                >
-                  {WB_PHONE.display}
-                </a>
-                .
-              </p>
-            </div>
-          </div>
-        </AnimateIn>
-      </section>
+      <WBCta />
     </>
   );
 }

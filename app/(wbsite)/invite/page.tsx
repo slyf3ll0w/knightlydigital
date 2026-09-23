@@ -22,7 +22,6 @@ export default async function WBInvitePage() {
   return (
     <>
       <section className="relative overflow-hidden">
-        <div className="wb-grid-paper pointer-events-none absolute inset-0" aria-hidden />
         <div className="relative mx-auto max-w-6xl px-5 pt-16 sm:px-8 sm:pt-24">
           <AnimateIn>
             <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">

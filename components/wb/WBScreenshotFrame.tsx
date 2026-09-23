@@ -33,7 +33,7 @@ export default function WBScreenshotFrame({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_24px_60px_rgba(10,20,40,0.16)]">
+    <div className="overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm">
       <div className="flex items-center gap-2 border-b border-gray-200 bg-gray-50 px-4 py-2.5">
         <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" aria-hidden />
         <span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" aria-hidden />

@@ -8,7 +8,7 @@ export type FaqItem = { q: string; a: React.ReactNode };
  */
 export default function WBFaq({ items }: { items: FaqItem[] }) {
   return (
-    <div className="divide-y divide-gray-200 overflow-hidden rounded-2xl border border-gray-200 bg-white">
+    <div className="divide-y divide-gray-200 overflow-hidden rounded-md border border-gray-200 bg-white">
       {items.map(({ q, a }) => (
         <details key={q} className="group">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5 text-[15px] font-bold text-gray-900 transition-colors hover:bg-gray-50 [&::-webkit-details-marker]:hidden">

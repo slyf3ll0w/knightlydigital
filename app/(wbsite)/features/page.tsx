@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { AnimateIn } from "@/components/AnimateIn";
+import WBCta from "@/components/wb/WBCta";
 import WBPhoneShowcase from "@/components/wb/WBPhoneShowcase";
 import { APP_STORE_URL, sections } from "@/lib/wb-features";
 import {
@@ -37,26 +38,25 @@ export default function WBFeaturesPage() {
   return (
     <>
       {/* ── Hero ── */}
-      <section className="relative overflow-hidden">
-        <div className="wb-grid-paper pointer-events-none absolute inset-0" aria-hidden />
-        <div className="relative mx-auto max-w-6xl px-5 pt-16 sm:px-8 sm:pt-24">
+      <section className="border-b border-gray-200 bg-white">
+        <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-20">
           <AnimateIn>
             <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">
-              Every feature. <span className="text-[#0B57D8]">End to end.</span>
+              Every feature in WorkBench
             </h1>
             <p className="mt-6 max-w-2xl text-[17px] leading-relaxed text-gray-600">
-              WorkBench covers the whole arc of a job — winning it, running
-              it, getting paid for it, and keeping the client for the next
-              one. Sections 01–04 below are in the free plan, for every seat
-              on your team; Atlas, the AI assistant, gives every account free
-              tokens each month, with a bigger paid allowance for heavy users.
+              WorkBench covers the whole arc of a job: winning it, running it,
+              getting paid for it, and keeping the client for the next one.
+              Sections 01 to 04 are in the free plan for every seat on your
+              team. Atlas, the AI assistant, gives every account free tokens
+              each month, with a larger paid allowance for heavy users.
             </p>
             <div className="mt-8 flex flex-wrap gap-2.5">
               {sections.map((s) => (
                 <a
                   key={s.id}
                   href={`#${s.id}`}
-                  className={`rounded-full px-4 py-2 text-[13px] font-bold transition-colors hover:opacity-80 ${s.chip}`}
+                  className={`rounded-md px-4 py-2 text-[13px] font-bold transition-colors hover:opacity-80 ${s.chip}`}
                 >
                   {s.num} · {s.title}
                 </a>
@@ -88,7 +88,7 @@ export default function WBFeaturesPage() {
           <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-20">
             <AnimateIn>
               <div className="flex items-baseline gap-3">
-                <span className={`rounded-full px-2.5 py-1 text-[11.5px] font-bold ${section.chip}`}>
+                <span className={`rounded-md px-2.5 py-1 text-[11.5px] font-bold ${section.chip}`}>
                   {section.num}
                 </span>
                 <h2 className="text-2xl font-extrabold sm:text-3xl">{section.title}</h2>
@@ -116,7 +116,7 @@ export default function WBFeaturesPage() {
                   <Link
                     key={l.href}
                     href={l.href}
-                    className={`rounded-full px-4 py-2 text-[13px] font-bold transition-colors hover:opacity-80 ${section.chip}`}
+                    className={`rounded-md px-4 py-2 text-[13px] font-bold transition-colors hover:opacity-80 ${section.chip}`}
                   >
                     {l.label}
                   </Link>
@@ -128,54 +128,52 @@ export default function WBFeaturesPage() {
       ))}
 
       {/* ── Atlas ── */}
-      <section id="atlas" className="scroll-mt-24">
+      <section id="atlas" className="scroll-mt-24 border-t border-gray-200 bg-[#F5F7FA]">
         <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-20">
           <AnimateIn>
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0B57D8] to-[#0847AE] px-6 py-12 text-white sm:px-10">
-              <div className="wb-grid-lines pointer-events-none absolute inset-0" aria-hidden />
-              <div className="relative grid gap-10 lg:grid-cols-[1.1fr_1fr] lg:items-center">
-                <div>
-                  <div className="flex items-baseline gap-3">
-                    <span className="rounded-full bg-white/15 px-2.5 py-1 text-[11.5px] font-bold text-blue-100">
-                      05
-                    </span>
-                    <h2 className="text-2xl font-extrabold sm:text-3xl">Atlas, the AI assistant</h2>
-                  </div>
-                  <p className="mt-4 max-w-lg text-[15px] leading-relaxed text-blue-100/90">
-                    Atlas works the same tools your team does — scheduling,
-                    quotes, invoices, messages — with the same permissions,
-                    and it confirms with you before anything goes out the
-                    door. Ask it to do the busywork in plain English and get
-                    your evening back.
-                  </p>
-                  <p className="mt-3 max-w-lg text-[13px] font-semibold text-blue-200/80">
-                    10,000 free tokens every month on every account. Atlas
-                    Full: 150,000 a month for $20 — the one thing with a meter.
-                  </p>
+            <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr] lg:items-center">
+              <div>
+                <div className="flex items-baseline gap-3">
+                  <span className="rounded-md bg-blue-50 px-2.5 py-1 text-[11.5px] font-bold text-[#0B57D8]">
+                    05
+                  </span>
+                  <h2 className="text-2xl font-extrabold sm:text-3xl">Atlas, the AI assistant</h2>
                 </div>
-                <ul className="flex flex-col gap-3">
+                <p className="mt-4 max-w-lg text-[15.5px] leading-relaxed text-gray-600">
+                  Atlas works the same tools your team does, with the same
+                  permissions, and it confirms with you before anything goes
+                  out the door. Ask it to do the busywork in plain English.
+                </p>
+                <p className="mt-3 max-w-lg text-[14px] leading-relaxed text-gray-600">
+                  10,000 free tokens every month on every account. Atlas Full
+                  is 150,000 a month for $20, the one thing with a meter.
+                </p>
+                <Link
+                  href="/features/atlas"
+                  className="mt-6 inline-flex items-center gap-1.5 text-[14px] font-bold text-[#0B57D8] hover:underline"
+                >
+                  Atlas, in depth
+                  <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+                </Link>
+              </div>
+              <div className="rounded-md border border-gray-200 bg-white p-6">
+                <p className="text-[13px] font-bold uppercase tracking-wide text-gray-500">
+                  Things you can ask
+                </p>
+                <ul className="mt-3 divide-y divide-gray-200">
                   {[
-                    "“Send the Hendersons their quote”",
-                    "“Reschedule Tuesday's jobs to Friday”",
-                    "“Who still owes me money?”",
-                    "“Book a follow-up visit for the Elm St job”",
+                    "Send the Hendersons their quote.",
+                    "Reschedule Tuesday's jobs to Friday.",
+                    "Who still owes me money?",
+                    "Book a follow-up visit for the Elm Street job.",
                   ].map((line) => (
-                    <li
-                      key={line}
-                      className="flex w-fit items-center gap-2 rounded-full bg-white px-4 py-2 text-[13.5px] font-semibold text-gray-700 shadow-sm"
-                    >
-                      <Compass className="h-4 w-4 flex-none text-[#0B57D8]" strokeWidth={2} />
-                      {line}
+                    <li key={line} className="flex items-start gap-3 py-3 text-[14.5px] text-gray-800">
+                      <Compass className="mt-0.5 h-4 w-4 flex-none text-[#0B57D8]" strokeWidth={2} />
+                      “{line}”
                     </li>
                   ))}
                 </ul>
               </div>
-              <Link
-                href="/features/atlas"
-                className="relative mt-8 inline-flex w-fit items-center gap-1.5 rounded-full bg-white/15 px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-white/25"
-              >
-                Atlas, in depth →
-              </Link>
             </div>
           </AnimateIn>
         </div>
@@ -215,8 +213,8 @@ export default function WBFeaturesPage() {
                 },
               ].map(({ icon: Icon, title, body }) => (
                 <li key={title} className="flex gap-4">
-                  <div className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-orange-50">
-                    <Icon className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2} />
+                  <div className="flex h-10 w-10 flex-none items-center justify-center rounded-md bg-white ring-1 ring-inset ring-gray-200">
+                    <Icon className="h-[18px] w-[18px] text-[#0B57D8]" strokeWidth={2} />
                   </div>
                   <div>
                     <p className="text-[15px] font-bold text-gray-900">{title}</p>
@@ -248,38 +246,10 @@ export default function WBFeaturesPage() {
         </div>
       </section>
 
-      {/* ── CTA ── */}
-      <section className="mx-auto max-w-6xl px-5 py-16 sm:px-8">
-        <AnimateIn>
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0B2250] via-[#0A1B3D] to-[#0A1428] px-6 py-14 text-center sm:px-12">
-            <div className="wb-grid-lines pointer-events-none absolute inset-0" aria-hidden />
-            <div className="relative">
-              <h2 className="mx-auto max-w-xl text-3xl font-extrabold leading-tight text-white sm:text-4xl">
-                All of it, free — for your whole team.
-              </h2>
-              <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-blue-100/85">
-                No tiers to climb and no seats to count. Apply, and we&apos;ll
-                onboard your company personally.
-              </p>
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-                <Link
-                  href="/apply"
-                  className="wb-btn-tool inline-flex items-center gap-2 rounded-lg bg-[#F86A0A] px-7 py-3 text-[15px] font-bold text-white"
-                >
-                  Get started
-                  <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-                </Link>
-                <Link
-                  href="/pricing"
-                  className="inline-flex items-center gap-2 rounded-lg border-2 border-white/25 px-6 py-3 text-[15px] font-bold text-white transition-colors hover:border-white/60"
-                >
-                  How the pricing works
-                </Link>
-              </div>
-            </div>
-          </div>
-        </AnimateIn>
-      </section>
+      <WBCta
+        title="All of it, free, for your whole team."
+        body="No tiers to climb and no seats to count. Sign up and we onboard your company personally."
+      />
     </>
   );
 }

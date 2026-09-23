@@ -20,7 +20,6 @@ export default function AccountDeletionPage() {
     <>
       {/* ── Hero ── */}
       <section className="relative overflow-hidden">
-        <div className="wb-grid-paper pointer-events-none absolute inset-0" aria-hidden />
         <div className="relative mx-auto max-w-3xl px-5 pt-16 pb-10 sm:px-8 sm:pt-24">
           <AnimateIn>
             <p

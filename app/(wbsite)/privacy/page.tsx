@@ -144,7 +144,6 @@ export default function PrivacyPage() {
     <>
       {/* ── Hero ── */}
       <section className="relative overflow-hidden">
-        <div className="wb-grid-paper pointer-events-none absolute inset-0" aria-hidden />
         <div className="relative mx-auto max-w-3xl px-5 pt-16 pb-10 sm:px-8 sm:pt-24">
           <AnimateIn>
             <p
@@ -165,7 +164,7 @@ export default function PrivacyPage() {
       <section className="border-t border-gray-200 bg-white">
         <div className="mx-auto max-w-3xl px-5 py-14 sm:px-8 sm:py-16">
           <AnimateIn>
-            <div className="rounded-xl border border-blue-100 bg-blue-50/60 px-5 py-4">
+            <div className="rounded-md border border-blue-100 bg-blue-50/60 px-5 py-4">
               <p className="text-[15px] leading-relaxed text-gray-700">
                 <span className="font-bold text-gray-900">The short version:</span> we
                 collect what we need to run the product, we never sell your data, your

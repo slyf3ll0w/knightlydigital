@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
+import WBCta from "@/components/wb/WBCta";
 import WBFaq, { FaqItem } from "./WBFaq";
 import WBCompareTable, { CompareRow } from "./WBCompareTable";
 import type { FeatureItem } from "@/lib/wb-features";
@@ -31,11 +32,10 @@ export default function WBComparePage({
   return (
     <>
       {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div className="wb-grid-paper pointer-events-none absolute inset-0" aria-hidden />
-        <div className="relative mx-auto max-w-6xl px-5 pt-16 sm:px-8 sm:pt-24">
+      <section className="border-b border-gray-200 bg-white">
+        <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-20">
           <AnimateIn>
-            <span className="inline-block rounded-full bg-blue-50 px-3 py-1 text-[12.5px] font-bold text-[#0B57D8]">
+            <span className="inline-block rounded-md bg-blue-50 px-3 py-1 text-[12.5px] font-bold text-[#0B57D8]">
               WorkBench vs. {competitorName}
             </span>
             <h1 className="mt-5 max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">{title}</h1>
@@ -43,14 +43,14 @@ export default function WBComparePage({
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link
                 href="/apply"
-                className="wb-btn-tool inline-flex items-center gap-2 rounded-lg bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white"
+                className="wb-btn inline-flex items-center gap-2 rounded-md bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white"
               >
                 Get started
                 <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
               </Link>
               <Link
                 href="/pricing"
-                className="inline-flex items-center gap-2 rounded-lg border-2 border-gray-200 px-6 py-3 text-[15px] font-bold text-gray-700 transition-colors hover:border-gray-400"
+                className="inline-flex items-center gap-2 rounded-md border-2 border-gray-200 px-6 py-3 text-[15px] font-bold text-gray-700 transition-colors hover:border-gray-400"
               >
                 How the pricing works
               </Link>
@@ -65,7 +65,7 @@ export default function WBComparePage({
       </section>
 
       {/* Table */}
-      <section className="border-y border-gray-200 bg-white">
+      <section className="border-b border-gray-200 bg-[#F5F7FA]">
         <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8">
           <AnimateIn>
             <WBCompareTable competitorName={competitorName} rows={rows} />
@@ -76,7 +76,7 @@ export default function WBComparePage({
       {/* Fair point */}
       <section className="mx-auto max-w-4xl px-5 py-16 sm:px-8">
         <AnimateIn>
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 px-6 py-7 sm:px-8">
+          <div className="rounded-md border border-gray-200 bg-gray-50 px-6 py-7 sm:px-8">
             <p className="text-[12.5px] font-bold uppercase tracking-wide text-gray-400">
               Fair's fair
             </p>
@@ -127,7 +127,7 @@ export default function WBComparePage({
               <Link
                 key={slug}
                 href={`/vs/${slug}`}
-                className="rounded-full border border-gray-200 px-4 py-2 text-[13.5px] font-semibold text-gray-700 transition-colors hover:border-gray-400"
+                className="rounded-md border border-gray-200 px-4 py-2 text-[13.5px] font-semibold text-gray-700 transition-colors hover:border-gray-400"
               >
                 vs. {slug === "servicetitan" ? "ServiceTitan" : slug === "housecall-pro" ? "Housecall Pro" : "Jobber"} →
               </Link>
@@ -136,38 +136,11 @@ export default function WBComparePage({
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="mx-auto max-w-6xl px-5 py-16 sm:px-8">
-        <AnimateIn>
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0B2250] via-[#0A1B3D] to-[#0A1428] px-6 py-14 text-center sm:px-12">
-            <div className="wb-grid-lines pointer-events-none absolute inset-0" aria-hidden />
-            <div className="relative">
-              <h2 className="mx-auto max-w-xl text-3xl font-extrabold leading-tight text-white sm:text-4xl">
-                Free software. Pay only when you get paid.
-              </h2>
-              <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-blue-100/85">
-                No tiers to climb and no seats to count. Apply, and we&apos;ll
-                onboard your company personally.
-              </p>
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-                <Link
-                  href="/apply"
-                  className="wb-btn-tool inline-flex items-center gap-2 rounded-lg bg-[#F86A0A] px-7 py-3 text-[15px] font-bold text-white"
-                >
-                  Get started
-                  <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-                </Link>
-                <Link
-                  href="/features"
-                  className="inline-flex items-center gap-2 rounded-lg border-2 border-white/25 px-6 py-3 text-[15px] font-bold text-white transition-colors hover:border-white/60"
-                >
-                  See every feature
-                </Link>
-              </div>
-            </div>
-          </div>
-        </AnimateIn>
-      </section>
+      <WBCta
+        title="Free software. Pay only when you get paid."
+        body="No tiers to climb and no seats to count. Sign up and we onboard your company personally."
+        secondary={{ label: "See every feature", href: "/features" }}
+      />
     </>
   );
 }

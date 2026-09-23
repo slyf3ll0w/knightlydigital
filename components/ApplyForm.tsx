@@ -230,10 +230,10 @@ export default function ApplyForm({
         className={
           inApp
             ? "py-10 text-center"
-            : "rounded-3xl border border-gray-200 bg-white px-6 py-14 text-center sm:px-12"
+            : "rounded-md border border-gray-200 bg-white px-6 py-14 text-center sm:px-12"
         }
       >
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-md bg-blue-50">
           <CheckCircle2 className="h-5 w-5 text-[#0B57D8]" strokeWidth={2} />
         </div>
         <h2 className={`mx-auto mt-5 max-w-md ${headingClass}`}>
@@ -250,8 +250,8 @@ export default function ApplyForm({
   }
 
   const inputClass = inApp
-    ? "w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-[15px] text-gray-900 placeholder:text-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#0B57D8]"
-    : "w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-[15px] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#0B57D8]";
+    ? "w-full rounded-md border border-gray-300 bg-white px-3.5 py-2.5 text-[15px] text-gray-900 placeholder:text-gray-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#0B57D8]"
+    : "w-full rounded-md border border-gray-300 px-3.5 py-2.5 text-[15px] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#0B57D8]";
   const labelClass = "mb-1.5 block text-[13.5px] font-semibold text-gray-800";
 
   // Coming back from Google, the session takes a beat to load. Until it
@@ -263,7 +263,7 @@ export default function ApplyForm({
         className={
           inApp
             ? "py-16 text-center"
-            : "rounded-3xl border border-gray-200 bg-white px-6 py-16 text-center sm:px-12"
+            : "rounded-md border border-gray-200 bg-white px-6 py-16 text-center sm:px-12"
         }
       >
         <Loader2 className="mx-auto h-5 w-5 animate-spin text-gray-400" />
@@ -279,10 +279,10 @@ export default function ApplyForm({
         className={
           inApp
             ? "py-8 text-center"
-            : "rounded-3xl border border-gray-200 bg-white px-6 py-12 text-center sm:px-12"
+            : "rounded-md border border-gray-200 bg-white px-6 py-12 text-center sm:px-12"
         }
       >
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-md bg-blue-50">
           <CheckCircle2 className="h-5 w-5 text-[#0B57D8]" strokeWidth={2} />
         </div>
         <h2 className={`mx-auto mt-5 max-w-md ${headingClass}`}>You already have an account.</h2>
@@ -298,7 +298,7 @@ export default function ApplyForm({
         <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <a
             href="/app/dashboard"
-            className="wb-btn-tool inline-flex items-center rounded-lg bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white"
+            className="wb-btn inline-flex items-center rounded-md bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white"
           >
             Open WorkBench
           </a>
@@ -317,7 +317,7 @@ export default function ApplyForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className={inApp ? "" : "rounded-3xl border border-gray-200 bg-white p-6 sm:p-10"}
+      className={inApp ? "" : "rounded-md border border-gray-200 bg-white p-6 sm:p-10"}
     >
       <h2 className={headingClass}>
         {waived ? "Open your account" : "Tell us about your business"}
@@ -660,8 +660,8 @@ export default function ApplyForm({
         disabled={loading || codeState === "checking" || (captchaEnabled && !captchaToken)}
         className={
           inApp
-            ? "mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-[#0B57D8] py-3 text-[15px] font-bold text-white transition-colors hover:bg-[#0A4CBB] active:bg-[#09429F] disabled:opacity-50"
-            : "wb-btn-tool mt-6 inline-flex items-center gap-2 rounded-lg bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white disabled:opacity-50"
+            ? "mt-6 flex w-full items-center justify-center gap-2 rounded-md bg-[#0B57D8] py-3 text-[15px] font-bold text-white transition-colors hover:bg-[#0A4CBB] active:bg-[#09429F] disabled:opacity-50"
+            : "wb-btn mt-6 inline-flex items-center gap-2 rounded-md bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white disabled:opacity-50"
         }
       >
         {loading && <Loader2 size={15} className="animate-spin" />}

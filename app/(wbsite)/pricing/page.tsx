@@ -5,6 +5,7 @@ import WBFaq from "@/components/wb/WBFaq";
 import WBPricing from "@/components/wb/WBPricing";
 import { ArrowRight, Compass, CreditCard, HandCoins, Puzzle, ShieldCheck, Sparkles } from "lucide-react";
 import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } from "@/lib/atlas-pricing";
+import { WB_PHONE } from "@/lib/wb-site";
 
 const freeTokens = tokenCount(ATLAS_FREE_TOKENS);
 const planTokens = tokenCount(ATLAS_PLAN_TOKENS);
@@ -85,24 +86,23 @@ export default function WBPricingPage() {
   return (
     <>
       {/* ── Hero ── */}
-      <section className="relative overflow-hidden">
-        <div className="wb-grid-paper pointer-events-none absolute inset-0" aria-hidden />
-        <div className="relative mx-auto max-w-6xl px-5 pt-16 sm:px-8 sm:pt-24">
+      <section className="border-b border-gray-200 bg-white">
+        <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-20">
           <AnimateIn>
             <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">
-              Free. <span className="text-[#0B57D8]">We&apos;re not kidding.</span>
+              WorkBench is free to use.
             </h1>
             <p className="mt-6 max-w-xl text-[17px] leading-relaxed text-gray-600">
-              No per-seat pricing, no monthly plan, no feature tiers, no
-              14-day countdown. Pick annual or monthly billing below — the
-              difference is a joke, and the joke is the pricing model.
+              No per-seat pricing, no monthly plan, no feature tiers, and no
+              trial countdown. The software is funded by payment processing
+              at one flat rate, explained below.
             </p>
           </AnimateIn>
         </div>
       </section>
 
       {/* ── The card ── */}
-      <section className="mx-auto max-w-6xl px-5 py-14 sm:px-8">
+      <section className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-16">
         <AnimateIn>
           <WBPricing />
         </AnimateIn>
@@ -156,7 +156,7 @@ export default function WBPricingPage() {
               ].map(({ icon: Icon, title, body }, i) => (
                 <AnimateIn key={title} delay={i * 100}>
                   <li className="flex gap-4">
-                    <div className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-blue-50">
+                    <div className="flex h-10 w-10 flex-none items-center justify-center rounded-md bg-blue-50">
                       <Icon className="h-[18px] w-[18px] text-[#0B57D8]" strokeWidth={2} />
                     </div>
                     <div>
@@ -175,7 +175,7 @@ export default function WBPricingPage() {
       <section className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
         <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:gap-20">
           <AnimateIn>
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50">
+            <div className="flex h-11 w-11 items-center justify-center rounded-md bg-orange-50">
               <Puzzle className="h-5 w-5 text-[#F86A0A]" strokeWidth={2} />
             </div>
             <h2 className="mt-5 text-3xl font-extrabold leading-tight sm:text-4xl">
@@ -220,7 +220,7 @@ export default function WBPricingPage() {
           </AnimateIn>
           <div className="mt-10 grid gap-6 lg:grid-cols-2">
             <AnimateIn>
-              <div className="flex h-full flex-col rounded-3xl border border-gray-200 bg-white p-8">
+              <div className="flex h-full flex-col rounded-md border border-gray-200 bg-white p-8">
                 <p className="text-[13px] font-bold uppercase tracking-wide text-[#0B57D8]">
                   Atlas Free
                 </p>
@@ -252,8 +252,7 @@ export default function WBPricingPage() {
               </div>
             </AnimateIn>
             <AnimateIn delay={120}>
-              <div className="relative flex h-full flex-col overflow-hidden rounded-3xl bg-gradient-to-br from-[#0050D4] to-[#003FA5] p-8 text-white">
-                <div className="wb-grid-lines pointer-events-none absolute inset-0" aria-hidden />
+              <div className="relative flex h-full flex-col overflow-hidden rounded-md bg-[#0A1428] p-8 text-white">
                 <div className="relative flex h-full flex-col">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-[13px] font-bold uppercase tracking-wide text-blue-200">
@@ -315,24 +314,24 @@ export default function WBPricingPage() {
         <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-5 py-16 sm:px-8 md:flex-row md:items-center">
           <AnimateIn>
             <h2 className="text-2xl font-extrabold sm:text-3xl">
-              Sounds fair? It is.
+              Questions about pricing?
             </h2>
             <p className="mt-2 text-[15px] text-gray-500">
-              Tell us about your business and your account opens today —
-              free, start to finish.
+              Call {WB_PHONE.display} and we will walk through it with you, or
+              sign up and your account opens today.
             </p>
           </AnimateIn>
           <AnimateIn delay={120} className="flex flex-wrap items-center gap-4">
             <Link
               href="/apply"
-              className="wb-btn-tool inline-flex items-center gap-2 rounded-lg bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white"
+              className="wb-btn inline-flex items-center gap-2 rounded-md bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white"
             >
               Get started
               <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
             </Link>
             <Link
               href="/features"
-              className="inline-flex items-center gap-2 rounded-lg border-2 border-gray-300 bg-white px-6 py-3 text-[15px] font-bold text-gray-900 transition-colors hover:border-gray-900"
+              className="inline-flex items-center gap-2 rounded-md border-2 border-gray-300 bg-white px-6 py-3 text-[15px] font-bold text-gray-900 transition-colors hover:border-gray-900"
             >
               See every feature
             </Link>

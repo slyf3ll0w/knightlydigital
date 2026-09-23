@@ -53,10 +53,9 @@ export default function WBPricing() {
   const annual = billing === "annual";
 
   return (
-    <div className="grid overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_18px_50px_rgba(11,87,216,0.08)] lg:grid-cols-[350px_1fr]">
+    <div className="grid overflow-hidden rounded-md border border-gray-200 bg-white lg:grid-cols-[350px_1fr]">
       {/* ── Price panel ── */}
-      <div className="relative flex flex-col bg-gradient-to-br from-[#0050D4] to-[#003FA5] p-8 lg:p-10">
-        <div className="wb-grid-lines pointer-events-none absolute inset-0" aria-hidden />
+      <div className="relative flex flex-col bg-[#0A1428] p-8 lg:p-10">
         <div className="relative flex h-full flex-col">
           <p className="text-[13px] font-bold uppercase tracking-wide text-blue-200">
             One plan
@@ -90,8 +89,8 @@ export default function WBPricing() {
           </p>
           <p className="mt-4 text-[14px] leading-relaxed text-blue-100/80">
             {annual
-              ? "$0 per year — every feature, unlimited users."
-              : "$0 per month. Same everything — the monthly plan just bills you nothing more often."}
+              ? "$0 per year. Every feature, unlimited users."
+              : "$0 per month. Same everything, billed nothing more often."}
           </p>
 
           <ul className="mt-7 flex flex-col gap-3">
@@ -112,7 +111,7 @@ export default function WBPricing() {
           <div className="mt-12 lg:mt-auto lg:pt-12">
             <Link
               href="/apply"
-              className="inline-flex w-full items-center justify-center rounded-lg bg-white px-6 py-3.5 text-[14.5px] font-bold text-[#0B57D8] transition-colors hover:bg-blue-50"
+              className="inline-flex w-full items-center justify-center rounded-md bg-white px-6 py-3.5 text-[14.5px] font-bold text-[#0B57D8] transition-colors hover:bg-blue-50"
             >
               Get started →
             </Link>

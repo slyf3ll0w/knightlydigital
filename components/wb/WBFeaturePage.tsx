@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
+import WBCta from "@/components/wb/WBCta";
 import WBFaq, { FaqItem } from "./WBFaq";
 import WBScreenshotFrame from "./WBScreenshotFrame";
 import type { FeatureItem } from "@/lib/wb-features";
@@ -55,11 +56,10 @@ export default function WBFeaturePage({
   return (
     <>
       {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div className="wb-grid-paper pointer-events-none absolute inset-0" aria-hidden />
-        <div className="relative mx-auto max-w-6xl px-5 pt-16 sm:px-8 sm:pt-24">
+      <section className="border-b border-gray-200 bg-white">
+        <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-20">
           <AnimateIn>
-            <span className={`inline-block rounded-full px-3 py-1 text-[12.5px] font-bold ${c.chip}`}>
+            <span className={`inline-block rounded-md px-3 py-1 text-[12.5px] font-bold ${c.chip}`}>
               {eyebrow}
             </span>
             <h1 className="mt-5 max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">{title}</h1>
@@ -67,7 +67,7 @@ export default function WBFeaturePage({
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link
                 href="/apply"
-                className="wb-btn-tool inline-flex items-center gap-2 rounded-lg px-6 py-3 text-[15px] font-bold text-white"
+                className="wb-btn inline-flex items-center gap-2 rounded-md px-6 py-3 text-[15px] font-bold text-white"
                 style={{ backgroundColor: c.hex }}
               >
                 Get started
@@ -75,7 +75,7 @@ export default function WBFeaturePage({
               </Link>
               <Link
                 href="/features"
-                className="inline-flex items-center gap-2 rounded-lg border-2 border-gray-200 px-6 py-3 text-[15px] font-bold text-gray-700 transition-colors hover:border-gray-400"
+                className="inline-flex items-center gap-2 rounded-md border-2 border-gray-200 px-6 py-3 text-[15px] font-bold text-gray-700 transition-colors hover:border-gray-400"
               >
                 See every feature
               </Link>
@@ -85,7 +85,7 @@ export default function WBFeaturePage({
       </section>
 
       {/* Screenshot */}
-      <section className="mt-14 border-y border-gray-200 bg-white">
+      <section className="border-b border-gray-200 bg-[#F5F7FA]">
         <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8">
           <AnimateIn className={screenshot.kind === "mobile" ? "flex justify-center" : ""}>
             <div className={screenshot.kind === "mobile" ? "" : "mx-auto max-w-4xl"}>
@@ -167,7 +167,7 @@ export default function WBFeaturePage({
                 <Link
                   key={r.href}
                   href={r.href}
-                  className="rounded-full border border-gray-200 px-4 py-2 text-[13.5px] font-semibold text-gray-700 transition-colors hover:border-gray-400"
+                  className="rounded-md border border-gray-200 px-4 py-2 text-[13.5px] font-semibold text-gray-700 transition-colors hover:border-gray-400"
                 >
                   {r.label} →
                 </Link>
@@ -177,37 +177,7 @@ export default function WBFeaturePage({
         </section>
       )}
 
-      {/* CTA */}
-      <section className="mx-auto max-w-6xl px-5 py-16 sm:px-8">
-        <AnimateIn>
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0B2250] via-[#0A1B3D] to-[#0A1428] px-6 py-14 text-center sm:px-12">
-            <div className="wb-grid-lines pointer-events-none absolute inset-0" aria-hidden />
-            <div className="relative">
-              <h2 className="mx-auto max-w-xl text-3xl font-extrabold leading-tight text-white sm:text-4xl">
-                {ctaTitle}
-              </h2>
-              <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-blue-100/85">
-                {ctaBody}
-              </p>
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-                <Link
-                  href="/apply"
-                  className="wb-btn-tool inline-flex items-center gap-2 rounded-lg bg-[#F86A0A] px-7 py-3 text-[15px] font-bold text-white"
-                >
-                  Get started
-                  <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-                </Link>
-                <Link
-                  href="/pricing"
-                  className="inline-flex items-center gap-2 rounded-lg border-2 border-white/25 px-6 py-3 text-[15px] font-bold text-white transition-colors hover:border-white/60"
-                >
-                  How the pricing works
-                </Link>
-              </div>
-            </div>
-          </div>
-        </AnimateIn>
-      </section>
+      <WBCta title={ctaTitle} body={ctaBody} />
     </>
   );
 }

@@ -155,7 +155,6 @@ const agencyMoved: Record<string, string> = {
   "/custom-web-design": "/",
   "/custom-software": "/",
   "/digital-marketing": "/",
-  "/contact": "/apply",
   "/crm": "/",
 };
 

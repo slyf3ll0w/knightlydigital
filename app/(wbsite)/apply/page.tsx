@@ -37,12 +37,11 @@ export default async function WBApplyPage() {
   return (
     <>
       {/* ── Hero ── */}
-      <section className="relative overflow-hidden">
-        <div className="wb-grid-paper pointer-events-none absolute inset-0" aria-hidden />
-        <div className="relative mx-auto max-w-6xl px-5 pt-16 sm:px-8 sm:pt-24">
+      <section className="border-b border-gray-200 bg-white">
+        <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-20">
           <AnimateIn>
             <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">
-              Get started with <span className="text-[#0B57D8]">WorkBench</span>.
+              Get started with WorkBench
             </h1>
             <div className="mt-6 max-w-2xl space-y-4 text-[16.5px] leading-relaxed text-gray-600">
               <p>
@@ -62,8 +61,8 @@ export default async function WBApplyPage() {
         <div className="grid gap-6 md:grid-cols-3">
           {steps.map(({ icon: Icon, step, title, body }, i) => (
             <AnimateIn key={title} delay={i * 110}>
-              <div className="card-lift h-full rounded-2xl border border-gray-200 bg-white p-7">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${i === 1 ? "bg-orange-50" : "bg-blue-50"}`}>
+              <div className="h-full rounded-md border border-gray-200 bg-white p-7">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-md ${i === 1 ? "bg-orange-50" : "bg-blue-50"}`}>
                   <Icon className={`h-[18px] w-[18px] ${i === 1 ? "text-[#F86A0A]" : "text-[#0B57D8]"}`} strokeWidth={2} />
                 </div>
                 <p className="mt-5 text-[12px] font-bold uppercase tracking-wide text-gray-400">{step}</p>

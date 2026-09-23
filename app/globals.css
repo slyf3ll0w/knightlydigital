@@ -1901,79 +1901,22 @@ html[data-mode="dark"] .app-ui .card-tool {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   WORKBENCH MARKETING SITE (.wb-site) — /wb, /pricing, /apply. Rounded
-   Nunito headings (same face as the wordmark), blue graph-paper heroes,
-   and the hard-shadow "tool button" that presses down on hover.
+   WORKBENCH MARKETING SITE (.wb-site) — /, /features, /pricing, /contact,
+   /apply. Nunito headings (same face as the wordmark) over Inter body,
+   white and light-gray bands, square-ish corners, flat buttons. Reads like
+   a business site, not a product launch.
    ═══════════════════════════════════════════════════════════════════════ */
 .wb-site h1, .wb-site h2, .wb-site h3, .wb-site h4 {
   font-family: "Nunito", var(--font-body);
   letter-spacing: -0.015em;
 }
-.wb-grid-paper {
-  background-image:
-    linear-gradient(rgba(11, 87, 216, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(11, 87, 216, 0.07) 1px, transparent 1px);
-  background-size: 30px 30px;
-  -webkit-mask-image: radial-gradient(ellipse 75% 75% at 50% 25%, black 25%, transparent 78%);
-  mask-image: radial-gradient(ellipse 75% 75% at 50% 25%, black 25%, transparent 78%);
+/* Flat button: darkens a touch on hover, nothing moves. (.wb-btn-tool is
+   the old name, still used by the in-app activate + superadmin pages.) */
+.wb-btn, .wb-btn-tool {
+  transition: filter 0.15s ease, background-color 0.15s ease;
 }
-.wb-grid-lines {
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-  background-size: 28px 28px;
-}
-/* Tool button: solid offset shadow that presses flat on hover */
-.wb-btn-tool {
-  box-shadow: 3px 3px 0 #0A1428;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-.wb-btn-tool:hover {
-  transform: translate(2px, 2px);
-  box-shadow: 1px 1px 0 #0A1428;
-}
-/* Gentle bob for the hero work cards — staggered via animation-delay */
-@keyframes wb-float {
-  0%, 100% { transform: translateY(0) rotate(var(--wb-tilt, 0deg)); }
-  50% { transform: translateY(-7px) rotate(var(--wb-tilt, 0deg)); }
-}
-.wb-float {
-  animation: wb-float 5.5s ease-in-out infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .wb-float { animation: none; }
-}
-
-/* Marching dashes along the hero workflow path */
-@keyframes wb-dash {
-  to { stroke-dashoffset: -56; }
-}
-.wb-dash {
-  animation: wb-dash 3.2s linear infinite;
-}
-@media (prefers-reduced-motion: reduce) {
-  .wb-dash { animation: none; }
-}
-
-/* Trades marquee — track holds the list twice, slides half its width */
-.wb-marquee {
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
-  mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
-}
-.wb-marquee-track {
-  display: flex;
-  width: max-content;
-  animation: wb-marquee 36s linear infinite;
-}
-.wb-marquee:hover .wb-marquee-track {
-  animation-play-state: paused;
-}
-@keyframes wb-marquee {
-  to { transform: translateX(-50%); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .wb-marquee-track { animation: none; }
+.wb-btn:hover, .wb-btn-tool:hover {
+  filter: brightness(0.92);
 }
 
 /* Nav link underline: orange, slides in from the left */
@@ -1994,16 +1937,6 @@ html[data-mode="dark"] .app-ui .card-tool {
 .wb-navlink:hover::after,
 .wb-navlink.wb-active::after {
   right: 0;
-}
-
-/* ── Card hover lift ── */
-.card-lift {
-  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
-}
-.card-lift:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(11, 87, 216, 0.10);
-  border-color: var(--wb-ink, #0B57D8) !important;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
