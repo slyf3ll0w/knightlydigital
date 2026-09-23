@@ -583,6 +583,75 @@ export function passwordResetEmail({
 }
 
 /**
+ * Texting registration outcome for a company's owners (lib/business-line.ts
+ * notifies on every status change the carriers make while nobody is looking):
+ * approved, sent back with a reason they can fix in Settings, or sent back on
+ * the platform's side of the paperwork. Platform-branded — the sender is
+ * WorkBench, not the tenant.
+ */
+export function lineRegistrationEmail({
+  companyName,
+  lineNumber,
+  outcome,
+  reason,
+}: {
+  companyName: string;
+  lineNumber: string | null;
+  outcome: "active" | "rejected" | "campaign_rejected";
+  reason: string | null;
+}): { subject: string; html: string } {
+  const base = (process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com").replace(/\/+$/, "");
+  const settings = `${base}/app/settings?s=phone`;
+  const number = lineNumber ? ` from ${esc(lineNumber)}` : "";
+  if (outcome === "active") {
+    return {
+      subject: `Texting is on for ${companyName}`,
+      html: wbShell({
+        label: "Business line",
+        inner: `
+      <p style="margin:0 0 12px;color:#111827;font-size:15px;">The carriers approved <strong>${esc(companyName)}</strong> for texting.</p>
+      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
+        Appointment reminders, quote and invoice links, and replies now go out${number}, in your business's name.
+        Nothing to switch on — it is already working.
+      </p>
+      ${wbBtn(settings, "Open Phone & texting")}`,
+      }),
+    };
+  }
+  if (outcome === "campaign_rejected") {
+    return {
+      subject: `Texting for ${companyName}: the carriers sent the application back`,
+      html: wbShell({
+        label: "Business line",
+        inner: `
+      <p style="margin:0 0 12px;color:#111827;font-size:15px;">The carriers sent back the texting application for <strong>${esc(companyName)}</strong>.</p>
+      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
+        This one is on our side of the paperwork, not yours — we have been notified and are sorting it out with them.
+        You do not need to change anything. Calls and voicemail keep working in the meantime.
+      </p>
+      ${wbBtn(settings, "See the status")}`,
+      }),
+    };
+  }
+  return {
+    subject: `Texting for ${companyName} needs a quick fix`,
+    html: wbShell({
+      label: "Business line",
+      inner: `
+      <p style="margin:0 0 12px;color:#111827;font-size:15px;">The carrier registry did not approve the texting registration for <strong>${esc(companyName)}</strong>.</p>
+      <p style="margin:0 0 8px;color:#374151;font-size:14px;"><strong>Their reason:</strong></p>
+      <p style="margin:0 0 16px;padding:12px 16px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#991b1b;font-size:14px;">${esc(reason ?? "Not given — open Settings for details.")}</p>
+      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
+        Fix the detail they named and resubmit from Settings; corrected registrations are re-filed right away.
+        Calls and voicemail keep working while this is sorted. Not sure what they want?
+        <a href="${base}/texting-registration" style="color:#0B57D8;">What the registry checks, and why</a>.
+      </p>
+      ${wbBtn(settings, "Fix and resubmit")}`,
+    }),
+  };
+}
+
+/**
  * Heads-up when an existing WorkBench login gets added to another company's
  * team (multi-company accounts). Nothing to accept — the membership is live;
  * they switch companies from their profile picture. Hub-branded.

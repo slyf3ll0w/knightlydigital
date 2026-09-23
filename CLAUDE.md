@@ -456,12 +456,25 @@ parked as `QUEUED` with the form stored — the hourly sweep and Check now re-fi
 it, and a real rejection on re-file becomes REJECTED with the reason. Planned
 follow-up for launch: `docs/plans/telnyx-balance-watch-2026-09-22.md`.
 
-**No unplanned carrier fees (2026-09-22).** TCR charges per submission ($4.50
-brand, $15 campaign review + $4.50 first quarter), so nothing is ever re-filed
-by itself. `needsOperatorReview`: a submit over a REJECTED or AWAITING_REVIEW
-row (and every first submit when `LINE_REGISTRATION_REVIEW=1`) is stored as
-`AWAITING_REVIEW` — nothing sent to Telnyx — and the operator gets an email
-with the form, the previous reason and the fees. Superadmin "Approve and file"
+**No unplanned carrier fees (2026-09-22, relaxed 2026-09-23).** TCR charges per
+submission ($4.50 brand, $15 campaign review + $4.50 first quarter), so nothing
+is ever re-filed by itself. `needsOperatorReview`: a submit over an
+AWAITING_REVIEW row, over a REJECTED row that already has a campaign (the
+platform's template is what failed), and every first submit when
+`LINE_REGISTRATION_REVIEW=1`, is stored as `AWAITING_REVIEW` — nothing sent to
+Telnyx — and the operator gets an email with the form, the previous reason and
+the fees. A **brand-stage** rejection (email, EIN, legal name, address — the
+tenant's own details) re-files straight away: the failed brand is edited in
+place for free, and the campaign fee only fires once the brand verifies, which
+was going to happen anyway (worst case: Telnyx refuses the edit and a fresh
+brand costs $4.50). Every status change the sweep/webhook sees notifies the
+owners (push + `lineRegistrationEmail`: approved / needs a fix with the reason /
+sent back on our side) and the operator (`brand-rejected:<companyId>`,
+`campaign-rejected:<companyId>`), so nobody learns of a rejection by opening
+Settings. The pre-flight also refuses group mailboxes (`isGroupMailbox`:
+contact@, info@…) under TCR's "personal, free and group email IDs" rule, and
+the form shows `REGISTRATION_CHECKLIST` (also published at
+`/texting-registration`) before anything is typed. Superadmin "Approve and file"
 (`line-file` → `approveRegistration`) is the one click that spends money; it
 re-uses a VERIFIED brand (same entity/legal name/EIN) and files only the
 campaign. A campaign-stage rejection emails the operator and shows the tenant

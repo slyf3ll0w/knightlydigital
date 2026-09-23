@@ -8,13 +8,18 @@ import {
   TOLL_FREE_USE_CASES,
   TOLL_FREE_VOLUMES,
   VERTICALS,
+  type BrandEntityType,
   type LineSummary,
   type LineType,
   type RegistrationForm,
   einIssue,
   emailTypoHint,
   FREE_MAIL_MESSAGE,
+  GROUP_MAIL_MESSAGE,
+  REGISTRATION_CHECKLIST,
+  REGISTRATION_GUIDE_PATH,
   isFreeMailDomain,
+  isGroupMailbox,
   legalNameHint,
 } from "@/lib/business-line-shared";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
@@ -562,9 +567,10 @@ function Texting({
           We&apos;re checking your details before filing
         </p>
         <p className="text-xs text-sky-800">
-          Carrier filings are paid per submission, so someone at Workbench looks over{" "}
-          {reg.rejectionReason ? "a corrected registration" : "each registration"} before it goes out — usually the same
-          business day. Nothing to do on your end; calls and voicemail work now.
+          {reg.rejectionReason
+            ? "This one needs a change on our side of the paperwork, so someone at Workbench looks it over before it goes back out"
+            : "Someone at Workbench looks over each registration before it goes out"}{" "}
+          — usually the same business day. Nothing to do on your end; calls and voicemail work now.
         </p>
         <button type="button" onClick={() => setResubmitting(true)} className={ghostBtn}>
           Edit the details
@@ -598,7 +604,7 @@ function Texting({
               <button type="button" onClick={() => setResubmitting(true)} className={primaryBtn}>
                 Edit and resubmit
               </button>
-              <span className="text-xs text-red-600">We check corrections before re-filing. Calls keep forwarding either way.</span>
+              <span className="text-xs text-red-600">Corrected details are re-filed right away. Calls keep forwarding either way.</span>
             </div>
           </>
         )}
@@ -752,6 +758,7 @@ function RegistrationForm({
   const nameHint = sole ? null : legalNameHint(f.legalName, f.entityType);
   const emailHint = emailTypoHint(f.contactEmail);
   const freeMail = !sole && !tollFree && isFreeMailDomain(f.contactEmail);
+  const groupMail = !sole && !tollFree && !freeMail && isGroupMailbox(f.contactEmail);
   // Telnyx's toll-free reviewer: the contact email must be at the website's domain (www/subdomains ignored).
   const siteDomain = (() => {
     const w = (f.website ?? "").trim();
@@ -816,8 +823,8 @@ function RegistrationForm({
       <fieldset className={`grid gap-2 sm:grid-cols-2 ${tollFree ? "hidden" : ""}`}>
         {(
           [
-            ["PRIVATE_PROFIT", "Registered business (has an EIN)", "LLC, corporation, or partnership"],
-            ["SOLE_PROPRIETOR", "Sole proprietor (no EIN)", "You'll verify by a PIN texted to your mobile"],
+            ["PRIVATE_PROFIT", "Registered business (has an EIN)", "LLC, corporation or partnership — have your IRS letter and a work email at your own domain handy"],
+            ["SOLE_PROPRIETOR", "Sole proprietor (no EIN)", "The fast lane: a PIN texted to your mobile, usually verified in minutes. Any email works."],
           ] as const
         ).map(([value, label, hint]) => (
           <label
@@ -837,6 +844,8 @@ function RegistrationForm({
           </label>
         ))}
       </fieldset>
+
+      {!tollFree && <Checklist entityType={f.entityType} open={!initial} />}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Legal business name" hint={sole ? "Your full legal name" : "Exactly as on your IRS letter (CP575 / 147C)"}>
@@ -926,7 +935,7 @@ function RegistrationForm({
               ? `Must be at your website's domain${siteDomain ? ` (you@${siteDomain})` : ""} — the reviewer turns down Gmail, Yahoo and other addresses`
               : sole
                 ? "Any address you check"
-                : "A business address — the registry turns down Gmail, Outlook, Yahoo and other personal email"
+                : "A named person at your company's domain (maria@yourcompany.com) — not Gmail, Outlook or Yahoo, and not info@ or contact@"
           }
         >
           <input
@@ -941,6 +950,18 @@ function RegistrationForm({
           )}
           {emailHint && <span className="mt-0.5 block text-[11px] text-amber-700">{emailHint}</span>}
           {freeMail && <span className="mt-0.5 block text-[11px] text-red-600">{FREE_MAIL_MESSAGE}</span>}
+          {groupMail && <span className="mt-0.5 block text-[11px] text-red-600">{GROUP_MAIL_MESSAGE}</span>}
+          {(freeMail || groupMail) && (
+            <span className="mt-1.5 block rounded-md bg-gray-50 px-2.5 py-2 text-[11px] leading-relaxed text-gray-600">
+              <strong className="text-gray-700">No company email yet?</strong> If you own a web domain, your registrar
+              (GoDaddy, Squarespace, Namecheap…) almost always includes free email forwarding: make{" "}
+              {(f.contactFirstName || "you").toLowerCase().replace(/[^a-z]/g, "") || "you"}@yourdomain.com and forward it
+              to the inbox you already read — about ten minutes. No domain? Google Workspace is about $7 a month.{" "}
+              <Link href={`${REGISTRATION_GUIDE_PATH}#email`} target="_blank" className="underline">
+                Step by step
+              </Link>
+            </span>
+          )}
         </Field>
         <Field label={sole ? "Your mobile (gets the PIN)" : "Contact phone"}>
           <input value={f.contactPhone} onChange={set("contactPhone")} inputMode="tel" className={inputCls} required />
@@ -973,7 +994,7 @@ function RegistrationForm({
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
-          disabled={busy || !line.entitled || Boolean(einProblem) || einMismatch || freeMail || (!sole && !nameConfirmed)}
+          disabled={busy || !line.entitled || Boolean(einProblem) || einMismatch || freeMail || groupMail || (!sole && !nameConfirmed)}
           className={primaryBtn}
         >
           {busy && <Loader2 size={14} className="animate-spin" />}
@@ -986,6 +1007,40 @@ function RegistrationForm({
         )}
       </div>
     </form>
+  );
+}
+
+/**
+ * What the registry will check, before anything is typed — the same list as
+ * the public /texting-registration page (REGISTRATION_CHECKLIST), so a client
+ * can gather the three things they need instead of learning them one
+ * rejection at a time. Open on a first filing, folded on a resubmit.
+ */
+function Checklist({ entityType, open }: { entityType: BrandEntityType; open: boolean }) {
+  const items = REGISTRATION_CHECKLIST[entityType];
+  return (
+    <details open={open} className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs">
+      <summary className="cursor-pointer font-medium text-gray-700">Before you start: what you&apos;ll need, and why</summary>
+      <ol className="mt-2 space-y-2">
+        {items.map((it) => (
+          <li key={it.title} className="flex gap-2">
+            <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-gray-400" />
+            <span>
+              <span className="font-medium text-gray-800">{it.title}</span>
+              <span className="text-gray-600"> — {it.detail}</span>
+              <span className="mt-0.5 block text-[11px] text-gray-500">Why: {it.why}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-2 text-[11px] text-gray-500">
+        These rules come from the US carriers&apos; registry and apply to every software product, not just Workbench. Get
+        them right once and the whole thing usually clears in 1–3 business days.{" "}
+        <Link href={REGISTRATION_GUIDE_PATH} target="_blank" className="underline">
+          Full guide
+        </Link>
+      </p>
+    </details>
   );
 }
 

@@ -231,3 +231,81 @@ export function isFreeMailDomain(email: string): boolean {
   if (at < 0) return false;
   return FREE_MAIL.has(email.slice(at + 1).trim().toLowerCase());
 }
+
+/**
+ * Role mailboxes the registry calls "group email IDs" (contact@, info@,
+ * sales@…) — refused under the same rule as free mail: the contact has to be
+ * a named person at the business (2026-09-23 rejection of contact@).
+ */
+const GROUP_MAILBOXES = new Set([
+  "contact", "contactus", "info", "sales", "support", "admin", "administrator", "office", "hello", "hi", "team",
+  "billing", "accounts", "accounting", "help", "service", "services", "mail", "email", "enquiries", "inquiries",
+  "marketing", "noreply", "no-reply", "no_reply", "donotreply", "webmaster", "postmaster", "hostmaster", "abuse",
+  "security", "privacy", "legal", "hr", "jobs", "careers", "press", "media", "orders", "booking", "bookings",
+  "scheduling", "dispatch", "customerservice", "customer.service", "reception", "frontdesk", "front.desk", "general",
+  "management", "staff", "crew", "estimates", "quotes", "invoices", "payments",
+]);
+
+export const GROUP_MAIL_MESSAGE =
+  "The carrier registry doesn't accept shared mailboxes like contact@, info@ or sales@ — use a named person's address at your company's domain (for example, maria@yourcompany.com).";
+
+export function isGroupMailbox(email: string): boolean {
+  const at = email.lastIndexOf("@");
+  if (at < 1) return false;
+  const local = email.slice(0, at).trim().toLowerCase().replace(/\+.*$/, "");
+  return GROUP_MAILBOXES.has(local);
+}
+
+/* ───────────── What a business needs before it files (form + /texting-registration) ───────────── */
+
+export type ChecklistItem = { title: string; detail: string; why: string };
+
+/** Public explainer for the carrier registration; the form and the marketing page both link here. */
+export const REGISTRATION_GUIDE_PATH = "/texting-registration";
+
+/**
+ * Everything the registry will check, in the order the form asks for it, with
+ * the reason each rule exists. One source for the in-app checklist and the
+ * public page so the two never drift.
+ */
+export const REGISTRATION_CHECKLIST: Record<BrandEntityType, ChecklistItem[]> = {
+  PRIVATE_PROFIT: [
+    {
+      title: "Your IRS letter (CP575 or 147C)",
+      detail: "The legal business name, EIN and address exactly as the IRS has them — including any “LLC” or “Inc.”",
+      why: "The registry matches your EIN against IRS records letter for letter. A missing “LLC” or an old address is the most common reason a registration comes back.",
+    },
+    {
+      title: "An email for a named person at your own domain",
+      detail: "Something like maria@yourcompany.com. Not Gmail, Outlook, Yahoo or your internet provider, and not a shared box like info@ or contact@.",
+      why: "Carriers want a reachable person who works at the business. Free and shared mailboxes are refused automatically, whatever software you register through.",
+    },
+    {
+      title: "A mobile number for that person",
+      detail: "Where the registry or a carrier can reach someone with a question.",
+      why: "Required on every registration.",
+    },
+    {
+      title: "Your website, if you have one",
+      detail: "Optional. If you give one it should load and show your business name.",
+      why: "A dead or unrelated site gets the registration sent back.",
+    },
+  ],
+  SOLE_PROPRIETOR: [
+    {
+      title: "Your own full legal name and address",
+      detail: "As they appear on your ID. Home address is fine.",
+      why: "Sole proprietors register as a person, so there is no EIN to match.",
+    },
+    {
+      title: "Any email you check",
+      detail: "Gmail and the like are fine here.",
+      why: "The business-domain rule only applies to businesses registering with an EIN.",
+    },
+    {
+      title: "Your mobile phone, within reach",
+      detail: "The registry texts you a PIN. Enter it in WorkBench within 24 hours.",
+      why: "The PIN is how a sole proprietor is verified — usually within minutes.",
+    },
+  ],
+};

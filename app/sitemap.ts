@@ -33,5 +33,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/terms`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${BASE}/privacy`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${BASE}/sms-terms`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${BASE}/texting-registration`, changeFrequency: "monthly", priority: 0.5 },
   ];
 }

@@ -9,7 +9,14 @@
 import assert from "node:assert/strict";
 import { TelnyxError, isInsufficientFunds } from "@/lib/telnyx";
 import { needsOperatorReview } from "@/lib/business-line";
-import { einIssue, emailTypoHint, isFreeMailDomain, legalNameHint } from "@/lib/business-line-shared";
+import {
+  REGISTRATION_CHECKLIST,
+  einIssue,
+  emailTypoHint,
+  isFreeMailDomain,
+  isGroupMailbox,
+  legalNameHint,
+} from "@/lib/business-line-shared";
 import { failureText } from "@/lib/telnyx";
 import { suggestionFromFeature } from "@/lib/geocoding";
 import { isPrivateIp, mentionsBusiness, nameTokens, websiteUrlIssue } from "@/lib/website-check";
@@ -144,7 +151,7 @@ const good = {
   vertical: "TECHNOLOGY",
   contactFirstName: "David",
   contactLastName: "Lessly",
-  contactEmail: "Info@Streamflaire.com",
+  contactEmail: "David@Streamflaire.com",
   contactPhone: "(469) 833-5853",
 };
 {
@@ -153,7 +160,7 @@ const good = {
   assert.equal(f.state, "TX");
   assert.equal(f.postalCode, "75013", "5-digit ZIP");
   assert.equal(f.website, "https://streamflaire.com", "scheme added");
-  assert.equal(f.contactEmail, "info@streamflaire.com");
+  assert.equal(f.contactEmail, "david@streamflaire.com");
   assert.equal(f.contactPhone, "+14698335853", "E.164");
 }
 const rejects = (patch: Record<string, unknown>, re: RegExp) => {
@@ -177,7 +184,12 @@ rejects({ website: "not a url at all" }, /website/);
 // Toll-free: the reviewer wants the contact email at the website's domain (rejection 2026-09-22)
 {
   const tf = { ...good, messageVolume: "1,000", useCase: "Mixed" };
-  assert.equal(sanitizeRegistrationForm(tf, "TOLL_FREE").contactEmail, "info@streamflaire.com", "email at the website's domain passes");
+  assert.equal(sanitizeRegistrationForm(tf, "TOLL_FREE").contactEmail, "david@streamflaire.com", "email at the website's domain passes");
+  assert.equal(
+    sanitizeRegistrationForm({ ...tf, contactEmail: "info@streamflaire.com" }, "TOLL_FREE").contactEmail,
+    "info@streamflaire.com",
+    "toll-free has no group-mailbox rule (Telnyx's reviewer accepted info@)"
+  );
   assert.equal(
     sanitizeRegistrationForm({ ...tf, website: "www.streamflaire.com", contactEmail: "david@mail.streamflaire.com" }, "TOLL_FREE").contactEmail,
     "david@mail.streamflaire.com",
@@ -192,6 +204,12 @@ rejects({ website: "not a url at all" }, /website/);
   }
   // 10DLC: a registered business may not use personal email either (TCR, 2026-09-23); a sole proprietor may.
   assert.throws(() => sanitizeRegistrationForm({ ...good, contactEmail: "david@gmail.com" }), /personal email/);
+  assert.throws(() => sanitizeRegistrationForm({ ...good, contactEmail: "contact@lesslyholdings.com" }), /shared mailboxes/);
+  assert.equal(
+    sanitizeRegistrationForm({ ...good, entityType: "SOLE_PROPRIETOR", ein: "", contactEmail: "info@gmail.com" }).contactEmail,
+    "info@gmail.com",
+    "sole proprietors are exempt from both email rules"
+  );
   assert.equal(
     sanitizeRegistrationForm({ ...good, entityType: "SOLE_PROPRIETOR", ein: "", contactEmail: "david@gmail.com" }).contactEmail,
     "david@gmail.com",
@@ -350,14 +368,32 @@ console.log("test-business-line (number rights): all assertions passed");
   console.log("test-business-line (out of funds): all assertions passed");
 }
 
-// Nothing is re-filed on its own: every submission is a carrier fee.
+// Only re-files that spend money wait for the operator: a campaign-stage
+// rejection needs a template fix; a brand-stage one (email, EIN, address) is a
+// free in-place edit the tenant should be able to fix and send right back.
 {
   assert.equal(needsOperatorReview(null, false), false, "first filing goes straight out");
   assert.equal(needsOperatorReview(null, true), true, "LINE_REGISTRATION_REVIEW=1 holds first filings too");
-  assert.equal(needsOperatorReview({ status: "REJECTED" }, false), true, "a re-file after a rejection waits");
+  assert.equal(needsOperatorReview({ status: "REJECTED", campaignId: null }, false), false, "brand-stage re-file goes straight out");
+  assert.equal(needsOperatorReview({ status: "REJECTED", campaignId: "c1" }, false), true, "campaign-stage re-file waits");
+  assert.equal(needsOperatorReview({ status: "REJECTED", campaignId: null }, true), true, "review-all holds brand-stage re-files too");
+  assert.equal(needsOperatorReview({ status: "REJECTED" }, false), false, "toll-free rejection (no campaign) re-files freely");
   assert.equal(needsOperatorReview({ status: "AWAITING_REVIEW" }, false), true, "editing while waiting keeps waiting");
   assert.equal(needsOperatorReview({ status: "QUEUED" }, false), false, "out-of-funds rows never reached Telnyx");
   console.log("test-business-line (operator review): all assertions passed");
+}
+
+// TCR's "personal, free and group email IDs" rule, both halves.
+{
+  assert.ok(isGroupMailbox("contact@lesslyholdings.com"), "contact@ is a group mailbox");
+  assert.ok(isGroupMailbox("Info+tag@Example.com"), "case and +tags ignored");
+  assert.ok(isGroupMailbox("no-reply@example.com"));
+  assert.ok(!isGroupMailbox("david@lesslyholdings.com"), "a named person passes");
+  assert.ok(!isGroupMailbox("dcontact@example.com"), "only the whole local part counts");
+  assert.ok(!isGroupMailbox("nonsense"), "no @ → not our problem here");
+  assert.equal(REGISTRATION_CHECKLIST.PRIVATE_PROFIT.length, 4);
+  assert.equal(REGISTRATION_CHECKLIST.SOLE_PROPRIETOR.length, 3);
+  console.log("test-business-line (group mailboxes): all assertions passed");
 }
 
 // A bad EIN is caught before the $4.50 brand fee, not by the registry.
