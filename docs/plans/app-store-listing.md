@@ -17,8 +17,14 @@ WorkBench 1.3 turns your iPhone into your business line.
 Sign-in: the app offers Sign in with Apple and Sign in with Google side by
 side (guideline 4.8); email + password login remains available.
 
-Demo account: [owner fills in — a Summit Plumbing login with the business
-line enabled, so the reviewer can place a call from the Calls page].
+Demo account (company: Streamflaire, role USER, calls-in-app on):
+  Email: test@testing.com
+  Password: Testing!123
+The business line is Streamflaire's real number. A sample contact ("David
+Lessly") carries the owner's own business line, so a call or text placed
+from the Calls page or from Siri reaches the owner, who will answer during
+review. Placing a call rings the reviewer's own phone first through the
+line ("press 1"), then the client — that is the designed flow, not a bug.
 
 VoIP push: the app registers a PushKit VoIP token only to ring the user's
 own business-line calls (Telnyx). Every VoIP push reports an incoming call
