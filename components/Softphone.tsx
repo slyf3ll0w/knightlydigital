@@ -61,8 +61,11 @@ import type { TelnyxRTC as TelnyxRTCType } from "@telnyx/webrtc";
  * Microphone: the permission state is read on registration; the Calls page
  * offers to grant it up front, and a call placed from here asks for it BEFORE
  * the server dials, so the INVITE never times out behind the browser prompt.
- * The input is a choice (MicPicker → localStorage → `setAudioSettings` on the
- * client, `setAudioInDevice` on a live call), and while a call is up a
+ * The stream that probe opens is KEPT and handed to the SDK as the call's
+ * localStream (answerWith) — opening, releasing and letting the SDK reopen
+ * the device a second later is exactly what dropped every outbound leg two
+ * seconds in. The input is a choice (MicPicker → localStorage → our own
+ * getUserMedia constraint, `setAudioInDevice` on a live call), and while a call is up a
  * watchdog (lib/softphone-mic.ts) reads the local track, the outbound RTP
  * counter and an AnalyserNode level once a second. One-way audio — they hear
  * nothing, you hear them fine — is a capture-side problem the server cannot
@@ -468,17 +471,25 @@ export default function Softphone() {
     };
     const onDeviceChange = () => void refreshDevices();
     navigator.mediaDevices.addEventListener?.("devicechange", onDeviceChange);
-    /** The chosen device becomes the SDK's audio constraint for the calls this client answers ({} = back to its default). */
-    const applyMic = async (c: RtcClient) => {
-      const id = getSoftphoneState().micId;
-      try {
-        await c.setAudioSettings(id ? { micId: id, micLabel: getSoftphoneState().micDevices.find((d) => d.id === id)?.label } : {});
-      } catch (err) {
-        if (!id) return;
-        console.warn("[softphone] chosen microphone refused by the SDK; using the default", err);
-        writeMicChoice(null);
-        setSoftphoneState({ micId: null });
-      }
+    /**
+     * The microphone opened ahead of an answer, handed to the SDK as the
+     * call's localStream. The SDK then never opens the device itself: the
+     * open-release-reopen dance (our probe, then the SDK's getUserMedia a
+     * second later) is what dropped every outbound leg two seconds in on
+     * 2026-09-23 — the reopen failed, the SDK hung the leg up. It also means
+     * the device on the call is exactly the one the picker chose, with no
+     * second opinion from the SDK's own constraint resolution.
+     */
+    let staged: MediaStream | null = null;
+    const dropStaged = () => {
+      staged?.getTracks().forEach((t) => t.stop());
+      staged = null;
+    };
+    const answerWith = (c: RtcCall) => {
+      const s = staged;
+      staged = null;
+      if (s) c.options.localStream = s;
+      void c.answer();
     };
 
     // The watchdog: once a second while a call is up, the local track, the
@@ -605,6 +616,13 @@ export default function Softphone() {
       callRef.current = null;
       stopRinger();
       micWatchStop();
+      dropStaged();
+      // The stream we handed the SDK is ours to close; a no-op when the SDK already did.
+      try {
+        call.localStream?.getTracks().forEach((t) => t.stop());
+      } catch {
+        /* no peer */
+      }
       // One low note when you ended it, two falling notes when the other side did (or it never connected).
       ringer.current?.chime(endedBy.current === "local" ? "local" : "remote");
       endedBy.current = null;
@@ -740,13 +758,15 @@ export default function Softphone() {
      * the OS reports as muted (device muted in the system, or held by another
      * app), which is a silent call waiting to happen.
      */
-    const requestMic = async (): Promise<boolean> => {
+    const openForCall = async (keep: boolean): Promise<boolean> => {
+      dropStaged();
       try {
         const s = await openMic();
         const t = s.getAudioTracks()[0] ?? null;
         const label = t?.label || null;
         const osMuted = !!t?.muted;
-        s.getTracks().forEach((x) => x.stop());
+        if (keep) staged = s;
+        else s.getTracks().forEach((x) => x.stop());
         console.info("[softphone] microphone:", label ?? "(no label)", osMuted ? "— the OS reports no audio from it" : "");
         setSoftphoneState({
           mic: "granted",
@@ -765,6 +785,10 @@ export default function Softphone() {
         return false;
       }
     };
+    /** Prove the permission and name the device; the stream is released. */
+    const requestMic = () => openForCall(false);
+    /** Open the microphone for the answer that follows (answerWith hands it to the SDK). */
+    const stageMic = () => openForCall(true);
 
     const onIncoming = (call: RtcCall) => {
       const callId = header(call, "X-WB-Call-Id");
@@ -806,7 +830,7 @@ export default function Softphone() {
             muted: false,
           },
         });
-        void call.answer();
+        answerWith(call);
         return;
       }
       const pushed = voipPending.current;
@@ -866,9 +890,9 @@ export default function Softphone() {
       const c = callRef.current;
       if (!c || c.state !== "ringing") return;
       stopRinger();
-      void requestMic().then((ok) => {
-        if (callRef.current !== c) return;
-        if (ok) void c.answer();
+      void stageMic().then((ok) => {
+        if (callRef.current !== c) return dropStaged();
+        if (ok) answerWith(c);
         else void c.hangup();
       });
     };
@@ -931,8 +955,6 @@ export default function Softphone() {
       if (unmounted || myGen !== gen) return;
       const c = new TelnyxRTC({ login_token: grant.token });
       c.remoteElement = REMOTE_AUDIO_ID;
-      if (getSoftphoneState().micId) await applyMic(c);
-      if (unmounted || myGen !== gen) return;
       const live = () => !unmounted && myGen === gen && client === c;
       c.on("telnyx.ready", () => {
         if (!live()) return;
@@ -1008,6 +1030,7 @@ export default function Softphone() {
       const id = pendingOutbound.current?.callId ?? cur?.callId ?? null;
       pendingOutbound.current = null;
       if (inviteWatch) clearTimeout(inviteWatch);
+      dropStaged();
       if (id) {
         cancelled.current.add(id);
         setTimeout(() => cancelled.current.delete(id), 60_000);
@@ -1112,10 +1135,8 @@ export default function Softphone() {
       setMic: async (deviceId: string | null) => {
         writeMicChoice(deviceId);
         setSoftphoneState({ micId: deviceId, micWarning: null });
-        const c = clientRef.current;
         const call = callRef.current;
         try {
-          if (c) await applyMic(c);
           if (call && (call.state === "active" || call.state === "held")) {
             await call.setAudioInDevice(deviceId ?? "default");
             micWatchStart(call); // the new track, fresh counters, the new name on the card
@@ -1155,18 +1176,24 @@ export default function Softphone() {
       placeCall: async (target: PlaceCallTarget) => {
         if (!clientRef.current || getSoftphoneState().status !== "ready") throw new Error("The softphone isn't connected.");
         if (callRef.current || getSoftphoneState().call) throw new Error("You're already on a call.");
-        // Microphone BEFORE the server dials this tab, so the INVITE isn't answered late (or never) behind the prompt.
-        // Always a real open, not the permission state: it names the device and catches an OS-muted one.
-        if (!(await requestMic())) {
+        // Microphone BEFORE the server dials this tab, so the INVITE isn't answered late (or never) behind the prompt —
+        // and kept open for the answer (answerWith), so the SDK never has to open the device a second time.
+        if (!(await stageMic())) {
           throw new Error("Microphone access is needed to call from the browser — allow it and try again, or use Call from line to ring your cell.");
         }
         const res = await fetch("/api/app/line/call", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ contactId: target.contactId ?? null, to: target.to ?? null, via: "app" }),
+        }).catch((err) => {
+          dropStaged();
+          throw err;
         });
         const data = (await res.json().catch(() => ({}))) as { error?: string; callId?: string; customerNumber?: string };
-        if (!res.ok || !data.callId) throw new Error(data.error || "Couldn't place the call.");
+        if (!res.ok || !data.callId) {
+          dropStaged();
+          throw new Error(data.error || "Couldn't place the call.");
+        }
         const placedId = data.callId;
         pendingOutbound.current = { callId: placedId, at: Date.now() };
         const outLabel = target.label || fmtNumber(data.customerNumber) || "Calling…";
@@ -1192,6 +1219,7 @@ export default function Softphone() {
           pendingOutbound.current = null;
           if (!callRef.current) {
             console.info("[softphone] outbound INVITE never arrived; cancelling", placedId);
+            dropStaged();
             void hangupServerSide(placedId);
             setSoftphoneState({ call: null, error: "The call never reached this browser — reconnecting. Try again in a moment." });
             restart(0);
@@ -1333,6 +1361,7 @@ export default function Softphone() {
       unregister();
       stopRinger();
       micWatchStop();
+      dropStaged();
       navigator.mediaDevices.removeEventListener?.("devicechange", onDeviceChange);
       ringer.current?.dispose();
       levelMeter.current?.dispose();

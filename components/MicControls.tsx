@@ -40,7 +40,7 @@ export function MicPicker({ className = "" }: { className?: string }) {
       onChange={(e) => void softphone.setMic(e.target.value || null)}
       aria-label="Microphone"
       title="Microphone"
-      className={`max-w-full truncate rounded-md border border-gray-200 bg-white px-1.5 py-0.5 text-[11px] text-gray-700 ${className}`}
+      className={`block w-full min-w-0 max-w-full truncate rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs text-gray-900 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500 ${className}`}
     >
       <option value="">Browser default</option>
       {s.micDevices.map((d) => (
@@ -64,16 +64,18 @@ export function MicWarning({ className = "" }: { className?: string }) {
   );
 }
 
-/** The meter + device name + picker row under the controls of a live call. */
+/** Under the controls of a live call: the meter and the device's name on one line, the picker (when there is a choice) on the next. */
 export function MicRow({ className = "" }: { className?: string }) {
   const s = useSoftphone();
   const muted = s.call?.muted ?? false;
   return (
-    <div className={`flex min-w-0 items-center gap-2 text-[11px] text-gray-500 ${className}`}>
-      <Mic size={12} className="shrink-0 text-gray-400" />
-      <MicMeter />
-      <span className="min-w-0 flex-1 truncate">{muted ? "Muted" : (s.micLabel ?? "Microphone")}</span>
-      <MicPicker className="shrink-0 max-w-[45%]" />
+    <div className={`min-w-0 ${className}`}>
+      <div className="flex min-w-0 items-center gap-2 text-[11px] text-gray-500">
+        <Mic size={12} className="shrink-0 text-gray-400" />
+        <MicMeter />
+        <span className="min-w-0 flex-1 truncate">{muted ? "Muted" : (s.micLabel ?? "Microphone")}</span>
+      </div>
+      <MicPicker className="mt-1.5" />
     </div>
   );
 }
@@ -111,7 +113,6 @@ export function MicCheck({ className = "" }: { className?: string }) {
       <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
         <Mic size={12} className="shrink-0 text-gray-400" />
         <span>Microphone</span>
-        <MicPicker />
         {running ? (
           <>
             <MicMeter />
@@ -123,6 +124,7 @@ export function MicCheck({ className = "" }: { className?: string }) {
           </button>
         )}
       </div>
+      <MicPicker className="mt-1.5 sm:max-w-xs" />
       {verdict && <p className="mt-1 text-xs">{verdict}</p>}
       {!running && !result && s.micWarning && (
         <p className="mt-1 text-xs text-amber-800" role="alert">

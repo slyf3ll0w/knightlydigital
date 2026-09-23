@@ -393,11 +393,18 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
   the separate level store (`useMicLevel`, so dialers don't re-render), and
   puts the verdict in `micWarning`. The input is a choice: `MicPicker`
   (`micDevices` from `enumerateDevices`, `devicechange` refreshes, an
-  unplugged choice falls back) → `localStorage wb-softphone-mic` →
-  `client.setAudioSettings({ micId })` for the next call and
-  `call.setAudioInDevice` on the live one. `requestMic` is now a real open
-  every time (names the device, flags an OS-muted track) — never just the
-  permission query. UI: `components/MicControls.tsx` — `MicRow` (meter +
+  unplugged choice falls back) → `localStorage wb-softphone-mic` → our own
+  getUserMedia constraint, and `call.setAudioInDevice` on the live one.
+  Before every answer the mic is opened for real (`stageMic`: names the
+  device, flags an OS-muted track) and the stream is KEPT and handed to the
+  SDK as `call.options.localStream` (`answerWith`) — the first cut released
+  it and let the SDK reopen the device a second later, and that reopen
+  failed on David's PC: every outbound leg died two seconds in
+  (normal_clearing, customer never dialed). The SDK's `setAudioSettings` is
+  not used. Call screen: after a hangup in this tab the row is shown as
+  "Call ended" until its webhook lands (it used to say "Ringing your cell
+  first…" with an amber pulse); outbound `via: "app"` rows read "Calling
+  from the app…". UI: `components/MicControls.tsx` — `MicRow` (meter +
   device + picker) and `MicWarning` on the call card and the call screen,
   `MicCheck` (picker + 4 s "Test it") on the Calls page LineCard. Console
   trail: `[softphone] microphone:` / `mic track:` / `mic <verdict>`.

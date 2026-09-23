@@ -170,6 +170,7 @@ export default async function CallScreenPage({ params }: { params: Promise<{ id:
         who={who}
         placedAt={fmtDateTime(call.createdAt, tz)}
         canCall={routed}
+        via={call.via === "app" ? "app" : call.via === "cell" ? "cell" : null}
       />
 
       <CallActions

@@ -52,10 +52,13 @@ export default function CallScreenLive({
   who,
   placedAt,
   canCall,
+  via,
 }: {
   callId: string;
   direction: "INBOUND" | "OUTBOUND";
   status: Status;
+  /** "app" = placed/answered in a browser, "cell" = the owner's phone rang, null = not decided yet. */
+  via: "app" | "cell" | null;
   /** Name, or the formatted number when there is no contact. */
   label: string;
   /** "lead" / "client" / "". */
@@ -78,6 +81,8 @@ export default function CallScreenLive({
   const [row, setRow] = useState({ status, answeredAt });
   const [pad, setPad] = useState(false);
   const wasLive = useRef(false);
+  /** The browser call on this screen just ended; the row still says RINGING/IN_PROGRESS until its webhook lands. */
+  const [ended, setEnded] = useState(false);
 
   // The row is live but the call isn't in this tab: watch it turn over.
   useEffect(() => {
@@ -112,6 +117,7 @@ export default function CallScreenLive({
     if (!wasLive.current) return;
     wasLive.current = false;
     setPad(false);
+    setEnded(true);
     router.refresh();
     const t = setTimeout(() => router.refresh(), 2500);
     return () => clearTimeout(t);
@@ -132,10 +138,14 @@ export default function CallScreenLive({
     else if (held) line = `On hold · ${fmtElapsed(live.startedAt, now)}`;
     else line = fmtElapsed(live.startedAt, now);
     tone = ringing ? "text-green-700" : "text-gray-700";
+  } else if (ended && LIVE.has(row.status)) {
+    // Hung up here a moment ago; the row catches up on the next poll. Never
+    // "ringing your cell" — nothing is ringing anything.
+    line = "Call ended";
   } else {
     switch (row.status) {
       case "RINGING":
-        line = direction === "INBOUND" ? "Ringing…" : "Ringing your cell first…";
+        line = direction === "INBOUND" ? "Ringing…" : via === "app" ? "Calling from the app…" : "Ringing your cell first…";
         tone = "text-amber-700";
         break;
       case "IN_PROGRESS":
@@ -178,11 +188,13 @@ export default function CallScreenLive({
       : dialing
         ? "bg-gray-100 text-gray-700 ring-8 ring-gray-100 animate-pulse"
         : "bg-green-500 text-white ring-8 ring-green-100"
-    : row.status === "IN_PROGRESS"
-      ? "bg-green-500 text-white ring-8 ring-green-100"
-      : row.status === "RINGING"
-        ? "bg-amber-100 text-amber-700 ring-8 ring-amber-50 animate-pulse"
-        : "bg-gray-100 text-gray-600";
+    : ended && LIVE.has(row.status)
+      ? "bg-gray-100 text-gray-600"
+      : row.status === "IN_PROGRESS"
+        ? "bg-green-500 text-white ring-8 ring-green-100"
+        : row.status === "RINGING"
+          ? "bg-amber-100 text-amber-700 ring-8 ring-amber-50 animate-pulse"
+          : "bg-gray-100 text-gray-600";
   const btn = "flex h-12 w-12 items-center justify-center rounded-full transition-colors disabled:opacity-50";
   const terminal = !live && !LIVE.has(row.status);
 
@@ -263,7 +275,7 @@ export default function CallScreenLive({
       )}
       {live && !ringing && (
         <div className="mx-auto mt-4 max-w-xs text-left">
-          <MicRow className="justify-center" />
+          <MicRow />
           <MicWarning className="mt-2" />
         </div>
       )}
