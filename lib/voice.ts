@@ -797,7 +797,11 @@ async function onSpeakEnded(p: VoiceEventPayload): Promise<void> {
 
 async function onHangup(p: VoiceEventPayload): Promise<void> {
   const hit = await findCallByLeg(p.call_control_id, p.client_state);
-  if (!hit) return;
+  if (!hit) {
+    const st = decodeState(p.client_state);
+    console.info(`[voice] hangup for a leg we don't hold: ${p.call_control_id} cause=${p.hangup_cause ?? "-"} state=${st ? `${st.leg}/${st.stage ?? "-"} call=${st.callId}` : "-"}`);
+    return;
+  }
   const { call, leg, appLeg } = hit;
   const now = new Date();
   const cause = p.hangup_cause ?? null;

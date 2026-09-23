@@ -62,6 +62,7 @@ public class VoipPlugin: CAPPlugin, CAPBridgedPlugin {
     /// The page is up with calls on: PushKit token, engine registered, microphone asked for once.
     @objc func register(_ call: CAPPluginCall) {
         engine.registerForPushes()
+        engine.wantConnected = true
         engine.ensureConnected(membership: nil)
         call.resolve(["token": engine.token as Any])
     }
@@ -147,7 +148,26 @@ final class VoipEngine: NSObject {
     private var wantMembership: String?
     private var retriedLogin = false
     private var connectStartedAt: Date?
+    /// The page asked for the engine (signed in, calls on): reconnect on foreground.
+    var wantConnected = false
     var isReady: Bool { clientReady }
+
+    /// Background with no call: a clean disconnect, so Telnyx forgets this
+    /// socket's registration now rather than whenever it notices the socket
+    /// iOS froze — a stale registration is where a leg goes to die.
+    func appBackgrounded() {
+        guard calls.isEmpty, let c = client else { return }
+        trace("background-disconnect")
+        c.delegate = nil
+        c.disconnect()
+        client = nil
+        clientReady = false
+        connecting = false
+    }
+
+    func appForegrounded() {
+        if wantConnected { ensureConnected(membership: nil) }
+    }
 
     /// Breadcrumbs to the server log (`[voip-trace]`, POST /api/public/voip-trace):
     /// the engine runs where nothing else can see it. Fire-and-forget, no
@@ -602,7 +622,10 @@ extension VoipEngine: CXProviderDelegate {
         guard let id = byUUID[action.callUUID], var r = calls[id] else { return action.fail() }
         r.endedByUs = true
         calls[id] = r
-        let ringingInbound = r.direction == .inbound && !r.answered
+        // Not yet on the line: ringing, or answered on the lock screen while the
+        // leg was still on its way. Either way the server must hear it, or the
+        // caller sits on ringback until the leg times out.
+        let ringingInbound = r.direction == .inbound && (!r.answered || r.sdk == nil)
         let dialingOutbound = r.direction == .outbound && !r.connected
         Task { @MainActor in
             // The server hears it FIRST: a leg that merely drops means "try
@@ -709,7 +732,12 @@ extension VoipEngine: TxClientDelegate {
             self.clientReady = true
             self.connecting = false
             self.emit("engineState", ["ready": true])
-            self.flushReady()
+            // A moment for the fresh registration to be routable before the
+            // server dials it — a leg dialed the same second never arrived.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                guard let self = self, self.clientReady else { return }
+                self.flushReady()
+            }
         }
     }
 

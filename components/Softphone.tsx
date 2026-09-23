@@ -681,6 +681,15 @@ export default function Softphone() {
         void call.hangup();
         return;
       }
+      // A call the SDK never closed out (a socket that dropped mid-call comes
+      // back with no hangup event) must not keep this tab "busy" — it declined
+      // every new call as "one at a time" and the desktop went silent.
+      if (callRef.current && callRef.current !== call && ["hangup", "destroy", "purge"].includes(callRef.current.state)) {
+        console.info("[softphone] dropping a stale call before the new INVITE", callRef.current.state);
+        callRef.current = null;
+        stopRinger();
+        setSoftphoneState({ call: null });
+      }
       // One call at a time: a second INVITE while busy is declined; the server rings the cell / voicemail as usual.
       if (callRef.current && callRef.current !== call) {
         void call.hangup();
