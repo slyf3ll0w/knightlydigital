@@ -30,21 +30,23 @@ export async function POST(req: NextRequest) {
   const headers = { "Cache-Control": "no-store" };
 
   const call = await prisma.call.findUnique({ where: { id: callId }, select: { companyId: true } });
-  if (!call) return NextResponse.json({ outcome: "late" }, { headers });
+  // The whole wake path is otherwise silent in the server log; one line per
+  // ask is what lets a phone that "answered but stayed on ringback" be read.
+  const answer = (o: Record<string, unknown>) => {
+    console.info(`[voice] ready call=${callId} user=${actor.id} probe=${body.probe === true} membership=${typeof body.membership === "string" ? body.membership : "-"} → ${JSON.stringify(o)}`);
+    return NextResponse.json(o, { headers });
+  };
+  if (!call) return answer({ outcome: "late" });
   if (typeof body.membership === "string" && body.membership !== actor.id) {
     const as = await membershipOf(actor.id, body.membership);
-    if (!as || as.companyId !== call.companyId) return NextResponse.json({ outcome: "ineligible" }, { headers });
-    return NextResponse.json({ outcome: await wakeSoftphoneLeg(as.id, as.companyId, callId) }, { headers });
+    if (!as || as.companyId !== call.companyId) return answer({ outcome: "ineligible" });
+    return answer({ outcome: await wakeSoftphoneLeg(as.id, as.companyId, callId) });
   }
   if (call.companyId !== actor.companyId) {
     const target = await siblingMembershipFor(actor.id, call.companyId);
-    return NextResponse.json(
-      target ? { outcome: "switch", userId: target.id, companyName: target.companyName } : { outcome: "ineligible" },
-      { headers }
-    );
+    return answer(target ? { outcome: "switch", userId: target.id, companyName: target.companyName } : { outcome: "ineligible" });
   }
-  if (!canSell(actor.role)) return NextResponse.json({ outcome: "ineligible" }, { headers });
-  if (body.probe === true) return NextResponse.json({ outcome: "same" }, { headers });
-  const outcome = await wakeSoftphoneLeg(actor.id, actor.companyId, callId);
-  return NextResponse.json({ outcome }, { headers });
+  if (!canSell(actor.role)) return answer({ outcome: "ineligible" });
+  if (body.probe === true) return answer({ outcome: "same" });
+  return answer({ outcome: await wakeSoftphoneLeg(actor.id, actor.companyId, callId) });
 }

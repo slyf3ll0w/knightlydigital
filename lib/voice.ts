@@ -649,16 +649,28 @@ export type WakeOutcome = "ringing" | "already" | "late" | "ineligible";
  */
 export async function wakeSoftphoneLeg(userId: string, companyId: string, callId: string): Promise<WakeOutcome> {
   const call = await prisma.call.findFirst({ where: { id: callId, companyId }, include: callInclude });
-  if (!call || call.status !== "RINGING" || call.direction !== "INBOUND" || call.agentCallId || !call.appRingAt) return "late";
-  if (Date.now() - call.appRingAt.getTime() > (VOIP_WAKE_SECS + 5) * 1000) return "late";
+  if (!call || call.status !== "RINGING" || call.direction !== "INBOUND" || call.agentCallId || !call.appRingAt) {
+    console.info(`[voice] wake call=${callId}: late (${!call ? "no row" : `status=${call.status} agent=${call.agentCallId ?? "-"} appRingAt=${call.appRingAt?.toISOString() ?? "-"}`})`);
+    return "late";
+  }
+  const sinceRing = Date.now() - call.appRingAt.getTime();
+  if (sinceRing > (VOIP_WAKE_SECS + 5) * 1000) {
+    console.info(`[voice] wake call=${callId}: late (${Math.round(sinceRing / 1000)} s after the push)`);
+    return "late";
+  }
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { sipUsername: true, softphoneEnabled: true, role: true, isActive: true },
   });
-  if (!user?.sipUsername || !user.softphoneEnabled || !user.isActive || !canUseSoftphone(user.role)) return "ineligible";
+  if (!user?.sipUsername || !user.softphoneEnabled || !user.isActive || !canUseSoftphone(user.role)) {
+    console.info(`[voice] wake call=${callId}: ineligible (sip=${user?.sipUsername ? "yes" : "no"} on=${user?.softphoneEnabled} active=${user?.isActive} role=${user?.role})`);
+    return "ineligible";
+  }
   const open = await prisma.callLeg.count({ where: { callId, userId, endedAt: null } });
   if (open > 0) return "already";
-  return (await ringSoftphones(call, [{ userId, sipUsername: user.sipUsername }], true)) > 0 ? "ringing" : "late";
+  const rang = await ringSoftphones(call, [{ userId, sipUsername: user.sipUsername }], true);
+  console.info(`[voice] wake call=${callId}: ${rang > 0 ? "ringing" : "late"} — SIP leg to ${user.sipUsername} ${rang > 0 ? "dialed" : "failed"} ${Math.round(sinceRing / 1000)} s after the push`);
+  return rang > 0 ? "ringing" : "late";
 }
 
 /** Hang up every browser leg still ringing on a call, except the one that won. Their hangup webhooks close the rows. */
@@ -822,6 +834,7 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
     // call is already VOICEMAIL). When the last one has, the cell rings (the
     // caller's ringback is still looping). agentCallId already set = another
     // browser won, or the cell is ringing: nothing to do.
+    console.info(`[voice] app leg ended call=${call.id} user=${appLeg.userId} cause=${cause ?? "-"} status=${call.status} agent=${call.agentCallId ?? "-"}`);
     await prisma.callLeg.update({ where: { id: appLeg.id }, data: { endedAt: now, hangupCause: cause } }).catch(() => {});
     if (call.status !== "RINGING" || call.direction !== "INBOUND" || call.agentCallId) return;
     const open = await prisma.callLeg.count({ where: { callId: call.id, endedAt: null } });

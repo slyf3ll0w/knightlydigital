@@ -161,5 +161,6 @@ export async function pushIncomingCall(
     })
   );
   if (dead.length) await prisma.pushSubscription.deleteMany({ where: { endpoint: { in: dead } } }).catch(() => {});
+  console.info(`[voip] push call=${call.id} phones=${targets.reduce((n, t) => n + t.tokens.length, 0)} reached=${reached} dead=${dead.length}`);
   return reached;
 }

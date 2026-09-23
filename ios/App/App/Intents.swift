@@ -91,11 +91,14 @@ private enum SiriError: Error, CustomLocalizedStringResourceConvertible {
 @MainActor
 func siteCookieHeader() async -> String {
     let store = WKWebsiteDataStore.default().httpCookieStore
-    let cookies: [HTTPCookie] = await withCheckedContinuation { cont in
+    var cookies: [HTTPCookie] = await withCheckedContinuation { cont in
         store.getAllCookies { cont.resume(returning: $0) }
     }
+    cookies = cookies.filter { siteOrigin.host.map($0.domain.hasSuffix) ?? false }
+    // The webview's store can come back empty on a cold background launch
+    // before any web view exists; the shared jar is the fallback.
+    if cookies.isEmpty { cookies = HTTPCookieStorage.shared.cookies(for: siteOrigin) ?? [] }
     return cookies
-        .filter { siteOrigin.host.map($0.domain.hasSuffix) ?? false }
         .map { "\($0.name)=\($0.value)" }
         .joined(separator: "; ")
 }

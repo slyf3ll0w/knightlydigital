@@ -146,7 +146,23 @@ final class VoipEngine: NSObject {
     private var loginMembership: String?
     private var wantMembership: String?
     private var retriedLogin = false
+    private var connectStartedAt: Date?
     var isReady: Bool { clientReady }
+
+    /// Breadcrumbs to the server log (`[voip-trace]`, POST /api/public/voip-trace):
+    /// the engine runs where nothing else can see it. Fire-and-forget, no
+    /// cookies, short strings only.
+    private static let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
+    func trace(_ step: String, _ detail: String = "", callId: String? = nil) {
+        NSLog("[voip] %@ %@ %@", step, callId ?? "", detail)
+        var req = URLRequest(url: siteOrigin.appendingPathComponent("/api/public/voip-trace"))
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        var body: [String: Any] = ["step": step, "detail": detail, "build": VoipEngine.build]
+        if let c = callId { body["callId"] = c }
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        URLSession.shared.dataTask(with: req).resume()
+    }
 
     enum Direction { case inbound, outbound }
 
@@ -244,13 +260,21 @@ final class VoipEngine: NSObject {
     /// socket is opened — they live minutes, not hours.
     func ensureConnected(membership: String?) {
         if let c = client, c.isConnected(), loginMembership == membership, !connecting {
+            trace("connected-already", "ready=\(clientReady)")
             if clientReady { flushReady() }
             return
         }
-        if connecting && wantMembership == membership { return }
+        // A connect that never came back (the app was suspended mid-handshake)
+        // must not block every later push: after 8 s it is started over.
+        if connecting && wantMembership == membership, let t = connectStartedAt, Date().timeIntervalSince(t) < 8 {
+            trace("connect-in-flight")
+            return
+        }
         connecting = true
+        connectStartedAt = Date()
         wantMembership = membership
         retriedLogin = false
+        trace("connect-start", "membership=\(membership ?? "-")")
         Task { @MainActor in await self.connect(membership: membership) }
     }
 
@@ -258,21 +282,33 @@ final class VoipEngine: NSObject {
     private func connect(membership: String?) async {
         var query: [String: String] = [:]
         if let m = membership { query["membership"] = m }
+        let cookie = await siteCookieHeader()
+        trace("grant-fetch", "cookies=\(cookie.split(separator: ";").count) session=\(cookie.contains("session-token"))")
         var status = 0
         var data = Data()
         do {
             (status, data) = try await siteRequest("/api/app/line/softphone", query: query)
         } catch {
+            trace("grant-offline", error.localizedDescription)
             return finishConnect(nil, error: "offline", membership: membership)
         }
-        if status == 401 { return finishConnect(nil, error: "signedOut", membership: membership) }
+        if status == 401 {
+            trace("grant-401")
+            return finishConnect(nil, error: "signedOut", membership: membership)
+        }
         guard status == 200, let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            trace("grant-status", "\(status) \(String(data: data.prefix(120), encoding: .utf8) ?? "")")
             return finishConnect(nil, error: "server", membership: membership)
         }
-        if let off = j["off"] as? String { return finishConnect(nil, error: "off:\(off)", membership: membership) }
+        if let off = j["off"] as? String {
+            trace("grant-off", off)
+            return finishConnect(nil, error: "off:\(off)", membership: membership)
+        }
         guard let token = j["token"] as? String, !token.isEmpty else {
+            trace("grant-no-token", (j["error"] as? String) ?? "")
             return finishConnect(nil, error: (j["error"] as? String) ?? "server", membership: membership)
         }
+        trace("grant-ok", "sip=\((j["sipUsername"] as? String) ?? "?")")
         finishConnect(token, error: nil, membership: membership)
     }
 
@@ -297,9 +333,10 @@ final class VoipEngine: NSObject {
         loginMembership = membership
         do {
             try c.connect(txConfig: TxConfig(token: token, logLevel: .none, reconnectClient: true))
+            trace("telnyx-connecting")
         } catch {
             connecting = false
-            NSLog("[voip] connect failed: %@", error.localizedDescription)
+            trace("telnyx-connect-throw", error.localizedDescription)
             emit("engineState", ["ready": false, "error": "connect"])
         }
     }
@@ -330,6 +367,7 @@ final class VoipEngine: NSObject {
                     switchTo = j["userId"] as? String
                 }
             }
+            self.trace("ready-outcome", "\(outcome) switchTo=\(switchTo ?? "-") attempt=\(attempt)", callId: callId)
             guard var r = self.calls[callId], r.sdk == nil else { return }
             switch outcome {
             case "ringing", "already":
@@ -394,10 +432,12 @@ final class VoipEngine: NSObject {
             }
         }
         emit("incomingCall", ["callId": callId, "label": label, "number": number ?? NSNull()])
+        trace("callkit-reported", "sdk=\(sdk != nil)", callId: callId)
         if sdk == nil {
             unclaimed[callId]?.invalidate()
             unclaimed[callId] = Timer.scheduledTimer(withTimeInterval: unclaimedTimeoutS, repeats: false) { [weak self] _ in
                 guard let self = self, let r = self.calls[callId], r.sdk == nil else { return }
+                self.trace("unclaimed-timeout", "answered=\(r.answered)", callId: callId)
                 self.finish(callId, reason: r.answered ? .failed : .unanswered, tell: r.answered ? "failed" : "unanswered")
             }
         }
@@ -410,6 +450,7 @@ final class VoipEngine: NSObject {
         unclaimed[r.callId]?.invalidate()
         unclaimed[r.callId] = nil
         calls[r.callId] = r
+        trace("invite-attached", "answered=\(r.answered)", callId: r.callId)
         if r.answered {
             sdk.answer()
             emit("callAnswered", ["callId": r.callId])
@@ -524,6 +565,7 @@ extension VoipEngine: PKPushRegistryDelegate {
         let number = dict["number"] as? String
         // Report FIRST, synchronously — the rule that keeps the app alive.
         reportIncoming(callId: callId, label: label, number: number, sdk: nil)
+        trace("push", "state=\(UIApplication.shared.applicationState.rawValue) client=\(client == nil ? "none" : (client!.isConnected() ? "connected" : "dead")) ready=\(clientReady)", callId: callId)
         // Then wake the engine; when it is registered it tells the server (flushReady).
         ensureConnected(membership: nil)
         completion()
@@ -547,6 +589,7 @@ extension VoipEngine: CXProviderDelegate {
         guard let id = byUUID[action.callUUID], var r = calls[id] else { return action.fail() }
         r.answered = true
         calls[id] = r
+        trace("callkit-answer", "sdk=\(r.sdk != nil) ready=\(clientReady)", callId: id)
         if let sdk = r.sdk { sdk.answer() }
         // No INVITE yet (pushed call, engine still registering): attach() answers it on arrival.
         emit("callAnswered", ["callId": id])
@@ -569,6 +612,7 @@ extension VoipEngine: CXProviderDelegate {
                 _ = try? await siteRequest("/api/app/line/call", query: ["id": id], method: "DELETE")
             }
         }
+        trace("callkit-end", "ringing=\(ringingInbound) dialing=\(dialingOutbound)", callId: id)
         r.sdk?.hangup()
         emit("callEnded", ["callId": id, "reason": ringingInbound ? "declined" : "user"])
         forget(id)
@@ -610,6 +654,7 @@ extension VoipEngine: CXProviderDelegate {
     }
 
     func provider(_ provider: CXProvider, didActivate audioSession: AVAudioSession) {
+        trace("audio-activate", "client=\(client != nil)")
         client?.enableAudioSession(audioSession: audioSession)
         emit("audioActivated", [:])
     }
@@ -634,6 +679,7 @@ extension VoipEngine: TxClientDelegate {
 
     func onSocketDisconnected() {
         DispatchQueue.main.async {
+            self.trace("telnyx-disconnected")
             self.clientReady = false
             self.emit("engineState", ["ready": false])
         }
@@ -641,7 +687,7 @@ extension VoipEngine: TxClientDelegate {
 
     func onClientError(error: Error) {
         DispatchQueue.main.async {
-            NSLog("[voip] telnyx error: %@", error.localizedDescription)
+            self.trace("telnyx-error", error.localizedDescription)
             self.clientReady = false
             if self.connecting, !self.retriedLogin {
                 // One more try with a fresh token (the old one may simply have expired).
@@ -657,6 +703,7 @@ extension VoipEngine: TxClientDelegate {
 
     func onClientReady() {
         DispatchQueue.main.async {
+            self.trace("telnyx-ready", "pending=\(self.calls.values.filter { $0.sdk == nil }.count)")
             self.clientReady = true
             self.connecting = false
             self.emit("engineState", ["ready": true])
@@ -672,6 +719,7 @@ extension VoipEngine: TxClientDelegate {
         DispatchQueue.main.async {
             let ourId = self.header(call, "X-WB-Call-Id")
             let outbound = self.header(call, "X-WB-Outbound") == "1"
+            self.trace("invite", "headers=\((call.inviteCustomHeaders ?? [:]).keys.sorted().joined(separator: ",")) outbound=\(outbound) known=\(ourId.map { self.calls[$0] != nil } ?? false)", callId: ourId)
             if outbound {
                 // Our own outbound call's leg: pick up, the server dials the customer next.
                 // A leg for a call placed from a browser also forks here — leave
@@ -693,6 +741,7 @@ extension VoipEngine: TxClientDelegate {
     func onCallStateUpdated(callState: CallState, callId: UUID) {
         DispatchQueue.main.async {
             guard let id = self.bySdk[callId], var r = self.calls[id] else { return }
+            self.trace("call-state", "\(callState)", callId: id)
             switch callState {
             case .ACTIVE:
                 if r.direction == .inbound && !r.connected {
