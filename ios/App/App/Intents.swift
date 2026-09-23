@@ -1,5 +1,7 @@
 import AppIntents
+import Capacitor
 import Foundation
+import UIKit
 import WebKit
 
 /**
@@ -62,6 +64,7 @@ private struct OnMyWayReply: Decodable { let client: String }
 
 private struct ErrorReply: Decodable { let error: String? }
 
+@available(iOS 16.0, *)
 private enum SiriError: Error, CustomLocalizedStringResourceConvertible {
     case signedOut
     case noJob
@@ -115,6 +118,7 @@ private func request(_ path: String, query: [String: String] = [:], method: Stri
 }
 
 /// 401 → signed out; 4xx with an error message → that message; anything else → server.
+@available(iOS 16.0, *)
 private func check(_ status: Int, _ data: Data) throws {
     if status == 401 { throw SiriError.signedOut }
     if (200...299).contains(status) { return }
@@ -124,12 +128,14 @@ private func check(_ status: Int, _ data: Data) throws {
     throw SiriError.server
 }
 
+@available(iOS 16.0, *)
 private func nextJob() async throws -> NextJob? {
     let (status, data) = try await request("/api/app/siri/next-job")
     try check(status, data)
     return try JSONDecoder().decode(NextJobReply.self, from: data).job
 }
 
+@available(iOS 16.0, *)
 private func clock(_ action: String, job: NextJob) async throws {
     let (status, data) = try await request(
         "/api/app/jobs/\(job.id)/clock",
@@ -140,6 +146,7 @@ private func clock(_ action: String, job: NextJob) async throws {
 }
 
 /// Place a call from the business line: rings the person's cell first, whispers who it's for, then dials the client.
+@available(iOS 16.0, *)
 private func placeCall(contactId: String?, to: String?) async throws {
     var json: [String: Any] = ["via": "cell"]
     if let contactId = contactId { json["contactId"] = contactId }
@@ -222,9 +229,17 @@ struct OpenNextJobIntent: AppIntent {
     static var description = IntentDescription("Open your next WorkBench job.")
     static var openAppWhenRun = true
 
-    func perform() async throws -> some IntentResult & OpensIntent {
-        // The universal link lands inside the app (NativeShell's appUrlOpen).
-        return .result(opensIntent: OpenURLIntent(siteOrigin.appendingPathComponent("/app/go/next-job")))
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        // OpenURLIntent is iOS 18+, so hand the universal link to Capacitor the
+        // way iOS itself would: the App plugin turns this into appUrlOpen
+        // (retained until the page attaches, so a cold start works too) and
+        // NativeShell navigates there.
+        NotificationCenter.default.post(
+            name: .capacitorOpenUniversalLink,
+            object: ["url": siteOrigin.appendingPathComponent("/app/go/next-job")]
+        )
+        return .result()
     }
 }
 
