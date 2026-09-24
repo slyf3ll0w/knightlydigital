@@ -24,7 +24,7 @@ import type { ListingCard } from "@/lib/estimator-library";
 type Sort = "likes" | "new";
 type Page = { listings: ListingCard[]; nextCursor: string | null };
 
-export default function LibraryClient({ manager, defaultIndustry }: { manager: boolean; defaultIndustry: string }) {
+export default function LibraryClient({ manager, defaultIndustry, embedded = false }: { manager: boolean; defaultIndustry: string; /** Rendered as the Library view of /app/estimates — no page frame or title of its own */ embedded?: boolean }) {
   const theme = APP_THEME;
   const [q, setQ] = useState("");
   const [industry, setIndustry] = useState(defaultIndustry);
@@ -132,13 +132,17 @@ export default function LibraryClient({ manager, defaultIndustry }: { manager: b
   const emptyText = q.trim() ? `Nothing in the Library matches “${q.trim()}”.` : industry ? `No ${industry} tools shared yet — be the first: open one of your tools and pick Library.` : "Nothing shared yet. Open one of your tools and pick Library to share it.";
 
   return (
-    <div className="mx-auto max-w-3xl p-4 lg:p-8">
-      <BackLink href="/app/estimates" className="mb-3" />
-      <div className="mb-5">
-        <PageTitle section="quotes" icon={BookOpen} sub="Estimate tools other Workbench businesses have shared. Add one, set your rates, done.">
-          Library
-        </PageTitle>
-      </div>
+    <div className={embedded ? "" : "mx-auto max-w-3xl p-4 lg:p-8"}>
+      {!embedded && (
+        <>
+          <BackLink href="/app/estimates" className="mb-3" />
+          <div className="mb-5">
+            <PageTitle section="quotes" icon={BookOpen} sub="Estimate tools other Workbench businesses have shared. Add one, set your rates, done.">
+              Library
+            </PageTitle>
+          </div>
+        </>
+      )}
 
       <div className="mb-4 space-y-3">
         <div className="flex items-center gap-2 rounded-[10px] border border-gray-300 bg-white px-3">

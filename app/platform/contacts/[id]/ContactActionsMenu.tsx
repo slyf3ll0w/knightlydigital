@@ -9,6 +9,7 @@ import {
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
 import Modal from "@/components/Modal";
+import MenuPopover from "@/components/MenuPopover";
 
 /**
  * The client page's ⋯ menu: Edit / Archive ⇄ Reactivate / Delete.
@@ -145,7 +146,7 @@ export default function ContactActionsMenu({
           {busy ? <Loader2 size={16} className="animate-spin" /> : <MoreHorizontal size={16} />}
         </button>
         {open && (
-          <div className="sheet-material absolute right-0 top-full mt-1 z-30 w-44 rounded-lg shadow-xl border border-gray-200 py-1.5">
+          <MenuPopover open={open} onClose={() => setOpen(false)} title="Client">
             <Link
               prefetch={false} href={`/app/contacts/${contactId}/edit`}
               className="flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -182,7 +183,7 @@ export default function ContactActionsMenu({
                 </button>
               </>
             )}
-          </div>
+          </MenuPopover>
         )}
       </div>
 

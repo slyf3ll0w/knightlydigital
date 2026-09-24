@@ -27,6 +27,7 @@ import { hapticImpact } from "@/lib/haptics";
 import ChargeOverlay, { type ChargePhase } from "@/components/ChargeOverlay";
 import { showSendRitual } from "@/lib/send-ritual";
 import { FINIX_JS_SRC, type FinixConfig, type FinixForm } from "@/lib/finix-js";
+import MenuPopover from "@/components/MenuPopover";
 
 type SavedCardOption = { id: string; label: string; isDefault: boolean };
 
@@ -422,7 +423,7 @@ export default function InvoiceActions({
           <MoreHorizontal size={16} />
         </button>
         {open && (
-          <div className="sheet-material absolute right-0 top-full mt-1 z-30 w-max min-w-[13rem] whitespace-nowrap rounded-lg shadow-xl border border-gray-200 py-1.5">
+          <MenuPopover open={open} onClose={() => setOpen(false)} title="Invoice">
             {status !== "PAID" && (
               <button
                 onClick={() => router.push(`/app/invoices/${invoiceId}/edit`)}
@@ -533,7 +534,7 @@ export default function InvoiceActions({
                 Delete Invoice
               </button>
             )}
-          </div>
+          </MenuPopover>
         )}
       </div>
 

@@ -6,6 +6,7 @@ import { MoreHorizontal, CheckCircle, Receipt, Archive, RotateCcw, Trash2, Loade
 import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
 import { sendOrQueue } from "@/lib/outbox";
 import { convertJobToAppointment } from "./ConvertToAppointment";
+import MenuPopover from "@/components/MenuPopover";
 
 export default function JobActions({
   jobId,
@@ -217,7 +218,7 @@ export default function JobActions({
             <MoreHorizontal size={16} />
           </button>
           {open && (
-            <div className="sheet-material absolute right-0 top-full mt-1 z-30 w-max min-w-[13rem] whitespace-nowrap rounded-lg shadow-xl border border-gray-200 py-1.5">
+            <MenuPopover open={open} onClose={() => setOpen(false)} title="Job">
               {canEdit && status !== "ARCHIVED" && (
                 <button
                   onClick={() => router.push(`/app/jobs/${jobId}/edit`)}
@@ -275,7 +276,7 @@ export default function JobActions({
                   </button>
                 </>
               )}
-            </div>
+            </MenuPopover>
           )}
         </div>
       )}

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Plus, Inbox, CalendarClock, FileText, FileSignature, Briefcase, Receipt, DollarSign } from "lucide-react";
+import MenuPopover from "@/components/MenuPopover";
 
 /**
  * Per-client scoped Create menu (Jobber's client-page Create button).
@@ -46,7 +47,7 @@ export default function ContactCreateMenu({ contactId, canSeeMoney }: { contactI
         Create
       </button>
       {open && (
-        <div className="sheet-material absolute right-0 top-full mt-1 z-30 w-44 rounded-lg shadow-xl border border-gray-200 py-1.5">
+        <MenuPopover open={open} onClose={() => setOpen(false)} title="Create for this client">
           {items.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
@@ -57,7 +58,7 @@ export default function ContactCreateMenu({ contactId, canSeeMoney }: { contactI
               {label}
             </Link>
           ))}
-        </div>
+        </MenuPopover>
       )}
     </div>
   );

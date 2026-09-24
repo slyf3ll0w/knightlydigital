@@ -497,7 +497,7 @@ function UserMenu({
   return (
     <div className="relative" ref={ref}>
       {open && (
-        <div className="sheet-material absolute bottom-full left-2 right-2 mb-1.5 z-50 rounded-lg shadow-xl ring-1 ring-black/5 py-1.5 overflow-hidden">
+        <div className="menu-material absolute bottom-full left-2 right-2 mb-1.5 z-50 rounded-lg shadow-xl ring-1 ring-black/5 py-1.5 overflow-hidden">
           <p className="px-3.5 pb-1 pt-1.5 text-[11px] font-semibold text-gray-400">
             Your companies
           </p>

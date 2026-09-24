@@ -1100,6 +1100,149 @@ links; kits/assemblies with material-vs-labor and live margin.
    first; Clients: ⋯ sits left of the Call button; Leads board:
    right-click a card → Move to <stage> moves it.
 
+## Batch 12 — solid menus, menus that stay on screen, closing map shapes, the Agreements look (BUILT 2026-09-24)
+
+David after the Batch 11 pass: the right-click dropdown "is transparent
+which makes it hard to see … needs to have a solid background … this
+seems to have been done to all dropdowns"; "some of the mobile dropdowns
+go off the screen"; "we need to make a way to close shapes if using the
+map tool"; "not a huge fan of the Estimator page look still … more like
+the Agreements page?"; and the bigger ideas in detail.
+
+### Solid menus — `.menu-material` (globals.css) + `components/MenuPopover.tsx`
+- New `.app-ui .menu-material`: opaque white (dark: solid dusk
+  `color-mix(var(--wb-primary) 10%, #2a323d)` with a light hairline and a
+  deeper shadow). `.sheet-material` (55 % frost + blur) stays for the
+  things that slide up from the bottom — Create/More sheets, the confirm
+  sheet, App Lock, the chat tapback picker.
+- `MenuPopover` = the anchored dropdown, done once: desktop renders the
+  solid dropdown under its trigger and slides it back inside the viewport
+  if it would spill past an edge; phones render the SAME children in the
+  `BottomSheet`, restyled as iOS rows by `.menu-sheet` (row padding, 15 px
+  text, hairlines) — so a menu can never open off the screen there.
+- Converted: Job / Invoice / Quote / Request / Appointment "…" menus,
+  the client "…" and Create menus, the chat group menu, `FilterSelect`
+  (the phone filter picker with > 4 options). Made solid without
+  conversion: the rail company switcher, the chat long-press menu, the
+  `QuickMenu` popover.
+
+### Closing a shape — `components/MapMeasure.tsx`
+The old ways (tap the first corner, a small "Close shape" button in the
+bar under the map) failed on phones: Leaflet's draggable markers swallow
+taps, so the first corner's click never fired. Now: a tap ANYWHERE within
+28 px of the first corner closes the shape (measured on screen, not in
+metres); double-tap / double-click closes; and once three corners are
+down a big accent "Close shape" pill floats at the bottom of the map
+itself. The hint text says so.
+
+### The Estimates page, Agreements-style — `page.tsx` + `EstimatesClient.tsx`
+Exactly the Agreements skeleton: `PageTitle` with a sub line + ONE
+primary button (Build a tool — icon-only under `sm` — or Run a tool for
+sellers), a `SegmentedRow` view switch **Tools | Library** (`?view=`;
+`/app/estimates/library` now redirects here; `LibraryClient` gained
+`embedded`), `MobileSearch`, `FilterBar` All / Published / Off with a
+sort (Last updated · Name A–Z · Most used, `?sort=`, `ESTIMATE_SORTS`),
+one ledger — desktop grid `Tool · Questions · Updated · Status · ›`,
+phone rows with a `Monogram` of the tool name, one status stamp, a
+double-ruled foot with the count. Gone: the KPI strip, the dashed
+"describe how you price a job" line, the Library header button, the
+accent icon tiles.
+
+### The bigger ideas, in detail (for David to look over — none built)
+1. **Address-first auto-measure.** The visitor types an address; the form
+   shows THEIR roof / lawn / driveway already outlined on the aerial and
+   asks "look right?". Why: this is the single biggest conversion lever
+   in the category — Roofle reports 8–10 % form completion vs 1–2 % for a
+   plain form, Deep Lawn sells lawn care on it alone; the "that's my
+   house" moment is what makes people finish. How: Google Solar API for
+   roof segments + area + pitch (free tier covers a small company's
+   volume), a parcel outline (Regrid) with a turf/hardscape
+   classification on the tile for lawns and driveways, the existing
+   tracer as the fallback / correction tool. Effort: high (2–3 weeks);
+   the map question already carries the value, so tools don't change.
+2. **Abandoned-estimate leads.** Save the session per step and ask for a
+   name + phone BEFORE the price (after the address / the first
+   question). Anyone who bails after seeing the number still lands in
+   Leads as "Saw an estimate: $2,400 driveway wash — didn't submit". Why:
+   most visitors never press Submit; today they vanish. Lawnbot / Deep
+   Lawn treat abandoned quotes as their best call list, and a text an
+   hour later ("saw you were pricing a driveway — want us to swing by?")
+   converts a chunk of them. How: an `EstimateSession` row (tool,
+   answers, subtotal, step, contact, `?src`), a Leads filter, the
+   existing automations for the follow-up text. Effort: medium (~1 week).
+3. **Interactive proposal.** The quote the tool produces becomes a page
+   the customer TOUCHES: package tiers side by side with the recommended
+   one pre-selected, optional add-ons that flip the total and the deposit
+   live, then Approve + sign in one motion. Why: Housecall Pro users
+   report the mid/top tier chosen ~60 % of the time and average tickets
+   up 30–50 % when the customer picks options themselves rather than
+   reading a static PDF; Jobber's optional line items are its most-used
+   quote feature. How: `QuoteLineItem.optional/preselected` (optional
+   already exists), a `packages` block on the quote from the tool's
+   variants, the client hub recomputing total + deposit on tap. Effort:
+   medium (1–2 weeks).
+4. **Instant checkout for recurring services.** For mowing, cleaning,
+   pool, pest: the web form ends with "Book it" — pick a day, sign the
+   terms, card on file — and the visit is on the schedule before the
+   owner wakes up. Why: turns the estimator from a lead form into a sales
+   channel; the recurring trades are bought like a subscription and
+   GreenPal / Deep Lawn win exactly there. How: it's a composition of
+   what exists — BookingType slots, the client hub's sign + Finix card
+   on file, the Monthly plan. Effort: medium (1–2 weeks), needs Finix
+   live.
+5. **Follow-up cadence + speed-to-lead.** Per tool: two automatic
+   nudges (text + email) on an unanswered estimate at +1 h and +2 d with
+   the number attached and a "book / call" link; the owner gets a push
+   the second a web lead lands, with Call and Text buttons. Why: Roofr's
+   own data — leads answered inside the first hour close 7× more often;
+   Jobber's quote reminders are on by default for the same reason. How:
+   two schedule fields on the tool, the cron + Telnyx texting already in
+   place, the softphone deep link. Effort: low (2–3 days).
+6. **Win rate per tool, and pricing that learns.** Stamp
+   `Quote.estimatorId` when a quote starts from a tool; the tool page
+   shows quotes → approved %, average ticket, and Atlas reads it: "Deep
+   clean wins 92 % — you're underpriced; Premium never wins — drop it or
+   cut $150". Why: pricing is the owner's biggest guess and the one
+   thing nobody gives them feedback on; ServiceTitan sells this as a
+   $$$ tier. How: one column + the counters, an Atlas prompt over the
+   numbers. Effort: low (2–3 days).
+7. **Service-area gate + geopricing.** The form checks the address
+   against the company's service zips / a drive-time radius: out of area
+   gets "we don't serve there yet, leave your details" instead of a
+   price; far-but-in-area adds a trip charge or a multiplier. Why: stops
+   tyre-kicker leads from 40 miles out and prices real drive time;
+   GreenPal ranks "distance from the route" a top-3 price factor. How:
+   the company's service zips exist; a `distance_miles` variable for the
+   spec (geocode cache, metered like Find a Time). Effort: low–medium.
+8. **Homeowner self-capture.** Text the customer a link; they snap 3–5
+   photos or a walk-through video; Atlas assesses and pre-fills the tool
+   so the owner quotes from the office or the visit is half as long.
+   Why: Hover built a company on "measure before you drive"; remote
+   quoting is how one-person shops scale past their windshield time.
+   How: a public token page reusing the photo assist that already exists.
+   Effort: low–medium (3–5 days).
+9. **Kits with margin.** A line can be a kit: "fence panel" = posts +
+   rails + pickets + labour hours, each with a cost, scaled off the
+   measured feet; the tool shows the tech the margin before the number
+   goes out. Why: fencing, decks, roofing, remodels all quote by
+   assembly; Buildxact / Handoff / Xactimate sell exactly this and it's
+   what keeps bigger trades on their tools. How: nested lines + cost
+   fields in the spec (the evaluator already handles per-unit
+   quantities). Effort: medium.
+Recommended order by return on effort: 5 → 6 → 2 → 3 → 8 → 7 → 4 → 9 → 1.
+
+### Batch 12 Test (owed)
+1. Dark mode, desktop: right-click a job row → the menu is opaque; the
+   job page "…" is opaque; Clients → Create menu opaque.
+2. Phone: job page "…", client Create, the filter picker on Agreements
+   (5 options) → all open as bottom sheets, nothing off screen.
+3. Map question on a phone: drop 3+ corners → the accent "Close shape"
+   pill on the map; tap it → shape closes and the sq ft loses "so far";
+   Undo reopens; a tap near the first corner also closes; double-tap too.
+4. /app/estimates: Tools | Library switch; sort menu; phone rows show a
+   monogram; the Library view lists shared tools with the old page's
+   filters; /app/estimates/library redirects.
+
 ## Later
 - **Smarter still (proposed 2026-09-22, not built)** — the upgrade-worthy
   layer on top of the Library:

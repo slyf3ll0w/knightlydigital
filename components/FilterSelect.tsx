@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowUpDown, Check, ChevronDown, ListFilter } from "lucide-react";
+import MenuPopover from "@/components/MenuPopover";
 
 /**
  * Phone-only filter dropdown for list pages with too many statuses for a
@@ -70,12 +71,7 @@ export default function FilterSelect({
         />
       </button>
       {open && (
-        <div
-          role="listbox"
-          className={`sheet-material absolute top-full z-30 mt-1 w-max min-w-[12rem] whitespace-nowrap rounded-lg border border-gray-200 py-1.5 shadow-xl ${
-            align === "right" ? "right-0" : "left-0"
-          }`}
-        >
+        <MenuPopover open={open} onClose={() => setOpen(false)} align={align} title="Show">
           {options.map((o) => {
             const isActive = o.value === active.value;
             return (
@@ -96,7 +92,7 @@ export default function FilterSelect({
               </Link>
             );
           })}
-        </div>
+        </MenuPopover>
       )}
     </div>
   );

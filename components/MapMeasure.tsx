@@ -148,10 +148,25 @@ export default function MapMeasure({
         void tuneSatelliteLayer(sat, map);
       });
 
-      // drop a corner
+      // drop a corner — or, with three or more down, a tap ANYWHERE near the
+      // first corner closes the shape (a draggable marker swallows taps on
+      // phones, so the marker's own click can't be the only way to close)
       map.on("click", (e: Leaflet.LeafletMouseEvent) => {
         if (measureRef.current === "area" && closedRef.current) return;
-        commit([...pointsRef.current, [e.latlng.lat, e.latlng.lng]]);
+        const pts = pointsRef.current;
+        if (measureRef.current === "area" && pts.length >= 3) {
+          const a = map.latLngToContainerPoint(e.latlng);
+          const b = map.latLngToContainerPoint(L.latLng(pts[0][0], pts[0][1]));
+          if (a.distanceTo(b) <= 28) {
+            setClosed(true);
+            return;
+          }
+        }
+        commit([...pts, [e.latlng.lat, e.latlng.lng]]);
+      });
+      // double-tap / double-click closes too (zoom-on-double-click is off)
+      map.on("dblclick", () => {
+        if (measureRef.current === "area" && !closedRef.current && pointsRef.current.length >= 3) setClosed(true);
       });
       // desktop: a dashed line follows the cursor from the last corner
       map.on("mousemove", (e: Leaflet.LeafletMouseEvent) => {
@@ -360,7 +375,7 @@ export default function MapMeasure({
           ? "Closed. Drag a corner to adjust — the small dots add one."
           : points.length < 3
             ? "Tap the next corner."
-            : "Tap the first corner (or Close shape) to finish. Keep tapping to add corners.";
+            : "Tap Close shape (or the first corner, or double-tap) to finish. Keep tapping to add corners.";
   const shell = dark ? "border-white/15 bg-white/5 text-gray-200" : "border-gray-300 bg-white text-gray-800";
   const btn = `inline-flex h-9 shrink-0 items-center justify-center gap-1 rounded-md border px-2.5 text-xs font-medium disabled:opacity-50 ${dark ? "border-white/15 bg-[#101410] text-gray-200 hover:bg-white/10" : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"}`;
 
@@ -406,6 +421,12 @@ export default function MapMeasure({
             </button>
           </div>
         </div>
+        {/* the one action a tracer needs next, on the map itself: close the shape */}
+        {canClose && (
+          <button type="button" onClick={() => setClosed(true)} className="absolute bottom-3 left-1/2 z-[1000] inline-flex h-10 -translate-x-1/2 items-center gap-1.5 rounded-full px-4 text-sm font-semibold text-white shadow-lg" style={{ backgroundColor: accent }}>
+            <Check size={15} strokeWidth={2.5} /> Close shape
+          </button>
+        )}
         {readout && (
           <div className="pointer-events-none absolute left-3 top-3 z-[1000] rounded-lg bg-gray-900/85 px-2.5 py-1.5 text-sm font-semibold tabular-nums text-white shadow">
             {readout}

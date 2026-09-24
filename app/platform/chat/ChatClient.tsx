@@ -24,6 +24,7 @@ import EmptyState from "@/components/EmptyState";
 import { hapticImpact } from "@/lib/haptics";
 import { useMeasuredHeight } from "@/lib/use-measured-height";
 import { confirmSheet } from "@/components/ConfirmSheet";
+import MenuPopover from "@/components/MenuPopover";
 
 // Mirrors TAPBACKS in lib/chat.ts (server module)
 const TAPBACKS = ["👍", "❤️", "😂", "😮", "😢", "🎉"];
@@ -676,7 +677,7 @@ export default function ChatClient({
               <MoreVertical size={18} />
             </button>
             {menuOpen && (
-              <div className="sheet-material absolute right-0 top-10 z-30 w-44 overflow-hidden rounded-xl border border-gray-200 py-1 shadow-lg">
+              <MenuPopover open={menuOpen} onClose={() => setMenuOpen(false)} title="Group" top="top-10">
                 <button type="button" onClick={renameGroup} className="flex w-full items-center gap-2 px-3.5 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
                   <Pencil size={14} /> Rename group
                 </button>
@@ -694,7 +695,7 @@ export default function ChatClient({
                 <button type="button" onClick={leaveGroup} className="flex w-full items-center gap-2 px-3.5 py-2.5 text-sm text-red-600 hover:bg-red-50">
                   <X size={14} /> Leave group
                 </button>
-              </div>
+              </MenuPopover>
             )}
           </div>
         )}
@@ -1009,7 +1010,7 @@ export default function ChatClient({
               ))}
             </div>
             <div
-              className="sheet-material mt-2 w-52 overflow-hidden rounded-2xl border border-gray-200 shadow-xl"
+              className="menu-material mt-2 w-52 overflow-hidden rounded-2xl border border-gray-200 shadow-xl"
               style={{ animation: "tile-in 220ms cubic-bezier(0.22,1,0.36,1) both", animationDelay: "40ms", marginLeft: pressed.mine ? "auto" : undefined }}
             >
               <button
