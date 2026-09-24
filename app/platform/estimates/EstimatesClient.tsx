@@ -72,6 +72,49 @@ function ToolStamp({ t }: { t: Tool }) {
   return <span className="stamp text-green-700">Live</span>;
 }
 
+/** One ledger row — hoisted so a parent re-render (opening the runner, the builder) never remounts it and drops an open menu. */
+function ToolRow({ t, manager, atlasName, onRun }: { t: Tool; manager: boolean; atlasName: string; onRun: (t: Tool) => void }) {
+  const theme = APP_THEME;
+  const placeholders = t.spec.placeholders?.length ?? 0;
+  const facts = toolFacts(t, atlasName);
+  const pills = (
+    <>
+      {placeholders > 0 && manager && <span className="stamp text-amber-700">{placeholders} rate{placeholders === 1 ? "" : "s"} to confirm</span>}
+      {t.sourceListingId && <span className="stamp text-gray-500">Library</span>}
+    </>
+  );
+  return (
+    <EntityRowActions meta={{ kind: "tool", id: t.id, name: t.name, isActive: t.isActive, isPublic: Boolean(t.isPublic && t.publicSlug), manager }} onRun={t.isActive ? () => onRun(t) : undefined}>
+      <Link href={`/app/estimates/${t.id}`} prefetch={false} className={`flex items-center gap-3 px-4 py-3 transition-colors hover:bg-gray-50 active:bg-gray-100 lg:grid lg:gap-4 lg:py-2.5 ${GRID} ${t.isActive ? "" : "opacity-70"}`}>
+        {/* Phone row: icon tile anchors it (a tool has no face), name + status, then the facts */}
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] lg:hidden" style={{ backgroundColor: wash(theme, 12), color: theme.accent }} aria-hidden>
+          <Calculator size={18} strokeWidth={2.25} />
+        </span>
+        <div className="min-w-0 flex-1 lg:flex-none">
+          <div className="flex items-center justify-between gap-3 lg:block">
+            <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900 lg:text-sm lg:font-medium">
+              {t.name}
+              <span className="ml-2 hidden lg:inline-flex lg:gap-1 lg:align-middle">{pills}</span>
+            </p>
+            <span className="shrink-0 lg:hidden">
+              <ToolStamp t={t} />
+            </span>
+          </div>
+          <p className="mt-0.5 truncate text-[13px] text-gray-500 lg:text-xs">{t.description || facts.join(" · ")}</p>
+          {(placeholders > 0 && manager) || t.sourceListingId ? <span className="mt-1 flex gap-1 lg:hidden">{pills}</span> : null}
+        </div>
+        <span className="hidden text-sm text-gray-500 lg:block">{t.spec.inputs.length}</span>
+        <span className="hidden lg:block">
+          <ToolStamp t={t} />
+        </span>
+        <span className="numeral-ledger hidden text-sm text-gray-600 lg:block">{t.runs > 0 ? t.runs.toLocaleString() : "—"}</span>
+        <span className="numeral-ledger hidden text-sm text-gray-600 lg:block">{t.isPublic && t.publicSlug ? (t.submissions > 0 ? `${t.submissions.toLocaleString()} of ${t.publicViews.toLocaleString()}` : `${t.publicViews.toLocaleString()} views`) : "—"}</span>
+        <ChevronRight size={14} className="hidden shrink-0 text-gray-400 lg:block" />
+      </Link>
+    </EntityRowActions>
+  );
+}
+
 export default function EstimatesClient({
   tools,
   totals,
@@ -112,47 +155,6 @@ export default function EstimatesClient({
     { label: "Estimates run", mobileLabel: "Runs", value: totals.runs, zero: totals.runs === 0 },
     { label: "Website leads", mobileLabel: "Web leads", value: totals.leads, href: "/app/estimates?status=published", zero: totals.leads === 0 },
   ];
-
-  const Row = ({ t }: { t: Tool }) => {
-    const placeholders = t.spec.placeholders?.length ?? 0;
-    const facts = toolFacts(t, atlas.name);
-    const pills = (
-      <>
-        {placeholders > 0 && manager && <span className="stamp text-amber-700">{placeholders} rate{placeholders === 1 ? "" : "s"} to confirm</span>}
-        {t.sourceListingId && <span className="stamp text-gray-500">Library</span>}
-      </>
-    );
-    return (
-      <EntityRowActions key={t.id} meta={{ kind: "tool", id: t.id, name: t.name, isActive: t.isActive, isPublic: Boolean(t.isPublic && t.publicSlug), manager }} onRun={t.isActive ? () => setRunning([t]) : undefined}>
-        <Link href={`/app/estimates/${t.id}`} prefetch={false} className={`flex items-center gap-3 px-4 py-3 transition-colors hover:bg-gray-50 active:bg-gray-100 lg:grid lg:gap-4 lg:py-2.5 ${GRID} ${t.isActive ? "" : "opacity-70"}`}>
-          {/* Phone row: icon tile anchors it (a tool has no face), name + status, then the facts */}
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] lg:hidden" style={{ backgroundColor: wash(theme, 12), color: theme.accent }} aria-hidden>
-            <Calculator size={18} strokeWidth={2.25} />
-          </span>
-          <div className="min-w-0 flex-1 lg:flex-none">
-            <div className="flex items-center justify-between gap-3 lg:block">
-              <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900 lg:text-sm lg:font-medium">
-                {t.name}
-                <span className="ml-2 hidden lg:inline-flex lg:gap-1 lg:align-middle">{pills}</span>
-              </p>
-              <span className="shrink-0 lg:hidden">
-                <ToolStamp t={t} />
-              </span>
-            </div>
-            <p className="mt-0.5 truncate text-[13px] text-gray-500 lg:text-xs">{t.description || facts.join(" · ")}</p>
-            {(placeholders > 0 && manager) || t.sourceListingId ? <span className="mt-1 flex gap-1 lg:hidden">{pills}</span> : null}
-          </div>
-          <span className="hidden text-sm text-gray-500 lg:block">{t.spec.inputs.length}</span>
-          <span className="hidden lg:block">
-            <ToolStamp t={t} />
-          </span>
-          <span className="numeral-ledger hidden text-sm text-gray-600 lg:block">{t.runs > 0 ? t.runs.toLocaleString() : "—"}</span>
-          <span className="numeral-ledger hidden text-sm text-gray-600 lg:block">{t.isPublic && t.publicSlug ? (t.submissions > 0 ? `${t.submissions.toLocaleString()} of ${t.publicViews.toLocaleString()}` : `${t.publicViews.toLocaleString()} views`) : "—"}</span>
-          <ChevronRight size={14} className="hidden shrink-0 text-gray-400 lg:block" />
-        </Link>
-      </EntityRowActions>
-    );
-  };
 
   return (
     <div className="mx-auto max-w-6xl p-4 lg:p-8">
@@ -228,7 +230,7 @@ export default function EstimatesClient({
                 <span></span>
               </div>
               {tools.map((t) => (
-                <Row key={t.id} t={t} />
+                <ToolRow key={t.id} t={t} manager={manager} atlasName={atlas.name} onRun={(x) => setRunning([x])} />
               ))}
             </div>
             {/* Ledger foot */}

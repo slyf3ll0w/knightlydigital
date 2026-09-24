@@ -69,10 +69,14 @@ export function QuickMenu({ open, anchor, title, actions, onClose }: { open: boo
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
+    // the popover only shows at lg; the phone sheet has its own backdrop and must survive a scroll
+    const desktop = () => window.innerWidth >= 1024;
     const onDown = (e: MouseEvent) => {
-      if (popRef.current && !popRef.current.contains(e.target as Node)) onClose();
+      if (desktop() && popRef.current && !popRef.current.contains(e.target as Node)) onClose();
     };
-    const onScroll = () => onClose();
+    const onScroll = () => {
+      if (desktop()) onClose();
+    };
     window.addEventListener("keydown", onKey);
     document.addEventListener("mousedown", onDown);
     window.addEventListener("scroll", onScroll, true);
