@@ -498,7 +498,11 @@ TELNYX_FAILED / MNO_REJECTED is superadmin **Appeal with current copy**
 (`line-appeal` → `appealCampaignRegistration`: `PUT /10dlc/campaign/{id}`
 with the new flow + samples, then `POST …/appeal`), which Telnyx compliance
 re-reviews by hand for free — never Re-file first, that is a new campaign
-and a new $15. The EIN is typed twice
+and a new $15. Because a new company has no booking items until it makes
+one, `submitRegistration` and `approveRegistration` pre-flight the form
+(`requireOptInForm` → `findOptInForm().ready`): no listed item with the
+phone field on = refused with `OPT_IN_FORM_MESSAGE`, and the checklist
+(`REGISTRATION_CHECKLIST`, `/texting-registration`) says so up front. The EIN is typed twice
 and checked against the IRS prefix list (`einIssue`, lib/business-line-shared.ts,
 form + server) so a typo never reaches the registry. Same idea for the rest
 of the form (2026-09-22): the street address comes from Mapbox autocomplete

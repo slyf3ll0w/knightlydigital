@@ -663,13 +663,33 @@ export function sanitizeRegistrationForm(raw: Record<string, unknown>, kind: Reg
  * otherwise. Telnyx failed the Lessly Holdings campaign 2026-09-24 because
  * the flow named "the online booking form" without this link.
  */
-export async function optInFormUrl(companyId: string): Promise<string> {
+export async function findOptInForm(companyId: string): Promise<{ url: string; ready: boolean }> {
   const company = await prisma.company.findUnique({ where: { id: companyId }, select: { slug: true } });
-  if (!company) return `${appBase()}/book`;
+  if (!company) return { url: `${appBase()}/book`, ready: false };
   const listed = await listPublicBookingTypes(company.slug, { skipGate: true }).catch(() => null);
   const menu = listed ? menuTypes(listed.types) : [];
-  const item = menu.find((t) => t.intake.fields.phone.show) ?? menu[0];
-  return item ? `${appBase()}/book/${company.slug}/${item.slug}` : `${appBase()}/book/${company.slug}`;
+  const withPhone = menu.find((t) => t.intake.fields.phone.show);
+  if (withPhone) return { url: `${appBase()}/book/${company.slug}/${withPhone.slug}`, ready: true };
+  return { url: menu[0] ? `${appBase()}/book/${company.slug}/${menu[0].slug}` : `${appBase()}/book/${company.slug}`, ready: false };
+}
+
+export async function optInFormUrl(companyId: string): Promise<string> {
+  return (await findOptInForm(companyId)).url;
+}
+
+export const OPT_IN_FORM_MESSAGE =
+  "Carrier reviewers open your public booking page to see the text-message consent checkbox, which sits under the phone number field. " +
+  "Add an item to your booking page (Settings → Booking & forms) that is shown on the page and asks for a phone number, then register.";
+
+/**
+ * Pre-flight, same spirit as the website check: a filing whose form URL has
+ * no phone field (or no listed item at all — a new company has none until
+ * it makes one) comes back TELNYX_FAILED, and the operator has to step in.
+ * Refuse it up front with the fix spelled out.
+ */
+async function requireOptInForm(companyId: string): Promise<void> {
+  const form = await findOptInForm(companyId);
+  if (!form.ready) throw new LineError(OPT_IN_FORM_MESSAGE, 409);
 }
 
 /**
@@ -831,6 +851,8 @@ export async function submitRegistration(companyId: string, form: RegistrationFo
     });
     if (!check.ok) throw new LineError(check.reason);
   }
+  // The platform's own line opts people in on /apply, not a booking page.
+  if (!isPlatformOwnLine(form)) await requireOptInForm(companyId);
   if (needsOperatorReview(prior, registrationReviewRequired())) return holdForReview(company, form);
 
   return fileRegistration(company, form, { interactive: true });
@@ -937,6 +959,8 @@ export async function approveRegistration(companyId: string): Promise<MessagingR
   if (reg.status !== "AWAITING_REVIEW" && reg.status !== "REJECTED" && reg.status !== "QUEUED") {
     throw new LineError(`Nothing waiting to be filed (status ${reg.status}).`, 409);
   }
+  // The tenant may have removed the phone field since they submitted; a filing is money.
+  if (!isPlatformOwnLine(registrationFormOf(reg))) await requireOptInForm(companyId);
   return fileFromRow(reg);
 }
 

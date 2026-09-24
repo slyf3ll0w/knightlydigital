@@ -420,8 +420,10 @@ console.log("test-business-line (number rights): all assertions passed");
   assert.ok(!isGroupMailbox("david@lesslyholdings.com"), "a named person passes");
   assert.ok(!isGroupMailbox("dcontact@example.com"), "only the whole local part counts");
   assert.ok(!isGroupMailbox("nonsense"), "no @ → not our problem here");
-  assert.equal(REGISTRATION_CHECKLIST.PRIVATE_PROFIT.length, 4);
-  assert.equal(REGISTRATION_CHECKLIST.SOLE_PROPRIETOR.length, 3);
+  assert.equal(REGISTRATION_CHECKLIST.PRIVATE_PROFIT.length, 5);
+  assert.equal(REGISTRATION_CHECKLIST.SOLE_PROPRIETOR.length, 4);
+  // Both lists end on the booking-form item: reviewers open that page for the consent checkbox.
+  for (const list of Object.values(REGISTRATION_CHECKLIST)) assert.match(list[list.length - 1].title, /booking form/);
   console.log("test-business-line (group mailboxes): all assertions passed");
 }
 

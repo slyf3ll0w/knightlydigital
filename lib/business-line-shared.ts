@@ -290,6 +290,11 @@ export const REGISTRATION_CHECKLIST: Record<BrandEntityType, ChecklistItem[]> = 
       detail: "Optional. If you give one it should load and show your business name.",
       why: "A dead or unrelated site gets the registration sent back.",
     },
+    {
+      title: "A booking form that asks for a phone number",
+      detail: "An item on your booking page (Settings → Booking & forms), shown on the page, with the phone field on. The text-message consent checkbox sits under that field.",
+      why: "Carrier reviewers open that page to see how customers opt in. A page without the checkbox is sent back, and every re-file is a carrier fee.",
+    },
   ],
   SOLE_PROPRIETOR: [
     {
@@ -306,6 +311,11 @@ export const REGISTRATION_CHECKLIST: Record<BrandEntityType, ChecklistItem[]> = 
       title: "Your mobile phone, within reach",
       detail: "The registry texts you a PIN. Enter it in WorkBench within 24 hours.",
       why: "The PIN is how a sole proprietor is verified — usually within minutes.",
+    },
+    {
+      title: "A booking form that asks for a phone number",
+      detail: "An item on your booking page (Settings → Booking & forms), shown on the page, with the phone field on. The text-message consent checkbox sits under that field.",
+      why: "Carrier reviewers open that page to see how customers opt in. A page without the checkbox is sent back, and every re-file is a carrier fee.",
     },
   ],
 };
