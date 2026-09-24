@@ -15,7 +15,7 @@ import EstimatorRunner, { type RunnerEstimator } from "@/components/EstimatorRun
 import { useAssistant } from "@/components/AssistantContext";
 import { SECTION_HUES } from "@/lib/section-colors";
 import { shortDate } from "@/lib/statuses";
-import type { SortOption } from "@/lib/list-sort";
+import { ESTIMATE_SORTS } from "@/lib/list-sort";
 import type { EstimatorPublicConfig } from "@/lib/estimator-public";
 import BuildPanel, { type BuiltTool } from "./BuildPanel";
 import LibraryClient from "./library/LibraryClient";
@@ -32,12 +32,6 @@ import LibraryClient from "./library/LibraryClient";
  */
 
 export type EstimatesFilter = "" | "published" | "off";
-
-export const ESTIMATE_SORTS = [
-  { value: "updated", label: "Last updated" },
-  { value: "name", label: "Name A–Z" },
-  { value: "runs", label: "Most used" },
-] as const satisfies readonly SortOption[];
 
 export type Tool = RunnerEstimator & {
   isActive: boolean;

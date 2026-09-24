@@ -160,3 +160,10 @@ export function contractOrderBy(sort: string) {
       return [{ createdAt: "desc" as const }];
   }
 }
+
+/** Estimate tools (/app/estimates) — sorted in memory, the list is small. */
+export const ESTIMATE_SORTS = [
+  { value: "updated", label: "Last updated" },
+  { value: "name", label: "Name A–Z" },
+  { value: "runs", label: "Most used" },
+] as const satisfies readonly SortOption[];
