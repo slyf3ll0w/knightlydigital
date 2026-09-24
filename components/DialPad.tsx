@@ -164,7 +164,8 @@ export default function DialPad({
   const backspace = () => {
     setError("");
     setValue((v) => v.slice(0, -1));
-    input.current?.focus({ preventScroll: true });
+    // Desktop keeps the caret in the field; on the phone sheet a focus would raise the keyboard.
+    if (size !== "lg") input.current?.focus({ preventScroll: true });
   };
 
   const onCall = sp.status === "ready" && !!sp.call;
@@ -254,7 +255,7 @@ export default function DialPad({
         <input
           ref={input}
           type="tel"
-          inputMode="tel"
+          inputMode={big ? "none" : "tel"}
           autoComplete="off"
           value={shown}
           onChange={(e) => {
@@ -279,7 +280,10 @@ export default function DialPad({
           }}
           placeholder={tones ? "Touch-tones" : "Enter a number"}
           aria-label={tones ? "Touch-tones sent on this call" : "Number to call"}
-          readOnly={tones}
+          // The phone sheet: the keys are the keyboard. A focusable input
+          // there raised the system keyboard over the pad on every tap.
+          readOnly={tones || big}
+          tabIndex={big ? -1 : undefined}
           className={`numeral-ledger w-full bg-transparent px-8 py-1 text-center ${sizeCls} font-semibold tracking-wide text-gray-900 placeholder:font-sans placeholder:text-base placeholder:font-normal placeholder:tracking-normal placeholder:text-gray-400 focus:outline-none`}
         />
         {value && (

@@ -21,6 +21,7 @@ import type { CallEvent, CallEventKind } from "@/lib/call-events";
 import VoicemailPlayer from "@/components/VoicemailPlayer";
 import CallFromLineButton from "@/components/CallFromLineButton";
 import Monogram from "@/components/Monogram";
+import SwipeRow, { type SwipeRowAction } from "@/components/SwipeRow";
 
 /**
  * One call on the business line — a ROW in a recents list, the way a
@@ -32,10 +33,12 @@ import Monogram from "@/components/Monogram";
  * calls" card and the call screen's "Earlier calls" all read the same.
  *
  * iOS conventions carried over: a missed call's name is red, an unseen
- * missed call or voicemail is bold with a dot on the avatar, and on a
- * phone the whole row opens the call screen (a stretched link under the
- * content; the voicemail player sits above it). Desktop keeps the name as
- * the link and shows Text / Call back at the end of the row.
+ * missed call or voicemail is bold with a dot on the avatar, on a phone
+ * the whole row opens the call screen (a stretched link under the
+ * content), a swipe left reveals Text / Call back (components/SwipeRow.tsx),
+ * and a voicemail row stays one line — the call screen plays it. Desktop
+ * keeps the name as the link, the player in the row, and Text / Call back
+ * at the end of the row.
  *
  * Server component; the interactive pieces are the in-app voicemail player
  * (components/VoicemailPlayer.tsx) and Call back, which rings the browser
@@ -213,7 +216,38 @@ export default function CallRow({
   const href = `/app/calls/${call.id}`;
   const nameInk = missed && !live ? "text-red-600" : "text-gray-900";
 
+  // Phones: the same two actions as iOS swipe blocks behind the row
+  // (components/SwipeRow.tsx — the Schedule and Clients rows' tray). Text is
+  // a link; Call back is the live button, so it rides the tray as a node.
+  const block = "flex h-full w-full flex-col items-center justify-center gap-1 text-[10px] font-semibold text-white active:opacity-80 disabled:opacity-60";
+  const swipe: SwipeRowAction[] = [
+    ...(showText && call.contact
+      ? [
+          {
+            key: "text",
+            bg: "#2563EB",
+            node: (
+              <Link href={`/app/messages/thread/${call.contact.id}`} className={block}>
+                <MessageSquare size={18} />
+                Text
+              </Link>
+            ),
+          },
+        ]
+      : []),
+    ...(showCallBack
+      ? [
+          {
+            key: "call",
+            bg: "#16A34A",
+            node: <CallFromLineButton to={call.customerNumber} contactId={call.contact?.id} contactName={label} agentPhone="" label="Call back" stacked className={block} />,
+          },
+        ]
+      : []),
+  ];
+
   return (
+    <SwipeRow actions={swipe}>
     <div className={`relative flex items-center gap-3 px-4 py-3 transition-colors hover:bg-gray-50 active:bg-gray-100 lg:py-2.5 ${live ? "bg-green-50/40" : ""}`}>
       {/* Phones: the whole row opens the call screen. Sits under the content so the voicemail player still takes taps. */}
       <Link href={href} aria-label={`Open the call with ${title}`} className="absolute inset-0 z-0 lg:hidden" />
@@ -255,8 +289,9 @@ export default function CallRow({
           })}
           {events.length > 3 && <span className="text-gray-400">+{events.length - 3}</span>}
         </div>
+        {/* Desktop plays the voicemail in the row; a phone row stays one line and the call screen plays it. */}
         {call.status === "VOICEMAIL" && (call.voicemailRecordingId || call.voicemailSec !== null) && (
-          <div className="relative z-10">
+          <div className="relative z-10 hidden lg:block">
             <VoicemailPlayer callId={call.id} seconds={call.voicemailSec} />
           </div>
         )}
@@ -277,5 +312,6 @@ export default function CallRow({
       )}
       <ChevronRight size={15} className="shrink-0 text-gray-300 lg:hidden" aria-hidden />
     </div>
+    </SwipeRow>
   );
 }

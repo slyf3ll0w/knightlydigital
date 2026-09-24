@@ -179,7 +179,8 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
       </div>
     ) : (
       <>
-        <div className="lg:hidden">
+        {/* Phones: the filter stays put while the list scrolls under it (a frosted bar, like the chat header). */}
+        <div className="glass-bar sticky top-0 z-20 -mx-4 border-b px-4 py-2 lg:hidden">
           <SegmentedRow>
             {FILTERS.map(([k, label]) => (
               <Segment key={k} active={filter === k} href={href(k)}>
