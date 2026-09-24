@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
 import { enterPipeline } from "@/lib/pipeline";
+import { fireAutomations } from "@/lib/automations-server";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 import { linkCallsToContact } from "@/lib/voice";
 
@@ -121,6 +122,7 @@ export async function POST(req: NextRequest) {
   });
 
   // New leads go straight onto the pipeline board
+  fireAutomations(actor.companyId, status === "LEAD" ? "lead.created" : "client.created", contact.id);
   if (status === "LEAD") await enterPipeline(prisma, actor.companyId, contact.id);
   // Calls from this number that never matched anyone are theirs now (the call log shows the name).
   await linkCallsToContact(actor.companyId, contact.id, contact.phone).catch(() => 0);

@@ -79,8 +79,8 @@ const baseCtx: AutomationCtx = {
     assert.equal(spec.trigger.days, undefined, "events drop days");
     assert.equal(spec.steps.length, 4);
     assert.deepEqual(spec.steps[0], { type: "filter", match: "all", rules: [], expr: "job_total > 100" });
-    assert.equal((spec.steps[1] as { to: string }).to, "managers");
-    assert.equal((spec.steps[2] as { stageName: string }).stageName, "Cold");
+    assert.equal((spec.steps[1] as unknown as { to: string }).to, "managers");
+    assert.equal((spec.steps[2] as unknown as { stageName: string }).stageName, "Cold");
     assert.equal(describeAutomation(spec).when, "Only if: job_total > 100");
     assert.deepEqual(evaluateWhen(r.compiled, { job_total: 50 }), { fire: false });
     assert.deepEqual(evaluateWhen(r.compiled, { job_total: 500 }), { fire: true });

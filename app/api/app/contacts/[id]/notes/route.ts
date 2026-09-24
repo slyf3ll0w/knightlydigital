@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
+import { fireAutomations } from "@/lib/automations-server";
 
 /** POST — add a note to a client/lead (same shape as job notes). */
 export async function POST(
@@ -23,5 +24,6 @@ export async function POST(
   const note = await prisma.contactNote.create({
     data: { contactId, userId: actor.id, body: String(body).trim().slice(0, 5000) },
   });
+  fireAutomations(actor.companyId, "client.note_added", contactId);
   return NextResponse.json(note, { status: 201 });
 }

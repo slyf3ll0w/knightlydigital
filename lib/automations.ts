@@ -311,7 +311,7 @@ export const ENTITY_FIELDS: Record<EntityType, readonly FieldDef[]> = {
   call: [
     f("call_direction", "Direction", "enum", { options: ["INBOUND", "OUTBOUND"] }),
     f("call_status", "Call status", "enum", { options: ["RINGING", "IN_PROGRESS", "COMPLETED", "MISSED", "VOICEMAIL", "NO_ANSWER", "FAILED"] }),
-    f("call_from", "From number"), f("call_to", "To number"), f("call_duration", "Duration (seconds)", "number"), f("call_notes", "Call notes", "text", { help: "Atlas's notes, when available" }),
+    f("call_from", "From number"), f("call_to", "To number"), f("call_duration", "Duration (seconds)", "number"),
   ],
   message: [f("message_body", "Message text"), f("message_via", "Sent via", "enum", { options: ["sms", "portal", "email"] }), f("message_subject", "Subject", "text", { help: "emails only" })],
   contract: [f("contract_title", "Agreement title"), f("contract_status", "Agreement status", "enum", { options: ["DRAFT", "SENT", "SIGNED", "VOID"] }), f("contract_link", "Signing link")],
@@ -478,8 +478,8 @@ export const ACTIONS = {
   email_address: { label: "Email an address", group: "Messaging", needs: "any", hint: "An internal email — the office, the owner, an outside inbox.", params: [
     p("to", "To", "email", { required: true, max: 200 }), p("subject", "Subject", "template", { required: true, max: 150 }), p("body", "Message", "template_long", { required: true, max: 2000 }),
   ] },
-  send_quote_link: { label: "Send the quote link", group: "Messaging", needs: ["quote"], hint: "Re-sends the client's approval link (email, plus text when possible).", params: [p("message", "Note to include", "template_long", { max: 500 })] },
-  send_pay_link: { label: "Send the pay link", group: "Messaging", needs: ["invoice", "payment"], hint: "Sends the invoice's pay link (email, plus text when possible).", params: [p("message", "Note to include", "template_long", { max: 500 })] },
+  send_quote_link: { label: "Send the quote link", group: "Messaging", needs: ["quote"], hint: "Re-sends the client's approval link (email, plus text when possible).", params: [] },
+  send_pay_link: { label: "Send the pay link", group: "Messaging", needs: ["invoice", "payment"], hint: "Sends the invoice's pay link (email, plus text when possible).", params: [] },
   send_payment_reminder: { label: "Send a payment reminder", group: "Messaging", needs: ["invoice", "payment"], hint: "The standard reminder email; skipped once the invoice is paid.", params: [] },
   send_appointment_reminder: { label: "Send an appointment reminder", group: "Messaging", needs: ["appointment"], hint: "The standard reminder (text when possible, else email).", params: [] },
   request_review: { label: "Request a review", group: "Messaging", needs: "client", hint: "Sends your review link (needs it set in Branding); once per client per job.", params: [] },

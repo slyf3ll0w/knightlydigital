@@ -13,6 +13,7 @@ import { computeQuoteTotals } from "@/lib/quote-totals";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { sanitizeDeposit } from "@/lib/deposits";
+import { fireAutomations } from "@/lib/automations-server";
 
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -119,7 +120,7 @@ export async function POST(req: NextRequest) {
 
   // Number derived inside the retried transaction so two people quoting at
   // the same time both succeed instead of one hitting a unique violation.
-  const quote = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
+  const { created: quote, converted } = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
     const last = await tx.quote.findFirst({
       where: { companyId },
       orderBy: { quoteNumber: "desc" },
@@ -172,12 +173,16 @@ export async function POST(req: NextRequest) {
     // Converting a request to a quote marks the request Converted (Jobber
     // behavior). Only an open request flips — never one awaiting booking
     // approval (checked above) or already closed
+    let converted = false;
     if (requestId) {
-      await tx.request.updateMany({ where: { id: requestId, status: "NEW" }, data: { status: "CONVERTED" } });
+      const r = await tx.request.updateMany({ where: { id: requestId, status: "NEW" }, data: { status: "CONVERTED" } });
+      converted = r.count > 0;
     }
 
-    return created;
+    return { created, converted };
   }));
+
+  if (converted && requestId) fireAutomations(companyId, "request.converted", requestId);
 
   return NextResponse.json(quote, { status: 201 });
 }

@@ -7,6 +7,7 @@ import { sendEmail, invoiceLinkEmail } from "@/lib/email";
 import { sendSms, canText, invoiceLinkText } from "@/lib/sms";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { dueDateFromTerms } from "@/lib/due-dates";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * POST — email the client their invoice pay link and mark the invoice sent.
@@ -114,6 +115,8 @@ export async function POST(
   if (Object.keys(patch).length > 0) {
     await prisma.invoice.update({ where: { id: invoice.id }, data: patch });
   }
+  // First send only (a re-send of an issued invoice is a reminder, not a send)
+  if (invoice.status === "DRAFT") fireAutomations(invoice.companyId, "invoice.sent", invoice.id);
 
   return NextResponse.json({ emailed: true, texted, to: invoice.contact.email });
 }

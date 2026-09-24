@@ -3,7 +3,8 @@ import { randomBytes } from "crypto";
 import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, contactScope, jobScope } from "@/lib/permissions";
-import { recordLeadWin } from "@/lib/pipeline";
+import { recordLeadWin, firePipelineMoves, type PipelineMove } from "@/lib/pipeline";
+import { fireAutomations } from "@/lib/automations-server";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { paidDepositTotal } from "@/lib/deposits";
 import { dueDateFromTerms } from "@/lib/due-dates";
@@ -156,7 +157,7 @@ export async function POST(req: NextRequest) {
 
   // Wrapped so a concurrent invoice create in the same company re-derives the
   // number instead of 500ing and losing everything the user typed.
-  const invoice = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
+  const { invoice, archivedJob, leadMove, subscriptionIds } = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
     const last = await tx.invoice.findFirst({
       where: { companyId },
       orderBy: { invoiceNumber: "desc" },
@@ -251,6 +252,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Invoicing a completed job resolves its "requires invoicing" state
+    let archivedJob = false;
     if (jobId) {
       const job = await tx.job.findFirst({ where: { id: jobId, companyId } });
       if (job?.status === "REQUIRES_INVOICING") {
@@ -258,18 +260,21 @@ export async function POST(req: NextRequest) {
           where: { id: jobId },
           data: { status: "ARCHIVED", closedAt: new Date() },
         });
+        archivedJob = true;
       }
     }
 
     // Billing a lead closes them: active client, off the pipeline board
+    let leadMove: PipelineMove | null = null;
     if (contact) {
-      await recordLeadWin(tx, companyId, contact);
+      leadMove = await recordLeadWin(tx, companyId, contact);
     }
 
     // Recurring services billed directly also start a subscription. Lines the
     // user marked one-time arrive with recurringInterval null and are skipped.
+    let subscriptionIds: string[] = [];
     if (contact) {
-      await ensureSubscriptionsForContact(
+      subscriptionIds = await ensureSubscriptionsForContact(
         tx,
         companyId,
         contact.id,
@@ -286,8 +291,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return created;
+    return { invoice: created, archivedJob, leadMove, subscriptionIds };
   }));
+
+  // After commit — the invoice itself is a DRAFT here (invoice.sent fires from the send route)
+  if (archivedJob && jobId) fireAutomations(companyId, "job.archived", jobId);
+  for (const sid of subscriptionIds) fireAutomations(companyId, "subscription.started", sid);
+  firePipelineMoves(companyId, [leadMove]);
 
   return NextResponse.json(invoice, { status: 201 });
 }

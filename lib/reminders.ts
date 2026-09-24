@@ -30,6 +30,7 @@ import { notifyUser, notifyUsers } from "@/lib/push";
 import { arrivalSlotLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import { pastDueFilter } from "@/lib/due-dates";
 import { invoiceBalance } from "@/lib/payments";
+import { fireAutomations } from "@/lib/automations-server";
 
 const DAY = 86400000;
 
@@ -73,10 +74,16 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
   // invoices list does this lazily on view; here we do it globally so statuses
   // are right even for companies no one has opened today). An invoice due
   // today is not late — see lib/due-dates.ts.
-  const flipped = await prisma.invoice.updateMany({
+  // Ids first so each flipped invoice can fire its invoice.past_due automation
+  const toFlip = await prisma.invoice.findMany({
     where: { status: "AWAITING_PAYMENT", dueDate: pastDueFilter(now) },
+    select: { id: true, companyId: true },
+  });
+  const flipped = await prisma.invoice.updateMany({
+    where: { id: { in: toFlip.map((i) => i.id) }, status: "AWAITING_PAYMENT" },
     data: { status: "PAST_DUE" },
   });
+  for (const inv of toFlip) fireAutomations(inv.companyId, "invoice.past_due", inv.id);
 
   // Without Resend every send is a no-op — bail before claiming any stage so
   // the cadence simply picks up once email is live.

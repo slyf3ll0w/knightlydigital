@@ -4,6 +4,7 @@ import { limit } from "@/lib/rate-limit";
 import { getActor, canSell, viaContactScope } from "@/lib/permissions";
 import { sendEmail, contractSignEmail } from "@/lib/email";
 import { inPreview, previewBlockedError } from "@/lib/preview";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * POST — email the client their signing link again (the same email the
@@ -80,6 +81,7 @@ export async function POST(
     where: { id: contract.id },
     data: { status: "SENT", sentAt: new Date() },
   });
+  fireAutomations(contract.companyId, "contract.sent", contract.id);
 
   return NextResponse.json({ emailed: true, to: contract.contact.email });
 }

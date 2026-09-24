@@ -35,6 +35,7 @@ import { localDayParts, wallTimeToUtc } from "@/lib/booking-engine";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { dueDateFromTerms } from "@/lib/due-dates";
 import { findScheduleConflicts } from "@/lib/schedule-conflicts";
+import { fireAutomations } from "@/lib/automations-server";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
@@ -183,6 +184,8 @@ async function settleGeneratedInvoice(opts: {
   chargeDescription: string;
   paymentDetails: string;
 }): Promise<"charged" | "billed"> {
+  // Every engine invoice in SEND mode passes through here once, post-commit — that is its "sent"
+  fireAutomations(opts.companyId, "invoice.sent", opts.invoiceId);
   const outcome = await attemptAutoCharge({
     companyId: opts.companyId,
     invoiceId: opts.invoiceId,
@@ -471,7 +474,8 @@ export async function billCompletedVisit(
     });
 
     // Invoicing the completed visit resolves its "requires invoicing" state
-    if (fresh.status === "REQUIRES_INVOICING") {
+    const archived = fresh.status === "REQUIRES_INVOICING";
+    if (archived) {
       await tx.job.update({
         where: { id: job.id },
         data: { status: "ARCHIVED", closedAt: now },
@@ -487,6 +491,7 @@ export async function billCompletedVisit(
       invoiceNumber: invoice.invoiceNumber,
       publicToken: invoice.publicToken,
       total: money.total,
+      archived,
     };
   }, { isolationLevel: "Serializable" })).catch((e) => {
     // Serialization conflict: another biller claimed this visit mid-flight —
@@ -496,6 +501,7 @@ export async function billCompletedVisit(
   });
 
   if (!minted) return null;
+  if (minted.archived) fireAutomations(companyId, "job.archived", job.id);
   if (!send) return "drafted";
 
   return settleGeneratedInvoice({
@@ -540,6 +546,7 @@ async function billSeriesPool(
     publicToken: string;
     total: number;
     visitCount: number;
+    archivedJobIds: string[];
   } | null = null;
   try {
     minted = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
@@ -634,6 +641,7 @@ async function billSeriesPool(
         publicToken: invoice.publicToken,
         total: money.total,
         visitCount: mine.length,
+        archivedJobIds: openIds,
       };
     }, { isolationLevel: "Serializable" }));
   } catch (err) {
@@ -646,6 +654,7 @@ async function billSeriesPool(
   }
 
   if (!minted) return "empty";
+  for (const jobId of minted.archivedJobIds) fireAutomations(sub.companyId, "job.archived", jobId);
   if (!send) return "drafted";
 
   return settleGeneratedInvoice({
@@ -891,6 +900,8 @@ export async function generateDueVisits(
     const newVisits: { id: string; start: Date; end: Date; assigneeIds: string[] }[] = [];
     try {
       const created = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
+        // Every visit minted in THIS attempt (a retried attempt starts over)
+        const visitIds: string[] = [];
         // Re-read inside the transaction so overlapping sweeps can't both
         // materialize the same dates.
         const fresh = await tx.subscription.findUnique({
@@ -904,7 +915,7 @@ export async function generateDueVisits(
           !fresh.nextVisitDate ||
           fresh.nextVisitDate > horizon
         ) {
-          return 0;
+          return { count: 0, visitIds };
         }
 
         // Optimistic claim keyed on the cursor we read — a concurrent sweep
@@ -913,7 +924,7 @@ export async function generateDueVisits(
           where: { id: sub.id, nextVisitDate: fresh.nextVisitDate },
           data: { lastVisitGeneratedAt: now },
         });
-        if (claimed.count === 0) return 0;
+        if (claimed.count === 0) return { count: 0, visitIds };
 
         // Default assignees, filtered to live team members; a one-person
         // company's visits land on that person even with no defaults set
@@ -982,6 +993,7 @@ export async function generateDueVisits(
             if (!anytime && scheduledEnd) {
               newVisits.push({ id: visit.id, start: scheduledAt, end: scheduledEnd, assigneeIds });
             }
+            visitIds.push(visit.id);
             count++;
           }
           cursor = addVisitInterval(cursor, fresh.visitFrequency);
@@ -991,10 +1003,11 @@ export async function generateDueVisits(
           where: { id: sub.id },
           data: { nextVisitDate: cursor, lastVisitGeneratedAt: now },
         });
-        return count;
+        return { count, visitIds };
       }));
       summary.subscriptions++;
-      summary.visitsCreated += created;
+      summary.visitsCreated += created.count;
+      for (const visitId of created.visitIds) fireAutomations(sub.companyId, "subscription.visit_generated", visitId);
 
       // Nobody is watching a background sweep, so a generated visit that lands
       // on existing work gets its first conflict stamped onto the job — the
@@ -1101,6 +1114,7 @@ export async function pauseSubscriptionsForContact(
     where: { id: { in: active.map((s) => s.id) }, status: "ACTIVE" },
     data: { status: "PAUSED" },
   });
+  for (const s of active) fireAutomations(companyId, "subscription.paused", s.id);
   let visitsDeleted = 0;
   for (const s of active) {
     if (s.visitFrequency) visitsDeleted += await deleteFutureVisits(s.id, companyId);

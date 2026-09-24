@@ -4,6 +4,7 @@ import { getActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import { invoiceBalance } from "@/lib/payments";
 import { logActivity } from "@/lib/activity";
 import { dueDateFromTerms } from "@/lib/due-dates";
+import { fireAutomations } from "@/lib/automations-server";
 
 export async function PATCH(
   req: NextRequest,
@@ -79,6 +80,10 @@ export async function PATCH(
     await prisma.celebrationSeen.deleteMany({
       where: { kind: "INVOICE_PAID", entityId: id },
     });
+  }
+  if (status !== invoice.status) {
+    if (status === "AWAITING_PAYMENT" && invoice.status === "DRAFT") fireAutomations(companyId, "invoice.sent", id); // marking sent = issuing
+    else if (status === "PAST_DUE") fireAutomations(companyId, "invoice.past_due", id);
   }
 
   logActivity({

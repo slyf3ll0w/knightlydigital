@@ -93,6 +93,7 @@ export async function PATCH(
 
   await prisma.job.update({ where: { id }, data: { status: effectiveStatus, ...extra } });
   if (status === "REQUIRES_INVOICING" && job.status !== "REQUIRES_INVOICING") fireAutomations(actor.companyId, "job.completed", id);
+  if (effectiveStatus === "ARCHIVED" && job.status !== "ARCHIVED") fireAutomations(actor.companyId, "job.archived", id);
 
   // Finishing the job clocks the tech out of it. Left open, the entry would
   // run until their NEXT clock-in — sometimes the following morning — and

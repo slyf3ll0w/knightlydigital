@@ -3,7 +3,8 @@ import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, jobScope, contactScope } from "@/lib/permissions";
 import { findScheduleConflicts } from "@/lib/schedule-conflicts";
-import { recordLeadWin } from "@/lib/pipeline";
+import { recordLeadWin, firePipelineMoves } from "@/lib/pipeline";
+import { fireAutomations } from "@/lib/automations-server";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { syncJobChecklist } from "@/lib/job-checklist";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
@@ -145,7 +146,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Wrapped so two dispatchers creating jobs at once both succeed
-  const job = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
+  const { job, converted, subscriptionIds, leadMove } = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
     const last = await tx.job.findFirst({
       where: { companyId },
       orderBy: { jobNumber: "desc" },
@@ -197,14 +198,16 @@ export async function POST(req: NextRequest) {
 
     // Only an open request flips to Converted — never one awaiting booking
     // approval (checked above) or already closed
+    let converted = false;
     if (requestId) {
-      await tx.request.updateMany({ where: { id: requestId, status: "NEW" }, data: { status: "CONVERTED" } });
+      const r = await tx.request.updateMany({ where: { id: requestId, status: "NEW" }, data: { status: "CONVERTED" } });
+      converted = r.count > 0;
     }
 
     // Recurring services sold on this job start the client's plan — same rule
     // as quote conversion and direct invoices. Lines the user marked one-time
     // arrive with recurringInterval null and are skipped.
-    await ensureSubscriptionsForContact(
+    const subscriptionIds = await ensureSubscriptionsForContact(
       tx,
       companyId,
       contactId,
@@ -215,10 +218,17 @@ export async function POST(req: NextRequest) {
 
     // First real work closes the lead: active client, off the pipeline board
     // (repeat clients on the board leave it the same way)
-    await recordLeadWin(tx, companyId, contact);
+    const leadMove = await recordLeadWin(tx, companyId, contact);
 
-    return created;
+    return { job: created, converted, subscriptionIds, leadMove };
   }));
+
+  // Automations hear about it only once the transaction above has committed
+  fireAutomations(companyId, "job.created", job.id);
+  if (job.scheduledAt) fireAutomations(companyId, "job.scheduled", job.id);
+  if (converted && requestId) fireAutomations(companyId, "request.converted", requestId);
+  for (const sid of subscriptionIds) fireAutomations(companyId, "subscription.started", sid);
+  firePipelineMoves(companyId, [leadMove]);
 
   // Materialize the close-out checklist from the picked services right away —
   // before this, a directly-created job could never have one.

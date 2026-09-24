@@ -481,8 +481,15 @@ export async function recordPayment(params: RecordPaymentParams) {
       fullyPaid,
       invoiceNumber: invoice.invoiceNumber,
       subscriptionId: invoice.subscriptionId,
+      depositQuoteId: invoice.kind === "DEPOSIT" ? invoice.quoteId : null,
     };
   });
+
+  // Automations (after commit): every payment, a partial vs. the paid-in-full
+  // fire below, and a deposit invoice clearing = the quote's deposit is paid
+  fireAutomations(params.companyId, "payment.received", result.payment.id);
+  if (!result.fullyPaid) fireAutomations(params.companyId, "invoice.partially_paid", params.invoiceId);
+  if (result.fullyPaid && result.depositQuoteId) fireAutomations(params.companyId, "quote.deposit_paid", result.depositQuoteId);
 
   // Stripe-style billing anchor: a plan's FIRST successful payment sets the
   // day-of-month all future cycles land on. Whoever pays — auto-charge, pay
@@ -924,6 +931,7 @@ export async function sendReviewRequest(params: {
   });
   if (!sent) return;
 
+  if (contactId) fireAutomations(companyId, "review.requested", contactId);
   await prisma.reviewRequest.create({
     data: {
       companyId,

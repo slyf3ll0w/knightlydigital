@@ -10,6 +10,7 @@ import {
   rollCursorForward,
 } from "@/lib/subscriptions";
 import { inPreview, previewBlockedError } from "@/lib/preview";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * PATCH — manage one subscription. Body:
@@ -301,6 +302,10 @@ export async function PATCH(
   }
 
   const updated = await prisma.subscription.update({ where: { id }, data });
+  if (updated.status !== sub.status) {
+    if (updated.status === "PAUSED") fireAutomations(companyId, "subscription.paused", id);
+    else if (updated.status === "CANCELLED") fireAutomations(companyId, "subscription.cancelled", id);
+  }
 
   // Side effects on the materialized visits
   const stopped =

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
+import { fireAutomations } from "@/lib/automations-server";
 
 export async function POST(
   req: NextRequest,
@@ -35,6 +36,7 @@ export async function POST(
   const note = await prisma.jobNote.create({
     data: { jobId, userId, body: body.trim(), clientKey },
   });
+  fireAutomations(companyId, "job.note_added", jobId);
 
   return NextResponse.json(note, { status: 201 });
 }

@@ -13,7 +13,7 @@ import {
 import { companyNotifyAddress } from "@/lib/notify";
 import { companyManagerIds, notifyUsers } from "@/lib/push";
 import { defaultLeadAssignee } from "@/lib/permissions";
-import { enterPipeline, autoAdvance } from "@/lib/pipeline";
+import { enterPipeline, autoAdvance, type PipelineMove } from "@/lib/pipeline";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { icsAttachment } from "@/lib/ics";
 import { generateSlots, slotLabel, type EngineRules, type Slot } from "@/lib/booking-engine";
@@ -195,11 +195,13 @@ export async function createAppointmentBooking(params: {
           },
         });
 
-        // Hub bookings are repeat business, not leads — the board stays as it is
+        // Hub bookings are repeat business, not leads — the board stays as it is.
+        // Board moves are handed back so the route can fire automations after commit.
+        const moves: (PipelineMove | null)[] = [];
         if (!customer.contactId) {
-          await enterPipeline(tx, company.id, contact.id);
-          await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED");
-          if (!approval) await autoAdvance(tx, company.id, contact.id, "APPOINTMENT_SCHEDULED");
+          moves.push(await enterPipeline(tx, company.id, contact.id));
+          moves.push(await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED"));
+          if (!approval) moves.push(await autoAdvance(tx, company.id, contact.id, "APPOINTMENT_SCHEDULED"));
         }
 
         const lastAppt = await tx.appointment.findFirst({ where: { companyId: company.id }, orderBy: { appointmentNumber: "desc" }, select: { appointmentNumber: true } });
@@ -227,7 +229,9 @@ export async function createAppointmentBooking(params: {
               .join("\n"),
           },
         });
-        return { contact, request, appointment, assignedUserId: assigned.userId };
+        // A contact minted in this transaction (not matched by phone/email) is a new lead
+        const newLead = !customer.contactId && contact.createdAt.getTime() >= now.getTime() - 60_000;
+        return { contact, request, appointment, assignedUserId: assigned.userId, moves, newLead };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
     )

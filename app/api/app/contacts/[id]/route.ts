@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
 import { enterPipeline } from "@/lib/pipeline";
+import { fireAutomations } from "@/lib/automations-server";
 import { linkCallsToContact } from "@/lib/voice";
 import { pauseSubscriptionsForContact } from "@/lib/subscriptions";
 import { queueQuickBooksInvoiceUnwind } from "@/lib/quickbooks";
@@ -37,6 +38,8 @@ export async function PATCH(
   // partial maps; an explicit empty string can't clear — send the full map
   // from the contact editor to overwrite)
   let customFieldsPatch: Record<string, string> | undefined;
+  // Field ids whose value actually changes (client.field_changed automations)
+  let changedFieldIds: string[] = [];
   if (body.customFields !== undefined) {
     const existing = await prisma.contact.findFirst({
       where: { id, companyId: actor.companyId, ...contactScope(actor) },
@@ -50,6 +53,8 @@ export async function PATCH(
         ? {}
         : ((existing.customFields as Record<string, string>) ?? {});
     customFieldsPatch = { ...base, ...sanitized };
+    const before = (existing.customFields as Record<string, string>) ?? {};
+    changedFieldIds = Object.keys(customFieldsPatch).filter((k) => (before[k] ?? "") !== (customFieldsPatch![k] ?? ""));
   }
 
   // Each field updates independently — callers send only what they change
@@ -88,12 +93,14 @@ export async function PATCH(
   // (edit forms send it either way) must not move the card — a repeat client
   // on the board stays put when their profile is edited.
   let statusChange: "LEAD" | "ACTIVE" | "ARCHIVED" | undefined;
+  let previousStatus: "LEAD" | "ACTIVE" | "ARCHIVED" | undefined;
   if (status !== undefined) {
     const current = await prisma.contact.findFirst({
       where: { id, companyId: actor.companyId, ...contactScope(actor) },
       select: { status: true },
     });
     if (!current) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    previousStatus = current.status;
     if (current.status !== status) statusChange = status;
   }
 
@@ -143,6 +150,10 @@ export async function PATCH(
   });
 
   if (contact.count === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  if (statusChange === "ARCHIVED") fireAutomations(actor.companyId, "client.archived", id);
+  else if (statusChange && previousStatus === "ARCHIVED") fireAutomations(actor.companyId, "client.reactivated", id);
+  for (const fieldId of changedFieldIds) fireAutomations(actor.companyId, "client.field_changed", id, { fieldId });
 
   if (statusChange === "LEAD") {
     await enterPipeline(prisma, actor.companyId, id);

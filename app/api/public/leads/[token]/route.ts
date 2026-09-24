@@ -6,7 +6,8 @@ import { defaultLeadAssignee } from "@/lib/permissions";
 import { sendEmail, newRequestEmail } from "@/lib/email";
 import { companyNotifyAddress } from "@/lib/notify";
 import { notifyUsers, requestNotifyUserIds } from "@/lib/push";
-import { enterPipeline, autoAdvance } from "@/lib/pipeline";
+import { enterPipeline, autoAdvance, firePipelineMoves } from "@/lib/pipeline";
+import { fireAutomations } from "@/lib/automations-server";
 import { limit } from "@/lib/rate-limit";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 
@@ -106,6 +107,7 @@ export async function POST(
           OR: [...(phoneDigits(phone) ? [{ phoneDigits: phoneDigits(phone) }] : []), ...(email ? [{ email: { equals: email, mode: "insensitive" as const } }] : [])],
         },
       });
+      const newLead = !contact;
       if (!contact) {
         contact = await tx.contact.create({
           data: {
@@ -144,12 +146,15 @@ export async function POST(
 
       // Onto the board: new leads land on the first stage; existing clients
       // re-enter as repeat business; archived leads resurrect.
-      await enterPipeline(tx, company.id, contact.id);
-      await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED");
+      const moves = [await enterPipeline(tx, company.id, contact.id), await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED")];
 
-      return { contact, request };
+      return { contact, request, moves, newLead };
     })
   );
+
+  if (result.newLead) fireAutomations(company.id, "lead.created", result.contact.id);
+  fireAutomations(company.id, "request.created", result.request.id);
+  firePipelineMoves(company.id, result.moves);
 
   await notifyUsers(await requestNotifyUserIds(company.id), {
     title: `New ${source} lead: ${firstName} ${lastName}`.slice(0, 80),

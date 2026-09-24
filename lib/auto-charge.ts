@@ -34,6 +34,7 @@ import { logActivity } from "@/lib/activity";
 import { notifyUsers } from "@/lib/push";
 import { sendEmail, autopayFailedEmail, cardExpiringEmail } from "@/lib/email";
 import { classifyDecline, MAX_AUTO_CHARGE_ATTEMPTS, nextRetryAt } from "@/lib/autopay-rules";
+import { fireAutomations } from "@/lib/automations-server";
 
 // Policy (decline classification, retry schedule) is lib/autopay-rules.ts —
 // pure and unit-tested; re-exported for the existing importers.
@@ -265,6 +266,7 @@ async function handleAutoChargeFailure(params: {
       autoChargeGaveUpAt: giveUp ? now : null,
     },
   });
+  fireAutomations(params.companyId, "payment.autocharge_failed", params.invoiceId);
 
   logActivity({
     companyId: params.companyId,
@@ -449,6 +451,7 @@ async function giveUpNoCard(
     where: { id: inv.id },
     data: { autoChargeNextAt: null, autoChargeGaveUpAt: now, autoChargeLastError: error },
   });
+  fireAutomations(inv.companyId, "payment.autocharge_failed", inv.id);
   const balance = invoiceBalance(inv as Parameters<typeof invoiceBalance>[0]);
   logActivity({
     companyId: inv.companyId,

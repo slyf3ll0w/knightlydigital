@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { sendEmail, contractSignedCopyEmail, contractSignedNotifyEmail } from "@/lib/email";
 import { isContractLinkExpired } from "@/lib/agreements";
 import { suspendedResponse } from "@/lib/suspension";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * POST — client signs a contract with a typed signature (same e-sign
@@ -55,6 +56,7 @@ export async function POST(
     where: { id: contract.id },
     data: { status: "SIGNED", signatureName, signedAt, signedFromIp: ip },
   });
+  fireAutomations(contract.companyId, "contract.signed", contract.id);
 
   // Copy to the signer (their record of the agreement) + heads-up to the company
   const [contact, company] = await Promise.all([

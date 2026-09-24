@@ -2,7 +2,7 @@ import { randomBytes } from "crypto";
 import { prisma } from "./db";
 import { withDocNumberRetry } from "./doc-numbers";
 import { upsertBookingContact } from "./booking-submit";
-import { enterPipeline, autoAdvance } from "./pipeline";
+import { enterPipeline, autoAdvance, firePipelineMoves, type PipelineMove } from "./pipeline";
 import { fireAutomations } from "./automations-server";
 import { notifyUsers, requestNotifyUserIds } from "./push";
 import { companyNotifyAddress } from "./notify";
@@ -167,17 +167,22 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
       });
       if (quote) await tx.quote.update({ where: { id: quote.id }, data: { requestId: request.id } });
 
-      await enterPipeline(tx, company.id, contact.id);
-      await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED");
-      if (quote && send) await autoAdvance(tx, company.id, contact.id, "QUOTE_SENT");
+      const moves: (PipelineMove | null)[] = [];
+      moves.push(await enterPipeline(tx, company.id, contact.id));
+      moves.push(await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED"));
+      if (quote && send) moves.push(await autoAdvance(tx, company.id, contact.id, "QUOTE_SENT"));
 
       await tx.estimator.update({ where: { id: row.id }, data: { submissions: { increment: 1 } } });
-      return { contact, request, quote };
+      // A contact minted in this transaction (not matched by phone/email) is a new lead
+      const newLead = contact.createdAt.getTime() >= Date.now() - 60_000;
+      return { contact, request, quote, moves, newLead };
     })
   );
 
+  if (out.newLead) fireAutomations(company.id, "lead.created", out.contact.id);
   fireAutomations(company.id, "request.created", out.request.id);
   if (out.quote && send) fireAutomations(company.id, "quote.sent", out.quote.id);
+  firePipelineMoves(company.id, out.moves);
 
   const contactName = `${customer.firstName} ${customer.lastName}`.trim();
   try {

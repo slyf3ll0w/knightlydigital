@@ -4,6 +4,7 @@ import { getActor, contactScope } from "@/lib/permissions";
 import { resolveNextJob } from "@/lib/next-job";
 import { DEFAULT_ON_MY_WAY_TEMPLATE, fillEta, renderMessageTemplate } from "@/lib/messaging";
 import { notifyClientOfReply, portalThreadContactInclude } from "@/lib/portal-messages";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * POST — "tell my next client I'm on my way", hands-free. The app's own
@@ -56,6 +57,7 @@ export async function POST() {
       data: { jobId: job.id, userId: actor.id, body: `Sent ${contact.firstName} an "on my way" text (via Siri).` },
     }),
   ]);
+  fireAutomations(actor.companyId, "job.on_my_way", job.id);
 
   return NextResponse.json({ success: true, job: { id: job.id, title: job.title }, client: contact.firstName });
 }

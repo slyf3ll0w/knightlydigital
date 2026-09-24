@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { firstRunAfter } from "@/lib/expenses";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * Business expenses (owners/admins only).
@@ -107,6 +108,7 @@ export async function POST(req: NextRequest) {
       createdById: actor.id,
     },
   });
+  fireAutomations(actor.companyId, "expense.added", expense.id);
 
   // "Repeat monthly": today's entry is already logged above, so the template
   // starts one cycle out (never re-posts the same day, never backfills).

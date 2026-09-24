@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
-import { recordLeadWin } from "@/lib/pipeline";
+import { recordLeadWin, type PipelineMove } from "@/lib/pipeline";
 import { resolveCrew } from "@/lib/job-crew";
 
 /**
@@ -56,6 +56,8 @@ export type ConvertResult = {
   job: Prisma.JobGetPayload<Record<string, never>>;
   /** Subscriptions this conversion started (so a caller that unwinds can remove them). */
   subscriptionIds: string[];
+  /** The lead win, if the card moved — the caller fires it after the transaction commits (lib/pipeline.ts firePipelineMoves). */
+  leadMove: PipelineMove | null;
 };
 
 /** Thrown (inside the transaction, so nothing is written) when the quote was
@@ -136,7 +138,7 @@ export async function convertQuoteToJob(tx: Prisma.TransactionClient, quote: Con
   );
 
   // First real work closes the lead: active client, off the pipeline board
-  if (!opts.deferLeadWin) await recordLeadWin(tx, companyId, quote.contact);
+  const leadMove = opts.deferLeadWin ? null : await recordLeadWin(tx, companyId, quote.contact);
 
-  return { job: created, subscriptionIds };
+  return { job: created, subscriptionIds, leadMove };
 }

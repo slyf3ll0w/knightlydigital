@@ -5,6 +5,7 @@ import { getActor, isManager, canSell, canManageRole, roleLabel, type Role } fro
 import { emailWhere, normalizeEmail } from "@/lib/user-email";
 import { findOrAdoptAccountByEmail } from "@/lib/account";
 import { sendEmail, teamAddedEmail } from "@/lib/email";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * GET — the team roster. Managers get the full list (the Team settings page:
@@ -134,6 +135,7 @@ export async function POST(req: NextRequest) {
       select: { id: true, name: true, email: true, phone: true, role: true, isActive: true },
     });
   });
+  fireAutomations(actor.companyId, "team.member_added", user.id);
 
   // Heads-up to the attached person — best effort, the membership is live.
   if (account) {

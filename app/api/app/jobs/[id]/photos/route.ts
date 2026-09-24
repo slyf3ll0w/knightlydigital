@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 import { isBlobStorageConfigured, jobPhotoKey, putObject } from "@/lib/blob-storage";
+import { fireAutomations } from "@/lib/automations-server";
 
 // Client-side optimization shrinks uploads before they get here; this is a
 // generous backstop, not the user-facing limit.
@@ -108,6 +109,7 @@ export async function POST(
     },
     select: { id: true, url: true, type: true, caption: true, createdAt: true },
   });
+  fireAutomations(companyId, "job.photo_added", jobId);
 
   return NextResponse.json(photo, { status: 201 });
 }

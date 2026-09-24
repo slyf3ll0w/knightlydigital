@@ -5,6 +5,7 @@ import { signatureMatchesName } from "@/lib/signature";
 import { suspendedResponse } from "@/lib/suspension";
 import { finishQuoteApproval } from "@/lib/quote-approval";
 import { quoteExpired } from "@/lib/quote-expiry";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * Public quote response endpoint (client-facing, no auth — the [id] segment
@@ -68,6 +69,7 @@ export async function POST(
         changeRequest: body.message || null,
       },
     });
+    fireAutomations(quote.companyId, "quote.changes_requested", quote.id);
     return NextResponse.json({ success: true });
   }
 

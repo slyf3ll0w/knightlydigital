@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { notifyUsers, companyManagerIds } from "@/lib/push";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * Email-open tracking pixel for client messages (HubSpot-style, honestly
@@ -107,6 +108,7 @@ export async function GET(
         where: { id: message.id },
         data: { openNotifiedAt: now },
       });
+      fireAutomations(message.companyId, "message.email_opened", message.id); // once per message: openNotifiedAt is the lock
       const name =
         `${message.contact.firstName} ${message.contact.lastName}`.trim() || "A client";
       const ids = new Set(await companyManagerIds(message.companyId));

@@ -9,7 +9,7 @@ import { notifyUsers, requestNotifyUserIds } from "@/lib/push";
 import { defaultLeadAssignee } from "@/lib/permissions";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
 import { derivedQuoteDeposit } from "@/lib/statuses";
-import { enterPipeline, autoAdvance } from "@/lib/pipeline";
+import { enterPipeline, autoAdvance, firePipelineMoves, type PipelineMove } from "@/lib/pipeline";
 import { fireAutomations } from "@/lib/automations-server";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { listPublicBookingTypes, menuTypes, resolvePublicBookingType, toPublicBookingType } from "@/lib/booking-runtime";
@@ -256,18 +256,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
       // Pipeline board: new leads enter, existing clients re-enter as repeat
       // business, and stage triggers advance the card
       // Hub requests are repeat business, not leads — the board stays as it is
+      const moves: (PipelineMove | null)[] = [];
       if (!hubContact) {
-        await enterPipeline(tx, company.id, contact.id);
-        await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED");
-        if (quote && intake.quoteMode === "send") await autoAdvance(tx, company.id, contact.id, "QUOTE_SENT");
+        moves.push(await enterPipeline(tx, company.id, contact.id));
+        moves.push(await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED"));
+        if (quote && intake.quoteMode === "send") moves.push(await autoAdvance(tx, company.id, contact.id, "QUOTE_SENT"));
       }
 
-      return { contact, request, quote };
+      // A contact minted in this transaction (not matched by phone/email) is a new lead
+      const newLead = !hubContact && contact.createdAt.getTime() >= Date.now() - 60_000;
+      return { contact, request, quote, moves, newLead };
     })
   );
 
+  if (result.newLead) fireAutomations(company.id, "lead.created", result.contact.id);
   fireAutomations(company.id, "request.created", result.request.id);
   if (result.quote && intake.quoteMode === "send") fireAutomations(company.id, "quote.sent", result.quote.id);
+  firePipelineMoves(company.id, result.moves);
 
   // Push: the owner(s) + preset lead assignee, like the email
   await notifyUsers(await requestNotifyUserIds(company.id, hubContact?.assignedToId), {

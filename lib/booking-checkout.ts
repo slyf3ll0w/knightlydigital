@@ -13,7 +13,7 @@ import { computeQuoteTotals } from "@/lib/quote-totals";
 import { derivedQuoteDeposit } from "@/lib/statuses";
 import { createDepositInvoice } from "@/lib/deposits";
 import { convertQuoteToJob } from "@/lib/quote-convert";
-import { enterPipeline, autoAdvance, recordLeadWin } from "@/lib/pipeline";
+import { enterPipeline, autoAdvance, recordLeadWin, firePipelineMoves, type PipelineMove } from "@/lib/pipeline";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { acquireChargeLock, calculateSurcharge, findUnrecordedTransferForInvoice, getProcessor, recordPayment, releaseChargeLock, type ChargeResult } from "@/lib/payments";
 import { sendEmail, bookingConfirmedEmail, bookingTeamNoticeEmail } from "@/lib/email";
@@ -126,9 +126,10 @@ export async function createServiceBooking(params: {
             },
           });
           // Hub bookings are repeat business, not leads — the board stays as it is
+          const moves: (PipelineMove | null)[] = [];
           if (!customer.contactId) {
-            await enterPipeline(tx, company.id, contact.id);
-            await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED");
+            moves.push(await enterPipeline(tx, company.id, contact.id));
+            moves.push(await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED"));
           }
 
           const lastQuote = await tx.quote.findFirst({ where: { companyId: company.id }, orderBy: { quoteNumber: "desc" }, select: { quoteNumber: true } });
@@ -168,7 +169,7 @@ export async function createServiceBooking(params: {
             include: { lineItems: true, contact: true, property: true },
           });
 
-          const { job, subscriptionIds } = await convertQuoteToJob(tx, quote, {
+          const { job, subscriptionIds, leadMove } = await convertQuoteToJob(tx, quote, {
             scheduledAt: slot.start,
             scheduledEnd: slot.end,
             assigneeIds: [assigned.userId],
@@ -182,7 +183,8 @@ export async function createServiceBooking(params: {
           });
 
           const depositInvoice = collect ? await createDepositInvoice(tx, quote) : null;
-          return { contact, request, quote, job, subscriptionIds, depositInvoice, assignedUserId: assigned.userId };
+          moves.push(leadMove);
+          return { contact, request, quote, job, subscriptionIds, depositInvoice, assignedUserId: assigned.userId, moves };
         },
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
       )
@@ -195,7 +197,15 @@ export async function createServiceBooking(params: {
     throw e;
   }
 
+  // A contact minted inside this booking is a new lead (an existing one was matched by phone/email)
+  if (!customer.contactId && result.contact.createdAt.getTime() >= now.getTime() - 60_000) fireAutomations(company.id, "lead.created", result.contact.id);
   fireAutomations(company.id, "request.created", result.request.id);
+  fireAutomations(company.id, "request.converted", result.request.id); // born CONVERTED: the booking is already a job
+  fireAutomations(company.id, "quote.converted", result.quote.id);
+  fireAutomations(company.id, "job.created", result.job.id);
+  fireAutomations(company.id, "job.scheduled", result.job.id);
+  for (const sid of result.subscriptionIds) fireAutomations(company.id, "subscription.started", sid);
+  firePipelineMoves(company.id, result.moves);
 
   // ── Charge (after commit) ───────────────────────────────────────────────
   let paidNote: string | null = null;

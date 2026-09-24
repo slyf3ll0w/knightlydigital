@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
 import { geocodeAddress } from "@/lib/geocoding";
 import { driveTimeMatrix } from "@/lib/routing";
+import { fireAutomations } from "@/lib/automations-server";
 
 // Logs that an "on my way" text was handed off to the sender's Messages app —
 // stamps the job and drops a line in Notes & Activity so the office can see it.
@@ -65,6 +66,7 @@ export async function POST(
       },
     }),
   ]);
+  fireAutomations(actor.companyId, "job.on_my_way", id);
 
   return NextResponse.json({ success: true, sentAt: sentAt.toISOString(), etaMinutes });
 }

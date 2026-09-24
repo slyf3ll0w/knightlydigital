@@ -244,6 +244,7 @@ model Company {
   libraryLikes          EstimatorListingLike[]
   automations           Automation[]
   automationRuns        AutomationRun[]
+  automationJobs        AutomationJob[]
   contractTemplates     ContractTemplate[]
   contracts             Contract[]
   expenses              Expense[]
@@ -1407,10 +1408,14 @@ model Automation {
   createdById String?
   runs        Int       @default(0)
   lastRunAt   DateTime?
+  // Inbound webhook trigger: the secret in POST /api/public/automations/<token>.
+  // Minted on save when the trigger is webhook.received; null otherwise.
+  webhookToken String?  @unique
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   runLog AutomationRun[]
+  jobs   AutomationJob[]
 
   @@index([companyId])
 }
@@ -1432,6 +1437,32 @@ model AutomationRun {
 
   @@index([companyId, createdAt])
   @@index([automationId, entityId, event])
+}
+
+// A run parked at a "wait" step (lib/automations-server.ts). The hourly
+// resume sweep picks up rows whose resumeAt has passed, reloads the record
+// fresh, and carries on from nextStep on the SAME AutomationRun row. Pausing
+// or deleting the automation cancels its waiting jobs.
+model AutomationJob {
+  id           String     @id @default(cuid())
+  automationId String
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  runId        String
+  companyId    String
+  company      Company    @relation(fields: [companyId], references: [id])
+  event        String
+  entityType   String
+  entityId     String
+  nextStep     Int
+  resumeAt     DateTime
+  status       String // "waiting" | "done" | "cancelled"
+  // webhook.received runs keep their payload here so a resumed run still
+  // has its data_* fields
+  payload      Json?
+  createdAt    DateTime   @default(now())
+
+  @@index([status, resumeAt])
+  @@index([automationId])
 }
 
 model BookingType {

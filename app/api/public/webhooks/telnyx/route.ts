@@ -8,6 +8,7 @@ import {
 import { classifySmsKeyword } from "@/lib/sms-keywords";
 import { phoneDigits } from "@/lib/phone";
 import { telnyxWebhookConfigured, verifyTelnyxSignature } from "@/lib/telnyx-webhook";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * Telnyx inbound-message webhook (set as the webhook URL on the WorkBench
@@ -164,6 +165,7 @@ async function landInboundSms(digits: string, fromE164: string, text: string, co
         select: { id: true },
       });
       contactId = created.id;
+      fireAutomations(companyId, "lead.created", created.id);
     } else {
       contactId = candidates[0].id;
     }
@@ -224,6 +226,7 @@ async function landInboundSms(digits: string, fromE164: string, text: string, co
         via: "sms",
       },
     });
+    fireAutomations(contact.companyId, "message.text_received", message.id);
     await notifyTeamOfClientMessage(contact, message.id, text, "sms");
   } catch (err) {
     console.error("[telnyx] inbound SMS → thread failed:", err);

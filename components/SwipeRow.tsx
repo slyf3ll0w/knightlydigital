@@ -7,8 +7,11 @@ export type SwipeRowAction = {
   key: string;
   label: string;
   icon: LucideIcon;
-  href: string;
+  /** A link… */
+  href?: string;
   external?: boolean;
+  /** …or a button (pause a rule, delete a row) — the tray closes after. */
+  onClick?: () => void;
   /** Tray button background (CSS color). */
   bg: string;
 };
@@ -84,13 +87,17 @@ export default function SwipeRow({
         style={{ width: trayW, visibility: offset === 0 && !dragging ? "hidden" : "visible" }}
         aria-hidden={offset === 0}
       >
-        {actions.map(({ key, label, icon: Icon, href, external, bg }) => (
+        {actions.map(({ key, label, icon: Icon, href, external, onClick, bg }) => (
           <a
             key={key}
-            href={href}
+            href={href ?? "#"}
             {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
             tabIndex={offset === 0 ? -1 : 0}
-            onClick={() => setOffset(0)}
+            onClick={(e) => {
+              if (!href) e.preventDefault();
+              setOffset(0);
+              onClick?.();
+            }}
             className="flex flex-col items-center justify-center gap-1 text-[10px] font-semibold text-white active:opacity-80"
             style={{ width: BTN_W, backgroundColor: bg }}
           >

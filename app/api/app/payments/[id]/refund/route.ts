@@ -6,6 +6,7 @@ import { estimateProcessingCostCents } from "@/lib/platform-costs";
 import { reverseTransfer, toCents, FinixError } from "@/lib/finix";
 import { queueQuickBooksPaymentRefresh } from "@/lib/quickbooks";
 import { logActivity } from "@/lib/activity";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * POST — refund an online (Finix) payment, full or partial. Managers only.
@@ -128,6 +129,8 @@ export async function POST(
       await recomputeInvoiceStatus(tx, payment.invoiceId);
       return p;
     });
+
+    fireAutomations(actor.companyId, "payment.refunded", id);
 
     // QuickBooks still has the pre-refund amount. Payments carry no updatedAt,
     // so the nightly sweep can't spot this on its own — push the corrected

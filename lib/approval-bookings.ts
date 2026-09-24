@@ -3,6 +3,7 @@ import { sendEmail, bookingDeclinedEmail } from "@/lib/email";
 import { slotLabel } from "@/lib/booking-engine";
 import { resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import { companyManagerIds, notifyUsers } from "@/lib/push";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * "Hold for approval" bookings that nobody answered.
@@ -89,6 +90,8 @@ export async function expireApprovalBookings(now: Date): Promise<{ expired: numb
       });
       if (!claimed) continue;
       expired += 1;
+      fireAutomations(appt.company.id, "request.archived", appt.request.id);
+      fireAutomations(appt.company.id, "appointment.cancelled", appt.id);
 
       const exactTime = appt.type !== "IN_PERSON";
       const windowMinutes = exactTime ? 0 : resolveArrivalWindowMinutes(appt.arrivalWindowMinutes, appt.company.arrivalWindowMinutes);

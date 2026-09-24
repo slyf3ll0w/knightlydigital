@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { notifyUsers, companyManagerIds, PushPayload } from "@/lib/push";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * POST — view beacon for the public client pages (/quote, /pay, /contract,
@@ -76,6 +77,7 @@ export async function POST(req: NextRequest) {
       firstView = !quote.firstViewedAt;
       companyId = quote.companyId;
       assignedToId = quote.contact.assignedToId;
+      if (firstView) fireAutomations(quote.companyId, "quote.viewed", quote.id);
       push = {
         title: `${clientName(quote.contact)} viewed Quote #${quote.quoteNumber}`,
         body: "Opened just now — a good time to follow up.",
@@ -105,6 +107,7 @@ export async function POST(req: NextRequest) {
       firstView = !invoice.firstViewedAt;
       companyId = invoice.companyId;
       assignedToId = invoice.contact?.assignedToId ?? null;
+      if (firstView) fireAutomations(invoice.companyId, "invoice.viewed", invoice.id);
       push = {
         title: `${clientName(invoice.contact)} viewed Invoice #${invoice.invoiceNumber}`,
         body: "Opened just now.",
@@ -139,6 +142,7 @@ export async function POST(req: NextRequest) {
       // after a confident open already announced it
       firstView = !message.openNotifiedAt;
       companyId = message.companyId;
+      if (firstView) fireAutomations(message.companyId, "message.email_opened", message.id); // same openNotifiedAt lock as the pixel
       // The person who wrote the message should hear about the open even if
       // they're not a manager or the contact's assigned rep
       assignedToId = message.contact.assignedToId ?? message.senderId;

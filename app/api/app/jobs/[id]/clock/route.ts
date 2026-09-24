@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
 import { autoCloseAt, formatDuration, resolveOccurredAt, sanitizeGps } from "@/lib/time-entries";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * Clock in / clock out on a job. Techs and managers alike — anyone who can
@@ -69,6 +70,8 @@ export async function POST(
       // Double-tap / stale UI — already on the clock here.
       return NextResponse.json({ success: true, entry: toDTO(open) });
     }
+    // First clock-in on this job = the job started (job.started automation)
+    const firstOnJob = (await prisma.timeEntry.count({ where: { jobId: id } })) === 0;
     const entry = await prisma.$transaction(async (tx) => {
       if (open) {
         // Switched jobs without clocking out — close the old span first,
@@ -102,6 +105,9 @@ export async function POST(
       });
       return created;
     });
+    fireAutomations(actor.companyId, "team.clock_in", entry.id);
+    if (open?.jobId) fireAutomations(actor.companyId, "team.clock_out", open.id); // switched jobs: the old span closed
+    if (firstOnJob) fireAutomations(actor.companyId, "job.started", id);
     return NextResponse.json({ success: true, entry: toDTO(entry) });
   }
 
@@ -133,6 +139,7 @@ export async function POST(
     }
     return updated;
   });
+  fireAutomations(actor.companyId, "team.clock_out", entry.id);
   return NextResponse.json({ success: true, entry: toDTO(entry) });
 }
 

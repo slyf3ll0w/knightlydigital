@@ -6,6 +6,7 @@ import { findScheduleConflicts } from "@/lib/schedule-conflicts";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { syncJobChecklist } from "@/lib/job-checklist";
 import { cleanOutsourcedTo, crewMissing, NEEDS_CREW_CODE, NEEDS_CREW_ERROR, resolveCrew } from "@/lib/job-crew";
+import { fireAutomations } from "@/lib/automations-server";
 
 export async function PATCH(
   req: NextRequest,
@@ -200,6 +201,14 @@ export async function PATCH(
       }),
     ]);
   }
+
+  // Automations: a date set or moved, and a crew change (writes above are committed)
+  if (body.scheduledAt !== undefined) {
+    const next = body.scheduledAt ? new Date(body.scheduledAt).getTime() : null;
+    const prev = job.scheduledAt ? job.scheduledAt.getTime() : null;
+    if (next !== null && next !== prev) fireAutomations(actor.companyId, "job.scheduled", job.id);
+  }
+  if (crewChanged) fireAutomations(actor.companyId, "job.assigned", job.id);
 
   // Non-blocking double-booking check when the schedule (or crew) changed —
   // the save already happened; the UI shows these as a heads-up.

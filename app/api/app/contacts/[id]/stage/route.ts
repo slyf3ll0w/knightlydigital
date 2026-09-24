@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
 import { recordLeadWin, recordLeadLoss } from "@/lib/pipeline";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * PATCH — move a lead's card on the pipeline board.
@@ -88,6 +89,7 @@ export async function PATCH(
         timesWon,
       },
     });
+    fireAutomations(companyId, "lead.stage_changed", contact.id, { stage: stage.name });
     return NextResponse.json({ success: true });
   }
 
@@ -119,5 +121,6 @@ export async function PATCH(
       ...(contact.status === "ARCHIVED" && { status: "LEAD", lostAt: null, lostReason: null }),
     },
   });
+  fireAutomations(companyId, "lead.stage_changed", contact.id, { stage: stage.name });
   return NextResponse.json({ success: true, undo });
 }

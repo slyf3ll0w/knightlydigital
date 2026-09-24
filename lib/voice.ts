@@ -42,6 +42,7 @@
 import type { Call, CallStatus, Contact, ContactStatus, PipelineTrigger } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { autoAdvance } from "@/lib/pipeline";
+import { fireAutomations } from "@/lib/automations-server";
 import { alertTelnyxFunds } from "@/lib/ops-alert";
 import { hasAddon } from "@/lib/addon";
 import { defaultVoicemailGreeting, isRealLineNumber } from "@/lib/business-line-shared";
@@ -239,11 +240,20 @@ async function advanceLeadForCall(call: Pick<Call, "id" | "companyId" | "contact
   if (!call.contactId) return;
   const trigger = pipelineTriggerForCall({ status, direction });
   if (!trigger) return;
+  // Same table drives the automations engine (the run log dedupes repeats per contact)
+  fireAutomations(call.companyId, trigger === "CONTACT_MADE" ? "lead.contact_made" : "lead.no_answer", call.contactId);
   try {
     await autoAdvance(prisma, call.companyId, call.contactId, trigger);
   } catch (err) {
     console.error(`[voice] lead auto-advance failed for call ${call.id}:`, err);
   }
+}
+
+/** The call row reached a terminal status — tell the automations engine which one. Never throws. */
+function fireCallStatus(call: Pick<Call, "id" | "companyId" | "direction" | "status">, status: CallStatus): void {
+  if (status === call.status) return;
+  if (status === "COMPLETED") fireAutomations(call.companyId, call.direction === "INBOUND" ? "call.inbound" : "call.outbound_completed", call.id);
+  else if (status === "MISSED") fireAutomations(call.companyId, "call.missed", call.id);
 }
 
 /**
@@ -798,6 +808,7 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
         durationSec: call.durationSec ?? talkSeconds(call.answeredAt, now),
       },
     });
+    fireCallStatus(call, status);
     await advanceLeadForCall(call, status, call.direction);
     if (call.direction === "INBOUND") {
       // Caller gone while the cell / the browsers were still ringing.
@@ -876,6 +887,9 @@ async function onRecordingSaved(p: VoiceEventPayload): Promise<void> {
       status: empty ? "MISSED" : "VOICEMAIL",
     },
   });
+  // A real recording is the moment a voicemail exists; an empty one is a missed call
+  if (empty) fireCallStatus(call, "MISSED");
+  else fireAutomations(call.companyId, "call.voicemail", call.id);
   // Silence timeout ended the recording with the caller still there.
   await callAction(call.telnyxCallId!, "hangup");
   if (empty) {
@@ -1080,7 +1094,10 @@ export async function cancelCall(companyId: string, callId: string): Promise<{ s
     data: { status, hangupCause: "cancelled", endedAt: now },
   });
   await prisma.callLeg.updateMany({ where: { callId: call.id, endedAt: null }, data: { endedAt: now, hangupCause: "cancelled" } });
-  if (claimed.count > 0) await advanceLeadForCall(call, status, call.direction);
+  if (claimed.count > 0) {
+    fireCallStatus(call, status);
+    await advanceLeadForCall(call, status, call.direction);
+  }
   return { status };
 }
 
@@ -1145,9 +1162,11 @@ export async function runStaleCallSweep(now = new Date()): Promise<{ closed: num
       }
       if (voiceEnabled()) await hangupAppLegs(call.id, null).catch(() => {});
       await prisma.callLeg.updateMany({ where: { callId: call.id, endedAt: null }, data: { endedAt: now, hangupCause: "stale" } });
+      fireCallStatus(call, status);
       out.closed++;
     } else {
       await prisma.call.update({ where: { id: call.id }, data: { status: "MISSED" } });
+      fireCallStatus(call, "MISSED");
       out.emptied++;
     }
   }

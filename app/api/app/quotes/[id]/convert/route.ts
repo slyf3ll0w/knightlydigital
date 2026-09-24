@@ -4,6 +4,8 @@ import { getActor, canSell, viaContactScope } from "@/lib/permissions";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { convertQuoteToJob, QuoteAlreadyConvertedError } from "@/lib/quote-convert";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
+import { fireAutomations } from "@/lib/automations-server";
+import { firePipelineMoves } from "@/lib/pipeline";
 
 /**
  * POST — convert an approved quote into a job (Jobber's "Convert to Job").
@@ -75,7 +77,12 @@ export async function POST(
   // second staff member converting at the same moment gets a clean "already
   // converted" instead of a second Job #.
   try {
-    const { job } = await withDocNumberRetry(() => prisma.$transaction((tx) => convertQuoteToJob(tx, quote)));
+    const { job, subscriptionIds, leadMove } = await withDocNumberRetry(() => prisma.$transaction((tx) => convertQuoteToJob(tx, quote)));
+    fireAutomations(quote.companyId, "quote.converted", quote.id);
+    fireAutomations(quote.companyId, "job.created", job.id);
+    if (job.scheduledAt) fireAutomations(quote.companyId, "job.scheduled", job.id);
+    for (const sid of subscriptionIds) fireAutomations(quote.companyId, "subscription.started", sid);
+    firePipelineMoves(quote.companyId, [leadMove]);
     return NextResponse.json(job, { status: 201 });
   } catch (e) {
     if (e instanceof QuoteAlreadyConvertedError) {

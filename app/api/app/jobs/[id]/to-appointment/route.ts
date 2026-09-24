@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager, jobScope } from "@/lib/permissions";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { autoAdvance } from "@/lib/pipeline";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * POST — turn a job that was really a sales visit (an estimate, a meeting,
@@ -129,6 +130,7 @@ export async function POST(
   }
 
   // Pipeline board: booking an estimate/sales call advances the lead's card
+  fireAutomations(companyId, "appointment.scheduled", appointment.id);
   await autoAdvance(prisma, companyId, job.contactId, "APPOINTMENT_SCHEDULED");
 
   return NextResponse.json({ id: appointment.id }, { status: 201 });

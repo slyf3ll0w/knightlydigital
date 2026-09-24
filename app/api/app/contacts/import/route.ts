@@ -5,6 +5,7 @@ import { getActor, isManager } from "@/lib/permissions";
 import { normalizePhone } from "@/lib/csv";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
 import { inPreview, previewBlockedError } from "@/lib/preview";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * CSV client import (manager-only).
@@ -216,6 +217,7 @@ export async function POST(req: NextRequest) {
         if (email) byEmail.set(email, contact.id);
         if (normPhone.length >= 7) byPhone.set(normPhone, contact.id);
         created++;
+        fireAutomations(companyId, statusForNew === "LEAD" ? "lead.created" : "client.created", contact.id);
       }
     } catch {
       errors.push({ row: i, reason: "Could not save" });

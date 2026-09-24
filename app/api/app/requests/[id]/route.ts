@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager, viaContactScope } from "@/lib/permissions";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * GET — one request, for prefilling convert flows (the new-job form is a
@@ -54,18 +55,23 @@ export async function PATCH(
   }
   if (body.details !== undefined) data.details = String(body.details).trim() || null;
 
-  const updated = await prisma.$transaction(async (tx) => {
+  const { updated, cancelledAppointmentIds } = await prisma.$transaction(async (tx) => {
     const result = await tx.request.update({ where: { id }, data });
     // Archiving an unapproved self-booking outside the decline route: cancel
     // its tentative appointment too, or it blocks the slot forever
+    let cancelledAppointmentIds: string[] = [];
     if (request.status === "NEEDS_APPROVAL" && data.status === "ARCHIVED") {
-      await tx.appointment.updateMany({
-        where: { requestId: id, companyId, tentative: true, status: "SCHEDULED" },
-        data: { status: "CANCELLED" },
-      });
+      const where = { requestId: id, companyId, tentative: true, status: "SCHEDULED" as const };
+      cancelledAppointmentIds = (await tx.appointment.findMany({ where, select: { id: true } })).map((a) => a.id);
+      await tx.appointment.updateMany({ where, data: { status: "CANCELLED" } });
     }
-    return result;
+    return { updated: result, cancelledAppointmentIds };
   });
+  if (data.status && data.status !== request.status) {
+    if (data.status === "CONVERTED") fireAutomations(companyId, "request.converted", id);
+    else if (data.status === "ARCHIVED") fireAutomations(companyId, "request.archived", id);
+  }
+  for (const apptId of cancelledAppointmentIds) fireAutomations(companyId, "appointment.cancelled", apptId);
   return NextResponse.json(updated);
 }
 

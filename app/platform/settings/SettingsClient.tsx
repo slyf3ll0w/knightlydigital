@@ -1933,9 +1933,9 @@ export default function SettingsClient({
         {show("automations") && (
         <div className="card-ledger overflow-hidden">
           <SettingsLinkRow
-            href="/app/settings/automations"
-            label="Automation rules"
-            sub="“When this happens, do that” rules Atlas builds — run free, pause any time"
+            href="/app/automations"
+            label="Automations"
+            sub="“When this happens, do that” rules — build them as cards or ask Atlas; run free, pause any time"
             hue={SECTION_HUES.business}
             icon={Zap}
           />

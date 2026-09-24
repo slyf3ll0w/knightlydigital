@@ -5,6 +5,7 @@ import { getActor, canSell, contactScope } from "@/lib/permissions";
 import { sendEmail, contractSignEmail } from "@/lib/email";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * POST — issue a contract to a client. Body text comes from a saved
@@ -88,6 +89,7 @@ export async function POST(req: NextRequest) {
       },
     });
   });
+  fireAutomations(companyId, "contract.sent", contract.id);
 
   // Deliver the signing link to the client's inbox — ties the eventual
   // signature to their email address (and they don't need anyone to text

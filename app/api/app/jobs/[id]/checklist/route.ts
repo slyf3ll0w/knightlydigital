@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
+import { fireAutomations } from "@/lib/automations-server";
 
 // Check off / skip / reopen a single close-out checklist item. Same access
 // as the status route: techs work their assigned jobs, sales stay out.
@@ -55,6 +56,12 @@ export async function PATCH(
       where: { id: itemId },
       data: { doneAt: null, doneById: null, skipReason: null },
     });
+  }
+
+  // The last open item just closed (done or skipped) → the checklist is finished
+  if (action !== "reopen" && !(item.doneAt || item.skipReason)) {
+    const open = await prisma.jobChecklistItem.count({ where: { jobId: id, doneAt: null, skipReason: null } });
+    if (open === 0) fireAutomations(companyId, "job.checklist_done", id);
   }
 
   return NextResponse.json({ success: true });

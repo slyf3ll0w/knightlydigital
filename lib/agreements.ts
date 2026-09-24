@@ -14,6 +14,7 @@ import type { AgreementTiming } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { sendEmail, contractSignEmail } from "@/lib/email";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * How long a contract signing link stays valid after it's sent. Links are
@@ -119,6 +120,7 @@ export async function autoSendQuoteAgreements(
           },
         });
       });
+      fireAutomations(quote.companyId, "contract.sent", contract.id);
 
       if (quote.contact.email) {
         const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";

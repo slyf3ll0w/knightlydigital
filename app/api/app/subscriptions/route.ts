@@ -8,6 +8,7 @@ import {
   billSubscriptionNow,
 } from "@/lib/subscriptions";
 import { inPreview } from "@/lib/preview";
+import { fireAutomations } from "@/lib/automations-server";
 
 /** GET — recurring subscriptions for the company (money-visible roles). */
 export async function GET() {
@@ -204,6 +205,8 @@ export async function POST(req: NextRequest) {
       visitAssigneeIds,
     },
   });
+
+  fireAutomations(companyId, "subscription.started", sub.id);
 
   // Put the first visits on the calendar right away
   const visits = frequency ? await generateDueVisits(new Date(), companyId) : null;

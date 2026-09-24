@@ -7,6 +7,7 @@ import { resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import { manageUrlFor } from "@/lib/booking-submit";
 import { icsAttachment } from "@/lib/ics";
 import { autoAdvance } from "@/lib/pipeline";
+import { fireAutomations } from "@/lib/automations-server";
 import { logActivity } from "@/lib/activity";
 
 /**
@@ -81,6 +82,8 @@ export async function POST(
     ]);
     // Pipeline board: a confirmed estimate advances the lead's card
     if (tentative) {
+      // The public scheduler held this one back as tentative — accepting is when it is really booked
+      fireAutomations(actor.companyId, "appointment.scheduled", tentative.id);
       await autoAdvance(prisma, actor.companyId, request.contact.id, "APPOINTMENT_SCHEDULED");
     }
   } else {
@@ -95,6 +98,8 @@ export async function POST(
           ]
         : []),
     ]);
+    fireAutomations(actor.companyId, "request.archived", request.id);
+    if (tentative) fireAutomations(actor.companyId, "appointment.cancelled", tentative.id);
   }
 
   // Tell the client what was decided (no-op until Resend is configured)

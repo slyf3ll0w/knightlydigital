@@ -6,6 +6,7 @@ import {
   portalThreadContactInclude,
 } from "@/lib/portal-messages";
 import { suspendedResponse } from "@/lib/suspension";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * Public (hub-token-authed): the client side of the portal message thread.
@@ -105,6 +106,7 @@ export async function POST(req: NextRequest) {
       via: "portal",
     },
   });
+  fireAutomations(contact.companyId, "message.portal_received", message.id);
 
   await notifyTeamOfClientMessage(contact, message.id, body, "portal");
 

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * Recurring monthly expenses. Owners set up a template once ("Shop rent,
@@ -64,15 +65,15 @@ export async function runRecurringExpenses(
 
     for (const t of due) {
       try {
-        await prisma.$transaction(async (tx) => {
+        const posted = await prisma.$transaction(async (tx) => {
           // Claim this cycle: only the run that moves nextRunDate forward
           // gets to write the expense.
           const claimed = await tx.recurringExpense.updateMany({
             where: { id: t.id, nextRunDate: t.nextRunDate },
             data: { nextRunDate: nextMonthlyDate(t.nextRunDate, t.dayOfMonth) },
           });
-          if (claimed.count === 0) return;
-          await tx.expense.create({
+          if (claimed.count === 0) return null;
+          const expense = await tx.expense.create({
             data: {
               companyId: t.companyId,
               description: t.description,
@@ -81,9 +82,12 @@ export async function runRecurringExpenses(
               incurredAt: t.nextRunDate,
               createdById: t.createdById,
             },
+            select: { id: true },
           });
           summary.posted++;
+          return expense.id;
         });
+        if (posted) fireAutomations(t.companyId, "expense.added", posted);
         summary.processed++;
       } catch (err) {
         summary.errors++;

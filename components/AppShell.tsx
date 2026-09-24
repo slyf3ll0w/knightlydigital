@@ -43,6 +43,7 @@ import {
   Loader2,
   PhoneCall,
   Calculator,
+  Zap,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
@@ -197,6 +198,7 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
       // with live stats) — it links every reporting page, so those don't get
       // their own rows here (lib/mobile-nav.ts sends them back to Overview).
       { href: "/app/business", label: "Overview", icon: Building2, show: isManagerRole },
+      { href: "/app/automations", label: "Automations", icon: Zap, show: isManagerRole },
       // Same labels as the Settings index — one name per page everywhere.
       { href: "/app/settings/products", label: "Services", icon: Tag, show: isManagerRole },
       { href: "/app/settings/booking", label: "Booking & forms", icon: Globe, show: isManagerRole },
@@ -251,6 +253,7 @@ const railGroups: { key: string; label: string; items: NavItem[] }[] = [
     items: [
       // Overview links Insights / Expenses / Team Map / Timesheets itself.
       { href: "/app/business", label: "Overview", icon: Building2, show: isManagerRole },
+      { href: "/app/automations", label: "Automations", icon: Zap, show: isManagerRole },
       // Same labels as the Settings index — one name per page everywhere.
       { href: "/app/settings/products", label: "Services", icon: Tag, show: isManagerRole },
       { href: "/app/settings/booking", label: "Booking & forms", icon: Globe, show: isManagerRole },

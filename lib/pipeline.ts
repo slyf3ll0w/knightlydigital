@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import type { Prisma, PipelineTrigger } from "@prisma/client";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * Lead pipeline (the Leads kanban board).
@@ -27,6 +28,33 @@ import type { Prisma, PipelineTrigger } from "@prisma/client";
 type Db = Prisma.TransactionClient | typeof prisma;
 
 export const MAX_STAGES = 12;
+
+/**
+ * A board change the automations engine should hear about (lib/automations.ts
+ * triggers lead.stage_changed / lead.won / lead.lost). The lifecycle functions
+ * below return one when they actually moved the card. Called with the root
+ * `prisma` client they fire it themselves; called inside a transaction they
+ * can't (the row isn't committed yet), so the caller collects the returned
+ * moves and hands them to `firePipelineMoves` after the transaction resolves.
+ */
+export type PipelineMove = {
+  event: "lead.stage_changed" | "lead.won" | "lead.lost";
+  contactId: string;
+  /** lead.stage_changed: the stage the card landed on. */
+  stage?: string;
+};
+
+export function firePipelineMoves(companyId: string, moves: (PipelineMove | null | undefined)[]): void {
+  for (const m of moves) {
+    if (!m) continue;
+    fireAutomations(companyId, m.event, m.contactId, m.stage ? { stage: m.stage } : undefined);
+  }
+}
+
+function emit(db: Db, companyId: string, move: PipelineMove): PipelineMove {
+  if (db === prisma) firePipelineMoves(companyId, [move]);
+  return move;
+}
 
 // Converted is pinned after every orderable stage
 const CONVERTED_SORT = 9999;
@@ -161,12 +189,12 @@ export async function enterPipeline(
   companyId: string,
   contactId: string,
   opts?: { stageId?: string }
-): Promise<void> {
+): Promise<PipelineMove | null> {
   const contact = await db.contact.findFirst({
     where: { id: contactId, companyId },
     select: { id: true, status: true, pipelineStage: { select: { id: true, isConverted: true } } },
   });
-  if (!contact || (contact.pipelineStage && !contact.pipelineStage.isConverted)) return;
+  if (!contact || (contact.pipelineStage && !contact.pipelineStage.isConverted)) return null;
 
   let stage = opts?.stageId
     ? await db.pipelineStage.findFirst({
@@ -179,7 +207,7 @@ export async function enterPipeline(
       orderBy: { sortOrder: "asc" },
     });
   }
-  if (!stage) return; // board never opened — the ensureStages sweep will catch them
+  if (!stage) return null; // board never opened — the ensureStages sweep will catch them
 
   await db.contact.update({
     where: { id: contact.id },
@@ -190,6 +218,7 @@ export async function enterPipeline(
       ...(contact.status === "ARCHIVED" && { status: "LEAD", lostAt: null, lostReason: null }),
     },
   });
+  return emit(db, companyId, { event: "lead.stage_changed", contactId: contact.id, stage: stage.name });
 }
 
 /**
@@ -202,17 +231,17 @@ export async function autoAdvance(
   companyId: string,
   contactId: string,
   trigger: PipelineTrigger
-): Promise<void> {
+): Promise<PipelineMove | null> {
   const target = await db.pipelineStage.findFirst({
     where: { companyId, autoAdvanceOn: trigger },
   });
-  if (!target) return;
+  if (!target) return null;
   const contact = await db.contact.findFirst({
     where: { id: contactId, companyId, pipelineStageId: { not: null } },
     select: { id: true, pipelineStage: { select: { id: true, sortOrder: true } } },
   });
-  if (!contact?.pipelineStage) return;
-  if (target.sortOrder <= contact.pipelineStage.sortOrder) return;
+  if (!contact?.pipelineStage) return null;
+  if (target.sortOrder <= contact.pipelineStage.sortOrder) return null;
   await db.contact.update({
     where: { id: contact.id },
     data: {
@@ -221,6 +250,7 @@ export async function autoAdvance(
       stageChangedAt: new Date(),
     },
   });
+  return emit(db, companyId, { event: "lead.stage_changed", contactId: contact.id, stage: target.name });
 }
 
 /**
@@ -233,10 +263,10 @@ export async function recordLeadWin(
   db: Db,
   companyId: string,
   contact: { id: string; status: string; pipelineStageId: string | null }
-): Promise<void> {
-  if (contact.status !== "LEAD" && !contact.pipelineStageId) return;
+): Promise<PipelineMove | null> {
+  if (contact.status !== "LEAD" && !contact.pipelineStageId) return null;
   const converted = await convertedStageFor(db, companyId);
-  if (contact.pipelineStageId === converted.id) return; // already there
+  if (contact.pipelineStageId === converted.id) return null; // already there
   await db.contact.update({
     where: { id: contact.id },
     data: {
@@ -250,6 +280,7 @@ export async function recordLeadWin(
       lostReason: null,
     },
   });
+  return emit(db, companyId, { event: "lead.won", contactId: contact.id });
 }
 
 /**
@@ -261,8 +292,8 @@ export async function recordLeadLoss(
   db: Db,
   contact: { id: string; status: string },
   reason?: string | null
-): Promise<void> {
-  await db.contact.update({
+): Promise<PipelineMove | null> {
+  const updated = await db.contact.update({
     where: { id: contact.id },
     data: {
       pipelineStageId: null,
@@ -271,5 +302,7 @@ export async function recordLeadLoss(
       lostReason: reason?.trim() ? reason.trim().slice(0, 300) : null,
       ...(contact.status === "LEAD" && { status: "ARCHIVED" }),
     },
+    select: { companyId: true },
   });
+  return emit(db, updated.companyId, { event: "lead.lost", contactId: contact.id });
 }

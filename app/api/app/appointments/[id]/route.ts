@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager, appointmentScope } from "@/lib/permissions";
 import { findScheduleConflicts } from "@/lib/schedule-conflicts";
+import { fireAutomations } from "@/lib/automations-server";
 
 const validTypes = ["PHONE_CALL", "VIDEO_CALL", "IN_PERSON"];
 const validStatuses = ["SCHEDULED", "COMPLETED", "CANCELLED", "NO_SHOW"];
@@ -132,6 +133,13 @@ export async function PATCH(
   if (Object.keys(data).length === 0) return NextResponse.json({ success: true });
 
   const updated = await prisma.appointment.update({ where: { id: appt.id }, data });
+
+  if (updated.status !== appt.status) {
+    if (updated.status === "CANCELLED") fireAutomations(actor.companyId, "appointment.cancelled", updated.id);
+    else if (updated.status === "COMPLETED") fireAutomations(actor.companyId, "appointment.completed", updated.id);
+    else if (updated.status === "NO_SHOW") fireAutomations(actor.companyId, "appointment.no_show", updated.id);
+  }
+  if (updated.scheduledAt.getTime() !== appt.scheduledAt.getTime()) fireAutomations(actor.companyId, "appointment.rescheduled", updated.id);
 
   // Non-blocking double-booking heads-up when the time or assignee moved
   let conflicts: string[] = [];
