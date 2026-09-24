@@ -14,6 +14,7 @@ import CallsLive from "@/components/CallsLive";
 import CallScreenLive from "./CallScreenLive";
 import CallActions from "./CallActions";
 import CallNotes, { type AtlasForNotes } from "./CallNotes";
+import type { AtlasNotesState } from "@/lib/call-notes";
 import { ATLAS_ACCESS_SELECT, atlasAccess } from "@/lib/assistant-access";
 import { aiEnabled } from "@/lib/ai";
 
@@ -213,7 +214,8 @@ export default async function CallScreenPage({ params }: { params: Promise<{ id:
           notes: call.notes,
           transcript: call.transcript,
           atlasNotes: call.atlasNotes,
-          atlasNotesState: (call.atlasNotesState as "listening" | "summarizing" | "done" | "failed" | null) ?? null,
+          contactId: contact?.id ?? null,
+          atlasNotesState: (call.atlasNotesState as AtlasNotesState | null) ?? null,
           atlasNotesError: call.atlasNotesError,
           atlasNotesTokens: call.atlasNotesTokens,
         }}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell } from "@/lib/permissions";
-import { VoiceError, startAtlasNotes, stopAtlasNotes } from "@/lib/voice";
+import { VoiceError, discardAtlasNotes, startAtlasNotes, stopAtlasNotes } from "@/lib/voice";
 
 /**
  * The call screen's notes card (app/platform/calls/[id]/CallNotes.tsx).
@@ -10,13 +10,16 @@ import { VoiceError, startAtlasNotes, stopAtlasNotes } from "@/lib/voice";
  *        its own (lib/call-notes.ts: null | listening | summarizing | done |
  *        failed), plus the transcript. Polled while Atlas is on the call.
  * POST { action: "start" } — Atlas starts listening (Telnyx transcription
- *        on the customer leg); { action: "stop" } — stop now and write the
- *        notes from what was heard. Both cost Atlas tokens only at the
- *        summary, through the metered one-shot.
+ *        on the customer leg), or is armed for a call still ringing;
+ *        { action: "stop" } — stop now and finish (notes for a saved
+ *        caller, held for an unsaved one); { action: "discard" } — drop a
+ *        held transcript. Tokens are spent only at the summary, through the
+ *        metered one-shot, and only for a saved lead or client.
  * The typed notes themselves save through PATCH /api/app/calls/[id].
  */
 const select = {
   status: true,
+  contactId: true,
   notes: true,
   transcript: true,
   atlasNotes: true,
@@ -47,7 +50,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         ? await startAtlasNotes(actor.companyId, id, actor.id)
         : body.action === "stop"
           ? await stopAtlasNotes(actor.companyId, id)
-          : null;
+          : body.action === "discard"
+            ? await discardAtlasNotes(actor.companyId, id)
+            : null;
     if (!out) return NextResponse.json({ error: "Unknown action" }, { status: 400 });
     return NextResponse.json(out);
   } catch (err) {

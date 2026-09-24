@@ -449,19 +449,31 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
 - **Call notes + Atlas notes** (2026-09-24, `lib/call-notes.ts`,
   `app/platform/calls/[id]/CallNotes.tsx`): every Call row carries `notes`
   (typed on the call screen, autosaved via `PATCH /api/app/calls/[id]
-  { notes }`). "Let Atlas take notes" on a connected call →
-  `POST /api/app/calls/[id]/notes { action: "start" }` → `startAtlasNotes`
-  (lib/voice.ts) runs Telnyx `transcription_start` on the CUSTOMER leg
-  (engine B, tracks both: inbound = them, outbound = you); each final
-  `call.transcription` segment appends one "Them: … / You: …" line to
-  `Call.transcript` (`appendTranscript`, capped). When the customer leg hangs
-  up (or on Stop, or the stale sweep) `summarizeCallNotes` claims
-  `atlasNotesState` listening → summarizing and writes `atlasNotes` through
-  `meteredOneShot` (kind "call-notes" — Atlas tokens, same gate as the
-  drawer; locked/off accounts can't start). States: null | listening |
-  summarizing | done | failed (+ `atlasNotesError`). The card polls
-  `GET …/notes` while the call is live or Atlas is working. The UI carries
-  the consent hint (some states require telling the other party).
+  { notes }`). "Let Atlas take notes" → `POST /api/app/calls/[id]/notes
+  { action: "start" }` → `startAtlasNotes` (lib/voice.ts): on a RINGING
+  call the row is **armed** and `bridgeLegs` starts transcription at the
+  bridge (whole conversation on record); on a connected call it starts now.
+  `beginTranscription` = Telnyx `transcription_start` on the CUSTOMER leg,
+  documented shape (`transcription_engine: "Telnyx"` +
+  `transcription_engine_config { transcription_engine, language: "en",
+  transcription_model: "openai/whisper-large-v3-turbo" }`, `transcription_tracks:
+  "both"`: inbound = them, outbound = you). Each `call.transcription`
+  segment (anything not `is_final: false` — Whisper sends finals without
+  the flag; every event is logged `[voice] transcription …`) appends one
+  "Them: … / You: …" line to `Call.transcript` (`appendTranscript`, capped).
+  When the customer leg hangs up (or Stop, or the stale sweep)
+  `finishAtlasNotes` decides: a saved contact → `summarizeCallNotes` claims
+  listening → summarizing and writes `atlasNotes` through `meteredOneShot`
+  (kind "call-notes" — Atlas tokens, same gate as the drawer; locked/off
+  accounts can't start); **no contact → `awaiting_contact`**: the
+  transcript is held, the card prompts "save them as a lead or client",
+  and `advanceLeadForLinkedCalls` summarizes once they are (Discard
+  drops it — tokens are never spent on a stranger). States: null | armed |
+  listening | awaiting_contact | summarizing | done | failed (+
+  `atlasNotesError`). The card polls `GET …/notes` while the call is live
+  or Atlas is working; "every call from this browser" (localStorage
+  `wb-atlas-notes-every-call`) arms it on its own. The UI carries the
+  consent hint (some states require telling the other party).
   Tests: `scripts/test-call-notes.ts`.
 - **Two timing bugs fixed 2026-09-24**: `CUSTOMER_RING_SECS` was 30, which is
   exactly when carrier voicemail answers — the customer leg timed out as the

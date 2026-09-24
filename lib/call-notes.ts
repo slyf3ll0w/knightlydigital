@@ -27,7 +27,16 @@
 import { prisma } from "@/lib/db";
 import { meteredOneShot } from "@/lib/atlas-oneshot";
 
-export type AtlasNotesState = "listening" | "summarizing" | "done" | "failed";
+/**
+ *   armed             asked before the call connected; transcription starts at the bridge
+ *   listening         Telnyx is transcribing
+ *   awaiting_contact  the call ended with nobody saved: the transcript is kept, the
+ *                     notes are written once the caller is saved as a lead/client
+ *                     (or dropped on Discard) — no tokens spent on a stranger
+ *   summarizing       the summary is being written (claimed)
+ *   done | failed
+ */
+export type AtlasNotesState = "armed" | "listening" | "awaiting_contact" | "summarizing" | "done" | "failed";
 
 /** The transcript is capped so a four-hour call can't grow a row without bound (~10k words). */
 export const TRANSCRIPT_MAX_CHARS = 60_000;
@@ -97,7 +106,7 @@ export async function appendTranscript(callId: string, line: string): Promise<vo
     await prisma.$executeRaw`
       UPDATE "Call"
       SET "transcript" = left(coalesce("transcript", '') || ${line} || E'\n', ${TRANSCRIPT_MAX_CHARS})
-      WHERE "id" = ${callId} AND "atlasNotesState" IN ('listening', 'summarizing')`;
+      WHERE "id" = ${callId} AND "atlasNotesState" IN ('listening', 'summarizing', 'awaiting_contact')`;
   } catch (err) {
     console.error(`[call-notes] transcript append failed for ${callId}:`, err);
   }
@@ -118,7 +127,7 @@ export type AtlasNotesSnapshot = {
  */
 export async function summarizeCallNotes(callId: string): Promise<AtlasNotesSnapshot> {
   const claimed = await prisma.call.updateMany({
-    where: { id: callId, atlasNotesState: "listening" },
+    where: { id: callId, atlasNotesState: { in: ["listening", "awaiting_contact"] } },
     data: { atlasNotesState: "summarizing" },
   });
   const snapshot = async (): Promise<AtlasNotesSnapshot> => {

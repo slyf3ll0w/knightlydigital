@@ -739,6 +739,8 @@ async function bridgeLegs(call: CallRow): Promise<void> {
   if (ok) {
     await prisma.call.updateMany({ where: { id: call.id, status: "RINGING" }, data: { status: "IN_PROGRESS", answeredAt: new Date() } });
     await advanceLeadForCall(call, "IN_PROGRESS", call.direction);
+    // Atlas was asked for before they answered: listen from the first word.
+    if (call.atlasNotesState === "armed") await beginTranscription(call.id, call.telnyxCallId).catch((e) => console.error("[voice] armed transcription failed:", e));
     return;
   }
   // Nobody stays stranded on ringback: the cell leg is dropped and an inbound
@@ -872,8 +874,8 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
         });
       }
     }
-    // Atlas was listening: the transcript is complete now, write the notes.
-    if (call.atlasNotesState === "listening") await summarizeCallNotes(call.id).catch(() => null);
+    // Atlas was listening: the transcript is complete now — write the notes, or hold them for a save.
+    await finishAtlasNotes(call);
     return;
   }
 
@@ -964,80 +966,108 @@ async function onRecordingSaved(p: VoiceEventPayload): Promise<void> {
   }
 }
 
-/** A final transcript segment while Atlas is taking notes (lib/call-notes.ts). Interim results are ignored. */
+/**
+ * A transcript segment while Atlas is taking notes (lib/call-notes.ts). Only
+ * Google's engine sends interim results (is_final: false, off by default);
+ * the Whisper engine sends finished segments that may carry no flag at all,
+ * so anything not explicitly interim is kept. Every event is logged: the
+ * first live run produced an empty transcript with nothing to go on.
+ */
 async function onTranscription(p: VoiceEventPayload): Promise<void> {
   const d = p.transcription_data;
-  if (!d?.is_final) return;
-  const line = transcriptLine(d.transcription_track, d.transcript);
+  const text = d?.transcript ?? "";
+  console.info(`[voice] transcription ${p.call_control_id ?? "?"} final=${d?.is_final ?? "-"} track=${d?.transcription_track ?? "-"} chars=${text.length}`);
+  if (!d || d.is_final === false) return;
+  const line = transcriptLine(d.transcription_track, text);
   if (!line) return;
   const hit = await findCallByLeg(p.call_control_id, p.client_state);
-  if (!hit) return;
+  if (!hit) {
+    console.info(`[voice] transcription for a leg we don't hold: ${p.call_control_id}`);
+    return;
+  }
   await appendTranscript(hit.call.id, line);
 }
 
 /* ───────────────────────── Atlas notes ───────────────────────── */
 
+const notesSelect = { id: true, status: true, contactId: true, telnyxCallId: true, atlasNotesState: true, atlasNotes: true, atlasNotesError: true, atlasNotesTokens: true } as const;
+type NotesRow = { id: string; status: CallStatus; contactId: string | null; telnyxCallId: string | null; atlasNotesState: string | null; atlasNotes: string | null; atlasNotesError: string | null; atlasNotesTokens: number | null };
+
+const notesSnapshot = (c: NotesRow): AtlasNotesSnapshot => ({
+  state: (c.atlasNotesState as AtlasNotesSnapshot["state"]) ?? null,
+  notes: c.atlasNotes,
+  error: c.atlasNotesError,
+  tokens: c.atlasNotesTokens,
+});
+
+const realLeg = (ccid: string | null | undefined): ccid is string => Boolean(ccid && !ccid.startsWith("pending:"));
+
 /**
- * "Let Atlas take notes" on the call screen: start Telnyx transcription on
- * the customer leg (both tracks — theirs and ours), and remember who asked
- * so their company's meter pays for the summary. Only on a connected call;
- * the same gate as every other Atlas surface (lib/assistant-access.ts).
+ * Telnyx `transcription_start` on the customer leg — both tracks, so the
+ * customer (inbound) and the team member (outbound) both land in the
+ * transcript. The documented shape: the engine named twice (top level and
+ * inside its config), Whisper large for phone audio. The row flips to
+ * "listening" only once Telnyx accepted the command.
+ */
+async function beginTranscription(callId: string, telnyxCallId: string | null): Promise<void> {
+  if (!realLeg(telnyxCallId)) throw new VoiceError("The call isn't connected.", 409);
+  const ok = await callAction(telnyxCallId, "transcription_start", {
+    transcription_engine: "Telnyx",
+    transcription_engine_config: { transcription_engine: "Telnyx", language: "en", transcription_model: "openai/whisper-large-v3-turbo" },
+    transcription_tracks: "both",
+    client_state: encodeState({ callId, leg: "customer", stage: "bridged" }),
+    command_id: `${callId}:transcribe:${Date.now()}`,
+  });
+  if (!ok) throw new VoiceError("The call already ended.", 409);
+  await prisma.call.updateMany({ where: { id: callId, atlasNotesState: { in: ["armed", "done", "failed"] } }, data: { atlasNotesState: "listening", atlasNotesError: null } });
+  await prisma.call.updateMany({ where: { id: callId, atlasNotesState: null }, data: { atlasNotesState: "listening", atlasNotesError: null } });
+  console.info(`[voice] transcription started call=${callId}`);
+}
+
+/**
+ * "Let Atlas take notes" on the call screen. Before they answer (RINGING)
+ * the call is *armed* and transcription starts at the bridge, so the whole
+ * conversation is on record; on a connected call it starts now. Remembers
+ * who asked so their company's meter pays for the summary — the same gate
+ * as every other Atlas surface (lib/assistant-access.ts). No tokens are
+ * spent here: the summary comes at the end, and only for a saved contact
+ * (finishAtlasNotes).
  */
 export async function startAtlasNotes(companyId: string, callId: string, userId: string): Promise<AtlasNotesSnapshot> {
   if (!voiceEnabled()) throw new VoiceError("Calling from the app isn't available on this server yet.", 503);
   if (!aiEnabled()) throw new VoiceError("The assistant isn't available right now.", 503);
   const [call, company] = await Promise.all([
-    prisma.call.findFirst({
-      where: { id: callId, companyId },
-      select: { id: true, status: true, telnyxCallId: true, atlasNotesState: true, atlasNotes: true, atlasNotesError: true, atlasNotesTokens: true },
-    }),
+    prisma.call.findFirst({ where: { id: callId, companyId }, select: notesSelect }),
     prisma.company.findUnique({ where: { id: companyId }, select: { ...ATLAS_ACCESS_SELECT, assistantName: true } }),
   ]);
   if (!call || !company) throw new VoiceError("Call not found.", 404);
   const name = company.assistantName || "Atlas";
-  const snapshot = (): AtlasNotesSnapshot => ({
-    state: (call.atlasNotesState as AtlasNotesSnapshot["state"]) ?? null,
-    notes: call.atlasNotes,
-    error: call.atlasNotesError,
-    tokens: call.atlasNotesTokens,
-  });
-  if (call.atlasNotesState === "listening" || call.atlasNotesState === "summarizing") return snapshot();
+  const s = call.atlasNotesState;
+  if (s === "armed" || s === "listening" || s === "summarizing" || s === "awaiting_contact") return notesSnapshot(call);
   const access = atlasAccess(company);
   if (access.level === "off") throw new VoiceError("The AI assistant isn't included on this account.", 403);
   if (access.level === "locked") {
     const when = new Date(access.resetsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" });
     throw new VoiceError(`${name} has used this ${access.reason === "plan-spent" ? "period's" : "month's"} tokens — the meter refills on ${when}.`, 403);
   }
-  if (call.status !== "IN_PROGRESS" || !call.telnyxCallId || call.telnyxCallId.startsWith("pending:")) {
-    throw new VoiceError(`${name} can only take notes while the call is connected.`, 409);
-  }
-  // The claim: one transcription per call at a time. A second start after
-  // "done" keeps the earlier transcript and appends — the next summary
-  // covers the whole call.
-  const claimed = await prisma.call.updateMany({
-    where: { id: call.id, status: "IN_PROGRESS", atlasNotesState: { notIn: ["listening", "summarizing"] } },
-    data: { atlasNotesState: "listening", atlasNotesUserId: userId, atlasNotesError: null },
-  });
-  if (claimed.count === 0) {
-    const again = await prisma.call.updateMany({
-      where: { id: call.id, status: "IN_PROGRESS", atlasNotesState: null },
-      data: { atlasNotesState: "listening", atlasNotesUserId: userId, atlasNotesError: null },
+  if (call.status === "RINGING") {
+    // Not connected yet: arm it, bridgeLegs starts the transcription.
+    const armed = await prisma.call.updateMany({
+      where: { id: call.id, status: "RINGING" },
+      data: { atlasNotesState: "armed", atlasNotesUserId: userId, atlasNotesError: null },
     });
-    if (again.count === 0) return snapshot();
+    if (armed.count === 0) return startAtlasNotes(companyId, callId, userId); // it connected meanwhile
+    return { state: "armed", notes: call.atlasNotes, error: null, tokens: call.atlasNotesTokens };
   }
+  if (call.status !== "IN_PROGRESS" || !realLeg(call.telnyxCallId)) {
+    throw new VoiceError(`${name} can only take notes while the call is ringing or connected.`, 409);
+  }
+  // Who pays, before Telnyx is told. A second start after "done" keeps the
+  // earlier transcript and appends — the next summary covers the whole call.
+  await prisma.call.update({ where: { id: call.id }, data: { atlasNotesUserId: userId, atlasNotesError: null } });
   try {
-    // Engine B = Telnyx's own; tracks "both" so the customer (inbound) and
-    // the team member (outbound) both land in the transcript.
-    const ok = await callAction(call.telnyxCallId, "transcription_start", {
-      transcription_engine: "B",
-      language: "en",
-      transcription_tracks: "both",
-      client_state: encodeState({ callId: call.id, leg: "customer", stage: "bridged" }),
-      command_id: `${call.id}:transcribe:${Date.now()}`,
-    });
-    if (!ok) throw new VoiceError("The call already ended.", 409);
+    await beginTranscription(call.id, call.telnyxCallId);
   } catch (err) {
-    await prisma.call.updateMany({ where: { id: call.id, atlasNotesState: "listening" }, data: { atlasNotesState: null } });
     if (err instanceof VoiceError) throw err;
     const detail = err instanceof TelnyxError ? err.detail : err instanceof Error ? err.message : "unknown error";
     throw new VoiceError(`Telnyx couldn't start transcribing: ${detail}`, 424);
@@ -1045,17 +1075,51 @@ export async function startAtlasNotes(companyId: string, callId: string, userId:
   return { state: "listening", notes: call.atlasNotes, error: null, tokens: call.atlasNotesTokens };
 }
 
-/** Stop listening now and write the notes from what was heard so far (the call may go on). */
+/**
+ * The transcript is complete (the customer leg hung up, Stop, the stale
+ * sweep): write the notes if the caller is someone saved — otherwise hold
+ * the transcript as "awaiting_contact" until they are saved as a lead or
+ * client (advanceLeadForLinkedCalls then summarizes) or discarded. Atlas
+ * tokens are never spent on a stranger's call. An armed call that never
+ * connected simply forgets the request.
+ */
+async function finishAtlasNotes(call: { id: string; contactId: string | null; atlasNotesState: string | null }): Promise<AtlasNotesSnapshot | null> {
+  if (call.atlasNotesState === "armed") {
+    await prisma.call.updateMany({ where: { id: call.id, atlasNotesState: "armed" }, data: { atlasNotesState: null } });
+    return null;
+  }
+  if (call.atlasNotesState !== "listening") return null;
+  if (call.contactId) return summarizeCallNotes(call.id).catch(() => null);
+  await prisma.call.updateMany({ where: { id: call.id, atlasNotesState: "listening" }, data: { atlasNotesState: "awaiting_contact" } });
+  return null;
+}
+
+/** Stop listening now. Armed → forgotten; listening → the transcript is closed and finished like a hangup (notes for a saved caller, held for an unsaved one). */
 export async function stopAtlasNotes(companyId: string, callId: string): Promise<AtlasNotesSnapshot> {
-  const call = await prisma.call.findFirst({
-    where: { id: callId, companyId },
-    select: { id: true, telnyxCallId: true, atlasNotesState: true },
-  });
+  const call = await prisma.call.findFirst({ where: { id: callId, companyId }, select: notesSelect });
   if (!call) throw new VoiceError("Call not found.", 404);
-  if (call.atlasNotesState === "listening" && voiceEnabled() && call.telnyxCallId && !call.telnyxCallId.startsWith("pending:")) {
+  if (call.atlasNotesState === "listening" && voiceEnabled() && realLeg(call.telnyxCallId)) {
     await callAction(call.telnyxCallId, "transcription_stop").catch((e) => console.error("[voice] transcription_stop failed:", e));
   }
-  return summarizeCallNotes(call.id);
+  const out = await finishAtlasNotes(call);
+  if (out) return out;
+  const fresh = await prisma.call.findFirst({ where: { id: callId, companyId }, select: notesSelect });
+  return fresh ? notesSnapshot(fresh) : notesSnapshot(call);
+}
+
+/** "Discard": an unsaved caller's transcript is dropped, nothing is written, no tokens spent. */
+export async function discardAtlasNotes(companyId: string, callId: string): Promise<AtlasNotesSnapshot> {
+  const call = await prisma.call.findFirst({ where: { id: callId, companyId }, select: notesSelect });
+  if (!call) throw new VoiceError("Call not found.", 404);
+  if (call.atlasNotesState === "listening" && voiceEnabled() && realLeg(call.telnyxCallId)) {
+    await callAction(call.telnyxCallId, "transcription_stop").catch(() => null);
+  }
+  await prisma.call.updateMany({
+    where: { id: call.id, atlasNotesState: { in: ["armed", "listening", "awaiting_contact", "failed"] } },
+    data: { atlasNotesState: null, transcript: null, atlasNotesError: null },
+  });
+  const fresh = await prisma.call.findFirst({ where: { id: callId, companyId }, select: notesSelect });
+  return fresh ? notesSnapshot(fresh) : notesSnapshot(call);
 }
 
 /* ───────────────────────── Notifications ───────────────────────── */
@@ -1325,7 +1389,7 @@ export async function runStaleCallSweep(now = new Date()): Promise<{ closed: num
         await hangupAppLegs(call.id, null).catch(() => {});
       }
       await prisma.callLeg.updateMany({ where: { callId: call.id, endedAt: null }, data: { endedAt: now, hangupCause: "stale" } });
-      if (call.atlasNotesState === "listening") await summarizeCallNotes(call.id).catch(() => null);
+      await finishAtlasNotes(call);
       out.closed++;
     } else {
       await prisma.call.update({ where: { id: call.id }, data: { status: "MISSED" } });
@@ -1393,6 +1457,12 @@ export async function advanceLeadForLinkedCalls(companyId: string, contactId: st
   });
   if (!latest) return;
   await advanceLeadForCall(latest, latest.status, latest.direction);
+  // Atlas held a transcript for an unsaved caller: they're saved now, write the notes.
+  const waiting = await prisma.call.findMany({
+    where: { id: { in: callIds }, companyId, contactId, atlasNotesState: "awaiting_contact" },
+    select: { id: true },
+  });
+  for (const w of waiting) await summarizeCallNotes(w.id).catch(() => null);
 }
 
 export type ResolvedCallContact = { id: string; firstName: string; lastName: string; status: ContactStatus };
