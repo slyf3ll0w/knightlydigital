@@ -214,7 +214,7 @@ export default function CallRow({
   const nameInk = missed && !live ? "text-red-600" : "text-gray-900";
 
   return (
-    <div className={`relative flex items-center gap-3 px-4 py-3 transition-colors hover:bg-gray-50 lg:py-2.5 ${live ? "bg-green-50/40" : ""}`}>
+    <div className={`relative flex items-center gap-3 px-4 py-3 transition-colors hover:bg-gray-50 active:bg-gray-100 lg:py-2.5 ${live ? "bg-green-50/40" : ""}`}>
       {/* Phones: the whole row opens the call screen. Sits under the content so the voicemail player still takes taps. */}
       <Link href={href} aria-label={`Open the call with ${title}`} className="absolute inset-0 z-0 lg:hidden" />
       <Avatar call={call} name={showContact ? name : ""} unseen={unseen} />

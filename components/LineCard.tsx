@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Grid3x3, Mic, Settings2, X } from "lucide-react";
+import { Grid3x3, Mic, Settings2 } from "lucide-react";
 import { fmtPhone } from "@/lib/format";
+import { hapticImpact } from "@/lib/haptics";
 import { softphone, useSoftphone, type SoftphoneState } from "@/lib/softphone-client";
 import DialPad from "@/components/DialPad";
 import { MicCheck } from "@/components/MicControls";
@@ -18,8 +19,8 @@ import Modal from "@/components/Modal";
  *                column next to the recents list (the softphone layout —
  *                keypad on the left, calls on the right). Number up top,
  *                the keypad, the microphone check, a stat foot.
- *   LineStrip  — phones: one row above the list — number, where it rings,
- *                a gear for owners.
+ *   LineSub    — phones: the large title's subtitle — number, where it
+ *                rings (the gear for owners sits in the title row).
  *   KeypadFab  — phones: the green keypad button above the tab bar; opens
  *                the keypad as a bottom sheet (Modal → sheet under lg) with
  *                the big keys.
@@ -151,47 +152,34 @@ function Stat({ label, value, tone, hint, className = "" }: { label: string; val
 
 /* ───────────────────────────── Phones ───────────────────────────── */
 
-export function LineStrip({
-  lineNumber,
-  forwardTo,
-  manager,
-  className = "",
-}: {
-  lineNumber: string;
-  forwardTo: string | null;
-  manager: boolean;
-  className?: string;
-}) {
+/**
+ * Phones: the line as the large title's subtitle — the number, then where
+ * it rings — instead of a card of its own. (iOS puts the status under the
+ * title; a card there read as one more box before the list.)
+ */
+export function LineSub({ lineNumber, forwardTo }: { lineNumber: string; forwardTo: string | null }) {
   const s = useSoftphone();
   const { where, dot } = useWhere(s, forwardTo);
   return (
-    <div className={`card-tool flex items-center gap-3 px-4 py-3 ${className}`}>
-      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} aria-hidden />
-      <div className="min-w-0 flex-1">
-        <p className="numeral-ledger text-[17px] font-semibold leading-tight text-gray-900">{fmtPhone(lineNumber)}</p>
-        <p className="truncate text-[13px] text-gray-500">{where}</p>
-        {s.status === "ready" && s.mic === "denied" && (
-          <p className="mt-1 text-xs text-red-700" role="alert">
-            The microphone is blocked for this site — calls can&apos;t be answered here.
-          </p>
-        )}
-      </div>
-      {manager && (
-        <Link
-          href="/app/settings?s=phone"
-          aria-label="Line settings"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 active:bg-gray-200"
-        >
-          <Settings2 size={16} />
-        </Link>
+    <span className="flex flex-col gap-0.5">
+      <span className="flex items-center gap-2">
+        <span className={`h-2 w-2 shrink-0 rounded-full ${dot}`} aria-hidden />
+        <span className="numeral-ledger text-[15px] font-semibold text-gray-800">{fmtPhone(lineNumber)}</span>
+      </span>
+      <span className="truncate text-[13px] text-gray-500">{where}</span>
+      {s.status === "ready" && s.mic === "denied" && (
+        <span className="text-xs text-red-700" role="alert">
+          The microphone is blocked for this site — calls can&apos;t be answered here.
+        </span>
       )}
-    </div>
+    </span>
   );
 }
 
 /**
- * The keypad on a phone: a green round button pinned above the tab bar's
- * Create button (same 58px hardware), opening the keypad as a bottom sheet.
+ * The keypad on a phone: a round button in the tab bar's own glass hardware
+ * (same 58px tinted circle as Create), pinned above it, opening the keypad
+ * as a bottom sheet.
  * Hidden while a call is up in this app — the call screen has the tones.
  */
 export function KeypadFab() {
@@ -203,22 +191,22 @@ export function KeypadFab() {
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          hapticImpact("MEDIUM");
+          setOpen(true);
+        }}
         aria-label="Keypad"
-        className="theme-fixed fixed right-3 z-30 flex h-[58px] w-[58px] items-center justify-center rounded-full bg-green-500 text-white shadow-[0_6px_18px_rgba(34,197,94,0.38)] transition-transform active:scale-95 lg:hidden"
+        className="glass-tinted glass-hit fixed right-3 z-30 flex h-[58px] w-[58px] items-center justify-center rounded-full lg:hidden"
         style={{ bottom: "calc(0.625rem + env(safe-area-inset-bottom) + 58px + 12px)" }}
       >
-        <Grid3x3 size={24} />
+        <span className="glass-press flex">
+          <Grid3x3 size={24} strokeWidth={2.25} />
+        </span>
       </button>
+      {/* The sheet's grab handle is the close control — no title bar, like the system keypad. */}
       <Modal open={open} onClose={() => setOpen(false)} size="sm" portal>
-        <div className="mb-2 flex items-center justify-between">
-          <p className="text-[13px] font-semibold text-gray-500">Keypad</p>
-          <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700">
-            <X size={16} />
-          </button>
-        </div>
-        <DialPad size="lg" />
-        <p className="mt-4 text-center text-xs text-gray-400">{inApp ? "Goes out from this phone." : "Rings your cell first, then the customer."}</p>
+        <DialPad size="lg" className="pt-1" />
+        <p className="mt-3 text-center text-xs text-gray-400">{inApp ? "Goes out from this phone." : "Rings your cell first, then the customer."}</p>
       </Modal>
     </>
   );

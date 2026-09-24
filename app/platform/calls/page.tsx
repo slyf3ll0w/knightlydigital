@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { PhoneCall } from "lucide-react";
+import { PhoneCall, Settings2 } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, isManager, contactScope } from "@/lib/permissions";
 import PageTitle from "@/components/PageTitle";
 import EmptyState from "@/components/EmptyState";
 import CallRow, { isMissed, type CallRowData } from "@/components/CallRow";
 import CallsLive from "@/components/CallsLive";
-import { LinePanel, LineStrip, KeypadFab, type LineStats } from "@/components/LineCard";
+import { LinePanel, LineSub, KeypadFab, type LineStats } from "@/components/LineCard";
 import { FilterRow, FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
 import { markCallsSeen, resolveCallContacts, type ResolvedCallContact } from "@/lib/voice";
 import { loadCallEvents, type CallEvent } from "@/lib/call-events";
@@ -179,7 +179,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
       </div>
     ) : (
       <>
-        <div className="mt-4 lg:hidden">
+        <div className="lg:hidden">
           <SegmentedRow>
             {FILTERS.map(([k, label]) => (
               <Segment key={k} active={filter === k} href={href(k)}>
@@ -216,10 +216,11 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
           <div className="mt-4 space-y-6 lg:mt-0">
             {groups.map((g) => (
               <section key={g.label}>
-                <h2 className="mb-2 flex items-center gap-3 px-1 text-xs font-semibold text-gray-500 lg:px-0">
+                {/* Phones: the grouped-list section label (no rule); desktop keeps the ledger rule. */}
+                <h2 className="mb-1.5 flex items-center gap-3 px-1 text-[13px] font-semibold text-gray-500 lg:mb-2 lg:px-0 lg:text-xs">
                   {g.label}
-                  <span className="h-px flex-1 bg-gray-200" aria-hidden />
-                  <span className="numeral-ledger font-normal text-gray-400">{g.rows.length}</span>
+                  <span className="hidden h-px flex-1 bg-gray-200 lg:block" aria-hidden />
+                  <span className="numeral-ledger ml-auto font-normal text-gray-400 lg:ml-0">{g.rows.length}</span>
                 </h2>
                 <div className="card-ledger divide-y divide-gray-100 overflow-hidden">
                   {g.rows.map((c) => (
@@ -236,33 +237,47 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
   return (
     <div className="mx-auto max-w-6xl p-4 lg:p-8">
       {hasLine && <CallsLive />}
-      <PageTitle
-        section="chat"
-        icon={PhoneCall}
-        sub={
-          filteredContact ? (
-            <>
-              Calls with{" "}
-              <Link href={`/app/contacts/${filteredContact.id}`} className="font-medium text-gray-800 hover:underline">
-                {filteredContact.firstName} {filteredContact.lastName}
-              </Link>{" "}
-              ·{" "}
-              <Link href="/app/calls" className="underline">
-                all calls
-              </Link>
-            </>
-          ) : undefined
-        }
-      >
-        Calls
-      </PageTitle>
+      <div className="flex items-start justify-between gap-3">
+        <PageTitle
+          section="chat"
+          icon={PhoneCall}
+          sub={
+            filteredContact ? (
+              <>
+                Calls with{" "}
+                <Link href={`/app/contacts/${filteredContact.id}`} className="font-medium text-gray-800 hover:underline">
+                  {filteredContact.firstName} {filteredContact.lastName}
+                </Link>{" "}
+                ·{" "}
+                <Link href="/app/calls" className="underline">
+                  all calls
+                </Link>
+              </>
+            ) : phone ? (
+              // Phones: the line lives under the title (desktop has the panel).
+              <span className="lg:hidden">
+                <LineSub lineNumber={phone.lineNumber} forwardTo={phone.forwardTo} />
+              </span>
+            ) : undefined
+          }
+        >
+          Calls
+        </PageTitle>
+        {phone?.manager && (
+          <Link
+            href="/app/settings?s=phone"
+            aria-label="Line settings"
+            title="Line settings"
+            className="btn-tool-line mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-white text-gray-700 lg:hidden"
+          >
+            <Settings2 size={16} />
+          </Link>
+        )}
+      </div>
 
-      <div className="mt-4 lg:mt-6 lg:grid lg:grid-cols-[312px_minmax(0,1fr)] lg:items-start lg:gap-6">
+      <div className="mt-3 lg:mt-6 lg:grid lg:grid-cols-[312px_minmax(0,1fr)] lg:items-start lg:gap-6">
         {phone && <LinePanel {...phone} stats={stats} className="hidden lg:sticky lg:top-6 lg:block" />}
-        <div className="min-w-0">
-          {phone && <LineStrip {...phone} className="lg:hidden" />}
-          {list}
-        </div>
+        <div className="min-w-0">{list}</div>
       </div>
 
       {phone && <KeypadFab />}
