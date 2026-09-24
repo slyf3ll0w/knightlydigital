@@ -14,6 +14,7 @@ import {
   waitForSoftphone,
 } from "@/lib/softphone-client";
 import { DIAL_MAX, dialDisplaySize, fmtDialing, normalizeDialed } from "@/lib/dial-format";
+import { hapticImpact } from "@/lib/haptics";
 
 /**
  * A phone keypad. Two jobs:
@@ -85,9 +86,12 @@ type Lookup = { id: string; name: string; status: "LEAD" | "ACTIVE" | "ARCHIVED"
 
 export default function DialPad({
   mode = "dial",
+  size = "md",
   className = "",
 }: {
   mode?: "dial" | "tones";
+  /** "lg" = the phone-sized keys (72px, the iOS keypad) for the bottom sheet; "md" = the desktop panel and the call screen's tones. */
+  size?: "md" | "lg";
   className?: string;
 }) {
   const router = useRouter();
@@ -227,13 +231,26 @@ export default function DialPad({
   }
 
   const shown = fmtDialing(value);
-  const sizeCls = { lg: "text-[26px]", md: "text-[22px]", sm: "text-[18px]" }[dialDisplaySize(shown)];
+  const big = size === "lg";
+  const sizeCls = (big ? { lg: "text-[34px]", md: "text-[28px]", sm: "text-[22px]" } : { lg: "text-[26px]", md: "text-[22px]", sm: "text-[18px]" })[dialDisplaySize(shown)];
+  // Key hardware: WorkBench tool tiles (white, hairline, soft depth — the
+  // btn-tool-line surface every secondary control uses) with Oxanium digits.
+  // 60×52 in the desktop panel, 88×64 continuous-corner tiles on a phone sheet.
+  const gridCls = big ? "mx-auto mt-4 grid w-fit grid-cols-3 gap-3" : "mx-auto mt-3 grid w-fit grid-cols-3 gap-2";
+  const keyCls = big ? "h-[64px] w-[88px] rounded-[18px]" : "h-[52px] w-[60px] rounded-[12px]";
+  const digitCls = big ? "text-[28px]" : "text-[22px]";
+  const starCls = big ? "mt-2.5 text-[36px]" : "mt-2 text-[30px]";
+  const lettersCls = big ? "text-[10px]" : "text-[9px]";
+  // The Call button is console ink (the solid navy of the Create tiles and
+  // the Atlas mark), not the green CTA — David wanted no green on the pad.
+  const callCls = big ? "mt-4 h-[52px] gap-2 text-base" : "mt-3 h-11 gap-1.5 text-sm";
 
   const standing = lookup ? (lookup.status === "LEAD" ? "lead" : lookup.status === "ACTIVE" ? "client" : "") : "";
 
   return (
     <div className={`select-none ${className}`}>
-      <div className="relative">
+      {/* The number sits on a ledger rule, like a figure on a statement. */}
+      <div className="relative border-b border-gray-200 pb-1">
         <input
           ref={input}
           type="tel"
@@ -316,7 +333,7 @@ export default function DialPad({
         </p>
       )}
 
-      <div className="mx-auto mt-3 grid w-fit grid-cols-3 gap-x-5 gap-y-2.5">
+      <div className={gridCls}>
         {KEYS.map(([k, letters]) => (
           <button
             key={k}
@@ -332,19 +349,22 @@ export default function DialPad({
             onPointerUp={onKeyUp}
             onPointerLeave={onKeyUp}
             aria-label={k === "0" ? "0 (hold for +)" : k}
-            className="flex h-[54px] w-[54px] flex-col items-center justify-center rounded-full bg-gray-100 text-gray-900 transition-[transform,background-color] duration-100 hover:bg-gray-200 active:scale-95 active:bg-gray-300"
+            className={`btn-tool-line flex ${keyCls} flex-col items-center justify-center bg-white text-gray-900 hover:bg-gray-50 active:bg-gray-100`}
           >
-            <span className={`numeral-ledger leading-none ${k === "*" ? "mt-2 text-[30px]" : "text-[22px]"} font-semibold`}>{k}</span>
-            {letters && <span className={`mt-0.5 text-[9px] leading-none tracking-[0.18em] ${k === "0" ? "text-sm tracking-normal" : ""} text-gray-500`}>{letters}</span>}
+            <span className={`numeral-ledger leading-none ${k === "*" ? starCls : digitCls} font-semibold`}>{k}</span>
+            {letters && <span className={`mt-0.5 ${lettersCls} leading-none tracking-[0.18em] ${k === "0" ? "text-sm tracking-normal" : ""} text-gray-500`}>{letters}</span>}
           </button>
         ))}
       </div>
 
       {!tones && (
-        <div className="mt-3 flex justify-center">
+        <div className="flex justify-center">
           <button
             type="button"
-            onClick={() => void call()}
+            onClick={() => {
+              hapticImpact("LIGHT");
+              void call();
+            }}
             disabled={!canDial}
             aria-label={onCall ? "Already on a call" : reconnecting ? "Reconnecting the browser" : "Call"}
             title={
@@ -358,9 +378,11 @@ export default function DialPad({
                       ? "Brings the line to this tab, then calls from here"
                       : "Ring your cell first, then connect them"
             }
-            className="flex h-[54px] w-[54px] items-center justify-center rounded-full bg-green-500 text-white shadow-md transition-[transform,background-color] duration-100 hover:bg-green-600 active:scale-95 disabled:opacity-40 disabled:shadow-none"
+            style={{ backgroundColor: "var(--wb-primary, #0A1428)" }}
+            className={`btn-tool chamfer flex w-full items-center justify-center rounded-[10px] font-semibold text-white disabled:opacity-40 ${callCls}`}
           >
-            {busy ? <Loader2 size={22} className="animate-spin" /> : <Phone size={22} />}
+            {busy ? <Loader2 size={big ? 20 : 16} className="animate-spin" /> : <Phone size={big ? 20 : 16} />}
+            Call
           </button>
         </div>
       )}
