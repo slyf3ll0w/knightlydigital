@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { BookOpen, Calculator, Check, Copy, Globe, History, LayoutDashboard, Loader2, MoreHorizontal, Play, Power, SlidersHorizontal, Sparkles, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { BookOpen, Calculator, Check, ChevronLeft, ChevronRight, Copy, Globe, History, LayoutDashboard, Loader2, MoreHorizontal, Play, Power, SlidersHorizontal, Sparkles, Trash2 } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import { EstimatorRunnerPanel, valuesToForm } from "@/components/EstimatorRunner";
 import { useAssistant } from "@/components/AssistantContext";
 import { confirmSheet } from "@/components/ConfirmSheet";
+import { QuickMenu, type MenuAnchor, type QuickAction } from "@/components/QuickMenu";
 import { APP_THEME, moneyExact, wash } from "@/components/EstimatorControls";
 import RatesToConfirm from "@/components/RatesToConfirm";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -16,13 +17,19 @@ import BuildPanel, { type BuiltTool } from "../BuildPanel";
 import EstimatorEditor, { type EditorSection } from "../EstimatorEditor";
 import PublishPanel from "../PublishPanel";
 import SharePanel from "../SharePanel";
+import { toolFacts } from "../EstimatesClient";
 
 /**
- * One tool's page. Six sections, the fewest that cover the job: Overview ·
- * Try it · Ask Atlas (how most owners change a tool) · Website (one switch,
- * the link right there) · Advanced (the hand editor, for the few who want
- * it) · History. A left rail on desktop, a chip rail on phones; ?s= keeps
- * the section in the URL.
+ * One tool's page. Seven sections, the fewest that cover the job: Overview ·
+ * Try it · Ask Atlas (how most owners change a tool) · Web form (one switch,
+ * the link right there) · Library · Advanced (the hand editor, for the few
+ * who want it) · History.
+ *
+ * Desktop: a Settings-style left rail, one panel at a time. Phones: the
+ * iOS-Settings pattern — Overview IS the index (facts, rates to confirm,
+ * sample prices, then a list of rows), a row pushes into one section with
+ * "‹ Tool name" at the top, and the browser back returns to the index. The
+ * section rides in the URL as ?s= either way.
  */
 
 export type ToolRecord = {
@@ -57,6 +64,7 @@ const SECTIONS: { key: Section; label: string; icon: typeof Play; manager?: bool
   { key: "advanced", label: "Advanced", icon: SlidersHorizontal, manager: true },
   { key: "history", label: "History", icon: History, manager: true },
 ];
+const LEGACY: Record<string, Section> = { questions: "advanced", pricing: "advanced", words: "advanced" };
 
 function merge(t: Record<string, unknown>, prev: ToolRecord): ToolRecord {
   return {
@@ -72,6 +80,8 @@ function merge(t: Record<string, unknown>, prev: ToolRecord): ToolRecord {
     ...(typeof t.updatedAt === "string" ? { updatedAt: t.updatedAt } : {}),
   };
 }
+
+const isPhone = () => typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
 
 export default function ToolClient({
   tool: initial,
@@ -94,50 +104,52 @@ export default function ToolClient({
   resumeBuildId?: string | null;
 }) {
   const router = useRouter();
+  const params = useSearchParams();
   const atlas = useAssistant();
   const theme = APP_THEME;
   const [tool, setTool] = useState(initial);
   useEffect(() => setTool(initial), [initial]);
-  const allowed = SECTIONS.filter((s) => !s.manager || manager);
-  const legacy: Record<string, Section> = { questions: "advanced", pricing: "advanced", words: "advanced" };
-  const [section, setSection] = useState<Section>(() => {
-    // a change still building → open on Ask Atlas so it's seen landing
-    const s = initialSection ? legacy[initialSection] ?? initialSection : resumeBuildId ? "atlas" : "overview";
-    return allowed.some((x) => x.key === s) ? (s as Section) : "overview";
-  });
-  const [advTab, setAdvTab] = useState<AdvancedTab>(initialSection === "pricing" || initialSection === "words" ? initialSection : "questions");
+  const allowed = useMemo(() => SECTIONS.filter((s) => !s.manager || manager), [manager]);
+
+  // the section lives in the URL: ?s=, legacy tab names map into Advanced,
+  // a change still building opens on Ask Atlas so it's seen landing
+  const resolve = useCallback(
+    (raw: string | null | undefined): Section => {
+      const s = raw ? LEGACY[raw] ?? raw : resumeBuildId ? "atlas" : "overview";
+      return allowed.some((x) => x.key === s) ? (s as Section) : "overview";
+    },
+    [allowed, resumeBuildId]
+  );
+  const sParam = params.get("s") ?? initialSection ?? null;
+  const section = resolve(sParam);
+  const [advTab, setAdvTab] = useState<AdvancedTab>(sParam === "pricing" || sParam === "words" ? sParam : "questions");
   const [busy, setBusy] = useState<"active" | "delete" | "publish" | "rates" | null>(null);
   const [error, setError] = useState("");
-  const [menu, setMenu] = useState(false);
+  const [menu, setMenu] = useState<MenuAnchor | null>(null);
   const [copied, setCopied] = useState(false);
   const [runKey, setRunKey] = useState(0);
 
-  function go(s: Section) {
-    setSection(s);
-    setMenu(false);
+  const go = useCallback((s: Section, tab?: AdvancedTab) => {
+    if (tab) setAdvTab(tab);
     try {
       const url = new URL(window.location.href);
-      url.searchParams.set("s", s);
-      window.history.replaceState(null, "", url.toString());
+      if (s === "overview") url.searchParams.delete("s");
+      else url.searchParams.set("s", s);
+      // phones push (back returns to the index); desktop just keeps the URL current
+      if (isPhone()) {
+        window.history.pushState(null, "", url.toString());
+        window.scrollTo({ top: 0 });
+      } else window.history.replaceState(null, "", url.toString());
     } catch {
       /* ignore */
     }
-  }
+  }, []);
 
   const spec = tool.spec;
   const placeholders = spec?.placeholders ?? [];
-  const assessed = spec?.inputs.filter((i) => i.askAtlas) ?? [];
-  const tiers = spec?.inputs.find((i) => i.type === "select" && i.style === "packages");
-  const facts = spec
-    ? [
-        `${spec.inputs.length} question${spec.inputs.length === 1 ? "" : "s"}`,
-        tiers && tiers.type === "select" ? `${tiers.options.length} packages` : null,
-        spec.inputs.some((i) => i.type === "map") ? "map measure" : null,
-        spec.minimumTotal ? `$${Math.round(spec.minimumTotal)} minimum` : null,
-        assessed.length > 0 ? `${atlas.name} assesses ${assessed.map((i) => i.label.toLowerCase()).join(", ")}` : null,
-      ].filter(Boolean)
-    : ["no longer compiles"];
+  const facts = spec ? toolFacts({ spec }, atlas.name) : ["no longer compiles"];
   const hostedUrl = tool.isPublic && tool.publicSlug ? `${baseUrl}/book/${companySlug}/estimate/${tool.publicSlug}` : "";
+  const published = Boolean(tool.isPublic && tool.publicSlug);
 
   // Overview: the sample jobs priced by the live rules (free dry runs)
   const [samplePrices, setSamplePrices] = useState<Record<string, number | null>>({});
@@ -160,7 +172,6 @@ export default function ToolClient({
   async function patch(body: Record<string, unknown>, kind: NonNullable<typeof busy>): Promise<boolean> {
     setBusy(kind);
     setError("");
-    setMenu(false);
     const { ok, data } = await postJson<Record<string, unknown> & { error?: string }>(`/api/app/estimators/${tool.id}`, body, "PATCH");
     setBusy(null);
     if (!ok || !data || !("id" in data)) {
@@ -173,7 +184,6 @@ export default function ToolClient({
   }
 
   async function remove() {
-    setMenu(false);
     if (
       !(await confirmSheet({
         title: `Delete “${tool.name}”?`,
@@ -216,25 +226,16 @@ export default function ToolClient({
     await patch({ spec: next }, "rates");
   }
 
-  const navItem = (s: (typeof SECTIONS)[number], mobile: boolean) => {
-    const active = section === s.key;
-    return (
-      <button
-        key={s.key}
-        type="button"
-        onClick={() => go(s.key)}
-        className={
-          mobile
-            ? `inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium ${active ? "border-transparent" : "border-gray-200 bg-white text-gray-700"}`
-            : `flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-left text-sm transition-colors ${active ? "bg-green-500/10 font-semibold text-green-700" : "font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`
-        }
-        style={mobile && active ? { backgroundColor: theme.accent, color: theme.onAccent } : undefined}
-      >
-        <s.icon size={mobile ? 14 : 16} className={active || mobile ? undefined : "text-gray-400"} />
-        {s.label}
-      </button>
-    );
-  };
+  function run() {
+    setRunKey((k) => k + 1);
+    go("try");
+  }
+
+  const menuActions: QuickAction[] = [
+    ...(published ? [{ key: "copy", label: copied ? "Link copied" : "Copy web form link", icon: Copy, onSelect: () => void copyLink() } as QuickAction] : []),
+    { key: "power", label: tool.isActive ? "Turn off" : "Turn on", icon: Power, disabled: busy !== null, onSelect: () => void patch({ isActive: !tool.isActive }, "active") },
+    { key: "delete", label: "Delete", icon: Trash2, destructive: true, disabled: busy !== null, onSelect: () => void remove() },
+  ];
 
   const runner = spec ? { id: tool.id, name: tool.name, description: tool.description, usesAtlas: tool.usesAtlas, spec } : null;
   const advTabs: { key: AdvancedTab; label: string }[] = [
@@ -243,58 +244,103 @@ export default function ToolClient({
     { key: "words", label: "Words" },
   ];
   const editorSection: EditorSection = section === "history" ? "history" : advTab;
+  const sectionLabel = SECTIONS.find((s) => s.key === section)?.label ?? "";
+
+  const subline: Record<Section, string> = {
+    overview: "",
+    try: "Answer the questions, see the breakdown, start a quote.",
+    atlas: `“Add a gate option at $250.” “Make the middle package the popular one.”`,
+    website: published ? "Published — share the link or embed it on your site." : "One switch — a link to share and an embed code for your site.",
+    share: "Share it with other businesses, or update your listing.",
+    advanced: "Questions, pricing and words, by hand.",
+    history: "Every version of the rules — restore any of them.",
+  };
+
+  const pills = (
+    <>
+      {!tool.isActive && <span className="stamp text-gray-500">Off</span>}
+      {published && <span className="stamp text-sky-700">Published</span>}
+      {tool.sourceListingId && <span className="stamp text-gray-500">From the Library</span>}
+    </>
+  );
+
+  const railItem = (s: (typeof SECTIONS)[number]) => {
+    const active = section === s.key;
+    return (
+      <button key={s.key} type="button" onClick={() => go(s.key)} className={`flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-left text-sm transition-colors ${active ? "bg-green-500/10 font-semibold text-green-700" : "font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}>
+        <s.icon size={16} className={active ? undefined : "text-gray-400"} />
+        {s.label}
+      </button>
+    );
+  };
+
+  const indexRow = (s: (typeof SECTIONS)[number]) => (
+    <button key={s.key} type="button" onClick={() => (s.key === "try" ? run() : go(s.key))} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-100">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-green-500/10 text-green-700">
+        <s.icon size={17} strokeWidth={2.25} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-medium text-gray-900">{s.key === "atlas" ? `Change it — ask ${atlas.name}` : s.label}</span>
+        <span className="block truncate text-xs text-gray-500">{subline[s.key]}</span>
+      </span>
+      <ChevronRight size={16} className="shrink-0 text-gray-300" />
+    </button>
+  );
 
   return (
-    <div className="mx-auto max-w-5xl p-4 lg:p-8" onClick={() => menu && setMenu(false)}>
-      {/* header */}
-      <BackLink href="/app/estimates" className="mb-3" />
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]" style={{ backgroundColor: wash(theme, 12), color: theme.accent }} aria-hidden>
-            <Calculator size={20} strokeWidth={2.25} />
-          </span>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <h1 className="text-xl font-bold tracking-tight text-gray-900">{tool.name}</h1>
-              {!tool.isActive && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">Off</span>}
-              {tool.isPublic && tool.publicSlug && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">Published</span>}
-              {tool.sourceListingId && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">From the Library</span>}
+    <div className="mx-auto max-w-5xl p-4 pb-24 lg:p-8">
+      {/* ── header: desktop always, phones only on the index ── */}
+      <div className={section === "overview" ? "" : "hidden lg:block"}>
+        <BackLink href="/app/estimates" className="mb-3" />
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]" style={{ backgroundColor: wash(theme, 12), color: theme.accent }} aria-hidden>
+              <Calculator size={20} strokeWidth={2.25} />
+            </span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <h1 className="text-[22px] font-bold tracking-tight text-gray-900 lg:text-xl">{tool.name}</h1>
+                {pills}
+              </div>
+              <p className="mt-0.5 text-sm text-gray-600">{tool.description || facts.join(" · ")}</p>
             </div>
-            <p className="mt-0.5 text-sm text-gray-600">{tool.description || facts.join(" · ")}</p>
           </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {tool.isActive && spec && (
-            <button
-              type="button"
-              onClick={() => {
-                setRunKey((k) => k + 1);
-                go("try");
-              }}
-              className="btn-primary h-10 justify-center"
-            >
-              <Play size={15} /> Run
-            </button>
-          )}
-          {manager && (
-            <div className="relative">
-              <button type="button" onClick={() => setMenu((m) => !m)} className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-gray-200 text-gray-500 hover:bg-gray-50" aria-label="More">
+          <div className="flex shrink-0 items-center gap-2">
+            {tool.isActive && spec && (
+              <button type="button" onClick={run} className="btn-primary hidden h-10 justify-center lg:flex">
+                <Play size={15} /> Run
+              </button>
+            )}
+            {manager && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  setMenu({ x: r.right, y: r.bottom + 4, alignRight: true });
+                }}
+                className="btn-tool-line flex h-10 w-10 items-center justify-center rounded-[10px] bg-white text-gray-500 hover:bg-gray-50"
+                aria-label="More"
+              >
                 <MoreHorizontal size={16} />
               </button>
-              {menu && (
-                <div className="sheet-material absolute right-0 top-full mt-1 z-30 w-max min-w-[13rem] whitespace-nowrap rounded-lg shadow-xl border border-gray-200 py-1.5">
-                  <button type="button" disabled={busy !== null} onClick={() => void patch({ isActive: !tool.isActive }, "active")} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">
-                    <Power size={14} /> {tool.isActive ? "Turn off" : "Turn on"}
-                  </button>
-                  <button type="button" disabled={busy !== null} onClick={() => void remove()} className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50">
-                    <Trash2 size={14} /> Delete
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
+
+      {/* ── phone header inside a section: back to the index + the section's title ── */}
+      {section !== "overview" && (
+        <div className="mb-4 lg:hidden">
+          <button type="button" onClick={() => go("overview")} className="-ml-1.5 flex max-w-full items-center gap-0.5 text-[15px] font-medium text-green-700">
+            <ChevronLeft size={19} className="shrink-0" />
+            <span className="truncate">{tool.name}</span>
+          </button>
+          <h2 className="mt-1 text-[22px] font-bold text-gray-900">{section === "atlas" ? `Ask ${atlas.name}` : sectionLabel}</h2>
+          {subline[section] && <p className="mt-0.5 text-sm text-gray-500">{subline[section]}</p>}
+        </div>
+      )}
+
+      {manager && <QuickMenu open={menu !== null} anchor={menu} title={tool.name} actions={menuActions} onClose={() => setMenu(null)} />}
 
       {error && (
         <div role="alert" className="form-error mb-4">
@@ -302,50 +348,43 @@ export default function ToolClient({
         </div>
       )}
 
-      <div className="lg:grid lg:grid-cols-[190px_minmax(0,1fr)] lg:items-start lg:gap-8">
+      <div className="lg:grid lg:grid-cols-[230px_minmax(0,1fr)] lg:items-start lg:gap-10">
         <nav className="sticky top-8 hidden lg:block">
-          <div className="space-y-0.5">{allowed.map((s) => navItem(s, false))}</div>
+          <div className="space-y-0.5">{allowed.map(railItem)}</div>
         </nav>
-        <div className="no-scrollbar -mx-4 mb-4 flex gap-2 overflow-x-auto px-4 py-1 lg:hidden">{allowed.map((s) => navItem(s, true))}</div>
 
         <div className="min-w-0">
-          {/* ── Overview ── */}
+          {/* ── Overview (desktop panel · phone index) ── */}
           {section === "overview" && (
             <div className="space-y-4">
               {!spec && <div className="form-error">This tool&apos;s saved rules no longer compile. Restore an earlier version under History, or rebuild it.</div>}
 
-              {placeholders.length > 0 && manager && (
-                <RatesToConfirm
-                  items={placeholders}
-                  onDone={(i) => void confirmRate(i)}
-                  onOpenPricing={() => {
-                    setAdvTab("pricing");
-                    go("advanced");
-                  }}
-                />
-              )}
+              {placeholders.length > 0 && manager && <RatesToConfirm items={placeholders} onDone={(i) => void confirmRate(i)} onOpenPricing={() => go("advanced", "pricing")} />}
 
               {spec && spec.samples && spec.samples.length > 0 && (
                 <div className="card-ledger p-4">
                   <p className="text-sm font-semibold text-gray-900">What it prices</p>
-                  <p className="mt-0.5 text-xs text-gray-500">Three sample jobs, priced by today&apos;s rules.</p>
+                  <p className="mt-0.5 text-xs text-gray-500">Sample jobs, priced by today&apos;s rules.</p>
                   <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
                     {spec.samples.map((s) => (
-                      <div key={s.label} className="rounded-xl border border-gray-200 px-3 py-2.5">
+                      <div key={s.label} className="flex items-baseline justify-between gap-3 rounded-xl border border-gray-200 px-3 py-2.5 sm:block">
                         <p className="text-[11px] font-medium text-gray-500">{s.label}</p>
-                        <p className="mt-0.5 text-lg font-bold tabular-nums tracking-tight text-gray-900">{s.label in samplePrices ? (samplePrices[s.label] === null ? <span className="text-sm font-medium text-gray-400">didn&apos;t run</span> : moneyExact(samplePrices[s.label] as number)) : <span className="text-sm font-medium text-gray-400">…</span>}</p>
+                        <p className="numeral-ledger mt-0.5 text-lg font-bold tabular-nums tracking-tight text-gray-900">{s.label in samplePrices ? (samplePrices[s.label] === null ? <span className="text-sm font-medium text-gray-400">didn&apos;t run</span> : moneyExact(samplePrices[s.label] as number)) : <span className="text-sm font-medium text-gray-400">…</span>}</p>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              <div className="card-ledger divide-y divide-gray-100">
-                <button type="button" onClick={() => go("try")} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50">
+              {/* phones: the index rows; desktop: the three things people come here for */}
+              <div className="card-ledger divide-y divide-gray-100 overflow-hidden lg:hidden">{allowed.filter((s) => s.key !== "overview").map(indexRow)}</div>
+
+              <div className="card-ledger hidden divide-y divide-gray-100 lg:block">
+                <button type="button" onClick={run} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50">
                   <Play size={16} style={{ color: theme.accent }} />
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-medium text-gray-900">Try it</span>
-                    <span className="block text-xs text-gray-500">Answer the questions, see the breakdown, start a quote.</span>
+                    <span className="block text-xs text-gray-500">{subline.try}</span>
                   </span>
                 </button>
                 {manager && (
@@ -353,7 +392,7 @@ export default function ToolClient({
                     <Sparkles size={16} style={{ color: theme.accent }} />
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-medium text-gray-900">Change it — just tell {atlas.name}</span>
-                      <span className="block text-xs text-gray-500">“Add a gate option at $250.” “Make the middle package the popular one.”</span>
+                      <span className="block text-xs text-gray-500">{subline.atlas}</span>
                     </span>
                   </button>
                 )}
@@ -395,7 +434,7 @@ export default function ToolClient({
           {/* ── Ask Atlas ── */}
           {section === "atlas" && manager && (
             <div className="card-ledger p-4 sm:p-5">
-              <div className="mb-3">
+              <div className="mb-3 hidden lg:block">
                 <h2 className="text-base font-semibold text-gray-900">Change “{tool.name}”</h2>
                 <p className="mt-0.5 text-xs text-gray-500">Say what should be different. The current version is kept under History.</p>
               </div>
@@ -409,7 +448,7 @@ export default function ToolClient({
                   setTool((prev) => merge(t, prev));
                   router.refresh();
                 }}
-                onTry={() => go("try")}
+                onTry={run}
               />
             </div>
           )}
@@ -424,7 +463,7 @@ export default function ToolClient({
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-gray-500">Most changes are quicker to ask {atlas.name} for.</p>
+              <p className="hidden text-xs text-gray-500 sm:block">Most changes are quicker to ask {atlas.name} for.</p>
             </div>
           )}
           {manager && spec && (
@@ -436,7 +475,7 @@ export default function ToolClient({
           {/* ── Library ── */}
           {section === "share" && manager && <SharePanel toolId={tool.id} toolName={tool.name} companyName={companyName} companyIndustry={companyIndustry} />}
 
-          {/* ── Website ── */}
+          {/* ── Web form ── */}
           {section === "website" && manager && (
             <PublishPanel
               tool={{ id: tool.id, name: tool.name, usesAtlas: tool.usesAtlas, isPublic: tool.isPublic, publicSlug: tool.publicSlug, publicConfig: tool.publicConfig, publicViews: tool.publicViews, publicCalcs: tool.publicCalcs, submissions: tool.submissions }}
@@ -450,6 +489,13 @@ export default function ToolClient({
           )}
         </div>
       </div>
+
+      {/* phones: Run docks as a floating pill on the index (no transform — iOS drops the glass blur on transformed elements) */}
+      {section === "overview" && tool.isActive && spec && (
+        <button type="button" onClick={run} className="btn-primary glass-tinted fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-30 mx-auto w-max rounded-full px-6 py-3 text-[15px] lg:hidden">
+          <Play size={15} /> Run this tool
+        </button>
+      )}
     </div>
   );
 }

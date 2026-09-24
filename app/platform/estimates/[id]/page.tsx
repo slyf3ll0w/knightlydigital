@@ -7,6 +7,7 @@ import { ESTIMATOR_SELECT } from "@/lib/estimator-server";
 import { specFromJson } from "@/lib/estimator";
 import { sanitizePublicConfig } from "@/lib/estimator-public";
 import { resumableBuildId } from "@/lib/estimator-build-jobs";
+import { Suspense } from "react";
 import ToolClient from "./ToolClient";
 
 export const metadata: Metadata = { title: "Estimate tool" };
@@ -34,6 +35,8 @@ export default async function ToolPage({ params, searchParams }: { params: Promi
   const proto = h.get("x-forwarded-proto") ?? "https";
   const baseUrl = host ? `${proto}://${host}` : (process.env.NEXTAUTH_URL ?? "");
   return (
+    // useSearchParams inside — a Suspense boundary keeps Next quiet about it
+    <Suspense fallback={null}>
     <ToolClient
       manager={manager}
       companySlug={company?.slug ?? ""}
@@ -61,5 +64,6 @@ export default async function ToolPage({ params, searchParams }: { params: Promi
         updatedAt: row.updatedAt.toISOString(),
       }}
     />
+    </Suspense>
   );
 }
