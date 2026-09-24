@@ -473,12 +473,12 @@ export const ACTIONS = {
   email_client: { label: "Email the client", group: "Messaging", needs: "client", hint: "A tracked email under your business name (needs their email).", params: [
     p("subject", "Subject", "template", { required: true, max: 150 }), p("body", "Message", "template_long", { required: true, max: 2000 }),
   ] },
-  text_client: { label: "Text the client", group: "Messaging", needs: "client", hint: "An SMS from your business line — only if they can be texted.", params: [p("body", "Message", "template_long", { required: true, max: 480 })] },
+  text_client: { label: "Text the client", group: "Messaging", needs: "client", hint: "An SMS from your business line — only if they can be texted. Service updates only: wording like discounts, promos or quotes is skipped, because your number is registered for service texts.", params: [p("body", "Message", "template_long", { required: true, max: 480 })] },
   portal_message: { label: "Message the client in their portal", group: "Messaging", needs: "client", hint: "Appears in their hub thread; mirrors to text or email when possible.", params: [p("body", "Message", "template_long", { required: true, max: 1000 })] },
   email_address: { label: "Email an address", group: "Messaging", needs: "any", hint: "An internal email — the office, the owner, an outside inbox.", params: [
     p("to", "To", "email", { required: true, max: 200 }), p("subject", "Subject", "template", { required: true, max: 150 }), p("body", "Message", "template_long", { required: true, max: 2000 }),
   ] },
-  send_quote_link: { label: "Send the quote link", group: "Messaging", needs: ["quote"], hint: "Re-sends the client's approval link (email, plus text when possible).", params: [] },
+  send_quote_link: { label: "Send the quote link", group: "Messaging", needs: ["quote"], hint: "Re-sends the client's approval link by email (quotes are never texted — carriers read them as marketing).", params: [] },
   send_pay_link: { label: "Send the pay link", group: "Messaging", needs: ["invoice", "payment"], hint: "Sends the invoice's pay link (email, plus text when possible).", params: [] },
   send_payment_reminder: { label: "Send a payment reminder", group: "Messaging", needs: ["invoice", "payment"], hint: "The standard reminder email; skipped once the invoice is paid.", params: [] },
   send_appointment_reminder: { label: "Send an appointment reminder", group: "Messaging", needs: ["appointment"], hint: "The standard reminder (text when possible, else email).", params: [] },

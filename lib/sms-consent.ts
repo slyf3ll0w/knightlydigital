@@ -55,6 +55,28 @@ export function smsConsentLabel(businessName: string): string {
   return `By checking this box, you agree to receive SMS appointment reminders, arrival and schedule updates, invoice and payment links, and replies to your messages from ${businessName}. Message frequency may vary. Msg & data rates may apply. Consent is not a condition of purchase. Reply STOP to opt out, HELP for help. We will not share your mobile information with third parties for promotional or marketing purposes.`;
 }
 
+/**
+ * The phrase in an outgoing text that carriers would read as marketing, or
+ * null. A business line's 10DLC campaign is registered for appointment,
+ * billing and customer-care texts only (no MARKETING use case), and Telnyx
+ * failed a campaign for merely mentioning quotes (2026-09-24). Used on texts
+ * whose wording a person wrote (automations); our own templates are pinned by
+ * campaignLint. The brand name is ignored so "Quote Pros" can text.
+ */
+export function marketingPhrase(text: string, brandName: string): string | null {
+  const t = brandName ? text.split(brandName).join(" ") : text;
+  const m = t.match(/\b(quotes?|estimates?|discounts?|coupons?|promo(tion|tional)?s?|promo codes?|limited[- ]time|special offers?|on sale|flash sale|deals? of|referral bonus)\b|\d+ ?% ?off\b|\$\d+ off\b/i);
+  return m ? m[0] : null;
+}
+
+/** An owner-written text made fit to send: names the business first and carries the opt-out line. */
+export function brandedText(text: string, brandName: string): string {
+  let out = text.trim();
+  if (!out.toLowerCase().includes(brandName.toLowerCase())) out = `${brandName}: ${out}`;
+  if (!/\bSTOP\b/.test(out)) out = `${out} Reply STOP to opt out.`;
+  return out;
+}
+
 export type SmsConsentFields = {
   phone: string | null;
   smsOptOut: boolean;

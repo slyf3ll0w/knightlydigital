@@ -3,7 +3,8 @@ import { lookup } from "dns/promises";
 import { prisma } from "./db";
 import { notifyUsers, companyManagerIds } from "./push";
 import { sendEmail, emailEnabled, companyEmailBlocked, clientMessageEmail, quoteLinkEmail, invoiceLinkEmail, paymentReminderEmail, appointmentReminderEmail } from "./email";
-import { sendSms, canText, companyCanSendSms, quoteLinkText, invoiceLinkText, appointmentReminderText } from "./sms";
+import { sendSms, canText, companyCanSendSms, invoiceLinkText, appointmentReminderText } from "./sms";
+import { marketingPhrase, brandedText } from "./sms-consent";
 import { sendReviewRequest } from "./payments";
 import { canChargeOnline } from "./payments-gate";
 import { notifyClientOfReply } from "./portal-messages";
@@ -146,7 +147,10 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
       if (!contact) return "skipped: no client";
       const gate = await textGate(companyId, contact);
       if (gate) return gate;
-      const text = rendered.body.slice(0, 480);
+      // The business line is registered for service texts only: marketing wording would put its campaign at risk.
+      const flagged = marketingPhrase(rendered.body, company.name);
+      if (flagged) return `skipped: "${flagged}" reads as marketing to the carriers, and this number is registered for service texts only — send it by email instead`;
+      const text = brandedText(rendered.body.slice(0, 440), company.name);
       const ok = await sendSms({ companyId, contactId: contact.id, to: contact.phone!, text });
       return ok ? `texted ${contact.phone}` : "failed: text send failed";
     }
@@ -190,12 +194,9 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
       });
       const emailed = await sendEmail({ companyId, to: contact.email, subject, html, replyTo: company.email || undefined, fromName: company.name });
       if (!emailed) return "failed: email send failed";
-      let texted = false;
-      if (contact.phone && canText(contact) && (await companyCanSendSms(companyId))) {
-        texted = await sendSms({ companyId, contactId: contact.id, to: contact.phone, text: quoteLinkText({ companyName: company.name, firstName: contact.firstName, quoteNumber: q.quoteNumber, total: Number(q.total), viewUrl }) });
-      }
+      // Email only: carriers read a texted quote as marketing (see app/api/app/quotes/[id]/send).
       if (!q.sentAt) await prisma.quote.update({ where: { id: q.id }, data: { status: "AWAITING_RESPONSE", sentAt: now } });
-      return `quote link emailed${texted ? " + texted" : ""}`;
+      return "quote link emailed";
     }
     case "send_pay_link": {
       const i = loaded.invoice;

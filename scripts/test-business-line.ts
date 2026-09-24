@@ -19,7 +19,7 @@ import {
 } from "@/lib/business-line-shared";
 import { failureText } from "@/lib/telnyx";
 import { suggestionFromFeature } from "@/lib/geocoding";
-import { smsConsentLabel } from "@/lib/sms-consent";
+import { smsConsentLabel, marketingPhrase, brandedText } from "@/lib/sms-consent";
 import { profileGaps, aboutLine } from "@/lib/business-profile";
 import { isPrivateIp, mentionsBusiness, nameTokens, websiteUrlIssue } from "@/lib/website-check";
 import {
@@ -328,6 +328,18 @@ const acme: CampaignIdentity = {
   assert.match(about, /^Acme Plumbing is a plumbing business serving Allen, TX/);
   assert.match(about, /drain cleaning and water heaters/);
   assert.doesNotMatch(about, /\bquotes?\b/i);
+}
+
+// ── Owner-written texts (automations): service only, brand first, STOP line ──
+{
+  assert.equal(marketingPhrase("Hi Maria, see you Tuesday at 9.", "Acme Plumbing"), null);
+  assert.equal(marketingPhrase("Feel free to call if anything comes up.", "Acme"), null, "plain 'free' is fine at runtime");
+  assert.equal(marketingPhrase("Spring special: 20% off drain cleaning!", "Acme"), "20% off");
+  assert.equal(marketingPhrase("Your quote is ready", "Acme"), "quote");
+  assert.equal(marketingPhrase("Use promo code SPRING", "Acme"), "promo");
+  assert.equal(marketingPhrase("Quote Pros: see you Tuesday.", "Quote Pros"), null, "the brand's own name is not marketing");
+  assert.equal(brandedText("See you Tuesday at 9.", "Acme Plumbing"), "Acme Plumbing: See you Tuesday at 9. Reply STOP to opt out.");
+  assert.equal(brandedText("Acme Plumbing here, running 10 min late. Reply STOP to opt out.", "Acme Plumbing"), "Acme Plumbing here, running 10 min late. Reply STOP to opt out.");
 }
 
 // ── smsConsentLabel: Telnyx's opt-in template, element by element ────────────
