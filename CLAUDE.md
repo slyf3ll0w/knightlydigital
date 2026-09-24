@@ -484,7 +484,21 @@ the form shows `REGISTRATION_CHECKLIST` (also published at
 re-uses a VERIFIED brand (same entity/legal name/EIN) and files only the
 campaign. A campaign-stage rejection emails the operator and shows the tenant
 "we're sorting it out" with no resubmit button, because the campaign copy is
-the shared template (`campaignCopy`), not their form. The EIN is typed twice
+the shared template (`campaignCopy`), not their form. **Fixing a campaign
+rejection (2026-09-24):** Telnyx failed the Lessly Holdings campaign
+(TELNYX_FAILED) because the message flow described the booking form without
+linking it. The flow now carries the company's real form URL
+(`optInFormUrl`: `/book/<slug>/<first listed item with a phone field>`), the
+screenshot (`public/sms-opt-in.png`, rendered by
+`scripts/sms-opt-in-shot.mjs` from `smsConsentLabel` — re-run it whenever the
+label changes) and the checkbox wording verbatim, which follows Telnyx's
+opt-in template (use case, sender, frequency, rates, STOP/HELP, no
+third-party sharing; `/privacy` states the same). The way back from
+TELNYX_FAILED / MNO_REJECTED is superadmin **Appeal with current copy**
+(`line-appeal` → `appealCampaignRegistration`: `PUT /10dlc/campaign/{id}`
+with the new flow + samples, then `POST …/appeal`), which Telnyx compliance
+re-reviews by hand for free — never Re-file first, that is a new campaign
+and a new $15. The EIN is typed twice
 and checked against the IRS prefix list (`einIssue`, lib/business-line-shared.ts,
 form + server) so a typo never reaches the registry. Same idea for the rest
 of the form (2026-09-22): the street address comes from Mapbox autocomplete

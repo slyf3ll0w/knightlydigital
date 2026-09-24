@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, CalendarPlus, Check, CheckCircle, Clock, ExternalLink, Globe, Loader2, MapPin, MessageSquare, Phone, Video, Wrench } from "lucide-react";
 import TurnstileWidget from "@/components/TurnstileWidget";
 import { textOn } from "@/lib/branding";
-import { smsConsentLabel, SMS_TERMS_URL } from "@/lib/sms-consent";
+import { smsConsentLabel, PRIVACY_URL, SMS_TERMS_URL } from "@/lib/sms-consent";
 import { zipFromAddress } from "@/lib/business-hours";
 import type { PublicBookingType } from "@/lib/booking-runtime";
 import { durationLabel } from "@/lib/booking-types";
@@ -692,6 +692,9 @@ export default function BookingStepper({
                   {smsConsentLabel(company.name)}{" "}
                   <a href={SMS_TERMS_URL} target="_blank" rel="noreferrer" className="underline">
                     Text terms
+                  </a>{" · "}
+                  <a href={PRIVACY_URL} target="_blank" rel="noreferrer" className="underline">
+                    Privacy
                   </a>
                 </span>
               </label>

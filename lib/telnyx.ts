@@ -670,6 +670,34 @@ export async function getCampaign(campaignId: string): Promise<TelnyxCampaign> {
   return call<TelnyxCampaign>("GET", `/10dlc/campaign/${campaignId}`);
 }
 
+export type CampaignUpdate = { messageFlow?: string; samples?: string[]; helpMessage?: string };
+
+/**
+ * PUT /10dlc/campaign/{id} — the fields Telnyx's schema lets us change after
+ * filing: message flow, the five samples, help text. Telnyx's doc note says
+ * "only sample messages are editable", so a refused messageFlow is possible;
+ * callers keep the new wording in the appeal text as well.
+ */
+export async function updateCampaign(campaignId: string, input: CampaignUpdate): Promise<TelnyxCampaign> {
+  const [sample1, sample2, sample3, sample4, sample5] = input.samples ?? [];
+  return call<TelnyxCampaign>("PUT", `/10dlc/campaign/${campaignId}`, {
+    ...(input.messageFlow ? { messageFlow: input.messageFlow } : {}),
+    ...(input.samples ? { sample1, sample2, sample3, sample4, sample5 } : {}),
+    ...(input.helpMessage ? { helpMessage: input.helpMessage } : {}),
+  });
+}
+
+/**
+ * POST /10dlc/campaign/{id}/appeal — for a campaign in TELNYX_FAILED or
+ * MNO_REJECTED. Telnyx's compliance team re-reviews by hand, the status
+ * resets to TCR_ACCEPTED, and nothing is forwarded upstream (or billed)
+ * until it passes — so this is the free path back from a rejection, versus
+ * a fresh campaignBuilder filing ($15 + $4.50).
+ */
+export async function appealCampaign(campaignId: string, appealReason: string): Promise<void> {
+  await call("POST", `/10dlc/campaign/${campaignId}/appeal`, { appeal_reason: appealReason });
+}
+
 export type NumberCampaign = {
   phoneNumber?: string;
   campaignId?: string;

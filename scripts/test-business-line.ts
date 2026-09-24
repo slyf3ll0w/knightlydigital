@@ -19,12 +19,14 @@ import {
 } from "@/lib/business-line-shared";
 import { failureText } from "@/lib/telnyx";
 import { suggestionFromFeature } from "@/lib/geocoding";
+import { smsConsentLabel } from "@/lib/sms-consent";
 import { isPrivateIp, mentionsBusiness, nameTokens, websiteUrlIssue } from "@/lib/website-check";
 import {
   deriveRegistration,
   normalizeAreaCode,
   sanitizeRegistrationForm,
   campaignCopy,
+  campaignAppealReason,
   LineError,
   PLATFORM_LEGAL_NAME,
   isPlatformOwnLine,
@@ -228,7 +230,7 @@ assert.equal(sanitizeRegistrationForm({ ...good, displayName: "" }).displayName,
 // ── campaignCopy: what the carriers review ───────────────────────────────────
 
 {
-  const c = campaignCopy("Acme Plumbing", "https://acme.example");
+  const c = campaignCopy("Acme Plumbing", "https://acme.example", { formUrl: "https://workbenchfsm.com/book/acme-plumbing/request" });
   assert.equal(c.samples.length, 5, "five samples");
   for (const s of c.samples) {
     assert.match(s, /Acme Plumbing/, "every sample names the business");
@@ -237,6 +239,33 @@ assert.equal(sanitizeRegistrationForm({ ...good, displayName: "" }).displayName,
   }
   assert.match(c.messageFlow, /acme\.example/);
   assert.match(c.messageFlow, /STOP/);
+  // Telnyx failed a campaign (2026-09-24) for describing the form without linking it:
+  // the flow must carry the form URL, a screenshot, and the checkbox wording itself.
+  assert.match(c.messageFlow, /https:\/\/workbenchfsm\.com\/book\/acme-plumbing\/request/, "opt-in form URL");
+  assert.match(c.messageFlow, /https:\/\/workbenchfsm\.com\/sms-opt-in\.png/, "screenshot link");
+  assert.ok(c.messageFlow.includes(smsConsentLabel("Acme Plumbing")), "checkbox wording quoted verbatim");
+  assert.match(c.messageFlow, /unchecked by default/);
+  assert.match(c.messageFlow, /sms-terms/);
+  assert.match(c.messageFlow, /\/privacy/);
+  assert.ok(c.messageFlow.length <= 2048, `message flow fits TCR's 2048 chars (${c.messageFlow.length})`);
+  // No form URL known (unit tests, a company with no items) still says where the form lives.
+  assert.match(campaignCopy("Acme Plumbing", null).messageFlow, /workbenchfsm\.com\/book\//);
+  const appeal = campaignAppealReason("Acme Plumbing", "https://workbenchfsm.com/book/acme-plumbing/request");
+  assert.match(appeal, /book\/acme-plumbing\/request/);
+  assert.match(appeal, /sms-opt-in\.png/);
+  assert.ok(appeal.includes(smsConsentLabel("Acme Plumbing")));
+}
+
+// ── smsConsentLabel: Telnyx's opt-in template, element by element ────────────
+{
+  const l = smsConsentLabel("Acme Plumbing");
+  assert.match(l, /^By checking this box, you agree to receive SMS/);
+  assert.match(l, /from Acme Plumbing/);
+  assert.match(l, /Message frequency may vary/);
+  assert.match(l, /data rates may apply/);
+  assert.match(l, /Reply STOP to opt out/);
+  assert.match(l, /HELP for help/);
+  assert.match(l, /not share your mobile information with third parties/);
 }
 
 console.log("test-business-line: all assertions passed");

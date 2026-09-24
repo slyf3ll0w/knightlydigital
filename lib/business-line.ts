@@ -106,7 +106,11 @@ import {
   failureText,
   type TelnyxBrand,
   updateBrand,
+  updateCampaign,
+  appealCampaign,
 } from "@/lib/telnyx";
+import { PRIVACY_URL, SMS_TERMS_URL, smsConsentLabel } from "@/lib/sms-consent";
+import { listPublicBookingTypes, menuTypes } from "@/lib/booking-runtime";
 
 export { VERTICALS, TOLL_FREE_USE_CASES, TOLL_FREE_VOLUMES };
 export type { BrandEntityType, LineSummary, LineType, RegistrationForm, RegistrationKind };
@@ -652,12 +656,40 @@ export function sanitizeRegistrationForm(raw: Record<string, unknown>, kind: Reg
   };
 }
 
-/** What the carriers see: how consent happens and what the texts look like. */
-export function campaignCopy(businessName: string, website: string | null) {
-  const site = website ?? "the business's website";
+/**
+ * The public form where this company's SMS checkbox lives — the URL the
+ * carriers' reviewers open. Prefers a listed item that asks for a phone
+ * number (the checkbox renders next to that field); the bare booking page
+ * otherwise. Telnyx failed the Lessly Holdings campaign 2026-09-24 because
+ * the flow named "the online booking form" without this link.
+ */
+export async function optInFormUrl(companyId: string): Promise<string> {
+  const company = await prisma.company.findUnique({ where: { id: companyId }, select: { slug: true } });
+  if (!company) return `${appBase()}/book`;
+  const listed = await listPublicBookingTypes(company.slug, { skipGate: true }).catch(() => null);
+  const menu = listed ? menuTypes(listed.types) : [];
+  const item = menu.find((t) => t.intake.fields.phone.show) ?? menu[0];
+  return item ? `${appBase()}/book/${company.slug}/${item.slug}` : `${appBase()}/book/${company.slug}`;
+}
+
+/**
+ * What the carriers see: how consent happens and what the texts look like.
+ * The message flow is what Telnyx's reviewers actually read: it must carry
+ * the opt-in form's URL, a screenshot link, and the checkbox wording itself
+ * (support.telnyx.com/en/articles/10684260-10dlc-opt-in-form) — a
+ * description of the form is not enough (TELNYX_FAILED, 2026-09-24).
+ */
+export function campaignCopy(businessName: string, website: string | null, optIn: { formUrl: string | null } = { formUrl: null }) {
+  const formUrl = optIn.formUrl ?? "https://workbenchfsm.com/book/<business>";
   return {
     description: `${businessName} is a local service business. Customers who hire it receive appointment reminders, schedule changes, quote and invoice links, and replies to their own messages, from this number. Sent through the WorkBench field-service platform (workbenchfsm.com).`,
-    messageFlow: `Customers give ${businessName} their mobile number when they request service by phone, in person, or through the online booking form at ${site}, which includes an unchecked SMS consent checkbox and links to the text terms (https://workbenchfsm.com/sms-terms). Every text includes opt-out language; STOP opts out immediately and HELP returns support info.`,
+    messageFlow:
+      `${businessName} texts only customers who hired it. Consent is collected on its online booking / service-request form at ${formUrl} (built on WorkBench): ` +
+      `next to the phone number field is an SMS consent checkbox, unchecked by default and not required to submit the form, reading: "${smsConsentLabel(businessName)}" ` +
+      `with links to the text terms (${SMS_TERMS_URL}) and privacy policy (${PRIVACY_URL}). Screenshot of the form with the phone field and checkbox: ${OPT_IN_IMAGE_URL}. ` +
+      `Customers who book by phone or in person give their mobile number the same way and are told texts will follow. ` +
+      `Every text names the business and includes opt-out language; STOP opts out immediately and HELP returns support info.` +
+      (website ? ` Business website: ${website}.` : ""),
     samples: [
       `Hi Maria, a reminder from ${businessName}: HVAC tune-up, Tue Jun 3 between 8–10am at 123 Oak St. Reply STOP to opt out.`,
       `Hi Maria, ${businessName} will arrive soon for HVAC tune-up (8–10am). Reply STOP to opt out.`,
@@ -665,9 +697,56 @@ export function campaignCopy(businessName: string, website: string | null) {
       `Hi Maria, ${businessName} sent you invoice #2210 for $480.00. View & pay: https://workbenchfsm.com/pay/abc123 Reply STOP to opt out.`,
       `${businessName}: Yes, we can move your visit to Thursday morning — I've updated the schedule. Reply STOP to opt out.`,
     ],
-    privacyPolicyLink: "https://workbenchfsm.com/privacy",
-    termsAndConditionsLink: "https://workbenchfsm.com/sms-terms",
+    privacyPolicyLink: PRIVACY_URL,
+    termsAndConditionsLink: SMS_TERMS_URL,
   };
+}
+
+/** What the appeal says — the reviewer's three asks (link, screenshot, wording), each on its own. */
+export function campaignAppealReason(businessName: string, formUrl: string): string {
+  return (
+    `Opt-in workflow updated with the requested details. Opt-in form URL (shows the phone number field and the SMS consent checkbox): ${formUrl} . ` +
+    `Screenshot of that form: ${OPT_IN_IMAGE_URL} . ` +
+    `Checkbox wording, unchecked by default and optional: "${smsConsentLabel(businessName)}" ` +
+    `Text terms: ${SMS_TERMS_URL} . Privacy policy: ${PRIVACY_URL} .`
+  );
+}
+
+const APPEALABLE_CAMPAIGN = new Set(["TELNYX_FAILED", "MNO_REJECTED"]);
+
+/**
+ * Telnyx compliance (TELNYX_FAILED) or a carrier (MNO_REJECTED) turned the
+ * campaign down: push the CURRENT template into it and appeal. Telnyx
+ * re-reviews by hand, the status resets to TCR_ACCEPTED, and nothing is
+ * forwarded or billed until it passes — no new campaign, no new $15. The
+ * hourly sweep and Check now then follow it like any pending campaign.
+ */
+export async function appealCampaignRegistration(companyId: string): Promise<MessagingRegistration> {
+  const reg = await loadRegistration(companyId);
+  if (!reg || reg.kind !== "10DLC" || !reg.campaignId) throw new LineError("No 10DLC campaign on file to appeal.", 404);
+  if (!APPEALABLE_CAMPAIGN.has(reg.campaignStatus ?? "")) {
+    throw new LineError(`Only a TELNYX_FAILED or MNO_REJECTED campaign can be appealed (this one is ${reg.campaignStatus ?? "unknown"}).`, 409);
+  }
+  const formUrl = await optInFormUrl(companyId);
+  const copy = campaignCopy(reg.displayName, reg.website, { formUrl });
+  try {
+    await updateCampaign(reg.campaignId, { messageFlow: copy.messageFlow, samples: copy.samples });
+  } catch (err) {
+    // Telnyx's schema lists messageFlow but its note says only samples are
+    // editable; the appeal text carries the link, screenshot and wording
+    // either way, so a refused edit is not the end of it.
+    console.warn(`[line] campaign ${reg.campaignId} update refused (${err instanceof TelnyxError ? err.detail : String(err)}); appealing with the reason alone`);
+  }
+  try {
+    await appealCampaign(reg.campaignId, campaignAppealReason(reg.displayName, formUrl));
+  } catch (err) {
+    throw await lineFailure("Telnyx refused the appeal", err, `10DLC campaign appeal for "${reg.company.name}"`);
+  }
+  console.warn(`[line] campaign ${reg.campaignId} appealed for "${reg.company.name}" (${companyId}); opt-in form ${formUrl}`);
+  return prisma.messagingRegistration.update({
+    where: { companyId },
+    data: { status: "CAMPAIGN_PENDING", campaignStatus: "TCR_ACCEPTED", rejectionReason: null, lastCheckedAt: new Date() },
+  });
 }
 
 type RegWithCompany = MessagingRegistration & { company: { id: string; name: string; lineNumber: string | null; lineType: string | null } };
@@ -1219,10 +1298,10 @@ export function platformTollFreeInput(number: string, form: RegistrationForm): T
   };
 }
 
-function tollFreeInput(number: string, form: RegistrationForm): TollFreeVerificationInput {
+function tollFreeInput(number: string, form: RegistrationForm, formUrl: string | null): TollFreeVerificationInput {
   if (isPlatformOwnLine(form)) return platformTollFreeInput(number, form);
   const business = form.displayName || form.legalName;
-  const copy = campaignCopy(business, form.website ?? null);
+  const copy = campaignCopy(business, form.website ?? null, { formUrl });
   return {
     phoneNumber: number,
     businessName: form.legalName,
@@ -1266,7 +1345,7 @@ export async function refileTollFree(companyId: string): Promise<{ verificationI
   if (!isRealLineNumber(reg.company.lineNumber)) throw new LineError("No number on the line.", 409);
   const current = await getTollFreeVerification(reg.verificationId);
   if (current.verificationStatus === "Verified") return { verificationId: reg.verificationId, status: "Verified" };
-  const input = tollFreeInput(reg.company.lineNumber, registrationFormOf(reg));
+  const input = tollFreeInput(reg.company.lineNumber, registrationFormOf(reg), await optInFormUrl(companyId));
   let request: TollFreeVerification;
   try {
     request = await updateTollFreeVerification(reg.verificationId, input);
@@ -1294,7 +1373,7 @@ async function submitTollFreeVerification(
   knownVerificationId: string | null
 ): Promise<MessagingRegistration> {
   const number = company.lineNumber as string;
-  const input = tollFreeInput(number, form);
+  const input = tollFreeInput(number, form, await optInFormUrl(company.id));
 
   let existing: TollFreeVerification | null = null;
   try {
@@ -1574,7 +1653,7 @@ async function advance(
     // 2. Campaign — create once the brand is verified
     let d = deriveRegistration(snap);
     if (d.next === "create_campaign" && reg.brandId) {
-      const copy = campaignCopy(reg.displayName, reg.website);
+      const copy = campaignCopy(reg.displayName, reg.website, { formUrl: await optInFormUrl(reg.companyId) });
       const campaign = await createCampaign({
         brandId: reg.brandId,
         description: copy.description,

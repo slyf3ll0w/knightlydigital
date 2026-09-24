@@ -4,7 +4,7 @@ import { verifyPasswordForUser } from "@/lib/account";
 import { getSuperadmin } from "@/lib/superadmin";
 import { limit } from "@/lib/rate-limit";
 import { companyHasProtectedUser, deleteCompanyCascade } from "@/lib/company-delete";
-import { LineError, approveRegistration, attachExistingNumber, keepLine, releaseLine } from "@/lib/business-line";
+import { LineError, appealCampaignRegistration, approveRegistration, attachExistingNumber, keepLine, releaseLine } from "@/lib/business-line";
 import { VoiceError, ensureVoiceRouting } from "@/lib/voice";
 
 /**
@@ -64,6 +64,7 @@ export async function PATCH(
     action !== "line-keep" &&
     action !== "line-voice-sync" &&
     action !== "line-file" &&
+    action !== "line-appeal" &&
     action !== "addon-grant" &&
     action !== "addon-revoke"
   ) {
@@ -195,6 +196,20 @@ export async function PATCH(
     try {
       const reg = await approveRegistration(id);
       console.warn(`[superadmin] texting registration FILED for "${company.name}" (${id}) by ${admin.email} → ${reg.status}`);
+      return NextResponse.json({ success: true, status: reg.status });
+    } catch (err) {
+      if (err instanceof LineError) return NextResponse.json({ error: err.message }, { status: err.status });
+      throw err;
+    }
+  }
+
+  // A campaign Telnyx compliance (TELNYX_FAILED) or a carrier (MNO_REJECTED)
+  // turned down: push the current template into it and appeal — re-reviewed
+  // by hand, no new campaign, no fee unless it passes and is forwarded.
+  if (action === "line-appeal") {
+    try {
+      const reg = await appealCampaignRegistration(id);
+      console.warn(`[superadmin] texting campaign APPEALED for "${company.name}" (${id}) by ${admin.email} → ${reg.status}`);
       return NextResponse.json({ success: true, status: reg.status });
     } catch (err) {
       if (err instanceof LineError) return NextResponse.json({ error: err.message }, { status: err.status });
