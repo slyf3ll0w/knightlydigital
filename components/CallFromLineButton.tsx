@@ -27,6 +27,8 @@ export default function CallFromLineButton({
   agentPhone,
   compact = false,
   label,
+  stacked = false,
+  className,
 }: {
   contactId?: string | null;
   /** E.164 / any dialable number when there is no contact. */
@@ -37,6 +39,10 @@ export default function CallFromLineButton({
   compact?: boolean;
   /** Override the button text (e.g. "Call back"). */
   label?: string;
+  /** Icon over a small label, filling its box — the swipe-action tray on a phone row (components/SwipeRow.tsx). */
+  stacked?: boolean;
+  /** Replaces the button's own surface classes entirely (a colored swipe block). */
+  className?: string;
 }) {
   const sp = useSoftphone();
   const inApp = softphoneIdle(sp);
@@ -93,15 +99,17 @@ export default function CallFromLineButton({
   // The cell flow needs a cell to ring only when we know there is none; the server still checks.
   const disabled = state === "busy" || state === "ringing" || (sp.status === "ready" && !!sp.call);
 
-  const cls = compact
-    ? "flex items-center justify-center gap-1.5 px-3 py-1.5 btn-tool-line bg-white text-xs font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors disabled:opacity-60"
-    : "flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-sm font-semibold text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors disabled:opacity-60";
-  const size = compact ? 12 : 14;
+  const cls =
+    className ??
+    (compact
+      ? "flex items-center justify-center gap-1.5 px-3 py-1.5 btn-tool-line bg-white text-xs font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors disabled:opacity-60"
+      : "flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-sm font-semibold text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors disabled:opacity-60");
+  const size = stacked ? 20 : compact ? 12 : 14;
   const reconnecting = softphoneRecoverable(sp) || softphoneElsewhere(sp);
   const text = state === "ringing" ? "Pick up your phone" : label ?? (inApp ? "Call in app" : reconnecting ? "Call in app…" : "Call from line");
 
   return (
-    <div className={compact ? "min-w-0" : "relative"}>
+    <div className={stacked ? "contents" : compact ? "min-w-0" : "relative"}>
       <button
         type="button"
         onClick={call}
@@ -128,14 +136,14 @@ export default function CallFromLineButton({
         ) : (
           <PhoneOutgoing size={size} />
         )}
-        {text}
+        {stacked ? (state === "error" ? "Failed" : state === "ringing" ? "Pick up" : text) : text}
       </button>
-      {state === "ringing" && !compact && (
+      {state === "ringing" && !compact && !stacked && (
         <p className="absolute left-0 top-full mt-1 whitespace-nowrap text-[11px] text-gray-500">
           Ringing {agentPhone || "your cell"} — press 1 to connect.
         </p>
       )}
-      {state === "error" && (
+      {state === "error" && !stacked && (
         <p className={`${compact ? "" : "absolute left-0 top-full"} mt-1 text-[11px] text-red-600`} role="alert">
           {error}
         </p>
