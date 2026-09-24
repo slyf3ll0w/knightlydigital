@@ -425,7 +425,7 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
 
   // ── the docked bar ──
   const bar = section !== "history" && (
-    <div className="sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur lg:bottom-4">
+    <div className="glass-control sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl px-3 py-2 lg:bottom-4">
       <div className="flex items-center gap-2">
         <button type="button" disabled={busy !== null} onClick={() => void check()} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-gray-300 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
           {busy === "check" ? <Loader2 size={13} className="animate-spin" /> : <ShieldCheck size={13} className={checked ? "text-green-600" : undefined} />}

@@ -18,6 +18,7 @@ import { moneyExact } from "@/components/EstimatorControls";
 import RatesToConfirm from "@/components/RatesToConfirm";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { money, shortDate } from "@/lib/statuses";
+import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import type { EstimatorSpec } from "@/lib/estimator";
 import { sanitizePublicConfig, type EstimatorPublicConfig } from "@/lib/estimator-public";
 import BuildPanel, { type BuiltTool } from "../BuildPanel";
@@ -119,6 +120,7 @@ export default function ToolClient({
   tz,
   leads,
   initialSection,
+  initialPrompt = "",
   resumeBuildId = null,
 }: {
   tool: ToolRecord;
@@ -130,6 +132,8 @@ export default function ToolClient({
   tz: string;
   leads: LeadRow[];
   initialSection?: string;
+  /** Atlas (the chat) sent the owner here with a change request — Ask Atlas builds it at once. */
+  initialPrompt?: string;
   /** An Atlas change to this tool still running on the server — the Ask Atlas panel picks it up. */
   resumeBuildId?: string | null;
 }) {
@@ -144,10 +148,10 @@ export default function ToolClient({
   // still building opens on Ask Atlas so it's seen landing
   const resolve = useCallback(
     (raw: string | null | undefined, first = false): Section => {
-      const s = raw ? LEGACY[raw] ?? raw : first && resumeBuildId ? "atlas" : "overview";
+      const s = raw ? LEGACY[raw] ?? raw : first && (resumeBuildId || initialPrompt) ? "atlas" : "overview";
       return allowed.some((x) => x.key === s) ? (s as Section) : "overview";
     },
-    [allowed, resumeBuildId]
+    [allowed, resumeBuildId, initialPrompt]
   );
   const sParam = params.get("s") ?? initialSection ?? null;
   const [section, setSection] = useState<Section>(() => resolve(sParam, true));
@@ -172,7 +176,26 @@ export default function ToolClient({
   const [guidance, setGuidance] = useState(initial.spec?.assist?.instructions ?? "");
   useEffect(() => setGuidance(initial.spec?.assist?.instructions ?? ""), [initial]);
 
-  const go = useCallback((s: Section, tab?: AdvancedTab) => {
+  // Unsaved edits anywhere on the page (the Web form options, the guidance
+  // card, a rename in progress): leaving the page asks first
+  // (useUnsavedWarning), and so does switching sections — the Web form
+  // panel unmounts when its section changes.
+  const [panelDirty, setPanelDirty] = useState(false);
+  const guidanceDirty = guidance.trim() !== (tool.spec?.assist?.instructions ?? "");
+  const wordsDirty = words !== null && (words.name !== tool.name || words.description !== (tool.description ?? ""));
+  const dirty = panelDirty || guidanceDirty || wordsDirty;
+  useUnsavedWarning(dirty);
+  const dirtyRef = useRef(false);
+  dirtyRef.current = dirty;
+  const sectionRef = useRef(section);
+  sectionRef.current = section;
+
+  const go = useCallback(async (s: Section, tab?: AdvancedTab) => {
+    if (s !== sectionRef.current && dirtyRef.current) {
+      const ok = await confirmSheet({ title: "Leave without saving?", message: "You have unsaved changes — they'll be lost.", confirmLabel: "Discard Changes", destructive: true });
+      if (!ok) return;
+      setPanelDirty(false);
+    }
     if (tab) setAdvTab(tab);
     setSection(s);
     try {
@@ -289,7 +312,7 @@ export default function ToolClient({
 
   function run() {
     setRunKey((k) => k + 1);
-    go("try");
+    void go("try");
   }
 
   const menuActions: QuickAction[] = [
@@ -576,12 +599,14 @@ export default function ToolClient({
           {section === "atlas" && manager && (
             <div className="card-ledger p-4 sm:p-5">
               <SectionHeader size="block" className="mb-3 hidden lg:block" title={`Change “${tool.name}”`} hint="Say what should be different. The current version is kept under History." />
+              {/* not keyed on updatedAt on purpose: the finished card ("Done — the changes are saved", the list of changes) must stay on screen after the save refreshes the page */}
               <BuildPanel
-                key={tool.updatedAt}
                 compact
                 estimatorId={tool.id}
                 toolName={tool.name}
                 resumeBuildId={resumeBuildId}
+                initialPrompt={initialPrompt}
+                autoStart={Boolean(initialPrompt)}
                 placeholder="e.g. Raise sealant to $0.50, add a gate option at $250, make the middle package the recommended one"
                 onBuilt={(t: BuiltTool) => {
                   setTool((prev) => merge(t, prev));
@@ -649,6 +674,7 @@ export default function ToolClient({
               tool={{ id: tool.id, name: tool.name, usesAtlas: tool.usesAtlas, assessed, isPublic: tool.isPublic, publicSlug: tool.publicSlug, publicConfig: tool.publicConfig, publicViews: tool.publicViews, publicCalcs: tool.publicCalcs, submissions: tool.submissions }}
               companySlug={companySlug}
               baseUrl={baseUrl}
+              onDirty={setPanelDirty}
               onSaved={(t) => {
                 setTool((prev) => merge(t as Record<string, unknown>, prev));
                 router.refresh();

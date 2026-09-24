@@ -66,6 +66,13 @@ export async function meteredOneShot(
     timeoutMs?: number;
     /** Optional photo alongside the prompt (base64, no data: prefix). */
     image?: { base64: string; mime: string };
+    /**
+     * Cancel from the caller (an estimate-tool build the owner cancelled): the
+     * request is dropped mid-flight. The provider returns no usage for a
+     * dropped request, so nothing can be metered for it — only the calls
+     * that completed before it are on the meter.
+     */
+    signal?: AbortSignal;
   }
 ): Promise<OneShotResult> {
   if (!aiEnabled()) return { ok: false, status: 503, error: "The assistant isn't available right now." };
@@ -111,9 +118,11 @@ export async function meteredOneShot(
     maxOutputTokens: opts.maxOutputTokens ?? 1024,
     thinkingBudget: opts.thinkingBudget ?? 256,
     ...(opts.timeoutMs ? { timeoutMs: opts.timeoutMs } : {}),
+    ...(opts.signal ? { signal: opts.signal } : {}),
     companyId: actor.companyId,
     onUsage,
   });
+  if (opts.signal?.aborted) return { ok: false, status: 499, error: "Cancelled.", access };
   if (!parts) {
     model = MODEL_FALLBACK;
     parts = await aiChat({
@@ -124,9 +133,11 @@ export async function meteredOneShot(
       maxOutputTokens: opts.maxOutputTokens ?? 1024,
       ...(opts.thinkingBudget !== undefined ? { thinkingBudget: opts.thinkingBudget } : {}),
       ...(opts.timeoutMs ? { timeoutMs: opts.timeoutMs } : {}),
+      ...(opts.signal ? { signal: opts.signal } : {}),
       companyId: actor.companyId,
       onUsage,
     });
+    if (opts.signal?.aborted) return { ok: false, status: 499, error: "Cancelled.", access };
   }
 
   const costCents = turnCostCents(usage);

@@ -9,6 +9,8 @@ import { APP_THEME, moneyExact, useCountUp, wash } from "@/components/EstimatorC
 import RatesToConfirm from "@/components/RatesToConfirm";
 import { fileToAssistPhoto, type AssistPhoto } from "@/lib/image-downscale";
 import { readTrackedBuild, trackBuild, untrackBuild } from "@/lib/build-tracker";
+import { confirmCancelBuild } from "@/components/BuildProgressBar";
+import { hapticNotify } from "@/lib/haptics";
 import type { BuildAnswer, BuildDraft, BuildPlan, BuildQuestion, BuildSample } from "@/lib/estimator-build";
 
 /**
@@ -106,10 +108,13 @@ export default function BuildPanel({
   onEdit,
   compact = false,
   autoFocus = false,
+  autoStart = false,
   resumeBuildId = null,
 }: {
   /** Set → change this tool instead of creating one */
   estimatorId?: string;
+  /** Atlas sent the owner here with their words (?prompt=) — start building at once, no button press. */
+  autoStart?: boolean;
   /** The tool's name (with estimatorId) — what the app-wide progress bar calls the build */
   toolName?: string;
   /** A build that is still running (or waiting on answers) — the panel picks it up instead of starting fresh. */
@@ -214,6 +219,7 @@ export default function BuildPanel({
           setDoneKeys(STEPS.map((s) => s.key));
           setCurrent(null);
           setSamples(ev.samples);
+          hapticNotify("SUCCESS");
           const fin = { tool: ev.tool, changes: ev.changes, samples: ev.samples, placeholders: ev.placeholders, warnings: ev.warnings, tokens: ev.tokens };
           setFinished(fin);
           onBuilt(ev.tool, { changes: ev.changes, samples: ev.samples, placeholders: ev.placeholders, tokens: ev.tokens });
@@ -280,10 +286,11 @@ export default function BuildPanel({
     }
   }
 
-  /** Stop the build that's running (the server drops it at its next step; nothing is saved). */
+  /** Stop the build that's running (the server aborts the call in flight; nothing is saved). */
   async function cancel() {
     const id = followingRef.current;
     if (!id || cancelling) return;
+    if (!(await confirmCancelBuild())) return;
     setCancelling(true);
     try {
       await fetch(`/api/app/estimators/build/${id}`, { method: "DELETE" });
@@ -333,6 +340,23 @@ export default function BuildPanel({
     void follow(resumeBuildId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumeBuildId]);
+
+  // Atlas sent the owner here with their words: build straight away. The
+  // prompt leaves the URL first so a reload doesn't start it twice.
+  const autoRef = useRef(false);
+  useEffect(() => {
+    if (!autoStart || !initialPrompt.trim() || resumeBuildId || autoRef.current) return;
+    autoRef.current = true;
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("prompt");
+      window.history.replaceState(null, "", url.toString());
+    } catch {
+      /* ignore */
+    }
+    void run(initialPrompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const canRun = (prompt.trim().length >= 8 || Boolean(sheet)) && !running && !reading && !atlas.locked;
   const stepLabel = (s: (typeof STEPS)[number]) => (estimatorId ? s.changeLabel : s.label);
@@ -512,7 +536,7 @@ export default function BuildPanel({
             })}
           </ol>
           <div className="mt-2 flex min-h-5 items-center justify-between gap-3">
-            <p className="min-w-0 text-sm font-medium text-gray-700">{current ? <span className="atlas-shimmer">{current.message.replace(/…$/, "")}</span> : finished ? `“${finished.tool.name}” is ready.` : error ? "Stopped." : ""}</p>
+            <p className="min-w-0 text-sm font-medium text-gray-700">{current ? <span className="atlas-shimmer">{current.message.replace(/…$/, "")}</span> : finished ? (estimatorId ? `Done — the changes are saved to “${finished.tool.name}”.` : `“${finished.tool.name}” is ready.`) : error ? "Stopped." : ""}</p>
             {running && (
               <button type="button" onClick={() => void cancel()} disabled={cancelling} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-gray-300 px-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
                 {cancelling ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />} Cancel
@@ -535,7 +559,7 @@ export default function BuildPanel({
               </div>
               {finished ? (
                 <span className="msg-enter inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ backgroundColor: wash(theme, 12), color: theme.accent }}>
-                  <Check size={12} strokeWidth={3} /> Ready
+                  <Check size={12} strokeWidth={3} /> {estimatorId ? "Saved" : "Ready"}
                 </span>
               ) : plan?.trade && !estimatorId ? (
                 <span className="msg-enter shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">{plan.trade}</span>

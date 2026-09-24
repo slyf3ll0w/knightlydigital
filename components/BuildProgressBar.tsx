@@ -4,7 +4,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AlertTriangle, Check, ChevronRight, Loader2, MessageCircleQuestion, Sparkles, X } from "lucide-react";
 import { BUILD_EVENT, readTrackedBuild, untrackBuild, type TrackedBuild } from "@/lib/build-tracker";
+import { confirmSheet } from "@/components/ConfirmSheet";
 import { hapticNotify } from "@/lib/haptics";
+
+/** The one question before a build is dropped — shared with the builder panel. */
+export function confirmCancelBuild(): Promise<boolean> {
+  return confirmSheet({
+    title: "Cancel this build?",
+    message: "Atlas stops right away and nothing is saved. The tokens for the steps already finished are spent.",
+    confirmLabel: "Cancel Build",
+    destructive: true,
+  });
+}
 
 /**
  * The app-wide "your tool is building" bar. Builds run on the server
@@ -125,6 +136,7 @@ export default function BuildProgressBar() {
 
   async function cancel() {
     if (!build || cancelling) return;
+    if (!(await confirmCancelBuild())) return;
     setCancelling(true);
     try {
       await fetch(`/api/app/estimators/build/${build.id}`, { method: "DELETE" });
@@ -157,8 +169,9 @@ export default function BuildProgressBar() {
   const sub = view.kind === "running" ? view.message : view.kind === "questions" ? "Answer it on the Estimates page and the build carries on." : view.kind === "error" ? view.message : view.kind === "done" ? "Try it, publish it, or ask Atlas for changes." : "";
   const progress = view.kind === "running" ? view.step / STEPS : view.kind === "done" ? 1 : 0;
 
+  // desktop: left of the Atlas bubble (bottom-6 right-6, 52 px) so the two never overlap
   return (
-    <div className="pointer-events-none fixed inset-x-3 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-40 lg:inset-x-auto lg:bottom-6 lg:right-6 lg:w-[380px]" role="status" aria-live="polite">
+    <div className="pointer-events-none fixed inset-x-3 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-40 lg:inset-x-auto lg:bottom-6 lg:right-[92px] lg:w-[380px]" role="status" aria-live="polite">
       <div className="sheet-material pointer-events-auto overflow-hidden rounded-2xl border border-white/60 shadow-[0_10px_30px_rgba(15,23,42,0.18)] dark:border-white/10">
         <div className="flex items-center gap-3 px-3.5 py-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-500/10 text-green-700" aria-hidden>

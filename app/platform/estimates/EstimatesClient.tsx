@@ -187,6 +187,7 @@ export default function EstimatesClient({
               <BuildPanel
                 resumeBuildId={resumeBuildId}
                 initialPrompt={initialPrompt}
+                autoStart={Boolean(initialPrompt)}
                 autoFocus={Boolean(initialPrompt) || totalCount > 0}
                 onBuilt={(t: BuiltTool) => {
                   // straight into the new tool: the form, the sample chips, Ask Atlas one tap away

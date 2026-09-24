@@ -126,7 +126,7 @@ Design rules for a GOOD tool:
 ${hasImage ? `- The owner attached a PHOTO of their price sheet / rate card / old estimate form. Every rate, unit, service, minimum, surcharge and package on it is a REAL number: use them exactly, name lines the way the sheet does, and list NOTHING from the sheet under "placeholders". Only a rate the sheet and the business data both lack becomes a placeholder.` : ""}
 - Use type "map" (measure "length" for fences/gutters in ft, "area" for lawns/roofs/driveways/patios in sq ft) whenever a size is the main driver — customers draw it instead of guessing. Pair it with number presets only when a map makes no sense.
 - More than 5 questions → group them with "section" (2–4 sections, in the order a pro asks). Use "showWhen" so follow-ups only appear when relevant. Use "multi" for pick-several add-ons.
-- Write plain-English labels a homeowner understands; put jargon in "help". Blurbs on cards and tiers sell the option in a few words.
+- Write plain-English labels a homeowner understands — SHORT (under 70 characters, one line); anything longer, and any "(optional)" or explanation, goes in "help". Blurbs on cards and tiers sell the option in a few words.
 - Every line: a description that explains the number ({qty} at {rate|money}), and a "group".
 - Leave "assist" null unless judgment from a written description or a photo is genuinely needed — but when the owner ASKS for photo / description fill-in, or any question has askAtlas, set "assist": {"instructions": "..."} and WRITE the instructions: 2–4 plain sentences telling Atlas what to look for in the photo or words, what to assume when it can't tell (typical sizes and counts for this trade, the middle option for condition), and the one or two things it must never guess. The owner can edit them later.
 - You know this business (below): its trade, its price book, what it has actually charged on quotes, the services it books. USE IT. A rate the owner didn't say but the business data shows is a REAL rate, not a placeholder — take it from the price book (link the line with workItemName, exact name) or from what they've charged. When the tool sells a listed service, link it. Match their vocabulary and their existing tools' naming.
@@ -145,14 +145,30 @@ ${business}`;
  * question) the option switches on too, so the form offers the photo step
  * the owner just asked for. Shared with the PATCH route.
  */
-export function publicConfigAfterSpec(row: Pick<EstimatorRow, "publicConfig">, before: EstimatorSpec | null, after: EstimatorSpec): { publicConfig?: EstimatorPublicConfig } {
+export function publicConfigAfterSpec(row: Pick<EstimatorRow, "publicConfig">, before: EstimatorSpec | null, after: EstimatorSpec, force = false): { publicConfig?: EstimatorPublicConfig } {
   const wasOn = Boolean(before?.assist);
   const isOn = Boolean(after.assist);
-  if (isOn && !wasOn) {
+  if (isOn && (force || !wasOn)) {
     const cfg = sanitizePublicConfig(row.publicConfig);
     if (!cfg.photoAssist) return { publicConfig: { ...cfg, photoAssist: true } };
   }
   return {};
+}
+
+/** The owner's words ask for photo / description fill-in — the build must turn assist on, whatever the model decides. */
+const WANTS_PHOTO_RE = /\b(photos?|pictures?|pics?|images?|snap|camera|upload|fill in the blanks|fill-in|autofill|auto-fill)\b/i;
+
+const DEFAULT_ASSIST_INSTRUCTIONS = "Fill in every answer the photo or description supports. When something isn't clear, assume the typical case for this kind of job and say so. Never invent a measurement nothing points to — leave it for the person to answer.";
+
+/** Watch a build's cancel flag while a model call is in flight, and abort the call the moment it flips. */
+function abortOnCancel(stop: () => Promise<boolean>, everyMs = 2000): { signal: AbortSignal; done: () => void } {
+  const ctrl = new AbortController();
+  const timer = setInterval(() => {
+    void stop().then((yes) => {
+      if (yes) ctrl.abort();
+    });
+  }, everyMs);
+  return { signal: ctrl.signal, done: () => clearInterval(timer) };
 }
 
 function summaryOf(row: EstimatorRow | null) {
@@ -211,6 +227,7 @@ export async function* buildEstimator(
   let tokens = 0;
   const image = opts.image ?? null;
   const stop = async () => (opts.cancelled ? await opts.cancelled() : false);
+  const wantsPhoto = WANTS_PHOTO_RE.test(opts.prompt);
   const prompt = opts.prompt.trim().slice(0, 4000);
   const answers = (opts.answers ?? []).map((a) => ({ question: String(a.question ?? "").slice(0, 300), answer: String(a.answer ?? "").slice(0, 600) })).filter((a) => a.question).slice(0, 6);
   const answered = answers.length > 0;
@@ -247,6 +264,7 @@ export async function* buildEstimator(
   if (!currentRow) {
     yield { phase: "plan", message: "Working out what drives the price…" };
     if (await stop()) return;
+    const watch = abortOnCancel(stop);
     const res = await meteredOneShot(actor, {
       kind: "estimator-plan",
       system: planSystem(opts.assistantName, answered, biz.brief, Boolean(image)),
@@ -255,7 +273,10 @@ export async function* buildEstimator(
       temperature: 0.2,
       thinkingBudget: THINK_PLAN,
       ...(image ? { image } : {}),
+      signal: watch.signal,
     });
+    watch.done();
+    if (watch.signal.aborted) return;
     if (!res.ok) {
       yield { error: res.error, tokens, atlasLocked: res.atlasLocked };
       return;
@@ -307,6 +328,9 @@ export async function* buildEstimator(
   const trade = playbookByKey(planKey) ?? guessTrade(prompt) ?? (currentSpec ? guessTrade(`${currentRow!.name} ${currentRow!.description ?? ""}`) : null) ?? (biz.industry ? guessTrade(biz.industry) : null);
   const system = draftSystem(biz.text, currentRow && currentSpec ? { name: currentRow.name, description: currentRow.description, spec: currentSpec } : null, trade ? playbookText(trade) : null, opts.assistantName, Boolean(image));
   let userPrompt = currentRow ? `The owner's change request:\n${prompt || "(see the attached price sheet)"}${answersText(answers)}` : `The owner's description:\n${prompt || "(see the attached price sheet)"}${answersText(answers)}${plan ? `\n\nThe plan (follow it, then make it real):\n${JSON.stringify(plan)}` : ""}`;
+  if (wantsPhoto) {
+    userPrompt += `\n\nThe owner is asking for PHOTO / DESCRIPTION FILL-IN. This part is REQUIRED: the spec must carry "assist": {"instructions": "..."} — 2–4 plain sentences on what to look for in a photo or description of THIS kind of job, what to assume when it can't tell, and what it must never guess — so the form offers "add a photo or describe the job" and Atlas fills in the answers. Keep every other rule as it is unless the owner asked for more.`;
+  }
 
   let draft: Draft | null = null;
   let compiled: Awaited<ReturnType<typeof checkSpec>> | null = null;
@@ -315,6 +339,7 @@ export async function* buildEstimator(
   for (let round = 1; round <= MAX_ROUNDS; round++) {
     yield { phase: round === 1 ? "draft" : "fix", message: round === 1 ? (currentRow ? "Working out the change…" : "Writing the questions and pricing rules…") : `Fixing what didn't add up (round ${round})…` };
     if (await stop()) return;
+    const watch = abortOnCancel(stop);
     const res = await meteredOneShot(actor, {
       kind: "estimator-build",
       system,
@@ -324,7 +349,10 @@ export async function* buildEstimator(
       thinkingBudget: round === 1 ? (currentRow ? THINK_CHANGE : THINK_DRAFT) : THINK_FIX,
       timeoutMs: 170_000,
       ...(image ? { image } : {}),
+      signal: watch.signal,
     });
+    watch.done();
+    if (watch.signal.aborted) return;
     if (!res.ok) {
       yield { error: res.error, tokens, atlasLocked: res.atlasLocked };
       return;
@@ -377,7 +405,8 @@ export async function* buildEstimator(
 
   yield { phase: "save", message: "Saving…" };
   if (await stop()) return;
-  const spec = compiled.compiled.spec;
+  // The owner asked for photo fill-in: it is on, whatever the model returned
+  const spec: EstimatorSpec = wantsPhoto && !compiled.compiled.spec.assist ? { ...compiled.compiled.spec, assist: { instructions: DEFAULT_ASSIST_INSTRUCTIONS } } : compiled.compiled.spec;
   const placeholders = spec.placeholders ?? [];
   const description = typeof draft.description === "string" ? draft.description.trim().slice(0, 200) || null : null;
 
@@ -392,7 +421,7 @@ export async function* buildEstimator(
     await snapshotEstimator(currentRow, "Atlas update", { id: actor.id, name: actor.name });
     const updated = await prisma.estimator.update({
       where: { id: currentRow.id },
-      data: { spec, name: newName, ...(description ? { description } : {}), ...publicConfigAfterSpec(currentRow, before, spec) },
+      data: { spec, name: newName, ...(description ? { description } : {}), ...publicConfigAfterSpec(currentRow, before, spec, wantsPhoto) },
       select: ESTIMATOR_SELECT,
     });
     yield { done: true, tool: summaryOf(updated)!, changes, samples, placeholders, warnings, tokens };
@@ -405,7 +434,10 @@ export async function* buildEstimator(
     if (!dup) break;
     name = `${name.replace(/ \d+$/, "")} ${n}`;
   }
-  const created = await prisma.estimator.create({ data: { companyId: actor.companyId, name, description, spec }, select: ESTIMATOR_SELECT });
+  const created = await prisma.estimator.create({
+    data: { companyId: actor.companyId, name, description, spec, ...(wantsPhoto && spec.assist ? { publicConfig: { ...sanitizePublicConfig(null), photoAssist: true } } : {}) },
+    select: ESTIMATOR_SELECT,
+  });
   await snapshotEstimator(created, "Created with Atlas", { id: actor.id, name: actor.name });
   yield { done: true, tool: summaryOf(created)!, changes: [], samples, placeholders, warnings, tokens };
 }

@@ -342,12 +342,12 @@ export function EstimatorRunnerPanel({
           {canAssist && (
             <div className="rounded-xl border border-dashed border-gray-300 p-3.5" style={{ backgroundColor: wash(theme, 3) }}>
               <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
-                <Sparkles size={14} style={{ color: theme.accent }} /> {assessed.length > 0 ? `Tell ${atlas.name} about the job` : `Describe the job or snap a photo`}
+                <Sparkles size={14} style={{ color: theme.accent }} /> Add a photo and/or describe what needs to be done
               </p>
               <p className="mt-0.5 text-xs text-gray-500">
-                {assessed.length > 0 ? `${atlas.name} assesses ${assessed.map((i) => i.label.toLowerCase()).join(", ")} from what you say and any photo, then fills in the rest it can.` : `${atlas.name} fills in the answers it can read from your words or the photo.`}
+                {assessed.length > 0 ? `${atlas.name} judges ${assessed.map((i) => i.label.toLowerCase()).join(", ")} from the photo or your words, and fills in every other answer it can — you can change any of them.` : `${atlas.name} fills in every answer it can from the photo or your words — you can change any of them.`}
               </p>
-              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="e.g. Two-car concrete driveway, about 20 by 24, heavy oil stains, they also want the sidewalk done" className="mt-2.5 w-full" />
+              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="What needs to be done? Size, condition, anything worth knowing." className="mt-2.5 w-full" />
               {/* no `capture`: the picker offers the photo library AND the camera — a picture the customer already sent works as well as a new one */}
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => void attachPhoto(e.target.files?.[0])} />
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2">

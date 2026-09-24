@@ -32,7 +32,7 @@ export type PublishTool = {
 
 type Saved = { isPublic?: boolean; publicSlug?: string | null; publicConfig?: unknown; error?: string };
 
-export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, initialOptionsOpen = false }: { tool: PublishTool; companySlug: string; baseUrl: string; onSaved: (t: Saved) => void; initialOptionsOpen?: boolean }) {
+export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDirty, initialOptionsOpen = false }: { tool: PublishTool; companySlug: string; baseUrl: string; onSaved: (t: Saved) => void; /** Tells the page there are unsaved options (it asks before leaving / switching sections). */ onDirty?: (dirty: boolean) => void; initialOptionsOpen?: boolean }) {
   const theme = APP_THEME;
   const [slug, setSlug] = useState(tool.publicSlug ?? publicSlugFrom(tool.name));
   const [cfg, setCfg] = useState<EstimatorPublicConfig>(tool.publicConfig);
@@ -50,6 +50,10 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, init
   const c = cfg;
   const optionsDirty = JSON.stringify(cfg) !== JSON.stringify(tool.publicConfig);
   const slugDirty = slug !== (tool.publicSlug ?? publicSlugFrom(tool.name));
+  useEffect(() => {
+    onDirty?.(optionsDirty || slugDirty);
+    return () => onDirty?.(false);
+  }, [optionsDirty, slugDirty, onDirty]);
   const patch = (p: Partial<EstimatorPublicConfig>) => setCfg((s) => ({ ...s, ...p }));
   const patchField = (k: "email" | "phone" | "address", p: Partial<{ show: boolean; required: boolean }>) => setCfg((s) => ({ ...s, fields: { ...s.fields, [k]: { ...s.fields[k], ...p } } }));
 

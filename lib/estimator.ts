@@ -870,6 +870,14 @@ const ID_RE = /^[A-Za-z_][A-Za-z0-9_]{0,39}$/;
 function s(v: unknown, max: number): string {
   return typeof v === "string" ? v.trim().slice(0, max) : "";
 }
+/** Like `s`, but a too-long value is cut at a word and ends in "…" instead of mid-word ("You ca"). */
+function clip(v: unknown, max: number): string {
+  const full = typeof v === "string" ? v.trim() : "";
+  if (full.length <= max) return full;
+  const cut = full.slice(0, max - 1);
+  const at = cut.lastIndexOf(" ");
+  return `${(at > max * 0.6 ? cut.slice(0, at) : cut).trim()}…`;
+}
 /** Pictures may only come from our own image route or an https URL. */
 const IMAGE_URL_RE = /^(\/api\/estimate-images\/[A-Za-z0-9_-]{8,64}|https:\/\/[^\s"'<>]{8,300})$/;
 function imageUrl(v: unknown): string | undefined {
@@ -944,7 +952,8 @@ export function compileSpec(raw: unknown): CompileResult {
   if (rawInputs.length > ESTIMATOR_LIMITS.inputs) errors.push(`At most ${ESTIMATOR_LIMITS.inputs} inputs`);
   for (const ri of rawInputs.slice(0, ESTIMATOR_LIMITS.inputs)) {
     const o = (ri ?? {}) as Record<string, unknown>;
-    const label = s(o.label, 80);
+    // labels are one line on the form; the builder is told to keep them short and put the rest in "help"
+    const label = clip(o.label, 120);
     const id = s(o.id, 40) || toIdentifier(label);
     if (!label) {
       errors.push(`Input "${id || "?"}" needs a label`);

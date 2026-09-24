@@ -104,9 +104,15 @@ export async function runBuildJob(
   }
 }
 
-/** The owner changed their mind: mark the row cancelled (the job stops at its next step). False = not found or already finished. */
+/**
+ * The owner changed their mind: mark the row cancelled and drop what it had
+ * produced so far (the plan, the draft — nothing was ever saved as a tool).
+ * The job aborts its model call in flight and does no further work; the
+ * calls that already completed stay on the meter. False = not found or
+ * already finished.
+ */
 export async function cancelBuild(id: string, companyId: string): Promise<boolean> {
-  const r = await prisma.estimatorBuild.updateMany({ where: { id, companyId, status: { in: ["running", "questions"] } }, data: { status: "cancelled" } });
+  const r = await prisma.estimatorBuild.updateMany({ where: { id, companyId, status: { in: ["running", "questions"] } }, data: { status: "cancelled", events: [], toolId: null } });
   return r.count > 0;
 }
 

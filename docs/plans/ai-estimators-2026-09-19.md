@@ -1364,6 +1364,55 @@ Clients; a history of who used each tool; audit the rest.
   the Library rows (monograms like the Tools list); PublishPanel segments
   use the accent, not black; the builder's stage card is `rounded-lg`.
 
+### Batch 13, second pass (2026-09-24) — David's notes on the first
+- **Bar vs Atlas bubble**: the desktop bar sits left of the bubble now
+  (`lg:right-[92px]`; the bubble is 52 px at bottom-6 right-6).
+- **Photo request that "didn't check"**: the build now recognises a photo /
+  picture / fill-in request in the owner's words (`WANTS_PHOTO_RE`), tells
+  the model assist is REQUIRED for it, and at save time turns `assist` on
+  itself if the model still left it off (with default instructions) and
+  forces `publicConfig.photoAssist` on (create and change). Rules that
+  merely turn assist on still flip it via `publicConfigAfterSpec`.
+- **Fill-in copy**: no trade-specific example text anywhere. Runner and
+  form say "Add a photo and/or describe what needs to be done" + "fills in
+  every answer it can from it — you can change any of them"; placeholder
+  "What needs to be done? Size, condition, anything worth knowing."
+- **Cut-off question**: labels were hard-cut at 80 characters. Now 120,
+  cut at a word with "…" (`clip()`), and the builder is told labels stay
+  under 70 characters with the rest in "help".
+- **"Nothing happened" after Ask Atlas**: the panel was keyed on
+  `tool.updatedAt`, so the save's refresh remounted it blank. Not keyed
+  now; the status line reads "Done — the changes are saved to “X”.", the
+  pill says Saved, a success haptic fires.
+- **Editor bar in dark mode**: `bg-white/95` → `glass-control` (has a dark
+  variant).
+- **Leaving with unsaved edits**: the Web form options (`onDirty`), the
+  guidance card and a rename in progress now arm `useUnsavedWarning`
+  (links, tab bar, reload) AND the page's `go()` asks before switching
+  sections — the Web form panel unmounts on a section change.
+- **Cancel**: asks first (`confirmCancelBuild`, shared by the bar and the
+  panel). The job now ABORTS the model call in flight: `lib/ai.ts` takes a
+  `signal` (combined with the timeout via `AbortSignal.any`), `meteredOneShot`
+  passes it through and returns 499 "Cancelled." with no fallback call,
+  and `buildEstimator` polls the cancel flag every 2 s during each call
+  (`abortOnCancel`). `cancelBuild` also clears the row's events/toolId.
+  Billing: the calls that finished before the cancel are on the meter as
+  before; the aborted call cannot be — the provider returns no usage for a
+  dropped request. (It still costs Workbench something on the provider
+  side; that's the trade for stopping the work.)
+- **pruneBuilds**: wired into the hourly cron as step `estimatorBuilds`.
+- **Bots**: `lib/bots.ts` `isBotUserAgent` — EstimateView skips the view
+  count for crawlers, link-preview fetchers, uptime pingers, headless
+  tooling and requests without a user agent.
+- **Atlas chat → the builder**: `manage_estimator update` with `request`
+  (the owner's words) navigates to `/app/estimates/[id]?s=atlas&prompt=…`
+  and the page starts the change build itself (`BuildPanel autoStart`, the
+  prompt is stripped from the URL so a reload can't start it twice); the
+  Estimates page does the same for `create`. Settings (name, description,
+  on/off, website options) stay as chat cards. Tool description, the
+  request param and the drawer prompt say so; `websiteState.embedNote`
+  points at the tool's page.
+
 ### Batch 13 Test (owed)
 1. Estimates → describe a tool → Build it → leave to Jobs: the glass bar
    shows the step and a progress line; Cancel → it disappears, no tool

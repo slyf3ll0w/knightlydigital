@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
+import { isBotUserAgent } from "@/lib/bots";
 import { resolvePublicEstimator } from "@/lib/estimator-server";
 import { defaultButtonLabel, publicInputs } from "@/lib/estimator-public";
 import { appearanceFor, type AppearanceOverrides } from "../schedule/shell";
@@ -32,7 +34,8 @@ export default async function EstimateView({
   if (!pub) notFound();
   const { company, row, spec, config, previewing } = pub;
   const appearance = appearanceFor(company, searchParams);
-  if (!previewing && searchParams.thumb !== "1") {
+  // A view is a person: previews, thumbnails, crawlers and link-preview fetchers don't count
+  if (!previewing && searchParams.thumb !== "1" && !isBotUserAgent((await headers()).get("user-agent"))) {
     void prisma.estimator.update({ where: { id: row.id }, data: { publicViews: { increment: 1 } } }).catch(() => {});
   }
 

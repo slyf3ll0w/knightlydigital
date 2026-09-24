@@ -33,7 +33,7 @@ function estimateFromDetails(details: string | null): number | null {
  * Sellers get overview + try it + leads (their contacts); managers get
  * everything.
  */
-export default async function ToolPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ s?: string }> }) {
+export default async function ToolPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ s?: string; prompt?: string }> }) {
   const actor = await requirePageActor((a) => canSell(a.role));
   const manager = isManager(actor.role);
   const { id } = await params;
@@ -121,6 +121,7 @@ export default async function ToolPage({ params, searchParams }: { params: Promi
         tz={company?.timezone ?? "America/Chicago"}
         leads={leads}
         initialSection={typeof sp.s === "string" ? sp.s : undefined}
+        initialPrompt={manager && typeof sp.prompt === "string" ? sp.prompt.slice(0, 4000) : ""}
         resumeBuildId={resumeBuildId}
         tool={{
           id: row.id,

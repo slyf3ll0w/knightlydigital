@@ -395,11 +395,11 @@ export default function PublicEstimateForm({
           <div className={`rounded-xl border border-dashed p-3.5 ${rowBox}`} style={{ backgroundColor: wash(theme, theme.dark ? 10 : 4) }}>
             {/* no `capture`: the picker offers the photo library as well as the camera */}
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => void pickPhoto(e.target.files?.[0])} />
-            <p className={`text-sm font-semibold ${ink}`}>{assessed.length > 0 ? "Tell us about the job" : "Have a photo of the job?"}</p>
+            <p className={`text-sm font-semibold ${ink}`}>Add a photo and/or describe what needs to be done</p>
             <p className={`mt-0.5 text-xs ${muted}`}>
-              {assessed.length > 0 ? `A few words or a photo lets us judge ${assessed.map((i) => i.label.toLowerCase()).join(", ")} for you — and fill in what we can.` : "Snap one and we'll fill in the answers for you."}
+              {assessed.length > 0 ? `We'll judge ${assessed.map((i) => i.label.toLowerCase()).join(", ")} from it and fill in every other answer we can — you can change anything after.` : "We'll fill in every answer we can from it — you can change anything after."}
             </p>
-            <textarea value={about} onChange={(e) => setAbout(e.target.value)} rows={2} maxLength={2000} placeholder="e.g. Two-story house, wood siding, some green mildew on the north side" className={`${input} mt-2.5 resize-none`} />
+            <textarea value={about} onChange={(e) => setAbout(e.target.value)} rows={2} maxLength={2000} placeholder="Tell us what needs to be done — size, condition, anything we should know." className={`${input} mt-2.5 resize-none`} />
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
               {photo ? (
                 <span className={`flex shrink-0 items-center gap-1.5 rounded-lg border py-0.5 pl-0.5 pr-1.5 text-[11px] ${rowBox} ${muted}`}>
