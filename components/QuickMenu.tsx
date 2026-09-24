@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { MoreHorizontal, type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import BottomSheet from "@/components/BottomSheet";
 import { hapticImpact } from "@/lib/haptics";
 
@@ -15,10 +15,9 @@ import { hapticImpact } from "@/lib/haptics";
  * shows, so callers never branch on the device.
  *
  * `QuickMenu` is the presentation (controlled). `RowActions` wraps a row —
- * a server-rendered <Link> is fine — and wires the gestures plus an
- * optional hover "⋯" handle on desktop so the menu is discoverable without
- * knowing about right-click. The row's own click keeps working: a
- * press-and-hold that opened the sheet swallows the click that follows it.
+ * a server-rendered <Link> is fine — and wires the gestures. The row's own
+ * click keeps working: a press-and-hold that opened the sheet swallows the
+ * click that follows it. (No hover handle — David wants the rows clean.)
  */
 
 export type QuickAction = {
@@ -180,14 +179,15 @@ export function QuickMenu({ open, anchor, title, actions, onClose }: { open: boo
             ref={popRef}
             role="menu"
             aria-label={title}
-            className="menu-material fixed z-[80] hidden w-max min-w-[13rem] max-w-[18rem] whitespace-nowrap rounded-lg border border-gray-200 py-1.5 shadow-xl lg:block"
+            className="sheet-material fixed z-[80] hidden w-max min-w-[13rem] max-w-[18rem] whitespace-nowrap rounded-lg border border-gray-200 py-1.5 shadow-xl lg:block"
             style={{ left: pos?.left ?? anchor.x, top: pos?.top ?? anchor.y, visibility: pos ? "visible" : "hidden", animation: "tile-in 160ms cubic-bezier(0.22,1,0.36,1) both" }}
             onContextMenu={(e) => e.preventDefault()}
           >
             {title && <p className="truncate border-b border-gray-100 px-3.5 pb-1.5 pt-1 text-[11px] font-semibold text-gray-500">{title}</p>}
             {items.map(desktopItem)}
           </div>,
-          document.body
+          // inside the app wrapper: every material class is scoped to .app-ui, so a body portal gets no background at all
+          document.querySelector(".app-ui") ?? document.body
         )
       : null;
 
@@ -205,7 +205,7 @@ export function QuickMenu({ open, anchor, title, actions, onClose }: { open: boo
  * Wrap a list row. Right-click / press-and-hold / the hover "⋯" handle open
  * `actions`; the row inside stays a normal link.
  */
-export default function RowActions({ actions, title, children, className = "", handle = true, handleClassName = "right-3 lg:right-4" }: { actions: QuickAction[]; title?: string; children: ReactNode; className?: string; /** Desktop hover "⋯" button (set false when the row already has a control there). */ handle?: boolean; handleClassName?: string }) {
+export default function RowActions({ actions, title, children, className = "" }: { actions: QuickAction[]; title?: string; children: ReactNode; className?: string }) {
   const [anchor, setAnchor] = useState<MenuAnchor | null>(null);
   const [open, setOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -266,21 +266,6 @@ export default function RowActions({ actions, title, children, className = "", h
       }}
     >
       {children}
-      {handle && (
-        <button
-          type="button"
-          aria-label={title ? `Actions for ${title}` : "Actions"}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-            openAt({ x: r.right, y: r.bottom + 4, alignRight: true });
-          }}
-          className={`absolute top-1/2 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 opacity-0 shadow-sm transition-opacity hover:bg-gray-50 hover:text-gray-800 focus-visible:opacity-100 group-hover:opacity-100 lg:flex ${open ? "opacity-100" : ""} ${handleClassName}`}
-        >
-          <MoreHorizontal size={15} />
-        </button>
-      )}
       <QuickMenu open={open} anchor={anchor} title={title} actions={actions} onClose={close} />
     </div>
   );

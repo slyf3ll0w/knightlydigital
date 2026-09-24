@@ -4,8 +4,8 @@ import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode }
 import BottomSheet from "@/components/BottomSheet";
 
 /**
- * The anchored "…" / Create / filter menu, done once. Desktop: a SOLID
- * `menu-material` dropdown under its trigger (the parent is `relative`),
+ * The anchored "…" / Create / filter menu, done once. Desktop: the glass
+ * `sheet-material` dropdown under its trigger (the parent is `relative`),
  * nudged back inside the viewport when it would spill past an edge.
  * Phones: the same children in the iOS bottom sheet, restyled as sheet rows
  * by `.menu-sheet` — so a menu can never open off the screen there.
@@ -55,7 +55,7 @@ export default function MenuPopover({
   return (
     <>
       {open && (
-        <div ref={ref} role="menu" style={shift} className={`menu-material absolute z-30 hidden w-max min-w-[13rem] max-w-[min(24rem,calc(100vw-1rem))] whitespace-nowrap rounded-lg border border-gray-200 py-1.5 shadow-xl lg:block ${align === "right" ? "right-0" : "left-0"} ${top} ${className}`}>
+        <div ref={ref} role="menu" style={shift} className={`sheet-material absolute z-30 hidden w-max min-w-[13rem] max-w-[min(24rem,calc(100vw-1rem))] whitespace-nowrap rounded-lg border border-gray-200 py-1.5 shadow-xl lg:block ${align === "right" ? "right-0" : "left-0"} ${top} ${className}`}>
           {children}
         </div>
       )}

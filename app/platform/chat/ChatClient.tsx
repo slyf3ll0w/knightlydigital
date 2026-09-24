@@ -1010,7 +1010,7 @@ export default function ChatClient({
               ))}
             </div>
             <div
-              className="menu-material mt-2 w-52 overflow-hidden rounded-2xl border border-gray-200 shadow-xl"
+              className="sheet-material mt-2 w-52 overflow-hidden rounded-2xl border border-gray-200 shadow-xl"
               style={{ animation: "tile-in 220ms cubic-bezier(0.22,1,0.36,1) both", animationDelay: "40ms", marginLeft: pressed.mine ? "auto" : undefined }}
             >
               <button

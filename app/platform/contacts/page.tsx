@@ -184,7 +184,6 @@ export default async function ContactsPage({
                 <EntityRowActions
                   key={c.id}
                   meta={{ kind: "client", id: c.id, name: `${c.firstName} ${c.lastName}`, phone: c.phone, status: c.status, canDelete: isManager(actor.role) }}
-                  handleClassName={c.phone ? "right-14 lg:right-16" : "right-3 lg:right-4"}
                 >
                 <Link
                   prefetch={false} href={`/app/contacts/${c.id}`}

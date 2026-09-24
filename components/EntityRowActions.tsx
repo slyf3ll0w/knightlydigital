@@ -282,11 +282,11 @@ export function useEntityActions(meta: RowMeta, opts: { onRun?: (id: string) => 
   }, [JSON.stringify(meta), opts.onRun]);
 }
 
-export default function EntityRowActions({ meta, children, className, handle, handleClassName, onRun }: { meta: RowMeta; children: ReactNode; className?: string; handle?: boolean; handleClassName?: string; onRun?: (id: string) => void }) {
+export default function EntityRowActions({ meta, children, className, onRun }: { meta: RowMeta; children: ReactNode; className?: string; onRun?: (id: string) => void }) {
   const actions = useEntityActions(meta, { onRun });
   const title = meta.kind === "job" || meta.kind === "request" ? meta.title : meta.kind === "client" || meta.kind === "tool" ? meta.name : `#${meta.number}`;
   return (
-    <RowActions actions={actions} title={title} className={className} handle={handle} handleClassName={handleClassName}>
+    <RowActions actions={actions} title={title} className={className}>
       {children}
     </RowActions>
   );
