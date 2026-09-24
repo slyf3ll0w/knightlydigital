@@ -174,7 +174,7 @@ export default function BuildPanel({
     const p = await fileToAssistPhoto(file, 2000);
     setReading(false);
     if (!p) {
-      setError("That picture couldn't be read — try a JPEG or PNG of the sheet.");
+      setError("That picture couldn't be read. Try a JPEG or PNG of the sheet — an iPhone HEIC photo works after sharing it as a JPEG.");
       return;
     }
     setError("");

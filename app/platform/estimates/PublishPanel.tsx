@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Check, ChevronDown, ChevronRight, Copy, ExternalLink, Loader2 } from "lucide-react";
 import { Input, Select, Textarea } from "@/components/Input";
 import SectionHeader from "@/components/SectionHeader";
+import { useAssistant } from "@/components/AssistantContext";
 import { APP_THEME } from "@/components/EstimatorControls";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { PUBLIC_LIMITS, PUBLIC_PHOTO_ASSIST_DAILY_CAP, publicSlugFrom, type EstimatorPublicConfig } from "@/lib/estimator-public";
@@ -34,6 +35,7 @@ type Saved = { isPublic?: boolean; publicSlug?: string | null; publicConfig?: un
 
 export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDirty, initialOptionsOpen = false }: { tool: PublishTool; companySlug: string; baseUrl: string; onSaved: (t: Saved) => void; /** Tells the page there are unsaved options (it asks before leaving / switching sections). */ onDirty?: (dirty: boolean) => void; initialOptionsOpen?: boolean }) {
   const theme = APP_THEME;
+  const atlas = useAssistant();
   const [slug, setSlug] = useState(tool.publicSlug ?? publicSlugFrom(tool.name));
   const [cfg, setCfg] = useState<EstimatorPublicConfig>(tool.publicConfig);
   const [busy, setBusy] = useState<"publish" | "slug" | "options" | null>(null);
@@ -277,7 +279,7 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
                   <span className="block text-sm font-medium text-gray-800">Let visitors attach a photo or describe the job</span>
                   <span className="block text-xs text-gray-500">
                     {tool.assessed ? "Always on for this tool — a question is assessed by Atlas from the photo or description. " : ""}
-                    Atlas fills in the answers. Uses your tokens — at most {PUBLIC_PHOTO_ASSIST_DAILY_CAP} a day.
+                    Atlas fills in the answers. Uses your tokens — at most {PUBLIC_PHOTO_ASSIST_DAILY_CAP} a day.{atlas.locked ? " Your tokens are used up right now, so the form hides this step until they refill." : ""}
                   </span>
                 </span>
                 <input type="checkbox" checked={photoOn} disabled={tool.assessed} onChange={(e) => patch({ photoAssist: e.target.checked })} className="h-5 w-5 rounded accent-green-600 disabled:opacity-60" />

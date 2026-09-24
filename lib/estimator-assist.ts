@@ -1,4 +1,4 @@
-import { coerceInputs, type EstimatorSpec } from "./estimator";
+import { coerceInputs, visibleInputIds, type EstimatorSpec } from "./estimator";
 import { meteredOneShot, oneShotJson } from "./atlas-oneshot";
 
 /**
@@ -85,10 +85,14 @@ export async function runAssist(
     if (inp.id in rawValues && v !== null && v !== "" && !(Array.isArray(v) && v.length === 0)) picked[inp.id] = v;
   }
   const { values, problems } = coerceInputs(spec, picked);
+  // A value for a question that stays hidden (its showWhen is false given the
+  // rest of the answers) would sit unseen in the form — drop it
+  const visible = visibleInputIds(spec, values);
   const cleaned: Record<string, unknown> = {};
   for (const inp of spec.inputs) {
     if (!(inp.id in picked)) continue; // don't echo defaults as "filled in"
     if (problems.some((p) => p.id === inp.id)) continue;
+    if (!visible.has(inp.id)) continue;
     cleaned[inp.id] = values[inp.id];
   }
   return {

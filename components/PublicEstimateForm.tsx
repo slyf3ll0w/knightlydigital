@@ -50,6 +50,7 @@ export default function PublicEstimateForm({
   showHeader = false,
   preview = false,
   photoAssist = false,
+  assistAvailable = true,
   mapCenter = null,
 }: {
   companySlug: string;
@@ -67,6 +68,8 @@ export default function PublicEstimateForm({
   preview?: boolean;
   /** The owner opted into photo fill-in and the tool supports it */
   photoAssist?: boolean;
+  /** The business's Atlas meter can pay for a fill-in right now — false hides the step entirely */
+  assistAvailable?: boolean;
   /** Where map questions open (the business's location) */
   mapCenter?: LatLngTuple | null;
 }) {
@@ -104,7 +107,7 @@ export default function PublicEstimateForm({
   // Atlas fill-in: a photo and/or a few words; questions the tool has Atlas
   // ASSESS (condition, access…) are answered from them, the rest filled where possible
   const assessed = useMemo(() => inputs.filter((i) => i.askAtlas), [inputs]);
-  const offerAssist = photoAssist || assessed.length > 0;
+  const offerAssist = assistAvailable && (photoAssist || assessed.length > 0);
   const fileRef = useRef<HTMLInputElement>(null);
   const [photo, setPhoto] = useState<AssistPhoto | null>(null);
   const [about, setAbout] = useState("");
@@ -243,7 +246,7 @@ export default function PublicEstimateForm({
     setError("");
     const p = await fileToAssistPhoto(file);
     if (!p) {
-      setError("That photo couldn't be read — try a JPEG or PNG.");
+      setError("That photo couldn't be read. Try a JPEG or PNG — an iPhone HEIC photo works after sharing it as a JPEG, or with Settings → Camera → Formats → Most Compatible.");
       return;
     }
     setPhoto(p);

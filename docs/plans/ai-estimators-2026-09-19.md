@@ -1440,6 +1440,32 @@ Clients; a history of who used each tool; audit the rest.
   (z-70) → it closes first, then runs the action.
 - 20-second poll for the live cards stays (David: "leave it to save work").
 
+### Batch 13, fourth pass (2026-09-24) — plugging the fill-in holes
+- **Used-up meter → the step isn't there.** In-app runner: `canAssist`
+  also needs `!atlas.locked` (the amber "tokens used up" note is gone).
+  Public form: `EstimateView` reads the company's meter (`atlasAccess`) and
+  passes `assistAvailable`; `offerAssist` is false when the level is
+  `locked` or `off`, so the box never renders. The Web form options say
+  so next to the photo checkbox while the meter is locked. (Usage billing
+  is a later build; until then a spent meter simply hides the feature.)
+- **Guidance nudge.** Both the Overview switch card and the editor's Words
+  tab show an amber "Give Atlas instructions for this job" box while the
+  guidance is empty, with an example of what to write.
+- **Switch never stuck.** Turning fill-in off (Overview switch or the
+  editor checkbox) also clears `askAtlas` on every question, so old tools
+  built with assessed questions can go plain; the hint says so.
+- **Text-only tools.** The switch/checkbox is disabled with "Nothing to
+  fill in — add a number, choice, count or yes/no question first" instead
+  of a PATCH error.
+- **HEIC photos.** The "couldn't be read" message now says an iPhone HEIC
+  works after sharing as JPEG or with Camera → Formats → Most Compatible
+  (Safari decodes HEIC itself; Chrome and desktop don't).
+- **Hidden questions.** `runAssist` drops values for questions whose
+  `showWhen` is false given the rest of the answers (they would sit unseen).
+- Unchanged by design: the public step needs both the tool's fill-in and
+  the Web form's photo option; a photo that maps to nothing still spends
+  that call.
+
 ### Batch 13 Test (owed)
 1. Estimates → describe a tool → Build it → leave to Jobs: the glass bar
    shows the step and a progress line; Cancel → it disappears, no tool

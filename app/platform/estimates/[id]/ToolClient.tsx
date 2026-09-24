@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BookOpen, Check, ChevronLeft, ChevronRight, Copy, Globe, History, LayoutDashboard, Loader2, MoreHorizontal, Pencil, Play, Power, SlidersHorizontal, Sparkles, Trash2, Users } from "lucide-react";
+import { BookOpen, Check, ChevronLeft, ChevronRight, Copy, Globe, History, Info, LayoutDashboard, Loader2, MoreHorizontal, Pencil, Play, Power, SlidersHorizontal, Sparkles, Trash2, Users } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import SectionHeader from "@/components/SectionHeader";
@@ -310,12 +310,22 @@ export default function ToolClient({
     await patch({ spec: next }, "guidance");
   }
 
-  /** The Atlas fill-in switch — separate from the rules the builder writes. Off = every answer is typed (free). */
+  /**
+   * The Atlas fill-in switch — separate from the rules the builder writes.
+   * Off = every answer is typed (free); turning it off also makes any
+   * Atlas-assessed question a plain one, so the switch is never stuck on.
+   */
   async function toggleAssist(on: boolean) {
     if (!spec) return;
-    const next = { ...spec, assist: on ? { instructions: guidance.trim() || spec.assist?.instructions } : null };
+    const next = {
+      ...spec,
+      assist: on ? { instructions: guidance.trim() || spec.assist?.instructions } : null,
+      inputs: on ? spec.inputs : spec.inputs.map((i) => (i.askAtlas ? { ...i, askAtlas: undefined } : i)),
+    };
     await patch({ spec: next }, "assist");
   }
+  // fill-in needs a question Atlas can answer (a number, a choice, a count, a yes/no) — text-only tools have nothing to fill
+  const fillable = Boolean(spec?.inputs.some((i) => i.type !== "text"));
 
   function run() {
     setRunKey((k) => k + 1);
@@ -574,14 +584,22 @@ export default function ToolClient({
 
               {manager && spec && (
                 <div className="card-ledger p-4 sm:p-5">
-                  <button type="button" role="switch" aria-checked={tool.usesAtlas} disabled={busy !== null || assessed} onClick={() => void toggleAssist(!tool.usesAtlas)} className="flex w-full items-center justify-between gap-3 text-left">
-                    <SectionHeader title={`${atlas.name} fill-in`} hint={tool.usesAtlas ? `On — someone can add a photo or describe the job and ${atlas.name} fills in the answers it can. Uses tokens per use; typing the answers stays free.${assessed ? " Always on for this tool: a question is assessed by Atlas." : ""}` : `Off — every answer is typed in, free. Turn it on and someone can add a photo or describe the job instead; ${atlas.name} fills in what it can.`} />
+                  <button type="button" role="switch" aria-checked={tool.usesAtlas} disabled={busy !== null || (!tool.usesAtlas && !fillable)} onClick={() => void toggleAssist(!tool.usesAtlas)} className="flex w-full items-center justify-between gap-3 text-left disabled:opacity-60">
+                    <SectionHeader title={`${atlas.name} fill-in`} hint={tool.usesAtlas ? `On — someone can add a photo or describe the job and ${atlas.name} fills in the answers it can. Uses tokens per use; typing the answers stays free.${assessed ? ` Turning it off also makes the question${spec.inputs.filter((i) => i.askAtlas).length === 1 ? "" : "s"} ${atlas.name} assesses plain.` : ""}` : fillable ? `Off — every answer is typed in, free. Turn it on and someone can add a photo or describe the job instead; ${atlas.name} fills in what it can.` : `Nothing to fill in — this tool only has text questions. Add a number, choice, count or yes/no question first.`} />
                     <span className="relative h-7 w-12 shrink-0 rounded-full transition-colors" style={{ backgroundColor: tool.usesAtlas ? "var(--wb-accent)" : "#d1d5db" }} aria-hidden>
                       {busy === "assist" ? <Loader2 size={14} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 animate-spin text-white" /> : <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${tool.usesAtlas ? "translate-x-[26px]" : "translate-x-1"}`} />}
                     </span>
                   </button>
                   {tool.usesAtlas && (
                     <>
+                      {!(spec.assist?.instructions ?? "").trim() && (
+                        <div className="mt-3 flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
+                          <Info size={15} className="mt-0.5 shrink-0" />
+                          <span>
+                            <span className="font-semibold">Give {atlas.name} instructions for this job.</span> Without them it fills the form with trade-typical guesses. Say what to look for in a photo or description, what to assume when it can&apos;t tell, and what it must never guess — for example: &ldquo;A two-car driveway is about 500 sq ft. Count the garage as one story. If the stains aren&apos;t visible, assume moderate. Never guess the fence length.&rdquo;
+                          </span>
+                        </div>
+                      )}
                       <p className="mt-3 text-xs font-medium text-gray-700">What to look for, what to assume when it can&apos;t tell, what it must never guess</p>
                       <Textarea value={guidance} onChange={(e) => setGuidance(e.target.value)} rows={3} maxLength={1000} placeholder="e.g. A two-car driveway is about 500 sq ft. Count the garage as one story. If the photo doesn't show the stains, assume moderate. Never guess the fence length — ask for it." className="mt-1.5 w-full" />
                       <div className="mt-2 flex items-center justify-end gap-3">

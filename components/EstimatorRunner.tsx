@@ -231,7 +231,7 @@ export function EstimatorRunnerPanel({
     const p = await fileToAssistPhoto(file);
     setBusy(null);
     if (!p) {
-      setError("That photo couldn't be read — try a JPEG or PNG.");
+      setError("That photo couldn't be read. Try a JPEG or PNG — an iPhone HEIC photo works after sharing it as a JPEG, or with Settings → Camera → Formats → Most Compatible.");
       return;
     }
     setPhoto(p);
@@ -282,7 +282,8 @@ export function EstimatorRunnerPanel({
   }
 
   const showPicker = !tool;
-  const canAssist = Boolean(tool?.usesAtlas && atlas.available && !tool?.preview);
+  // A used-up meter hides the step outright (typing the answers is always free)
+  const canAssist = Boolean(tool?.usesAtlas && atlas.available && !atlas.locked && !tool?.preview);
   const samples = showSamples || tool?.preview ? (spec?.samples ?? []) : [];
   const included = result && spec ? pickedIncludes(spec.inputs, values) : null;
   const atlasTag = <span className="ml-2 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: wash(theme, 12), color: theme.accent }}><Sparkles size={10} /> {atlas.name}</span>;
@@ -371,7 +372,7 @@ export function EstimatorRunnerPanel({
                 </div>
                 <button
                   type="button"
-                  disabled={busy !== null || (description.trim().length < 8 && !photo) || atlas.locked}
+                  disabled={busy !== null || (description.trim().length < 8 && !photo)}
                   onClick={() => void assist()}
                   className="btn-primary h-9 justify-center px-3 text-xs"
                 >
@@ -379,7 +380,6 @@ export function EstimatorRunnerPanel({
                   {assessed.length > 0 ? "Assess & fill in" : "Fill in"}
                 </button>
               </div>
-              {atlas.locked && <p className="mt-1.5 text-[11px] text-amber-700">Your Atlas tokens are used up for now — the questions below still work.</p>}
               {assistNote && <p className="mt-2 text-xs text-gray-600">{assistNote}</p>}
             </div>
           )}
