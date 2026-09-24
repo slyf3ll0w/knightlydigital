@@ -8,6 +8,8 @@
 import assert from "node:assert/strict";
 import {
   AGENT_RING_SECS,
+  CUSTOMER_RING_SECS,
+  STALE_IN_PROGRESS_MS,
   STALE_RINGING_MS,
   STALE_VOICEMAIL_MS,
   VoiceError,
@@ -121,7 +123,14 @@ const now = new Date("2026-09-18T20:00:00Z");
 const ago = (ms: number) => new Date(now.getTime() - ms);
 assert.equal(staleCallPlan({ status: "RINGING", createdAt: ago(60_000), endedAt: null, voicemailRecordingId: null }, now), null);
 assert.equal(staleCallPlan({ status: "RINGING", createdAt: ago(STALE_RINGING_MS + 1), endedAt: null, voicemailRecordingId: null }, now), "close");
-assert.equal(staleCallPlan({ status: "IN_PROGRESS", createdAt: ago(STALE_RINGING_MS + 1), endedAt: null, voicemailRecordingId: null }, now), "close");
+// A bridged call is never "stale" on the ringing clock: the hourly sweep used
+// to hang up every real conversation older than five minutes (2026-09-24).
+assert.equal(staleCallPlan({ status: "IN_PROGRESS", createdAt: ago(STALE_RINGING_MS + 1), endedAt: null, voicemailRecordingId: null }, now), null);
+assert.equal(staleCallPlan({ status: "IN_PROGRESS", createdAt: ago(3 * 3_600_000), endedAt: null, voicemailRecordingId: null }, now), null);
+assert.equal(staleCallPlan({ status: "IN_PROGRESS", createdAt: ago(STALE_IN_PROGRESS_MS + 1), endedAt: null, voicemailRecordingId: null }, now), "close");
+assert.ok(STALE_IN_PROGRESS_MS >= 4 * 3_600_000, "Telnyx caps a leg at 4 h; nothing shorter can be called lost");
+// Carrier voicemail answers after 25–30 s of ringing; the customer leg must outlast it or the owner can never leave a message.
+assert.ok(CUSTOMER_RING_SECS >= 45 && CUSTOMER_RING_SECS <= 600, `CUSTOMER_RING_SECS=${CUSTOMER_RING_SECS}`);
 assert.equal(staleCallPlan({ status: "VOICEMAIL", createdAt: ago(3_600_000), endedAt: ago(60_000), voicemailRecordingId: null }, now), null);
 assert.equal(
   staleCallPlan({ status: "VOICEMAIL", createdAt: ago(3_600_000), endedAt: ago(STALE_VOICEMAIL_MS + 1), voicemailRecordingId: null }, now),

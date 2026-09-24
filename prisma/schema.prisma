@@ -2962,6 +2962,20 @@ model Call {
   voicemailRecordingId String?
   voicemailSec         Int?
   seenAt               DateTime? // a team member opened the Calls page after it ended
+  // Notes typed on the call screen (app/platform/calls/[id]) — during or after the call.
+  notes                String?
+  notesAt              DateTime?
+  // Atlas took the notes (lib/call-notes.ts): Telnyx transcribes the customer
+  // leg into `transcript` ("You: … / Them: …" lines, final segments only) and
+  // Atlas writes `atlasNotes` from it when the call ends or on "Stop".
+  // atlasNotesState: null | "listening" | "summarizing" | "done" | "failed".
+  transcript           String?
+  atlasNotes           String?
+  atlasNotesState      String?
+  atlasNotesAt         DateTime?
+  atlasNotesError      String?
+  atlasNotesUserId     String? // who asked (and whose company meter pays)
+  atlasNotesTokens     Int?
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
   legs                 CallLeg[]

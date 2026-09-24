@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Delete, Loader2, Phone } from "lucide-react";
-import { getSoftphoneState, softphone, softphoneIdle, useSoftphone } from "@/lib/softphone-client";
+import { getSoftphoneState, softphone, softphoneIdle, softphoneRecoverable, useSoftphone, waitForSoftphone } from "@/lib/softphone-client";
+import { DIAL_MAX, dialDisplaySize, fmtDialing, normalizeDialed } from "@/lib/dial-format";
 
 /**
  * A phone keypad. Two jobs:
@@ -69,22 +70,7 @@ function beep(key: string) {
   }
 }
 
-/** "469" → "469-833" → "(469) 833-5853" as the digits arrive; +1 and anything odd shown as typed. */
-export function fmtDialing(value: string): string {
-  if (!value) return "";
-  if (value.startsWith("+") && !value.startsWith("+1")) return value;
-  if (/[*#]/.test(value)) return value;
-  let d = value.replace(/\D/g, "");
-  let prefix = "";
-  if (value.startsWith("+1") || (d.length === 11 && d.startsWith("1"))) {
-    d = d.replace(/^1/, "");
-    prefix = "+1 ";
-  }
-  if (d.length > 10) return value;
-  if (d.length <= 3) return prefix + d;
-  if (d.length <= 7) return `${prefix}${d.slice(0, 3)}-${d.slice(3)}`;
-  return `${prefix}(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
-}
+export { fmtDialing };
 
 type Lookup = { id: string; name: string; status: "LEAD" | "ACTIVE" | "ARCHIVED" } | null;
 
@@ -101,6 +87,10 @@ export default function DialPad({
   const [lookup, setLookup] = useState<Lookup>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  /** A quiet word after a call went out another way than expected ("rang your cell first"). */
+  const [note, setNote] = useState("");
+  /** The browser softphone was down when Call was pressed: reconnecting before the call goes out. */
+  const [reconnecting, setReconnecting] = useState(false);
   const input = useRef<HTMLInputElement | null>(null);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const held = useRef(false);
@@ -134,13 +124,14 @@ export default function DialPad({
   const press = (k: string) => {
     beep(k);
     setError("");
+    setNote("");
     if (tones) {
       softphone.sendDigits(k);
       setValue((v) => (v + k).slice(-24));
       return;
     }
     // No focus() here: on a phone that would raise the keyboard over the keypad.
-    setValue((v) => (v + k).slice(0, 20));
+    setValue((v) => (v + k).slice(0, DIAL_MAX));
   };
 
   // Hold 0 → "+"
@@ -149,7 +140,7 @@ export default function DialPad({
     if (k !== "0" || tones) return;
     holdTimer.current = setTimeout(() => {
       held.current = true;
-      setValue((v) => (v.endsWith("0") ? `${v.slice(0, -1)}+` : `${v}+`).slice(0, 20));
+      setValue((v) => (v.endsWith("0") ? `${v.slice(0, -1)}+` : `${v}+`).slice(0, DIAL_MAX));
     }, 450);
   };
   const onKeyUp = () => {
@@ -165,20 +156,35 @@ export default function DialPad({
 
   const onCall = sp.status === "ready" && !!sp.call;
   const canDial = !tones && value.trim().length >= 3 && !busy && !onCall;
+  /** Registration is down for a reason a reconnect can fix — the dialer says so instead of quietly ringing the cell. */
+  const down = !tones && softphoneRecoverable(sp);
 
   async function call() {
     if (!canDial) return;
     setBusy(true);
     setError("");
+    setNote("");
     const to = value.trim();
     const target = lookup ? { contactId: lookup.id, label: lookup.name } : { to };
     try {
       let callId: string | null = null;
-      if (softphoneIdle(sp)) {
+      let inApp = softphoneIdle(sp);
+      if (!inApp && softphoneRecoverable(sp)) {
+        // The browser was registered a moment ago and lost it (a socket
+        // drop, an expired grant): get it back before the call goes out,
+        // rather than surprising the caller with their cell ringing. Eight
+        // seconds is plenty for a fresh token + registration; past that the
+        // cell flow takes over, and the line under the number says so.
+        setReconnecting(true);
+        softphone.reconnect();
+        inApp = (await waitForSoftphone(8_000)) && softphoneIdle(getSoftphoneState());
+        setReconnecting(false);
+      }
+      if (inApp) {
         await softphone.placeCall({ ...target, to });
         callId = getSoftphoneState().call?.callId ?? null;
       } else {
-        // No browser softphone here (phone, other tab, switched off): ring the cell first, then the customer.
+        // No browser softphone here (phone, other tab, switched off, or still down): ring the cell first, then the customer.
         const res = await fetch("/api/app/line/call", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -187,6 +193,7 @@ export default function DialPad({
         const data = (await res.json().catch(() => ({}))) as { error?: string; callId?: string };
         if (!res.ok) throw new Error(data.error || "Couldn't place the call.");
         callId = data.callId ?? null;
+        if (softphoneRecoverable(getSoftphoneState())) setNote("The browser wasn't connected, so this one rings your cell first.");
       }
       setValue("");
       setLookup(null);
@@ -194,9 +201,13 @@ export default function DialPad({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't place the call.");
     } finally {
+      setReconnecting(false);
       setBusy(false);
     }
   }
+
+  const shown = fmtDialing(value);
+  const sizeCls = { lg: "text-[26px]", md: "text-[22px]", sm: "text-[18px]" }[dialDisplaySize(shown)];
 
   const standing = lookup ? (lookup.status === "LEAD" ? "lead" : lookup.status === "ACTIVE" ? "client" : "") : "";
 
@@ -208,16 +219,20 @@ export default function DialPad({
           type="tel"
           inputMode="tel"
           autoComplete="off"
-          value={fmtDialing(value)}
+          value={shown}
           onChange={(e) => {
-            // The display is formatted; keep only what a phone accepts.
-            const raw = e.target.value.replace(/[^0-9*#+]/g, "");
+            // The display is formatted; keep only what a phone accepts. A
+            // pasted "+1 (469) …" becomes the ten digits (lib/dial-format.ts).
             setError("");
+            setNote("");
             if (tones) {
+              const raw = e.target.value.replace(/[^0-9*#+]/g, "");
               const added = raw.replace(/\D/g, "").slice(value.replace(/\D/g, "").length);
               if (added) softphone.sendDigits(added);
+              setValue(raw.slice(0, 24));
+              return;
             }
-            setValue(raw.slice(0, tones ? 24 : 20));
+            setValue(normalizeDialed(e.target.value));
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -228,7 +243,7 @@ export default function DialPad({
           placeholder={tones ? "Touch-tones" : "Enter a number"}
           aria-label={tones ? "Touch-tones sent on this call" : "Number to call"}
           readOnly={tones}
-          className="numeral-ledger w-full bg-transparent px-8 py-1 text-center text-[26px] font-semibold tracking-wide text-gray-900 placeholder:font-sans placeholder:text-base placeholder:font-normal placeholder:tracking-normal placeholder:text-gray-400 focus:outline-none"
+          className={`numeral-ledger w-full bg-transparent px-8 py-1 text-center ${sizeCls} font-semibold tracking-wide text-gray-900 placeholder:font-sans placeholder:text-base placeholder:font-normal placeholder:tracking-normal placeholder:text-gray-400 focus:outline-none`}
         />
         {value && (
           <button
@@ -250,6 +265,17 @@ export default function DialPad({
         ) : error ? (
           <span className="text-red-600" role="alert">
             {error}
+          </span>
+        ) : note ? (
+          <span className="text-gray-500">{note}</span>
+        ) : reconnecting ? (
+          <span className="text-gray-500">Reconnecting the browser…</span>
+        ) : down ? (
+          <span className="text-amber-700">
+            Browser calling is reconnecting — a call now rings your cell first.{" "}
+            <button type="button" onClick={() => softphone.reconnect()} className="font-medium underline hover:text-amber-900">
+              Retry
+            </button>
           </span>
         ) : digits.length >= 10 && !tones ? (
           <span className="text-gray-400">Not in your list yet</span>
@@ -286,8 +312,8 @@ export default function DialPad({
             type="button"
             onClick={() => void call()}
             disabled={!canDial}
-            aria-label={onCall ? "Already on a call" : "Call"}
-            title={onCall ? "Already on a call" : softphoneIdle(sp) ? "Call from this browser" : "Ring your cell first, then connect them"}
+            aria-label={onCall ? "Already on a call" : reconnecting ? "Reconnecting the browser" : "Call"}
+            title={onCall ? "Already on a call" : softphoneIdle(sp) ? "Call from this browser" : down ? "Reconnects the browser first; rings your cell if it can't" : "Ring your cell first, then connect them"}
             className="flex h-[54px] w-[54px] items-center justify-center rounded-full bg-green-500 text-white shadow-md transition-[transform,background-color] duration-100 hover:bg-green-600 active:scale-95 disabled:opacity-40 disabled:shadow-none"
           >
             {busy ? <Loader2 size={22} className="animate-spin" /> : <Phone size={22} />}

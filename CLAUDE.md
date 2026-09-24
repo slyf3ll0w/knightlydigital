@@ -446,6 +446,50 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
   the call and 30 min after it ended attach to the latest such call
   (`assignCallEvents` is pure; `npx tsx scripts/test-call-events.ts`);
   nothing is written to the Call row.
+- **Call notes + Atlas notes** (2026-09-24, `lib/call-notes.ts`,
+  `app/platform/calls/[id]/CallNotes.tsx`): every Call row carries `notes`
+  (typed on the call screen, autosaved via `PATCH /api/app/calls/[id]
+  { notes }`). "Let Atlas take notes" on a connected call →
+  `POST /api/app/calls/[id]/notes { action: "start" }` → `startAtlasNotes`
+  (lib/voice.ts) runs Telnyx `transcription_start` on the CUSTOMER leg
+  (engine B, tracks both: inbound = them, outbound = you); each final
+  `call.transcription` segment appends one "Them: … / You: …" line to
+  `Call.transcript` (`appendTranscript`, capped). When the customer leg hangs
+  up (or on Stop, or the stale sweep) `summarizeCallNotes` claims
+  `atlasNotesState` listening → summarizing and writes `atlasNotes` through
+  `meteredOneShot` (kind "call-notes" — Atlas tokens, same gate as the
+  drawer; locked/off accounts can't start). States: null | listening |
+  summarizing | done | failed (+ `atlasNotesError`). The card polls
+  `GET …/notes` while the call is live or Atlas is working. The UI carries
+  the consent hint (some states require telling the other party).
+  Tests: `scripts/test-call-notes.ts`.
+- **Two timing bugs fixed 2026-09-24**: `CUSTOMER_RING_SECS` was 30, which is
+  exactly when carrier voicemail answers — the customer leg timed out as the
+  greeting began ("No answer" in the headset, no way to leave a message);
+  now 60. And `runStaleCallSweep` treated IN_PROGRESS rows like RINGING ones
+  (5 min) and hung up their legs at Telnyx, so the hourly cron dropped any
+  real call older than five minutes at the top of the hour — IN_PROGRESS now
+  waits `STALE_IN_PROGRESS_MS` (4 h + 5 min, past Telnyx's own leg cap) and
+  the sweep never sends hangups for a bridged row. The browser path also no
+  longer hears the "No answer." TTS (its card says it); the cell path keeps it.
+- **A linked call moves the lead** (`advanceLeadForLinkedCalls`): the
+  bridge/hangup hooks ran while the row had no contact, so a lead saved from
+  the call screen after hanging up stayed in "New". `linkCallsToContact`
+  (contacts POST / phone edit) fires the trigger for the latest call of the
+  last 24 h; the explicit `PATCH /api/app/calls/[id] { contactId }` fires it
+  for that call. Board columns still decide where the card goes.
+- **Keypad** (`lib/dial-format.ts`, `scripts/test-dial-format.ts`):
+  `normalizeDialed` turns any pasted US dressing ("+1 (469) …", "tel:…")
+  into ten digits and `dialDisplaySize` steps the font down so a full number
+  fits the 236 px desktop column (it used to run past the field's edges).
+  When the softphone is down for a fixable reason (`softphoneRecoverable`:
+  status connecting/error) the keypad and `CallFromLineButton` say so, call
+  `softphone.reconnect()` (fresh grant now, not after the backoff) and wait
+  up to 8 s (`waitForSoftphone`) before falling back to the cell flow — and
+  the fallback is announced under the number, never silent.
+- **Caller ID name on cells**: CNAM only reaches landlines; the Settings card
+  now points at freecallerregistry.com (Hiya + First Orion + TNS, the
+  analytics behind AT&T/T-Mobile/Verizon) — free, and the only lever there is.
 - **Not built yet**: Android tier 3 (native ringing with the app closed;
   iOS shipped 2026-09-23), voicemail transcription, missed-call text-back,
   business-hours routing, port-in, call transfer.

@@ -424,6 +424,14 @@ function CallerIdName({
           )}
         </p>
       )}
+      <p className="mt-2 text-xs text-gray-500">
+        Landlines read this listing within days. Cell phones mostly don&apos;t — AT&amp;T, T-Mobile and Verizon show the
+        name their spam-screening partners hold. List your number with all three for free at{" "}
+        <a href="https://freecallerregistry.com/" target="_blank" rel="noopener noreferrer" className="font-medium text-gray-700 underline">
+          freecallerregistry.com
+        </a>{" "}
+        (one form for Hiya, First Orion and TNS); it also keeps the number from being marked as spam.
+      </p>
     </div>
   );
 }

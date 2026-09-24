@@ -146,6 +146,8 @@ export type SoftphoneController = {
   testMic(): Promise<MicTestResult>;
   /** iPhone: speakerphone on/off. Absent where there is no such switch. */
   toggleSpeaker?(): void;
+  /** Browser: not registered right now (socket dropped, a failed grant) — start over with a fresh token at once instead of waiting out the backoff. Absent on the native engine. */
+  reconnect?(): void;
 };
 
 let controller: SoftphoneController | null = null;
@@ -173,7 +175,31 @@ export const softphone = {
   setMic: (deviceId: string | null): Promise<void> => (controller ? controller.setMic(deviceId) : Promise.resolve()),
   testMic: (): Promise<MicTestResult> =>
     controller ? controller.testMic() : Promise.resolve({ heard: false, label: null, osMuted: false, error: "The softphone isn't connected." }),
+  reconnect: () => controller?.reconnect?.(),
 };
+
+/** Registration is down for a reason a reconnect can fix (as opposed to off by choice, another tab, a phone shell). */
+export function softphoneRecoverable(s: SoftphoneState): boolean {
+  return s.status === "connecting" || s.status === "error";
+}
+
+/**
+ * Wait for the softphone to come back after a reconnect() — up to `maxMs`.
+ * Resolves true the moment it is registered, false when the time runs out
+ * (the caller then rings the cell instead, and says so).
+ */
+export function waitForSoftphone(maxMs = 8_000): Promise<boolean> {
+  const until = Date.now() + maxMs;
+  return new Promise((resolve) => {
+    const tick = () => {
+      const s = getSoftphoneState();
+      if (s.status === "ready") return resolve(true);
+      if (!softphoneRecoverable(s) || Date.now() >= until) return resolve(false);
+      setTimeout(tick, 250);
+    };
+    tick();
+  });
+}
 
 export function fmtElapsed(startedAt: number | null, now: number): string {
   if (!startedAt) return "0:00";

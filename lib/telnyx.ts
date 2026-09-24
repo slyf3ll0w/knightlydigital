@@ -320,7 +320,9 @@ export type CallCommand =
   | "playback_start"
   | "playback_stop"
   | "record_start"
-  | "record_stop";
+  | "record_stop"
+  | "transcription_start"
+  | "transcription_stop";
 
 /**
  * One Call Control command. "Call has already ended" / not found is the

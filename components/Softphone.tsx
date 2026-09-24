@@ -971,6 +971,18 @@ export default function Softphone() {
         }
       },
       requestMic,
+      reconnect: () => {
+        const s = getSoftphoneState();
+        if (unmounted || s.status === "ready") return;
+        // Off for a reason a new token can't change: another tab holds the
+        // registration, a phone shell, no WebRTC. Everything else is worth a
+        // fresh grant right now — the dialer would otherwise ring the cell
+        // while the backoff timer ran out.
+        if (s.status === "off" && (s.reason === "other_tab" || s.reason === "native" || s.reason === "unsupported")) return;
+        console.info("[softphone] reconnect requested from the dialer");
+        attempt = 0;
+        restart(0);
+      },
       sendDigits: (digits: string) => {
         const c = callRef.current;
         const clean = digits.replace(/[^0-9*#]/g, "");
