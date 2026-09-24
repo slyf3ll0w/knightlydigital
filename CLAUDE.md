@@ -486,7 +486,14 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
   status connecting/error) the keypad and `CallFromLineButton` say so, call
   `softphone.reconnect()` (fresh grant now, not after the backoff) and wait
   up to 8 s (`waitForSoftphone`) before falling back to the cell flow — and
-  the fallback is announced under the number, never silent.
+  the fallback is announced under the number, never silent
+  (`softphoneFallbackNote`). When another tab of the same browser holds the
+  Web Lock (`other_tab`), "Ring here instead" / the Call button ask it to
+  hand over on the `wb-softphone` BroadcastChannel (`softphone.takeOver()`):
+  the holder disconnects, releases the lock and queues behind — unless it
+  is on a call, in which case it answers "busy" and the dialer refuses
+  rather than ringing the cell. Every status change logs
+  `[softphone] status …`, and a cell fallback logs why.
 - **Caller ID name on cells**: CNAM only reaches landlines; the Settings card
   now points at freecallerregistry.com (Hiya + First Orion + TNS, the
   analytics behind AT&T/T-Mobile/Verizon) — free, and the only lever there is.

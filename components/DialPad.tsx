@@ -3,7 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Delete, Loader2, Phone } from "lucide-react";
-import { getSoftphoneState, softphone, softphoneIdle, softphoneRecoverable, useSoftphone, waitForSoftphone } from "@/lib/softphone-client";
+import {
+  getSoftphoneState,
+  softphone,
+  softphoneElsewhere,
+  softphoneFallbackNote,
+  softphoneIdle,
+  softphoneRecoverable,
+  useSoftphone,
+  waitForSoftphone,
+} from "@/lib/softphone-client";
 import { DIAL_MAX, dialDisplaySize, fmtDialing, normalizeDialed } from "@/lib/dial-format";
 
 /**
@@ -158,6 +167,9 @@ export default function DialPad({
   const canDial = !tones && value.trim().length >= 3 && !busy && !onCall;
   /** Registration is down for a reason a reconnect can fix — the dialer says so instead of quietly ringing the cell. */
   const down = !tones && softphoneRecoverable(sp);
+  /** Another tab of this browser holds the line: "Ring here instead" brings it over; never the cell. */
+  const elsewhere = !tones && softphoneElsewhere(sp);
+  const fallbackNote = tones ? null : softphoneFallbackNote(sp);
 
   async function call() {
     if (!canDial) return;
@@ -169,22 +181,30 @@ export default function DialPad({
     try {
       let callId: string | null = null;
       let inApp = softphoneIdle(sp);
-      if (!inApp && softphoneRecoverable(sp)) {
+      if (!inApp && (softphoneRecoverable(sp) || softphoneElsewhere(sp))) {
         // The browser was registered a moment ago and lost it (a socket
-        // drop, an expired grant): get it back before the call goes out,
-        // rather than surprising the caller with their cell ringing. Eight
-        // seconds is plenty for a fresh token + registration; past that the
-        // cell flow takes over, and the line under the number says so.
+        // drop, an expired grant), or another tab of this browser holds the
+        // line: get it here before the call goes out, rather than surprising
+        // the caller with their cell ringing. Eight seconds is plenty for a
+        // fresh token + registration; past that the cell flow takes over
+        // (reconnect) — or, for another tab, nothing does: that tab is on a
+        // call, and the line under the number says so.
         setReconnecting(true);
-        softphone.reconnect();
+        if (softphoneElsewhere(sp)) softphone.takeOver();
+        else softphone.reconnect();
         inApp = (await waitForSoftphone(8_000)) && softphoneIdle(getSoftphoneState());
         setReconnecting(false);
+        if (!inApp && softphoneElsewhere(getSoftphoneState())) {
+          throw new Error("Your other WorkBench tab kept the line — it may be on a call. Dial from that tab, or close it and try again.");
+        }
       }
       if (inApp) {
         await softphone.placeCall({ ...target, to });
         callId = getSoftphoneState().call?.callId ?? null;
       } else {
-        // No browser softphone here (phone, other tab, switched off, or still down): ring the cell first, then the customer.
+        // No browser softphone here (phone, switched off, or still down): ring the cell first, then the customer.
+        const st = getSoftphoneState();
+        console.info(`[softphone] keypad: placing the call via the cell (softphone ${st.status}${st.reason ? ` ${st.reason}` : ""})`);
         const res = await fetch("/api/app/line/call", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -269,18 +289,32 @@ export default function DialPad({
         ) : note ? (
           <span className="text-gray-500">{note}</span>
         ) : reconnecting ? (
-          <span className="text-gray-500">Reconnecting the browser…</span>
-        ) : down ? (
-          <span className="text-amber-700">
-            Browser calling is reconnecting — a call now rings your cell first.{" "}
-            <button type="button" onClick={() => softphone.reconnect()} className="font-medium underline hover:text-amber-900">
-              Retry
-            </button>
-          </span>
+          <span className="text-gray-500">{elsewhere ? "Bringing the line to this tab…" : "Reconnecting the browser…"}</span>
         ) : digits.length >= 10 && !tones ? (
           <span className="text-gray-400">Not in your list yet</span>
         ) : null}
       </p>
+      {fallbackNote && !reconnecting && (
+        <p className={`mt-0.5 text-center text-[12px] leading-[16px] ${down || elsewhere ? "text-amber-700" : "text-gray-400"}`}>
+          {fallbackNote}
+          {down && (
+            <>
+              {" "}
+              <button type="button" onClick={() => softphone.reconnect()} className="font-medium underline hover:text-amber-900">
+                Retry
+              </button>
+            </>
+          )}
+          {elsewhere && (
+            <>
+              {" "}
+              <button type="button" onClick={() => softphone.takeOver()} className="font-medium underline hover:text-amber-900">
+                Ring here instead
+              </button>
+            </>
+          )}
+        </p>
+      )}
 
       <div className="mx-auto mt-3 grid w-fit grid-cols-3 gap-x-5 gap-y-2.5">
         {KEYS.map(([k, letters]) => (
@@ -313,7 +347,17 @@ export default function DialPad({
             onClick={() => void call()}
             disabled={!canDial}
             aria-label={onCall ? "Already on a call" : reconnecting ? "Reconnecting the browser" : "Call"}
-            title={onCall ? "Already on a call" : softphoneIdle(sp) ? "Call from this browser" : down ? "Reconnects the browser first; rings your cell if it can't" : "Ring your cell first, then connect them"}
+            title={
+              onCall
+                ? "Already on a call"
+                : softphoneIdle(sp)
+                  ? "Call from this browser"
+                  : down
+                    ? "Reconnects the browser first; rings your cell if it can't"
+                    : elsewhere
+                      ? "Brings the line to this tab, then calls from here"
+                      : "Ring your cell first, then connect them"
+            }
             className="flex h-[54px] w-[54px] items-center justify-center rounded-full bg-green-500 text-white shadow-md transition-[transform,background-color] duration-100 hover:bg-green-600 active:scale-95 disabled:opacity-40 disabled:shadow-none"
           >
             {busy ? <Loader2 size={22} className="animate-spin" /> : <Phone size={22} />}

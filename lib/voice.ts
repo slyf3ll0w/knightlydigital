@@ -1160,7 +1160,9 @@ export async function startOutboundCall(
     calleeName = match ? `${match.firstName} ${match.lastName}`.trim() : "";
   }
   if (customerNumber === company.lineNumber) throw new VoiceError("That's your own business line.");
-  if (customerNumber === agentNumber) throw new VoiceError("That's the phone we'd be ringing you on.");
+  if (customerNumber === agentNumber) {
+    throw new VoiceError("That's the phone we'd ring you on first, so it can't also be the one we call. To call your own number, place the call from the browser (Calls in the app).");
+  }
 
   const call = await prisma.call.create({
     data: {

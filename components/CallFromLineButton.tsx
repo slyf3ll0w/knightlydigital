@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PhoneOutgoing, Loader2, Check, Headphones } from "lucide-react";
-import { getSoftphoneState, softphone, softphoneIdle, softphoneRecoverable, useSoftphone, waitForSoftphone } from "@/lib/softphone-client";
+import { getSoftphoneState, softphone, softphoneElsewhere, softphoneIdle, softphoneRecoverable, useSoftphone, waitForSoftphone } from "@/lib/softphone-client";
 
 /**
  * "Call from line" — place a call from the company's business number
@@ -56,12 +56,20 @@ export default function CallFromLineButton({
     setError("");
     try {
       let viaApp = inApp;
-      if (!viaApp && softphoneRecoverable(sp)) {
-        // Registered a moment ago and lost it: a fresh token first (up to
-        // 8 s), so the call goes out from here as the label promised rather
-        // than surprising the caller with their cell.
-        softphone.reconnect();
+      if (!viaApp && (softphoneRecoverable(sp) || softphoneElsewhere(sp))) {
+        // Registered a moment ago and lost it, or another tab holds the
+        // line: bring it here first (up to 8 s), so the call goes out from
+        // this browser rather than surprising the caller with their cell.
+        if (softphoneElsewhere(sp)) softphone.takeOver();
+        else softphone.reconnect();
         viaApp = (await waitForSoftphone(8_000)) && softphoneIdle(getSoftphoneState());
+        if (!viaApp && softphoneElsewhere(getSoftphoneState())) {
+          throw new Error("Your other WorkBench tab kept the line — it may be on a call. Call from that tab, or close it and try again.");
+        }
+      }
+      if (!viaApp) {
+        const st = getSoftphoneState();
+        console.info(`[softphone] call button: placing the call via the cell (softphone ${st.status}${st.reason ? ` ${st.reason}` : ""})`);
       }
       if (viaApp) {
         await softphone.placeCall({ ...target, label: contactName });
@@ -89,7 +97,7 @@ export default function CallFromLineButton({
     ? "flex items-center justify-center gap-1.5 px-3 py-1.5 btn-tool-line bg-white text-xs font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors disabled:opacity-60"
     : "flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-sm font-semibold text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors disabled:opacity-60";
   const size = compact ? 12 : 14;
-  const reconnecting = softphoneRecoverable(sp);
+  const reconnecting = softphoneRecoverable(sp) || softphoneElsewhere(sp);
   const text = state === "ringing" ? "Pick up your phone" : label ?? (inApp ? "Call in app" : reconnecting ? "Call in app…" : "Call from line");
 
   return (
@@ -102,8 +110,10 @@ export default function CallFromLineButton({
         title={
           inApp
             ? `Call ${contactName} from this browser. They see your business number.`
-            : reconnecting
-              ? `The browser is reconnecting to your line — it tries that first, then rings ${agentPhone || "your cell"}.`
+            : softphoneElsewhere(sp)
+              ? `Your line is in another WorkBench tab — it's brought here first, then ${contactName} is called from this browser.`
+              : reconnecting
+                ? `The browser is reconnecting to your line — it tries that first, then rings ${agentPhone || "your cell"}.`
               : agentPhone
               ? `Ring ${agentPhone} first, then connect ${contactName}. They see your business number.`
               : `Ring your cell first, then connect ${contactName}. They see your business number.`

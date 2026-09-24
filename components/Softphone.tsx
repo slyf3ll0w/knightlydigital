@@ -905,8 +905,11 @@ export default function Softphone() {
       setSoftphoneState({ call: null });
     };
 
+    /** Set once the tab lock is wired up (below): ask the tab holding the line to hand it over. */
+    let takeOverImpl: (() => void) | null = null;
     const unregister = registerSoftphoneController({
       answer: doAnswer,
+      takeOver: () => takeOverImpl?.(),
       decline: () => {
         // Straight to voicemail, like a phone. The server hears it FIRST: a
         // browser leg that merely drops means "ring the cell next".
@@ -1097,27 +1100,65 @@ export default function Softphone() {
 
     // One registration per browser (see the header comment). The tab that holds
     // the lock connects; any other waits, says so, and connects when it's freed.
+    // "Ring here instead" in a waiting tab asks the holder (BroadcastChannel)
+    // to let go: it disconnects, releases the lock and queues up behind, so
+    // the line follows the tab the person is actually working in — before
+    // this, a keypad in the waiting tab quietly rang the cell.
     let releaseLock: (() => void) | null = null;
     const holdLock = () =>
       new Promise<void>((done) => {
         releaseLock = done;
       });
+    let holding = false;
     const locks = navigator.locks;
+    const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("wb-softphone") : null;
+    const waitForLine = () =>
+      locks.request("wb-softphone", async () => {
+        if (unmounted) return;
+        holding = true;
+        void connect();
+        await holdLock();
+        holding = false;
+      });
+    channel?.addEventListener("message", (ev: MessageEvent<{ type?: string }>) => {
+      if (unmounted || ev.data?.type !== "release" || !holding) return;
+      if (callRef.current || getSoftphoneState().call) {
+        console.info("[softphone] another tab asked for the line; keeping it — on a call");
+        channel.postMessage({ type: "busy" });
+        return;
+      }
+      console.info("[softphone] handing the line to another tab");
+      holding = false;
+      teardownClient();
+      void beat(false);
+      setSoftphoneState({ status: "off", reason: "other_tab", call: null, error: null });
+      releaseLock?.();
+      releaseLock = null;
+      void waitForLine().catch(() => {});
+    });
+    channel?.addEventListener("message", (ev: MessageEvent<{ type?: string }>) => {
+      if (unmounted || ev.data?.type !== "busy" || holding) return;
+      setSoftphoneState({ error: "Your other WorkBench tab is on a call — it keeps the line until that call ends." });
+    });
+    takeOverImpl = () => {
+      if (holding || getSoftphoneState().reason !== "other_tab") return;
+      console.info("[softphone] asking the other tab for the line");
+      channel?.postMessage({ type: "release" });
+    };
     if (locks?.request) {
       void locks
         .request("wb-softphone", { ifAvailable: true }, async (lock) => {
           if (unmounted) return;
           if (lock) {
+            holding = true;
             void connect();
             await holdLock();
+            holding = false;
             return;
           }
+          console.info("[softphone] another tab holds the line; waiting");
           setSoftphoneState({ status: "off", reason: "other_tab" });
-          await locks.request("wb-softphone", async () => {
-            if (unmounted) return;
-            void connect();
-            await holdLock();
-          });
+          await waitForLine();
         })
         .catch(() => void connect());
     } else {
@@ -1126,6 +1167,7 @@ export default function Softphone() {
 
     return () => {
       unmounted = true;
+      channel?.close();
       releaseLock?.();
       window.removeEventListener("pagehide", goodbye);
       if (retry) clearTimeout(retry);
