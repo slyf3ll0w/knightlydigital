@@ -57,13 +57,14 @@ async function underDailyCap(companyId: string): Promise<boolean> {
 // Null = nothing goes out for that tenant, whatever the contact row says.
 // Fails closed — the attestation and the registration are what make the
 // send legitimate.
-async function companySender(companyId: string): Promise<string | null> {
+async function companySender(companyId: string): Promise<{ from: string; profileId: string | null } | null> {
   try {
     const row = await prisma.company.findUnique({
       where: { id: companyId },
       select: {
         smsAcknowledgedAt: true,
         lineNumber: true,
+        lineMessagingProfileId: true,
         messagingRegistration: { select: { status: true } },
       },
     });
@@ -72,7 +73,7 @@ async function companySender(companyId: string): Promise<string | null> {
     if (!number || number.startsWith("pending:")) return null;
     const registered = row.messagingRegistration?.status === "ACTIVE";
     if (!registered && process.env.TELNYX_ALLOW_UNREGISTERED !== "1") return null;
-    return number;
+    return { from: number, profileId: row.lineMessagingProfileId };
   } catch {
     return null;
   }
@@ -122,8 +123,9 @@ export async function sendSms({
   if (!e164) return false;
   // Every text belongs to a business; there is no platform sender any more.
   if (!companyId) return false;
-  const from = await companySender(companyId);
-  if (!from) return false;
+  const sender = await companySender(companyId);
+  if (!sender) return false;
+  const { from } = sender;
   if (!(await underDailyCap(companyId))) return false;
   try {
     const res = await fetch("https://api.telnyx.com/v2/messages", {
@@ -138,7 +140,8 @@ export async function sendSms({
         from,
         to: e164,
         text,
-        messaging_profile_id: MESSAGING_PROFILE_ID,
+        // The line's own profile once it has one (brand-named STOP/HELP replies), else the shared one
+        messaging_profile_id: sender.profileId ?? MESSAGING_PROFILE_ID,
         type: "SMS",
       }),
     });
@@ -208,23 +211,6 @@ export function appointmentReminderText({
   return stage === "day"
     ? `Hi ${firstName}, a reminder from ${companyName}: ${serviceName}, ${windowLabel}${where}. ${OPT_OUT}`
     : `Hi ${firstName}, ${companyName} will arrive soon for ${serviceName} (${windowLabel}). ${OPT_OUT}`;
-}
-
-/** Quote link — texted alongside the email when a quote is sent. */
-export function quoteLinkText({
-  companyName,
-  firstName,
-  quoteNumber,
-  total,
-  viewUrl,
-}: {
-  companyName: string;
-  firstName: string;
-  quoteNumber: number;
-  total: number;
-  viewUrl: string;
-}): string {
-  return `Hi ${firstName}, ${companyName} sent you quote #${quoteNumber} for $${total.toFixed(2)}. View & approve: ${viewUrl} ${OPT_OUT}`;
 }
 
 /** Invoice pay link — texted alongside the email when an invoice is sent. */

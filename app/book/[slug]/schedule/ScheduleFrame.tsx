@@ -1,10 +1,13 @@
 import type { ScheduleAppearance } from "./shell";
+import BusinessFooter from "../BusinessFooter";
 
 /**
  * Page chrome shared by the hosted booking pages (menu, item, manage):
  * company logo + name on top, themed ground, Google Font + zoom from the
  * company's booking page look. Embeds render the same children without
- * this frame (see /embed/[slug]).
+ * this frame (see /embed/[slug]). The business footer (About, contact,
+ * privacy + text terms) makes /book/<slug> stand as the business's website
+ * on its texting registration.
  */
 export default function ScheduleFrame({
   company,
@@ -14,7 +17,7 @@ export default function ScheduleFrame({
   wide = false,
   children,
 }: {
-  company: { name: string; logoUrl: string | null };
+  company: { name: string; logoUrl: string | null; slug?: string };
   appearance: ScheduleAppearance;
   title?: string;
   subtitle?: string | null;
@@ -45,6 +48,7 @@ export default function ScheduleFrame({
           {subtitle && <p className={`mt-1 text-sm ${dark ? "text-gray-400" : "text-gray-500"}`}>{subtitle}</p>}
         </div>
         {children}
+        {company.slug && <BusinessFooter slug={company.slug} dark={dark} />}
       </div>
     </div>
   );

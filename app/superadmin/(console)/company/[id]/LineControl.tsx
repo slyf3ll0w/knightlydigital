@@ -205,7 +205,7 @@ export function LineControl({
                           onClick={() => {
                             if (
                               window.confirm(
-                                "Appeal this campaign with Telnyx? The current message flow (booking-form link, screenshot, checkbox wording) is pushed into the campaign and Telnyx compliance re-reviews it by hand. No new campaign, no fee unless it passes."
+                                "Appeal this campaign with Telnyx? The current message flow, samples and HELP reply are pushed into the campaign and Telnyx compliance re-reviews it by hand. No new campaign, no fee unless it passes. If the rejection names the description, the opt-in/opt-out replies or the privacy policy, an appeal can't fix it and this will say so: use Re-file."
                               )
                             )
                               void send({ action: "line-appeal" });
@@ -216,11 +216,29 @@ export function LineControl({
                           Appeal with current copy
                         </button>
                         <span className="ml-2 text-[11px] text-gray-500">
-                          Free. Use this before Re-file — a re-file is a fresh campaign and a fresh $15 review.
+                          Free, when only the flow or samples failed. Description, keyword replies or privacy/terms → Re-file (new campaign, $15; the failed one is retired).
                         </span>
                       </dd>
                     </>
                   )}
+                {registration.kind === "10DLC" && (
+                  <>
+                    <dt className="text-gray-500">STOP/HELP replies</dt>
+                    <dd>
+                      <button
+                        type="button"
+                        onClick={() => void send({ action: "line-keywords" })}
+                        disabled={busy}
+                        className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        Set brand-named replies
+                      </button>
+                      <span className="ml-2 text-[11px] text-gray-500">
+                        Free. Moves the number to its own messaging profile whose STOP / START / HELP replies name the business (filing does this too).
+                      </span>
+                    </dd>
+                  </>
+                )}
                 {(registration.status === "AWAITING_REVIEW" || registration.status === "REJECTED" || registration.status === "QUEUED") && (
                   <>
                     <dt className="text-gray-500">File with Telnyx</dt>

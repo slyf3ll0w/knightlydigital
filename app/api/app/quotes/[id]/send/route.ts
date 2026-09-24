@@ -3,7 +3,6 @@ import { prisma } from "@/lib/db";
 import { limit } from "@/lib/rate-limit";
 import { getActor, canSell, viaContactScope } from "@/lib/permissions";
 import { sendEmail, quoteLinkEmail } from "@/lib/email";
-import { sendSms, canText, quoteLinkText } from "@/lib/sms";
 import { quoteDepositAmount, money } from "@/lib/statuses";
 import { autoSendQuoteAgreements } from "@/lib/agreements";
 import { autoAdvance } from "@/lib/pipeline";
@@ -94,22 +93,11 @@ export async function POST(
     );
   }
 
-  // Best-effort text with the same link — never fails the send.
-  let texted = false;
-  if (quote.contact.phone && canText(quote.contact)) {
-    texted = await sendSms({
-      companyId: quote.companyId,
-      contactId: quote.contactId,
-      to: quote.contact.phone,
-      text: quoteLinkText({
-        companyName: quote.company.name,
-        firstName: quote.contact.firstName,
-        quoteNumber: quote.quoteNumber,
-        total: Number(quote.total),
-        viewUrl: `${baseUrl}/quote/${quote.publicToken}`,
-      }),
-    });
-  }
+  // Quotes go by email only. Carriers read a texted quote as marketing, and a
+  // business line's 10DLC campaign is registered for appointment, invoice and
+  // customer-care texts — a quote text would be traffic outside what was
+  // filed (Telnyx TELNYX_FAILED, Lessly Holdings 2026-09-24).
+  const texted = false;
 
   const justSent = !quote.sentAt;
   await prisma.quote.update({

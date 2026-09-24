@@ -4,7 +4,7 @@ import { verifyPasswordForUser } from "@/lib/account";
 import { getSuperadmin } from "@/lib/superadmin";
 import { limit } from "@/lib/rate-limit";
 import { companyHasProtectedUser, deleteCompanyCascade } from "@/lib/company-delete";
-import { LineError, appealCampaignRegistration, approveRegistration, attachExistingNumber, keepLine, releaseLine } from "@/lib/business-line";
+import { LineError, appealCampaignRegistration, approveRegistration, attachExistingNumber, keepLine, refreshKeywordReplies, releaseLine } from "@/lib/business-line";
 import { VoiceError, ensureVoiceRouting } from "@/lib/voice";
 
 /**
@@ -65,6 +65,7 @@ export async function PATCH(
     action !== "line-voice-sync" &&
     action !== "line-file" &&
     action !== "line-appeal" &&
+    action !== "line-keywords" &&
     action !== "addon-grant" &&
     action !== "addon-revoke"
   ) {
@@ -214,6 +215,20 @@ export async function PATCH(
     } catch (err) {
       if (err instanceof LineError) return NextResponse.json({ error: err.message }, { status: err.status });
       throw err;
+    }
+  }
+
+  // Brand-named STOP / START / HELP replies on the line's own messaging profile
+  // (filing does this; this re-runs it after a rename or a failed attempt).
+  if (action === "line-keywords") {
+    try {
+      const profileId = await refreshKeywordReplies(id);
+      console.warn(`[superadmin] keyword replies set for "${company.name}" (${id}) on profile ${profileId} by ${admin.email}`);
+      return NextResponse.json({ success: true, profileId });
+    } catch (err) {
+      if (err instanceof LineError) return NextResponse.json({ error: err.message }, { status: err.status });
+      const detail = err instanceof Error ? err.message : String(err);
+      return NextResponse.json({ error: `Telnyx refused: ${detail}` }, { status: 424 });
     }
   }
 

@@ -142,6 +142,8 @@ export type LineSummary = {
     state: string;
     postalCode: string;
     website: string;
+    /** The WorkBench business page (/book/<slug>) filed as the website when none is given. */
+    businessPage: string;
     contactFirstName: string;
     contactLastName: string;
     contactEmail: string;
@@ -286,9 +288,14 @@ export const REGISTRATION_CHECKLIST: Record<BrandEntityType, ChecklistItem[]> = 
       why: "Required on every registration.",
     },
     {
+      title: "Your business details in Settings → Business Info",
+      detail: "Business name, street address, phone and email. Your WorkBench business page (workbenchfsm.com/book/your-name) shows them along with your services and your own privacy policy and text terms.",
+      why: "That page is the website on your registration unless you give your own. Reviewers reject a brand whose site lacks an address, phone, email or a description of what you do, or whose name differs from the registration.",
+    },
+    {
       title: "Your website, if you have one",
-      detail: "Optional. If you give one it should load and show your business name.",
-      why: "A dead or unrelated site gets the registration sent back.",
+      detail: "Optional — leave it blank to use your WorkBench business page. If you give one it must load and show your business name, address, phone, email and services.",
+      why: "Reviewers check the website on the registration for all of those. A dead, bare or unrelated site gets the registration sent back.",
     },
     {
       title: "A booking form that asks for a phone number",
@@ -301,6 +308,11 @@ export const REGISTRATION_CHECKLIST: Record<BrandEntityType, ChecklistItem[]> = 
       title: "Your own full legal name and address",
       detail: "As they appear on your ID. Home address is fine.",
       why: "Sole proprietors register as a person, so there is no EIN to match.",
+    },
+    {
+      title: "Your business details in Settings → Business Info",
+      detail: "Business name, street address, phone and email. Your WorkBench business page (workbenchfsm.com/book/your-name) shows them along with your services and your own privacy policy and text terms.",
+      why: "That page is the website on your registration unless you give your own. Reviewers reject a brand whose site lacks an address, phone, email or a description of what you do, or whose name differs from the registration.",
     },
     {
       title: "Any email you check",

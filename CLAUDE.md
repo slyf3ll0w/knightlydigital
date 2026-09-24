@@ -302,8 +302,8 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
   verification request (`MessagingRegistration.kind = "TOLL_FREE"`,
   `verificationId`/`verificationStatus`) filed via `createTollFreeVerification`
   in `lib/telnyx.ts`; free, 1–2 weeks; needs a website + EIN and public
-  opt-in evidence (`public/sms-opt-in.png` + `/sms-terms`, both cited in the
-  request — keep them published). `deriveTollFree` maps Verified → ACTIVE,
+  opt-in evidence (the business's live form URL + its `/book/<slug>/sms-terms`, both cited in the
+  request). `deriveTollFree` maps Verified → ACTIVE,
   Rejected / Waiting For Customer → REJECTED with the reviewer’s reason
   (from `status_history`); resubmitting a Waiting-For-Customer request
   PATCHes it, a Rejected one files fresh, a Verified one is adopted. Status
@@ -569,7 +569,41 @@ also re-reads campaign-stage rejections (portal edits re-queue silently). Becaus
 one, `submitRegistration` and `approveRegistration` pre-flight the form
 (`requireOptInForm` → `findOptInForm().ready`): no listed item with the
 phone field on = refused with `OPT_IN_FORM_MESSAGE`, and the checklist
-(`REGISTRATION_CHECKLIST`, `/texting-registration`) says so up front. The EIN is typed twice
+(`REGISTRATION_CHECKLIST`, `/texting-registration`) says so up front.
+**Second TELNYX_FAILED (2026-09-24, same day — the reviewer first submitted the
+live booking form as "Jim Smith")** named five things, all now enforced in
+code. (1) *Brand name ≠ the form*: the brand was "David Lessly", the page and
+checkbox said "Lessly Holdings". The brand name is now ALWAYS `Company.name`
+(`pinIdentity`, read-only "Brand name" on the form); a re-file over a
+verified brand PUTs the brand first (`brandInputOf` → `updateBrand`).
+(2) *Website with address, phone, email, About, services*: every hosted
+booking page carries `app/book/[slug]/BusinessFooter.tsx`
+(`lib/business-profile.ts`: `loadBusinessProfile`, `aboutLine`,
+`profileGaps`), and `/book/<slug>` is filed as the brand's website when the
+tenant has none. Registration refuses while `profileGaps` finds a missing
+phone/email/address/service (`profileGapMessage`). (3) *Privacy policy must
+be the brand's*: `/book/<slug>/privacy` and `/book/<slug>/sms-terms`
+(`LegalPage.tsx`, Telnyx's required no-sharing sentences) are what the
+campaign, the consent checkboxes and the HELP reply link; the checkbox no
+longer says "via WorkBench". `privacy`/`sms-terms` are reserved item slugs.
+(4) *Quotes = marketing*: quote links are no longer texted (email only),
+and no copy mentions quotes/estimates. (5) *STOP/START/HELP replies per
+support.telnyx.com/en/articles/10645338*: `campaignCopy(identity)` files
+brand-named replies, and `ensureKeywordProfile` gives the line its own
+messaging profile (`Company.lineMessagingProfileId`, custom
+`autoresp_configs`) so the number actually sends them — replies live on the
+PROFILE, and the shared `TELNYX_MESSAGING_PROFILE_ID` can only answer
+generically. `sendSms` sends through the line's profile. Superadmin
+**line-keywords** re-runs it. No screenshot any more (the reviewer opens the
+live form). **`campaignLint` runs before every campaign filing** and in
+`scripts/test-business-line.ts`: marketing words, brand-first samples with
+STOP, keyword-reply templates and the 255-char limit, the flow linking form +
+the business's own privacy/terms, no screenshots. Change the copy → the test
+tells you what a reviewer would say. An appeal can only change flow, samples
+and HELP text: `appealCampaignRegistration` refuses when
+`immutableCampaignDrift` finds a changed description, opt-in/out reply or
+privacy/terms link — that is a **Re-file** (new campaign; the failed one is
+retired with `deactivateCampaign`). The EIN is typed twice
 and checked against the IRS prefix list (`einIssue`, lib/business-line-shared.ts,
 form + server) so a typo never reaches the registry. Same idea for the rest
 of the form (2026-09-22): the street address comes from Mapbox autocomplete

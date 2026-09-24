@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { smsConsentLabel, PRIVACY_URL, SMS_TERMS_URL } from "@/lib/sms-consent";
+import { smsConsentLabel, businessSmsTermsUrl, businessPrivacyUrl } from "@/lib/sms-consent";
 import Link from "next/link";
 import { CheckCircle, Loader2 } from "lucide-react";
 import TurnstileWidget from "@/components/TurnstileWidget";
@@ -287,10 +287,10 @@ export default function RequestForm({
           <input type="checkbox" checked={smsConsent} onChange={(e) => setSmsConsent(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 rounded" style={{ accentColor: accent }} />
           <span>
             {smsConsentLabel(businessName || "this business")}{" "}
-            <a href={SMS_TERMS_URL} target="_blank" rel="noreferrer" className="underline">
+            <a href={businessSmsTermsUrl(companySlug)} target="_blank" rel="noreferrer" className="underline">
               Text terms
             </a>{" · "}
-            <a href={PRIVACY_URL} target="_blank" rel="noreferrer" className="underline">
+            <a href={businessPrivacyUrl(companySlug)} target="_blank" rel="noreferrer" className="underline">
               Privacy
             </a>
           </span>

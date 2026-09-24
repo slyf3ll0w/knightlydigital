@@ -37,7 +37,11 @@ const REJECTIONS: { reason: string; fix: string }[] = [
   },
   {
     reason: "Website doesn't load or doesn't mention the business",
-    fix: "Leave it blank (it's optional) or give a site that loads and shows your business name.",
+    fix: "Leave it blank to use your WorkBench business page, or give a site that loads and shows your business name, address, phone, email and services.",
+  },
+  {
+    reason: "Brand name doesn't match the opt-in form",
+    fix: "WorkBench registers your business under the name in Settings → Business Info, the same name your booking page and texts use. Rename it there, not on the form.",
   },
 ];
 
@@ -166,7 +170,7 @@ export default function TextingRegistrationPage() {
               icon={<Smartphone className="h-5 w-5" style={{ color: BLUE }} strokeWidth={2} />}
               when="The moment it clears"
               title="You're told, and texting turns on"
-              body="Owners get a notification and an email. Reminders, quote and invoice links and replies start going out from your number, in your name."
+              body="Owners get a notification and an email. Appointment reminders, invoice links and replies start going out from your number, in your name."
             />
             <Timeline
               icon={<FileText className="h-5 w-5" style={{ color: ORANGE }} strokeWidth={2} />}

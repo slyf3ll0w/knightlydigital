@@ -860,8 +860,11 @@ function RegistrationForm({
           <input value={f.legalName} onChange={set("legalName")} className={inputCls} required />
           {nameHint && <span className="mt-0.5 block text-[11px] text-amber-700">{nameHint}</span>}
         </Field>
-        <Field label="Name clients know you by" hint="What appears in the registration as your brand">
-          <input value={f.displayName ?? ""} onChange={set("displayName")} className={inputCls} />
+        <Field
+          label="Brand name"
+          hint="Your business name in WorkBench. Carriers check it matches your booking page and every text, so it can't differ here. Rename it in Settings → Business Info."
+        >
+          <input value={d.displayName} readOnly aria-readonly className={`${inputCls} bg-gray-50 text-gray-600`} />
         </Field>
         {!sole && (
           <>
@@ -925,10 +928,22 @@ function RegistrationForm({
         </div>
         <Field
           label="Website"
-          hint={tollFree ? "Required — the reviewer checks it against the business name" : "Or a social page — optional but helps approval"}
+          hint={
+            tollFree ? (
+              "Required — the reviewer checks it against the business name"
+            ) : (
+              <>
+                Leave blank to use your WorkBench business page,{" "}
+                <a href={d.businessPage} target="_blank" rel="noreferrer" className="underline">
+                  {d.businessPage.replace(/^https?:\/\//, "")}
+                </a>
+                , which shows your address, phone, email, services and privacy policy. Your own site must show all of those too.
+              </>
+            )
+          }
           className="sm:col-span-2"
         >
-          <input value={f.website ?? ""} onChange={set("website")} placeholder="https://" className={inputCls} required={tollFree} />
+          <input value={f.website ?? ""} onChange={set("website")} placeholder={tollFree ? "https://" : d.businessPage} className={inputCls} required={tollFree} />
         </Field>
         <Field label="Contact first name">
           <input value={f.contactFirstName} onChange={set("contactFirstName")} className={inputCls} required />
@@ -1059,7 +1074,7 @@ function Field({
   children,
 }: {
   label: string;
-  hint?: string;
+  hint?: React.ReactNode;
   className?: string;
   children: React.ReactNode;
 }) {

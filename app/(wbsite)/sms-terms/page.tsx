@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     "How WorkBench text notifications work: what you'll receive, how you opted in, and how to stop.",
 };
 
-const LAST_UPDATED = "September 22, 2026";
+const LAST_UPDATED = "September 24, 2026";
 
 /* Public SMS program terms for WorkBench. This URL is cited in every tenant’s
    carrier registration (10DLC campaign / toll-free verification), in every
@@ -22,7 +22,7 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
     heading: "1. What this program is",
     paragraphs: [
       "WorkBench is scheduling and invoicing software used by home-service businesses (plumbers, electricians, HVAC, landscapers, cleaners, and similar). When a business you hired uses WorkBench, it can send you text messages about your work from that business’s own phone number. Every message names the business it is from.",
-      "Messages are transactional: an appointment reminder the day before and shortly before a visit, a link to view a quote the business prepared for you, a link to view and pay an invoice, and a notice if an appointment is rescheduled. Businesses do not send marketing or promotional texts through this program.",
+      "Messages are transactional: appointment confirmations and reminders, arrival and schedule updates, a link to view and pay an invoice, and replies to messages you send. Businesses do not send marketing or promotional texts through this program. Each business publishes its own text terms and privacy policy on its WorkBench booking page (linked next to its text-message checkbox); those govern its texts.",
     ],
   },
   {
@@ -107,7 +107,7 @@ export default function SmsTermsPage() {
             <div className="rounded-md border border-blue-100 bg-blue-50/60 px-5 py-4">
               <p className="text-[15px] leading-relaxed text-gray-700">
                 <span className="font-bold text-gray-900">The short version:</span> businesses
-                that use WorkBench can text you appointment reminders, quotes, and invoices
+                that use WorkBench can text you appointment reminders, schedule updates and invoices
                 once you say yes. Message and data rates may apply, frequency varies with
                 your work, reply STOP to opt out and HELP for help.
               </p>

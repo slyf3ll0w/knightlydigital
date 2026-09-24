@@ -5,7 +5,7 @@
  *
  * The model (same as Jobber's): texts are ON by default for any client with a
  * phone on file. Everything we send is informational — appointment reminders,
- * schedule changes, quote and invoice links — and for that class the CTIA
+ * schedule changes, invoice links, replies — and for that class the CTIA
  * messaging principles / TCPA treat the number the client gave the business as
  * the consent. The business attests to that once, company-wide, when it turns
  * text notifications on (Company.smsAcknowledgedAt; enforced in sendSms).
@@ -22,6 +22,23 @@ export const SMS_TERMS_URL = "https://workbenchfsm.com/sms-terms";
 export const PRIVACY_URL = "https://workbenchfsm.com/privacy";
 
 /**
+ * The business's own texting terms and privacy policy, hosted by WorkBench
+ * under its booking page. Carriers require both to be the BRAND's, not the
+ * platform's (Telnyx TELNYX_FAILED, Lessly Holdings 2026-09-24): every
+ * consent checkbox, the campaign filing and the HELP reply point here.
+ * Relative when `base` is omitted (the public forms), absolute for filings.
+ */
+export function businessPageUrl(slug: string, base = ""): string {
+  return `${base}/book/${slug}`;
+}
+export function businessSmsTermsUrl(slug: string, base = ""): string {
+  return `${businessPageUrl(slug, base)}/sms-terms`;
+}
+export function businessPrivacyUrl(slug: string, base = ""): string {
+  return `${businessPageUrl(slug, base)}/privacy`;
+}
+
+/**
  * Checkbox label on the public booking / request forms (unchecked by default).
  * Follows Telnyx's 10DLC opt-in template word for word where it matters —
  * use case, sender, frequency, rates, STOP/HELP, no third-party sharing —
@@ -29,9 +46,13 @@ export const PRIVACY_URL = "https://workbenchfsm.com/privacy";
  * (support.telnyx.com/en/articles/10684260-10dlc-opt-in-form). The campaign
  * message flow (lib/business-line.ts campaignCopy) quotes this verbatim, so
  * changing it here changes what every future filing says.
+ *
+ * The business name must be the registered brand name exactly (it is: the
+ * brand's display name is locked to Company.name), and nothing here may read
+ * as marketing — quotes/estimates count as marketing to the carriers.
  */
 export function smsConsentLabel(businessName: string): string {
-  return `By checking this box, you agree to receive SMS appointment reminders, schedule updates, and quote and invoice links from ${businessName} (sent via WorkBench). Message frequency may vary. Msg & data rates may apply. Reply STOP to opt out, HELP for help. We will not share your mobile information with third parties for promotional or marketing purposes.`;
+  return `By checking this box, you agree to receive SMS appointment reminders, arrival and schedule updates, invoice and payment links, and replies to your messages from ${businessName}. Message frequency may vary. Msg & data rates may apply. Consent is not a condition of purchase. Reply STOP to opt out, HELP for help. We will not share your mobile information with third parties for promotional or marketing purposes.`;
 }
 
 export type SmsConsentFields = {

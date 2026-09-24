@@ -226,10 +226,43 @@ export async function findOwnedNumber(phoneNumber: string): Promise<PhoneNumberR
   return (out.data ?? []).find((n) => n.phone_number === phoneNumber) ?? null;
 }
 
-export async function setNumberMessagingProfile(numberId: string): Promise<void> {
+export async function setNumberMessagingProfile(numberId: string, profileId: string = messagingProfileId()): Promise<void> {
   await call("PATCH", `/phone_numbers/${numberId}/messaging`, {
-    messaging_profile_id: messagingProfileId(),
+    messaging_profile_id: profileId,
   });
+}
+
+/**
+ * The STOP / START / HELP replies a number sends are set per MESSAGING
+ * PROFILE, and 10DLC requires them to name the brand ("[Brand]: You are
+ * unsubscribed…" — support.telnyx.com/en/articles/10645338). The shared
+ * WorkBench profile can only answer generically, so each registered line
+ * gets its own profile carrying its business's replies (lib/business-line.ts
+ * ensureKeywordProfile). Same inbound webhook as the shared one.
+ */
+export async function createMessagingProfile(name: string, webhookUrl: string): Promise<{ id: string }> {
+  const out = await call<{ data?: { id?: string } }>("POST", "/messaging_profiles", {
+    name: name.slice(0, 100),
+    enabled: true,
+    webhook_url: webhookUrl,
+    webhook_api_version: "2",
+    whitelisted_destinations: ["US", "CA"],
+  });
+  const id = out?.data?.id;
+  if (!id) throw new TelnyxError(424, "Telnyx created the messaging profile but returned no id.");
+  return { id };
+}
+
+export type KeywordReplyOp = "start" | "stop" | "help";
+type AutorespConfig = { id: string; op?: string; keywords?: string[]; resp_text?: string; country_code?: string };
+
+/** Replace the profile's reply for one keyword group (custom replies override Telnyx's defaults). */
+export async function setKeywordReply(profileId: string, op: KeywordReplyOp, keywords: string[], text: string): Promise<void> {
+  const existing = await call<{ data?: AutorespConfig[] }>("GET", `/messaging_profiles/${profileId}/autoresp_configs`).catch(() => null);
+  for (const c of existing?.data ?? []) {
+    if (c.op === op && c.id) await call("DELETE", `/messaging_profiles/${profileId}/autoresp_configs/${c.id}`).catch(() => undefined);
+  }
+  await call("POST", `/messaging_profiles/${profileId}/autoresp_configs`, { op, keywords, resp_text: text, country_code: "US" });
 }
 
 /**
@@ -615,6 +648,10 @@ export type CampaignInput = {
   samples: string[];
   privacyPolicyLink: string;
   termsAndConditionsLink: string;
+  /** The brand-named STOP / START / HELP confirmations (campaignCopy). */
+  optinMessage: string;
+  optoutMessage: string;
+  helpMessage: string;
   webhookURL?: string;
 };
 
@@ -625,12 +662,18 @@ export type TelnyxCampaign = {
   submissionStatus?: "CREATED" | "FAILED" | "PENDING";
   failureReasons?: unknown; // string or a list of { fields, description } — read it through failureText()
   isTMobileRegistered?: boolean;
+  // What was filed — only samples, message flow and help text can change afterwards (updateCampaign).
+  description?: string;
+  optinMessage?: string;
+  optoutMessage?: string;
+  privacyPolicyLink?: string;
+  termsAndConditionsLink?: string;
 };
 
 /**
  * Low-volume mixed campaign — the cheapest tier ($1.50/mo) that covers a
- * service business's whole traffic mix: reminders, quote/invoice links,
- * conversational replies. Under ~2,000 msgs/day, which no 1–8 tech shop hits.
+ * service business's whole traffic mix: reminders, invoice links,
+ * conversational replies (no quotes — carriers read them as marketing). Under ~2,000 msgs/day, which no 1–8 tech shop hits.
  */
 export async function createCampaign(input: CampaignInput): Promise<TelnyxCampaign> {
   const [s1, s2, s3, s4, s5] = input.samples;
@@ -654,11 +697,11 @@ export async function createCampaign(input: CampaignInput): Promise<TelnyxCampai
     subscriberOptout: true,
     subscriberHelp: true,
     optinKeywords: "START,UNSTOP",
-    optinMessage: "You are opted in to texts from this business. Reply STOP to opt out, HELP for help. Msg&data rates may apply.",
+    optinMessage: input.optinMessage,
     optoutKeywords: "STOP,STOPALL,UNSUBSCRIBE,CANCEL,END,QUIT",
-    optoutMessage: "You have been unsubscribed and will receive no further texts from this number. Reply START to opt back in.",
+    optoutMessage: input.optoutMessage,
     helpKeywords: "HELP,INFO",
-    helpMessage: "This number sends appointment and billing texts from the business you hired. Reply STOP to opt out. Support: workbenchfsm.com/sms-terms",
+    helpMessage: input.helpMessage,
     privacyPolicyLink: input.privacyPolicyLink,
     termsAndConditionsLink: input.termsAndConditionsLink,
     termsAndConditions: true,
@@ -666,6 +709,20 @@ export async function createCampaign(input: CampaignInput): Promise<TelnyxCampai
     mock: tenDlcMock(),
     webhookURL: input.webhookURL,
   });
+}
+
+/**
+ * DELETE /10dlc/campaign/{id} — retire a campaign we are replacing (a failed
+ * one whose description / opt-in wording can't be edited), so it stops
+ * renewing. Already gone = fine.
+ */
+export async function deactivateCampaign(campaignId: string): Promise<void> {
+  try {
+    await call("DELETE", `/10dlc/campaign/${campaignId}`);
+  } catch (err) {
+    if (err instanceof TelnyxError && err.status === 404) return;
+    throw err;
+  }
 }
 
 export async function getCampaign(campaignId: string): Promise<TelnyxCampaign> {

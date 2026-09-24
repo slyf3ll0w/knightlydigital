@@ -20,6 +20,7 @@ import {
 import { failureText } from "@/lib/telnyx";
 import { suggestionFromFeature } from "@/lib/geocoding";
 import { smsConsentLabel } from "@/lib/sms-consent";
+import { profileGaps, aboutLine } from "@/lib/business-profile";
 import { isPrivateIp, mentionsBusiness, nameTokens, websiteUrlIssue } from "@/lib/website-check";
 import {
   deriveRegistration,
@@ -27,6 +28,10 @@ import {
   sanitizeRegistrationForm,
   campaignCopy,
   campaignAppealReason,
+  campaignLint,
+  immutableCampaignDrift,
+  pinIdentity,
+  type CampaignIdentity,
   LineError,
   PLATFORM_LEGAL_NAME,
   isPlatformOwnLine,
@@ -227,42 +232,114 @@ rejects({ website: "not a url at all" }, /website/);
 // Display name falls back to legal name
 assert.equal(sanitizeRegistrationForm({ ...good, displayName: "" }).displayName, "Streamflaire LLC");
 
-// ── campaignCopy: what the carriers review ───────────────────────────────────
+// ── campaignCopy + campaignLint: what the carriers review ────────────────────
+// Every assertion here is a reason Telnyx failed a real campaign (Lessly
+// Holdings, TELNYX_FAILED twice on 2026-09-24).
+
+const acme: CampaignIdentity = {
+  brandName: "Acme Plumbing",
+  siteUrl: "https://workbenchfsm.com/book/acme-plumbing",
+  formUrl: "https://workbenchfsm.com/book/acme-plumbing/request",
+  privacyUrl: "https://workbenchfsm.com/book/acme-plumbing/privacy",
+  termsUrl: "https://workbenchfsm.com/book/acme-plumbing/sms-terms",
+  website: null,
+  phone: "+12145550100",
+  email: "office@acmeplumbing.com",
+};
 
 {
-  const c = campaignCopy("Acme Plumbing", "https://acme.example", { formUrl: "https://workbenchfsm.com/book/acme-plumbing/request" });
+  const c = campaignCopy(acme);
+  assert.deepEqual(campaignLint(c, acme), [], "the shipped template passes its own pre-flight");
   assert.equal(c.samples.length, 5, "five samples");
   for (const s of c.samples) {
-    assert.match(s, /Acme Plumbing/, "every sample names the business");
+    assert.ok(s.startsWith("Acme Plumbing:"), "every sample opens with the brand name");
     assert.match(s, /Reply STOP to opt out/, "every sample carries opt-out language");
-    assert.ok(s.length <= 320, "sample fits two segments");
   }
-  assert.match(c.messageFlow, /acme\.example/);
-  assert.match(c.messageFlow, /STOP/);
-  // Telnyx failed a campaign (2026-09-24) for describing the form without linking it:
-  // the flow must carry the form URL, a screenshot, and the checkbox wording itself.
-  assert.match(c.messageFlow, /https:\/\/workbenchfsm\.com\/book\/acme-plumbing\/request/, "opt-in form URL");
-  assert.match(c.messageFlow, /https:\/\/workbenchfsm\.com\/sms-opt-in\.png/, "screenshot link");
+  // "Campaign description and sample messages reference quotes"
+  for (const t of [c.description, ...c.samples, c.messageFlow]) assert.doesNotMatch(t, /\bquotes?\b|\bestimates?\b/i, "no quote/estimate talk");
+  // "privacy policy needs to be connected directly to the brand"
+  assert.equal(c.privacyPolicyLink, acme.privacyUrl);
+  assert.equal(c.termsAndConditionsLink, acme.termsUrl);
+  // "Provide details as to how/where someone finds the link to the opt-in form"
+  assert.ok(c.messageFlow.includes(acme.formUrl), "flow links the form");
+  assert.ok(c.messageFlow.includes(acme.siteUrl), "flow says where the form is found");
+  assert.match(c.messageFlow, /website on this brand/);
   assert.ok(c.messageFlow.includes(smsConsentLabel("Acme Plumbing")), "checkbox wording quoted verbatim");
-  assert.match(c.messageFlow, /unchecked by default/);
-  assert.match(c.messageFlow, /sms-terms/);
-  assert.match(c.messageFlow, /\/privacy/);
+  // "The screenshot provided … is not connected to this campaign, please remove"
+  assert.doesNotMatch(c.messageFlow, /\.png|screenshot/i);
   assert.ok(c.messageFlow.length <= 2048, `message flow fits TCR's 2048 chars (${c.messageFlow.length})`);
-  // No form URL known (unit tests, a company with no items) still says where the form lives.
-  assert.match(campaignCopy("Acme Plumbing", null).messageFlow, /workbenchfsm\.com\/book\//);
-  const appeal = campaignAppealReason("Acme Plumbing", "https://workbenchfsm.com/book/acme-plumbing/request");
-  assert.match(appeal, /book\/acme-plumbing\/request/);
-  assert.match(appeal, /sms-opt-in\.png/);
+  // "Website/Online Presence … add a link"
+  assert.ok(c.description.includes(acme.siteUrl));
+  // "OPT-IN, OPT-OUT and HELP messages need updating" — Telnyx's templates
+  assert.equal(c.optoutMessage, "Acme Plumbing: You are unsubscribed and will receive no further messages.");
+  assert.match(c.optinMessage, /^Acme Plumbing: Thanks for subscribing to .+! Reply HELP for help\. Message frequency may vary\. Msg&data rates may apply\. Consent is not a condition of purchase\. Reply STOP to opt out\.$/);
+  assert.match(c.helpMessage, /^Acme Plumbing: Please reach out to us at \(214\) 555-0100 or office@acmeplumbing\.com for help\./);
+  // Their own website, when they have one, is named as a way to the form
+  assert.match(campaignCopy({ ...acme, website: "https://acme.example" }).messageFlow, /acme\.example/);
+  // A 60-character brand still fits the 255-char reply limit
+  const long = { ...acme, brandName: "Acme Plumbing Heating Cooling and Drain Services of North TX" };
+  assert.deepEqual(campaignLint(campaignCopy(long), long), [], "long brand name still passes");
+  // A brand whose own name contains a flagged word isn't flagged for it
+  const qp = { ...acme, brandName: "Quote Pros LLC" };
+  assert.deepEqual(campaignLint(campaignCopy(qp), qp), []);
+
+  // The lint catches each regression
+  const bad = (patch: Partial<typeof c>) => campaignLint({ ...c, ...patch }, acme);
+  assert.ok(bad({ samples: [...c.samples.slice(0, 4), "Acme Plumbing: your quote #1042 is ready. Reply STOP to opt out."] }).some((p) => /marketing/.test(p)));
+  assert.ok(bad({ samples: [...c.samples.slice(0, 4), "Hi Maria, see you Tuesday. Reply STOP to opt out."] }).some((p) => /brand name/.test(p)));
+  assert.ok(bad({ privacyPolicyLink: "https://workbenchfsm.com/privacy" }).some((p) => /own pages/.test(p)));
+  assert.ok(bad({ optoutMessage: "You have been unsubscribed." }).some((p) => /brand name/.test(p)));
+  assert.ok(bad({ messageFlow: c.messageFlow + " Screenshot: https://workbenchfsm.com/sms-opt-in.png" }).some((p) => /screenshot/i.test(p)));
+  assert.ok(campaignLint(c, { ...acme, phone: null, email: null }).some((p) => /phone or email/.test(p)));
+
+  const appeal = campaignAppealReason(acme);
+  assert.ok(appeal.includes(acme.formUrl) && appeal.includes(acme.privacyUrl) && appeal.includes(acme.termsUrl));
+  assert.doesNotMatch(appeal, /\.png/);
   assert.ok(appeal.includes(smsConsentLabel("Acme Plumbing")));
+
+  // An appeal can't fix the description / keyword replies / links: refuse and say Re-file
+  assert.deepEqual(immutableCampaignDrift({ description: c.description, optinMessage: c.optinMessage, optoutMessage: c.optoutMessage, privacyPolicyLink: c.privacyPolicyLink, termsAndConditionsLink: c.termsAndConditionsLink }, c), []);
+  assert.deepEqual(
+    immutableCampaignDrift({ description: "… quote and invoice links …", optinMessage: "You are opted in to texts from this business.", privacyPolicyLink: "https://workbenchfsm.com/privacy" }, c),
+    ["description", "opt-in/opt-out replies", "privacy/terms links"]
+  );
+}
+
+// ── pinIdentity: the brand name is the company's, never a typed alternative ──
+{
+  const form = sanitizeRegistrationForm({ ...good, displayName: "David Lessly", website: "" });
+  const pinned = pinIdentity(form, { brandName: "Lessly Holdings", siteUrl: "https://workbenchfsm.com/book/david-lessly" });
+  assert.equal(pinned.displayName, "Lessly Holdings");
+  assert.equal(pinned.website, "https://workbenchfsm.com/book/david-lessly", "no site → the WorkBench business page");
+  assert.equal(pinIdentity({ ...form, website: "https://own.example" }, { brandName: "X", siteUrl: "https://workbenchfsm.com/book/x" }).website, "https://own.example");
+}
+
+// ── Business page pre-flight ─────────────────────────────────────────────────
+{
+  const full = { phone: "+12145550100", email: "a@b.com", address: "1 Main St", city: "Allen", state: "TX", zip: "75013", services: ["Drain cleaning"] };
+  assert.deepEqual(profileGaps(full), []);
+  assert.deepEqual(profileGaps({ ...full, phone: null, email: " ", zip: null, services: [] }), [
+    "business phone",
+    "business email",
+    "business address (street, city, state, ZIP)",
+    "at least one service on your booking page",
+  ]);
+  const about = aboutLine({ name: "Acme Plumbing", industry: "Plumbing", city: "Allen", state: "TX", services: ["Drain cleaning", "Water heaters"] });
+  assert.match(about, /^Acme Plumbing is a plumbing business serving Allen, TX/);
+  assert.match(about, /drain cleaning and water heaters/);
+  assert.doesNotMatch(about, /\bquotes?\b/i);
 }
 
 // ── smsConsentLabel: Telnyx's opt-in template, element by element ────────────
 {
   const l = smsConsentLabel("Acme Plumbing");
   assert.match(l, /^By checking this box, you agree to receive SMS/);
-  assert.match(l, /from Acme Plumbing/);
+  assert.match(l, /from Acme Plumbing\./, "names the brand and nobody else");
+  assert.doesNotMatch(l, /WorkBench/, "no platform name next to the brand");
+  assert.doesNotMatch(l, /\bquotes?\b/i, "no marketing-looking message types");
   assert.match(l, /Message frequency may vary/);
   assert.match(l, /data rates may apply/);
+  assert.match(l, /Consent is not a condition of purchase/);
   assert.match(l, /Reply STOP to opt out/);
   assert.match(l, /HELP for help/);
   assert.match(l, /not share your mobile information with third parties/);
@@ -420,8 +497,10 @@ console.log("test-business-line (number rights): all assertions passed");
   assert.ok(!isGroupMailbox("david@lesslyholdings.com"), "a named person passes");
   assert.ok(!isGroupMailbox("dcontact@example.com"), "only the whole local part counts");
   assert.ok(!isGroupMailbox("nonsense"), "no @ → not our problem here");
-  assert.equal(REGISTRATION_CHECKLIST.PRIVATE_PROFIT.length, 5);
-  assert.equal(REGISTRATION_CHECKLIST.SOLE_PROPRIETOR.length, 4);
+  assert.equal(REGISTRATION_CHECKLIST.PRIVATE_PROFIT.length, 6);
+  assert.equal(REGISTRATION_CHECKLIST.SOLE_PROPRIETOR.length, 5);
+  // Both lists ask for the business details the hosted business page shows (reviewers check the brand's website for them).
+  for (const list of Object.values(REGISTRATION_CHECKLIST)) assert.ok(list.some((i) => /Business Info/.test(i.title)));
   // Both lists end on the booking-form item: reviewers open that page for the consent checkbox.
   for (const list of Object.values(REGISTRATION_CHECKLIST)) assert.match(list[list.length - 1].title, /booking form/);
   console.log("test-business-line (group mailboxes): all assertions passed");

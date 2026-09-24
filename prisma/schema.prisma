@@ -164,6 +164,11 @@ model Company {
   // is ACTIVE (10DLC); voice forwarding works from the minute it provisions.
   lineNumber                String?     @unique // E.164
   lineNumberId              String? // Telnyx phone_numbers resource id
+  // The line's own Telnyx messaging profile (created when its 10DLC campaign is
+  // filed) so STOP / START / HELP replies carry the business's name — carriers
+  // require it; the shared TELNYX_MESSAGING_PROFILE_ID can only answer
+  // generically. Null = still on the shared profile.
+  lineMessagingProfileId    String?
   lineForwardTo             String? // E.164 cell that inbound calls ring (null = calls not forwarded yet)
   lineProvisionedAt         DateTime?
   lineType                  String? // "local" | "toll_free" — decides the texting registration path (10DLC vs toll-free verification)
