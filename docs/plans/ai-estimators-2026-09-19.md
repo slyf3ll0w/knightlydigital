@@ -1413,6 +1413,33 @@ Clients; a history of who used each tool; audit the rest.
   request param and the drawer prompt say so; `websiteState.embedNote`
   points at the tool's page.
 
+### Batch 13, third pass (2026-09-24) — Ask Atlas survives a section switch, fill-in is its own switch
+- **Ask Atlas panel disappearing**: it unmounted on a section change and the
+  in-flight change was only rediscovered on a full page load. It now stays
+  mounted (hidden) like the hand editor, so the state is intact when you
+  come back, and the app-wide bar shows the build meanwhile: BuildPanel
+  reports "I'm showing build X on screen" (`setPanelShowing` in
+  lib/build-tracker.ts; a `visible` prop) and the bar hides only for that
+  build — no more pathname check, so folding the Estimates builder shut
+  also brings the bar up.
+- **Fill-in is separate from the rules** (David: "the Atlas builder just
+  builds the estimator; the user then toggles on the autofill, or asks
+  Atlas"): the builder never sets `assist` or `askAtlas` on its own — a new
+  tool is saved without them, a change keeps what the tool had; the one
+  exception stays: photo / fill-in words in the request turn it on. The
+  playbook's two "(askAtlas …)" hints are gone. The Overview card is now
+  an **Atlas fill-in switch** (PATCH spec.assist {} / null) with the
+  guidance box under it when on; the Web form panel points there when the
+  tool has no fill-in. Chat: `manage_estimator update { atlasFillIn,
+  atlasFillInGuidance }` flips it as an ordinary card.
+- **Editor bar transparent**: `glass-control` lives inside the phones-only
+  media block, so desktop had no glass at all → `sheet-material` + border +
+  shadow.
+- **Confirm under the right-click menu**: QuickMenu awaited the action
+  before closing, and its popover (z-80) sat above the confirm sheet
+  (z-70) → it closes first, then runs the action.
+- 20-second poll for the live cards stays (David: "leave it to save work").
+
 ### Batch 13 Test (owed)
 1. Estimates → describe a tool → Build it → leave to Jobs: the glass bar
    shows the step and a progress line; Cancel → it disappears, no tool

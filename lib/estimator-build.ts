@@ -128,11 +128,11 @@ ${hasImage ? `- The owner attached a PHOTO of their price sheet / rate card / ol
 - More than 5 questions → group them with "section" (2–4 sections, in the order a pro asks). Use "showWhen" so follow-ups only appear when relevant. Use "multi" for pick-several add-ons.
 - Write plain-English labels a homeowner understands — SHORT (under 70 characters, one line); anything longer, and any "(optional)" or explanation, goes in "help". Blurbs on cards and tiers sell the option in a few words.
 - Every line: a description that explains the number ({qty} at {rate|money}), and a "group".
-- Leave "assist" null unless judgment from a written description or a photo is genuinely needed — but when the owner ASKS for photo / description fill-in, or any question has askAtlas, set "assist": {"instructions": "..."} and WRITE the instructions: 2–4 plain sentences telling Atlas what to look for in the photo or words, what to assume when it can't tell (typical sizes and counts for this trade, the middle option for condition), and the one or two things it must never guess. The owner can edit them later.
+- "assist" (Atlas fill-in from a photo / description) is a SEPARATE switch the owner turns on later on the tool's page. Leave "assist" null and never set "askAtlas" on your own — the ONLY exception is when the owner's words ask for photo / description fill-in: then set "assist": {"instructions": "..."} and WRITE the instructions: 2–4 plain sentences telling Atlas what to look for in the photo or words, what to assume when it can't tell (typical sizes and counts for this trade, the middle option for condition), and the one or two things it must never guess. On a change, keep the tool's existing "assist" as it is unless the owner asks to change it.
 - You know this business (below): its trade, its price book, what it has actually charged on quotes, the services it books. USE IT. A rate the owner didn't say but the business data shows is a REAL rate, not a placeholder — take it from the price book (link the line with workItemName, exact name) or from what they've charged. When the tool sells a listed service, link it. Match their vocabulary and their existing tools' naming.
 - Rates the owner never gave, that the business data doesn't show either (and they didn't answer when asked): use a sensible placeholder and list it in "placeholders". Never stop to ask for a rate at this stage.
 - "samples": small / typical / large, every required question answered with realistic values (a map input is a number of ft or sq ft; a counts input is a table {"value": n}).
-- "askAtlas": only where a pro would have to look (condition, access, hazard, scope) AND the price depends on it — it costs the business tokens per estimate. Most tools need none.
+- Every question is answered by the person (or by Atlas fill-in when the owner turns that on) — a condition / access / scope question is a plain "cards" choice with a good "help" line, never "askAtlas".
 ${playbook ? `\n${playbook}\n` : ""}
 ${ESTIMATOR_GUIDE}
 
@@ -405,8 +405,15 @@ export async function* buildEstimator(
 
   yield { phase: "save", message: "Saving…" };
   if (await stop()) return;
-  // The owner asked for photo fill-in: it is on, whatever the model returned
-  const spec: EstimatorSpec = wantsPhoto && !compiled.compiled.spec.assist ? { ...compiled.compiled.spec, assist: { instructions: DEFAULT_ASSIST_INSTRUCTIONS } } : compiled.compiled.spec;
+  // Atlas fill-in is the owner's separate switch: the build never turns it on
+  // by itself. Asked for in the owner's words → on (with instructions);
+  // otherwise a new tool has none, and a change keeps what the tool had.
+  let spec: EstimatorSpec = compiled.compiled.spec;
+  if (wantsPhoto) {
+    if (!spec.assist) spec = { ...spec, assist: { instructions: DEFAULT_ASSIST_INSTRUCTIONS } };
+  } else if (!currentSpec?.assist) {
+    spec = { ...spec, assist: null, inputs: spec.inputs.map((i) => (i.askAtlas ? { ...i, askAtlas: undefined } : i)) };
+  }
   const placeholders = spec.placeholders ?? [];
   const description = typeof draft.description === "string" ? draft.description.trim().slice(0, 200) || null : null;
 

@@ -235,7 +235,7 @@ const manageEstimator: Tool = {
   decl: {
     name: "manage_estimator",
     description:
-      "Build and maintain the company's estimate tools (managers): saved calculators that turn a few inputs (square footage, rooms, hours, options) into quote line items using the business's own pricing rules. Running a tool is plain math and free. Two kinds of change: (1) RULES — anything about the questions, options, rates, packages, sections, wording of questions, or photo / description fill-in: call 'create' (a new tool) or 'update' with estimatorId (an existing one) passing request = the owner's words verbatim (plus any rates they gave). That opens the tool's page, where the Atlas builder drafts, tests and saves the change while they watch — you NEVER write or describe a spec for these. (2) SETTINGS — name, description, on/off, and the website form's options (published, what visitors see, when details are asked, what a submission creates, photo fill-in): 'update' with those fields shows a confirmation card right here in the chat. 'list' shows saved tools; 'get' returns one tool in full. Never invent a business's prices. Any tool can also be a WEBSITE FORM (pass 'website' on update): visitors on the business's site answer the questions, see the estimate the owner chooses to show (exact, a range, or none) and become a lead + request (+ quote) — free for the owner.",
+      "Build and maintain the company's estimate tools (managers): saved calculators that turn a few inputs (square footage, rooms, hours, options) into quote line items using the business's own pricing rules. Running a tool is plain math and free. Two kinds of change: (1) RULES — anything about the questions, options, rates, packages, sections, wording of questions, or photo / description fill-in: call 'create' (a new tool) or 'update' with estimatorId (an existing one) passing request = the owner's words verbatim (plus any rates they gave). That opens the tool's page, where the Atlas builder drafts, tests and saves the change while they watch — you NEVER write or describe a spec for these. (2) SETTINGS — name, description, on/off, Atlas fill-in (atlasFillIn: a photo / description fills in the answers — a separate switch the builder never touches), and the website form's options (published, what visitors see, when details are asked, what a submission creates, photo fill-in for visitors): 'update' with those fields shows a confirmation card right here in the chat. 'list' shows saved tools; 'get' returns one tool in full. Never invent a business's prices. Any tool can also be a WEBSITE FORM (pass 'website' on update): visitors on the business's site answer the questions, see the estimate the owner chooses to show (exact, a range, or none) and become a lead + request (+ quote) — free for the owner.",
     parameters: {
       type: "object",
       properties: {
@@ -247,6 +247,8 @@ const manageEstimator: Tool = {
         spec: SPEC_PARAM,
         inputs: { ...INPUTS_PARAM, description: `sample inputs for 'test': ${INPUTS_PARAM.description}` },
         isActive: { type: "boolean", description: "update: turn the tool on/off" },
+        atlasFillIn: { type: "boolean", description: "update: turn Atlas fill-in on/off — with it on, someone can add a photo or describe the job and Atlas fills in the answers (tokens per use; typing stays free). A separate switch from the rules; the builder never sets it." },
+        atlasFillInGuidance: { type: "string", description: "update (with atlasFillIn true): what Atlas should look for, assume when unsure, and never guess — 2–4 plain sentences" },
         website: WEBSITE_PARAM,
       },
       required: ["action"],
@@ -373,6 +375,21 @@ const manageEstimator: Tool = {
       if (typeof args.isActive === "boolean" && args.isActive !== row.isActive) {
         payload.isActive = args.isActive;
         lines.push(args.isActive ? "Turn it on" : "Turn it off (hidden from quotes)");
+      }
+      // Atlas fill-in: the owner's separate switch, flipped from the chat
+      if (typeof args.atlasFillIn === "boolean" && !args.spec) {
+        const cur = specFromJson(row.spec);
+        if (!cur) return { error: "This tool's saved rules no longer compile — rebuild it first." };
+        const guidance = str(args.atlasFillInGuidance, 1000);
+        const wasOn = Boolean(cur.assist);
+        if (args.atlasFillIn !== wasOn || (args.atlasFillIn && guidance && guidance !== (cur.assist?.instructions ?? ""))) {
+          const next = { ...cur, assist: args.atlasFillIn ? { instructions: guidance || cur.assist?.instructions } : null };
+          const check = await checkSpec(actor.companyId, next);
+          if (!check.ok) return { error: "Couldn't change the fill-in switch.", errors: check.errors };
+          payload.spec = check.compiled.spec;
+          lines.push(args.atlasFillIn ? (wasOn ? "Update the fill-in guidance" : "Turn Atlas fill-in on (photo / description → answers; tokens per use)") : "Turn Atlas fill-in off (every answer typed, free)");
+          if (args.atlasFillIn && guidance) lines.push(`Guidance: ${guidance}`);
+        }
       }
       if (args.spec) {
         const check = await checkSpec(actor.companyId, args.spec);

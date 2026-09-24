@@ -8,7 +8,7 @@ import { useAssistant } from "@/components/AssistantContext";
 import { APP_THEME, moneyExact, useCountUp, wash } from "@/components/EstimatorControls";
 import RatesToConfirm from "@/components/RatesToConfirm";
 import { fileToAssistPhoto, type AssistPhoto } from "@/lib/image-downscale";
-import { readTrackedBuild, trackBuild, untrackBuild } from "@/lib/build-tracker";
+import { readTrackedBuild, setPanelShowing, trackBuild, untrackBuild } from "@/lib/build-tracker";
 import { confirmCancelBuild } from "@/components/BuildProgressBar";
 import { hapticNotify } from "@/lib/haptics";
 import type { BuildAnswer, BuildDraft, BuildPlan, BuildQuestion, BuildSample } from "@/lib/estimator-build";
@@ -109,8 +109,11 @@ export default function BuildPanel({
   compact = false,
   autoFocus = false,
   autoStart = false,
+  visible = true,
   resumeBuildId = null,
 }: {
+  /** False while the panel is mounted but hidden (another section of the tool page) — the app-wide bar takes over. */
+  visible?: boolean;
   /** Set → change this tool instead of creating one */
   estimatorId?: string;
   /** Atlas sent the owner here with their words (?prompt=) — start building at once, no button press. */
@@ -150,7 +153,14 @@ export default function BuildPanel({
   const fileRef = useRef<HTMLInputElement>(null);
   // the build this panel is following right now (a newer one supersedes it)
   const followingRef = useRef<string | null>(null);
+  const [followingId, setFollowingId] = useState<string | null>(null);
   const home = estimatorId ? `/app/estimates/${estimatorId}` : "/app/estimates";
+
+  // Tell the app-wide bar when this panel has the build on screen (it hides then) and when it doesn't
+  useEffect(() => {
+    setPanelShowing(visible && followingId ? followingId : null);
+    return () => setPanelShowing(null);
+  }, [visible, followingId]);
 
   /** Record the build for the app-wide bar (so leaving this page keeps it in view). */
   function remember(buildId: string, label: string) {
@@ -243,6 +253,7 @@ export default function BuildPanel({
     let seen = 0;
     let misses = 0;
     followingRef.current = buildId;
+    setFollowingId(buildId);
     try {
       for (;;) {
         if (followingRef.current !== buildId) return; // a newer build took over

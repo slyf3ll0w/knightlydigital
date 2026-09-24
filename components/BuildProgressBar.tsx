@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, Check, ChevronRight, Loader2, MessageCircleQuestion, Sparkles, X } from "lucide-react";
-import { BUILD_EVENT, readTrackedBuild, untrackBuild, type TrackedBuild } from "@/lib/build-tracker";
+import { BUILD_EVENT, readPanelShowing, readTrackedBuild, untrackBuild, type TrackedBuild } from "@/lib/build-tracker";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { hapticNotify } from "@/lib/haptics";
 
@@ -58,9 +58,9 @@ function viewOf(r: Reply, fallback: string): View {
 }
 
 export default function BuildProgressBar() {
-  const pathname = usePathname();
   const router = useRouter();
   const [build, setBuild] = useState<TrackedBuild | null>(null);
+  const [panelShowing, setPanelShowingState] = useState<string | null>(null);
   const [view, setView] = useState<View | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const lingerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -71,6 +71,7 @@ export default function BuildProgressBar() {
     const sync = () => {
       const next = readTrackedBuild();
       setBuild((prev) => (prev?.id === next?.id ? prev : next));
+      setPanelShowingState(readPanelShowing());
       if (!next) setView(null);
     };
     sync();
@@ -152,8 +153,8 @@ export default function BuildProgressBar() {
     router.push(href);
   }
 
-  // The page that shows the build itself has the whole picture — stay out of its way
-  if (!build || !view || pathname === build.home) return null;
+  // The builder panel showing this very build has the whole picture — stay out of its way
+  if (!build || !view || panelShowing === build.id) return null;
 
   const changing = Boolean(build.estimatorId);
   const title =

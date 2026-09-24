@@ -95,12 +95,14 @@ export function QuickMenu({ open, anchor, title, actions, onClose }: { open: boo
         onClose();
         return;
       }
+      // Close FIRST: an action that asks a question (Delete → confirm sheet)
+      // must not draw underneath this menu, which sits above the sheet layer.
+      onClose();
       setBusy(a.key);
       try {
         await a.onSelect();
       } finally {
         setBusy(null);
-        onClose();
       }
     },
     [busy, onClose]

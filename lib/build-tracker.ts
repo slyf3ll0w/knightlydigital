@@ -43,6 +43,22 @@ function announce() {
   }
 }
 
+/**
+ * Which build a builder panel is showing ON SCREEN right now (this tab).
+ * The app-wide bar stays out of the way while the panel itself is visible
+ * and appears the moment it isn't — another section of the tool page,
+ * another page, the builder folded shut.
+ */
+let panelShowing: string | null = null;
+export function setPanelShowing(id: string | null): void {
+  if (panelShowing === id) return;
+  panelShowing = id;
+  announce();
+}
+export function readPanelShowing(): string | null {
+  return panelShowing;
+}
+
 export function trackBuild(b: TrackedBuild): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(b));

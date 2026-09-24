@@ -270,6 +270,7 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
               <p className="mt-1 text-xs text-gray-500">Name is always asked. Quotes sent for approval need an email.</p>
             </div>
 
+            {!tool.usesAtlas && <p className="text-xs text-gray-500">Want visitors to attach a photo and have Atlas fill in the answers? Turn on Atlas fill-in on the tool&apos;s Overview first.</p>}
             {tool.usesAtlas && (
               <label className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2.5">
                 <span>

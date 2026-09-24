@@ -165,7 +165,7 @@ export default function ToolClient({
   }, [paramsKey, params, resolve]);
 
   const [advTab, setAdvTab] = useState<AdvancedTab>(sParam === "pricing" || sParam === "words" ? sParam : "questions");
-  const [busy, setBusy] = useState<"active" | "delete" | "publish" | "rates" | "words" | "guidance" | null>(null);
+  const [busy, setBusy] = useState<"active" | "delete" | "publish" | "rates" | "words" | "guidance" | "assist" | null>(null);
   const [error, setError] = useState("");
   const [menu, setMenu] = useState<MenuAnchor | null>(null);
   const [copied, setCopied] = useState(false);
@@ -308,6 +308,13 @@ export default function ToolClient({
     if (!spec) return;
     const next = { ...spec, assist: { ...(spec.assist ?? {}), instructions: guidance.trim() || undefined } };
     await patch({ spec: next }, "guidance");
+  }
+
+  /** The Atlas fill-in switch — separate from the rules the builder writes. Off = every answer is typed (free). */
+  async function toggleAssist(on: boolean) {
+    if (!spec) return;
+    const next = { ...spec, assist: on ? { instructions: guidance.trim() || spec.assist?.instructions } : null };
+    await patch({ spec: next }, "assist");
   }
 
   function run() {
@@ -565,16 +572,26 @@ export default function ToolClient({
                 </button>
               </div>
 
-              {manager && spec && tool.usesAtlas && (
+              {manager && spec && (
                 <div className="card-ledger p-4 sm:p-5">
-                  <SectionHeader title={`How ${atlas.name} fills it in`} hint={`When someone describes the job or attaches a photo, ${atlas.name} answers the questions it can${assessed ? " and assesses the ones marked for it" : ""}. Tell it what to look for, what to assume when it can't tell, and what it must never guess.`} />
-                  <Textarea value={guidance} onChange={(e) => setGuidance(e.target.value)} rows={3} maxLength={1000} placeholder="e.g. A two-car driveway is about 500 sq ft. Count the garage as one story. If the photo doesn't show the stains, assume moderate. Never guess the fence length — ask for it." className="mt-3 w-full" />
-                  <div className="mt-2 flex items-center justify-end gap-3">
-                    <span className="text-xs text-gray-500">{guidance.trim() !== (spec.assist?.instructions ?? "") ? "Unsaved" : ""}</span>
-                    <button type="button" disabled={busy !== null || guidance.trim() === (spec.assist?.instructions ?? "")} onClick={() => void saveGuidance()} className="btn-primary h-9 justify-center">
-                      {busy === "guidance" ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Save guidance
-                    </button>
-                  </div>
+                  <button type="button" role="switch" aria-checked={tool.usesAtlas} disabled={busy !== null || assessed} onClick={() => void toggleAssist(!tool.usesAtlas)} className="flex w-full items-center justify-between gap-3 text-left">
+                    <SectionHeader title={`${atlas.name} fill-in`} hint={tool.usesAtlas ? `On — someone can add a photo or describe the job and ${atlas.name} fills in the answers it can. Uses tokens per use; typing the answers stays free.${assessed ? " Always on for this tool: a question is assessed by Atlas." : ""}` : `Off — every answer is typed in, free. Turn it on and someone can add a photo or describe the job instead; ${atlas.name} fills in what it can.`} />
+                    <span className="relative h-7 w-12 shrink-0 rounded-full transition-colors" style={{ backgroundColor: tool.usesAtlas ? "var(--wb-accent)" : "#d1d5db" }} aria-hidden>
+                      {busy === "assist" ? <Loader2 size={14} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 animate-spin text-white" /> : <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${tool.usesAtlas ? "translate-x-[26px]" : "translate-x-1"}`} />}
+                    </span>
+                  </button>
+                  {tool.usesAtlas && (
+                    <>
+                      <p className="mt-3 text-xs font-medium text-gray-700">What to look for, what to assume when it can&apos;t tell, what it must never guess</p>
+                      <Textarea value={guidance} onChange={(e) => setGuidance(e.target.value)} rows={3} maxLength={1000} placeholder="e.g. A two-car driveway is about 500 sq ft. Count the garage as one story. If the photo doesn't show the stains, assume moderate. Never guess the fence length — ask for it." className="mt-1.5 w-full" />
+                      <div className="mt-2 flex items-center justify-end gap-3">
+                        <span className="text-xs text-gray-500">{guidanceDirty ? "Unsaved" : ""}</span>
+                        <button type="button" disabled={busy !== null || !guidanceDirty} onClick={() => void saveGuidance()} className="btn-primary h-9 justify-center">
+                          {busy === "guidance" ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Save guidance
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -595,13 +612,14 @@ export default function ToolClient({
             </div>
           )}
 
-          {/* ── Ask Atlas ── */}
-          {section === "atlas" && manager && (
-            <div className="card-ledger p-4 sm:p-5">
+          {/* ── Ask Atlas — stays mounted (hidden) across sections so a change in progress is still there when you come back; the app-wide bar covers it meanwhile ── */}
+          {manager && (
+            <div className={section === "atlas" ? "card-ledger p-4 sm:p-5" : "hidden"}>
               <SectionHeader size="block" className="mb-3 hidden lg:block" title={`Change “${tool.name}”`} hint="Say what should be different. The current version is kept under History." />
               {/* not keyed on updatedAt on purpose: the finished card ("Done — the changes are saved", the list of changes) must stay on screen after the save refreshes the page */}
               <BuildPanel
                 compact
+                visible={section === "atlas"}
                 estimatorId={tool.id}
                 toolName={tool.name}
                 resumeBuildId={resumeBuildId}
