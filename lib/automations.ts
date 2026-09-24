@@ -550,6 +550,8 @@ export type CompiledAutomation = {
   /** Per step: template param → parsed template (actions only). */
   templates: Record<string, TemplatePart[]>[];
   entity: EntityType;
+  /** Every field the filters and templates read — missing ones evaluate as "" (a webhook that omitted a key, a deleted custom field). */
+  identifiers: string[];
 };
 
 export type CompileResult = { ok: true; compiled: CompiledAutomation } | { ok: false; errors: string[] };
@@ -619,8 +621,12 @@ export function compileAutomation(raw: unknown): CompileResult {
   let actionCount = 0;
   let waitCount = 0;
 
+  const used = new Set<string>();
   const checkIds = (where: string, node: Node) => {
-    for (const name of identifiersIn(node)) if (!identifierAllowed(name, entity, known)) errors.push(`${where}: unknown field "${name}" — for this trigger use: ${[...known].join(", ")}`);
+    for (const name of identifiersIn(node)) {
+      used.add(name);
+      if (!identifierAllowed(name, entity, known)) errors.push(`${where}: unknown field "${name}" — for this trigger use: ${[...known].join(", ")}`);
+    }
   };
   const tpl = (where: string, src: string, into: Record<string, TemplatePart[]>, key: string) => {
     try {
@@ -768,7 +774,7 @@ export function compileAutomation(raw: unknown): CompileResult {
   if (waitCount > 3) errors.push("At most 3 waits");
 
   if (errors.length > 0) return { ok: false, errors: Array.from(new Set(errors)).slice(0, 20) };
-  return { ok: true, compiled: { spec: { version: 2, trigger, steps }, filters, templates, entity } };
+  return { ok: true, compiled: { spec: { version: 2, trigger, steps }, filters, templates, entity, identifiers: [...used] } };
 }
 
 export function specFromJson(raw: unknown): AutomationSpec | null {
@@ -869,12 +875,23 @@ export type AutomationCtx = Record<string, Value>;
 
 const EMPTY_BOOK: EvalCtx["priceBook"] = new Map();
 
+/** The context with every referenced field present — a missing one reads as "". */
+function vars(compiled: CompiledAutomation, ctx: AutomationCtx): AutomationCtx {
+  let out = ctx;
+  for (const name of compiled.identifiers) {
+    if (name in out) continue;
+    if (out === ctx) out = { ...ctx };
+    out[name] = "";
+  }
+  return out;
+}
+
 /** Does the filter at `index` pass for this context? Evaluation errors count as "no" and are reported. */
 export function evaluateFilter(compiled: CompiledAutomation, index: number, ctx: AutomationCtx): { pass: boolean; error?: string } {
   const node = compiled.filters[index];
   if (!node) return { pass: true };
   try {
-    return { pass: truthy(evaluate(node, { vars: ctx, priceBook: EMPTY_BOOK })) };
+    return { pass: truthy(evaluate(node, { vars: vars(compiled, ctx), priceBook: EMPTY_BOOK })) };
   } catch (e) {
     return { pass: false, error: (e as Error).message };
   }
@@ -891,7 +908,7 @@ export function evaluateWhen(compiled: CompiledAutomation, ctx: AutomationCtx): 
 /** Render one step's template params against the context. */
 export function renderAction(compiled: CompiledAutomation, index: number, ctx: AutomationCtx): Record<string, string> {
   const out: Record<string, string> = {};
-  const evalCtx: EvalCtx = { vars: ctx, priceBook: EMPTY_BOOK };
+  const evalCtx: EvalCtx = { vars: vars(compiled, ctx), priceBook: EMPTY_BOOK };
   for (const [key, parts] of Object.entries(compiled.templates[index] ?? {})) out[key] = renderTemplate(parts, evalCtx);
   return out;
 }

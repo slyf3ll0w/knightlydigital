@@ -18,7 +18,8 @@ export default async function AutomationsPage() {
   const [rows, recent] = await Promise.all([
     prisma.automation.findMany({ where: { companyId: actor.companyId }, select: AUTOMATION_SELECT, orderBy: [{ isActive: "desc" }, { name: "asc" }] }),
     prisma.automationRun.findMany({
-      where: { companyId: actor.companyId },
+      // Non-match claim rows exist only as the dedupe key — not activity
+      where: { companyId: actor.companyId, NOT: { status: "skipped", detail: "conditions not met" } },
       orderBy: { createdAt: "desc" },
       take: 40,
       select: { id: true, automationId: true, event: true, entityType: true, entityId: true, status: true, detail: true, createdAt: true },

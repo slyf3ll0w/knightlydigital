@@ -19,6 +19,7 @@ import { entryMs, formatDuration } from "@/lib/time-entries";
 import { visitFrequencyLabel } from "@/lib/subscriptions";
 import { syncJobChecklist } from "@/lib/job-checklist";
 import JobActions from "./JobActions";
+import RunAutomationMenu from "@/components/RunAutomationMenu";
 import ClockCard from "./ClockCard";
 import CollectSignature from "./CollectSignature";
 import OnMyWay from "./OnMyWay";
@@ -243,6 +244,7 @@ export default async function JobDetailPage({
                 hasReviewLink={!!company?.reviewLink}
               />
             )}
+            <RunAutomationMenu entity="job" entityId={job.id} manager={isManager(actor.role)} />
             <JobActions
               jobId={job.id}
               status={job.status}

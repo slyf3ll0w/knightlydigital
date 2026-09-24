@@ -29,6 +29,7 @@ import PipelineCard from "./PipelineCard";
 import { getActiveFieldDefs } from "@/lib/contact-fields";
 import { getProcessor, invoiceBalance } from "@/lib/payments";
 import { finixApplicationId, finixEnvironment } from "@/lib/finix";
+import RunAutomationMenu from "@/components/RunAutomationMenu";
 
 export default async function ContactDetailPage({
   params,
@@ -364,6 +365,7 @@ export default async function ContactDetailPage({
             <Pencil size={14} />
             Edit
           </Link>
+          <RunAutomationMenu entity="contact" entityId={contact.id} manager={isManager(actor.role)} />
           <ContactActionsMenu
             contactId={contact.id}
             contactName={`${contact.firstName} ${contact.lastName}`.trim()}

@@ -193,6 +193,11 @@ const baseCtx: AutomationCtx = {
     assert.deepEqual(evaluateWhen(hook.compiled, { data_source: "Facebook", data_name: "Ann" }), { fire: true });
     assert.equal(renderAction(hook.compiled, 1, { data_source: "Facebook", data_name: "Ann" }).title, "New Facebook lead: Ann");
   }
+  // a key the sender left out reads as "" instead of breaking the run
+  if (hook.ok) {
+    assert.deepEqual(evaluateWhen(hook.compiled, { data_name: "Ann" }), { fire: false });
+    assert.equal(renderAction(hook.compiled, 1, { data_source: "Facebook" }).title, "New Facebook lead:");
+  }
   const hookBad = compileAutomation({ trigger: { event: "webhook.received" }, steps: [{ type: "email_client", subject: "s", body: "b" }] });
   assert.ok(!hookBad.ok && hookBad.errors.some((e) => e.includes("can't run on a webhook payload trigger")));
   const atlasBefore = compileAutomation({ trigger: { event: "job.completed" }, steps: [{ type: "email_client", subject: "Thanks", body: "{atlas_text}" }, { type: "atlas_draft", prompt: "Write a thank-you for {client_first_name}" }] });

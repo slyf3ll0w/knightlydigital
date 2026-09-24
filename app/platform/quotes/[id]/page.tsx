@@ -10,6 +10,7 @@ import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import ViewedFact from "@/components/ViewedFact";
 import QuoteActions from "./QuoteActions";
+import RunAutomationMenu from "@/components/RunAutomationMenu";
 import CollectDepositNudge from "./CollectDepositNudge";
 import Celebration from "@/components/Celebration";
 import { shouldCelebrate } from "@/lib/celebrations";
@@ -100,6 +101,8 @@ export default async function QuoteDetailPage({
         >
           {quote.title || `Quote #${quote.quoteNumber}`}
         </PageTitle>
+        <div className="flex items-center gap-2">
+        <RunAutomationMenu entity="quote" entityId={quote.id} manager={isManager(actor.role)} />
         <QuoteActions
           quoteId={quote.id}
           status={quote.status}
@@ -117,6 +120,7 @@ export default async function QuoteDetailPage({
           depositInvoiced={!!depositInvoice}
           canDelete={isManager(actor.role)}
         />
+        </div>
       </div>
 
       {/* Approved with an uncollected deposit → make collecting it the obvious next step */}

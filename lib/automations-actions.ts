@@ -259,7 +259,7 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
     case "request_review": {
       if (!contact?.email) return "skipped: client has no email";
       if (!company.reviewLink) return "skipped: no review link set";
-      await sendReviewRequest({ companyId, contactId: contact.id, jobId: loaded.jobId, email: contact.email, contactFirstName: contact.firstName, jobTitle: loaded.jobTitle });
+      await sendReviewRequest({ companyId, contactId: contact.id, jobId: loaded.jobId, email: contact.email, contactFirstName: contact.firstName, jobTitle: loaded.jobTitle, quiet: true });
       return "review request sent (or already sent recently)";
     }
     case "add_client_note": {
@@ -290,11 +290,13 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
       if (!contact) return "skipped: no client";
       if (step.outcome === "won") {
         if (contact.status !== "LEAD" && !contact.pipelineStageId) return "skipped: not a lead on the board";
-        await recordLeadWin(prisma, companyId, { id: contact.id, status: contact.status, pipelineStageId: contact.pipelineStageId });
+        // Inside a transaction lib/pipeline returns the move instead of firing
+        // lead.won — actions never emit events, so rules can't cascade
+        await prisma.$transaction((tx) => recordLeadWin(tx, companyId, { id: contact.id, status: contact.status, pipelineStageId: contact.pipelineStageId }));
         return "lead marked won";
       }
       if (!contact.pipelineStageId) return "skipped: not on the leads board";
-      await recordLeadLoss(prisma, { id: contact.id, status: contact.status }, step.reason ? String(step.reason) : null);
+      await prisma.$transaction((tx) => recordLeadLoss(tx, { id: contact.id, status: contact.status }, step.reason ? String(step.reason) : null));
       return "lead marked lost";
     }
     case "set_custom_field": {
@@ -319,8 +321,11 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
     }
     case "add_checklist_item": {
       if (!loaded.jobId) return "skipped: no job";
+      const label = rendered.label.slice(0, 120);
+      const dup = await prisma.jobChecklistItem.findFirst({ where: { jobId: loaded.jobId, sourceName: "", label }, select: { id: true } });
+      if (dup) return "skipped: that checklist item is already on the job";
       const last = await prisma.jobChecklistItem.findFirst({ where: { jobId: loaded.jobId }, orderBy: { sortOrder: "desc" }, select: { sortOrder: true } });
-      await prisma.jobChecklistItem.create({ data: { jobId: loaded.jobId, label: rendered.label.slice(0, 120), sourceName: "", sortOrder: (last?.sortOrder ?? -1) + 1 } });
+      await prisma.jobChecklistItem.create({ data: { jobId: loaded.jobId, label, sourceName: "", sortOrder: (last?.sortOrder ?? -1) + 1 } });
       return "checklist item added";
     }
     case "create_request": {

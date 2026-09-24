@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
-import { compileAutomation } from "@/lib/automations";
+import { compileAutomation, specFromJson } from "@/lib/automations";
 import { AUTOMATION_SELECT, automationShape as shape, cancelAutomationJobs, mintWebhookToken } from "@/lib/automations-server";
 
 async function load(id: string, companyId: string) {
@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const row = await load(id, actor.companyId);
   if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const [runs, waiting] = await Promise.all([
-    prisma.automationRun.findMany({ where: { automationId: row.id }, orderBy: { createdAt: "desc" }, take: 50 }),
+    prisma.automationRun.findMany({ where: { automationId: row.id, NOT: { status: "skipped", detail: "conditions not met" } }, orderBy: { createdAt: "desc" }, take: 50 }),
     prisma.automationJob.count({ where: { automationId: row.id, status: "waiting" } }),
   ]);
   return NextResponse.json({ ...shape(row), recentRuns: runs, waiting });
@@ -49,10 +49,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
   if (typeof body.description === "string" || body.description === null) data.description = typeof body.description === "string" ? body.description.trim().slice(0, 200) || null : null;
   if (typeof body.isActive === "boolean") data.isActive = body.isActive;
+  let specChanged = false;
   if (body.spec !== undefined) {
     const c = compileAutomation(body.spec);
     if (!c.ok) return NextResponse.json({ error: c.errors.join(" "), errors: c.errors }, { status: 400 });
     data.spec = c.compiled.spec;
+    specChanged = JSON.stringify(c.compiled.spec) !== JSON.stringify(specFromJson(row.spec));
     if (c.compiled.spec.trigger.event === "webhook.received") {
       if (!row.webhookToken) data.webhookToken = mintWebhookToken();
     }
@@ -61,7 +63,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const updated = await prisma.automation.update({ where: { id: row.id }, data, select: AUTOMATION_SELECT });
   // A paused rule, or one whose steps changed, must not wake parked runs
   // into the old plan
-  if (data.isActive === false || data.spec !== undefined) await cancelAutomationJobs(row.id);
+  if (data.isActive === false || specChanged) await cancelAutomationJobs(row.id, data.isActive === false ? "the rule was paused" : "the rule changed");
   return NextResponse.json(shape(updated));
 }
 

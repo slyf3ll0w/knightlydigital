@@ -878,8 +878,10 @@ export async function sendReviewRequest(params: {
   email: string;
   contactFirstName: string;
   jobTitle?: string | null;
+  /** From an automation: don't fire review.requested (actions never emit events). */
+  quiet?: boolean;
 }): Promise<void> {
-  const { companyId, contactId, jobId, email, contactFirstName, jobTitle } = params;
+  const { companyId, contactId, jobId, email, contactFirstName, jobTitle, quiet } = params;
 
   const company = await prisma.company.findUnique({
     where: { id: companyId },
@@ -931,7 +933,7 @@ export async function sendReviewRequest(params: {
   });
   if (!sent) return;
 
-  if (contactId) fireAutomations(companyId, "review.requested", contactId);
+  if (contactId && !quiet) fireAutomations(companyId, "review.requested", contactId);
   await prisma.reviewRequest.create({
     data: {
       companyId,

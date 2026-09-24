@@ -9,6 +9,7 @@ import { isQuickBooksConfigured } from "./quickbooks";
 import { zonedMidnight, zonedParts } from "./timezone";
 import {
   AUTOMATION_LIMITS,
+  ATLAS_TEXT_FIELD,
   compileAutomation,
   describeAutomation,
   evaluateFilter,
@@ -112,6 +113,18 @@ async function runSteps(
 }
 
 /** Run one automation against one entity once. Returns the run status. */
+/**
+ * What a parked run carries across a wait: the webhook payload (so data_*
+ * fields reload) and any text an atlas_draft step produced (so a later
+ * {atlas_text} still renders after the wait — the context reload can't
+ * recreate it).
+ */
+function parkedPayload(payload: Record<string, unknown> | null, loaded: Loaded): object | undefined {
+  const atlas = loaded.ctx[ATLAS_TEXT_FIELD];
+  if (!payload && typeof atlas !== "string") return undefined;
+  return { ...(payload ?? {}), ...(typeof atlas === "string" ? { [ATLAS_TEXT_FIELD]: atlas } : {}) };
+}
+
 async function fireOne(
   automation: AutomationRow,
   compiled: CompiledAutomation,
@@ -124,9 +137,11 @@ async function fireOne(
 ): Promise<RunStatus> {
   const already = await prisma.automationRun.findFirst({ where: { automationId: automation.id, entityId, event }, select: { id: true } });
   if (already) return "skipped";
-
-  const record = (status: RunStatus, detail: string) =>
-    prisma.automationRun.create({ data: { automationId: automation.id, companyId: automation.companyId, event, entityType, entityId, status, detail: detail.slice(0, 1000) } });
+  // Claim the (automation, entity, event) slot BEFORE doing anything, so an
+  // overlapping sweep tick sees the row and steps aside instead of sending
+  // the client a second email
+  const run = await prisma.automationRun.create({ data: { automationId: automation.id, companyId: automation.companyId, event, entityType, entityId, status: "running", detail: "" } });
+  const record = (status: RunStatus, detail: string) => prisma.automationRun.update({ where: { id: run.id }, data: { status, detail: detail.slice(0, 1000) } });
 
   const okToday = await prisma.automationRun.count({ where: { companyId: automation.companyId, status: "ok", createdAt: { gte: new Date(now.getTime() - DAY) } } });
   if (okToday >= AUTOMATION_LIMITS.dailyRuns) {
@@ -134,20 +149,21 @@ async function fireOne(
     return "skipped";
   }
 
-  // The leading filter is the common "doesn't apply" case — no row for a
-  // plain non-match, only for a broken expression (so the owner can see it)
+  // The leading filter is the common "doesn't apply" case — the claim row is
+  // kept (it is the dedupe key) but marked quietly; a broken expression is
+  // recorded as failed so the owner can see it
   const verdict = evaluateWhen(compiled, loaded.ctx);
   if (!verdict.fire) {
-    if (verdict.error) await record("failed", `condition error: ${verdict.error}`);
+    await record(verdict.error ? "failed" : "skipped", verdict.error ? `condition error: ${verdict.error}` : "conditions not met");
     return "skipped";
   }
   const start = compiled.spec.steps[0]?.type === "filter" ? 1 : 0;
 
   const result = await runSteps(automation, compiled, loaded, start, now, []);
-  const run = await record(result.status, result.lines.join(" · "));
+  await record(result.status, result.lines.join(" · "));
   if (result.status === "waiting" && result.waitUntil && result.nextStep !== undefined) {
     await prisma.automationJob.create({
-      data: { automationId: automation.id, runId: run.id, companyId: automation.companyId, event, entityType, entityId, nextStep: result.nextStep, resumeAt: result.waitUntil, status: "waiting", payload: payload ? (payload as object) : undefined },
+      data: { automationId: automation.id, runId: run.id, companyId: automation.companyId, event, entityType, entityId, nextStep: result.nextStep, resumeAt: result.waitUntil, status: "waiting", payload: parkedPayload(payload, loaded) },
     });
   }
   await prisma.automation.update({ where: { id: automation.id }, data: { runs: { increment: 1 }, lastRunAt: now } }).catch(() => {});
@@ -269,6 +285,7 @@ export async function runAutomationResumes(now = new Date()): Promise<{ resumed:
       }
       const payload = job.payload && typeof job.payload === "object" ? (job.payload as Record<string, unknown>) : null;
       const loaded = await loadContext(job.companyId, job.entityType as EntityType, job.entityId, now, { payload });
+      if (loaded && typeof payload?.[ATLAS_TEXT_FIELD] === "string") loaded.ctx[ATLAS_TEXT_FIELD] = payload[ATLAS_TEXT_FIELD] as string;
       const prior = await prisma.automationRun.findUnique({ where: { id: job.runId }, select: { detail: true } });
       const lines = prior?.detail ? [prior.detail] : [];
       if (!loaded) {
@@ -279,7 +296,7 @@ export async function runAutomationResumes(now = new Date()): Promise<{ resumed:
       await prisma.automationRun.update({ where: { id: job.runId }, data: { status: result.status, detail: result.lines.join(" · ").slice(0, 1000) } });
       if (result.status === "waiting" && result.waitUntil && result.nextStep !== undefined) {
         await prisma.automationJob.create({
-          data: { automationId: job.automationId, runId: job.runId, companyId: job.companyId, event: job.event, entityType: job.entityType, entityId: job.entityId, nextStep: result.nextStep, resumeAt: result.waitUntil, status: "waiting", payload: job.payload ?? undefined },
+          data: { automationId: job.automationId, runId: job.runId, companyId: job.companyId, event: job.event, entityType: job.entityType, entityId: job.entityId, nextStep: result.nextStep, resumeAt: result.waitUntil, status: "waiting", payload: parkedPayload(payload, loaded) },
         });
       }
       resumed++;
@@ -292,9 +309,13 @@ export async function runAutomationResumes(now = new Date()): Promise<{ resumed:
 }
 
 /** Pausing or deleting a rule: nothing parked should wake up later. */
-export async function cancelAutomationJobs(automationId: string): Promise<number> {
-  const r = await prisma.automationJob.updateMany({ where: { automationId, status: "waiting" }, data: { status: "cancelled" } });
-  return r.count;
+export async function cancelAutomationJobs(automationId: string, why = "the rule was paused or changed"): Promise<number> {
+  const waiting = await prisma.automationJob.findMany({ where: { automationId, status: "waiting" }, select: { id: true, runId: true } });
+  if (waiting.length === 0) return 0;
+  await prisma.automationJob.updateMany({ where: { id: { in: waiting.map((j) => j.id) } }, data: { status: "cancelled" } });
+  // The run log must not show "waiting" forever for a run that will never continue
+  await prisma.automationRun.updateMany({ where: { id: { in: waiting.map((j) => j.runId) }, status: "waiting" }, data: { status: "skipped", detail: `cancelled while waiting: ${why}` } });
+  return waiting.length;
 }
 
 // ── sweeps (time-based triggers) ─────────────────────────────────────────────
@@ -361,6 +382,9 @@ async function sweepCandidates(companyId: string, event: TriggerName, spec: Auto
       return out;
     }
     case "job.today": {
+      // "Each morning" — the first hourly tick at or after 6am local, not
+      // the one just past midnight
+      if (zonedParts(tz, now).hour < 6) return [];
       const { start, end, key } = todayIn(tz, now);
       const rows = await prisma.job.findMany({ where: { companyId, status: "ACTIVE", scheduledAt: { gte: start, lt: end } }, select: { id: true }, orderBy: { scheduledAt: "asc" }, take });
       return rows.map((r) => ({ id: `${r.id}:${key}`, days: 0 }));

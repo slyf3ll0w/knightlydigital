@@ -10,6 +10,7 @@ import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import ViewedFact from "@/components/ViewedFact";
 import InvoiceActions from "./InvoiceActions";
+import RunAutomationMenu from "@/components/RunAutomationMenu";
 import { getProcessor, invoiceBalance } from "@/lib/payments";
 import { finixApplicationId, finixEnvironment } from "@/lib/finix";
 import type { FinixConfig } from "@/lib/finix-js";
@@ -129,6 +130,8 @@ export default async function InvoiceDetailPage({
             </Link>
           )}
         </div>
+        <div className="flex items-center gap-2">
+        <RunAutomationMenu entity="invoice" entityId={invoice.id} manager={isManager(actor.role)} />
         <InvoiceActions
           invoiceId={invoice.id}
           status={invoice.status}
@@ -150,6 +153,7 @@ export default async function InvoiceDetailPage({
                 : "DRAFT"
           }
         />
+        </div>
       </div>
 
       {/* Close-job nudge */}

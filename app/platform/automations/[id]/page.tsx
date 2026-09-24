@@ -15,7 +15,7 @@ export default async function AutomationPage({ params }: { params: Promise<{ id:
   const row = await prisma.automation.findFirst({ where: { id, companyId: actor.companyId }, select: AUTOMATION_SELECT });
   if (!row) notFound();
   const runs = await prisma.automationRun.findMany({
-    where: { automationId: row.id },
+    where: { automationId: row.id, NOT: { status: "skipped", detail: "conditions not met" } },
     orderBy: { createdAt: "desc" },
     take: 20,
     select: { id: true, automationId: true, event: true, entityType: true, entityId: true, status: true, detail: true, createdAt: true },
