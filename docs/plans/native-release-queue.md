@@ -9,6 +9,9 @@ Build mechanics live in `mobile-app-runbook-mac.md` (§ PLAY STORE for the
 Android/Windows path, § Mac steps for iOS). This file is only *what is
 waiting* — not how to build.
 
+> **2026-09-24:** day-of checklist for this Play release (with what is
+> deliberately left for versionCode 5) is `android-1.3-release-2026-09-25.md`.
+
 ## Picking this up cold — 2026-09-16
 
 Everything below for **Google Play is written and pushed**. The repo is one
