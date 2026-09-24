@@ -297,7 +297,7 @@ export default async function CallScreenPage({ params }: { params: Promise<{ id:
               All
             </Link>
           </h2>
-          <div className="space-y-2">
+          <div className="card-ledger divide-y divide-gray-100 overflow-hidden">
             {earlier.map((c) => (
               <CallRow key={c.id} call={c} showContact={false} tz={tz} canCall={false} />
             ))}

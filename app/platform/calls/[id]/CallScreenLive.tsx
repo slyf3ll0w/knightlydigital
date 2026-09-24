@@ -3,21 +3,24 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Grid3x3, Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneMissed, PhoneOff, PhoneOutgoing, Play, UserRound, Voicemail, Volume2 } from "lucide-react";
+import { Grid3x3, Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneMissed, PhoneOff, PhoneOutgoing, Play, Voicemail, Volume2, type LucideIcon } from "lucide-react";
 import { fmtElapsed, softphone, useSoftphone } from "@/lib/softphone-client";
 import DialPad from "@/components/DialPad";
+import Monogram from "@/components/Monogram";
 import { MicRow, MicWarning } from "@/components/MicControls";
 import CallFromLineButton from "@/components/CallFromLineButton";
 import VoicemailPlayer from "@/components/VoicemailPlayer";
 
 /**
  * The top of the call screen: who, and what's happening right now. When
- * the softphone in this tab is on THIS call, the card is the phone — timer,
- * mute, hold, a touch-tone keypad, hang up (or Answer / Decline while it
- * rings). Otherwise it reports the row: ringing the cell, on the cell with
- * a running timer, or how it ended — and offers Call back. A live row is
- * polled so the screen turns over the moment the call ends, and the page
- * re-renders (durations, "On this call") when the browser call closes.
+ * the softphone in this tab is on THIS call, the card is the phone — the
+ * iOS call face: avatar, name, the timer, a row of labelled round controls
+ * (mute, hold, speaker on an iPhone, keypad) and the red hang-up under
+ * them (or Decline / Answer while it rings). Otherwise it reports the row:
+ * ringing the cell, on the cell with a running timer, or how it ended —
+ * and offers Call back. A live row is polled so the screen turns over the
+ * moment the call ends, and the page re-renders (durations, "On this
+ * call") when the browser call closes.
  */
 
 type Status = "RINGING" | "IN_PROGRESS" | "COMPLETED" | "MISSED" | "VOICEMAIL" | "NO_ANSWER" | "FAILED";
@@ -34,6 +37,46 @@ function useNow(active: boolean): number {
     return () => clearInterval(t);
   }, [active]);
   return now;
+}
+
+/** One labelled round control — the iOS call-face button. */
+function Control({
+  icon: Icon,
+  label,
+  onClick,
+  on = false,
+  disabled = false,
+  tone = "neutral",
+  size = "md",
+  title,
+}: {
+  icon: LucideIcon;
+  label: string;
+  onClick: () => void;
+  /** Lit = the thing is on (muted, on hold, speaker, keypad open). */
+  on?: boolean;
+  disabled?: boolean;
+  tone?: "neutral" | "green" | "red";
+  size?: "md" | "lg";
+  title?: string;
+}) {
+  const face =
+    tone === "green"
+      ? "bg-green-500 text-white hover:bg-green-600"
+      : tone === "red"
+        ? "bg-red-500 text-white hover:bg-red-600"
+        : on
+          ? "bg-gray-900 text-white"
+          : "bg-gray-100 text-gray-800 hover:bg-gray-200";
+  const dim = size === "lg" ? "h-[68px] w-[68px]" : "h-[60px] w-[60px]";
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} title={title ?? label} aria-label={label} aria-pressed={tone === "neutral" ? on : undefined} className="flex flex-col items-center gap-1.5 disabled:opacity-50">
+      <span className={`flex ${dim} items-center justify-center rounded-full transition-[background-color,transform] duration-100 active:scale-95 ${face}`}>
+        <Icon size={size === "lg" ? 26 : 22} />
+      </span>
+      <span className="text-[11px] font-medium text-gray-600">{label}</span>
+    </button>
+  );
 }
 
 export default function CallScreenLive({
@@ -171,6 +214,7 @@ export default function CallScreenLive({
     }
   }
 
+  const terminal = !live && !LIVE.has(row.status);
   const Icon = live
     ? ringing
       ? PhoneIncoming
@@ -195,15 +239,32 @@ export default function CallScreenLive({
         : row.status === "RINGING"
           ? "bg-amber-100 text-amber-700 ring-8 ring-amber-50 animate-pulse"
           : "bg-gray-100 text-gray-600";
-  const btn = "flex h-12 w-12 items-center justify-center rounded-full transition-colors disabled:opacity-50";
-  const terminal = !live && !LIVE.has(row.status);
+  // A saved caller shows as their monogram; the same halo as the icon face while the call is live.
+  const halo = live
+    ? ringing
+      ? "ring-8 ring-green-100/70 animate-pulse"
+      : dialing
+        ? "ring-8 ring-gray-100 animate-pulse"
+        : "ring-8 ring-green-100"
+    : !(ended && LIVE.has(row.status)) && row.status === "IN_PROGRESS"
+      ? "ring-8 ring-green-100"
+      : !(ended && LIVE.has(row.status)) && row.status === "RINGING"
+        ? "ring-8 ring-amber-50 animate-pulse"
+        : "";
+  const face = contactId ? (
+    <span className={`mx-auto flex h-[76px] w-[76px] items-center justify-center rounded-full ${halo}`}>
+      <Monogram name={label} size={76} />
+    </span>
+  ) : (
+    <span className={`mx-auto flex h-[76px] w-[76px] items-center justify-center rounded-full ${ring}`}>
+      <Icon size={30} />
+    </span>
+  );
 
   return (
-    <div className="card-tool mt-3 px-5 pb-5 pt-7 text-center sm:px-8">
-      <span className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full ${ring}`}>
-        {contactId && !live && terminal ? <UserRound size={26} /> : <Icon size={26} />}
-      </span>
-      <h1 className="mt-4 truncate text-2xl font-semibold text-gray-900">
+    <div className="card-tool mt-3 px-5 pb-6 pt-8 text-center sm:px-8">
+      {face}
+      <h1 className="mt-4 truncate text-[26px] font-semibold leading-tight text-gray-900">
         {contactId ? (
           <Link href={`/app/contacts/${contactId}`} className="hover:underline">
             {label}
@@ -212,82 +273,40 @@ export default function CallScreenLive({
           label
         )}
       </h1>
-      <p className="numeral-ledger mt-0.5 text-sm text-gray-500">
+      <p className="numeral-ledger mt-1 text-sm text-gray-500">
         {standing && <span className="font-sans">{standing}</span>}
         {standing && number && " · "}
         {number}
       </p>
-      <p className={`mt-2 text-sm ${tone}`}>
+      <p className={`mt-2 text-[15px] ${tone} ${live && onLine ? "numeral-ledger text-lg tabular-nums" : ""}`}>
         {line}
-        <span className="text-gray-400"> · {placedAt}</span>
+        {!(live && onLine) && <span className="text-gray-400"> · {placedAt}</span>}
       </p>
 
-      {live && (
-        <div className="mt-6 flex items-center justify-center gap-3">
-          {ringing ? (
-            <>
-              <button type="button" onClick={() => softphone.decline()} className={`${btn} bg-red-500 text-white hover:bg-red-600`} title="Decline — sends the call on to the cell / voicemail" aria-label="Decline">
-                <PhoneOff size={20} />
-              </button>
-              <button type="button" onClick={() => softphone.answer()} className={`${btn} w-auto gap-2 bg-green-500 px-6 text-sm font-semibold text-white hover:bg-green-600`} aria-label="Answer">
-                <Phone size={20} /> Answer
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => softphone.toggleMute()}
-                disabled={dialing}
-                className={`${btn} ${live.muted ? "bg-amber-100 text-amber-800" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                title={live.muted ? "Unmute" : "Mute"}
-                aria-label={live.muted ? "Unmute" : "Mute"}
-              >
-                {live.muted ? <MicOff size={20} /> : <Mic size={20} />}
-              </button>
-              <button
-                type="button"
-                onClick={() => softphone.toggleHold()}
-                disabled={dialing}
-                className={`${btn} ${held ? "bg-amber-100 text-amber-800" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                title={held ? "Resume" : "Hold"}
-                aria-label={held ? "Resume" : "Hold"}
-              >
-                {held ? <Play size={20} /> : <Pause size={20} />}
-              </button>
-              {sp.speaker !== null && (
-                // iPhone: speakerphone (the system call screen has the same switch).
-                <button
-                  type="button"
-                  onClick={() => softphone.toggleSpeaker()}
-                  disabled={dialing}
-                  className={`${btn} ${sp.speaker ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                  title={sp.speaker ? "Speaker off" : "Speaker"}
-                  aria-label={sp.speaker ? "Speaker off" : "Speaker"}
-                >
-                  <Volume2 size={20} />
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setPad((v) => !v)}
-                disabled={dialing}
-                className={`${btn} ${pad ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-                title="Keypad — touch-tones for phone menus"
-                aria-label="Keypad"
-                aria-pressed={pad}
-              >
-                <Grid3x3 size={20} />
-              </button>
-              <button type="button" onClick={() => softphone.hangup()} className={`${btn} w-auto gap-2 bg-red-500 px-6 text-sm font-semibold text-white hover:bg-red-600`} aria-label="Hang up">
-                <PhoneOff size={20} /> {dialing ? "Cancel" : "Hang up"}
-              </button>
-            </>
-          )}
+      {live && ringing && (
+        <div className="mt-7 flex items-start justify-center gap-10">
+          <Control icon={PhoneOff} label="Decline" tone="red" size="lg" onClick={() => softphone.decline()} title="Decline — sends the call on to the cell / voicemail" />
+          <Control icon={Phone} label="Answer" tone="green" size="lg" onClick={() => softphone.answer()} />
         </div>
       )}
       {live && !ringing && (
-        <div className="mx-auto mt-4 max-w-xs text-left">
+        <>
+          <div className="mx-auto mt-7 flex max-w-[320px] items-start justify-center gap-5 sm:gap-6">
+            <Control icon={live.muted ? MicOff : Mic} label={live.muted ? "Unmute" : "Mute"} on={live.muted} disabled={dialing} onClick={() => softphone.toggleMute()} />
+            <Control icon={held ? Play : Pause} label={held ? "Resume" : "Hold"} on={held} disabled={dialing} onClick={() => softphone.toggleHold()} />
+            {sp.speaker !== null && (
+              // iPhone: speakerphone (the system call screen has the same switch).
+              <Control icon={Volume2} label="Speaker" on={!!sp.speaker} disabled={dialing} onClick={() => softphone.toggleSpeaker()} />
+            )}
+            <Control icon={Grid3x3} label="Keypad" on={pad} disabled={dialing} onClick={() => setPad((v) => !v)} title="Keypad — touch-tones for phone menus" />
+          </div>
+          <div className="mt-5 flex justify-center">
+            <Control icon={PhoneOff} label={dialing ? "Cancel" : "Hang up"} tone="red" size="lg" onClick={() => softphone.hangup()} />
+          </div>
+        </>
+      )}
+      {live && !ringing && (
+        <div className="mx-auto mt-5 max-w-xs text-left">
           <MicRow />
           <MicWarning className="mt-2" />
         </div>

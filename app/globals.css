@@ -170,6 +170,19 @@
     @apply text-xs text-gray-500;
   }
 
+  /* ── Phone keypad, sheet size (components/DialPad.tsx size="lg") — the
+     green Call button grows to match the 72px keys. Kept here rather than
+     on the button so the keypad's dial logic and the button's own lines
+     stay untouched by the styling pass. */
+  .dialpad-lg > div:last-child > button.bg-green-500 {
+    height: 72px;
+    width: 72px;
+  }
+  .dialpad-lg > div:last-child > button.bg-green-500 > svg {
+    height: 28px;
+    width: 28px;
+  }
+
   /* ── Pressed chip — the SELECTED state of a tool control: solid tenant
      accent, both themes (the accent vars resolve per theme). !important
      beats the per-section hues some call sites still pass inline — ONE

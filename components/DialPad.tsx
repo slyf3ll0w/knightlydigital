@@ -85,9 +85,12 @@ type Lookup = { id: string; name: string; status: "LEAD" | "ACTIVE" | "ARCHIVED"
 
 export default function DialPad({
   mode = "dial",
+  size = "md",
   className = "",
 }: {
   mode?: "dial" | "tones";
+  /** "lg" = the phone-sized keys (72px, the iOS keypad) for the bottom sheet; "md" = the desktop panel and the call screen's tones. */
+  size?: "md" | "lg";
   className?: string;
 }) {
   const router = useRouter();
@@ -227,12 +230,20 @@ export default function DialPad({
   }
 
   const shown = fmtDialing(value);
-  const sizeCls = { lg: "text-[26px]", md: "text-[22px]", sm: "text-[18px]" }[dialDisplaySize(shown)];
+  const big = size === "lg";
+  const sizeCls = (big ? { lg: "text-[34px]", md: "text-[28px]", sm: "text-[22px]" } : { lg: "text-[26px]", md: "text-[22px]", sm: "text-[18px]" })[dialDisplaySize(shown)];
+  // Key hardware: 54px circles in the desktop panel, 72px on a phone sheet
+  // (.dialpad-lg in globals.css sizes the green Call button to match).
+  const gridCls = big ? "mx-auto mt-4 grid w-fit grid-cols-3 gap-x-7 gap-y-3.5" : "mx-auto mt-3 grid w-fit grid-cols-3 gap-x-5 gap-y-2.5";
+  const keyCls = big ? "h-[72px] w-[72px]" : "h-[54px] w-[54px]";
+  const digitCls = big ? "text-[30px]" : "text-[22px]";
+  const starCls = big ? "mt-2.5 text-[40px]" : "mt-2 text-[30px]";
+  const lettersCls = big ? "text-[10px]" : "text-[9px]";
 
   const standing = lookup ? (lookup.status === "LEAD" ? "lead" : lookup.status === "ACTIVE" ? "client" : "") : "";
 
   return (
-    <div className={`select-none ${className}`}>
+    <div className={`select-none ${big ? "dialpad-lg" : ""} ${className}`}>
       <div className="relative">
         <input
           ref={input}
@@ -316,7 +327,7 @@ export default function DialPad({
         </p>
       )}
 
-      <div className="mx-auto mt-3 grid w-fit grid-cols-3 gap-x-5 gap-y-2.5">
+      <div className={gridCls}>
         {KEYS.map(([k, letters]) => (
           <button
             key={k}
@@ -332,10 +343,10 @@ export default function DialPad({
             onPointerUp={onKeyUp}
             onPointerLeave={onKeyUp}
             aria-label={k === "0" ? "0 (hold for +)" : k}
-            className="flex h-[54px] w-[54px] flex-col items-center justify-center rounded-full bg-gray-100 text-gray-900 transition-[transform,background-color] duration-100 hover:bg-gray-200 active:scale-95 active:bg-gray-300"
+            className={`flex ${keyCls} flex-col items-center justify-center rounded-full bg-gray-100 text-gray-900 transition-[transform,background-color] duration-100 hover:bg-gray-200 active:scale-95 active:bg-gray-300`}
           >
-            <span className={`numeral-ledger leading-none ${k === "*" ? "mt-2 text-[30px]" : "text-[22px]"} font-semibold`}>{k}</span>
-            {letters && <span className={`mt-0.5 text-[9px] leading-none tracking-[0.18em] ${k === "0" ? "text-sm tracking-normal" : ""} text-gray-500`}>{letters}</span>}
+            <span className={`numeral-ledger leading-none ${k === "*" ? starCls : digitCls} font-semibold`}>{k}</span>
+            {letters && <span className={`mt-0.5 ${lettersCls} leading-none tracking-[0.18em] ${k === "0" ? "text-sm tracking-normal" : ""} text-gray-500`}>{letters}</span>}
           </button>
         ))}
       </div>

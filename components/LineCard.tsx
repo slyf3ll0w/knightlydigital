@@ -4,18 +4,25 @@ import { useState } from "react";
 import Link from "next/link";
 import { Grid3x3, Mic, Settings2, X } from "lucide-react";
 import { fmtPhone } from "@/lib/format";
-import { softphone, useSoftphone } from "@/lib/softphone-client";
+import { softphone, useSoftphone, type SoftphoneState } from "@/lib/softphone-client";
 import DialPad from "@/components/DialPad";
 import { MicCheck } from "@/components/MicControls";
 import Modal from "@/components/Modal";
 
 /**
- * The sheet at the top of /app/calls: the business number as the headline,
- * where calls ring right now (this browser, then the cell), the keypad
- * (components/DialPad.tsx — inline on a desktop, a sheet on a phone), and a
- * stat strip in the foot. Also the one place that says out loud why calls
- * do or don't ring in this browser (connecting, another tab, switched off,
- * microphone blocked), so an owner never has to guess.
+ * The business line on /app/calls, in three pieces that share one sentence
+ * about where calls ring right now (this browser, another tab, the cell,
+ * switched off, microphone blocked — an owner never has to guess):
+ *
+ *   LinePanel  — desktop: the phone itself, a sticky sheet in the left
+ *                column next to the recents list (the softphone layout —
+ *                keypad on the left, calls on the right). Number up top,
+ *                the keypad, the microphone check, a stat foot.
+ *   LineStrip  — phones: one row above the list — number, where it rings,
+ *                a gear for owners.
+ *   KeypadFab  — phones: the green keypad button above the tab bar; opens
+ *                the keypad as a bottom sheet (Modal → sheet under lg) with
+ *                the big keys.
  */
 export type LineStats = {
   today: number;
@@ -25,137 +32,194 @@ export type LineStats = {
   talkWeekSec: number;
 };
 
-export default function LineCard({
+/** Where a call rings right now, in one sentence, and the dot that goes with it. */
+function useWhere(s: SoftphoneState, forwardTo: string | null): { where: React.ReactNode; dot: string } {
+  const cell = forwardTo ? fmtPhone(forwardTo) : null;
+  if (s.status === "ready" && s.call) {
+    return {
+      where: s.call.callId ? (
+        <>
+          On a call here ·{" "}
+          <Link href={`/app/calls/${s.call.callId}`} className="font-medium text-gray-800 underline">
+            open the call screen
+          </Link>
+        </>
+      ) : (
+        "On a call here"
+      ),
+      dot: "bg-green-500",
+    };
+  }
+  if (s.status === "ready") return { where: cell ? `Rings here first, then ${cell}` : "Rings here — add a ring-through number for when the app is closed", dot: "bg-green-500" };
+  if (s.status === "connecting") return { where: "Connecting to your line…", dot: "bg-gray-300 animate-pulse" };
+  if (s.status === "error") return { where: "Reconnecting to your line…", dot: "bg-amber-500" };
+  if (s.reason === "other_tab") return { where: "Ringing in your other WorkBench tab", dot: "bg-green-500" };
+  if (s.reason === "disabled") return { where: cell ? `Rings ${cell} — calls in the app are off in My Profile` : "Calls in the app are off in My Profile", dot: "bg-gray-300" };
+  if (s.reason === "native") return { where: cell ? `Rings ${cell}` : "Add a ring-through number", dot: "bg-gray-300" };
+  return { where: cell ? `Rings ${cell}${s.reason === "unsupported" ? " — this browser can't take calls" : ""}` : "Add a ring-through number", dot: "bg-gray-300" };
+}
+
+/* ───────────────────────────── Desktop ───────────────────────────── */
+
+export function LinePanel({
   lineNumber,
   forwardTo,
   manager,
   stats,
+  className = "",
 }: {
   lineNumber: string;
   forwardTo: string | null;
   manager: boolean;
   stats: LineStats;
+  className?: string;
 }) {
   const s = useSoftphone();
-  const [padOpen, setPadOpen] = useState(false);
-
-  // Where a call rings right now, in one sentence.
-  const cell = forwardTo ? fmtPhone(forwardTo) : null;
-  let where: React.ReactNode;
-  let dot = "bg-gray-300";
-  if (s.status === "ready" && s.call) {
-    where = s.call.callId ? (
-      <>
-        On a call in this browser ·{" "}
-        <Link href={`/app/calls/${s.call.callId}`} className="font-medium text-gray-800 underline">
-          open the call screen
-        </Link>
-      </>
-    ) : (
-      "On a call in this browser"
-    );
-    dot = "bg-green-500";
-  } else if (s.status === "ready") {
-    where = cell ? `Rings here first, then ${cell}` : "Rings here — add a ring-through number for when the browser is closed";
-    dot = "bg-green-500";
-  } else if (s.status === "connecting") {
-    where = "Connecting to your line…";
-    dot = "bg-gray-300 animate-pulse";
-  } else if (s.status === "error") {
-    where = "Reconnecting to your line…";
-    dot = "bg-amber-500";
-  } else if (s.reason === "other_tab") {
-    where = "Ringing in your other WorkBench tab";
-    dot = "bg-green-500";
-  } else if (s.reason === "disabled") {
-    where = cell ? `Rings ${cell} — calls in the app are off in My Profile` : "Calls in the app are off in My Profile";
-  } else if (s.reason === "native") {
-    where = cell ? `Rings ${cell}` : "Add a ring-through number";
-  } else {
-    where = cell ? `Rings ${cell}${s.reason === "unsupported" ? " — this browser can't take calls" : ""}` : "Add a ring-through number";
-  }
+  const { where, dot } = useWhere(s, forwardTo);
   const inBrowser = s.status === "ready";
-
   const talkMin = Math.round(stats.talkWeekSec / 60);
 
   return (
-    <div className="card-tool mt-5 overflow-hidden">
-      <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
-        <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-2 text-[13px] font-medium text-gray-500">
-            <span className={`h-2 w-2 rounded-full ${dot}`} />
-            Business line
+    <aside className={`card-tool overflow-hidden ${className}`}>
+      <div className="px-5 pt-5">
+        <p className="flex items-center gap-2 text-[12px] font-medium text-gray-500">
+          <span className={`h-2 w-2 rounded-full ${dot}`} />
+          Business line
+        </p>
+        <p className="numeral-ledger mt-1 text-[24px] font-semibold leading-tight text-gray-900">{fmtPhone(lineNumber)}</p>
+        <p className="mt-1 text-[13px] leading-snug text-gray-500">{where}</p>
+        {s.status === "ready" && s.mic === "denied" && (
+          <p className="mt-2 text-xs text-red-700" role="alert">
+            The microphone is blocked for this site, so calls can&apos;t be answered here. Click the icon left of the address bar, allow it, then reload.
           </p>
-          <p className="numeral-ledger mt-1 text-[28px] font-semibold leading-tight text-gray-900 sm:text-3xl">{fmtPhone(lineNumber)}</p>
-          <p className="mt-2 text-sm text-gray-600">{where}</p>
-          {s.status === "ready" && s.mic === "denied" && (
-            <p className="mt-2 text-xs text-red-700" role="alert">
-              The microphone is blocked for this site, so calls can&apos;t be answered here. Click the icon left of the address bar, allow it,
-              then reload.
-            </p>
-          )}
-          {s.status === "ready" && s.mic === "prompt" && !s.call && (
-            <button
-              type="button"
-              onClick={() => void softphone.requestMic()}
-              className="mt-2 inline-flex items-center gap-1.5 rounded-[10px] border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100"
-            >
-              <Mic size={12} /> Allow the microphone now so the first call doesn&apos;t stall on the prompt
-            </button>
-          )}
-          {s.status === "ready" && s.mic !== "denied" && <MicCheck className="mt-3" />}
+        )}
+        {s.status === "ready" && s.mic === "prompt" && !s.call && (
           <button
             type="button"
-            onClick={() => setPadOpen(true)}
-            className="btn-primary mt-4 w-full justify-center lg:hidden"
+            onClick={() => void softphone.requestMic()}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-[10px] border border-amber-300 bg-amber-50 px-3 py-1.5 text-left text-xs font-medium text-amber-900 hover:bg-amber-100"
           >
-            <Grid3x3 size={14} /> Keypad
+            <Mic size={12} className="shrink-0" /> Allow the microphone now so the first call doesn&apos;t stall
           </button>
-          <p className="mt-6 hidden text-xs text-gray-400 lg:block">
-            {inBrowser ? "Calls placed from the keypad go out from this browser." : "Calls placed from the keypad ring your cell first, then the customer."}
-          </p>
-        </div>
-        <div className="hidden shrink-0 lg:block">
-          <DialPad className="w-[236px]" />
-        </div>
+        )}
       </div>
-      <div className="grid grid-cols-2 divide-x divide-gray-100 border-t border-gray-100 bg-gray-50/60 sm:grid-cols-4">
-        <Stat label="Today" value={String(stats.today)} />
-        <Stat label="Missed" value={String(stats.missedUnseen)} tone={stats.missedUnseen ? "text-red-700" : undefined} hint={stats.missedUnseen ? "not yet seen" : undefined} />
-        <Stat label="Voicemails" value={String(stats.voicemailsUnseen)} tone={stats.voicemailsUnseen ? "text-blue-700" : undefined} hint={stats.voicemailsUnseen ? "unheard" : undefined} />
-        <Stat label="Talk time" value={talkMin < 60 ? `${talkMin}m` : `${Math.floor(talkMin / 60)}h ${talkMin % 60}m`} hint="last 7 days" />
+
+      <div className="px-5 pb-4 pt-5">
+        <DialPad className="mx-auto w-[236px]" />
+        <p className="mt-3 text-center text-[11px] text-gray-400">
+          {inBrowser ? "Calls from the keypad go out from this browser." : "Calls from the keypad ring your cell first, then the customer."}
+        </p>
       </div>
-      {manager && (
-        <div className="flex items-center justify-between gap-3 border-t border-gray-100 px-5 py-2.5 sm:px-6">
-          <p className="text-xs text-gray-500">Ring-through number, voicemail greeting and caller ID live in Settings.</p>
-          <Link href="/app/settings?s=phone" className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-gray-700 hover:underline">
-            <Settings2 size={12} /> Line settings
-          </Link>
+
+      {s.status === "ready" && s.mic !== "denied" && (
+        <div className="border-t border-gray-100 px-5 py-3">
+          <MicCheck />
         </div>
       )}
 
-      <Modal open={padOpen} onClose={() => setPadOpen(false)} size="sm" portal>
-        <div className="mb-1 flex items-center justify-between">
-          <p className="text-[13px] font-semibold text-gray-500">Keypad</p>
-          <button type="button" onClick={() => setPadOpen(false)} aria-label="Close" className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700">
-            <X size={16} />
-          </button>
-        </div>
-        <DialPad />
-        <p className="mt-4 text-center text-xs text-gray-400">
-          {inBrowser ? "Goes out from this browser." : "Rings your cell first, then the customer."}
-        </p>
-      </Modal>
+      <div className="grid grid-cols-2 border-t border-gray-100 bg-gray-50/60">
+        <Stat label="Today" value={String(stats.today)} className="border-b border-r border-gray-100" />
+        <Stat label="Missed" value={String(stats.missedUnseen)} tone={stats.missedUnseen ? "text-red-700" : undefined} hint={stats.missedUnseen ? "not yet seen" : undefined} className="border-b border-gray-100" />
+        <Stat label="Voicemails" value={String(stats.voicemailsUnseen)} tone={stats.voicemailsUnseen ? "text-blue-700" : undefined} hint={stats.voicemailsUnseen ? "unheard" : undefined} className="border-r border-gray-100" />
+        <Stat label="Talk time" value={talkMin < 60 ? `${talkMin}m` : `${Math.floor(talkMin / 60)}h ${talkMin % 60}m`} hint="last 7 days" />
+      </div>
+
+      {manager && (
+        <Link
+          href="/app/settings?s=phone"
+          className="flex items-center justify-between gap-3 border-t border-gray-100 px-5 py-2.5 text-xs text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-800"
+        >
+          <span>Ring-through number, greeting, caller ID</span>
+          <span className="inline-flex shrink-0 items-center gap-1 font-medium text-gray-700">
+            <Settings2 size={12} /> Line settings
+          </span>
+        </Link>
+      )}
+    </aside>
+  );
+}
+
+function Stat({ label, value, tone, hint, className = "" }: { label: string; value: string; tone?: string; hint?: string; className?: string }) {
+  return (
+    <div className={`px-5 py-3 ${className}`}>
+      <p className="text-[11px] font-medium text-gray-500">{label}</p>
+      <p className={`numeral-ledger mt-0.5 text-xl font-semibold leading-none ${tone ?? "text-gray-900"}`}>{value}</p>
+      <p className="mt-1 min-h-[14px] text-[11px] leading-[14px] text-gray-400">{hint ?? ""}</p>
     </div>
   );
 }
 
-function Stat({ label, value, tone, hint }: { label: string; value: string; tone?: string; hint?: string }) {
+/* ───────────────────────────── Phones ───────────────────────────── */
+
+export function LineStrip({
+  lineNumber,
+  forwardTo,
+  manager,
+  className = "",
+}: {
+  lineNumber: string;
+  forwardTo: string | null;
+  manager: boolean;
+  className?: string;
+}) {
+  const s = useSoftphone();
+  const { where, dot } = useWhere(s, forwardTo);
   return (
-    <div className="px-5 py-3 sm:px-6">
-      <p className="text-[11px] font-medium text-gray-500">{label}</p>
-      <p className={`numeral-ledger mt-0.5 text-xl font-semibold leading-none ${tone ?? "text-gray-900"}`}>{value}</p>
-      {hint && <p className="mt-1 text-[11px] text-gray-400">{hint}</p>}
+    <div className={`card-tool flex items-center gap-3 px-4 py-3 ${className}`}>
+      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p className="numeral-ledger text-[17px] font-semibold leading-tight text-gray-900">{fmtPhone(lineNumber)}</p>
+        <p className="truncate text-[13px] text-gray-500">{where}</p>
+        {s.status === "ready" && s.mic === "denied" && (
+          <p className="mt-1 text-xs text-red-700" role="alert">
+            The microphone is blocked for this site — calls can&apos;t be answered here.
+          </p>
+        )}
+      </div>
+      {manager && (
+        <Link
+          href="/app/settings?s=phone"
+          aria-label="Line settings"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 active:bg-gray-200"
+        >
+          <Settings2 size={16} />
+        </Link>
+      )}
     </div>
+  );
+}
+
+/**
+ * The keypad on a phone: a green round button pinned above the tab bar's
+ * Create button (same 58px hardware), opening the keypad as a bottom sheet.
+ * Hidden while a call is up in this app — the call screen has the tones.
+ */
+export function KeypadFab() {
+  const s = useSoftphone();
+  const [open, setOpen] = useState(false);
+  const inApp = s.status === "ready";
+  if (s.status === "ready" && s.call) return null;
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Keypad"
+        className="theme-fixed fixed right-3 z-30 flex h-[58px] w-[58px] items-center justify-center rounded-full bg-green-500 text-white shadow-[0_6px_18px_rgba(34,197,94,0.38)] transition-transform active:scale-95 lg:hidden"
+        style={{ bottom: "calc(0.625rem + env(safe-area-inset-bottom) + 58px + 12px)" }}
+      >
+        <Grid3x3 size={24} />
+      </button>
+      <Modal open={open} onClose={() => setOpen(false)} size="sm" portal>
+        <div className="mb-2 flex items-center justify-between">
+          <p className="text-[13px] font-semibold text-gray-500">Keypad</p>
+          <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700">
+            <X size={16} />
+          </button>
+        </div>
+        <DialPad size="lg" />
+        <p className="mt-4 text-center text-xs text-gray-400">{inApp ? "Goes out from this phone." : "Rings your cell first, then the customer."}</p>
+      </Modal>
+    </>
   );
 }

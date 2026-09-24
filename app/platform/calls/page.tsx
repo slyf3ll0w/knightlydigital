@@ -4,26 +4,34 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, isManager, contactScope } from "@/lib/permissions";
 import PageTitle from "@/components/PageTitle";
 import EmptyState from "@/components/EmptyState";
-import CallRow, { type CallRowData } from "@/components/CallRow";
+import CallRow, { isMissed, type CallRowData } from "@/components/CallRow";
 import CallsLive from "@/components/CallsLive";
-import LineCard, { type LineStats } from "@/components/LineCard";
+import { LinePanel, LineStrip, KeypadFab, type LineStats } from "@/components/LineCard";
 import { FilterRow, FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
 import { markCallsSeen, resolveCallContacts, type ResolvedCallContact } from "@/lib/voice";
 import { loadCallEvents, type CallEvent } from "@/lib/call-events";
 import { fmtDayShort } from "@/lib/format";
 
 /**
- * Calls on the business line (lib/voice.ts): the line sheet up top (number,
- * where it rings right now, the keypad, a stat strip), then every call
- * grouped by day — answered, missed, or a voicemail to play right here.
- * Each row opens its call screen (/app/calls/[id]). The list keeps itself
- * current (components/CallsLive.tsx): a call placed or answered shows up
- * without a reload. Opening the page marks finished calls as seen (the
- * red-edged rows are the missed calls and voicemails nobody has looked at
- * yet). Rows from a number that has since been saved as a lead or client
- * pick up the name on the way through (resolveCallContacts), and what got
- * done on each call — quote sent, appointment booked — comes from
- * lib/call-events.ts.
+ * Calls on the business line (lib/voice.ts), laid out like a softphone:
+ *
+ *   desktop — the phone on the left (components/LineCard.tsx LinePanel:
+ *             number, where it rings, the keypad, mic check, a stat foot),
+ *             the recents on the right — filter chips, then every call
+ *             grouped by day as ledger rows.
+ *   phones  — iOS Recents: the large title, a one-row line strip, a
+ *             segmented All / Missed / Voicemail / Outgoing (with the
+ *             unseen counts on the segments), grouped rows, and the green
+ *             keypad button above the tab bar (KeypadFab → bottom sheet).
+ *
+ * Each row opens its call screen (/app/calls/[id]); a voicemail plays in
+ * the row. The list keeps itself current (components/CallsLive.tsx): a
+ * call placed or answered shows up without a reload. Opening the page
+ * marks finished calls as seen (the bold rows with the red dot are the
+ * missed calls and voicemails nobody has looked at yet). Rows from a
+ * number that has since been saved as a lead or client pick up the name on
+ * the way through (resolveCallContacts), and what got done on each call —
+ * quote sent, appointment booked — comes from lib/call-events.ts.
  */
 
 type Filter = "all" | "missed" | "voicemail" | "out";
@@ -124,15 +132,10 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
   const routed = hasLine && Boolean(company?.lineVoiceAppAt);
   const smsReady = hasLine && company?.messagingRegistration?.status === "ACTIVE";
   const filteredContact = contactId ? calls.find((c) => c.contact?.id === contactId)?.contact : null;
+  const manager = isManager(actor.role);
 
   const visible = calls.filter((c) =>
-    filter === "missed"
-      ? c.status === "MISSED" || (c.direction === "INBOUND" && c.status === "NO_ANSWER")
-      : filter === "voicemail"
-        ? c.status === "VOICEMAIL"
-        : filter === "out"
-          ? c.direction === "OUTBOUND"
-          : true
+    filter === "missed" ? isMissed(c) : filter === "voicemail" ? c.status === "VOICEMAIL" : filter === "out" ? c.direction === "OUTBOUND" : true
   );
   // Group by day, newest first (rows are already newest-first).
   const groups: Array<{ label: string; rows: CallRowData[] }> = [];
@@ -144,9 +147,94 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
     else groups.push({ label, rows: [row] });
   }
   const href = (k: Filter) => `/app/calls${k === "all" ? "" : `?f=${k}`}${contactId ? `${k === "all" ? "?" : "&"}contact=${contactId}` : ""}`;
+  // The unseen counts ride the phone's segments (iOS puts the badge on the tab); desktop has the stat foot.
+  const badge = (k: Filter) => (k === "missed" ? stats.missedUnseen : k === "voicemail" ? stats.voicemailsUnseen : 0);
+  const phone = routed && company?.lineNumber ? { lineNumber: company.lineNumber, forwardTo: company.lineForwardTo, manager } : null;
+
+  const list =
+    calls.length === 0 ? (
+      <div className="mt-6">
+        <EmptyState
+          art="contacts"
+          hue="var(--sh-chat)"
+          showPlusIcon={false}
+          title={hasLine ? "No calls yet" : "No business line yet"}
+          body={
+            hasLine
+              ? routed
+                ? "Calls to your business line show up here as they happen — answered, missed, or with the voicemail ready to play."
+                : "Your line is still on plain forwarding. Save your ring-through number again in Settings → Phone & texting to turn on call announcements and voicemail."
+              : manager
+                ? "Get a business line in Settings → Phone & texting: a number of your own that rings your browser and your cell, announces who's calling, and takes voicemail."
+                : "Ask an owner to set up a business line in Settings → Phone & texting."
+          }
+        />
+        {manager && (
+          <p className="mt-4 text-center">
+            <Link href="/app/settings?s=phone" className="text-sm font-medium underline text-gray-700">
+              Open Settings → Phone &amp; texting
+            </Link>
+          </p>
+        )}
+      </div>
+    ) : (
+      <>
+        <div className="mt-4 lg:hidden">
+          <SegmentedRow>
+            {FILTERS.map(([k, label]) => (
+              <Segment key={k} active={filter === k} href={href(k)}>
+                {label}
+                {badge(k) > 0 && (
+                  <span
+                    className={`ml-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-bold leading-none ${
+                      filter === k ? "bg-white/25" : k === "missed" ? "bg-red-500 text-white" : "bg-blue-600 text-white"
+                    }`}
+                  >
+                    {badge(k)}
+                  </span>
+                )}
+              </Segment>
+            ))}
+          </SegmentedRow>
+        </div>
+        <div className="hidden lg:block">
+          <FilterRow>
+            {FILTERS.map(([k, label]) => (
+              <FilterChip key={k} hue="var(--sh-chat)" active={filter === k} href={href(k)}>
+                {label}
+                {badge(k) > 0 && <span className="numeral-ledger text-xs opacity-70">{badge(k)}</span>}
+              </FilterChip>
+            ))}
+          </FilterRow>
+        </div>
+
+        {groups.length === 0 ? (
+          <div className="card-ledger mt-4 px-4 py-10 text-center text-sm text-gray-500 lg:mt-0">
+            {filter === "missed" ? "No missed calls." : filter === "voicemail" ? "No voicemails." : "No outgoing calls yet."}
+          </div>
+        ) : (
+          <div className="mt-4 space-y-6 lg:mt-0">
+            {groups.map((g) => (
+              <section key={g.label}>
+                <h2 className="mb-2 flex items-center gap-3 px-1 text-xs font-semibold text-gray-500 lg:px-0">
+                  {g.label}
+                  <span className="h-px flex-1 bg-gray-200" aria-hidden />
+                  <span className="numeral-ledger font-normal text-gray-400">{g.rows.length}</span>
+                </h2>
+                <div className="card-ledger divide-y divide-gray-100 overflow-hidden">
+                  {g.rows.map((c) => (
+                    <CallRow key={c.id} call={c} tz={tz} canCall={routed} canText={smsReady} />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
+      </>
+    );
 
   return (
-    <div className="p-4 lg:p-8 max-w-3xl mx-auto">
+    <div className="mx-auto max-w-6xl p-4 lg:p-8">
       {hasLine && <CallsLive />}
       <PageTitle
         section="chat"
@@ -163,86 +251,21 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
                 all calls
               </Link>
             </>
-          ) : hasLine ? (
-            "Every call on your business line — answered, missed, or with the voicemail ready to play."
           ) : undefined
         }
       >
         Calls
       </PageTitle>
 
-      {routed && company?.lineNumber && <LineCard lineNumber={company.lineNumber} forwardTo={company.lineForwardTo} manager={isManager(actor.role)} stats={stats} />}
-
-      {calls.length === 0 ? (
-        <div className="mt-6">
-          <EmptyState
-            art="contacts"
-            hue="var(--sh-chat)"
-            showPlusIcon={false}
-            title={hasLine ? "No calls yet" : "No business line yet"}
-            body={
-              hasLine
-                ? routed
-                  ? "Calls to your business line show up here as they happen — answered, missed, or with the voicemail ready to play."
-                  : "Your line is still on plain forwarding. Save your ring-through number again in Settings → Phone & texting to turn on call announcements and voicemail."
-                : isManager(actor.role)
-                  ? "Get a business line in Settings → Phone & texting: a number of your own that rings your browser and your cell, announces who's calling, and takes voicemail."
-                  : "Ask an owner to set up a business line in Settings → Phone & texting."
-            }
-          />
-          {isManager(actor.role) && (
-            <p className="mt-4 text-center">
-              <Link href="/app/settings?s=phone" className="text-sm font-medium underline text-gray-700">
-                Open Settings → Phone &amp; texting
-              </Link>
-            </p>
-          )}
+      <div className="mt-4 lg:mt-6 lg:grid lg:grid-cols-[312px_minmax(0,1fr)] lg:items-start lg:gap-6">
+        {phone && <LinePanel {...phone} stats={stats} className="hidden lg:sticky lg:top-6 lg:block" />}
+        <div className="min-w-0">
+          {phone && <LineStrip {...phone} className="lg:hidden" />}
+          {list}
         </div>
-      ) : (
-        <>
-          <div className="mt-6 lg:hidden">
-            <SegmentedRow>
-              {FILTERS.map(([k, label]) => (
-                <Segment key={k} active={filter === k} href={href(k)}>
-                  {label}
-                </Segment>
-              ))}
-            </SegmentedRow>
-          </div>
-          <div className="mt-6 hidden lg:block">
-            <FilterRow>
-              {FILTERS.map(([k, label]) => (
-                <FilterChip key={k} hue="var(--sh-chat)" active={filter === k} href={href(k)}>
-                  {label}
-                </FilterChip>
-              ))}
-            </FilterRow>
-          </div>
+      </div>
 
-          {groups.length === 0 ? (
-            <p className="mt-8 text-center text-sm text-gray-500">
-              {filter === "missed" ? "No missed calls." : filter === "voicemail" ? "No voicemails." : "No outgoing calls yet."}
-            </p>
-          ) : (
-            <div className="mt-2 space-y-6">
-              {groups.map((g) => (
-                <section key={g.label}>
-                  <h2 className="mb-2 flex items-center gap-3 text-xs font-semibold text-gray-500">
-                    {g.label}
-                    <span className="h-px flex-1 bg-gray-200" aria-hidden />
-                    <span className="numeral-ledger font-normal text-gray-400">{g.rows.length}</span>
-                  </h2>
-                  <div className="space-y-2">
-                    {g.rows.map((c) => (
-                      <CallRow key={c.id} call={c} tz={tz} canCall={routed} canText={smsReady} />
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
-          )}
-        </>
-      )}
+      {phone && <KeypadFab />}
     </div>
   );
 }
