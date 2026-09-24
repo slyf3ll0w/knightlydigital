@@ -26,8 +26,12 @@ export type EstimatorPublicConfig = {
   showPrice: "exact" | "range" | "hidden";
   /** Half-width of the range as a percent of the subtotal (range mode) */
   rangePct: number;
-  /** instant = estimate first, then "want this quote?"; after_contact = details first, estimate on the thank-you screen */
-  reveal: "instant" | "after_contact";
+  /**
+   * instant = the questions, the estimate, then "want this quote?" (details);
+   * after_contact = the questions, then details, estimate on the thank-you screen;
+   * before_form = name + contact details FIRST, then the questions, then the estimate
+   */
+  reveal: "instant" | "after_contact" | "before_form";
   /** draft = lead + request + draft quote; send = the quote goes to the client for approval; request = lead + request only */
   onSubmit: "draft" | "send" | "request";
   fields: {
@@ -129,13 +133,14 @@ export function sanitizePublicConfig(raw: unknown): EstimatorPublicConfig {
   // Sending a quote the visitor never saw makes no sense — hidden + send → draft
   const pctRaw = Number(r.rangePct);
   const rangePct = Number.isFinite(pctRaw) ? Math.min(PUBLIC_LIMITS.rangePctMax, Math.max(PUBLIC_LIMITS.rangePctMin, Math.round(pctRaw))) : d.rangePct;
+  // (older rows may carry a `monthly` financing block from a retired option — ignored)
   return {
     heading: str(r.heading, PUBLIC_LIMITS.heading),
     intro: str(r.intro, PUBLIC_LIMITS.intro),
     buttonLabel: str(r.buttonLabel, PUBLIC_LIMITS.buttonLabel),
     showPrice,
     rangePct,
-    reveal: r.reveal === "after_contact" ? "after_contact" : "instant",
+    reveal: r.reveal === "after_contact" || r.reveal === "before_form" ? r.reveal : "instant",
     onSubmit: showPrice === "hidden" && onSubmit === "send" ? "draft" : onSubmit,
     fields,
     disclaimer: r.disclaimer === "" ? "" : str(r.disclaimer, PUBLIC_LIMITS.disclaimer) || d.disclaimer,
@@ -239,7 +244,9 @@ export function shapeVariants(raw: Record<string, number | null>, config: Pick<E
     if (config.showPrice === "range") {
       const { low, high } = estimateRange(subtotal, config.rangePct, minimumTotal);
       out[value] = { label: `${moneyWhole(low)} – ${moneyWhole(high)}` };
-    } else out[value] = { label: moneyWhole(subtotal) };
+    } else {
+      out[value] = { label: moneyWhole(subtotal) };
+    }
   }
   return out;
 }
@@ -247,7 +254,7 @@ export function shapeVariants(raw: Record<string, number | null>, config: Pick<E
 /** Human line for the settings row / Atlas card: "price shown as a range (±15%) · lead + draft quote". */
 export function describePublicConfig(c: EstimatorPublicConfig): string[] {
   const price = c.showPrice === "exact" ? "shows the exact estimate" : c.showPrice === "range" ? `shows a range (±${c.rangePct}%)` : "shows no price (you follow up)";
-  const when = c.reveal === "instant" ? "before asking for details" : "after they leave their details";
+  const when = c.reveal === "instant" ? "before asking for details" : c.reveal === "before_form" ? "after they leave their details first" : "after they leave their details";
   const result = c.onSubmit === "send" ? "each submission creates a lead + request and emails the quote for approval" : c.onSubmit === "draft" ? "each submission creates a lead + request + draft quote" : "each submission creates a lead + request";
   const asks = [
     "name",
@@ -256,7 +263,7 @@ export function describePublicConfig(c: EstimatorPublicConfig): string[] {
     c.fields.address.show ? `address${c.fields.address.required ? "" : " (optional)"}` : null,
   ].filter(Boolean);
   return [
-    `Form ${price}${c.showPrice === "hidden" ? "" : ` ${when}`}`,
+    `Form ${price}${c.showPrice === "hidden" ? (c.reveal === "before_form" ? " · details are asked before the questions" : "") : ` ${when}`}`,
     `Asks for: ${asks.join(", ")}`,
     result[0].toUpperCase() + result.slice(1),
     ...(c.photoAssist ? [`Visitors can attach a photo and Atlas fills in the answers (your tokens, at most ${PUBLIC_PHOTO_ASSIST_DAILY_CAP} a day)`] : []),
@@ -272,5 +279,5 @@ export function defaultSuccessMessage(c: EstimatorPublicConfig, businessName: st
 
 export function defaultButtonLabel(c: EstimatorPublicConfig): string {
   if (c.buttonLabel) return c.buttonLabel;
-  return c.reveal === "instant" && c.showPrice !== "hidden" ? "See my estimate" : "Get my quote";
+  return c.reveal !== "after_contact" && c.showPrice !== "hidden" ? "See my estimate" : "Get my quote";
 }

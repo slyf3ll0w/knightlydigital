@@ -194,6 +194,33 @@ export function LineControl({
                     <dd className="text-red-700">{registration.rejectionReason}</dd>
                   </>
                 )}
+                {registration.kind === "10DLC" &&
+                  registration.status === "REJECTED" &&
+                  (registration.campaignStatus === "TELNYX_FAILED" || registration.campaignStatus === "MNO_REJECTED") && (
+                    <>
+                      <dt className="text-gray-500">Appeal</dt>
+                      <dd>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                "Appeal this campaign with Telnyx? The current message flow (booking-form link, screenshot, checkbox wording) is pushed into the campaign and Telnyx compliance re-reviews it by hand. No new campaign, no fee unless it passes."
+                              )
+                            )
+                              void send({ action: "line-appeal" });
+                          }}
+                          disabled={busy}
+                          className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
+                        >
+                          Appeal with current copy
+                        </button>
+                        <span className="ml-2 text-[11px] text-gray-500">
+                          Free. Use this before Re-file — a re-file is a fresh campaign and a fresh $15 review.
+                        </span>
+                      </dd>
+                    </>
+                  )}
                 {(registration.status === "AWAITING_REVIEW" || registration.status === "REJECTED" || registration.status === "QUEUED") && (
                   <>
                     <dt className="text-gray-500">File with Telnyx</dt>

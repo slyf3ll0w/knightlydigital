@@ -46,7 +46,7 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
     heading: "4. How we use information",
     paragraphs: [
       "We use the information we collect to operate the Service: authenticating you, storing your business records, sending the emails and notifications you or your workflows trigger (for example quotes, invoices, booking confirmations, receipts, and reminders), processing payments you accept, preventing spam and abuse, providing support, and improving the product.",
-      "We do not sell personal information, and we do not share it with third parties for their own marketing.",
+      "We do not sell personal information, and we do not share it with third parties for their own marketing. Text messaging originator opt-in data and consent (the mobile number a customer provides and their choice to receive texts) are excluded from every category of sharing described in this policy; this information will not be shared with any third parties, and will not be sold or shared with third parties for promotional or marketing purposes.",
     ],
   },
   {

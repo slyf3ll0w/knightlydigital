@@ -373,8 +373,13 @@ model User {
   softphoneSeenAt  DateTime?
   // Per-user Telnyx telephony credential (under Company.lineSipConnectionId);
   // sipUsername is what Call Control dials (sip:<username>@sip.telnyx.com).
-  sipCredentialId  String?
-  sipUsername      String?
+  // One credential per device kind: the browser's and the iPhone app's are
+  // separate registrations at Telnyx, so a phone logging in never bumps the
+  // desktop off the line and each gets exactly the leg meant for it.
+  sipCredentialId     String?
+  sipUsername         String?
+  sipCredentialIdIos  String?
+  sipUsernameIos      String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -1279,6 +1284,7 @@ model Estimator {
   versions EstimatorVersion[]
   images   EstimatorImage[]
   listing  EstimatorListing?
+  quotes   Quote[]
 
   @@unique([companyId, publicSlug])
   @@index([companyId])
@@ -1952,6 +1958,11 @@ model Quote {
   request       Request?        @relation(fields: [requestId], references: [id])
   jobId         String?         @unique // set when this quote is converted into a job
   job           Job?            @relation(fields: [jobId], references: [id])
+  // The estimate tool this quote started from — an in-app run's "Create
+  // quote", or a website estimate form. The tool's page lists them under
+  // Leads (docs/plans/ai-estimators-2026-09-19.md, Batch 13).
+  estimatorId   String?
+  estimator     Estimator?      @relation(fields: [estimatorId], references: [id], onDelete: SetNull)
   // Saved service address this quote is for — carried onto the job at
   // convert time so multi-property clients keep the right property
   propertyId    String?
@@ -2982,6 +2993,20 @@ model Call {
   voicemailRecordingId String?
   voicemailSec         Int?
   seenAt               DateTime? // a team member opened the Calls page after it ended
+  // Notes typed on the call screen (app/platform/calls/[id]) — during or after the call.
+  notes                String?
+  notesAt              DateTime?
+  // Atlas took the notes (lib/call-notes.ts): Telnyx transcribes the customer
+  // leg into `transcript` ("You: … / Them: …" lines, final segments only) and
+  // Atlas writes `atlasNotes` from it when the call ends or on "Stop".
+  // atlasNotesState: null | "listening" | "summarizing" | "done" | "failed".
+  transcript           String?
+  atlasNotes           String?
+  atlasNotesState      String?
+  atlasNotesAt         DateTime?
+  atlasNotesError      String?
+  atlasNotesUserId     String? // who asked (and whose company meter pays)
+  atlasNotesTokens     Int?
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
   legs                 CallLeg[]
@@ -3003,6 +3028,9 @@ model CallLeg {
   userId       String?
   user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   telnyxCallId String    @unique // call_control_id of this SIP leg
+  // "browser" (a registered tab, rung at once) or "ios" (the iPhone app,
+  // dialed once its VoIP push woke it) — its own credential either way.
+  device       String?
   endedAt      DateTime?
   hangupCause  String?
   createdAt    DateTime  @default(now())

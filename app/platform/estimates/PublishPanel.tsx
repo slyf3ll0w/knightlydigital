@@ -3,15 +3,17 @@
 import { useEffect, useState } from "react";
 import { Check, ChevronDown, ChevronRight, Copy, ExternalLink, Loader2 } from "lucide-react";
 import { Input, Select, Textarea } from "@/components/Input";
+import SectionHeader from "@/components/SectionHeader";
+import { useAssistant } from "@/components/AssistantContext";
 import { APP_THEME } from "@/components/EstimatorControls";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { PUBLIC_LIMITS, PUBLIC_PHOTO_ASSIST_DAILY_CAP, publicSlugFrom, type EstimatorPublicConfig } from "@/lib/estimator-public";
 
 /**
- * A tool's Website section. One switch publishes it (saved on the spot) and
+ * A tool's Web form section. One switch publishes it (saved on the spot) and
  * the link + embed snippet appear right there — no checkbox-then-save. The
- * knobs (what the visitor sees, what each submission creates, the words)
- * live under "Options", folded until wanted.
+ * knobs (what the visitor sees and when, what each submission creates, the
+ * words) live under "Options", folded until wanted.
  */
 
 export type PublishTool = {
@@ -19,6 +21,8 @@ export type PublishTool = {
   name: string;
   /** The tool has Atlas fill-in — the only case where photo fill-in can be offered */
   usesAtlas: boolean;
+  /** A question Atlas assesses itself — the photo step is then always on */
+  assessed: boolean;
   isPublic: boolean;
   publicSlug: string | null;
   publicConfig: EstimatorPublicConfig;
@@ -29,8 +33,9 @@ export type PublishTool = {
 
 type Saved = { isPublic?: boolean; publicSlug?: string | null; publicConfig?: unknown; error?: string };
 
-export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, initialOptionsOpen = false }: { tool: PublishTool; companySlug: string; baseUrl: string; onSaved: (t: Saved) => void; initialOptionsOpen?: boolean }) {
+export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDirty, initialOptionsOpen = false }: { tool: PublishTool; companySlug: string; baseUrl: string; onSaved: (t: Saved) => void; /** Tells the page there are unsaved options (it asks before leaving / switching sections). */ onDirty?: (dirty: boolean) => void; initialOptionsOpen?: boolean }) {
   const theme = APP_THEME;
+  const atlas = useAssistant();
   const [slug, setSlug] = useState(tool.publicSlug ?? publicSlugFrom(tool.name));
   const [cfg, setCfg] = useState<EstimatorPublicConfig>(tool.publicConfig);
   const [busy, setBusy] = useState<"publish" | "slug" | "options" | null>(null);
@@ -47,6 +52,10 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, init
   const c = cfg;
   const optionsDirty = JSON.stringify(cfg) !== JSON.stringify(tool.publicConfig);
   const slugDirty = slug !== (tool.publicSlug ?? publicSlugFrom(tool.name));
+  useEffect(() => {
+    onDirty?.(optionsDirty || slugDirty);
+    return () => onDirty?.(false);
+  }, [optionsDirty, slugDirty, onDirty]);
   const patch = (p: Partial<EstimatorPublicConfig>) => setCfg((s) => ({ ...s, ...p }));
   const patchField = (k: "email" | "phone" | "address", p: Partial<{ show: boolean; required: boolean }>) => setCfg((s) => ({ ...s, fields: { ...s.fields, [k]: { ...s.fields[k], ...p } } }));
 
@@ -84,10 +93,16 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, init
     return true;
   }
 
-  const seg = (active: boolean) => `flex-1 rounded-lg border px-2 py-2 text-xs font-medium ${active ? "border-gray-900 bg-gray-900 text-white" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`;
+  // segmented choices in the app accent, like every other selected control
+  const seg = (active: boolean) => `flex-1 rounded-lg border px-2 py-2 text-xs font-medium transition-colors ${active ? "" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`;
+  const segStyle = (active: boolean) => (active ? { backgroundColor: theme.accent, borderColor: theme.accent, color: theme.onAccent } : undefined);
   const hidden = c.showPrice === "hidden";
   const funnel = `${tool.publicViews} view${tool.publicViews === 1 ? "" : "s"} → ${tool.publicCalcs} estimate${tool.publicCalcs === 1 ? "" : "s"} → ${tool.submissions} lead${tool.submissions === 1 ? "" : "s"}`;
   const label = "mb-1 block text-sm font-medium text-gray-800";
+  // the photo step is always on when a question is assessed by Atlas (the form needs it)
+  const photoOn = c.photoAssist || tool.assessed;
+
+  const whenLine = c.reveal === "before_form" ? "asks for details first" : c.reveal === "after_contact" ? "details, then the estimate" : "estimate, then details";
 
   return (
     <div className="space-y-4">
@@ -151,12 +166,10 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, init
       {/* ── options ── */}
       <section className="card-ledger overflow-hidden">
         <button type="button" onClick={() => setOptions((o) => !o)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-gray-50" aria-expanded={options}>
-          <span>
-            <span className="block text-sm font-semibold text-gray-900">Options</span>
-            <span className="block text-xs text-gray-500">
-              {c.showPrice === "exact" ? "Shows the exact estimate" : c.showPrice === "range" ? `Shows a range (±${c.rangePct}%)` : "Shows no price"} · {c.onSubmit === "send" ? "emails the quote" : c.onSubmit === "draft" ? "drafts a quote" : "creates a request"}
-            </span>
-          </span>
+          <SectionHeader
+            title="Options"
+            hint={`${c.showPrice === "exact" ? "Shows the exact estimate" : c.showPrice === "range" ? `Shows a range (±${c.rangePct}%)` : "Shows no price"} · ${whenLine} · ${c.onSubmit === "send" ? "emails the quote" : c.onSubmit === "draft" ? "drafts a quote" : "creates a request"}${photoOn ? " · photo fill-in" : ""}`}
+          />
           {options ? <ChevronDown size={16} className="shrink-0 text-gray-400" /> : <ChevronRight size={16} className="shrink-0 text-gray-400" />}
         </button>
         {options && (
@@ -177,13 +190,13 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, init
             <div>
               <label className={label}>What the visitor sees</label>
               <div className="flex gap-2">
-                <button type="button" onClick={() => patch({ showPrice: "exact" })} className={seg(c.showPrice === "exact")}>
+                <button type="button" onClick={() => patch({ showPrice: "exact" })} className={seg(c.showPrice === "exact")} style={segStyle(c.showPrice === "exact")}>
                   Exact estimate
                 </button>
-                <button type="button" onClick={() => patch({ showPrice: "range" })} className={seg(c.showPrice === "range")}>
+                <button type="button" onClick={() => patch({ showPrice: "range" })} className={seg(c.showPrice === "range")} style={segStyle(c.showPrice === "range")}>
                   A range
                 </button>
-                <button type="button" onClick={() => patch({ showPrice: "hidden", onSubmit: c.onSubmit === "send" ? "draft" : c.onSubmit })} className={seg(hidden)}>
+                <button type="button" onClick={() => patch({ showPrice: "hidden", onSubmit: c.onSubmit === "send" ? "draft" : c.onSubmit })} className={seg(hidden)} style={segStyle(hidden)}>
                   No price
                 </button>
               </div>
@@ -194,17 +207,31 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, init
                   <span>%</span>
                 </div>
               )}
-              {!hidden && (
-                <div className="mt-2 flex gap-2">
-                  <button type="button" onClick={() => patch({ reveal: "instant" })} className={seg(c.reveal === "instant")}>
-                    Right away, then ask for details
-                  </button>
-                  <button type="button" onClick={() => patch({ reveal: "after_contact" })} className={seg(c.reveal === "after_contact")}>
-                    After they leave details
-                  </button>
-                </div>
-              )}
               {hidden && <p className="mt-1.5 text-xs text-gray-500">Visitors leave their details and you follow up with the number. The estimate is still worked out for you and lands on the request.</p>}
+            </div>
+
+            <div>
+              <label className={label}>When to ask for their name and contact details</label>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                {!hidden && (
+                  <button type="button" onClick={() => patch({ reveal: "instant" })} className={seg(c.reveal === "instant")} style={segStyle(c.reveal === "instant")}>
+                    After the estimate
+                  </button>
+                )}
+                <button type="button" onClick={() => patch({ reveal: "after_contact" })} className={seg(c.reveal === "after_contact" || (hidden && c.reveal === "instant"))} style={segStyle(c.reveal === "after_contact" || (hidden && c.reveal === "instant"))}>
+                  After the questions{hidden ? "" : ", before the estimate"}
+                </button>
+                <button type="button" onClick={() => patch({ reveal: "before_form" })} className={seg(c.reveal === "before_form")} style={segStyle(c.reveal === "before_form")}>
+                  Before the questions
+                </button>
+              </div>
+              <p className="mt-1.5 text-xs text-gray-500">
+                {c.reveal === "before_form"
+                  ? "Everyone who starts the form becomes a lead, even if they never finish. Fewer people finish."
+                  : c.reveal === "after_contact" || hidden
+                    ? "They answer the questions, leave their details, and the estimate follows. A fair trade for most visitors."
+                    : "They see the number first, then decide whether to leave their details. The most estimates, the fewest leads."}
+              </p>
             </div>
 
             <div>
@@ -245,13 +272,17 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, init
               <p className="mt-1 text-xs text-gray-500">Name is always asked. Quotes sent for approval need an email.</p>
             </div>
 
+            {!tool.usesAtlas && <p className="text-xs text-gray-500">Want visitors to attach a photo and have Atlas fill in the answers? Turn on Atlas fill-in on the tool&apos;s Overview first.</p>}
             {tool.usesAtlas && (
               <label className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2.5">
                 <span>
                   <span className="block text-sm font-medium text-gray-800">Let visitors attach a photo or describe the job</span>
-                  <span className="block text-xs text-gray-500">Atlas fills in the answers. Uses your tokens — at most {PUBLIC_PHOTO_ASSIST_DAILY_CAP} a day.</span>
+                  <span className="block text-xs text-gray-500">
+                    {tool.assessed ? "Always on for this tool — a question is assessed by Atlas from the photo or description. " : ""}
+                    Atlas fills in the answers. Uses your tokens — at most {PUBLIC_PHOTO_ASSIST_DAILY_CAP} a day.{atlas.locked ? " Your tokens are used up right now, so the form hides this step until they refill." : ""}
+                  </span>
                 </span>
-                <input type="checkbox" checked={c.photoAssist} onChange={(e) => patch({ photoAssist: e.target.checked })} className="h-5 w-5 rounded accent-green-600" />
+                <input type="checkbox" checked={photoOn} disabled={tool.assessed} onChange={(e) => patch({ photoAssist: e.target.checked })} className="h-5 w-5 rounded accent-green-600 disabled:opacity-60" />
               </label>
             )}
 
@@ -262,7 +293,7 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, init
               </div>
               <div>
                 <label className={label}>Button</label>
-                <Input value={c.buttonLabel} onChange={(e) => patch({ buttonLabel: e.target.value })} placeholder={c.reveal === "instant" && !hidden ? "See my estimate" : "Get my quote"} maxLength={PUBLIC_LIMITS.buttonLabel} className="w-full" />
+                <Input value={c.buttonLabel} onChange={(e) => patch({ buttonLabel: e.target.value })} placeholder={c.reveal !== "after_contact" && !hidden ? "See my estimate" : "Get my quote"} maxLength={PUBLIC_LIMITS.buttonLabel} className="w-full" />
               </div>
             </div>
             <div>

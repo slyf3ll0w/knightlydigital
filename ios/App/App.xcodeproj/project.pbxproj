@@ -10,6 +10,7 @@
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */ = {isa = PBXBuildFile; productRef = 4D22ABE82AF431CB00220026 /* CapApp-SPM */; };
 		FB2026070000000000000003 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = FB2026070000000000000002 /* FirebaseMessaging */; };
+		7E20260923000000000000A3 /* telnyx-webrtc-ios in Frameworks */ = {isa = PBXBuildFile; productRef = 7E20260923000000000000A2 /* telnyx-webrtc-ios */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
 		0B20260923000000000000A1 /* ShellViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B20260923000000000000B1 /* ShellViewController.swift */; };
@@ -47,6 +48,7 @@
 			files = (
 				4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */,
 				FB2026070000000000000003 /* FirebaseMessaging in Frameworks */,
+				7E20260923000000000000A3 /* telnyx-webrtc-ios in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -109,6 +111,7 @@
 			packageProductDependencies = (
 				4D22ABE82AF431CB00220026 /* CapApp-SPM */,
 				FB2026070000000000000002 /* FirebaseMessaging */,
+				7E20260923000000000000A2 /* telnyx-webrtc-ios */,
 			);
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* App.app */;
@@ -156,6 +159,7 @@
 			packageReferences = (
 				D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */,
 				FB2026070000000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				7E20260923000000000000A1 /* XCRemoteSwiftPackageReference "telnyx-webrtc-ios" */,
 			);
 			productRefGroup = 504EC3051FED79650016851F /* Products */;
 			projectDirPath = "";
@@ -333,7 +337,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = 7SLBAFUG62;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -357,7 +361,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = 7SLBAFUG62;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
@@ -413,6 +417,14 @@
 				minimumVersion = 12.0.0;
 			};
 		};
+		7E20260923000000000000A1 /* XCRemoteSwiftPackageReference "telnyx-webrtc-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/team-telnyx/telnyx-webrtc-ios";
+			requirement = {
+				kind = upToNextMinorVersion;
+				minimumVersion = 4.2.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -425,6 +437,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = FB2026070000000000000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseMessaging;
+		};
+		7E20260923000000000000A2 /* telnyx-webrtc-ios */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7E20260923000000000000A1 /* XCRemoteSwiftPackageReference "telnyx-webrtc-ios" */;
+			productName = "telnyx-webrtc-ios";
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

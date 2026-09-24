@@ -24,6 +24,7 @@ import EmptyState from "@/components/EmptyState";
 import { hapticImpact } from "@/lib/haptics";
 import { useMeasuredHeight } from "@/lib/use-measured-height";
 import { confirmSheet } from "@/components/ConfirmSheet";
+import MenuPopover from "@/components/MenuPopover";
 
 // Mirrors TAPBACKS in lib/chat.ts (server module)
 const TAPBACKS = ["👍", "❤️", "😂", "😮", "😢", "🎉"];
@@ -256,7 +257,13 @@ export default function ChatClient({
     if (typeof window !== "undefined" && !window.matchMedia("(min-width: 1024px)").matches) {
       setMobileOpen(true);
     }
-    if (id === activeId) return;
+    if (id === activeId) {
+      // Reopening the thread that's already active (phones: back to the list,
+      // tap it again) still re-fetches, so the server marks it seen and the
+      // tab-bar dot clears now rather than on the next poll.
+      void refresh(id);
+      return;
+    }
     setActiveId(id);
     activeRef.current = id;
     const cached = msgCacheRef.current.get(id);
@@ -676,7 +683,7 @@ export default function ChatClient({
               <MoreVertical size={18} />
             </button>
             {menuOpen && (
-              <div className="sheet-material absolute right-0 top-10 z-30 w-44 overflow-hidden rounded-xl border border-gray-200 py-1 shadow-lg">
+              <MenuPopover open={menuOpen} onClose={() => setMenuOpen(false)} title="Group" top="top-10">
                 <button type="button" onClick={renameGroup} className="flex w-full items-center gap-2 px-3.5 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
                   <Pencil size={14} /> Rename group
                 </button>
@@ -694,7 +701,7 @@ export default function ChatClient({
                 <button type="button" onClick={leaveGroup} className="flex w-full items-center gap-2 px-3.5 py-2.5 text-sm text-red-600 hover:bg-red-50">
                   <X size={14} /> Leave group
                 </button>
-              </div>
+              </MenuPopover>
             )}
           </div>
         )}

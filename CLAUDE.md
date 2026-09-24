@@ -374,8 +374,13 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
   `client_state` when its webhook beats our insert. UI: the fixed call card
   (`Softphone.tsx`, mounted in the platform layout when the line is routed),
   "Call in app" on contacts, the `/app/calls` dialer (`DialFromApp.tsx`), My
-  Profile → Calls in the app (`User.softphoneEnabled`). Native shells never
-  register (`nativePlatform()`) — a phone stays a cell until tier 3. Two
+  Profile → Calls in the app (`User.softphoneEnabled`). The iPhone app runs
+  a NATIVE engine instead (tier 3, 2026-09-23: `ios/App/App/VoipPlugin.swift`
+  = PushKit + CallKit + the Telnyx iOS SDK; the page only mirrors it through
+  `components/SoftphoneNativeEngine.ts`), because iOS freezes a background
+  web page; the Android shell still stays a cell. The phone has its OWN
+  credential (`User.sipUsernameIos`, `?device=ios`, `CallLeg.device`) — a
+  shared one had the phone's login bumping the desktop off the line. Two
   Telnyx rules that cost a live test: the credential connection needs
   `sip_uri_calling_preference: "internal"` (else SIP 403 on every browser
   dial; `ensureSipUriCalling` heals old ones) and `from_display_name` is
@@ -393,11 +398,18 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
   the separate level store (`useMicLevel`, so dialers don't re-render), and
   puts the verdict in `micWarning`. The input is a choice: `MicPicker`
   (`micDevices` from `enumerateDevices`, `devicechange` refreshes, an
-  unplugged choice falls back) → `localStorage wb-softphone-mic` →
-  `client.setAudioSettings({ micId })` for the next call and
-  `call.setAudioInDevice` on the live one. `requestMic` is now a real open
-  every time (names the device, flags an OS-muted track) — never just the
-  permission query. UI: `components/MicControls.tsx` — `MicRow` (meter +
+  unplugged choice falls back) → `localStorage wb-softphone-mic` → our own
+  getUserMedia constraint, and `call.setAudioInDevice` on the live one.
+  Before every answer the mic is opened for real (`stageMic`: names the
+  device, flags an OS-muted track) and the stream is KEPT and handed to the
+  SDK as `call.options.localStream` (`answerWith`) — the first cut released
+  it and let the SDK reopen the device a second later, and that reopen
+  failed on David's PC: every outbound leg died two seconds in
+  (normal_clearing, customer never dialed). The SDK's `setAudioSettings` is
+  not used. Call screen: after a hangup in this tab the row is shown as
+  "Call ended" until its webhook lands (it used to say "Ringing your cell
+  first…" with an amber pulse); outbound `via: "app"` rows read "Calling
+  from the app…". UI: `components/MicControls.tsx` — `MicRow` (meter +
   device + picker) and `MicWarning` on the call card and the call screen,
   `MicCheck` (picker + 4 s "Test it") on the Calls page LineCard. Console
   trail: `[softphone] microphone:` / `mic track:` / `mic <verdict>`.
@@ -434,9 +446,72 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
   the call and 30 min after it ended attach to the latest such call
   (`assignCallEvents` is pure; `npx tsx scripts/test-call-events.ts`);
   nothing is written to the Call row.
-- **Not built yet**: native ringing with the app closed (tier 3 — mic
-  permissions already in the native projects), voicemail transcription,
-  missed-call text-back, business-hours routing, port-in, call transfer.
+- **Call notes + Atlas notes** (2026-09-24, `lib/call-notes.ts`,
+  `app/platform/calls/[id]/CallNotes.tsx`): every Call row carries `notes`
+  (typed on the call screen, autosaved via `PATCH /api/app/calls/[id]
+  { notes }`). "Let Atlas take notes" → `POST /api/app/calls/[id]/notes
+  { action: "start" }` → `startAtlasNotes` (lib/voice.ts): on a RINGING
+  call the row is **armed** and `bridgeLegs` starts transcription at the
+  bridge (whole conversation on record); on a connected call it starts now.
+  `beginTranscription` = Telnyx `transcription_start` on the CUSTOMER leg,
+  documented shape (`transcription_engine: "Telnyx"` +
+  `transcription_engine_config { transcription_engine, language: "en",
+  transcription_model: "openai/whisper-large-v3-turbo" }`, `transcription_tracks:
+  "both"`: inbound = them, outbound = you). Each `call.transcription`
+  segment (anything not `is_final: false` — Whisper sends finals without
+  the flag; every event is logged `[voice] transcription …`) appends one
+  "Them: … / You: …" line to `Call.transcript` (`appendTranscript`, capped).
+  When the customer leg hangs up (or Stop, or the stale sweep)
+  `finishAtlasNotes` decides: a saved contact → `summarizeCallNotes` claims
+  listening → summarizing and writes `atlasNotes` through `meteredOneShot`
+  (kind "call-notes" — Atlas tokens, same gate as the drawer; locked/off
+  accounts can't start); **no contact → `awaiting_contact`**: the
+  transcript is held, the card prompts "save them as a lead or client",
+  and `advanceLeadForLinkedCalls` summarizes once they are (Discard
+  drops it — tokens are never spent on a stranger). States: null | armed |
+  listening | awaiting_contact | summarizing | done | failed (+
+  `atlasNotesError`). The card polls `GET …/notes` while the call is live
+  or Atlas is working; "every call from this browser" (localStorage
+  `wb-atlas-notes-every-call`) arms it on its own. The UI carries the
+  consent hint (some states require telling the other party).
+  Tests: `scripts/test-call-notes.ts`.
+- **Two timing bugs fixed 2026-09-24**: `CUSTOMER_RING_SECS` was 30, which is
+  exactly when carrier voicemail answers — the customer leg timed out as the
+  greeting began ("No answer" in the headset, no way to leave a message);
+  now 60. And `runStaleCallSweep` treated IN_PROGRESS rows like RINGING ones
+  (5 min) and hung up their legs at Telnyx, so the hourly cron dropped any
+  real call older than five minutes at the top of the hour — IN_PROGRESS now
+  waits `STALE_IN_PROGRESS_MS` (4 h + 5 min, past Telnyx's own leg cap) and
+  the sweep never sends hangups for a bridged row. The browser path also no
+  longer hears the "No answer." TTS (its card says it); the cell path keeps it.
+- **A linked call moves the lead** (`advanceLeadForLinkedCalls`): the
+  bridge/hangup hooks ran while the row had no contact, so a lead saved from
+  the call screen after hanging up stayed in "New". `linkCallsToContact`
+  (contacts POST / phone edit) fires the trigger for the latest call of the
+  last 24 h; the explicit `PATCH /api/app/calls/[id] { contactId }` fires it
+  for that call. Board columns still decide where the card goes.
+- **Keypad** (`lib/dial-format.ts`, `scripts/test-dial-format.ts`):
+  `normalizeDialed` turns any pasted US dressing ("+1 (469) …", "tel:…")
+  into ten digits and `dialDisplaySize` steps the font down so a full number
+  fits the 236 px desktop column (it used to run past the field's edges).
+  When the softphone is down for a fixable reason (`softphoneRecoverable`:
+  status connecting/error) the keypad and `CallFromLineButton` say so, call
+  `softphone.reconnect()` (fresh grant now, not after the backoff) and wait
+  up to 8 s (`waitForSoftphone`) before falling back to the cell flow — and
+  the fallback is announced under the number, never silent
+  (`softphoneFallbackNote`). When another tab of the same browser holds the
+  Web Lock (`other_tab`), "Ring here instead" / the Call button ask it to
+  hand over on the `wb-softphone` BroadcastChannel (`softphone.takeOver()`):
+  the holder disconnects, releases the lock and queues behind — unless it
+  is on a call, in which case it answers "busy" and the dialer refuses
+  rather than ringing the cell. Every status change logs
+  `[softphone] status …`, and a cell fallback logs why.
+- **Caller ID name on cells**: CNAM only reaches landlines; the Settings card
+  now points at freecallerregistry.com (Hiya + First Orion + TNS, the
+  analytics behind AT&T/T-Mobile/Verizon) — free, and the only lever there is.
+- **Not built yet**: Android tier 3 (native ringing with the app closed;
+  iOS shipped 2026-09-23), voicemail transcription, missed-call text-back,
+  business-hours routing, port-in, call transfer.
 
 **Out of funds (2026-09-22).** Telnyx refuses every mutation — number purchase,
 brand/campaign filing, placing a call, even the free SIP credential — once the
@@ -449,17 +524,52 @@ parked as `QUEUED` with the form stored — the hourly sweep and Check now re-fi
 it, and a real rejection on re-file becomes REJECTED with the reason. Planned
 follow-up for launch: `docs/plans/telnyx-balance-watch-2026-09-22.md`.
 
-**No unplanned carrier fees (2026-09-22).** TCR charges per submission ($4.50
-brand, $15 campaign review + $4.50 first quarter), so nothing is ever re-filed
-by itself. `needsOperatorReview`: a submit over a REJECTED or AWAITING_REVIEW
-row (and every first submit when `LINE_REGISTRATION_REVIEW=1`) is stored as
-`AWAITING_REVIEW` — nothing sent to Telnyx — and the operator gets an email
-with the form, the previous reason and the fees. Superadmin "Approve and file"
+**No unplanned carrier fees (2026-09-22, relaxed 2026-09-23).** TCR charges per
+submission ($4.50 brand, $15 campaign review + $4.50 first quarter), so nothing
+is ever re-filed by itself. `needsOperatorReview`: a submit over an
+AWAITING_REVIEW row, over a REJECTED row that already has a campaign (the
+platform's template is what failed), and every first submit when
+`LINE_REGISTRATION_REVIEW=1`, is stored as `AWAITING_REVIEW` — nothing sent to
+Telnyx — and the operator gets an email with the form, the previous reason and
+the fees. A **brand-stage** rejection (email, EIN, legal name, address — the
+tenant's own details) re-files straight away: the failed brand is edited in
+place for free, and the campaign fee only fires once the brand verifies, which
+was going to happen anyway (worst case: Telnyx refuses the edit and a fresh
+brand costs $4.50). Every status change the sweep/webhook sees notifies the
+owners (push + `lineRegistrationEmail`: approved / needs a fix with the reason /
+sent back on our side) and the operator (`brand-rejected:<companyId>`,
+`campaign-rejected:<companyId>`), so nobody learns of a rejection by opening
+Settings. The pre-flight also refuses group mailboxes (`isGroupMailbox`:
+contact@, info@…) under TCR's "personal, free and group email IDs" rule, and
+the form shows `REGISTRATION_CHECKLIST` (also published at
+`/texting-registration`) before anything is typed. Superadmin "Approve and file"
 (`line-file` → `approveRegistration`) is the one click that spends money; it
 re-uses a VERIFIED brand (same entity/legal name/EIN) and files only the
 campaign. A campaign-stage rejection emails the operator and shows the tenant
 "we're sorting it out" with no resubmit button, because the campaign copy is
-the shared template (`campaignCopy`), not their form. The EIN is typed twice
+the shared template (`campaignCopy`), not their form. **Fixing a campaign
+rejection (2026-09-24):** Telnyx failed the Lessly Holdings campaign
+(TELNYX_FAILED) because the message flow described the booking form without
+linking it. The flow now carries the company's real form URL
+(`optInFormUrl`: `/book/<slug>/<first listed item with a phone field>`), the
+screenshot (`public/sms-opt-in.png`, rendered by
+`scripts/sms-opt-in-shot.mjs` from `smsConsentLabel` — re-run it whenever the
+label changes) and the checkbox wording verbatim, which follows Telnyx's
+opt-in template (use case, sender, frequency, rates, STOP/HELP, no
+third-party sharing; `/privacy` states the same). The way back from
+TELNYX_FAILED / MNO_REJECTED is superadmin **Appeal with current copy**
+(`line-appeal` → `appealCampaignRegistration`: `PUT /10dlc/campaign/{id}`
+with the new flow + samples, then `POST …/appeal`), which Telnyx compliance
+re-reviews by hand for free — never Re-file first, that is a new campaign
+and a new $15. The PUT alone re-queues a failed campaign (the appeal after
+it came back "Only campaigns in TELNYX_FAILED or MNO_REJECTED state can be
+appealed"), so the action re-reads the campaign, appeals only if it is still
+failed, and stores whatever status Telnyx reports; `refreshRegistration`
+also re-reads campaign-stage rejections (portal edits re-queue silently). Because a new company has no booking items until it makes
+one, `submitRegistration` and `approveRegistration` pre-flight the form
+(`requireOptInForm` → `findOptInForm().ready`): no listed item with the
+phone field on = refused with `OPT_IN_FORM_MESSAGE`, and the checklist
+(`REGISTRATION_CHECKLIST`, `/texting-registration`) says so up front. The EIN is typed twice
 and checked against the IRS prefix list (`einIssue`, lib/business-line-shared.ts,
 form + server) so a typo never reaches the registry. Same idea for the rest
 of the form (2026-09-22): the street address comes from Mapbox autocomplete

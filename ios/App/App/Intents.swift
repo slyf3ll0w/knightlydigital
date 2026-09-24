@@ -31,7 +31,7 @@ import WebKit
  * the Shortcuts app with no setup.
  */
 
-private let siteOrigin = URL(string: "https://workbenchfsm.com")!
+let siteOrigin = URL(string: "https://workbenchfsm.com")!
 
 // MARK: - Wire types
 
@@ -87,25 +87,29 @@ private enum SiriError: Error, CustomLocalizedStringResourceConvertible {
 
 // MARK: - Talking to the site
 
-/// The app's webview cookies, as a Cookie header — must be read on the main thread.
+/// The app's webview cookies, as a Cookie header — must be read on the main thread. Shared with VoipPlugin.swift.
 @MainActor
-private func cookieHeader() async -> String {
+func siteCookieHeader() async -> String {
     let store = WKWebsiteDataStore.default().httpCookieStore
-    let cookies: [HTTPCookie] = await withCheckedContinuation { cont in
+    var cookies: [HTTPCookie] = await withCheckedContinuation { cont in
         store.getAllCookies { cont.resume(returning: $0) }
     }
+    cookies = cookies.filter { siteOrigin.host.map($0.domain.hasSuffix) ?? false }
+    // The webview's store can come back empty on a cold background launch
+    // before any web view exists; the shared jar is the fallback.
+    if cookies.isEmpty { cookies = HTTPCookieStorage.shared.cookies(for: siteOrigin) ?? [] }
     return cookies
-        .filter { siteOrigin.host.map($0.domain.hasSuffix) ?? false }
         .map { "\($0.name)=\($0.value)" }
         .joined(separator: "; ")
 }
 
-private func request(_ path: String, query: [String: String] = [:], method: String = "GET", json: [String: Any]? = nil) async throws -> (Int, Data) {
+/// A request to the site as the signed-in person (the webview's cookies). Shared with VoipPlugin.swift.
+func siteRequest(_ path: String, query: [String: String] = [:], method: String = "GET", json: [String: Any]? = nil) async throws -> (Int, Data) {
     var comps = URLComponents(url: siteOrigin.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
     if !query.isEmpty { comps.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) } }
     var req = URLRequest(url: comps.url!)
     req.httpMethod = method
-    req.setValue(await cookieHeader(), forHTTPHeaderField: "Cookie")
+    req.setValue(await siteCookieHeader(), forHTTPHeaderField: "Cookie")
     req.setValue("application/json", forHTTPHeaderField: "Accept")
     // The server keys the shell off this suffix (lib/sign-in-options.ts).
     req.setValue("WorkBench Siri StreamflaireHubShell", forHTTPHeaderField: "User-Agent")
@@ -130,14 +134,14 @@ private func check(_ status: Int, _ data: Data) throws {
 
 @available(iOS 16.0, *)
 private func nextJob() async throws -> NextJob? {
-    let (status, data) = try await request("/api/app/siri/next-job")
+    let (status, data) = try await siteRequest("/api/app/siri/next-job")
     try check(status, data)
     return try JSONDecoder().decode(NextJobReply.self, from: data).job
 }
 
 @available(iOS 16.0, *)
 private func clock(_ action: String, job: NextJob) async throws {
-    let (status, data) = try await request(
+    let (status, data) = try await siteRequest(
         "/api/app/jobs/\(job.id)/clock",
         method: "POST",
         json: ["action": action, "clientKey": "siri:\(UUID().uuidString)"]
@@ -151,7 +155,7 @@ private func placeCall(contactId: String?, to: String?) async throws {
     var json: [String: Any] = ["via": "cell"]
     if let contactId = contactId { json["contactId"] = contactId }
     if let to = to { json["to"] = to }
-    let (status, data) = try await request("/api/app/line/call", method: "POST", json: json)
+    let (status, data) = try await siteRequest("/api/app/line/call", method: "POST", json: json)
     try check(status, data)
 }
 
@@ -174,7 +178,7 @@ struct ClientEntity: AppEntity {
 @available(iOS 16.0, *)
 struct ClientQuery: EntityStringQuery {
     private func fetch(_ query: [String: String]) async throws -> [ClientEntity] {
-        let (status, data) = try await request("/api/app/siri/contacts", query: query)
+        let (status, data) = try await siteRequest("/api/app/siri/contacts", query: query)
         try check(status, data)
         return try JSONDecoder().decode(ContactsReply.self, from: data).contacts.map {
             ClientEntity(id: $0.id, name: $0.name, phone: $0.phone)
@@ -277,7 +281,7 @@ struct TextClientIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let text = message.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { throw SiriError.refused("The message was empty.") }
-        let (status, data) = try await request("/api/app/messages/\(client.id)", method: "POST", json: ["body": text])
+        let (status, data) = try await siteRequest("/api/app/messages/\(client.id)", method: "POST", json: ["body": text])
         try check(status, data)
         return .result(dialog: "Sent to \(client.name).")
     }
@@ -290,7 +294,7 @@ struct OnMyWayIntent: AppIntent {
     static var openAppWhenRun = false
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let (status, data) = try await request("/api/app/siri/on-my-way", method: "POST", json: [:])
+        let (status, data) = try await siteRequest("/api/app/siri/on-my-way", method: "POST", json: [:])
         if status == 404 { throw SiriError.noJob }
         try check(status, data)
         let reply = try JSONDecoder().decode(OnMyWayReply.self, from: data)
@@ -305,7 +309,7 @@ struct CallBackMissedIntent: AppIntent {
     static var openAppWhenRun = false
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let (status, data) = try await request("/api/app/siri/last-missed")
+        let (status, data) = try await siteRequest("/api/app/siri/last-missed")
         try check(status, data)
         guard let call = try JSONDecoder().decode(MissedReply.self, from: data).call else { throw SiriError.noMissed }
         try await placeCall(contactId: nil, to: call.number)
@@ -328,7 +332,7 @@ struct AddJobNoteIntent: AppIntent {
         let text = note.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { throw SiriError.refused("The note was empty.") }
         guard let job = try await nextJob(), job.clockedIn else { throw SiriError.notOnJob }
-        let (status, data) = try await request(
+        let (status, data) = try await siteRequest(
             "/api/app/jobs/\(job.id)/notes",
             method: "POST",
             json: ["body": text, "clientKey": "siri:\(UUID().uuidString)"]
@@ -345,7 +349,7 @@ struct TodayIntent: AppIntent {
     static var openAppWhenRun = false
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let (status, data) = try await request("/api/app/siri/today")
+        let (status, data) = try await siteRequest("/api/app/siri/today")
         try check(status, data)
         let reply = try JSONDecoder().decode(TodayReply.self, from: data)
         return .result(dialog: "\(reply.summary)")

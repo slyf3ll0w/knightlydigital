@@ -133,7 +133,7 @@ export default function SharePanel({ toolId, toolName, companyName, companyIndus
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-semibold text-gray-900">{listed ? "Shared in the Library" : "Share it in the Library"}</h2>
             <p className="mt-0.5 text-xs text-gray-500">
-              Other Workbench businesses can add a copy of “{toolName}” to their own tools. They get the questions and the structure; every rate lands on their side as a number to confirm, and your price book stays yours. <Link href="/app/estimates/library" className="font-medium text-gray-700 underline-offset-2 hover:underline">Browse the Library</Link>
+              Other Workbench businesses can add a copy of “{toolName}” to their own tools. They get the questions and the structure; every rate lands on their side as a number to confirm, and your price book stays yours. <Link href="/app/estimates?view=library" className="font-medium text-gray-700 underline-offset-2 hover:underline">Browse the Library</Link>
             </p>
             {state && "status" in state && (listed || removed) && (
               <p className="mt-2 inline-flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">

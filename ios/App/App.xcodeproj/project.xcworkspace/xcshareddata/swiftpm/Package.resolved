@@ -1,5 +1,5 @@
 {
-  "originHash" : "355c22e00dcc3e8cb896239658184206e6c6729e22aa6636394d17558a949ebb",
+  "originHash" : "28d79b4f57fec6d9fa6fe2289550dd8f6b8ea68486e7496055ca2c93917aff28",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -170,6 +170,33 @@
       "state" : {
         "revision" : "f4a19a3c313dc2616c70bb49d29a799fb16be837",
         "version" : "2.4.1"
+      }
+    },
+    {
+      "identity" : "starscream",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/daltoniam/Starscream.git",
+      "state" : {
+        "revision" : "c6bfd1af48efcc9a9ad203665db12375ba6b145a",
+        "version" : "4.0.8"
+      }
+    },
+    {
+      "identity" : "telnyx-webrtc-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/team-telnyx/telnyx-webrtc-ios",
+      "state" : {
+        "revision" : "99dbca66ef7005178d5a70b03bfe74512f4a4f28",
+        "version" : "4.2.0"
+      }
+    },
+    {
+      "identity" : "webrtc",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/stasel/WebRTC.git",
+      "state" : {
+        "revision" : "6ed87f05368632f71dc95c89c14c051561710925",
+        "version" : "150.0.0"
       }
     }
   ],

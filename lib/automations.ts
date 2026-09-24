@@ -311,7 +311,7 @@ export const ENTITY_FIELDS: Record<EntityType, readonly FieldDef[]> = {
   call: [
     f("call_direction", "Direction", "enum", { options: ["INBOUND", "OUTBOUND"] }),
     f("call_status", "Call status", "enum", { options: ["RINGING", "IN_PROGRESS", "COMPLETED", "MISSED", "VOICEMAIL", "NO_ANSWER", "FAILED"] }),
-    f("call_from", "From number"), f("call_to", "To number"), f("call_duration", "Duration (seconds)", "number"),
+    f("call_from", "From number"), f("call_to", "To number"), f("call_duration", "Duration (seconds)", "number"), f("call_notes", "Call notes", "text", { help: "Atlas's notes from the call, when it listened" }),
   ],
   message: [f("message_body", "Message text"), f("message_via", "Sent via", "enum", { options: ["sms", "portal", "email"] }), f("message_subject", "Subject", "text", { help: "emails only" })],
   contract: [f("contract_title", "Agreement title"), f("contract_status", "Agreement status", "enum", { options: ["DRAFT", "SENT", "SIGNED", "VOID"] }), f("contract_link", "Signing link")],

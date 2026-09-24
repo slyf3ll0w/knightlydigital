@@ -13,7 +13,8 @@ import KpiStrip from "@/components/KpiStrip";
 import MobileSearch from "@/components/MobileSearch";
 import Monogram from "@/components/Monogram";
 import Pager from "@/components/Pager";
-import { requirePageActor, canSell, viaContactScope, seesAllLeads } from "@/lib/permissions";
+import { requirePageActor, canSell, viaContactScope, seesAllLeads, isManager } from "@/lib/permissions";
+import EntityRowActions from "@/components/EntityRowActions";
 import type { RequestStatus } from "@prisma/client";
 
 const PAGE_SIZE = 100;
@@ -179,8 +180,11 @@ export default async function RequestsPage({
               <span></span>
             </div>
             {requests.map((r) => (
-              <Link
+              <EntityRowActions
                 key={r.id}
+                meta={{ kind: "request", id: r.id, title: r.title, status: r.status, contactId: r.contactId, canDelete: isManager(actor.role) }}
+              >
+              <Link
                 prefetch={false} href={`/app/requests/${r.id}`}
                 className="block lg:grid lg:grid-cols-[1fr_1fr_140px_130px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
               >
@@ -216,6 +220,7 @@ export default async function RequestsPage({
                 </span>
                 <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
               </Link>
+              </EntityRowActions>
             ))}
           </div>
         )}

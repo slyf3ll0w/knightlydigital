@@ -130,8 +130,12 @@ export default function QuoteEditor({
       : [{ ...emptyEditorLine }]
   );
 
+  // The estimate tool the lines came from — saved on the quote so the tool's page lists it
+  const [estimatorId, setEstimatorId] = useState("");
+
   /** Lines from an estimate tool join the list; a blank starter row gets replaced. */
   function applyEstimate(r: EstimatorApply) {
+    if (r.toolId) setEstimatorId(r.toolId);
     const fresh: EditorLineItem[] = r.lines.map((l) => ({
       ...emptyEditorLine,
       name: l.name,
@@ -209,6 +213,7 @@ export default function QuoteEditor({
     const payload = {
       contactId,
       requestId: requestId || null,
+      estimatorId: estimatorId || null,
       propertyId: propertyId || null,
       title: title || null,
       taxRate: taxRate ? parseFloat(taxRate) / 100 : null,

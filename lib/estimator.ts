@@ -870,6 +870,14 @@ const ID_RE = /^[A-Za-z_][A-Za-z0-9_]{0,39}$/;
 function s(v: unknown, max: number): string {
   return typeof v === "string" ? v.trim().slice(0, max) : "";
 }
+/** Like `s`, but a too-long value is cut at a word and ends in "…" instead of mid-word ("You ca"). */
+function clip(v: unknown, max: number): string {
+  const full = typeof v === "string" ? v.trim() : "";
+  if (full.length <= max) return full;
+  const cut = full.slice(0, max - 1);
+  const at = cut.lastIndexOf(" ");
+  return `${(at > max * 0.6 ? cut.slice(0, at) : cut).trim()}…`;
+}
 /** Pictures may only come from our own image route or an https URL. */
 const IMAGE_URL_RE = /^(\/api\/estimate-images\/[A-Za-z0-9_-]{8,64}|https:\/\/[^\s"'<>]{8,300})$/;
 function imageUrl(v: unknown): string | undefined {
@@ -944,7 +952,8 @@ export function compileSpec(raw: unknown): CompileResult {
   if (rawInputs.length > ESTIMATOR_LIMITS.inputs) errors.push(`At most ${ESTIMATOR_LIMITS.inputs} inputs`);
   for (const ri of rawInputs.slice(0, ESTIMATOR_LIMITS.inputs)) {
     const o = (ri ?? {}) as Record<string, unknown>;
-    const label = s(o.label, 80);
+    // labels are one line on the form; the builder is told to keep them short and put the rest in "help"
+    const label = clip(o.label, 120);
     const id = s(o.id, 40) || toIdentifier(label);
     if (!label) {
       errors.push(`Input "${id || "?"}" needs a label`);
@@ -1187,7 +1196,7 @@ export function compileSpec(raw: unknown): CompileResult {
   let assist: EstimatorAssist | null = null;
   if (r.assist && typeof r.assist === "object") {
     const a = r.assist as Record<string, unknown>;
-    if (a.enabled !== false) assist = { instructions: s(a.instructions, 600) || undefined };
+    if (a.enabled !== false) assist = { instructions: s(a.instructions, 1000) || undefined };
   } else if (r.assist === true) {
     assist = {};
   }
@@ -1829,7 +1838,7 @@ spec = {
   minimumTotal: 150,
   quoteTitle: "Pressure washing — {sqft} sq ft",
   clientMessage: "Thanks for the chance to quote your driveway!",
-  assist: null,                    // or { instructions: "..." } to enable the metered fill-in step
+  assist: null,                    // or { instructions: "what to look for, what to assume when unsure, what never to guess" } to enable the metered photo / description fill-in step
   placeholders: ["Fence wash: $1.25/ft — placeholder, the owner never gave a fence rate"],   // ONLY rates you had to guess; [] when none
   samples: [                       // small / typical / large jobs — every required question answered; the builder runs them
     { label: "Small job", inputs: { sqft: 300, stories: "1", package: "basic", extras: [] } },

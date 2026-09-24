@@ -10,6 +10,7 @@ import SlotTimePicker from "@/components/SlotTimePicker";
 import { addMinutesToLocalDateTime } from "@/lib/scheduling";
 import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
 import Modal from "@/components/Modal";
+import MenuPopover from "@/components/MenuPopover";
 
 /**
  * Appointment lifecycle controls: Complete (→ Create Quote CTA), No-show,
@@ -229,7 +230,7 @@ export default function AppointmentActions({
             <MoreHorizontal size={16} />
           </button>
           {menuOpen && (
-            <div className="sheet-material absolute right-0 top-full mt-1 z-30 w-max min-w-[13rem] whitespace-nowrap rounded-lg shadow-xl border border-gray-200 py-1.5">
+            <MenuPopover open={menuOpen} onClose={() => setMenuOpen(false)} title="Appointment">
               <button
                 onClick={openEdit}
                 className="flex w-full items-center gap-2 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -280,7 +281,7 @@ export default function AppointmentActions({
                   Delete
                 </button>
               )}
-            </div>
+            </MenuPopover>
           )}
         </div>
       </div>

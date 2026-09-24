@@ -25,9 +25,11 @@ const MapMeasure = dynamic(() => import("@/components/MapMeasure"), { ssr: false
  *   2. the estimate (a big number + a quote-shaped breakdown, a range, or
  *      nothing — the owner's call) + the contact details → submit → thank-you.
  * Forms set to reveal the price after contact details show it on the
- * thank-you screen instead. When the owner turned photo fill-in on, the first
- * step offers "snap a photo" and Atlas fills in the answers (the owner's
- * tokens, capped). Same themed recipe as the booking forms so an estimate
+ * thank-you screen instead; forms set to "details first" open on the
+ * contact screen, then ask the questions, and submit straight from the
+ * last question. When the owner turned photo fill-in on, the first step
+ * offers "add a photo" and Atlas fills in the answers (the owner's tokens,
+ * capped). Same themed recipe as the booking forms so an estimate
  * form and a booking form on one website read as one family; the controls
  * themselves are shared with the in-app runner (components/EstimatorControls).
  */
@@ -48,6 +50,7 @@ export default function PublicEstimateForm({
   showHeader = false,
   preview = false,
   photoAssist = false,
+  assistAvailable = true,
   mapCenter = null,
 }: {
   companySlug: string;
@@ -65,17 +68,21 @@ export default function PublicEstimateForm({
   preview?: boolean;
   /** The owner opted into photo fill-in and the tool supports it */
   photoAssist?: boolean;
+  /** The business's Atlas meter can pay for a fill-in right now — false hides the step entirely */
+  assistAvailable?: boolean;
   /** Where map questions open (the business's location) */
   mapCenter?: LatLngTuple | null;
 }) {
   const { dark, accent, transparent } = appearance;
   const f = config.fields;
   const instant = config.reveal === "instant" && config.showPrice !== "hidden";
+  // name + contact details before the questions; the last question submits
+  const contactFirst = config.reveal === "before_form";
   const theme = useMemo(() => publicTheme(dark, accent), [dark, accent]);
   // visibleInputIds wants a spec; the form only ever holds the inputs
   const spec = useMemo<EstimatorSpec>(() => ({ version: 1, inputs, variables: [], lines: [] }), [inputs]);
 
-  const [step, setStep] = useState<"inputs" | "details" | "done">("inputs");
+  const [step, setStep] = useState<"inputs" | "details" | "done">(contactFirst ? "details" : "inputs");
   const [values, setValues] = useState<FormValues>(() => formDefaults(spec));
   const visible = useMemo(() => visibleInputIds(spec, values), [spec, values]);
   const sections = useMemo(() => sectionsOf(inputs, visible), [inputs, visible]);
@@ -100,7 +107,7 @@ export default function PublicEstimateForm({
   // Atlas fill-in: a photo and/or a few words; questions the tool has Atlas
   // ASSESS (condition, access…) are answered from them, the rest filled where possible
   const assessed = useMemo(() => inputs.filter((i) => i.askAtlas), [inputs]);
-  const offerAssist = photoAssist || assessed.length > 0;
+  const offerAssist = assistAvailable && (photoAssist || assessed.length > 0);
   const fileRef = useRef<HTMLInputElement>(null);
   const [photo, setPhoto] = useState<AssistPhoto | null>(null);
   const [about, setAbout] = useState("");
@@ -111,9 +118,13 @@ export default function PublicEstimateForm({
 
   // where the lead came from: the embedding page (snippet replies with its href) or the referrer
   const [page, setPage] = useState("");
+  // ?src=truck — the owner's per-channel links (Web form → "Links for each place you share it")
+  const [src, setSrc] = useState("");
   useEffect(() => {
     try {
       if (document.referrer && /^https?:\/\//.test(document.referrer)) setPage(document.referrer.slice(0, 300));
+      const s = new URLSearchParams(window.location.search).get("src") ?? "";
+      setSrc(s.toLowerCase().replace(/[^a-z0-9 _-]/g, "").trim().slice(0, 40));
     } catch {
       /* ignore */
     }
@@ -133,7 +144,7 @@ export default function PublicEstimateForm({
   const packageInput = useMemo(() => inputs.find((i) => i.type === "select" && i.style === "packages" && visible.has(i.id)) ?? null, [inputs, visible]);
   const [tierPrices, setTierPrices] = useState<Record<string, string | null> | undefined>(undefined);
   useEffect(() => {
-    if (!packageInput || packageInput.type !== "select" || config.showPrice === "hidden" || config.reveal !== "instant") {
+    if (!packageInput || packageInput.type !== "select" || config.showPrice === "hidden" || config.reveal === "after_contact") {
       setTierPrices(undefined);
       return;
     }
@@ -190,7 +201,8 @@ export default function PublicEstimateForm({
       return { ...p, [id]: cur.includes(value) ? cur.filter((x) => x !== value) : [...cur, value] };
     });
 
-  async function calculate() {
+  /** Price the answers (server math). `then` = the screen that shows it: details (the usual flow) or done (a details-first preview). */
+  async function calculate(then: "details" | "done" = "details") {
     setError("");
     setLoading(true);
     try {
@@ -205,7 +217,8 @@ export default function PublicEstimateForm({
         return;
       }
       setEstimate(data.estimate);
-      setStep("details");
+      if (then === "done") setFinalEstimate(data.estimate);
+      setStep(then);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -219,6 +232,12 @@ export default function PublicEstimateForm({
       setSectionIdx(sectionIdx + 1);
       return;
     }
+    if (contactFirst) {
+      // details are already in hand — the last question sends everything
+      if (preview) void calculate("done");
+      else void submit();
+      return;
+    }
     void calculate();
   }
 
@@ -227,7 +246,7 @@ export default function PublicEstimateForm({
     setError("");
     const p = await fileToAssistPhoto(file);
     if (!p) {
-      setError("That photo couldn't be read — try a JPEG or PNG.");
+      setError("That photo couldn't be read. Try a JPEG or PNG — an iPhone HEIC photo works after sharing it as a JPEG, or with Settings → Camera → Formats → Most Compatible.");
       return;
     }
     setPhoto(p);
@@ -277,8 +296,8 @@ export default function PublicEstimateForm({
     }
   }
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit(e?: React.FormEvent) {
+    e?.preventDefault();
     if (preview) return;
     setError("");
     setLoading(true);
@@ -286,7 +305,7 @@ export default function PublicEstimateForm({
       const res = await fetch(apiBase, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inputs: values, ...form, smsConsent, captchaToken, website: honeypot, elapsedMs: Date.now() - startedAt, page, usedPhoto }),
+        body: JSON.stringify({ inputs: values, ...form, smsConsent, captchaToken, website: honeypot, elapsedMs: Date.now() - startedAt, page, src: src || undefined, usedPhoto }),
       });
       const data = (await res.json().catch(() => null)) as { success?: boolean; estimate?: PublicEstimate; error?: string } | null;
       if (!res.ok) {
@@ -368,16 +387,22 @@ export default function PublicEstimateForm({
     return (
       <form onSubmit={nextOrCalculate} className={`${card} space-y-5`}>
         {header}
+        {contactFirst && sectionIdx === 0 && (
+          <button type="button" onClick={() => setStep("details")} className={`inline-flex items-center gap-1 text-xs font-medium ${muted} hover:underline`}>
+            <ArrowLeft size={13} /> Change my details
+          </button>
+        )}
         {errorBox}
 
         {offerAssist && sectionIdx === 0 && (
           <div className={`rounded-xl border border-dashed p-3.5 ${rowBox}`} style={{ backgroundColor: wash(theme, theme.dark ? 10 : 4) }}>
-            <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void pickPhoto(e.target.files?.[0])} />
-            <p className={`text-sm font-semibold ${ink}`}>{assessed.length > 0 ? "Tell us about the job" : "Have a photo of the job?"}</p>
+            {/* no `capture`: the picker offers the photo library as well as the camera */}
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => void pickPhoto(e.target.files?.[0])} />
+            <p className={`text-sm font-semibold ${ink}`}>Add a photo and/or describe what needs to be done</p>
             <p className={`mt-0.5 text-xs ${muted}`}>
-              {assessed.length > 0 ? `A few words or a photo lets us judge ${assessed.map((i) => i.label.toLowerCase()).join(", ")} for you — and fill in what we can.` : "Snap one and we'll fill in the answers for you."}
+              {assessed.length > 0 ? `We'll judge ${assessed.map((i) => i.label.toLowerCase()).join(", ")} from it and fill in every other answer we can — you can change anything after.` : "We'll fill in every answer we can from it — you can change anything after."}
             </p>
-            <textarea value={about} onChange={(e) => setAbout(e.target.value)} rows={2} maxLength={2000} placeholder="e.g. Two-story house, wood siding, some green mildew on the north side" className={`${input} mt-2.5 resize-none`} />
+            <textarea value={about} onChange={(e) => setAbout(e.target.value)} rows={2} maxLength={2000} placeholder="Tell us what needs to be done — size, condition, anything we should know." className={`${input} mt-2.5 resize-none`} />
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
               {photo ? (
                 <span className={`flex shrink-0 items-center gap-1.5 rounded-lg border py-0.5 pl-0.5 pr-1.5 text-[11px] ${rowBox} ${muted}`}>
@@ -476,6 +501,8 @@ export default function PublicEstimateForm({
           );
         })}
 
+        {/* details-first forms send from the last question — the captcha rides here */}
+        {contactFirst && last && !preview && <TurnstileWidget onToken={setCaptchaToken} action="booking" />}
         <div className="flex gap-2">
           {multiStep && sectionIdx > 0 && (
             <button type="button" onClick={() => setSectionIdx(sectionIdx - 1)} className={secondary} aria-label="Back">
@@ -484,9 +511,100 @@ export default function PublicEstimateForm({
           )}
           <button type="submit" disabled={loading} className={primary} style={{ backgroundColor: accent, color: textOn(accent) }}>
             {loading && <Loader2 size={14} className="animate-spin" />}
-            {!last ? "Next" : instant ? buttonLabel : "Continue"}
+            {!last ? "Next" : instant || contactFirst ? buttonLabel : "Continue"}
           </button>
         </div>
+      </form>
+    );
+  }
+
+  // ── details first: who they are, then the questions ───────────────────────
+  if (contactFirst && !estimate) {
+    return (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          setError("");
+          setStep("inputs");
+          setSectionIdx(0);
+        }}
+        className={`${card} relative space-y-4`}
+      >
+        {header}
+        <div>
+          <h3 className={`text-base font-semibold ${ink}`}>First, a few details</h3>
+          <p className={`mt-0.5 text-sm ${muted}`}>{config.showPrice === "hidden" ? "Then a few questions about the job, and we'll be in touch with your quote." : "Then a few questions about the job — your estimate comes right after."}</p>
+        </div>
+        {errorBox}
+        <div aria-hidden="true" className="absolute -left-[9999px] top-0 h-0 overflow-hidden">
+          <label>
+            Website
+            <input type="text" name="website" tabIndex={-1} autoComplete="off" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} />
+          </label>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={label}>First name *</label>
+            <input type="text" value={form.firstName} onChange={(e) => set("firstName", e.target.value)} required autoComplete="given-name" className={input} />
+          </div>
+          <div>
+            <label className={label}>Last name *</label>
+            <input type="text" value={form.lastName} onChange={(e) => set("lastName", e.target.value)} required autoComplete="family-name" className={input} />
+          </div>
+        </div>
+        {(f.email.show || f.phone.show) && (
+          <div className="grid grid-cols-2 gap-4">
+            {f.email.show && (
+              <div className={f.phone.show ? "" : "col-span-2"}>
+                <label className={label}>Email{f.email.required || config.onSubmit === "send" ? " *" : ""}</label>
+                <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} required={f.email.required || config.onSubmit === "send"} autoComplete="email" className={input} />
+              </div>
+            )}
+            {f.phone.show && (
+              <div className={f.email.show ? "" : "col-span-2"}>
+                <label className={label}>Phone{f.phone.required ? " *" : ""}</label>
+                <input type="tel" value={form.phone} onChange={(e) => set("phone", e.target.value)} required={f.phone.required} autoComplete="tel" className={input} />
+              </div>
+            )}
+          </div>
+        )}
+        {f.phone.show && (
+          <label className={`flex items-start gap-2.5 text-[13px] leading-snug ${dark ? "text-gray-300" : "text-gray-600"}`}>
+            <input type="checkbox" checked={smsConsent} onChange={(e) => setSmsConsent(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 rounded" style={{ accentColor: accent }} />
+            <span>
+              {smsConsentLabel(businessName || "this business")}{" "}
+              <a href={SMS_TERMS_URL} target="_blank" rel="noreferrer" className="underline">
+                Text terms
+              </a>
+            </span>
+          </label>
+        )}
+        {f.address.show && (
+          <div>
+            <label className={label}>Service address{f.address.required ? " *" : ""}</label>
+            <input type="text" value={form.address} onChange={(e) => set("address", e.target.value)} required={f.address.required} placeholder="123 Main St, Dallas, TX 75201" autoComplete="street-address" className={input} />
+          </div>
+        )}
+        {f.message.show && (
+          <div>
+            <label className={label}>
+              {f.message.label}
+              {f.message.required ? " *" : ""}
+            </label>
+            <textarea value={form.message} onChange={(e) => set("message", e.target.value)} rows={3} required={f.message.required} className={`${input} resize-none`} />
+          </div>
+        )}
+        <button type="submit" className={primary} style={{ backgroundColor: accent, color: textOn(accent) }}>
+          Continue
+        </button>
+        {preview && (
+          <p className={`text-center text-xs ${muted}`}>
+            Preview only.{" "}
+            <Link href="/app/estimates" className="underline">
+              Back to Estimates
+            </Link>
+          </p>
+        )}
       </form>
     );
   }

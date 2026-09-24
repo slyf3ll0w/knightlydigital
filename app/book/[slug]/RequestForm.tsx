@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { smsConsentLabel, SMS_TERMS_URL } from "@/lib/sms-consent";
+import { smsConsentLabel, PRIVACY_URL, SMS_TERMS_URL } from "@/lib/sms-consent";
 import Link from "next/link";
 import { CheckCircle, Loader2 } from "lucide-react";
 import TurnstileWidget from "@/components/TurnstileWidget";
@@ -289,6 +289,9 @@ export default function RequestForm({
             {smsConsentLabel(businessName || "this business")}{" "}
             <a href={SMS_TERMS_URL} target="_blank" rel="noreferrer" className="underline">
               Text terms
+            </a>{" · "}
+            <a href={PRIVACY_URL} target="_blank" rel="noreferrer" className="underline">
+              Privacy
             </a>
           </span>
         </label>

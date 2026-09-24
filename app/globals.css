@@ -564,6 +564,37 @@ html[data-mode="dark"] .app-ui .sheet-material {
 html[data-mode="dark"] .app-ui .sheet-hairline {
   border-color: rgba(84, 84, 88, 0.5);
 }
+/* ── Menu sheet — the same menu buttons rendered inside the phone bottom
+   sheet by MenuPopover: iOS row sizing, a hairline between rows. ── */
+.app-ui .menu-sheet > :is(button, a) {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 1.25rem;
+  font-size: 15px;
+  line-height: 1.3;
+}
+.app-ui .menu-sheet > :is(button, a) > svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.app-ui .menu-sheet > :is(button, a) + :is(button, a),
+.app-ui .menu-sheet > :is(button, a) + div,
+.app-ui .menu-sheet > div + :is(button, a) {
+  border-top: 1px solid rgba(60, 60, 67, 0.12);
+}
+html[data-mode="dark"] .app-ui .menu-sheet > :is(button, a) + :is(button, a),
+html[data-mode="dark"] .app-ui .menu-sheet > :is(button, a) + div,
+html[data-mode="dark"] .app-ui .menu-sheet > div + :is(button, a) {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+.app-ui .menu-sheet > p {
+  padding: 0.5rem 1.25rem 0.25rem;
+  font-size: 12px;
+}
+
 
 /* ── Mobile modal presentation — dialogs that are centered cards on desktop
    become iOS bottom sheets under lg. Components add `modal-pop` to the fixed
@@ -764,6 +795,20 @@ html[data-mode="dark"] .app-ui .sheet-hairline {
 }
 .msg-enter {
   animation: msgIn 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Live notification cards + the build progress bar: opacity only — a
+   transform on a glass element drops its backdrop blur on iOS. */
+@keyframes toastIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.toast-enter {
+  animation: toastIn 0.28s ease-out both;
 }
 
 /* ── Card-terminal charge overlay (saved-card charges) ──────────────────────

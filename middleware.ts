@@ -130,6 +130,13 @@ const rateLimits: { match: (path: string) => boolean; max: number; windowMs: num
     name: "apply",
   },
   {
+    // The iPhone app's calling-engine breadcrumbs (one call = a dozen posts).
+    match: (p) => p === "/api/public/voip-trace",
+    max: 300,
+    windowMs: 10 * 60_000,
+    name: "voip-trace",
+  },
+  {
     // Cold inbound from strangers: booking forms, lead webhooks, applications
     match: (p) => p.startsWith("/api/public/"),
     max: 10,

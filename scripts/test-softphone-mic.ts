@@ -4,7 +4,7 @@
  *   npx tsx scripts/test-softphone-mic.ts
  */
 import assert from "node:assert/strict";
-import { MIC_GRACE_MS, MIC_SILENT_MS, MIC_STALL_MS, MicWatchdog, levelFromSamples, micLabelFor, type MicSample } from "../lib/softphone-mic";
+import { MIC_GRACE_MS, MIC_SILENT_MS, MIC_STALL_MS, MicWatchdog, levelFromSamples, micLabelFor, shortMicLabel, type MicSample } from "../lib/softphone-mic";
 
 const live = { readyState: "live" as const, muted: false, enabled: true };
 const base = (over: Partial<MicSample> = {}): MicSample => ({
@@ -152,3 +152,11 @@ function run(w: MicWatchdog, secs: number, over: (t: number) => Partial<MicSampl
 }
 
 console.log("softphone-mic: all tests passed");
+
+// shortMicLabel: fits a native <select> without losing what tells devices apart
+assert.equal(shortMicLabel("Microphone (Realtek(R) Audio)"), "Microphone (Realtek(R) Audio)");
+assert.equal(shortMicLabel("Default - Microphone Array (Intel® Smart Sound Technology for Digital Microphones) (8086:ae20)"), "Default: Microphone Array");
+assert.equal(shortMicLabel("Communications - Headset Microphone (Jabra Evolve2 65) (0b0e:24c7)"), "Communications: Headset Microphone");
+assert.equal(shortMicLabel("MacBook Pro Microphone (Built-in)"), "MacBook Pro Microphone (Built-in)");
+assert.equal(shortMicLabel("A very long microphone name with no parenthetical at all whatsoever"), "A very long microphone name with…");
+console.log("test-softphone-mic (shortMicLabel): all assertions passed");

@@ -669,7 +669,7 @@ export default async function ContactDetailPage({
               {recentCalls.length === 0 ? (
                 <p className="text-xs text-gray-500">No calls on your business line with this client yet.</p>
               ) : (
-                <div className="space-y-2">
+                <div className="card-ledger divide-y divide-gray-100 overflow-hidden">
                   {recentCalls.map((c) => (
                     <CallRow key={c.id} call={c} showContact={false} tz={contact.company.timezone} />
                   ))}

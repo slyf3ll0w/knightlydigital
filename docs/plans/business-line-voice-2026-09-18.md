@@ -144,18 +144,103 @@ was wrong about that; it only applies to a softphone that places PSTN calls).
   while a call is ringing on another page (the card is fixed-position, so it's
   visible everywhere already).
 
-## Tier 3 — native ringing when the app is closed — iOS BUILT 2026-09-23 (store build 1.3 pending), Android PLANNED
+## Tier 3 — native ringing when the app is closed — iOS BUILT 2026-09-23 (store build 1.3, build 8), Android PLANNED
 
-iOS is written: `ios/App/App/VoipPlugin.swift` (PushKit + CallKit), `lib/native-voip.ts`,
-`lib/apns.ts` (VoIP push direct to APNs), `lib/voip.ts` (targets + push),
-`wakeSoftphoneLeg` in `lib/voice.ts` + `POST /api/app/line/softphone/ready`, and
-`components/Softphone.tsx` now registers in the iPhone shell. Flow: inbound call →
-browsers get SIP legs as before, iPhones get a VoIP push → CallKit shows the call →
-the app loads, registers, POSTs ready → its SIP leg is dialed → an Answer already
-tapped on the system screen answers the INVITE. No browser leg + no phone awake
-within VOIP_WAKE_SECS (25 s) → the cell rings (scheduleCellFallback). Tokens live in
-`PushSubscription` as platform `ios-voip`, dropped on sign-out (`lib/sign-out.ts`).
-See `native-release-queue.md` § App Store for the console/Mac steps.
+**The engine is native (build 8, after builds 6–7 proved the web engine can't
+do it).** The first two on-device tests failed the same way: slide to answer on
+the lock screen, the caller keeps hearing ringback, nothing until the app is
+opened by hand. iOS freezes a background WKWebView — no JavaScript, no
+sockets — so a softphone that lives in the page can never register or take a
+leg while the app sits behind the CallKit screen. WhatsApp-style answering
+needs native code, so `ios/App/App/VoipPlugin.swift` now embeds the Telnyx
+iOS SDK (`telnyx-webrtc-ios` 4.2 via SPM):
+
+- VoIP push (`lib/apns.ts`, `lib/voip.ts`) → CallKit reports the call at once
+  → the engine fetches a login token with the webview's cookies
+  (`GET /api/app/line/softphone`), registers, POSTs
+  `/api/app/line/softphone/ready` → the server dials its SIP leg
+  (`wakeSoftphoneLeg`, client_state `woke: true`) → the SDK receives the
+  INVITE and answers it the moment CallKit's Answer was (or is) tapped. Audio
+  runs under the `voip`/`audio` background modes; Mute, Hold (with the
+  server's hold music via `PATCH /api/app/line/call`), End and the keypad on
+  the system screen drive the real call. Two call groups, so a second call is
+  call waiting (hold & accept), and Decline goes to voicemail
+  (`POST …/call/decline` first, like the browser).
+- The page (`components/SoftphoneNativeEngine.ts`, `lib/native-voip.ts`) never
+  touches WebRTC on iOS: it mirrors the engine's events on the call card
+  (incomingCall / callAnswered / callActive / callEnded / muteChanged /
+  holdChanged / engineState) and forwards taps, each of which goes through
+  CallKit so the system screen agrees. A reloaded page catches up from
+  `currentCalls()`.
+- Outbound from the app: the page POSTs `/api/app/line/call` (via app) and
+  hands the id to `placeCall`; the engine reports an outgoing CallKit call and
+  answers the INVITE that carries `X-WB-Outbound`. `startOutboundCall` accepts
+  a VoIP-registered phone in place of the browser's presence heartbeat
+  (`voipRegisteredSoftphone`) — the engine sends no presence; the INVITE for
+  its own call is what wakes it.
+- Another company on the same login: the ready route answers `switch`, the
+  engine re-registers with a token minted for that membership
+  (`GET …/softphone?membership=`, `POST …/ready { membership }`,
+  `membershipOf` checks it is the same Account) and asks again; the page
+  switches companies for its own UI meanwhile.
+- The microphone: iOS's one prompt is requested natively when the page first
+  registers with calls on (`requestMic`), never during an answer.
+
+**One credential per device (build 10, from the build 9 trace).** The phone
+and the desktop shared the user's one SIP credential. With the desktop
+online, the server dialed that credential the instant the call came in
+(`onlineSoftphoneUsers`), the INVITE went to the desktop's registration, and
+the phone — registered two seconds later — posted ready and was told
+`already`: nothing for it to answer, so a lock-screen Answer sat on silence
+until the leg timed out. Worse, the phone's login bumped the desktop's
+registration, so the desktop stopped ringing and could not place calls
+until it re-registered. Now `User.sipCredentialIdIos` / `sipUsernameIos` is
+the iPhone's own Telnyx credential (`GET …/softphone?device=ios`,
+`ensureUserCredential(…, "ios")`), `CallLeg.device` says which one a leg was
+dialed to, `wakeSoftphoneLeg` dials the phone credential and only counts
+phone legs as "already", `voipRegisteredSoftphone` returns it, and
+`POST /api/app/line/call { device: "ios" }` places the phone's outbound leg
+on it. Both ring on an inbound call — the desktop's leg at once, the phone's
+once it wakes — and the first answer wins as before.
+
+**The dial that never happened (the build 10 test, read in Telnyx's Prog.
+Voice Call Flow Tool).** With its own credential the phone registered,
+posted ready, and the server dialed it — and Telnyx's records showed no such
+leg. `ringSoftphones` sent `command_id = <call>:app:<user>` for every leg,
+and command_id is Telnyx's idempotency key: the wake leg for the phone
+carried the same key as the browser leg dialed two seconds earlier for the
+same call and user, so Telnyx returned that first leg instead of creating
+one, our upsert re-labelled the browser leg's row as the phone's, and the
+phone waited for an INVITE that was never sent. The key now includes the
+device. (Build 11 also disconnects cleanly in the background, settles 1.5 s
+after REGED before asking for its leg, declines when End is tapped on a
+call whose leg never came, and the browser drops a dead call before judging
+a new INVITE "busy" — a stuck desktop tab was answering every new leg with
+normal_clearing.)
+
+**Silence on a connected call (build 11 → 12).** With the dial fixed, an
+outbound call from the phone connected end to end at Telnyx (the phone's leg
+answered, the customer dialed and answered) and nobody heard anything. The
+SDK runs WebRTC in manual-audio mode and sets its audio OFF when it builds a
+call's media (`Peer.configureAudioSession`); CallKit activates the audio
+session when Answer / Start is tapped, which in this flow is always BEFORE
+the INVITE arrives, so the activation the SDK needs has already happened by
+the time it resets. `nudgeAudio` hands the SDK the already-active session
+again after answering and on ACTIVE (`enableAudioSession`, what the SDK's own
+sample does 0.75 s after answering). Also in build 12: a push never trusts an
+existing socket (`ensureConnected(fresh:)` — a socket iOS froze in the
+background reported dead the second the push arrived, the leg dialed to its
+registration died at 480, and nothing reconnected), a disconnect with a
+pushed call pending reconnects and asks for the leg again (server: the wake
+leg's command_id is per attempt, and a woken leg that dies within 8 s of a
+non-timeout cause leaves the call ringing instead of going to voicemail), and
+a speakerphone switch (`setSpeaker`, on the card and the call screen).
+
+Server pieces unchanged from the web engine: VoIP tokens in `PushSubscription`
+as platform `ios-voip` (dropped on sign-out from any membership), the
+VOIP_WAKE_SECS (35 s) window before the cell, a woken leg that rings out
+going to voicemail rather than the cell. See `native-release-queue.md`
+§ App Store for the console/Mac steps.
 
 **Every company on the login rings the phone (2026-09-23).** A token is
 registered under whichever membership the app is signed into, but

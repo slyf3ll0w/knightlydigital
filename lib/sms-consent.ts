@@ -19,9 +19,19 @@
 
 export const SMS_TERMS_URL = "https://workbenchfsm.com/sms-terms";
 
-/** Checkbox label on the public booking / request forms (unchecked by default). */
+export const PRIVACY_URL = "https://workbenchfsm.com/privacy";
+
+/**
+ * Checkbox label on the public booking / request forms (unchecked by default).
+ * Follows Telnyx's 10DLC opt-in template word for word where it matters —
+ * use case, sender, frequency, rates, STOP/HELP, no third-party sharing —
+ * because the carriers' reviewers compare against it
+ * (support.telnyx.com/en/articles/10684260-10dlc-opt-in-form). The campaign
+ * message flow (lib/business-line.ts campaignCopy) quotes this verbatim, so
+ * changing it here changes what every future filing says.
+ */
 export function smsConsentLabel(businessName: string): string {
-  return `Text me appointment reminders and updates from ${businessName} via WorkBench. Msg & data rates may apply. Msg frequency varies. Reply STOP to opt out, HELP for help.`;
+  return `By checking this box, you agree to receive SMS appointment reminders, schedule updates, and quote and invoice links from ${businessName} (sent via WorkBench). Message frequency may vary. Msg & data rates may apply. Reply STOP to opt out, HELP for help. We will not share your mobile information with third parties for promotional or marketing purposes.`;
 }
 
 export type SmsConsentFields = {

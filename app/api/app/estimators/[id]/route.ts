@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager } from "@/lib/permissions";
-import { specFromJson } from "@/lib/estimator";
+import { specFromJson, type EstimatorSpec } from "@/lib/estimator";
 import { checkSpec, ESTIMATOR_SELECT, estimatorSummary, publicSlugTaken, snapshotEstimator } from "@/lib/estimator-server";
+import { publicConfigAfterSpec } from "@/lib/estimator-build";
 import { PUBLIC_SLUG_RE, publicSlugFrom, sanitizePublicConfig } from "@/lib/estimator-public";
 
 async function load(id: string, companyId: string) {
@@ -80,6 +81,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const wordsChanged = (data.name !== undefined && data.name !== row.name) || (data.description !== undefined && data.description !== row.description);
   if (specChanged || wordsChanged) {
     await snapshotEstimator(row, body.source === "atlas" ? "Atlas update" : "Manual edit", { id: actor.id, name: actor.name });
+  }
+  // Rules that just turned Atlas fill-in on switch the web form's photo option on with them
+  if (specChanged && data.publicConfig === undefined) {
+    Object.assign(data, publicConfigAfterSpec(row, specFromJson(row.spec), data.spec as EstimatorSpec));
   }
 
   const updated = await prisma.estimator.update({ where: { id: row.id }, data, select: ESTIMATOR_SELECT });

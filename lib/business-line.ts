@@ -57,7 +57,9 @@ import {
   type RegistrationKind,
   einIssue,
   FREE_MAIL_MESSAGE,
+  GROUP_MAIL_MESSAGE,
   isFreeMailDomain,
+  isGroupMailbox,
 } from "@/lib/business-line-shared";
 import { stateName } from "@/lib/us-states";
 import { VoiceError, ensureVoiceRouting, routeNumberToVoiceApp, sanitizeGreeting, voiceEnabled } from "@/lib/voice";
@@ -68,6 +70,7 @@ import { hasAddon } from "@/lib/addon";
 import { alertOperator, alertTelnyxFunds } from "@/lib/ops-alert";
 import { checkBusinessWebsite } from "@/lib/website-check";
 import { notifyUsers } from "@/lib/push";
+import { lineRegistrationEmail, sendEmail } from "@/lib/email";
 import { toE164 } from "@/lib/sms";
 import {
   assignNumberToCampaign,
@@ -103,7 +106,11 @@ import {
   failureText,
   type TelnyxBrand,
   updateBrand,
+  updateCampaign,
+  appealCampaign,
 } from "@/lib/telnyx";
+import { PRIVACY_URL, SMS_TERMS_URL, smsConsentLabel } from "@/lib/sms-consent";
+import { listPublicBookingTypes, menuTypes } from "@/lib/booking-runtime";
 
 export { VERTICALS, TOLL_FREE_USE_CASES, TOLL_FREE_VOLUMES };
 export type { BrandEntityType, LineSummary, LineType, RegistrationForm, RegistrationKind };
@@ -129,14 +136,21 @@ export function registrationReviewRequired(): boolean {
 
 /**
  * Should this submission wait for the operator instead of filing now? Pure,
- * pinned by scripts/test-business-line.ts. A re-file after a rejection
- * always waits (each submission is a carrier fee; a campaign-stage rejection
- * needs a template fix, not a form fix). A row already waiting keeps waiting
- * with the newer form. Out-of-funds (QUEUED) rows are first filings that
- * never reached Telnyx, so they don't.
+ * pinned by scripts/test-business-line.ts. Only re-files that would spend
+ * money wait: a rejection AFTER a campaign was filed means the platform's
+ * template failed (a template fix, not a form fix, and a $15 review to re-file).
+ * A brand-stage rejection — wrong email, EIN, legal name, address — is the
+ * tenant's own detail, edited in place for free, so it goes straight back out;
+ * making them wait for a human was a day of delay for nothing. A row already
+ * waiting keeps waiting with the newer form. Out-of-funds (QUEUED) rows are
+ * first filings that never reached Telnyx, so they don't.
  */
-export function needsOperatorReview(prior: { status: LineRegistrationStatus } | null, reviewAll: boolean): boolean {
-  if (prior?.status === "REJECTED" || prior?.status === "AWAITING_REVIEW") return true;
+export function needsOperatorReview(
+  prior: { status: LineRegistrationStatus; campaignId?: string | null } | null,
+  reviewAll: boolean
+): boolean {
+  if (prior?.status === "AWAITING_REVIEW") return true;
+  if (prior?.status === "REJECTED") return Boolean(prior.campaignId) || reviewAll;
   return reviewAll;
 }
 
@@ -610,6 +624,8 @@ export function sanitizeRegistrationForm(raw: Record<string, unknown>, kind: Reg
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) throw new LineError("Enter a valid contact email.");
   // TCR: "Personal, free and group email IDs are not supported" for a registered business (2026-09-23 rejection).
   if (!tollFree && entityType === "PRIVATE_PROFIT" && isFreeMailDomain(contactEmail)) throw new LineError(FREE_MAIL_MESSAGE);
+  // Same TCR rule, other half: contact@ / info@ are "group email IDs" (2026-09-23 rejection of a fixed domain).
+  if (!tollFree && entityType === "PRIVATE_PROFIT" && isGroupMailbox(contactEmail)) throw new LineError(GROUP_MAIL_MESSAGE);
   if (tollFree && website) {
     // Telnyx's reviewer: "A business contact email must match the business website domain." (2026-09-22)
     const site = new URL(website).hostname.replace(/^www[.]/, "").toLowerCase();
@@ -640,12 +656,60 @@ export function sanitizeRegistrationForm(raw: Record<string, unknown>, kind: Reg
   };
 }
 
-/** What the carriers see: how consent happens and what the texts look like. */
-export function campaignCopy(businessName: string, website: string | null) {
-  const site = website ?? "the business's website";
+/**
+ * The public form where this company's SMS checkbox lives — the URL the
+ * carriers' reviewers open. Prefers a listed item that asks for a phone
+ * number (the checkbox renders next to that field); the bare booking page
+ * otherwise. Telnyx failed the Lessly Holdings campaign 2026-09-24 because
+ * the flow named "the online booking form" without this link.
+ */
+export async function findOptInForm(companyId: string): Promise<{ url: string; ready: boolean }> {
+  const company = await prisma.company.findUnique({ where: { id: companyId }, select: { slug: true } });
+  if (!company) return { url: `${appBase()}/book`, ready: false };
+  const listed = await listPublicBookingTypes(company.slug, { skipGate: true }).catch(() => null);
+  const menu = listed ? menuTypes(listed.types) : [];
+  const withPhone = menu.find((t) => t.intake.fields.phone.show);
+  if (withPhone) return { url: `${appBase()}/book/${company.slug}/${withPhone.slug}`, ready: true };
+  return { url: menu[0] ? `${appBase()}/book/${company.slug}/${menu[0].slug}` : `${appBase()}/book/${company.slug}`, ready: false };
+}
+
+export async function optInFormUrl(companyId: string): Promise<string> {
+  return (await findOptInForm(companyId)).url;
+}
+
+export const OPT_IN_FORM_MESSAGE =
+  "Carrier reviewers open your public booking page to see the text-message consent checkbox, which sits under the phone number field. " +
+  "Add an item to your booking page (Settings → Booking & forms) that is shown on the page and asks for a phone number, then register.";
+
+/**
+ * Pre-flight, same spirit as the website check: a filing whose form URL has
+ * no phone field (or no listed item at all — a new company has none until
+ * it makes one) comes back TELNYX_FAILED, and the operator has to step in.
+ * Refuse it up front with the fix spelled out.
+ */
+async function requireOptInForm(companyId: string): Promise<void> {
+  const form = await findOptInForm(companyId);
+  if (!form.ready) throw new LineError(OPT_IN_FORM_MESSAGE, 409);
+}
+
+/**
+ * What the carriers see: how consent happens and what the texts look like.
+ * The message flow is what Telnyx's reviewers actually read: it must carry
+ * the opt-in form's URL, a screenshot link, and the checkbox wording itself
+ * (support.telnyx.com/en/articles/10684260-10dlc-opt-in-form) — a
+ * description of the form is not enough (TELNYX_FAILED, 2026-09-24).
+ */
+export function campaignCopy(businessName: string, website: string | null, optIn: { formUrl: string | null } = { formUrl: null }) {
+  const formUrl = optIn.formUrl ?? "https://workbenchfsm.com/book/<business>";
   return {
     description: `${businessName} is a local service business. Customers who hire it receive appointment reminders, schedule changes, quote and invoice links, and replies to their own messages, from this number. Sent through the WorkBench field-service platform (workbenchfsm.com).`,
-    messageFlow: `Customers give ${businessName} their mobile number when they request service by phone, in person, or through the online booking form at ${site}, which includes an unchecked SMS consent checkbox and links to the text terms (https://workbenchfsm.com/sms-terms). Every text includes opt-out language; STOP opts out immediately and HELP returns support info.`,
+    messageFlow:
+      `${businessName} texts only customers who hired it. Consent is collected on its online booking / service-request form at ${formUrl} (built on WorkBench): ` +
+      `next to the phone number field is an SMS consent checkbox, unchecked by default and not required to submit the form, reading: "${smsConsentLabel(businessName)}" ` +
+      `with links to the text terms (${SMS_TERMS_URL}) and privacy policy (${PRIVACY_URL}). Screenshot of the form with the phone field and checkbox: ${OPT_IN_IMAGE_URL}. ` +
+      `Customers who book by phone or in person give their mobile number the same way and are told texts will follow. ` +
+      `Every text names the business and includes opt-out language; STOP opts out immediately and HELP returns support info.` +
+      (website ? ` Business website: ${website}.` : ""),
     samples: [
       `Hi Maria, a reminder from ${businessName}: HVAC tune-up, Tue Jun 3 between 8–10am at 123 Oak St. Reply STOP to opt out.`,
       `Hi Maria, ${businessName} will arrive soon for HVAC tune-up (8–10am). Reply STOP to opt out.`,
@@ -653,9 +717,78 @@ export function campaignCopy(businessName: string, website: string | null) {
       `Hi Maria, ${businessName} sent you invoice #2210 for $480.00. View & pay: https://workbenchfsm.com/pay/abc123 Reply STOP to opt out.`,
       `${businessName}: Yes, we can move your visit to Thursday morning — I've updated the schedule. Reply STOP to opt out.`,
     ],
-    privacyPolicyLink: "https://workbenchfsm.com/privacy",
-    termsAndConditionsLink: "https://workbenchfsm.com/sms-terms",
+    privacyPolicyLink: PRIVACY_URL,
+    termsAndConditionsLink: SMS_TERMS_URL,
   };
+}
+
+/** What the appeal says — the reviewer's three asks (link, screenshot, wording), each on its own. */
+export function campaignAppealReason(businessName: string, formUrl: string): string {
+  return (
+    `Opt-in workflow updated with the requested details. Opt-in form URL (shows the phone number field and the SMS consent checkbox): ${formUrl} . ` +
+    `Screenshot of that form: ${OPT_IN_IMAGE_URL} . ` +
+    `Checkbox wording, unchecked by default and optional: "${smsConsentLabel(businessName)}" ` +
+    `Text terms: ${SMS_TERMS_URL} . Privacy policy: ${PRIVACY_URL} .`
+  );
+}
+
+const APPEALABLE_CAMPAIGN = new Set(["TELNYX_FAILED", "MNO_REJECTED"]);
+
+/**
+ * Telnyx compliance (TELNYX_FAILED) or a carrier (MNO_REJECTED) turned the
+ * campaign down: push the CURRENT template into it and appeal. Telnyx
+ * re-reviews by hand, the status resets to TCR_ACCEPTED, and nothing is
+ * forwarded or billed until it passes — no new campaign, no new $15. The
+ * hourly sweep and Check now then follow it like any pending campaign.
+ */
+export async function appealCampaignRegistration(companyId: string): Promise<MessagingRegistration> {
+  const reg = await loadRegistration(companyId);
+  if (!reg || reg.kind !== "10DLC" || !reg.campaignId) throw new LineError("No 10DLC campaign on file to appeal.", 404);
+  if (!APPEALABLE_CAMPAIGN.has(reg.campaignStatus ?? "")) {
+    throw new LineError(`Only a TELNYX_FAILED or MNO_REJECTED campaign can be appealed (this one is ${reg.campaignStatus ?? "unknown"}).`, 409);
+  }
+  const formUrl = await optInFormUrl(companyId);
+  const copy = campaignCopy(reg.displayName, reg.website, { formUrl });
+  let edited = false;
+  try {
+    await updateCampaign(reg.campaignId, { messageFlow: copy.messageFlow, samples: copy.samples });
+    edited = true;
+  } catch (err) {
+    // Telnyx's schema lists messageFlow but its note says only samples are
+    // editable; the appeal text carries the link, screenshot and wording
+    // either way, so a refused edit is not the end of it.
+    console.warn(`[line] campaign ${reg.campaignId} update refused (${err instanceof TelnyxError ? err.detail : String(err)}); appealing with the reason alone`);
+  }
+  // Editing a failed campaign re-queues it on Telnyx's side (Lessly Holdings,
+  // 2026-09-24: the appeal right after a successful PUT came back "Only
+  // campaigns in TELNYX_FAILED or MNO_REJECTED state can be appealed"). So:
+  // re-read, appeal only what is still failed, and take whatever state
+  // Telnyx now reports rather than assuming one.
+  let live = await getCampaign(reg.campaignId).catch(() => null);
+  const stillFailed = !live || APPEALABLE_CAMPAIGN.has(live.campaignStatus ?? "");
+  let appealed = false;
+  if (stillFailed) {
+    try {
+      await appealCampaign(reg.campaignId, campaignAppealReason(reg.displayName, formUrl));
+      appealed = true;
+    } catch (err) {
+      const detail = err instanceof TelnyxError ? err.detail : "";
+      // Moved on between the read and the appeal: the edit did the job.
+      if (!/can be appealed/i.test(detail)) throw await lineFailure("Telnyx refused the appeal", err, `10DLC campaign appeal for "${reg.company.name}"`);
+    }
+    live = await getCampaign(reg.campaignId).catch(() => live);
+  }
+  const campaignStatus = live?.campaignStatus ?? (appealed ? "TCR_ACCEPTED" : reg.campaignStatus);
+  if (campaignStatus && APPEALABLE_CAMPAIGN.has(campaignStatus)) {
+    throw new LineError(`Telnyx still reports the campaign as ${campaignStatus} after the ${appealed ? "appeal" : "edit"} — give it a minute and try again, or ask 10dlcquestions@telnyx.com.`, 424);
+  }
+  console.warn(
+    `[line] campaign ${reg.campaignId} back under review for "${reg.company.name}" (${companyId}): edited=${edited} appealed=${appealed} status=${campaignStatus ?? "?"}; opt-in form ${formUrl}`
+  );
+  return prisma.messagingRegistration.update({
+    where: { companyId },
+    data: { status: "CAMPAIGN_PENDING", campaignStatus: campaignStatus ?? null, rejectionReason: null, lastCheckedAt: new Date() },
+  });
 }
 
 type RegWithCompany = MessagingRegistration & { company: { id: string; name: string; lineNumber: string | null; lineType: string | null } };
@@ -673,6 +806,7 @@ type RegCompany = {
     verificationId: string | null;
     brandId: string | null;
     brandStatus: string | null;
+    campaignId: string | null;
     entityType: string;
     legalName: string;
     ein: string | null;
@@ -716,6 +850,7 @@ export async function submitRegistration(companyId: string, form: RegistrationFo
           verificationId: true,
           brandId: true,
           brandStatus: true,
+          campaignId: true,
           entityType: true,
           legalName: true,
           ein: true,
@@ -738,9 +873,11 @@ export async function submitRegistration(companyId: string, form: RegistrationFo
     });
     if (!check.ok) throw new LineError(check.reason);
   }
+  // The platform's own line opts people in on /apply, not a booking page.
+  if (!isPlatformOwnLine(form)) await requireOptInForm(companyId);
   if (needsOperatorReview(prior, registrationReviewRequired())) return holdForReview(company, form);
 
-  return fileRegistration(company, form);
+  return fileRegistration(company, form, { interactive: true });
 }
 
 /**
@@ -844,6 +981,8 @@ export async function approveRegistration(companyId: string): Promise<MessagingR
   if (reg.status !== "AWAITING_REVIEW" && reg.status !== "REJECTED" && reg.status !== "QUEUED") {
     throw new LineError(`Nothing waiting to be filed (status ${reg.status}).`, 409);
   }
+  // The tenant may have removed the phone field since they submitted; a filing is money.
+  if (!isPlatformOwnLine(registrationFormOf(reg))) await requireOptInForm(companyId);
   return fileFromRow(reg);
 }
 
@@ -851,7 +990,12 @@ export async function approveRegistration(companyId: string): Promise<MessagingR
  * File (or re-file) with Telnyx. Out of funds on the platform account parks
  * the row as QUEUED instead of failing; the hourly sweep re-files it.
  */
-async function fileRegistration(company: RegCompany, form: RegistrationForm): Promise<MessagingRegistration> {
+async function fileRegistration(
+  company: RegCompany,
+  form: RegistrationForm,
+  // interactive: the owner is on the form right now, so an instant rejection needs no push/email to them.
+  opts: { interactive?: boolean } = {}
+): Promise<MessagingRegistration> {
   const companyId = company.id;
   if (lineKind(company) === "TOLL_FREE") {
     try {
@@ -999,10 +1143,11 @@ async function fileRegistration(company: RegCompany, form: RegistrationForm): Pr
   }
 
   // Advance as far as Telnyx lets us right now (EIN brands: usually all the way to campaign review).
-  return advance({ ...reg, company: { id: company.id, name: company.name, lineNumber: company.lineNumber, lineType: company.lineType } }, {
-    brandRegistration: brand.status,
-    brandFailure: failureText(brand.failureReasons),
-  });
+  return advance(
+    { ...reg, company: { id: company.id, name: company.name, lineNumber: company.lineNumber, lineType: company.lineType } },
+    { brandRegistration: brand.status, brandFailure: failureText(brand.failureReasons) },
+    { notify: !opts.interactive }
+  );
 }
 
 /** Telnyx is out of funds: keep the form, mark QUEUED, tell the operator. The sweep re-files it. */
@@ -1069,6 +1214,7 @@ async function fileFromRow(reg: RegWithCompany): Promise<MessagingRegistration> 
       verificationId: reg.verificationId,
       brandId: reg.brandId,
       brandStatus: reg.brandStatus,
+      campaignId: reg.campaignId,
       entityType: reg.entityType,
       legalName: reg.legalName,
       ein: reg.ein,
@@ -1198,10 +1344,10 @@ export function platformTollFreeInput(number: string, form: RegistrationForm): T
   };
 }
 
-function tollFreeInput(number: string, form: RegistrationForm): TollFreeVerificationInput {
+function tollFreeInput(number: string, form: RegistrationForm, formUrl: string | null): TollFreeVerificationInput {
   if (isPlatformOwnLine(form)) return platformTollFreeInput(number, form);
   const business = form.displayName || form.legalName;
-  const copy = campaignCopy(business, form.website ?? null);
+  const copy = campaignCopy(business, form.website ?? null, { formUrl });
   return {
     phoneNumber: number,
     businessName: form.legalName,
@@ -1245,7 +1391,7 @@ export async function refileTollFree(companyId: string): Promise<{ verificationI
   if (!isRealLineNumber(reg.company.lineNumber)) throw new LineError("No number on the line.", 409);
   const current = await getTollFreeVerification(reg.verificationId);
   if (current.verificationStatus === "Verified") return { verificationId: reg.verificationId, status: "Verified" };
-  const input = tollFreeInput(reg.company.lineNumber, registrationFormOf(reg));
+  const input = tollFreeInput(reg.company.lineNumber, registrationFormOf(reg), await optInFormUrl(companyId));
   let request: TollFreeVerification;
   try {
     request = await updateTollFreeVerification(reg.verificationId, input);
@@ -1273,7 +1419,7 @@ async function submitTollFreeVerification(
   knownVerificationId: string | null
 ): Promise<MessagingRegistration> {
   const number = company.lineNumber as string;
-  const input = tollFreeInput(number, form);
+  const input = tollFreeInput(number, form, await optInFormUrl(company.id));
 
   let existing: TollFreeVerification | null = null;
   try {
@@ -1371,6 +1517,7 @@ async function advanceTollFree(reg: RegWithCompany): Promise<MessagingRegistrati
   const d = deriveTollFree(status, reason);
   if (d.status !== reg.status) {
     console.warn(`[line] "${reg.company.name}" toll-free: ${reg.status} → ${d.status}${d.reason ? ` (${d.reason})` : ""}`);
+    await notifyRegistrationChange(reg, d, false);
   }
   return prisma.messagingRegistration.update({
     where: { id: reg.id },
@@ -1455,12 +1602,93 @@ export async function refreshRegistration(
   if (reg.status === "AWAITING_REVIEW") return reg; // nothing filed yet; a superadmin approves it
   // A toll-free "REJECTED" may really be "Waiting For Customer", which the
   // reviewer can flip back to In Progress on their own — worth re-reading.
-  if (reg.status === "REJECTED" && !(opts.includeRejected && reg.kind === "TOLL_FREE")) return reg;
+  // A campaign-stage 10DLC rejection is worth re-reading too: an edit or
+  // appeal made in the Telnyx portal re-queues it without telling us, and
+  // the GET is free. A brand-stage rejection only moves when re-filed.
+  if (reg.status === "REJECTED") {
+    const campaignStage = reg.kind === "10DLC" && Boolean(reg.campaignId);
+    if (!campaignStage && !(opts.includeRejected && reg.kind === "TOLL_FREE")) return reg;
+  }
   if (reg.kind === "TOLL_FREE") return advanceTollFree(reg);
   return advance(reg);
 }
 
-async function advance(reg: RegWithCompany, brandExtra: Partial<RegistrationSnapshot> = {}): Promise<MessagingRegistration> {
+const prettyPhone = (e164: string) => {
+  const d = e164.replace(/\D/g, "");
+  return d.length === 11 && d.startsWith("1") ? `(${d.slice(1, 4)}) ${d.slice(4, 7)}-${d.slice(7)}` : e164;
+};
+
+/**
+ * A status change the carriers made while nobody was looking (hourly sweep,
+ * Telnyx webhook, Check now). Owners get a push and an email — approved /
+ * needs a fix with the registry's reason / sent back on our side — and the
+ * operator hears about every brand-stage rejection (the campaign-stage alert
+ * lives at the call site). Never throws: the status write that triggered it
+ * still has to land.
+ */
+async function notifyRegistrationChange(
+  reg: RegWithCompany,
+  next: { status: LineRegistrationStatus; reason: string | null },
+  campaignStage: boolean,
+  // tenant=false while they're still on the form: the reason is on screen, only the operator needs telling.
+  { tenant = true }: { tenant?: boolean } = {}
+): Promise<void> {
+  if (next.status !== "ACTIVE" && next.status !== "REJECTED") return;
+  const outcome = next.status === "ACTIVE" ? "active" : campaignStage ? "campaign_rejected" : "rejected";
+  const lineNumber = reg.company.lineNumber ? prettyPhone(reg.company.lineNumber) : null;
+  try {
+    const owners = await prisma.user.findMany({
+      where: { companyId: reg.companyId, role: "OWNER", isActive: true },
+      select: { id: true, email: true },
+    });
+    const to = owners.map((o) => o.email).filter((e): e is string => Boolean(e));
+    if (tenant) await notifyOwnersOfRegistration(reg, owners.map((o) => o.id), to, outcome, next.reason, lineNumber);
+    if (outcome === "rejected") {
+      await alertOperator(
+        `brand-rejected:${reg.companyId}`,
+        `Texting registration sent back — ${reg.company.name}`,
+        `<p>The ${reg.kind === "TOLL_FREE" ? "toll-free verification" : "10DLC brand"} for <strong>${escHtml(reg.company.name)}</strong> came back <strong>REJECTED</strong>.</p>
+<p><strong>Reason:</strong> ${escHtml(next.reason ?? "not given")}</p>
+<p>${
+          tenant
+            ? `The owners (${to.length ? to.map(escHtml).join(", ") : "no email on file"}) were pushed and emailed the reason with a "Fix and resubmit" button.`
+            : `The owner saw the reason on the form as they submitted it.`
+        } Their correction re-files on its own — the failed brand is edited in place, no new brand fee —
+so there is nothing to approve unless it keeps failing or they ask for help.</p>
+<p><a href="${appBase()}/superadmin/company/${reg.companyId}">${appBase()}/superadmin/company/${reg.companyId}</a></p>`,
+        60 * 60_000
+      );
+    }
+  } catch (err) {
+    console.error(`[line] notify ${outcome} for "${reg.company.name}" (${reg.companyId}) failed:`, err);
+  }
+}
+
+async function notifyOwnersOfRegistration(
+  reg: RegWithCompany,
+  ownerIds: string[],
+  to: string[],
+  outcome: "active" | "rejected" | "campaign_rejected",
+  reason: string | null,
+  lineNumber: string | null
+): Promise<void> {
+  const push =
+    outcome === "active"
+      ? { title: "Texting is on", body: `The carriers approved ${reg.company.name} for texting${lineNumber ? ` from ${lineNumber}` : ""}.` }
+      : outcome === "campaign_rejected"
+        ? { title: "Texting registration", body: "The carriers sent the application back. It's on our side — nothing for you to change." }
+        : { title: "Texting registration needs a fix", body: reason ?? "The carrier registry didn't approve it. Open Settings to see why." };
+  await notifyUsers(ownerIds, { ...push, url: "/app/settings?s=phone", tag: `line-registration-${reg.companyId}` });
+  const mail = lineRegistrationEmail({ companyName: reg.company.name, lineNumber, outcome, reason });
+  await Promise.all(to.map((email) => sendEmail({ to: email, subject: mail.subject, html: mail.html })));
+}
+
+async function advance(
+  reg: RegWithCompany,
+  brandExtra: Partial<RegistrationSnapshot> = {},
+  // false while the tenant is still on the form (an instant EIN/email rejection is shown right there).
+  opts: { notify?: boolean } = {}
+): Promise<MessagingRegistration> {
   const patch: Prisma.MessagingRegistrationUncheckedUpdateInput = { lastCheckedAt: new Date() };
   let snap: RegistrationSnapshot = snapshotOf(reg, brandExtra);
   const number = reg.company.lineNumber;
@@ -1477,7 +1705,7 @@ async function advance(reg: RegWithCompany, brandExtra: Partial<RegistrationSnap
     // 2. Campaign — create once the brand is verified
     let d = deriveRegistration(snap);
     if (d.next === "create_campaign" && reg.brandId) {
-      const copy = campaignCopy(reg.displayName, reg.website);
+      const copy = campaignCopy(reg.displayName, reg.website, { formUrl: await optInFormUrl(reg.companyId) });
       const campaign = await createCampaign({
         brandId: reg.brandId,
         description: copy.description,
@@ -1554,6 +1782,7 @@ re-file costs the $15 review + $4.50, not another brand.</p>
         24 * 60 * 60_000
       );
     }
+    await notifyRegistrationChange(reg, final, snap.hasCampaign, { tenant: opts.notify !== false });
   }
   return prisma.messagingRegistration.update({ where: { id: reg.id }, data: patch });
 }

@@ -13,6 +13,10 @@ import CallRow, { EVENT_ICON, standingWord } from "@/components/CallRow";
 import CallsLive from "@/components/CallsLive";
 import CallScreenLive from "./CallScreenLive";
 import CallActions from "./CallActions";
+import CallNotes, { type AtlasForNotes } from "./CallNotes";
+import type { AtlasNotesState } from "@/lib/call-notes";
+import { ATLAS_ACCESS_SELECT, atlasAccess } from "@/lib/assistant-access";
+import { aiEnabled } from "@/lib/ai";
 
 /**
  * The call screen: one call, and the person on the other end of it. Opened
@@ -79,14 +83,37 @@ export default async function CallScreenPage({ params }: { params: Promise<{ id:
         answeredAt: true,
         endedAt: true,
         via: true,
+        notes: true,
+        transcript: true,
+        atlasNotes: true,
+        atlasNotesState: true,
+        atlasNotesError: true,
+        atlasNotesTokens: true,
         contact: { select: contactSelect },
         user: { select: { name: true } },
         answeredBy: { select: { name: true } },
       },
     }),
-    prisma.company.findUnique({ where: { id: companyId }, select: { timezone: true, lineVoiceAppAt: true, lineNumber: true } }),
+    prisma.company.findUnique({
+      where: { id: companyId },
+      select: { timezone: true, lineVoiceAppAt: true, lineNumber: true, assistantName: true, ...ATLAS_ACCESS_SELECT },
+    }),
   ]);
   if (!call) notFound();
+
+  // Atlas on the notes card (CallNotes.tsx): the same gate as the drawer.
+  const access = company && aiEnabled() ? atlasAccess(company) : null;
+  const atlasName = company?.assistantName || "Atlas";
+  const atlas: AtlasForNotes =
+    !access || access.level === "off"
+      ? { name: atlasName, mode: "off", reason: null }
+      : access.level === "locked"
+        ? {
+            name: atlasName,
+            mode: "locked",
+            reason: `${atlasName} has used this ${access.reason === "plan-spent" ? "period's" : "month's"} tokens — the meter refills on ${new Date(access.resetsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}.`,
+          }
+        : { name: atlasName, mode: "on", reason: null };
 
   // The number has been saved as someone since this call: show them, and link the row.
   let contact = call.contact;
@@ -170,12 +197,28 @@ export default async function CallScreenPage({ params }: { params: Promise<{ id:
         who={who}
         placedAt={fmtDateTime(call.createdAt, tz)}
         canCall={routed}
+        via={call.via === "app" ? "app" : call.via === "cell" ? "cell" : null}
       />
 
       <CallActions
         callId={call.id}
         customerNumber={call.customerNumber}
         contact={contact ? { id: contact.id, status: contact.status, name: label } : null}
+      />
+
+      <CallNotes
+        callId={call.id}
+        atlas={atlas}
+        initial={{
+          status: call.status,
+          notes: call.notes,
+          transcript: call.transcript,
+          atlasNotes: call.atlasNotes,
+          contactId: contact?.id ?? null,
+          atlasNotesState: (call.atlasNotesState as AtlasNotesState | null) ?? null,
+          atlasNotesError: call.atlasNotesError,
+          atlasNotesTokens: call.atlasNotesTokens,
+        }}
       />
 
       {onThisCall.length > 0 && (
@@ -256,7 +299,7 @@ export default async function CallScreenPage({ params }: { params: Promise<{ id:
               All
             </Link>
           </h2>
-          <div className="space-y-2">
+          <div className="card-ledger divide-y divide-gray-100 overflow-hidden">
             {earlier.map((c) => (
               <CallRow key={c.id} call={c} showContact={false} tz={tz} canCall={false} />
             ))}

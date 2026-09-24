@@ -6,6 +6,7 @@ import { MoreHorizontal, FileText, Briefcase, Archive, Trash2, Pencil, Loader2 }
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
 import Modal from "@/components/Modal";
+import MenuPopover from "@/components/MenuPopover";
 
 export default function RequestActions({
   requestId,
@@ -125,7 +126,7 @@ export default function RequestActions({
           <MoreHorizontal size={16} />
         </button>
         {open && (
-          <div className="sheet-material absolute right-0 top-full mt-1 z-30 w-max min-w-[12rem] whitespace-nowrap rounded-lg shadow-xl border border-gray-200 py-1.5">
+          <MenuPopover open={open} onClose={() => setOpen(false)} title="Request">
             <button
               onClick={openEdit}
               className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -185,7 +186,7 @@ export default function RequestActions({
                 Delete (spam)
               </button>
             )}
-          </div>
+          </MenuPopover>
         )}
       </div>
 

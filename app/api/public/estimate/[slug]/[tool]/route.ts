@@ -101,12 +101,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   // Where the lead came from: the page hosting the embed (sent by the snippet) or the referrer
   const pageRaw = str(body.page, 300);
   const page = /^https?:\/\//i.test(pageRaw) ? pageRaw : "";
+  // ?src=truck on the owner's per-channel links — tags the lead with where it came from
+  const src = str(body.src, 40).toLowerCase().replace(/[^a-z0-9 _-]/g, "").trim();
   const lead = await createEstimateLead({
     pub,
     result,
     answers,
     customer: { firstName, lastName, email, phone, address, message, smsConsent: phone ? body.smsConsent === true : undefined },
     page: page || undefined,
+    src: src || undefined,
     usedPhoto: (config.photoAssist || spec.inputs.some((i) => i.askAtlas)) && body.usedPhoto === true,
   });
   return NextResponse.json({ success: true, estimate: lead.estimate, quoteNumber: lead.quoteNumber }, { status: 201 });

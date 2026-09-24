@@ -25,6 +25,7 @@ import { runNightlyReconciliation } from "@/lib/reconcile";
 import { runLineRegistrationSweep, runLineReleaseSweep } from "@/lib/business-line";
 import { runStaleCallSweep } from "@/lib/voice";
 import { runAutomationSweeps, runAutomationResumes, runScheduledAutomations } from "@/lib/automations-server";
+import { pruneBuilds } from "@/lib/estimator-build-jobs";
 
 /**
  * Hourly billing cron. A scheduler (Railway cron service, or an external
@@ -157,6 +158,8 @@ export async function POST(req: NextRequest) {
     // "Every day at 8am" / "every Monday" rules — matched against the hour in
     // each company's own timezone, once per day/week per rule
     await step("automationSchedules", () => runScheduledAutomations(now));
+    // Estimate-tool build logs older than a week (the tool itself is the record)
+    await step("estimatorBuilds", () => pruneBuilds());
     // "Your card expires soon" nudges for clients on autopay (once per card)
     await step("cardNudges", () => runCardExpiryNudges(now));
     // QuickBooks sweep: catches invoices issued/edited outside the payment

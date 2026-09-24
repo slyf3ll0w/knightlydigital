@@ -47,6 +47,8 @@ export type EstimatorApply = {
   lines: EstimatorResultLine[];
   title?: string;
   clientMessage?: string;
+  /** The saved tool the lines came from (absent for unsaved previews) — stamped on the quote */
+  toolId?: string;
 };
 
 type RunOk = { ok: true; lines: EstimatorResultLine[]; subtotal: number; title?: string; clientMessage?: string; warnings: string[]; drivers?: PriceDriver[] };
@@ -229,7 +231,7 @@ export function EstimatorRunnerPanel({
     const p = await fileToAssistPhoto(file);
     setBusy(null);
     if (!p) {
-      setError("That photo couldn't be read — try a JPEG or PNG.");
+      setError("That photo couldn't be read. Try a JPEG or PNG — an iPhone HEIC photo works after sharing it as a JPEG, or with Settings → Camera → Formats → Most Compatible.");
       return;
     }
     setPhoto(p);
@@ -268,19 +270,20 @@ export function EstimatorRunnerPanel({
 
   function apply() {
     if (!result) return;
-    onApply?.({ lines: result.lines, title: result.title, clientMessage: result.clientMessage });
+    onApply?.({ lines: result.lines, title: result.title, clientMessage: result.clientMessage, ...(tool && !tool.preview ? { toolId: tool.id } : {}) });
     onClose();
   }
 
   function startQuote() {
     if (!result || !tool) return;
     setStarting(true);
-    stashEstimateDraft({ lines: result.lines, title: result.title, clientMessage: result.clientMessage, toolName: tool.name });
+    stashEstimateDraft({ lines: result.lines, title: result.title, clientMessage: result.clientMessage, toolName: tool.name, toolId: tool.id });
     router.push("/app/quotes/new?fromTool=1");
   }
 
   const showPicker = !tool;
-  const canAssist = Boolean(tool?.usesAtlas && atlas.available && !tool?.preview);
+  // A used-up meter hides the step outright (typing the answers is always free)
+  const canAssist = Boolean(tool?.usesAtlas && atlas.available && !atlas.locked && !tool?.preview);
   const samples = showSamples || tool?.preview ? (spec?.samples ?? []) : [];
   const included = result && spec ? pickedIncludes(spec.inputs, values) : null;
   const atlasTag = <span className="ml-2 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold" style={{ backgroundColor: wash(theme, 12), color: theme.accent }}><Sparkles size={10} /> {atlas.name}</span>;
@@ -340,13 +343,14 @@ export function EstimatorRunnerPanel({
           {canAssist && (
             <div className="rounded-xl border border-dashed border-gray-300 p-3.5" style={{ backgroundColor: wash(theme, 3) }}>
               <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
-                <Sparkles size={14} style={{ color: theme.accent }} /> {assessed.length > 0 ? `Tell ${atlas.name} about the job` : `Describe the job or snap a photo`}
+                <Sparkles size={14} style={{ color: theme.accent }} /> Add a photo and/or describe what needs to be done
               </p>
               <p className="mt-0.5 text-xs text-gray-500">
-                {assessed.length > 0 ? `${atlas.name} assesses ${assessed.map((i) => i.label.toLowerCase()).join(", ")} from what you say and any photo, then fills in the rest it can.` : `${atlas.name} fills in the answers it can read from your words or the photo.`}
+                {assessed.length > 0 ? `${atlas.name} judges ${assessed.map((i) => i.label.toLowerCase()).join(", ")} from the photo or your words, and fills in every other answer it can — you can change any of them.` : `${atlas.name} fills in every answer it can from the photo or your words — you can change any of them.`}
               </p>
-              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="e.g. Two-car concrete driveway, about 20 by 24, heavy oil stains, they also want the sidewalk done" className="mt-2.5 w-full" />
-              <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void attachPhoto(e.target.files?.[0])} />
+              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="What needs to be done? Size, condition, anything worth knowing." className="mt-2.5 w-full" />
+              {/* no `capture`: the picker offers the photo library AND the camera — a picture the customer already sent works as well as a new one */}
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => void attachPhoto(e.target.files?.[0])} />
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
                   {photo ? (
@@ -363,11 +367,12 @@ export function EstimatorRunnerPanel({
                       Add a photo
                     </button>
                   )}
-                  <span className="hidden text-[11px] text-gray-500 sm:inline">Uses Atlas tokens · you can change every answer</span>
+                  {!photo && <span className="text-[11px] text-gray-500">From your library or the camera</span>}
+                  <span className="hidden text-[11px] text-gray-500 lg:inline">Uses Atlas tokens · you can change every answer</span>
                 </div>
                 <button
                   type="button"
-                  disabled={busy !== null || (description.trim().length < 8 && !photo) || atlas.locked}
+                  disabled={busy !== null || (description.trim().length < 8 && !photo)}
                   onClick={() => void assist()}
                   className="btn-primary h-9 justify-center px-3 text-xs"
                 >
@@ -375,7 +380,6 @@ export function EstimatorRunnerPanel({
                   {assessed.length > 0 ? "Assess & fill in" : "Fill in"}
                 </button>
               </div>
-              {atlas.locked && <p className="mt-1.5 text-[11px] text-amber-700">Your Atlas tokens are used up for now — the questions below still work.</p>}
               {assistNote && <p className="mt-2 text-xs text-gray-600">{assistNote}</p>}
             </div>
           )}

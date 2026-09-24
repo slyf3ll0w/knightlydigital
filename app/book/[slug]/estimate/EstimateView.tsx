@@ -1,5 +1,8 @@
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
+import { isBotUserAgent } from "@/lib/bots";
+import { atlasAccess, ATLAS_ACCESS_SELECT } from "@/lib/assistant-access";
 import { resolvePublicEstimator } from "@/lib/estimator-server";
 import { defaultButtonLabel, publicInputs } from "@/lib/estimator-public";
 import { appearanceFor, type AppearanceOverrides } from "../schedule/shell";
@@ -32,8 +35,18 @@ export default async function EstimateView({
   if (!pub) notFound();
   const { company, row, spec, config, previewing } = pub;
   const appearance = appearanceFor(company, searchParams);
-  if (!previewing && searchParams.thumb !== "1") {
+  // A view is a person: previews, thumbnails, crawlers and link-preview fetchers don't count
+  if (!previewing && searchParams.thumb !== "1" && !isBotUserAgent((await headers()).get("user-agent"))) {
     void prisma.estimator.update({ where: { id: row.id }, data: { publicViews: { increment: 1 } } }).catch(() => {});
+  }
+
+  // Atlas fill-in only shows when the business can actually pay for it: a used-up
+  // meter (no usage billing yet) or no assistant means the step simply isn't there
+  let assistAvailable = false;
+  if (spec.assist) {
+    const meter = await prisma.company.findUnique({ where: { id: company.id }, select: ATLAS_ACCESS_SELECT });
+    const level = meter ? atlasAccess(meter).level : "off";
+    assistAvailable = level !== "off" && level !== "locked";
   }
 
   const heading = config.heading || row.name;
@@ -57,6 +70,7 @@ export default async function EstimateView({
       showHeader={embed}
       preview={previewing}
       photoAssist={config.photoAssist && Boolean(spec.assist)}
+      assistAvailable={assistAvailable}
       mapCenter={typeof company.lat === "number" && typeof company.lng === "number" ? [company.lat, company.lng] : null}
     />
   );

@@ -41,6 +41,8 @@ export type EstimateLeadInput = {
   customer: EstimateCustomer;
   /** The page the form sat on (embed) or the referrer (hosted) — where the lead came from */
   page?: string;
+  /** The owner's per-channel link tag (?src=truck) — lands on the lead's source and the request */
+  src?: string;
   /** The visitor used the photo fill-in — worth knowing when reading the answers */
   usedPhoto?: boolean;
 };
@@ -56,7 +58,7 @@ export type EstimateLeadResult = {
 const cents = (x: number) => Math.round((x + Number.EPSILON) * 100) / 100;
 
 export async function createEstimateLead(input: EstimateLeadInput): Promise<EstimateLeadResult> {
-  const { pub, result, answers, customer, page, usedPhoto } = input;
+  const { pub, result, answers, customer, page, src, usedPhoto } = input;
   const { company, row, spec, config } = pub;
   const send = config.onSubmit === "send";
   const makeQuote = config.onSubmit !== "request";
@@ -74,7 +76,7 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
         address: customer.address || null,
         notes: null,
         smsConsent: customer.phone ? customer.smsConsent === true : undefined,
-        leadSource: "Website estimate",
+        leadSource: src ? `Website estimate · ${src}` : "Website estimate",
       });
 
       let quote: { id: string; quoteNumber: number; publicToken: string; total: number; deposit: number } | null = null;
@@ -105,6 +107,7 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
           data: {
             companyId: company.id,
             contactId: contact.id,
+            estimatorId: row.id,
             publicToken: randomBytes(24).toString("hex"),
             quoteNumber: (lastQuote?.quoteNumber ?? 0) + 1,
             title,
@@ -155,6 +158,7 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
             quote ? `Quote #${quote.quoteNumber} created automatically (${send ? "sent for approval" : "draft"})${quote.deposit > 0 ? ` — deposit $${quote.deposit.toFixed(2)}` : ""}.` : null,
             customer.address ? `Address: ${customer.address}` : null,
             usedPhoto ? "Answers were filled in from a photo the visitor attached — double-check them." : null,
+            src ? `From link: ${src}` : null,
             page ? `From page: ${page}` : null,
             `Form: ${row.name} (website estimate)`,
           ]

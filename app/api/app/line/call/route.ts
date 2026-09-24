@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   if (!(await limit(`line-call:${actor.id}`, 30, 10 * 60_000)).ok) {
     return NextResponse.json({ error: "Too many calls in a row — give it a few minutes." }, { status: 429 });
   }
-  const body = (await req.json().catch(() => ({}))) as { contactId?: unknown; to?: unknown; via?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { contactId?: unknown; to?: unknown; via?: unknown; device?: unknown };
   try {
     const out = await startOutboundCall(
       actor.companyId,
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
         contactId: typeof body.contactId === "string" ? body.contactId : null,
         to: typeof body.to === "string" ? body.to : null,
       },
-      { via: body.via === "app" ? "app" : "cell" }
+      { via: body.via === "app" ? "app" : "cell", device: body.device === "ios" ? "ios" : "browser" }
     );
     return NextResponse.json(out, { status: 201 });
   } catch (err) {

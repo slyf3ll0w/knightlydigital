@@ -424,8 +424,9 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
   );
 
   // ── the docked bar ──
+  // sheet-material, not glass-control: the latter is phone-only CSS, so desktop showed nothing behind the buttons
   const bar = section !== "history" && (
-    <div className="sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur lg:bottom-4">
+    <div className="sheet-material sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200 px-3 py-2 shadow-lg lg:bottom-4">
       <div className="flex items-center gap-2">
         <button type="button" disabled={busy !== null} onClick={() => void check()} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-gray-300 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
           {busy === "check" ? <Loader2 size={13} className="animate-spin" /> : <ShieldCheck size={13} className={checked ? "text-green-600" : undefined} />}
@@ -860,14 +861,30 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
           <label className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2.5">
             <span>
               <span className="block text-sm font-medium text-gray-800">Atlas fill-in</span>
-              <span className="block text-xs text-gray-500">“Describe the job / snap a photo” on this tool. Costs tokens per use; typing the answers stays free. Always on when a question is assessed by Atlas.</span>
+              <span className="block text-xs text-gray-500">“Add a photo and/or describe what needs to be done” on this tool. Costs tokens per use; typing the answers stays free.{spec.inputs.some((i) => i.askAtlas) ? " Turning it off also makes the questions Atlas assesses plain." : ""}{spec.inputs.some((i) => i.type !== "text") ? "" : " Needs a number, choice, count or yes/no question first."}</span>
             </span>
-            <input type="checkbox" checked={Boolean(spec.assist)} disabled={spec.inputs.some((i) => i.askAtlas)} onChange={(e) => touch((s) => (s.assist = e.target.checked ? { instructions: s.assist?.instructions } : null))} className="h-5 w-5 rounded accent-green-600" />
+            <input
+              type="checkbox"
+              checked={Boolean(spec.assist)}
+              disabled={!spec.assist && !spec.inputs.some((i) => i.type !== "text")}
+              onChange={(e) =>
+                touch((s) => {
+                  s.assist = e.target.checked ? { instructions: s.assist?.instructions } : null;
+                  if (!e.target.checked) for (const i of s.inputs) if (i.askAtlas) i.askAtlas = undefined;
+                })
+              }
+              className="h-5 w-5 rounded accent-green-600"
+            />
           </label>
           {spec.assist && (
             <div>
+              {!(spec.assist.instructions ?? "").trim() && (
+                <div className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
+                  <span className="font-semibold">Give Atlas instructions for this job.</span> Without them it fills the form with trade-typical guesses. Say what to look for in a photo or description, what to assume when it can&apos;t tell, and what it must never guess.
+                </div>
+              )}
               <label className="mb-1 block text-sm font-medium text-gray-800">Guidance for Atlas</label>
-              <Textarea value={spec.assist.instructions ?? ""} onChange={(e) => touch((s) => (s.assist = { instructions: e.target.value || undefined }))} rows={2} maxLength={600} placeholder="e.g. A two-car driveway is about 500 sq ft; count the garage as one story." className="w-full" />
+              <Textarea value={spec.assist.instructions ?? ""} onChange={(e) => touch((s) => (s.assist = { instructions: e.target.value || undefined }))} rows={3} maxLength={1000} placeholder="What to look for in a photo or description, what to assume when it can't tell, what never to guess — e.g. A two-car driveway is about 500 sq ft; count the garage as one story; if the photo doesn't show the stains, assume moderate." className="w-full" />
             </div>
           )}
         </div>

@@ -162,7 +162,7 @@ const WEBSITE_PARAM = {
     slug: { type: "string", description: "link name, e.g. 'driveway-estimate'; default from the tool name" },
     showPrice: { type: "string", enum: ["exact", "range", "hidden"], description: "exact lines + total (default) · a ± range · no number (owner follows up)" },
     rangePct: { type: "number", description: "range half-width in percent, 5–50 (default 15)" },
-    reveal: { type: "string", enum: ["instant", "after_contact"], description: "instant (default) = estimate first, then ask for details · after_contact = details first, estimate on the thank-you screen" },
+    reveal: { type: "string", enum: ["instant", "after_contact", "before_form"], description: "instant (default) = questions, estimate, then ask for details · after_contact = questions, details, estimate on the thank-you screen · before_form = name + contact details FIRST, then the questions, then the estimate" },
     onSubmit: { type: "string", enum: ["draft", "send", "request"], description: "draft (default) = lead + request + draft quote · send = email the quote for approval · request = lead + request only" },
     heading: { type: "string" },
     intro: { type: "string" },
@@ -173,7 +173,7 @@ const WEBSITE_PARAM = {
     requireAddress: { type: "boolean" },
     disclaimer: { type: "string", description: "fine print under the estimate; a sensible default exists" },
     successMessage: { type: "string", description: "thank-you text; default fits onSubmit" },
-    photoAssist: { type: "boolean", description: "visitors may attach a photo / describe the job and Atlas fills in the answers — spends the OWNER's tokens (capped per day); needs the tool's assist; default false. Offer it only when the owner asks for photos or the tool already uses assist." },
+    photoAssist: { type: "boolean", description: "visitors may attach a photo / describe the job and Atlas fills in the answers — spends the OWNER's tokens (capped per day); needs the tool's assist; default false (turns on by itself when a change turns the tool's assist on). Offer it only when the owner asks for photos or the tool already uses assist." },
   },
 } as const;
 
@@ -226,27 +226,29 @@ async function companySlugOf(companyId: string): Promise<string> {
   return c?.slug ?? "";
 }
 
-function websiteState(row: { isPublic: boolean; publicSlug: string | null; publicConfig: unknown }, companySlug: string) {
+function websiteState(row: { id: string; isPublic: boolean; publicSlug: string | null; publicConfig: unknown }, companySlug: string) {
   const path = publicEstimatePath(companySlug, row);
-  return path ? { on: true, url: path, embedNote: "embed snippet under Settings → Estimate tools → globe button", ...Object.fromEntries(describePublicConfig(sanitizePublicConfig(row.publicConfig)).map((l, i) => [`detail${i + 1}`, l])) } : { on: false };
+  return path ? { on: true, url: path, embedNote: `link + embed code on the tool's page: /app/estimates/${row.id}?s=website`, ...Object.fromEntries(describePublicConfig(sanitizePublicConfig(row.publicConfig)).map((l, i) => [`detail${i + 1}`, l])) } : { on: false };
 }
 
 const manageEstimator: Tool = {
   decl: {
     name: "manage_estimator",
     description:
-      "Build and maintain the company's estimate tools (managers): saved calculators that turn a few inputs (square footage, rooms, hours, options) into quote line items using the business's own pricing rules. Running a tool is plain math and free; building one is your job here. Workflow: action 'guide' (spec format + expression reference + the price book — call it before writing a spec), then 'test' the spec with sample inputs until it's right, then 'update' (with estimatorId) which shows a confirmation card. A NEW tool is different: call 'create' with request = the owner's words — it opens the Estimates page's builder, which drafts, tests and saves the tool while they watch; you never write a spec for a new tool. 'list' shows saved tools; 'get' returns one tool's full spec for editing. Use the rates the user gives you or the price book — never invent a business's prices. Only add 'assist' when judgment from a written description is genuinely needed (it costs the user tokens per use). Any tool can also be a WEBSITE FORM (pass 'website' on create/update): visitors on the business's site answer the questions, see the estimate the owner chooses to show (exact, a range, or none) and become a lead + request (+ quote) — free for the owner.",
+      "Build and maintain the company's estimate tools (managers): saved calculators that turn a few inputs (square footage, rooms, hours, options) into quote line items using the business's own pricing rules. Running a tool is plain math and free. Two kinds of change: (1) RULES — anything about the questions, options, rates, packages, sections, wording of questions, or photo / description fill-in: call 'create' (a new tool) or 'update' with estimatorId (an existing one) passing request = the owner's words verbatim (plus any rates they gave). That opens the tool's page, where the Atlas builder drafts, tests and saves the change while they watch — you NEVER write or describe a spec for these. (2) SETTINGS — name, description, on/off, Atlas fill-in (atlasFillIn: a photo / description fills in the answers — a separate switch the builder never touches), and the website form's options (published, what visitors see, when details are asked, what a submission creates, photo fill-in for visitors): 'update' with those fields shows a confirmation card right here in the chat. 'list' shows saved tools; 'get' returns one tool in full. Never invent a business's prices. Any tool can also be a WEBSITE FORM (pass 'website' on update): visitors on the business's site answer the questions, see the estimate the owner chooses to show (exact, a range, or none) and become a lead + request (+ quote) — free for the owner.",
     parameters: {
       type: "object",
       properties: {
         action: { type: "string", enum: ["guide", "list", "get", "test", "create", "update"] },
         estimatorId: { type: "string", description: "for get/update/test-of-saved (from list)" },
-        request: { type: "string", description: "create: the owner's words describing the tool they want, verbatim, plus any rates they gave" },
+        request: { type: "string", description: "create: the owner's words describing the tool they want, verbatim, plus any rates they gave. update: the owner's words describing a change to the tool's RULES (questions, options, rates, packages, photo fill-in) — the tool's page builds it; never pass a spec for that" },
         name: { type: "string", description: "tool name, e.g. 'Driveway & house wash', 'Interior paint by room'" },
         description: { type: "string", description: "one line: when to use this tool" },
         spec: SPEC_PARAM,
         inputs: { ...INPUTS_PARAM, description: `sample inputs for 'test': ${INPUTS_PARAM.description}` },
         isActive: { type: "boolean", description: "update: turn the tool on/off" },
+        atlasFillIn: { type: "boolean", description: "update: turn Atlas fill-in on/off — with it on, someone can add a photo or describe the job and Atlas fills in the answers (tokens per use; typing stays free). A separate switch from the rules; the builder never sets it." },
+        atlasFillInGuidance: { type: "string", description: "update (with atlasFillIn true): what Atlas should look for, assume when unsure, and never guess — 2–4 plain sentences" },
         website: WEBSITE_PARAM,
       },
       required: ["action"],
@@ -264,7 +266,7 @@ const manageEstimator: Tool = {
         priceBookNote: book.length > 80 ? `${book.length - 80} more — use get_price_book` : undefined,
         limits: ESTIMATOR_LIMITS,
         websiteForms:
-          "Any tool can be published as a website form: pass website: {enabled: true, showPrice: 'exact'|'range'|'hidden', reveal: 'instant'|'after_contact', onSubmit: 'draft'|'send'|'request', …} on create or update. Ask the owner two things at most: what visitors should see (exact price / range / no price) and what should happen (draft quote for review / email the quote / just the lead). Default = exact price shown right away, then name + email + phone, lead + request + draft quote. The link is /book/<companySlug>/estimate/<slug>; the embed snippet lives under the Estimates page (Website button on the tool). Visitors never spend the owner's tokens unless the owner turns on photoAssist (a photo / description fill-in on the form, capped per day, needs the tool's assist). Text inputs are fine on a public form — they land in the request as answers. Every saved change keeps the previous version (Estimates → Edit → History), and the owner can edit rates by hand there too.",
+          "Any tool can be published as a website form: pass website: {enabled: true, showPrice: 'exact'|'range'|'hidden', reveal: 'instant'|'after_contact'|'before_form', onSubmit: 'draft'|'send'|'request', …} on create or update. Ask the owner two things at most: what visitors should see (exact price / range / no price) and what should happen (draft quote for review / email the quote / just the lead). Default = exact price shown right away, then name + email + phone, lead + request + draft quote. reveal 'before_form' asks for the name and contact details BEFORE the questions (every visitor who starts becomes a lead). The link is /book/<companySlug>/estimate/<slug>; the embed snippet lives under the Estimates page (Website button on the tool). Visitors never spend the owner's tokens unless the owner turns on photoAssist (a photo / description fill-in on the form, capped per day, needs the tool's assist). Text inputs are fine on a public form — they land in the request as answers. Every saved change keeps the previous version (Estimates → Edit → History), and the owner can edit rates by hand there too.",
         next: "Draft the spec from what the user told you, run action 'test' with realistic sample inputs, then stage 'create'.",
       };
     }
@@ -347,6 +349,17 @@ const manageEstimator: Tool = {
     if (action === "update") {
       const row = await prisma.estimator.findFirst({ where: { id: str(args.estimatorId, 40), companyId: actor.companyId }, select: ESTIMATOR_SELECT });
       if (!row) return { error: "No estimate tool with that id — use action 'list' first." };
+      // A change to the RULES goes to the tool's page, where the builder makes
+      // it while the owner watches (the same path as a new tool) — the chat
+      // never drafts a spec for it.
+      const request = str(args.request, 1500);
+      if (request) {
+        ctx.navigate = `/app/estimates/${row.id}?s=atlas&prompt=${encodeURIComponent(request)}`;
+        return {
+          opened: `/app/estimates/${row.id}`,
+          note: `The "${row.name}" page is opening and Atlas is building that change now — it saves itself when done. Reply in ONE short sentence. Do not draft, describe or promise a spec here.`,
+        };
+      }
       const payload: Record<string, unknown> = {};
       const lines: string[] = [];
       const name = str(args.name, 80);
@@ -362,6 +375,21 @@ const manageEstimator: Tool = {
       if (typeof args.isActive === "boolean" && args.isActive !== row.isActive) {
         payload.isActive = args.isActive;
         lines.push(args.isActive ? "Turn it on" : "Turn it off (hidden from quotes)");
+      }
+      // Atlas fill-in: the owner's separate switch, flipped from the chat
+      if (typeof args.atlasFillIn === "boolean" && !args.spec) {
+        const cur = specFromJson(row.spec);
+        if (!cur) return { error: "This tool's saved rules no longer compile — rebuild it first." };
+        const guidance = str(args.atlasFillInGuidance, 1000);
+        const wasOn = Boolean(cur.assist);
+        if (args.atlasFillIn !== wasOn || (args.atlasFillIn && guidance && guidance !== (cur.assist?.instructions ?? ""))) {
+          const next = { ...cur, assist: args.atlasFillIn ? { instructions: guidance || cur.assist?.instructions } : null };
+          const check = await checkSpec(actor.companyId, next);
+          if (!check.ok) return { error: "Couldn't change the fill-in switch.", errors: check.errors };
+          payload.spec = check.compiled.spec;
+          lines.push(args.atlasFillIn ? (wasOn ? "Update the fill-in guidance" : "Turn Atlas fill-in on (photo / description → answers; tokens per use)") : "Turn Atlas fill-in off (every answer typed, free)");
+          if (args.atlasFillIn && guidance) lines.push(`Guidance: ${guidance}`);
+        }
       }
       if (args.spec) {
         const check = await checkSpec(actor.companyId, args.spec);
@@ -381,7 +409,7 @@ const manageEstimator: Tool = {
         Object.assign(payload, web.payload);
         lines.push(...web.lines);
       }
-      if (lines.length === 0) return { error: "Nothing to change — pass a new spec, name, description, isActive or website." };
+      if (lines.length === 0) return { error: "Nothing to change — for a change to the rules pass request (the owner's words); for settings pass name, description, isActive or website." };
       payload.source = "atlas";
       return stage(ctx, {
         kind: "manage_estimator",

@@ -224,6 +224,8 @@ export type AIChatOptions = {
   onUsage?: (u: { tokensIn: number; tokensOut: number; tokensCached: number }) => void;
   /** Request deadline (default 60 s). Long-thinking one-shots pass more. */
   timeoutMs?: number;
+  /** Caller-side cancel (a build the owner cancelled): the request is dropped and null returned, no retry. */
+  signal?: AbortSignal;
 };
 
 /**
@@ -258,12 +260,13 @@ export async function aiChat(opts: AIChatOptions): Promise<AIPart[] | null> {
   // different model, whose quota bucket is separate. Waiting here just
   // stalls the user. 503 (overload) gets one quick retry.
   for (let attempt = 0; attempt < 2; attempt++) {
+    if (opts.signal?.aborted) return null;
     try {
       const res = await fetch(`${GEMINI_BASE}/${model}:generateContent?key=${key}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(opts.timeoutMs ?? 60_000),
+        signal: opts.signal ? AbortSignal.any([opts.signal, AbortSignal.timeout(opts.timeoutMs ?? 60_000)]) : AbortSignal.timeout(opts.timeoutMs ?? 60_000),
       });
       if (res.status === 503 && attempt === 0) {
         console.error("aiChat: Gemini 503 — quick retry");
@@ -295,6 +298,7 @@ export async function aiChat(opts: AIChatOptions): Promise<AIPart[] | null> {
       }
       return candidate?.content?.parts ?? null;
     } catch (err) {
+      if (opts.signal?.aborted) return null; // cancelled by the caller — not an error
       console.error("aiChat: request failed", err);
       return null;
     }

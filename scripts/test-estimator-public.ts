@@ -167,3 +167,22 @@ console.log("test-estimator-public: all green");
   assert.ok(grouped.mode === "exact" && grouped.lines[0].group === "Labor", "groups reach the visitor's breakdown");
 }
 console.log("ok 8: shapeVariants + groups");
+
+// 9. details-first forms (Batch 13) — reveal "before_form"; the retired financing block is ignored
+{
+  const d = defaultPublicConfig();
+  const first = sanitizePublicConfig({ reveal: "before_form" });
+  assert.equal(first.reveal, "before_form");
+  assert.equal(sanitizePublicConfig({ reveal: "nonsense" }).reveal, "instant", "unknown reveal → instant");
+  assert.equal(defaultButtonLabel(first), "See my estimate", "details first still ends on the estimate");
+  assert.equal(defaultButtonLabel({ ...first, showPrice: "hidden" }), "Get my quote");
+  assert.match(describePublicConfig(first)[0], /details first/);
+  assert.match(describePublicConfig({ ...first, showPrice: "hidden" })[0], /before the questions/);
+  const legacy = sanitizePublicConfig({ monthly: { show: true, apr: 9.99, months: 60 } }) as Record<string, unknown>;
+  assert.equal("monthly" in legacy, false, "old rows' financing block is dropped");
+  const tiers = shapeVariants({ basic: 2500, plus: null }, { showPrice: "exact", rangePct: 15 });
+  assert.deepEqual(tiers.basic, { label: "$2,500" }, "tier labels carry no financing line");
+  assert.equal(tiers.plus, null);
+  assert.equal(describePublicConfig(d).length, 3);
+}
+console.log("ok 9: details-first forms");

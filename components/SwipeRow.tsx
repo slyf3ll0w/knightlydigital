@@ -3,18 +3,25 @@
 import { useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 
-export type SwipeRowAction = {
-  key: string;
-  label: string;
-  icon: LucideIcon;
-  /** A link… */
-  href?: string;
-  external?: boolean;
-  /** …or a button (pause a rule, delete a row) — the tray closes after. */
-  onClick?: () => void;
-  /** Tray button background (CSS color). */
-  bg: string;
-};
+export type SwipeRowAction =
+  | {
+      key: string;
+      label: string;
+      icon: LucideIcon;
+      /** A link… */
+      href?: string;
+      external?: boolean;
+      /** …or a button (pause a rule, delete a row) — the tray closes after. */
+      onClick?: () => void;
+      /** Tray button background (CSS color). */
+      bg: string;
+    }
+  | {
+      /** A live control instead of a link (the Calls list's "Call back", which rings the softphone or the cell): the node fills a tray slot. Server components can pass one — elements cross the boundary, component refs don't. */
+      key: string;
+      node: React.ReactNode;
+      bg: string;
+    };
 
 const BTN_W = 64; // px per revealed action button
 
@@ -87,24 +94,30 @@ export default function SwipeRow({
         style={{ width: trayW, visibility: offset === 0 && !dragging ? "hidden" : "visible" }}
         aria-hidden={offset === 0}
       >
-        {actions.map(({ key, label, icon: Icon, href, external, onClick, bg }) => (
-          <a
-            key={key}
-            href={href ?? "#"}
-            {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-            tabIndex={offset === 0 ? -1 : 0}
-            onClick={(e) => {
-              if (!href) e.preventDefault();
-              setOffset(0);
-              onClick?.();
-            }}
-            className="flex flex-col items-center justify-center gap-1 text-[10px] font-semibold text-white active:opacity-80"
-            style={{ width: BTN_W, backgroundColor: bg }}
-          >
-            <Icon size={18} />
-            {label}
-          </a>
-        ))}
+        {actions.map((a) =>
+          "node" in a ? (
+            <div key={a.key} onClick={() => setOffset(0)} className="flex items-stretch" style={{ width: BTN_W, backgroundColor: a.bg }}>
+              {a.node}
+            </div>
+          ) : (
+            <a
+              key={a.key}
+              href={a.href ?? "#"}
+              {...(a.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+              tabIndex={offset === 0 ? -1 : 0}
+              onClick={(e) => {
+                if (!a.href) e.preventDefault();
+                setOffset(0);
+                a.onClick?.();
+              }}
+              className="flex flex-col items-center justify-center gap-1 text-[10px] font-semibold text-white active:opacity-80"
+              style={{ width: BTN_W, backgroundColor: a.bg }}
+            >
+              <a.icon size={18} />
+              {a.label}
+            </a>
+          )
+        )}
       </div>
       {/* The row itself slides over the tray */}
       <div

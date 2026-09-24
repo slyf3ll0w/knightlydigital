@@ -3,10 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, Globe, ImagePlus, Loader2, MessageCircleQuestion, Pencil, Play, Sparkles, X } from "lucide-react";
 import { Textarea } from "@/components/Input";
+import SectionHeader from "@/components/SectionHeader";
 import { useAssistant } from "@/components/AssistantContext";
 import { APP_THEME, moneyExact, useCountUp, wash } from "@/components/EstimatorControls";
 import RatesToConfirm from "@/components/RatesToConfirm";
 import { fileToAssistPhoto, type AssistPhoto } from "@/lib/image-downscale";
+import { readTrackedBuild, setPanelShowing, trackBuild, untrackBuild } from "@/lib/build-tracker";
+import { confirmCancelBuild } from "@/components/BuildProgressBar";
+import { hapticNotify } from "@/lib/haptics";
 import type { BuildAnswer, BuildDraft, BuildPlan, BuildQuestion, BuildSample } from "@/lib/estimator-build";
 
 /**
@@ -18,6 +22,11 @@ import type { BuildAnswer, BuildDraft, BuildPlan, BuildQuestion, BuildSample } f
  * (rates per material, a minimum), it asks — one short round, with example
  * answers to tap — the way a colleague would, then builds with the answers.
  * The same panel changes an existing tool when `estimatorId` is set.
+ *
+ * The build itself runs on the server; this panel only follows it. It
+ * records the build in lib/build-tracker.ts so the app-wide progress bar
+ * (components/BuildProgressBar.tsx) keeps following it when the owner
+ * navigates away, and Cancel stops it — nothing is saved.
  */
 
 export type BuiltTool = Record<string, unknown> & { id: string; name: string };
@@ -35,7 +44,7 @@ type Ev =
 
 type Finished = { tool: BuiltTool; changes: string[]; samples: BuildSample[]; placeholders: string[]; warnings: string[]; tokens: number };
 /** GET /api/app/estimators/build/[id] */
-type BuildState = { id: string; status: "running" | "questions" | "done" | "error"; prompt: string; events: Ev[] };
+type BuildState = { id: string; status: "running" | "questions" | "done" | "error" | "cancelled"; prompt: string; events: Ev[] };
 
 const STEPS: { key: StepKey; label: string; changeLabel: string }[] = [
   { key: "plan", label: "Sizing up the job", changeLabel: "Reading the tool" },
@@ -75,7 +84,7 @@ const CONTROL_WORD: Record<string, string> = {
 function SampleTile({ s, pending }: { s: BuildSample | null; pending: boolean }) {
   const shown = useCountUp(s?.subtotal ?? null);
   return (
-    <div className="msg-enter rounded-xl border border-gray-200 px-3 py-2.5">
+    <div className="msg-enter rounded-lg border border-gray-200 px-3 py-2.5">
       <p className="truncate text-[11px] font-medium text-gray-500">{s?.label ?? (pending ? "Sample job" : "—")}</p>
       {s?.error ? (
         <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-amber-700">
@@ -90,6 +99,7 @@ function SampleTile({ s, pending }: { s: BuildSample | null; pending: boolean })
 
 export default function BuildPanel({
   estimatorId,
+  toolName,
   initialPrompt = "",
   placeholder,
   onBuilt,
@@ -98,10 +108,18 @@ export default function BuildPanel({
   onEdit,
   compact = false,
   autoFocus = false,
+  autoStart = false,
+  visible = true,
   resumeBuildId = null,
 }: {
+  /** False while the panel is mounted but hidden (another section of the tool page) — the app-wide bar takes over. */
+  visible?: boolean;
   /** Set → change this tool instead of creating one */
   estimatorId?: string;
+  /** Atlas sent the owner here with their words (?prompt=) — start building at once, no button press. */
+  autoStart?: boolean;
+  /** The tool's name (with estimatorId) — what the app-wide progress bar calls the build */
+  toolName?: string;
   /** A build that is still running (or waiting on answers) — the panel picks it up instead of starting fresh. */
   resumeBuildId?: string | null;
   initialPrompt?: string;
@@ -130,10 +148,24 @@ export default function BuildPanel({
   // a photo of the owner's price sheet / rate card — both model calls read it
   const [sheet, setSheet] = useState<AssistPhoto | null>(null);
   const [reading, setReading] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const boxRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   // the build this panel is following right now (a newer one supersedes it)
   const followingRef = useRef<string | null>(null);
+  const [followingId, setFollowingId] = useState<string | null>(null);
+  const home = estimatorId ? `/app/estimates/${estimatorId}` : "/app/estimates";
+
+  // Tell the app-wide bar when this panel has the build on screen (it hides then) and when it doesn't
+  useEffect(() => {
+    setPanelShowing(visible && followingId ? followingId : null);
+    return () => setPanelShowing(null);
+  }, [visible, followingId]);
+
+  /** Record the build for the app-wide bar (so leaving this page keeps it in view). */
+  function remember(buildId: string, label: string) {
+    trackBuild({ id: buildId, estimatorId: estimatorId ?? null, label: (estimatorId ? toolName || label : label).trim().slice(0, 70) || "Estimate tool", home, startedAt: Date.now() });
+  }
 
   async function attachSheet(file: File | undefined) {
     if (!file) return;
@@ -142,7 +174,7 @@ export default function BuildPanel({
     const p = await fileToAssistPhoto(file, 2000);
     setReading(false);
     if (!p) {
-      setError("That picture couldn't be read — try a JPEG or PNG of the sheet.");
+      setError("That picture couldn't be read. Try a JPEG or PNG of the sheet — an iPhone HEIC photo works after sharing it as a JPEG.");
       return;
     }
     setError("");
@@ -197,6 +229,7 @@ export default function BuildPanel({
           setDoneKeys(STEPS.map((s) => s.key));
           setCurrent(null);
           setSamples(ev.samples);
+          hapticNotify("SUCCESS");
           const fin = { tool: ev.tool, changes: ev.changes, samples: ev.samples, placeholders: ev.placeholders, warnings: ev.warnings, tokens: ev.tokens };
           setFinished(fin);
           onBuilt(ev.tool, { changes: ev.changes, samples: ev.samples, placeholders: ev.placeholders, tokens: ev.tokens });
@@ -220,6 +253,7 @@ export default function BuildPanel({
     let seen = 0;
     let misses = 0;
     followingRef.current = buildId;
+    setFollowingId(buildId);
     try {
       for (;;) {
         if (followingRef.current !== buildId) return; // a newer build took over
@@ -244,7 +278,16 @@ export default function BuildPanel({
         } else {
           misses = 0;
           if (!prompt && data.prompt) setPrompt(data.prompt);
+          // a resumed build the bar doesn't know yet (another device, a reload)
+          if (readTrackedBuild()?.id !== buildId && (data.status === "running" || data.status === "questions")) remember(buildId, data.prompt);
+          if (data.status === "cancelled") {
+            setCurrent(null);
+            setError("Cancelled — nothing was saved.");
+            untrackBuild(buildId);
+            return;
+          }
           for (; seen < data.events.length; seen++) handle(data.events[seen]);
+          if (data.status === "done" || data.status === "error") untrackBuild(buildId);
           if (data.status !== "running") return;
         }
         await new Promise((r) => setTimeout(r, 1200));
@@ -252,6 +295,20 @@ export default function BuildPanel({
     } finally {
       if (followingRef.current === buildId) setRunning(false);
     }
+  }
+
+  /** Stop the build that's running (the server aborts the call in flight; nothing is saved). */
+  async function cancel() {
+    const id = followingRef.current;
+    if (!id || cancelling) return;
+    if (!(await confirmCancelBuild())) return;
+    setCancelling(true);
+    try {
+      await fetch(`/api/app/estimators/build/${id}`, { method: "DELETE" });
+    } catch {
+      /* the poll reports the truth either way */
+    }
+    setCancelling(false);
   }
 
   async function run(fullPrompt: string, withAnswers?: BuildAnswer[]) {
@@ -276,6 +333,7 @@ export default function BuildPanel({
         setRunning(false);
         return;
       }
+      remember(data.buildId, fullPrompt);
       await follow(data.buildId);
     } catch {
       setError("Couldn't start the build — check your connection and try again.");
@@ -293,6 +351,23 @@ export default function BuildPanel({
     void follow(resumeBuildId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumeBuildId]);
+
+  // Atlas sent the owner here with their words: build straight away. The
+  // prompt leaves the URL first so a reload doesn't start it twice.
+  const autoRef = useRef(false);
+  useEffect(() => {
+    if (!autoStart || !initialPrompt.trim() || resumeBuildId || autoRef.current) return;
+    autoRef.current = true;
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("prompt");
+      window.history.replaceState(null, "", url.toString());
+    } catch {
+      /* ignore */
+    }
+    void run(initialPrompt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const canRun = (prompt.trim().length >= 8 || Boolean(sheet)) && !running && !reading && !atlas.locked;
   const stepLabel = (s: (typeof STEPS)[number]) => (estimatorId ? s.changeLabel : s.label);
@@ -320,12 +395,7 @@ export default function BuildPanel({
       {/* ── the ask ── */}
       {!stage && !questions && (
         <div className={compact ? "" : "p-4 sm:p-6"}>
-          {!compact && (
-            <div className="mb-4">
-              <h2 className="text-xl font-bold tracking-tight text-gray-900">Build an estimate tool</h2>
-              <p className="mt-1 text-sm text-gray-600">Say how you price the job, the way you&apos;d explain it to a new hire — or attach a photo of your price sheet. {atlas.name} uses your price book and past quotes for the rest, writes the questions and the math, then proves it on sample jobs.</p>
-            </div>
-          )}
+          {!compact && <SectionHeader size="block" className="mb-4" title="Build an estimate tool" hint={`Say how you price the job, the way you'd explain it to a new hire — or attach a photo of your price sheet. ${atlas.name} uses your price book and past quotes for the rest, writes the questions and the math, then proves it on sample jobs.`} />}
           <Textarea
             ref={boxRef}
             value={prompt}
@@ -364,7 +434,7 @@ export default function BuildPanel({
             {!sheet && !compact && <span className="text-[11px] text-gray-400">{atlas.name} reads your rates off it — nothing to type.</span>}
           </div>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <span className="text-xs text-gray-500">{atlas.locked ? "Your Atlas tokens are used up for now." : "Uses Atlas tokens once. Running the tool is free, forever."}</span>
+            <span className="text-xs text-gray-500">{atlas.locked ? "Your Atlas tokens are used up for now." : "Uses Atlas tokens once. Running the tool is free, forever. You can leave this page while it builds."}</span>
             <button type="button" disabled={!canRun} onClick={() => void run(prompt)} className="btn-primary h-11 justify-center px-5">
               <Sparkles size={16} />
               {estimatorId ? "Make the change" : "Build it"}
@@ -399,7 +469,7 @@ export default function BuildPanel({
           </div>
           <ol className="mt-4 space-y-4">
             {questions.map((q, i) => (
-              <li key={q.question} className="msg-enter rounded-xl border border-gray-200 p-3.5" style={{ animationDelay: `${i * 60}ms` }}>
+              <li key={q.question} className="msg-enter rounded-lg border border-gray-200 p-3.5" style={{ animationDelay: `${i * 60}ms` }}>
                 <p className="text-sm font-medium text-gray-900">{q.question}</p>
                 {q.why && <p className="mt-0.5 text-xs text-gray-500">{q.why}</p>}
                 {q.suggestions.length > 0 && (
@@ -476,9 +546,15 @@ export default function BuildPanel({
               );
             })}
           </ol>
-          <p className="mt-2 min-h-5 text-sm font-medium text-gray-700">
-            {current ? <span className="atlas-shimmer">{current.message.replace(/…$/, "")}</span> : finished ? `“${finished.tool.name}” is ready.` : error ? "Stopped." : ""}
-          </p>
+          <div className="mt-2 flex min-h-5 items-center justify-between gap-3">
+            <p className="min-w-0 text-sm font-medium text-gray-700">{current ? <span className="atlas-shimmer">{current.message.replace(/…$/, "")}</span> : finished ? (estimatorId ? `Done — the changes are saved to “${finished.tool.name}”.` : `“${finished.tool.name}” is ready.`) : error ? "Stopped." : ""}</p>
+            {running && (
+              <button type="button" onClick={() => void cancel()} disabled={cancelling} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-gray-300 px-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                {cancelling ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />} Cancel
+              </button>
+            )}
+          </div>
+          {running && !compact && <p className="mt-1 text-[11px] text-gray-500">You can leave this page — a small bar keeps you posted, and the tool saves itself when it&apos;s done.</p>}
           {error && (
             <div role="alert" className="form-error mt-3">
               {error}
@@ -486,7 +562,7 @@ export default function BuildPanel({
           )}
 
           {/* the tool taking shape */}
-          <div className="mt-4 rounded-2xl border border-gray-200 bg-white">
+          <div className="mt-4 rounded-lg border border-gray-200 bg-white">
             <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-4 py-3">
               <div className="min-w-0">
                 <p className="truncate text-base font-semibold text-gray-900">{title ?? <span className="atlas-shimmer">{estimatorId ? "Reading the tool" : plan?.trade ?? "Working out your tool"}</span>}</p>
@@ -494,7 +570,7 @@ export default function BuildPanel({
               </div>
               {finished ? (
                 <span className="msg-enter inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ backgroundColor: wash(theme, 12), color: theme.accent }}>
-                  <Check size={12} strokeWidth={3} /> Ready
+                  <Check size={12} strokeWidth={3} /> {estimatorId ? "Saved" : "Ready"}
                 </span>
               ) : plan?.trade && !estimatorId ? (
                 <span className="msg-enter shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">{plan.trade}</span>

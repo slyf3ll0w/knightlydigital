@@ -1,5 +1,16 @@
 # App Store — Workbench FSM, 1.3 update (2026-09-23)
 
+**Submitted 2026-09-23 16:26 CDT with build 12 — Waiting for Review.** New
+screenshots (Summit Plumbing demo, captured on the iPhone 17 Pro Max and
+iPad Pro 13" simulators, 6 each) are in
+`~/Desktop/appstore-screenshots/2026-09-23-1.3/` (`iphone-6.5/` is the
+1284×2778 set that was uploaded to the 6.5" slot, which ASC applies to every
+iPhone size). Reviewer sign-in was switched to the Streamflaire demo
+(test@testing.com) because it is the account with a business line. Capture
+trick: `simctl openurl` sends universal links to Safari on a simulator, so
+each screen was reached by rewriting `server.url` in the built app's
+`capacitor.config.json` and reinstalling (the session survives a reinstall).
+
 The listing (name, screenshots, privacy labels, age rating) is already live
 from 1.2 (id6789991103). This is only what changes for 1.3.
 
@@ -28,9 +39,10 @@ line ("press 1"), then the client — that is the designed flow, not a bug.
 
 VoIP push: the app registers a PushKit VoIP token only to ring the user's
 own business-line calls (Telnyx). Every VoIP push reports an incoming call
-to CallKit immediately; no VoIP push is used for anything else. Background
-modes: `voip` for that, `audio` so an in-progress call keeps going when the
-phone locks.
+to CallKit immediately; no VoIP push is used for anything else. The call
+itself is carried natively by the Telnyx iOS SDK under CallKit, so it can be
+answered from the lock screen. Background modes: `voip` for that, `audio` so
+an in-progress call keeps going when the phone locks.
 
 Siri: App Intents for clock in/out, next job, calling a client, calling
 back a missed call, adding a job note, and today's schedule. Each calls the app's own API with the user's session; a call
@@ -46,6 +58,12 @@ is not recorded by the app.
 
 ## Version / build
 
-`MARKETING_VERSION = 1.3`, `CURRENT_PROJECT_VERSION = 7` (build 6 crashed on
-the first closed-app call: PushKit was not registered at launch). Bump to 8 if
-another upload is needed for the same version.
+`MARKETING_VERSION = 1.3`, `CURRENT_PROJECT_VERSION = 12` (build 9 added the
+server-log trace; 10 the phone's own SIP credential; 11 clean background
+disconnect + settle + decline-on-end; 12 the audio fix — the SDK's manual
+audio was left off when CallKit activated the session before the media
+existed — plus fresh reconnects on push and a speaker switch). Build 6 crashed on
+the first closed-app call (PushKit was not registered at launch); build 7
+rang but could not take the call from the lock screen (the web page is frozen
+in the background); build 8 embeds the Telnyx iOS SDK as a native engine.
+Bump to 9 if another upload is needed for the same version.

@@ -1,8 +1,10 @@
 import Link from "next/link";
 import {
+  ChevronRight,
   PhoneIncoming,
   PhoneOutgoing,
   PhoneMissed,
+  Phone,
   Voicemail,
   Headphones,
   MessageSquare,
@@ -18,18 +20,31 @@ import { fmtPhone, fmtTime } from "@/lib/format";
 import type { CallEvent, CallEventKind } from "@/lib/call-events";
 import VoicemailPlayer from "@/components/VoicemailPlayer";
 import CallFromLineButton from "@/components/CallFromLineButton";
+import Monogram from "@/components/Monogram";
+import SwipeRow, { type SwipeRowAction } from "@/components/SwipeRow";
 
 /**
- * One call on the business line, as /app/calls and the contact page's
- * "Recent calls" card show it. Server component; the interactive pieces are
- * the in-app voicemail player (components/VoicemailPlayer.tsx) and the
- * "Call back" button, which rings the browser softphone when it's registered
- * and the cell otherwise (components/CallFromLineButton.tsx).
+ * One call on the business line — a ROW in a recents list, the way a
+ * phone's Recents and the Clients ledger lay theirs out: monogram (or a
+ * tinted tile for a number nobody has saved), the name, one quiet line
+ * under it saying what happened (incoming · 2:31 · Alex), the time on the
+ * right. Rows have no border of their own; the list around them is the
+ * `card-ledger divide-y` sheet, so /app/calls, the contact page's "Recent
+ * calls" card and the call screen's "Earlier calls" all read the same.
  *
- * The name opens the call screen (/app/calls/[id]) — save the caller, quote,
- * schedule or invoice from there. Whether they're a lead or a client is a
- * quiet word after the name; what got done on the call (lib/call-events.ts)
- * sits in the second line as plain linked text, no badges.
+ * iOS conventions carried over: a missed call's name is red, an unseen
+ * missed call or voicemail is bold with a dot on the avatar, on a phone
+ * the whole row opens the call screen (a stretched link under the
+ * content), a swipe left reveals Text / Call back (components/SwipeRow.tsx),
+ * and a voicemail row stays one line — the call screen plays it. Desktop
+ * keeps the name as the link, the player in the row, and Text / Call back
+ * at the end of the row.
+ *
+ * Server component; the interactive pieces are the in-app voicemail player
+ * (components/VoicemailPlayer.tsx) and Call back, which rings the browser
+ * softphone when it's registered and the cell otherwise
+ * (components/CallFromLineButton.tsx). What got done on the call
+ * (lib/call-events.ts) trails the status line as plain linked text.
  */
 
 export type CallRowData = {
@@ -52,16 +67,6 @@ export type CallRowData = {
   answeredBy?: { name: string } | null;
   /** What got done on this call — quote sent, appointment booked, saved as a lead… */
   events?: CallEvent[];
-};
-
-const STATUS: Record<CallRowData["status"], { label: string; tone: string }> = {
-  RINGING: { label: "Ringing", tone: "text-amber-700" },
-  IN_PROGRESS: { label: "On the line", tone: "text-green-700" },
-  COMPLETED: { label: "Answered", tone: "text-green-700" },
-  MISSED: { label: "Missed", tone: "text-red-700" },
-  VOICEMAIL: { label: "Voicemail", tone: "text-blue-700" },
-  NO_ANSWER: { label: "No answer", tone: "text-gray-600" },
-  FAILED: { label: "Didn't connect", tone: "text-gray-600" },
 };
 
 export const EVENT_ICON: Record<CallEventKind, LucideIcon> = {
@@ -101,28 +106,66 @@ export function standingWord(status: "LEAD" | "ACTIVE" | "ARCHIVED" | undefined)
   return status === "LEAD" ? "lead" : status === "ACTIVE" ? "client" : status === "ARCHIVED" ? "archived" : "";
 }
 
-/** The 40px tile: shape + tint say what happened before the text does. */
-function Tile({ call }: { call: CallRowData }) {
-  const unseen = !call.seenAt && (call.status === "MISSED" || call.status === "VOICEMAIL");
-  let cls = "bg-gray-100 text-gray-600";
-  let Icon = call.direction === "INBOUND" ? PhoneIncoming : PhoneOutgoing;
-  if (call.status === "VOICEMAIL") {
-    cls = "bg-blue-50 text-blue-600";
-    Icon = Voicemail;
-  } else if (call.status === "MISSED") {
-    cls = "bg-red-50 text-red-600";
-    Icon = PhoneMissed;
-  } else if (call.status === "NO_ANSWER" || call.status === "FAILED") {
-    cls = "bg-gray-100 text-gray-500";
-  } else if (call.status === "COMPLETED" || call.status === "IN_PROGRESS") {
-    cls = call.direction === "INBOUND" ? "bg-green-50 text-green-600" : "bg-gray-100 text-gray-700";
-  } else if (call.status === "RINGING") {
-    cls = "bg-amber-50 text-amber-600";
+/** A missed call, the way a phone counts one: they rang and nobody picked up (voicemail is its own thing). */
+export function isMissed(call: Pick<CallRowData, "status" | "direction">): boolean {
+  return call.status === "MISSED" || (call.direction === "INBOUND" && call.status === "NO_ANSWER");
+}
+
+/** The word under the name, its icon, and its ink. */
+function describe(call: CallRowData): { label: string; Icon: LucideIcon; tone: string } {
+  const inbound = call.direction === "INBOUND";
+  switch (call.status) {
+    case "RINGING":
+      return { label: inbound ? "Ringing" : "Calling", Icon: inbound ? PhoneIncoming : PhoneOutgoing, tone: "text-amber-700" };
+    case "IN_PROGRESS":
+      return { label: "On the line", Icon: Phone, tone: "text-green-700" };
+    case "VOICEMAIL":
+      return { label: "Voicemail", Icon: Voicemail, tone: "text-blue-700" };
+    case "MISSED":
+      return { label: "Missed call", Icon: PhoneMissed, tone: "text-red-600" };
+    case "NO_ANSWER":
+      return inbound
+        ? { label: "Missed call", Icon: PhoneMissed, tone: "text-red-600" }
+        : { label: "No answer", Icon: PhoneOutgoing, tone: "text-gray-500" };
+    case "FAILED":
+      return { label: "Didn't connect", Icon: inbound ? PhoneIncoming : PhoneOutgoing, tone: "text-gray-500" };
+    default:
+      return inbound
+        ? { label: "Incoming", Icon: PhoneIncoming, tone: "text-gray-500" }
+        : { label: "Outgoing", Icon: PhoneOutgoing, tone: "text-gray-500" };
+  }
+}
+
+/** The 40px avatar: the client's monogram when the caller is saved; a tinted tile that says what happened otherwise. */
+function Avatar({ call, name, unseen }: { call: CallRowData; name: string; unseen: boolean }) {
+  let inner: React.ReactNode;
+  if (name) {
+    inner = <Monogram name={name} size={40} />;
+  } else {
+    let cls = "bg-gray-100 text-gray-600";
+    let Icon: LucideIcon = call.direction === "INBOUND" ? PhoneIncoming : PhoneOutgoing;
+    if (call.status === "VOICEMAIL") {
+      cls = "bg-blue-50 text-blue-600";
+      Icon = Voicemail;
+    } else if (isMissed(call)) {
+      cls = "bg-red-50 text-red-600";
+      Icon = PhoneMissed;
+    } else if (call.status === "IN_PROGRESS") {
+      cls = "bg-green-500 text-white";
+      Icon = Phone;
+    } else if (call.status === "RINGING") {
+      cls = "bg-amber-50 text-amber-600";
+    }
+    inner = (
+      <span className={`flex h-10 w-10 items-center justify-center rounded-full ${cls}`}>
+        <Icon size={17} />
+      </span>
+    );
   }
   return (
-    <span className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${cls}`}>
-      <Icon size={17} />
-      {unseen && <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-red-500" aria-label="New" />}
+    <span className="relative shrink-0">
+      {inner}
+      {unseen && <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-red-500" aria-label="New" />}
     </span>
   );
 }
@@ -144,24 +187,25 @@ export default function CallRow({
   canText?: boolean;
 }) {
   const name = call.contact ? `${call.contact.firstName} ${call.contact.lastName}`.trim() : "";
-  const number = fmtPhone(call.customerNumber);
+  // A withheld caller ID arrives as the literal "unknown" — no number to show.
+  const number = call.customerNumber === "unknown" ? "" : fmtPhone(call.customerNumber);
   const label = name || number || "Unknown caller";
   const standing = standingWord(call.contact?.status);
-  const onPhone = phoneTime(call);
-  const s = onPhone !== null ? { label: onPhone, tone: "text-gray-700" } : STATUS[call.status];
   const live = call.status === "RINGING" || call.status === "IN_PROGRESS";
+  const missed = isMissed(call);
   const unseen = !call.seenAt && (call.status === "MISSED" || call.status === "VOICEMAIL");
   const when = fmtTime(call.createdAt, tz);
+  const { label: kind, Icon: KindIcon, tone } = describe(call);
+  const onPhone = phoneTime(call);
   const first = (n: string) => n.split(" ")[0];
   const who =
     call.direction === "OUTBOUND" && call.user
-      ? `${first(call.user.name)}${call.via === "app" ? " · in the app" : ""}`
+      ? first(call.user.name)
       : call.direction === "INBOUND" && call.answeredBy
-        ? `${first(call.answeredBy.name)} · in the app`
-        : call.direction === "INBOUND" && call.status === "COMPLETED"
-          ? "on the cell"
-          : "";
+        ? first(call.answeredBy.name)
+        : "";
   const parts: string[] = [];
+  if (onPhone !== null) parts.push(onPhone);
   if (call.status === "VOICEMAIL" && call.voicemailSec !== null) parts.push(`${fmtDuration(call.voicemailSec)} message`);
   if (who) parts.push(who);
   const showCallBack = canCall && !live && Boolean(call.customerNumber && call.customerNumber !== "unknown");
@@ -169,61 +213,105 @@ export default function CallRow({
   const showText = canText && !live && Boolean(call.contact);
   const events = call.events ?? [];
   const title = showContact ? label : call.direction === "INBOUND" ? "Incoming call" : "Outgoing call";
+  const href = `/app/calls/${call.id}`;
+  const nameInk = missed && !live ? "text-red-600" : "text-gray-900";
+
+  // Phones: the same two actions as iOS swipe blocks behind the row
+  // (components/SwipeRow.tsx — the Schedule and Clients rows' tray). Text is
+  // a link; Call back is the live button, so it rides the tray as a node.
+  const block = "flex h-full w-full flex-col items-center justify-center gap-1 text-[10px] font-semibold text-white active:opacity-80 disabled:opacity-60";
+  const swipe: SwipeRowAction[] = [
+    ...(showText && call.contact
+      ? [
+          {
+            key: "text",
+            bg: "#2563EB",
+            node: (
+              <Link href={`/app/messages/thread/${call.contact.id}`} className={block}>
+                <MessageSquare size={18} />
+                Text
+              </Link>
+            ),
+          },
+        ]
+      : []),
+    ...(showCallBack
+      ? [
+          {
+            key: "call",
+            bg: "#16A34A",
+            node: <CallFromLineButton to={call.customerNumber} contactId={call.contact?.id} contactName={label} agentPhone="" label="Call back" stacked className={block} />,
+          },
+        ]
+      : []),
+  ];
 
   return (
-    <div className={`card-ledger px-4 py-3 ${unseen ? "border-l-2 border-l-red-400" : live ? "border-l-2 border-l-green-400" : ""}`}>
-      <div className="flex items-start gap-3">
-        <Tile call={call} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2">
-            <Link
-              href={`/app/calls/${call.id}`}
-              className={`truncate text-[15px] hover:underline ${unseen ? "font-bold text-gray-900" : "font-semibold text-gray-800"}`}
-              title={live ? "Open the call screen" : "Open this call"}
-            >
-              {title}
-            </Link>
-            {showContact && standing && <span className="shrink-0 text-xs text-gray-400">{standing}</span>}
-            {name && showContact && <span className="numeral-ledger hidden truncate text-xs text-gray-400 sm:inline">{number}</span>}
-            <span className="numeral-ledger ml-auto shrink-0 text-xs tabular-nums text-gray-500">{when}</span>
-          </div>
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
-            <span className={`stamp ${s.tone}`}>{s.label}</span>
-            {parts.length > 0 && <span className="text-gray-500">{parts.join(" · ")}</span>}
-            {call.direction === "OUTBOUND" && call.via === "app" && <Headphones size={12} className="text-gray-400" aria-label="Placed from the browser" />}
-            {events.slice(0, 3).map((e, i) => {
-              const Icon = EVENT_ICON[e.kind];
-              return (
-                <span key={`${e.kind}-${e.href}`} className="flex items-center gap-2 text-gray-700">
-                  {(i > 0 || parts.length > 0) && <span className="text-gray-300">·</span>}
-                  <Link href={e.href} className="inline-flex items-center gap-1 font-medium hover:underline">
-                    <Icon size={12} className="text-gray-500" />
-                    {e.label}
-                  </Link>
-                </span>
-              );
-            })}
-            {events.length > 3 && <span className="text-gray-400">+{events.length - 3}</span>}
-            {(showCallBack || showText) && (
-              <span className="ml-auto flex items-center gap-2">
-                {showText && call.contact && (
-                  <Link
-                    href={`/app/messages/thread/${call.contact.id}`}
-                    className="btn-tool-line inline-flex items-center gap-1 rounded-[10px] bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <MessageSquare size={12} />
-                    Text
-                  </Link>
-                )}
-                {showCallBack && (
-                  <CallFromLineButton to={call.customerNumber} contactId={call.contact?.id} contactName={label} agentPhone="" compact label="Call back" />
-                )}
-              </span>
-            )}
-          </div>
-          {call.status === "VOICEMAIL" && (call.voicemailRecordingId || call.voicemailSec !== null) && <VoicemailPlayer callId={call.id} seconds={call.voicemailSec} />}
+    <SwipeRow actions={swipe}>
+    <div className={`relative flex items-center gap-3 px-4 py-3 transition-colors hover:bg-gray-50 active:bg-gray-100 lg:py-2.5 ${live ? "bg-green-50/40" : ""}`}>
+      {/* Phones: the whole row opens the call screen. Sits under the content so the voicemail player still takes taps. */}
+      <Link href={href} aria-label={`Open the call with ${title}`} className="absolute inset-0 z-0 lg:hidden" />
+      <Avatar call={call} name={showContact ? name : ""} unseen={unseen} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-2">
+          <Link
+            href={href}
+            className={`truncate text-[15.5px] hover:underline lg:text-sm ${nameInk} ${unseen ? "font-bold" : "font-semibold"}`}
+            title={live ? "Open the call screen" : "Open this call"}
+          >
+            {title}
+          </Link>
+          {showContact && standing && <span className="shrink-0 text-xs text-gray-400">{standing}</span>}
+          {name && showContact && <span className="numeral-ledger hidden truncate text-xs text-gray-400 lg:inline">{number}</span>}
+          <span className="numeral-ledger ml-auto shrink-0 text-xs tabular-nums text-gray-500">{when}</span>
         </div>
+        <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-gray-500">
+          <KindIcon size={13} className={`shrink-0 ${tone}`} aria-hidden />
+          <span className={live || missed || call.status === "VOICEMAIL" ? `font-medium ${tone}` : ""}>{kind}</span>
+          {parts.map((p) => (
+            <span key={p} className="flex items-center gap-1.5">
+              <span className="text-gray-300">·</span>
+              <span className="numeral-ledger">{p}</span>
+            </span>
+          ))}
+          {call.direction === "OUTBOUND" && call.via === "app" && <Headphones size={12} className="text-gray-400" aria-label="Placed from the browser" />}
+          {events.slice(0, 3).map((e) => {
+            const Icon = EVENT_ICON[e.kind];
+            return (
+              <span key={`${e.kind}-${e.href}`} className="relative z-10 flex items-center gap-1.5 text-gray-700">
+                <span className="text-gray-300">·</span>
+                <Link href={e.href} className="inline-flex items-center gap-1 font-medium hover:underline">
+                  <Icon size={12} className="text-gray-500" />
+                  {e.label}
+                </Link>
+              </span>
+            );
+          })}
+          {events.length > 3 && <span className="text-gray-400">+{events.length - 3}</span>}
+        </div>
+        {/* Desktop plays the voicemail in the row; a phone row stays one line and the call screen plays it. */}
+        {call.status === "VOICEMAIL" && (call.voicemailRecordingId || call.voicemailSec !== null) && (
+          <div className="relative z-10 hidden lg:block">
+            <VoicemailPlayer callId={call.id} seconds={call.voicemailSec} />
+          </div>
+        )}
       </div>
+      {(showCallBack || showText) && (
+        <div className="hidden shrink-0 items-center gap-1.5 lg:flex">
+          {showText && call.contact && (
+            <Link
+              href={`/app/messages/thread/${call.contact.id}`}
+              className="btn-tool-line inline-flex items-center gap-1 rounded-[10px] bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <MessageSquare size={12} />
+              Text
+            </Link>
+          )}
+          {showCallBack && <CallFromLineButton to={call.customerNumber} contactId={call.contact?.id} contactName={label} agentPhone="" compact label="Call back" />}
+        </div>
+      )}
+      <ChevronRight size={15} className="shrink-0 text-gray-300 lg:hidden" aria-hidden />
     </div>
+    </SwipeRow>
   );
 }

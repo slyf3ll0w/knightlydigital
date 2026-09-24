@@ -26,6 +26,7 @@ import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import { showSendRitual } from "@/lib/send-ritual";
 import { showApproveRitual } from "@/lib/approve-ritual";
 import Modal from "@/components/Modal";
+import MenuPopover from "@/components/MenuPopover";
 
 type AgreementState = {
   signed: boolean;
@@ -368,7 +369,7 @@ export default function QuoteActions({
           <MoreHorizontal size={16} />
         </button>
         {open && (
-          <div className="sheet-material absolute right-0 top-full mt-1 z-30 w-max min-w-[13rem] whitespace-nowrap rounded-lg shadow-xl border border-gray-200 py-1.5">
+          <MenuPopover open={open} onClose={() => setOpen(false)} title="Quote">
             <a
               href={`${publicUrl}?preview=1`}
               target="_blank"
@@ -489,7 +490,7 @@ export default function QuoteActions({
                 Delete
               </button>
             )}
-          </div>
+          </MenuPopover>
         )}
       </div>
 

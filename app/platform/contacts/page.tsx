@@ -12,6 +12,7 @@ import { shortDate } from "@/lib/statuses";
 import ContactStatus from "@/components/ContactStatus";
 import EmptyState from "@/components/EmptyState";
 import { requirePageActor, canSell, contactScope, seesAllLeads, isManager } from "@/lib/permissions";
+import EntityRowActions from "@/components/EntityRowActions";
 import { contactSearchWhere } from "@/lib/contact-search";
 import Monogram from "@/components/Monogram";
 
@@ -180,7 +181,10 @@ export default async function ContactsPage({
                 <span></span>
               </div>
               {contacts.map((c) => (
-                <div key={c.id} className="relative">
+                <EntityRowActions
+                  key={c.id}
+                  meta={{ kind: "client", id: c.id, name: `${c.firstName} ${c.lastName}`, phone: c.phone, status: c.status, canDelete: isManager(actor.role) }}
+                >
                 <Link
                   prefetch={false} href={`/app/contacts/${c.id}`}
                   className="flex lg:grid lg:grid-cols-[1fr_1fr_110px_120px_120px_40px] gap-3 lg:gap-4 items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
@@ -226,7 +230,7 @@ export default async function ContactsPage({
                     <Phone size={15} />
                   </a>
                 )}
-                </div>
+                </EntityRowActions>
               ))}
             </div>
             {/* Ledger foot — entry count */}

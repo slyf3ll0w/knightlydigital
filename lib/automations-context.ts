@@ -269,7 +269,7 @@ export async function loadContext(companyId: string, entityType: EntityType, raw
     case "call": {
       const row = await prisma.call.findFirst({
         where: { id: entityId, companyId },
-        select: { id: true, direction: true, status: true, customerNumber: true, agentNumber: true, durationSec: true, contact: { select: CONTACT_SELECT } },
+        select: { id: true, direction: true, status: true, customerNumber: true, agentNumber: true, durationSec: true, atlasNotes: true, contact: { select: CONTACT_SELECT } },
       });
       if (!row) return null;
       const inbound = row.direction === "INBOUND";
@@ -278,7 +278,7 @@ export async function loadContext(companyId: string, entityType: EntityType, raw
         ctx: {
           ...base(row.contact), call_direction: row.direction, call_status: row.status,
           call_from: inbound ? row.customerNumber : row.agentNumber ?? "", call_to: inbound ? row.agentNumber ?? "" : row.customerNumber,
-          call_duration: row.durationSec ?? 0,
+          call_duration: row.durationSec ?? 0, call_notes: row.atlasNotes ?? "",
         },
         contact: row.contact, assignedUserId: row.contact?.assignedToId ?? null, link: `/app/calls/${row.id}`, label: `${name(row.contact) || row.customerNumber} — ${row.direction.toLowerCase()} call`,
       };

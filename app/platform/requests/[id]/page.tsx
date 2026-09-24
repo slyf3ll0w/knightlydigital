@@ -27,6 +27,8 @@ export default async function RequestDetailPage({
       quotes: { orderBy: { createdAt: "desc" } },
       jobs: { orderBy: { createdAt: "desc" } },
       appointments: { orderBy: { scheduledAt: "asc" } },
+      // Came in through an estimate tool's website form — named on the page, linked to the tool
+      estimator: { select: { id: true, name: true } },
     },
   });
   if (!request) notFound();
@@ -81,6 +83,15 @@ export default async function RequestDetailPage({
                 <span className="font-medium text-blue-700">
                   {" "}· Client prefers {shortDate(request.preferredDate, tz)}
                 </span>
+              )}
+              {request.estimator && (
+                <>
+                  {" "}· From the{" "}
+                  <Link href={`/app/estimates/${request.estimator.id}?s=leads`} className="font-medium text-green-700 hover:underline">
+                    {request.estimator.name}
+                  </Link>{" "}
+                  estimate form
+                </>
               )}
             </>
           }

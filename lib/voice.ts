@@ -51,7 +51,10 @@ import { phoneDigits } from "@/lib/phone";
 import { notifyUsers } from "@/lib/push";
 import { toE164 } from "@/lib/sms";
 import { APP_OUTBOUND_RING_SECS, APP_RING_SECS, VOIP_APP_RING_SECS, canUseSoftphone, onlineSoftphoneUsers, ringPlan, userSoftphoneOnline, type RingTarget } from "@/lib/softphone";
-import { VOIP_WAKE_SECS, pushIncomingCall, voipTargetsFor } from "@/lib/voip";
+import { appendTranscript, summarizeCallNotes, transcriptLine, type AtlasNotesSnapshot } from "@/lib/call-notes";
+import { ATLAS_ACCESS_SELECT, atlasAccess } from "@/lib/assistant-access";
+import { aiEnabled } from "@/lib/ai";
+import { VOIP_WAKE_SECS, pushIncomingCall, voipRegisteredSoftphone, voipTargetsFor } from "@/lib/voip";
 import {
   TTS,
   TelnyxError,
@@ -96,13 +99,27 @@ const holdMusicUrl = () => `${baseUrl()}/hold-music.mp3`;
 
 /** How long the owner's cell rings before it counts as no answer. Short: their carrier voicemail would answer at ~25 s anyway. */
 export const AGENT_RING_SECS = 25;
-/** How long a customer's phone rings on an outbound call. */
-export const CUSTOMER_RING_SECS = 30;
+/**
+ * How long a customer's phone rings on an outbound call. Carrier voicemail
+ * picks up after 25–30 s of ringing (some carriers 45 s), and the old 30 s
+ * here expired at that very moment: the leg was cut as the greeting began,
+ * the owner heard "No answer" and could never leave a message. Telnyx
+ * allows up to 600; a minute covers every carrier's voicemail delay.
+ */
+export const CUSTOMER_RING_SECS = 60;
 export const VOICEMAIL_MAX_SECS = 180;
 /** A voicemail shorter than this is a hang-up, not a message. */
 export const VOICEMAIL_MIN_SECS = 2;
 /** RINGING rows older than this never got their hangup webhook — close them. */
 export const STALE_RINGING_MS = 5 * 60_000;
+/**
+ * IN_PROGRESS rows older than this are a lost hangup webhook. Telnyx itself
+ * ends any leg at 4 h (time_limit_secs), so nothing real is still up past
+ * that. This used to share the 5-minute ringing limit, which made the hourly
+ * sweep hang up every live call that had passed five minutes — a real
+ * conversation dropped at the top of the hour with a "they hung up" chime.
+ */
+export const STALE_IN_PROGRESS_MS = 4 * 3_600_000 + 5 * 60_000;
 /** VOICEMAIL rows with no recording this long after the hangup left nothing. */
 export const STALE_VOICEMAIL_MS = 10 * 60_000;
 
@@ -275,8 +292,11 @@ export function staleCallPlan(
   call: Pick<Call, "status" | "createdAt" | "endedAt" | "voicemailRecordingId">,
   now: Date
 ): StaleAction {
-  if (call.status === "RINGING" || call.status === "IN_PROGRESS") {
+  if (call.status === "RINGING") {
     return now.getTime() - call.createdAt.getTime() > STALE_RINGING_MS ? "close" : null;
+  }
+  if (call.status === "IN_PROGRESS") {
+    return now.getTime() - call.createdAt.getTime() > STALE_IN_PROGRESS_MS ? "close" : null;
   }
   if (call.status === "VOICEMAIL" && !call.voicemailRecordingId) {
     const since = call.endedAt ?? call.createdAt;
@@ -359,6 +379,8 @@ export type VoiceEventPayload = {
   recording_id?: string;
   recording_started_at?: string;
   recording_ended_at?: string;
+  /** call.transcription (Atlas notes, lib/call-notes.ts) */
+  transcription_data?: { transcript?: string; is_final?: boolean; confidence?: number; transcription_track?: string };
 };
 
 export type VoiceEvent = { event_type: string; id?: string; payload: VoiceEventPayload };
@@ -433,6 +455,8 @@ export async function handleVoiceEvent(ev: VoiceEvent): Promise<void> {
         return onHangup(p);
       case "call.recording.saved":
         return onRecordingSaved(p);
+      case "call.transcription":
+        return onTranscription(p);
       default:
         return;
     }
@@ -509,13 +533,12 @@ async function onAnswered(p: VoiceEventPayload): Promise<void> {
             phones
           )
         : 0;
-      if (ringing > 0) return;
-      if (woken > 0) {
-        // No browser leg whose timeout would hand the call on: if no phone
-        // has woken and answered by then, the cell rings.
-        scheduleCellFallback(call.id, (VOIP_WAKE_SECS + 3) * 1000);
-        return;
-      }
+      // A pushed phone gets its whole wake window even if browsers rang too
+      // (their legs time out sooner and must not hand the call on early —
+      // see the app-leg hangup): this timer is what moves the call to the
+      // cell if no phone has woken by then.
+      if (woken > 0) scheduleCellFallback(call.id, (VOIP_WAKE_SECS + 3) * 1000);
+      if (ringing > 0 || woken > 0) return;
       // Not one browser could be dialed: the cell's turn, ringback already looping.
       return dialCell(call, { ringback: false });
     }
@@ -604,6 +627,7 @@ async function ringSoftphones(call: CallRow, targets: RingTarget[], woke = false
   let ringing = 0;
   const label = displayParty(call);
   for (const t of targets) {
+    const device = t.device ?? (woke ? "ios" : "browser");
     try {
       const leg = await dialCall({
         to: sipUri(t.sipUsername),
@@ -613,13 +637,22 @@ async function ringSoftphones(call: CallRow, targets: RingTarget[], woke = false
         clientState: encodeState({ callId: call.id, leg: "app", stage: "ring", userId: t.userId, ...(woke ? { woke: true } : {}) }),
         timeoutSecs: woke ? VOIP_APP_RING_SECS : APP_RING_SECS,
         linkTo: call.telnyxCallId!,
-        commandId: `${call.id}:app:${t.userId}`,
+        // command_id is Telnyx's idempotency key. One per call, user AND
+        // device: the phone's wake leg used to share the browser leg's key,
+        // so Telnyx answered the second dial with the first leg and never
+        // rang the phone at all (found in the Prog. Voice Call Flow Tool —
+        // the phone's leg simply did not exist).
+        // A woken phone may ask again after re-registering (its first leg
+        // died at 480), so its key is per attempt; the browser fan-out keeps
+        // one key per call (the appRingAt claim already stops a retried
+        // webhook ringing twice).
+        commandId: woke ? `${call.id}:app:${t.userId}:${device}:${Date.now()}` : `${call.id}:app:${t.userId}:${device}`,
       });
       // upsert: the leg's first webhook may have adopted the row already (findCallByLeg).
       await prisma.callLeg.upsert({
         where: { telnyxCallId: leg.call_control_id },
-        create: { callId: call.id, userId: t.userId, telnyxCallId: leg.call_control_id },
-        update: { userId: t.userId },
+        create: { callId: call.id, userId: t.userId, telnyxCallId: leg.call_control_id, device },
+        update: { userId: t.userId, device },
       });
       ringing++;
     } catch (err) {
@@ -660,16 +693,31 @@ export type WakeOutcome = "ringing" | "already" | "late" | "ineligible";
  */
 export async function wakeSoftphoneLeg(userId: string, companyId: string, callId: string): Promise<WakeOutcome> {
   const call = await prisma.call.findFirst({ where: { id: callId, companyId }, include: callInclude });
-  if (!call || call.status !== "RINGING" || call.direction !== "INBOUND" || call.agentCallId || !call.appRingAt) return "late";
-  if (Date.now() - call.appRingAt.getTime() > (VOIP_WAKE_SECS + 5) * 1000) return "late";
+  if (!call || call.status !== "RINGING" || call.direction !== "INBOUND" || call.agentCallId || !call.appRingAt) {
+    console.info(`[voice] wake call=${callId}: late (${!call ? "no row" : `status=${call.status} agent=${call.agentCallId ?? "-"} appRingAt=${call.appRingAt?.toISOString() ?? "-"}`})`);
+    return "late";
+  }
+  const sinceRing = Date.now() - call.appRingAt.getTime();
+  if (sinceRing > (VOIP_WAKE_SECS + 5) * 1000) {
+    console.info(`[voice] wake call=${callId}: late (${Math.round(sinceRing / 1000)} s after the push)`);
+    return "late";
+  }
+  // The phone's OWN credential: a leg already ringing this user's browser is
+  // not this phone's leg (that mistake read as "already" and left a phone
+  // that had answered on the lock screen with nothing to answer).
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { sipUsername: true, softphoneEnabled: true, role: true, isActive: true },
+    select: { sipUsernameIos: true, softphoneEnabled: true, role: true, isActive: true },
   });
-  if (!user?.sipUsername || !user.softphoneEnabled || !user.isActive || !canUseSoftphone(user.role)) return "ineligible";
-  const open = await prisma.callLeg.count({ where: { callId, userId, endedAt: null } });
+  if (!user?.sipUsernameIos || !user.softphoneEnabled || !user.isActive || !canUseSoftphone(user.role)) {
+    console.info(`[voice] wake call=${callId}: ineligible (sip=${user?.sipUsernameIos ? "yes" : "no"} on=${user?.softphoneEnabled} active=${user?.isActive} role=${user?.role})`);
+    return "ineligible";
+  }
+  const open = await prisma.callLeg.count({ where: { callId, userId, device: "ios", endedAt: null } });
   if (open > 0) return "already";
-  return (await ringSoftphones(call, [{ userId, sipUsername: user.sipUsername }], true)) > 0 ? "ringing" : "late";
+  const rang = await ringSoftphones(call, [{ userId, sipUsername: user.sipUsernameIos, device: "ios" }], true);
+  console.info(`[voice] wake call=${callId}: ${rang > 0 ? "ringing" : "late"} — SIP leg to ${user.sipUsernameIos} ${rang > 0 ? "dialed" : "failed"} ${Math.round(sinceRing / 1000)} s after the push`);
+  return rang > 0 ? "ringing" : "late";
 }
 
 /** Hang up every browser leg still ringing on a call, except the one that won. Their hangup webhooks close the rows. */
@@ -701,6 +749,8 @@ async function bridgeLegs(call: CallRow): Promise<void> {
   if (ok) {
     await prisma.call.updateMany({ where: { id: call.id, status: "RINGING" }, data: { status: "IN_PROGRESS", answeredAt: new Date() } });
     await advanceLeadForCall(call, "IN_PROGRESS", call.direction);
+    // Atlas was asked for before they answered: listen from the first word.
+    if (call.atlasNotesState === "armed") await beginTranscription(call.id, call.telnyxCallId).catch((e) => console.error("[voice] armed transcription failed:", e));
     return;
   }
   // Nobody stays stranded on ringback: the cell leg is dropped and an inbound
@@ -792,7 +842,11 @@ async function onSpeakEnded(p: VoiceEventPayload): Promise<void> {
 
 async function onHangup(p: VoiceEventPayload): Promise<void> {
   const hit = await findCallByLeg(p.call_control_id, p.client_state);
-  if (!hit) return;
+  if (!hit) {
+    const st = decodeState(p.client_state);
+    console.info(`[voice] hangup for a leg we don't hold: ${p.call_control_id} cause=${p.hangup_cause ?? "-"} state=${st ? `${st.leg}/${st.stage ?? "-"} call=${st.callId}` : "-"}`);
+    return;
+  }
   const { call, leg, appLeg } = hit;
   const now = new Date();
   const cause = p.hangup_cause ?? null;
@@ -818,14 +872,21 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
       }
       if (status === "MISSED" && call.status !== "MISSED") await notifyMissed(call);
     } else if (call.status === "RINGING" && call.agentCallId) {
-      // Customer never picked up: tell the owner, then drop their leg.
       await callAction(call.agentCallId, "playback_stop");
-      await callAction(call.agentCallId, "speak", {
-        payload: status === "NO_ANSWER" ? "No answer." : "The call could not be connected.",
-        ...TTS,
-        client_state: encodeState({ callId: call.id, leg: "agent", stage: "out_no_answer" }),
-      });
+      if (call.via === "app") {
+        // The browser's own card already says "No answer" — no voice in the headset, just drop its leg.
+        await callAction(call.agentCallId, "hangup");
+      } else {
+        // The cell has no screen to read: tell the owner, then drop their leg.
+        await callAction(call.agentCallId, "speak", {
+          payload: status === "NO_ANSWER" ? "No answer." : "The call could not be connected.",
+          ...TTS,
+          client_state: encodeState({ callId: call.id, leg: "agent", stage: "out_no_answer" }),
+        });
+      }
     }
+    // Atlas was listening: the transcript is complete now — write the notes, or hold them for a save.
+    await finishAtlasNotes(call);
     return;
   }
 
@@ -834,6 +895,7 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
     // call is already VOICEMAIL). When the last one has, the cell rings (the
     // caller's ringback is still looping). agentCallId already set = another
     // browser won, or the cell is ringing: nothing to do.
+    console.info(`[voice] app leg ended call=${call.id} user=${appLeg.userId} cause=${cause ?? "-"} status=${call.status} agent=${call.agentCallId ?? "-"}`);
     await prisma.callLeg.update({ where: { id: appLeg.id }, data: { endedAt: now, hangupCause: cause } }).catch(() => {});
     if (call.status !== "RINGING" || call.direction !== "INBOUND" || call.agentCallId) return;
     const open = await prisma.callLeg.count({ where: { callId: call.id, endedAt: null } });
@@ -841,7 +903,21 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
     // An iPhone that a push woke was showing this call on its lock screen
     // and let it ring out: voicemail, never the cell — that cell IS this
     // phone, and a second ring would land on top of the CallKit call.
-    if (decodeState(p.client_state)?.woke) return toVoicemail(call);
+    if (decodeState(p.client_state)?.woke) {
+      // A leg that died within seconds without ringing (480: the phone's
+      // registration had gone stale) is not "rang out": the phone
+      // re-registers and asks again, so the call stays ringing for it.
+      const row = await prisma.callLeg.findUnique({ where: { id: appLeg.id }, select: { createdAt: true } });
+      const legAgeMs = row ? now.getTime() - row.createdAt.getTime() : Infinity;
+      if (cause !== "timeout" && legAgeMs < 8000) {
+        console.info(`[voice] woken leg died in ${Math.round(legAgeMs / 1000)} s (${cause}); the call stays ringing for the phone to try again`);
+        return;
+      }
+      return toVoicemail(call);
+    }
+    // A browser leg ran out while a pushed phone may still be waking: leave
+    // the call ringing for it; scheduleCellFallback decides at the window's end.
+    if (call.appRingAt && Date.now() - call.appRingAt.getTime() < (VOIP_WAKE_SECS + 3) * 1000 && (await voipTargetsFor(call.companyId)).length > 0) return;
     return dialCell(call, { ringback: false });
   }
 
@@ -904,6 +980,162 @@ async function onRecordingSaved(p: VoiceEventPayload): Promise<void> {
   }
 }
 
+/**
+ * A transcript segment while Atlas is taking notes (lib/call-notes.ts). Only
+ * Google's engine sends interim results (is_final: false, off by default);
+ * the Whisper engine sends finished segments that may carry no flag at all,
+ * so anything not explicitly interim is kept. Every event is logged: the
+ * first live run produced an empty transcript with nothing to go on.
+ */
+async function onTranscription(p: VoiceEventPayload): Promise<void> {
+  const d = p.transcription_data;
+  const text = d?.transcript ?? "";
+  console.info(`[voice] transcription ${p.call_control_id ?? "?"} final=${d?.is_final ?? "-"} track=${d?.transcription_track ?? "-"} chars=${text.length}`);
+  if (!d || d.is_final === false) return;
+  const line = transcriptLine(d.transcription_track, text);
+  if (!line) return;
+  const hit = await findCallByLeg(p.call_control_id, p.client_state);
+  if (!hit) {
+    console.info(`[voice] transcription for a leg we don't hold: ${p.call_control_id}`);
+    return;
+  }
+  await appendTranscript(hit.call.id, line);
+}
+
+/* ───────────────────────── Atlas notes ───────────────────────── */
+
+const notesSelect = { id: true, status: true, contactId: true, telnyxCallId: true, atlasNotesState: true, atlasNotes: true, atlasNotesError: true, atlasNotesTokens: true } as const;
+type NotesRow = { id: string; status: CallStatus; contactId: string | null; telnyxCallId: string | null; atlasNotesState: string | null; atlasNotes: string | null; atlasNotesError: string | null; atlasNotesTokens: number | null };
+
+const notesSnapshot = (c: NotesRow): AtlasNotesSnapshot => ({
+  state: (c.atlasNotesState as AtlasNotesSnapshot["state"]) ?? null,
+  notes: c.atlasNotes,
+  error: c.atlasNotesError,
+  tokens: c.atlasNotesTokens,
+});
+
+const realLeg = (ccid: string | null | undefined): ccid is string => Boolean(ccid && !ccid.startsWith("pending:"));
+
+/**
+ * Telnyx `transcription_start` on the customer leg — both tracks, so the
+ * customer (inbound) and the team member (outbound) both land in the
+ * transcript. The documented shape: the engine named twice (top level and
+ * inside its config), Whisper large for phone audio. The row flips to
+ * "listening" only once Telnyx accepted the command.
+ */
+async function beginTranscription(callId: string, telnyxCallId: string | null): Promise<void> {
+  if (!realLeg(telnyxCallId)) throw new VoiceError("The call isn't connected.", 409);
+  const ok = await callAction(telnyxCallId, "transcription_start", {
+    transcription_engine: "Telnyx",
+    transcription_engine_config: { transcription_engine: "Telnyx", language: "en", transcription_model: "openai/whisper-large-v3-turbo" },
+    transcription_tracks: "both",
+    client_state: encodeState({ callId, leg: "customer", stage: "bridged" }),
+    command_id: `${callId}:transcribe:${Date.now()}`,
+  });
+  if (!ok) throw new VoiceError("The call already ended.", 409);
+  await prisma.call.updateMany({ where: { id: callId, atlasNotesState: { in: ["armed", "done", "failed"] } }, data: { atlasNotesState: "listening", atlasNotesError: null } });
+  await prisma.call.updateMany({ where: { id: callId, atlasNotesState: null }, data: { atlasNotesState: "listening", atlasNotesError: null } });
+  console.info(`[voice] transcription started call=${callId}`);
+}
+
+/**
+ * "Let Atlas take notes" on the call screen. Before they answer (RINGING)
+ * the call is *armed* and transcription starts at the bridge, so the whole
+ * conversation is on record; on a connected call it starts now. Remembers
+ * who asked so their company's meter pays for the summary — the same gate
+ * as every other Atlas surface (lib/assistant-access.ts). No tokens are
+ * spent here: the summary comes at the end, and only for a saved contact
+ * (finishAtlasNotes).
+ */
+export async function startAtlasNotes(companyId: string, callId: string, userId: string): Promise<AtlasNotesSnapshot> {
+  if (!voiceEnabled()) throw new VoiceError("Calling from the app isn't available on this server yet.", 503);
+  if (!aiEnabled()) throw new VoiceError("The assistant isn't available right now.", 503);
+  const [call, company] = await Promise.all([
+    prisma.call.findFirst({ where: { id: callId, companyId }, select: notesSelect }),
+    prisma.company.findUnique({ where: { id: companyId }, select: { ...ATLAS_ACCESS_SELECT, assistantName: true } }),
+  ]);
+  if (!call || !company) throw new VoiceError("Call not found.", 404);
+  const name = company.assistantName || "Atlas";
+  const s = call.atlasNotesState;
+  if (s === "armed" || s === "listening" || s === "summarizing" || s === "awaiting_contact") return notesSnapshot(call);
+  const access = atlasAccess(company);
+  if (access.level === "off") throw new VoiceError("The AI assistant isn't included on this account.", 403);
+  if (access.level === "locked") {
+    const when = new Date(access.resetsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    throw new VoiceError(`${name} has used this ${access.reason === "plan-spent" ? "period's" : "month's"} tokens — the meter refills on ${when}.`, 403);
+  }
+  if (call.status === "RINGING") {
+    // Not connected yet: arm it, bridgeLegs starts the transcription.
+    const armed = await prisma.call.updateMany({
+      where: { id: call.id, status: "RINGING" },
+      data: { atlasNotesState: "armed", atlasNotesUserId: userId, atlasNotesError: null },
+    });
+    if (armed.count === 0) return startAtlasNotes(companyId, callId, userId); // it connected meanwhile
+    return { state: "armed", notes: call.atlasNotes, error: null, tokens: call.atlasNotesTokens };
+  }
+  if (call.status !== "IN_PROGRESS" || !realLeg(call.telnyxCallId)) {
+    throw new VoiceError(`${name} can only take notes while the call is ringing or connected.`, 409);
+  }
+  // Who pays, before Telnyx is told. A second start after "done" keeps the
+  // earlier transcript and appends — the next summary covers the whole call.
+  await prisma.call.update({ where: { id: call.id }, data: { atlasNotesUserId: userId, atlasNotesError: null } });
+  try {
+    await beginTranscription(call.id, call.telnyxCallId);
+  } catch (err) {
+    if (err instanceof VoiceError) throw err;
+    const detail = err instanceof TelnyxError ? err.detail : err instanceof Error ? err.message : "unknown error";
+    throw new VoiceError(`Telnyx couldn't start transcribing: ${detail}`, 424);
+  }
+  return { state: "listening", notes: call.atlasNotes, error: null, tokens: call.atlasNotesTokens };
+}
+
+/**
+ * The transcript is complete (the customer leg hung up, Stop, the stale
+ * sweep): write the notes if the caller is someone saved — otherwise hold
+ * the transcript as "awaiting_contact" until they are saved as a lead or
+ * client (advanceLeadForLinkedCalls then summarizes) or discarded. Atlas
+ * tokens are never spent on a stranger's call. An armed call that never
+ * connected simply forgets the request.
+ */
+async function finishAtlasNotes(call: { id: string; contactId: string | null; atlasNotesState: string | null }): Promise<AtlasNotesSnapshot | null> {
+  if (call.atlasNotesState === "armed") {
+    await prisma.call.updateMany({ where: { id: call.id, atlasNotesState: "armed" }, data: { atlasNotesState: null } });
+    return null;
+  }
+  if (call.atlasNotesState !== "listening") return null;
+  if (call.contactId) return summarizeCallNotes(call.id).catch(() => null);
+  await prisma.call.updateMany({ where: { id: call.id, atlasNotesState: "listening" }, data: { atlasNotesState: "awaiting_contact" } });
+  return null;
+}
+
+/** Stop listening now. Armed → forgotten; listening → the transcript is closed and finished like a hangup (notes for a saved caller, held for an unsaved one). */
+export async function stopAtlasNotes(companyId: string, callId: string): Promise<AtlasNotesSnapshot> {
+  const call = await prisma.call.findFirst({ where: { id: callId, companyId }, select: notesSelect });
+  if (!call) throw new VoiceError("Call not found.", 404);
+  if (call.atlasNotesState === "listening" && voiceEnabled() && realLeg(call.telnyxCallId)) {
+    await callAction(call.telnyxCallId, "transcription_stop").catch((e) => console.error("[voice] transcription_stop failed:", e));
+  }
+  const out = await finishAtlasNotes(call);
+  if (out) return out;
+  const fresh = await prisma.call.findFirst({ where: { id: callId, companyId }, select: notesSelect });
+  return fresh ? notesSnapshot(fresh) : notesSnapshot(call);
+}
+
+/** "Discard": an unsaved caller's transcript is dropped, nothing is written, no tokens spent. */
+export async function discardAtlasNotes(companyId: string, callId: string): Promise<AtlasNotesSnapshot> {
+  const call = await prisma.call.findFirst({ where: { id: callId, companyId }, select: notesSelect });
+  if (!call) throw new VoiceError("Call not found.", 404);
+  if (call.atlasNotesState === "listening" && voiceEnabled() && realLeg(call.telnyxCallId)) {
+    await callAction(call.telnyxCallId, "transcription_stop").catch(() => null);
+  }
+  await prisma.call.updateMany({
+    where: { id: call.id, atlasNotesState: { in: ["armed", "listening", "awaiting_contact", "failed"] } },
+    data: { atlasNotesState: null, transcript: null, atlasNotesError: null },
+  });
+  const fresh = await prisma.call.findFirst({ where: { id: callId, companyId }, select: notesSelect });
+  return fresh ? notesSnapshot(fresh) : notesSnapshot(call);
+}
+
 /* ───────────────────────── Notifications ───────────────────────── */
 
 function displayParty(call: CallRow): string {
@@ -952,7 +1184,7 @@ export async function startOutboundCall(
   companyId: string,
   userId: string,
   target: { contactId?: string | null; to?: string | null },
-  opts: { via?: "cell" | "app" } = {}
+  opts: { via?: "cell" | "app"; device?: "browser" | "ios" } = {}
 ): Promise<{ callId: string; via: "cell" | "app"; agentNumber: string | null; customerNumber: string }> {
   if (!voiceEnabled()) throw new VoiceError("Calling from the app isn't available on this server yet.", 503);
   const [company, user] = await Promise.all([
@@ -969,7 +1201,11 @@ export async function startOutboundCall(
     throw new VoiceError("Your line isn't on the voice app yet — try again in a minute.", 503);
   }
   const via = opts.via ?? "cell";
-  const softphone = via === "app" ? await userSoftphoneOnline(userId) : null;
+  // The device placing the call gets the leg: the iPhone app names itself
+  // (its own credential, no heartbeat — the INVITE for its call wakes it);
+  // anything else is a registered browser.
+  const softphone =
+    via !== "app" ? null : opts.device === "ios" ? await voipRegisteredSoftphone(userId) : (await userSoftphoneOnline(userId)) ?? (await voipRegisteredSoftphone(userId));
   if (via === "app" && !softphone) throw new VoiceError("Your softphone isn't connected — reload the page, or call from your cell.", 409);
   const agentNumber = via === "app" ? null : (toE164(user?.phone) ?? company.lineForwardTo);
   if (via === "cell" && !agentNumber) throw new VoiceError("Add your cell number under Settings → My Profile so we can ring you first.", 409);
@@ -1002,7 +1238,9 @@ export async function startOutboundCall(
     calleeName = match ? `${match.firstName} ${match.lastName}`.trim() : "";
   }
   if (customerNumber === company.lineNumber) throw new VoiceError("That's your own business line.");
-  if (customerNumber === agentNumber) throw new VoiceError("That's the phone we'd be ringing you on.");
+  if (customerNumber === agentNumber) {
+    throw new VoiceError("That's the phone we'd ring you on first, so it can't also be the one we call. To call your own number, place the call from the browser (Calls in the app).");
+  }
 
   const call = await prisma.call.create({
     data: {
@@ -1142,7 +1380,8 @@ export async function runStaleCallSweep(now = new Date()): Promise<{ closed: num
   const rows = await prisma.call.findMany({
     where: {
       OR: [
-        { status: { in: ["RINGING", "IN_PROGRESS"] }, createdAt: { lt: new Date(now.getTime() - STALE_RINGING_MS) } },
+        { status: "RINGING", createdAt: { lt: new Date(now.getTime() - STALE_RINGING_MS) } },
+        { status: "IN_PROGRESS", createdAt: { lt: new Date(now.getTime() - STALE_IN_PROGRESS_MS) } },
         { status: "VOICEMAIL", voicemailRecordingId: null, createdAt: { lt: new Date(now.getTime() - STALE_VOICEMAIL_MS) } },
       ],
     },
@@ -1157,11 +1396,17 @@ export async function runStaleCallSweep(now = new Date()): Promise<{ closed: num
         where: { id: call.id },
         data: { status, hangupCause: call.hangupCause ?? "stale", endedAt: call.endedAt ?? now, durationSec: call.durationSec ?? talkSeconds(call.answeredAt, now) },
       });
-      for (const ccid of [call.telnyxCallId, call.agentCallId]) {
-        if (ccid && !ccid.startsWith("pending:") && voiceEnabled()) await callAction(ccid, "hangup").catch(() => {});
+      // Only a RINGING row gets its legs dropped at Telnyx. A bridged call
+      // this old is already gone (Telnyx's own 4 h cap) — and housekeeping
+      // must never be the thing that hangs up on a customer.
+      if (call.status === "RINGING" && voiceEnabled()) {
+        for (const ccid of [call.telnyxCallId, call.agentCallId]) {
+          if (ccid && !ccid.startsWith("pending:")) await callAction(ccid, "hangup").catch(() => {});
+        }
+        await hangupAppLegs(call.id, null).catch(() => {});
       }
-      if (voiceEnabled()) await hangupAppLegs(call.id, null).catch(() => {});
       await prisma.callLeg.updateMany({ where: { callId: call.id, endedAt: null }, data: { endedAt: now, hangupCause: "stale" } });
+      await finishAtlasNotes(call);
       fireCallStatus(call, status);
       out.closed++;
     } else {
@@ -1194,11 +1439,49 @@ export async function markCallsSeen(companyId: string, scope: Record<string, unk
 export async function linkCallsToContact(companyId: string, contactId: string, phone: string | null | undefined): Promise<number> {
   const digits = phoneDigits(phone);
   if (!digits) return 0;
+  // The calls of the last day are remembered before the link lands: a lead
+  // saved from the call screen right after hanging up has already been
+  // spoken to, and the board should say so (advanceLeadForLinkedCalls).
+  const recent = await prisma.call.findMany({
+    where: { companyId, contactId: null, customerDigits: digits, createdAt: { gte: new Date(Date.now() - LINK_ADVANCE_WINDOW_MS) } },
+    select: { id: true },
+  });
   const r = await prisma.call.updateMany({
     where: { companyId, contactId: null, customerDigits: digits },
     data: { contactId },
   });
+  if (recent.length) await advanceLeadForLinkedCalls(companyId, contactId, recent.map((c) => c.id)).catch(() => null);
   return r.count;
+}
+
+/** How far back a newly linked call still moves the lead's card. Older history says nothing about where they stand today. */
+export const LINK_ADVANCE_WINDOW_MS = 24 * 3_600_000;
+
+/**
+ * A call was just tied to a contact — from the call screen's Save as a lead
+ * (POST contacts → linkCallsToContact), its explicit "this is them" link
+ * (PATCH /api/app/calls/[id]), or an edited phone number. The call's own
+ * hooks (bridge, hangup) ran while the row had no contact, so the Leads
+ * board never heard about it: fire the trigger now for the latest of those
+ * calls. autoAdvance is forward-only and the board's own automation
+ * columns decide where the card goes — a board with no "you call or text
+ * them" column moves nothing, by its owner's choice.
+ */
+export async function advanceLeadForLinkedCalls(companyId: string, contactId: string, callIds: string[]): Promise<void> {
+  if (callIds.length === 0) return;
+  const latest = await prisma.call.findFirst({
+    where: { id: { in: callIds }, companyId, contactId },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, companyId: true, contactId: true, status: true, direction: true },
+  });
+  if (!latest) return;
+  await advanceLeadForCall(latest, latest.status, latest.direction);
+  // Atlas held a transcript for an unsaved caller: they're saved now, write the notes.
+  const waiting = await prisma.call.findMany({
+    where: { id: { in: callIds }, companyId, contactId, atlasNotesState: "awaiting_contact" },
+    select: { id: true },
+  });
+  for (const w of waiting) await summarizeCallNotes(w.id).catch(() => null);
 }
 
 export type ResolvedCallContact = { id: string; firstName: string; lastName: string; status: ContactStatus };

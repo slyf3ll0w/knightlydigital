@@ -9,15 +9,24 @@
 import assert from "node:assert/strict";
 import { TelnyxError, isInsufficientFunds } from "@/lib/telnyx";
 import { needsOperatorReview } from "@/lib/business-line";
-import { einIssue, emailTypoHint, isFreeMailDomain, legalNameHint } from "@/lib/business-line-shared";
+import {
+  REGISTRATION_CHECKLIST,
+  einIssue,
+  emailTypoHint,
+  isFreeMailDomain,
+  isGroupMailbox,
+  legalNameHint,
+} from "@/lib/business-line-shared";
 import { failureText } from "@/lib/telnyx";
 import { suggestionFromFeature } from "@/lib/geocoding";
+import { smsConsentLabel } from "@/lib/sms-consent";
 import { isPrivateIp, mentionsBusiness, nameTokens, websiteUrlIssue } from "@/lib/website-check";
 import {
   deriveRegistration,
   normalizeAreaCode,
   sanitizeRegistrationForm,
   campaignCopy,
+  campaignAppealReason,
   LineError,
   PLATFORM_LEGAL_NAME,
   isPlatformOwnLine,
@@ -144,7 +153,7 @@ const good = {
   vertical: "TECHNOLOGY",
   contactFirstName: "David",
   contactLastName: "Lessly",
-  contactEmail: "Info@Streamflaire.com",
+  contactEmail: "David@Streamflaire.com",
   contactPhone: "(469) 833-5853",
 };
 {
@@ -153,7 +162,7 @@ const good = {
   assert.equal(f.state, "TX");
   assert.equal(f.postalCode, "75013", "5-digit ZIP");
   assert.equal(f.website, "https://streamflaire.com", "scheme added");
-  assert.equal(f.contactEmail, "info@streamflaire.com");
+  assert.equal(f.contactEmail, "david@streamflaire.com");
   assert.equal(f.contactPhone, "+14698335853", "E.164");
 }
 const rejects = (patch: Record<string, unknown>, re: RegExp) => {
@@ -177,7 +186,12 @@ rejects({ website: "not a url at all" }, /website/);
 // Toll-free: the reviewer wants the contact email at the website's domain (rejection 2026-09-22)
 {
   const tf = { ...good, messageVolume: "1,000", useCase: "Mixed" };
-  assert.equal(sanitizeRegistrationForm(tf, "TOLL_FREE").contactEmail, "info@streamflaire.com", "email at the website's domain passes");
+  assert.equal(sanitizeRegistrationForm(tf, "TOLL_FREE").contactEmail, "david@streamflaire.com", "email at the website's domain passes");
+  assert.equal(
+    sanitizeRegistrationForm({ ...tf, contactEmail: "info@streamflaire.com" }, "TOLL_FREE").contactEmail,
+    "info@streamflaire.com",
+    "toll-free has no group-mailbox rule (Telnyx's reviewer accepted info@)"
+  );
   assert.equal(
     sanitizeRegistrationForm({ ...tf, website: "www.streamflaire.com", contactEmail: "david@mail.streamflaire.com" }, "TOLL_FREE").contactEmail,
     "david@mail.streamflaire.com",
@@ -192,6 +206,12 @@ rejects({ website: "not a url at all" }, /website/);
   }
   // 10DLC: a registered business may not use personal email either (TCR, 2026-09-23); a sole proprietor may.
   assert.throws(() => sanitizeRegistrationForm({ ...good, contactEmail: "david@gmail.com" }), /personal email/);
+  assert.throws(() => sanitizeRegistrationForm({ ...good, contactEmail: "contact@lesslyholdings.com" }), /shared mailboxes/);
+  assert.equal(
+    sanitizeRegistrationForm({ ...good, entityType: "SOLE_PROPRIETOR", ein: "", contactEmail: "info@gmail.com" }).contactEmail,
+    "info@gmail.com",
+    "sole proprietors are exempt from both email rules"
+  );
   assert.equal(
     sanitizeRegistrationForm({ ...good, entityType: "SOLE_PROPRIETOR", ein: "", contactEmail: "david@gmail.com" }).contactEmail,
     "david@gmail.com",
@@ -210,7 +230,7 @@ assert.equal(sanitizeRegistrationForm({ ...good, displayName: "" }).displayName,
 // ── campaignCopy: what the carriers review ───────────────────────────────────
 
 {
-  const c = campaignCopy("Acme Plumbing", "https://acme.example");
+  const c = campaignCopy("Acme Plumbing", "https://acme.example", { formUrl: "https://workbenchfsm.com/book/acme-plumbing/request" });
   assert.equal(c.samples.length, 5, "five samples");
   for (const s of c.samples) {
     assert.match(s, /Acme Plumbing/, "every sample names the business");
@@ -219,6 +239,33 @@ assert.equal(sanitizeRegistrationForm({ ...good, displayName: "" }).displayName,
   }
   assert.match(c.messageFlow, /acme\.example/);
   assert.match(c.messageFlow, /STOP/);
+  // Telnyx failed a campaign (2026-09-24) for describing the form without linking it:
+  // the flow must carry the form URL, a screenshot, and the checkbox wording itself.
+  assert.match(c.messageFlow, /https:\/\/workbenchfsm\.com\/book\/acme-plumbing\/request/, "opt-in form URL");
+  assert.match(c.messageFlow, /https:\/\/workbenchfsm\.com\/sms-opt-in\.png/, "screenshot link");
+  assert.ok(c.messageFlow.includes(smsConsentLabel("Acme Plumbing")), "checkbox wording quoted verbatim");
+  assert.match(c.messageFlow, /unchecked by default/);
+  assert.match(c.messageFlow, /sms-terms/);
+  assert.match(c.messageFlow, /\/privacy/);
+  assert.ok(c.messageFlow.length <= 2048, `message flow fits TCR's 2048 chars (${c.messageFlow.length})`);
+  // No form URL known (unit tests, a company with no items) still says where the form lives.
+  assert.match(campaignCopy("Acme Plumbing", null).messageFlow, /workbenchfsm\.com\/book\//);
+  const appeal = campaignAppealReason("Acme Plumbing", "https://workbenchfsm.com/book/acme-plumbing/request");
+  assert.match(appeal, /book\/acme-plumbing\/request/);
+  assert.match(appeal, /sms-opt-in\.png/);
+  assert.ok(appeal.includes(smsConsentLabel("Acme Plumbing")));
+}
+
+// ── smsConsentLabel: Telnyx's opt-in template, element by element ────────────
+{
+  const l = smsConsentLabel("Acme Plumbing");
+  assert.match(l, /^By checking this box, you agree to receive SMS/);
+  assert.match(l, /from Acme Plumbing/);
+  assert.match(l, /Message frequency may vary/);
+  assert.match(l, /data rates may apply/);
+  assert.match(l, /Reply STOP to opt out/);
+  assert.match(l, /HELP for help/);
+  assert.match(l, /not share your mobile information with third parties/);
 }
 
 console.log("test-business-line: all assertions passed");
@@ -350,14 +397,34 @@ console.log("test-business-line (number rights): all assertions passed");
   console.log("test-business-line (out of funds): all assertions passed");
 }
 
-// Nothing is re-filed on its own: every submission is a carrier fee.
+// Only re-files that spend money wait for the operator: a campaign-stage
+// rejection needs a template fix; a brand-stage one (email, EIN, address) is a
+// free in-place edit the tenant should be able to fix and send right back.
 {
   assert.equal(needsOperatorReview(null, false), false, "first filing goes straight out");
   assert.equal(needsOperatorReview(null, true), true, "LINE_REGISTRATION_REVIEW=1 holds first filings too");
-  assert.equal(needsOperatorReview({ status: "REJECTED" }, false), true, "a re-file after a rejection waits");
+  assert.equal(needsOperatorReview({ status: "REJECTED", campaignId: null }, false), false, "brand-stage re-file goes straight out");
+  assert.equal(needsOperatorReview({ status: "REJECTED", campaignId: "c1" }, false), true, "campaign-stage re-file waits");
+  assert.equal(needsOperatorReview({ status: "REJECTED", campaignId: null }, true), true, "review-all holds brand-stage re-files too");
+  assert.equal(needsOperatorReview({ status: "REJECTED" }, false), false, "toll-free rejection (no campaign) re-files freely");
   assert.equal(needsOperatorReview({ status: "AWAITING_REVIEW" }, false), true, "editing while waiting keeps waiting");
   assert.equal(needsOperatorReview({ status: "QUEUED" }, false), false, "out-of-funds rows never reached Telnyx");
   console.log("test-business-line (operator review): all assertions passed");
+}
+
+// TCR's "personal, free and group email IDs" rule, both halves.
+{
+  assert.ok(isGroupMailbox("contact@lesslyholdings.com"), "contact@ is a group mailbox");
+  assert.ok(isGroupMailbox("Info+tag@Example.com"), "case and +tags ignored");
+  assert.ok(isGroupMailbox("no-reply@example.com"));
+  assert.ok(!isGroupMailbox("david@lesslyholdings.com"), "a named person passes");
+  assert.ok(!isGroupMailbox("dcontact@example.com"), "only the whole local part counts");
+  assert.ok(!isGroupMailbox("nonsense"), "no @ → not our problem here");
+  assert.equal(REGISTRATION_CHECKLIST.PRIVATE_PROFIT.length, 5);
+  assert.equal(REGISTRATION_CHECKLIST.SOLE_PROPRIETOR.length, 4);
+  // Both lists end on the booking-form item: reviewers open that page for the consent checkbox.
+  for (const list of Object.values(REGISTRATION_CHECKLIST)) assert.match(list[list.length - 1].title, /booking form/);
+  console.log("test-business-line (group mailboxes): all assertions passed");
 }
 
 // A bad EIN is caught before the $4.50 brand fee, not by the registry.

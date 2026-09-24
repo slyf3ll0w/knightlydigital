@@ -46,6 +46,8 @@ export type SoftphoneState = {
   micLabel: string | null;
   /** The microphone watchdog's verdict while on a call (lib/softphone-mic.ts), or a probe's: one sentence, or null when audio is leaving fine. */
   micWarning: string | null;
+  /** iPhone only: speakerphone on/off; null where there is no such switch (the browser). */
+  speaker: boolean | null;
 };
 
 const INITIAL: SoftphoneState = {
@@ -58,6 +60,7 @@ const INITIAL: SoftphoneState = {
   micId: null,
   micLabel: null,
   micWarning: null,
+  speaker: null,
 };
 let state: SoftphoneState = INITIAL;
 const listeners = new Set<() => void>();
@@ -67,7 +70,13 @@ export function getSoftphoneState(): SoftphoneState {
 }
 
 export function setSoftphoneState(patch: Partial<SoftphoneState>): void {
+  const prev = state;
   state = { ...state, ...patch };
+  // Every status change in the console, so a pasted console says where the
+  // line was when a call went the wrong way (ready / connecting / off + why).
+  if (prev.status !== state.status || prev.reason !== state.reason) {
+    console.info(`[softphone] status ${state.status}${state.reason ? ` (${state.reason})` : ""}`);
+  }
   listeners.forEach((l) => l());
 }
 
@@ -141,6 +150,12 @@ export type SoftphoneController = {
   setMic(deviceId: string | null): Promise<void>;
   /** Open the chosen microphone for a few seconds and report whether anything was heard (the meter runs meanwhile). */
   testMic(): Promise<MicTestResult>;
+  /** iPhone: speakerphone on/off. Absent where there is no such switch. */
+  toggleSpeaker?(): void;
+  /** Browser: not registered right now (socket dropped, a failed grant) — start over with a fresh token at once instead of waiting out the backoff. Absent on the native engine. */
+  reconnect?(): void;
+  /** Browser: another tab of this browser holds the line ("other_tab") — ask it to hand over, so calls ring and go out from here. */
+  takeOver?(): void;
 };
 
 let controller: SoftphoneController | null = null;
@@ -161,13 +176,60 @@ export const softphone = {
   hangup: () => controller?.hangup(),
   toggleMute: () => controller?.toggleMute(),
   toggleHold: () => controller?.toggleHold(),
+  toggleSpeaker: () => controller?.toggleSpeaker?.(),
   placeCall: (target: PlaceCallTarget): Promise<void> => (controller ? controller.placeCall(target) : Promise.reject(notConnected())),
   requestMic: (): Promise<boolean> => (controller ? controller.requestMic() : Promise.resolve(false)),
   sendDigits: (digits: string) => controller?.sendDigits(digits),
   setMic: (deviceId: string | null): Promise<void> => (controller ? controller.setMic(deviceId) : Promise.resolve()),
   testMic: (): Promise<MicTestResult> =>
     controller ? controller.testMic() : Promise.resolve({ heard: false, label: null, osMuted: false, error: "The softphone isn't connected." }),
+  reconnect: () => controller?.reconnect?.(),
+  takeOver: () => controller?.takeOver?.(),
 };
+
+/** Registration is down for a reason a reconnect can fix (as opposed to off by choice, another tab, a phone shell). */
+export function softphoneRecoverable(s: SoftphoneState): boolean {
+  return s.status === "connecting" || s.status === "error";
+}
+
+/** Another tab of this browser holds the line; takeOver() can bring it here. */
+export function softphoneElsewhere(s: SoftphoneState): boolean {
+  return s.status === "off" && s.reason === "other_tab";
+}
+
+/**
+ * Wait for the softphone to come back after a reconnect() or takeOver() —
+ * up to `maxMs`. Resolves true the moment it is registered, false when the
+ * time runs out or the line went off for good (the caller then rings the
+ * cell instead, and says so).
+ */
+export function waitForSoftphone(maxMs = 8_000): Promise<boolean> {
+  const until = Date.now() + maxMs;
+  return new Promise((resolve) => {
+    const tick = () => {
+      const s = getSoftphoneState();
+      if (s.status === "ready") return resolve(true);
+      if ((!softphoneRecoverable(s) && !softphoneElsewhere(s)) || Date.now() >= until) return resolve(false);
+      setTimeout(tick, 250);
+    };
+    tick();
+  });
+}
+
+/**
+ * Why a call placed right now would NOT go out from this browser — one
+ * short line for the dialer, or null when it would (or when nothing needs
+ * saying, e.g. a phone shell where the cell is the phone).
+ */
+export function softphoneFallbackNote(s: SoftphoneState): string | null {
+  if (s.status === "ready") return null;
+  if (softphoneRecoverable(s)) return "Browser calling is reconnecting — a call now rings your cell first.";
+  if (softphoneElsewhere(s)) return "Your line is connected in another WorkBench tab.";
+  if (s.reason === "native") return null;
+  if (s.reason === "disabled") return "Calls in the app are off in My Profile — this rings your cell first, then them.";
+  if (s.reason === "unsupported") return "This browser can't take calls — this rings your cell first, then them.";
+  return "Rings your cell first, then them.";
+}
 
 export function fmtElapsed(startedAt: number | null, now: number): string {
   if (!startedAt) return "0:00";
