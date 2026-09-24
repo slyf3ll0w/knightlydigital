@@ -6,7 +6,6 @@ import dynamic from "next/dynamic";
 import { ArrowLeft, Calculator, Camera, Check, FileText, Loader2, Sparkles, X } from "lucide-react";
 import Modal from "@/components/Modal";
 import { Textarea } from "@/components/Input";
-import DictateButton from "@/components/DictateButton";
 import { useAssistant } from "@/components/AssistantContext";
 import { APP_THEME, Breakdown, ChoiceControl, CountsControl, MultiControl, NumberControl, PriceHero, ToggleRow, moneyExact, pickedIncludes, wash, useCountUp } from "@/components/EstimatorControls";
 import { postJson } from "@/lib/safe-fetch";
@@ -48,6 +47,8 @@ export type EstimatorApply = {
   lines: EstimatorResultLine[];
   title?: string;
   clientMessage?: string;
+  /** The saved tool the lines came from (absent for unsaved previews) — stamped on the quote */
+  toolId?: string;
 };
 
 type RunOk = { ok: true; lines: EstimatorResultLine[]; subtotal: number; title?: string; clientMessage?: string; warnings: string[]; drivers?: PriceDriver[] };
@@ -269,14 +270,14 @@ export function EstimatorRunnerPanel({
 
   function apply() {
     if (!result) return;
-    onApply?.({ lines: result.lines, title: result.title, clientMessage: result.clientMessage });
+    onApply?.({ lines: result.lines, title: result.title, clientMessage: result.clientMessage, ...(tool && !tool.preview ? { toolId: tool.id } : {}) });
     onClose();
   }
 
   function startQuote() {
     if (!result || !tool) return;
     setStarting(true);
-    stashEstimateDraft({ lines: result.lines, title: result.title, clientMessage: result.clientMessage, toolName: tool.name });
+    stashEstimateDraft({ lines: result.lines, title: result.title, clientMessage: result.clientMessage, toolName: tool.name, toolId: tool.id });
     router.push("/app/quotes/new?fromTool=1");
   }
 
@@ -347,7 +348,8 @@ export function EstimatorRunnerPanel({
                 {assessed.length > 0 ? `${atlas.name} assesses ${assessed.map((i) => i.label.toLowerCase()).join(", ")} from what you say and any photo, then fills in the rest it can.` : `${atlas.name} fills in the answers it can read from your words or the photo.`}
               </p>
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="e.g. Two-car concrete driveway, about 20 by 24, heavy oil stains, they also want the sidewalk done" className="mt-2.5 w-full" />
-              <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => void attachPhoto(e.target.files?.[0])} />
+              {/* no `capture`: the picker offers the photo library AND the camera — a picture the customer already sent works as well as a new one */}
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => void attachPhoto(e.target.files?.[0])} />
               <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
                   {photo ? (
@@ -364,7 +366,7 @@ export function EstimatorRunnerPanel({
                       Add a photo
                     </button>
                   )}
-                  <DictateButton disabled={busy !== null} onText={(t) => setDescription((d) => (d.trim() ? `${d.trim()} ${t}` : t))} />
+                  {!photo && <span className="text-[11px] text-gray-500">From your library or the camera</span>}
                   <span className="hidden text-[11px] text-gray-500 lg:inline">Uses Atlas tokens · you can change every answer</span>
                 </div>
                 <button

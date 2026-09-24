@@ -867,7 +867,7 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
           {spec.assist && (
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-800">Guidance for Atlas</label>
-              <Textarea value={spec.assist.instructions ?? ""} onChange={(e) => touch((s) => (s.assist = { instructions: e.target.value || undefined }))} rows={2} maxLength={600} placeholder="e.g. A two-car driveway is about 500 sq ft; count the garage as one story." className="w-full" />
+              <Textarea value={spec.assist.instructions ?? ""} onChange={(e) => touch((s) => (s.assist = { instructions: e.target.value || undefined }))} rows={3} maxLength={1000} placeholder="What to look for in a photo or description, what to assume when it can't tell, what never to guess — e.g. A two-car driveway is about 500 sq ft; count the garage as one story; if the photo doesn't show the stains, assume moderate." className="w-full" />
             </div>
           )}
         </div>

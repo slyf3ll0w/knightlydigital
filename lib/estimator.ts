@@ -1187,7 +1187,7 @@ export function compileSpec(raw: unknown): CompileResult {
   let assist: EstimatorAssist | null = null;
   if (r.assist && typeof r.assist === "object") {
     const a = r.assist as Record<string, unknown>;
-    if (a.enabled !== false) assist = { instructions: s(a.instructions, 600) || undefined };
+    if (a.enabled !== false) assist = { instructions: s(a.instructions, 1000) || undefined };
   } else if (r.assist === true) {
     assist = {};
   }
@@ -1829,7 +1829,7 @@ spec = {
   minimumTotal: 150,
   quoteTitle: "Pressure washing — {sqft} sq ft",
   clientMessage: "Thanks for the chance to quote your driveway!",
-  assist: null,                    // or { instructions: "..." } to enable the metered fill-in step
+  assist: null,                    // or { instructions: "what to look for, what to assume when unsure, what never to guess" } to enable the metered photo / description fill-in step
   placeholders: ["Fence wash: $1.25/ft — placeholder, the owner never gave a fence rate"],   // ONLY rates you had to guess; [] when none
   samples: [                       // small / typical / large jobs — every required question answered; the builder runs them
     { label: "Small job", inputs: { sqft: 300, stories: "1", package: "basic", extras: [] } },

@@ -257,7 +257,13 @@ export default function ChatClient({
     if (typeof window !== "undefined" && !window.matchMedia("(min-width: 1024px)").matches) {
       setMobileOpen(true);
     }
-    if (id === activeId) return;
+    if (id === activeId) {
+      // Reopening the thread that's already active (phones: back to the list,
+      // tap it again) still re-fetches, so the server marks it seen and the
+      // tab-bar dot clears now rather than on the next poll.
+      void refresh(id);
+      return;
+    }
     setActiveId(id);
     activeRef.current = id;
     const cached = msgCacheRef.current.get(id);

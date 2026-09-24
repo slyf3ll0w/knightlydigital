@@ -1243,6 +1243,179 @@ Recommended order by return on effort: 5 → 6 → 2 → 3 → 8 → 7 → 4 →
    monogram; the Library view lists shared tools with the old page's
    filters; /app/estimates/library redirects.
 
+## Batch 13 — builds you can walk away from, live notifications, leads, the trims (BUILT 2026-09-24)
+
+David's pass on Batch 12 (2026-09-24): "people don't want to sit there and
+wait for their estimator to build"; the photo option "did not check" after
+Atlas added photo fill-in; "clicking on the Overview button … does not go
+anywhere"; remove dictation, the QR links and financing ("noise"); no way
+to change the title; make sure company tokens pay for builds, edits and
+fill-ins; a contact-first form option; instant notifications with an iOS
+glass card + the chat dot that wouldn't clear; owner guidance for Atlas's
+fill-in and a bolder Atlas (fill what it can, guess when it must, use a
+library photo); the design "still looks chopped and AI-generated" — match
+Clients; a history of who used each tool; audit the rest.
+
+### Builds you can leave — `lib/build-tracker.ts` + `components/BuildProgressBar.tsx`
+- Builds already ran as server jobs (Batch 10); what was missing was the
+  view from elsewhere. `BuildPanel` now records the accepted build in
+  localStorage (`wb.estimateBuild`: id, tool, label, home page) and the
+  shell mounts `BuildProgressBar`: a `.sheet-material` glass strip above
+  the phone tab bar / bottom-right on desktop that polls
+  `GET /api/app/estimators/build/[id]` every 2 s, shows the step + message
+  (shimmer), a thin progress line (plan → draft → check → test → save),
+  and **Cancel**. Hidden on the build's own page. When the tool lands it
+  turns into "“Name” is ready — Open" (→ `?s=try`), lingers 30 s, clears.
+- Cancel = `DELETE /api/app/estimators/build/[id]` → `cancelBuild()` sets
+  status `cancelled`; `runBuildJob` flushes with a conditional
+  `updateMany` (never overwrites a cancelled row) and `buildEstimator`
+  asks `cancelled()` before each model call, so a cancel between steps
+  skips the next call and nothing is saved. The call already in flight
+  finishes on its own (its tokens are spent either way — the AI client has
+  no abort signal; noted below). The panel shows "Cancelled — nothing was
+  saved." and offers Cancel while running.
+
+### Live notifications — `components/LiveToasts.tsx` + AppShell
+- The shell now re-counts `/api/app/nav-counts` every 20 s while the tab
+  is visible (on top of the 45 s navigation throttle). When requests /
+  leads / client messages grow it fetches `/api/app/notifications` and
+  shows the items newer than the previous poll as glass cards (top banner
+  under the status bar on phones, top-right card on desktop; opacity-only
+  animation — a transform kills the blur on iOS); team chat growth shows a
+  generic "New team chat message" card (chat isn't in the feed; the chat
+  GET marks threads read, so it's never called from here). Tap opens the
+  record, swipe up / X dismisses, 8 s auto-dismiss, 3 at most, haptic.
+- **Chat dot fix**: a nav-counts poll that was already in flight when
+  ChatClient patched `chat: 0` (wb:nav-counts with a detail) could land
+  after it and put the stale count back. `countsSeqRef` bumps on every
+  detail patch and a poll started before the bump is dropped. ChatClient
+  also re-fetches when the already-active thread is reopened (phones:
+  back to the list, tap the same chat) so the server marks it seen now.
+
+### Leads — `Quote.estimatorId` (additive) + the tool page's Leads section
+- `Quote.estimatorId` (SetNull FK, `Estimator.quotes`): stamped by the
+  runner's "Create quote" (`stashEstimateDraft` carries `toolId`,
+  QuoteEditor sends `estimatorId`, `POST /api/app/quotes` validates it is
+  the company's) and by the web form's quote (`createEstimateLead`).
+  `Request.estimatorId` already existed for web-form leads.
+- `[id]/page.tsx` loads requests + request-less quotes for the tool
+  (contact-scoped, 100 newest) → `LeadRow[]`; the page gets a **Leads**
+  section (everyone who can sell): a ledger (when · who · via Web form /
+  In app · estimate · status chip), phone rows with a monogram, a count
+  in the rail. The request page's subtitle now says "From the X estimate
+  form" with a link to the tool's Leads. Website leads already carry
+  leadSource "Website estimate" on the board and the client page.
+
+### The trims
+- Dictation (`components/DictateButton.tsx`) deleted from the builder and
+  the runner. The per-channel `?src=` link list + QR codes removed from
+  the Web form page (`qrcode` + `@types/qrcode` uninstalled); the server
+  still accepts `?src=` on a link and tags the lead — harmless, no UI.
+- Financing removed end to end: `publicConfig.monthly`, `MONTHLY_LIMITS`,
+  `monthlyPayment/monthlyLabel`, the `PublicVariant.monthly` line, the
+  `tierSubs` prop, the Atlas `website.monthlyPayment` arg, the form's
+  "or about $X/mo" line. `sanitizePublicConfig` drops an old row's
+  `monthly` block (unit-tested).
+
+### Fixes and small features
+- **Overview button** (deterministic, not "sometimes"): the section was
+  derived from `?s=` with `initialSection` (the server's `?s=`) as the
+  fallback, so on a page opened at `?s=try` (where every finished build
+  lands) removing `s` from the URL fell back to `try` again. The section is
+  React state now; the URL is followed only when it actually changes.
+- **Rename**: pencil next to the title / "Rename" in the ⋯ menu turns the
+  title into name + description fields (PATCH). The Words tab still has
+  them too.
+- **Photo option in step with the rules**: `publicConfigAfterSpec()` (in
+  `lib/estimator-build.ts`, shared with the PATCH route) switches
+  `publicConfig.photoAssist` on whenever a change turns the tool's assist
+  on (Atlas card, Ask Atlas build, hand editor). The Web form option shows
+  checked + locked when a question is assessed by Atlas ("Always on for
+  this tool"), since the public assist route already allowed that case.
+- **Contact first** — `reveal: "before_form"` (sanitize, describe,
+  Atlas enum, PublishPanel 3-way "When to ask for their name and contact
+  details": after the estimate / after the questions / before the
+  questions). `PublicEstimateForm` opens on the details screen, then the
+  questions; the last question submits (captcha rides on that step); the
+  thank-you screen shows the estimate. Preview: prices and shows the
+  thank-you screen without submitting.
+- **Atlas guidance** — the Overview gets a "How Atlas fills it in" card
+  (managers, tools with assist) editing `spec.assist.instructions` (now
+  1000 chars); the builder prompt must WRITE instructions whenever it
+  turns assist on (what to look for, what to assume, what never to
+  guess); the drawer prompt knows too. The fill-in prompt
+  (`assistSystemPrompt`) is bolder: fill every input the evidence
+  supports, commit to a best estimate wherever there's something to go on,
+  flag guesses in notes, leave out only the unknowable, and say so when a
+  photo is unrelated. The runner's and form's file inputs lost
+  `capture="environment"` so the picker offers the photo library.
+- **Tokens** (verified, no change needed): every Atlas call on the
+  estimator paths goes through `meteredOneShot` → `debitAtlasTokens(companyId)`
+  + `recordAssistantTurn` (kinds `estimator-plan`, `estimator-build`,
+  `estimator`): the builder's plan/draft/fix calls, Ask Atlas changes,
+  in-app fill-ins (the signed-in user's company) and website fill-ins
+  (the company's owner). Drawer edits (`manage_estimator update`) are
+  metered by the drawer turn itself. Free-tier companies are metered
+  against the free allowance; a locked meter returns 403 `atlasLocked`.
+- **Design**: tool page header = the client page's (back link + stamps
+  row, `PageTitle` with the description as its sub); the sample-price
+  tiles are a divided `dl` inside a `card-ledger`; `SectionHeader` on
+  every card; the accent-wash icon squares are gone from the header and
+  the Library rows (monograms like the Tools list); PublishPanel segments
+  use the accent, not black; the builder's stage card is `rounded-lg`.
+
+### Batch 13 Test (owed)
+1. Estimates → describe a tool → Build it → leave to Jobs: the glass bar
+   shows the step and a progress line; Cancel → it disappears, no tool
+   appears in the list; build again and stay away → "ready — Open".
+2. A tool page opened from a finished build (`?s=try`) → Overview in the
+   rail → the overview shows (the bug).
+3. ⋯ → Rename → change the name → Save → the title, list and quotes'
+   "Use an estimate tool" picker all show it.
+4. Ask Atlas: "let customers attach a photo and fill in the blanks" →
+   after it lands, Web form → Options → the photo checkbox is on.
+5. Web form → Options → "Before the questions" → Save → open the link:
+   details first, then the questions, then the estimate on the thank-you
+   screen; the lead appears under the tool's Leads with "Web form".
+6. Try it → Create quote → save → the tool's Leads lists the quote "In
+   app"; the request page of a web-form lead says "From the … estimate
+   form".
+7. Second device / another user: create a request or send a client
+   message → within ~20 s a glass card appears on the first device
+   (phone: top banner; desktop: top-right); tap → the record. Open a chat
+   thread with unread → the tab dot clears and stays cleared.
+8. Overview → "How Atlas fills it in" → write guidance → Save → Try it →
+   attach a library photo → Assess & fill in → the answers follow the
+   guidance; a selfie → Atlas says the photo doesn't show the job and fills
+   from the words.
+
+### Audit — found, not changed (for David)
+- `lib/ai.ts` has no abort signal: a cancelled build's in-flight draft
+  call (up to 170 s, the big thinking budget) still completes and bills.
+  Worth an `AbortController` plumbed through `aiChat` → `meteredOneShot`.
+- Library listings (`lib/estimator-portable.ts`) and the Library page still
+  carry the Batch 10 accent chips; the Library "Add" copies rates as
+  placeholders — fine, but the Library industry chips don't match
+  `FilterChip` (href-driven) and use inline accent colours.
+- `EstimatorBuild` rows are pruned by `pruneBuilds()` — check the cron step
+  actually calls it (grep found no caller in the cron list).
+- `publicViews` increments on every hosted page load including bots; no
+  dedupe — the funnel numbers overstate views.
+- The public `?src=` tagging still works with no UI to mint links; either
+  document it or remove it in a later pass.
+- `manage_estimator` list/get responses still say "embed snippet under
+  Settings → Estimate tools → globe button" (`websiteState`) — the page
+  moved to /app/estimates/[id]?s=website.
+- `EstimatorRunner` has no per-run debounce guard on "See the breakdown"
+  double-taps (two `runs` increments); low impact.
+- The Advanced editor's Words tab and the new header rename both edit
+  name/description; two paths to the same field is fine but the editor's
+  dirty baseline resets on `initial` only — a header rename while the
+  editor has unsaved edits will look like an external change.
+- `nav-counts` is now polled every 20 s per open tab: five count queries
+  a tick. Cheap today; if it shows up in Railway metrics, the answer is a
+  single SSE stream or a cheaper "anything new since T" endpoint.
+
 ## Later
 - **Smarter still (proposed 2026-09-22, not built)** — the upgrade-worthy
   layer on top of the Library:

@@ -60,6 +60,8 @@ import TourGuide from "@/components/TourGuide";
 // is a ~900-line client bundle. Loaded on first open (see assistantMounted).
 const NotificationsSheet = dynamic(() => import("@/components/NotificationsSheet"), { ssr: false });
 const AssistantDrawer = dynamic(() => import("@/components/AssistantDrawer"), { ssr: false });
+import LiveToasts, { type LiveToast } from "@/components/LiveToasts";
+import BuildProgressBar from "@/components/BuildProgressBar";
 import type { AtlasAccess, AtlasPricing } from "@/lib/assistant-access";
 import { resolveAccent, shade, textOn } from "@/lib/branding";
 import {
@@ -1562,6 +1564,17 @@ export default function AppShell({
     if (assistantOpen) setTeaserVisible(false);
   }, [assistantOpen]);
   const [counts, setCounts] = useState({ requests: 0, pastDue: 0, chat: 0, leads: 0, messages: 0 });
+  // Live notification cards (components/LiveToasts.tsx): when a count grows
+  // between two polls, the newest matching feed items become cards.
+  const [toasts, setToasts] = useState<LiveToast[]>([]);
+  const prevCountsRef = useRef<typeof counts | null>(null);
+  const lastPollAtRef = useRef(0);
+  const toastedRef = useRef<Set<string>>(new Set());
+  // Bumped whenever a page patches the counts itself (wb:nav-counts with a
+  // detail) so a poll that was already in flight can't overwrite the patch
+  // with a stale answer — the reason the chat dot sometimes came back after
+  // opening a thread.
+  const countsSeqRef = useRef(0);
 
   // ⌘K / Ctrl+K command palette
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -1644,27 +1657,83 @@ export default function AppShell({
   useEffect(() => {
     if (isAuthPage) return;
     let cancelled = false;
+    /**
+     * Something new arrived since the last poll: fetch the feed and turn the
+     * items newer than that poll into live cards (a few at most). Team chat
+     * isn't in the feed — one generic card points at the chat.
+     */
+    const announce = (next: typeof counts, prev: typeof counts, since: number) => {
+      const grew = next.requests > prev.requests || next.leads > prev.leads || next.messages > prev.messages;
+      const fresh: LiveToast[] = [];
+      const finish = () => {
+        if (next.chat > prev.chat && !pathname.startsWith("/app/chat")) {
+          const id = `chat-${next.chat}-${Date.now()}`;
+          fresh.push({ id, kind: "chat", title: "New team chat message", sub: `${next.chat} unread`, href: "/app/chat" });
+        }
+        if (fresh.length > 0) {
+          hapticImpact("LIGHT");
+          setToasts((t) => [...fresh.filter((f) => !t.some((x) => x.id === f.id)), ...t].slice(0, 3));
+        }
+      };
+      if (!grew) {
+        finish();
+        return;
+      }
+      fetch("/api/app/notifications")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { items?: (LiveToast & { at: string })[] } | null) => {
+          if (cancelled || !d?.items) return;
+          const cutoff = since - 15_000;
+          const wanted = new Set<string>([...(next.requests > prev.requests ? ["request"] : []), ...(next.leads > prev.leads ? ["lead"] : []), ...(next.messages > prev.messages ? ["message"] : [])]);
+          const items = d.items;
+          let picked = items.filter((i) => wanted.has(i.kind) && new Date(i.at).getTime() >= cutoff && !toastedRef.current.has(i.id));
+          // clock skew or a stale window: fall back to the newest item of each grown kind
+          if (picked.length === 0) picked = [...wanted].map((k) => items.find((i) => i.kind === k && !toastedRef.current.has(i.id))).filter((i): i is LiveToast & { at: string } => Boolean(i));
+          for (const i of picked.slice(0, 3)) {
+            toastedRef.current.add(i.id);
+            fresh.push({ id: i.id, kind: i.kind, title: i.title, sub: i.sub, href: i.href });
+          }
+        })
+        .catch(() => {})
+        .finally(finish);
+    };
     const load = (force = false) => {
       if (!force && Date.now() - lastNavCountsAt < NAV_COUNTS_MIN_GAP_MS) return;
       lastNavCountsAt = Date.now();
+      const seq = countsSeqRef.current;
+      const startedAt = Date.now();
       fetch("/api/app/nav-counts")
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => {
           if (d && !cancelled) {
-            setCounts({
+            // A page patched the counts while this was in flight (opened a
+            // chat thread, replied to a client) — its answer is newer than ours
+            if (seq !== countsSeqRef.current) return;
+            const next = {
               requests: d.requests ?? 0,
               pastDue: d.pastDue ?? 0,
               chat: d.chat ?? 0,
               leads: d.leads ?? 0,
               messages: d.messages ?? 0,
-            });
+            };
+            const prev = prevCountsRef.current;
+            const since = lastPollAtRef.current;
+            prevCountsRef.current = next;
+            lastPollAtRef.current = startedAt;
+            setCounts(next);
             // Native shell: mirror the actionable unreads onto the app icon
-            syncAppBadge((d.requests ?? 0) + (d.chat ?? 0) + (d.messages ?? 0));
+            syncAppBadge(next.requests + next.chat + next.messages);
+            if (prev && since > 0) announce(next, prev, since);
           }
         })
         .catch(() => {});
     };
     load();
+    // Live: while the app is open and in front, re-count every 20 s so a new
+    // request, lead, message or chat shows up as a card without a reload.
+    const live = setInterval(() => {
+      if (document.visibilityState === "visible" && navigator.onLine) load(true);
+    }, 20_000);
     // Back from the pocket: the badges are the first thing a phone user
     // glances at, so a real absence (not an app-switch flicker) re-counts
     // regardless of the throttle.
@@ -1686,8 +1755,10 @@ export default function AppShell({
     const onCounts = (e: Event) => {
       const detail = (e as CustomEvent<Partial<typeof counts> | undefined>).detail;
       if (detail && typeof detail === "object") {
+        countsSeqRef.current += 1;
         setCounts((prev) => {
           const next = { ...prev, ...detail };
+          if (prevCountsRef.current) prevCountsRef.current = { ...prevCountsRef.current, ...detail };
           syncAppBadge(next.requests + next.chat + next.messages);
           return next;
         });
@@ -1698,6 +1769,7 @@ export default function AppShell({
     window.addEventListener("wb:nav-counts", onCounts);
     return () => {
       cancelled = true;
+      clearInterval(live);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("wb:nav-counts", onCounts);
     };
@@ -2316,6 +2388,12 @@ export default function AppShell({
           onClearAll={snapshotBell}
         />
       )}
+
+      {/* Live notification cards (new request / lead / message / chat) — glass banners, no reload needed */}
+      <LiveToasts items={toasts} onDismiss={(id) => setToasts((t) => t.filter((x) => x.id !== id))} />
+
+      {/* An estimate tool building on the server — follows the owner around the app */}
+      <BuildProgressBar />
 
       <MobileTabBar
         role={userRole}

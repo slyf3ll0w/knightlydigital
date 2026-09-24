@@ -162,7 +162,7 @@ const WEBSITE_PARAM = {
     slug: { type: "string", description: "link name, e.g. 'driveway-estimate'; default from the tool name" },
     showPrice: { type: "string", enum: ["exact", "range", "hidden"], description: "exact lines + total (default) · a ± range · no number (owner follows up)" },
     rangePct: { type: "number", description: "range half-width in percent, 5–50 (default 15)" },
-    reveal: { type: "string", enum: ["instant", "after_contact"], description: "instant (default) = estimate first, then ask for details · after_contact = details first, estimate on the thank-you screen" },
+    reveal: { type: "string", enum: ["instant", "after_contact", "before_form"], description: "instant (default) = questions, estimate, then ask for details · after_contact = questions, details, estimate on the thank-you screen · before_form = name + contact details FIRST, then the questions, then the estimate" },
     onSubmit: { type: "string", enum: ["draft", "send", "request"], description: "draft (default) = lead + request + draft quote · send = email the quote for approval · request = lead + request only" },
     heading: { type: "string" },
     intro: { type: "string" },
@@ -173,8 +173,7 @@ const WEBSITE_PARAM = {
     requireAddress: { type: "boolean" },
     disclaimer: { type: "string", description: "fine print under the estimate; a sensible default exists" },
     successMessage: { type: "string", description: "thank-you text; default fits onSubmit" },
-    photoAssist: { type: "boolean", description: "visitors may attach a photo / describe the job and Atlas fills in the answers — spends the OWNER's tokens (capped per day); needs the tool's assist; default false. Offer it only when the owner asks for photos or the tool already uses assist." },
-    monthlyPayment: { type: "boolean", description: "show 'or about $X/mo with financing' beside every price (display only — 9.99% APR over 60 months unless the owner changes it on the Web form page); default false. Good for big-ticket trades (roofing, HVAC, remodels)." },
+    photoAssist: { type: "boolean", description: "visitors may attach a photo / describe the job and Atlas fills in the answers — spends the OWNER's tokens (capped per day); needs the tool's assist; default false (turns on by itself when a change turns the tool's assist on). Offer it only when the owner asks for photos or the tool already uses assist." },
   },
 } as const;
 
@@ -194,7 +193,6 @@ function websiteConfigFrom(raw: Record<string, unknown>, base: EstimatorPublicCo
     ...(typeof raw.disclaimer === "string" ? { disclaimer: raw.disclaimer } : {}),
     ...(typeof raw.successMessage === "string" ? { successMessage: raw.successMessage } : {}),
     ...(typeof raw.photoAssist === "boolean" ? { photoAssist: raw.photoAssist } : {}),
-    ...(typeof raw.monthlyPayment === "boolean" ? { monthly: { ...base.monthly, show: raw.monthlyPayment } } : {}),
     fields: {
       ...base.fields,
       phone: { show: askPhone, required: askPhone && bool(raw.requirePhone, base.fields.phone.required) },
@@ -266,7 +264,7 @@ const manageEstimator: Tool = {
         priceBookNote: book.length > 80 ? `${book.length - 80} more — use get_price_book` : undefined,
         limits: ESTIMATOR_LIMITS,
         websiteForms:
-          "Any tool can be published as a website form: pass website: {enabled: true, showPrice: 'exact'|'range'|'hidden', reveal: 'instant'|'after_contact', onSubmit: 'draft'|'send'|'request', …} on create or update. Ask the owner two things at most: what visitors should see (exact price / range / no price) and what should happen (draft quote for review / email the quote / just the lead). Default = exact price shown right away, then name + email + phone, lead + request + draft quote. The link is /book/<companySlug>/estimate/<slug>; the embed snippet lives under the Estimates page (Website button on the tool). Visitors never spend the owner's tokens unless the owner turns on photoAssist (a photo / description fill-in on the form, capped per day, needs the tool's assist). Text inputs are fine on a public form — they land in the request as answers. Every saved change keeps the previous version (Estimates → Edit → History), and the owner can edit rates by hand there too.",
+          "Any tool can be published as a website form: pass website: {enabled: true, showPrice: 'exact'|'range'|'hidden', reveal: 'instant'|'after_contact'|'before_form', onSubmit: 'draft'|'send'|'request', …} on create or update. Ask the owner two things at most: what visitors should see (exact price / range / no price) and what should happen (draft quote for review / email the quote / just the lead). Default = exact price shown right away, then name + email + phone, lead + request + draft quote. reveal 'before_form' asks for the name and contact details BEFORE the questions (every visitor who starts becomes a lead). The link is /book/<companySlug>/estimate/<slug>; the embed snippet lives under the Estimates page (Website button on the tool). Visitors never spend the owner's tokens unless the owner turns on photoAssist (a photo / description fill-in on the form, capped per day, needs the tool's assist). Text inputs are fine on a public form — they land in the request as answers. Every saved change keeps the previous version (Estimates → Edit → History), and the owner can edit rates by hand there too.",
         next: "Draft the spec from what the user told you, run action 'test' with realistic sample inputs, then stage 'create'.",
       };
     }

@@ -107,6 +107,7 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
           data: {
             companyId: company.id,
             contactId: contact.id,
+            estimatorId: row.id,
             publicToken: randomBytes(24).toString("hex"),
             quoteNumber: (lastQuote?.quoteNumber ?? 0) + 1,
             title,

@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
     disclaimer,
     notes,
     validUntil,
+    estimatorId: estimatorIdRaw,
   } = body;
 
   if (!contactId || !lineItems?.length) {
@@ -54,6 +55,13 @@ export async function POST(req: NextRequest) {
     where: { id: contactId, companyId, ...contactScope(actor) },
   });
   if (!contact) return NextResponse.json({ error: "Client not found." }, { status: 404 });
+
+  // The estimate tool the lines came from (the runner's "Create quote") —
+  // recorded so the tool's page can list the quotes it produced
+  const estimatorId =
+    typeof estimatorIdRaw === "string" && estimatorIdRaw
+      ? ((await prisma.estimator.findFirst({ where: { id: estimatorIdRaw.slice(0, 40), companyId }, select: { id: true } }))?.id ?? null)
+      : null;
 
   if (requestId) {
     // The request must be this client's — a quote linked to another
@@ -131,6 +139,7 @@ export async function POST(req: NextRequest) {
         companyId,
         contactId,
         requestId: requestId || null,
+        estimatorId,
         propertyId: property?.id ?? null,
         publicToken: randomBytes(24).toString("hex"),
         quoteNumber: (last?.quoteNumber ?? 0) + 1,

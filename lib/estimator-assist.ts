@@ -46,13 +46,14 @@ export function inputsPrompt(spec: EstimatorSpec): string {
 
 export function assistSystemPrompt(spec: EstimatorSpec, toolName: string, hasImage: boolean): string {
   const assessed = spec.inputs.filter((i) => i.askAtlas);
-  return `You fill in an estimate form from a job description${hasImage ? " and a photo" : ""} for a field-service business. Tool: "${toolName}".${spec.intro ? ` ${spec.intro}` : ""}
-Reply with ONLY a JSON object: {"values": {inputId: value, ...}, "notes": "one short line on what you assumed or couldn't tell"}.
+  return `You are an experienced estimator filling in an estimate form from a job description${hasImage ? " and a photo" : ""} for a field-service business. Tool: "${toolName}".${spec.intro ? ` ${spec.intro}` : ""}
+Reply with ONLY a JSON object: {"values": {inputId: value, ...}, "notes": "one short line: what you assumed or guessed, and anything you couldn't tell"}.
 Rules:
 - numbers as numbers (no units), select inputs by their exact value, multi inputs as a list of exact values, counts inputs as a table {"value": count}, toggles as true/false, text inputs as short strings.
-- Include ONLY inputs the description${hasImage ? "/photo" : ""} actually supports. Never invent measurements or counts — if a size isn't stated or derivable (e.g. "two-car driveway" ≈ 400-600 sq ft is a fair estimate, "big driveway" is not), leave it out and say so in notes.
+- Be useful, not timid: a pro looking at this job would commit to a number. Fill in every input the evidence supports, and make a confident best estimate wherever the words or picture give you SOMETHING to go on ("two-car driveway" → about 500 sq ft; a photo showing a typical suburban lawn → a typical size for one). Say in notes which values are estimates so the person can adjust them.
+- Leave an input out only when there is truly nothing to go on (no size, no count, no clue) — then say so in notes in a few words. Never pad the form with made-up counts of things that aren't mentioned or visible.
 - Where the description gives a range, use the midpoint and note it.
-${assessed.length > 0 ? `- The inputs marked ASSESS are yours to judge — the business built the tool so a pro's eye answers them. Always give a value for each, using the evidence and the "what to look for" guidance; when the evidence is thin, pick the middle option and say so in notes.\n` : ""}${hasImage ? "- From the photo: read what is visibly there (surface type, stories, condition, counts of windows/doors/fixtures, obvious add-ons). Estimate sizes only from clear reference points (a car ≈ 15 ft, a door ≈ 7 ft) and say the estimate is from the photo in notes.\n" : ""}${spec.assist?.instructions ? `Business guidance: ${spec.assist.instructions}\n` : ""}Inputs:
+${assessed.length > 0 ? `- The inputs marked ASSESS are yours to judge — the business built the tool so a pro's eye answers them. ALWAYS give a value for each, using the evidence and the "what to look for" guidance; when the evidence is thin, off-topic or the photo is unclear, pick the most typical option for this kind of job and say so in notes.\n` : ""}${hasImage ? "- From the photo: read what is visibly there (surface type, stories, condition, counts of windows/doors/fixtures, obvious add-ons). Estimate sizes from reference points (a car ≈ 15 ft, a door ≈ 7 ft, a standard window ≈ 3 ft wide) and say the estimate is from the photo in notes. If the photo doesn't show the job at all (a selfie, a screenshot, something unrelated), say so in notes and fill in from the words alone.\n" : ""}${spec.assist?.instructions ? `Guidance from the business (follow it — it overrides the general rules above):\n${spec.assist.instructions}\n` : ""}Inputs:
 ${inputsPrompt(spec)}`;
 }
 

@@ -1,16 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { BookOpen, Calculator, Check, ChevronLeft, ChevronRight, Copy, Globe, History, LayoutDashboard, Loader2, MoreHorizontal, Play, Power, SlidersHorizontal, Sparkles, Trash2 } from "lucide-react";
+import { BookOpen, Check, ChevronLeft, ChevronRight, Copy, Globe, History, LayoutDashboard, Loader2, MoreHorizontal, Pencil, Play, Power, SlidersHorizontal, Sparkles, Trash2, Users } from "lucide-react";
 import BackLink from "@/components/BackLink";
+import PageTitle from "@/components/PageTitle";
+import SectionHeader from "@/components/SectionHeader";
+import Monogram from "@/components/Monogram";
+import StatusChip from "@/components/StatusChip";
+import { Input, Textarea } from "@/components/Input";
 import { EstimatorRunnerPanel, valuesToForm } from "@/components/EstimatorRunner";
 import { useAssistant } from "@/components/AssistantContext";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { QuickMenu, type MenuAnchor, type QuickAction } from "@/components/QuickMenu";
-import { APP_THEME, moneyExact, wash } from "@/components/EstimatorControls";
+import { moneyExact } from "@/components/EstimatorControls";
 import RatesToConfirm from "@/components/RatesToConfirm";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { money, shortDate } from "@/lib/statuses";
 import type { EstimatorSpec } from "@/lib/estimator";
 import { sanitizePublicConfig, type EstimatorPublicConfig } from "@/lib/estimator-public";
 import BuildPanel, { type BuiltTool } from "../BuildPanel";
@@ -20,16 +27,18 @@ import SharePanel from "../SharePanel";
 import { toolFacts } from "../EstimatesClient";
 
 /**
- * One tool's page. Seven sections, the fewest that cover the job: Overview ·
+ * One tool's page, laid out like a client's page: back link + stamps, the
+ * name as the page title (rename in place), then the sections — Overview ·
  * Try it · Ask Atlas (how most owners change a tool) · Web form (one switch,
- * the link right there) · Library · Advanced (the hand editor, for the few
- * who want it) · History.
+ * the link right there) · Leads (everyone who used it) · Library · Advanced
+ * (the hand editor) · History.
  *
  * Desktop: a Settings-style left rail, one panel at a time. Phones: the
- * iOS-Settings pattern — Overview IS the index (facts, rates to confirm,
- * sample prices, then a list of rows), a row pushes into one section with
- * "‹ Tool name" at the top, and the browser back returns to the index. The
- * section rides in the URL as ?s= either way.
+ * iOS-Settings pattern — Overview IS the index, a row pushes into one
+ * section with "‹ Tool name" at the top, and the browser back returns to
+ * the index. The section rides in the URL as ?s= either way; the section
+ * itself is React state so a tap always lands even when the URL fallback
+ * (a ?s= the server rendered with) says otherwise.
  */
 
 export type ToolRecord = {
@@ -52,7 +61,21 @@ export type ToolRecord = {
   updatedAt: string;
 };
 
-type Section = "overview" | "try" | "atlas" | "website" | "share" | "advanced" | "history";
+/** One person who used the tool: a website lead (request) or a quote started from an in-app run. */
+export type LeadRow = {
+  key: string;
+  /** ISO */
+  at: string;
+  contactId: string;
+  contactName: string;
+  via: "Web form" | "In app";
+  amount: number | null;
+  status: { kind: "request" | "quote"; value: string };
+  href: string;
+  quoteNumber?: number;
+};
+
+type Section = "overview" | "try" | "atlas" | "website" | "leads" | "share" | "advanced" | "history";
 type AdvancedTab = Exclude<EditorSection, "history">;
 
 const SECTIONS: { key: Section; label: string; icon: typeof Play; manager?: boolean }[] = [
@@ -60,6 +83,7 @@ const SECTIONS: { key: Section; label: string; icon: typeof Play; manager?: bool
   { key: "try", label: "Try it", icon: Play },
   { key: "atlas", label: "Ask Atlas", icon: Sparkles, manager: true },
   { key: "website", label: "Web form", icon: Globe, manager: true },
+  { key: "leads", label: "Leads", icon: Users },
   { key: "share", label: "Library", icon: BookOpen, manager: true },
   { key: "advanced", label: "Advanced", icon: SlidersHorizontal, manager: true },
   { key: "history", label: "History", icon: History, manager: true },
@@ -83,6 +107,8 @@ function merge(t: Record<string, unknown>, prev: ToolRecord): ToolRecord {
 
 const isPhone = () => typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
 
+const LEADS_GRID = "lg:grid-cols-[120px_minmax(0,1fr)_90px_110px_130px_40px]";
+
 export default function ToolClient({
   tool: initial,
   manager,
@@ -90,6 +116,8 @@ export default function ToolClient({
   companyName = "",
   companyIndustry = null,
   baseUrl,
+  tz,
+  leads,
   initialSection,
   resumeBuildId = null,
 }: {
@@ -99,6 +127,8 @@ export default function ToolClient({
   companyName?: string;
   companyIndustry?: string | null;
   baseUrl: string;
+  tz: string;
+  leads: LeadRow[];
   initialSection?: string;
   /** An Atlas change to this tool still running on the server — the Ask Atlas panel picks it up. */
   resumeBuildId?: string | null;
@@ -106,31 +136,45 @@ export default function ToolClient({
   const router = useRouter();
   const params = useSearchParams();
   const atlas = useAssistant();
-  const theme = APP_THEME;
   const [tool, setTool] = useState(initial);
   useEffect(() => setTool(initial), [initial]);
   const allowed = useMemo(() => SECTIONS.filter((s) => !s.manager || manager), [manager]);
 
-  // the section lives in the URL: ?s=, legacy tab names map into Advanced,
-  // a change still building opens on Ask Atlas so it's seen landing
+  // ?s= names the section; legacy tab names map into Advanced; a change
+  // still building opens on Ask Atlas so it's seen landing
   const resolve = useCallback(
-    (raw: string | null | undefined): Section => {
-      const s = raw ? LEGACY[raw] ?? raw : resumeBuildId ? "atlas" : "overview";
+    (raw: string | null | undefined, first = false): Section => {
+      const s = raw ? LEGACY[raw] ?? raw : first && resumeBuildId ? "atlas" : "overview";
       return allowed.some((x) => x.key === s) ? (s as Section) : "overview";
     },
     [allowed, resumeBuildId]
   );
   const sParam = params.get("s") ?? initialSection ?? null;
-  const section = resolve(sParam);
+  const [section, setSection] = useState<Section>(() => resolve(sParam, true));
+  // follow the URL after the first render (back button, a pushState from go())
+  const paramsKey = params.toString();
+  const lastParamsRef = useRef(paramsKey);
+  useEffect(() => {
+    if (lastParamsRef.current === paramsKey) return;
+    lastParamsRef.current = paramsKey;
+    setSection(resolve(params.get("s")));
+  }, [paramsKey, params, resolve]);
+
   const [advTab, setAdvTab] = useState<AdvancedTab>(sParam === "pricing" || sParam === "words" ? sParam : "questions");
-  const [busy, setBusy] = useState<"active" | "delete" | "publish" | "rates" | null>(null);
+  const [busy, setBusy] = useState<"active" | "delete" | "publish" | "rates" | "words" | "guidance" | null>(null);
   const [error, setError] = useState("");
   const [menu, setMenu] = useState<MenuAnchor | null>(null);
   const [copied, setCopied] = useState(false);
   const [runKey, setRunKey] = useState(0);
+  // rename in place: the title turns into two fields
+  const [words, setWords] = useState<{ name: string; description: string } | null>(null);
+  // "How Atlas fills it in" guidance (spec.assist.instructions)
+  const [guidance, setGuidance] = useState(initial.spec?.assist?.instructions ?? "");
+  useEffect(() => setGuidance(initial.spec?.assist?.instructions ?? ""), [initial]);
 
   const go = useCallback((s: Section, tab?: AdvancedTab) => {
     if (tab) setAdvTab(tab);
+    setSection(s);
     try {
       const url = new URL(window.location.href);
       if (s === "overview") url.searchParams.delete("s");
@@ -150,6 +194,7 @@ export default function ToolClient({
   const facts = spec ? toolFacts({ spec }, atlas.name) : ["no longer compiles"];
   const hostedUrl = tool.isPublic && tool.publicSlug ? `${baseUrl}/book/${companySlug}/estimate/${tool.publicSlug}` : "";
   const published = Boolean(tool.isPublic && tool.publicSlug);
+  const assessed = Boolean(spec?.inputs.some((i) => i.askAtlas));
 
   // Overview: the sample jobs priced by the live rules (free dry runs)
   const [samplePrices, setSamplePrices] = useState<Record<string, number | null>>({});
@@ -226,12 +271,29 @@ export default function ToolClient({
     await patch({ spec: next }, "rates");
   }
 
+  async function saveWords() {
+    if (!words) return;
+    const name = words.name.trim();
+    if (!name) {
+      setError("Give the tool a name.");
+      return;
+    }
+    if (await patch({ name, description: words.description.trim() || null }, "words")) setWords(null);
+  }
+
+  async function saveGuidance() {
+    if (!spec) return;
+    const next = { ...spec, assist: { ...(spec.assist ?? {}), instructions: guidance.trim() || undefined } };
+    await patch({ spec: next }, "guidance");
+  }
+
   function run() {
     setRunKey((k) => k + 1);
     go("try");
   }
 
   const menuActions: QuickAction[] = [
+    { key: "rename", label: "Rename", icon: Pencil, onSelect: () => setWords({ name: tool.name, description: tool.description ?? "" }) },
     ...(published ? [{ key: "copy", label: copied ? "Link copied" : "Copy web form link", icon: Copy, onSelect: () => void copyLink() } as QuickAction] : []),
     { key: "power", label: tool.isActive ? "Turn off" : "Turn on", icon: Power, disabled: busy !== null, onSelect: () => void patch({ isActive: !tool.isActive }, "active") },
     { key: "delete", label: "Delete", icon: Trash2, destructive: true, disabled: busy !== null, onSelect: () => void remove() },
@@ -251,6 +313,7 @@ export default function ToolClient({
     try: "Answer the questions, see the breakdown, start a quote.",
     atlas: `“Add a gate option at $250.” “Make the middle package the popular one.”`,
     website: published ? "Published — share the link or embed it on your site." : "One switch — a link to share and an embed code for your site.",
+    leads: leads.length === 0 ? "Everyone who uses this tool, and what they were quoted." : `${leads.length} ${leads.length === 1 ? "person has" : "people have"} used it.`,
     share: "Share it with other businesses, or update your listing.",
     advanced: "Questions, pricing and words, by hand.",
     history: "Every version of the rules — restore any of them.",
@@ -270,6 +333,7 @@ export default function ToolClient({
       <button key={s.key} type="button" onClick={() => go(s.key)} className={`flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-left text-sm transition-colors ${active ? "bg-green-500/10 font-semibold text-green-700" : "font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}>
         <s.icon size={16} className={active ? undefined : "text-gray-400"} />
         {s.label}
+        {s.key === "leads" && leads.length > 0 && <span className="ml-auto text-xs font-normal tabular-nums text-gray-400">{leads.length}</span>}
       </button>
     );
   };
@@ -283,28 +347,83 @@ export default function ToolClient({
         <span className="block text-[15px] font-medium text-gray-900">{s.key === "atlas" ? `Change it — ask ${atlas.name}` : s.label}</span>
         <span className="block truncate text-xs text-gray-500">{subline[s.key]}</span>
       </span>
+      {s.key === "leads" && leads.length > 0 && <span className="text-sm tabular-nums text-gray-400">{leads.length}</span>}
       <ChevronRight size={16} className="shrink-0 text-gray-300" />
     </button>
+  );
+
+  const leadRow = (l: LeadRow) => (
+    <Link key={l.key} href={l.href} prefetch={false} className={`block px-4 py-3 transition-colors hover:bg-gray-50 active:bg-gray-100 lg:grid lg:items-center lg:gap-4 lg:py-2.5 ${LEADS_GRID}`}>
+      {/* phone row */}
+      <div className="flex min-w-0 items-center gap-3 lg:hidden">
+        <Monogram name={l.contactName} size={40} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-3">
+            <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900">{l.contactName}</p>
+            <StatusChip kind={l.status.kind} status={l.status.value} />
+          </div>
+          <p className="mt-0.5 truncate text-[13px] text-gray-500">
+            {l.via} · {shortDate(l.at, tz)}
+            {l.amount !== null ? ` · ${money(l.amount)}` : ""}
+            {l.quoteNumber ? ` · Quote #${l.quoteNumber}` : ""}
+          </p>
+        </div>
+      </div>
+      {/* desktop grid */}
+      <span className="hidden text-sm text-gray-500 lg:block">{shortDate(l.at, tz)}</span>
+      <span className="hidden min-w-0 lg:block">
+        <span className="block truncate text-sm font-medium text-gray-900">{l.contactName}</span>
+        {l.quoteNumber && <span className="block truncate text-xs text-gray-500">Quote #{l.quoteNumber}</span>}
+      </span>
+      <span className="hidden text-sm text-gray-500 lg:block">{l.via}</span>
+      <span className="hidden text-sm tabular-nums text-gray-900 lg:block">{l.amount !== null ? money(l.amount) : "—"}</span>
+      <span className="hidden lg:block">
+        <StatusChip kind={l.status.kind} status={l.status.value} />
+      </span>
+      <ChevronRight size={14} className="hidden shrink-0 text-gray-400 lg:block" />
+    </Link>
   );
 
   return (
     <div className="mx-auto max-w-5xl p-4 pb-24 lg:p-8">
       {/* ── header: desktop always, phones only on the index ── */}
       <div className={section === "overview" ? "" : "hidden lg:block"}>
-        <BackLink href="/app/estimates" className="mb-3" />
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]" style={{ backgroundColor: wash(theme, 12), color: theme.accent }} aria-hidden>
-              <Calculator size={20} strokeWidth={2.25} />
-            </span>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <h1 className="text-[22px] font-bold tracking-tight text-gray-900 lg:text-xl">{tool.name}</h1>
-                {pills}
+        <div className="mb-4 flex items-center gap-3">
+          <BackLink href="/app/estimates" />
+          {pills}
+        </div>
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+          {words ? (
+            <form
+              className="min-w-0 flex-1 space-y-2 sm:max-w-lg"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void saveWords();
+              }}
+            >
+              <Input value={words.name} onChange={(e) => setWords({ ...words, name: e.target.value })} maxLength={80} placeholder="Tool name" autoFocus className="w-full text-lg font-semibold" aria-label="Tool name" />
+              <Input value={words.description} onChange={(e) => setWords({ ...words, description: e.target.value })} maxLength={200} placeholder="What it's for — shown under the name and in the list" className="w-full" aria-label="Description" />
+              <div className="flex items-center gap-2">
+                <button type="submit" disabled={busy === "words"} className="btn-primary h-9 justify-center">
+                  {busy === "words" ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Save
+                </button>
+                <button type="button" onClick={() => setWords(null)} className="h-9 rounded-lg px-3 text-sm font-medium text-gray-600 hover:bg-gray-100">
+                  Cancel
+                </button>
               </div>
-              <p className="mt-0.5 text-sm text-gray-600">{tool.description || facts.join(" · ")}</p>
+            </form>
+          ) : (
+            <div className="min-w-0">
+              <PageTitle sub={tool.description || facts.join(" · ")}>
+                {tool.name}
+                {manager && (
+                  <button type="button" onClick={() => setWords({ name: tool.name, description: tool.description ?? "" })} className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700" aria-label="Rename">
+                    <Pencil size={15} />
+                  </button>
+                )}
+              </PageTitle>
             </div>
-          </div>
+          )}
           <div className="flex shrink-0 items-center gap-2">
             {tool.isActive && spec && (
               <button type="button" onClick={run} className="btn-primary hidden h-10 justify-center lg:flex">
@@ -362,17 +481,16 @@ export default function ToolClient({
               {placeholders.length > 0 && manager && <RatesToConfirm items={placeholders} onDone={(i) => void confirmRate(i)} onOpenPricing={() => go("advanced", "pricing")} />}
 
               {spec && spec.samples && spec.samples.length > 0 && (
-                <div className="card-ledger p-4">
-                  <p className="text-sm font-semibold text-gray-900">What it prices</p>
-                  <p className="mt-0.5 text-xs text-gray-500">Sample jobs, priced by today&apos;s rules.</p>
-                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <div className="card-ledger overflow-hidden">
+                  <SectionHeader className="px-4 pt-4 sm:px-5" title="What it prices" hint="Sample jobs, priced by today's rules." />
+                  <dl className="mt-3 grid grid-cols-1 divide-y divide-gray-100 border-t border-gray-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
                     {spec.samples.map((s) => (
-                      <div key={s.label} className="flex items-baseline justify-between gap-3 rounded-xl border border-gray-200 px-3 py-2.5 sm:block">
-                        <p className="text-[11px] font-medium text-gray-500">{s.label}</p>
-                        <p className="numeral-ledger mt-0.5 text-lg font-bold tabular-nums tracking-tight text-gray-900">{s.label in samplePrices ? (samplePrices[s.label] === null ? <span className="text-sm font-medium text-gray-400">didn&apos;t run</span> : moneyExact(samplePrices[s.label] as number)) : <span className="text-sm font-medium text-gray-400">…</span>}</p>
+                      <div key={s.label} className="flex items-baseline justify-between gap-3 px-4 py-3 sm:block sm:px-5">
+                        <dt className="text-xs font-medium text-gray-500">{s.label}</dt>
+                        <dd className="numeral-ledger text-lg font-semibold tabular-nums text-gray-900 sm:mt-0.5">{s.label in samplePrices ? (samplePrices[s.label] === null ? <span className="text-sm font-medium text-gray-400">didn&apos;t run</span> : moneyExact(samplePrices[s.label] as number)) : <span className="text-sm font-medium text-gray-400">…</span>}</dd>
                       </div>
                     ))}
-                  </div>
+                  </dl>
                 </div>
               )}
 
@@ -381,24 +499,26 @@ export default function ToolClient({
 
               <div className="card-ledger hidden divide-y divide-gray-100 lg:block">
                 <button type="button" onClick={run} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50">
-                  <Play size={16} style={{ color: theme.accent }} />
+                  <Play size={16} className="text-green-700" />
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-medium text-gray-900">Try it</span>
                     <span className="block text-xs text-gray-500">{subline.try}</span>
                   </span>
+                  <ChevronRight size={14} className="text-gray-400" />
                 </button>
                 {manager && (
                   <button type="button" onClick={() => go("atlas")} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50">
-                    <Sparkles size={16} style={{ color: theme.accent }} />
+                    <Sparkles size={16} className="text-green-700" />
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-medium text-gray-900">Change it — just tell {atlas.name}</span>
                       <span className="block text-xs text-gray-500">{subline.atlas}</span>
                     </span>
+                    <ChevronRight size={14} className="text-gray-400" />
                   </button>
                 )}
                 {manager && (
                   <div className="flex items-center gap-3 px-4 py-3">
-                    <Globe size={16} style={{ color: theme.accent }} />
+                    <Globe size={16} className="text-green-700" />
                     <button type="button" onClick={() => void publishNow()} disabled={busy === "publish"} className="min-w-0 flex-1 text-left">
                       <span className="block text-sm font-medium text-gray-900">{tool.isPublic ? "Published as a web form" : "Publish as a web form"}</span>
                       <span className="block truncate text-xs text-gray-500">{tool.isPublic ? `Share the link or embed it on your site · ${hostedUrl}` : "One tap — you get a link to share and an embed code for your website."}</span>
@@ -412,7 +532,28 @@ export default function ToolClient({
                     ) : null}
                   </div>
                 )}
+                <button type="button" onClick={() => go("leads")} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50">
+                  <Users size={16} className="text-green-700" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-gray-900">Leads</span>
+                    <span className="block text-xs text-gray-500">{subline.leads}</span>
+                  </span>
+                  <ChevronRight size={14} className="text-gray-400" />
+                </button>
               </div>
+
+              {manager && spec && tool.usesAtlas && (
+                <div className="card-ledger p-4 sm:p-5">
+                  <SectionHeader title={`How ${atlas.name} fills it in`} hint={`When someone describes the job or attaches a photo, ${atlas.name} answers the questions it can${assessed ? " and assesses the ones marked for it" : ""}. Tell it what to look for, what to assume when it can't tell, and what it must never guess.`} />
+                  <Textarea value={guidance} onChange={(e) => setGuidance(e.target.value)} rows={3} maxLength={1000} placeholder="e.g. A two-car driveway is about 500 sq ft. Count the garage as one story. If the photo doesn't show the stains, assume moderate. Never guess the fence length — ask for it." className="mt-3 w-full" />
+                  <div className="mt-2 flex items-center justify-end gap-3">
+                    <span className="text-xs text-gray-500">{guidance.trim() !== (spec.assist?.instructions ?? "") ? "Unsaved" : ""}</span>
+                    <button type="button" disabled={busy !== null || guidance.trim() === (spec.assist?.instructions ?? "")} onClick={() => void saveGuidance()} className="btn-primary h-9 justify-center">
+                      {busy === "guidance" ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Save guidance
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {(tool.runs > 0 || tool.publicViews > 0) && (
                 <p className="px-1 text-xs text-gray-500">
@@ -434,14 +575,12 @@ export default function ToolClient({
           {/* ── Ask Atlas ── */}
           {section === "atlas" && manager && (
             <div className="card-ledger p-4 sm:p-5">
-              <div className="mb-3 hidden lg:block">
-                <h2 className="text-base font-semibold text-gray-900">Change “{tool.name}”</h2>
-                <p className="mt-0.5 text-xs text-gray-500">Say what should be different. The current version is kept under History.</p>
-              </div>
+              <SectionHeader size="block" className="mb-3 hidden lg:block" title={`Change “${tool.name}”`} hint="Say what should be different. The current version is kept under History." />
               <BuildPanel
                 key={tool.updatedAt}
                 compact
                 estimatorId={tool.id}
+                toolName={tool.name}
                 resumeBuildId={resumeBuildId}
                 placeholder="e.g. Raise sealant to $0.50, add a gate option at $250, make the middle package the recommended one"
                 onBuilt={(t: BuiltTool) => {
@@ -450,6 +589,35 @@ export default function ToolClient({
                 }}
                 onTry={run}
               />
+            </div>
+          )}
+
+          {/* ── Leads ── */}
+          {section === "leads" && (
+            <div className="card-ledger overflow-hidden">
+              {leads.length === 0 ? (
+                <p className="px-5 py-10 text-center text-sm text-gray-500">Nobody has used this tool yet. Website leads and quotes started from it land here.</p>
+              ) : (
+                <>
+                  <div className="divide-y divide-gray-100">
+                    <div className={`hidden bg-gray-50 px-4 py-2 text-xs font-medium text-gray-500 lg:grid lg:gap-4 ${LEADS_GRID}`}>
+                      <span>When</span>
+                      <span>Who</span>
+                      <span>Via</span>
+                      <span>Estimate</span>
+                      <span>Status</span>
+                      <span></span>
+                    </div>
+                    {leads.map(leadRow)}
+                  </div>
+                  <div className="flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5">
+                    <span className="text-xs font-medium text-gray-500">
+                      {leads.length} {leads.length === 1 ? "lead" : "leads"}
+                    </span>
+                    <span className="text-xs text-gray-500">Website leads also carry a “Website estimate” source on the Leads board.</span>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -478,7 +646,7 @@ export default function ToolClient({
           {/* ── Web form ── */}
           {section === "website" && manager && (
             <PublishPanel
-              tool={{ id: tool.id, name: tool.name, usesAtlas: tool.usesAtlas, isPublic: tool.isPublic, publicSlug: tool.publicSlug, publicConfig: tool.publicConfig, publicViews: tool.publicViews, publicCalcs: tool.publicCalcs, submissions: tool.submissions }}
+              tool={{ id: tool.id, name: tool.name, usesAtlas: tool.usesAtlas, assessed, isPublic: tool.isPublic, publicSlug: tool.publicSlug, publicConfig: tool.publicConfig, publicViews: tool.publicViews, publicCalcs: tool.publicCalcs, submissions: tool.submissions }}
               companySlug={companySlug}
               baseUrl={baseUrl}
               onSaved={(t) => {

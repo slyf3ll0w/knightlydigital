@@ -6,8 +6,9 @@ import { BookOpen, Check, ChevronRight, Heart, Loader2, Play, Plus, Search } fro
 import PageTitle from "@/components/PageTitle";
 import BackLink from "@/components/BackLink";
 import EstimatorRunner, { type RunnerEstimator } from "@/components/EstimatorRunner";
+import Monogram from "@/components/Monogram";
 import { confirmSheet } from "@/components/ConfirmSheet";
-import { APP_THEME, wash } from "@/components/EstimatorControls";
+import { APP_THEME } from "@/components/EstimatorControls";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { INDUSTRIES } from "@/lib/pricebooks";
 import type { EstimatorSpec } from "@/lib/estimator";
@@ -190,14 +191,12 @@ export default function LibraryClient({ manager, defaultIndustry, embedded = fal
               return (
                 <div key={r.id} className="px-4 py-4">
                   <div className="flex items-start gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px]" style={{ backgroundColor: wash(theme, 12), color: theme.accent }} aria-hidden>
-                      <BookOpen size={18} strokeWidth={2.25} />
-                    </span>
+                    <Monogram name={r.name} size={40} />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                         <span className="text-[15px] font-semibold text-gray-900">{r.name}</span>
-                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">{r.industry}</span>
-                        {r.mine && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">Yours</span>}
+                        <span className="stamp text-gray-500">{r.industry}</span>
+                        {r.mine && <span className="stamp text-sky-700">Yours</span>}
                       </div>
                       <p className="mt-0.5 text-xs text-gray-500">{r.byName ? `by ${r.byName}` : "Shared anonymously"}</p>
                       <p className={`mt-2 whitespace-pre-line text-sm text-gray-700 ${open ? "" : "line-clamp-3"}`}>{r.description}</p>

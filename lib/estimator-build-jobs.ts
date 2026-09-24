@@ -16,7 +16,10 @@ import { buildEstimator, type BuildAnswer, type BuildEvent, type BuildImage } fr
  * written to the row.
  */
 
-export type BuildStatus = "running" | "questions" | "done" | "error";
+export type BuildStatus = "running" | "questions" | "done" | "error" | "cancelled";
+
+/** Thrown inside the job loop when the owner cancelled the build mid-way. */
+class BuildCancelled extends Error {}
 
 /** A "running" row nobody has touched for this long was interrupted (deploy, restart). */
 const STALE_MS = 4 * 60 * 1000;
@@ -63,13 +66,25 @@ export async function runBuildJob(
   const events: BuildEvent[] = [];
   let status: BuildStatus = "running";
   let toolId: string | null = null;
+  // A cancelled row is never written over: the update is conditional, and a
+  // miss means the owner pressed Cancel — the loop stops and nothing is
+  // saved. The builder also asks `cancelled()` before each model call so a
+  // cancel between steps skips the next (expensive) call outright.
   const flush = async () => {
-    await prisma.estimatorBuild
-      .update({ where: { id }, data: { events: events as unknown as Prisma.InputJsonValue, status, ...(toolId ? { toolId } : {}) } })
-      .catch((err) => console.error("[estimator-build-jobs] flush failed", { id, error: err }));
+    const r = await prisma.estimatorBuild
+      .updateMany({ where: { id, status: { not: "cancelled" } }, data: { events: events as unknown as Prisma.InputJsonValue, status, ...(toolId ? { toolId } : {}) } })
+      .catch((err) => {
+        console.error("[estimator-build-jobs] flush failed", { id, error: err });
+        return { count: 1 };
+      });
+    if (r.count === 0) throw new BuildCancelled();
+  };
+  const cancelled = async () => {
+    const row = await prisma.estimatorBuild.findUnique({ where: { id }, select: { status: true } }).catch(() => null);
+    return row?.status === "cancelled";
   };
   try {
-    for await (const ev of buildEstimator(actor, opts)) {
+    for await (const ev of buildEstimator(actor, { ...opts, cancelled })) {
       events.push(ev);
       status = statusAfter(ev, status);
       if ("done" in ev && typeof ev.tool.id === "string") toolId = ev.tool.id;
@@ -81,11 +96,18 @@ export async function runBuildJob(
       await flush();
     }
   } catch (err) {
+    if (err instanceof BuildCancelled) return;
     console.error("[estimator-build-jobs] build crashed", { id, error: err });
     events.push({ error: "Something went wrong while building — please try again.", tokens: 0 });
     status = "error";
-    await flush();
+    await flush().catch(() => undefined);
   }
+}
+
+/** The owner changed their mind: mark the row cancelled (the job stops at its next step). False = not found or already finished. */
+export async function cancelBuild(id: string, companyId: string): Promise<boolean> {
+  const r = await prisma.estimatorBuild.updateMany({ where: { id, companyId, status: { in: ["running", "questions"] } }, data: { status: "cancelled" } });
+  return r.count > 0;
 }
 
 function shape(row: { id: string; companyId: string; userId: string; estimatorId: string | null; prompt: string; status: string; events: unknown; toolId: string | null; createdAt: Date; updatedAt: Date }): BuildRow {

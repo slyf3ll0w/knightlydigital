@@ -797,6 +797,20 @@ html[data-mode="dark"] .app-ui .menu-sheet > div + :is(button, a) {
   animation: msgIn 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Live notification cards + the build progress bar: opacity only — a
+   transform on a glass element drops its backdrop blur on iOS. */
+@keyframes toastIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.toast-enter {
+  animation: toastIn 0.28s ease-out both;
+}
+
 /* ── Card-terminal charge overlay (saved-card charges) ──────────────────────
    The processing → approved ritual every card terminal performs: pulsing
    card while the network is contacted, then the result pops in and the
