@@ -749,23 +749,45 @@ export async function appealCampaignRegistration(companyId: string): Promise<Mes
   }
   const formUrl = await optInFormUrl(companyId);
   const copy = campaignCopy(reg.displayName, reg.website, { formUrl });
+  let edited = false;
   try {
     await updateCampaign(reg.campaignId, { messageFlow: copy.messageFlow, samples: copy.samples });
+    edited = true;
   } catch (err) {
     // Telnyx's schema lists messageFlow but its note says only samples are
     // editable; the appeal text carries the link, screenshot and wording
     // either way, so a refused edit is not the end of it.
     console.warn(`[line] campaign ${reg.campaignId} update refused (${err instanceof TelnyxError ? err.detail : String(err)}); appealing with the reason alone`);
   }
-  try {
-    await appealCampaign(reg.campaignId, campaignAppealReason(reg.displayName, formUrl));
-  } catch (err) {
-    throw await lineFailure("Telnyx refused the appeal", err, `10DLC campaign appeal for "${reg.company.name}"`);
+  // Editing a failed campaign re-queues it on Telnyx's side (Lessly Holdings,
+  // 2026-09-24: the appeal right after a successful PUT came back "Only
+  // campaigns in TELNYX_FAILED or MNO_REJECTED state can be appealed"). So:
+  // re-read, appeal only what is still failed, and take whatever state
+  // Telnyx now reports rather than assuming one.
+  let live = await getCampaign(reg.campaignId).catch(() => null);
+  const stillFailed = !live || APPEALABLE_CAMPAIGN.has(live.campaignStatus ?? "");
+  let appealed = false;
+  if (stillFailed) {
+    try {
+      await appealCampaign(reg.campaignId, campaignAppealReason(reg.displayName, formUrl));
+      appealed = true;
+    } catch (err) {
+      const detail = err instanceof TelnyxError ? err.detail : "";
+      // Moved on between the read and the appeal: the edit did the job.
+      if (!/can be appealed/i.test(detail)) throw await lineFailure("Telnyx refused the appeal", err, `10DLC campaign appeal for "${reg.company.name}"`);
+    }
+    live = await getCampaign(reg.campaignId).catch(() => live);
   }
-  console.warn(`[line] campaign ${reg.campaignId} appealed for "${reg.company.name}" (${companyId}); opt-in form ${formUrl}`);
+  const campaignStatus = live?.campaignStatus ?? (appealed ? "TCR_ACCEPTED" : reg.campaignStatus);
+  if (campaignStatus && APPEALABLE_CAMPAIGN.has(campaignStatus)) {
+    throw new LineError(`Telnyx still reports the campaign as ${campaignStatus} after the ${appealed ? "appeal" : "edit"} — give it a minute and try again, or ask 10dlcquestions@telnyx.com.`, 424);
+  }
+  console.warn(
+    `[line] campaign ${reg.campaignId} back under review for "${reg.company.name}" (${companyId}): edited=${edited} appealed=${appealed} status=${campaignStatus ?? "?"}; opt-in form ${formUrl}`
+  );
   return prisma.messagingRegistration.update({
     where: { companyId },
-    data: { status: "CAMPAIGN_PENDING", campaignStatus: "TCR_ACCEPTED", rejectionReason: null, lastCheckedAt: new Date() },
+    data: { status: "CAMPAIGN_PENDING", campaignStatus: campaignStatus ?? null, rejectionReason: null, lastCheckedAt: new Date() },
   });
 }
 
@@ -1580,7 +1602,13 @@ export async function refreshRegistration(
   if (reg.status === "AWAITING_REVIEW") return reg; // nothing filed yet; a superadmin approves it
   // A toll-free "REJECTED" may really be "Waiting For Customer", which the
   // reviewer can flip back to In Progress on their own — worth re-reading.
-  if (reg.status === "REJECTED" && !(opts.includeRejected && reg.kind === "TOLL_FREE")) return reg;
+  // A campaign-stage 10DLC rejection is worth re-reading too: an edit or
+  // appeal made in the Telnyx portal re-queues it without telling us, and
+  // the GET is free. A brand-stage rejection only moves when re-filed.
+  if (reg.status === "REJECTED") {
+    const campaignStage = reg.kind === "10DLC" && Boolean(reg.campaignId);
+    if (!campaignStage && !(opts.includeRejected && reg.kind === "TOLL_FREE")) return reg;
+  }
   if (reg.kind === "TOLL_FREE") return advanceTollFree(reg);
   return advance(reg);
 }

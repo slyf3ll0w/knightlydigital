@@ -498,7 +498,11 @@ TELNYX_FAILED / MNO_REJECTED is superadmin **Appeal with current copy**
 (`line-appeal` → `appealCampaignRegistration`: `PUT /10dlc/campaign/{id}`
 with the new flow + samples, then `POST …/appeal`), which Telnyx compliance
 re-reviews by hand for free — never Re-file first, that is a new campaign
-and a new $15. Because a new company has no booking items until it makes
+and a new $15. The PUT alone re-queues a failed campaign (the appeal after
+it came back "Only campaigns in TELNYX_FAILED or MNO_REJECTED state can be
+appealed"), so the action re-reads the campaign, appeals only if it is still
+failed, and stores whatever status Telnyx reports; `refreshRegistration`
+also re-reads campaign-stage rejections (portal edits re-queue silently). Because a new company has no booking items until it makes
 one, `submitRegistration` and `approveRegistration` pre-flight the form
 (`requireOptInForm` → `findOptInForm().ready`): no listed item with the
 phone field on = refused with `OPT_IN_FORM_MESSAGE`, and the checklist
