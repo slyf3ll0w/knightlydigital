@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
-import { requirePageActor, jobScope, canSeePricing, isManager } from "@/lib/permissions";
+import { requirePageActor, jobScope, canSeePricing, canSeeMoney, isManager } from "@/lib/permissions";
+import EntityRowActions from "@/components/EntityRowActions";
 import Link from "next/link";
 import { Plus, ChevronRight, Briefcase, Download } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
@@ -74,7 +75,7 @@ export default async function JobsPage({
   const [jobs, listCount, activeCount, requiresInvoicingCount, unscheduledCount] = await Promise.all([
     prisma.job.findMany({
       where: listWhere,
-      include: { contact: true, lineItems: true },
+      include: { contact: true, lineItems: true, invoice: { select: { id: true } } },
       orderBy: jobOrderBy(sort),
       take: PAGE_SIZE,
       skip: (page - 1) * PAGE_SIZE,
@@ -191,8 +192,21 @@ export default async function JobsPage({
                     : `${shortDate(j.scheduledAt, tz)} · ${fmtTime(j.scheduledAt, tz)}`
                   : "Unscheduled";
                 return (
-                  <Link
+                  <EntityRowActions
                     key={j.id}
+                    meta={{
+                      kind: "job",
+                      id: j.id,
+                      title: j.title,
+                      status: j.status,
+                      hasInvoice: Boolean(j.invoice),
+                      scheduledAt: j.scheduledAt ? j.scheduledAt.toISOString() : null,
+                      canEdit: canCreate,
+                      canInvoice: canSeeMoney(actor),
+                      canDelete: isManager(actor.role),
+                    }}
+                  >
+                  <Link
                     prefetch={false} href={`/app/jobs/${j.id}`}
                     className="block lg:grid lg:grid-cols-[1fr_70px_150px_160px_100px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                   >
@@ -232,6 +246,7 @@ export default async function JobsPage({
                     </span>
                     <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
                   </Link>
+                  </EntityRowActions>
                 );
               })}
             </div>

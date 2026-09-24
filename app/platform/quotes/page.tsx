@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
-import { requirePageActor, canSell, viaContactScope } from "@/lib/permissions";
+import { requirePageActor, canSell, viaContactScope, isManager } from "@/lib/permissions";
+import EntityRowActions from "@/components/EntityRowActions";
 import Link from "next/link";
 import { Plus, ChevronRight, FileText, Download } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
@@ -196,8 +197,11 @@ export default async function QuotesPage({
                 <span></span>
               </div>
               {quotes.map((q) => (
-                <Link
+                <EntityRowActions
                   key={q.id}
+                  meta={{ kind: "quote", id: q.id, number: q.quoteNumber, status: q.status, hasEmail: Boolean(q.contact.email), canDelete: isManager(actor.role) }}
+                >
+                <Link
                   prefetch={false} href={`/app/quotes/${q.id}`}
                   className="block lg:grid lg:grid-cols-[1fr_70px_140px_150px_100px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                 >
@@ -242,6 +246,7 @@ export default async function QuotesPage({
                   </span>
                   <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
                 </Link>
+                </EntityRowActions>
               ))}
             </div>
             {/* Ledger foot — total quoted value */}

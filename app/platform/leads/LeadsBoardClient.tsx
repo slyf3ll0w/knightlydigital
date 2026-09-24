@@ -17,7 +17,10 @@ import {
   X,
   RotateCcw,
   SquareKanban,
+  Pencil,
+  ExternalLink,
 } from "lucide-react";
+import { QuickMenu, type QuickAction } from "@/components/QuickMenu";
 import Modal from "@/components/Modal";
 import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -120,6 +123,8 @@ export default function LeadsBoardClient({
   const [sheetCard, setSheetCard] = useState<BoardCard | null>(null);
   const [lostCard, setLostCard] = useState<BoardCard | null>(null);
   const [lostReason, setLostReason] = useState("");
+  // right-click (desktop) / long-press (Android) on a card: the same verbs as the touch sheet
+  const [menu, setMenu] = useState<{ card: BoardCard; anchor: { x: number; y: number } } | null>(null);
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -485,6 +490,10 @@ export default function LeadsBoardClient({
                       key={card.id}
                       {...dragProps(card)}
                       onClick={() => onCardClick(card)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setMenu({ card, anchor: { x: e.clientX, y: e.clientY } });
+                      }}
                       className={`card-ledger p-3 cursor-pointer lg:cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow select-none ${
                         dragId === card.id ? "opacity-40" : ""
                       }`}
@@ -598,6 +607,41 @@ export default function LeadsBoardClient({
             Lost
           </div>
         </div>
+      )}
+
+      {/* Right-click quick actions */}
+      {menu && (
+        <QuickMenu
+          open
+          anchor={menu.anchor}
+          title={menu.card.name}
+          onClose={() => setMenu(null)}
+          actions={(() => {
+            const c = menu.card;
+            const out: QuickAction[] = [
+              { key: "open", label: "Open profile", icon: ExternalLink, href: `/app/contacts/${c.id}` },
+              { key: "edit", label: "Edit", icon: Pencil, href: `/app/contacts/${c.id}/edit` },
+            ];
+            if (c.phone) out.push({ key: "call", label: "Call", icon: Phone, hint: c.phone, href: `tel:${c.phone.replace(/[^\d+]/g, "")}` });
+            out.push({ key: "quote", label: "New quote", icon: FileText, href: `/app/quotes/new?contactId=${c.id}${c.openRequestId ? `&requestId=${c.openRequestId}` : ""}` });
+            const others = stages.filter((s) => !s.isConverted && s.id !== c.stageId);
+            if (others.length > 0) out.push({ key: "h-move", label: "Move to", heading: true });
+            for (const s of others) out.push({ key: `move-${s.id}`, label: s.name, icon: SquareKanban, onSelect: () => moveCard(c, s.id) });
+            out.push({ key: "h-close", label: "Close", heading: true });
+            out.push({ key: "won", label: "Mark won", icon: Trophy, onSelect: () => closeCard(c, "won") });
+            out.push({
+              key: "lost",
+              label: "Mark lost",
+              icon: XCircle,
+              destructive: true,
+              onSelect: () => {
+                setLostReason("");
+                setLostCard(c);
+              },
+            });
+            return out;
+          })()}
+        />
       )}
 
       {/* Mobile action sheet */}

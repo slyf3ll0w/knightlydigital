@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
-import { requirePageActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
+import { requirePageActor, canSeeMoney, viaContactScope, isManager } from "@/lib/permissions";
+import EntityRowActions from "@/components/EntityRowActions";
 import Link from "next/link";
 import { Plus, ChevronRight, DollarSign, Receipt, Download } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
@@ -232,8 +233,11 @@ export default async function InvoicesPage({
               {invoices.map((inv) => {
                 const balance = Math.max(0, invoiceBalance(inv));
                 return (
-                  <Link
+                  <EntityRowActions
                     key={inv.id}
+                    meta={{ kind: "invoice", id: inv.id, number: inv.invoiceNumber, status: inv.status, hasPayments: inv.payments.length > 0, hasEmail: Boolean(inv.contact?.email), canDelete: isManager(actor.role) }}
+                  >
+                  <Link
                     prefetch={false} href={`/app/invoices/${inv.id}`}
                     className="block lg:grid lg:grid-cols-[1fr_70px_130px_150px_100px_100px_40px] lg:gap-4 lg:items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                   >
@@ -290,6 +294,7 @@ export default async function InvoicesPage({
                     </span>
                     <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
                   </Link>
+                  </EntityRowActions>
                 );
               })}
             </div>
