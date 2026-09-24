@@ -103,9 +103,12 @@ export async function appendTranscript(callId: string, line: string): Promise<vo
   try {
     // A single UPDATE appends in place — segments for one call arrive one
     // at a time, but a read-modify-write would still race a Stop click.
+    // The cap is cast: Prisma binds a JS number as bigint, and Postgres has
+    // no left(text, bigint) — every segment of the first live call was lost
+    // to exactly that (2026-09-24).
     await prisma.$executeRaw`
       UPDATE "Call"
-      SET "transcript" = left(coalesce("transcript", '') || ${line} || E'\n', ${TRANSCRIPT_MAX_CHARS})
+      SET "transcript" = left(coalesce("transcript", '') || ${line} || E'\n', ${TRANSCRIPT_MAX_CHARS}::int)
       WHERE "id" = ${callId} AND "atlasNotesState" IN ('listening', 'summarizing', 'awaiting_contact')`;
   } catch (err) {
     console.error(`[call-notes] transcript append failed for ${callId}:`, err);
