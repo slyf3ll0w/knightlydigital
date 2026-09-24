@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, Globe, ImagePlus, Loader2, MessageCircleQuestion, Pencil, Play, Sparkles, X } from "lucide-react";
 import { Textarea } from "@/components/Input";
+import DictateButton from "@/components/DictateButton";
 import { useAssistant } from "@/components/AssistantContext";
 import { APP_THEME, moneyExact, useCountUp, wash } from "@/components/EstimatorControls";
 import RatesToConfirm from "@/components/RatesToConfirm";
@@ -346,6 +347,7 @@ export default function BuildPanel({
           {/* a photo of the price sheet: rates read from it are real, not placeholders */}
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => void attachSheet(e.target.files?.[0])} />
+            <DictateButton disabled={running} label="Say it instead" onText={(t) => setPrompt((p) => (p.trim() ? `${p.trim()} ${t}` : t))} />
             {sheet ? (
               <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 py-1 pl-1 pr-2 text-xs font-medium text-gray-700">
                 {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -203,7 +203,7 @@ export function NumberControl({ inp, value, onChange, theme, required }: { inp: 
 type SelectInput = Extract<EstimatorInput, { type: "select" }>;
 
 /** `tierPrices` = live price label per option value (package tiers); undefined = still pricing, null = can't price yet. */
-export function ChoiceControl({ inp, value, onChange, theme, required, tierPrices }: { inp: SelectInput; value: string; onChange: (v: string) => void; theme: ControlTheme; required: boolean; tierPrices?: Record<string, string | null> }) {
+export function ChoiceControl({ inp, value, onChange, theme, required, tierPrices, tierSubs }: { inp: SelectInput; value: string; onChange: (v: string) => void; theme: ControlTheme; required: boolean; tierPrices?: Record<string, string | null>; /** A line under each tier's price — "about $89/mo" */ tierSubs?: Record<string, string | undefined> }) {
   const style = inp.style ?? (inp.options.some((o) => o.image) ? "cards" : "list");
   if (style === "list") {
     return (
@@ -224,6 +224,7 @@ export function ChoiceControl({ inp, value, onChange, theme, required, tierPrice
         {inp.options.map((o) => {
           const on = value === o.value;
           const price = tierPrices ? tierPrices[o.value] : undefined;
+          const sub = typeof price === "string" ? tierSubs?.[o.value] : undefined;
           return (
             <button
               key={o.value}
@@ -248,6 +249,7 @@ export function ChoiceControl({ inp, value, onChange, theme, required, tierPrice
                 </span>
               </span>
               <span className={`mt-1.5 min-h-[1.75rem] text-xl font-bold tabular-nums tracking-tight ${theme.ink}`}>{price === undefined ? <span className={`text-sm font-medium ${theme.faint}`}>{tierPrices ? "Pricing…" : " "}</span> : price === null ? <span className={`text-sm font-medium ${theme.faint}`}>Answer above to price</span> : price}</span>
+              {sub && <span className={`-mt-0.5 text-xs font-medium ${theme.muted}`}>or {sub}</span>}
               {o.blurb && <span className={`mt-1 text-xs leading-snug ${theme.muted}`}>{o.blurb}</span>}
               {o.includes && o.includes.length > 0 && (
                 <ul className="mt-3 space-y-1">

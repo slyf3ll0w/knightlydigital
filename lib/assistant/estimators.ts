@@ -174,6 +174,7 @@ const WEBSITE_PARAM = {
     disclaimer: { type: "string", description: "fine print under the estimate; a sensible default exists" },
     successMessage: { type: "string", description: "thank-you text; default fits onSubmit" },
     photoAssist: { type: "boolean", description: "visitors may attach a photo / describe the job and Atlas fills in the answers — spends the OWNER's tokens (capped per day); needs the tool's assist; default false. Offer it only when the owner asks for photos or the tool already uses assist." },
+    monthlyPayment: { type: "boolean", description: "show 'or about $X/mo with financing' beside every price (display only — 9.99% APR over 60 months unless the owner changes it on the Web form page); default false. Good for big-ticket trades (roofing, HVAC, remodels)." },
   },
 } as const;
 
@@ -193,6 +194,7 @@ function websiteConfigFrom(raw: Record<string, unknown>, base: EstimatorPublicCo
     ...(typeof raw.disclaimer === "string" ? { disclaimer: raw.disclaimer } : {}),
     ...(typeof raw.successMessage === "string" ? { successMessage: raw.successMessage } : {}),
     ...(typeof raw.photoAssist === "boolean" ? { photoAssist: raw.photoAssist } : {}),
+    ...(typeof raw.monthlyPayment === "boolean" ? { monthly: { ...base.monthly, show: raw.monthlyPayment } } : {}),
     fields: {
       ...base.fields,
       phone: { show: askPhone, required: askPhone && bool(raw.requirePhone, base.fields.phone.required) },

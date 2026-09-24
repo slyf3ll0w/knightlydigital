@@ -1,11 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, ChevronDown, ChevronRight, Copy, ExternalLink, Loader2 } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, Download, ExternalLink, Loader2, QrCode } from "lucide-react";
+import QRCode from "qrcode";
 import { Input, Select, Textarea } from "@/components/Input";
 import { APP_THEME } from "@/components/EstimatorControls";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
-import { PUBLIC_LIMITS, PUBLIC_PHOTO_ASSIST_DAILY_CAP, publicSlugFrom, type EstimatorPublicConfig } from "@/lib/estimator-public";
+import { MONTHLY_LIMITS, PUBLIC_LIMITS, PUBLIC_PHOTO_ASSIST_DAILY_CAP, monthlyPayment, publicSlugFrom, type EstimatorPublicConfig } from "@/lib/estimator-public";
+
+/** One link per place the form gets shared; ?src= tags every lead with it. */
+const SHARE_LINKS = [
+  { key: "truck", label: "Truck & yard signs" },
+  { key: "door-hanger", label: "Door hangers & flyers" },
+  { key: "social", label: "Social posts" },
+  { key: "google", label: "Google Business Profile" },
+  { key: "email", label: "Email signature" },
+] as const;
 
 /**
  * A tool's Website section. One switch publishes it (saved on the spot) and
@@ -38,6 +48,20 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, init
   const [copied, setCopied] = useState<string | null>(null);
   const [options, setOptions] = useState(initialOptionsOpen);
   const [saved, setSaved] = useState(false);
+  const [qr, setQr] = useState<{ key: string; dataUrl: string } | null>(null);
+
+  async function toggleQr(key: string, url: string) {
+    if (qr?.key === key) {
+      setQr(null);
+      return;
+    }
+    try {
+      const dataUrl = await QRCode.toDataURL(url, { width: 640, margin: 1, errorCorrectionLevel: "M" });
+      setQr({ key, dataUrl });
+    } catch {
+      setError("Couldn't draw the QR code — copy the link instead.");
+    }
+  }
 
   useEffect(() => {
     setSlug(tool.publicSlug ?? publicSlugFrom(tool.name));
@@ -148,13 +172,56 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, init
         )}
       </section>
 
+      {/* ── one link per channel, each with a QR ── */}
+      {hostedUrl && (
+        <section className="card-ledger p-4 sm:p-5">
+          <p className="text-sm font-semibold text-gray-900">Links for each place you share it</p>
+          <p className="mt-0.5 text-xs text-gray-500">Every link tags its leads with where they came from — the request reads “From link: truck” and the client&apos;s source reads “Website estimate · truck”, so you can see which sign, flyer or post pays. Print the QR code on it.</p>
+          <div className="mt-3 divide-y divide-gray-100 rounded-lg border border-gray-200">
+            {SHARE_LINKS.map((s) => {
+              const url = `${hostedUrl}?src=${s.key}`;
+              const open = qr?.key === s.key;
+              return (
+                <div key={s.key} className="px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium text-gray-800">{s.label}</span>
+                      <span className="block truncate text-[11px] text-gray-500">{url}</span>
+                    </span>
+                    <button type="button" onClick={() => copy(url, `src:${s.key}`)} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-gray-200 px-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50" aria-label={`Copy the ${s.label} link`}>
+                      {copied === `src:${s.key}` ? <Check size={13} className="text-green-600" /> : <Copy size={13} />}
+                      <span className="hidden sm:inline">{copied === `src:${s.key}` ? "Copied" : "Copy"}</span>
+                    </button>
+                    <button type="button" onClick={() => void toggleQr(s.key, url)} aria-expanded={open} className={`inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border px-2.5 text-xs font-medium ${open ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 text-gray-700 hover:bg-gray-50"}`}>
+                      <QrCode size={13} /> QR
+                    </button>
+                  </div>
+                  {open && qr && (
+                    <div className="mt-2 flex items-center gap-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={qr.dataUrl} alt={`QR code for the ${s.label} link`} className="h-28 w-28 rounded-lg border border-gray-200 bg-white" />
+                      <div className="text-xs text-gray-500">
+                        <p>Scans open the form tagged “{s.key}”. Print it at least an inch wide.</p>
+                        <a href={qr.dataUrl} download={`${slug || "estimate"}-${s.key}-qr.png`} className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                          <Download size={13} /> Download PNG
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* ── options ── */}
       <section className="card-ledger overflow-hidden">
         <button type="button" onClick={() => setOptions((o) => !o)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-gray-50" aria-expanded={options}>
           <span>
             <span className="block text-sm font-semibold text-gray-900">Options</span>
             <span className="block text-xs text-gray-500">
-              {c.showPrice === "exact" ? "Shows the exact estimate" : c.showPrice === "range" ? `Shows a range (±${c.rangePct}%)` : "Shows no price"} · {c.onSubmit === "send" ? "emails the quote" : c.onSubmit === "draft" ? "drafts a quote" : "creates a request"}
+              {c.showPrice === "exact" ? "Shows the exact estimate" : c.showPrice === "range" ? `Shows a range (±${c.rangePct}%)` : "Shows no price"}{!hidden && c.monthly.show ? " + a monthly payment" : ""} · {c.onSubmit === "send" ? "emails the quote" : c.onSubmit === "draft" ? "drafts a quote" : "creates a request"}
             </span>
           </span>
           {options ? <ChevronDown size={16} className="shrink-0 text-gray-400" /> : <ChevronRight size={16} className="shrink-0 text-gray-400" />}
@@ -253,6 +320,27 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, init
                 </span>
                 <input type="checkbox" checked={c.photoAssist} onChange={(e) => patch({ photoAssist: e.target.checked })} className="h-5 w-5 rounded accent-green-600" />
               </label>
+            )}
+
+            {!hidden && (
+              <div className="rounded-lg border border-gray-200 px-3 py-2.5">
+                <label className="flex items-center justify-between gap-3">
+                  <span>
+                    <span className="block text-sm font-medium text-gray-800">Show a monthly payment beside the price</span>
+                    <span className="block text-xs text-gray-500">“or about $89/mo with financing” — the anchor that makes a big job feel reachable. Display only: you arrange the financing.</span>
+                  </span>
+                  <input type="checkbox" checked={c.monthly.show} onChange={(e) => patch({ monthly: { ...c.monthly, show: e.target.checked } })} className="h-5 w-5 rounded accent-green-600" />
+                </label>
+                {c.monthly.show && (
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2 text-sm text-gray-700">
+                    <Input type="number" min={0} max={MONTHLY_LIMITS.aprMax} step={0.01} value={c.monthly.apr} onChange={(e) => patch({ monthly: { ...c.monthly, apr: Number(e.target.value) || 0 } })} className="w-24" aria-label="APR percent" />
+                    <span>% APR over</span>
+                    <Input type="number" min={MONTHLY_LIMITS.monthsMin} max={MONTHLY_LIMITS.monthsMax} value={c.monthly.months} onChange={(e) => patch({ monthly: { ...c.monthly, months: Number(e.target.value) || MONTHLY_LIMITS.monthsMin } })} className="w-20" aria-label="Months" />
+                    <span>months</span>
+                    <span className="basis-full text-xs text-gray-500">A $2,500 job shows “about ${monthlyPayment(2500, c.monthly.apr, c.monthly.months).toLocaleString("en-US")}/mo”, with the APR and term in the fine print.</span>
+                  </div>
+                )}
+              </div>
             )}
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

@@ -9,7 +9,7 @@ import { textOn } from "@/lib/branding";
 import { smsConsentLabel, SMS_TERMS_URL } from "@/lib/sms-consent";
 import type { ScheduleAppearance } from "@/app/book/[slug]/schedule/shell";
 import { sectionsOf, visibleInputIds, formDefaults, inputsComplete, type EstimatorInput, type EstimatorSpec, type FormValue } from "@/lib/estimator";
-import { defaultSuccessMessage, estimateLabel, type EstimatorPublicConfig, type PublicEstimate, type PublicVariant } from "@/lib/estimator-public";
+import { defaultSuccessMessage, estimateLabel, monthlyLabel, type EstimatorPublicConfig, type PublicEstimate, type PublicVariant } from "@/lib/estimator-public";
 import { Breakdown, ChoiceControl, CountsControl, MultiControl, NumberControl, PriceHero, StepRail, ToggleRow, pickedIncludes, publicTheme, wash } from "@/components/EstimatorControls";
 import { fileToAssistPhoto, type AssistPhoto } from "@/lib/image-downscale";
 import type { LatLngTuple } from "@/components/MapMeasure";
@@ -111,9 +111,13 @@ export default function PublicEstimateForm({
 
   // where the lead came from: the embedding page (snippet replies with its href) or the referrer
   const [page, setPage] = useState("");
+  // ?src=truck — the owner's per-channel links (Web form → "Links for each place you share it")
+  const [src, setSrc] = useState("");
   useEffect(() => {
     try {
       if (document.referrer && /^https?:\/\//.test(document.referrer)) setPage(document.referrer.slice(0, 300));
+      const s = new URLSearchParams(window.location.search).get("src") ?? "";
+      setSrc(s.toLowerCase().replace(/[^a-z0-9 _-]/g, "").trim().slice(0, 40));
     } catch {
       /* ignore */
     }
@@ -132,6 +136,7 @@ export default function PublicEstimateForm({
   // everything else it needs is answered (the visitor may not have picked yet).
   const packageInput = useMemo(() => inputs.find((i) => i.type === "select" && i.style === "packages" && visible.has(i.id)) ?? null, [inputs, visible]);
   const [tierPrices, setTierPrices] = useState<Record<string, string | null> | undefined>(undefined);
+  const [tierSubs, setTierSubs] = useState<Record<string, string | undefined>>({});
   useEffect(() => {
     if (!packageInput || packageInput.type !== "select" || config.showPrice === "hidden" || config.reveal !== "instant") {
       setTierPrices(undefined);
@@ -153,8 +158,13 @@ export default function PublicEstimateForm({
         const data = (await res.json().catch(() => null)) as { variants?: Record<string, PublicVariant> } | null;
         if (cancelled || !data?.variants) return;
         const out: Record<string, string | null> = {};
-        for (const [k, v] of Object.entries(data.variants)) out[k] = v ? v.label : null;
+        const subs: Record<string, string | undefined> = {};
+        for (const [k, v] of Object.entries(data.variants)) {
+          out[k] = v ? v.label : null;
+          subs[k] = v?.monthly;
+        }
         setTierPrices(out);
+        setTierSubs(subs);
       } catch {
         /* the tiers just show no price */
       }
@@ -286,7 +296,7 @@ export default function PublicEstimateForm({
       const res = await fetch(apiBase, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inputs: values, ...form, smsConsent, captchaToken, website: honeypot, elapsedMs: Date.now() - startedAt, page, usedPhoto }),
+        body: JSON.stringify({ inputs: values, ...form, smsConsent, captchaToken, website: honeypot, elapsedMs: Date.now() - startedAt, page, src: src || undefined, usedPhoto }),
       });
       const data = (await res.json().catch(() => null)) as { success?: boolean; estimate?: PublicEstimate; error?: string } | null;
       if (!res.ok) {
@@ -320,6 +330,15 @@ export default function PublicEstimateForm({
         ) : (
           <PriceHero theme={theme} label="Your estimate" amount={e.subtotal} sub={e.title} />
         )}
+        {(() => {
+          const mo = monthlyLabel(e.mode === "range" ? e.low : e.subtotal, config.monthly);
+          return mo ? (
+            <p className={`-mt-1 text-center text-sm ${muted}`}>
+              <span className={`font-semibold ${theme.ink}`}>or {mo}</span> with financing
+              <span className="block text-[11px]">Example at {config.monthly.apr}% APR over {config.monthly.months} months. Financing subject to approval.</span>
+            </p>
+          ) : null;
+        })()}
         {included && !compact && (
           <div className={`rounded-xl border p-4 ${rowBox}`}>
             <p className={`text-xs font-semibold ${muted}`}>{included.tier} includes</p>
@@ -449,7 +468,7 @@ export default function PublicEstimateForm({
               {inp.type === "number" && <NumberControl inp={inp} theme={theme} value={typeof v === "string" ? v : ""} required={required} onChange={(val) => setVal(inp.id, val)} />}
               {inp.type === "select" && (
                 <>
-                  <ChoiceControl inp={inp} theme={theme} value={typeof v === "string" ? v : ""} required={required} onChange={(val) => setVal(inp.id, val)} tierPrices={inp.style === "packages" && packageInput?.id === inp.id ? tierPrices : undefined} />
+                  <ChoiceControl inp={inp} theme={theme} value={typeof v === "string" ? v : ""} required={required} onChange={(val) => setVal(inp.id, val)} tierPrices={inp.style === "packages" && packageInput?.id === inp.id ? tierPrices : undefined} tierSubs={inp.style === "packages" && packageInput?.id === inp.id ? tierSubs : undefined} />
                   {(inp.style === "cards" || inp.style === "packages" || inp.options.some((o) => o.image)) && (
                     <input type="text" value={typeof v === "string" ? v : ""} required={required} readOnly tabIndex={-1} aria-hidden className="sr-only" onChange={() => undefined} />
                   )}

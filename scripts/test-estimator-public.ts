@@ -17,6 +17,7 @@ import {
   defaultSuccessMessage,
   shapeVariants,
 } from "../lib/estimator-public";
+import { MONTHLY_LIMITS, monthlyLabel, monthlyPayment } from "../lib/estimator-public";
 
 // 1. defaults + sanitize
 {
@@ -167,3 +168,29 @@ console.log("test-estimator-public: all green");
   assert.ok(grouped.mode === "exact" && grouped.lines[0].group === "Labor", "groups reach the visitor's breakdown");
 }
 console.log("ok 8: shapeVariants + groups");
+
+// 9. monthly payment (Batch 11) — off by default, clamped, never understated, folded into tier labels
+{
+  const d = sanitizePublicConfig(null);
+  assert.equal(d.monthly.show, false);
+  assert.equal(d.monthly.apr, 9.99);
+  assert.equal(d.monthly.months, 60);
+  const on = sanitizePublicConfig({ monthly: { show: "true", apr: 99, months: 1 } });
+  assert.equal(on.monthly.show, true);
+  assert.equal(on.monthly.apr, MONTHLY_LIMITS.aprMax, "APR clamps to the ceiling");
+  assert.equal(on.monthly.months, MONTHLY_LIMITS.monthsMin, "term clamps to the floor");
+  assert.equal(monthlyPayment(1200, 0, 12), 100, "0% APR is total ÷ months");
+  assert.equal(monthlyPayment(2500, 9.99, 60), 54, "amortised and rounded up");
+  assert.equal(monthlyPayment(0, 9.99, 60), 0);
+  assert.equal(monthlyLabel(2500, d.monthly), "", "hidden unless the owner turns it on");
+  assert.equal(monthlyLabel(2500, { show: true, apr: 9.99, months: 60 }), "about $54/mo");
+  assert.equal(monthlyLabel(100, { show: true, apr: 9.99, months: 60 }), "", "too small to bother a visitor with");
+  const tiers = shapeVariants({ basic: 2500, plus: null }, { showPrice: "exact", rangePct: 15, monthly: { show: true, apr: 9.99, months: 60 } });
+  assert.equal(tiers.basic?.label, "$2,500");
+  assert.equal(tiers.basic?.monthly, "about $54/mo");
+  assert.equal(tiers.plus, null);
+  const ranged = shapeVariants({ basic: 2500 }, { showPrice: "range", rangePct: 20, monthly: { show: true, apr: 9.99, months: 60 } });
+  assert.ok(/^about \$\d+\/mo$/.test(ranged.basic?.monthly ?? ""), "range mode quotes the low end");
+  assert.ok(/monthly payment/.test(describePublicConfig(sanitizePublicConfig({ monthly: { show: true } })).join("\n")));
+}
+console.log("ok 9: monthly payment");

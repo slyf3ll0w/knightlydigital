@@ -967,6 +967,139 @@ used the map, not a slider.
 4. Run any tool → "What moves this price" lists up to three answers with
    dollar swings that agree with re-running by hand.
 
+## Batch 11 — the ledger redesign, quick actions, and what the best tools do (BUILT 2026-09-23)
+
+David: "the Estimator looks a little off on desktop and looks even worse
+on mobile … reference our more established pages (jobs, clients) to
+redesign it and then make a simpler iOS look for mobile"; "it is still a
+little more on the basic side … reference any existing tools out there";
+"introduce right click actions for items (leads, clients, jobs,
+invoices…) with quick actions (like edit, archive, delete)".
+
+### The list — `app/platform/estimates/page.tsx` + `EstimatesClient.tsx`
+Laid out exactly like Jobs / Clients: `p-4 lg:p-8 max-w-6xl`, `PageTitle`
++ header actions (Library as an icon circle on phones, labelled at `sm`;
+Build a tool the same way; sellers get Run a tool), `MobileSearch` (?q=),
+`KpiStrip` (Live tools · Estimates run · Website leads — zeros drop out on
+phones), `FilterBar` All / Published / Turned off (?status=, segmented on
+phones, managers only), the dashed "Describe how you price a job" line,
+then ONE `card-ledger`: desktop grid `Tool · Questions · Status · Runs ·
+Web leads · ⋯` with a double-ruled foot (counts, run and lead totals);
+phone rows are the two-line pattern (accent icon tile in place of the
+Monogram, name + `stamp` status, facts line, amber "N rates to confirm"
+stamp). Status is one stamp: Off (grey) › Published (sky) › Live (green).
+Search and filter live in the URL so the server filters like every other
+list; `toolFacts()` is exported and shared with the tool page.
+
+### The tool page — `[id]/ToolClient.tsx`
+Desktop: the Settings rail (`230px` column, `bg-green-500/10` active row),
+header with the icon tile, name, stamps, Run + "…" (now a `QuickMenu`,
+so it is a sheet on phones). Phones: iOS Settings — Overview IS the
+index: Rates to confirm, the sample-price card (rows on phones, tiles at
+`sm`), then a `card-ledger` list of rows (Try it · Change it — ask Atlas
+· Web form · Library · Advanced · History) with icon tiles and sublines;
+a row pushes into the one section with "‹ Tool name" + the section's
+title and subline; "Run this tool" docks as the glass pill (no transform).
+The section is read from `useSearchParams` (`?s=`); `go()` uses
+`history.pushState` on phones (browser back returns to the index) and
+`replaceState` on desktop; legacy `?s=questions|pricing|words` still land
+in Advanced on the right tab. `[id]/page.tsx` wraps the client in
+`<Suspense>` for `useSearchParams`.
+
+### Quick actions — `components/QuickMenu.tsx` + `components/EntityRowActions.tsx`
+- `QuickMenu` (controlled): desktop = a `sheet-material` popover at the
+  pointer (portal, clamped into the viewport, `tile-in`, Esc / outside /
+  scroll close, `role="menu"`); phone = `BottomSheet` rows with icon
+  tiles. Both render; CSS (`hidden lg:block` / `lg:hidden`) picks one.
+  Items: label, icon, `href` (Link or tel:) or `onSelect` (async, busy
+  state), `destructive`, `disabled` + `hint`, `heading` rows.
+- `RowActions` wraps any row — a server-rendered `<Link>` is fine — with
+  right-click (`onContextMenu`), press-and-hold (380 ms, 10 px cancel,
+  haptic, swallows the click that follows so the link doesn't open,
+  `-webkit-touch-callout: none` kills iOS's link preview) and a hover
+  "⋯" handle on desktop (`group-hover`, absolute in the chevron column;
+  `handleClassName` moves it when a row already has a control there —
+  the clients Call button).
+- `EntityRowActions` = the verbs per entity, the same routes and
+  `confirmSheet` copy as each record's "…" menu; failures explain in an
+  `alertSheet`, success `router.refresh()`es:
+  - job: Open · Edit · Complete (confirms when scheduled ahead) · Create
+    invoice · Reopen · Duplicate · Close · Delete (managers).
+  - client: Open · Edit · Call · New quote · New job · Archive /
+    Reactivate · Delete.
+  - invoice: Open · Edit · Email to client · Mark as sent · Record
+    payment · Duplicate · Archive / Reopen · Delete (with payments → sent
+    to the invoice page's typed confirm).
+  - quote: Open · Edit · Email · Mark as sent · Mark approved · Convert
+    to job · Duplicate · Archive / Reopen · Delete.
+  - request: Open · Make a quote · Make a job · Archive / Restore ·
+    Delete (spam).
+  - tool: Open · Run it (opens the runner right there) · Change it with
+    Atlas · Edit by hand · Web form · Turn off/on · Delete.
+  - leads board (`LeadsBoardClient`): right-click on a card → Open
+    profile · Edit · Call · New quote · Move to <stage> · Mark won · Mark
+    lost (opens the reason modal); the touch ActionSheet is unchanged.
+  Wired on the Jobs, Clients, Invoices, Quotes, Requests and Estimates
+  lists (jobs now select `invoice.id` for the Complete/Close wording).
+
+### What the best tools do (research 2026-09-23) → what shipped, what's next
+Sources: Deep Lawn, Roofr Instant Estimator, Instant Roofer, Roofle,
+Lawnbot/ServiceBot, Hover, Jobber optional line items, Housecall Pro
+Sales Proposal layouts, ServiceTitan Pricebook Pro + financing, Wisetack,
+Buildxact/Handoff/FieldPulse markups, QuoteIQ, Outgrow/ConvertCalculator.
+Shipped in this batch (the low-effort, high-conversion three):
+- **Monthly payment anchor** (`publicConfig.monthly {show, apr, months}`;
+  `monthlyPayment()` / `monthlyLabel()` in `lib/estimator-public.ts`,
+  clamped 0–36 % APR, 6–180 months, rounded UP, hidden under $10/mo):
+  "or about $54/mo with financing" under the hero and under every
+  package tier's price (`PublicVariant.monthly` → `ChoiceControl
+  tierSubs`), fine print with the APR/term and "subject to approval".
+  Web form → Options → "Show a monthly payment"; Atlas `website:
+  {monthlyPayment: true}`. Display only — no lender.
+- **Per-channel links + QR** (Web form → "Links for each place you share
+  it"): Truck & yard signs · Door hangers · Social · Google Business
+  Profile · Email signature, each `?src=<key>`, Copy + QR (the `qrcode`
+  package, PNG download). The form reads `?src=`, the submit route
+  sanitises it (≤ 40 chars `[a-z0-9 _-]`), `createEstimateLead` stamps
+  the lead's source "Website estimate · truck" and the request "From
+  link: truck".
+- **Dictation** (`components/DictateButton.tsx`, browser
+  SpeechRecognition; renders nothing where unsupported — Chrome, Edge,
+  Safari on iPhone/Mac yes; the Capacitor WKWebView no): in the runner's
+  "Tell Atlas about the job" box and the builder's prompt box ("Say it
+  instead").
+Not built (ranked, see the research notes in the session): address-first
+auto-measurement (Google Solar API roof segments + a parcel/turf pass,
+tracer as fallback); partial-lead capture / abandoned sessions
+(`EstimateSession` per step → Leads); instant checkout (pick package →
+e-sign → card/deposit → slot) for recurring services; interactive
+proposal (optional add-ons toggle the total and the deposit on the
+client's phone, pre-selected recommended); follow-up cadence per tool +
+speed-to-lead push with the estimate attached; win-rate per tool
+(`Quote.estimatorId`); geopricing by zip/zone; homeowner self-capture
+links; kits/assemblies with material-vs-labor and live margin.
+
+### Batch 11 Test (owed)
+1. Desktop /app/estimates: title row, KPI cards, All/Published/Off chips,
+   grid header, rows, foot; search "wash" filters; right-click a row →
+   Run it opens the runner; hover shows ⋯.
+2. Phone /app/estimates: search bar, KPI strip, segmented filter, icon
+   rows with stamps; press-and-hold a row → the sheet, tap Turn off → row
+   greys, the link did NOT open.
+3. Phone tool page: index rows; tap Web form → "‹ Tool name" header;
+   swipe/back returns to the index; "Run this tool" pill → Try it.
+4. Web form → Options → Show a monthly payment → Save → open the form
+   with ?preview=1: hero shows "or about $X/mo" + fine print; package
+   tiers show it under each price.
+5. Web form → Links: Copy the truck link, QR → Download PNG; submit the
+   form from that link → the client's source reads "Website estimate ·
+   truck", the request says "From link: truck".
+6. Runner "Tell Atlas" box on Safari/Chrome: Dictate → speak → text lands;
+   builder "Say it instead" the same.
+7. Jobs list: right-click → Complete job on a future-dated job asks
+   first; Clients: ⋯ sits left of the Call button; Leads board:
+   right-click a card → Move to <stage> moves it.
+
 ## Later
 - **Smarter still (proposed 2026-09-22, not built)** — the upgrade-worthy
   layer on top of the Library:

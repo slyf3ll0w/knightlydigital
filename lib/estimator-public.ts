@@ -46,6 +46,13 @@ export type EstimatorPublicConfig = {
    * opt-in, needs the tool's `assist`, and is capped per company per day.
    */
   photoAssist: boolean;
+  /**
+   * "or about $89/mo" beside every price — the anchor that makes a big
+   * ticket feel reachable. Display only (no lender): a plain amortised
+   * payment at the APR and term the owner sets, with the fine print that
+   * financing is subject to approval.
+   */
+  monthly: { show: boolean; apr: number; months: number };
 };
 
 /** Website photo fill-ins a company will pay for in one day (rolling). */
@@ -83,7 +90,25 @@ export function defaultPublicConfig(): EstimatorPublicConfig {
     disclaimer: DEFAULT_DISCLAIMER,
     successMessage: "",
     photoAssist: false,
+    monthly: { show: false, apr: 9.99, months: 60 },
   };
+}
+
+export const MONTHLY_LIMITS = { aprMax: 36, monthsMin: 6, monthsMax: 180 } as const;
+
+/** Standard amortised payment; a 0 % APR is simply total ÷ months. Rounded up to the dollar so "about $X/mo" never understates. */
+export function monthlyPayment(total: number, apr: number, months: number): number {
+  if (!(total > 0) || !(months > 0)) return 0;
+  const r = apr / 100 / 12;
+  const pay = r > 0 ? (total * r) / (1 - Math.pow(1 + r, -months)) : total / months;
+  return Math.ceil(pay);
+}
+
+/** "about $89/mo" — "" when the form doesn't show payments or the number is too small to matter. */
+export function monthlyLabel(total: number, monthly: EstimatorPublicConfig["monthly"] | undefined): string {
+  if (!monthly?.show) return "";
+  const pay = monthlyPayment(total, monthly.apr, monthly.months);
+  return pay >= 10 ? `about $${pay.toLocaleString("en-US")}/mo` : "";
 }
 
 function str(v: unknown, max: number): string {
@@ -129,6 +154,14 @@ export function sanitizePublicConfig(raw: unknown): EstimatorPublicConfig {
   // Sending a quote the visitor never saw makes no sense — hidden + send → draft
   const pctRaw = Number(r.rangePct);
   const rangePct = Number.isFinite(pctRaw) ? Math.min(PUBLIC_LIMITS.rangePctMax, Math.max(PUBLIC_LIMITS.rangePctMin, Math.round(pctRaw))) : d.rangePct;
+  const m = (r.monthly && typeof r.monthly === "object" ? r.monthly : {}) as Record<string, unknown>;
+  const aprRaw = Number(m.apr);
+  const monthsRaw = Number(m.months);
+  const monthly = {
+    show: m.show === true || m.show === "true",
+    apr: Number.isFinite(aprRaw) ? Math.min(MONTHLY_LIMITS.aprMax, Math.max(0, Math.round(aprRaw * 100) / 100)) : d.monthly.apr,
+    months: Number.isFinite(monthsRaw) ? Math.min(MONTHLY_LIMITS.monthsMax, Math.max(MONTHLY_LIMITS.monthsMin, Math.round(monthsRaw))) : d.monthly.months,
+  };
   return {
     heading: str(r.heading, PUBLIC_LIMITS.heading),
     intro: str(r.intro, PUBLIC_LIMITS.intro),
@@ -141,6 +174,7 @@ export function sanitizePublicConfig(raw: unknown): EstimatorPublicConfig {
     disclaimer: r.disclaimer === "" ? "" : str(r.disclaimer, PUBLIC_LIMITS.disclaimer) || d.disclaimer,
     successMessage: str(r.successMessage, PUBLIC_LIMITS.successMessage),
     photoAssist: r.photoAssist === true || r.photoAssist === "true",
+    monthly,
   };
 }
 
@@ -226,10 +260,10 @@ export function estimateLabel(e: PublicEstimate): string {
 }
 
 /** A package tier's price as the visitor sees it; null = that tier can't price yet. */
-export type PublicVariant = { label: string } | null;
+export type PublicVariant = { label: string; monthly?: string } | null;
 
 /** Per-tier labels shaped by showPrice ("$850" / "$800 – $950"). Hidden forms never ask. */
-export function shapeVariants(raw: Record<string, number | null>, config: Pick<EstimatorPublicConfig, "showPrice" | "rangePct">, minimumTotal?: number): Record<string, PublicVariant> {
+export function shapeVariants(raw: Record<string, number | null>, config: Pick<EstimatorPublicConfig, "showPrice" | "rangePct"> & Partial<Pick<EstimatorPublicConfig, "monthly">>, minimumTotal?: number): Record<string, PublicVariant> {
   const out: Record<string, PublicVariant> = {};
   for (const [value, subtotal] of Object.entries(raw)) {
     if (subtotal === null || config.showPrice === "hidden") {
@@ -238,8 +272,12 @@ export function shapeVariants(raw: Record<string, number | null>, config: Pick<E
     }
     if (config.showPrice === "range") {
       const { low, high } = estimateRange(subtotal, config.rangePct, minimumTotal);
-      out[value] = { label: `${moneyWhole(low)} – ${moneyWhole(high)}` };
-    } else out[value] = { label: moneyWhole(subtotal) };
+      const mo = monthlyLabel(low, config.monthly);
+      out[value] = { label: `${moneyWhole(low)} – ${moneyWhole(high)}`, ...(mo ? { monthly: mo } : {}) };
+    } else {
+      const mo = monthlyLabel(subtotal, config.monthly);
+      out[value] = { label: moneyWhole(subtotal), ...(mo ? { monthly: mo } : {}) };
+    }
   }
   return out;
 }
@@ -260,6 +298,7 @@ export function describePublicConfig(c: EstimatorPublicConfig): string[] {
     `Asks for: ${asks.join(", ")}`,
     result[0].toUpperCase() + result.slice(1),
     ...(c.photoAssist ? [`Visitors can attach a photo and Atlas fills in the answers (your tokens, at most ${PUBLIC_PHOTO_ASSIST_DAILY_CAP} a day)`] : []),
+    ...(c.monthly.show && c.showPrice !== "hidden" ? [`Shows a monthly payment beside the price (${c.monthly.apr}% APR over ${c.monthly.months} months, display only)`] : []),
   ];
 }
 

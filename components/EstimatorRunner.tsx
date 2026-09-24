@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { ArrowLeft, Calculator, Camera, Check, FileText, Loader2, Sparkles, X } from "lucide-react";
 import Modal from "@/components/Modal";
 import { Textarea } from "@/components/Input";
+import DictateButton from "@/components/DictateButton";
 import { useAssistant } from "@/components/AssistantContext";
 import { APP_THEME, Breakdown, ChoiceControl, CountsControl, MultiControl, NumberControl, PriceHero, ToggleRow, moneyExact, pickedIncludes, wash, useCountUp } from "@/components/EstimatorControls";
 import { postJson } from "@/lib/safe-fetch";
@@ -363,7 +364,8 @@ export function EstimatorRunnerPanel({
                       Add a photo
                     </button>
                   )}
-                  <span className="hidden text-[11px] text-gray-500 sm:inline">Uses Atlas tokens · you can change every answer</span>
+                  <DictateButton disabled={busy !== null} onText={(t) => setDescription((d) => (d.trim() ? `${d.trim()} ${t}` : t))} />
+                  <span className="hidden text-[11px] text-gray-500 lg:inline">Uses Atlas tokens · you can change every answer</span>
                 </div>
                 <button
                   type="button"
