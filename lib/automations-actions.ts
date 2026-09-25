@@ -100,6 +100,21 @@ async function safeWebhookHost(url: string): Promise<string | null> {
   return null;
 }
 
+/**
+ * A team notification: the push (a line or two on a lock screen) plus an
+ * AutomationNotice row per person, so the whole message is readable from
+ * the bell and the tap lands on the record.
+ */
+async function notify(automation: AutomationRow, userIds: string[], title: string, body: string | undefined, link: string): Promise<void> {
+  const t = title.slice(0, 120);
+  const b = body?.slice(0, 500) || undefined;
+  await notifyUsers(userIds, { title: t, body: b, url: link, tag: `automation-${automation.id}-${link}` });
+  if (userIds.length === 0) return;
+  await prisma.automationNotice
+    .createMany({ data: userIds.map((userId) => ({ companyId: automation.companyId, userId, automationId: automation.id, title: t, body: b ?? null, url: link })) })
+    .catch((err) => console.error("[automations] notice write failed", err));
+}
+
 export async function runAction(automation: AutomationRow, compiled: CompiledAutomation, index: number, loaded: Loaded, now = new Date()): Promise<string> {
   const step = compiled.spec.steps[index] as AutomationAction;
   const rendered = renderAction(compiled, index, loaded.ctx);
@@ -114,13 +129,13 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
       if (step.to === "assigned") ids = loaded.assignedUserId ? [loaded.assignedUserId] : await companyManagerIds(companyId);
       else if (step.to === "everyone") ids = (await prisma.user.findMany({ where: { companyId, isActive: true }, select: { id: true } })).map((u) => u.id);
       else ids = await companyManagerIds(companyId);
-      await notifyUsers(ids, { title: rendered.title.slice(0, 120), body: rendered.body?.slice(0, 500), url: loaded.link, tag: `automation-${automation.id}-${loaded.link}` });
+      await notify(automation, ids, rendered.title, rendered.body, loaded.link);
       return `notified ${ids.length}`;
     }
     case "notify_user": {
       const u = await prisma.user.findFirst({ where: { id: String(step.userId), companyId, isActive: true }, select: { id: true, name: true } });
       if (!u) return "skipped: that team member is no longer active";
-      await notifyUsers([u.id], { title: rendered.title.slice(0, 120), body: rendered.body?.slice(0, 500), url: loaded.link, tag: `automation-${automation.id}-${loaded.link}` });
+      await notify(automation, [u.id], rendered.title, rendered.body, loaded.link);
       return `notified ${u.name}`;
     }
     case "email_client": {

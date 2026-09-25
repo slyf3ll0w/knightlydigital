@@ -35,7 +35,7 @@ export async function GET() {
   const sell = canSell(actor.role);
   const seeMoney = canSeeMoney(actor);
 
-  const [requests, leads, bookings, payments, pastDue, clientMessages] = await Promise.all([
+  const [requests, leads, bookings, payments, pastDue, clientMessages, notices] = await Promise.all([
     sell
       ? prisma.request.findMany({
           where: { companyId: actor.companyId, status: "NEW", createdAt: { gte: since }, ...scope },
@@ -138,9 +138,24 @@ export async function GET() {
         contact: { select: { firstName: true, lastName: true, companyName: true } },
       },
     }),
+    prisma.automationNotice.findMany({
+      where: { companyId: actor.companyId, userId: actor.id, createdAt: { gte: since } },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: { id: true, title: true, body: true, url: true, createdAt: true },
+    }),
   ]);
 
   const items = [
+    // What automations told this person — the full text, not the push's excerpt
+    ...notices.map((n) => ({
+      id: `auto-${n.id}`,
+      kind: "automation" as const,
+      title: n.title,
+      sub: n.body ?? "",
+      at: n.createdAt.toISOString(),
+      href: n.url.startsWith("/app/") ? n.url : "/app/automations",
+    })),
     ...requests.map((r) => ({
       id: `req-${r.id}`,
       kind: "request" as const,

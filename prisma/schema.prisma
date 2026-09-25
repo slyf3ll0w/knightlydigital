@@ -250,6 +250,7 @@ model Company {
   automations           Automation[]
   automationRuns        AutomationRun[]
   automationJobs        AutomationJob[]
+  automationNotices     AutomationNotice[]
   contractTemplates     ContractTemplate[]
   contracts             Contract[]
   expenses              Expense[]
@@ -1433,6 +1434,23 @@ model Automation {
 
 // One row per (automation, entity, event) — the dedupe key that keeps a
 // sweep from re-firing every hour and the audit trail the settings page shows.
+// A team notification an automation sent — the push only shows a line or
+// two on a phone, so the full text lives here and the bell feed reads it.
+model AutomationNotice {
+  id           String   @id @default(cuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id])
+  userId       String
+  automationId String?
+  title        String
+  body         String?
+  url          String
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([companyId, createdAt])
+}
+
 model AutomationRun {
   id           String     @id @default(cuid())
   automationId String

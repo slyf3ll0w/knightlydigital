@@ -1198,7 +1198,7 @@ export default function SettingsClient({
       <div className="mb-6 flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className={section === "home" ? "" : "hidden lg:block"}>
-            <PageTitle sub="Changes save automatically.">
+            <PageTitle info="Changes save automatically.">
               Settings
             </PageTitle>
           </div>

@@ -411,6 +411,8 @@ const AUTOMATION_ROW_SELECT = { id: true, companyId: true, name: true, createdBy
 
 /** Hourly: every active sweep automation across every company. */
 export async function runAutomationSweeps(now = new Date()): Promise<{ automations: number; fired: number; errors: number }> {
+  // Bell-feed notices older than the feed window are dead weight
+  await prisma.automationNotice.deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - 30 * DAY) } } }).catch(() => {});
   const sweepNames = (Object.keys(TRIGGERS) as TriggerName[]).filter((t) => TRIGGERS[t].kind === "sweep");
   const rows = await prisma.automation.findMany({
     where: { isActive: true, OR: sweepNames.map((e) => ({ spec: { path: ["trigger", "event"], equals: e } })) },

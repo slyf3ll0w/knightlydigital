@@ -225,12 +225,12 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
   return (
     <div className="mx-auto max-w-3xl p-4 lg:p-8">
       <div className="flex items-start justify-between gap-3">
-        <PageTitle section="business" icon={Zap} sub={<span className="hidden lg:inline">“When this happens, do that” rules that run on their own — each fires at most once per record, never moves money, and pauses with one tap.</span>}>
+        <PageTitle section="business" icon={Zap} info="“When this happens, do that” rules that run on their own. Each fires at most once per record, never moves money, and pauses with one tap.">
           Automations
         </PageTitle>
         <div className="flex shrink-0 items-center gap-2">
           {atlas.available && (
-            <Link href="/app/automations/new?atlas=1" prefetch={false} className="btn-tool-line hidden h-10 items-center gap-1.5 px-3.5 text-sm font-medium lg:inline-flex">
+            <Link href="/app/automations/new?atlas=1" prefetch={false} className="btn-tool-line bg-white text-gray-700 hidden h-10 items-center gap-1.5 px-3.5 text-sm font-medium lg:inline-flex">
               <Sparkles size={15} /> Ask {atlas.name}
             </Link>
           )}
@@ -307,7 +307,7 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
       )}
 
       {/* ── phone: detail sheet ─────────────────────────────────────────── */}
-      <BottomSheet open={detail !== null} onClose={() => { setDetail(null); setPendingDraft(null); }} title={detail?.name}>
+      <BottomSheet open={detail !== null} onClose={() => { setDetail(null); setPendingDraft(null); }} title={detail?.name} closeButton>
         {detail && (
           <div className="max-h-[78dvh] overflow-y-auto px-5 pb-2">
             <div className="mb-3 flex items-center gap-2">
@@ -324,7 +324,7 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
                 <PlainSteps spec={pendingDraft} />
                 <div className="mt-3 flex gap-2">
                   <button type="button" disabled={busy === detail.id} onClick={() => void saveDraftTo(detail, pendingDraft)} className="btn-primary flex-1 justify-center">Save changes</button>
-                  <button type="button" onClick={() => setPendingDraft(null)} className="btn-tool-line h-10 px-4 text-sm">Discard</button>
+                  <button type="button" onClick={() => setPendingDraft(null)} className="btn-tool-line bg-white text-gray-700 h-10 px-4 text-sm">Discard</button>
                 </div>
               </div>
             ) : (
@@ -374,7 +374,7 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
       </BottomSheet>
 
       {/* ── phone: create with Atlas ─────────────────────────────────────── */}
-      <BottomSheet open={creating} onClose={() => { setCreating(false); setPendingDraft(null); }} title="New automation">
+      <BottomSheet open={creating} onClose={() => { setCreating(false); setPendingDraft(null); }} title="New automation" closeButton>
         <div className="max-h-[78dvh] overflow-y-auto px-5 pb-2">
           {pendingDraft && !detail ? (
             <div>
@@ -386,12 +386,12 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
               )}
               <div className="mt-3 flex gap-2">
                 <button type="button" disabled={busy === "new"} onClick={() => void createFromDraft(pendingDraft)} className="btn-primary flex-1 justify-center">Turn it on</button>
-                <button type="button" onClick={() => setPendingDraft(null)} className="btn-tool-line h-10 px-4 text-sm">Change</button>
+                <button type="button" onClick={() => setPendingDraft(null)} className="btn-tool-line bg-white text-gray-700 h-10 px-4 text-sm">Change</button>
               </div>
             </div>
           ) : (
             <>
-              <AutomationBuildPanel current={null} autoFocus onDraft={(d) => setPendingDraft(d)} />
+              <AutomationBuildPanel current={null} onDraft={(d) => setPendingDraft(d)} />
               <ul className="mt-3 space-y-1.5">
                 {EXAMPLES.slice(0, 3).map((e) => (
                   <li key={e} className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">“{e}”</li>

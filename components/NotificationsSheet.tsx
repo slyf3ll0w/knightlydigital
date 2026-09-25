@@ -11,6 +11,7 @@ import {
   MessageSquare,
   Receipt,
   SquareKanban,
+  Zap,
 } from "lucide-react";
 import { hapticImpact } from "@/lib/haptics";
 
@@ -24,7 +25,7 @@ import { hapticImpact } from "@/lib/haptics";
 
 type Item = {
   id: string;
-  kind: "request" | "lead" | "booking" | "payment" | "invoice" | "message";
+  kind: "request" | "lead" | "booking" | "payment" | "invoice" | "message" | "automation";
   title: string;
   sub: string;
   at: string;
@@ -42,6 +43,7 @@ const KIND_META: Record<Item["kind"], { icon: typeof Inbox; primary: boolean }> 
   payment: { icon: DollarSign, primary: true },
   invoice: { icon: Receipt, primary: true },
   message: { icon: MessageSquare, primary: false },
+  automation: { icon: Zap, primary: true },
 };
 
 function ago(iso: string): string {
@@ -175,7 +177,8 @@ function NotifRow({
             {item.title}
           </span>
           {item.sub && (
-            <span className="block truncate text-[12.5px] text-gray-500">{item.sub}</span>
+            // An automation's message is the whole point — show it all
+            <span className={`block text-[12.5px] text-gray-500 ${item.kind === "automation" ? "whitespace-pre-line" : "truncate"}`}>{item.sub}</span>
           )}
         </span>
         <span className="shrink-0 text-[11.5px] tabular-nums text-gray-400">{ago(item.at)}</span>

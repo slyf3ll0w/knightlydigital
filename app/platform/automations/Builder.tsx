@@ -320,15 +320,15 @@ export default function Builder({ initial, initialRuns, atlasFirst = false }: { 
       <div className="flex shrink-0 items-center gap-2">
         {initial && (
           <>
-            <button type="button" onClick={() => void toggleActive()} className="btn-tool-line inline-flex h-10 items-center gap-1.5 px-3 text-sm" title={isActive ? "Pause" : "Resume"}>
+            <button type="button" onClick={() => void toggleActive()} className="btn-tool-line bg-white text-gray-700 inline-flex h-10 items-center gap-1.5 px-3 text-sm" title={isActive ? "Pause" : "Resume"}>
               {isActive ? <><Pause size={14} /> Pause</> : <><Play size={14} /> Resume</>}
             </button>
-            <button type="button" onClick={() => void remove()} aria-label="Delete" title="Delete" className="btn-tool-line inline-flex h-10 w-10 items-center justify-center text-red-600">
+            <button type="button" onClick={() => void remove()} aria-label="Delete" title="Delete" className="btn-tool-line bg-white text-gray-700 inline-flex h-10 w-10 items-center justify-center text-red-600">
               <Trash2 size={15} />
             </button>
           </>
         )}
-        <button type="button" onClick={() => void test()} disabled={!compiled.ok} className="btn-tool-line inline-flex h-10 items-center gap-1.5 px-3.5 text-sm disabled:opacity-50" title="Dry run over the last 30 days — nothing is sent">
+        <button type="button" onClick={() => void test()} disabled={!compiled.ok} className="btn-tool-line bg-white text-gray-700 inline-flex h-10 items-center gap-1.5 px-3.5 text-sm disabled:opacity-50" title="Dry run over the last 30 days — nothing is sent">
           <FlaskConical size={14} /> Test
         </button>
         <button type="button" onClick={() => void save()} disabled={!canSave} className="btn-primary h-10 justify-center px-4 disabled:opacity-50">
@@ -356,7 +356,7 @@ export default function Builder({ initial, initialRuns, atlasFirst = false }: { 
     <div className="mx-auto w-full max-w-2xl">
       <Card icon={Zap} tint={TRIGGER_TINT} title={triggerTitle(st.trigger)} preview="Trigger — what starts this automation" className={changed.has(-1) ? "ring-2 ring-amber-300" : ""}>
         <div className="space-y-3">
-          <button type="button" onClick={() => setTriggerOpen(true)} className="btn-tool-line inline-flex h-9 items-center px-3 text-sm">Change trigger</button>
+          <button type="button" onClick={() => setTriggerOpen(true)} className="btn-tool-line bg-white text-gray-700 inline-flex h-9 items-center px-3 text-sm">Change trigger</button>
           <TriggerEditor trigger={st.trigger} onChange={(t) => update({ trigger: t })} options={options} />
         </div>
       </Card>
@@ -457,19 +457,26 @@ export default function Builder({ initial, initialRuns, atlasFirst = false }: { 
         </div>
         {atlas.available ? (
           <div className="mt-4">
-            <AutomationBuildPanel current={st.steps.length > 0 ? { name: st.name, description: st.description, spec: compiled.ok ? compiled.compiled.spec : null } : null} onDraft={onDraft} autoFocus={atlasFirst || !initial} compact placeholder={initial ? "What should change?" : "When a quote is sent, wait 3 days, then…"} />
+            <AutomationBuildPanel current={st.steps.length > 0 ? { name: st.name, description: st.description, spec: compiled.ok ? compiled.compiled.spec : null } : null} onDraft={onDraft} autoFocus={atlasFirst} compact placeholder={initial ? "What should change?" : "When a quote is sent, wait 3 days, then…"} />
           </div>
-        ) : (
-          <p className="mt-4 text-center text-xs text-gray-500">Build the cards on a desktop.</p>
+        ) : null}
+        {/* Phones: nothing to press until there is something to save — a
+            greyed Save on an unchanged rule read as broken */}
+        {(!initial || dirty || !isActive) && (
+          <div className="mt-4 flex gap-2">
+            {(!initial || dirty) && (
+              <button type="button" onClick={() => void save()} disabled={!canSave} className="btn-primary flex-1 justify-center disabled:opacity-50">{saving ? "Saving…" : initial ? "Save changes" : "Turn it on"}</button>
+            )}
+            {initial && !isActive && (
+              <button type="button" onClick={() => void toggleActive()} className="btn-primary flex-1 justify-center"><Play size={14} /> Resume</button>
+            )}
+          </div>
         )}
-        <div className="mt-4 flex gap-2">
-          <button type="button" onClick={() => void save()} disabled={!canSave} className="btn-primary flex-1 justify-center disabled:opacity-50">{saving ? "Saving…" : initial ? "Save" : "Turn it on"}</button>
-          {initial && (
-            <button type="button" onClick={() => void toggleActive()} className="btn-tool-line inline-flex h-10 items-center gap-1.5 px-3 text-sm">{isActive ? <><Pause size={14} /> Pause</> : <><Play size={14} /> Resume</>}</button>
-          )}
-        </div>
+        {initial && isActive && !dirty && (
+          <button type="button" onClick={() => void toggleActive()} className="btn-tool-line bg-white text-gray-700 mt-4 inline-flex h-10 w-full items-center justify-center gap-1.5 px-3 text-sm"><Pause size={14} /> Pause</button>
+        )}
         {initial && <div className="mt-6"><RunHistory runs={runs} onRefresh={refreshRuns} loading={runsLoading} /></div>}
-        <p className="mt-4 text-center text-[11px] text-gray-400">Edit the cards on a desktop.</p>
+        <p className="mt-4 text-center text-[11px] text-gray-400">{atlas.available ? `Change it by telling ${atlas.name} what should be different, or edit the cards on a desktop.` : "Edit the cards on a desktop."}</p>
       </div>
 
       <TriggerPicker open={triggerOpen} onClose={() => setTriggerOpen(false)} current={st.trigger.event} onPick={(t) => void pickTrigger(t)} />

@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#0C0F0C" />
-<title>Offline · Streamflaire Hub</title>
+<title>Offline · WorkBench</title>
 <!-- Served by the service worker when a page was never visited while online.
      Fully self-contained: no fonts, images, or scripts fetched — we're offline. -->
 <style>
@@ -55,6 +55,10 @@
   <script>
     // The moment connectivity returns, load the page they actually wanted
     window.addEventListener("online", function () { location.reload(); });
+    // A page that landed here while the browser says it is ONLINE hit a
+    // blip (a cold-started shell, a request that raced the radio) — one
+    // quiet retry before anyone has to press the button.
+    if (navigator.onLine) setTimeout(function () { location.reload(); }, 1500);
   </script>
 </body>
 </html>

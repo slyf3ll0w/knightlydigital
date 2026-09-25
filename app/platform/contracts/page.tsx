@@ -75,7 +75,7 @@ export default async function ContractsPage({
           <PageTitle
             section="contracts"
             icon={FileSignature}
-            sub="Every agreement you've sent, and the templates they start from."
+            info="Every agreement you've sent, and the templates they start from."
           >
             Agreements
           </PageTitle>
@@ -144,7 +144,7 @@ export default async function ContractsPage({
         <PageTitle
           section="contracts"
           icon={FileSignature}
-          sub={
+          info={
             manager
               ? "Every agreement you've sent, and the templates they start from."
               : "Every agreement you've sent to a client for an e-signature."
