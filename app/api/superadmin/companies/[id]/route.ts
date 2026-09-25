@@ -93,9 +93,9 @@ export async function PATCH(
   if (!company) return NextResponse.json({ error: "Company not found." }, { status: 404 });
 
   // Plan whitelist (lib/plans.ts): put the company on an add-on plan for
-  // free, or take it off again. "ALL" is Full Shop. A Dispatch grant also
+  // free, or take it off again. "ALL" is Max. A Voice grant also
   // stamps the Livery entitlement so the business line unlocks today, and a
-  // Shop grant starts the Atlas paid plan (its tokens are part of Shop);
+  // Pro grant starts the Atlas paid plan (its tokens are part of Pro);
   // revoking clears those only when no Livery subscription is behind them.
   if (action === "plan-grant" || action === "plan-revoke") {
     const grant = action === "plan-grant";

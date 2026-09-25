@@ -6,7 +6,7 @@ import { limit } from "@/lib/rate-limit";
 /**
  * POST { type?: "local" | "toll_free", areaCode?, forwardTo? } — buy the
  * company's business line (area code applies to local only). Gated on
- * the Dispatch plan entitlement inside provisionLine (402 without it).
+ * the Voice plan entitlement inside provisionLine (402 without it).
  * Rate-limited hard: every call that gets past the checks spends money.
  */
 export async function POST(req: NextRequest) {

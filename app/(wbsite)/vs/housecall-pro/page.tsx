@@ -14,12 +14,12 @@ export const metadata: Metadata = {
 const rows: CompareRow[] = [
   {
     label: "Pricing model",
-    workbench: "Free core software with full access for 2 users, not a trial. Optional flat-priced add-ons per company, from $25 a month: Dispatch (a business phone line), Shop (unlimited users and the ops tools, $89), and Jobsite (job photos, coming soon). WorkBench also earns a flat 2.9% + 30¢ (card) or 0.75% (ACH) when a client pays through it.",
+    workbench: "Free core software with full access for 2 users, not a trial. Optional flat-priced add-ons per company, from $25 a month: Voice (a business phone line), Pro (unlimited users and the ops tools, $89), and Gallery (job photos, coming soon). WorkBench also earns a flat 2.9% + 30¢ (card) or 0.75% (ACH) when a client pays through it.",
     competitor: "A monthly subscription across multiple tiers, typically priced per user with add-ons for extra capabilities. Check housecallpro.com for current plans.",
   },
   {
     label: "Seats / users",
-    workbench: "2 included free, $10 a month each after that, or unlimited with the Shop add-on — owner, admin, sales, and tech roles on every plan.",
+    workbench: "2 included free, $10 a month each after that, or unlimited with the Pro add-on — owner, admin, sales, and tech roles on every plan.",
     competitor: "User limits and pricing generally scale with the plan tier.",
   },
   {

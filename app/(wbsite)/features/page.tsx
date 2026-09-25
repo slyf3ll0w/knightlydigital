@@ -49,7 +49,7 @@ export default function WBFeaturesPage() {
               WorkBench covers the whole arc of a job: winning it, running it,
               getting paid for it, and keeping the client for the next one.
               Nearly all of sections 01 to 04 are in Bench, the free plan,
-              with full access for two users. The few marked Shop come with
+              with full access for two users. The few marked Pro come with
               that add-on, alongside the estimator, routes, automations, and
               QuickBooks. Atlas, the AI assistant, gives every account free
               tokens each month, with a larger paid allowance for heavy users.
@@ -156,7 +156,7 @@ export default function WBFeaturesPage() {
                 <p className="mt-3 max-w-lg text-[14px] leading-relaxed text-gray-600">
                   10,000 free tokens every month on every account. Atlas Full
                   is 150,000 a month for $20 on its own, and included with
-                  Shop; it is the one thing with a meter.
+                  Pro; it is the one thing with a meter.
                 </p>
                 <Link
                   href="/features/atlas"

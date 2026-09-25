@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 const rows: CompareRow[] = [
   {
     label: "Pricing model",
-    workbench: "Free core software with full access for 2 users, not a trial, funded by a flat 2.9% + 30¢ (card) or 0.75% (ACH) when a client pays through it. Optional flat-priced add-ons per company from $25 a month; unlimited users come with the Shop add-on at $89.",
+    workbench: "Free core software with full access for 2 users, not a trial, funded by a flat 2.9% + 30¢ (card) or 0.75% (ACH) when a client pays through it. Optional flat-priced add-ons per company from $25 a month; unlimited users come with the Pro add-on at $89.",
     competitor: "An enterprise platform with custom quotes, typically involving implementation and onboarding fees on top of subscription pricing. Contact ServiceTitan for a quote.",
   },
   {

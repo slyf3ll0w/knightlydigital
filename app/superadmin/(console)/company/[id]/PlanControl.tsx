@@ -7,10 +7,10 @@ import type { PlanId } from "@/lib/plans";
 /**
  * The plan whitelist (lib/plans.ts): grant a company any add-on plan for
  * free — the first users get everything, comped accounts, testing. Each
- * plan is a switch; "Grant everything" is Full Shop. A Dispatch grant also
+ * plan is a switch; "Grant everything" is Max. A Voice grant also
  * stamps the Livery entitlement (addonActiveAt) so the business line works
- * today; a Shop grant also starts the Atlas paid plan (its tokens are part
- * of Shop). Revoking Dispatch/Shop only clears those when no Livery
+ * today; a Pro grant also starts the Atlas paid plan (its tokens are part
+ * of Pro). Revoking Voice/Pro only clears those when no Livery
  * subscription is behind them, so a paying customer is never switched off
  * from here.
  */
@@ -23,7 +23,7 @@ export function PlanControl({
   companyId: string;
   plans: { id: PlanId; name: string; tagline: string; price: string; comingSoon: boolean }[];
   grants: PlanId[];
-  /** A Livery subscription backs Dispatch (so it is on even without a grant). */
+  /** A Livery subscription backs Voice (so it is on even without a grant). */
   dispatchPaid: boolean;
 }) {
   const router = useRouter();
@@ -71,13 +71,13 @@ export function PlanControl({
                 : "bg-gray-100 text-gray-600"
           }`}
         >
-          {everything ? "Full Shop (everything)" : grants.length > 0 ? `${grants.length} of ${plans.length} granted` : "Bench (free core)"}
+          {everything ? "Max (everything)" : grants.length > 0 ? `${grants.length} of ${plans.length} granted` : "Bench (free core)"}
         </span>
       </div>
       <p className="mt-2 text-xs leading-relaxed text-gray-500">
         Grants put this company on an add-on plan for free — no checkout, no billing. The first
-        users get everything; use it for comped accounts and testing too. Dispatch also unlocks
-        the business line below; Shop also starts the Atlas paid plan (150,000 tokens).
+        users get everything; use it for comped accounts and testing too. Voice also unlocks
+        the business line below; Pro also starts the Atlas paid plan (150,000 tokens).
       </p>
 
       <ul className="mt-3 divide-y divide-gray-100 rounded-lg border border-gray-100">
@@ -125,7 +125,7 @@ export function PlanControl({
       <div className="mt-3 flex flex-wrap gap-2">
         {!everything ? (
           <button disabled={busy !== null} onClick={() => send("plan-grant", "ALL")} className={btn}>
-            {busy === "plan-grant:ALL" ? "Saving…" : "Grant everything (Full Shop)"}
+            {busy === "plan-grant:ALL" ? "Saving…" : "Grant everything (Max)"}
           </button>
         ) : (
           <button disabled={busy !== null} onClick={() => send("plan-revoke", "ALL")} className={quiet}>

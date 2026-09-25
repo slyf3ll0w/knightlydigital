@@ -111,7 +111,7 @@ const pricingFaq = [
     ),
   },
   {
-    q: "Do I need Shop just for QuickBooks?",
+    q: "Do I need Pro just for QuickBooks?",
     a: (
       <p>
         QuickBooks Online sync is part of {shop.name}. If your accountant or bookkeeper sends

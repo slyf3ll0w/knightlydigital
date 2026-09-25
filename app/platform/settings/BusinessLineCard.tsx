@@ -129,7 +129,7 @@ function GetNumber({
       <div className="rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-600">
         A business line is part of{" "}
         <Link href="/app/settings/addon" className="font-medium text-gray-900 underline">
-          the Dispatch plan
+          the Voice plan
         </Link>
         . Until then, the free Call and Text buttons keep working from your own phone.
       </div>
@@ -211,7 +211,7 @@ function ReleaseNotice({ line }: { line: LineSummary }) {
   const when = new Date(line.releaseAt!).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
   const subject = encodeURIComponent(`Keep my number ${line.number}`);
   const body = encodeURIComponent(
-    `Hi — my Dispatch plan ended and I'd like to keep ${line.number}. Please tell me how to port it to my new carrier.`
+    `Hi — my Voice plan ended and I'd like to keep ${line.number}. Please tell me how to port it to my new carrier.`
   );
   return (
     <div className="space-y-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm">
@@ -801,7 +801,7 @@ function RegistrationForm({
           {tollFree
             ? "Toll-free numbers are verified by the carriers before they can text. This is filed once, in your business's name, and usually takes one to two weeks."
             : "US carriers require every business that texts to be registered, under its own legal name. This is filed once, in your business's name, and takes 3–7 business days to clear."}
-          {!line.entitled && " Part of the Dispatch plan."}
+          {!line.entitled && " Part of the Voice plan."}
         </p>
       </div>
 

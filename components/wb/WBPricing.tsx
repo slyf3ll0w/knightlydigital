@@ -21,8 +21,7 @@ import {
 
 /**
  * The WorkBench pricing grid: the free core (Bench) up top — full access,
- * not a trial — then the optional add-ons (Dispatch, Shop, Jobsite, Full
- * Shop) with a monthly/annual toggle. Every number comes from lib/plans.ts.
+ * not a trial — then the optional add-ons (Voice, Pro, Gallery, Max) with a monthly/annual toggle. Every number comes from lib/plans.ts.
  */
 
 const freeGroups: { label: string; accent: string; items: string[] }[] = [
@@ -193,7 +192,7 @@ export default function WBPricing() {
         </div>
 
         <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-          {/* Dispatch */}
+          {/* Voice (id DISPATCH) */}
           <div className="flex flex-col rounded-[1.5rem] border border-gray-200 bg-white p-7">
             <p className="wb-label">{dispatch.name}</p>
             <p className="mt-2 text-[14px] leading-snug text-gray-600">{dispatch.tagline}</p>
@@ -215,7 +214,7 @@ export default function WBPricing() {
             </p>
           </div>
 
-          {/* Shop */}
+          {/* Pro (id SHOP) */}
           <div className="flex flex-col rounded-[1.5rem] border-2 border-[#0B57D8] bg-white p-7">
             <div className="flex items-center justify-between gap-3">
               <p className="wb-label">{shop.name}</p>
@@ -236,12 +235,12 @@ export default function WBPricing() {
               ))}
             </ul>
             <p className="mt-6 border-t border-gray-100 pt-4 text-[12.5px] leading-relaxed text-gray-500">
-              Atlas Full on its own is {formatPlanPrice()} a month; Shop includes its{" "}
+              Atlas Full on its own is {formatPlanPrice()} a month; Pro includes its{" "}
               {tokenCount(ATLAS_PLAN_TOKENS)} tokens.
             </p>
           </div>
 
-          {/* Jobsite — coming soon */}
+          {/* Gallery (id JOBSITE) — coming soon */}
           <div className="flex flex-col rounded-[1.5rem] border border-dashed border-gray-300 bg-[#F6F8FB] p-7">
             <div className="flex items-center justify-between gap-3">
               <p className="wb-label">{jobsite.name}</p>
@@ -266,7 +265,7 @@ export default function WBPricing() {
             </p>
           </div>
 
-          {/* Full Shop */}
+          {/* Max (FULL_SHOP) */}
           <div className="relative flex flex-col overflow-hidden rounded-[1.5rem] bg-[#0A1428] p-7 text-white">
             <div className="flex items-center justify-between gap-3">
               <p className="wb-label wb-label-light">{FULL_SHOP.name}</p>

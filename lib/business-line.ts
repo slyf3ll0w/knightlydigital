@@ -319,7 +319,7 @@ export async function provisionLine(
     select: { id: true, name: true, addonActiveAt: true, lineNumber: true },
   });
   if (!company) throw new LineError("Company not found.", 404);
-  if (!hasAddon(company)) throw new LineError("A business line is part of the Dispatch plan.", 402);
+  if (!hasAddon(company)) throw new LineError("A business line is part of the Voice plan.", 402);
   if (isRealLineNumber(company.lineNumber)) throw new LineError("This company already has a number.", 409);
 
   // Claim: the unique lineNumber column is the lock, so a double-click or two
@@ -1077,7 +1077,7 @@ export async function submitRegistration(companyId: string, form: RegistrationFo
     },
   });
   if (!company) throw new LineError("Company not found.", 404);
-  if (!hasAddon(company)) throw new LineError("Texting registration is part of the Dispatch plan.", 402);
+  if (!hasAddon(company)) throw new LineError("Texting registration is part of the Voice plan.", 402);
   if (!isRealLineNumber(company.lineNumber)) throw new LineError("Get a number before registering it for texting.", 409);
   const prior = company.messagingRegistration;
   if (prior && prior.status !== "REJECTED" && prior.status !== "QUEUED" && prior.status !== "AWAITING_REVIEW") {

@@ -28,10 +28,10 @@ assert.equal(FULL_SHOP.monthlyCents, 9_900);
 assert.equal(FULL_SHOP.monthlyCentsAfterJobsite, 11_900);
 assert.equal(ANNUAL_MONTHS, 10);
 assert.equal(annualCents(2_500), 25_000);
-// Full Shop is a discount on the shipped add-ons bought separately (today: Dispatch + Shop).
+// Max is a discount on the shipped add-ons bought separately (today: Voice + Pro).
 assert.equal(separatelyMonthlyCents(), 11_400);
 assert.ok(FULL_SHOP.monthlyCents < separatelyMonthlyCents());
-// … and after Jobsite joins, still a discount on all three.
+// … and after Gallery joins, still a discount on all three.
 assert.ok(
   FULL_SHOP.monthlyCentsAfterJobsite < PLAN_IDS.reduce((s, id) => s + PLANS[id].monthlyCents, 0)
 );
@@ -61,14 +61,14 @@ assert.equal(hasPlan(granted, "SHOP"), true);
 assert.equal(hasPlan(granted, "DISPATCH"), false);
 assert.equal(hasUnlimitedSeats(granted), true);
 
-// A paid Livery subscription is Dispatch even without a grant …
+// A paid Livery subscription is Voice even without a grant …
 const paid = { planGrants: [], addonActiveAt: new Date() };
 assert.equal(hasPlan(paid, "DISPATCH"), true);
 assert.equal(hasPlan(paid, "SHOP"), false);
 // … and never anything else.
 assert.deepEqual(activePlans(paid), ["DISPATCH"]);
 
-// Everything = Full Shop.
+// Everything = Max.
 const everything = { planGrants: [...PLAN_IDS], addonActiveAt: null };
 assert.deepEqual(activePlans(everything), ["DISPATCH", "SHOP", "JOBSITE"]);
 

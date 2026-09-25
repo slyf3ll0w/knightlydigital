@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     notifyUsers(
       owners.map((o) => o.id),
       {
-        title: "Dispatch is active",
+        title: "Voice is active",
         body: "Your subscription payment went through — your business line is unlocked.",
         url: "/app/settings/addon",
         tag: "addon-active",
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
     notifyUsers(
       owners.map((o) => o.id),
       {
-        title: "Dispatch payment failed",
+        title: "Voice payment failed",
         body: "Your subscription's renewal charge didn't go through — premium features are paused.",
         url: "/app/settings/addon",
         tag: "addon-failed",

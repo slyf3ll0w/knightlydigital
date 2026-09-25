@@ -9,27 +9,31 @@
  *                scheduling, quotes, invoices, payments, portal, chat, Atlas
  *                free tokens. 2 users included; extra users EXTRA_SEAT a
  *                month each. Funded by payment processing.
- *   Dispatch   — the business phone line (lib/business-line.ts): a local
+ * Display names changed 2026-09-25 (Dispatch → Voice, Shop → Pro, Jobsite →
+ * Gallery, Full Shop → Max); the PlanId values, constants and env vars keep
+ * the old names because they are stored in Company.planGrants.
+ *
+ *   Voice (id DISPATCH) — the business phone line (lib/business-line.ts): a local
  *                number, texting registration, calls that ring in the app,
  *                the dialer, voicemail, call notes. Includes a monthly
  *                text + minute allowance; usage past it bills per unit. A
  *                one-time setup fee covers buying the number and the
  *                carrier (10DLC) registration.
- *   Shop       — unlimited users plus the ops tools: Estimator + Library,
+ *   Pro (id SHOP) — unlimited users plus the ops tools: Estimator + Library,
  *                Route Manager, Automations, Agreements, Team map,
  *                Timesheets, QuickBooks Online, and Atlas Full's tokens.
- *   Jobsite    — CompanyCam-style job photos. COMING SOON — shown on the
+ *   Gallery (id JOBSITE) — CompanyCam-style job photos. COMING SOON — shown on the
  *                site, not sold.
- *   Full Shop  — every add-on together. Priced as Dispatch + Shop while
- *                Jobsite is unshipped; goes up when Jobsite joins, and
+ *   Max (FULL_SHOP) — every add-on together. Priced as Voice + Pro while
+ *                Gallery is unshipped; goes up when Gallery joins, and
  *                anyone already on it keeps the launch price.
  *
  * Annual billing on every add-on = 10 × the monthly price (two months free).
  *
  * Entitlements: a company is on a plan when the superadmin console has
  * whitelisted it (Company.planGrants — the first users get everything free)
- * or, for Dispatch, when its Livery subscription is active
- * (Company.addonActiveAt, lib/addon.ts). Checkout for Shop and Full Shop is
+ * or, for Voice, when its Livery subscription is active
+ * (Company.addonActiveAt, lib/addon.ts). Checkout for Pro and Max is
  * not wired yet; the grant is the only way onto them today. Nothing but the
  * phone line is gated in the app yet — see the plan doc for the gating
  * roll-out.
@@ -53,9 +57,9 @@ export function isPlanId(v: unknown): v is PlanId {
 
 /** The free core. */
 export const FREE_PLAN_NAME = "Bench";
-/** Users included with the free core (and with any add-on that isn't Shop). */
+/** Users included with the free core (and with any add-on that isn't Pro). */
 export const INCLUDED_SEATS = Math.round(envNum(process.env.PLAN_INCLUDED_SEATS, 2));
-/** Each user past the included seats, per month, on any plan without Shop. */
+/** Each user past the included seats, per month, on any plan without Pro. */
 export const EXTRA_SEAT_CENTS = Math.round(envNum(process.env.PLAN_EXTRA_SEAT_CENTS, 1_000));
 
 /** Months paid for on an annual term — 10 of 12, i.e. two months free. */
@@ -82,7 +86,7 @@ export const DISPATCH_OVERAGE_CENTS = envNum(process.env.PLAN_DISPATCH_OVERAGE_C
 export const PLANS: Record<PlanId, Plan> = {
   DISPATCH: {
     id: "DISPATCH",
-    name: "Dispatch",
+    name: "Voice",
     tagline: "Your own business phone line, inside WorkBench.",
     monthlyCents: Math.round(envNum(process.env.PLAN_DISPATCH_CENTS, 2_500)),
     comingSoon: false,
@@ -97,7 +101,7 @@ export const PLANS: Record<PlanId, Plan> = {
   },
   SHOP: {
     id: "SHOP",
-    name: "Shop",
+    name: "Pro",
     tagline: "Unlimited users and the tools that run a growing crew.",
     monthlyCents: Math.round(envNum(process.env.PLAN_SHOP_CENTS, 8_900)),
     comingSoon: false,
@@ -115,7 +119,7 @@ export const PLANS: Record<PlanId, Plan> = {
   },
   JOBSITE: {
     id: "JOBSITE",
-    name: "Jobsite",
+    name: "Gallery",
     tagline: "Job photos your clients and crew can trust.",
     monthlyCents: Math.round(envNum(process.env.PLAN_JOBSITE_CENTS, 2_900)),
     comingSoon: true,
@@ -132,15 +136,15 @@ export const PLANS: Record<PlanId, Plan> = {
 
 /** Every add-on together. */
 export const FULL_SHOP = {
-  name: "Full Shop",
+  name: "Max",
   tagline: "Every add-on, one price.",
-  /** What it costs today: Dispatch + Shop, with Jobsite joining at no extra charge for anyone already on it. */
+  /** What it costs today: Voice + Pro, with Gallery joining at no extra charge for anyone already on it. */
   monthlyCents: Math.round(envNum(process.env.PLAN_FULL_SHOP_CENTS, 9_900)),
-  /** What it will cost once Jobsite ships and joins the bundle. */
+  /** What it will cost once Gallery ships and joins the bundle. */
   monthlyCentsAfterJobsite: Math.round(envNum(process.env.PLAN_FULL_SHOP_LATER_CENTS, 11_900)),
 } as const;
 
-/** The plans Full Shop bundles — every add-on, whether shipped yet or not. */
+/** The plans Max bundles — every add-on, whether shipped yet or not. */
 export const FULL_SHOP_PLANS: readonly PlanId[] = PLAN_IDS;
 
 export function annualCents(monthlyCents: number): number {
@@ -159,7 +163,7 @@ export function formatUnitCents(cents: number): string {
 }
 
 /**
- * Sum of the shipped add-ons bought separately, monthly — what Full Shop is
+ * Sum of the shipped add-ons bought separately, monthly — what Max is
  * discounted against on the pricing page.
  */
 export function separatelyMonthlyCents(): number {
@@ -171,18 +175,18 @@ export function separatelyMonthlyCents(): number {
 /** The Company fields an entitlement check reads. */
 export type PlanHolder = {
   planGrants: string[];
-  /** Dispatch's paid entitlement (lib/addon.ts) — the Livery subscription, or a manual grant. */
+  /** Voice's paid entitlement (lib/addon.ts) — the Livery subscription, or a manual grant. */
   addonActiveAt?: Date | null;
 };
 
-/** Is this company on the plan — whitelisted, or (Dispatch) subscribed? */
+/** Is this company on the plan — whitelisted, or (Voice) subscribed? */
 export function hasPlan(company: PlanHolder, plan: PlanId): boolean {
   if (company.planGrants.includes(plan)) return true;
   if (plan === "DISPATCH" && company.addonActiveAt) return true;
   return false;
 }
 
-/** Shop lifts the seat cap; everything else pays per extra user. */
+/** Pro lifts the seat cap; everything else pays per extra user. */
 export function hasUnlimitedSeats(company: PlanHolder): boolean {
   return hasPlan(company, "SHOP");
 }
