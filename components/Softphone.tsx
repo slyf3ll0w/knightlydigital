@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Maximize2, Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneOff, Play, Volume2, X } from "lucide-react";
-import { nativePlatform } from "@/components/NativeShell";
+import { getCapacitor, nativePlatform } from "@/components/NativeShell";
 import { useSession } from "next-auth/react";
 import { nativeVoip } from "@/lib/native-voip";
 import { startNativeSoftphone } from "@/components/SoftphoneNativeEngine";
@@ -328,6 +328,16 @@ class LevelMeter {
   }
 }
 
+/**
+ * Android shell builds from versionCode 4 (Play 1.3, 2026-09-25) carry
+ * RECORD_AUDIO. The shell does not report its version, but that same build is
+ * the one that bundled the sign-in plugin, so the plugin's presence is the
+ * tell — the same proxy `useGoogleSignInOffered` relies on.
+ */
+function androidShellHasMicrophone(): boolean {
+  return Boolean(getCapacitor()?.Plugins?.SocialLogin);
+}
+
 /** When the browser keeps audio locked, the OS at least shows the call; clicking it brings the tab up. */
 function showIncomingNotice(label: string): Notification | null {
   if (typeof Notification === "undefined" || Notification.permission !== "granted") return null;
@@ -379,13 +389,18 @@ export default function Softphone() {
   updateSessionRef.current = updateSession;
 
   useEffect(() => {
-    // The iPhone app has a CallKit bridge; the Android shell does not (yet).
     // The iPhone app has a native calling engine (PushKit + CallKit + the
     // Telnyx iOS SDK): the page only mirrors it — see SoftphoneNativeEngine.
-    // The Android shell has no engine yet, so a phone there stays a cell.
+    // An iPhone build without the bridge stays a cell.
+    // The Android shell runs this same browser softphone, foreground only
+    // (no engine yet, so a closed app still rings the cell after the app leg
+    // times out) — but only from versionCode 4 on, which is the build that
+    // added RECORD_AUDIO to the manifest. Older installs have no microphone
+    // permission at all, and there getUserMedia can never succeed, so they
+    // keep ringing the cell instead of picking up a call they cannot answer.
     const voip = nativeVoip();
     if (voip) return startNativeSoftphone(voip, () => updateSessionRef.current);
-    if (nativePlatform()) {
+    if (nativePlatform() === "ios" || (nativePlatform() === "android" && !androidShellHasMicrophone())) {
       setSoftphoneState({ status: "off", reason: "native" });
       return;
     }
@@ -876,7 +891,12 @@ export default function Softphone() {
         }
         else if (n.type === "userMediaError") {
           console.warn("[softphone] microphone error", n.error);
-          setSoftphoneState({ error: "Microphone blocked — allow it for this site in the browser, then try again." });
+          setSoftphoneState({
+            error:
+              nativePlatform() === "android"
+                ? "Microphone blocked — allow it for WorkBench in Android Settings → Apps, then try again."
+                : "Microphone blocked — allow it for this site in the browser, then try again.",
+          });
         }
       });
       client = c;

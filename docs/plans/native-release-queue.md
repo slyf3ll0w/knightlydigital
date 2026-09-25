@@ -14,8 +14,8 @@ waiting* — not how to build.
 
 ## Picking this up cold — 2026-09-25
 
-**Google Play 1.3 (versionCode 5) was submitted for review on 2026-09-25**
-(full rollout, US, managed publishing off → live on approval). versionCode 4
+**Google Play 1.3 (versionCode 5) went LIVE on 2026-09-25** — submitted and
+approved the same afternoon (full rollout, US). versionCode 4
 was uploaded first, then discarded for a manifest fix and re-cut as 5; Play
 keeps every uploaded version code in its library, so the tree is already at
 **6** for the next upload. Day-of record: `android-1.3-release-2026-09-25.md`.
@@ -96,7 +96,7 @@ android` should report **12** for Android.
 
 | | Version | State |
 |---|---|---|
-| Google Play | versionCode 5 / 1.3 | **Submitted 2026-09-25**, in review; 3 / 1.2 live since 2026-09-14 |
+| Google Play | versionCode 5 / 1.3 | **Live since 2026-09-25** |
 | App Store | 1.2 (build 5) | Live since 2026-08-06 as "Workbench FSM" (id6789991103); **1.3 (build 12) submitted 2026-09-23** |
 
 Bump `versionCode` in `android/app/build.gradle` on every Play upload (Play
@@ -110,9 +110,16 @@ rejects reuse, even of a version that was only ever in a discarded draft;
 Shipped in versionCode 5 (2026-09-25), so no longer waiting: the WorkBench
 launcher icon + splash, the "WorkBench" home-screen label, native Google
 sign-in (`@capgo/capacitor-social-login`), `RECORD_AUDIO` +
-`MODIFY_AUDIO_SETTINGS` (with the microphone declared optional). Verify on
-a phone once the update installs — see `android-1.3-release-2026-09-25.md`
-step 6.
+`MODIFY_AUDIO_SETTINGS` (with the microphone declared optional). David
+confirmed the update on his phone the same day.
+
+**Foreground calls in the Android app — shipped as a web deploy, no build
+(2026-09-25).** `components/Softphone.tsx` now runs the browser softphone in
+the Android shell when the build carries a microphone permission
+(`androidShellHasMicrophone`: the sign-in plugin is present ⇔ versionCode ≥ 4).
+Older installs keep ringing the cell. With the app closed or backgrounded
+long enough for Android to kill it, the app leg times out and the cell
+rings — that gap is what tier 3 below closes.
 
 **Calls ringing the phone when the app is closed — Android half** (queued 2026-09-23). iOS shipped it in 1.3 (PushKit + CallKit). Android needs an FCM high-priority data message → a foreground service with a full-screen incoming-call intent (ConnectionService for the native dialer look), and `components/Softphone.tsx` gating on a matching bridge the way it does on `nativeVoip()` for iOS; server side, a second platform beside `ios-voip` in `lib/voip.ts`. Until then Android phones are cells.
 

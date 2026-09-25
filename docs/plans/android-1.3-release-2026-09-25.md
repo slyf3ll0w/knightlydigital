@@ -16,9 +16,10 @@ release 3. Four Android OAuth clients exist in Google Cloud (upload key +
 all three Play app-signing certs — Play upgraded the signing key to a
 quantum-ready pair since 2026-09-01; fingerprints in
 `native-release-queue.md`). Sign in details switched to test@testing.com.
-OPEN: Railway `ANDROID_CERT_SHA256` still lacks the two new app-signing
-SHA-256s (value in the queue doc); David's phone verification (step 6);
-lifting the Android softphone gate (step 7) once the update is on phones.
+Approved and LIVE the same afternoon; David confirmed the update on his
+phone. Railway `ANDROID_CERT_SHA256` set on prod + staging (all four
+SHA-256s served). Step 7 (Android foreground calls) shipped as a web deploy
+right after — see `native-release-queue.md`.
 
 ## Where Android stands
 
