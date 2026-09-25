@@ -399,6 +399,27 @@ since the intent filter already shipped in versionCode 3.
   main) or point `server.url` at a dev tunnel temporarily (never commit that).
 - Never run `prisma db push` without the Railway DATABASE_PUBLIC_URL pattern
   documented in CLAUDE.md; schema for push is already applied in prod.
+- **`npx cap sync android` from a git worktree** (node_modules is a junction
+  to the main checkout) rewrites every `projectDir` in
+  `android/capacitor.settings.gradle` to the junction's *real* path
+  (`../../../knightlydigital/node_modules/...`). The build works either way;
+  `git checkout -- android/capacitor.settings.gradle` before committing.
+  (2026-09-25)
+- **`RECORD_AUDIO` implies a required microphone.** Without
+  `<uses-feature android:name="android.hardware.microphone"
+  android:required="false" />` Play silently drops mic-less tablets and TVs
+  ("This release no longer supports N devices" on the review step — 20 on
+  the first 1.3 upload). Same idea as the camera line above it. (2026-09-25)
+- **Play never re-accepts a version code**, even one that only ever sat in a
+  draft you discarded ("app bundles you've already uploaded are in your
+  artifact library"). Fixing a bundle after upload = bump `versionCode`
+  and rebuild; the 1.3 release went out as 5, not 4, for this reason.
+- **Play app-signing key upgrades** (Protected with Play → App signing,
+  "Quantum-ready") add certificates without retiring the old one. Every
+  fingerprint pin — Android OAuth clients in Google Cloud, Railway
+  `ANDROID_CERT_SHA256` for assetlinks — must list ALL of them; the copy
+  buttons on that page are the source of truth (Playwright can read them
+  after `context.grantPermissions(['clipboard-read'])`).
 
 ## Password saving in the native shell (added 2026-08-01)
 
