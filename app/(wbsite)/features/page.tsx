@@ -2,13 +2,16 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { AnimateIn } from "@/components/AnimateIn";
-import WBHero from "@/components/wb/WBHero";
+import WBSplitHero, { WB_SHOTS } from "@/components/wb/WBSplitHero";
+import WBTestimonials from "@/components/wb/WBTestimonials";
+import { PLAY_STORE_URL, WB_TRADE_PHOTOS } from "@/lib/wb-site";
 import WBScribble from "@/components/wb/WBScribble";
 import WBCta from "@/components/wb/WBCta";
 import WBPhoneShowcase from "@/components/wb/WBPhoneShowcase";
 import { APP_STORE_URL, sections } from "@/lib/wb-features";
 import { PLANS } from "@/lib/plans";
 import {
+  CheckCircle2,
   ArrowRight,
   Clock4,
   Compass,
@@ -41,53 +44,50 @@ export default function WBFeaturesPage() {
   return (
     <>
       {/* ── Hero ── */}
-      <WBHero>
-          <AnimateIn className="relative">
-            <div className="absolute -bottom-2 right-0 hidden w-[13rem] flex-col items-end xl:flex" aria-hidden>
-              <p className="text-right text-[15px] font-extrabold leading-snug text-[#10244A]">
-                Skip to the part
-                <br />
-                your crew needs
-              </p>
-              <WBScribble variant="swoop" flip delay={0.6} className="mr-10 mt-1 h-[46px] w-[92px] rotate-[-8deg]" />
-            </div>
-            <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">
-              Every feature in WorkBench
-            </h1>
-            <p className="mt-6 max-w-2xl text-[17px] leading-relaxed text-gray-600">
-              WorkBench covers the whole arc of a job: winning it, running it,
-              getting paid for it, and keeping the client for the next one.
-              Nearly all of sections 01 to 04 are in Core, the free plan,
-              with full access for two users. The few marked Pro come with
-              that add-on, alongside the estimator, routes, automations, and
-              QuickBooks. Atlas, the AI assistant, gives every account free
-              tokens each month, with a larger paid allowance for heavy users.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-2.5">
-              {sections.map((s) => (
-                <a
-                  key={s.id}
-                  href={`#${s.id}`}
-                  className={`rounded-full px-4 py-2 text-[13px] font-bold transition-colors hover:opacity-80 ${s.chip}`}
-                >
-                  {s.num} · {s.title}
-                </a>
-              ))}
-              <a
-                href="#atlas"
-                className="rounded-full bg-blue-50 px-4 py-2 text-[13px] font-bold text-[#0B57D8] transition-colors hover:opacity-80"
-              >
-                05 · Atlas AI
-              </a>
-              <a
-                href="#mobile"
-                className="rounded-full bg-orange-50 px-4 py-2 text-[13px] font-bold text-[#F86A0A] transition-colors hover:opacity-80"
-              >
-                06 · Mobile
-              </a>
-            </div>
-          </AnimateIn>
-      </WBHero>
+      <WBSplitHero
+        photo={WB_TRADE_PHOTOS.electrical}
+        phone={WB_SHOTS.jobs}
+        chip={{ icon: <CheckCircle2 className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />, title: "Job #214 complete", sub: "Invoice sent from the driveway" }}
+        note={<>Real screens
+          <br />
+          from the app</>}
+      >
+        <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">
+          Every feature in WorkBench
+        </h1>
+        <p className="mx-auto mt-6 max-w-2xl lg:mx-0 text-[17px] leading-relaxed text-gray-600">
+          WorkBench covers the whole arc of a job: winning it, running it,
+          getting paid for it, and keeping the client for the next one.
+          Nearly all of sections 01 to 04 are in Core, the free plan,
+          with full access for two users. The few marked Pro come with
+          that add-on, alongside the estimator, routes, automations, and
+          QuickBooks. Atlas, the AI assistant, gives every account free
+          tokens each month, with a larger paid allowance for heavy users.
+        </p>
+        <div className="mt-8 flex flex-wrap justify-center gap-2.5 lg:justify-start">
+          {sections.map((s) => (
+            <a
+              key={s.id}
+              href={`#${s.id}`}
+              className={`rounded-full px-4 py-2 text-[13px] font-bold transition-colors hover:opacity-80 ${s.chip}`}
+            >
+              {s.num} · {s.title}
+            </a>
+          ))}
+          <a
+            href="#atlas"
+            className="rounded-full bg-blue-50 px-4 py-2 text-[13px] font-bold text-[#0B57D8] transition-colors hover:opacity-80"
+          >
+            05 · Atlas AI
+          </a>
+          <a
+            href="#mobile"
+            className="rounded-full bg-orange-50 px-4 py-2 text-[13px] font-bold text-[#F86A0A] transition-colors hover:opacity-80"
+          >
+            06 · Mobile
+          </a>
+        </div>
+      </WBSplitHero>
 
       {/* ── Feature sections ── */}
       {sections.map((section, si) => (
@@ -209,9 +209,9 @@ export default function WBFeaturesPage() {
               <h2 className="text-2xl font-extrabold sm:text-3xl">Works where the work is</h2>
             </div>
             <p className="mt-4 max-w-lg text-[15.5px] leading-relaxed text-gray-600">
-              A native iPhone app on the App Store with push notifications
-              for requests, bookings, chat, and payments — and the web app
-              runs on anything with a browser.
+              Native iPhone and Android apps with push notifications for
+              requests, bookings, chat, and payments — and the web app runs
+              on anything with a browser.
             </p>
             <ul className="mt-8 grid gap-5">
               {[
@@ -242,28 +242,22 @@ export default function WBFeaturesPage() {
                 </li>
               ))}
             </ul>
-            <a
-              href={APP_STORE_URL}
-              target="_blank"
-              rel="noopener"
-              aria-label="Download WorkBench on the App Store"
-              className="mt-8 inline-block transition-opacity hover:opacity-80"
-            >
-              <Image
-                src="/app-store-badge.svg"
-                alt="Download on the App Store"
-                width={120}
-                height={40}
-                unoptimized
-                className="h-[46px] w-auto"
-              />
-            </a>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <a href={APP_STORE_URL} target="_blank" rel="noopener" aria-label="Download WorkBench on the App Store" className="inline-block transition-opacity hover:opacity-80">
+                <Image src="/app-store-badge.svg" alt="Download on the App Store" width={120} height={40} unoptimized className="h-[44px] w-auto" />
+              </a>
+              <a href={PLAY_STORE_URL} target="_blank" rel="noopener" aria-label="Get WorkBench on Google Play" className="inline-block transition-opacity hover:opacity-80">
+                <Image src="/google-play-badge.svg" alt="Get it on Google Play" width={180} height={53} unoptimized className="h-[44px] w-auto" />
+              </a>
+            </div>
           </AnimateIn>
           <AnimateIn delay={130}>
             <WBPhoneShowcase />
           </AnimateIn>
         </div>
       </section>
+
+      <WBTestimonials />
 
       <WBCta
         title="Free to start. Add more when the crew needs it."

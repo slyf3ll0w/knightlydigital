@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { AnimateIn } from "@/components/AnimateIn";
-import WBHero from "@/components/wb/WBHero";
+import WBSplitHero from "@/components/wb/WBSplitHero";
+import WBScribble from "@/components/wb/WBScribble";
+import WBTestimonials from "@/components/wb/WBTestimonials";
+import { WB_DAY_PHOTOS } from "@/lib/wb-site";
 import ApplyForm from "@/components/ApplyForm";
 import { socialSignInFor } from "@/lib/sign-in-options";
 import { ClipboardList, ShieldCheck, Wrench } from "lucide-react";
@@ -38,22 +41,25 @@ export default async function WBApplyPage() {
   return (
     <>
       {/* ── Hero ── */}
-      <WBHero>
-          <AnimateIn>
-            <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">
-              Get started with WorkBench
-            </h1>
-            <div className="mt-6 max-w-2xl space-y-4 text-[16.5px] leading-relaxed text-gray-600">
-              <p>
-                Your account opens today — no waiting on an invite. Because
-                card and ACH payments are built into everything WorkBench
-                does, getting started has two quick verification steps built
-                in: a short application (a person reads every one) and the
-                standard payment check every processor requires.
-              </p>
-            </div>
-          </AnimateIn>
-      </WBHero>
+      <WBSplitHero
+        photo={WB_DAY_PHOTOS.morning}
+        chip={{ icon: <ShieldCheck className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />, title: "Every application", sub: "Read by a person, within a business day" }}
+      >
+        <h1 className="text-4xl font-extrabold leading-[1.08] sm:text-5xl">Get started with WorkBench</h1>
+        <p className="mx-auto mt-6 max-w-2xl text-[16.5px] leading-relaxed text-gray-600 lg:mx-0">
+          Your account opens today — no waiting on an invite. Because
+          card and ACH payments are built into everything WorkBench
+          does, getting started has two quick verification steps built
+          in: a short application (a person reads every one) and the
+          standard payment check every processor requires.
+        </p>
+        <div className="mt-6 hidden items-end gap-1 lg:flex" aria-hidden>
+          <p className="pb-2 text-[15px] font-extrabold leading-snug text-[#10244A]">Three steps,
+            <br />
+            then you are in</p>
+          <WBScribble variant="loop" delay={0.6} className="h-[60px] w-[92px] rotate-[80deg]" />
+        </div>
+      </WBSplitHero>
 
       {/* ── The three steps ── */}
       <section className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-20">
@@ -79,6 +85,8 @@ export default async function WBApplyPage() {
           <ApplyForm social={socialSignInFor(ua)} />
         </AnimateIn>
       </section>
+
+      <WBTestimonials />
     </>
   );
 }

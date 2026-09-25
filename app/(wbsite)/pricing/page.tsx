@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AnimateIn } from "@/components/AnimateIn";
-import WBHero from "@/components/wb/WBHero";
+import WBSplitHero, { WB_SHOTS } from "@/components/wb/WBSplitHero";
+import WBTestimonials from "@/components/wb/WBTestimonials";
 import WBScribble from "@/components/wb/WBScribble";
 import WBFaq from "@/components/wb/WBFaq";
 import WBPricing from "@/components/wb/WBPricing";
@@ -21,7 +22,7 @@ import {
   formatCents,
   formatUnitCents,
 } from "@/lib/plans";
-import { WB_PHONE } from "@/lib/wb-site";
+import { WB_PHONE, WB_TRADE_PHOTOS } from "@/lib/wb-site";
 
 const freeTokens = tokenCount(ATLAS_FREE_TOKENS);
 const planTokens = tokenCount(ATLAS_PLAN_TOKENS);
@@ -158,28 +159,26 @@ export default function WBPricingPage() {
   return (
     <>
       {/* ── Hero ── */}
-      <WBHero>
-          <AnimateIn className="relative">
-            <div className="absolute -bottom-16 right-4 hidden items-start gap-1 lg:flex" aria-hidden>
-              <WBScribble variant="loop" flip delay={0.6} className="mt-6 h-[62px] w-[96px] rotate-[48deg]" />
-              <p className="text-[15px] font-extrabold leading-snug text-[#10244A]">
-                Start on {FREE_PLAN_NAME}.
-                <br />
-                Add the rest later.
-              </p>
-            </div>
-            <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">
-              The core of WorkBench is free.
-            </h1>
-            <p className="mt-6 max-w-xl text-[17px] leading-relaxed text-gray-600">
-              Full access for {INCLUDED_SEATS} users, not a trial, with no card and no clock.
-              Extra users are {seatPrice} a month each.
-              Add a business phone line, unlimited users with the ops tools, or job photos
-              only when you want them, from {formatCents(dispatch.monthlyCents)} a month.
-              Payment processing at one flat rate funds the rest.
-            </p>
-          </AnimateIn>
-      </WBHero>
+      <WBSplitHero
+        photo={WB_TRADE_PHOTOS.cleaning}
+        phone={WB_SHOTS.insights}
+        chip={{ icon: <HandCoins className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />, title: "$0 a month on " + FREE_PLAN_NAME, sub: `Full access for ${INCLUDED_SEATS} users` }}
+      >
+        <h1 className="text-4xl font-extrabold leading-[1.08] sm:text-5xl">The core of WorkBench is free.</h1>
+        <p className="mx-auto mt-6 max-w-xl text-[17px] leading-relaxed text-gray-600 lg:mx-0">
+          Full access for {INCLUDED_SEATS} users, not a trial, with no card and no clock.
+          Extra users are {seatPrice} a month each.
+          Add a business phone line, unlimited users with the ops tools, or job photos
+          only when you want them, from {formatCents(dispatch.monthlyCents)} a month.
+          Payment processing at one flat rate funds the rest.
+        </p>
+        <div className="mt-6 hidden items-end gap-1 lg:flex" aria-hidden>
+          <p className="pb-2 text-[15px] font-extrabold leading-snug text-[#10244A]">Start on {FREE_PLAN_NAME}.
+            <br />
+            Add the rest later.</p>
+          <WBScribble variant="loop" delay={0.6} className="h-[60px] w-[92px] rotate-[80deg]" />
+        </div>
+      </WBSplitHero>
 
       {/* ── The plans ── */}
       <section className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-16">
@@ -386,6 +385,8 @@ export default function WBPricingPage() {
           </div>
         </div>
       </section>
+
+      <WBTestimonials />
 
       {/* ── FAQ ── */}
       <section className="border-t border-gray-200 bg-white">

@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Clock4, Mail, MessageSquare, Phone } from "lucide-react";
 import WBCta from "@/components/wb/WBCta";
-import WBHero from "@/components/wb/WBHero";
+import WBSplitHero from "@/components/wb/WBSplitHero";
 import WBScribble from "@/components/wb/WBScribble";
-import { WB_EMAIL, WB_EMAIL_HREF, WB_PHONE } from "@/lib/wb-site";
+import { WB_DAY_PHOTOS, WB_EMAIL, WB_EMAIL_HREF, WB_PHONE } from "@/lib/wb-site";
 
 export const metadata: Metadata = {
   title: "Contact — WorkBench",
@@ -14,27 +14,24 @@ export const metadata: Metadata = {
 export default function WBContactPage() {
   return (
     <>
-      <WBHero>
-        <div className="relative">
-          <div className="absolute -bottom-20 left-[22%] hidden items-end gap-1 md:flex" aria-hidden>
-            <WBScribble variant="swoop" flip delay={0.5} className="h-[56px] w-[104px] rotate-[-30deg]" />
-            <p className="pb-6 text-[15px] font-extrabold leading-snug text-[#10244A]">
-              Yes, a real person
-              <br />
-              picks up.
-            </p>
-          </div>
-          <p className="wb-label">Contact</p>
-          <h1 className="mt-3 max-w-2xl text-4xl font-extrabold leading-[1.1] sm:text-5xl">
-            Talk to a person.
-          </h1>
-          <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-gray-600">
-            Questions about how WorkBench works, what it costs, or whether it fits
-            your trade. Call or email and you reach the people who build and
-            support it.
-          </p>
+      <WBSplitHero
+        photo={WB_DAY_PHOTOS.paid}
+        chip={{ icon: <Phone className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />, title: WB_PHONE.display, sub: "Toll-free. A person answers." }}
+      >
+        <p className="wb-label justify-center lg:justify-start">Contact</p>
+        <h1 className="mt-3 text-4xl font-extrabold leading-[1.1] sm:text-5xl">Talk to a person.</h1>
+        <p className="mx-auto mt-5 max-w-2xl text-[17px] leading-relaxed text-gray-600 lg:mx-0">
+          Questions about how WorkBench works, what it costs, or whether it fits
+          your trade. Call or email and you reach the people who build and
+          support it.
+        </p>
+        <div className="mt-6 hidden items-end gap-1 lg:flex" aria-hidden>
+          <p className="pb-2 text-[15px] font-extrabold leading-snug text-[#10244A]">Yes, a real person
+            <br />
+            picks up.</p>
+          <WBScribble variant="loop" delay={0.6} className="h-[60px] w-[92px] rotate-[80deg]" />
         </div>
-      </WBHero>
+      </WBSplitHero>
 
       <section className="bg-[#F6F8FB]">
         <div className="mx-auto grid max-w-6xl gap-6 px-5 py-14 sm:px-8 sm:py-16 md:grid-cols-3">

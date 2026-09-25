@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
+import { Clock } from "lucide-react";
+import { WB_SHOTS } from "@/components/wb/WBSplitHero";
+import { WB_TRADE_PHOTOS } from "@/lib/wb-site";
 import { pickFeatures } from "@/lib/wb-features";
 
 export const metadata: Metadata = {
@@ -65,6 +68,9 @@ export default function TimeTrackingPage() {
         </>
       }
       intro="Techs clock in and out right on the job. Weekly timesheets roll up per person, managers can fix a forgotten clock-out, and every logged hour becomes real labor cost on that job's margin — not a guess at the end of the month."
+      photo={WB_TRADE_PHOTOS.roofing}
+      phone={WB_SHOTS.timeclock}
+      chip={{ icon: <Clock className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />, title: "Clocked in · 8:02 AM", sub: "Roof repair, Elm St" }}
       screenshot={{
         src: "/screens/mobile-timeclock.png",
         alt: "WorkBench job screen with a built-in time clock",

@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
+import { FileSignature } from "lucide-react";
+import { WB_SHOTS } from "@/components/wb/WBSplitHero";
+import { WB_PHOTOS } from "@/lib/wb-site";
 import { pickFeatures } from "@/lib/wb-features";
 
 export const metadata: Metadata = {
@@ -73,6 +76,9 @@ export default function QuotesAndInvoicingPage() {
         </>
       }
       intro="Quotes go out with e-signature, optional add-ons, and a deposit option — and get a friendly automatic nudge if they sit unanswered. Accepted quotes convert to jobs in one click, and finished jobs invoice in one click too, pulling every price from the same price book."
+      photo={WB_PHOTOS.trades}
+      phone={WB_SHOTS.quotes}
+      chip={{ icon: <FileSignature className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />, title: "Quote #4 approved", sub: "Signed on a phone · 2:14 PM" }}
       screenshot={{
         src: "/screens/desktop-quotes.jpg",
         alt: "A WorkBench quote with line items, awaiting client approval",
