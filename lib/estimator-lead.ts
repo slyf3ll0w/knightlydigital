@@ -1,3 +1,4 @@
+import { offersSmsConsent } from "@/lib/sms-consent";
 import { randomBytes } from "crypto";
 import { prisma } from "./db";
 import { nextQuoteNumber, withDocNumberRetry } from "./doc-numbers";
@@ -75,7 +76,8 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
         phone: customer.phone || null,
         address: customer.address || null,
         notes: null,
-        smsConsent: customer.phone ? customer.smsConsent === true : undefined,
+        // No business line = no checkbox was shown: record nothing (offersSmsConsent)
+        smsConsent: customer.phone && offersSmsConsent(company) ? customer.smsConsent === true : undefined,
         leadSource: src ? `Website estimate · ${src}` : "Website estimate",
       });
 

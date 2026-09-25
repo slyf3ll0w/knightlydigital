@@ -47,6 +47,7 @@ export default function PublicEstimateForm({
   intro,
   appearance,
   businessName,
+  offerSms = true,
   showHeader = false,
   preview = false,
   photoAssist = false,
@@ -62,6 +63,8 @@ export default function PublicEstimateForm({
   intro: string;
   appearance: ScheduleAppearance;
   businessName: string;
+  /** Show the SMS consent checkbox — only when the business has its own line (offersSmsConsent). */
+  offerSms?: boolean;
   /** Embeds have no page frame — render the heading inside the card */
   showHeader?: boolean;
   /** Owner preview — the estimate computes, nothing submits */
@@ -305,7 +308,7 @@ export default function PublicEstimateForm({
       const res = await fetch(apiBase, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inputs: values, ...form, smsConsent, captchaToken, website: honeypot, elapsedMs: Date.now() - startedAt, page, src: src || undefined, usedPhoto }),
+        body: JSON.stringify({ inputs: values, ...form, smsConsent: offerSms ? smsConsent : undefined, captchaToken, website: honeypot, elapsedMs: Date.now() - startedAt, page, src: src || undefined, usedPhoto }),
       });
       const data = (await res.json().catch(() => null)) as { success?: boolean; estimate?: PublicEstimate; error?: string } | null;
       if (!res.ok) {
@@ -568,9 +571,9 @@ export default function PublicEstimateForm({
             )}
           </div>
         )}
-        {f.phone.show && (
-          <label className={`flex items-start gap-2.5 text-[13px] leading-snug ${dark ? "text-gray-300" : "text-gray-600"}`}>
-            <input type="checkbox" checked={smsConsent} onChange={(e) => setSmsConsent(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 rounded" style={{ accentColor: accent }} />
+        {f.phone.show && offerSms && (
+          <label className={`flex items-start gap-2 text-[11px] leading-snug ${dark ? "text-gray-400" : "text-gray-500"}`}>
+            <input type="checkbox" checked={smsConsent} onChange={(e) => setSmsConsent(e.target.checked)} className="mt-px h-3.5 w-3.5 shrink-0 rounded" style={{ accentColor: accent }} />
             <span>
               {smsConsentLabel(businessName || "this business")}{" "}
               <a href={businessSmsTermsUrl(companySlug)} target="_blank" rel="noreferrer" className="underline">
@@ -667,9 +670,9 @@ export default function PublicEstimateForm({
           )}
         </div>
       )}
-      {askPhone && (
-        <label className={`flex items-start gap-2.5 text-[13px] leading-snug ${dark ? "text-gray-300" : "text-gray-600"}`}>
-          <input type="checkbox" checked={smsConsent} onChange={(e) => setSmsConsent(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 rounded" style={{ accentColor: accent }} />
+      {askPhone && offerSms && (
+        <label className={`flex items-start gap-2 text-[11px] leading-snug ${dark ? "text-gray-400" : "text-gray-500"}`}>
+          <input type="checkbox" checked={smsConsent} onChange={(e) => setSmsConsent(e.target.checked)} className="mt-px h-3.5 w-3.5 shrink-0 rounded" style={{ accentColor: accent }} />
           <span>
             {smsConsentLabel(businessName || "this business")}{" "}
             <a href={businessSmsTermsUrl(companySlug)} target="_blank" rel="noreferrer" className="underline">

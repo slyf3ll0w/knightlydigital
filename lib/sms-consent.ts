@@ -17,6 +17,19 @@
  * there was one; it is not required to text.
  */
 
+import { isRealLineNumber } from "@/lib/business-line-shared";
+
+/**
+ * Does this business's booking form offer the text-message checkbox? Only
+ * when it has its own business line to text from (a registration in review
+ * counts — the carriers' reviewer must see the box). Without a line nothing
+ * can be texted, so asking would be a promise it can't keep; and a box that
+ * was never shown must not be recorded as "declined" either.
+ */
+export function offersSmsConsent(company: { lineNumber?: string | null }): boolean {
+  return isRealLineNumber(company.lineNumber);
+}
+
 export const SMS_TERMS_URL = "https://workbenchfsm.com/sms-terms";
 
 export const PRIVACY_URL = "https://workbenchfsm.com/privacy";

@@ -7,6 +7,7 @@ import { resolvePublicEstimator } from "@/lib/estimator-server";
 import { defaultButtonLabel, publicInputs } from "@/lib/estimator-public";
 import { appearanceFor, type AppearanceOverrides } from "../schedule/shell";
 import ScheduleFrame from "../schedule/ScheduleFrame";
+import { offersSmsConsent } from "@/lib/sms-consent";
 import EmbedScheduleShell from "@/app/embed/[slug]/schedule/EmbedScheduleShell";
 import EmbedAutoResize from "@/app/embed/[slug]/EmbedAutoResize";
 import PublicEstimateForm from "@/components/PublicEstimateForm";
@@ -67,6 +68,7 @@ export default async function EstimateView({
       intro={intro}
       appearance={appearance}
       businessName={company.name}
+      offerSms={offersSmsConsent(company)}
       showHeader={embed}
       preview={previewing}
       photoAssist={config.photoAssist && Boolean(spec.assist)}

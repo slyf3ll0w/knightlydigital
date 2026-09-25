@@ -12,6 +12,7 @@ import { derivedQuoteDeposit } from "@/lib/statuses";
 import { enterPipeline, autoAdvance, firePipelineMoves, type PipelineMove } from "@/lib/pipeline";
 import { fireAutomations } from "@/lib/automations-server";
 import { nextQuoteNumber, withDocNumberRetry } from "@/lib/doc-numbers";
+import { offersSmsConsent } from "@/lib/sms-consent";
 import { listPublicBookingTypes, menuTypes, resolvePublicBookingType, toPublicBookingType } from "@/lib/booking-runtime";
 import { validateAnswers } from "@/lib/booking-answers";
 import { hubSubmitter } from "@/lib/hub-form";
@@ -77,8 +78,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   // The SMS checkbox (shown whenever the form asks for a phone) is unchecked
   // by default. Ticked = explicit opt-in; left blank on a form that asked =
   // the client declined, which only matters when this form creates them.
-  const smsConsent = body.smsConsent === true && Boolean(phone);
-  const smsDeclined = intake.fields.phone.show && Boolean(phone) && !smsConsent;
+  // No business line = no checkbox was shown: neither a yes nor a "declined" (offersSmsConsent).
+  const offered = offersSmsConsent(company);
+  const smsConsent = offered && body.smsConsent === true && Boolean(phone);
+  const smsDeclined = offered && intake.fields.phone.show && Boolean(phone) && !smsConsent;
   const address = (intake.fields.address.show ? str(body.address, 300) : "") || hubContact?.address || "";
   const preferredDate = intake.fields.date.show ? str(body.preferredDate, 10) : "";
   const message = intake.message.show ? str(body.message, 5000) : "";

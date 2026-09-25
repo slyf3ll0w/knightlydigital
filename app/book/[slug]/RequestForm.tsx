@@ -27,6 +27,7 @@ export default function RequestForm({
   hub = null,
   doneHref = "",
   businessName = "",
+  offerSms = true,
 }: {
   companySlug: string;
   item: PublicBookingType;
@@ -43,6 +44,8 @@ export default function RequestForm({
   doneHref?: string;
   /** Names the business in the SMS consent checkbox ("...from Acme Plumbing via WorkBench") */
   businessName?: string;
+  /** Show the SMS consent checkbox — only when the business has its own line (offersSmsConsent). */
+  offerSms?: boolean;
 }) {
   const { dark, accent, transparent } = appearance;
   const intake = item.intake;
@@ -112,7 +115,7 @@ export default function RequestForm({
           custom,
           selectedServices,
           captchaToken,
-          smsConsent,
+          smsConsent: offerSms ? smsConsent : undefined,
           hubToken: hub?.token,
           website: honeypot,
           elapsedMs: Date.now() - startedAt,
@@ -282,9 +285,9 @@ export default function RequestForm({
           )}
         </div>
       )}
-      {askPhone && (
-        <label className={`flex items-start gap-2.5 text-[13px] leading-snug ${dark ? "text-gray-300" : "text-gray-600"}`}>
-          <input type="checkbox" checked={smsConsent} onChange={(e) => setSmsConsent(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 rounded" style={{ accentColor: accent }} />
+      {askPhone && offerSms && (
+        <label className={`flex items-start gap-2 text-[11px] leading-snug ${dark ? "text-gray-400" : "text-gray-500"}`}>
+          <input type="checkbox" checked={smsConsent} onChange={(e) => setSmsConsent(e.target.checked)} className="mt-px h-3.5 w-3.5 shrink-0 rounded" style={{ accentColor: accent }} />
           <span>
             {smsConsentLabel(businessName || "this business")}{" "}
             <a href={businessSmsTermsUrl(companySlug)} target="_blank" rel="noreferrer" className="underline">

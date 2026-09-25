@@ -4,6 +4,7 @@ import { bookingPaymentConfig } from "@/lib/booking-payment-config";
 import { decodePrefill } from "@/lib/booking-prefill";
 import type { AppearanceOverrides } from "./schedule/shell";
 import ScheduleFrame from "./schedule/ScheduleFrame";
+import { offersSmsConsent } from "@/lib/sms-consent";
 import BookingStepper from "./schedule/[type]/BookingStepper";
 import RequestForm from "./RequestForm";
 import EmbedScheduleShell from "@/app/embed/[slug]/schedule/EmbedScheduleShell";
@@ -52,7 +53,7 @@ export default async function ItemView({
     <BookingStepper
       companySlug={companySlug}
       type={pub}
-      company={{ name: company.name, timezone: company.timezone, phone: company.phone, email: company.email, menuHref }}
+      company={{ name: company.name, timezone: company.timezone, phone: company.phone, email: company.email, menuHref, offerSms: offersSmsConsent(company) }}
       appearance={appearance}
       payment={bookingPaymentConfig(type, company)}
       hostedUrl={`${APP_URL}/book/${companySlug}/${pub.slug}`}
@@ -69,6 +70,7 @@ export default async function ItemView({
       initialService={typeof searchParams.service === "string" ? searchParams.service.slice(0, 120) : ""}
       preview={previewing}
       businessName={company.name}
+      offerSms={offersSmsConsent(company)}
     />
   );
 

@@ -88,7 +88,7 @@ export default function BookingStepper({
 }: {
   companySlug: string;
   type: PublicBookingType;
-  company: { name: string; timezone: string; phone: string | null; email: string | null; menuHref: string };
+  company: { name: string; timezone: string; phone: string | null; email: string | null; menuHref: string; offerSms?: boolean };
   appearance: ScheduleAppearance;
   embed?: boolean;
   /** Card processing for paid service types; finix null = payments not live. */
@@ -313,7 +313,7 @@ export default function BookingStepper({
           paymentToken,
           fraudSessionId,
           captchaToken,
-          smsConsent,
+          smsConsent: company.offerSms === false ? undefined : smsConsent,
           hubToken: hub?.token,
           website: honeypot,
           elapsedMs: Date.now() - startedAt,
@@ -685,9 +685,9 @@ export default function BookingStepper({
               )}
             </div>
             )}
-            {askPhone && (
-              <label className={`flex items-start gap-2.5 text-[13px] leading-snug ${dark ? "text-gray-300" : "text-gray-600"}`}>
-                <input type="checkbox" checked={smsConsent} onChange={(e) => setSmsConsent(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 rounded" style={{ accentColor: accent }} />
+            {askPhone && company.offerSms !== false && (
+              <label className={`flex items-start gap-2 text-[11px] leading-snug ${dark ? "text-gray-400" : "text-gray-500"}`}>
+                <input type="checkbox" checked={smsConsent} onChange={(e) => setSmsConsent(e.target.checked)} className="mt-px h-3.5 w-3.5 shrink-0 rounded" style={{ accentColor: accent }} />
                 <span>
                   {smsConsentLabel(company.name)}{" "}
                   <a href={businessSmsTermsUrl(companySlug)} target="_blank" rel="noreferrer" className="underline">

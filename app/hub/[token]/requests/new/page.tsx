@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { offersSmsConsent } from "@/lib/sms-consent";
 import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { bookingPaymentConfig } from "@/lib/booking-payment-config";
@@ -75,7 +76,7 @@ export default async function HubNewRequestPage({
         <BookingStepper
           companySlug={company.slug}
           type={pub}
-          company={{ name: company.name, timezone: company.timezone, phone: company.phone, email: company.email, menuHref: "" }}
+          company={{ name: company.name, timezone: company.timezone, phone: company.phone, email: company.email, menuHref: "", offerSms: offersSmsConsent(company) }}
           appearance={appearance}
           payment={bookingPaymentConfig(type, company)}
           hostedUrl={`${APP_URL}/book/${company.slug}/${pub.slug}`}
@@ -83,7 +84,7 @@ export default async function HubNewRequestPage({
           hub={{ token }}
         />
       ) : (
-        <RequestForm companySlug={company.slug} item={pub} appearance={appearance} hub={{ token, contact: person }} doneHref={`${base}/requests`} businessName={company.name} />
+        <RequestForm companySlug={company.slug} item={pub} appearance={appearance} hub={{ token, contact: person }} doneHref={`${base}/requests`} businessName={company.name} offerSms={offersSmsConsent(company)} />
       )}
     </div>
   );
