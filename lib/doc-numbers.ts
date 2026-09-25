@@ -35,6 +35,31 @@ function isDocNumberClash(e: unknown): boolean {
   return NUMBER_FIELDS.some((field) => haystack.includes(field));
 }
 
+type NumberClient = Pick<Prisma.TransactionClient, "company" | "quote" | "invoice">;
+
+/** Highest starting number a company can pick — well inside Postgres int. */
+export const MAX_DOC_NUMBER_START = 99_999_999;
+
+/**
+ * Next quote / invoice number for a company: one past its highest, but never
+ * below the company's chosen starting number (Settings → Payments), so a new
+ * shop can continue its old numbering. Raising the start later jumps ahead;
+ * lowering it below what's been used is harmless — numbers never go back.
+ */
+export async function nextQuoteNumber(db: NumberClient, companyId: string): Promise<number> {
+  // Sequential, not Promise.all: callers pass an interactive transaction.
+  const last = await db.quote.findFirst({ where: { companyId }, orderBy: { quoteNumber: "desc" }, select: { quoteNumber: true } });
+  const company = await db.company.findUnique({ where: { id: companyId }, select: { quoteNumberStart: true } });
+  return Math.max((last?.quoteNumber ?? 0) + 1, company?.quoteNumberStart ?? 1);
+}
+
+export async function nextInvoiceNumber(db: NumberClient, companyId: string): Promise<number> {
+  // Sequential, not Promise.all: callers pass an interactive transaction.
+  const last = await db.invoice.findFirst({ where: { companyId }, orderBy: { invoiceNumber: "desc" }, select: { invoiceNumber: true } });
+  const company = await db.company.findUnique({ where: { id: companyId }, select: { invoiceNumberStart: true } });
+  return Math.max((last?.invoiceNumber ?? 0) + 1, company?.invoiceNumberStart ?? 1);
+}
+
 export async function withDocNumberRetry<T>(fn: () => Promise<T>, attempts = 4): Promise<T> {
   let lastError: unknown;
   for (let i = 0; i < attempts; i++) {

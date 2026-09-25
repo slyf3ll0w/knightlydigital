@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, viaContactScope } from "@/lib/permissions";
-import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { nextQuoteNumber, withDocNumberRetry } from "@/lib/doc-numbers";
 
 /**
  * POST — duplicate a quote into a fresh DRAFT: same client, line items,
@@ -27,16 +27,12 @@ export async function POST(
 
   const created = await withDocNumberRetry(() =>
     prisma.$transaction(async (tx) => {
-      const last = await tx.quote.findFirst({
-        where: { companyId },
-        orderBy: { quoteNumber: "desc" },
-        select: { quoteNumber: true },
-      });
+      const quoteNumber = await nextQuoteNumber(tx, companyId);
       return tx.quote.create({
         data: {
           companyId,
           contactId: source.contactId,
-          quoteNumber: (last?.quoteNumber ?? 0) + 1,
+          quoteNumber,
           title: source.title,
           status: "DRAFT",
           subtotal: source.subtotal,

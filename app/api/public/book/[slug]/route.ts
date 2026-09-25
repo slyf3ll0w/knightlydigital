@@ -11,7 +11,7 @@ import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
 import { derivedQuoteDeposit } from "@/lib/statuses";
 import { enterPipeline, autoAdvance, firePipelineMoves, type PipelineMove } from "@/lib/pipeline";
 import { fireAutomations } from "@/lib/automations-server";
-import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { nextQuoteNumber, withDocNumberRetry } from "@/lib/doc-numbers";
 import { listPublicBookingTypes, menuTypes, resolvePublicBookingType, toPublicBookingType } from "@/lib/booking-runtime";
 import { validateAnswers } from "@/lib/booking-answers";
 import { hubSubmitter } from "@/lib/hub-form";
@@ -192,14 +192,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
           subtotal,
           { depositType: company.defaultDepositType, depositValue: company.defaultDepositValue }
         );
-        const lastQuote = await tx.quote.findFirst({ where: { companyId: company.id }, orderBy: { quoteNumber: "desc" } });
+        const quoteNumber = await nextQuoteNumber(tx, company.id);
         const send = intake.quoteMode === "send";
         const created = await tx.quote.create({
           data: {
             companyId: company.id,
             contactId: contact.id,
             publicToken: randomBytes(24).toString("hex"),
-            quoteNumber: (lastQuote?.quoteNumber ?? 0) + 1,
+            quoteNumber,
             title: requestTitle,
             status: send ? "AWAITING_RESPONSE" : "DRAFT",
             subtotal,

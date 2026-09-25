@@ -1,6 +1,6 @@
 import { randomBytes } from "crypto";
 import { prisma } from "./db";
-import { withDocNumberRetry } from "./doc-numbers";
+import { nextQuoteNumber, withDocNumberRetry } from "./doc-numbers";
 import { upsertBookingContact } from "./booking-submit";
 import { enterPipeline, autoAdvance, firePipelineMoves, type PipelineMove } from "./pipeline";
 import { fireAutomations } from "./automations-server";
@@ -102,14 +102,14 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
           subtotal,
           { depositType: company.defaultDepositType, depositValue: company.defaultDepositValue }
         );
-        const lastQuote = await tx.quote.findFirst({ where: { companyId: company.id }, orderBy: { quoteNumber: "desc" }, select: { quoteNumber: true } });
+        const quoteNumber = await nextQuoteNumber(tx, company.id);
         const created = await tx.quote.create({
           data: {
             companyId: company.id,
             contactId: contact.id,
             estimatorId: row.id,
             publicToken: randomBytes(24).toString("hex"),
-            quoteNumber: (lastQuote?.quoteNumber ?? 0) + 1,
+            quoteNumber,
             title,
             status: send ? "AWAITING_RESPONSE" : "DRAFT",
             subtotal,

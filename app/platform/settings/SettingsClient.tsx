@@ -81,6 +81,7 @@ type Company = {
   defaultDepositType: "NONE" | "PERCENT" | "FIXED" | "FULL";
   defaultDepositValue: string | number | null;
   defaultTaxRate: string | number | null;
+  quoteNumberStart: number; invoiceNumberStart: number;
   reviewLink: string | null; industry: string | null;
   onMyWayTemplate: string | null;
   timezone: string;
@@ -903,12 +904,15 @@ export default function SettingsClient({
   initialSection,
   signInMethods,
   line = null,
+  lastNumbers = { quote: 0, invoice: 0 },
 }: {
   company: Company;
   isOwner?: boolean;
   initialSection?: string;
   /** Business line state (lib/business-line.ts); null when Telnyx isn't configured on this server. */
   line?: LineSummary | null;
+  /** Highest quote / invoice number used so far (Numbering card). */
+  lastNumbers?: { quote: number; invoice: number };
   /** How the signed-in person can verify it's them (account deletion). */
   signInMethods: SignInMethods;
 }) {
@@ -966,6 +970,8 @@ export default function SettingsClient({
       company.defaultTaxRate != null
         ? String(Math.round(Number(company.defaultTaxRate) * 100000) / 1000)
         : "",
+    quoteNumberStart: String(company.quoteNumberStart ?? 1),
+    invoiceNumberStart: String(company.invoiceNumberStart ?? 1),
     reviewLink: company.reviewLink ?? "",
     onMyWayTemplate: company.onMyWayTemplate ?? "",
     timezone: company.timezone ?? "America/Chicago",
@@ -1103,6 +1109,14 @@ export default function SettingsClient({
       payload.defaultTaxRate = form.defaultTaxRate
         ? parseFloat(form.defaultTaxRate) / 100
         : null;
+    }
+    // Whole numbers only; a blank or half-typed box waits instead of saving
+    for (const f of ["quoteNumberStart", "invoiceNumberStart"] as const) {
+      if (f in payload) {
+        const n = Number(form[f]);
+        if (form[f].trim() && Number.isInteger(n) && n >= 1) payload[f] = n;
+        else delete payload[f];
+      }
     }
     // Stored as a JSON string in the form (string diffing) — the API wants
     // the object
@@ -1935,6 +1949,40 @@ export default function SettingsClient({
               <span className="text-sm text-gray-500">%</span>
             </div>
             <p className="text-xs text-gray-500 mt-1">Leave blank if you don&apos;t charge sales tax.</p>
+          </div>
+        </div>
+        )}
+
+        {/* Starting quote / invoice numbers (lib/doc-numbers.ts) */}
+        {show("payments") && (
+        <div className="card-ledger p-5 space-y-4">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-700">Numbering</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Coming from another system? Pick up where your old quote and invoice numbers left off.
+              Numbers only ever go up — existing quotes and invoices keep theirs.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {([
+              ["quoteNumberStart", "Quotes start at", lastNumbers.quote],
+              ["invoiceNumberStart", "Invoices start at", lastNumbers.invoice],
+            ] as const).map(([field, label, last]) => {
+              const start = Number(form[field]);
+              const next = Math.max(last + 1, Number.isInteger(start) && start >= 1 ? start : 1);
+              return (
+                <div key={field}>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+                  <Input type="number" inputMode="numeric" min="1" step="1" value={form[field]}
+                    onChange={(e) => set(field, e.target.value)}
+                    placeholder="1" className="w-36 focus:ring-2" />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Next one will be #{next}
+                    {last + 1 > start && start > 1 ? ` (you've already used #${last})` : ""}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
         )}

@@ -32,7 +32,7 @@ import { resolveCrew } from "@/lib/job-crew";
 import { attemptAutoCharge } from "@/lib/auto-charge";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
 import { localDayParts, wallTimeToUtc } from "@/lib/booking-engine";
-import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { nextInvoiceNumber, withDocNumberRetry } from "@/lib/doc-numbers";
 import { dueDateFromTerms } from "@/lib/due-dates";
 import { findScheduleConflicts } from "@/lib/schedule-conflicts";
 import { fireAutomations } from "@/lib/automations-server";
@@ -323,11 +323,7 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
     }
 
     const send = sub.invoiceMode === "SEND";
-    const lastInv = await tx.invoice.findFirst({
-      where: { companyId: sub.companyId },
-      orderBy: { invoiceNumber: "desc" },
-      select: { invoiceNumber: true },
-    });
+    const invoiceNumber = await nextInvoiceNumber(tx, sub.companyId);
     const money = await applyCompanyTax(tx, sub.companyId, lineTotal);
     const dueDate = dueDateFromTerms(now, sub.contact.paymentTermsDays);
     const invoice = await tx.invoice.create({
@@ -336,7 +332,7 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
         publicToken: randomBytes(24).toString("hex"),
         contactId: sub.contactId,
         subscriptionId: sub.id,
-        invoiceNumber: (lastInv?.invoiceNumber ?? 0) + 1,
+        invoiceNumber,
         subject: sub.name,
         status: send ? "AWAITING_PAYMENT" : "DRAFT",
         subtotal: lineTotal,
@@ -438,11 +434,7 @@ export async function billCompletedVisit(
     });
     if (!fresh || fresh.invoice || fresh.consolidatedInvoiceId) return null;
 
-    const lastInv = await tx.invoice.findFirst({
-      where: { companyId },
-      orderBy: { invoiceNumber: "desc" },
-      select: { invoiceNumber: true },
-    });
+    const invoiceNumber = await nextInvoiceNumber(tx, companyId);
     const money = await applyCompanyTax(tx, companyId, lineTotal);
     const invoice = await tx.invoice.create({
       data: {
@@ -451,7 +443,7 @@ export async function billCompletedVisit(
         contactId: sub.contactId,
         jobId: job.id,
         subscriptionId: sub.id,
-        invoiceNumber: (lastInv?.invoiceNumber ?? 0) + 1,
+        invoiceNumber,
         subject: sub.name,
         status: send ? "AWAITING_PAYMENT" : "DRAFT",
         subtotal: lineTotal,
@@ -565,11 +557,7 @@ async function billSeriesPool(
       });
       if (visits.length === 0) return null;
 
-      const lastInv = await tx.invoice.findFirst({
-        where: { companyId: sub.companyId },
-        orderBy: { invoiceNumber: "desc" },
-        select: { invoiceNumber: true },
-      });
+      const invoiceNumber = await nextInvoiceNumber(tx, sub.companyId);
       // Minted empty first: the invoice's id is the claim token for its
       // visits, and only claimed visits become lines.
       const invoice = await tx.invoice.create({
@@ -578,7 +566,7 @@ async function billSeriesPool(
           publicToken: randomBytes(24).toString("hex"),
           contactId: sub.contactId,
           subscriptionId: sub.id,
-          invoiceNumber: (lastInv?.invoiceNumber ?? 0) + 1,
+          invoiceNumber,
           subject: sub.name,
           status: send ? "AWAITING_PAYMENT" : "DRAFT",
           subtotal: 0,

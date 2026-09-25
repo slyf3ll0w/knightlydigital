@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
-import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { nextInvoiceNumber, withDocNumberRetry } from "@/lib/doc-numbers";
 
 /**
  * POST — duplicate an invoice into a fresh DRAFT: same client, line items,
@@ -31,17 +31,13 @@ export async function POST(
 
   const created = await withDocNumberRetry(() =>
     prisma.$transaction(async (tx) => {
-      const last = await tx.invoice.findFirst({
-        where: { companyId },
-        orderBy: { invoiceNumber: "desc" },
-        select: { invoiceNumber: true },
-      });
+      const invoiceNumber = await nextInvoiceNumber(tx, companyId);
       return tx.invoice.create({
         data: {
           companyId,
           contactId: source.contactId,
           publicToken: randomBytes(24).toString("hex"),
-          invoiceNumber: (last?.invoiceNumber ?? 0) + 1,
+          invoiceNumber,
           kind: "STANDARD",
           subject: source.subject,
           status: "DRAFT",

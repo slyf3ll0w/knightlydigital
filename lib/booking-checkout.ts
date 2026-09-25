@@ -14,7 +14,7 @@ import { derivedQuoteDeposit } from "@/lib/statuses";
 import { createDepositInvoice } from "@/lib/deposits";
 import { convertQuoteToJob } from "@/lib/quote-convert";
 import { enterPipeline, autoAdvance, recordLeadWin, firePipelineMoves, type PipelineMove } from "@/lib/pipeline";
-import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { nextQuoteNumber, withDocNumberRetry } from "@/lib/doc-numbers";
 import { acquireChargeLock, calculateSurcharge, findUnrecordedTransferForInvoice, getProcessor, recordPayment, releaseChargeLock, type ChargeResult } from "@/lib/payments";
 import { sendEmail, bookingConfirmedEmail, bookingTeamNoticeEmail } from "@/lib/email";
 import { companyNotifyAddress } from "@/lib/notify";
@@ -132,14 +132,14 @@ export async function createServiceBooking(params: {
             moves.push(await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED"));
           }
 
-          const lastQuote = await tx.quote.findFirst({ where: { companyId: company.id }, orderBy: { quoteNumber: "desc" }, select: { quoteNumber: true } });
+          const quoteNumber = await nextQuoteNumber(tx, company.id);
           const quote = await tx.quote.create({
             data: {
               companyId: company.id,
               contactId: contact.id,
               requestId: request.id,
               publicToken: randomBytes(24).toString("hex"),
-              quoteNumber: (lastQuote?.quoteNumber ?? 0) + 1,
+              quoteNumber,
               title,
               status: "APPROVED",
               approvedAt: now,

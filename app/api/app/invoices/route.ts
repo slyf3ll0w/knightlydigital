@@ -11,7 +11,7 @@ import { dueDateFromTerms } from "@/lib/due-dates";
 import { intQuantity, unitPriceValue, resolveLineItemCosts } from "@/lib/work-items";
 import { computeQuoteTotals } from "@/lib/quote-totals";
 import { inPreview, previewBlockedError } from "@/lib/preview";
-import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { nextInvoiceNumber, withDocNumberRetry } from "@/lib/doc-numbers";
 
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -158,10 +158,7 @@ export async function POST(req: NextRequest) {
   // Wrapped so a concurrent invoice create in the same company re-derives the
   // number instead of 500ing and losing everything the user typed.
   const { invoice, archivedJob, leadMove, subscriptionIds } = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
-    const last = await tx.invoice.findFirst({
-      where: { companyId },
-      orderBy: { invoiceNumber: "desc" },
-    });
+    const invoiceNumber = await nextInvoiceNumber(tx, companyId);
 
     // A final invoice for a job nets any deposit already paid on the job's quote,
     // so the client isn't billed twice. `total` is stored net; depositApplied
@@ -208,7 +205,7 @@ export async function POST(req: NextRequest) {
         contactId: contactId || null,
         jobId: jobId || null,
         publicToken: randomBytes(24).toString("hex"),
-        invoiceNumber: (last?.invoiceNumber ?? 0) + 1,
+        invoiceNumber,
         subject: subject || null,
         subtotal,
         discountType,

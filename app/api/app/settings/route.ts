@@ -10,6 +10,7 @@ import { geocodeCompany } from "@/lib/geocoding";
 import { isValidTimezone } from "@/lib/timezone";
 import { isWallpaper } from "@/lib/wallpapers";
 import { sanitizeSectionColors } from "@/lib/section-colors";
+import { MAX_DOC_NUMBER_START } from "@/lib/doc-numbers";
 
 export async function PATCH(req: NextRequest) {
   const actor = await getActor();
@@ -44,6 +45,21 @@ export async function PATCH(req: NextRequest) {
         { status: 400 }
       );
     }
+  }
+
+  // Starting quote / invoice numbers: a whole number from 1 up. Refused
+  // rather than clamped so a typo never silently renumbers their paperwork.
+  const docStarts: Record<string, number> = {};
+  for (const [field, label] of [["quoteNumberStart", "Quote"], ["invoiceNumberStart", "Invoice"]] as const) {
+    if (body[field] === undefined) continue;
+    const n = Number(body[field]);
+    if (!Number.isInteger(n) || n < 1 || n > MAX_DOC_NUMBER_START) {
+      return NextResponse.json(
+        { error: `${label} numbers must start at a whole number from 1 to ${MAX_DOC_NUMBER_START.toLocaleString("en-US")}.`, field },
+        { status: 400 }
+      );
+    }
+    docStarts[field] = n;
   }
 
   // Client hub form: null/"" = the plain request form; an id must be one of ours
@@ -151,6 +167,7 @@ export async function PATCH(req: NextRequest) {
                 : null;
             })()
           : undefined,
+      ...docStarts,
       hideConvertedLeads:
         typeof body.hideConvertedLeads === "boolean" ? body.hideConvertedLeads : undefined,
       ...(body.defaultDepositType !== undefined &&

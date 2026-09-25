@@ -20,7 +20,7 @@ export default async function SettingsPage({
   const { s } = await searchParams;
   if (s && LEGACY_SECTION_KEYS[s]) redirect(settingsHref(LEGACY_SECTION_KEYS[s]));
 
-  const [company, login, ua, line] = await Promise.all([
+  const [company, login, ua, line, lastQuote, lastInvoice] = await Promise.all([
     prisma.company.findUnique({ where: { id: companyId } }),
     // How this login can verify itself before the owner deletes the account
     // (components/VerifyIdentity.tsx): password, and/or a connected provider.
@@ -33,6 +33,9 @@ export default async function SettingsPage({
     headers().then((h) => h.get("user-agent")),
     // Business line card (Phone & texting): number, forwarding, 10DLC status
     lineSummary(companyId, { id: actor.id, name: actor.name }).catch(() => null),
+    // Highest numbers used so far — the Numbering card shows what's next
+    prisma.quote.aggregate({ where: { companyId }, _max: { quoteNumber: true } }),
+    prisma.invoice.aggregate({ where: { companyId }, _max: { invoiceNumber: true } }),
   ]);
   if (!company) redirect("/app/register");
 
@@ -44,6 +47,7 @@ export default async function SettingsPage({
       isOwner={actor.role === "OWNER"}
       initialSection={s}
       line={line}
+      lastNumbers={{ quote: lastQuote._max.quoteNumber ?? 0, invoice: lastInvoice._max.invoiceNumber ?? 0 }}
       signInMethods={{
         // Legacy rows without an Account still sign in by their own hash.
         hasPassword: login?.account ? Boolean(login.account.passwordHash) : true,

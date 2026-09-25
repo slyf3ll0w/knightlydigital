@@ -11,7 +11,7 @@ import {
 } from "@/lib/work-items";
 import { computeQuoteTotals } from "@/lib/quote-totals";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
-import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { nextQuoteNumber, withDocNumberRetry } from "@/lib/doc-numbers";
 import { sanitizeDeposit } from "@/lib/deposits";
 import { fireAutomations } from "@/lib/automations-server";
 
@@ -129,11 +129,7 @@ export async function POST(req: NextRequest) {
   // Number derived inside the retried transaction so two people quoting at
   // the same time both succeed instead of one hitting a unique violation.
   const { created: quote, converted } = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
-    const last = await tx.quote.findFirst({
-      where: { companyId },
-      orderBy: { quoteNumber: "desc" },
-      select: { quoteNumber: true },
-    });
+    const quoteNumber = await nextQuoteNumber(tx, companyId);
 
     const created = await tx.quote.create({
       data: {
@@ -143,7 +139,7 @@ export async function POST(req: NextRequest) {
         estimatorId,
         propertyId: property?.id ?? null,
         publicToken: randomBytes(24).toString("hex"),
-        quoteNumber: (last?.quoteNumber ?? 0) + 1,
+        quoteNumber,
         title: title || null,
         subtotal,
         discountType,

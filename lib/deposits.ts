@@ -13,6 +13,7 @@ import { randomBytes } from "crypto";
 import type { DepositType, Prisma, PrismaClient } from "@prisma/client";
 import { quoteDepositAmount } from "@/lib/statuses";
 import { dueDateFromTerms, isPastDue } from "@/lib/due-dates";
+import { nextInvoiceNumber } from "@/lib/doc-numbers";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
@@ -180,11 +181,7 @@ export async function createDepositInvoice(
   }
   if (amount <= 0) return null;
 
-  const last = await tx.invoice.findFirst({
-    where: { companyId: quote.companyId },
-    orderBy: { invoiceNumber: "desc" },
-    select: { invoiceNumber: true },
-  });
+  const invoiceNumber = await nextInvoiceNumber(tx, quote.companyId);
   const now = new Date();
 
   const created = await tx.invoice.create({
@@ -194,7 +191,7 @@ export async function createDepositInvoice(
       quoteId: quote.id,
       publicToken: randomBytes(24).toString("hex"),
       kind: "DEPOSIT",
-      invoiceNumber: (last?.invoiceNumber ?? 0) + 1,
+      invoiceNumber,
       subject: `Deposit — Quote #${quote.quoteNumber}`,
       status: "AWAITING_PAYMENT",
       subtotal: amount,

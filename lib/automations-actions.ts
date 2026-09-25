@@ -10,7 +10,7 @@ import { canChargeOnline } from "./payments-gate";
 import { notifyClientOfReply } from "./portal-messages";
 import { recordLeadWin, recordLeadLoss } from "./pipeline";
 import { getActiveFieldDefs, sanitizeCustomFields } from "./contact-fields";
-import { withDocNumberRetry } from "./doc-numbers";
+import { nextInvoiceNumber, nextQuoteNumber, withDocNumberRetry } from "./doc-numbers";
 import { dueDateFromTerms } from "./due-dates";
 import { arrivalSlotLabel, resolveArrivalWindowMinutes } from "./arrival-window";
 import { zonedMidnight, zonedParts } from "./timezone";
@@ -383,9 +383,9 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
     case "create_quote_draft": {
       if (!contact) return "skipped: no client";
       const q = await withDocNumberRetry(async () => {
-        const last = await prisma.quote.findFirst({ where: { companyId }, orderBy: { quoteNumber: "desc" }, select: { quoteNumber: true } });
+        const quoteNumber = await nextQuoteNumber(prisma, companyId);
         return prisma.quote.create({
-          data: { companyId, contactId: contact.id, quoteNumber: (last?.quoteNumber ?? 0) + 1, title: rendered.title.slice(0, 120), status: "DRAFT", subtotal: 0, total: 0, requestId: null },
+          data: { companyId, contactId: contact.id, quoteNumber, title: rendered.title.slice(0, 120), status: "DRAFT", subtotal: 0, total: 0, requestId: null },
           select: { quoteNumber: true },
         });
       });
@@ -399,10 +399,10 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
       if (j.lineItems.length === 0) return "skipped: the job has no line items";
       const subtotal = money(j.lineItems.reduce((s, li) => s + Number(li.quantity) * Number(li.unitPrice), 0));
       const inv = await withDocNumberRetry(async () => {
-        const last = await prisma.invoice.findFirst({ where: { companyId }, orderBy: { invoiceNumber: "desc" }, select: { invoiceNumber: true } });
+        const invoiceNumber = await nextInvoiceNumber(prisma, companyId);
         return prisma.invoice.create({
           data: {
-            companyId, contactId: j.contactId, jobId: j.id, publicToken: randomBytes(24).toString("hex"), invoiceNumber: (last?.invoiceNumber ?? 0) + 1,
+            companyId, contactId: j.contactId, jobId: j.id, publicToken: randomBytes(24).toString("hex"), invoiceNumber,
             subject: j.title, status: "DRAFT", subtotal, total: subtotal,
             lineItems: {
               create: j.lineItems.map((li) => ({
