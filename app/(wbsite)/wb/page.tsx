@@ -4,11 +4,12 @@ import Link from "next/link";
 import { AnimateIn } from "@/components/AnimateIn";
 import WBAtlasCards from "@/components/wb/WBAtlasCards";
 import WBCta from "@/components/wb/WBCta";
+import WBDayOnTheJob from "@/components/wb/WBDayOnTheJob";
 import WBFaq from "@/components/wb/WBFaq";
 import WBHero from "@/components/wb/WBHero";
 import WBPhoneShowcase from "@/components/wb/WBPhoneShowcase";
 import WBSystemTabs from "@/components/wb/WBSystemTabs";
-import { APP_STORE_URL, PLAY_STORE_URL, WB_EMAIL, WB_EMAIL_HREF, WB_PHONE } from "@/lib/wb-site";
+import { APP_STORE_URL, PLAY_STORE_URL, WB_EMAIL, WB_PHOTOS, WB_TRADE_PHOTOS, WB_EMAIL_HREF, WB_PHONE } from "@/lib/wb-site";
 import { EXTRA_SEAT_CENTS, FREE_PLAN_NAME, INCLUDED_SEATS, PLANS, formatCents } from "@/lib/plans";
 import {
   ArrowRight,
@@ -24,6 +25,7 @@ import {
   Landmark,
   Leaf,
   Mail,
+  MapPin,
   Phone,
   Plug,
   Smartphone,
@@ -41,19 +43,22 @@ export const metadata: Metadata = {
     "WorkBench is free scheduling, quoting, invoicing, and payment software for home-service companies. Online booking, dispatch, a client portal, team chat, an AI assistant, and native iPhone and Android apps. Full access, not a trial, funded by payment processing; optional add-ons for a phone line, unlimited users, and job photos.",
 };
 
-const trades = [
-  { icon: Droplets, label: "Plumbing" },
-  { icon: Fan, label: "HVAC" },
-  { icon: Zap, label: "Electrical" },
-  { icon: Sparkles, label: "Cleaning" },
-  { icon: Leaf, label: "Lawn care" },
-  { icon: Home, label: "Roofing" },
+const tradeCards = [
+  { icon: Droplets, label: "Plumbing", photo: WB_TRADE_PHOTOS.plumbing },
+  { icon: Fan, label: "HVAC", photo: WB_TRADE_PHOTOS.hvac },
+  { icon: Zap, label: "Electrical", photo: WB_TRADE_PHOTOS.electrical },
+  { icon: Leaf, label: "Lawn care", photo: WB_TRADE_PHOTOS.lawn },
+  { icon: Home, label: "Roofing", photo: WB_TRADE_PHOTOS.roofing },
+  { icon: Sparkles, label: "Cleaning", photo: WB_TRADE_PHOTOS.cleaning },
+  { icon: SprayCan, label: "Pressure washing", photo: WB_TRADE_PHOTOS.pressure },
+  { icon: Waves, label: "Pool service", photo: WB_TRADE_PHOTOS.pool },
+];
+
+const moreTrades = [
   { icon: Hammer, label: "Handyman" },
   { icon: Bug, label: "Pest control" },
-  { icon: Waves, label: "Pool service" },
   { icon: Plug, label: "Appliance repair" },
   { icon: Warehouse, label: "Garage doors" },
-  { icon: SprayCan, label: "Pressure washing" },
 ];
 
 const rateRows = [
@@ -166,32 +171,68 @@ export default function WBHomePage() {
   return (
     <>
       {/* ── Hero ── */}
-      <WBHero className="bg-white" containerClassName="text-center sm:pb-24">
-        <h1 className="mx-auto max-w-4xl text-[2.6rem] font-extrabold leading-[1.04] text-gray-900 sm:text-[3.6rem] lg:text-[4.3rem]">
-          Run the whole job
-          <br className="hidden sm:block" /> from <span className="text-[#0B57D8]">one place</span>.
-        </h1>
-        <p className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed text-gray-600 sm:text-[19px]">
-          WorkBench is scheduling, quotes, invoicing, and payments for
-          home-service companies. Free to use, full access, funded by a flat
-          payment rate instead of a subscription.
-        </p>
-        <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-          <Link href="/apply" className="wb-pill wb-pill-dark">
-            Get started
-            <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-          </Link>
-          <a href={WB_PHONE.href} className="wb-pill wb-pill-outline">
-            <Phone className="h-4 w-4 text-[#F86A0A]" strokeWidth={2.25} aria-hidden />
-            Call {WB_PHONE.display}
-          </a>
+      <WBHero className="bg-white" containerClassName="sm:pb-24">
+        <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
+          <div className="text-center lg:text-left">
+            <h1 className="mx-auto max-w-4xl text-[2.6rem] font-extrabold leading-[1.04] text-gray-900 sm:text-[3.6rem] lg:mx-0 lg:text-[3.55rem] xl:text-[3.8rem]">
+              Run the whole job
+              <br className="hidden sm:block" /> from <span className="text-[#0B57D8]">one place</span>.
+            </h1>
+            <p className="mx-auto mt-6 max-w-2xl lg:mx-0 lg:max-w-xl text-[17px] leading-relaxed text-gray-600 sm:text-[19px]">
+              WorkBench is scheduling, quotes, invoicing, and payments for
+              home-service companies. Free to use, full access, funded by a flat
+              payment rate instead of a subscription.
+            </p>
+            <div className="mt-9 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+              <Link href="/apply" className="wb-pill wb-pill-dark">
+                Get started
+                <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+              </Link>
+              <a href={WB_PHONE.href} className="wb-pill wb-pill-outline">
+                <Phone className="h-4 w-4 text-[#F86A0A]" strokeWidth={2.25} aria-hidden />
+                Call {WB_PHONE.display}
+              </a>
+            </div>
+            <p className="mt-5 text-[13.5px] font-semibold text-gray-500">
+              No credit card. No trial clock. Not a trial.
+            </p>
+          </div>
+
+          {/* On the job: a real field photo with the phone app over it */}
+          <div className="relative mx-auto w-full max-w-md lg:max-w-none">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] shadow-[0_30px_70px_rgba(10,20,40,0.22)] sm:aspect-[5/5] lg:aspect-[4/5]">
+              <Image
+                src={WB_PHOTOS.hero.src}
+                alt={WB_PHOTOS.hero.alt}
+                fill
+                priority
+                sizes="(min-width: 1024px) 520px, 90vw"
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" aria-hidden />
+            </div>
+            <div
+              className="wb-float absolute right-3 top-5 flex items-center gap-3 rounded-2xl bg-white py-2.5 pl-2.5 pr-4 text-left sm:-right-5 sm:top-8"
+              style={{ "--wb-tilt": "2deg", animationDelay: "-2.2s" } as React.CSSProperties}
+            >
+              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-orange-50">
+                <MapPin className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />
+              </span>
+              <span>
+                <span className="block text-[13.5px] font-bold text-gray-900">Clocked in · 8:02 AM</span>
+                <span className="block text-[12px] text-gray-500">Panel upgrade, Ravenwood Dr</span>
+              </span>
+            </div>
+            <div className="absolute -bottom-8 left-3 rounded-[1.9rem] bg-gray-900 p-[7px] shadow-[0_24px_50px_rgba(10,20,40,0.35)] sm:-left-8 sm:-bottom-10">
+              <div className="relative w-[124px] overflow-hidden rounded-[1.5rem] bg-white sm:w-[150px]" style={{ aspectRatio: "331 / 720" }}>
+                <Image src="/screens/mobile-01.png" alt="The WorkBench phone app showing the week's schedule per tech" fill sizes="150px" className="object-cover" />
+              </div>
+            </div>
+          </div>
         </div>
-        <p className="mt-5 text-[13.5px] font-semibold text-gray-500">
-          No credit card. No trial clock. Not a trial.
-        </p>
 
         {/* Product screenshot with floating notification cards */}
-        <div className="relative mx-auto mt-14 max-w-5xl sm:mt-20">
+        <div className="relative mx-auto mt-20 max-w-5xl sm:mt-28">
           <div className="wb-frame-hero overflow-hidden rounded-2xl bg-white">
             <div className="flex items-center gap-2 border-b border-gray-200 bg-[#F6F8FB] px-4 py-2.5">
               <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" aria-hidden />
@@ -370,18 +411,45 @@ export default function WBHomePage() {
               this list, it fits.
             </p>
           </AnimateIn>
-          <div className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {trades.map(({ icon: Icon, label }, i) => (
+          <div className="mt-12 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            {tradeCards.map(({ icon: Icon, label, photo }, i) => (
               <AnimateIn key={label} delay={(i % 4) * 60}>
-                <div className="flex items-center gap-3 rounded-2xl bg-white px-4 py-4 ring-1 ring-inset ring-gray-200/70 sm:px-5">
-                  <Icon className="h-5 w-5 flex-none text-[#0B57D8]" strokeWidth={2} />
-                  <span className="text-[15px] font-bold text-gray-900">{label}</span>
+                <div className="group relative aspect-[4/5] overflow-hidden rounded-2xl bg-gray-200 sm:aspect-[4/3] lg:aspect-[4/5]">
+                  <Image
+                    src={photo.src}
+                    alt={photo.alt}
+                    fill
+                    sizes="(min-width: 1024px) 270px, 50vw"
+                    className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#0A1328]/85 via-[#0A1328]/15 to-transparent" aria-hidden />
+                  <div className="absolute inset-x-0 bottom-0 flex items-center gap-2.5 p-3.5 sm:p-4">
+                    <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-white/15 backdrop-blur-sm">
+                      <Icon className="h-4 w-4 text-white" strokeWidth={2.2} />
+                    </span>
+                    <span className="text-[15px] font-bold text-white sm:text-[16px]">{label}</span>
+                  </div>
                 </div>
               </AnimateIn>
             ))}
           </div>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
+            <span className="text-[14px] font-semibold text-gray-500">Also:</span>
+            {moreTrades.map(({ icon: Icon, label }) => (
+              <span
+                key={label}
+                className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-[14px] font-bold text-gray-900 ring-1 ring-inset ring-gray-200/70"
+              >
+                <Icon className="h-4 w-4 text-[#0B57D8]" strokeWidth={2} />
+                {label}
+              </span>
+            ))}
+          </div>
         </div>
       </section>
+
+      {/* ── A day on the job ── */}
+      <WBDayOnTheJob />
 
       {/* ── Mobile apps ── */}
       <section className="wb-dark text-white">
