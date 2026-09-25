@@ -21,6 +21,7 @@ import {
   Fan,
   Hammer,
   Home,
+  Landmark,
   Leaf,
   Mail,
   Phone,
@@ -291,16 +292,44 @@ export default function WBHomePage() {
               See every feature
             </Link>
           </p>
-          <div className="mt-6 flex justify-center">
-            <Link
-              href="/features"
-              className="inline-flex items-center gap-2.5 rounded-full bg-white px-4 py-2 text-[14px] font-semibold text-gray-700 ring-1 ring-inset ring-gray-200 transition-colors hover:ring-gray-300"
+          <div className="mt-10 flex flex-col items-center gap-4">
+            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-gray-400">Works with</p>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              {[
+                { src: "/brand/quickbooks.svg", label: "QuickBooks Online" },
+                { src: "/brand/google-calendar.svg", label: "Google Calendar" },
+              ].map((i) => (
+                <span
+                  key={i.label}
+                  className="inline-flex items-center gap-2.5 rounded-full bg-white px-4 py-2 text-[14px] font-bold text-gray-900 ring-1 ring-inset ring-gray-200"
+                >
+                  <Image src={i.src} alt="" width={22} height={22} unoptimized className="h-[22px] w-[22px]" />
+                  {i.label}
+                </span>
+              ))}
+            </div>
+            <ul
+              aria-label="Accepts Visa, Mastercard, American Express, Discover, and ACH bank transfers"
+              className="flex flex-wrap items-center justify-center gap-2"
             >
-              <Image src="/quickbooks-icon.svg" alt="" width={22} height={22} unoptimized className="h-[22px] w-[22px]" />
-              <span>
-                Syncs with <span className="font-bold text-gray-900">QuickBooks Online</span>
-              </span>
-            </Link>
+              {[
+                { src: "/brand/visa.svg", alt: "Visa", w: 30 },
+                { src: "/brand/mastercard.svg", alt: "Mastercard", w: 30 },
+                { src: "/brand/amex.svg", alt: "American Express", w: 28 },
+                { src: "/brand/discover.svg", alt: "Discover", w: 44 },
+              ].map((c) => (
+                <li
+                  key={c.alt}
+                  className="flex h-9 w-14 items-center justify-center rounded-md bg-white ring-1 ring-inset ring-gray-200"
+                >
+                  <Image src={c.src} alt={c.alt} width={c.w} height={20} unoptimized style={{ width: c.w, height: "auto" }} />
+                </li>
+              ))}
+              <li className="flex h-9 items-center justify-center gap-1.5 rounded-md bg-white px-3 text-[12.5px] font-extrabold tracking-wide text-gray-700 ring-1 ring-inset ring-gray-200">
+                <Landmark className="h-4 w-4 text-gray-500" strokeWidth={2.2} aria-hidden />
+                ACH
+              </li>
+            </ul>
           </div>
         </div>
       </section>
