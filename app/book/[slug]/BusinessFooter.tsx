@@ -49,13 +49,10 @@ export default async function BusinessFooter({ slug, dark = false, variant = "sl
   }
 
   const address = profileAddress(p);
-  // The owner's own words already say what they do; the service list is the fallback description.
-  const showServices = !p.about?.trim() && p.services.length > 0;
   return (
     <footer className={`mt-10 rounded-lg border p-5 text-[13px] leading-relaxed ${rule} ${dark ? "bg-white/5" : "bg-white"} ${muted}`}>
       <p className={`text-sm font-semibold ${strong}`}>About {p.name}</p>
       <p className="mt-1.5">{aboutLine(p)}</p>
-      {showServices && <p className="mt-1.5">Services: {p.services.join(", ")}</p>}
       <address className={`mt-4 grid gap-0.5 border-t pt-4 not-italic ${rule}`}>
         {address && <span>{address}</span>}
         {p.phone && (
