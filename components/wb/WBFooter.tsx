@@ -18,6 +18,17 @@ const columns: {
     ],
   },
   {
+    heading: "Features",
+    links: [
+      { label: "Scheduling & dispatch", href: "/features/scheduling-dispatch" },
+      { label: "Quotes & invoicing", href: "/features/quotes-and-invoicing" },
+      { label: "Payments", href: "/features/payments" },
+      { label: "Client portal", href: "/features/client-portal" },
+      { label: "Time tracking", href: "/features/time-tracking" },
+      { label: "Atlas", href: "/features/atlas" },
+    ],
+  },
+  {
     heading: "Compare",
     links: [
       { label: "vs. Jobber", href: "/vs/jobber" },
@@ -26,24 +37,12 @@ const columns: {
     ],
   },
   {
-    heading: "Account",
+    heading: "Company",
     links: [
       { label: "Get started", href: "/apply" },
       { label: "Log in", href: "/app/login" },
-    ],
-  },
-  {
-    heading: "Contact",
-    links: [
-      { label: WB_PHONE.display, href: WB_PHONE.href, external: true },
-      { label: WB_EMAIL, href: WB_EMAIL_HREF, external: true },
-      { label: "Contact page", href: "/contact" },
+      { label: "Contact", href: "/contact" },
       { label: "Streamflaire", href: "https://streamflaire.com", external: true },
-    ],
-  },
-  {
-    heading: "Policies",
-    links: [
       { label: "Privacy", href: "/privacy" },
       { label: "Terms of Service", href: "/terms" },
       { label: "Registering for texting", href: "/texting-registration" },
@@ -54,7 +53,7 @@ const columns: {
 export default function WBFooter() {
   return (
     <footer className="border-t border-gray-200 bg-white">
-      <div className="mx-auto grid max-w-6xl gap-10 px-5 py-14 sm:px-8 lg:grid-cols-[minmax(220px,1fr)_repeat(5,auto)] lg:gap-12">
+      <div className="mx-auto grid max-w-6xl gap-12 px-5 py-16 sm:px-8 lg:grid-cols-[minmax(240px,1.2fr)_repeat(4,minmax(0,1fr))] lg:gap-10">
         <div className="max-w-xs">
           <Image
             src="/workbench-logo.png"
@@ -63,25 +62,24 @@ export default function WBFooter() {
             height={285}
             className="h-6 w-auto"
           />
-          <p className="mt-4 text-[13.5px] leading-relaxed text-gray-500">
+          <p className="mt-5 text-[14px] leading-relaxed text-gray-500">
             Field service management software for home-service companies.
-            Free to use, funded by payment processing. Built by{" "}
-            <a
-              href="https://streamflaire.com"
-              target="_blank"
-              rel="noopener"
-              className="font-semibold text-gray-600 hover:text-gray-900"
-            >
-              Streamflaire
-            </a>
-            .
+            Free for the whole team, funded by payment processing.
           </p>
+          <div className="mt-6 space-y-2 text-[14px] font-semibold text-gray-800">
+            <a href={WB_PHONE.href} className="block hover:text-[#0B57D8]">
+              {WB_PHONE.display}
+            </a>
+            <a href={WB_EMAIL_HREF} className="block hover:text-[#0B57D8]">
+              {WB_EMAIL}
+            </a>
+          </div>
           <a
             href={APP_STORE_URL}
             target="_blank"
             rel="noopener"
             aria-label="Download WorkBench on the App Store"
-            className="mt-5 inline-block transition-opacity hover:opacity-80"
+            className="mt-6 inline-block transition-opacity hover:opacity-80"
           >
             <Image
               src="/app-store-badge.svg"
@@ -95,18 +93,14 @@ export default function WBFooter() {
         </div>
         {columns.map((col) => (
           <div key={col.heading}>
-            <p className="text-xs font-bold uppercase tracking-wide text-gray-500">
-              {col.heading}
-            </p>
-            <ul className="mt-3 space-y-2 text-[13.5px] text-gray-600">
+            <p className="text-[13.5px] font-bold text-gray-900">{col.heading}</p>
+            <ul className="mt-4 space-y-2.5 text-[14px] text-gray-500">
               {col.links.map((l) =>
                 l.external ? (
                   <li key={l.label}>
                     <a
                       href={l.href}
-                      {...(l.href.startsWith("http")
-                        ? { target: "_blank", rel: "noopener" }
-                        : {})}
+                      {...(l.href.startsWith("http") ? { target: "_blank", rel: "noopener" } : {})}
                       className="hover:text-gray-900"
                     >
                       {l.label}
@@ -125,9 +119,14 @@ export default function WBFooter() {
         ))}
       </div>
       <div className="border-t border-gray-100">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8">
-          <p className="text-[12px] text-gray-400">© 2026 WorkBench</p>
-          <p className="text-[12px] text-gray-400">Dallas–Fort Worth, TX</p>
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-5 py-5 sm:px-8">
+          <p className="text-[13px] text-gray-400">
+            © 2026 WorkBench, by{" "}
+            <a href="https://streamflaire.com" target="_blank" rel="noopener" className="hover:text-gray-600">
+              Streamflaire
+            </a>
+          </p>
+          <p className="text-[13px] text-gray-400">Allen, Texas</p>
         </div>
       </div>
     </footer>

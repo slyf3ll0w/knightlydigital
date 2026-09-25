@@ -1947,13 +1947,16 @@ html[data-mode="dark"] .app-ui .card-tool {
 
 /* ═══════════════════════════════════════════════════════════════════════
    WORKBENCH MARKETING SITE (.wb-site) — /, /features, /pricing, /contact,
-   /apply. Nunito headings (same face as the wordmark) over Inter body,
-   white and light-gray bands, square-ish corners, flat buttons. Reads like
-   a business site, not a product launch.
+   /apply, /vs, legal pages. Nunito headings (the wordmark's face) over Inter
+   body, white pages with #F6F8FB bands, graph-paper heroes under a floating
+   pill nav and a blue→orange keel, rounded-full buttons, rounded-2xl cards,
+   hand-built UI fragments instead of illustrations.
+   .wb-site also wraps the superadmin console and /roadmap, so only the
+   heading face lives on the scope itself — everything else is opt-in wb-*.
    ═══════════════════════════════════════════════════════════════════════ */
 .wb-site h1, .wb-site h2, .wb-site h3, .wb-site h4 {
   font-family: "Nunito", var(--font-body);
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
 }
 /* Flat button: darkens a touch on hover, nothing moves. (.wb-btn-tool is
    the old name, still used by the in-app activate + superadmin pages.) */
@@ -1964,24 +1967,129 @@ html[data-mode="dark"] .app-ui .card-tool {
   filter: brightness(0.92);
 }
 
-/* Nav link underline: orange, slides in from the left */
-.wb-navlink {
-  position: relative;
-}
-.wb-navlink::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 100%;
-  bottom: -6px;
+/* Keel — the thin brand line along the very top of every marketing page,
+   blue running into orange. Sits above the floating nav. */
+.wb-keel {
+  position: fixed;
+  top: 0; left: 0; right: 0;
   height: 3px;
-  border-radius: 2px;
-  background: #F86A0A;
-  transition: right 0.22s ease;
+  z-index: 60;
+  background: linear-gradient(90deg, #0B57D8 0%, #0B57D8 58%, #F86A0A 100%);
 }
-.wb-navlink:hover::after,
-.wb-navlink.wb-active::after {
-  right: 0;
+
+/* Floating nav pill: frosted white, one soft shadow, a hairline ring. */
+.wb-navpill {
+  background: rgba(255, 255, 255, 0.86);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow:
+    0 1px 2px rgba(10, 20, 40, 0.05),
+    0 10px 32px -14px rgba(10, 20, 40, 0.22),
+    0 0 0 1px rgba(10, 20, 40, 0.07);
+}
+.wb-navmenu {
+  box-shadow:
+    0 1px 2px rgba(10, 20, 40, 0.05),
+    0 18px 44px -16px rgba(10, 20, 40, 0.28),
+    0 0 0 1px rgba(10, 20, 40, 0.07);
+}
+
+/* Pill buttons. Nothing moves on hover; color shifts only. */
+.wb-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  padding: 0.8rem 1.5rem;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  transition: filter 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.wb-pill-sm { padding: 0.6rem 1.15rem; font-size: 14px; }
+.wb-pill-primary { background: #0B57D8; color: #fff; }
+.wb-pill-primary:hover { filter: brightness(0.92); }
+.wb-pill-dark { background: #0A1428; color: #fff; }
+.wb-pill-dark:hover { background: #172647; }
+.wb-pill-orange { background: #F86A0A; color: #fff; }
+.wb-pill-orange:hover { filter: brightness(0.94); }
+.wb-pill-outline { background: #fff; color: #111827; border: 1px solid #D1D5DB; }
+.wb-pill-outline:hover { border-color: #111827; }
+.wb-pill-light { background: #fff; color: #0B57D8; }
+.wb-pill-light:hover { background: #EEF4FE; }
+.wb-pill-ghost { color: #fff; border: 1px solid rgba(255, 255, 255, 0.32); }
+.wb-pill-ghost:hover { background: rgba(255, 255, 255, 0.1); }
+
+/* Section label: small, sentence case, brand dot in front. Never uppercase. */
+.wb-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 13px;
+  font-weight: 700;
+  color: #0B57D8;
+}
+.wb-label::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #F86A0A;
+  flex: none;
+}
+.wb-label-light { color: #BFD3FB; }
+
+/* Graph paper for heroes — fine blue hairlines that fade out before the
+   content ends. Layer it absolutely inside a relative section. */
+.wb-paper {
+  background-image:
+    linear-gradient(to right,  rgba(11, 87, 216, 0.075) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(11, 87, 216, 0.075) 1px, transparent 1px);
+  background-size: 32px 32px;
+  -webkit-mask-image: radial-gradient(ellipse 90% 85% at 50% 0%, #000 25%, transparent 100%);
+  mask-image: radial-gradient(ellipse 90% 85% at 50% 0%, #000 25%, transparent 100%);
+}
+
+/* Dark band: navy with a blue breath top-left and a warm one bottom-right. */
+.wb-dark {
+  background-color: #0A1428;
+  background-image:
+    radial-gradient(55% 60% at 12% 0%, rgba(46, 111, 242, 0.34), transparent 70%),
+    radial-gradient(40% 45% at 100% 100%, rgba(248, 106, 10, 0.16), transparent 70%);
+}
+
+/* A hand-built UI fragment (chat, table, calendar) sitting inside a card. */
+.wb-frag {
+  background: #fff;
+  border: 1px solid #E5E7EB;
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(10, 20, 40, 0.04);
+}
+
+/* Product screenshot frame shadow — one deep, soft shadow plus a ring. */
+.wb-frame {
+  box-shadow:
+    0 0 0 1px rgba(10, 20, 40, 0.08),
+    0 30px 80px -24px rgba(10, 20, 40, 0.32);
+}
+
+/* Floating notification cards in the hero — a slow bob. The tilt is a var
+   because the animation's transform would otherwise override rotate-*. */
+@keyframes wb-float {
+  0%, 100% { transform: translateY(0) rotate(var(--wb-tilt, 0deg)); }
+  50%      { transform: translateY(-9px) rotate(var(--wb-tilt, 0deg)); }
+}
+.wb-float {
+  animation: wb-float 6.5s ease-in-out infinite;
+  box-shadow:
+    0 1px 2px rgba(10, 20, 40, 0.05),
+    0 22px 50px -18px rgba(10, 20, 40, 0.3),
+    0 0 0 1px rgba(10, 20, 40, 0.06);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wb-float { animation: none; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════

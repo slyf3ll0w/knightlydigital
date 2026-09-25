@@ -68,7 +68,7 @@ export default function WBSiteLayout({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareAppJsonLd) }}
       />
       <WBNav />
-      <main>{children}</main>
+      <main className="pt-20 sm:pt-24">{children}</main>
       <WBFooter />
     </div>
   );

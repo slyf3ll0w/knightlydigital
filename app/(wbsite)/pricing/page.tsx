@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AnimateIn } from "@/components/AnimateIn";
+import WBHero from "@/components/wb/WBHero";
 import WBFaq from "@/components/wb/WBFaq";
 import WBPricing from "@/components/wb/WBPricing";
 import { ArrowRight, Compass, CreditCard, HandCoins, Puzzle, ShieldCheck, Sparkles } from "lucide-react";
@@ -86,8 +87,7 @@ export default function WBPricingPage() {
   return (
     <>
       {/* ── Hero ── */}
-      <section className="border-b border-gray-200 bg-white">
-        <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-20">
+      <WBHero>
           <AnimateIn>
             <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">
               WorkBench is free to use.
@@ -98,8 +98,7 @@ export default function WBPricingPage() {
               at one flat rate, explained below.
             </p>
           </AnimateIn>
-        </div>
-      </section>
+      </WBHero>
 
       {/* ── The card ── */}
       <section className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-16">
@@ -156,7 +155,7 @@ export default function WBPricingPage() {
               ].map(({ icon: Icon, title, body }, i) => (
                 <AnimateIn key={title} delay={i * 100}>
                   <li className="flex gap-4">
-                    <div className="flex h-10 w-10 flex-none items-center justify-center rounded-md bg-blue-50">
+                    <div className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-blue-50">
                       <Icon className="h-[18px] w-[18px] text-[#0B57D8]" strokeWidth={2} />
                     </div>
                     <div>
@@ -175,7 +174,7 @@ export default function WBPricingPage() {
       <section className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
         <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:gap-20">
           <AnimateIn>
-            <div className="flex h-11 w-11 items-center justify-center rounded-md bg-orange-50">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50">
               <Puzzle className="h-5 w-5 text-[#F86A0A]" strokeWidth={2} />
             </div>
             <h2 className="mt-5 text-3xl font-extrabold leading-tight sm:text-4xl">
@@ -220,8 +219,8 @@ export default function WBPricingPage() {
           </AnimateIn>
           <div className="mt-10 grid gap-6 lg:grid-cols-2">
             <AnimateIn>
-              <div className="flex h-full flex-col rounded-md border border-gray-200 bg-white p-8">
-                <p className="text-[13px] font-bold uppercase tracking-wide text-[#0B57D8]">
+              <div className="flex h-full flex-col rounded-[1.5rem] border border-gray-200 bg-white p-8">
+                <p className="wb-label">
                   Atlas Free
                 </p>
                 <p
@@ -252,10 +251,10 @@ export default function WBPricingPage() {
               </div>
             </AnimateIn>
             <AnimateIn delay={120}>
-              <div className="relative flex h-full flex-col overflow-hidden rounded-md bg-[#0A1428] p-8 text-white">
+              <div className="relative flex h-full flex-col overflow-hidden rounded-[1.5rem] bg-[#0A1428] p-8 text-white">
                 <div className="relative flex h-full flex-col">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-[13px] font-bold uppercase tracking-wide text-blue-200">
+                    <p className="wb-label wb-label-light">
                       Atlas Full
                     </p>
                     <span className="rounded-full bg-white/15 px-2.5 py-1 text-[11.5px] font-bold text-blue-100">
@@ -324,14 +323,14 @@ export default function WBPricingPage() {
           <AnimateIn delay={120} className="flex flex-wrap items-center gap-4">
             <Link
               href="/apply"
-              className="wb-btn inline-flex items-center gap-2 rounded-md bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white"
+              className="wb-pill wb-pill-primary"
             >
               Get started
               <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
             </Link>
             <Link
               href="/features"
-              className="inline-flex items-center gap-2 rounded-md border-2 border-gray-300 bg-white px-6 py-3 text-[15px] font-bold text-gray-900 transition-colors hover:border-gray-900"
+              className="wb-pill wb-pill-outline"
             >
               See every feature
             </Link>

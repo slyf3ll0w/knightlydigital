@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { AnimateIn } from "@/components/AnimateIn";
+import WBHero from "@/components/wb/WBHero";
 import WBCta from "@/components/wb/WBCta";
 import WBPhoneShowcase from "@/components/wb/WBPhoneShowcase";
 import { APP_STORE_URL, sections } from "@/lib/wb-features";
@@ -38,8 +39,7 @@ export default function WBFeaturesPage() {
   return (
     <>
       {/* ── Hero ── */}
-      <section className="border-b border-gray-200 bg-white">
-        <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-20">
+      <WBHero>
           <AnimateIn>
             <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">
               Every feature in WorkBench
@@ -56,7 +56,7 @@ export default function WBFeaturesPage() {
                 <a
                   key={s.id}
                   href={`#${s.id}`}
-                  className={`rounded-md px-4 py-2 text-[13px] font-bold transition-colors hover:opacity-80 ${s.chip}`}
+                  className={`rounded-full px-4 py-2 text-[13px] font-bold transition-colors hover:opacity-80 ${s.chip}`}
                 >
                   {s.num} · {s.title}
                 </a>
@@ -75,8 +75,7 @@ export default function WBFeaturesPage() {
               </a>
             </div>
           </AnimateIn>
-        </div>
-      </section>
+      </WBHero>
 
       {/* ── Feature sections ── */}
       {sections.map((section, si) => (
@@ -88,7 +87,7 @@ export default function WBFeaturesPage() {
           <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-20">
             <AnimateIn>
               <div className="flex items-baseline gap-3">
-                <span className={`rounded-md px-2.5 py-1 text-[11.5px] font-bold ${section.chip}`}>
+                <span className={`rounded-full px-2.5 py-1 text-[11.5px] font-bold ${section.chip}`}>
                   {section.num}
                 </span>
                 <h2 className="text-2xl font-extrabold sm:text-3xl">{section.title}</h2>
@@ -116,7 +115,7 @@ export default function WBFeaturesPage() {
                   <Link
                     key={l.href}
                     href={l.href}
-                    className={`rounded-md px-4 py-2 text-[13px] font-bold transition-colors hover:opacity-80 ${section.chip}`}
+                    className={`rounded-full px-4 py-2 text-[13px] font-bold transition-colors hover:opacity-80 ${section.chip}`}
                   >
                     {l.label}
                   </Link>
@@ -128,13 +127,13 @@ export default function WBFeaturesPage() {
       ))}
 
       {/* ── Atlas ── */}
-      <section id="atlas" className="scroll-mt-24 border-t border-gray-200 bg-[#F5F7FA]">
+      <section id="atlas" className="scroll-mt-24 border-t border-gray-200 bg-[#F6F8FB]">
         <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-20">
           <AnimateIn>
             <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr] lg:items-center">
               <div>
                 <div className="flex items-baseline gap-3">
-                  <span className="rounded-md bg-blue-50 px-2.5 py-1 text-[11.5px] font-bold text-[#0B57D8]">
+                  <span className="rounded-xl bg-blue-50 px-2.5 py-1 text-[11.5px] font-bold text-[#0B57D8]">
                     05
                   </span>
                   <h2 className="text-2xl font-extrabold sm:text-3xl">Atlas, the AI assistant</h2>
@@ -156,8 +155,8 @@ export default function WBFeaturesPage() {
                   <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
                 </Link>
               </div>
-              <div className="rounded-md border border-gray-200 bg-white p-6">
-                <p className="text-[13px] font-bold uppercase tracking-wide text-gray-500">
+              <div className="rounded-[1.5rem] border border-gray-200 bg-white p-6">
+                <p className="text-[13.5px] font-bold text-gray-500">
                   Things you can ask
                 </p>
                 <ul className="mt-3 divide-y divide-gray-200">
@@ -213,7 +212,7 @@ export default function WBFeaturesPage() {
                 },
               ].map(({ icon: Icon, title, body }) => (
                 <li key={title} className="flex gap-4">
-                  <div className="flex h-10 w-10 flex-none items-center justify-center rounded-md bg-white ring-1 ring-inset ring-gray-200">
+                  <div className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-blue-50">
                     <Icon className="h-[18px] w-[18px] text-[#0B57D8]" strokeWidth={2} />
                   </div>
                   <div>

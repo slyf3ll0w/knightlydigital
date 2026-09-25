@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { AnimateIn } from "@/components/AnimateIn";
+import WBHero from "@/components/wb/WBHero";
 import ApplyForm from "@/components/ApplyForm";
 import { socialSignInFor } from "@/lib/sign-in-options";
 import { ClipboardList, ShieldCheck, Wrench } from "lucide-react";
@@ -37,8 +38,7 @@ export default async function WBApplyPage() {
   return (
     <>
       {/* ── Hero ── */}
-      <section className="border-b border-gray-200 bg-white">
-        <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-20">
+      <WBHero>
           <AnimateIn>
             <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">
               Get started with WorkBench
@@ -53,19 +53,18 @@ export default async function WBApplyPage() {
               </p>
             </div>
           </AnimateIn>
-        </div>
-      </section>
+      </WBHero>
 
       {/* ── The three steps ── */}
       <section className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-20">
         <div className="grid gap-6 md:grid-cols-3">
           {steps.map(({ icon: Icon, step, title, body }, i) => (
             <AnimateIn key={title} delay={i * 110}>
-              <div className="h-full rounded-md border border-gray-200 bg-white p-7">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-md ${i === 1 ? "bg-orange-50" : "bg-blue-50"}`}>
+              <div className="h-full rounded-[1.5rem] border border-gray-200 bg-white p-7">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${i === 1 ? "bg-orange-50" : "bg-blue-50"}`}>
                   <Icon className={`h-[18px] w-[18px] ${i === 1 ? "text-[#F86A0A]" : "text-[#0B57D8]"}`} strokeWidth={2} />
                 </div>
-                <p className="mt-5 text-[12px] font-bold uppercase tracking-wide text-gray-400">{step}</p>
+                <p className="mt-5 text-[13px] font-bold text-gray-500">{step}</p>
                 <h2 className="mt-1 text-[16px] font-bold text-gray-900">{title}</h2>
                 <p className="mt-2 text-[14.5px] leading-relaxed text-gray-600">{body}</p>
               </div>

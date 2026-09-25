@@ -3,10 +3,8 @@ import { ArrowRight, Phone } from "lucide-react";
 import { WB_PHONE } from "@/lib/wb-site";
 
 /**
- * The closing band on every marketing page: a solid navy strip with the
- * headline, one primary action, one secondary link, and the phone number.
- * Full width and square-cornered on purpose — it reads like a business
- * site's footer call-out rather than a launch-page card.
+ * The closing band on every marketing page: navy with a blue breath, the
+ * headline, one orange pill, one ghost pill, and the phone number.
  */
 export default function WBCta({
   title = "Ready to get started?",
@@ -18,26 +16,20 @@ export default function WBCta({
   secondary?: { label: string; href: string } | null;
 }) {
   return (
-    <section className="bg-[#0A1428] text-white">
-      <div className="mx-auto grid max-w-6xl gap-8 px-5 py-14 sm:px-8 sm:py-16 lg:grid-cols-[1.3fr_1fr] lg:items-center">
+    <section className="wb-dark text-white">
+      <div className="mx-auto grid max-w-6xl gap-8 px-5 py-16 sm:px-8 sm:py-20 lg:grid-cols-[1.3fr_1fr] lg:items-center">
         <div>
-          <h2 className="max-w-xl text-3xl font-extrabold leading-tight sm:text-4xl">{title}</h2>
+          <h2 className="max-w-xl text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">{title}</h2>
           <p className="mt-4 max-w-lg text-[15.5px] leading-relaxed text-blue-100/80">{body}</p>
         </div>
         <div className="flex flex-col items-start gap-4 lg:items-end">
           <div className="flex flex-wrap items-center gap-3">
-            <Link
-              href="/apply"
-              className="wb-btn inline-flex items-center gap-2 rounded-md bg-[#F86A0A] px-6 py-3 text-[15px] font-bold text-white"
-            >
+            <Link href="/apply" className="wb-pill wb-pill-orange">
               Get started
               <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
             </Link>
             {secondary && (
-              <Link
-                href={secondary.href}
-                className="inline-flex items-center rounded-md border border-white/30 px-6 py-3 text-[15px] font-bold text-white transition-colors hover:bg-white/10"
-              >
+              <Link href={secondary.href} className="wb-pill wb-pill-ghost">
                 {secondary.label}
               </Link>
             )}

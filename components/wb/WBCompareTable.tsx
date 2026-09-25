@@ -17,11 +17,11 @@ export default function WBCompareTable({
   rows: CompareRow[];
 }) {
   return (
-    <div className="overflow-x-auto rounded-md border border-gray-200 bg-white">
+    <div className="overflow-x-auto rounded-[1.25rem] border border-gray-200 bg-white">
       <table className="w-full min-w-[560px] border-collapse text-left">
         <thead>
           <tr className="border-b border-gray-200 bg-gray-50">
-            <th className="px-5 py-4 text-[12.5px] font-bold uppercase tracking-wide text-gray-400">
+            <th className="px-5 py-4 text-[13.5px] font-bold text-gray-500">
               &nbsp;
             </th>
             <th className="px-5 py-4 text-[14.5px] font-extrabold text-[#0B57D8]">WorkBench</th>

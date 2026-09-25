@@ -53,11 +53,11 @@ export default function WBPricing() {
   const annual = billing === "annual";
 
   return (
-    <div className="grid overflow-hidden rounded-md border border-gray-200 bg-white lg:grid-cols-[350px_1fr]">
+    <div className="grid overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white lg:grid-cols-[350px_1fr]">
       {/* ── Price panel ── */}
       <div className="relative flex flex-col bg-[#0A1428] p-8 lg:p-10">
         <div className="relative flex h-full flex-col">
-          <p className="text-[13px] font-bold uppercase tracking-wide text-blue-200">
+          <p className="wb-label wb-label-light">
             One plan
           </p>
 
@@ -111,7 +111,7 @@ export default function WBPricing() {
           <div className="mt-12 lg:mt-auto lg:pt-12">
             <Link
               href="/apply"
-              className="inline-flex w-full items-center justify-center rounded-md bg-white px-6 py-3.5 text-[14.5px] font-bold text-[#0B57D8] transition-colors hover:bg-blue-50"
+              className="wb-pill wb-pill-light w-full"
             >
               Get started →
             </Link>

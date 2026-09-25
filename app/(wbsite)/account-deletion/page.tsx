@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AnimateIn } from "@/components/AnimateIn";
+import WBHero from "@/components/wb/WBHero";
 
 export const metadata: Metadata = {
   title: "Delete Your Account — WorkBench",
@@ -19,11 +20,11 @@ export default function AccountDeletionPage() {
   return (
     <>
       {/* ── Hero ── */}
-      <section className="relative overflow-hidden">
-        <div className="relative mx-auto max-w-3xl px-5 pt-16 pb-10 sm:px-8 sm:pt-24">
+      <WBHero>
+        <div className="max-w-3xl">
           <AnimateIn>
             <p
-              className="mb-4 text-xs font-bold uppercase tracking-[0.18em]"
+              className="wb-label mb-4"
               style={{ color: ACCENT }}
             >
               Your data
@@ -36,7 +37,7 @@ export default function AccountDeletionPage() {
             </p>
           </AnimateIn>
         </div>
-      </section>
+      </WBHero>
 
       {/* ── Body ── */}
       <section className="border-t border-gray-200 bg-white">

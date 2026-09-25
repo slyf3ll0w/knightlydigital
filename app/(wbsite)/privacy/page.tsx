@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AnimateIn } from "@/components/AnimateIn";
+import WBHero from "@/components/wb/WBHero";
 
 export const metadata: Metadata = {
   title: "Privacy Policy — WorkBench",
@@ -143,11 +144,11 @@ export default function PrivacyPage() {
   return (
     <>
       {/* ── Hero ── */}
-      <section className="relative overflow-hidden">
-        <div className="relative mx-auto max-w-3xl px-5 pt-16 pb-10 sm:px-8 sm:pt-24">
+      <WBHero>
+        <div className="max-w-3xl">
           <AnimateIn>
             <p
-              className="mb-4 text-xs font-bold uppercase tracking-[0.18em]"
+              className="wb-label mb-4"
               style={{ color: ACCENT }}
             >
               Legal
@@ -158,13 +159,13 @@ export default function PrivacyPage() {
             <p className="mt-5 text-sm text-gray-500">Last updated: {LAST_UPDATED}</p>
           </AnimateIn>
         </div>
-      </section>
+      </WBHero>
 
       {/* ── Body ── */}
       <section className="border-t border-gray-200 bg-white">
         <div className="mx-auto max-w-3xl px-5 py-14 sm:px-8 sm:py-16">
           <AnimateIn>
-            <div className="rounded-md border border-blue-100 bg-blue-50/60 px-5 py-4">
+            <div className="rounded-2xl border border-blue-100 bg-blue-50/60 px-5 py-4">
               <p className="text-[15px] leading-relaxed text-gray-700">
                 <span className="font-bold text-gray-900">The short version:</span> we
                 collect what we need to run the product, we never sell your data, your

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { AnimateIn } from "@/components/AnimateIn";
+import WBHero from "@/components/wb/WBHero";
 import InviteSignupForm from "@/components/InviteSignupForm";
 import { socialSignInFor } from "@/lib/sign-in-options";
 
@@ -21,8 +22,7 @@ export default async function WBInvitePage() {
   const ua = (await headers()).get("user-agent");
   return (
     <>
-      <section className="relative overflow-hidden">
-        <div className="relative mx-auto max-w-6xl px-5 pt-16 sm:px-8 sm:pt-24">
+      <WBHero>
           <AnimateIn>
             <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">
               You&apos;re invited to <span className="text-[#0B57D8]">WorkBench</span>.
@@ -36,8 +36,7 @@ export default async function WBInvitePage() {
               </p>
             </div>
           </AnimateIn>
-        </div>
-      </section>
+      </WBHero>
 
       <section className="mx-auto max-w-3xl px-5 py-16 sm:px-8 sm:py-20">
         <AnimateIn>

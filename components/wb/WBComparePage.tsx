@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
+import WBHero from "@/components/wb/WBHero";
 import WBCta from "@/components/wb/WBCta";
 import WBFaq, { FaqItem } from "./WBFaq";
 import WBCompareTable, { CompareRow } from "./WBCompareTable";
@@ -32,10 +33,9 @@ export default function WBComparePage({
   return (
     <>
       {/* Hero */}
-      <section className="border-b border-gray-200 bg-white">
-        <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-20">
+      <WBHero>
           <AnimateIn>
-            <span className="inline-block rounded-md bg-blue-50 px-3 py-1 text-[12.5px] font-bold text-[#0B57D8]">
+            <span className="wb-label">
               WorkBench vs. {competitorName}
             </span>
             <h1 className="mt-5 max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">{title}</h1>
@@ -43,14 +43,14 @@ export default function WBComparePage({
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link
                 href="/apply"
-                className="wb-btn inline-flex items-center gap-2 rounded-md bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white"
+                className="wb-pill wb-pill-primary"
               >
                 Get started
                 <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
               </Link>
               <Link
                 href="/pricing"
-                className="inline-flex items-center gap-2 rounded-md border-2 border-gray-200 px-6 py-3 text-[15px] font-bold text-gray-700 transition-colors hover:border-gray-400"
+                className="wb-pill wb-pill-outline"
               >
                 How the pricing works
               </Link>
@@ -61,11 +61,10 @@ export default function WBComparePage({
               are exact and current.
             </p>
           </AnimateIn>
-        </div>
-      </section>
+      </WBHero>
 
       {/* Table */}
-      <section className="border-b border-gray-200 bg-[#F5F7FA]">
+      <section className="border-b border-gray-200 bg-[#F6F8FB]">
         <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8">
           <AnimateIn>
             <WBCompareTable competitorName={competitorName} rows={rows} />
@@ -76,8 +75,8 @@ export default function WBComparePage({
       {/* Fair point */}
       <section className="mx-auto max-w-4xl px-5 py-16 sm:px-8">
         <AnimateIn>
-          <div className="rounded-md border border-gray-200 bg-gray-50 px-6 py-7 sm:px-8">
-            <p className="text-[12.5px] font-bold uppercase tracking-wide text-gray-400">
+          <div className="rounded-[1.5rem] border border-gray-200 bg-[#F6F8FB] px-6 py-7 sm:px-8">
+            <p className="text-[13.5px] font-bold text-gray-500">
               Fair's fair
             </p>
             <h2 className="mt-2 text-[18px] font-extrabold text-gray-900">{fairPoint.title}</h2>
@@ -121,13 +120,13 @@ export default function WBComparePage({
       {/* Related */}
       <section className="border-t border-gray-200 bg-white">
         <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8">
-          <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Also compare</p>
+          <p className="text-[13.5px] font-bold text-gray-500">Also compare</p>
           <div className="mt-4 flex flex-wrap gap-3">
             {["jobber", "housecall-pro", "servicetitan"].map((slug) => (
               <Link
                 key={slug}
                 href={`/vs/${slug}`}
-                className="rounded-md border border-gray-200 px-4 py-2 text-[13.5px] font-semibold text-gray-700 transition-colors hover:border-gray-400"
+                className="rounded-full border border-gray-200 px-4 py-2 text-[13.5px] font-semibold text-gray-700 transition-colors hover:border-gray-900"
               >
                 vs. {slug === "servicetitan" ? "ServiceTitan" : slug === "housecall-pro" ? "Housecall Pro" : "Jobber"} →
               </Link>

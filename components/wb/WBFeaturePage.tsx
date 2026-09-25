@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
+import WBHero from "@/components/wb/WBHero";
 import WBCta from "@/components/wb/WBCta";
 import WBFaq, { FaqItem } from "./WBFaq";
 import WBScreenshotFrame from "./WBScreenshotFrame";
@@ -56,10 +57,9 @@ export default function WBFeaturePage({
   return (
     <>
       {/* Hero */}
-      <section className="border-b border-gray-200 bg-white">
-        <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-20">
+      <WBHero>
           <AnimateIn>
-            <span className={`inline-block rounded-md px-3 py-1 text-[12.5px] font-bold ${c.chip}`}>
+            <span className={`inline-block rounded-full px-3 py-1 text-[12.5px] font-bold ${c.chip}`}>
               {eyebrow}
             </span>
             <h1 className="mt-5 max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">{title}</h1>
@@ -67,7 +67,7 @@ export default function WBFeaturePage({
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link
                 href="/apply"
-                className="wb-btn inline-flex items-center gap-2 rounded-md px-6 py-3 text-[15px] font-bold text-white"
+                className="wb-pill text-white"
                 style={{ backgroundColor: c.hex }}
               >
                 Get started
@@ -75,17 +75,16 @@ export default function WBFeaturePage({
               </Link>
               <Link
                 href="/features"
-                className="inline-flex items-center gap-2 rounded-md border-2 border-gray-200 px-6 py-3 text-[15px] font-bold text-gray-700 transition-colors hover:border-gray-400"
+                className="wb-pill wb-pill-outline"
               >
                 See every feature
               </Link>
             </div>
           </AnimateIn>
-        </div>
-      </section>
+      </WBHero>
 
       {/* Screenshot */}
-      <section className="border-b border-gray-200 bg-[#F5F7FA]">
+      <section className="border-b border-gray-200 bg-[#F6F8FB]">
         <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8">
           <AnimateIn className={screenshot.kind === "mobile" ? "flex justify-center" : ""}>
             <div className={screenshot.kind === "mobile" ? "" : "mx-auto max-w-4xl"}>
@@ -161,13 +160,13 @@ export default function WBFeaturePage({
       {related.length > 0 && (
         <section className="border-t border-gray-200 bg-white">
           <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8">
-            <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Keep exploring</p>
+            <p className="text-[13.5px] font-bold text-gray-500">Keep exploring</p>
             <div className="mt-4 flex flex-wrap gap-3">
               {related.map((r) => (
                 <Link
                   key={r.href}
                   href={r.href}
-                  className="rounded-md border border-gray-200 px-4 py-2 text-[13.5px] font-semibold text-gray-700 transition-colors hover:border-gray-400"
+                  className="rounded-full border border-gray-200 px-4 py-2 text-[13.5px] font-semibold text-gray-700 transition-colors hover:border-gray-900"
                 >
                   {r.label} →
                 </Link>
