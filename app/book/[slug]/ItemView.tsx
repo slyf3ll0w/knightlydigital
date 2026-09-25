@@ -25,6 +25,7 @@ export default async function ItemView({
   embed = false,
   searchParams = {},
   loaded,
+  home = false,
 }: {
   companySlug: string;
   itemSlug: string;
@@ -32,6 +33,8 @@ export default async function ItemView({
   searchParams?: ItemSearchParams;
   /** Already loaded by the caller (the single-item booking page) */
   loaded?: LoadedItem;
+  /** Rendered AS the business's home page (/book/<slug> with one item): carries the full About + contact footer. */
+  home?: boolean;
 }) {
   const item = loaded ?? (await loadBookingItem(companySlug, itemSlug, { preview: searchParams.preview === "1", overrides: searchParams }));
   if (!item) notFound();
@@ -79,7 +82,7 @@ export default async function ItemView({
     );
   }
   return (
-    <ScheduleFrame company={company} appearance={appearance} title={pub.heading} subtitle={pub.description ?? company.name} wide={scheduled}>
+    <ScheduleFrame company={company} appearance={appearance} title={pub.heading} subtitle={pub.description ?? company.name} wide={scheduled} footer={home ? "full" : "slim"}>
       {previewNote}
       {body}
     </ScheduleFrame>

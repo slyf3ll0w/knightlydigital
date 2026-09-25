@@ -15,6 +15,7 @@ export default function ScheduleFrame({
   title,
   subtitle,
   wide = false,
+  footer = "slim",
   children,
 }: {
   company: { name: string; logoUrl: string | null; slug?: string };
@@ -22,6 +23,8 @@ export default function ScheduleFrame({
   title?: string;
   subtitle?: string | null;
   wide?: boolean;
+  /** "full" on the business's home page (its About + contact block), "slim" on forms and legal pages. */
+  footer?: "full" | "slim";
   children: React.ReactNode;
 }) {
   const { dark, fontName, fontHref, zoom } = appearance;
@@ -48,7 +51,7 @@ export default function ScheduleFrame({
           {subtitle && <p className={`mt-1 text-sm ${dark ? "text-gray-400" : "text-gray-500"}`}>{subtitle}</p>}
         </div>
         {children}
-        {company.slug && <BusinessFooter slug={company.slug} dark={dark} />}
+        {company.slug && <BusinessFooter slug={company.slug} dark={dark} variant={footer} />}
       </div>
     </div>
   );

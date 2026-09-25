@@ -82,7 +82,7 @@ export const HORIZON_CHOICES = [7, 14, 30, 60, 90] as const;
 export const CUTOFF_CHOICES = [0, 2, 4, 12, 24, 48] as const;
 
 /** Slugs that collide with the public routes under /book/[slug]/. */
-export const RESERVED_TYPE_SLUGS = new Set(["schedule", "manage", "new", "embed", "privacy", "sms-terms", "estimate"]);
+export const RESERVED_TYPE_SLUGS = new Set(["schedule", "manage", "new", "embed", "privacy", "sms-terms", "estimate", "about"]);
 
 export function slugifyTypeName(name: string): string {
   const s =

@@ -26,11 +26,11 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
   const estimateTools = await publicEstimatorsFor(page.company.id);
   if (page.menu.length === 1 && estimateTools.length === 0) {
     const item = await loadBookingItem(slug, page.menu[0].slug, { preview });
-    if (item) return <ItemView companySlug={slug} itemSlug={item.pub.slug} searchParams={sp} loaded={item} />;
+    if (item) return <ItemView companySlug={slug} itemSlug={item.pub.slug} searchParams={sp} loaded={item} home />;
   }
   const { company, appearance } = page;
   return (
-    <ScheduleFrame company={company} appearance={appearance} title={appearance.title || undefined} subtitle={appearance.description || "Pick what you'd like to book"}>
+    <ScheduleFrame company={company} appearance={appearance} title={appearance.title || undefined} subtitle={appearance.description || "Pick what you'd like to book"} footer="full">
       {page.previewing && sp.thumb !== "1" && (
         <div className={`mb-4 rounded border px-3 py-2 text-center text-xs ${appearance.dark ? "border-white/15 text-gray-400" : "border-gray-200 bg-white text-gray-500"}`}>
           Preview — this is your booking page as customers see it.

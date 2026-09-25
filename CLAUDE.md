@@ -576,8 +576,11 @@ code. (1) *Brand name ≠ the form*: the brand was "David Lessly", the page and
 checkbox said "Lessly Holdings". The brand name is now ALWAYS `Company.name`
 (`pinIdentity`, read-only "Brand name" on the form); a re-file over a
 verified brand PUTs the brand first (`brandInputOf` → `updateBrand`).
-(2) *Website with address, phone, email, About, services*: every hosted
-booking page carries `app/book/[slug]/BusinessFooter.tsx`
+(2) *Website with address, phone, email, About, services*: the business home
+page (`/book/<slug>`, and `/book/<slug>/about`) carries the FULL
+`app/book/[slug]/BusinessFooter.tsx`; forms and legal pages carry the SLIM
+one-line variant (name · About · Privacy · Text terms) — David found the
+block under every form cluttered (2026-09-25). `ScheduleFrame footer=`, `ItemView home`
 (`lib/business-profile.ts`: `loadBusinessProfile`, `aboutLine`,
 `profileGaps`), and `/book/<slug>` is filed as the brand's website when the
 tenant has none. Registration refuses while `profileGaps` finds a missing
