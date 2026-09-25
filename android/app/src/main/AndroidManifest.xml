@@ -53,4 +53,7 @@
          tier 3 of docs/plans/business-line-voice-2026-09-18.md): getUserMedia needs these -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- RECORD_AUDIO implies a required microphone, which drops mic-less tablets and
+         TVs from Play (20 devices on the vc4 upload). The app runs without one. -->
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
 </manifest>

@@ -4,6 +4,22 @@ Written 2026-09-24, the day after iOS 1.3 (build 7) was approved. Build
 mechanics: `mobile-app-runbook-mac.md` § PLAY STORE. What is waiting per
 platform: `native-release-queue.md`. This file is the day's checklist.
 
+## Outcome (2026-09-25)
+
+Done. Claude built vc4 in the play-release worktree, uploaded it, saw Play
+drop 20 mic-less tablets/TVs (RECORD_AUDIO implies a required microphone),
+discarded that draft, added `<uses-feature android.hardware.microphone
+required=false>`, rebuilt as **versionCode 5** (Play never re-accepts a
+version code, even from a discarded draft) and submitted it for review:
+full rollout, US, 0 devices lost, same three informational warnings as
+release 3. Four Android OAuth clients exist in Google Cloud (upload key +
+all three Play app-signing certs — Play upgraded the signing key to a
+quantum-ready pair since 2026-09-01; fingerprints in
+`native-release-queue.md`). Sign in details switched to test@testing.com.
+OPEN: Railway `ANDROID_CERT_SHA256` still lacks the two new app-signing
+SHA-256s (value in the queue doc); David's phone verification (step 6);
+lifting the Android softphone gate (step 7) once the update is on phones.
+
 ## Where Android stands
 
 - Google Play: versionCode 3 / 1.2 live in **production** since 2026-09-14.

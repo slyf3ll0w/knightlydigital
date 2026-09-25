@@ -12,48 +12,57 @@ waiting* — not how to build.
 > **2026-09-24:** day-of checklist for this Play release (with what is
 > deliberately left for versionCode 5) is `android-1.3-release-2026-09-25.md`.
 
-## Picking this up cold — 2026-09-16
+## Picking this up cold — 2026-09-25
 
-Everything below for **Google Play is written and pushed**. The repo is one
-command from an uploadable bundle; what is left is Console clicking, not code.
+**Google Play 1.3 (versionCode 5) was submitted for review on 2026-09-25**
+(full rollout, US, managed publishing off → live on approval). versionCode 4
+was uploaded first, then discarded for a manifest fix and re-cut as 5; Play
+keeps every uploaded version code in its library, so the tree is already at
+**6** for the next upload. Day-of record: `android-1.3-release-2026-09-25.md`.
 
-In order:
+Two things that changed on the console side and are NOT in older notes:
 
-1. **Google Cloud Console first, before the release is live.** Two *Android*
-   OAuth clients for package `com.streamflaire.hub`, in the same project as the
-   web sign-in client:
+1. **Play upgraded the app-signing key** (Protected with Play → App signing
+   shows "Quantum-ready (beta)": a new classical key + a post-quantum key,
+   with the 2026-09-01 key listed under "Previous app signing keys"). So
+   there are now FOUR certificates a real install can present, and every
+   place that pins a fingerprint needs all of them:
    - upload key SHA-1 `D9:C7:8B:33:AC:C8:FF:32:33:BE:BC:28:55:52:D0:88:63:41:88:11`
-   - Play app-signing key SHA-1, from Play Console → Setup → App signing
+     / SHA-256 `DE:DF:69:37:4C:20:A2:FA:9E:68:B6:36:36:83:58:59:A5:95:EB:9D:F0:AE:70:F5:C4:95:7A:EB:D7:71:C6:FD`
+   - app-signing, current classical SHA-1 `9C:3D:97:2E:1D:19:56:F7:EB:BE:02:6C:F1:E9:E2:2A:E7:7B:00:ED`
+     / SHA-256 `1A:2B:78:05:8D:44:C6:92:1E:FC:9B:82:55:20:61:D7:CB:57:E4:9D:79:8E:64:63:E8:81:BA:B4:9B:CA:AB:52`
+   - app-signing, post-quantum SHA-1 `5D:A7:7D:07:C2:AA:AB:1A:65:57:D4:0A:D7:5D:82:BF:F9:7E:FA:16`
+     / SHA-256 `54:BB:AA:77:31:89:E1:58:37:5A:E0:C6:DE:6D:68:59:E3:5F:7F:CC:BB:CC:15:51:50:CF:A0:38:3E:5E:7F:16`
+   - app-signing, previous (2026-09-01) SHA-1 `5F:95:3B:39:98:50:28:F8:0B:8E:07:01:E6:35:7E:16:D6:8B:12:31`
+     / SHA-256 `00:1C:3D:C1:B6:70:3A:38:ED:C0:0D:FF:80:00:B7:F0:FD:C9:62:5C:9B:B6:3E:76:B9:CE:2F:69:92:E6:2F:96`
 
-   Play re-signs every upload, so the second fingerprint is the one installed
-   apps present. Register only the first and Google sign-in works perfectly in
-   a sideloaded build and fails for every real user. No new env var: the
-   plugin initializes with the existing *web* `GOOGLE_SIGNIN_CLIENT_ID`.
+   Google Cloud Console (project `streamflaire-hub` → Google Auth Platform →
+   Clients) now has four **Android** OAuth clients, one per SHA-1 above, so
+   native Google sign-in works whichever key a phone was served. Done
+   2026-09-25.
 
-2. **Build**: `npx cap sync android` (mandatory — see the runbook), then
-   `cd android && .\gradlew bundleRelease`. versionCode is already 4 / "1.3".
+   **Still open — Railway `ANDROID_CERT_SHA256`** (production AND staging)
+   only lists the previous app-signing key + the upload key; the live
+   `/.well-known/assetlinks.json` proves it. Set it to all four SHA-256s,
+   comma-separated, or App Links + Google Password Manager stop matching
+   installs signed with the new keys:
+   ```
+   00:1C:3D:C1:B6:70:3A:38:ED:C0:0D:FF:80:00:B7:F0:FD:C9:62:5C:9B:B6:3E:76:B9:CE:2F:69:92:E6:2F:96,1A:2B:78:05:8D:44:C6:92:1E:FC:9B:82:55:20:61:D7:CB:57:E4:9D:79:8E:64:63:E8:81:BA:B4:9B:CA:AB:52,54:BB:AA:77:31:89:E1:58:37:5A:E0:C6:DE:6D:68:59:E3:5F:7F:CC:BB:CC:15:51:50:CF:A0:38:3E:5E:7F:16,DE:DF:69:37:4C:20:A2:FA:9E:68:B6:36:36:83:58:59:A5:95:EB:9D:F0:AE:70:F5:C4:95:7A:EB:D7:71:C6:FD
+   ```
+   Verify with `curl https://workbenchfsm.com/.well-known/assetlinks.json`.
 
-3. **Upload** to Play, production, US only, full rollout. Managed publishing is
-   off, so it goes live on approval.
+2. **Play "Sign in details"** (App content → Testing credentials) now carries
+   `test@testing.com` / `Testing!123` — the App Store review account. The
+   form had `test@test.com`, which fails to sign in (checked live on
+   2026-09-25). The instructions field is capped at 500 characters.
 
-4. **Verify on the phone after the update installs** — none of it is visible
-   before then, because all three are compiled into the APK:
-   - the launcher icon is the blue WorkBench "W", not the green swoosh
-   - the label under it reads "WorkBench", not "Streamflaire Hub"
-   - the splash is WorkBench
-   - `/app/login` shows "Continue with Google", and it opens the *system*
-     account sheet, not a browser tab
-   - Settings → My Profile → Connected sign-ins → Connect Google links
-     without bouncing you to a different company
-
-Already verified on this machine, so no need to redo: `tsc`, `next build`, the
-plugin is absent from the web bundle, and `gradlew :app:assembleDebug` passes
-with no Facebook/Twitter classes in the APK.
-
-What is deliberately NOT in this release: anything iOS. That queue is separate
-and still needs the Mac.
-
----
+**Build mechanics that bit this time** (all also in the runbook § PLAY STORE):
+`npx cap sync android` run from a git worktree rewrites the
+`android/capacitor.settings.gradle` project paths to the junction's real
+path — revert that file before committing. `RECORD_AUDIO` implies a required
+microphone, which silently dropped 20 mic-less tablets/TVs from the vc4
+upload; `<uses-feature android.hardware.microphone required=false>` is in
+the manifest now (0 devices lost on vc5).
 
 ## First: does it actually need a build?
 
@@ -87,87 +96,39 @@ android` should report **12** for Android.
 
 | | Version | State |
 |---|---|---|
-| Google Play | versionCode 3 / 1.2 | Live since 2026-09-14; **4 / 1.3 is built in the tree, not yet uploaded** |
-| App Store | 1.2 (build 5) | Live since 2026-08-06 as "Workbench FSM" (id6789991103); **1.3 (build 6) is written, needs the Mac** |
+| Google Play | versionCode 5 / 1.3 | **Submitted 2026-09-25**, in review; 3 / 1.2 live since 2026-09-14 |
+| App Store | 1.2 (build 5) | Live since 2026-08-06 as "Workbench FSM" (id6789991103); **1.3 (build 12) submitted 2026-09-23** |
 
 Bump `versionCode` in `android/app/build.gradle` on every Play upload (Play
-rejects reuse; `versionName` is cosmetic). Already bumped to **4 / "1.3"** for
-the release below — bump again to 5 after it uploads.
+rejects reuse, even of a version that was only ever in a discarded draft;
+`versionName` is cosmetic). The tree is at **6** for the next upload.
 
 ---
 
-## Google Play — waiting for the next build
+## Google Play — waiting for the next build (versionCode 6)
 
-**App icon and splash still say Streamflaire.** Fixed in the tree — the
-regenerated `android/app/src/main/res/mipmap-*` and `drawable-*/splash.png`
-are committed and ride the next upload; nothing more to do at build time.
-- Cause: the `assets/` sources were rebranded at 56a7f70 and again at a30edc8,
-  but a30edc8 ran the generator with `--ios` only — so Android kept the icons
-  generated at 44596b0, six days before the rebrand. iOS was regenerated in
-  that same commit and is correct.
-- Regenerate with `npx @capacitor/assets generate --android` (runs on Windows,
-  no Android Studio needed). **Run it for both platforms whenever `assets/`
-  changes** — the one-platform split is exactly what caused this.
-- The green-swoosh icon is on real phones today, so this is the only
-  user-visible item in this section.
-
-**The home-screen label still reads "Streamflaire Hub".** Same root cause, a
-different file: `android/app/src/main/res/values/strings.xml` (`app_name` +
-`title_activity_main`). Fixed in the tree, ships with versionCode 4.
-- `appName: 'WorkBench'` in `capacitor.config.ts` only seeds these strings when
-  the native project is first created — **`npx cap sync` never rewrites them**,
-  so the config looking right proves nothing. ae17618 ("Rebrand iOS app to
-  WorkBench") set `CFBundleDisplayName` and touched zero Android files.
-- `package_name` and `custom_url_scheme` in that file stay
-  `com.streamflaire.hub` — that is the appId, and changing it would be a new
-  app on Play. Same for the `StreamflaireHubShell` UA suffix, which the server
-  keys on to detect the shell.
-- The Play Console listing name is separate and already says WorkBench; this
-  is only the label under the icon.
-
-**Native Google sign-in.** Built and in the tree — `@capgo/capacitor-social-login`
-is installed and synced, which is the new plugin that makes this a build.
-Google refuses OAuth in embedded webviews, so the app uses the native
-Credential Manager and posts the resulting ID token to a `google-native`
-credentials provider that verifies it against Google’s JWKS and runs the same
-`resolveSocialSignIn` rules as the web. Web Google sign-in is already live
-(35ac856); the native half is Android-only on purpose.
-
-Code: `lib/native-google-signin.ts` (the plugin bridge), `lib/google-id-token.ts`
-(verification), the provider in `lib/auth-options.ts`, `POST
-/api/app/profile/identities` (connect from Settings without re-minting the
-session), and the client id routing in `lib/sign-in-options.ts`.
-
-**Before the release goes live, in Google Cloud Console** (same project as the
-web sign-in client) — without this the button appears and fails:
-- Credentials → Create OAuth client ID → **Android**, package name
-  `com.streamflaire.hub`, SHA-1 of the **upload key**:
-  `D9:C7:8B:33:AC:C8:FF:32:33:BE:BC:28:55:52:D0:88:63:41:88:11`
-- A **second** Android client with the SHA-1 of the **Play app-signing key**
-  (Play Console → Setup → App signing). Play re-signs every upload, so the
-  installed app presents that fingerprint, not the upload one — miss it and
-  sign-in works in your sideloaded build and fails for every real user.
-- No new env var: the plugin initializes with the existing *web*
-  `GOOGLE_SIGNIN_CLIENT_ID`, which is also the audience the server verifies.
-
-Old installs are safe: versionCode 3 has no plugin and loads this same web
-code, so the button checks the plugin exists before rendering and those users
-keep the password form (`useGoogleSignInOffered`).
-
-iOS deliberately excluded — `isAndroidShellUserAgent` gates it, because App
-Store rule 4.8 needs Sign in with Apple first. Full design:
-`social-login-2026-09-14.md`.
+Shipped in versionCode 5 (2026-09-25), so no longer waiting: the WorkBench
+launcher icon + splash, the "WorkBench" home-screen label, native Google
+sign-in (`@capgo/capacitor-social-login`), `RECORD_AUDIO` +
+`MODIFY_AUDIO_SETTINGS` (with the microphone declared optional). Verify on
+a phone once the update installs — see `android-1.3-release-2026-09-25.md`
+step 6.
 
 **Calls ringing the phone when the app is closed — Android half** (queued 2026-09-23). iOS shipped it in 1.3 (PushKit + CallKit). Android needs an FCM high-priority data message → a foreground service with a full-screen incoming-call intent (ConnectionService for the native dialer look), and `components/Softphone.tsx` gating on a matching bridge the way it does on `nativeVoip()` for iOS; server side, a second platform beside `ios-voip` in `lib/voip.ts`. Until then Android phones are cells.
 
-**Microphone permission** (queued 2026-09-21, tier 2 of
-`business-line-voice-2026-09-18.md`). `RECORD_AUDIO` + `MODIFY_AUDIO_SETTINGS`
-are in `AndroidManifest.xml`. Needs a build because a manifest permission is
-compiled in — without it `getUserMedia` fails inside the webview. Nothing
-user-visible yet: `components/Softphone.tsx` refuses to register in the native
-shell (`nativePlatform()`), so calls keep ringing the cell in the app. Lifting
-that gate is tier 3 work (foreground service / full-screen intent), not part of
-this build.
+**Code shrinking / R8** (queued 2026-09-25). Play's release dashboard flags
+"DEX code optimization is below our threshold — Obfuscation 2%", fix by
+**Feb 2027**, and every upload warns about the missing deobfuscation file
+and native debug symbols. Turn on `minifyEnabled` + `shrinkResources` for
+the release build type, keep the Capacitor/plugin keep-rules, and upload
+the mapping file with the bundle. Needs a build because it changes the
+compiled APK; test the webview bridge on a device first (obfuscation can
+break `@CapacitorPlugin` reflection if the keep-rules are wrong).
+
+**Edge-to-edge deprecations** (queued 2026-09-25). Play recommends dropping
+deprecated edge-to-edge APIs/parameters (targetSdk 36). Check what
+`@capacitor/status-bar` / `@capacitor/keyboard` versions fix it and bump
+them; ride along with the R8 build.
 
 ## App Store — 1.3 SUBMITTED 2026-09-23 (build 12), Waiting for Review
 
