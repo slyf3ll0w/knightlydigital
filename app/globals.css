@@ -2041,15 +2041,22 @@ html[data-mode="dark"] .app-ui .card-tool {
 }
 .wb-label-light { color: #BFD3FB; }
 
-/* Graph paper for heroes — fine blue hairlines that fade out before the
-   content ends. Layer it absolutely inside a relative section. */
-.wb-paper {
+/* Hero backdrop: the two brand colors breathe in from the top corners
+   (blue left, orange right) over a pale sky that is white by the time the
+   copy ends. Weather, not wallpaper. */
+.wb-bloom {
   background-image:
-    linear-gradient(to right,  rgba(11, 87, 216, 0.075) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(11, 87, 216, 0.075) 1px, transparent 1px);
-  background-size: 32px 32px;
-  -webkit-mask-image: radial-gradient(ellipse 90% 85% at 50% 0%, #000 25%, transparent 100%);
-  mask-image: radial-gradient(ellipse 90% 85% at 50% 0%, #000 25%, transparent 100%);
+    radial-gradient(55% 62% at 14% -12%, rgba(11, 87, 216, 0.24), transparent 70%),
+    radial-gradient(42% 55% at 90% -8%, rgba(248, 106, 10, 0.2), transparent 70%),
+    radial-gradient(75% 40% at 50% 100%, rgba(11, 87, 216, 0.05), transparent 70%),
+    linear-gradient(180deg, #F2F5FC 0%, #FFFFFF 72%);
+}
+/* The hero screenshot sits in a blue-tinted pool of light */
+.wb-frame-hero {
+  box-shadow:
+    0 0 0 1px rgba(10, 20, 40, 0.08),
+    0 40px 90px -30px rgba(11, 87, 216, 0.35),
+    0 24px 60px -24px rgba(10, 20, 40, 0.3);
 }
 
 /* Dark band: navy with a blue breath top-left and a warm one bottom-right. */

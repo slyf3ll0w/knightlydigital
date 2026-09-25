@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import WBNav from "@/components/wb/WBNav";
 import WBFooter from "@/components/wb/WBFooter";
+import WBSiteChat from "@/components/wb/WBSiteChat";
 import { WB_EMAIL, WB_PHONE } from "@/lib/wb-site";
 
 // Escape the agency-site "| Streamflaire Group LLC" title template
@@ -70,6 +71,7 @@ export default function WBSiteLayout({
       <WBNav />
       <main className="pt-20 sm:pt-24">{children}</main>
       <WBFooter />
+      {process.env.SITE_CHAT_COMPANY_ID ? <WBSiteChat /> : null}
     </div>
   );
 }

@@ -108,11 +108,11 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
       <span key="contact">
         Questions about these Terms? Email{" "}
         <a
-          href="mailto:info@streamflaire.com"
+          href="mailto:contact@workbenchfsm.com"
           className="font-semibold underline underline-offset-2"
           style={{ color: ACCENT }}
         >
-          info@streamflaire.com
+          contact@workbenchfsm.com
         </a>{" "}
         or reach out through our{" "}
         <Link

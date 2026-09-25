@@ -137,6 +137,15 @@ const rateLimits: { match: (path: string) => boolean; max: number; windowMs: num
     name: "voip-trace",
   },
   {
+    // Website chat: the widget polls for replies every few seconds while a
+    // thread is open, so it can't share the strangers' bucket. The route
+    // keeps its own tight per-IP budget on POST (12 per 10 min).
+    match: (p) => p.startsWith("/api/public/site-chat"),
+    max: 600,
+    windowMs: 60 * 60_000,
+    name: "site-chat",
+  },
+  {
     // Cold inbound from strangers: booking forms, lead webhooks, applications
     match: (p) => p.startsWith("/api/public/"),
     max: 10,

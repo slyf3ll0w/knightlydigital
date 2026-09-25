@@ -12,7 +12,7 @@ export const WB_PHONE = {
   href: "tel:+18334950229",
 } as const;
 
-export const WB_EMAIL = "info@streamflaire.com";
+export const WB_EMAIL = "contact@workbenchfsm.com";
 export const WB_EMAIL_HREF = `mailto:${WB_EMAIL}`;
 
 export const APP_STORE_URL = "https://apps.apple.com/app/workbench-fsm/id6789991103";

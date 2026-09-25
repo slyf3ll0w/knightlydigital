@@ -1155,7 +1155,7 @@ export function portalMessageTeamEmail({
     footNote: `Sent to ${esc(companyName)} by WorkBench`,
     inner: `
       <p style="margin:0 0 16px;color:#111827;font-size:15px;">
-        ${esc(contactName)} sent you a message${via === "sms" ? " by text" : " from their client portal"}.
+        ${esc(contactName)} sent you a message${via === "sms" ? " by text" : via === "web" ? " from the website chat" : " from their client portal"}.
       </p>
       <div style="margin:0 0 4px;padding:12px 14px;background:#f9fafb;border-left:3px solid #d1d5db;border-radius:0 8px 8px 0;">
         <p style="margin:0;color:#111827;font-size:14px;line-height:1.6;">${toHtml(messageBody)}</p>

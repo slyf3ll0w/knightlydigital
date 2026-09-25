@@ -66,7 +66,7 @@ export default function TimeTrackingPage() {
       }
       intro="Techs clock in and out right on the job. Weekly timesheets roll up per person, managers can fix a forgotten clock-out, and every logged hour becomes real labor cost on that job's margin — not a guess at the end of the month."
       screenshot={{
-        src: "/screens/mobile-05.png",
+        src: "/screens/mobile-timeclock.png",
         alt: "WorkBench job screen with a built-in time clock",
         kind: "mobile",
         caption: "Jobs with a built-in time clock",

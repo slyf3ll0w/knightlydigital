@@ -177,7 +177,7 @@ export default function WBHomePage() {
 
         {/* Product screenshot with floating notification cards */}
         <div className="relative mx-auto mt-14 max-w-5xl sm:mt-20">
-          <div className="wb-frame overflow-hidden rounded-2xl bg-white">
+          <div className="wb-frame-hero overflow-hidden rounded-2xl bg-white">
             <div className="flex items-center gap-2 border-b border-gray-200 bg-[#F6F8FB] px-4 py-2.5">
               <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" aria-hidden />
               <span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" aria-hidden />

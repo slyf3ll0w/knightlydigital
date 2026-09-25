@@ -10,12 +10,12 @@ import { useEffect, useRef, useState } from "react";
  */
 
 const slides = [
-  { src: "/screens/mobile-01.png", caption: "Today at a glance" },
-  { src: "/screens/mobile-02.png", caption: "The day's schedule" },
-  { src: "/screens/mobile-05.png", caption: "Jobs with a built-in time clock" },
-  { src: "/screens/mobile-04.png", caption: "Invoices from the field" },
-  { src: "/screens/mobile-03.png", caption: "Team chat" },
-  { src: "/screens/mobile-06.png", caption: "Atlas and everything else" },
+  { src: "/screens/mobile-01.png", caption: "The week, per tech" },
+  { src: "/screens/mobile-02.png", caption: "Jobs, with photos and notes" },
+  { src: "/screens/mobile-03.png", caption: "Invoices, paid from a link" },
+  { src: "/screens/mobile-04.png", caption: "Every client in one place" },
+  { src: "/screens/mobile-05.png", caption: "Quotes signed from a phone" },
+  { src: "/screens/mobile-06.png", caption: "Insights on the business" },
 ];
 
 const INTERVAL_MS = 3800;

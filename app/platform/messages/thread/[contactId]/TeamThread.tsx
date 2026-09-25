@@ -149,7 +149,7 @@ export default function TeamThread({
                   <p className="mt-1 text-[11px] text-gray-400">
                     {mine
                       ? `${m.senderName || "You"} · ${timeLabel(m.createdAt)}`
-                      : `${contactFirstName}${m.via === "sms" ? " (by text)" : ""} · ${timeLabel(m.createdAt)}`}
+                      : `${contactFirstName}${m.via === "sms" ? " (by text)" : m.via === "web" ? " (website chat)" : ""} · ${timeLabel(m.createdAt)}`}
                   </p>
                 </div>
               </div>

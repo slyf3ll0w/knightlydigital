@@ -76,11 +76,11 @@ export default function AccountDeletionPage() {
                 <p className="mt-3 text-[15px] leading-relaxed text-gray-600">
                   If you can&apos;t sign in or prefer we do it, email{" "}
                   <a
-                    href="mailto:info@streamflaire.com?subject=WorkBench%20account%20deletion%20request"
+                    href="mailto:contact@workbenchfsm.com?subject=WorkBench%20account%20deletion%20request"
                     className="font-semibold underline underline-offset-2"
                     style={{ color: ACCENT }}
                   >
-                    info@streamflaire.com
+                    contact@workbenchfsm.com
                   </a>{" "}
                   from the email address on the account with the subject{" "}
                   <span className="font-semibold text-gray-900">

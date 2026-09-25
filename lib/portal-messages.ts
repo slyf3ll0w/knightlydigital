@@ -73,7 +73,7 @@ export async function notifyTeamOfClientMessage(
   contact: PortalThreadContact,
   messageId: string,
   body: string,
-  via: "portal" | "sms"
+  via: "portal" | "sms" | "web"
 ): Promise<void> {
   const contactName = `${contact.firstName} ${contact.lastName}`.trim();
 

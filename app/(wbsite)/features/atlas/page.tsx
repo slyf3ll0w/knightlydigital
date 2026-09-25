@@ -112,7 +112,7 @@ export default function AtlasPage() {
       }
       intro="Atlas works the same tools your team does — scheduling, quotes, invoices, messages — with the same permissions, and it confirms with you before anything goes out the door. It handles the busywork so you don't have to touch it after hours."
       screenshot={{
-        src: "/screens/mobile-06.png",
+        src: "/screens/mobile-atlas.png",
         alt: "Atlas, the WorkBench AI assistant, inside the mobile app",
         kind: "mobile",
         caption: "Atlas and everything else",

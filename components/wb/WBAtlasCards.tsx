@@ -1,178 +1,218 @@
-import { ArrowRight, CalendarDays, Compass } from "lucide-react";
-import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } from "@/lib/atlas-pricing";
+import { ArrowUp, Bell, CalendarDays, Check, Coins, ExternalLink, FileText, X } from "lucide-react";
+import { AtlasMark } from "@/components/AtlasIcon";
+import { ATLAS_FREE_TOKENS, tokenCount } from "@/lib/atlas-pricing";
 
 /**
- * Four hand-built UI fragments that show what asking Atlas looks like: a
- * quote going out with a confirmation step, an answer about who owes money,
- * a day being moved, and the monthly token meter. Real interface pieces
- * drawn in HTML, not illustrations.
+ * Three replicas of the real Atlas drawer (components/AssistantDrawer.tsx)
+ * on the home page: the same paper ground, the same accent bubble for what
+ * you typed, Atlas answering in plain text, and the same ledger card he
+ * uses to ask for your OK, with the meter and composer underneath. Built
+ * from the drawer's own markup and .card-ledger so it matches the software,
+ * not a mock of it.
  */
 
+const BLUE = "#0B57D8";
+const GREEN = "#15803d";
 const freeTokens = tokenCount(ATLAS_FREE_TOKENS);
-const planTokens = tokenCount(ATLAS_PLAN_TOKENS);
-const planPrice = formatPlanPrice();
-const usedTokens = 3420;
-const usedPct = Math.round((usedTokens / ATLAS_FREE_TOKENS) * 100);
+const leftTokens = Math.round(ATLAS_FREE_TOKENS * 0.66);
 
-function Ask({ children }: { children: React.ReactNode }) {
+function You({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex justify-end">
-      <p className="max-w-[88%] rounded-2xl rounded-br-md bg-[#0B57D8] px-3.5 py-2 text-[13.5px] font-medium leading-snug text-white">
-        {children}
+    <div className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-[#0B57D8] px-3.5 py-2 text-white">
+      <p className="text-sm font-medium">{children}</p>
+    </div>
+  );
+}
+
+function Atlas({ children, tokens }: { children: React.ReactNode; tokens: string }) {
+  return (
+    <div className="mr-4 px-0.5 py-1">
+      <p className="text-sm leading-relaxed text-gray-800">{children}</p>
+      <p className="mt-1 flex items-center gap-1 text-[10px] text-gray-400">
+        <Coins size={10} />
+        {tokens} tokens
       </p>
     </div>
   );
 }
 
-function Reply({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mt-3 flex items-start gap-2.5">
-      <span className="mt-0.5 flex h-7 w-7 flex-none items-center justify-center rounded-full bg-blue-50">
-        <Compass className="h-3.5 w-3.5 text-[#0B57D8]" strokeWidth={2.2} />
-      </span>
-      <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md bg-[#F3F5F9] px-3.5 py-2.5 text-[13.5px] leading-snug text-gray-800">
-        {children}
-      </div>
-    </div>
-  );
-}
+type Row = { label: string; value: string; numeral?: boolean };
 
 function Card({
-  children,
+  icon: Icon,
+  kicker,
   title,
-  body,
+  rows,
+  batch,
+  commit,
+  done,
 }: {
-  children: React.ReactNode;
+  icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
+  kicker: string;
   title: string;
-  body: string;
+  rows?: Row[];
+  batch?: string[];
+  commit?: string;
+  done?: { note: string };
 }) {
+  const ink = done ? GREEN : BLUE;
   return (
-    <div className="flex min-w-0 flex-col rounded-[1.5rem] bg-[#F6F8FB] p-4 sm:p-5">
-      <div className="wb-frag min-w-0 flex-1 overflow-hidden p-4">{children}</div>
-      <div className="px-1 pb-1 pt-5">
-        <h3 className="text-[16px] font-extrabold text-gray-900">{title}</h3>
-        <p className="mt-1 text-[14px] leading-relaxed text-gray-600">{body}</p>
+    <div className="card-ledger mr-4 overflow-hidden text-left">
+      <div
+        className="flex items-start gap-3 px-3.5 pb-2.5 pt-3"
+        style={{ background: `color-mix(in srgb, ${ink} 9%, transparent)` }}
+      >
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold leading-none" style={{ color: ink }}>
+            {done ? <Check size={12} strokeWidth={3} /> : <Icon size={12} />}
+            {kicker}
+          </p>
+          <p className="font-display mt-1.5 text-[14px] font-bold leading-snug text-gray-900">{title}</p>
+        </div>
+        {done && (
+          <span
+            className="font-display mt-0.5 shrink-0 rounded-[4px] border-2 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+            style={{ borderColor: ink, color: ink }}
+          >
+            Done
+          </span>
+        )}
       </div>
+      <div className="px-3.5">
+        {batch ? (
+          <ol className="divide-y divide-gray-100">
+            {batch.map((l, j) => (
+              <li key={l} className="flex items-baseline gap-2 py-1.5 text-xs">
+                <span className="font-display w-4 shrink-0 text-right text-[11px] text-gray-400">{j + 1}</span>
+                <span className="min-w-0 truncate text-gray-700">{l}</span>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {rows?.map((r) => (
+              <div key={r.label} className="flex items-baseline justify-between gap-3 py-1.5 text-xs">
+                <span className="shrink-0 text-gray-500">{r.label}</span>
+                <span className={`min-w-0 truncate text-right font-medium text-gray-800 ${r.numeral ? "font-display text-[13px]" : ""}`}>
+                  {r.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {done ? (
+        <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-gray-100 px-3.5 py-2 text-xs text-gray-500">
+          <span className="min-w-0 truncate">{done.note}</span>
+          <span className="flex shrink-0 items-center gap-1 font-medium text-gray-700">
+            Open <ExternalLink size={11} />
+          </span>
+        </div>
+      ) : (
+        <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-gray-100 px-3.5 py-2.5">
+          <span className="rounded-full px-2.5 py-1.5 text-xs font-medium text-gray-500">Skip</span>
+          <span
+            className="flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold text-white"
+            style={{ background: BLUE }}
+          >
+            <Check size={12} strokeWidth={2.5} />
+            {commit}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
 
-const owed = [
-  { who: "Marcus Henderson", inv: "#1031", amt: "$2,140.00", age: "12 days" },
-  { who: "Ortiz Rentals", inv: "#1019", amt: "$811.00", age: "21 days" },
-  { who: "Dana Whitfield", inv: "#1027", amt: "$149.00", age: "5 days" },
-];
-
-const moved = ["Henderson, water heater", "Ortiz, drain clearing", "Whitfield, leak inspection"];
+function Drawer({ children, caption }: { children: React.ReactNode; caption: string }) {
+  return (
+    <div className="flex flex-col">
+      <div className="flex min-h-[520px] flex-col overflow-hidden rounded-[1.25rem] border border-gray-200 bg-[#F7F9FC] shadow-[0_1px_2px_rgba(10,20,40,0.04),0_16px_40px_-20px_rgba(10,20,40,0.25)]">
+        {/* the drawer has no header bar, only a floating close control */}
+        <div className="flex items-center justify-between px-3 pt-3">
+          <AtlasMark size={30} accent={BLUE} />
+          <span className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm">
+            <X size={16} strokeWidth={2.2} />
+          </span>
+        </div>
+        <div className="flex-1 space-y-3 px-4 pb-4 pt-4">{children}</div>
+        <div className="border-t border-gray-200 bg-white px-3 pb-3 pt-2.5">
+          <div className="flex items-center justify-between text-[10px] font-semibold">
+            <span className="flex items-center gap-1 text-gray-500">
+              <Coins size={11} />
+              {leftTokens.toLocaleString("en-US")} of {freeTokens} free tokens left
+            </span>
+            <span className="text-gray-400">refills Oct 1</span>
+          </div>
+          <div className="mt-1 h-1 overflow-hidden rounded-full bg-gray-200">
+            <div className="h-full rounded-full" style={{ width: "34%", background: BLUE }} />
+          </div>
+          <div className="mt-2.5 flex items-end gap-2">
+            <div className="min-h-[42px] flex-1 rounded-2xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm text-gray-400">
+              Ask Atlas anything…
+            </div>
+            <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full text-white" style={{ background: BLUE }}>
+              <ArrowUp size={18} strokeWidth={2.5} />
+            </span>
+          </div>
+        </div>
+      </div>
+      <p className="mt-4 px-1 text-[14.5px] leading-relaxed text-gray-600">{caption}</p>
+    </div>
+  );
+}
 
 export default function WBAtlasCards() {
   return (
-    <div className="grid gap-5 md:grid-cols-2">
-      <Card
-        title="It confirms before it acts"
-        body="Atlas drafts the quote, the reschedule, or the message and shows you what it is about to do. Nothing goes out until you say so."
-      >
-        <Ask>Send the Hendersons their quote.</Ask>
-        <Reply>
-          Quote #1042 for $2,140.00, water heater replacement, addressed to Sarah Henderson. Send it now?
-          <span className="mt-2.5 flex flex-wrap gap-2">
-            <span className="rounded-full bg-[#0A1428] px-3 py-1 text-[12.5px] font-bold text-white">Send it</span>
-            <span className="rounded-full bg-white px-3 py-1 text-[12.5px] font-bold text-gray-700 ring-1 ring-inset ring-gray-200">
-              Edit first
-            </span>
-          </span>
-        </Reply>
-      </Card>
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <Drawer caption="Sending anything to a client gets a card first. Atlas lays out exactly what goes out, and nothing moves until you tap Send.">
+        <You>Send the Hendersons their quote.</You>
+        <Atlas tokens="312">Quote #1042 is ready for Sarah Henderson. Here is what goes out:</Atlas>
+        <Card
+          icon={FileText}
+          kicker="Needs your OK"
+          title="Send quote #1042"
+          rows={[
+            { label: "Client", value: "Sarah Henderson" },
+            { label: "Job", value: "Water heater replacement" },
+            { label: "Total", value: "$2,140.00", numeral: true },
+            { label: "To", value: "sarah.h@gmail.com" },
+          ]}
+          commit="Send"
+        />
+      </Drawer>
 
-      <Card
-        title="Real answers from your own books"
-        body="Ask a question the way you would ask an office manager and get the actual numbers back, with the next step ready to go."
-      >
-        <Ask>Who still owes me money?</Ask>
-        <Reply>
-          Three open invoices, $3,100.00 in total.
-          <span className="mt-2.5 block overflow-hidden rounded-xl border border-gray-200 bg-white">
-            {owed.map((r) => (
-              <span
-                key={r.inv}
-                className="flex items-center gap-3 border-b border-gray-100 px-3 py-2 text-[12.5px] last:border-b-0"
-              >
-                <span className="min-w-0 flex-1 truncate font-semibold text-gray-900">{r.who}</span>
-                <span className="hidden text-gray-400 sm:inline">{r.inv}</span>
-                <span className="font-bold tabular-nums text-gray-900">{r.amt}</span>
-                <span className="w-14 text-right text-gray-400">{r.age}</span>
-              </span>
-            ))}
-          </span>
-          <span className="mt-2.5 inline-flex items-center gap-1 text-[12.5px] font-bold text-[#0B57D8]">
-            Send all three a reminder
-            <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
-          </span>
-        </Reply>
-      </Card>
+      <Drawer caption="Questions come back with the real numbers from your books, and the obvious next step is already drafted as a batch you can approve at once.">
+        <You>Who still owes me money?</You>
+        <Atlas tokens="540">
+          Three invoices are open, $3,100.00 in total. Marcus Henderson is the oldest at 21 days. Want me to send reminders?
+        </Atlas>
+        <Card
+          icon={Bell}
+          kicker="3 changes · needs your OK"
+          title="Send 3 payment reminders"
+          batch={[
+            "Marcus Henderson · #1031 · $2,140.00 · 21 days",
+            "Ortiz Rentals · #1019 · $811.00 · 12 days",
+            "Dana Whitfield · #1027 · $149.00 · 5 days",
+          ]}
+          commit="Send all 3"
+        />
+      </Drawer>
 
-      <Card
-        title="It moves the day, not just the job"
-        body="Reschedule a whole day at once. Atlas keeps the order, keeps the drive time, and tells each client about the new slot."
-      >
-        <Ask>Reschedule Tuesday&rsquo;s jobs to Friday.</Ask>
-        <Reply>
-          Moving three jobs from Tue 22 to Fri 25, same order and start times. Clients get a text.
-          <span className="mt-2.5 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-            <span className="min-w-0 rounded-xl border border-dashed border-gray-300 bg-white p-2">
-              <span className="mb-1.5 flex items-center gap-1 text-[11px] font-bold text-gray-400">
-                <CalendarDays className="h-3 w-3" strokeWidth={2.2} /> Tue 22
-              </span>
-              {moved.map((m) => (
-                <span key={m} className="mb-1 block truncate rounded-md px-1.5 py-1 text-[11.5px] text-gray-400 line-through last:mb-0">
-                  {m}
-                </span>
-              ))}
-            </span>
-            <ArrowRight className="h-4 w-4 text-[#F86A0A]" strokeWidth={2.5} />
-            <span className="min-w-0 rounded-xl border border-gray-200 bg-white p-2">
-              <span className="mb-1.5 flex items-center gap-1 text-[11px] font-bold text-[#0B57D8]">
-                <CalendarDays className="h-3 w-3" strokeWidth={2.2} /> Fri 25
-              </span>
-              {moved.map((m) => (
-                <span
-                  key={m}
-                  className="mb-1 block truncate rounded-md border-l-2 border-[#0B57D8] bg-blue-50 px-1.5 py-1 text-[11.5px] font-semibold text-gray-800 last:mb-0"
-                >
-                  {m}
-                </span>
-              ))}
-            </span>
-          </span>
-        </Reply>
-      </Card>
-
-      <Card
-        title={`${freeTokens} free tokens every month`}
-        body={`Every account gets an allowance that refills on the 1st, no card needed. Atlas Full is ${planTokens} a month for ${planPrice}, and Atlas never spends past either.`}
-      >
-        <div className="flex items-center justify-between">
-          <p className="text-[13.5px] font-bold text-gray-900">Atlas tokens</p>
-          <p className="text-[12px] font-semibold text-gray-400">September</p>
-        </div>
-        <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-gray-100">
-          <div className="h-full rounded-full bg-[#0B57D8]" style={{ width: `${usedPct}%` }} />
-        </div>
-        <div className="mt-2 flex items-baseline justify-between text-[12.5px]">
-          <p className="font-semibold text-gray-700">{usedTokens.toLocaleString("en-US")} used</p>
-          <p className="text-gray-400">of {freeTokens} free</p>
-        </div>
-        <div className="mt-4 rounded-xl bg-[#F3F5F9] p-3">
-          <div className="flex items-center justify-between">
-            <p className="text-[13px] font-bold text-gray-900">Atlas Full</p>
-            <p className="text-[13px] font-bold text-[#0B57D8]">
-              {planPrice}
-              <span className="font-semibold text-gray-400">/month</span>
-            </p>
-          </div>
-          <p className="mt-0.5 text-[12.5px] text-gray-500">{planTokens} tokens a month, refilled on your billing day.</p>
-        </div>
-      </Card>
+      <Drawer caption="A whole day can move in one ask. Once you approve, the card stamps itself done and the clients hear about the new time.">
+        <You>Reschedule Tuesday&rsquo;s jobs to Friday.</You>
+        <Atlas tokens="1,120">
+          Moved all three to Friday the 25th in the same order, drive time intact. Each client got a text with the new time.
+        </Atlas>
+        <Card
+          icon={CalendarDays}
+          kicker="Applied"
+          title="Move 3 jobs to Fri, Sep 25"
+          batch={["Henderson · water heater · 9:00 am", "Ortiz · drain clearing · 1:00 pm", "Whitfield · leak inspection · 3:30 pm"]}
+          done={{ note: "3 jobs moved" }}
+        />
+      </Drawer>
     </div>
   );
 }

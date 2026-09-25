@@ -14,7 +14,7 @@ export default function WBHero({
 }) {
   return (
     <section className={`relative -mt-20 overflow-hidden sm:-mt-24 ${className}`}>
-      <div className="wb-paper absolute inset-0" aria-hidden />
+      <div className="wb-bloom absolute inset-0" aria-hidden />
       <div
         className={`relative mx-auto max-w-6xl px-5 pb-14 pt-[7.75rem] sm:px-8 sm:pb-20 sm:pt-[10.5rem] ${containerClassName}`}
       >
