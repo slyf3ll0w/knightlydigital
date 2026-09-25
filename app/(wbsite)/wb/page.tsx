@@ -8,7 +8,7 @@ import WBFaq from "@/components/wb/WBFaq";
 import WBHero from "@/components/wb/WBHero";
 import WBPhoneShowcase from "@/components/wb/WBPhoneShowcase";
 import WBSystemTabs from "@/components/wb/WBSystemTabs";
-import { APP_STORE_URL, WB_EMAIL, WB_EMAIL_HREF, WB_PHONE } from "@/lib/wb-site";
+import { APP_STORE_URL, PLAY_STORE_URL, WB_EMAIL, WB_EMAIL_HREF, WB_PHONE } from "@/lib/wb-site";
 import { EXTRA_SEAT_CENTS, FREE_PLAN_NAME, INCLUDED_SEATS, PLANS, formatCents } from "@/lib/plans";
 import {
   ArrowRight,
@@ -37,7 +37,7 @@ import {
 export const metadata: Metadata = {
   title: "WorkBench — Free field service management software",
   description:
-    "WorkBench is free scheduling, quoting, invoicing, and payment software for home-service companies. Online booking, dispatch, a client portal, team chat, an AI assistant, and a native iPhone app. Full access, not a trial, funded by payment processing; optional add-ons for a phone line, unlimited users, and job photos.",
+    "WorkBench is free scheduling, quoting, invoicing, and payment software for home-service companies. Online booking, dispatch, a client portal, team chat, an AI assistant, and native iPhone and Android apps. Full access, not a trial, funded by payment processing; optional add-ons for a phone line, unlimited users, and job photos.",
 };
 
 const trades = [
@@ -126,7 +126,7 @@ const faqItems = [
     q: "Is there a mobile app?",
     a: (
       <p>
-        Yes. A native iPhone app on the{" "}
+        Yes. Native apps for iPhone on the{" "}
         <a
           href={APP_STORE_URL}
           target="_blank"
@@ -134,6 +134,15 @@ const faqItems = [
           className="font-semibold text-[#0B57D8] hover:underline"
         >
           App Store
+        </a>{" "}
+        and Android on{" "}
+        <a
+          href={PLAY_STORE_URL}
+          target="_blank"
+          rel="noopener"
+          className="font-semibold text-[#0B57D8] hover:underline"
+        >
+          Google Play
         </a>
         , with push notifications for requests, bookings, chat, and payments,
         plus offline viewing of the schedule when a job site has no signal. The
@@ -253,7 +262,7 @@ export default function WBHomePage() {
           {[
             { title: "Free for unlimited users", body: "Every essential feature for the whole team. No tiers, no seats to count." },
             { title: "One flat payment rate", body: "2.9% + 30¢ per card transaction, 0.75% per ACH transfer. Nothing monthly." },
-            { title: "A native iPhone app", body: "Push notifications, an offline schedule, and invoices sent from the driveway." },
+            { title: "iPhone and Android apps", body: "Push notifications, an offline schedule, and invoices sent from the driveway." },
           ].map((f) => (
             <div key={f.title} className="py-6 md:px-8 md:first:pl-0 md:last:pr-0">
               <p className="text-[15.5px] font-bold text-gray-900">{f.title}</p>
@@ -282,6 +291,17 @@ export default function WBHomePage() {
               See every feature
             </Link>
           </p>
+          <div className="mt-6 flex justify-center">
+            <Link
+              href="/features"
+              className="inline-flex items-center gap-2.5 rounded-full bg-white px-4 py-2 text-[14px] font-semibold text-gray-700 ring-1 ring-inset ring-gray-200 transition-colors hover:ring-gray-300"
+            >
+              <Image src="/quickbooks-icon.svg" alt="" width={22} height={22} unoptimized className="h-[22px] w-[22px]" />
+              <span>
+                Syncs with <span className="font-bold text-gray-900">QuickBooks Online</span>
+              </span>
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -334,16 +354,16 @@ export default function WBHomePage() {
         </div>
       </section>
 
-      {/* ── iPhone app ── */}
+      {/* ── Mobile apps ── */}
       <section className="wb-dark text-white">
         <div className="mx-auto grid max-w-6xl items-center gap-14 px-5 py-20 sm:px-8 sm:py-28 lg:grid-cols-[1.15fr_1fr] lg:gap-16">
           <AnimateIn>
-            <p className="wb-label wb-label-light">The iPhone app</p>
+            <p className="wb-label wb-label-light">The mobile app</p>
             <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
               Take the office into the field.
             </h2>
             <p className="mt-4 max-w-lg text-[16px] leading-relaxed text-blue-100/80">
-              The native iPhone app carries the whole system: schedule, jobs,
+              The native iPhone and Android apps carry the whole system: schedule, jobs,
               chat, invoices, and Atlas. Techs never need a laptop between the
               truck and the crawl space.
             </p>
@@ -376,22 +396,40 @@ export default function WBHomePage() {
                 </li>
               ))}
             </ul>
-            <a
-              href={APP_STORE_URL}
-              target="_blank"
-              rel="noopener"
-              aria-label="Download WorkBench on the App Store"
-              className="mt-9 inline-block transition-opacity hover:opacity-80"
-            >
-              <Image
-                src="/app-store-badge.svg"
-                alt="Download on the App Store"
-                width={120}
-                height={40}
-                unoptimized
-                className="h-[44px] w-auto"
-              />
-            </a>
+            <div className="mt-9 flex flex-wrap items-center gap-3">
+              <a
+                href={APP_STORE_URL}
+                target="_blank"
+                rel="noopener"
+                aria-label="Download WorkBench on the App Store"
+                className="inline-block transition-opacity hover:opacity-80"
+              >
+                <Image
+                  src="/app-store-badge.svg"
+                  alt="Download on the App Store"
+                  width={120}
+                  height={40}
+                  unoptimized
+                  className="h-[44px] w-auto"
+                />
+              </a>
+              <a
+                href={PLAY_STORE_URL}
+                target="_blank"
+                rel="noopener"
+                aria-label="Get WorkBench on Google Play"
+                className="inline-block transition-opacity hover:opacity-80"
+              >
+                <Image
+                  src="/google-play-badge.svg"
+                  alt="Get it on Google Play"
+                  width={180}
+                  height={53}
+                  unoptimized
+                  className="h-[44px] w-auto"
+                />
+              </a>
+            </div>
           </AnimateIn>
           <AnimateIn delay={150}>
             <WBPhoneShowcase tone="dark" />

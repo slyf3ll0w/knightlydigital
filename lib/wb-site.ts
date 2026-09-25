@@ -16,6 +16,7 @@ export const WB_EMAIL = "contact@workbenchfsm.com";
 export const WB_EMAIL_HREF = `mailto:${WB_EMAIL}`;
 
 export const APP_STORE_URL = "https://apps.apple.com/app/workbench-fsm/id6789991103";
+export const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.streamflaire.hub";
 
 /**
  * Stock photography for the marketing pages (Unsplash, hot-linked through
