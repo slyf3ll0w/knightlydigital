@@ -57,7 +57,7 @@ export default function WBTestimonials() {
             Draft quotes, only visible in local preview until the customers approve them
           </p>
         )}
-        <AnimateIn className="relative mx-auto max-w-3xl text-center">
+        <AnimateIn className="relative z-10 mx-auto max-w-3xl text-center">
           <p className="wb-label justify-center">From the field</p>
           <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
             Owners who run their day on WorkBench.
