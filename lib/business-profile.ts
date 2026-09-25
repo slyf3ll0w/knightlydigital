@@ -21,6 +21,7 @@ export type BusinessProfile = {
   state: string | null;
   zip: string | null;
   website: string | null;
+  about: string | null;
   industry: string | null;
   logoUrl: string | null;
   services: string[];
@@ -29,7 +30,7 @@ export type BusinessProfile = {
 export async function loadBusinessProfile(slug: string): Promise<BusinessProfile | null> {
   const company = await prisma.company.findUnique({
     where: { slug },
-    select: { id: true, name: true, slug: true, phone: true, email: true, address: true, city: true, state: true, zip: true, website: true, industry: true, logoUrl: true },
+    select: { id: true, name: true, slug: true, phone: true, email: true, address: true, city: true, state: true, zip: true, website: true, about: true, industry: true, logoUrl: true },
   });
   if (!company) return null;
   const listed = await listPublicBookingTypes(slug, { skipGate: true }).catch(() => null);
@@ -53,8 +54,14 @@ export function profileAddress(p: Pick<BusinessProfile, "address" | "city" | "st
   return [p.address, cityLine].filter(Boolean).join(", ");
 }
 
-/** One plain sentence on what the business does — the "About" the reviewers look for. */
-export function aboutLine(p: Pick<BusinessProfile, "name" | "industry" | "city" | "state" | "services">): string {
+/**
+ * What the business does — the "About" the reviewers look for. The owner's
+ * own words when they wrote some (Settings → Business Info), otherwise a
+ * sentence built from the industry, city and services.
+ */
+export function aboutLine(p: Pick<BusinessProfile, "name" | "industry" | "city" | "state" | "services"> & { about?: string | null }): string {
+  const own = p.about?.trim();
+  if (own) return /[.!?]$/.test(own) ? own : `${own}.`;
   const trade = p.industry && p.industry !== "Other" ? `${p.industry.toLowerCase()} business` : "local service business";
   const where = p.city && p.state ? ` serving ${p.city}, ${p.state} and nearby areas` : "";
   const offers = p.services.length ? ` Services include ${listJoin(p.services.slice(0, 6).map((s) => s.toLowerCase()))}.` : "";
@@ -71,11 +78,16 @@ function listJoin(xs: string[]): string {
  * website. Pure — pinned by scripts/test-business-line.ts and used as a
  * registration pre-flight (a missing fact = a TELNYX_FAILED and a re-file).
  */
-export function profileGaps(p: Pick<BusinessProfile, "phone" | "email" | "address" | "city" | "state" | "zip" | "services">): string[] {
+export function profileGaps(
+  p: Pick<BusinessProfile, "phone" | "email" | "address" | "city" | "state" | "zip" | "services"> & { about?: string | null; industry?: string | null }
+): string[] {
   const gaps: string[] = [];
-  if (!p.phone?.trim()) gaps.push("business phone");
-  if (!p.email?.trim()) gaps.push("business email");
-  if (!p.address?.trim() || !p.city?.trim() || !p.state?.trim() || !p.zip?.trim()) gaps.push("business address (street, city, state, ZIP)");
+  if (!p.phone?.trim()) gaps.push("your business phone");
+  if (!p.email?.trim()) gaps.push("your business email");
+  if (!p.address?.trim() || !p.city?.trim() || !p.state?.trim() || !p.zip?.trim()) gaps.push("your business address (street, city, state, ZIP)");
   if (!p.services.length) gaps.push("at least one service on your booking page");
+  // Without an industry from the list, only the owner's own words can say what the business does.
+  const knownTrade = Boolean(p.industry && p.industry !== "Other");
+  if (!knownTrade && !p.about?.trim()) gaps.push("a short \"About your business\" description (or pick your industry)");
   return gaps;
 }
