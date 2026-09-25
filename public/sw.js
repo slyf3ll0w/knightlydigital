@@ -16,7 +16,7 @@
  * Bump VERSION to drop every cache wholesale on the next deploy.
  */
 
-const VERSION = "v4";
+const VERSION = "v5";
 const STATIC_CACHE = `sfh-static-${VERSION}`;
 const PAGES_CACHE = `sfh-pages-${VERSION}`;
 const MEDIA_CACHE = `sfh-media-${VERSION}`;
@@ -122,9 +122,25 @@ function isAuthPath(pathname) {
 
 // ── Fetch strategies ─────────────────────────────────────────────────────────
 
+/**
+ * One navigation fetch, tried twice. iOS drops the FIRST request a resumed
+ * app makes ("the network connection was lost") — a notification tap wakes
+ * the shell and navigates in the same instant, and that single failure used
+ * to land on offline.html. A short pause and a second try almost always
+ * lands; only then do we fall back to the snapshot.
+ */
+async function fetchNavigation(request) {
+  try {
+    return await fetch(request);
+  } catch {
+    await new Promise((r) => setTimeout(r, 700));
+    return fetch(request);
+  }
+}
+
 async function handleNavigation(event, request) {
   try {
-    const response = await fetch(request);
+    const response = await fetchNavigation(request);
 
     // Redirected to login = session over: don't cache, and drop the old snapshot
     let finalPath = "";
@@ -141,6 +157,20 @@ async function handleNavigation(event, request) {
     }
     return response;
   } catch {
+    // The notification-tap landing page only exists to redirect; a cached
+    // copy of it is pointless and offline.html is a dead end, so hand the
+    // browser a plain redirect to the destination instead.
+    try {
+      const u = new URL(request.url);
+      if (u.pathname === "/app/open") {
+        const to = u.searchParams.get("to") || "";
+        const dest = (to.startsWith("/app/") ? to : "/app/dashboard").replace(/["<>]/g, "");
+        return new Response(
+          `<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="1;url=${dest}"><title>Opening…</title><p style="font-family:system-ui;padding:24px;color:#555">Opening…</p>`,
+          { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } }
+        );
+      }
+    } catch {}
     const exact = await safeMatch(request, { ignoreVary: true });
     if (exact) return exact;
     // e.g. /app/jobs?status=ACTIVE falls back to the cached /app/jobs

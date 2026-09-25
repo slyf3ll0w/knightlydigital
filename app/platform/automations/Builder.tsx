@@ -12,6 +12,7 @@ import { SECTION_HUES } from "@/lib/section-colors";
 import {
   ACTIONS,
   AUTOMATION_LIMITS,
+  TRIGGERS,
   actionAllowedFor,
   compileAutomation,
   describeAutomation,
@@ -74,6 +75,14 @@ function fromSpec(spec: AutomationSpec | null, name = "", description = ""): Sta
 
 function toSpec(s: State): AutomationSpec {
   return { version: 2, trigger: s.trigger, steps: [...(isEmptyFilter(s.lead) ? [] : [s.lead]), ...s.steps] };
+}
+
+/** "A quote is sent → Email the client" — the default name for a new rule. */
+function suggestName(trigger: TriggerSpec, steps: Step[]): string {
+  const first = steps.find((s) => s.type !== "filter" && s.type !== "wait") as AutomationAction | undefined;
+  const when = TRIGGERS[trigger.event].label.replace(/\{days\}|\{hours\}/g, "N");
+  const cap = when.charAt(0).toUpperCase() + when.slice(1);
+  return (first ? `${cap} → ${ACTIONS[first.type].label}` : cap).slice(0, 80);
 }
 
 export default function Builder({ initial, initialRuns, atlasFirst = false }: { initial: Row | null; initialRuns: Run[]; atlasFirst?: boolean }) {
@@ -153,7 +162,12 @@ export default function Builder({ initial, initialRuns, atlasFirst = false }: { 
 
   function addStep(at: number, ns: NewStep) {
     const step: Step = ns.kind === "filter" ? emptyFilter() : ns.kind === "wait" ? { type: "wait", amount: 1, unit: "days" } : newAction(ns.type);
-    update((s) => ({ ...s, steps: [...s.steps.slice(0, at), step, ...s.steps.slice(at)] }));
+    update((s) => {
+      const steps = [...s.steps.slice(0, at), step, ...s.steps.slice(at)];
+      // A rule names itself from its first action ("A quote is sent → Email
+      // the client") — nobody should have to notice an empty title to save
+      return { ...s, steps, name: s.name.trim() ? s.name : suggestName(s.trigger, steps) };
+    });
     markChanged([at]);
   }
   function setStep(i: number, step: Step) {
@@ -295,7 +309,9 @@ export default function Builder({ initial, initialRuns, atlasFirst = false }: { 
 
   const described = compiled.ok ? describeAutomation(compiled.compiled.spec) : null;
   const isWebhook = st.trigger.event === "webhook.received";
-  const canSave = compiled.ok && st.name.trim().length > 0 && !saving && (dirty || !initial);
+  // A missing name never greys the button: pressing Save says "give it a
+  // name" and puts the cursor there (a disabled button explained nothing)
+  const canSave = compiled.ok && !saving && (dirty || !initial);
 
   const header = (
     <div className="mb-5 flex flex-wrap items-start gap-3">
