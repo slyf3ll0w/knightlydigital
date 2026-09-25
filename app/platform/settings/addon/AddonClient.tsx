@@ -7,7 +7,7 @@ import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 
 /**
- * The Workbench Plus upsell. Three states:
+ * The Dispatch (business-line plan) upsell. Three states:
  *  - subscribed → the active card
  *  - just back from Livery checkout (?checkout=done) → "Activating…" while we
  *    poll /api/app/addon waiting for the subscription.created webhook to land
@@ -17,16 +17,16 @@ import PageTitle from "@/components/PageTitle";
 
 const FEATURES = [
   {
-    title: "Advanced reporting & insights",
-    sub: "Deeper revenue, job-profit, and team-performance breakdowns.",
+    title: "A local business number",
+    sub: "Registered to text in your business's name; calls ring in the app first, then your cell.",
   },
   {
-    title: "Priority support",
-    sub: "Your questions jump the queue.",
+    title: "Dialer, voicemail, and a call log",
+    sub: "Call from the browser, put people on hold, and keep every call with Atlas notes.",
   },
   {
-    title: "Early access",
-    sub: "New features land here first, before the general release.",
+    title: "Texting from the line",
+    sub: "Your texts and WorkBench's automatic texts both send from your own number.",
   },
 ];
 
@@ -86,7 +86,7 @@ export default function AddonClient({
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-start gap-3 mb-6">
         <BackLink href="/app/settings" className="mt-1.5" />
-        <PageTitle sub="More horsepower for your whole team, billed monthly.">Workbench Plus</PageTitle>
+        <PageTitle sub="Your own business phone line inside WorkBench, billed monthly.">Dispatch</PageTitle>
       </div>
 
       {isActive ? (
@@ -96,7 +96,7 @@ export default function AddonClient({
               <Check size={20} />
             </span>
             <div>
-              <p className="text-sm font-semibold text-gray-900">Workbench Plus is active</p>
+              <p className="text-sm font-semibold text-gray-900">Dispatch is active</p>
               <p className="text-xs text-gray-500">
                 {activeAt
                   ? `Subscribed since ${new Date(activeAt).toLocaleDateString("en-US", {
@@ -145,8 +145,8 @@ export default function AddonClient({
               <Sparkles size={19} />
             </span>
             <p className="text-sm leading-relaxed text-gray-600">
-              Everything in Workbench stays free. Plus adds the extras for teams that want
-              more — cancel anytime.
+              Everything in Workbench stays free. Dispatch adds your own business phone line
+              — cancel anytime.
             </p>
           </div>
           <ul className="mt-5 space-y-3 border-t border-gray-100 pt-5">

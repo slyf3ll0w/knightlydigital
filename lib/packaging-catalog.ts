@@ -34,7 +34,7 @@ function slug(s: string): string {
 
 /**
  * Features the marketing catalog doesn't list — the back office, the phone,
- * the platform itself, and the things Workbench Plus currently promises.
+ * the platform itself, and the things the paid plans promise.
  */
 const EXTRA_FEATURES: CatalogFeature[] = [
   // ── Atlas ──
@@ -233,7 +233,7 @@ const EXTRA_FEATURES: CatalogFeature[] = [
   {
     key: "extra:advanced-reporting",
     title: "Advanced reporting",
-    body: "Deeper cuts of the numbers than the standard Insights page — the current Workbench Plus promise.",
+    body: "Deeper cuts of the numbers than the standard Insights page — the old Workbench Plus promise, not in any plan today.",
     group: "Platform",
     icon: "TrendingUp",
   },
@@ -276,19 +276,35 @@ export const STARTER_LANES: {
     accent: null,
   },
   {
-    name: "Free Tier",
+    name: "Bench",
     kind: "TIER",
     price: "$0",
-    priceNote: "forever, unlimited seats",
-    blurb: "The generous free plan — funded by payment processing.",
+    priceNote: "forever, 2 users included",
+    blurb: "The free core — full access, not a trial, funded by payment processing.",
     accent: "#0B57D8",
   },
   {
-    name: "Workbench Plus",
-    kind: "TIER",
-    price: "$29",
+    name: "Dispatch",
+    kind: "ADDON",
+    price: "$25",
     priceNote: "per company, per month",
-    blurb: "The paid tier for companies that want more than the essentials.",
+    blurb: "The business phone line.",
+    accent: "#F86A0A",
+  },
+  {
+    name: "Shop",
+    kind: "ADDON",
+    price: "$89",
+    priceNote: "per company, per month",
+    blurb: "Unlimited users and the ops tools.",
+    accent: "#0B57D8",
+  },
+  {
+    name: "Jobsite",
+    kind: "ADDON",
+    price: "$29",
+    priceNote: "per company, per month — coming soon",
+    blurb: "CompanyCam-style job photos.",
     accent: "#F86A0A",
   },
 ];

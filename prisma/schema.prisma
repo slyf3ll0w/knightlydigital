@@ -158,7 +158,7 @@ model Company {
   // underwriting form now; an invite code on /invite waives underwriting
   // instead). Kept for existing rows.
   finixSandboxApproved      Boolean     @default(false)
-  // ── Premium add-on, sold through Livery (lib/addon.ts) ──
+  // ── Dispatch, the business-line plan, sold through Livery (lib/addon.ts) ──
   // addonEnabled is the superadmin VISIBILITY switch: the upsell page and its
   // settings link only render while it's on (preview = on for Streamflaire
   // only). addonActiveAt is the ENTITLEMENT — stamped by the Livery webhook
@@ -168,6 +168,12 @@ model Company {
   addonEnabled              Boolean     @default(false)
   addonActiveAt             DateTime?
   addonLiverySubId          String? // Livery Subscription id backing the entitlement
+  // ── Plan whitelist (lib/plans.ts) — the superadmin console grants add-on
+  // plans (DISPATCH / SHOP / JOBSITE) here for free: the first users get
+  // everything, comped accounts, testing. Checkout for Shop is not wired
+  // yet, so a grant is the only way onto it. Gate with hasPlan(company, id),
+  // which also honours a paid Dispatch subscription (addonActiveAt).
+  planGrants                String[]    @default([])
   // ── Business line (lib/business-line.ts) — the tenant's own local number,
   // bought through Telnyx, carrying their automated texts AND a forwarded
   // business phone line. Texts send from it only once MessagingRegistration

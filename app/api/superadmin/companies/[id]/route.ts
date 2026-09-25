@@ -6,13 +6,16 @@ import { limit } from "@/lib/rate-limit";
 import { companyHasProtectedUser, deleteCompanyCascade } from "@/lib/company-delete";
 import { LineError, appealCampaignRegistration, approveRegistration, attachExistingNumber, keepLine, refreshKeywordReplies, releaseLine } from "@/lib/business-line";
 import { VoiceError, ensureVoiceRouting } from "@/lib/voice";
+import { PLAN_IDS, isPlanId, normalizeGrants } from "@/lib/plans";
+import type { Prisma } from "@prisma/client";
 
 /**
  * Superadmin account controls.
  *
  * PATCH  — suspend / reinstate (reversible: data untouched, the tenant app and
- *          public surfaces go dark until reinstated), payments-gate waiver, and
- *          the Atlas assistant override (on / off / back to default policy).
+ *          public surfaces go dark until reinstated), payments-gate waiver,
+ *          the Atlas assistant override (on / off / back to default policy),
+ *          and the plan whitelist (plan-grant / plan-revoke, lib/plans.ts).
  * DELETE — permanent removal behind the heaviest gate in the product: the
  *          exact slug retyped, the superadmin's own password re-verified, and
  *          for companies with real data ("large": any payments, or >25
@@ -67,16 +70,64 @@ export async function PATCH(
     action !== "line-appeal" &&
     action !== "line-keywords" &&
     action !== "addon-grant" &&
-    action !== "addon-revoke"
+    action !== "addon-revoke" &&
+    action !== "plan-grant" &&
+    action !== "plan-revoke"
   ) {
     return NextResponse.json({ error: "Unknown action." }, { status: 400 });
   }
 
   const company = await prisma.company.findUnique({
     where: { id },
-    select: { id: true, name: true, suspendedAt: true },
+    select: {
+      id: true,
+      name: true,
+      suspendedAt: true,
+      planGrants: true,
+      addonActiveAt: true,
+      addonLiverySubId: true,
+      atlasPlanActiveAt: true,
+      atlasPlanLiverySubId: true,
+    },
   });
   if (!company) return NextResponse.json({ error: "Company not found." }, { status: 404 });
+
+  // Plan whitelist (lib/plans.ts): put the company on an add-on plan for
+  // free, or take it off again. "ALL" is Full Shop. A Dispatch grant also
+  // stamps the Livery entitlement so the business line unlocks today, and a
+  // Shop grant starts the Atlas paid plan (its tokens are part of Shop);
+  // revoking clears those only when no Livery subscription is behind them.
+  if (action === "plan-grant" || action === "plan-revoke") {
+    const grant = action === "plan-grant";
+    const target = body.plan === "ALL" ? [...PLAN_IDS] : isPlanId(body.plan) ? [body.plan] : null;
+    if (!target) return NextResponse.json({ error: "Unknown plan." }, { status: 400 });
+    const current = normalizeGrants(company.planGrants);
+    const planGrants = grant
+      ? normalizeGrants([...current, ...target])
+      : current.filter((p) => !target.includes(p));
+    const data: Prisma.CompanyUpdateInput = { planGrants };
+    if (target.includes("DISPATCH")) {
+      if (grant && !company.addonActiveAt) data.addonActiveAt = new Date();
+      if (!grant && company.addonActiveAt && !company.addonLiverySubId) data.addonActiveAt = null;
+    }
+    if (target.includes("SHOP")) {
+      if (grant && !company.atlasPlanActiveAt) {
+        data.atlasPlanActiveAt = new Date();
+        data.atlasPeriodStart = new Date();
+        data.atlasPeriodTokensUsed = 0;
+      }
+      if (!grant && company.atlasPlanActiveAt && !company.atlasPlanLiverySubId) {
+        data.atlasPlanActiveAt = null;
+        data.atlasPeriodStart = null;
+        data.atlasPeriodTokensUsed = 0;
+      }
+    }
+    await prisma.company.update({ where: { id }, data });
+    console.warn(
+      `[superadmin] plans ${grant ? "GRANTED" : "REVOKED"} ${target.join("+")} for "${company.name}" (${id}) by ${admin.email} → now [${planGrants.join(", ") || "none"}]`
+    );
+    return NextResponse.json({ success: true, planGrants });
+  }
 
   // Payment-verification waiver: exempts the company from the /app/activate
   // underwriting gate (test accounts, comped users).

@@ -23,7 +23,7 @@ import { createHmac, timingSafeEqual } from "crypto";
  *                               Livery → Settings → Developers
  */
 
-export const ADDON_NAME = "Workbench Plus";
+export const ADDON_NAME = "Dispatch";
 
 export function addonConfigured(): boolean {
   return Boolean(process.env.LIVERY_ADDON_CHECKOUT_URL && process.env.LIVERY_WEBHOOK_SECRET);

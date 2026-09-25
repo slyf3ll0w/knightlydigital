@@ -6,6 +6,7 @@ import WBCta from "@/components/wb/WBCta";
 import WBFaq, { FaqItem } from "./WBFaq";
 import WBScreenshotFrame from "./WBScreenshotFrame";
 import type { FeatureItem } from "@/lib/wb-features";
+import { PLANS } from "@/lib/plans";
 
 type Accent = "blue" | "orange";
 
@@ -32,11 +33,11 @@ export default function WBFeaturePage({
   features,
   faq,
   related,
-  ctaTitle = "All of it, free — for your whole team.",
+  ctaTitle = "Free to start. Full access, not a trial.",
   ctaBody = (
     <>
-      No tiers to climb and no seats to count. Apply, and we&apos;ll onboard
-      your company personally.
+      Two users included, flat-priced add-ons when the crew needs more.
+      Apply, and we&apos;ll onboard your company personally.
     </>
   ),
 }: {
@@ -127,16 +128,25 @@ export default function WBFeaturePage({
           <AnimateIn>
             <h2 className="text-2xl font-extrabold sm:text-3xl">What&apos;s included</h2>
             <p className="mt-2 text-[14.5px] font-semibold text-gray-500">
-              All of it is in the free plan, for every seat on your team.
+              {features.some((f) => f.plan)
+                ? "In the free plan unless marked with an add-on."
+                : "All of it is in the free plan."}
             </p>
           </AnimateIn>
           <div className="mt-10 grid gap-x-10 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map(({ icon: Icon, title: t, body }, i) => (
+            {features.map(({ icon: Icon, title: t, body, plan }, i) => (
               <AnimateIn key={t} delay={(i % 3) * 90}>
                 <div className="flex gap-4">
                   <Icon className={`mt-0.5 h-5 w-5 flex-none ${c.text}`} strokeWidth={1.9} />
                   <div>
-                    <h3 className="text-[15.5px] font-bold text-gray-900">{t}</h3>
+                    <h3 className="flex flex-wrap items-center gap-2 text-[15.5px] font-bold text-gray-900">
+                      {t}
+                      {plan && (
+                        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-[#0B57D8]">
+                          {PLANS[plan].name}
+                        </span>
+                      )}
+                    </h3>
                     <p className="mt-1 text-[14px] leading-relaxed text-gray-600">{body}</p>
                   </div>
                 </div>

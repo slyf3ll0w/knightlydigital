@@ -313,8 +313,11 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
 - **Attach an existing number**: superadmin **line-attach** (`LineControl`)
   hands a company a number the Telnyx account already owns (Streamflaire’s
   own +1 833-495-0229, ported numbers) instead of buying one.
-- **Entitlement**: Workbench Plus (`hasAddon`). Comp a company with the
-  superadmin **addon-grant** action — never ship the gate open.
+- **Entitlement**: the Dispatch plan (`hasAddon`, lib/addon.ts — the Livery
+  subscription; `hasPlan(company, "DISPATCH")` in lib/plans.ts also honours
+  a superadmin whitelist grant). Comp a company with the superadmin
+  **plan-grant** action (Plans card; a Dispatch grant also stamps
+  `addonActiveAt`) — never ship the gate open.
 - **The number is theirs** (`Company.lineReleaseAt`, cron step `lineReleases`,
   `runLineReleaseSweep` / `lineReleasePlan`): when the add-on lapses the sweep
   stamps a release date 30 days out and pushes the owner; the Settings card
@@ -724,12 +727,15 @@ GOOGLE_CALENDAR_CLIENT_SECRET=
 # Optional — per-company custom sending domains (lib/email-domains.ts). Needs a
 # paid Resend plan (extra domains); Settings card + API stay hidden until set.
 EMAIL_DOMAINS_ENABLED=   # "1" to enable
-# Optional — the Workbench Plus premium add-on, sold through Livery
+# Optional — the Dispatch plan (business phone line), sold through Livery
 # (lib/addon.ts; webhook receiver at /api/public/webhooks/livery). Both must
 # be set or the upsell page shows "not available yet". Visibility is
 # per-company (Company.addonEnabled, superadmin console); entitlement is
-# Company.addonActiveAt, managed by the Livery webhooks.
-LIVERY_ADDON_CHECKOUT_URL=  # e.g. https://paywithlivery.com/l/workbench-plus
+# Company.addonActiveAt, managed by the Livery webhooks, or a superadmin
+# plan grant (Company.planGrants, lib/plans.ts — the whitelist that puts the
+# first users on every plan for free). Plan prices are PLAN_*_CENTS env vars
+# with defaults in lib/plans.ts; the marketing site reads the same constants.
+LIVERY_ADDON_CHECKOUT_URL=  # e.g. https://paywithlivery.com/l/workbench-dispatch
 LIVERY_WEBHOOK_SECRET=      # whsec_… from Livery → Settings → Developers
 # Telnyx — provider texting + business lines (lib/sms.ts, lib/business-line.ts).
 # All three needed: without API key + profile every send is a no-op and the

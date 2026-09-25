@@ -33,7 +33,7 @@ const atlasFeatures: FeatureItem[] = [
   {
     icon: Compass,
     title: `${freeTokens} free tokens a month, on every account`,
-    body: `No card, no sign-up step, no trial clock — the allowance refills on the 1st. Atlas Full is ${planTokens} tokens a month for ${planPrice}, refilled on your billing day. AI usage costs real money, so it's priced separately from the free core software instead of buried in it.`,
+    body: `No card, no sign-up step, no trial clock — the allowance refills on the 1st. Atlas Full is ${planTokens} tokens a month for ${planPrice} on its own, or included with the Shop add-on, refilled on your billing day. AI usage costs real money, so it's priced separately from the free core software instead of buried in it.`,
   },
 ];
 
@@ -141,7 +141,7 @@ export default function AtlasPage() {
       ctaTitle={`${freeTokens} free tokens a month. ${planPrice} when you want more.`}
       ctaBody={
         <>
-          The core WorkBench software is free for your whole team. Atlas
+          The core WorkBench software is free to use, full access, not a trial. Atlas
           comes with {freeTokens} free tokens every month on every account;
           Atlas Full is {planTokens} a month for {planPrice}.
         </>

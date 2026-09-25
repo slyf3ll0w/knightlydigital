@@ -9,6 +9,7 @@ import WBHero from "@/components/wb/WBHero";
 import WBPhoneShowcase from "@/components/wb/WBPhoneShowcase";
 import WBSystemTabs from "@/components/wb/WBSystemTabs";
 import { APP_STORE_URL, WB_EMAIL, WB_EMAIL_HREF, WB_PHONE } from "@/lib/wb-site";
+import { EXTRA_SEAT_CENTS, FREE_PLAN_NAME, INCLUDED_SEATS, PLANS, formatCents } from "@/lib/plans";
 import {
   ArrowRight,
   Bug,
@@ -36,7 +37,7 @@ import {
 export const metadata: Metadata = {
   title: "WorkBench — Free field service management software",
   description:
-    "WorkBench is free scheduling, quoting, invoicing, and payment software for home-service companies. Online booking, dispatch, a client portal, team chat, an AI assistant, and a native iPhone app. Funded by payment processing, not subscriptions.",
+    "WorkBench is free scheduling, quoting, invoicing, and payment software for home-service companies. Online booking, dispatch, a client portal, team chat, an AI assistant, and a native iPhone app. Full access, not a trial, funded by payment processing; optional add-ons for a phone line, unlimited users, and job photos.",
 };
 
 const trades = [
@@ -55,12 +56,13 @@ const trades = [
 ];
 
 const rateRows = [
-  { label: "The software", value: "Free" },
-  { label: "Users", value: "Unlimited" },
+  { label: "The software", value: "Free, full access" },
+  { label: "Users", value: `${INCLUDED_SEATS} included, ${formatCents(EXTRA_SEAT_CENTS)} each after` },
   { label: "Monthly fee", value: "$0" },
   { label: "Card payments", value: "2.9% + 30¢" },
   { label: "ACH bank transfers", value: "0.75%" },
   { label: "Atlas tokens", value: "10,000 free a month" },
+  { label: "Add-ons", value: `From ${formatCents(PLANS.DISPATCH.monthlyCents)} a month` },
 ];
 
 const faqItems = [
@@ -68,11 +70,14 @@ const faqItems = [
     q: "Is WorkBench really free?",
     a: (
       <p>
-        Yes. Every essential feature, for unlimited users, with no trial clock
-        and no credit card required. The software is funded by built-in payment
-        processing: when a client pays an invoice through WorkBench, a small
-        slice of the flat processing fee is what keeps the lights on. The full
-        breakdown is on the{" "}
+        Yes. Every essential feature, for {INCLUDED_SEATS} users, with full
+        access, no trial clock, and no credit card required. Extra users are{" "}
+        {formatCents(EXTRA_SEAT_CENTS)} a month each, and three optional add-ons
+        (a business phone line, unlimited users with the ops tools, and job
+        photos) are priced flat per company. The core is funded by built-in
+        payment processing: when a client pays an invoice through WorkBench, a
+        small slice of the flat processing fee is what keeps the lights on. The
+        full breakdown is on the{" "}
         <Link href="/pricing" className="font-semibold text-[#0B57D8] hover:underline">
           pricing page
         </Link>
@@ -158,8 +163,8 @@ export default function WBHomePage() {
         </h1>
         <p className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed text-gray-600 sm:text-[19px]">
           WorkBench is scheduling, quotes, invoicing, and payments for
-          home-service companies. Free for every seat on the team, funded by a
-          flat payment rate instead of a subscription.
+          home-service companies. Free to use, full access, funded by a flat
+          payment rate instead of a subscription.
         </p>
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
           <Link href="/apply" className="wb-pill wb-pill-dark">
@@ -172,7 +177,7 @@ export default function WBHomePage() {
           </a>
         </div>
         <p className="mt-5 text-[13.5px] font-semibold text-gray-500">
-          No credit card. No trial clock. Unlimited users.
+          No credit card. No trial clock. Not a trial.
         </p>
 
         {/* Product screenshot with floating notification cards */}
@@ -400,19 +405,19 @@ export default function WBHomePage() {
           <AnimateIn>
             <p className="wb-label">Pricing</p>
             <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
-              Free for your whole team.{" "}
+              Free to use.{" "}
               <span className="text-gray-400">We earn when the job gets paid.</span>
             </h2>
             <p className="mt-5 max-w-lg text-[16px] leading-relaxed text-gray-600">
-              WorkBench does not charge per seat, per month, or per feature.
-              The software is funded by built-in payment processing at one
-              flat rate, so it costs nothing until a client pays you through
-              it.
+              The core software is free for {INCLUDED_SEATS} users, with full
+              access and no trial clock. Three optional add-ons cover a business
+              phone line, unlimited users with the ops tools, and job photos.
+              The rest is funded by built-in payment processing at one flat rate.
             </p>
             <ul className="mt-7 grid gap-3">
               {[
-                "Unlimited team members, all roles included",
-                "Every essential feature on, no tiers to climb",
+                "Full access on the free plan, not a trial",
+                `Add-ons priced flat per company, from ${formatCents(PLANS.DISPATCH.monthlyCents)} a month`,
                 "Cash and check invoices stay free too",
                 "No contracts. Your data exports any time",
               ].map((line) => (
@@ -434,7 +439,7 @@ export default function WBHomePage() {
               <div className="wb-frag overflow-hidden">
                 <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
                   <p className="text-[15px] font-bold text-gray-900">What WorkBench costs</p>
-                  <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[12px] font-bold text-[#0B57D8]">One plan</span>
+                  <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[12px] font-bold text-[#0B57D8]">{FREE_PLAN_NAME}, the free core</span>
                 </div>
                 <dl>
                   {rateRows.map((r) => (
@@ -447,7 +452,8 @@ export default function WBHomePage() {
               </div>
               <p className="px-2 pb-1 pt-4 text-[13px] leading-relaxed text-gray-500">
                 No monthly fees, no minimums, no charge on failed payments.
-                Atlas Full adds 150,000 tokens a month for $20 when you want it.
+                {PLANS.DISPATCH.name}, {PLANS.SHOP.name}, and {PLANS.JOBSITE.name} are
+                optional add-ons and cancel any time.
               </p>
             </div>
           </AnimateIn>

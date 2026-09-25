@@ -14,12 +14,12 @@ export const metadata: Metadata = {
 const rows: CompareRow[] = [
   {
     label: "Pricing model",
-    workbench: "Free software for every seat. WorkBench earns a flat 2.9% + 30¢ (card) or 0.75% (ACH) only when a client pays through it.",
+    workbench: "Free core software with full access for 2 users, not a trial. Optional flat-priced add-ons per company, from $25 a month: Dispatch (a business phone line), Shop (unlimited users and the ops tools, $89), and Jobsite (job photos, coming soon). WorkBench also earns a flat 2.9% + 30¢ (card) or 0.75% (ACH) when a client pays through it.",
     competitor: "A monthly subscription across multiple tiers, typically priced per user with add-ons for extra capabilities. Check housecallpro.com for current plans.",
   },
   {
     label: "Seats / users",
-    workbench: "Unlimited on every account — owner, admin, sales, and tech roles included free.",
+    workbench: "2 included free, $10 a month each after that, or unlimited with the Shop add-on — owner, admin, sales, and tech roles on every plan.",
     competitor: "User limits and pricing generally scale with the plan tier.",
   },
   {
@@ -52,8 +52,8 @@ const rows: CompareRow[] = [
 const differentiators: FeatureItem[] = [
   {
     icon: Banknote,
-    title: "The bill only exists if you get paid",
-    body: "A slow month costs nothing beyond the payments you actually process — there's no fixed monthly number to justify regardless of volume.",
+    title: "The core bill only exists if you get paid",
+    body: "On the free plan a slow month costs nothing beyond the payments you actually process. The add-ons are one flat price per company, not per user, and switch off as easily as they switch on.",
   },
   {
     icon: Bot,
@@ -121,7 +121,7 @@ export default function VsHousecallProPage() {
           WorkBench vs. Housecall Pro: <span className="text-[#0B57D8]">free software</span>, one flat fee.
         </>
       }
-      intro="Housecall Pro and WorkBench both run scheduling, dispatch, invoicing, and payments for home-service teams. The structural difference is pricing: Housecall Pro is a per-user monthly subscription with tiered add-ons, WorkBench is free software funded by a flat percentage of the payments you process through it."
+      intro="Housecall Pro and WorkBench both run scheduling, dispatch, invoicing, and payments for home-service teams. The structural difference is pricing: Housecall Pro is a per-user monthly subscription with tiered add-ons; WorkBench is free core software (full access for two users, not a trial) with flat-priced optional add-ons, funded mostly by a flat percentage of the payments you process through it."
       rows={rows}
       fairPoint={{
         title: "Housecall Pro's consumer marketplace is a genuine edge for lead generation.",

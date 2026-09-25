@@ -14,12 +14,12 @@ export const metadata: Metadata = {
 const rows: CompareRow[] = [
   {
     label: "Pricing model",
-    workbench: "Free software for every seat. WorkBench earns a flat 2.9% + 30¢ (card) or 0.75% (ACH) only when a client pays through it — nothing charged if you never process a payment.",
+    workbench: "Free core software with full access for 2 users, not a trial. Optional flat-priced add-ons per company, from $25 a month: Dispatch (a business phone line), Shop (unlimited users and the ops tools, $89), and Jobsite (job photos, coming soon). WorkBench also earns a flat 2.9% + 30¢ (card) or 0.75% (ACH) when a client pays through it — nothing charged if you never process a payment.",
     competitor: "A monthly subscription with multiple pricing tiers, typically priced per user. Check jobber.com for current plans.",
   },
   {
     label: "Seats / users",
-    workbench: "Unlimited, on every plan — owner, admin, sales, and tech roles all included free.",
+    workbench: "2 included free, $10 a month each after that, or unlimited with the Shop add-on — owner, admin, sales, and tech roles on every plan.",
     competitor: "Higher tiers generally unlock more users; adding seats can move you to a higher tier.",
   },
   {
@@ -52,8 +52,8 @@ const rows: CompareRow[] = [
 const differentiators: FeatureItem[] = [
   {
     icon: Banknote,
-    title: "No monthly bill either way",
-    body: "There's no subscription tier to outgrow. If a busy season means five more techs on the app, that costs nothing extra — the only cost is the flat rate on payments you actually process.",
+    title: "No monthly bill unless you add something",
+    body: "The core stays free, and there's no tier ladder to climb. If a busy season means five more techs on the app, that's $10 a seat, or $89 flat for unlimited users with the Shop add-on — never a jump to a bigger plan.",
   },
   {
     icon: Bot,
@@ -79,8 +79,10 @@ const faq = [
       <p>
         Not exactly cheaper — structurally different. Jobber charges a
         monthly subscription regardless of how much (or little) money moves
-        through it. WorkBench charges nothing until a client actually pays
-        you, and then takes a flat cut of that specific transaction.
+        through it. WorkBench&apos;s core charges nothing until a client
+        actually pays you, and then takes a flat cut of that specific
+        transaction. The add-ons are optional and priced flat per company,
+        so a growing crew never gets pushed up a tier.
       </p>
     ),
   },
@@ -120,7 +122,7 @@ export default function VsJobberPage() {
           WorkBench vs. Jobber: <span className="text-[#0B57D8]">free software</span>, one flat fee.
         </>
       }
-      intro="Jobber and WorkBench both run scheduling, quoting, invoicing, and payments for home-service teams. The difference is the pricing model: Jobber is a per-user monthly subscription, WorkBench is free software funded by a flat percentage of the payments you process through it."
+      intro="Jobber and WorkBench both run scheduling, quoting, invoicing, and payments for home-service teams. The difference is the pricing model: Jobber is a per-user monthly subscription; WorkBench is free core software (full access for two users, not a trial) with flat-priced optional add-ons, funded mostly by a flat percentage of the payments you process through it."
       rows={rows}
       fairPoint={{
         title: "Jobber has been at this since 2011 and it shows.",

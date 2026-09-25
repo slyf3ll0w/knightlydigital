@@ -9,6 +9,8 @@ import {
 } from "@/lib/platform-costs";
 import { AccountActions } from "./AccountActions";
 import { AddonControl } from "./AddonControl";
+import { PlanControl } from "./PlanControl";
+import { PLAN_IDS, PLANS, formatCents, normalizeGrants } from "@/lib/plans";
 import { LineControl } from "./LineControl";
 import { AssistantControl } from "./AssistantControl";
 import {
@@ -93,6 +95,7 @@ export default async function CompanyReport({
       addonEnabled: true,
       addonActiveAt: true,
       addonLiverySubId: true,
+      planGrants: true,
       industry: true,
       suspendedAt: true,
       suspendedReason: true,
@@ -504,6 +507,19 @@ export default async function CompanyReport({
               toolCalls: atlasUsage.toolCalls,
               lastAt: atlasUsage.lastAt?.toISOString() ?? null,
             }}
+          />
+
+          <PlanControl
+            companyId={company.id}
+            plans={PLAN_IDS.map((pid) => ({
+              id: pid,
+              name: PLANS[pid].name,
+              tagline: PLANS[pid].tagline,
+              price: formatCents(PLANS[pid].monthlyCents),
+              comingSoon: PLANS[pid].comingSoon,
+            }))}
+            grants={normalizeGrants(company.planGrants)}
+            dispatchPaid={Boolean(company.addonActiveAt)}
           />
 
           <AddonControl

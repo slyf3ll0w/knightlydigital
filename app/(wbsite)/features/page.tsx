@@ -6,6 +6,7 @@ import WBHero from "@/components/wb/WBHero";
 import WBCta from "@/components/wb/WBCta";
 import WBPhoneShowcase from "@/components/wb/WBPhoneShowcase";
 import { APP_STORE_URL, sections } from "@/lib/wb-features";
+import { PLANS } from "@/lib/plans";
 import {
   ArrowRight,
   Clock4,
@@ -17,7 +18,7 @@ import {
 export const metadata: Metadata = {
   title: "Features — WorkBench",
   description:
-    "Everything in WorkBench, end to end: online booking, lead pipeline, quotes with e-signature, scheduling and dispatch, time tracking, team chat, invoicing, card & ACH payments, recurring billing, and a client hub — all free. Plus Atlas, an AI assistant with 10,000 free tokens every month.",
+    "Everything in WorkBench, end to end: online booking, lead pipeline, quotes with e-signature, scheduling and dispatch, clock-in, team chat, invoicing, card & ACH payments, recurring billing, and a client hub — free, full access, not a trial. Plus Atlas, an AI assistant with 10,000 free tokens every month, and optional add-ons for a phone line, unlimited users with the ops tools, and job photos.",
 };
 
 // Section id → deep-dive pages worth a link once the reader has seen the
@@ -47,9 +48,11 @@ export default function WBFeaturesPage() {
             <p className="mt-6 max-w-2xl text-[17px] leading-relaxed text-gray-600">
               WorkBench covers the whole arc of a job: winning it, running it,
               getting paid for it, and keeping the client for the next one.
-              Sections 01 to 04 are in the free plan for every seat on your
-              team. Atlas, the AI assistant, gives every account free tokens
-              each month, with a larger paid allowance for heavy users.
+              Nearly all of sections 01 to 04 are in Bench, the free plan,
+              with full access for two users. The few marked Shop come with
+              that add-on, alongside the estimator, routes, automations, and
+              QuickBooks. Atlas, the AI assistant, gives every account free
+              tokens each month, with a larger paid allowance for heavy users.
             </p>
             <div className="mt-8 flex flex-wrap gap-2.5">
               {sections.map((s) => (
@@ -97,12 +100,19 @@ export default function WBFeaturesPage() {
               </p>
             </AnimateIn>
             <div className="mt-10 grid gap-x-10 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
-              {section.items.map(({ icon: Icon, title, body }, i) => (
+              {section.items.map(({ icon: Icon, title, body, plan }, i) => (
                 <AnimateIn key={title} delay={(i % 3) * 90}>
                   <div className="flex gap-4">
                     <Icon className={`mt-0.5 h-5 w-5 flex-none ${section.accent}`} strokeWidth={1.9} />
                     <div>
-                      <h3 className="text-[15.5px] font-bold text-gray-900">{title}</h3>
+                      <h3 className="flex flex-wrap items-center gap-2 text-[15.5px] font-bold text-gray-900">
+                        {title}
+                        {plan && (
+                          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-[#0B57D8]">
+                            {PLANS[plan].name}
+                          </span>
+                        )}
+                      </h3>
                       <p className="mt-1 text-[14px] leading-relaxed text-gray-600">{body}</p>
                     </div>
                   </div>
@@ -145,7 +155,8 @@ export default function WBFeaturesPage() {
                 </p>
                 <p className="mt-3 max-w-lg text-[14px] leading-relaxed text-gray-600">
                   10,000 free tokens every month on every account. Atlas Full
-                  is 150,000 a month for $20, the one thing with a meter.
+                  is 150,000 a month for $20 on its own, and included with
+                  Shop; it is the one thing with a meter.
                 </p>
                 <Link
                   href="/features/atlas"
@@ -246,8 +257,8 @@ export default function WBFeaturesPage() {
       </section>
 
       <WBCta
-        title="All of it, free, for your whole team."
-        body="No tiers to climb and no seats to count. Sign up and we onboard your company personally."
+        title="Free to start. Add more when the crew needs it."
+        body="Full access for two users, not a trial, and flat-priced add-ons when you want them. Sign up and we onboard your company personally."
       />
     </>
   );

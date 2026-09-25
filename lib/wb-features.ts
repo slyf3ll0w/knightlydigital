@@ -35,6 +35,8 @@ export type FeatureItem = {
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   title: string;
   body: string;
+  /** Which add-on the feature belongs to; unset = in Bench, the free core (lib/plans.ts). */
+  plan?: "SHOP" | "DISPATCH" | "JOBSITE";
 };
 
 export type FeatureSection = {
@@ -120,12 +122,14 @@ export const sections: FeatureSection[] = [
       {
         icon: Clock4,
         title: "Time tracking & timesheets",
-        body: "Techs clock in and out right on the job. Weekly timesheets roll up per person, managers can fix a forgotten clock-out, and logged hours flow into each job's profit margin as real labor cost.",
+        body: "Techs clock in and out right on the job, on every plan. With Shop, weekly timesheets roll up per person, managers can fix a forgotten clock-out, and logged hours flow into each job's profit margin as real labor cost.",
+        plan: "SHOP",
       },
       {
         icon: MapPin,
         title: "Team map",
         body: "See who's on the clock and where — a live map of clocked-in techs. Location is only ever collected while someone is clocked in, never off hours.",
+        plan: "SHOP",
       },
       {
         icon: MessageSquare,
@@ -135,7 +139,7 @@ export const sections: FeatureSection[] = [
       {
         icon: Users,
         title: "Roles & permissions",
-        body: "Owner, admin, sales, and tech roles out of the box, each seeing what they need and nothing they don't. Every seat is free.",
+        body: "Owner, admin, sales, and tech roles out of the box, each seeing what they need and nothing they don't. Two users are included free; more are $10 a month each, or unlimited with Shop.",
       },
       {
         icon: Keyboard,
@@ -221,6 +225,7 @@ export const sections: FeatureSection[] = [
         icon: FileText,
         title: "Agreements & contracts",
         body: "Service agreements and contracts with e-signature, stored on the client and visible in their hub.",
+        plan: "SHOP",
       },
       {
         icon: Eye,
