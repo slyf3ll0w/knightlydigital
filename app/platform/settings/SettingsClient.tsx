@@ -68,6 +68,7 @@ type Company = {
   id: string; name: string; slug: string; phone: string | null;
   email: string | null; address: string | null; city: string | null;
   state: string | null; zip: string | null; website: string | null;
+  about: string | null;
   logoUrl: string | null; brandColor: string | null; brandColorSecondary: string | null;
   documentColor: string | null;
   brandFont: string | null;
@@ -943,6 +944,7 @@ export default function SettingsClient({
     state: company.state ?? "",
     zip: company.zip ?? "",
     website: company.website ?? "",
+    about: company.about ?? "",
     industry: company.industry ?? "",
     logoUrl: company.logoUrl ?? "",
     wallpaper: resolveWallpaper(company.wallpaper, company.logoWallpaper ?? false),
@@ -1349,17 +1351,23 @@ export default function SettingsClient({
             <Input type="text" value={form.address} onChange={(e) => set("address", e.target.value)}
               className="w-full focus:ring-2" />
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
+          <div className="grid grid-cols-6 gap-3">
+            <div className="col-span-6 sm:col-span-3">
               <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
               <Input type="text" value={form.city} onChange={(e) => set("city", e.target.value)}
                 className="w-full focus:ring-2" />
             </div>
-            <div>
+            <div className="col-span-2 sm:col-span-1">
               <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
               <Input type="text" value={form.state} onChange={(e) => set("state", e.target.value)}
                 maxLength={2}
                 className="w-full focus:ring-2 uppercase" />
+            </div>
+            <div className="col-span-4 sm:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">ZIP</label>
+              <Input type="text" value={form.zip} onChange={(e) => set("zip", e.target.value)}
+                inputMode="numeric" maxLength={10} autoComplete="postal-code"
+                className="w-full focus:ring-2" />
             </div>
           </div>
           <div>
@@ -1380,6 +1388,16 @@ export default function SettingsClient({
             </Select>
             <p className="text-xs text-gray-500 mt-1">
               Changing this doesn&apos;t touch your price book — edit that in Services.
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">About your business</label>
+            <textarea value={form.about} onChange={(e) => set("about", e.target.value)}
+              rows={3} maxLength={500}
+              placeholder="What you do and for whom, in a sentence or two."
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2" />
+            <p className="text-xs text-gray-500 mt-1">
+              Shown on your public booking page, and used to describe your business when you register your number for texting.
             </p>
           </div>
           <div>

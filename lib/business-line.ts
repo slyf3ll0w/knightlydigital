@@ -113,7 +113,7 @@ import {
   setKeywordReply,
 } from "@/lib/telnyx";
 import { smsConsentLabel, businessPageUrl, businessPrivacyUrl, businessSmsTermsUrl } from "@/lib/sms-consent";
-import { loadBusinessProfileById, profileGaps } from "@/lib/business-profile";
+import { loadBusinessProfileById, profileGaps, aboutLine } from "@/lib/business-profile";
 import { listPublicBookingTypes, menuTypes } from "@/lib/booking-runtime";
 
 export { VERTICALS, TOLL_FREE_USE_CASES, TOLL_FREE_VOLUMES };
@@ -704,6 +704,8 @@ async function requireOptInForm(companyId: string): Promise<void> {
  */
 export type CampaignIdentity = {
   brandName: string;
+  /** What the business does (aboutLine: the owner's words, else built from industry + services). */
+  about: string;
   /** The WorkBench-hosted business page, /book/<slug> — the brand's website unless it has its own. */
   siteUrl: string;
   /** Where the consent checkbox is: /book/<slug>/<item with a phone field>. */
@@ -724,6 +726,7 @@ export async function textingIdentity(companyId: string): Promise<TextingIdentit
   const base = appBase();
   return {
     brandName: profile.name,
+    about: aboutLine(profile),
     slug: profile.slug,
     siteUrl: businessPageUrl(profile.slug, base),
     formUrl: optIn.url,
@@ -750,8 +753,31 @@ export function pinIdentity(form: RegistrationForm, id: Pick<CampaignIdentity, "
 export function profileGapMessage(gaps: string[], siteUrl: string): string {
   return (
     `Carrier reviewers check your business page (${siteUrl}) for your address, phone, email and services. ` +
-    `Add your ${gaps.join(", ")} (Settings → Business Info, or Booking & forms for services), then register.`
+    `Add ${gaps.join(", ")} (Settings → Business Info, or Booking & forms for services), then register.`
   );
+}
+
+/**
+ * Owners type their address and phone into the registration form, but the
+ * business page (the brand's website) reads Business Info. Fill whatever
+ * Business Info is missing from the form so the two never disagree —
+ * blanks only, never overwriting what the owner set.
+ */
+async function backfillBusinessInfo(companyId: string, form: RegistrationForm): Promise<void> {
+  const c = await prisma.company.findUnique({ where: { id: companyId }, select: { phone: true, email: true, address: true, city: true, state: true, zip: true } });
+  if (!c) return;
+  const blank = (v: string | null) => !v?.trim();
+  const data: Prisma.CompanyUpdateInput = {};
+  // The whole address or none of it, so a half-set one never gets mixed with the form's.
+  if (blank(c.address) && blank(c.city) && blank(c.zip) && form.street && form.city && form.postalCode) {
+    Object.assign(data, { address: form.street, city: form.city, state: form.state, zip: form.postalCode });
+  }
+  if (blank(c.phone) && form.contactPhone) data.phone = form.contactPhone;
+  if (blank(c.email) && form.contactEmail) data.email = form.contactEmail;
+  if (Object.keys(data).length) {
+    await prisma.company.update({ where: { id: companyId }, data });
+    console.warn(`[line] Business Info filled from the registration form for ${companyId}: ${Object.keys(data).join(", ")}`);
+  }
 }
 
 async function requireBusinessProfile(companyId: string): Promise<void> {
@@ -793,8 +819,8 @@ export function campaignCopy(id: CampaignIdentity) {
   const own = id.website && id.website.replace(/\/+$/, "") !== id.siteUrl ? id.website : null;
   return {
     description:
-      `${b} is a local home-service business. It texts its own customers about the service they booked: appointment confirmations and reminders, ` +
-      `arrival and schedule updates, invoice and payment-receipt links, and replies to messages customers send it. No marketing or promotional messages. ` +
+      `${id.about} ${b} texts its own customers about their service: appointment confirmations and reminders, ` +
+      `schedule updates, invoice and payment-receipt links, and replies to questions customers send it. No marketing or promotional messages. ` +
       `Business page with address, phone, email and services: ${id.siteUrl}`,
     messageFlow:
       `Customers opt in on ${b}'s online booking form at ${id.formUrl} . The form is on ${b}'s business page ${id.siteUrl}` +
@@ -804,11 +830,11 @@ export function campaignCopy(id: CampaignIdentity) {
       `It links to ${b}'s Text Message Terms (${id.termsUrl}) and Privacy Policy (${id.privacyUrl}). ` +
       `Customers who book by phone or in person are texted only if they ask to be. Every text names ${b}; STOP opts out, HELP returns contact info.`,
     samples: [
-      `${b}: Hi Maria, your HVAC tune-up is confirmed for Tue Jun 3, 8-10am at 123 Oak St. Reply STOP to opt out.`,
-      `${b}: Hi Maria, reminder: HVAC tune-up tomorrow 8-10am. Reply STOP to opt out.`,
-      `${b}: Hi Maria, our tech is on the way and should arrive by 9:15am. Reply STOP to opt out.`,
+      `${b}: Hi Maria, your appointment is confirmed for Tue Jun 3 at 10:00am. Reply STOP to opt out.`,
+      `${b}: Hi Maria, reminder: your appointment is tomorrow at 10:00am. Reply STOP to opt out.`,
+      `${b}: Hi Maria, we need to move tomorrow's appointment. Does Thursday at 2pm work? Reply STOP to opt out.`,
       `${b}: Hi Maria, invoice #2210 for $480.00 is ready. View & pay: https://workbenchfsm.com/pay/abc123 Reply STOP to opt out.`,
-      `${b}: Yes, we can move your visit to Thursday morning. It's updated on our schedule. Reply STOP to opt out.`,
+      `${b}: Thanks for your message. Yes, we can take care of that this week and will text you when it's done. Reply STOP to opt out.`,
     ],
     privacyPolicyLink: id.privacyUrl,
     termsAndConditionsLink: id.termsUrl,
@@ -1058,6 +1084,7 @@ export async function submitRegistration(companyId: string, form: RegistrationFo
     throw new LineError("A registration is already in progress.", 409);
   }
   if (!isPlatformOwnLine(form)) {
+    await backfillBusinessInfo(companyId, form);
     const id = await textingIdentity(companyId);
     if (id.gaps.length) throw new LineError(profileGapMessage(id.gaps, id.siteUrl), 409);
     form = pinIdentity(form, id);
@@ -1203,6 +1230,7 @@ export async function approveRegistration(companyId: string): Promise<MessagingR
   // The tenant may have removed the phone field since they submitted; a filing is money.
   if (!isPlatformOwnLine(registrationFormOf(reg))) {
     await requireOptInForm(companyId);
+    await backfillBusinessInfo(companyId, registrationFormOf(reg));
     await requireBusinessProfile(companyId);
   }
   return fileFromRow(reg);

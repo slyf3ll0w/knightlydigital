@@ -238,6 +238,7 @@ assert.equal(sanitizeRegistrationForm({ ...good, displayName: "" }).displayName,
 
 const acme: CampaignIdentity = {
   brandName: "Acme Plumbing",
+  about: "Acme Plumbing is a plumbing business serving Allen, TX and nearby areas.",
   siteUrl: "https://workbenchfsm.com/book/acme-plumbing",
   formUrl: "https://workbenchfsm.com/book/acme-plumbing/request",
   privacyUrl: "https://workbenchfsm.com/book/acme-plumbing/privacy",
@@ -316,14 +317,25 @@ const acme: CampaignIdentity = {
 
 // ── Business page pre-flight ─────────────────────────────────────────────────
 {
-  const full = { phone: "+12145550100", email: "a@b.com", address: "1 Main St", city: "Allen", state: "TX", zip: "75013", services: ["Drain cleaning"] };
+  const full = { phone: "+12145550100", email: "a@b.com", address: "1 Main St", city: "Allen", state: "TX", zip: "75013", services: ["Drain cleaning"], industry: "Plumbing", about: null };
   assert.deepEqual(profileGaps(full), []);
   assert.deepEqual(profileGaps({ ...full, phone: null, email: " ", zip: null, services: [] }), [
-    "business phone",
-    "business email",
-    "business address (street, city, state, ZIP)",
+    "your business phone",
+    "your business email",
+    "your business address (street, city, state, ZIP)",
     "at least one service on your booking page",
   ]);
+  // No trade from the list and no words of their own = nothing says what the business does
+  assert.ok(profileGaps({ ...full, industry: "Other" }).some((g) => /About your business/.test(g)));
+  assert.deepEqual(profileGaps({ ...full, industry: null, about: "Web design client care." }), []);
+  // The owner's own words win, and they open the campaign description
+  const own = aboutLine({ name: "Lessly Holdings", industry: "Other", city: "Allen", state: "TX", services: ["Phone call"], about: "Lessly Holdings handles client care for a web design business" });
+  assert.equal(own, "Lessly Holdings handles client care for a web design business.");
+  const lh = { ...acme, brandName: "Lessly Holdings", about: own };
+  const lhc = campaignCopy(lh);
+  assert.ok(lhc.description.startsWith(own), "description opens with what the business does");
+  assert.doesNotMatch(lhc.description + lhc.samples.join(" "), /home-service|HVAC|tech is on the way/i, "no trade assumptions");
+  assert.deepEqual(campaignLint(lhc, lh), []);
   const about = aboutLine({ name: "Acme Plumbing", industry: "Plumbing", city: "Allen", state: "TX", services: ["Drain cleaning", "Water heaters"] });
   assert.match(about, /^Acme Plumbing is a plumbing business serving Allen, TX/);
   assert.match(about, /drain cleaning and water heaters/);

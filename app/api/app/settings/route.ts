@@ -79,6 +79,7 @@ export async function PATCH(req: NextRequest) {
       state: opt(body.state),
       zip: opt(body.zip),
       website: opt(body.website),
+      about: body.about !== undefined ? String(body.about ?? "").trim().slice(0, 500) || null : undefined,
       assistantName:
         body.assistantName !== undefined
           ? String(body.assistantName).trim().slice(0, 40) || null

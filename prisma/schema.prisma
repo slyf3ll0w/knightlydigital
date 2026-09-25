@@ -31,6 +31,11 @@ model Company {
   lng                       Float?
   geocodedAt                DateTime?
   website                   String?
+  // "About your business" (Settings → Business Info): what the business does,
+  // in its own words. Shown on its public /book/<slug> page and used as the
+  // opening of its texting campaign description — carriers want "a clear
+  // description of its core business activities" (lib/business-profile.ts).
+  about                     String?
   logoUrl                   String? // display URL; points at /api/logo/[id] for uploaded logos
   logoData                  Bytes? // uploaded logo bytes (small files only; move to R2 with job photos)
   logoMime                  String?
