@@ -6,12 +6,10 @@ import WBScribble from "@/components/wb/WBScribble";
 /**
  * Customer testimonials on the home page.
  *
- * ⚠️ The quotes below are PLACEHOLDER DRAFTS written 2026-09-25, not words
- * Brendan or Edan have said. They are real people and real businesses, so
- * the section only renders in development (`next dev`) until each of them
- * has read and approved his quote. When they do, paste the approved wording
- * over the draft and flip that entry's `approved` to true; the section goes
- * live on its own once at least one entry is approved.
+ * Both quotes were drafted 2026-09-25 and approved word for word by
+ * Brendan and Edan the same day, with their names and logos. An entry with
+ * `approved: false` only renders under `next dev` (with a "Draft" banner),
+ * so a new testimonial can be previewed before its customer signs off.
  */
 
 type Testimonial = {
@@ -31,7 +29,7 @@ const testimonials: Testimonial[] = [
     role: "Owner",
     company: "Excellent PC Building",
     logo: { src: "/brand/customers/excellent-pc-building.png", width: 240, height: 240 },
-    approved: false,
+    approved: true,
   },
   {
     quote:
@@ -40,7 +38,7 @@ const testimonials: Testimonial[] = [
     role: "Owner",
     company: "Knight Light Christmas Lighting",
     logo: { src: "/brand/customers/knight-light.png", width: 83, height: 70 },
-    approved: false,
+    approved: true,
   },
 ];
 
