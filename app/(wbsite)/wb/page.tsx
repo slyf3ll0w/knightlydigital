@@ -8,6 +8,8 @@ import WBDayOnTheJob from "@/components/wb/WBDayOnTheJob";
 import WBFaq from "@/components/wb/WBFaq";
 import WBHero from "@/components/wb/WBHero";
 import WBPhoneShowcase from "@/components/wb/WBPhoneShowcase";
+import WBPhoneToday from "@/components/wb/WBPhoneToday";
+import WBScribble from "@/components/wb/WBScribble";
 import WBSystemTabs from "@/components/wb/WBSystemTabs";
 import { APP_STORE_URL, PLAY_STORE_URL, WB_EMAIL, WB_PHOTOS, WB_TRADE_PHOTOS, WB_EMAIL_HREF, WB_PHONE } from "@/lib/wb-site";
 import { EXTRA_SEAT_CENTS, FREE_PLAN_NAME, INCLUDED_SEATS, PLANS, formatCents } from "@/lib/plans";
@@ -223,10 +225,14 @@ export default function WBHomePage() {
                 <span className="block text-[12px] text-gray-500">Panel upgrade, Ravenwood Dr</span>
               </span>
             </div>
-            <div className="absolute -bottom-8 left-3 rounded-[1.9rem] bg-gray-900 p-[7px] shadow-[0_24px_50px_rgba(10,20,40,0.35)] sm:-left-8 sm:-bottom-10">
-              <div className="relative w-[124px] overflow-hidden rounded-[1.5rem] bg-white sm:w-[150px]" style={{ aspectRatio: "331 / 720" }}>
-                <Image src="/screens/mobile-01.png" alt="The WorkBench phone app showing the week's schedule per tech" fill sizes="150px" className="object-cover" />
-              </div>
+            <WBPhoneToday className="absolute -bottom-10 left-3 sm:-left-8 sm:-bottom-12" />
+            <div className="absolute -left-[16.5rem] bottom-6 hidden w-[14rem] items-end gap-1 xl:flex" aria-hidden>
+              <p className="pb-1 text-right text-[15px] font-extrabold leading-snug text-[#10244A]">
+                What your techs
+                <br />
+                see all day
+              </p>
+              <WBScribble variant="swoop" delay={0.8} className="h-[50px] w-[96px] flex-none -rotate-[18deg]" />
             </div>
           </div>
         </div>
