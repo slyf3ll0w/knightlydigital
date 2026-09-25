@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import WBNav from "@/components/wb/WBNav";
 import WBFooter from "@/components/wb/WBFooter";
 import WBSiteChat from "@/components/wb/WBSiteChat";
+import { siteChatCompanyId } from "@/lib/site-chat";
 import { WB_EMAIL, WB_PHONE } from "@/lib/wb-site";
 
 // Escape the agency-site "| Streamflaire Group LLC" title template
@@ -58,9 +59,10 @@ const softwareAppJsonLd = {
  * WorkBench marketing site shell (/wb, /pricing, /apply). These pages move
  * to the site root when workbenchfsm.com takes over this app.
  */
-export default function WBSiteLayout({
+export default async function WBSiteLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const chat = Boolean(await siteChatCompanyId());
   return (
     <div className="wb-site min-h-screen bg-white text-gray-900">
       <script
@@ -71,7 +73,7 @@ export default function WBSiteLayout({
       <WBNav />
       <main className="pt-20 sm:pt-24">{children}</main>
       <WBFooter />
-      {process.env.SITE_CHAT_COMPANY_ID ? <WBSiteChat /> : null}
+      {chat ? <WBSiteChat /> : null}
     </div>
   );
 }

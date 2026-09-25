@@ -4,33 +4,31 @@ import { prisma } from "@/lib/db";
 import { clientIp, limit } from "@/lib/rate-limit";
 import { notifyTeamOfClientMessage, portalThreadContactInclude } from "@/lib/portal-messages";
 import { fireAutomations } from "@/lib/automations-server";
+import { siteChatCompanyId, siteChatSecret } from "@/lib/site-chat";
 
 /**
  * Website chat (the "Chat with us" widget on the marketing site).
  *
- * A visitor's message lands in the WorkBench company named by
- * SITE_CHAT_COMPANY_ID (Streamflaire's own account) as an INBOUND
- * PortalMessage on a contact created for that visitor — the same thread an
- * inbound text on the business line lands in, so the team sees it in
- * Messages, gets the push, and answers from the app like any other client.
- * The widget polls GET for the team's replies, so the conversation is
- * two-way in the browser even while outbound texting is still unapproved;
- * once texting is live, a visitor who left a number also gets the reply as
- * an SMS from the business line (notifyClientOfReply handles that).
+ * A visitor's message lands in the WorkBench company that owns the
+ * business line on the site (lib/site-chat.ts; SITE_CHAT_COMPANY_ID
+ * overrides) as an INBOUND PortalMessage on a contact created for that
+ * visitor — the same thread an inbound text on the business line lands in,
+ * so the team sees it in Messages, gets the push, and answers from the app
+ * like any other client. The widget polls GET for the team's replies, so
+ * the conversation is two-way in the browser even while outbound texting is
+ * still unapproved; once texting is live, a visitor who left a number also
+ * gets the reply as an SMS from the business line (notifyClientOfReply).
  *
  * The visitor holds an HMAC-signed contact id (no schema change, no hub
  * token exposure). Rate-limited per IP; a honeypot field drops bots quietly.
  */
 
-const companyId = () => process.env.SITE_CHAT_COMPANY_ID ?? "";
-const secret = () => process.env.SITE_CHAT_SECRET ?? process.env.AUTH_SECRET ?? "";
-
 function sign(contactId: string): string {
-  return `${contactId}.${createHmac("sha256", secret()).update(contactId).digest("base64url")}`;
+  return `${contactId}.${createHmac("sha256", siteChatSecret()).update(contactId).digest("base64url")}`;
 }
 
 function verify(token: string | null | undefined): string | null {
-  if (!token || !secret()) return null;
+  if (!token || !siteChatSecret()) return null;
   const dot = token.lastIndexOf(".");
   if (dot <= 0) return null;
   const id = token.slice(0, dot);
@@ -59,10 +57,11 @@ function splitName(raw: string): { firstName: string; lastName: string } {
   return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
 }
 
+const notReady = () => NextResponse.json({ error: "Chat is not set up yet." }, { status: 503 });
+
 export async function POST(req: NextRequest) {
-  if (!companyId() || !secret()) {
-    return NextResponse.json({ error: "Chat is not set up yet." }, { status: 503 });
-  }
+  const companyId = await siteChatCompanyId();
+  if (!companyId || !siteChatSecret()) return notReady();
   const ip = clientIp(req.headers);
   const rl = await limit(`site-chat:post:${ip}`, 12, 10 * 60_000);
   if (!rl.ok) {
@@ -80,10 +79,7 @@ export async function POST(req: NextRequest) {
 
   let contactId = verify(typeof data.token === "string" ? data.token : null);
   if (contactId) {
-    const exists = await prisma.contact.findFirst({
-      where: { id: contactId, companyId: companyId() },
-      select: { id: true },
-    });
+    const exists = await prisma.contact.findFirst({ where: { id: contactId, companyId }, select: { id: true } });
     if (!exists) contactId = null;
   }
 
@@ -97,7 +93,7 @@ export async function POST(req: NextRequest) {
     try {
       created = await prisma.contact.create({
         data: {
-          companyId: companyId(),
+          companyId,
           ...splitName(name),
           email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null,
           phone,
@@ -112,14 +108,14 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       // A wrong SITE_CHAT_COMPANY_ID (no such company) lands here.
       console.error("[site-chat] contact create failed:", err);
-      return NextResponse.json({ error: "Chat is not set up yet." }, { status: 503 });
+      return notReady();
     }
     contactId = created.id;
-    fireAutomations(companyId(), "lead.created", created.id);
+    fireAutomations(companyId, "lead.created", created.id);
   }
 
   const contact = await prisma.contact.findUnique({ where: { id: contactId }, include: portalThreadContactInclude });
-  if (!contact) return NextResponse.json({ error: "Chat is not set up yet." }, { status: 503 });
+  if (!contact) return notReady();
 
   const message = await prisma.portalMessage.create({
     data: { companyId: contact.companyId, contactId: contact.id, direction: "INBOUND", body, via: "web" },
@@ -133,8 +129,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  const companyId = await siteChatCompanyId();
   const contactId = verify(req.nextUrl.searchParams.get("token"));
-  if (!contactId || !companyId()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!contactId || !companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const ip = clientIp(req.headers);
   const rl = await limit(`site-chat:get:${ip}`, 120, 10 * 60_000);
   if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
@@ -144,7 +141,7 @@ export async function GET(req: NextRequest) {
   const messages = await prisma.portalMessage.findMany({
     where: {
       contactId,
-      companyId: companyId(),
+      companyId,
       ...(afterDate && !isNaN(afterDate.getTime()) ? { createdAt: { gt: afterDate } } : {}),
     },
     orderBy: { createdAt: "asc" },
