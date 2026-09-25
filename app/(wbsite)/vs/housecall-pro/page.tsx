@@ -8,7 +8,7 @@ import type { CompareRow } from "@/components/wb/WBCompareTable";
 export const metadata: Metadata = {
   title: "WorkBench vs. Housecall Pro",
   description:
-    "How WorkBench compares to Housecall Pro for home-service scheduling, dispatch, invoicing, and payments — free software with a flat processing fee, versus Housecall Pro's per-user monthly plans.",
+    "How WorkBench compares to Housecall Pro for home-service scheduling, dispatch, invoicing, and payments — free core software with a flat processing fee, versus Housecall Pro's per-user monthly plans.",
 };
 
 const rows: CompareRow[] = [
@@ -118,7 +118,7 @@ export default function VsHousecallProPage() {
       competitorName="Housecall Pro"
       title={
         <>
-          WorkBench vs. Housecall Pro: <span className="text-[#0B57D8]">free software</span>, one flat fee.
+          WorkBench vs. Housecall Pro: <span className="text-[#0B57D8]">free core software</span>, one flat fee.
         </>
       }
       intro="Housecall Pro and WorkBench both run scheduling, dispatch, invoicing, and payments for home-service teams. The structural difference is pricing: Housecall Pro is a per-user monthly subscription with tiered add-ons; WorkBench is free core software (full access for two users, not a trial) with flat-priced optional add-ons, funded mostly by a flat percentage of the payments you process through it."

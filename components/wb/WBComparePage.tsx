@@ -137,7 +137,7 @@ export default function WBComparePage({
 
       <WBCta
         title="Free software. Pay only when you get paid."
-        body="No tiers to climb and no seats to count. Sign up and we onboard your company personally."
+        body="Free for 2 users, $10 a month per extra user, no contract. Sign up and we onboard your company personally."
         secondary={{ label: "See every feature", href: "/features" }}
       />
     </>

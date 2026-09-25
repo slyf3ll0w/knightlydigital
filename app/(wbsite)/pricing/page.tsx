@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AnimateIn } from "@/components/AnimateIn";
 import WBHero from "@/components/wb/WBHero";
+import WBScribble from "@/components/wb/WBScribble";
 import WBFaq from "@/components/wb/WBFaq";
 import WBPricing from "@/components/wb/WBPricing";
 import { ArrowRight, Compass, CreditCard, HandCoins, Puzzle, ShieldCheck, Sparkles } from "lucide-react";
@@ -103,10 +104,10 @@ const pricingFaq = [
     q: "Will features I use ever move behind a paywall?",
     a: (
       <p>
-        The essentials, never. Two things moved into {shop.name} when the add-ons launched in
-        September 2026: weekly timesheets and agreements. Every account opened before that
-        keeps both free, for good. Atlas, the AI assistant, has always had a meter, because AI
-        usage costs real money: every account gets {freeTokens} Atlas tokens free each month.
+        No. If our pricing or packaging ever changes, existing customers are grandfathered
+        in: the features you already use stay where they are, at the price you signed up
+        for. Atlas, the AI assistant, has always had a meter, because AI usage costs real
+        money: every account gets {freeTokens} Atlas tokens free each month.
       </p>
     ),
   },
@@ -150,7 +151,7 @@ const pricingFaq = [
 
 export const metadata: Metadata = {
   title: "Pricing — WorkBench",
-  description: `WorkBench is free to use: full access for ${INCLUDED_SEATS} users, not a trial, funded by payment processing at 2.9% + 30¢. Optional add-ons from ${formatCents(dispatch.monthlyCents)} a month: ${dispatch.name} (business phone line), ${shop.name} (unlimited users and the ops tools), and ${jobsite.name} (job photos, coming soon).`,
+  description: `WorkBench's core is free: full access for ${INCLUDED_SEATS} users, not a trial, funded by payment processing at 2.9% + 30¢. Optional add-ons from ${formatCents(dispatch.monthlyCents)} a month: ${dispatch.name} (business phone line), ${shop.name} (unlimited users and the ops tools), and ${jobsite.name} (job photos, coming soon).`,
 };
 
 export default function WBPricingPage() {
@@ -158,12 +159,21 @@ export default function WBPricingPage() {
     <>
       {/* ── Hero ── */}
       <WBHero>
-          <AnimateIn>
+          <AnimateIn className="relative">
+            <div className="absolute -bottom-16 right-4 hidden items-start gap-1 lg:flex" aria-hidden>
+              <WBScribble variant="loop" flip delay={0.6} className="mt-6 h-[62px] w-[96px] rotate-[48deg]" />
+              <p className="text-[15px] font-extrabold leading-snug text-[#10244A]">
+                Start on {FREE_PLAN_NAME}.
+                <br />
+                Add the rest later.
+              </p>
+            </div>
             <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">
-              WorkBench is free to use.
+              The core of WorkBench is free.
             </h1>
             <p className="mt-6 max-w-xl text-[17px] leading-relaxed text-gray-600">
               Full access for {INCLUDED_SEATS} users, not a trial, with no card and no clock.
+              Extra users are {seatPrice} a month each.
               Add a business phone line, unlimited users with the ops tools, or job photos
               only when you want them, from {formatCents(dispatch.monthlyCents)} a month.
               Payment processing at one flat rate funds the rest.
@@ -241,7 +251,7 @@ export default function WBPricingPage() {
         </div>
       </section>
 
-      {/* ── Essentials free forever ── */}
+      {/* ── The core stays free ── */}
       <section className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
         <div className="grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:gap-20">
           <AnimateIn>
@@ -258,8 +268,9 @@ export default function WBPricingPage() {
               scheduling, quotes, invoices, payments, the client portal, team
               chat, the iPhone app — is in {FREE_PLAN_NAME}, and that&apos;s
               permanent. There is no trial clock, no card on file, and no
-              day when the essentials stop working. We will never move an
-              essential feature behind a paywall.
+              day when the essentials stop working. Nothing you use gets
+              taken away: if packaging ever changes, existing customers are
+              grandfathered in.
             </p>
             <p className="mt-4 text-[15.5px] leading-relaxed text-gray-600">
               The add-ons are extra tools, not the product with the good
@@ -267,8 +278,6 @@ export default function WBPricingPage() {
               unlimited users plus the ops tools a growing crew reaches for:
               the estimator, routes, automations, agreements, the team map,
               timesheets, and QuickBooks. {jobsite.name} will be job photos.
-              If your account was open before the add-ons launched, timesheets
-              and agreements stay free on it.
             </p>
             <p className="mt-4 text-[15.5px] leading-relaxed text-gray-600">
               <span className="font-bold text-gray-900">Atlas</span>, the AI

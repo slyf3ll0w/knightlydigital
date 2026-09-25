@@ -48,7 +48,7 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
   {
     heading: "5. Payments processing",
     paragraphs: [
-      "WorkBench itself is free to use. Where online payment processing is offered, payments are processed by our payment partner — currently Finix Payments, Inc. — under their own terms and merchant agreement, which you accept when you apply for a payment account. Your eligibility, approval, funding holds, payouts, chargebacks, and reserves are governed by the payment processor’s merchant agreement and the applicable card-network rules, not by us.",
+      "The core WorkBench software is free for up to 2 users; extra users and optional add-ons are paid monthly subscriptions, priced on our pricing page. Where online payment processing is offered, payments are processed by our payment partner — currently Finix Payments, Inc. — under their own terms and merchant agreement, which you accept when you apply for a payment account. Your eligibility, approval, funding holds, payouts, chargebacks, and reserves are governed by the payment processor’s merchant agreement and the applicable card-network rules, not by us.",
       "Processing fees are disclosed during payment setup and on our pricing page. You are responsible for configuring your own prices, taxes, and any card surcharge in accordance with the laws and card-network rules that apply to your business, and for the goods and services you sell to your customers.",
       "Money you collect from your clients flows through the payment processor to the bank account you provide during setup; it is never held in a Streamflaire bank account. You are responsible for any refunds, disputes, and chargebacks arising from your transactions.",
     ],
@@ -156,7 +156,7 @@ export default function TermsPage() {
             <div className="rounded-2xl border border-blue-100 bg-blue-50/60 px-5 py-4">
               <p className="text-[15px] leading-relaxed text-gray-700">
                 <span className="font-bold text-gray-900">The short version:</span>{" "}
-                WorkBench is free to use, your records belong to you, be a good citizen,
+                The core of WorkBench is free for up to 2 users, your records belong to you, be a good citizen,
                 and online payments run through our payment partner under their merchant
                 terms. The details are below.
               </p>

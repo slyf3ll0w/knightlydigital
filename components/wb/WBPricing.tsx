@@ -20,7 +20,7 @@ import {
 } from "@/lib/plans";
 
 /**
- * The WorkBench pricing grid: the free core (Bench) up top — full access,
+ * The WorkBench pricing grid: the free core (Core) up top — full access,
  * not a trial — then the optional add-ons (Voice, Pro, Gallery, Max) with a monthly/annual toggle. Every number comes from lib/plans.ts.
  */
 
@@ -57,7 +57,7 @@ const freeGroups: { label: string; accent: string; items: string[] }[] = [
       "Two-way client messaging",
       "Team chat & mobile push",
       "Team roles & permissions",
-      "iPhone app with offline mode",
+      "iPhone & Android apps, offline mode",
       `Atlas AI, ${tokenCount(ATLAS_FREE_TOKENS)} free tokens a month`,
     ],
   },
@@ -91,11 +91,11 @@ export default function WBPricing() {
 
   return (
     <div>
-      {/* ── Bench: the free core ── */}
+      {/* ── Core: the free plan ── */}
       <div className="grid overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white lg:grid-cols-[350px_1fr]">
         <div className="relative flex flex-col bg-[#0A1428] p-8 lg:p-10">
           <div className="relative flex h-full flex-col">
-            <p className="wb-label wb-label-light">{FREE_PLAN_NAME} · the free core</p>
+            <p className="wb-label wb-label-light">{FREE_PLAN_NAME} · the free plan</p>
             <p
               className="mt-6 text-6xl font-extrabold leading-none text-white"
               style={{ fontFamily: '"Nunito", sans-serif' }}
@@ -112,7 +112,7 @@ export default function WBPricing() {
               {[
                 "No credit card, no trial clock",
                 `${INCLUDED_SEATS} users included, ${formatCents(EXTRA_SEAT_CENTS)} a month each after`,
-                "Nothing essential behind a paywall",
+                "Features you use never get taken away",
               ].map((item) => (
                 <li key={item} className="flex items-center gap-3 text-[14px] text-white">
                   <Check className="h-4 w-4 flex-none text-[#FF8B33]" strokeWidth={3} />

@@ -35,7 +35,7 @@ export type FeatureItem = {
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   title: string;
   body: string;
-  /** Which add-on the feature belongs to; unset = in Bench, the free core (lib/plans.ts). */
+  /** Which add-on the feature belongs to; unset = in Core, the free plan (lib/plans.ts). */
   plan?: "SHOP" | "DISPATCH" | "JOBSITE";
 };
 

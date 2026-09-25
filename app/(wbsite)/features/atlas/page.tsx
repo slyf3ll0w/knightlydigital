@@ -141,7 +141,7 @@ export default function AtlasPage() {
       ctaTitle={`${freeTokens} free tokens a month. ${planPrice} when you want more.`}
       ctaBody={
         <>
-          The core WorkBench software is free to use, full access, not a trial. Atlas
+          The core WorkBench software is free with full access for 2 users, not a trial. Atlas
           comes with {freeTokens} free tokens every month on every account;
           Atlas Full is {planTokens} a month for {planPrice}.
         </>

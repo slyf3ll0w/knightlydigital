@@ -8,7 +8,7 @@ import type { CompareRow } from "@/components/wb/WBCompareTable";
 export const metadata: Metadata = {
   title: "WorkBench vs. Jobber",
   description:
-    "How WorkBench compares to Jobber for home-service scheduling, quoting, invoicing, and payments — free software with a flat processing fee, versus Jobber's per-user monthly plans.",
+    "How WorkBench compares to Jobber for home-service scheduling, quoting, invoicing, and payments — free core software with a flat processing fee, versus Jobber's per-user monthly plans.",
 };
 
 const rows: CompareRow[] = [
@@ -119,7 +119,7 @@ export default function VsJobberPage() {
       competitorName="Jobber"
       title={
         <>
-          WorkBench vs. Jobber: <span className="text-[#0B57D8]">free software</span>, one flat fee.
+          WorkBench vs. Jobber: <span className="text-[#0B57D8]">free core software</span>, one flat fee.
         </>
       }
       intro="Jobber and WorkBench both run scheduling, quoting, invoicing, and payments for home-service teams. The difference is the pricing model: Jobber is a per-user monthly subscription; WorkBench is free core software (full access for two users, not a trial) with flat-priced optional add-ons, funded mostly by a flat percentage of the payments you process through it."

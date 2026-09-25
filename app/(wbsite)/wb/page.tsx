@@ -8,10 +8,11 @@ import WBDayOnTheJob from "@/components/wb/WBDayOnTheJob";
 import WBFaq from "@/components/wb/WBFaq";
 import WBHero from "@/components/wb/WBHero";
 import WBPhoneShowcase from "@/components/wb/WBPhoneShowcase";
-import WBPhoneToday from "@/components/wb/WBPhoneToday";
+import WBPhoneReal, { WBZoom } from "@/components/wb/WBPhoneReal";
+import WBTestimonials from "@/components/wb/WBTestimonials";
 import WBScribble from "@/components/wb/WBScribble";
 import WBSystemTabs from "@/components/wb/WBSystemTabs";
-import { APP_STORE_URL, PLAY_STORE_URL, WB_EMAIL, WB_PHOTOS, WB_TRADE_PHOTOS, WB_EMAIL_HREF, WB_PHONE } from "@/lib/wb-site";
+import { APP_STORE_URL, PLAY_STORE_URL, WB_PHOTOS, WB_TRADE_PHOTOS, WB_PHONE } from "@/lib/wb-site";
 import { EXTRA_SEAT_CENTS, FREE_PLAN_NAME, INCLUDED_SEATS, PLANS, formatCents } from "@/lib/plans";
 import {
   ArrowRight,
@@ -26,7 +27,6 @@ import {
   Home,
   Landmark,
   Leaf,
-  Mail,
   MapPin,
   Phone,
   Plug,
@@ -40,9 +40,9 @@ import {
 } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "WorkBench — Free field service management software",
+  title: "WorkBench — Field service management software, free to start",
   description:
-    "WorkBench is free scheduling, quoting, invoicing, and payment software for home-service companies. Online booking, dispatch, a client portal, team chat, an AI assistant, and native iPhone and Android apps. Full access, not a trial, funded by payment processing; optional add-ons for a phone line, unlimited users, and job photos.",
+    "WorkBench is scheduling, quoting, invoicing, and payment software for home-service companies. Online booking, dispatch, a client portal, team chat, an AI assistant, and native iPhone and Android apps. The Core plan is free for 2 users with full access, not a trial; extra users are $10 a month, and optional add-ons cover a phone line, unlimited users, and job photos.",
 };
 
 const tradeCards = [
@@ -64,9 +64,9 @@ const moreTrades = [
 ];
 
 const rateRows = [
-  { label: "The software", value: "Free, full access" },
+  { label: "The software", value: `${FREE_PLAN_NAME} plan, free` },
   { label: "Users", value: `${INCLUDED_SEATS} included, ${formatCents(EXTRA_SEAT_CENTS)} each after` },
-  { label: "Monthly fee", value: "$0" },
+  { label: "Monthly fee", value: `$0 on ${FREE_PLAN_NAME}` },
   { label: "Card payments", value: "2.9% + 30¢" },
   { label: "ACH bank transfers", value: "0.75%" },
   { label: "Atlas tokens", value: "10,000 free a month" },
@@ -78,8 +78,9 @@ const faqItems = [
     q: "Is WorkBench really free?",
     a: (
       <p>
-        Yes. Every essential feature, for {INCLUDED_SEATS} users, with full
-        access, no trial clock, and no credit card required. Extra users are{" "}
+        The {FREE_PLAN_NAME} plan is. Every essential feature for{" "}
+        {INCLUDED_SEATS} users, with full access, no trial clock, and no credit
+        card required. Extra users are{" "}
         {formatCents(EXTRA_SEAT_CENTS)} a month each, and three optional add-ons
         (a business phone line, unlimited users with the ops tools, and job
         photos) are priced flat per company. The core is funded by built-in
@@ -98,8 +99,8 @@ const faqItems = [
     a: (
       <p>
         One flat rate: 2.9% + 30¢ per successful card transaction and 0.75% per
-        ACH bank transfer. There are no monthly fees, no minimums, and no charge
-        on failed payments.
+        ACH bank transfer. There are no monthly processing fees, no minimums, and
+        no charge on failed payments.
       </p>
     ),
   },
@@ -107,8 +108,8 @@ const faqItems = [
     q: "Do I have to take card payments through WorkBench?",
     a: (
       <p>
-        No. Cash and check payments can be recorded on any invoice, and the
-        software stays free either way. Card and ACH are built in for when you
+        No. Cash and check payments can be recorded on any invoice, and the{" "}
+        {FREE_PLAN_NAME} plan stays free either way. Card and ACH are built in for when you
         want them, on invoices, quotes with deposits, and online bookings.
       </p>
     ),
@@ -159,6 +160,16 @@ const faqItems = [
     ),
   },
   {
+    q: "Will features I use ever move behind a paywall?",
+    a: (
+      <p>
+        No. The features on your plan stay on your plan. If our pricing or
+        packaging ever changes, existing customers are grandfathered in on
+        everything they already use.
+      </p>
+    ),
+  },
+  {
     q: "Can I get my data out?",
     a: (
       <p>
@@ -182,8 +193,9 @@ export default function WBHomePage() {
             </h1>
             <p className="mx-auto mt-6 max-w-2xl lg:mx-0 lg:max-w-xl text-[17px] leading-relaxed text-gray-600 sm:text-[19px]">
               WorkBench is scheduling, quotes, invoicing, and payments for
-              home-service companies. Free to use, full access, funded by a flat
-              payment rate instead of a subscription.
+              home-service companies. The {FREE_PLAN_NAME} plan is free for your
+              first {INCLUDED_SEATS} users, with full access and no trial clock. Add
+              users or add-ons only when you need them.
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
               <Link href="/apply" className="wb-pill wb-pill-dark">
@@ -225,7 +237,18 @@ export default function WBHomePage() {
                 <span className="block text-[12px] text-gray-500">Panel upgrade, Ravenwood Dr</span>
               </span>
             </div>
-            <WBPhoneToday className="absolute -bottom-10 left-3 sm:-left-8 sm:-bottom-12" />
+            <WBPhoneReal
+              src="/screens/mobile-01.png"
+              alt="The WorkBench phone app: the week's schedule, one card per job"
+              className="absolute -bottom-10 left-3 sm:-left-8 sm:-bottom-12"
+            />
+            {/* the same screenshot, magnified on one job */}
+            <WBZoom
+              src="/screens/mobile-01.png"
+              region={{ x: 18, y: 540, w: 604, h: 142 }}
+              width={290}
+              className="wb-float absolute bottom-[196px] left-[178px] hidden sm:block xl:left-[196px] xl:bottom-[214px]"
+            />
             <div className="absolute -left-[16.5rem] bottom-6 hidden w-[14rem] items-end gap-1 xl:flex" aria-hidden>
               <p className="pb-1 text-right text-[15px] font-extrabold leading-snug text-[#10244A]">
                 What your techs
@@ -308,7 +331,7 @@ export default function WBHomePage() {
       <section className="border-y border-gray-200 bg-white">
         <div className="mx-auto grid max-w-6xl divide-y divide-gray-200 px-5 sm:px-8 md:grid-cols-3 md:divide-x md:divide-y-0">
           {[
-            { title: "Free for unlimited users", body: "Every essential feature for the whole team. No tiers, no seats to count." },
+            { title: `Free for your first ${INCLUDED_SEATS} users`, body: `The ${FREE_PLAN_NAME} plan is full access, not a trial. Extra users are ${formatCents(EXTRA_SEAT_CENTS)} a month each.` },
             { title: "One flat payment rate", body: "2.9% + 30¢ per card transaction, 0.75% per ACH transfer. Nothing monthly." },
             { title: "iPhone and Android apps", body: "Push notifications, an offline schedule, and invoices sent from the driveway." },
           ].map((f) => (
@@ -499,7 +522,11 @@ export default function WBHomePage() {
                 </li>
               ))}
             </ul>
-            <div className="mt-9 flex flex-wrap items-center gap-3">
+            <p className="mt-9 flex items-end gap-2 text-[14px] font-bold text-white/90" aria-hidden>
+              Free to download on both
+              <WBScribble variant="swoop" tone="chalk" delay={0.4} className="-mb-3 h-[40px] w-[76px] rotate-[28deg]" />
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
               <a
                 href={APP_STORE_URL}
                 target="_blank"
@@ -540,13 +567,16 @@ export default function WBHomePage() {
         </div>
       </section>
 
+      {/* ── Testimonials (drafts: preview only until the customers approve) ── */}
+      <WBTestimonials />
+
       {/* ── Pricing ── */}
       <section className="bg-white">
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-20 sm:px-8 sm:py-28 lg:grid-cols-[1.1fr_1fr] lg:gap-20">
           <AnimateIn>
             <p className="wb-label">Pricing</p>
             <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
-              Free to use.{" "}
+              Free to start.{" "}
               <span className="text-gray-400">We earn when the job gets paid.</span>
             </h2>
             <p className="mt-5 max-w-lg text-[16px] leading-relaxed text-gray-600">
@@ -557,7 +587,7 @@ export default function WBHomePage() {
             </p>
             <ul className="mt-7 grid gap-3">
               {[
-                "Full access on the free plan, not a trial",
+                `Full access on ${FREE_PLAN_NAME}, not a trial`,
                 `Add-ons priced flat per company, from ${formatCents(PLANS.DISPATCH.monthlyCents)} a month`,
                 "Cash and check invoices stay free too",
                 "No contracts. Your data exports any time",
@@ -575,12 +605,20 @@ export default function WBHomePage() {
               <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
             </Link>
           </AnimateIn>
-          <AnimateIn delay={120}>
+          <AnimateIn delay={120} className="relative">
+            <div className="absolute -top-14 right-2 hidden items-end gap-1 lg:flex" aria-hidden>
+              <p className="pb-2 text-right text-[14.5px] font-extrabold leading-snug text-[#10244A]">
+                The whole bill.
+                <br />
+                Nothing hidden.
+              </p>
+              <WBScribble variant="loop" delay={0.4} className="h-[58px] w-[90px] rotate-[62deg]" />
+            </div>
             <div className="rounded-[1.5rem] bg-[#F6F8FB] p-4 sm:p-5">
               <div className="wb-frag overflow-hidden">
                 <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
                   <p className="text-[15px] font-bold text-gray-900">What WorkBench costs</p>
-                  <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[12px] font-bold text-[#0B57D8]">{FREE_PLAN_NAME}, the free core</span>
+                  <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[12px] font-bold text-[#0B57D8]">The {FREE_PLAN_NAME} plan</span>
                 </div>
                 <dl>
                   {rateRows.map((r) => (
@@ -592,57 +630,10 @@ export default function WBHomePage() {
                 </dl>
               </div>
               <p className="px-2 pb-1 pt-4 text-[13px] leading-relaxed text-gray-500">
-                No monthly fees, no minimums, no charge on failed payments.
+                No monthly fee on {FREE_PLAN_NAME}, no minimums, no charge on failed payments.{" "}
                 {PLANS.DISPATCH.name}, {PLANS.SHOP.name}, and {PLANS.JOBSITE.name} are
                 optional add-ons and cancel any time.
               </p>
-            </div>
-          </AnimateIn>
-        </div>
-      </section>
-
-      {/* ── Who is behind it ── */}
-      <section id="contact" className="scroll-mt-24 border-t border-gray-200 bg-[#F6F8FB]">
-        <div className="mx-auto grid max-w-6xl gap-12 px-5 py-20 sm:px-8 sm:py-24 lg:grid-cols-[1.2fr_1fr] lg:gap-20">
-          <AnimateIn>
-            <p className="wb-label">Who is behind WorkBench</p>
-            <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
-              A small software company in Allen, Texas.
-            </h2>
-            <p className="mt-5 text-[16px] leading-relaxed text-gray-600">
-              WorkBench is built and supported by Streamflaire. We write the
-              software, answer the phone, and review every application
-              ourselves. When you call, you reach the people who can actually
-              change something.
-            </p>
-            <p className="mt-4 text-[16px] leading-relaxed text-gray-600">
-              Because WorkBench moves real money, every company is verified
-              before its account opens. That takes a short form and a business
-              day, and most companies are scheduling and quoting the same day
-              they are approved.
-            </p>
-          </AnimateIn>
-          <AnimateIn delay={120}>
-            <div className="rounded-[1.5rem] border border-gray-200 bg-white p-7 sm:p-8">
-              <p className="text-[13.5px] font-bold text-gray-500">Get in touch</p>
-              <a href={WB_PHONE.href} className="mt-4 flex items-center gap-3 text-gray-900 hover:text-[#0B57D8]">
-                <Phone className="h-5 w-5 flex-none text-[#F86A0A]" strokeWidth={2.25} aria-hidden />
-                <span className="text-[24px] font-extrabold" style={{ fontFamily: '"Nunito", sans-serif' }}>
-                  {WB_PHONE.display}
-                </span>
-              </a>
-              <a href={WB_EMAIL_HREF} className="mt-3 flex items-center gap-3 text-[15.5px] font-semibold text-gray-800 hover:text-[#0B57D8]">
-                <Mail className="h-5 w-5 flex-none text-[#F86A0A]" strokeWidth={2.25} aria-hidden />
-                {WB_EMAIL}
-              </a>
-              <p className="mt-5 text-[14px] leading-relaxed text-gray-600">
-                Call with questions about the software, pricing, or your trade.
-                If nobody picks up, leave a message and we call you back.
-              </p>
-              <Link href="/contact" className="mt-5 inline-flex items-center gap-1.5 text-[14px] font-bold text-[#0B57D8] hover:underline">
-                Contact page
-                <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-              </Link>
             </div>
           </AnimateIn>
         </div>

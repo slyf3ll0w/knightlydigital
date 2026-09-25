@@ -9,7 +9,7 @@ import { ClipboardList, ShieldCheck, Wrench } from "lucide-react";
 export const metadata: Metadata = {
   title: "Get started — WorkBench",
   description:
-    "Open your WorkBench account in minutes: tell us about your business, verify payments, and start setting up. Free to use, full access, not a trial.",
+    "Open your WorkBench account in minutes: tell us about your business, verify payments, and start setting up. Free with full access for 2 users, not a trial.",
 };
 
 const steps = [

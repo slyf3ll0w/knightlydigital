@@ -276,7 +276,7 @@ export const STARTER_LANES: {
     accent: null,
   },
   {
-    name: "Bench",
+    name: "Core",
     kind: "TIER",
     price: "$0",
     priceNote: "forever, 2 users included",

@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { AnimateIn } from "@/components/AnimateIn";
 import WBHero from "@/components/wb/WBHero";
+import WBScribble from "@/components/wb/WBScribble";
 import WBCta from "@/components/wb/WBCta";
 import WBPhoneShowcase from "@/components/wb/WBPhoneShowcase";
 import { APP_STORE_URL, sections } from "@/lib/wb-features";
@@ -18,7 +19,7 @@ import {
 export const metadata: Metadata = {
   title: "Features — WorkBench",
   description:
-    "Everything in WorkBench, end to end: online booking, lead pipeline, quotes with e-signature, scheduling and dispatch, clock-in, team chat, invoicing, card & ACH payments, recurring billing, and a client hub — free, full access, not a trial. Plus Atlas, an AI assistant with 10,000 free tokens every month, and optional add-ons for a phone line, unlimited users with the ops tools, and job photos.",
+    "Everything in WorkBench, end to end: online booking, lead pipeline, quotes with e-signature, scheduling and dispatch, clock-in, team chat, invoicing, card & ACH payments, recurring billing, and a client hub — free with full access for 2 users, not a trial. Plus Atlas, an AI assistant with 10,000 free tokens every month, and optional add-ons for a phone line, unlimited users with the ops tools, and job photos.",
 };
 
 // Section id → deep-dive pages worth a link once the reader has seen the
@@ -41,14 +42,22 @@ export default function WBFeaturesPage() {
     <>
       {/* ── Hero ── */}
       <WBHero>
-          <AnimateIn>
+          <AnimateIn className="relative">
+            <div className="absolute -bottom-2 right-0 hidden w-[13rem] flex-col items-end xl:flex" aria-hidden>
+              <p className="text-right text-[15px] font-extrabold leading-snug text-[#10244A]">
+                Skip to the part
+                <br />
+                your crew needs
+              </p>
+              <WBScribble variant="swoop" flip delay={0.6} className="mr-10 mt-1 h-[46px] w-[92px] rotate-[-8deg]" />
+            </div>
             <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">
               Every feature in WorkBench
             </h1>
             <p className="mt-6 max-w-2xl text-[17px] leading-relaxed text-gray-600">
               WorkBench covers the whole arc of a job: winning it, running it,
               getting paid for it, and keeping the client for the next one.
-              Nearly all of sections 01 to 04 are in Bench, the free plan,
+              Nearly all of sections 01 to 04 are in Core, the free plan,
               with full access for two users. The few marked Pro come with
               that add-on, alongside the estimator, routes, automations, and
               QuickBooks. Atlas, the AI assistant, gives every account free

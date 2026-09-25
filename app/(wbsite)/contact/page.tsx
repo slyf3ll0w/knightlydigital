@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Clock4, Mail, MessageSquare, Phone } from "lucide-react";
 import WBCta from "@/components/wb/WBCta";
 import WBHero from "@/components/wb/WBHero";
+import WBScribble from "@/components/wb/WBScribble";
 import { WB_EMAIL, WB_EMAIL_HREF, WB_PHONE } from "@/lib/wb-site";
 
 export const metadata: Metadata = {
@@ -14,6 +15,15 @@ export default function WBContactPage() {
   return (
     <>
       <WBHero>
+        <div className="relative">
+          <div className="absolute -bottom-20 left-[22%] hidden items-end gap-1 md:flex" aria-hidden>
+            <WBScribble variant="swoop" flip delay={0.5} className="h-[56px] w-[104px] rotate-[-30deg]" />
+            <p className="pb-6 text-[15px] font-extrabold leading-snug text-[#10244A]">
+              Yes, a real person
+              <br />
+              picks up.
+            </p>
+          </div>
           <p className="wb-label">Contact</p>
           <h1 className="mt-3 max-w-2xl text-4xl font-extrabold leading-[1.1] sm:text-5xl">
             Talk to a person.
@@ -23,6 +33,7 @@ export default function WBContactPage() {
             your trade. Call or email and you reach the people who build and
             support it.
           </p>
+        </div>
       </WBHero>
 
       <section className="bg-[#F6F8FB]">

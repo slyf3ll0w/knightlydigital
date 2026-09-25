@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { PlanId } from "@/lib/plans";
+import { FREE_PLAN_NAME, type PlanId } from "@/lib/plans";
 
 /**
  * The plan whitelist (lib/plans.ts): grant a company any add-on plan for
@@ -71,7 +71,7 @@ export function PlanControl({
                 : "bg-gray-100 text-gray-600"
           }`}
         >
-          {everything ? "Max (everything)" : grants.length > 0 ? `${grants.length} of ${plans.length} granted` : "Bench (free core)"}
+          {everything ? "Max (everything)" : grants.length > 0 ? `${grants.length} of ${plans.length} granted` : `${FREE_PLAN_NAME} (free core)`}
         </span>
       </div>
       <p className="mt-2 text-xs leading-relaxed text-gray-500">

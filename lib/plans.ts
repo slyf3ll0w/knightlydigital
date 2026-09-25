@@ -5,7 +5,7 @@
  *
  * The model (decided 2026-09-25, docs/plans/pricing-plans-2026-09-25.md):
  *
- *   Bench      — the free core. Full access, not a trial: clients, booking,
+ *   Core       — the free core. Full access, not a trial: clients, booking,
  *                scheduling, quotes, invoices, payments, portal, chat, Atlas
  *                free tokens. 2 users included; extra users EXTRA_SEAT a
  *                month each. Funded by payment processing.
@@ -56,7 +56,7 @@ export function isPlanId(v: unknown): v is PlanId {
 }
 
 /** The free core. */
-export const FREE_PLAN_NAME = "Bench";
+export const FREE_PLAN_NAME = "Core";
 /** Users included with the free core (and with any add-on that isn't Pro). */
 export const INCLUDED_SEATS = Math.round(envNum(process.env.PLAN_INCLUDED_SEATS, 2));
 /** Each user past the included seats, per month, on any plan without Pro. */
