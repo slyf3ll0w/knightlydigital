@@ -19,7 +19,16 @@ type ThreadMessage = {
   senderName: string | null;
 };
 
+// Portal/SMS threads poll lazily; a website-chat thread is a live
+// conversation, so it polls like team chat does.
 const POLL_MS = 15_000;
+const WEB_POLL_MS = 3_000;
+const TYPING_PING_MS = 2_500;
+
+function prettyPhone(e164: string): string {
+  const d = e164.replace(/D/g, "").replace(/^1(?=d{10}$)/, "");
+  return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : e164;
+}
 
 function timeLabel(iso: string): string {
   const d = new Date(iso);
@@ -46,7 +55,14 @@ export default function TeamThread({
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [clientTyping, setClientTyping] = useState(false);
+  const [visitorOnline, setVisitorOnline] = useState<boolean | null>(null);
+  const [contactPhone, setContactPhone] = useState<string | null | undefined>(undefined);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const lastTypingPing = useRef(0);
+
+  // A thread the client started (or continued) from the website chat widget.
+  const webChat = messages.some((m) => m.via === "web");
 
   const lastCreatedAt = messages.length ? messages[messages.length - 1].createdAt : null;
   const lastRef = useRef(lastCreatedAt);
@@ -71,8 +87,17 @@ export default function TeamThread({
         const after = lastRef.current ? `?after=${encodeURIComponent(lastRef.current)}` : "";
         const res = await fetch(`/api/app/messages/${contactId}${after}`);
         if (!res.ok) return;
-        const data = (await res.json()) as { messages: ThreadMessage[] };
-        if (stopped || !data.messages?.length) return;
+        const data = (await res.json()) as {
+          messages: ThreadMessage[];
+          clientTyping?: boolean;
+          visitorOnline?: boolean;
+          contactPhone?: string | null;
+        };
+        if (stopped) return;
+        setClientTyping(Boolean(data.clientTyping));
+        if (typeof data.visitorOnline === "boolean") setVisitorOnline(data.visitorOnline);
+        if (data.contactPhone !== undefined) setContactPhone(data.contactPhone);
+        if (!data.messages?.length) return;
         // Opening the thread marks its inbound messages read server-side —
         // recount the nav badges so the Messages dot clears right away.
         if (data.messages.some((m) => m.direction === "INBOUND")) {
@@ -87,14 +112,24 @@ export default function TeamThread({
         /* transient — next tick retries */
       }
     };
-    const interval = setInterval(poll, POLL_MS);
+    if (webChat) void poll();
+    const interval = setInterval(poll, webChat ? WEB_POLL_MS : POLL_MS);
     window.addEventListener("focus", poll);
     return () => {
       stopped = true;
       clearInterval(interval);
       window.removeEventListener("focus", poll);
     };
-  }, [contactId]);
+  }, [contactId, webChat]);
+
+  // Typing heartbeat, only where someone is listening (the website widget).
+  function pingTyping() {
+    if (!webChat) return;
+    const now = Date.now();
+    if (now - lastTypingPing.current < TYPING_PING_MS) return;
+    lastTypingPing.current = now;
+    void fetch(`/api/app/messages/${contactId}/typing`, { method: "POST" }).catch(() => {});
+  }
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
@@ -124,6 +159,28 @@ export default function TeamThread({
 
   return (
     <div className="card-ledger p-4 sm:p-5">
+      {webChat && (
+        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-gray-500">
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              className={`h-2 w-2 rounded-full ${visitorOnline ? "bg-green-500" : "bg-gray-300"}`}
+              aria-hidden
+            />
+            {visitorOnline === null
+              ? "Website chat"
+              : visitorOnline
+                ? `${contactFirstName} is on the website now`
+                : `${contactFirstName} left the website`}
+          </span>
+          {contactPhone !== undefined && (
+            <span>
+              {contactPhone
+                ? `Left a number: ${prettyPhone(contactPhone)}`
+                : "No number left, so a reply only reaches them while they're here"}
+            </span>
+          )}
+        </div>
+      )}
       {messages.length === 0 ? (
         <EmptyState
           compact
@@ -155,6 +212,11 @@ export default function TeamThread({
               </div>
             );
           })}
+          {clientTyping && (
+            <p className="px-1 text-[12px] text-gray-500">
+              <span className="atlas-shimmer">{contactFirstName} is typing…</span>
+            </p>
+          )}
           <div ref={bottomRef} />
         </div>
       )}
@@ -162,7 +224,10 @@ export default function TeamThread({
       <form onSubmit={handleSend} className="mt-4 flex items-end gap-2">
         <textarea
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            if (e.target.value.trim()) pingTyping();
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();

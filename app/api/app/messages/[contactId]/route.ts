@@ -7,6 +7,8 @@ import {
 } from "@/lib/portal-messages";
 import { autoAdvance } from "@/lib/pipeline";
 import { fireAutomations } from "@/lib/automations-server";
+import { activeTypers } from "@/lib/chat";
+import { visitorOnline } from "@/lib/site-chat";
 
 /**
  * Team side of a portal message thread. GET polls for new messages (and
@@ -41,7 +43,7 @@ export async function GET(
   const { contactId } = await params;
   const contact = await prisma.contact.findFirst({
     where: { id: contactId, companyId: actor.companyId, ...contactScope(actor) },
-    select: { id: true },
+    select: { id: true, phone: true },
   });
   if (!contact) return NextResponse.json({ error: "Client not found." }, { status: 404 });
 
@@ -67,7 +69,15 @@ export async function GET(
     });
   }
 
-  return NextResponse.json({ messages: messages.map(serialize) });
+  // Website-chat extras: is the visitor still on the page, are they typing,
+  // and do we have a number for them. Cheap and in-memory; harmless on
+  // portal/SMS threads, where the UI ignores them.
+  return NextResponse.json({
+    messages: messages.map(serialize),
+    clientTyping: activeTypers(`portal:${contact.id}`, actor.id).includes("visitor"),
+    visitorOnline: visitorOnline(contact.id),
+    contactPhone: contact.phone,
+  });
 }
 
 export async function POST(

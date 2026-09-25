@@ -84,6 +84,10 @@ export async function notifyTeamOfClientMessage(
     tag: `portal-thread-${contact.id}`,
   });
 
+  // Website chat is a live conversation, not an inbox item: the push is the
+  // whole notification, never an email.
+  if (via === "web") return;
+
   const olderUnread = await prisma.portalMessage.count({
     where: {
       contactId: contact.id,

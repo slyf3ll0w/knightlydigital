@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHmac, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/db";
 import { clientIp, limit } from "@/lib/rate-limit";
 import { notifyTeamOfClientMessage, portalThreadContactInclude } from "@/lib/portal-messages";
 import { fireAutomations } from "@/lib/automations-server";
-import { siteChatCompanyId, siteChatSecret } from "@/lib/site-chat";
+import { activeTypers } from "@/lib/chat";
+import {
+  markVisitorSeen,
+  parseUsPhone,
+  signSiteChatToken,
+  siteChatCompanyId,
+  siteChatSecret,
+  verifySiteChatToken,
+} from "@/lib/site-chat";
 
 /**
  * Website chat (the "Chat with us" widget on the marketing site).
@@ -14,28 +21,14 @@ import { siteChatCompanyId, siteChatSecret } from "@/lib/site-chat";
  * overrides) as an INBOUND PortalMessage on a contact created for that
  * visitor — the same thread an inbound text on the business line lands in,
  * so the team sees it in Messages, gets the push, and answers from the app
- * like any other client. The widget polls GET for the team's replies, so
- * the conversation is two-way in the browser even while outbound texting is
- * still unapproved; once texting is live, a visitor who left a number also
- * gets the reply as an SMS from the business line (notifyClientOfReply).
+ * like any other client. The widget polls GET for the team's replies (and
+ * typing), so the conversation is two-way in the browser even while
+ * outbound texting is still unapproved; once texting is live, a visitor
+ * who left a number also gets the reply as an SMS (notifyClientOfReply).
  *
  * The visitor holds an HMAC-signed contact id (no schema change, no hub
  * token exposure). Rate-limited per IP; a honeypot field drops bots quietly.
  */
-
-function sign(contactId: string): string {
-  return `${contactId}.${createHmac("sha256", siteChatSecret()).update(contactId).digest("base64url")}`;
-}
-
-function verify(token: string | null | undefined): string | null {
-  if (!token || !siteChatSecret()) return null;
-  const dot = token.lastIndexOf(".");
-  if (dot <= 0) return null;
-  const id = token.slice(0, dot);
-  const expected = sign(id);
-  if (expected.length !== token.length) return null;
-  return timingSafeEqual(Buffer.from(expected), Buffer.from(token)) ? id : null;
-}
 
 const serialize = (m: {
   id: string;
@@ -77,7 +70,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Write a message (2,000 characters max)." }, { status: 400 });
   }
 
-  let contactId = verify(typeof data.token === "string" ? data.token : null);
+  let contactId = verifySiteChatToken(typeof data.token === "string" ? data.token : null);
   if (contactId) {
     const exists = await prisma.contact.findFirst({ where: { id: contactId, companyId }, select: { id: true } });
     if (!exists) contactId = null;
@@ -85,10 +78,8 @@ export async function POST(req: NextRequest) {
 
   if (!contactId) {
     const name = typeof data.name === "string" ? data.name.slice(0, 80) : "";
-    const phoneRaw = typeof data.phone === "string" ? data.phone.trim().slice(0, 30) : "";
+    const parsed = typeof data.phone === "string" ? parseUsPhone(data.phone.slice(0, 30)) : null;
     const email = typeof data.email === "string" ? data.email.trim().slice(0, 120) : "";
-    const digits = phoneRaw.replace(/\D/g, "").replace(/^1(?=\d{10}$)/, "");
-    const phone = digits.length === 10 ? `+1${digits}` : null;
     let created: { id: string };
     try {
       created = await prisma.contact.create({
@@ -96,11 +87,15 @@ export async function POST(req: NextRequest) {
           companyId,
           ...splitName(name),
           email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null,
-          phone,
-          phoneDigits: phone ? digits : null,
+          phone: parsed?.phone ?? null,
+          phoneDigits: parsed?.digits ?? null,
           leadSource: "Website chat",
-          ...(phone
-            ? { smsConsentSource: "web_chat", smsConsentNote: "Left their number in the website chat and asked to be texted back" }
+          ...(parsed
+            ? {
+                smsConsentAt: new Date(),
+                smsConsentSource: "web_chat",
+                smsConsentNote: "Left their number in the website chat and asked to be texted back",
+              }
             : {}),
         },
         select: { id: true },
@@ -121,20 +116,33 @@ export async function POST(req: NextRequest) {
     data: { companyId: contact.companyId, contactId: contact.id, direction: "INBOUND", body, via: "web" },
     include: { sender: { select: { name: true } } },
   });
+  markVisitorSeen(contact.id);
   notifyTeamOfClientMessage(contact, message.id, body, "web").catch((err) =>
     console.error("[site-chat] notify failed:", err)
   );
 
-  return NextResponse.json({ token: sign(contact.id), message: serialize(message) }, { status: 201 });
+  return NextResponse.json(
+    { token: signSiteChatToken(contact.id), message: serialize(message), hasPhone: Boolean(contact.phone) },
+    { status: 201 }
+  );
 }
 
 export async function GET(req: NextRequest) {
   const companyId = await siteChatCompanyId();
-  const contactId = verify(req.nextUrl.searchParams.get("token"));
+  const contactId = verifySiteChatToken(req.nextUrl.searchParams.get("token"));
   if (!contactId || !companyId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const ip = clientIp(req.headers);
-  const rl = await limit(`site-chat:get:${ip}`, 120, 10 * 60_000);
+  // The open widget polls every couple of seconds — this bucket is sized
+  // for that, and middleware's site-chat bucket covers the rest.
+  const rl = await limit(`site-chat:get:${ip}`, 400, 10 * 60_000);
   if (!rl.ok) return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+
+  const contact = await prisma.contact.findFirst({
+    where: { id: contactId, companyId },
+    select: { id: true, phone: true },
+  });
+  if (!contact) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  markVisitorSeen(contact.id);
 
   const after = req.nextUrl.searchParams.get("after");
   const afterDate = after ? new Date(after) : null;
@@ -154,5 +162,9 @@ export async function GET(req: NextRequest) {
       data: { readByClientAt: new Date() },
     });
   }
-  return NextResponse.json({ messages: messages.map(serialize) });
+  return NextResponse.json({
+    messages: messages.map(serialize),
+    teamTyping: activeTypers(`portal:${contactId}`, "visitor").length > 0,
+    hasPhone: Boolean(contact.phone),
+  });
 }
