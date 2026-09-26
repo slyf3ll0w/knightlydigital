@@ -196,7 +196,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             lose access to this account.
           </div>
         ) : gate === "pending" ? (
-          <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+          <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
             <span className="font-semibold">Payment verification under review</span> — card
             &amp; bank payments switch on the moment the underwriter approves you, usually
             within a business day.

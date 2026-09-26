@@ -91,7 +91,7 @@ export default function Modal({
   if (phase === "closed") return null;
   const card =
     cardClassName ??
-    `card-ledger w-full ${SIZE_CLASS[size]} ${flush ? "p-0 overflow-hidden" : "p-5"}`;
+    `card-ledger ds-glass ds-glass-strong w-full ${SIZE_CLASS[size]} ${flush ? "p-0 overflow-hidden" : "p-5"}`;
   const node = (
     <div
       className={`modal-pop fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 ${

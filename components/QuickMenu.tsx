@@ -181,7 +181,7 @@ export function QuickMenu({ open, anchor, title, actions, onClose }: { open: boo
             ref={popRef}
             role="menu"
             aria-label={title}
-            className="sheet-material fixed z-[80] hidden w-max min-w-[13rem] max-w-[18rem] whitespace-nowrap rounded-lg border border-gray-200 py-1.5 shadow-xl lg:block"
+            className="ds-glass fixed z-[80] hidden w-max min-w-[13rem] max-w-[18rem] whitespace-nowrap rounded-xl py-1.5 lg:block"
             style={{ left: pos?.left ?? anchor.x, top: pos?.top ?? anchor.y, visibility: pos ? "visible" : "hidden", animation: "tile-in 160ms cubic-bezier(0.22,1,0.36,1) both" }}
             onContextMenu={(e) => e.preventDefault()}
           >

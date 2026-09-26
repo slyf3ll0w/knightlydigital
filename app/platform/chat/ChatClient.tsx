@@ -839,7 +839,7 @@ export default function ChatClient({
                     {/* Desktop hover actions */}
                     {editingId !== m.id && !m.deletedAt && !m.pending && !m.failed && (
                       <div
-                        className={`absolute top-1/2 z-10 hidden -translate-y-1/2 items-center gap-0.5 rounded-full border border-gray-200 bg-white px-1 py-0.5 shadow-sm lg:group-hover:flex ${
+                        className={`ds-glass absolute top-1/2 z-10 hidden -translate-y-1/2 items-center gap-0.5 rounded-full px-1 py-0.5 lg:group-hover:flex ${
                           mine ? "left-0 -translate-x-full" : "right-0 translate-x-full"
                         }`}
                       >

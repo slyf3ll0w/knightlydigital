@@ -177,7 +177,7 @@ export function useVerifyIdentity(methods: SignInMethods, returnTo: string) {
   const dialog = (
     <Modal open={open} onClose={() => !busy && finish(false)}>
       <div className="flex items-center gap-2.5 mb-1">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-[#0B57D8]">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-[color:var(--ds-primary)]">
           <ShieldCheck size={16} />
         </span>
         <h2 className="text-base font-semibold text-gray-900">Verify it&apos;s you</h2>

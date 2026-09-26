@@ -185,7 +185,7 @@ function InsertFieldMenu({ trigger, extra, onInsert }: { trigger: TriggerSpec; e
         <Plus size={11} /> Insert field
       </button>
       {open && (
-        <div className="absolute right-0 z-20 mt-1 w-72 rounded-xl border border-gray-200 bg-white p-2 shadow-lg">
+        <div className="ds-glass absolute right-0 z-20 mt-1 w-72 rounded-xl p-2">
           <div className="relative mb-1.5">
             <Search size={13} className="absolute left-2 top-2.5 text-gray-400" />
             <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a field" className="w-full rounded-md border border-gray-200 py-1.5 pl-7 pr-2 text-xs focus:outline-none" />

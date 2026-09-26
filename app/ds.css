@@ -211,13 +211,12 @@ html[data-mode="dark"] .ds .ds-chip-secondary { color: var(--ds-secondary); }
   transition: color var(--ds-dur) var(--ds-ease), background-color var(--ds-dur) var(--ds-ease);
 }
 .ds-info:hover, .ds-info[aria-expanded="true"] { color: var(--ds-primary); background: var(--ds-primary-soft); }
+/* the (i) card itself: type + shape here; its glass material, fixed
+   placement and z-index are in FLOATING SURFACES below */
 .ds-pop {
-  position: absolute; z-index: 40; width: min(290px, calc(100vw - 32px));
+  width: min(290px, calc(100vw - 32px));
   padding: 12px 14px; border-radius: 14px;
-  background: var(--ds-surface); color: var(--ds-ink-2);
-  box-shadow: var(--ds-shadow-float);
   font-size: 13.5px; font-weight: 400; line-height: 1.45; letter-spacing: 0; text-align: left;
-  animation: ds-pop 160ms var(--ds-ease) both;
 }
 
 /* ── the hero (the one saturated surface on a page) ───────────────────── */
@@ -319,3 +318,132 @@ html[data-mode="dark"] .ds .card-tool {
 .ds :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea):focus-visible {
   outline-color: var(--ds-primary);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FLOATING SURFACES (2026-09-26) — one material for everything that floats
+   over the page: right-click menus, "…" dropdowns, info bubbles, pickers,
+   confirm dialogs. It is the notifications panel's frosted glass
+   (`.sheet-material` in globals.css), so every transient surface in the
+   app reads as the same iOS sheet. Rules: a floating surface is portaled
+   to <body> or rendered `fixed`, never trapped inside a card's stacking
+   context or overflow clip (see InfoTip); never put a transform on it or
+   its ancestors (iOS drops backdrop-filter under transforms).
+   ═══════════════════════════════════════════════════════════════════════ */
+.ds .ds-glass,
+.ds.ds-glass {
+  background-color: color-mix(in srgb, var(--ds-primary) 4%, rgba(255, 255, 255, 0.62));
+  -webkit-backdrop-filter: saturate(190%) blur(28px);
+  backdrop-filter: saturate(190%) blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 1px 2px rgba(10, 19, 40, 0.06),
+    0 24px 50px -18px rgba(10, 19, 40, 0.32),
+    0 0 0 1px rgba(10, 19, 40, 0.06);
+}
+/* stronger frost for dialogs that hold forms — still glass, but the text
+   behind never competes with the fields */
+.ds .ds-glass-strong,
+.ds.ds-glass-strong {
+  background-color: color-mix(in srgb, var(--ds-primary) 3%, rgba(255, 255, 255, 0.86));
+}
+html[data-mode="dark"] .ds .ds-glass,
+html[data-mode="dark"] .ds.ds-glass {
+  background-color: color-mix(in srgb, var(--ds-primary) 8%, rgba(22, 29, 43, 0.66));
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 24px 50px -18px rgba(0, 0, 0, 0.75),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+html[data-mode="dark"] .ds .ds-glass-strong,
+html[data-mode="dark"] .ds.ds-glass-strong {
+  background-color: color-mix(in srgb, var(--ds-primary) 6%, rgba(22, 29, 43, 0.9));
+}
+/* rows inside a glass menu: hover is a tint, not a solid fill */
+.ds .ds-glass .hover\:bg-gray-50:hover,
+.ds .ds-glass .hover\:bg-gray-100:hover {
+  background-color: color-mix(in srgb, var(--ds-primary) 8%, transparent);
+}
+html[data-mode="dark"] .ds .ds-glass .hover\:bg-gray-50:hover,
+html[data-mode="dark"] .ds .ds-glass .hover\:bg-gray-100:hover {
+  background-color: rgba(255, 255, 255, 0.07);
+}
+
+/* the info bubble is portaled to <body> and positioned fixed (InfoTip.tsx),
+   so no card, hero or animated section can paint over it */
+@keyframes ds-fade { from { opacity: 0; } to { opacity: 1; } }
+.ds-pop {
+  position: fixed;
+  z-index: 95;
+  color: var(--ds-ink);
+  /* opacity only: a transform on a glass surface drops its blur on iOS */
+  animation: ds-fade 140ms var(--ds-ease) both;
+}
+
+/* ── the secondary color, present but never loud ─────────────────────── */
+/* eyebrows carry the marketing site's orange dot (the .wb-label mark) */
+.ds-eyebrow::before {
+  content: "";
+  display: inline-block;
+  width: 6px; height: 6px;
+  margin-right: 7px;
+  border-radius: 999px;
+  background: var(--ds-secondary);
+  vertical-align: 1px;
+}
+.ds-eyebrow-plain::before { content: none; }
+/* links underline in the secondary on hover */
+.ds-link { text-decoration-color: transparent; text-underline-offset: 3px; transition: text-decoration-color var(--ds-dur) var(--ds-ease); }
+.ds-link:hover { text-decoration: underline; text-decoration-color: var(--ds-secondary); }
+/* text selection */
+.ds ::selection { background: color-mix(in srgb, var(--ds-secondary) 28%, transparent); }
+/* "news" counts (new requests, unread) — the secondary tint; past-due stays red */
+.ds-count-news { background: var(--ds-secondary-soft); color: var(--ds-secondary-strong); }
+html[data-mode="dark"] .ds .ds-count-news { color: var(--ds-secondary); }
+/* a small secondary marker: the active-item dot on the rail and tab bar */
+.ds-dot {
+  display: inline-block;
+  width: 5px; height: 5px;
+  border-radius: 999px;
+  background: var(--ds-secondary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ds-secondary) 22%, transparent);
+}
+/* the keel — the site's primary→secondary hairline, along the top of the
+   desktop work area */
+@media (min-width: 1024px) {
+  .ds .app-header::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: -1px;
+    height: 2px;
+    pointer-events: none;
+    background: linear-gradient(90deg, var(--ds-primary) 0%, var(--ds-primary) 55%, var(--ds-secondary) 100%);
+    opacity: 0.9;
+  }
+}
+
+/* ── phone canvas: a breath of both brand colors at the top, so the home
+   screen isn't a flat gray sheet (the site's hero bloom at a whisper) ── */
+@media (max-width: 1023px) {
+  .ds .page-atmo { isolation: isolate; }
+  .ds .page-atmo::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 360px;
+    pointer-events: none;
+    z-index: -1;
+    background:
+      radial-gradient(70% 55% at 8% -10%, color-mix(in srgb, var(--ds-primary) 18%, transparent), transparent 70%),
+      radial-gradient(55% 45% at 100% -6%, color-mix(in srgb, var(--ds-secondary) 14%, transparent), transparent 70%);
+  }
+  html[data-mode="dark"] .ds .page-atmo::before {
+    background:
+      radial-gradient(70% 55% at 8% -10%, color-mix(in srgb, var(--ds-primary) 16%, transparent), transparent 70%),
+      radial-gradient(55% 45% at 100% -6%, color-mix(in srgb, var(--ds-secondary) 12%, transparent), transparent 70%);
+  }
+}
+/* rail "news" numerals (new requests, unread) in the secondary; past-due stays red */
+.ds { --rail-news: var(--ds-secondary-strong); }
+html[data-mode="dark"] .ds { --rail-news: var(--ds-secondary); }

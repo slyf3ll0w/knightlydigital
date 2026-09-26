@@ -49,13 +49,15 @@ export default function MenuPopover({
     let dx = 0;
     if (r.right > window.innerWidth - pad) dx = window.innerWidth - pad - r.right;
     if (r.left + dx < pad) dx = pad - r.left;
-    setShift(dx ? { transform: `translateX(${Math.round(dx)}px)` } : {});
-  }, [open]);
+    // slide with an inset, never a transform: a transform on a glass
+    // surface drops its backdrop blur on iOS
+    setShift(dx ? (align === "right" ? { right: -Math.round(dx) } : { left: Math.round(dx) }) : {});
+  }, [open, align]);
 
   return (
     <>
       {open && (
-        <div ref={ref} role="menu" style={shift} className={`sheet-material absolute z-30 hidden w-max min-w-[13rem] max-w-[min(24rem,calc(100vw-1rem))] whitespace-nowrap rounded-lg border border-gray-200 py-1.5 shadow-xl lg:block ${align === "right" ? "right-0" : "left-0"} ${top} ${className}`}>
+        <div ref={ref} role="menu" style={shift} className={`ds-glass absolute z-30 hidden w-max min-w-[13rem] max-w-[min(24rem,calc(100vw-1rem))] whitespace-nowrap rounded-xl py-1.5 lg:block ${align === "right" ? "right-0" : "left-0"} ${top} ${className}`}>
           {children}
         </div>
       )}

@@ -126,7 +126,7 @@ export default function RunAutomationMenu({
       </button>
 
       {open && (
-        <div role="menu" className="absolute right-0 z-30 mt-1 hidden w-64 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg lg:block">
+        <div role="menu" className="ds-glass absolute right-0 z-30 mt-1 hidden w-64 overflow-hidden rounded-xl lg:block">
           {list}
         </div>
       )}
@@ -136,7 +136,7 @@ export default function RunAutomationMenu({
       </BottomSheet>
 
       {result && (
-        <p role="status" className="absolute right-0 top-full z-20 mt-1 flex max-w-xs items-start gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 shadow-md">
+        <p role="status" className="ds-glass absolute right-0 top-full z-20 mt-1 flex max-w-xs items-start gap-1.5 rounded-lg px-3 py-2 text-xs text-gray-700">
           <Check size={12} className="mt-0.5 shrink-0 text-emerald-600" />
           <span>{result}</span>
         </p>

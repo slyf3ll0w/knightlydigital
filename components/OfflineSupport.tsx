@@ -250,7 +250,7 @@ export default function OfflineSupport() {
       style={{ top: "calc(env(safe-area-inset-top) + 10px)" }}
     >
       {offline ? (
-        <div className="flex items-center gap-2 rounded-full bg-amber-400 text-black text-xs font-semibold px-3.5 py-2 shadow-lg whitespace-nowrap">
+        <div className="flex items-center gap-2 rounded-full bg-amber-400 text-black text-xs font-semibold px-3.5 py-2 shadow-lg whitespace-nowrap"> {/* theme-ok: dark ink on the amber pill in both themes */}
           <WifiOff size={13} className="shrink-0" />
           <span className="truncate">
             Offline — saved data
@@ -265,7 +265,7 @@ export default function OfflineSupport() {
         </div>
       ) : pending > 0 && !backOnline && !syncNote ? (
         // Online but writes still waiting (server hiccup) — offer a retry
-        <div className="flex items-center gap-1.5 rounded-full bg-amber-400 text-black text-xs font-semibold pl-3.5 pr-1.5 py-1.5 shadow-lg whitespace-nowrap">
+        <div className="flex items-center gap-1.5 rounded-full bg-amber-400 text-black text-xs font-semibold pl-3.5 pr-1.5 py-1.5 shadow-lg whitespace-nowrap"> {/* theme-ok: dark ink on the amber pill in both themes */}
           <CloudUpload size={13} className="shrink-0" />
           <span>
             {pending} change{pending === 1 ? "" : "s"} waiting to sync

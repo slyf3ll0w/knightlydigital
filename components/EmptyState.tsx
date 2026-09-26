@@ -1,6 +1,6 @@
 import Link from "next/link";
 import InfoTip from "@/components/ds/InfoTip";
-import WBScribble from "@/components/wb/WBScribble";
+import Arrow from "@/components/ds/Arrow";
 import type { ReactNode } from "react";
 import { Plus, type LucideIcon } from "lucide-react";
 import { hueInk } from "@/lib/section-colors";
@@ -173,7 +173,7 @@ export default function EmptyState({
       {actionHref && actionLabel && (
         // The arrow gets its own slot (never rotated, never overlapping) — see components/ds Hint.
         <span className="my-2 block h-[58px] w-[44px] shrink-0 text-[color:var(--ds-ink-2)]" aria-hidden>
-          <WBScribble variant="down" tone="current" delay={0.3} className="h-full w-full" />
+          <Arrow delay={0.3} className="h-full w-full" />
         </span>
       )}
       {actionHref && actionLabel && (

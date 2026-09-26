@@ -481,7 +481,7 @@ export default function PlaceSheet({
                       onChange={(ev) => setContactQ(ev.target.value)}
                     />
                     {contactHits.length > 0 && (
-                      <ul className="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white py-1 shadow-xl">
+                      <ul className="ds-glass absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded-xl py-1">
                         {contactHits.map((h) => (
                           <li key={h.id}>
                             <button

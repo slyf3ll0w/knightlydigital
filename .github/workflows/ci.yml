@@ -42,5 +42,10 @@ jobs:
       - name: Unit tests
         run: npm run test:unit
 
+      # Design guards: no unbridged dark-mode colors in the app tree, and
+      # every hand-drawn arrow head clears its shaft (scripts/check-*.mjs).
+      - name: Design guards
+        run: npm run check:design
+
       - name: Build
         run: npx next build

@@ -374,6 +374,9 @@ function trackPath(pathname: string): string | null {
   return priorPath;
 }
 
+// The More sheet remembers the last four pages opened from it (per device).
+const MORE_RECENT_KEY = "wb-more-recent";
+
 const forRole = (items: NavItem[], role: string, salesMoney: boolean) =>
   items.filter((i) => !i.show || i.show(role, salesMoney));
 
@@ -444,7 +447,7 @@ function CreateMenu({
         Create
       </button>
       {open && (
-        <div className="anim-create-pop absolute right-0 top-full z-50 mt-1.5 w-52 card-ledger py-1.5 shadow-xl overflow-hidden">
+        <div className="anim-create-pop ds-glass absolute right-0 top-full z-50 mt-1.5 w-52 rounded-xl py-1.5 overflow-hidden">
           {/* Plain rows, neutral icons — the entity-hue tiles stay on the
               mobile create sheet, where color is wayfinding across a grid.
               A nine-row desktop list reads by label. */}
@@ -1896,18 +1899,20 @@ export default function AppShell({
           }
         />
         <span className="truncate">{label}</span>
-        {badge > 0 && (
+        {badge > 0 ? (
           <span
             key={badge}
             className={`rail-count ml-auto ${
               href === "/app/invoices"
                 ? "text-[color:var(--rail-num-due)]"
-                : "text-[color:var(--rail-num)]"
+                : "text-[color:var(--rail-news)]"
             }`}
           >
             {badge > 99 ? "99+" : badge}
           </span>
-        )}
+        ) : active ? (
+          <span className="ds-dot ml-auto" aria-hidden />
+        ) : null}
       </Link>
     );
   };
@@ -2760,77 +2765,94 @@ function MoreSheet({
     return null;
   };
 
-  const row = ({ href, label, icon: Icon }: NavItem, i: number, total: number) => {
-    const badge = badgeFor(href);
-    const active = isActive(href);
-    // Section hue on the icon tile — with this many destinations the color
-    // is wayfinding: a quick glance finds Jobs orange / Invoices sky without
-    // reading labels. (Tenants can repaint these in Settings → Branding & client experience.)
-    // The hue rainbow stays CONFINED to the two nav sheets — lists, tiles,
-    // and chips elsewhere on phones hold the one-accent discipline.
-    const tint = sectionTints[href];
-    return (
-      <Link prefetch={false}
-        key={href}
-        href={href}
-        onClick={() => hapticImpact("LIGHT")}
-        className={`flex items-center gap-3 px-4 py-3 active:bg-gray-50 transition-colors ${
-          i < total - 1 ? "border-b border-gray-100" : ""
-        }`}
-        style={
-          active
-            ? { backgroundColor: "color-mix(in srgb, var(--wb-ink) 9%, transparent)" }
-            : undefined
-        }
-      >
-        <span
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] ${
-            tint ? "" : "bg-[color:var(--mobile-accent)] text-[color:var(--mobile-on-accent)]"
-          }`}
-          style={tint ? { backgroundColor: tint, color: hueInk(tint) } : undefined}
-        >
-          <Icon size={16} strokeWidth={2.25} />
-        </span>
-        <span className="flex-1 text-[15px] font-medium text-gray-900">{label}</span>
-        {badge && (
-          <span
-            className={`min-w-[20px] rounded-full px-1.5 py-0.5 text-center text-[11px] font-bold tabular-nums ${
-              badge.urgent ? "bg-red-500 text-white" : "bg-gray-100 text-gray-600"
-            }`}
-          >
-            {badge.count > 99 ? "99+" : badge.count}
-          </span>
-        )}
-        <ChevronRight size={16} className="text-gray-300 shrink-0" />
-      </Link>
-    );
-  };
-
-  const group = (label: string | null, items: NavItem[]) => {
-    if (items.length === 0) return null;
-    return (
-      <div key={label ?? "top"}>
-        {label && (
-          <p className="px-4 pb-1.5 pt-4 text-[13px] font-semibold text-gray-500">
-            {label}
-          </p>
-        )}
-        <div className="card-tool overflow-hidden">
-          {items.map((item, i) => row(item, i, items.length))}
-        </div>
-      </div>
-    );
+  // ── The sheet (redesigned 2026-09-26) ─────────────────────────────────
+  // The old sheet was twenty-odd list rows; finding Payments meant reading
+  // the whole thing. Now: a search field, the pages you opened last as
+  // chips, and a 4-across tile grid grouped by section — icon tiles in the
+  // section hue (soft tint, hue ink) so a glance finds "the orange one".
+  const [query, setQuery] = useState("");
+  const [recent, setRecent] = useState<string[]>([]);
+  useEffect(() => {
+    if (!open) return;
+    setQuery("");
+    try {
+      const raw = localStorage.getItem(MORE_RECENT_KEY);
+      setRecent(raw ? (JSON.parse(raw) as string[]) : []);
+    } catch {
+      setRecent([]);
+    }
+  }, [open]);
+  const remember = (href: string) => {
+    try {
+      const next = [href, ...recent.filter((h) => h !== href)].slice(0, 4);
+      localStorage.setItem(MORE_RECENT_KEY, JSON.stringify(next));
+    } catch {
+      /* private mode */
+    }
   };
 
   const teamItems: NavItem[] = [
     ...(teamCount > 1 ? [{ href: "/app/chat", label: "Team Chat", icon: MessagesSquare }] : []),
   ];
-  // Settings sits beside Help, not under "Team" — it was the one row on the
-  // phone that no heading described.
   const accountItems: NavItem[] = [
     ...(manager ? [{ href: "/app/settings", label: "Settings", icon: Settings }] : []),
     { href: "/app/support", label: "Help & Feedback", icon: LifeBuoy },
   ];
+  const sections = navGroups
+    .slice(1) // Home + Schedule live on the tab bar
+    .map((g) => ({ label: g.label ?? "", items: forRole(g.items, role, salesMoney) }))
+    .filter((s) => s.items.length > 0);
+  if (sections[0] && teamItems.length) sections[0] = { ...sections[0], items: [...sections[0].items, ...teamItems] };
+  const everything = [...sections.flatMap((s) => s.items), ...accountItems];
+  const needle = query.trim().toLowerCase();
+  const shown = needle
+    ? [{ label: "", items: everything.filter((i) => i.label.toLowerCase().includes(needle)) }]
+    : sections;
+  const recentItems = recent
+    .map((h) => everything.find((i) => i.href === h))
+    .filter((i): i is NavItem => Boolean(i));
+
+  const tile = ({ href, label, icon: Icon }: NavItem) => {
+    const badge = badgeFor(href);
+    const active = isActive(href);
+    const tint = sectionTints[href];
+    return (
+      <Link
+        prefetch={false}
+        key={href}
+        href={href}
+        onClick={() => {
+          hapticImpact("LIGHT");
+          remember(href);
+        }}
+        className={`relative flex flex-col items-center gap-1.5 rounded-2xl px-1 pb-2 pt-2.5 transition-colors active:bg-gray-100 ${
+          active ? "bg-[color:var(--ds-primary-soft)]" : ""
+        }`}
+      >
+        <span
+          className="relative flex h-12 w-12 items-center justify-center rounded-[15px]"
+          style={
+            tint
+              ? { backgroundColor: `color-mix(in srgb, ${tint} 15%, transparent)`, color: tint }
+              : { backgroundColor: "var(--ds-primary-soft)", color: "var(--ds-primary)" }
+          }
+        >
+          <Icon size={21} strokeWidth={2.1} />
+          {badge && (
+            <span
+              className={`absolute -right-1.5 -top-1.5 min-w-[19px] rounded-full px-1.5 py-0.5 text-center text-[10.5px] font-bold tabular-nums ${
+                badge.urgent ? "bg-red-500 text-white" : "ds-count-news"
+              }`}
+            >
+              {badge.count > 99 ? "99+" : badge.count}
+            </span>
+          )}
+          {active && !badge && <span className="ds-dot absolute -right-0.5 -top-0.5" aria-hidden />}
+        </span>
+        <span className="max-w-full truncate text-[11.5px] font-medium leading-tight text-gray-800">{label}</span>
+      </Link>
+    );
+  };
 
   return (
     <>
@@ -2847,24 +2869,52 @@ function MoreSheet({
         }`}
       >
         <div className="mx-auto mt-2.5 h-1 w-9 shrink-0 rounded-full bg-gray-300" />
-        <div className="overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3">
-          {/* Profile card */}
-          <Link prefetch={false}
-            href="/app/settings/profile"
-            onClick={() => hapticImpact("LIGHT")}
-            className="card-tool flex items-center gap-3 px-4 py-3.5 active:bg-gray-50 transition-colors"
-          >
-            <Avatar name={userName} userId={userId} size={40} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[15px] font-semibold text-gray-900">{userName}</p>
-              <p className="truncate text-xs text-gray-500">{userEmail}</p>
-            </div>
-            <ChevronRight size={16} className="text-gray-300 shrink-0" />
-          </Link>
+        <div className="overflow-y-auto px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2">
+          {/* Who + where to: profile on the left, settings on the right */}
+          <div className="flex items-center gap-2">
+            <Link
+              prefetch={false}
+              href="/app/settings/profile"
+              onClick={() => hapticImpact("LIGHT")}
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-1.5 transition-colors active:bg-gray-100"
+            >
+              <Avatar name={userName} userId={userId} size={38} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[15px] font-semibold text-gray-900">{userName}</span>
+                <span className="block truncate text-xs text-gray-500">{userEmail}</span>
+              </span>
+            </Link>
+            {manager && (
+              <Link
+                prefetch={false}
+                href="/app/settings"
+                aria-label="Settings"
+                onClick={() => hapticImpact("LIGHT")}
+                className={`glass-control glass-hit flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                  isActive("/app/settings") ? "text-[color:var(--ds-primary)]" : "text-gray-600"
+                }`}
+              >
+                <Settings size={18} strokeWidth={2} />
+              </Link>
+            )}
+          </div>
 
-          {/* The assistant's seat since Chat took its tab — a headline row,
-              not a buried list item. */}
-          {aiEnabled && (
+          {/* Find a page */}
+          <label className="relative mt-2 block px-1">
+            <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Find a page…"
+              aria-label="Find a page"
+              enterKeyHint="search"
+              className="w-full rounded-[14px] bg-gray-100 py-2.5 pl-10 pr-3 text-[16px] text-gray-900 outline-none placeholder:text-gray-400 focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+            />
+          </label>
+
+          {/* Atlas keeps its headline seat */}
+          {aiEnabled && !needle && (
             <button
               type="button"
               onClick={() => {
@@ -2872,45 +2922,78 @@ function MoreSheet({
                 onClose();
                 openAssistant();
               }}
-              className="card-tool mt-3 flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-50 transition-colors"
+              className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-[color:var(--ds-primary-soft)] px-3 py-2.5 text-left transition-colors active:brightness-95"
             >
               <AtlasMark size={36} accent={assistantAccent} className="shrink-0 rounded-[10px]" />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[15px] font-semibold text-gray-900">
-                  {assistantName}
-                </span>
+                <span className="block truncate text-[15px] font-semibold text-gray-900">{assistantName}</span>
                 <span className="block truncate text-xs text-gray-500">
-                  {atlasLocked
-                    ? "Out of tokens until the meter refills"
-                    : "Ask anything — or hand off a task"}
+                  {atlasLocked ? "Out of tokens until the meter refills" : "Ask anything — or hand off a task"}
                 </span>
               </span>
-              <ChevronRight size={16} className="text-gray-300 shrink-0" />
+              <ChevronRight size={16} className="shrink-0 text-gray-300" />
             </button>
           )}
 
-          {navGroups
-            .slice(1) // the first group (Home + Schedule) is the tab bar
-            .map((g) => group(g.label ?? null, forRole(g.items, role, salesMoney)))}
-          {group(teamItems.length > 0 ? "Team" : null, teamItems)}
-          {group("Settings & help", accountItems)}
+          {/* Where you were last */}
+          {!needle && recentItems.length > 0 && (
+            <div className="mt-3">
+              <p className="ds-eyebrow px-1 pb-1.5">Recent</p>
+              <div className="flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+                {recentItems.map(({ href, label, icon: Icon }) => (
+                  <Link
+                    prefetch={false}
+                    key={href}
+                    href={href}
+                    onClick={() => {
+                      hapticImpact("LIGHT");
+                      remember(href);
+                    }}
+                    className="flex shrink-0 items-center gap-1.5 rounded-full bg-gray-100 py-1.5 pl-2.5 pr-3 text-[13px] font-medium text-gray-800 active:bg-gray-200"
+                  >
+                    <Icon size={14} strokeWidth={2.2} style={{ color: sectionTints[href] ?? "var(--ds-primary)" }} />
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
 
-          {/* Sign out */}
-          <div className="card-tool mt-4 overflow-hidden">
-            <button
-              onClick={() => void appSignOut("/app/login")}
-              className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-50 transition-colors"
-            >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-red-50 text-red-600">
+          {shown.map((s, si) => (
+            <div key={s.label || `s${si}`} className="mt-3">
+              {s.label && <p className="ds-eyebrow px-1 pb-1">{s.label}</p>}
+              {s.items.length === 0 ? (
+                <p className="px-1 py-6 text-center text-sm text-gray-500">Nothing matches “{query.trim()}”.</p>
+              ) : (
+                <div className="grid grid-cols-4 gap-x-1 gap-y-0.5">{s.items.map(tile)}</div>
+              )}
+            </div>
+          ))}
+
+          {/* Help + sign out: quiet, at the end */}
+          {!needle && (
+            <div className="mt-4 flex items-center gap-2 border-t border-gray-100 pt-3">
+              <Link
+                prefetch={false}
+                href="/app/support"
+                onClick={() => hapticImpact("LIGHT")}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[13.5px] font-semibold text-gray-700 active:bg-gray-100"
+              >
+                <LifeBuoy size={16} strokeWidth={2} />
+                Help & Feedback
+              </Link>
+              <button
+                type="button"
+                onClick={() => void appSignOut("/app/login")}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[13.5px] font-semibold text-red-600 active:bg-red-50"
+              >
                 <LogOut size={16} strokeWidth={2} />
-              </span>
-              <span className="text-[15px] font-medium text-red-600">Sign out</span>
-            </button>
-          </div>
+                Sign out
+              </button>
+            </div>
+          )}
 
-          <p className="pt-4 text-center text-[11px] text-gray-400">
-            Powered by WorkBench
-          </p>
+          <p className="pt-3 text-center text-[11px] text-gray-400">Powered by WorkBench</p>
         </div>
       </div>
     </>

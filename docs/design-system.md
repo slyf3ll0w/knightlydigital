@@ -50,6 +50,35 @@ David's review; roll out page by page once approved.
    SVG draws outside the box the layout reserved). Need another direction?
    Add a path to `WBScribble` drawn that way (`down` exists). Check it at
    phone and desktop widths before shipping.
+11. **In-app arrows come from `components/ds/Arrow`** (2026-09-26). It holds
+   a set of down-pointing scribbles and deals a different one on every
+   mount, so a page of empty states never repeats. Each head is placed by
+   geometry (tip on the shaft's end, barbs 32–36° off it) and
+   `npm run check:arrows` fails the build if a head would retrace its
+   shaft (the old "down" arrow doubled back over its tail). The marketing
+   site keeps `WBScribble`; the app never imports it.
+12. **Everything that floats is glass** (David, 2026-09-26): right-click
+   menus, "…" dropdowns, info bubbles, pickers, confirm dialogs and modals
+   wear `.ds-glass` (`.ds-glass-strong` for dialogs with forms) — the same
+   frosted material as the notifications panel. A floating surface is
+   portaled to `<body>` or positioned `fixed` (see `InfoTip`), never
+   trapped inside a card's `overflow-hidden` or a `.ds-rise` stacking
+   context, and never carries a transform (iOS drops the blur).
+13. **Dark mode is guarded twice.** Screens use bridged Tailwind shades or
+   `--ds-*` tokens, never `text-black`, raw hex text, or an inline
+   near-black `color:` — `npm run check:theme` (in CI) fails on any of
+   those in `app/platform` + `components`; add `// theme-ok: <why>` only
+   for surfaces that are light by design (client-page mocks). On staging,
+   `e2e/specs/theme-contrast.spec.ts` measures every text node and field
+   on the main screens in both themes and both widths and fails under
+   2:1. The rule that matters: text with no color class inherits the
+   `.ds` ink, so never set a background without also setting the ink.
+14. **The secondary color is present, never loud:** the eyebrow dot
+   (`.ds-eyebrow`), the hero pill, the active-item dot on the rail and the
+   More sheet (`.ds-dot`), "news" counts (`.ds-count-news`, `--rail-news`),
+   the link underline on hover, text selection, the desktop keel line
+   under the top bar, arrow sparks, and the phone canvas bloom
+   (`.page-atmo::before`). Buttons, tabs and links stay primary.
 
 ## Rolling out a page
 

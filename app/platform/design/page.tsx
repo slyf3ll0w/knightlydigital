@@ -1,6 +1,7 @@
 import { CalendarDays, CheckCircle2, ChevronRight, CreditCard, MapPin, Plus, Send } from "lucide-react";
 import { requirePageActor } from "@/lib/permissions";
-import { ActionLink, Button, Card, Chip, DsPage, Hint, InfoTip, ListRow, PageHeader, SectionTitle, Stat } from "@/components/ds";
+import { ActionLink, Arrow, Button, Card, Chip, DsPage, Hint, InfoTip, ListRow, PageHeader, SectionTitle, Stat } from "@/components/ds";
+import { ARROW_VARIANTS } from "@/components/ds/arrows";
 
 /**
  * /app/design — the design-system gallery: every piece of the kit, in THIS
@@ -122,7 +123,25 @@ export default async function DesignSystemPage() {
         </section>
 
         <section>
-          <SectionTitle>Info bubble</SectionTitle>
+          <SectionTitle info="Every empty state deals one of these at random, so a page of empty cards never repeats a scribble. Each head is placed by geometry and checked by npm run check:arrows.">
+            Hand-drawn arrows
+          </SectionTitle>
+          <Card className="grid grid-cols-4 gap-2 p-5 sm:grid-cols-7">
+            {ARROW_VARIANTS.map((v, i) => (
+              <span key={v} className="flex flex-col items-center gap-1 text-[color:var(--ds-ink-2)]">
+                <span className="block h-[58px] w-[44px]">
+                  <Arrow variant={v} delay={0.2 + i * 0.12} className="h-full w-full" />
+                </span>
+                <span className="ds-small">{v}</span>
+              </span>
+            ))}
+          </Card>
+        </section>
+
+        <section>
+          <SectionTitle info="Menus, dropdowns, pickers, confirm dialogs and this bubble all share one frosted material (.ds-glass), and float above every card.">
+            Info bubble
+          </SectionTitle>
           <Card className="flex items-center gap-2 p-5">
             <span className="text-[14.5px] font-medium">Hover it on a computer, tap it on a phone</span>
             <InfoTip>Any explanation a page needs lives here: what a number means, how a setting behaves, why something is locked.</InfoTip>

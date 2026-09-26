@@ -195,7 +195,7 @@ export default function ConfirmSheetHost() {
           native window.confirm this used to fall back to */}
       <div className="hidden lg:flex absolute inset-0 items-center justify-center p-4 pointer-events-none">
         <div
-          className={`modal-card pointer-events-auto w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl transition-all duration-200 ${
+          className={`modal-card ds-glass ds-glass-strong pointer-events-auto w-full max-w-sm rounded-2xl p-6 transition-all duration-200 ${
             open ? "opacity-100 scale-100" : "opacity-0 scale-95"
           }`}
         >

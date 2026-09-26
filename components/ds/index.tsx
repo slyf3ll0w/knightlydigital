@@ -9,10 +9,10 @@
  */
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import WBScribble from "@/components/wb/WBScribble";
+import Arrow from "./Arrow";
 import InfoTip from "./InfoTip";
 
-export { InfoTip };
+export { InfoTip, Arrow };
 
 type Tone = "primary" | "secondary" | "good" | "warn" | "bad" | "neutral";
 
@@ -238,8 +238,9 @@ export function ListRow({
  *
  * Layout rule (David, 2026-09-26): decorations get their OWN space. The
  * arrow sits in a fixed 44 x 58 slot between the line and the button, is
- * drawn already pointing down (WBScribble "down"), and is never rotated or
- * absolutely positioned — so it can never land on the text or the button.
+ * drawn already pointing down (components/ds/Arrow, a different scribble
+ * each time), and is never rotated or absolutely positioned — so it can
+ * never land on the text or the button.
  */
 export function Hint({
   title,
@@ -261,7 +262,7 @@ export function Hint({
       {action && (
         <>
           <span className="my-2 block h-[58px] w-[44px] shrink-0 text-[color:var(--ds-ink-2)]" aria-hidden>
-            <WBScribble variant="down" tone="current" delay={0.3} className="h-full w-full" />
+            <Arrow delay={0.3} className="h-full w-full" />
           </span>
           <Button href={action.href} icon={action.icon}>
             {action.label}

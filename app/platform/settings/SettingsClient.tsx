@@ -1756,10 +1756,10 @@ export default function SettingsClient({
             {/* Quote body */}
             <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9CA3AF]">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9CA3AF]"> {/* theme-ok: client-page mock, always light */}
                   Quote #1042
                 </p>
-                <p className="text-lg font-semibold text-[#111827]">$1,250.00</p>
+                <p className="text-lg font-semibold text-[#111827]">$1,250.00</p> {/* theme-ok: client-page mock */}
               </div>
               <div className="flex items-center gap-2">
                 <span
@@ -1771,23 +1771,23 @@ export default function SettingsClient({
                 >
                   Approve Quote
                 </span>
-                <span className="rounded-full border border-[#D1D5DB] px-4 py-2 text-xs font-semibold text-[#374151]">
+                <span className="rounded-full border border-[#D1D5DB] px-4 py-2 text-xs font-semibold text-[#374151]"> {/* theme-ok: client-page mock */}
                   Ask a Question
                 </span>
               </div>
             </div>
             {/* Email sender */}
             <div className="border-t border-[#F3F4F6] bg-[#FAFAFA] px-5 py-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9CA3AF]">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9CA3AF]"> {/* theme-ok: client-page mock */}
                 Email
               </p>
-              <p className="text-sm font-medium text-[#111827]">
+              <p className="text-sm font-medium text-[#111827]"> {/* theme-ok: client-page mock */}
                 {form.name}{" "}
-                <span className="font-normal text-[#9CA3AF]">
+                <span className="font-normal text-[#9CA3AF]"> {/* theme-ok: client-page mock */}
                   &lt;notifications@workbenchfsm.com&gt;
                 </span>
               </p>
-              <p className="text-xs text-[#6B7280]">
+              <p className="text-xs text-[#6B7280]"> {/* theme-ok: client-page mock */}
                 Your quote from {form.name} is ready — Quote #1042
               </p>
             </div>
