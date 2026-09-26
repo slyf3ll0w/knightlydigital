@@ -287,7 +287,7 @@ export default function AppointmentActions({
       </div>
 
       {rescheduling && (
-        <div className="flex flex-wrap items-end justify-end gap-2 card-ledger p-3">
+        <div className="flex flex-wrap items-end justify-end gap-2 ds-card p-3">
           {anytime ? (
             <div>
               <label className="block text-xs text-gray-500 mb-0.5">Date</label>
@@ -295,7 +295,7 @@ export default function AppointmentActions({
                 type="date"
                 value={start.slice(0, 10)}
                 onChange={(e) => setStart(`${e.target.value}T12:00`)}
-                className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               />
             </div>
           ) : (
@@ -306,7 +306,7 @@ export default function AppointmentActions({
                   value={start}
                   intervalMinutes={intervalMinutes}
                   dayStartMinutes={dayStartMinutes}
-                  inputCls="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  inputCls="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                   ariaLabel="Start"
                   onChange={(next) => {
                     setStart(next);
@@ -323,7 +323,7 @@ export default function AppointmentActions({
                   value={end}
                   intervalMinutes={intervalMinutes}
                   dayStartMinutes={dayStartMinutes}
-                  inputCls="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  inputCls="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                   ariaLabel="End"
                   onChange={setEnd}
                 />
@@ -335,7 +335,7 @@ export default function AppointmentActions({
               type="checkbox"
               checked={anytime}
               onChange={(e) => setAnytime(e.target.checked)}
-              className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+              className="h-3.5 w-3.5 rounded border-gray-300 text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
             />
             Anytime
           </label>
@@ -370,7 +370,7 @@ export default function AppointmentActions({
                 type="text"
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               />
             </div>
 
@@ -380,7 +380,7 @@ export default function AppointmentActions({
                 <select
                   value={form.type}
                   onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                 >
                   {APPT_TYPES.map((t) => (
                     <option key={t} value={t}>
@@ -397,7 +397,7 @@ export default function AppointmentActions({
                   <select
                     value={form.assignedToId}
                     onChange={(e) => setForm((f) => ({ ...f, assignedToId: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                   >
                     <option value="">Unassigned</option>
                     {users.map((u) => (
@@ -417,7 +417,7 @@ export default function AppointmentActions({
                   type="text"
                   value={form.address}
                   onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                   placeholder="Where you'll meet the client"
                 />
               </div>
@@ -431,7 +431,7 @@ export default function AppointmentActions({
                   type="url"
                   value={form.meetingLink}
                   onChange={(e) => setForm((f) => ({ ...f, meetingLink: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                   placeholder="https://meet.google.com/..."
                 />
               </div>
@@ -443,7 +443,7 @@ export default function AppointmentActions({
                 value={form.notes}
                 onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
               />
             </div>
 

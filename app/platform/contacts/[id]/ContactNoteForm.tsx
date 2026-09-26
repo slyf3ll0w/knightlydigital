@@ -37,7 +37,7 @@ export default function ContactNoteForm({ contactId }: { contactId: string }) {
           onChange={(e) => setBody(e.target.value)}
           rows={2}
           placeholder="Add a note..."
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
         />
         <button
           type="submit"
@@ -47,7 +47,7 @@ export default function ContactNoteForm({ contactId }: { contactId: string }) {
           {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
         </button>
       </form>
-      {error && <p className="text-xs text-red-600 mt-1.5">{error}</p>}
+      {error && <p className="text-xs text-[color:var(--ds-bad)] mt-1.5">{error}</p>}
     </div>
   );
 }

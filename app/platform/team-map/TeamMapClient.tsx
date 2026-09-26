@@ -6,6 +6,7 @@ import type * as Leaflet from "leaflet";
 import type { Map as LeafletMap, Marker } from "leaflet";
 import { MapPin, Maximize2, Minus, Plus, Timer } from "lucide-react";
 import BackLink from "@/components/BackLink";
+import { InfoTip } from "@/components/ds";
 import { formatDuration } from "@/lib/time-entries";
 import { addBasemap, initialView, reducedMotion, rememberView } from "@/lib/basemap";
 import { useMainFill } from "@/lib/use-main-fill";
@@ -176,47 +177,47 @@ export default function TeamMapClient() {
       <style>{`
         .team-map-pin {
           width: 34px; height: 34px; border-radius: 9999px;
-          background: #16A34A; border: 2.5px solid #fff;
+          background: var(--ds-primary); border: 2.5px solid var(--ds-surface);
           box-shadow: 0 1px 6px rgba(0,0,0,0.35);
           display: flex; align-items: center; justify-content: center;
           animation: team-pin-in 0.12s ease-out both;
         }
         @keyframes team-pin-in { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        .team-map-pin span { color: #fff; font-size: 12px; font-weight: 700; letter-spacing: 0.02em; }
-        .team-map .leaflet-container { font-family: inherit; background: #eef0f3; }
+        .team-map-pin span { color: var(--ds-on-primary); font-size: 12px; font-weight: 700; letter-spacing: 0.02em; }
+        .team-map .leaflet-container { font-family: inherit; background: var(--ds-surface-2); }
         .team-map .leaflet-control-attribution {
           font-size: 9px; opacity: 0.8; background: rgba(255,255,255,0.7);
           padding: 1px 6px; border-radius: 6px 0 0 0;
         }
         .team-map .team-pop .leaflet-popup-content-wrapper {
           border-radius: 10px; padding: 0;
-          border: 1px solid color-mix(in srgb, var(--wb-primary, #0A1428) 16%, #e5e7eb);
+          border: 1px solid var(--ds-line);
           box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
           font-family: inherit;
         }
         .team-map .team-pop .leaflet-popup-content { margin: 9px 12px; font-size: 12px; line-height: 1.4; }
         .team-map .team-pop .leaflet-popup-content p { margin: 0; }
-        .team-map .team-pop .team-pop-name { font-weight: 700; color: #111827; font-size: 13px; }
-        .team-map .team-pop .team-pop-line { color: #374151; }
-        .team-map .team-pop .team-pop-seen { color: #6B7280; font-size: 11px; }
-        .team-map .team-pop .leaflet-popup-tip { box-shadow: none; border: 1px solid #e5e7eb; border-top: 0; border-left: 0; }
+        .team-map .team-pop .team-pop-name { font-weight: 700; color: var(--ds-ink); font-size: 13px; }
+        .team-map .team-pop .team-pop-line { color: var(--ds-ink-2); }
+        .team-map .team-pop .team-pop-seen { color: var(--ds-muted); font-size: 11px; }
+        .team-map .team-pop .leaflet-popup-tip { box-shadow: none; border: 1px solid var(--ds-line); border-top: 0; border-left: 0; }
         @media (prefers-reduced-motion: reduce) { .team-map-pin { animation: none; } }
       `}</style>
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-white px-4 py-3 lg:px-8">
         <div className="flex min-w-0 items-center gap-3">
           <BackLink href="/app/business" />
-          <div>
-            <h1 className="font-display text-lg font-bold text-gray-900">Team map</h1>
-            <p className="text-xs text-gray-500">
+          <h1 className="font-display flex items-center gap-1.5 text-lg font-bold text-[color:var(--ds-ink)]">
+            Team map
+            <InfoTip>
               Positions update every few minutes while someone is clocked in with the app open —
               never off the clock.
-            </p>
-          </div>
+            </InfoTip>
+          </h1>
         </div>
         <Link
           href="/app/timesheets"
-          className="flex items-center gap-1.5 text-xs font-semibold text-green-700 hover:underline"
+          className="flex items-center gap-1.5 text-xs font-semibold text-[color:var(--ds-primary)] hover:underline"
         >
           <Timer size={12} />
           Timesheets
@@ -230,7 +231,7 @@ export default function TeamMapClient() {
         </div>
       )}
       {unlocated.length > 0 && (
-        <div className="border-b border-amber-100 bg-amber-50 px-4 py-2 text-xs text-amber-800 lg:px-8">
+        <div className="border-b border-[color:var(--ds-line)] bg-[color:var(--ds-warn-soft)] px-4 py-2 text-xs text-[color:var(--ds-warn)] lg:px-8">
           On the clock without a location:{" "}
           {unlocated.map((m) => m.name).join(", ")} (location off or not yet reported)
         </div>
@@ -266,7 +267,7 @@ export default function TeamMapClient() {
         <div className="flex flex-wrap gap-x-6 gap-y-1 border-t border-gray-200 bg-white px-4 py-2 lg:px-8">
           {located.map((m) => (
             <span key={m.userId} className="flex items-center gap-1.5 text-xs text-gray-700">
-              <span className="h-2 w-2 rounded-full bg-green-500" />
+              <span className="h-2 w-2 rounded-full bg-[color:var(--ds-primary)]" />
               <strong>{m.name}</strong>
               {m.jobTitle && <span className="text-gray-500">· {m.jobTitle}</span>}
               <span className="text-gray-400">· {ageLabel(m.positionAt, now)}</span>

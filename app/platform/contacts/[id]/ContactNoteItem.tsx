@@ -98,7 +98,7 @@ export default function ContactNoteItem({
                   onClick={remove}
                   disabled={busy}
                   title="Delete note"
-                  className="p-1 text-gray-400 hover:text-red-600 rounded-full"
+                  className="p-1 text-gray-400 hover:text-[color:var(--ds-bad)] rounded-full"
                 >
                   {busy ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
                 </button>
@@ -113,7 +113,7 @@ export default function ContactNoteItem({
               onChange={(e) => setText(e.target.value)}
               rows={2}
               autoFocus
-              className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none bg-white"
+              className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none bg-white"
             />
             <div className="flex items-center gap-1.5 mt-1.5">
               <button
@@ -137,7 +137,7 @@ export default function ContactNoteItem({
         ) : (
           <p className="text-sm text-gray-700 whitespace-pre-wrap">{note.body}</p>
         )}
-        {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+        {error && <p className="text-xs text-[color:var(--ds-bad)] mt-1">{error}</p>}
       </div>
     </div>
   );

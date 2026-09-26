@@ -33,6 +33,7 @@ import {
   X,
 } from "lucide-react";
 import Modal from "@/components/Modal";
+import { Chip, InfoTip } from "@/components/ds";
 import { hapticImpact } from "@/lib/haptics";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO } from "@/lib/statuses";
@@ -1108,7 +1109,7 @@ export default function RouteMapClient({
       </div>
 
       {data && !data.enabled && (
-        <div className="no-print flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        <div className="no-print flex items-start gap-2 rounded-lg bg-[color:var(--ds-warn-soft)] px-3 py-2 text-sm text-[color:var(--ds-warn)]">
           <MapPin size={15} className="mt-0.5 shrink-0" />
           <span>
             Map pins and drive times need a Mapbox token — add{" "}
@@ -1118,18 +1119,18 @@ export default function RouteMapClient({
         </div>
       )}
       {data?.enabled && !measured && groups.length > 0 && (
-        <div className="no-print rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        <div className="no-print rounded-lg bg-[color:var(--ds-warn-soft)] px-3 py-2 text-xs text-[color:var(--ds-warn)]">
           Drive times shown are straight-line estimates right now (road times weren&apos;t available). Figures are marked with ~.
         </div>
       )}
       {unlocated.length > 0 && (
-        <div className="no-print rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        <div className="no-print rounded-lg bg-[color:var(--ds-warn-soft)] px-3 py-2 text-xs text-[color:var(--ds-warn)]">
           No map pin yet (check the address): {unlocated.join(", ")}
         </div>
       )}
 
       {canDispatch && (data?.unscheduled?.length ?? 0) > 0 && (
-        <div className="route-tray card-ledger overflow-hidden">
+        <div className="route-tray ds-card overflow-hidden">
           <button
             type="button"
             onClick={() => setTrayOpen((v) => !v)}
@@ -1190,13 +1191,15 @@ export default function RouteMapClient({
       )}
 
       {!loading && groups.length === 0 && (
-        <div className="card-ledger px-4 py-10 text-center">
+        <div className="ds-card px-4 py-10 text-center">
           <RouteIcon size={22} className="mx-auto mb-2 text-gray-300" />
-          <p className="text-sm font-semibold text-gray-900">Nothing scheduled this day</p>
-          <p className="mt-1 text-xs text-gray-500">
-            {canDispatch && (data?.unscheduled?.length ?? 0) > 0
-              ? "Build the day: add jobs from the unscheduled list above and hand each to a tech — Optimize then orders the route and hands out times."
-              : "Jobs with a scheduled date show up here as a route."}
+          <p className="flex items-center justify-center gap-1 text-sm font-semibold text-gray-900">
+            Nothing scheduled this day
+            <InfoTip>
+              {canDispatch && (data?.unscheduled?.length ?? 0) > 0
+                ? "Build the day: add jobs from the unscheduled list above and hand each to a tech — Optimize then orders the route and hands out times."
+                : "Jobs with a scheduled date show up here as a route."}
+            </InfoTip>
           </p>
           <Link
             href={`/app/schedule?view=day&date=${date}`}
@@ -1224,7 +1227,7 @@ export default function RouteMapClient({
           <div
             key={g.userId || "unassigned"}
             data-route-group={g.userId}
-            className={`card-ledger overflow-hidden transition-shadow ${dropHere ? "ring-2 ring-green-400" : ""}`}
+            className={`ds-card overflow-hidden transition-shadow ${dropHere ? "ring-2 ring-[color:var(--ds-primary)]" : ""}`}
           >
             <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-4 py-3">
               <div className="flex min-w-0 items-center gap-2.5">
@@ -1242,19 +1245,19 @@ export default function RouteMapClient({
                     {mi && ` · ${tilde}${mi}`}
                   </p>
                   {mayOptimize(g.userId) && g.stops.filter((s) => s.scheduledAnytime).length > 0 && (
-                    <p className="text-[11px] font-medium text-amber-700">
+                    <p className="text-[11px] font-medium text-[color:var(--ds-warn)]">
                       {g.stops.filter((s) => s.scheduledAnytime).length} waiting for a time — Optimize slots them
                     </p>
                   )}
                   {g.userId === "" && canDispatch && !dropHere && (
-                    <p className="text-[11px] font-medium text-amber-700">
+                    <p className="text-[11px] font-medium text-[color:var(--ds-warn)]">
                       Optimize works per tech — assign these stops to order them.
                     </p>
                   )}
                   {g.userId !== "" && mayOptimize(g.userId) && g.stops.length >= 2 && pinned < 2 && (
-                    <p className="text-[11px] font-medium text-amber-700">{optimizeBlocker}</p>
+                    <p className="text-[11px] font-medium text-[color:var(--ds-warn)]">{optimizeBlocker}</p>
                   )}
-                  {dropHere && <p className="text-[11px] font-semibold text-green-700">Drop to hand it to {g.name}</p>}
+                  {dropHere && <p className="text-[11px] font-semibold text-[color:var(--ds-primary)]">Drop to hand it to {g.name}</p>}
                 </div>
               </div>
               <div className="no-print flex shrink-0 items-center gap-1">
@@ -1276,7 +1279,7 @@ export default function RouteMapClient({
                       className="flex h-8 w-8 items-center justify-center rounded-[10px] btn-tool-line bg-white text-gray-700 hover:bg-gray-50"
                       aria-label="Copy route link"
                     >
-                      {copied === g.userId ? <span className="text-[10px] font-bold text-green-700">✓</span> : <Link2 size={13} />}
+                      {copied === g.userId ? <span className="text-[10px] font-bold text-[color:var(--ds-good)]">✓</span> : <Link2 size={13} />}
                     </button>
                   </>
                 )}
@@ -1304,7 +1307,7 @@ export default function RouteMapClient({
                 const canGrip = g.userId ? mayOptimize(g.userId) || canDispatch : canDispatch;
                 const isSelected = selected === key;
                 return (
-                  <li key={s.id} data-stop-row data-stop-key={key} data-group={g.userId} data-index={i} className={insertBefore ? "border-t-2 border-t-green-500" : ""}>
+                  <li key={s.id} data-stop-row data-stop-key={key} data-group={g.userId} data-index={i} className={insertBefore ? "border-t-2 border-t-[color:var(--ds-primary)]" : ""}>
                     {leg != null && leg > 0 && (
                       <p className="numeral-ledger flex items-center gap-1.5 px-4 pt-2 text-[10.5px] text-gray-400">
                         <CornerDownRight size={11} className="shrink-0" />
@@ -1341,7 +1344,7 @@ export default function RouteMapClient({
                       )}
                       <span
                         className="numeral-ledger flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-                        style={{ background: s.lat == null ? "#D1D5DB" : g.color }}
+                        style={{ background: s.lat == null ? "var(--ds-faint)" : g.color }}
                       >
                         {i + 1}
                       </span>
@@ -1350,7 +1353,11 @@ export default function RouteMapClient({
                           <span className="truncate">{s.title}</span>
                           {s.kind === "appointment" && <span className="stamp shrink-0 text-purple-700">Appt</span>}
                           {s.kind === "block" && <span className="stamp shrink-0 text-gray-600">Busy</span>}
-                          {s.lat == null && <span className="stamp shrink-0 text-amber-700">No pin</span>}
+                          {s.lat == null && (
+                            <span className="shrink-0">
+                              <Chip tone="warn">No pin</Chip>
+                            </span>
+                          )}
                         </p>
                         <p className="truncate text-xs text-gray-500">
                           {s.kind === "block" ? "Blocked off" : s.contactName}
@@ -1368,7 +1375,7 @@ export default function RouteMapClient({
                             e.stopPropagation();
                             if (e.target.value) reassign(s, "", e.target.value);
                           }}
-                          className="no-print max-w-[112px] shrink-0 rounded-[8px] border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+                          className="no-print max-w-[112px] shrink-0 rounded-[8px] border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] disabled:opacity-50"
                         >
                           <option value="">Assign to…</option>
                           {users.map((u) => (
@@ -1380,7 +1387,7 @@ export default function RouteMapClient({
                       )}
                       <div className="shrink-0 text-right">
                         {s.scheduledAnytime ? (
-                          <span className="stamp text-amber-700">Anytime</span>
+                          <Chip tone="warn">Anytime</Chip>
                         ) : (
                           <p className="numeral-ledger text-xs font-semibold text-gray-900">{fmtTime(s.scheduledAt)}</p>
                         )}
@@ -1391,7 +1398,7 @@ export default function RouteMapClient({
                               target="_blank"
                               rel="noopener"
                               onClick={(e) => e.stopPropagation()}
-                              className="flex items-center gap-0.5 text-[11px] font-semibold text-blue-700 hover:underline"
+                              className="flex items-center gap-0.5 text-[11px] font-semibold text-[color:var(--ds-primary)] hover:underline"
                             >
                               <Navigation size={10} />
                               Go
@@ -1401,7 +1408,7 @@ export default function RouteMapClient({
                             <Link
                               href={s.kind === "job" ? `/app/jobs/${s.id}` : `/app/appointments/${s.id}`}
                               onClick={(e) => e.stopPropagation()}
-                              className="text-[11px] font-semibold text-green-700 hover:underline"
+                              className="text-[11px] font-semibold text-[color:var(--ds-primary)] hover:underline"
                             >
                               Open
                             </Link>
@@ -1413,7 +1420,7 @@ export default function RouteMapClient({
                 );
               })}
               {listDrag?.active && listDrag.over?.group === g.userId && listDrag.fromGroup === g.userId && listDrag.over.index >= g.stops.length && (
-                <li className="h-0 border-t-2 border-t-green-500" />
+                <li className="h-0 border-t-2 border-t-[color:var(--ds-primary)]" />
               )}
             </ul>
           </div>
@@ -1434,7 +1441,7 @@ export default function RouteMapClient({
         }
         @keyframes route-pin-in { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         .route-pin span {
-          font-family: "Oxanium", ui-sans-serif, sans-serif;
+          font-family: "Lexend", ui-sans-serif, sans-serif;
           color: #fff; font-size: 12px; font-weight: 700;
           font-variant-numeric: lining-nums tabular-nums;
         }
@@ -1447,7 +1454,7 @@ export default function RouteMapClient({
         .leaflet-marker-icon.is-hot .route-pin { transform: scale(1.15); box-shadow: 0 3px 10px rgba(10, 20, 40, 0.45); }
         .leaflet-marker-icon.is-selected .route-pin {
           transform: scale(1.15);
-          box-shadow: 0 0 0 3px color-mix(in srgb, var(--wb-accent, #0B57D8) 35%, transparent), 0 3px 10px rgba(10, 20, 40, 0.45);
+          box-shadow: 0 0 0 3px color-mix(in srgb, var(--ds-primary) 35%, transparent), 0 3px 10px rgba(10, 20, 40, 0.45);
         }
         .route-map .route-line { transition: opacity 0.2s ease; }
         .route-map .route-line.is-dim { opacity: 0.35; }
@@ -1459,16 +1466,16 @@ export default function RouteMapClient({
           display: flex; align-items: center; justify-content: center;
           animation: route-live-pulse 2.4s ease-in-out infinite;
         }
-        .route-live span { font-size: 11px; font-weight: 800; color: var(--tech); font-family: "Oxanium", ui-sans-serif, sans-serif; }
-        .route-live-late { border-color: #DC2626; }
-        .route-live-late span { color: #DC2626; }
+        .route-live span { font-size: 11px; font-weight: 800; color: var(--tech); font-family: "Lexend", ui-sans-serif, sans-serif; }
+        .route-live-late { border-color: var(--ds-bad); }
+        .route-live-late span { color: var(--ds-bad); }
         @keyframes route-live-pulse {
           0%, 100% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--tech) 25%, transparent), 0 2px 6px rgba(10,20,40,.35); }
           50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--tech) 10%, transparent), 0 2px 6px rgba(10,20,40,.35); }
         }
         .route-row-selected {
-          box-shadow: inset 3px 0 0 var(--wb-accent, #0B57D8);
-          background: color-mix(in srgb, var(--wb-accent, #0B57D8) 6%, #fff);
+          box-shadow: inset 3px 0 0 var(--ds-primary);
+          background: color-mix(in srgb, var(--ds-primary) 6%, var(--ds-surface));
         }
         /* The one popup left: the live tech marker, as a small ledger card */
         .route-map .route-live-pop .leaflet-popup-content-wrapper {
@@ -1481,7 +1488,7 @@ export default function RouteMapClient({
         .route-map .route-live-pop .leaflet-popup-content p { margin: 0; }
         .route-map .route-live-pop .route-live-name { font-weight: 700; color: #111827; font-size: 13px; }
         .route-map .route-live-pop .route-live-line { color: #374151; }
-        .route-map .route-live-pop .route-live-late-note { color: #DC2626; font-weight: 600; }
+        .route-map .route-live-pop .route-live-late-note { color: var(--ds-bad); font-weight: 600; }
         .route-map .route-live-pop .route-live-seen { color: #6B7280; font-size: 11px; }
         .route-map .route-live-pop .leaflet-popup-tip { box-shadow: none; border: 1px solid #e5e7eb; border-top: 0; border-left: 0; }
         .route-map .leaflet-container { font-family: inherit; background: #eef0f3; }
@@ -1509,7 +1516,7 @@ export default function RouteMapClient({
             border: 0 !important; box-shadow: none !important; border-radius: 0 !important;
           }
           .route-page .route-list { max-height: none !important; height: auto !important; overflow: visible !important; width: 100% !important; padding: 0 !important; }
-          .route-page .card-ledger { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
+          .route-page .ds-card { break-inside: avoid; box-shadow: none; border: 1px solid #ddd; }
         }
       `}</style>
 
@@ -1564,7 +1571,7 @@ export default function RouteMapClient({
                 value={team}
                 onChange={(e) => go({ team: e.target.value })}
                 aria-label="Crew"
-                className="max-w-[12rem] rounded-[9px] border-0 bg-transparent px-2 py-1 text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="max-w-[12rem] rounded-[9px] border-0 bg-transparent px-2 py-1 text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               >
                 <option value="">All team members</option>
                 {users.map((u) => (
@@ -1624,17 +1631,17 @@ export default function RouteMapClient({
               </div>
             )}
             {applied && (
-              <div className="msg-enter pointer-events-auto flex items-center justify-between gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800 shadow-lg">
+              <div className="msg-enter pointer-events-auto flex items-center justify-between gap-2 rounded-lg bg-[color:var(--ds-surface)] px-3 py-2 text-sm text-[color:var(--ds-ink)] shadow-lg">
                 <div className="flex min-w-0 items-center gap-3">
                   <svg width="56" height="22" viewBox="0 0 64 24" fill="none" aria-hidden className="shrink-0">
-                    <path className="route-trace" d="M4 18C16 4 24 22 34 10S52 16 60 6" stroke="#16A34A" strokeWidth="2" strokeLinecap="round" />
-                    <circle className="route-pin-pop" cx="4" cy="18" r="3" fill="#16A34A" />
-                    <circle className="route-pin-pop pin-2" cx="34" cy="10" r="3" fill="#16A34A" />
-                    <circle className="route-pin-pop pin-3" cx="60" cy="6" r="3.5" fill="#16A34A" />
+                    <path className="route-trace" d="M4 18C16 4 24 22 34 10S52 16 60 6" style={{ stroke: "var(--ds-good)" }} strokeWidth="2" strokeLinecap="round" />
+                    <circle className="route-pin-pop" cx="4" cy="18" r="3" style={{ fill: "var(--ds-good)" }} />
+                    <circle className="route-pin-pop pin-2" cx="34" cy="10" r="3" style={{ fill: "var(--ds-good)" }} />
+                    <circle className="route-pin-pop pin-3" cx="60" cy="6" r="3.5" style={{ fill: "var(--ds-good)" }} />
                   </svg>
                   <span>{applied}</span>
                 </div>
-                <button onClick={() => setApplied("")} className="p-0.5 text-green-500 hover:text-green-700" aria-label="Dismiss">
+                <button onClick={() => setApplied("")} className="p-0.5 text-[color:var(--ds-muted)] hover:text-[color:var(--ds-ink)]" aria-label="Dismiss">
                   <X size={14} />
                 </button>
               </div>
@@ -1690,7 +1697,7 @@ export default function RouteMapClient({
                     onChange={(e) => go({ team: e.target.value })}
                     onPointerDown={(e) => e.stopPropagation()}
                     aria-label="Crew"
-                    className="max-w-[9rem] rounded-[8px] border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="max-w-[9rem] rounded-[8px] border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                   >
                     <option value="">All team</option>
                     {users.map((u) => (
@@ -1727,13 +1734,23 @@ export default function RouteMapClient({
           <div className="flex max-h-[88dvh] flex-col">
             <div className="flex items-start justify-between border-b border-gray-100 px-5 py-4">
               <div>
-                <h2 className="font-display text-base font-bold text-gray-900">{preview.userName}&apos;s route, optimized</h2>
+                <h2 className="flex items-center gap-1.5 font-display text-base font-bold text-gray-900">
+                  {preview.userName}&apos;s route, optimized
+                  <InfoTip>
+                    Applying rewrites the calendar times — durations are kept, drive time spaces the stops, and moved visits re-send their
+                    reminders at the new times. Unconfirmed bookings, calls, and blocked time never move.
+                  </InfoTip>
+                </h2>
                 <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-gray-500">
                   <span className="numeral-ledger">
                     Drive time {preview.currentDriveMinutes} min → {preview.totalDriveMinutes} min
                     {preview.totalDistanceMiles > 0 && ` · ${preview.measured ? "" : "~"}${preview.totalDistanceMiles} mi`}
                   </span>
-                  {preview.savedMinutes > 0 && <span className="stamp charge-pop text-green-700">saves ~{preview.savedMinutes} min</span>}
+                  {preview.savedMinutes > 0 && (
+                    <span className="charge-pop inline-flex">
+                      <Chip tone="good">saves ~{preview.savedMinutes} min</Chip>
+                    </span>
+                  )}
                 </p>
               </div>
               <button
@@ -1756,7 +1773,7 @@ export default function RouteMapClient({
                     onChange={(e) =>
                       e.target.value && runOptimize(preview.userId, preview.stops.map((s) => s.id), e.target.value, preview.roundTrip)
                     }
-                    className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                   />
                   <span className="text-gray-400">first stop begins then</span>
                 </label>
@@ -1768,7 +1785,7 @@ export default function RouteMapClient({
                       onClick={() => runOptimize(preview.userId, preview.stops.map((s) => s.id), p.value, preview.roundTrip)}
                       className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition-colors disabled:opacity-50 ${
                         preview.anchorTime === p.value
-                          ? "border-green-500 bg-green-50 text-green-700"
+                          ? "border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]"
                           : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
                       }`}
                     >
@@ -1792,7 +1809,7 @@ export default function RouteMapClient({
                         Boolean(preview.manualOrder)
                       )
                     }
-                    className="rounded text-green-600 focus:ring-green-500"
+                    className="rounded text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
                   />
                   End the day back at the start
                   {preview.roundTrip && preview.returnMinutes != null && (
@@ -1801,7 +1818,7 @@ export default function RouteMapClient({
                 </label>
               </div>
               {preview.warnings.length > 0 && (
-                <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <div className="mb-3 rounded-lg bg-[color:var(--ds-warn-soft)] px-3 py-2 text-xs text-[color:var(--ds-warn)]">
                   {preview.warnings.map((w) => (
                     <p key={w}>{w}</p>
                   ))}
@@ -1821,7 +1838,7 @@ export default function RouteMapClient({
                     data-index={i}
                     className={`flex items-center gap-2 rounded-[12px] border border-gray-200 px-2 py-2 ${
                       previewOver?.id === s.id ? "opacity-40" : ""
-                    } ${previewOver && previewOver.over === i ? "border-t-2 border-t-green-500" : ""}`}
+                    } ${previewOver && previewOver.over === i ? "border-t-2 border-t-[color:var(--ds-primary)]" : ""}`}
                   >
                     <button
                       type="button"
@@ -1882,14 +1899,10 @@ export default function RouteMapClient({
                   type="checkbox"
                   checked={notifyOnApply}
                   onChange={(e) => setNotifyOnApply(e.target.checked)}
-                  className="rounded text-green-600 focus:ring-green-500"
+                  className="rounded text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
                 />
                 Text or email each client whose time changes
               </label>
-              <p className="mt-2 text-xs text-gray-500">
-                Applying rewrites the calendar times — durations are kept, drive time spaces the stops, and moved visits re-send their
-                reminders at the new times. Unconfirmed bookings, calls, and blocked time never move.
-              </p>
             </div>
 
             <div className="flex items-center justify-end gap-2 border-t border-gray-100 px-5 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))]">

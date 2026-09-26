@@ -411,7 +411,7 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
         </div>
       )}
       {checked && tips.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+        <div className="rounded-xl bg-[color:var(--ds-warn-soft)] p-3 text-xs text-[color:var(--ds-warn)]">
           <p className="font-semibold">Adds up — a pro would still tweak:</p>
           <ul className="mt-1 list-disc space-y-0.5 pl-5">
             {tips.map((t) => (
@@ -429,7 +429,7 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
     <div className="sheet-material sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-200 px-3 py-2 shadow-lg lg:bottom-4">
       <div className="flex items-center gap-2">
         <button type="button" disabled={busy !== null} onClick={() => void check()} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-gray-300 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
-          {busy === "check" ? <Loader2 size={13} className="animate-spin" /> : <ShieldCheck size={13} className={checked ? "text-green-600" : undefined} />}
+          {busy === "check" ? <Loader2 size={13} className="animate-spin" /> : <ShieldCheck size={13} className={checked ? "text-[color:var(--ds-good)]" : undefined} />}
           {checked ? (tips.length ? "Adds up · tips" : "Adds up") : "Check"}
         </button>
         <button type="button" disabled={busy !== null} onClick={() => setTrying(true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-gray-300 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
@@ -483,10 +483,10 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
                         <span className={pill}>{TYPE_LABEL[inp.type]}</span>
                         <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">
                           {inp.label}
-                          {required && <span className="text-red-500"> *</span>}
+                          {required && <span className="text-[color:var(--ds-bad)]"> *</span>}
                         </span>
                         {inp.askAtlas && (
-                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[color:var(--ds-secondary-soft)] px-2 py-0.5 text-[11px] font-medium text-[color:var(--ds-secondary)]">
                             <Sparkles size={10} /> Atlas
                           </span>
                         )}
@@ -611,7 +611,7 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
                                   className="min-w-0 flex-1"
                                 />
                                 <label className="flex items-center gap-1.5 text-xs text-gray-600">
-                                  <input type="radio" name={`rec-${tool.id}-${inp.id}`} checked={o.recommended === true} onChange={() => setOptions(i, inp.options.map((x, m) => ({ ...x, recommended: m === k ? true : undefined })))} className="h-4 w-4 accent-green-600" />
+                                  <input type="radio" name={`rec-${tool.id}-${inp.id}`} checked={o.recommended === true} onChange={() => setOptions(i, inp.options.map((x, m) => ({ ...x, recommended: m === k ? true : undefined })))} className="h-4 w-4 accent-[color:var(--ds-primary)]" />
                                   Most popular
                                 </label>
                               </div>
@@ -639,7 +639,7 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
 
                     {inp.type === "toggle" && (
                       <label className="flex items-center gap-2 text-xs text-gray-600">
-                        <input type="checkbox" checked={inp.default === true} onChange={(e) => setInput(i, { default: e.target.checked } as Partial<EstimatorInput>)} className="h-4 w-4 rounded accent-green-600" />
+                        <input type="checkbox" checked={inp.default === true} onChange={(e) => setInput(i, { default: e.target.checked } as Partial<EstimatorInput>)} className="h-4 w-4 rounded accent-[color:var(--ds-primary)]" />
                         On by default
                       </label>
                     )}
@@ -653,13 +653,13 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
                       <div className="flex flex-wrap items-end gap-4 pb-1">
                         {inp.type !== "toggle" && (
                           <label className="flex items-center gap-1.5 text-xs text-gray-600">
-                            <input type="checkbox" checked={inp.required !== false && (inp.type !== "text" && inp.type !== "multi" && inp.type !== "counts" ? true : inp.required === true)} onChange={(e) => setInput(i, { required: e.target.checked } as Partial<EstimatorInput>)} className="h-4 w-4 rounded accent-green-600" />
+                            <input type="checkbox" checked={inp.required !== false && (inp.type !== "text" && inp.type !== "multi" && inp.type !== "counts" ? true : inp.required === true)} onChange={(e) => setInput(i, { required: e.target.checked } as Partial<EstimatorInput>)} className="h-4 w-4 rounded accent-[color:var(--ds-primary)]" />
                             Required
                           </label>
                         )}
                         {inp.type !== "text" && (
                           <label className="flex items-center gap-1.5 text-xs text-gray-600" title="Atlas answers this from the job description or photo — costs tokens per estimate; the person can still change it">
-                            <input type="checkbox" checked={inp.askAtlas === true} onChange={(e) => setInput(i, { askAtlas: e.target.checked ? true : undefined })} className="h-4 w-4 rounded accent-green-600" />
+                            <input type="checkbox" checked={inp.askAtlas === true} onChange={(e) => setInput(i, { askAtlas: e.target.checked ? true : undefined })} className="h-4 w-4 rounded accent-[color:var(--ds-primary)]" />
                             Atlas assesses this
                           </label>
                         )}
@@ -667,7 +667,7 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
                       </div>
                     </div>
                     <div className="flex justify-end">
-                      <button type="button" onClick={() => removeInput(i)} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50">
+                      <button type="button" onClick={() => removeInput(i)} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)]">
                         <Trash2 size={12} /> Remove question
                       </button>
                     </div>
@@ -697,7 +697,7 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
           {spec.placeholders && spec.placeholders.length > 0 && <RatesToConfirm items={spec.placeholders} onDone={(k) => touch((s) => (s.placeholders = (s.placeholders ?? []).filter((_, m) => m !== k)))} />}
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="card-ledger flex items-center justify-between gap-3 px-3 py-2.5">
+            <label className="ds-card flex items-center justify-between gap-3 px-3 py-2.5">
               <span>
                 <span className="block text-sm font-medium text-gray-800">Minimum job charge</span>
                 <span className="block text-xs text-gray-500">A top-up line brings small jobs to this.</span>
@@ -799,12 +799,12 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
                       <Input list={`workitems-${tool.id}`} value={l.workItemName ?? ""} onChange={(e) => setLine(i, { workItemName: e.target.value || undefined })} maxLength={120} placeholder="none — plain line" className="w-full" />
                     </div>
                     <label className="flex items-end gap-1.5 pb-2.5 text-xs text-gray-600">
-                      <input type="checkbox" checked={l.isOptional === true} onChange={(e) => setLine(i, { isOptional: e.target.checked })} className="h-4 w-4 rounded accent-green-600" />
+                      <input type="checkbox" checked={l.isOptional === true} onChange={(e) => setLine(i, { isOptional: e.target.checked })} className="h-4 w-4 rounded accent-[color:var(--ds-primary)]" />
                       Optional on the quote
                     </label>
                   </div>
                   <div className="flex justify-end">
-                    <button type="button" onClick={() => removeLine(i)} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50">
+                    <button type="button" onClick={() => removeLine(i)} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)]">
                       <Trash2 size={12} /> Remove line
                     </button>
                   </div>
@@ -835,7 +835,7 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
 
       {/* ── Words ── */}
       {section === "words" && (
-        <div className="card-ledger space-y-4 p-4 sm:p-5">
+        <div className="ds-card space-y-4 p-4 sm:p-5">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-800">Tool name</label>
@@ -873,13 +873,13 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
                   if (!e.target.checked) for (const i of s.inputs) if (i.askAtlas) i.askAtlas = undefined;
                 })
               }
-              className="h-5 w-5 rounded accent-green-600"
+              className="h-5 w-5 rounded accent-[color:var(--ds-primary)]"
             />
           </label>
           {spec.assist && (
             <div>
               {!(spec.assist.instructions ?? "").trim() && (
-                <div className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
+                <div className="mb-2 rounded-lg bg-[color:var(--ds-warn-soft)] px-3 py-2.5 text-xs text-[color:var(--ds-warn)]">
                   <span className="font-semibold">Give Atlas instructions for this job.</span> Without them it fills the form with trade-typical guesses. Say what to look for in a photo or description, what to assume when it can&apos;t tell, and what it must never guess.
                 </div>
               )}
@@ -900,7 +900,7 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
           )}
           {versions && versions.length === 0 && <p className="text-sm text-gray-500">No saved versions yet — the first edit or Atlas update creates one.</p>}
           {versions?.map((v, i) => (
-            <div key={v.id} className="card-ledger p-3">
+            <div key={v.id} className="ds-card p-3">
               <div className="flex items-start gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-gray-900">

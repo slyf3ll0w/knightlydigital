@@ -45,7 +45,7 @@ export default function AssignLead({
           value={value}
           disabled={saving}
           onChange={(e) => save(e.target.value)}
-          className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500"
+          className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
         >
           <option value="">Unassigned</option>
           {users.map((u) => (
@@ -56,7 +56,7 @@ export default function AssignLead({
         </select>
         {saving && <Loader2 size={13} className="animate-spin text-gray-400 shrink-0" />}
       </div>
-      {error && <p className="mt-1.5 text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-1.5 text-xs text-[color:var(--ds-bad)]">{error}</p>}
     </div>
   );
 }

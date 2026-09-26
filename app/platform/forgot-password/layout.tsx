@@ -5,7 +5,8 @@ export default function ForgotPasswordLayout({ children }: { children: React.Rea
   return (
     <>
       <ForceLightTheme />
-      {children}
+      {/* Outside the AppShell (signed out): .ds switches on Lexend + the design tokens */}
+      <div className="ds">{children}</div>
     </>
   );
 }

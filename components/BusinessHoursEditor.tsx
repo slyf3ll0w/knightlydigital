@@ -56,7 +56,7 @@ export default function BusinessHoursEditor({
                   onChange={(e) =>
                     setDay(day, e.target.checked ? [{ start: "08:00", end: "17:00" }] : [])
                   }
-                  className="h-4 w-4 accent-green-600"
+                  className="h-4 w-4 accent-[color:var(--ds-primary)]"
                 />
                 <span className="font-medium lg:font-normal">{DAY_LABELS[day]}</span>
               </span>
@@ -93,7 +93,7 @@ export default function BusinessHoursEditor({
                       <button
                         type="button"
                         onClick={() => setDay(day, ranges.filter((_, j) => j !== i))}
-                        className="shrink-0 p-0 text-gray-300 hover:text-red-500 lg:p-1"
+                        className="shrink-0 p-0 text-gray-300 hover:text-[color:var(--ds-bad)] lg:p-1"
                         aria-label="Remove hours"
                       >
                         <Trash2 size={13} />
@@ -105,7 +105,7 @@ export default function BusinessHoursEditor({
                   <button
                     type="button"
                     onClick={() => setDay(day, [...ranges, { start: "13:00", end: "17:00" }])}
-                    className="flex items-center gap-0.5 text-xs font-medium text-gray-400 hover:text-green-600"
+                    className="flex items-center gap-0.5 text-xs font-medium text-gray-400 hover:text-[color:var(--ds-primary-strong)]"
                     title="Split the day, e.g. around lunch"
                   >
                     <Plus size={12} />

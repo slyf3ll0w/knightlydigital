@@ -13,7 +13,7 @@ import MobileSearch from "@/components/MobileSearch";
 import EntityRowActions from "@/components/EntityRowActions";
 import EstimatorRunner, { type RunnerEstimator } from "@/components/EstimatorRunner";
 import { useAssistant } from "@/components/AssistantContext";
-import { SECTION_HUES } from "@/lib/section-colors";
+import { Chip } from "@/components/ds";
 import { shortDate } from "@/lib/statuses";
 import { ESTIMATE_SORTS } from "@/lib/list-sort";
 import type { EstimatorPublicConfig } from "@/lib/estimator-public";
@@ -68,9 +68,9 @@ export function toolFacts(t: Pick<Tool, "spec">, atlasName: string): string[] {
 }
 
 function ToolStamp({ t }: { t: Tool }) {
-  if (!t.isActive) return <span className="stamp text-gray-500">Off</span>;
-  if (t.isPublic && t.publicSlug) return <span className="stamp text-sky-700">Published</span>;
-  return <span className="stamp text-green-700">Live</span>;
+  if (!t.isActive) return <Chip>Off</Chip>;
+  if (t.isPublic && t.publicSlug) return <Chip tone="primary">Published</Chip>;
+  return <Chip tone="good">Live</Chip>;
 }
 
 /** One ledger row — hoisted so a parent re-render (opening the runner, the builder) never remounts it and drops an open menu. */
@@ -202,23 +202,22 @@ export default function EstimatesClient({
               <MobileSearch action="/app/estimates" placeholder="Search tools…" defaultValue={query} params={{ status: filter || undefined, sort: current.sort }} />
               {manager ? (
                 <FilterBar
-                  hue={SECTION_HUES.quotes}
                   options={statusFilters}
                   value={filter}
                   href={(v) => listHref("/app/estimates", current, { status: v })}
                   sort={{ options: ESTIMATE_SORTS, value: sort, href: (v) => listHref("/app/estimates", current, { sort: v }) }}
                 />
               ) : (
-                <FilterBar hue={SECTION_HUES.quotes} options={statusFilters.slice(0, 2)} value={filter === "published" ? filter : ""} href={(v) => listHref("/app/estimates", current, { status: v })} sort={{ options: ESTIMATE_SORTS, value: sort, href: (v) => listHref("/app/estimates", current, { sort: v }) }} />
+                <FilterBar options={statusFilters.slice(0, 2)} value={filter === "published" ? filter : ""} href={(v) => listHref("/app/estimates", current, { status: v })} sort={{ options: ESTIMATE_SORTS, value: sort, href: (v) => listHref("/app/estimates", current, { sort: v }) }} />
               )}
             </>
           )}
 
-          <div className="card-ledger overflow-hidden">
+          <div className="ds-card overflow-hidden">
             {tools.length === 0 ? (
               <EmptyState
                 art="quotes"
-                hue={SECTION_HUES.quotes}
+                hue="var(--ds-primary)"
                 title={filtered ? "No tools match this filter" : "No tools yet"}
                 body={filtered ? "Try a different search or status." : manager ? "Describe how you price a job above and press Build it." : "Ask a manager to build one — then this page prices jobs in a few taps."}
                 actionHref={filtered ? "/app/estimates" : undefined}
@@ -250,7 +249,7 @@ export default function EstimatesClient({
             )}
           </div>
           {brokenCount > 0 && (
-            <p className="mt-3 text-xs text-amber-700">
+            <p className="mt-3 text-xs text-[color:var(--ds-warn)]">
               {brokenCount} tool{brokenCount === 1 ? "" : "s"} no longer compile{brokenCount === 1 ? "s" : ""} and {brokenCount === 1 ? "is" : "are"} hidden.
             </p>
           )}

@@ -62,7 +62,7 @@ export default function AddEntry({
       <div className="mb-5">
         <button
           onClick={() => setOpen(true)}
-          className="flex items-center gap-1.5 text-sm font-medium text-green-700 hover:underline"
+          className="flex items-center gap-1.5 text-sm font-medium text-[color:var(--ds-primary)] hover:underline"
         >
           <Plus size={14} />
           Add time entry
@@ -72,7 +72,7 @@ export default function AddEntry({
   }
 
   return (
-    <div className="card-ledger p-5 mb-5 space-y-3">
+    <div className="ds-card p-5 mb-5 space-y-3">
       <SectionHeader title="Add time entry" />
       <div className="grid sm:grid-cols-2 gap-3">
         <label className="block text-xs font-medium text-gray-600">

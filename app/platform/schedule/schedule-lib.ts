@@ -181,12 +181,15 @@ export function sortItems(items: ScheduleJobDTO[]): ScheduleJobDTO[] {
   });
 }
 
-// Tinted blocks reusing the lifecycle tones (green=active, amber=needs
-// invoicing, gray=archived); appointments are the blue family so sales
-// meetings scan differently from work.
+// Tinted blocks: active work wears the company primary, needs-invoicing the
+// fixed warn tone, archived gray; appointments wear the company SECONDARY so
+// sales meetings scan differently from work (design system, like the
+// dashboard's markers).
 const blockTone: Record<string, string> = {
-  ACTIVE: "border-green-500 bg-green-100 text-green-900 hover:bg-green-200",
-  REQUIRES_INVOICING: "border-amber-500 bg-amber-100 text-amber-900 hover:bg-amber-200",
+  ACTIVE:
+    "border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-ink)] hover:bg-[color-mix(in_srgb,var(--ds-primary)_18%,transparent)]",
+  REQUIRES_INVOICING:
+    "border-[color:var(--ds-warn)] bg-[color:var(--ds-warn-soft)] text-[color:var(--ds-ink)] hover:bg-[color-mix(in_srgb,var(--ds-warn)_20%,transparent)]",
   ARCHIVED: "border-gray-400 bg-gray-100 text-gray-600 hover:bg-gray-200",
 };
 
@@ -194,12 +197,15 @@ export function itemTone(it: { kind: string; status: string; tentative?: boolean
   // Blocked-off time: hatched gray so it reads as "unavailable", not work
   if (it.kind === "block") return "border-gray-400 bg-blocked text-gray-600 hover:bg-gray-200/70";
   if (it.kind === "appointment") {
-    if (it.status === "NO_SHOW") return "border-red-400 bg-red-50 text-red-800 hover:bg-red-100";
-    if (it.status === "COMPLETED") return "border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100";
+    if (it.status === "NO_SHOW")
+      return "border-[color:var(--ds-bad)] bg-[color:var(--ds-bad-soft)] text-[color:var(--ds-bad)] hover:bg-[color-mix(in_srgb,var(--ds-bad)_16%,transparent)]";
+    if (it.status === "COMPLETED")
+      return "border-[color:color-mix(in_srgb,var(--ds-secondary)_45%,transparent)] bg-[color:var(--ds-secondary-soft)] text-[color:var(--ds-ink-2)] hover:bg-[color-mix(in_srgb,var(--ds-secondary)_16%,transparent)]";
     // Self-scheduled bookings awaiting approval render hollow/dashed — the
     // slot is held but not confirmed until Accept and Schedule
-    if (it.tentative) return "border-dashed border-blue-500 bg-blue-50/60 text-blue-800 hover:bg-blue-100";
-    return "border-blue-500 bg-blue-100 text-blue-900 hover:bg-blue-200";
+    if (it.tentative)
+      return "border-dashed border-[color:var(--ds-secondary)] bg-[color-mix(in_srgb,var(--ds-secondary)_6%,transparent)] text-[color:var(--ds-ink)] hover:bg-[color:var(--ds-secondary-soft)]";
+    return "border-[color:var(--ds-secondary)] bg-[color:var(--ds-secondary-soft)] text-[color:var(--ds-ink)] hover:bg-[color-mix(in_srgb,var(--ds-secondary)_18%,transparent)]";
   }
   return blockTone[it.status] ?? blockTone.ARCHIVED;
 }

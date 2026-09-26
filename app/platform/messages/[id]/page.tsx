@@ -47,7 +47,7 @@ export default async function MessageDetailPage({
           <PageTitle>{message.subject}</PageTitle>
           <Link
             prefetch={false} href={`/app/contacts/${message.contact.id}`}
-            className="text-sm text-green-700 hover:underline"
+            className="text-sm text-[color:var(--ds-primary)] hover:underline"
           >
             {message.contact.firstName} {message.contact.lastName}
           </Link>
@@ -63,7 +63,7 @@ export default async function MessageDetailPage({
         </a>
       </div>
 
-      <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 card-ledger mb-6 text-sm">
+      <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 ds-card mb-6 text-sm">
         <div>
           <span className="text-xs font-medium text-gray-500 block">Sent</span>
           <span className="text-gray-800">{shortDate(message.createdAt, tz)}</span>
@@ -84,10 +84,10 @@ export default async function MessageDetailPage({
           <span className="text-xs font-medium text-gray-500 block">Email opened</span>
           {message.emailOpenedAt ? (
             message.emailOpenKind === "confident" ? (
-              <span className="font-medium text-green-700">{shortDate(message.emailOpenedAt, tz)}</span>
+              <span className="font-medium text-[color:var(--ds-good)]">{shortDate(message.emailOpenedAt, tz)}</span>
             ) : (
               <span
-                className="font-medium text-blue-700"
+                className="font-medium text-[color:var(--ds-primary)]"
                 title="Their mail app auto-loaded the email's images (Apple Mail privacy proxy) — this usually means an open, but Apple makes prefetches look identical, so it isn't certain."
               >
                 {shortDate(message.emailOpenedAt, tz)} · likely
@@ -107,7 +107,7 @@ export default async function MessageDetailPage({
         />
       </div>
 
-      <div className="card-ledger px-6 py-5">
+      <div className="ds-card px-6 py-5">
         <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
           {message.body}
         </p>

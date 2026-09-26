@@ -87,7 +87,7 @@ function NewRequestForm() {
           </div>
         )}
 
-        <div className="card-ledger p-5 space-y-4">
+        <div className="ds-card p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700">Overview</h2>
 
           <div>
@@ -99,7 +99,7 @@ function NewRequestForm() {
             />
             <Link
               href="/app/contacts/new"
-              className="text-xs text-green-600 hover:underline mt-1 inline-block"
+              className="text-xs text-[color:var(--ds-primary)] hover:underline mt-1 inline-block"
             >
               + Add new client
             </Link>
@@ -117,7 +117,7 @@ function NewRequestForm() {
                 set("title", e.target.value);
                 setTitleTouched(e.target.value.trim().length > 0);
               }}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               placeholder="e.g. Driveway and patio pressure wash"
             />
           </div>
@@ -128,7 +128,7 @@ function NewRequestForm() {
               value={form.details}
               onChange={(e) => set("details", e.target.value)}
               rows={4}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
               placeholder="Please provide as much information as you can..."
             />
           </div>

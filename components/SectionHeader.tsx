@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import InfoTip from "@/components/ds/InfoTip";
 
 /**
  * THE section heading — card titles and in-page block headings as one
@@ -32,18 +33,17 @@ export default function SectionHeader({
   as?: "h2" | "h3";
   className?: string;
 }) {
-  const titleCls =
-    size === "block" ? "text-base font-semibold text-gray-900" : "text-sm font-semibold text-gray-700";
-  const hintCls = size === "block" ? "mt-0.5 text-sm text-gray-500" : "mt-0.5 text-xs text-gray-500";
+  // Design system: explanations live in an (i) bubble, never a line of subtext.
+  const titleCls = size === "block" ? "ds-h2" : "text-[14.5px] font-semibold text-[color:var(--ds-ink)]";
   const heading = (
-    <>
-      <Tag className={`flex items-center gap-1.5 ${titleCls}`}>{title}</Tag>
-      {hint && <p className={hintCls}>{hint}</p>}
-    </>
+    <Tag className={`flex items-center gap-1.5 ${titleCls}`}>
+      {title}
+      {hint && <InfoTip>{hint}</InfoTip>}
+    </Tag>
   );
   if (!action) return <div className={className}>{heading}</div>;
   return (
-    <div className={`flex ${hint ? "items-start" : "items-center"} justify-between gap-3 ${className}`}>
+    <div className={`flex items-center justify-between gap-3 ${className}`}>
       <div className="min-w-0">{heading}</div>
       <div className="flex shrink-0 items-center gap-2">{action}</div>
     </div>

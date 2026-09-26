@@ -84,13 +84,13 @@ export default function CustomWebDesignPage() {
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <p
             className="text-xs font-bold uppercase tracking-widest mb-5"
-            style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
           >
             Custom Web Design
           </p>
           <h1
             className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight max-w-4xl mb-6"
-            style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            style={{ fontFamily: 'Lexend, system-ui, sans-serif' }}
           >
             No Templates.{' '}
             <SketchUnderline color="#22C55E">No Compromises.</SketchUnderline>
@@ -105,7 +105,7 @@ export default function CustomWebDesignPage() {
             <Link
               href="/contact"
               className="text-sm font-bold uppercase tracking-wider px-8 py-4 text-white transition-opacity hover:opacity-90"
-              style={{ backgroundColor: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ backgroundColor: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
             >
               Get a Free Quote →
             </Link>
@@ -115,7 +115,7 @@ export default function CustomWebDesignPage() {
               style={{
                 border: '1.5px solid rgba(255,255,255,0.25)',
                 color: 'rgba(255,255,255,0.8)',
-                fontFamily: 'Oxanium, system-ui, sans-serif',
+                fontFamily: 'Lexend, system-ui, sans-serif',
               }}
             >
               See What&apos;s Included
@@ -131,7 +131,7 @@ export default function CustomWebDesignPage() {
             <div className="flex flex-col md:flex-row items-stretch divide-y md:divide-y-0 md:divide-x divide-white/10">
               {['Custom Design', 'Hand-Coded', 'Mobile-First', 'Search-Ready'].map((pillar) => (
                 <div key={pillar} className="flex-1 px-10 py-8 text-center">
-                  <p className="text-base font-bold text-white" style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}>
+                  <p className="text-base font-bold text-white" style={{ fontFamily: 'Lexend, system-ui, sans-serif' }}>
                     {pillar}
                   </p>
                 </div>
@@ -149,13 +149,13 @@ export default function CustomWebDesignPage() {
             <AnimateIn>
               <p
                 className="text-xs font-bold uppercase tracking-widest mb-4"
-                style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
               >
                 Why Custom
               </p>
               <h2
                 className="text-3xl lg:text-4xl font-bold mb-6 leading-tight"
-                style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                style={{ color: '#0A0A0F', fontFamily: 'Lexend, system-ui, sans-serif' }}
               >
                 Templates look like templates.{' '}
                 <SketchUnderline>Customers notice.</SketchUnderline>
@@ -207,13 +207,13 @@ export default function CustomWebDesignPage() {
           <div className="max-w-7xl mx-auto px-6 lg:px-8">
             <p
               className="text-xs font-bold uppercase tracking-widest mb-4"
-              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
             >
               DFW Market Focus
             </p>
             <h2
               className="text-3xl lg:text-4xl font-bold text-white max-w-xl leading-tight"
-              style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ fontFamily: 'Lexend, system-ui, sans-serif' }}
             >
               We keep our roster small so every site gets real design attention — not a recycled theme.
             </h2>
@@ -234,19 +234,19 @@ export default function CustomWebDesignPage() {
                   <div>
                     <span
                       className="text-6xl font-bold block mb-4"
-                      style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif', lineHeight: 1 }}
+                      style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif', lineHeight: 1 }}
                     >
                       {service.num}
                     </span>
                     <p
                       className="text-xs font-bold uppercase tracking-widest mb-3"
-                      style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                      style={{ color: '#6B7280', fontFamily: 'Lexend, system-ui, sans-serif' }}
                     >
                       {service.short}
                     </p>
                     <h2
                       className="text-3xl lg:text-4xl font-bold mb-6"
-                      style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                      style={{ color: '#0A0A0F', fontFamily: 'Lexend, system-ui, sans-serif' }}
                     >
                       {service.name}
                     </h2>
@@ -256,7 +256,7 @@ export default function CustomWebDesignPage() {
                     <Link
                       href="/contact"
                       className="inline-block text-sm font-bold uppercase tracking-wider px-7 py-3 transition-opacity hover:opacity-90 text-white"
-                      style={{ backgroundColor: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                      style={{ backgroundColor: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
                     >
                       Get a Free Quote →
                     </Link>
@@ -268,7 +268,7 @@ export default function CustomWebDesignPage() {
                   >
                     <p
                       className="text-xs font-bold uppercase tracking-widest mb-5"
-                      style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                      style={{ color: '#6B7280', fontFamily: 'Lexend, system-ui, sans-serif' }}
                     >
                       What&apos;s Included
                     </p>
@@ -299,13 +299,13 @@ export default function CustomWebDesignPage() {
             <AnimateIn>
               <p
                 className="text-xs font-bold uppercase tracking-widest mb-4"
-                style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
               >
                 Pricing
               </p>
               <h2
                 className="text-3xl lg:text-4xl font-bold text-white mb-6"
-                style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                style={{ fontFamily: 'Lexend, system-ui, sans-serif' }}
               >
                 Fixed Price. No Hourly{' '}
                 <SketchUnderline color="#22C55E">Surprises.</SketchUnderline>
@@ -322,7 +322,7 @@ export default function CustomWebDesignPage() {
               >
                 <p
                   className="text-base font-bold text-white"
-                  style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  style={{ fontFamily: 'Lexend, system-ui, sans-serif' }}
                 >
                   &ldquo;A custom site costs less than you think — and looks like it cost more.&rdquo;
                 </p>
@@ -333,7 +333,7 @@ export default function CustomWebDesignPage() {
               <Link
                 href="/contact"
                 className="inline-block text-sm font-bold uppercase tracking-wider px-8 py-4 text-white transition-opacity hover:opacity-90"
-                style={{ backgroundColor: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                style={{ backgroundColor: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
               >
                 Get a Free Quote →
               </Link>
@@ -348,7 +348,7 @@ export default function CustomWebDesignPage() {
           <AnimateIn>
             <h2
               className="text-3xl lg:text-4xl font-bold text-white mb-4"
-              style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ fontFamily: 'Lexend, system-ui, sans-serif' }}
             >
               Ready for a Website That Actually Wins Work?
             </h2>
@@ -358,7 +358,7 @@ export default function CustomWebDesignPage() {
             <Link
               href="/contact"
               className="inline-block bg-white font-bold text-sm uppercase tracking-wider px-10 py-4 transition-all hover:shadow-lg hover:-translate-y-0.5"
-              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
             >
               Get a Free Quote →
             </Link>

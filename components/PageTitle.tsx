@@ -1,4 +1,5 @@
-import { Info, type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import InfoTip from "@/components/ds/InfoTip";
 import type { SectionKey } from "@/lib/section-colors";
 import TitleSentinel from "@/components/TitleSentinel";
 
@@ -22,9 +23,9 @@ import TitleSentinel from "@/components/TitleSentinel";
  * Two kinds of second line (David, 2026-09-25):
  *   - `sub`  — CONTEXT the page needs (the client on a quote, the week on
  *               timesheets, the total on expenses). A muted line, everywhere.
- *   - `info` — an EXPLANATION of what the page is for. Desktop shows an (i)
- *               next to the title that opens a card on hover/focus; phones
- *               show nothing — the sentence just took space there.
+ *   - `info` — an EXPLANATION of what the page is for, in the design-system
+ *               InfoTip: hover on desktop, tap on phones (David, 2026-09-26:
+ *               explanations always live in an (i), on every screen size).
  */
 export default function PageTitle({
   children,
@@ -39,7 +40,7 @@ export default function PageTitle({
   rule?: boolean;
   /** Context line under the title (a name, a date, a total) — shown everywhere. */
   sub?: React.ReactNode;
-  /** What the page is for — an (i) bubble on desktop, hidden on phones. */
+  /** What the page is for — an (i) bubble on every screen size. */
   info?: React.ReactNode;
   className?: string;
   children: React.ReactNode;
@@ -54,32 +55,12 @@ export default function PageTitle({
         : undefined;
   return (
     <div className={`min-w-0 ${className ?? ""}`}>
-      <h1 className="numeral-ledger flex items-center gap-3 text-[26px] font-bold text-gray-900 lg:text-2xl lg:font-semibold">
+      <h1 className="ds-title flex items-center gap-2">
         {text && <TitleSentinel title={text} />}
         {children}
-        {info && (
-          <span className="group relative hidden lg:inline-flex">
-            <button
-              type="button"
-              aria-label="About this page"
-              className="flex h-6 w-6 items-center justify-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:bg-gray-100 focus-visible:text-gray-700"
-            >
-              <Info size={15} strokeWidth={2.25} />
-            </button>
-            <span
-              role="tooltip"
-              className="pointer-events-none absolute left-0 top-full z-30 mt-1.5 hidden w-80 rounded-xl border border-gray-200 bg-white p-3 text-left text-sm font-normal leading-snug text-gray-600 shadow-lg group-focus-within:block group-hover:block"
-            >
-              {info}
-            </span>
-          </span>
-        )}
+        {info && <InfoTip label="About this page">{info}</InfoTip>}
       </h1>
-      {sub && (
-        <p className="mt-1.5 max-w-prose text-sm leading-snug text-gray-500">
-          {sub}
-        </p>
-      )}
+      {sub && <p className="ds-small mt-1.5 max-w-prose text-[13.5px]">{sub}</p>}
     </div>
   );
 }

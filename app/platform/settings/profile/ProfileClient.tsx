@@ -213,7 +213,7 @@ export default function ProfileClient({
       <FlashBanner flash={flash} onClose={() => setFlash(null)} />
 
       {/* Profile picture */}
-      <div className="card-ledger p-5 mb-5">
+      <div className="ds-card p-5 mb-5">
         <SectionHeader title="Profile picture" className="mb-4" />
         <div className="flex flex-wrap items-center gap-4">
           <Avatar
@@ -248,7 +248,7 @@ export default function ProfileClient({
                 type="button"
                 onClick={removeAvatar}
                 disabled={avatarBusy}
-                className="flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-sm font-medium text-[color:var(--ds-bad)] transition-colors hover:bg-[color:var(--ds-bad-soft)] disabled:opacity-50"
               >
                 <Trash2 size={14} />
                 Remove
@@ -284,7 +284,7 @@ export default function ProfileClient({
         )}
       </div>
 
-      <div className="card-ledger p-5 mb-5">
+      <div className="ds-card p-5 mb-5">
         <SectionHeader title="Your info" className="mb-4" />
         <div className="grid sm:grid-cols-2 gap-3 mb-4">
           <div>
@@ -307,7 +307,7 @@ export default function ProfileClient({
       </div>
 
       {/* Email signature — appended to client email messages */}
-      <div className="card-ledger p-5 mb-5">
+      <div className="ds-card p-5 mb-5">
         <SectionHeader
           title="Email signature"
           hint="Added to the bottom of emails you send to clients from their page."
@@ -336,7 +336,7 @@ export default function ProfileClient({
 
       {/* Change email — nothing moves until the new address confirms it, so a
           typo can't lock someone out of their own account. */}
-      <div className="card-ledger p-5">
+      <div className="ds-card p-5">
         <SectionHeader
           title="Sign-in email"
           className="mb-4"
@@ -349,15 +349,15 @@ export default function ProfileClient({
         />
 
         {pendingEmail ? (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5">
-            <p className="text-sm text-amber-800">
+          <div className="rounded-lg bg-[color:var(--ds-warn-soft)] px-3 py-2.5">
+            <p className="text-sm text-[color:var(--ds-ink)]">
               Waiting for <span className="font-semibold">{pendingEmail}</span> to confirm. Check
               that inbox — the link expires an hour after it was sent.
             </p>
             <button
               onClick={cancelEmailChange}
               disabled={busy}
-              className="mt-1.5 text-xs font-medium text-amber-900 underline hover:no-underline disabled:opacity-50"
+              className="mt-1.5 text-xs font-medium text-[color:var(--ds-warn)] underline hover:no-underline disabled:opacity-50"
             >
               Cancel this change
             </button>
@@ -420,7 +420,7 @@ export default function ProfileClient({
         <CalendarSyncCard />
       </Suspense>
 
-      <div className="card-ledger p-5 mt-5 flex flex-wrap items-center justify-between gap-3">
+      <div className="ds-card p-5 mt-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <SectionHeader
             title="Welcome tour"

@@ -126,13 +126,13 @@ export default function PeopleCard({
 
 
   return (
-    <div className="card-ledger p-4">
+    <div className="ds-card p-4">
       <div className="flex items-center justify-between mb-3">
         <SectionHeader title="Contacts" />
         {editing === null && (
           <button
             onClick={startNew}
-            className="flex items-center gap-1 text-xs text-green-600 hover:underline font-medium"
+            className="flex items-center gap-1 text-xs text-[color:var(--ds-primary)] hover:underline font-medium"
           >
             <Plus size={12} />
             Add contact
@@ -164,7 +164,7 @@ export default function PeopleCard({
                   {p.phone && (
                     <a
                       href={`tel:${p.phone.replace(/[^\d+]/g, "")}`}
-                      className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-green-600"
+                      className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-[color:var(--ds-primary-strong)]"
                     >
                       <Phone size={10} />
                       {fmtPhone(p.phone)}
@@ -173,7 +173,7 @@ export default function PeopleCard({
                   {p.email && (
                     <a
                       href={`mailto:${p.email}`}
-                      className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-green-600 truncate"
+                      className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-[color:var(--ds-primary-strong)] truncate"
                     >
                       <Mail size={10} />
                       {p.email}
@@ -191,7 +191,7 @@ export default function PeopleCard({
               </button>
               <button
                 onClick={() => remove(p)}
-                className="p-1 text-gray-300 hover:text-red-600"
+                className="p-1 text-gray-300 hover:text-[color:var(--ds-bad)]"
                 title="Remove contact"
               >
                 <Trash2 size={13} />
@@ -253,7 +253,7 @@ export default function PeopleCard({
               className={inputCls}
             />
           </div>
-          {error && <p className="text-xs text-red-600">{error}</p>}
+          {error && <p className="text-xs text-[color:var(--ds-bad)]">{error}</p>}
           <div className="flex items-center gap-2">
             <button
               onClick={save}

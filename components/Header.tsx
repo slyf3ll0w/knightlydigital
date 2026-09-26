@@ -83,7 +83,7 @@ export function Header() {
         <div className="max-w-7xl mx-auto px-6 lg:px-8 flex items-center justify-between h-9">
           <div
             className="flex items-center gap-4 text-xs"
-            style={{ color: 'rgba(255,255,255,0.45)', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            style={{ color: 'rgba(255,255,255,0.45)', fontFamily: 'Lexend, system-ui, sans-serif' }}
           >
             <span>Allen, TX — Serving the DFW Metroplex</span>
             <span style={{ color: 'rgba(255,255,255,0.18)' }}>|</span>
@@ -98,7 +98,7 @@ export function Header() {
           <Link
             href="/contact"
             className="text-xs font-semibold transition-colors hover:opacity-80"
-            style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
           >
             Schedule a Free Consultation →
           </Link>
@@ -132,7 +132,7 @@ export function Header() {
                     className="text-sm font-medium tracking-wide transition-colors"
                     style={{
                       color: isActive ? '#0A0A0F' : '#6B7280',
-                      fontFamily: 'Oxanium, system-ui, sans-serif',
+                      fontFamily: 'Lexend, system-ui, sans-serif',
                     }}
                   >
                     {link.label}
@@ -150,7 +150,7 @@ export function Header() {
                   className="flex items-center gap-1.5 text-sm font-medium tracking-wide transition-colors"
                   style={{
                     color: isServicesActive ? '#0A0A0F' : '#6B7280',
-                    fontFamily: 'Oxanium, system-ui, sans-serif',
+                    fontFamily: 'Lexend, system-ui, sans-serif',
                     background: 'none',
                     border: 'none',
                     cursor: 'pointer',
@@ -202,7 +202,7 @@ export function Header() {
                           className="text-sm font-bold mb-0.5"
                           style={{
                             color: pathname === item.href ? '#22C55E' : '#0A0A0F',
-                            fontFamily: 'Oxanium, system-ui, sans-serif',
+                            fontFamily: 'Lexend, system-ui, sans-serif',
                           }}
                         >
                           {item.label}
@@ -222,14 +222,14 @@ export function Header() {
               <Link
                 href="/app/login"
                 className="text-sm transition-colors hover:text-gray-900"
-                style={{ color: '#9CA3AF', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                style={{ color: '#9CA3AF', fontFamily: 'Lexend, system-ui, sans-serif' }}
               >
                 Hub Login
               </Link>
               <Link
                 href="/contact"
                 className="text-sm font-bold uppercase tracking-wider px-5 py-2 text-white transition-all hover:opacity-90 hover:-translate-y-px"
-                style={{ backgroundColor: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                style={{ backgroundColor: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
               >
                 Get Started
               </Link>
@@ -264,7 +264,7 @@ export function Header() {
                   style={{
                     borderBottom: '1px solid #F3F4F6',
                     color: isActive ? '#0A0A0F' : '#6B7280',
-                    fontFamily: 'Oxanium, system-ui, sans-serif',
+                    fontFamily: 'Lexend, system-ui, sans-serif',
                   }}
                 >
                   {link.label}
@@ -278,7 +278,7 @@ export function Header() {
               className="text-sm font-medium tracking-wide flex items-center justify-between w-full"
               style={{
                 color: isServicesActive ? '#0A0A0F' : '#6B7280',
-                fontFamily: 'Oxanium, system-ui, sans-serif',
+                fontFamily: 'Lexend, system-ui, sans-serif',
                 background: 'none',
                 border: 'none',
                 borderBottom: '1px solid #F3F4F6',
@@ -316,7 +316,7 @@ export function Header() {
                       className="text-sm font-bold"
                       style={{
                         color: pathname === item.href ? '#22C55E' : '#0A0A0F',
-                        fontFamily: 'Oxanium, system-ui, sans-serif',
+                        fontFamily: 'Lexend, system-ui, sans-serif',
                       }}
                     >
                       {item.label}
@@ -333,7 +333,7 @@ export function Header() {
               href="/app/login"
               onClick={() => setMobileOpen(false)}
               className="py-3 text-sm transition-colors hover:text-gray-900"
-              style={{ borderBottom: '1px solid #F3F4F6', color: '#9CA3AF', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ borderBottom: '1px solid #F3F4F6', color: '#9CA3AF', fontFamily: 'Lexend, system-ui, sans-serif' }}
             >
               Hub Login
             </Link>
@@ -342,7 +342,7 @@ export function Header() {
                 href="/contact"
                 onClick={() => setMobileOpen(false)}
                 className="block text-center text-sm font-bold uppercase tracking-wider px-5 py-3 w-full text-white"
-                style={{ backgroundColor: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                style={{ backgroundColor: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
               >
                 Get Started
               </Link>

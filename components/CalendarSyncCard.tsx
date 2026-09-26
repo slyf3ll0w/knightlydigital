@@ -34,11 +34,11 @@ type GoogleState =
     };
 
 const btnPrimary =
-  "flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50 shrink-0";
+  "flex items-center gap-1.5 px-4 py-2 bg-[color:var(--ds-primary)] hover:bg-[color:var(--ds-primary-strong)] active:bg-[color:var(--ds-primary-strong)] text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50 shrink-0";
 const btnLine =
   "flex items-center gap-1.5 rounded-[10px] btn-tool-line bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 shrink-0";
 const btnQuiet =
-  "flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 shrink-0";
+  "flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-sm font-medium text-[color:var(--ds-bad)] transition-colors hover:bg-[color:var(--ds-bad-soft)] disabled:opacity-50 shrink-0";
 
 function ago(iso: string | null): string {
   if (!iso) return "never";
@@ -253,7 +253,7 @@ export default function CalendarSyncCard() {
   }
 
   return (
-    <div id="calendar-sync" className="card-ledger p-5 mt-5 scroll-mt-24">
+    <div id="calendar-sync" className="ds-card p-5 mt-5 scroll-mt-24">
       <div className="flex items-start gap-3 mb-4">
         <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-gray-100 text-gray-600">
           <CalendarCheck size={16} />
@@ -270,8 +270,8 @@ export default function CalendarSyncCard() {
         <div
           className={`mb-4 rounded-lg border px-3 py-2 text-sm ${
             notice.tone === "ok"
-              ? "border-green-200 bg-green-50 text-green-800"
-              : "border-red-200 bg-red-50 text-red-700"
+              ? "border-transparent bg-[color:var(--ds-good-soft)] text-[color:var(--ds-good)]"
+              : "border-transparent bg-[color:var(--ds-bad-soft)] text-[color:var(--ds-bad)]"
           }`}
         >
           {notice.text}
@@ -316,7 +316,7 @@ export default function CalendarSyncCard() {
               </li>
               <li>
                 <span className="font-medium text-gray-700">Apple Calendar / Outlook:</span>{" "}
-                <a href={feed.webcalUrl ?? "#"} className="text-green-700 underline underline-offset-2">
+                <a href={feed.webcalUrl ?? "#"} className="text-[color:var(--ds-primary)] underline underline-offset-2">
                   open as a subscription
                 </a>{" "}
                 or use File → New Calendar Subscription with the link.
@@ -372,7 +372,7 @@ export default function CalendarSyncCard() {
           {google.connected && (
             <div className="mt-3">
               {google.lastSyncError ? (
-                <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <div className="mb-3 rounded-lg bg-[color:var(--ds-warn-soft)] px-3 py-2 text-xs text-[color:var(--ds-warn)]">
                   {google.lastSyncError}
                   {!google.syncEnabled && (
                     <>
@@ -396,7 +396,7 @@ export default function CalendarSyncCard() {
                 </p>
               )}
               {google.lastPullError && (
-                <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <div className="mb-3 rounded-lg bg-[color:var(--ds-warn-soft)] px-3 py-2 text-xs text-[color:var(--ds-warn)]">
                   Reading Google: {google.lastPullError}
                 </div>
               )}
@@ -404,7 +404,7 @@ export default function CalendarSyncCard() {
                 <label className="flex items-start gap-2 text-sm text-gray-700">
                   <input
                     type="checkbox"
-                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
                     checked={google.pullEnabled}
                     disabled={busy === "google"}
                     onChange={(e) => setPullSetting({ pullEnabled: e.target.checked })}
@@ -422,7 +422,7 @@ export default function CalendarSyncCard() {
                   <label className="flex items-start gap-2 text-sm text-gray-700">
                     <input
                       type="checkbox"
-                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
                       checked={google.shareTitles}
                       disabled={busy === "google"}
                       onChange={(e) => setPullSetting({ shareTitles: e.target.checked })}

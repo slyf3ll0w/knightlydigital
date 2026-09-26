@@ -26,9 +26,9 @@ export default async function ChatPage() {
   if (team.length <= 1) {
     return (
       <div className="p-4 lg:p-8 max-w-2xl mx-auto">
-        <div className="card-ledger p-8 text-center">
+        <div className="ds-card p-8 text-center">
           <MessagesSquare size={32} className="mx-auto text-gray-300" />
-          <h1 className="mt-3 font-display text-lg font-semibold text-gray-900">Team Chat</h1>
+          <h1 className="mt-3 font-display text-lg font-semibold text-[color:var(--ds-ink)]">Team Chat</h1>
           <p className="mt-1 text-sm text-gray-500">
             Chat opens up once your company has more than one team member.
           </p>

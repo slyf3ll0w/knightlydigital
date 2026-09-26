@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Check, Loader2, Send } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
+import { InfoTip } from "@/components/ds";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import ContactPicker from "@/components/ContactPicker";
 
@@ -78,7 +79,7 @@ export default function NewContractForm({
         <PageTitle>New Agreement</PageTitle>
       </div>
 
-      <div className="card-ledger p-5 space-y-4">
+      <div className="ds-card p-5 space-y-4">
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs text-gray-500 mb-1">Client *</label>
@@ -99,7 +100,7 @@ export default function NewContractForm({
                 {canManageTemplates ? (
                   <>
                     No templates yet —{" "}
-                    <Link href="/app/contracts?view=templates" className="text-green-600 underline">
+                    <Link href="/app/contracts?view=templates" className="text-[color:var(--ds-primary)] underline">
                       save one under Agreements → Templates
                     </Link>{" "}
                     to reuse it.
@@ -131,14 +132,14 @@ export default function NewContractForm({
             className={`${inputCls} font-mono text-xs leading-relaxed`}
           />
         </div>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-[color:var(--ds-bad)]">{error}</p>}
         {sent ? (
           <div
             role="status"
             className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-sm ${
               sent.emailed
-                ? "border-green-200 bg-green-50 text-green-800"
-                : "border-amber-200 bg-amber-50 text-amber-800"
+                ? "border-transparent bg-[color:var(--ds-good-soft)] text-[color:var(--ds-good)]"
+                : "border-transparent bg-[color:var(--ds-warn-soft)] text-[color:var(--ds-warn)]"
             }`}
           >
             {sent.emailed ? <Check size={15} /> : <Send size={15} />}
@@ -148,18 +149,20 @@ export default function NewContractForm({
           </div>
         ) : (
           <>
-            <button
-              onClick={create}
-              disabled={busy || !contactId || !title.trim() || !body.trim()}
-              className="btn-primary btn-lg"
-            >
-              {busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-              Create &amp; Email for Signature
-            </button>
-            <p className="text-xs text-gray-500">
-              The signing link goes straight to the client&apos;s inbox. No email on file? You can
-              copy the link from the agreement page instead.
-            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={create}
+                disabled={busy || !contactId || !title.trim() || !body.trim()}
+                className="btn-primary btn-lg"
+              >
+                {busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                Create &amp; Email for Signature
+              </button>
+              <InfoTip>
+                The signing link goes straight to the client&apos;s inbox. No email on file? You can
+                copy the link from the agreement page instead.
+              </InfoTip>
+            </div>
           </>
         )}
       </div>

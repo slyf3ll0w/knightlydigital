@@ -62,9 +62,9 @@ function Control({
 }) {
   const face =
     tone === "green"
-      ? "bg-green-500 text-white hover:bg-green-600"
+      ? "bg-[color:var(--ds-good)] text-[color:var(--ds-surface)] hover:opacity-90"
       : tone === "red"
-        ? "bg-red-500 text-white hover:bg-red-600"
+        ? "bg-[color:var(--ds-bad)] text-[color:var(--ds-surface)] hover:opacity-90"
         : on
           ? "bg-gray-900 text-white"
           : "bg-gray-100 text-gray-800 hover:bg-gray-200";
@@ -180,7 +180,7 @@ export default function CallScreenLive({
     else if (dialing) line = "Calling from your business line…";
     else if (held) line = `On hold · ${fmtElapsed(live.startedAt, now)}`;
     else line = fmtElapsed(live.startedAt, now);
-    tone = ringing ? "text-green-700" : "text-gray-700";
+    tone = ringing ? "text-[color:var(--ds-good)]" : "text-gray-700";
   } else if (ended && LIVE.has(row.status)) {
     // Hung up here a moment ago; the row catches up on the next poll. Never
     // "ringing your cell" — nothing is ringing anything.
@@ -189,22 +189,22 @@ export default function CallScreenLive({
     switch (row.status) {
       case "RINGING":
         line = direction === "INBOUND" ? "Ringing…" : via === "app" ? "Calling from the app…" : "Ringing your cell first…";
-        tone = "text-amber-700";
+        tone = "text-[color:var(--ds-warn)]";
         break;
       case "IN_PROGRESS":
         line = `On the line${who ? ` · ${who}` : ""} · ${fmtElapsed(row.answeredAt ? Date.parse(row.answeredAt) : null, now)}`;
-        tone = "text-green-700";
+        tone = "text-[color:var(--ds-good)]";
         break;
       case "COMPLETED":
         line = `Answered${durationSec !== null ? ` · ${fmtSecs(durationSec)}` : ""}${who ? ` · ${who}` : ""}`;
         break;
       case "MISSED":
         line = "Missed";
-        tone = "text-red-700";
+        tone = "text-[color:var(--ds-bad)]";
         break;
       case "VOICEMAIL":
         line = `Left a voicemail${voicemailSec !== null ? ` · ${fmtSecs(voicemailSec)}` : ""}`;
-        tone = "text-blue-700";
+        tone = "text-[color:var(--ds-primary)]";
         break;
       case "NO_ANSWER":
         line = "No answer";
@@ -228,28 +228,28 @@ export default function CallScreenLive({
           : PhoneOutgoing;
   const ring = live
     ? ringing
-      ? "bg-green-100 text-green-700 ring-8 ring-green-100/70 animate-pulse"
+      ? "bg-[color:var(--ds-good-soft)] text-[color:var(--ds-good)] ring-8 ring-[color:var(--ds-good-soft)] animate-pulse"
       : dialing
         ? "bg-gray-100 text-gray-700 ring-8 ring-gray-100 animate-pulse"
-        : "bg-green-500 text-white ring-8 ring-green-100"
+        : "bg-[color:var(--ds-good)] text-[color:var(--ds-surface)] ring-8 ring-[color:var(--ds-good-soft)]"
     : ended && LIVE.has(row.status)
       ? "bg-gray-100 text-gray-600"
       : row.status === "IN_PROGRESS"
-        ? "bg-green-500 text-white ring-8 ring-green-100"
+        ? "bg-[color:var(--ds-good)] text-[color:var(--ds-surface)] ring-8 ring-[color:var(--ds-good-soft)]"
         : row.status === "RINGING"
-          ? "bg-amber-100 text-amber-700 ring-8 ring-amber-50 animate-pulse"
+          ? "bg-[color:var(--ds-warn-soft)] text-[color:var(--ds-warn)] ring-8 ring-[color:var(--ds-warn-soft)] animate-pulse"
           : "bg-gray-100 text-gray-600";
   // A saved caller shows as their monogram; the same halo as the icon face while the call is live.
   const halo = live
     ? ringing
-      ? "ring-8 ring-green-100/70 animate-pulse"
+      ? "ring-8 ring-[color:var(--ds-good-soft)] animate-pulse"
       : dialing
         ? "ring-8 ring-gray-100 animate-pulse"
-        : "ring-8 ring-green-100"
+        : "ring-8 ring-[color:var(--ds-good-soft)]"
     : !(ended && LIVE.has(row.status)) && row.status === "IN_PROGRESS"
-      ? "ring-8 ring-green-100"
+      ? "ring-8 ring-[color:var(--ds-good-soft)]"
       : !(ended && LIVE.has(row.status)) && row.status === "RINGING"
-        ? "ring-8 ring-amber-50 animate-pulse"
+        ? "ring-8 ring-[color:var(--ds-warn-soft)] animate-pulse"
         : "";
   const face = contactId ? (
     <span className={`mx-auto flex h-[76px] w-[76px] items-center justify-center rounded-full ${halo}`}>
@@ -262,7 +262,7 @@ export default function CallScreenLive({
   );
 
   return (
-    <div className="card-tool mt-3 px-5 pb-6 pt-8 text-center sm:px-8">
+    <div className="ds-card mt-3 px-5 pb-6 pt-8 text-center sm:px-8">
       {face}
       <h1 className="mt-4 truncate text-[26px] font-semibold leading-tight text-gray-900">
         {contactId ? (

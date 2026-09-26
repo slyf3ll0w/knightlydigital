@@ -101,12 +101,12 @@ export default function OnMyWay({
           ? `Sent ${sent.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} — opens Messages again`
           : "Text the client that you're on your way (opens your Messages app)"
       }
-      className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors disabled:opacity-60"
+      className="ds-btn ds-btn-outline disabled:opacity-60"
     >
       {busy ? (
         <Loader2 size={13} className="animate-spin" />
       ) : (
-        <Navigation size={13} className={sent ? "text-green-600" : undefined} />
+        <Navigation size={13} className={sent ? "text-[color:var(--ds-good)]" : undefined} />
       )}
       On My Way{sent ? " ✓" : ""}
     </button>

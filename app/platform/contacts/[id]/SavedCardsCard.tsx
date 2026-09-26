@@ -164,13 +164,13 @@ export default function SavedCardsCard({
   }
 
   return (
-    <div className="card-ledger p-4">
+    <div className="ds-card p-4">
       <div className="flex items-center justify-between mb-3">
         <SectionHeader title="Cards on file" />
         {canManage && finix && !adding && (
           <button
             onClick={() => setAdding(true)}
-            className="flex items-center gap-1 text-xs font-medium text-green-700 hover:underline"
+            className="flex items-center gap-1 text-xs font-medium text-[color:var(--ds-primary)] hover:underline"
           >
             <Plus size={12} />
             Add card
@@ -216,7 +216,7 @@ export default function SavedCardsCard({
                 <button
                   onClick={() => removeCard(card)}
                   disabled={busyId !== null}
-                  className="text-gray-300 hover:text-red-600 disabled:opacity-50"
+                  className="text-gray-300 hover:text-[color:var(--ds-bad)] disabled:opacity-50"
                   title="Remove card"
                 >
                   {busyId === card.id ? (
@@ -270,7 +270,7 @@ export default function SavedCardsCard({
             server. No charge happens when you save.
           </p>
           {finix?.environment === "sandbox" && (
-            <p className="mt-1 text-[11px] text-amber-600">Test mode — no real cards.</p>
+            <p className="mt-1 text-[11px] text-[color:var(--ds-warn)]">Test mode — no real cards.</p>
           )}
         </div>
       )}

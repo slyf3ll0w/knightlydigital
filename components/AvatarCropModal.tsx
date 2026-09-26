@@ -181,7 +181,7 @@ export default function AvatarCropModal({
           onChange={(e) => setZoomClamped(Number(e.target.value) / 100)}
           disabled={!dims}
           aria-label="Zoom"
-          className="mt-4 w-full accent-green-600"
+          className="mt-4 w-full accent-[color:var(--ds-primary)]"
         />
 
         <div className="mt-4 flex justify-end gap-2">

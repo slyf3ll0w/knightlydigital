@@ -17,9 +17,9 @@ export default async function ImportPage() {
   if (await inPreview(actor.companyId)) {
     return (
       <div className="p-4 lg:p-8 max-w-2xl mx-auto">
-        <div className="card-ledger p-8 text-center">
-          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50">
-            <Lock size={18} className="text-amber-600" />
+        <div className="ds-card p-8 text-center">
+          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-[color:var(--ds-warn-soft)]">
+            <Lock size={18} className="text-[color:var(--ds-warn)]" />
           </div>
           <h1 className="mt-4 text-xl font-bold text-gray-900">
             CSV import unlocks at approval
@@ -31,7 +31,7 @@ export default async function ImportPage() {
           </p>
           <Link
             href="/app/activate"
-            className="mt-5 inline-flex items-center justify-center rounded-lg bg-[#0B57D8] px-5 py-2.5 text-sm font-bold text-white"
+            className="ds-btn ds-btn-primary mt-5"
           >
             Finish verification
           </Link>

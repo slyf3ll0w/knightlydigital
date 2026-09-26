@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
+import SectionHeader from "@/components/SectionHeader";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 type FieldDef = {
@@ -192,7 +193,7 @@ export default function ContactForm({
                 title={hint}
                 className={`rounded-[10px] border px-4 py-2 text-sm font-medium transition-colors ${
                   form.status === value
-                    ? "border-green-500 ring-2 ring-green-500/30 text-gray-900"
+                    ? "border-[color:var(--ds-primary)] ring-2 ring-[color:var(--ds-primary-soft)] text-gray-900"
                     : "border-gray-300 text-gray-600 hover:bg-gray-50"
                 }`}
               >
@@ -202,10 +203,8 @@ export default function ContactForm({
           </div>
         )}
 
-        <div className="card-ledger p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4">
-            Contact Info
-          </h2>
+        <div className="ds-card p-5">
+          <SectionHeader title="Contact Info" className="mb-4" />
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">First name *</label>
@@ -214,7 +213,7 @@ export default function ContactForm({
                 value={form.firstName}
                 onChange={(e) => set("firstName", e.target.value)}
                 required
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               />
             </div>
             <div>
@@ -224,7 +223,7 @@ export default function ContactForm({
                 value={form.lastName}
                 onChange={(e) => set("lastName", e.target.value)}
                 required
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               />
             </div>
             <div className="col-span-2">
@@ -234,7 +233,7 @@ export default function ContactForm({
                 value={form.companyName}
                 onChange={(e) => set("companyName", e.target.value)}
                 placeholder="If this client is a business"
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               />
             </div>
             <div>
@@ -243,7 +242,7 @@ export default function ContactForm({
                 type="email"
                 value={form.email}
                 onChange={(e) => set("email", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               />
             </div>
             <div>
@@ -252,7 +251,7 @@ export default function ContactForm({
                 type="tel"
                 value={form.phone}
                 onChange={(e) => set("phone", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               />
             </div>
             <div className="col-span-2">
@@ -278,17 +277,15 @@ export default function ContactForm({
                   value={form.smsConsentNote}
                   onChange={(e) => set("smsConsentNote", e.target.value)}
                   placeholder="Optional note — e.g. asked on the phone 9/12"
-                  className="mt-2 w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="mt-2 w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                 />
               )}
             </div>
           </div>
         </div>
 
-        <div className="card-ledger p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4">
-            Address
-          </h2>
+        <div className="ds-card p-5">
+          <SectionHeader title="Address" className="mb-4" />
           <div className="space-y-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Street address</label>
@@ -296,7 +293,7 @@ export default function ContactForm({
                 type="text"
                 value={form.address}
                 onChange={(e) => set("address", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                 placeholder="123 Main St"
               />
             </div>
@@ -307,7 +304,7 @@ export default function ContactForm({
                   type="text"
                   value={form.city}
                   onChange={(e) => set("city", e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                 />
               </div>
               <div>
@@ -315,7 +312,7 @@ export default function ContactForm({
                 <select
                   value={form.state}
                   onChange={(e) => set("state", e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                 >
                   <option value="">—</option>
                   {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -329,16 +326,14 @@ export default function ContactForm({
                 value={form.zip}
                 onChange={(e) => set("zip", e.target.value)}
                 maxLength={10}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               />
             </div>
           </div>
         </div>
 
-        <div className="card-ledger p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4">
-            Client Details
-          </h2>
+        <div className="ds-card p-5">
+          <SectionHeader title="Client Details" className="mb-4" />
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Lead source</label>
@@ -347,7 +342,7 @@ export default function ContactForm({
                 value={form.leadSource}
                 onChange={(e) => set("leadSource", e.target.value)}
                 placeholder="Referral, Google, yard sign..."
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               />
             </div>
             <div>
@@ -358,7 +353,7 @@ export default function ContactForm({
                 max={365}
                 value={form.paymentTermsDays}
                 onChange={(e) => set("paymentTermsDays", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               />
               <p className="text-xs text-gray-500 mt-1">Invoices due Net {form.paymentTermsDays || "30"}</p>
             </div>
@@ -368,7 +363,7 @@ export default function ContactForm({
                 <select
                   value={form.status}
                   onChange={(e) => set("status", e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                 >
                   <option value="LEAD">Lead</option>
                   <option value="ACTIVE">Active client</option>
@@ -382,7 +377,7 @@ export default function ContactForm({
                 <select
                   value={form.assignedToId}
                   onChange={(e) => set("assignedToId", e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                 >
                   <option value="">Me</option>
                   {users.map((u) => (
@@ -395,10 +390,8 @@ export default function ContactForm({
         </div>
 
         {fieldDefs.length > 0 && (
-          <div className="card-ledger p-5">
-            <h2 className="text-sm font-semibold text-gray-700 mb-4">
-              Custom Fields
-            </h2>
+          <div className="ds-card p-5">
+            <SectionHeader title="Custom Fields" className="mb-4" />
             <div className="grid grid-cols-2 gap-4">
               {fieldDefs.map((d) => (
                 <div key={d.id}>
@@ -410,7 +403,7 @@ export default function ContactForm({
                     <select
                       value={customFields[d.id] ?? ""}
                       onChange={(e) => setCustomFields({ ...customFields, [d.id]: e.target.value })}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                     >
                       <option value="">—</option>
                       {d.options.map((o) => (
@@ -424,7 +417,7 @@ export default function ContactForm({
                       type={d.type === "NUMBER" ? "number" : d.type === "DATE" ? "date" : "text"}
                       value={customFields[d.id] ?? ""}
                       onChange={(e) => setCustomFields({ ...customFields, [d.id]: e.target.value })}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                     />
                   )}
                 </div>
@@ -433,13 +426,13 @@ export default function ContactForm({
           </div>
         )}
 
-        <div className="card-ledger p-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-4">Notes</h2>
+        <div className="ds-card p-5">
+          <SectionHeader title="Notes" className="mb-4" />
           <textarea
             value={form.notes}
             onChange={(e) => set("notes", e.target.value)}
             rows={3}
-            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
             placeholder="Any notes about this customer..."
           />
         </div>

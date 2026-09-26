@@ -12,10 +12,10 @@ export default function ScheduleLoading() {
         <div className="h-8 w-40 rounded-lg bg-gray-200" />
         <div className="ml-auto h-8 w-44 rounded-lg bg-gray-200" />
       </div>
-      <div className="card-ledger overflow-hidden">
+      <div className="ds-card overflow-hidden">
         <div className="grid grid-cols-7 gap-px bg-gray-100">
           {Array.from({ length: 35 }, (_, i) => (
-            <div key={i} className="min-h-[80px] bg-white p-2 lg:min-h-[104px]">
+            <div key={i} className="min-h-[80px] bg-[color:var(--ds-surface)] p-2 lg:min-h-[104px]">
               <div className="h-5 w-5 rounded-full bg-gray-100" />
             </div>
           ))}

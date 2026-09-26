@@ -202,7 +202,7 @@ export default function JobActions({
       {status === "ARCHIVED" && (
         <button
           onClick={() => setStatus("ACTIVE")}
-          className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors"
+          className="ds-btn ds-btn-outline"
         >
           <RotateCcw size={13} />
           Reopen Job
@@ -213,7 +213,7 @@ export default function JobActions({
         <div className="relative">
           <button
             onClick={() => setOpen((v) => !v)}
-            className="p-2 btn-tool-line bg-white rounded-[10px] text-gray-600 hover:bg-gray-50 transition-colors"
+            className="ds-btn ds-btn-outline w-10 px-0"
           >
             <MoreHorizontal size={16} />
           </button>
@@ -269,7 +269,7 @@ export default function JobActions({
                   {status !== "ARCHIVED" && <div className="my-1 border-t border-gray-100" />}
                   <button
                     onClick={deleteJob}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50"
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)]"
                   >
                     <Trash2 size={14} />
                     Delete Job

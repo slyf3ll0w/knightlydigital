@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, ListPlus, Loader2, Plus, X } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import SectionHeader from "@/components/SectionHeader";
-import { SECTION_HUES } from "@/lib/section-colors";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -118,10 +117,12 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
 
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between mb-1">
+      <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <BackLink href="/app/settings" />
-          <PageTitle>Client Fields</PageTitle>
+          <PageTitle info="Custom fields show on every client — new-client form, client pages, and the CSV importer.">
+            Client Fields
+          </PageTitle>
         </div>
         <button
           onClick={() => setShowAdd((v) => !v)}
@@ -131,21 +132,18 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
           Add Field
         </button>
       </div>
-      <p className="text-sm text-gray-500 mb-6 lg:ml-8">
-        Custom fields show on every client — new-client form, client pages, and the CSV importer.
-      </p>
 
       {error && (
         <div role="alert" className="form-error mb-4 flex items-center justify-between">
           {error}
-          <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
+          <button onClick={() => setError("")} className="p-0.5 text-[color:var(--ds-bad)] opacity-70 hover:opacity-100">
             <X size={14} />
           </button>
         </div>
       )}
 
       {showAdd && (
-        <div className="card-ledger p-5 mb-5 space-y-3">
+        <div className="ds-card p-5 mb-5 space-y-3">
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Field name *</label>
@@ -183,7 +181,7 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
               type="checkbox"
               checked={required}
               onChange={(e) => setRequired(e.target.checked)}
-              className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+              className="h-3.5 w-3.5 rounded border-gray-300 text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
             />
             Required when adding a client
           </label>
@@ -203,11 +201,10 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
         </div>
       )}
 
-      <div className="card-ledger divide-y divide-gray-100 mb-6">
+      <div className="ds-card ds-divide mb-6">
         {active.length === 0 && (
           <EmptyState
             icon={ListPlus}
-            hue={SECTION_HUES.clients}
             title="No custom fields yet"
             body="Add one to start tailoring client records to your business."
           />
@@ -235,7 +232,7 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-900">
                 {d.label}
-                {d.required && <span className="text-red-500"> *</span>}
+                {d.required && <span className="text-[color:var(--ds-bad)]"> *</span>}
               </p>
               <p className="text-xs text-gray-500">
                 {TYPE_LABELS[d.type] ?? d.type}
@@ -252,7 +249,7 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
             <button
               onClick={() => call(`/api/app/contact-fields/${d.id}`, { isActive: false }, "PATCH")}
               disabled={busy}
-              className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-red-600 hover:bg-red-50"
+              className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)]"
             >
               Archive
             </button>
@@ -263,14 +260,14 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
       {archived.length > 0 && (
         <div>
           <SectionHeader title="Archived (values are kept)" className="mb-2" />
-          <div className="card-ledger divide-y divide-gray-100">
+          <div className="ds-card ds-divide">
             {archived.map((d) => (
               <div key={d.id} className="flex items-center justify-between px-4 py-2.5 opacity-70">
                 <p className="text-sm text-gray-700">{d.label}</p>
                 <button
                   onClick={() => call(`/api/app/contact-fields/${d.id}`, { isActive: true }, "PATCH")}
                   disabled={busy}
-                  className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-green-700 hover:bg-green-50"
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-[color:var(--ds-primary)] hover:bg-[color:var(--ds-primary-soft)]"
                 >
                   Restore
                 </button>

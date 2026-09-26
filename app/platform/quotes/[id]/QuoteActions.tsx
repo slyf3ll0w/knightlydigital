@@ -27,6 +27,7 @@ import { showSendRitual } from "@/lib/send-ritual";
 import { showApproveRitual } from "@/lib/approve-ritual";
 import Modal from "@/components/Modal";
 import MenuPopover from "@/components/MenuPopover";
+import InfoTip from "@/components/ds/InfoTip";
 
 type AgreementState = {
   signed: boolean;
@@ -311,7 +312,7 @@ export default function QuoteActions({
           waiting on a signature (price-book flag) */}
       {status === "APPROVED" && !hasJob && agreement && !agreement.signed ? (
         agreement.sent ? (
-          <span className="flex items-center gap-1.5 px-4 py-2 border border-amber-300 bg-amber-50 text-amber-800 text-sm font-medium rounded-lg">
+          <span className="flex items-center gap-1.5 rounded-[12px] bg-[color:var(--ds-warn-soft)] px-4 py-2 text-sm font-medium text-[color:var(--ds-warn)]">
             <Clock size={13} />
             Awaiting agreement signature
           </span>
@@ -342,7 +343,7 @@ export default function QuoteActions({
       {status === "ARCHIVED" && (
         <button
           onClick={() => setStatus(wasSent ? "AWAITING_RESPONSE" : "DRAFT")}
-          className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors"
+          className="ds-btn ds-btn-outline"
         >
           <RotateCcw size={13} />
           Reopen Quote
@@ -354,7 +355,7 @@ export default function QuoteActions({
       {editable && (
         <Link
           prefetch={false} href={`/app/quotes/${quoteId}/edit`}
-          className="hidden lg:block p-2 btn-tool-line bg-white rounded-[10px] text-gray-600 hover:bg-gray-50 transition-colors"
+          className="hidden lg:block ds-btn-outline rounded-[10px] p-2 text-[color:var(--ds-ink-2)] transition-shadow"
           title="Edit quote"
         >
           <Pencil size={15} />
@@ -364,7 +365,7 @@ export default function QuoteActions({
       <div className="relative">
         <button
           onClick={() => setOpen((v) => !v)}
-          className="p-2 btn-tool-line bg-white rounded-[10px] text-gray-600 hover:bg-gray-50 transition-colors"
+          className="ds-btn-outline rounded-[10px] p-2 text-[color:var(--ds-ink-2)] transition-shadow"
         >
           <MoreHorizontal size={16} />
         </button>
@@ -484,7 +485,7 @@ export default function QuoteActions({
               <button
                 onClick={deleteQuote}
                 disabled={busy}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-60"
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)] disabled:opacity-60"
               >
                 <Trash2 size={14} />
                 Delete
@@ -502,13 +503,15 @@ export default function QuoteActions({
       >
         {agreementOpen && agreement && (
           <>
-            <h2 className="text-lg font-bold text-gray-900 mb-1">Send agreement</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              This quote includes services that require a signed agreement before work starts.
-              The signing link is emailed to your client; the quote unlocks when they sign.
-            </p>
+            <h2 className="mb-4 flex items-center gap-1.5 text-lg font-bold text-gray-900">
+              Send agreement
+              <InfoTip>
+                This quote includes services that require a signed agreement before work starts.
+                The signing link is emailed to your client; the quote unlocks when they sign.
+              </InfoTip>
+            </h2>
             {agreement.templates.length === 0 ? (
-              <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+              <p className="mb-4 rounded-[var(--ds-r-sm)] bg-[color:var(--ds-warn-soft)] px-3 py-2 text-sm text-[color:var(--ds-warn)]">
                 No agreement templates yet — create one under{" "}
                 <Link href="/app/contracts?view=templates" className="underline">
                   Agreements → Templates
@@ -521,7 +524,7 @@ export default function QuoteActions({
                 <select
                   value={templateId}
                   onChange={(e) => setTemplateId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 mb-4"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] mb-4"
                 >
                   {agreement.templates.map((t) => (
                     <option key={t.id} value={t.id}>
@@ -531,7 +534,7 @@ export default function QuoteActions({
                 </select>
               </>
             )}
-            {agreementError && <p className="text-xs text-red-600 mb-3">{agreementError}</p>}
+            {agreementError && <p className="text-xs text-[color:var(--ds-bad)] mb-3">{agreementError}</p>}
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setAgreementOpen(false)}

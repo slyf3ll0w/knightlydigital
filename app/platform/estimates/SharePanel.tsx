@@ -6,7 +6,7 @@ import { BookOpen, Check, Heart, Loader2, Sparkles } from "lucide-react";
 import { Select, Textarea } from "@/components/Input";
 import { useAssistant } from "@/components/AssistantContext";
 import { confirmSheet } from "@/components/ConfirmSheet";
-import { APP_THEME } from "@/components/EstimatorControls";
+import { InfoTip } from "@/components/ds";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { INDUSTRIES } from "@/lib/pricebooks";
 
@@ -27,7 +27,6 @@ const MIN = 20;
 const MAX = 1200;
 
 export default function SharePanel({ toolId, toolName, companyName, companyIndustry }: { toolId: string; toolName: string; companyName: string; companyIndustry: string | null }) {
-  const theme = APP_THEME;
   const atlas = useAssistant();
   const [state, setState] = useState<ShareState | null>(null);
   const [industry, setIndustry] = useState(companyIndustry && (INDUSTRIES as readonly string[]).includes(companyIndustry) ? companyIndustry : "");
@@ -125,15 +124,18 @@ export default function SharePanel({ toolId, toolName, companyName, companyIndus
           {error}
         </div>
       )}
-      {note && <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{note}</p>}
+      {note && <p className="rounded-lg bg-[color:var(--ds-good-soft)] px-3 py-2 text-sm text-[color:var(--ds-good)]">{note}</p>}
 
-      <section className="card-ledger p-4 sm:p-5">
+      <section className="ds-card p-4 sm:p-5">
         <div className="flex items-start gap-3">
-          <BookOpen size={18} className="mt-0.5 shrink-0" style={{ color: theme.accent }} />
+          <BookOpen size={18} className="mt-0.5 shrink-0 text-[color:var(--ds-primary)]" />
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold text-gray-900">{listed ? "Shared in the Library" : "Share it in the Library"}</h2>
+            <h2 className="flex items-center gap-1.5 text-base font-semibold text-gray-900">
+              {listed ? "Shared in the Library" : "Share it in the Library"}
+              <InfoTip>Other Workbench businesses can add a copy of “{toolName}” to their own tools. They get the questions and the structure; every rate lands on their side as a number to confirm, and your price book stays yours.</InfoTip>
+            </h2>
             <p className="mt-0.5 text-xs text-gray-500">
-              Other Workbench businesses can add a copy of “{toolName}” to their own tools. They get the questions and the structure; every rate lands on their side as a number to confirm, and your price book stays yours. <Link href="/app/estimates?view=library" className="font-medium text-gray-700 underline-offset-2 hover:underline">Browse the Library</Link>
+              <Link href="/app/estimates?view=library" className="font-medium text-gray-700 underline-offset-2 hover:underline">Browse the Library</Link>
             </p>
             {state && "status" in state && (listed || removed) && (
               <p className="mt-2 inline-flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
@@ -187,7 +189,7 @@ export default function SharePanel({ toolId, toolName, companyName, companyIndus
                 </label>
                 {atlas.available && (
                   <button type="button" onClick={() => void describe()} disabled={atlas.locked} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50" title={atlas.locked ? `${atlas.name} is out of tokens right now` : `${atlas.name} explains what it prices, the questions and the rates to set (uses tokens)`}>
-                    {busy === "describe" ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} style={{ color: theme.accent }} />} Write it with {atlas.name}
+                    {busy === "describe" ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} className="text-[color:var(--ds-primary)]" />} Write it with {atlas.name}
                   </button>
                 )}
               </div>
@@ -198,16 +200,16 @@ export default function SharePanel({ toolId, toolName, companyName, companyIndus
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               {listed && (
-                <button type="button" onClick={() => void remove()} className="h-10 rounded-lg px-3 text-sm font-medium text-red-600 hover:bg-red-50">
+                <button type="button" onClick={() => void remove()} className="h-10 rounded-lg px-3 text-sm font-medium text-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)]">
                   {busy === "remove" ? <Loader2 size={14} className="animate-spin" /> : "Remove from the Library"}
                 </button>
               )}
+              {listed && <InfoTip align="end" label="What updating does">Updating re-snapshots today&apos;s rules and words for new adopters. Copies already added don&apos;t change.</InfoTip>}
               <button type="button" onClick={() => void share()} disabled={!canShare} className="btn-primary h-10 justify-center">
                 {busy === "share" ? <Loader2 size={14} className="animate-spin" /> : listed ? <Check size={14} /> : <BookOpen size={14} />}
                 {listed ? "Update the library copy" : "Share to the Library"}
               </button>
             </div>
-            {listed && <p className="text-right text-[11px] text-gray-400">Updating re-snapshots today&apos;s rules and words for new adopters. Copies already added don&apos;t change.</p>}
           </fieldset>
         )}
       </section>

@@ -81,7 +81,7 @@ export default function PortalAccessCard({
   }
 
   return (
-    <div className="card-ledger p-4">
+    <div className="ds-card p-4">
       <SectionHeader
         title="Client portal"
         className="mb-3"
@@ -90,7 +90,7 @@ export default function PortalAccessCard({
             The client can view quotes, approve work, see scheduled visits, and pay invoices from
             their portal.
             {lastVisitLabel && (
-              <span className="mt-1 block font-medium text-green-700">
+              <span className="mt-1 block font-medium text-[color:var(--ds-primary)]">
                 Last visited {lastVisitLabel}
               </span>
             )}
@@ -102,14 +102,14 @@ export default function PortalAccessCard({
           href={hubUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-sm text-green-600 hover:underline font-medium"
+          className="flex items-center gap-1.5 text-sm text-[color:var(--ds-primary)] hover:underline font-medium"
         >
           <ExternalLink size={13} />
           Open client portal
         </a>
         <button
           onClick={copyLink}
-          className="flex items-center gap-1.5 text-sm text-green-600 hover:underline font-medium"
+          className="flex items-center gap-1.5 text-sm text-[color:var(--ds-primary)] hover:underline font-medium"
         >
           {copied ? <Check size={13} /> : <Copy size={13} />}
           {copied ? "Copied!" : "Copy portal link"}
@@ -118,7 +118,7 @@ export default function PortalAccessCard({
           onClick={emailAccess}
           disabled={busy || !hasEmail}
           title={hasEmail ? undefined : "Add an email address to this client first"}
-          className="flex items-center gap-1.5 text-sm text-green-600 hover:underline font-medium disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 text-sm text-[color:var(--ds-primary)] hover:underline font-medium disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed"
         >
           {busy ? <Loader2 size={13} className="animate-spin" /> : sent ? <Check size={13} /> : <Mail size={13} />}
           {sent ? "Email sent!" : "Email portal access"}
@@ -127,14 +127,14 @@ export default function PortalAccessCard({
           <button
             onClick={resetLink}
             disabled={resetting}
-            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-red-600 hover:underline font-medium disabled:text-gray-400"
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-[color:var(--ds-bad)] hover:underline font-medium disabled:text-gray-400"
           >
             {resetting ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
             Reset portal link
           </button>
         )}
       </div>
-      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-xs text-[color:var(--ds-bad)]">{error}</p>}
     </div>
   );
 }

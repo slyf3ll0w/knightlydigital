@@ -1,4 +1,6 @@
 import Link from "next/link";
+import InfoTip from "@/components/ds/InfoTip";
+import WBScribble from "@/components/wb/WBScribble";
 import type { ReactNode } from "react";
 import { Plus, type LucideIcon } from "lucide-react";
 import { hueInk } from "@/lib/section-colors";
@@ -31,7 +33,7 @@ function Art({ name, hue }: { name: EmptyArt; hue?: string }) {
   const gray = { ...base, stroke: "#D1D5DB" }; // gray-300 to sit on the graph-paper canvas
   // Section hue when the page has one; brand accent otherwise. Hues are CSS
   // vars now, and var() only resolves in style, not presentation attributes.
-  const green = { ...base, style: { stroke: hue ?? "var(--wb-accent-bright, #2E6FF2)" } };
+  const green = { ...base, style: { stroke: hue ?? "var(--ds-primary, #0B57D8)" } };
 
   switch (name) {
     case "requests":
@@ -133,12 +135,14 @@ export default function EmptyState({
   /** Action slot for anything richer than one link. */
   children?: ReactNode;
 }) {
-  const tile = hue ?? "var(--wb-accent-bright, #2E6FF2)";
+  const tile = hue ?? "var(--ds-primary, #0B57D8)";
   if (compact) {
     return (
       <div className="flex flex-col items-center px-5 py-8 text-center">
-        <p className="text-sm font-medium text-gray-600">{title}</p>
-        {body && <p className="mt-1 max-w-sm text-xs text-gray-500">{body}</p>}
+        <p className="flex items-center gap-1 text-sm font-medium text-[color:var(--ds-ink-2)]">
+          <span>{title}</span>
+          {body && <InfoTip>{body}</InfoTip>}
+        </p>
         {actionHref && actionLabel && (
           <Link href={actionHref} className="btn-primary btn-sm mt-3 inline-flex">
             {showPlusIcon && <Plus size={13} />}
@@ -162,12 +166,20 @@ export default function EmptyState({
           <Icon size={20} strokeWidth={2.25} />
         </span>
       ) : null}
-      <p className={`text-sm font-semibold text-gray-900 ${art ? "mt-4" : Icon ? "mt-3.5" : ""}`}>{title}</p>
-      {body && <p className="mt-1 max-w-sm text-sm text-gray-500">{body}</p>}
+      <p className={`flex items-center justify-center gap-1 text-[15px] font-medium text-[color:var(--ds-ink)] ${art ? "mt-4" : Icon ? "mt-3.5" : ""}`}>
+        <span>{title}</span>
+        {body && <InfoTip>{body}</InfoTip>}
+      </p>
+      {actionHref && actionLabel && (
+        // The arrow gets its own slot (never rotated, never overlapping) — see components/ds Hint.
+        <span className="my-2 block h-[58px] w-[44px] shrink-0 text-[color:var(--ds-ink-2)]" aria-hidden>
+          <WBScribble variant="down" tone="current" delay={0.3} className="h-full w-full" />
+        </span>
+      )}
       {actionHref && actionLabel && (
         <Link
           href={actionHref}
-          className="btn-primary mt-5 inline-flex"
+          className="btn-primary inline-flex"
         >
           {showPlusIcon && <Plus size={15} />}
           {actionLabel}

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ChevronRight, GripVertical, Inbox, Loader2, Search, UserPlus, Users, X } from "lucide-react";
+import { Chip } from "@/components/ds";
 import type { PaletteEntity, ScheduleJobDTO } from "./schedule-lib";
 import type { useCalendarDrag } from "./useCalendarDrag";
 
@@ -101,10 +102,10 @@ export default function SchedulePalette({
       data-item
       {...drag.handleProps({ type: "palette", entity })}
       onClick={() => (onClick ? onClick() : onArm(isArmed(entity) ? null : entity))}
-      className={`flex cursor-grab select-none items-center gap-2.5 rounded-[12px] border bg-white p-3 transition-colors active:cursor-grabbing active:bg-gray-50 lg:p-2.5 ${
+      className={`flex cursor-grab select-none items-center gap-2.5 rounded-[12px] border bg-[color:var(--ds-surface)] p-3 transition-colors active:cursor-grabbing active:bg-gray-50 lg:p-2.5 ${
         isArmed(entity)
-          ? "border-green-500 ring-2 ring-green-200"
-          : "border-gray-200 hover:border-green-300 hover:bg-green-50/50"
+          ? "border-[color:var(--ds-primary)] ring-2 ring-[color:var(--ds-primary-soft)]"
+          : "border-[color:var(--ds-line)] hover:border-[color:var(--ds-primary)] hover:bg-[color:var(--ds-primary-soft)]"
       } ${drag.state?.source.type === "palette" && isArmed(entity) ? "opacity-50" : ""}`}
     >
       <GripVertical size={14} className="shrink-0 text-gray-300 max-lg:hidden" />
@@ -113,8 +114,8 @@ export default function SchedulePalette({
         <p className="truncate text-xs text-gray-500">{sub}</p>
       </div>
       {badge && (
-        <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700">
-          {badge}
+        <span className="shrink-0">
+          <Chip tone="primary">{badge}</Chip>
         </span>
       )}
       <ChevronRight size={16} className="shrink-0 text-gray-300 lg:hidden" />
@@ -131,7 +132,7 @@ export default function SchedulePalette({
 
   return (
     <>
-      <aside className="card-ledger phone-sheet sheet-rise sticky top-4 flex w-80 shrink-0 flex-col max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:top-auto max-lg:z-40 max-lg:max-h-[72dvh] max-lg:w-full max-lg:overflow-hidden max-lg:rounded-t-2xl max-lg:rounded-b-none max-lg:border-x-0 max-lg:border-b-0 max-lg:pb-[env(safe-area-inset-bottom)] max-lg:shadow-[0_-8px_30px_rgba(28,25,23,0.18)] lg:max-h-[calc(100vh-6rem)]">
+      <aside className="ds-card phone-sheet sheet-rise sticky top-4 flex w-80 shrink-0 flex-col max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:top-auto max-lg:z-40 max-lg:max-h-[72dvh] max-lg:w-full max-lg:overflow-hidden max-lg:rounded-t-2xl max-lg:rounded-b-none max-lg:border-x-0 max-lg:border-b-0 max-lg:pb-[env(safe-area-inset-bottom)] max-lg:shadow-[0_-8px_30px_rgba(28,25,23,0.18)] lg:max-h-[calc(100vh-6rem)]">
         <div className="mx-auto mt-2 h-1 w-9 rounded-full bg-gray-200 lg:hidden" />
         <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
           <h3 className="text-sm font-semibold text-gray-900">Schedule someone</h3>
@@ -149,7 +150,7 @@ export default function SchedulePalette({
               onChange={(e) => setQ(e.target.value)}
               placeholder="Client, lead, or request…"
               aria-label="Search clients, leads, and requests"
-              className="w-full rounded-[10px] border border-gray-200 bg-gray-50 py-2 pl-9 pr-8 text-sm focus:border-green-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-200"
+              className="w-full rounded-[10px] border border-gray-200 bg-gray-50 py-2 pl-9 pr-8 text-sm focus:border-[color:var(--ds-primary)] focus:bg-[color:var(--ds-surface)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary-soft)]"
             />
             {loading && (
               <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-gray-400" />

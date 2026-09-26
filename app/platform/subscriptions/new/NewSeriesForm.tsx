@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
+import { InfoTip } from "@/components/ds";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import ContactPicker from "@/components/ContactPicker";
 import ServiceChips, { type ServiceLite } from "@/components/ServiceChips";
@@ -175,7 +176,7 @@ export default function NewSeriesForm({
           </div>
         )}
 
-        <div className="card-ledger p-5 space-y-4">
+        <div className="ds-card p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700">What repeats</h2>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Client *</label>
@@ -232,7 +233,7 @@ export default function NewSeriesForm({
           )}
         </div>
 
-        <div className="card-ledger p-5 space-y-4">
+        <div className="ds-card p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700">Visit schedule</h2>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -289,7 +290,7 @@ export default function NewSeriesForm({
                     key={u.id}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
                       assignees.includes(u.id)
-                        ? "border-green-500 bg-green-50 text-green-700"
+                        ? "border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]"
                         : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
                     }`}
                   >
@@ -316,8 +317,19 @@ export default function NewSeriesForm({
           )}
         </div>
 
-        <div className="card-ledger p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700">Billing</h2>
+        <div className="ds-card p-5 space-y-4">
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
+            Billing
+            {billing !== "none" && (
+              <InfoTip>
+                {billing === "plan"
+                  ? "The first invoice goes out (and the card on file is charged) as soon as you start the plan. Billing then repeats on the day that first payment succeeds — sign up on the 14th, get paid every month on the 14th."
+                  : autoBillJobs
+                    ? "Each completed visit's invoice is emailed right away — and charged to the card on file automatically when payments are live."
+                    : "Bill the queue daily for per-visit invoices, or on the 1st for one itemized monthly invoice — your call, one click either way."}
+              </InfoTip>
+            )}
+          </h2>
           <div className="space-y-2">
             {(
               [
@@ -342,7 +354,7 @@ export default function NewSeriesForm({
                 key={opt.value}
                 className={`flex items-start gap-2.5 p-3 rounded-lg border cursor-pointer transition-colors ${
                   billing === opt.value
-                    ? "border-green-500 bg-green-50/50"
+                    ? "border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)]"
                     : "border-gray-200 hover:border-gray-300"
                 }`}
               >
@@ -351,7 +363,7 @@ export default function NewSeriesForm({
                   name="billing"
                   checked={billing === opt.value}
                   onChange={() => setBilling(opt.value)}
-                  className="mt-0.5 h-4 w-4 border-gray-300 text-green-600 focus:ring-green-500"
+                  className="mt-0.5 h-4 w-4 accent-[color:var(--ds-primary)]"
                 />
                 <span className="min-w-0">
                   <span className="block text-sm font-medium text-gray-800">{opt.label}</span>
@@ -394,7 +406,7 @@ export default function NewSeriesForm({
                     type="checkbox"
                     checked={autoBillJobs}
                     onChange={(e) => setAutoBillJobs(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    className="mt-0.5 h-4 w-4 accent-[color:var(--ds-primary)]"
                   />
                   <span className="text-sm text-gray-700">
                     Bill each job automatically the moment it&apos;s completed
@@ -404,13 +416,6 @@ export default function NewSeriesForm({
                   </span>
                 </label>
               )}
-              <p className="col-span-2 text-xs text-gray-500">
-                {billing === "plan"
-                  ? "The first invoice goes out (and the card on file is charged) as soon as you start the plan. Billing then repeats on the day that first payment succeeds — sign up on the 14th, get paid every month on the 14th."
-                  : autoBillJobs
-                    ? "Each completed visit's invoice is emailed right away — and charged to the card on file automatically when payments are live."
-                    : "Bill the queue daily for per-visit invoices, or on the 1st for one itemized monthly invoice — your call, one click either way."}
-              </p>
             </div>
           )}
         </div>

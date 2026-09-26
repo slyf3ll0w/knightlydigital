@@ -101,15 +101,15 @@ export default function ActivateClient({
   const updateRequested = state === "UPDATE_REQUESTED";
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-5 py-10">
+    <div className="ds flex min-h-screen flex-col items-center justify-center bg-[color:var(--ds-canvas)] px-5 py-10">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/workbench-logo.png" alt="WorkBench" className="h-7 w-auto" />
 
-      <div className="mt-6 w-full max-w-lg rounded-3xl border border-gray-200 bg-white p-7 shadow-sm sm:p-10">
+      <div className="ds-card ds-card-raised mt-6 w-full max-w-lg p-7 sm:p-10">
         {status === "activate" && (
           <>
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
-              <ShieldCheck className="h-5 w-5 text-[#0B57D8]" strokeWidth={2} />
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[color:var(--ds-primary-soft)]">
+              <ShieldCheck className="h-5 w-5 text-[color:var(--ds-primary)]" strokeWidth={2} />
             </div>
             <h1 className="mt-4 text-2xl font-extrabold text-gray-900">
               Verify your business to activate your account
@@ -127,13 +127,13 @@ export default function ActivateClient({
                 "The bank account where your payouts should land",
               ].map((item) => (
                 <li key={item} className="flex gap-2.5">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#0B57D8]" strokeWidth={2} />
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--ds-primary)]" strokeWidth={2} />
                   {item}
                 </li>
               ))}
             </ul>
             {justSubmitted && (
-              <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+              <div className="mt-4 rounded-lg bg-[color:var(--ds-primary-soft)] px-4 py-3 text-sm text-[color:var(--ds-ink)]">
                 Just finished the form? It can take a moment to register —{" "}
                 <button onClick={() => router.refresh()} className="font-bold underline">
                   check again
@@ -145,7 +145,7 @@ export default function ActivateClient({
               <button
                 onClick={openForm}
                 disabled={busy !== null}
-                className="wb-btn-tool mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white disabled:opacity-50"
+                className="wb-btn-tool mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[color:var(--ds-primary)] px-6 py-3 text-[15px] font-bold text-[color:var(--ds-on-primary)] disabled:opacity-50"
               >
                 {busy === "form" ? (
                   <Loader2 size={15} className="animate-spin" />
@@ -181,7 +181,7 @@ export default function ActivateClient({
                     maxLength={40}
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
-                    className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3.5 py-2.5 font-mono text-[15px] tracking-wide focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#0B57D8]"
+                    className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3.5 py-2.5 font-mono text-[15px] tracking-wide focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                     placeholder="Invite code"
                     autoCapitalize="none"
                     autoCorrect="off"
@@ -195,7 +195,7 @@ export default function ActivateClient({
                     {busy === "code" ? <Loader2 size={15} className="animate-spin" /> : "Use code"}
                   </button>
                 </div>
-                {codeError && <p className="mt-2 text-[13px] text-red-600">{codeError}</p>}
+                {codeError && <p className="mt-2 text-[13px] text-[color:var(--ds-bad)]">{codeError}</p>}
               </form>
             )}
           </>
@@ -203,8 +203,8 @@ export default function ActivateClient({
 
         {status === "pending" && !updateRequested && (
           <>
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
-              <Clock className="h-5 w-5 text-[#0B57D8]" strokeWidth={2} />
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[color:var(--ds-primary-soft)]">
+              <Clock className="h-5 w-5 text-[color:var(--ds-primary)]" strokeWidth={2} />
             </div>
             <h1 className="mt-4 text-2xl font-extrabold text-gray-900">
               Verification submitted — you&apos;re in
@@ -217,7 +217,7 @@ export default function ActivateClient({
             </p>
             <Link
               href="/app/dashboard"
-              className="wb-btn-tool mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white"
+              className="wb-btn-tool mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[color:var(--ds-primary)] px-6 py-3 text-[15px] font-bold text-[color:var(--ds-on-primary)]"
             >
               Go to your dashboard <ArrowRight size={15} />
             </Link>
@@ -226,8 +226,8 @@ export default function ActivateClient({
 
         {status === "pending" && updateRequested && (
           <>
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50">
-              <AlertTriangle className="h-5 w-5 text-amber-600" strokeWidth={2} />
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[color:var(--ds-warn-soft)]">
+              <AlertTriangle className="h-5 w-5 text-[color:var(--ds-warn)]" strokeWidth={2} />
             </div>
             <h1 className="mt-4 text-2xl font-extrabold text-gray-900">
               More information needed
@@ -241,7 +241,7 @@ export default function ActivateClient({
               <button
                 onClick={openForm}
                 disabled={busy !== null}
-                className="wb-btn-tool mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white disabled:opacity-50"
+                className="wb-btn-tool mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[color:var(--ds-primary)] px-6 py-3 text-[15px] font-bold text-[color:var(--ds-on-primary)] disabled:opacity-50"
               >
                 {busy === "form" ? (
                   <Loader2 size={15} className="animate-spin" />
@@ -266,8 +266,8 @@ export default function ActivateClient({
 
         {status === "rejected" && (
           <>
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50">
-              <XCircle className="h-5 w-5 text-red-600" strokeWidth={2} />
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[color:var(--ds-bad-soft)]">
+              <XCircle className="h-5 w-5 text-[color:var(--ds-bad)]" strokeWidth={2} />
             </div>
             <h1 className="mt-4 text-2xl font-extrabold text-gray-900">
               We couldn&apos;t approve your business
@@ -280,7 +280,7 @@ export default function ActivateClient({
             </p>
             <a
               href="mailto:info@streamflaire.com?subject=Payment%20verification%20review"
-              className="wb-btn-tool mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white"
+              className="wb-btn-tool mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[color:var(--ds-primary)] px-6 py-3 text-[15px] font-bold text-[color:var(--ds-on-primary)]"
             >
               Contact us
             </a>

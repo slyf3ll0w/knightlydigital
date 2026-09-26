@@ -61,10 +61,10 @@ export default function BookingApprovalBanner({
   }
 
   return (
-    <div className="mb-6 rounded-lg border border-red-300 bg-red-50 p-4">
+    <div className="ds-card mb-6 bg-[color:var(--ds-warn-soft)] p-4">
       <div className="flex flex-wrap items-center gap-3">
-        <CalendarCheck size={18} className="text-red-600 shrink-0" />
-        <p className="flex-1 min-w-[220px] text-sm text-red-900">
+        <CalendarCheck size={18} className="text-[color:var(--ds-warn)] shrink-0" />
+        <p className="flex-1 min-w-[220px] text-sm text-[color:var(--ds-ink)]">
           <span className="font-semibold">{clientName} booked online</span>
           {windowLabel ? (
             <>
@@ -88,14 +88,14 @@ export default function BookingApprovalBanner({
           <button
             onClick={() => act("decline")}
             disabled={busy !== null}
-            className="px-4 py-2 rounded-lg text-sm font-semibold text-red-700 border border-red-300 hover:bg-red-100 transition-colors disabled:opacity-50"
+            className="px-4 py-2 rounded-[12px] text-sm font-semibold text-[color:var(--ds-bad)] border border-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)] transition-colors disabled:opacity-50"
           >
             {busy === "decline" && <Loader2 size={13} className="animate-spin inline mr-1" />}
             Decline
           </button>
         </div>
       </div>
-      {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
+      {error && <p className="mt-2 text-sm text-[color:var(--ds-bad)]">{error}</p>}
     </div>
   );
 }

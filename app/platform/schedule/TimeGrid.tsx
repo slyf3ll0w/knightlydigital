@@ -97,7 +97,7 @@ export default function TimeGrid({
   })();
 
   return (
-    <div className="card-ledger overflow-hidden">
+    <div className="ds-card overflow-hidden">
       <div className={wide ? "overflow-x-auto" : ""}>
         <div style={wide ? { minWidth: 56 + columns.length * (columns.length > 7 ? 150 : 110) } : undefined}>
           {/* Column headers */}
@@ -112,7 +112,7 @@ export default function TimeGrid({
                   col.onHeaderClick ? "hover:bg-gray-50" : "cursor-default"
                 }`}
               >
-                <div className={`truncate text-sm font-semibold ${col.isToday ? "text-green-600" : "text-gray-900"}`}>
+                <div className={`truncate text-sm font-semibold ${col.isToday ? "text-[color:var(--ds-primary)]" : "text-gray-900"}`}>
                   {col.label}
                 </div>
                 {col.sub && <div className="truncate text-[11px] text-gray-400">{col.sub}</div>}
@@ -138,7 +138,7 @@ export default function TimeGrid({
                   data-date={toParam(col.date)}
                   {...(col.userId !== undefined ? { "data-user": col.userId ?? "" } : {})}
                   className={`min-h-[34px] space-y-0.5 border-l border-gray-100 p-1 transition-colors ${
-                    hot ? "bg-green-100/70 ring-2 ring-inset ring-green-400" : ""
+                    hot ? "bg-[color:var(--ds-primary-soft)] ring-2 ring-inset ring-[color:var(--ds-primary)]" : ""
                   }`}
                 >
                   {anytime.map((it) => (
@@ -159,7 +159,7 @@ export default function TimeGrid({
                     </div>
                   ))}
                   {hot && anytime.length === 0 && (
-                    <div className="truncate rounded-lg border-l-2 border-green-500 bg-green-200/60 px-1.5 py-0.5 text-xs font-medium text-green-900">
+                    <div className="truncate rounded-lg border-l-2 border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)] px-1.5 py-0.5 text-xs font-medium text-[color:var(--ds-ink)]">
                       {previewLabel} · Anytime
                     </div>
                   )}
@@ -264,10 +264,10 @@ export default function TimeGrid({
                     {/* Current-time line (client-only to avoid hydration drift) */}
                     {mounted && col.isToday && (
                       <div
-                        className="pointer-events-none absolute left-0 right-0 z-10 border-t-2 border-red-400"
+                        className="pointer-events-none absolute left-0 right-0 z-10 border-t-2 border-[color:var(--ds-secondary)]"
                         style={{ top: (nowMin / 60) * HOUR_PX }}
                       >
-                        <span className="absolute -left-1 -top-[5px] h-2 w-2 rounded-full bg-red-400" />
+                        <span className="absolute -left-1 -top-[5px] h-2 w-2 rounded-full bg-[color:var(--ds-secondary)]" />
                       </div>
                     )}
 
@@ -291,14 +291,14 @@ export default function TimeGrid({
                             aria-hidden
                             title={label}
                             className={`pointer-events-none absolute left-1 right-1 z-[5] flex items-center justify-center overflow-hidden ${
-                              tight ? "text-red-600" : "text-gray-400"
+                              tight ? "text-[color:var(--ds-bad)]" : "text-gray-400"
                             }`}
                             style={{ top: (top / 60) * HOUR_PX, height: Math.max(px, 12) }}
                           >
                             {px >= 12 && (
                               <span
                                 className={`flex items-center gap-1 rounded-full px-1.5 text-[10px] font-medium leading-4 ${
-                                  tight ? "bg-red-50" : "bg-white/90"
+                                  tight ? "bg-[color:var(--ds-bad-soft)]" : "bg-[color-mix(in_srgb,var(--ds-surface)_90%,transparent)]"
                                 }`}
                               >
                                 <Car size={10} />
@@ -326,7 +326,7 @@ export default function TimeGrid({
                           onClick={() => onOpen(j)}
                           className={`absolute cursor-grab select-none overflow-hidden rounded-lg border-l-2 px-1.5 py-0.5 text-xs font-medium shadow-sm active:cursor-grabbing ${itemTone(j)} ${
                             movingId === j.id && !resizing ? "opacity-40" : ""
-                          } ${resizing?.source.type === "item" && resizing.source.item.id === j.id ? "ring-2 ring-green-400" : ""}`}
+                          } ${resizing?.source.type === "item" && resizing.source.item.id === j.id ? "ring-2 ring-[color:var(--ds-primary)]" : ""}`}
                           style={{
                             top: (startMin / 60) * HOUR_PX + 1,
                             height: Math.max(22, ((liveEnd - startMin) / 60) * HOUR_PX - 2),
@@ -337,8 +337,8 @@ export default function TimeGrid({
                         >
                           <span className="block truncate font-semibold">
                             <TypeGlyph apptType={j.apptType} recurring={j.recurring} />{" "}
-                            {j.conflictNote && <AlertTriangleIcon size={11} className="inline shrink-0 text-amber-600" />}{" "}
-                            {j.needsCrew && <UserXIcon size={11} className="inline shrink-0 text-amber-600" aria-label="Nobody assigned" />}{" "}
+                            {j.conflictNote && <AlertTriangleIcon size={11} className="inline shrink-0 text-[color:var(--ds-warn)]" />}{" "}
+                            {j.needsCrew && <UserXIcon size={11} className="inline shrink-0 text-[color:var(--ds-warn)]" aria-label="Nobody assigned" />}{" "}
                             {j.kind === "block" ? j.title || "Blocked off" : j.contactName}
                           </span>
                           <span className="block truncate">
@@ -358,7 +358,7 @@ export default function TimeGrid({
                                     e.stopPropagation();
                                     onAccept(j);
                                   }}
-                                  className="rounded-full bg-blue-600 px-1.5 py-px text-[10px] font-bold normal-case tracking-normal text-white hover:bg-blue-700"
+                                  className="rounded-full bg-[color:var(--ds-secondary)] px-1.5 py-px text-[10px] font-bold normal-case tracking-normal text-[color:var(--ds-on-secondary)] hover:bg-[color:var(--ds-secondary-strong)]"
                                 >
                                   Accept
                                 </button>
@@ -382,7 +382,7 @@ export default function TimeGrid({
                     {hotSlot && st && (
                       <div
                         aria-hidden
-                        className="pointer-events-none absolute left-[2px] right-[2px] z-20 overflow-visible rounded-lg border-2 border-green-500 bg-green-200/60 px-1.5 py-0.5 text-xs font-medium text-green-900 shadow-lg"
+                        className="pointer-events-none absolute left-[2px] right-[2px] z-20 overflow-visible rounded-lg border-2 border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)] px-1.5 py-0.5 text-xs font-medium text-[color:var(--ds-ink)] shadow-lg"
                         style={{
                           top: (hotSlot.minute / 60) * HOUR_PX + 1,
                           height: Math.max(22, (st.durationMin / 60) * HOUR_PX - 2),
@@ -401,7 +401,7 @@ export default function TimeGrid({
                     {sel && (
                       <div
                         aria-hidden
-                        className="pointer-events-none absolute left-[2px] right-[2px] z-20 rounded-lg border-2 border-dashed border-green-500 bg-green-100/70 px-1.5 py-0.5 text-xs font-semibold text-green-900"
+                        className="pointer-events-none absolute left-[2px] right-[2px] z-20 rounded-lg border-2 border-dashed border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)] px-1.5 py-0.5 text-xs font-semibold text-[color:var(--ds-ink)]"
                         style={{
                           top: (sel.startMin / 60) * HOUR_PX + 1,
                           height: Math.max(22, ((sel.endMin - sel.startMin) / 60) * HOUR_PX - 2),

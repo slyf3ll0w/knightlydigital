@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
+import { InfoTip } from "@/components/ds";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet } from "@/components/ConfirmSheet";
 
@@ -205,11 +206,12 @@ export default function PipelineSettingsClient({
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-1">
         <BackLink href="/app/settings" />
-        <PageTitle>Lead Pipeline</PageTitle>
+        <PageTitle info="The stages your Leads board runs through, and where outside lead sources plug in.">
+          Lead Pipeline
+        </PageTitle>
       </div>
-      <p className="text-sm text-gray-500 mb-6 lg:ml-8">
-        The stages your Leads board runs through, and where outside lead sources plug in.{" "}
-        <Link href="/app/leads" className="text-green-700 hover:underline">
+      <p className="text-sm mb-6 lg:ml-8">
+        <Link href="/app/leads" className="ds-link hover:underline">
           Open the board
         </Link>
       </p>
@@ -221,25 +223,27 @@ export default function PipelineSettingsClient({
       )}
 
       {/* Stages */}
-      <div className="card-ledger p-5 mb-6">
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="text-base font-semibold text-gray-900">Board stages</h2>
+      <div className="ds-card p-5 mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="ds-h2 flex items-center gap-1.5">
+            Board stages
+            <InfoTip>
+              Rename, recolor, and reorder to match how you actually sell. An automation moves a
+              lead&apos;s card to that stage when the event happens — forward only, never backward.
+              Calls and texts count when they go through your business line: a connected call or a
+              text from Messages means you reached them; an outbound call nobody picks up can feed a
+              stage of its own. Put a &ldquo;No answer&rdquo; stage <em>before</em> Contacted so a
+              lead who finally answers still moves forward.
+            </InfoTip>
+          </h2>
           <button
             onClick={() => setAdding((v) => !v)}
-            className="flex items-center gap-1 text-sm font-medium text-green-600 hover:text-green-700"
+            className="flex items-center gap-1 text-sm font-medium text-[color:var(--ds-primary)] hover:text-[color:var(--ds-primary-strong)]"
           >
             <Plus size={14} />
             Add stage
           </button>
         </div>
-        <p className="text-xs text-gray-500 mb-4">
-          Rename, recolor, and reorder to match how you actually sell. An automation moves a
-          lead&apos;s card to that stage when the event happens — forward only, never backward.
-          Calls and texts count when they go through your business line: a connected call or a
-          text from Messages means you reached them; an outbound call nobody picks up can feed a
-          stage of its own. Put a &ldquo;No answer&rdquo; stage <em>before</em> Contacted so a
-          lead who finally answers still moves forward.
-        </p>
 
         {adding && (
           <form onSubmit={addStage} className="flex gap-2 mb-3">
@@ -249,7 +253,7 @@ export default function PipelineSettingsClient({
               placeholder="Stage name, e.g. Follow up"
               maxLength={40}
               autoFocus
-              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/30"
+              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
             />
             <button
               type="submit"
@@ -327,7 +331,7 @@ export default function PipelineSettingsClient({
               <button
                 onClick={() => removeStage(stage)}
                 disabled={stages.length <= 1 || saving}
-                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded disabled:opacity-25"
+                className="p-1.5 text-gray-400 hover:text-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)] rounded disabled:opacity-25"
                 aria-label={`Delete ${stage.name}`}
               >
                 <Trash2 size={14} />
@@ -338,7 +342,7 @@ export default function PipelineSettingsClient({
 
         {/* Converted — the built-in terminal section */}
         {convertedLocal && (
-          <div className="mt-3 rounded-lg border border-green-200 bg-green-50/50 px-3 py-2.5">
+          <div className="mt-3 rounded-lg bg-[color:var(--ds-good-soft)] px-3 py-2.5">
             <div className="flex flex-wrap items-center gap-2">
               <input
                 type="color"
@@ -358,7 +362,7 @@ export default function PipelineSettingsClient({
                   if (v && v !== convertedLocal.name) patchStage(convertedLocal.id, { name: v });
                   else e.target.value = convertedLocal.name;
                 }}
-                className="flex-1 min-w-[120px] px-2.5 py-1.5 text-sm font-medium border border-green-200 lg:border-transparent lg:hover:border-gray-200 focus:border-gray-300 rounded-lg focus:outline-none bg-transparent"
+                className="flex-1 min-w-[120px] px-2.5 py-1.5 text-sm font-medium border border-[color:var(--ds-line-strong)] lg:border-transparent lg:hover:border-gray-200 focus:border-gray-300 rounded-lg focus:outline-none bg-transparent"
               />
               <span className="text-[11px] text-gray-500">
                 Always last — approved quotes and first jobs land leads here as clients
@@ -373,7 +377,7 @@ export default function PipelineSettingsClient({
                   setHidden(v);
                   await run(() => postJson("/api/app/settings", { hideConvertedLeads: v }, "PATCH"));
                 }}
-                className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                className="rounded border-gray-300 text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
               />
               Hide the Converted section on the board (leads still convert — you just won&apos;t
               see the pile)
@@ -388,17 +392,19 @@ export default function PipelineSettingsClient({
       </div>
 
       {/* Lead intake webhook */}
-      <div className="card-ledger p-5">
-        <div className="flex items-center gap-2 mb-1">
-          <Webhook size={16} className="text-gray-500" />
-          <h2 className="text-base font-semibold text-gray-900">Lead intake webhook</h2>
+      <div className="ds-card p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Webhook size={16} className="text-[color:var(--ds-faint)]" />
+          <h2 className="ds-h2 flex items-center gap-1.5">
+            Lead intake webhook
+            <InfoTip>
+              Pipe leads in from anywhere — connect Meta Lead Ads, Google Ads lead forms, Angi, or
+              any form tool through Zapier or Make: point the connector&apos;s webhook action at this
+              URL and every ad lead lands on your board, deduped against existing clients, with your
+              team notified.
+            </InfoTip>
+          </h2>
         </div>
-        <p className="text-xs text-gray-500 mb-4">
-          Pipe leads in from anywhere — connect Meta Lead Ads, Google Ads lead forms, Angi, or
-          any form tool through Zapier or Make: point the connector&apos;s webhook action at this
-          URL and every ad lead lands on your board, deduped against existing clients, with your
-          team notified.
-        </p>
 
         {hook ? (
           <>
@@ -410,7 +416,7 @@ export default function PipelineSettingsClient({
                 onClick={copyHook}
                 className="flex items-center gap-1 px-3 py-2 text-xs font-semibold text-gray-700 border border-gray-200 hover:bg-gray-50 rounded-lg"
               >
-                {copied ? <Check size={13} className="text-green-600" /> : <Copy size={13} />}
+                {copied ? <Check size={13} className="text-[color:var(--ds-good)]" /> : <Copy size={13} />}
                 {copied ? "Copied" : "Copy"}
               </button>
             </div>
@@ -457,7 +463,7 @@ export default function PipelineSettingsClient({
                     setWebhook(false);
                 }}
                 disabled={saving}
-                className="px-3 py-2 text-xs font-semibold text-red-600 border border-red-200 hover:bg-red-50 rounded-lg"
+                className="px-3 py-2 text-xs font-semibold text-[color:var(--ds-bad)] border border-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)] rounded-lg"
               >
                 Turn off
               </button>

@@ -12,9 +12,9 @@ import { addMinutesToLocalDateTime, DEFAULT_JOB_DURATION_MINUTES } from "@/lib/s
 import { ARRIVAL_WINDOW_CHOICES, arrivalWindowChoiceLabel } from "@/lib/arrival-window";
 
 const SLOT_INPUT_CLS =
-  "min-w-0 flex-[1.15] px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
+  "min-w-0 flex-[1.15] px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]";
 const SLOT_TIME_CLS =
-  "min-w-0 flex-1 px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
+  "min-w-0 flex-1 px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]";
 
 function toLocalInput(d: string | null): string {
   if (!d) return "";
@@ -136,7 +136,7 @@ export default function ScheduleJob({
       <button
         onClick={openPanel}
         className={`flex items-center gap-1.5 text-sm font-medium hover:underline ${
-          scheduledAt ? "text-green-700" : "text-amber-600"
+          scheduledAt ? "text-[color:var(--ds-primary)]" : "text-[color:var(--ds-warn)]"
         }`}
       >
         <CalendarDays size={13} />
@@ -168,7 +168,7 @@ export default function ScheduleJob({
             type="date"
             value={day}
             onChange={(e) => setDay(e.target.value)}
-            className="w-full sm:w-48 px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="w-full sm:w-48 px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
           />
         </div>
       ) : (
@@ -231,7 +231,7 @@ export default function ScheduleJob({
           <select
             value={window_}
             onChange={(e) => setWindow(e.target.value)}
-            className="w-full sm:w-64 px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="w-full sm:w-64 px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
           >
             <option value="">
               Company default{companyWindowMinutes != null ? ` (${arrivalWindowChoiceLabel(companyWindowMinutes)})` : ""}
@@ -253,7 +253,7 @@ export default function ScheduleJob({
               setAnytime(e.target.checked);
               if (e.target.checked && !day && start) setDay(start.slice(0, 10));
             }}
-            className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+            className="h-3.5 w-3.5 rounded border-gray-300 accent-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
           />
           Anytime (no set time)
         </label>
@@ -275,7 +275,7 @@ export default function ScheduleJob({
           </button>
         </div>
       </div>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-[color:var(--ds-bad)]">{error}</p>}
     </div>
   );
 }

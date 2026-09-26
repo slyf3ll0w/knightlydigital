@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, CreditCard } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -95,18 +95,13 @@ export default function CollectPaymentForm({
       <div className="flex items-center gap-3 mb-6">
         {/* Opened from an invoice → back to that invoice; otherwise up to Payments */}
         <BackLink href={preselectedInvoiceId ? `/app/invoices/${preselectedInvoiceId}` : "/app/payments"} />
-        <PageTitle sub={selected ? `${selected.contactName} — balance ${money(selected.balance)}` : undefined}>
+        {/* Card processing teaser lives in the (i): ready for the processor, disabled until live */}
+        <PageTitle
+          sub={selected ? `${selected.contactName} — balance ${money(selected.balance)}` : undefined}
+          info="Instant card and bank payments are coming soon — clients will be able to pay online with one click. Until then, record payments you've collected here."
+        >
           Collect Payment
         </PageTitle>
-      </div>
-
-      {/* Card processing teaser: ready for the processor, disabled until live */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg mb-6 text-sm text-gray-600">
-        <CreditCard size={16} className="text-gray-400 shrink-0" />
-        <p>
-          Instant card and bank payments are coming soon — clients will be able to pay online with
-          one click. Until then, record payments you&apos;ve collected here.
-        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -117,7 +112,7 @@ export default function CollectPaymentForm({
         )}
 
         {/* Payment details */}
-        <div className="card-ledger p-5 space-y-4">
+        <div className="ds-card p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700">
             Payment details
           </h2>
@@ -135,7 +130,7 @@ export default function CollectPaymentForm({
                   min="0.01"
                   step="0.01"
                   required
-                  className="w-full pl-7 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full pl-7 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                 />
               </div>
             </div>
@@ -146,7 +141,7 @@ export default function CollectPaymentForm({
               <select
                 value={method}
                 onChange={(e) => setMethod(e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               >
                 {methods.map((m) => (
                   <option key={m.value} value={m.value}>
@@ -163,7 +158,7 @@ export default function CollectPaymentForm({
                 type="date"
                 value={paidAt}
                 onChange={(e) => setPaidAt(e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               />
             </div>
             <div>
@@ -173,7 +168,7 @@ export default function CollectPaymentForm({
                 value={referenceNumber}
                 onChange={(e) => setReferenceNumber(e.target.value)}
                 placeholder="Check #, confirmation #..."
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               />
             </div>
           </div>
@@ -184,7 +179,7 @@ export default function CollectPaymentForm({
               value={details}
               onChange={(e) => setDetails(e.target.value)}
               placeholder="Optional note about this payment"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
             />
           </div>
           <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
@@ -192,14 +187,14 @@ export default function CollectPaymentForm({
               type="checkbox"
               checked={emailReceipt}
               onChange={(e) => setEmailReceipt(e.target.checked)}
-              className="accent-green-600"
+              className="accent-[color:var(--ds-primary)]"
             />
             Email the client a receipt
           </label>
         </div>
 
         {/* Outstanding invoices */}
-        <div className="card-ledger overflow-hidden">
+        <div className="ds-card overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100">
             <h2 className="text-sm font-semibold text-gray-700">
               Outstanding invoices
@@ -210,7 +205,7 @@ export default function CollectPaymentForm({
           </div>
           {invoices.length === 0 ? (
             <div className="px-5 py-10 text-center text-sm text-gray-500">
-              No outstanding invoices. <Link href="/app/invoices/new" className="text-green-600 hover:underline">Create an invoice</Link> first.
+              No outstanding invoices. <Link href="/app/invoices/new" className="ds-link">Create an invoice</Link> first.
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
@@ -233,7 +228,7 @@ export default function CollectPaymentForm({
                   <label
                     key={inv.id}
                     className={`flex lg:grid lg:grid-cols-[28px_1fr_120px_90px_90px] gap-3 items-center px-4 lg:px-5 py-3 cursor-pointer transition-colors ${
-                      invoiceId === inv.id ? "bg-green-50" : "hover:bg-gray-50"
+                      invoiceId === inv.id ? "bg-[color:var(--ds-primary-soft)]" : "hover:bg-[color:var(--ds-surface-2)]"
                     }`}
                   >
                     <input
@@ -241,7 +236,7 @@ export default function CollectPaymentForm({
                       name="invoice"
                       checked={invoiceId === inv.id}
                       onChange={() => selectInvoice(inv.id)}
-                      className="shrink-0 text-green-600 focus:ring-green-500"
+                      className="shrink-0 accent-[color:var(--ds-primary)]"
                     />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-gray-900">
@@ -277,7 +272,7 @@ export default function CollectPaymentForm({
           </button>
           <Link
             href="/app/invoices"
-            className="px-5 py-2.5 btn-tool-line bg-white text-sm font-medium text-gray-600 rounded-[10px] hover:bg-gray-50 transition-colors"
+            className="ds-btn ds-btn-outline ds-btn-lg"
           >
             Cancel
           </Link>

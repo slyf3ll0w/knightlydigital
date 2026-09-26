@@ -98,7 +98,7 @@ export default function EmailClientButton({
                 onChange={(e) => setSubject(e.target.value)}
                 maxLength={150}
                 placeholder="Quick update on your project"
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               />
             </div>
             <div>
@@ -109,7 +109,7 @@ export default function EmailClientButton({
                 rows={7}
                 maxLength={10000}
                 placeholder={`Hi ${contactName.split(" ")[0]},\n\n…`}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-y"
               />
               <p className="text-xs text-gray-500 mt-1">
                 Sent as a plain email — you&apos;ll get a notification when they open it.
@@ -123,7 +123,7 @@ export default function EmailClientButton({
                 onChange={(e) => setSignature(e.target.value)}
                 rows={3}
                 maxLength={1000}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-y"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-y"
               />
               <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
                 {hasLogo ? (
@@ -132,7 +132,7 @@ export default function EmailClientButton({
                       type="checkbox"
                       checked={includeLogo}
                       onChange={(e) => setIncludeLogo(e.target.checked)}
-                      className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                      className="h-3.5 w-3.5 rounded border-gray-300 text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
                     />
                     Include company logo under the signature
                   </label>

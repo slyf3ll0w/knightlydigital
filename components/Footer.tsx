@@ -180,7 +180,7 @@ export function Footer() {
           </p>
           <p
             className="text-xs font-bold uppercase tracking-widest mb-6"
-            style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
           >
             Colossians 3:23–24
           </p>
@@ -196,7 +196,7 @@ export function Footer() {
           </p>
           <p
             className="text-xs font-bold uppercase tracking-widest"
-            style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
           >
             Romans 1:16
           </p>

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { inputCls } from "@/components/Input";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Archive, ChevronRight, FileSignature, Loader2, Plus, RotateCcw, X } from "lucide-react";
-import { SECTION_HUES, hueInk } from "@/lib/section-colors";
+import EmptyState from "@/components/EmptyState";
+import SectionHeader from "@/components/SectionHeader";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import Modal from "@/components/Modal";
@@ -127,7 +128,7 @@ export default function TemplatesPanel({ templates }: { templates: Template[] })
   const errorBox = (
     <div role="alert" className="form-error flex items-center justify-between">
       {error}
-      <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
+      <button onClick={() => setError("")} className="p-0.5 text-[color:var(--ds-bad)] opacity-70 hover:opacity-100">
         <X size={14} />
       </button>
     </div>
@@ -135,41 +136,38 @@ export default function TemplatesPanel({ templates }: { templates: Template[] })
 
   return (
     <div>
-      <p className="mb-4 text-sm text-gray-500">
-        Write an agreement once, send it to any client for an e-signature.{" "}
-        <code className="rounded-md bg-gray-100 px-1 text-xs">{"{{client_name}}"}</code>,{" "}
-        <code className="rounded-md bg-gray-100 px-1 text-xs">{"{{company_name}}"}</code> and{" "}
-        <code className="rounded-md bg-gray-100 px-1 text-xs">{"{{date}}"}</code> fill in
-        automatically.
-      </p>
+      <SectionHeader
+        size="block"
+        className="mb-3"
+        title="Templates"
+        hint={
+          <>
+            Write an agreement once, send it to any client for an e-signature.{" "}
+            <code className="rounded-md bg-[color:var(--ds-surface-2)] px-1 text-xs">{"{{client_name}}"}</code>,{" "}
+            <code className="rounded-md bg-[color:var(--ds-surface-2)] px-1 text-xs">{"{{company_name}}"}</code> and{" "}
+            <code className="rounded-md bg-[color:var(--ds-surface-2)] px-1 text-xs">{"{{date}}"}</code> fill in
+            automatically.
+          </>
+        }
+      />
 
       {/* Archive / restore failures land here; save failures show in the dialog */}
       {error && editing === null && <div className="mb-4">{errorBox}</div>}
 
       {/* Templates — whole-row tap targets with a chevron, the list idiom the
           rest of the app uses */}
-      <div className="card-ledger mb-6 divide-y divide-gray-100">
+      <div className="ds-card mb-6 divide-y divide-[color:var(--ds-line)]">
         {active.length === 0 ? (
-          <div className="flex flex-col items-center px-6 py-10 text-center">
-            <span
-              className="chip-tool flex h-11 w-11 items-center justify-center rounded-[12px]"
-              style={{
-                backgroundColor: SECTION_HUES.contracts,
-                color: hueInk(SECTION_HUES.contracts),
-              }}
-              aria-hidden
-            >
-              <FileSignature size={20} strokeWidth={2.25} />
-            </span>
-            <p className="mt-3.5 text-sm font-semibold text-gray-900">No templates yet</p>
-            <p className="mt-1 max-w-xs text-sm text-gray-500">
-              Write your first service agreement once and reuse it on every client.
-            </p>
+          <EmptyState
+            icon={FileSignature}
+            title="No templates yet"
+            body="Write your first service agreement once and reuse it on every client."
+          >
             <button onClick={startNew} className="btn-primary mt-5 inline-flex">
               <Plus size={15} />
               New Template
             </button>
-          </div>
+          </EmptyState>
         ) : (
           active.map((t) => (
             <button
@@ -192,14 +190,14 @@ export default function TemplatesPanel({ templates }: { templates: Template[] })
       {archived.length > 0 && (
         <div>
           <h2 className="mb-2 px-1 text-[13px] font-semibold text-gray-500">Archived</h2>
-          <div className="card-ledger divide-y divide-gray-100">
+          <div className="ds-card divide-y divide-[color:var(--ds-line)]">
             {archived.map((t) => (
               <div key={t.id} className="flex items-center gap-3 px-4 py-3">
                 <p className="min-w-0 flex-1 truncate text-sm text-gray-600">{t.name}</p>
                 <button
                   onClick={() => setActive(t.id, true)}
                   disabled={busy}
-                  className="flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-50 disabled:opacity-50"
+                  className="flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold text-[color:var(--ds-primary)] hover:bg-[color:var(--ds-primary-soft)] disabled:opacity-50"
                 >
                   <RotateCcw size={12} />
                   Restore
@@ -272,7 +270,7 @@ export default function TemplatesPanel({ templates }: { templates: Template[] })
                 <button
                   onClick={archiveCurrent}
                   disabled={busy}
-                  className="flex h-11 items-center justify-center gap-1.5 rounded-[10px] px-4 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 lg:ml-auto lg:h-10"
+                  className="flex h-11 items-center justify-center gap-1.5 rounded-[10px] px-4 text-sm font-medium text-[color:var(--ds-bad)] transition-colors hover:bg-[color:var(--ds-bad-soft)] disabled:opacity-50 lg:ml-auto lg:h-10"
                 >
                   <Archive size={14} />
                   Archive

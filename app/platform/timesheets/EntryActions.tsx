@@ -134,12 +134,12 @@ export default function EntryActions({
               className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
             />
           </label>
-          {error && <p className="text-xs text-red-600">{error}</p>}
+          {error && <p className="text-xs text-[color:var(--ds-bad)]">{error}</p>}
           <div className="flex items-center justify-between pt-1">
             <button
               onClick={remove}
               disabled={busy}
-              className="flex items-center gap-1 text-xs font-medium text-red-600 hover:underline disabled:opacity-50"
+              className="flex items-center gap-1 text-xs font-medium text-[color:var(--ds-bad)] hover:underline disabled:opacity-50"
             >
               <Trash2 size={12} />
               Delete

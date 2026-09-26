@@ -19,8 +19,8 @@ export const metadata: Metadata = {
  * code and it's a four-field signup straight to the dashboard; leave it empty
  * and it's the full application, ending at payment verification.
  */
-export default async function AppGetStartedPage() {
-  const ua = (await headers()).get("user-agent");
+export default async function AppGetStartedPage() {
+  const ua = (await headers()).get("user-agent");
   return (
     <div className="app-ui min-h-screen bg-white">
       <div className="mx-auto w-full max-w-lg px-6 py-10 sm:py-14">
@@ -32,7 +32,7 @@ export default async function AppGetStartedPage() {
         />
         <p className="mt-8 text-center text-sm text-gray-500">
           Already have an account?{" "}
-          <Link href="/app/login" className="font-semibold text-[#0B57D8] hover:underline">
+          <Link href="/app/login" className="font-semibold text-[color:var(--ds-primary)] hover:underline">
             Log in
           </Link>
         </p>

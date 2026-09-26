@@ -158,12 +158,12 @@ export default function TeamThread({
   }
 
   return (
-    <div className="card-ledger p-4 sm:p-5">
+    <div className="ds-card p-4 sm:p-5">
       {webChat && (
         <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-gray-500">
           <span className="inline-flex items-center gap-1.5">
             <span
-              className={`h-2 w-2 rounded-full ${visitorOnline ? "bg-green-500" : "bg-gray-300"}`}
+              className={`h-2 w-2 rounded-full ${visitorOnline ? "bg-[color:var(--ds-good)]" : "bg-gray-300"}`}
               aria-hidden
             />
             {visitorOnline === null
@@ -196,7 +196,7 @@ export default function TeamThread({
                 <div className={`max-w-[85%] sm:max-w-[min(75%,30rem)] ${mine ? "text-right" : ""}`}>
                   <div
                     className={`inline-block rounded-2xl px-3.5 py-2 text-left ${
-                      mine ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-900"
+                      mine ? "bg-[color:var(--ds-primary)] text-[color:var(--ds-on-primary)]" : "bg-[color:var(--ds-surface-2)] text-[color:var(--ds-ink)]"
                     }`}
                   >
                     <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
@@ -243,12 +243,12 @@ export default function TeamThread({
           type="submit"
           disabled={sending || !draft.trim()}
           aria-label="Send message"
-          className="shrink-0 rounded-[10px] p-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white transition-colors disabled:opacity-40"
+          className="shrink-0 rounded-[10px] p-2.5 bg-[color:var(--ds-primary)] hover:bg-[color:var(--ds-primary-strong)] active:bg-[color:var(--ds-primary-strong)] text-[color:var(--ds-on-primary)] transition-colors disabled:opacity-40"
         >
           {sending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
         </button>
       </form>
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-sm text-[color:var(--ds-bad)]">{error}</p>}
     </div>
   );
 }

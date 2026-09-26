@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, ChevronDown, ChevronUp, Code2, Copy, ExternalLink, Loader2, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
 import BackLink from "@/components/BackLink";
 import Avatar from "@/components/Avatar";
 import { confirmSheet } from "@/components/ConfirmSheet";
@@ -50,18 +51,15 @@ type PriceRow = {
   depositValue: number | null;
 };
 
-const inputClass = "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
+const inputClass = "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]";
 const smallLabel = "mb-1 block text-xs font-medium text-gray-500";
 const fieldTypeLabels: Record<CustomFieldType, string> = { text: "Short text", textarea: "Paragraph", select: "Dropdown", radio: "Multiple choice" };
 const hoursLabel = (h: number) => (h === 0 ? "No minimum" : h < 24 ? `${h} hour${h === 1 ? "" : "s"}` : `${h / 24} day${h === 24 ? "" : "s"}`);
 
 function Card({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
-    <section className="card-ledger space-y-3 p-4 lg:p-5">
-      <div>
-        <h2 className="text-[15px] font-semibold text-gray-900">{title}</h2>
-        {hint && <p className="mt-0.5 text-xs text-gray-500">{hint}</p>}
-      </div>
+    <section className="ds-card space-y-3 p-4 lg:p-5">
+      <SectionHeader title={title} hint={hint} />
       {children}
     </section>
   );
@@ -74,7 +72,7 @@ function Toggle({ checked, onChange, label, hint, disabled }: { checked: boolean
         <span className="block text-sm text-gray-800">{label}</span>
         {hint && <span className="block text-xs text-gray-500">{hint}</span>}
       </span>
-      <button type="button" role="switch" aria-checked={checked} disabled={disabled} onClick={() => onChange(!checked)} className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${checked ? "bg-green-500" : "bg-gray-300"}`}>
+      <button type="button" role="switch" aria-checked={checked} disabled={disabled} onClick={() => onChange(!checked)} className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${checked ? "bg-[color:var(--ds-primary)]" : "bg-gray-300"}`}>
         <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-[22px]" : "translate-x-0.5"}`} />
       </button>
     </label>
@@ -84,7 +82,7 @@ function Toggle({ checked, onChange, label, hint, disabled }: { checked: boolean
 function Radio({ name, checked, onChange, label, hint, disabled }: { name: string; checked: boolean; onChange: () => void; label: string; hint?: string; disabled?: boolean }) {
   return (
     <label className={`flex items-start gap-2.5 ${disabled ? "opacity-50" : "cursor-pointer"}`}>
-      <input type="radio" name={name} checked={checked} onChange={onChange} disabled={disabled} className="mt-0.5 accent-green-600" />
+      <input type="radio" name={name} checked={checked} onChange={onChange} disabled={disabled} className="mt-0.5 accent-[color:var(--ds-primary)]" />
       <span className="text-sm text-gray-800">
         {label}
         {hint && <span className="block text-xs text-gray-500">{hint}</span>}
@@ -104,12 +102,12 @@ function OptionRows({ options, onChange, withDescriptions }: { options: FieldOpt
             <input type="text" value={o.label} onChange={(e) => set(i, { label: e.target.value })} placeholder={`Choice ${i + 1}`} className={inputClass} />
             {withDescriptions && <input type="text" value={o.description ?? ""} onChange={(e) => set(i, { description: e.target.value || undefined })} placeholder="Description (optional)" className={inputClass} />}
           </div>
-          <button type="button" onClick={() => onChange(options.filter((_, j) => j !== i))} className="mt-2 text-gray-300 transition-colors hover:text-red-500" aria-label="Remove choice">
+          <button type="button" onClick={() => onChange(options.filter((_, j) => j !== i))} className="mt-2 text-gray-300 transition-colors hover:text-[color:var(--ds-bad)]" aria-label="Remove choice">
             <Trash2 size={14} />
           </button>
         </div>
       ))}
-      <button type="button" onClick={() => onChange([...options, { label: "" }])} className="flex items-center gap-1 text-xs font-medium text-green-600 hover:underline">
+      <button type="button" onClick={() => onChange([...options, { label: "" }])} className="flex items-center gap-1 text-xs font-medium text-[color:var(--ds-primary)] hover:underline">
         <Plus size={12} />
         Add choice
       </button>
@@ -305,11 +303,11 @@ export default function ItemEditor({
         <span className="w-24 text-[13px] font-semibold text-gray-500">{title}</span>
         <input type="text" value={v.label} onChange={(e) => setField(key, { label: e.target.value })} className={`${inputClass} min-w-[140px] flex-1`} />
         <label className={`flex items-center gap-1.5 text-xs ${lock?.show !== undefined ? "text-gray-300" : "cursor-pointer text-gray-600"}`}>
-          <input type="checkbox" checked={show} disabled={lock?.show !== undefined} onChange={(e) => setField(key, { show: e.target.checked })} className="accent-green-600" />
+          <input type="checkbox" checked={show} disabled={lock?.show !== undefined} onChange={(e) => setField(key, { show: e.target.checked })} className="accent-[color:var(--ds-primary)]" />
           Shown
         </label>
         <label className={`flex items-center gap-1.5 text-xs ${!show || lock?.required !== undefined ? "text-gray-300" : "cursor-pointer text-gray-600"}`}>
-          <input type="checkbox" checked={required} disabled={!show || lock?.required !== undefined} onChange={(e) => setField(key, { required: e.target.checked })} className="accent-green-600" />
+          <input type="checkbox" checked={required} disabled={!show || lock?.required !== undefined} onChange={(e) => setField(key, { required: e.target.checked })} className="accent-[color:var(--ds-primary)]" />
           Required
         </label>
         {lock && <span className="basis-full text-xs text-gray-500">{lock.note}</span>}
@@ -323,7 +321,7 @@ export default function ItemEditor({
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <BackLink href="/app/settings/booking" />
         <div className="min-w-0 flex-1">
-          <input value={draft.name} onChange={(e) => update({ name: e.target.value })} className="numeral-ledger w-full min-w-0 border-b border-transparent bg-transparent text-2xl font-semibold text-gray-900 hover:border-gray-300 focus:border-green-500 focus:outline-none" aria-label="Name" />
+          <input value={draft.name} onChange={(e) => update({ name: e.target.value })} className="numeral-ledger w-full min-w-0 border-b border-transparent bg-transparent text-2xl font-semibold text-gray-900 hover:border-gray-300 focus:border-[color:var(--ds-primary)] focus:outline-none" aria-label="Name" />
           <p className="flex items-center gap-1.5 text-sm text-gray-500">
             <KindIcon size={14} className="text-gray-400" />
             {meta.label}
@@ -338,7 +336,7 @@ export default function ItemEditor({
           )}
           {state === "saved" && (
             <>
-              <Check size={12} className="text-green-600" /> Saved
+              <Check size={12} className="text-[color:var(--ds-good)]" /> Saved
             </>
           )}
         </span>
@@ -348,7 +346,7 @@ export default function ItemEditor({
       {error && (
         <div role="alert" className="form-error mb-4 flex items-center justify-between">
           {error}
-          <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
+          <button onClick={() => setError("")} className="p-0.5 text-[color:var(--ds-bad)] opacity-70 hover:opacity-100">
             <X size={14} />
           </button>
         </div>
@@ -389,7 +387,7 @@ export default function ItemEditor({
                         {p.depositType !== "NONE" ? ` · deposit ${p.depositType === "FULL" ? "in full" : p.depositType === "PERCENT" ? `${p.depositValue}%` : `$${p.depositValue}`}` : ""}
                       </p>
                       {scheduled && p.durationMinutes == null && (
-                        <p className="mt-1 text-xs text-amber-700">
+                        <p className="mt-1 text-xs text-[color:var(--ds-warn)]">
                           No time on site set — uses the fallback duration ({durationLabel(draft.durationMinutes)}).{" "}
                           <a href="/app/settings/products" target="_blank" rel="noreferrer" className="underline">
                             Set it in the price book
@@ -397,13 +395,13 @@ export default function ItemEditor({
                         </p>
                       )}
                     </div>
-                    <button type="button" onClick={() => setServices(draft.services.filter((id) => id !== p.id))} className="text-gray-400 hover:text-red-500" aria-label="Remove">
+                    <button type="button" onClick={() => setServices(draft.services.filter((id) => id !== p.id))} className="text-gray-400 hover:text-[color:var(--ds-bad)]" aria-label="Remove">
                       <Trash2 size={14} />
                     </button>
                   </div>
                 ))}
                 {priceBook.length === 0 ? (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  <div className="rounded-lg bg-[color:var(--ds-warn-soft)] p-3 text-sm text-[color:var(--ds-warn)]">
                     Your price book is empty — add the services you offer there first.{" "}
                     <a href="/app/settings/products" target="_blank" rel="noreferrer" className="font-semibold underline">
                       Open price book
@@ -548,7 +546,7 @@ export default function ItemEditor({
           {scheduled && (
             <Card title="Who takes these" hint="Whoever is free, then the person who has waited longest.">
               {eligibleTeam.length === 0 && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                <div className="rounded-lg bg-[color:var(--ds-warn-soft)] p-3 text-sm text-[color:var(--ds-warn)]">
                   Nobody on the team takes online bookings yet. Turn on <strong>Bookable online</strong> for someone on the{" "}
                   <Link href="/app/settings/team" className="font-semibold underline">
                     Team page
@@ -562,7 +560,7 @@ export default function ItemEditor({
                   const row = draft.members.find((m) => m.userId === u.id);
                   return (
                     <div key={u.id} className={`flex items-center gap-3 py-2 ${u.bookable ? "" : "opacity-60"}`}>
-                      <input type="checkbox" checked={on} onChange={(e) => setMembers(e.target.checked ? [...draft.members, { userId: u.id, priority: 0 }] : draft.members.filter((m) => m.userId !== u.id))} className="h-4 w-4 accent-green-600" aria-label={`Include ${u.name}`} />
+                      <input type="checkbox" checked={on} onChange={(e) => setMembers(e.target.checked ? [...draft.members, { userId: u.id, priority: 0 }] : draft.members.filter((m) => m.userId !== u.id))} className="h-4 w-4 accent-[color:var(--ds-primary)]" aria-label={`Include ${u.name}`} />
                       <Avatar name={u.name} userId={u.id} size={26} />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm text-gray-900">{u.name}</p>
@@ -588,11 +586,11 @@ export default function ItemEditor({
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-gray-100 pt-3">
                 <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input type="radio" name="assignment" checked={draft.assignment === "ROUND_ROBIN"} onChange={() => update({ assignment: "ROUND_ROBIN" })} className="accent-green-600" />
+                  <input type="radio" name="assignment" checked={draft.assignment === "ROUND_ROBIN"} onChange={() => update({ assignment: "ROUND_ROBIN" })} className="accent-[color:var(--ds-primary)]" />
                   Round robin
                 </label>
                 <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input type="radio" name="assignment" checked={draft.assignment === "PRIORITY"} onChange={() => update({ assignment: "PRIORITY" })} className="accent-green-600" />
+                  <input type="radio" name="assignment" checked={draft.assignment === "PRIORITY"} onChange={() => update({ assignment: "PRIORITY" })} className="accent-[color:var(--ds-primary)]" />
                   Priority first, then round robin
                 </label>
                 {eligibleChosen.length > 0 && (
@@ -647,7 +645,7 @@ export default function ItemEditor({
                     ))}
                   </div>
                   {nonFixed.length > 0 && (
-                    <p className="text-xs text-amber-700">
+                    <p className="text-xs text-[color:var(--ds-warn)]">
                       {nonFixed.map((p) => p.name).join(", ")} {nonFixed.length === 1 ? "isn't" : "aren't"} fixed-price, so payment can&apos;t be turned on until they&apos;re removed or set to a fixed price.
                     </p>
                   )}
@@ -680,11 +678,11 @@ export default function ItemEditor({
                 <span className="w-24 text-[13px] font-semibold text-gray-500">Message</span>
                 <input type="text" value={intake.message.label} onChange={(e) => setIntake({ message: { ...intake.message, label: e.target.value } })} className={`${inputClass} min-w-[140px] flex-1`} />
                 <label className="flex cursor-pointer items-center gap-1.5 text-xs text-gray-600">
-                  <input type="checkbox" checked={intake.message.show} onChange={(e) => setIntake({ message: { ...intake.message, show: e.target.checked } })} className="accent-green-600" />
+                  <input type="checkbox" checked={intake.message.show} onChange={(e) => setIntake({ message: { ...intake.message, show: e.target.checked } })} className="accent-[color:var(--ds-primary)]" />
                   Shown
                 </label>
                 <label className={`flex items-center gap-1.5 text-xs ${intake.message.show ? "cursor-pointer text-gray-600" : "text-gray-300"}`}>
-                  <input type="checkbox" checked={intake.message.required} disabled={!intake.message.show} onChange={(e) => setIntake({ message: { ...intake.message, required: e.target.checked } })} className="accent-green-600" />
+                  <input type="checkbox" checked={intake.message.required} disabled={!intake.message.show} onChange={(e) => setIntake({ message: { ...intake.message, required: e.target.checked } })} className="accent-[color:var(--ds-primary)]" />
                   Required
                 </label>
                 {intake.message.show && <input type="text" value={intake.message.placeholder} onChange={(e) => setIntake({ message: { ...intake.message, placeholder: e.target.value } })} placeholder="Placeholder text (optional)" className={`${inputClass} basis-full`} />}
@@ -694,7 +692,7 @@ export default function ItemEditor({
             {draft.kind !== "SERVICE" && (
               <div className="space-y-2 border-t border-gray-100 pt-3">
                 <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
-                  <input type="checkbox" checked={sq.show} onChange={(e) => setIntake({ serviceQuestion: { ...sq, show: e.target.checked } })} className="accent-green-600" />
+                  <input type="checkbox" checked={sq.show} onChange={(e) => setIntake({ serviceQuestion: { ...sq, show: e.target.checked } })} className="accent-[color:var(--ds-primary)]" />
                   Ask what they need
                   <span className="text-xs text-gray-500">— the answer becomes the request title</span>
                 </label>
@@ -714,7 +712,7 @@ export default function ItemEditor({
                         </select>
                       </div>
                       <label className="flex items-center gap-1.5 pb-2 text-xs text-gray-600">
-                        <input type="checkbox" checked={sq.required} onChange={(e) => setIntake({ serviceQuestion: { ...sq, required: e.target.checked } })} className="accent-green-600" />
+                        <input type="checkbox" checked={sq.required} onChange={(e) => setIntake({ serviceQuestion: { ...sq, required: e.target.checked } })} className="accent-[color:var(--ds-primary)]" />
                         Required
                       </label>
                     </div>
@@ -760,7 +758,7 @@ export default function ItemEditor({
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-4">
                       <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
-                        <input type="checkbox" checked={c.required} onChange={(e) => setCustom(c.id, { required: e.target.checked })} className="accent-green-600" />
+                        <input type="checkbox" checked={c.required} onChange={(e) => setCustom(c.id, { required: e.target.checked })} className="accent-[color:var(--ds-primary)]" />
                         Required
                       </label>
                       {contactFieldDefs.length > 0 && (
@@ -777,7 +775,7 @@ export default function ItemEditor({
                         </label>
                       )}
                     </div>
-                    <button type="button" onClick={() => setIntake({ customFields: intake.customFields.filter((x) => x.id !== c.id) })} className="flex items-center gap-1 text-xs text-gray-500 transition-colors hover:text-red-500">
+                    <button type="button" onClick={() => setIntake({ customFields: intake.customFields.filter((x) => x.id !== c.id) })} className="flex items-center gap-1 text-xs text-gray-500 transition-colors hover:text-[color:var(--ds-bad)]">
                       <Trash2 size={12} />
                       Remove
                     </button>
@@ -889,7 +887,7 @@ export default function ItemEditor({
                 {!previewMode && (
                   <>
                     <button type="button" onClick={() => copy(url, "url")} className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Copy link">
-                      {copied === "url" ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
+                      {copied === "url" ? <Check size={14} className="text-[color:var(--ds-good)]" /> : <Copy size={14} />}
                     </button>
                     <a href={url} target="_blank" rel="noopener noreferrer" className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Open">
                       <ExternalLink size={14} />
@@ -910,7 +908,7 @@ export default function ItemEditor({
                   <div className="mt-2 flex items-start gap-2">
                     <textarea readOnly value={snippet} rows={4} className="min-w-0 flex-1 rounded-lg bg-gray-50 px-3 py-2 font-mono text-[11px] text-gray-700" />
                     <button type="button" onClick={() => copy(snippet, "snippet")} className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Copy snippet">
-                      {copied === "snippet" ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
+                      {copied === "snippet" ? <Check size={14} className="text-[color:var(--ds-good)]" /> : <Copy size={14} />}
                     </button>
                   </div>
                 )}
@@ -919,7 +917,7 @@ export default function ItemEditor({
           </Card>
 
           <div className="flex justify-end">
-            <button type="button" onClick={remove} className="flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50">
+            <button type="button" onClick={remove} className="flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium text-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)]">
               <Trash2 size={13} /> Delete
             </button>
           </div>
@@ -938,7 +936,7 @@ export default function ItemEditor({
               </a>
             </span>
           </div>
-          <iframe key={previewKey} src={previewSrc} title="Preview" className="card-ledger h-[720px] w-full" />
+          <iframe key={previewKey} src={previewSrc} title="Preview" className="ds-card h-[720px] w-full" />
         </aside>
       </div>
     </div>

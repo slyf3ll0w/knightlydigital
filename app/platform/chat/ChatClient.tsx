@@ -63,8 +63,8 @@ const POLL_MS = 8000;
 const TYPING_PING_MS = 2500;
 const LONG_PRESS_MS = 350;
 
-// Group-chat sender name colors (Discord/WhatsApp style), hashed per user
-const NAME_COLORS = ["#3B82F6", "#F59E0B", "#8B5CF6", "#F97316", "#0EA5E9", "#14B8A6", "#EC4899", "#6366F1"];
+// Group-chat sender name colors, hashed per user — design-system tokens only (no raw hues)
+const NAME_COLORS = ["var(--ds-primary)", "var(--ds-secondary-strong)", "var(--ds-ink-2)", "var(--ds-muted)"];
 function nameColor(userId: string): string {
   let h = 0;
   for (let i = 0; i < userId.length; i++) h = (h * 31 + userId.charCodeAt(i)) | 0;
@@ -123,7 +123,7 @@ function ChannelIcon({ channel, size = 40, meId }: { channel: Channel; size?: nu
   if (channel.kind === "everyone") {
     return (
       <span
-        className="flex shrink-0 items-center justify-center rounded-full bg-[#0A1428] text-green-400"
+        className="flex shrink-0 items-center justify-center rounded-full bg-[color:var(--ds-primary)] text-[color:var(--ds-on-primary)]"
         style={{ width: size, height: size }}
       >
         <UsersIcon size={size * 0.45} />
@@ -133,7 +133,7 @@ function ChannelIcon({ channel, size = 40, meId }: { channel: Channel; size?: nu
   if (channel.kind === "group") {
     return (
       <span
-        className="flex shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-600"
+        className="flex shrink-0 items-center justify-center rounded-full bg-[color:var(--ds-secondary-soft)] text-[color:var(--ds-secondary-strong)]"
         style={{ width: size, height: size }}
       >
         <UsersIcon size={size * 0.45} />
@@ -588,7 +588,7 @@ export default function ChatClient({
           New chat
         </button>
       </div>
-      <div className="card-ledger min-h-0 flex-1 overflow-y-auto">
+      <div className="ds-card min-h-0 flex-1 overflow-y-auto">
         {channels.map((c, i) => (
           <button
             key={c.id}
@@ -596,7 +596,7 @@ export default function ChatClient({
             onClick={() => openChannel(c.id)}
             className={`flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors active:bg-gray-100 ${
               i < channels.length - 1 ? "border-b border-gray-50" : ""
-            } ${c.id === activeId ? "lg:bg-green-50/60" : "hover:bg-gray-50"}`}
+            } ${c.id === activeId ? "lg:bg-[color:var(--ds-primary-soft)]" : "hover:bg-gray-50"}`}
           >
             <ChannelIcon channel={c} meId={meId} />
             <span className="min-w-0 flex-1">
@@ -605,7 +605,7 @@ export default function ChatClient({
                   {c.name}
                 </span>
                 {c.lastMessage && (
-                  <span className={`shrink-0 text-[11px] ${c.unread ? "font-semibold text-green-600" : "text-gray-400"}`}>
+                  <span className={`shrink-0 text-[11px] ${c.unread ? "font-semibold text-[color:var(--ds-primary)]" : "text-gray-400"}`}>
                     {listTime(c.lastMessage.at)}
                   </span>
                 )}
@@ -621,7 +621,7 @@ export default function ChatClient({
                       : "Say hi 👋"}
                 </span>
                 {c.unread > 0 && (
-                  <span className="min-w-[20px] shrink-0 rounded-full bg-green-500 px-1.5 py-0.5 text-center text-[11px] font-bold tabular-nums text-white">
+                  <span className="min-w-[20px] shrink-0 rounded-full bg-[color:var(--ds-primary)] px-1.5 py-0.5 text-center text-[11px] font-bold tabular-nums text-[color:var(--ds-on-primary)]">
                     {c.unread > 99 ? "99+" : c.unread}
                   </span>
                 )}
@@ -666,7 +666,7 @@ export default function ChatClient({
         {activePeer?.phone && (
           <a
             href={telHref(activePeer.phone)}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-green-600 transition-colors hover:bg-green-50 active:bg-green-100"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-[color:var(--ds-primary)] transition-colors hover:bg-[color:var(--ds-primary-soft)] active:bg-[color:var(--ds-primary-soft)]"
             aria-label={`Call ${activePeer.name}`}
           >
             <Phone size={18} />
@@ -698,7 +698,7 @@ export default function ChatClient({
                 >
                   <Plus size={14} /> Add people
                 </button>
-                <button type="button" onClick={leaveGroup} className="flex w-full items-center gap-2 px-3.5 py-2.5 text-sm text-red-600 hover:bg-red-50">
+                <button type="button" onClick={leaveGroup} className="flex w-full items-center gap-2 px-3.5 py-2.5 text-sm text-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)]">
                   <X size={14} /> Leave group
                 </button>
               </MenuPopover>
@@ -779,13 +779,13 @@ export default function ChatClient({
                           rows={2}
                           maxLength={4000}
                           autoFocus
-                          className="w-full resize-y rounded-2xl border border-gray-300 px-3 py-2 text-[15px] focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="w-full resize-y rounded-2xl border border-gray-300 px-3 py-2 text-[15px] focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                         />
                         <div className="mt-1 flex justify-end gap-1.5">
                           <button type="button" onClick={() => setEditingId(null)} className="rounded-full border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50" aria-label="Cancel edit">
                             <X size={13} />
                           </button>
-                          <button type="button" onClick={() => saveEdit(m.id)} className="rounded-full bg-green-500 p-1.5 text-white hover:bg-green-600" aria-label="Save edit">
+                          <button type="button" onClick={() => saveEdit(m.id)} className="rounded-full bg-[color:var(--ds-primary)] p-1.5 text-[color:var(--ds-on-primary)] hover:bg-[color:var(--ds-primary-strong)]" aria-label="Save edit">
                             <Check size={13} />
                           </button>
                         </div>
@@ -795,7 +795,7 @@ export default function ChatClient({
                         {...pressHandlers(m, mine)}
                         className={`select-none whitespace-pre-wrap break-words px-3.5 py-2 text-[15px] leading-snug lg:select-text ${m.pending ? "opacity-60" : ""} ${
                           mine
-                            ? `bg-green-600 text-white ${firstOfRun ? "rounded-2xl rounded-br-md" : lastOfRun ? "rounded-2xl rounded-tr-md" : "rounded-2xl rounded-r-md"}`
+                            ? `bg-[color:var(--ds-primary)] text-[color:var(--ds-on-primary)] ${firstOfRun ? "rounded-2xl rounded-br-md" : lastOfRun ? "rounded-2xl rounded-tr-md" : "rounded-2xl rounded-r-md"}`
                             : `bg-gray-100 text-gray-900 ${firstOfRun ? "rounded-2xl rounded-bl-md" : lastOfRun ? "rounded-2xl rounded-tl-md" : "rounded-2xl rounded-l-md"}`
                         }`}
                       >
@@ -811,7 +811,7 @@ export default function ChatClient({
                       <button
                         type="button"
                         onClick={() => retrySend(m)}
-                        className="mt-0.5 flex w-full items-center justify-end gap-1 text-[11px] font-medium text-red-500"
+                        className="mt-0.5 flex w-full items-center justify-end gap-1 text-[11px] font-medium text-[color:var(--ds-bad)]"
                       >
                         <RotateCcw size={11} /> Not delivered — tap to retry
                       </button>
@@ -826,7 +826,7 @@ export default function ChatClient({
                             type="button"
                             onClick={() => toggleReaction(m.id, emoji)}
                             className={`flex items-center gap-0.5 rounded-full border px-1.5 py-px text-[12px] tabular-nums shadow-sm ring-2 ring-white transition-colors ${
-                              g.mine ? "border-green-300 bg-green-50" : "border-gray-200 bg-white"
+                              g.mine ? "border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)]" : "border-gray-200 bg-white"
                             }`}
                           >
                             {emoji}
@@ -860,7 +860,7 @@ export default function ChatClient({
                             >
                               <Pencil size={12} />
                             </button>
-                            <button type="button" onClick={() => deleteMessage(m.id)} className="rounded-full p-1 text-gray-400 hover:bg-red-50 hover:text-red-500" aria-label="Delete">
+                            <button type="button" onClick={() => deleteMessage(m.id)} className="rounded-full p-1 text-gray-400 hover:bg-[color:var(--ds-bad-soft)] hover:text-[color:var(--ds-bad)]" aria-label="Delete">
                               <Trash2 size={12} />
                             </button>
                           </>
@@ -917,7 +917,7 @@ export default function ChatClient({
         onSubmit={send}
         className="chat-composer shrink-0 border-t border-gray-100 px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] lg:px-4"
       >
-        {error && <p className="mb-1.5 text-xs text-red-600">{error}</p>}
+        {error && <p className="mb-1.5 text-xs text-[color:var(--ds-bad)]">{error}</p>}
         <div className="flex items-end gap-2 glass-control max-lg:rounded-[27px] max-lg:p-1.5 max-lg:pl-1">
           <textarea
             ref={inputRef}
@@ -940,13 +940,13 @@ export default function ChatClient({
             rows={1}
             maxLength={4000}
             placeholder={active?.kind === "dm" ? `Message ${active.name.split(" ")[0]}…` : `Message ${active?.name ?? "your team"}…`}
-            className="max-h-[120px] min-h-[42px] flex-1 resize-none rounded-3xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-[15px] focus:border-green-400 focus:bg-white focus:outline-none max-lg:px-3.5"
+            className="max-h-[120px] min-h-[42px] flex-1 resize-none rounded-3xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-[15px] focus:border-[color:var(--ds-primary)] focus:bg-white focus:outline-none max-lg:px-3.5"
           />
           <button
             type="submit"
             disabled={!draft.trim()}
             aria-label="Send"
-            className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-green-500 text-white transition-all hover:bg-green-600 active:scale-95 active:bg-green-700 disabled:opacity-40 max-lg:shadow-[0_1px_2px_rgba(15,23,42,0.12)]"
+            className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-[color:var(--ds-primary)] text-[color:var(--ds-on-primary)] transition-all hover:bg-[color:var(--ds-primary-strong)] active:scale-95 active:bg-[color:var(--ds-primary-strong)] disabled:opacity-40 max-lg:shadow-[0_1px_2px_rgba(15,23,42,0.12)]"
           >
             <SendHorizonal size={18} />
           </button>
@@ -1045,7 +1045,7 @@ export default function ChatClient({
                   <button
                     type="button"
                     onClick={() => deleteMessage(pressed.msg.id)}
-                    className="flex w-full items-center justify-between border-t border-gray-100 px-4 py-3 text-[15px] text-red-600 active:bg-red-50"
+                    className="flex w-full items-center justify-between border-t border-gray-100 px-4 py-3 text-[15px] text-[color:var(--ds-bad)] active:bg-[color:var(--ds-bad-soft)]"
                   >
                     Delete <Trash2 size={15} />
                   </button>
@@ -1073,7 +1073,7 @@ export default function ChatClient({
             onChange={(e) => setRenameDraft(e.target.value)}
             maxLength={60}
             autoFocus
-            className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-[15px] focus:border-green-400 focus:outline-none"
+            className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-[15px] focus:border-[color:var(--ds-primary)] focus:outline-none"
           />
           <button
             type="submit"
@@ -1113,14 +1113,14 @@ export default function ChatClient({
                         setPicked((p) => (on ? p.filter((id) => id !== m.id) : [...p, m.id]))
                       }
                       className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
-                        on ? "bg-green-50 ring-1 ring-green-300" : "hover:bg-gray-50 active:bg-gray-100"
+                        on ? "bg-[color:var(--ds-primary-soft)] ring-1 ring-[color:var(--ds-primary)]" : "hover:bg-gray-50 active:bg-gray-100"
                       }`}
                     >
                       <Avatar name={m.name} userId={m.id} size={32} />
                       <span className="flex-1 truncate text-[15px] font-medium text-gray-800">{m.name}</span>
                       <span
                         className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-                          on ? "border-green-500 bg-green-500 text-white" : "border-gray-300"
+                          on ? "border-[color:var(--ds-primary)] bg-[color:var(--ds-primary)] text-[color:var(--ds-on-primary)]" : "border-gray-300"
                         }`}
                       >
                         {on && <Check size={12} />}
@@ -1135,7 +1135,7 @@ export default function ChatClient({
                 onChange={(e) => setGroupName(e.target.value)}
                 maxLength={60}
                 placeholder="Group name (optional)"
-                className="mt-3 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-[15px] focus:border-green-400 focus:outline-none"
+                className="mt-3 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-[15px] focus:border-[color:var(--ds-primary)] focus:outline-none"
               />
             )}
             <button

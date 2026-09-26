@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
+import { Chip, InfoTip } from "@/components/ds";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { type PickerWorkItem } from "@/components/WorkItemPicker";
 import ContactPicker from "@/components/ContactPicker";
@@ -262,9 +263,7 @@ export default function QuoteEditor({
         <BackLink href={editing ? `/app/quotes/${existingQuote!.id}` : "/app/quotes"} />
         <PageTitle>{editing ? "Edit Quote" : "New Quote"}</PageTitle>
         {requestId && (
-          <span className="text-xs font-medium px-2 py-0.5 rounded-lg bg-blue-100 text-blue-700">
-            From request
-          </span>
+          <Chip tone="primary">From request</Chip>
         )}
       </div>
 
@@ -283,7 +282,7 @@ export default function QuoteEditor({
           </div>
         )}
 
-        <div className="card-ledger p-5 space-y-4">
+        <div className="ds-card p-5 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Client *</label>
             <ContactPicker
@@ -310,7 +309,7 @@ export default function QuoteEditor({
                 <select
                   value={propertyId}
                   onChange={(e) => setPropertyId(e.target.value)}
-                  className="w-full sm:max-w-xs px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full sm:max-w-xs px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                 >
                   <option value="">Primary address</option>
                   {saved.map((a) => (
@@ -329,7 +328,7 @@ export default function QuoteEditor({
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               placeholder="e.g. Pressure Washing Services"
             />
           </div>
@@ -337,7 +336,7 @@ export default function QuoteEditor({
 
         {/* Line items — no overflow-hidden: the price-book dropdown must be
             able to spill past the card edge (it was getting clipped) */}
-        <div className="card-ledger">
+        <div className="ds-card">
           <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
             <h2 className="text-sm font-semibold text-gray-700">
               Product / Service
@@ -346,7 +345,7 @@ export default function QuoteEditor({
               <button
                 type="button"
                 onClick={() => setEstimatorOpen(true)}
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-gray-300 px-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="ds-btn ds-btn-outline ds-btn-sm"
               >
                 <Calculator size={15} />
                 Use an estimate tool
@@ -383,7 +382,7 @@ export default function QuoteEditor({
                     max="100"
                     step="0.001"
                     placeholder="0"
-                    className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                   />
                   <span className="text-sm text-gray-500">%</span>
                 </div>
@@ -392,7 +391,7 @@ export default function QuoteEditor({
                   <select
                     value={discountType}
                     onChange={(e) => setDiscountType(e.target.value as "NONE" | "PERCENT" | "FIXED")}
-                    className="px-2 py-1 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="px-2 py-1 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                   >
                     <option value="NONE">None</option>
                     <option value="PERCENT">%</option>
@@ -406,7 +405,7 @@ export default function QuoteEditor({
                       min="0"
                       step="0.01"
                       placeholder="0"
-                      className="w-24 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-24 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                     />
                   )}
                 </div>
@@ -417,7 +416,7 @@ export default function QuoteEditor({
                   <span className="font-medium">{money(subtotal)}</span>
                 </div>
                 {discount > 0 && (
-                  <div className="flex justify-between gap-8 text-green-700">
+                  <div className="flex justify-between gap-8 text-[color:var(--ds-good)]">
                     <span>Discount{discountType === "PERCENT" ? ` (${discountNum}%)` : ""}</span>
                     <span className="font-medium">-{money(discount)}</span>
                   </div>
@@ -433,7 +432,7 @@ export default function QuoteEditor({
                   <span>{money(total)}</span>
                 </div>
                 {deposit > 0 && (
-                  <div className="flex justify-between gap-8 text-green-700">
+                  <div className="flex justify-between gap-8 text-[color:var(--ds-primary)]">
                     <span>Required deposit</span>
                     <span className="font-semibold">{money(deposit)}</span>
                   </div>
@@ -443,15 +442,15 @@ export default function QuoteEditor({
 
             {/* Deposit */}
             <div className="border-t border-gray-200 pt-3">
-              <p className="text-sm font-medium text-gray-700 mb-2">Required deposit</p>
-              <p className="text-xs text-gray-500 mb-2">
-                Collect an upfront payment when the client approves this quote.
+              <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                Required deposit
+                <InfoTip>Collect an upfront payment when the client approves this quote.</InfoTip>
               </p>
               <div className="flex items-center gap-2">
                 <select
                   value={depositType}
                   onChange={(e) => setDepositType(e.target.value as "NONE" | "PERCENT" | "FIXED" | "FULL")}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                 >
                   <option value="NONE">No deposit</option>
                   <option value="PERCENT">Percent of total</option>
@@ -468,7 +467,7 @@ export default function QuoteEditor({
                       min="0"
                       step={depositType === "PERCENT" ? "1" : "0.01"}
                       placeholder={depositType === "PERCENT" ? "25" : "100.00"}
-                      className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                     />
                     {depositType === "PERCENT" && <span className="text-sm text-gray-500">%</span>}
                   </div>
@@ -478,18 +477,18 @@ export default function QuoteEditor({
           </div>
         </div>
 
-        <div className="card-ledger p-5">
+        <div className="ds-card p-5">
           <label className="block text-sm font-medium text-gray-700 mb-1">Client message</label>
           <textarea
             value={clientMessage}
             onChange={(e) => setClientMessage(e.target.value)}
             rows={3}
-            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
             placeholder="A message the client sees at the top of the quote..."
           />
         </div>
 
-        <div className="card-ledger p-5">
+        <div className="ds-card p-5">
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Contract / disclaimer
           </label>
@@ -497,19 +496,19 @@ export default function QuoteEditor({
             value={disclaimer}
             onChange={(e) => setDisclaimer(e.target.value)}
             rows={4}
-            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
             placeholder="Terms and conditions the client agrees to when approving..."
           />
         </div>
 
-        <div className="card-ledger p-5 grid gap-4 sm:grid-cols-2">
+        <div className="ds-card p-5 grid gap-4 sm:grid-cols-2">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Valid until</label>
             <input
               type="date"
               value={validUntil}
               onChange={(e) => setValidUntil(e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
             />
             <p className="mt-1 text-xs text-gray-500">
               After this date the client can no longer approve online. Leave blank for no expiry.
@@ -521,7 +520,7 @@ export default function QuoteEditor({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
               placeholder="Only your team sees these..."
             />
           </div>
@@ -538,7 +537,7 @@ export default function QuoteEditor({
           </button>
           <Link
             href="/app/quotes"
-            className="px-5 py-2.5 btn-tool-line bg-white text-sm font-medium text-gray-600 rounded-[10px] hover:bg-gray-50"
+            className="ds-btn ds-btn-outline"
           >
             Cancel
           </Link>

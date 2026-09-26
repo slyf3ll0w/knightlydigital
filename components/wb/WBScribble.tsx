@@ -15,6 +15,16 @@ const PATHS = {
     head: "M111 73 L127 75 L122 60",
     sparks: ["M6 30 L1 34", "M12 34 L10 40", "M19 32 L20 38"],
   },
+  /** Drawn pointing DOWN (label above, target below) — use this instead of
+   *  rotating "loop" with CSS: a rotated SVG spills out of its layout box and
+   *  lands on neighbouring text. In the app (components/ds Hint) arrows are
+   *  never rotated, so the box the layout reserves is the box it draws in. */
+  down: {
+    viewBox: "0 0 80 104",
+    body: "M16 10 C 42 2, 64 14, 58 32 C 53 46, 33 48, 33 36 C 33 24, 54 23, 58 42 C 62 60, 52 78, 44 94",
+    head: "M34 86 L44 96 L51 83",
+    sparks: ["M9 14 L3 11", "M10 22 L4 24", "M15 28 L12 34"],
+  },
   swoop: {
     viewBox: "0 0 140 70",
     body: "M6 50 C 30 18, 76 6, 104 22 C 116 29, 124 38, 130 48",

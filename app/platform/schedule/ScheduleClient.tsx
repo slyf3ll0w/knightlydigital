@@ -21,12 +21,12 @@ import {
   X,
 } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
-import { SECTION_HUES } from "@/lib/section-colors";
 import { FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { telHref } from "@/lib/messaging";
 import Modal from "@/components/Modal";
 import SwipeRow, { type SwipeRowAction } from "@/components/SwipeRow";
+import { Chip, InfoTip } from "@/components/ds";
 import MonthGrid from "./MonthGrid";
 import TimeGrid, { type DriveLegs, type GridColumn } from "./TimeGrid";
 import SchedulePalette from "./SchedulePalette";
@@ -177,7 +177,7 @@ export default function ScheduleClient({
 
   const anchor = useMemo(() => parseParam(date), [date]);
   const today = useMemo(() => new Date(), []);
-  const hue = SECTION_HUES.schedule;
+  const hue = "var(--ds-primary)";
 
   useEffect(() => setMounted(true), []);
 
@@ -975,7 +975,7 @@ export default function ScheduleClient({
     const days = Array.from({ length: 7 }, (_, i) => addDays(startOfWeek(anchor), i));
     const target = drag.state?.target?.type === "day" ? drag.state.target.date : null;
     return (
-      <div className="card-tool mb-3 flex overflow-hidden lg:hidden">
+      <div className="ds-card mb-3 flex overflow-hidden lg:hidden">
         {days.map((d, i) => {
           const selected = sameDay(d, anchor);
           const isToday = sameDay(d, today);
@@ -989,7 +989,7 @@ export default function ScheduleClient({
               onClick={() => (armed ? placeArmed(d, null) : go({ view: "day", date: d }))}
               aria-current={selected ? "date" : undefined}
               className={`flex min-w-0 flex-1 flex-col items-center gap-1 py-2 transition-colors active:bg-gray-50 ${
-                hot ? "bg-green-100" : ""
+                hot ? "bg-[color:var(--ds-primary-soft)]" : ""
               }`}
             >
               <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{DAY_NAMES[d.getDay()][0]}</span>
@@ -997,9 +997,9 @@ export default function ScheduleClient({
                 className="flex h-8 w-8 items-center justify-center rounded-full text-[15px] font-semibold"
                 style={
                   selected
-                    ? { backgroundColor: "var(--mobile-accent)", color: "var(--mobile-on-accent)" }
+                    ? { backgroundColor: "var(--ds-primary)", color: "var(--ds-on-primary)" }
                     : isToday
-                      ? { backgroundColor: "color-mix(in srgb, var(--mobile-accent) 14%, transparent)", color: "var(--wb-ink)" }
+                      ? { backgroundColor: "color-mix(in srgb, var(--ds-primary) 14%, transparent)", color: "var(--ds-ink)" }
                       : undefined
                 }
               >
@@ -1011,7 +1011,7 @@ export default function ScheduleClient({
                     key={k}
                     className="h-1.5 w-1.5 rounded-full"
                     style={{
-                      backgroundColor: selected ? "var(--mobile-accent)" : "color-mix(in srgb, var(--mobile-accent) 55%, transparent)",
+                      backgroundColor: selected ? "var(--ds-primary)" : "color-mix(in srgb, var(--ds-primary) 55%, transparent)",
                     }}
                   />
                 ))}
@@ -1031,7 +1031,7 @@ export default function ScheduleClient({
     const swipeActions: SwipeRowAction[] = isBlock
       ? []
       : [
-          ...(it.phone ? [{ key: "call", label: "Call", icon: PhoneIcon, href: telHref(it.phone), bg: "#16A34A" }] : []),
+          ...(it.phone ? [{ key: "call", label: "Call", icon: PhoneIcon, href: telHref(it.phone), bg: "var(--ds-good)" }] : []),
           ...(it.address
             ? [
                 {
@@ -1040,7 +1040,7 @@ export default function ScheduleClient({
                   icon: NavigationIcon,
                   href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(it.address)}`,
                   external: true,
-                  bg: "#2563EB",
+                  bg: "var(--ds-primary)",
                 },
               ]
             : []),
@@ -1077,16 +1077,24 @@ export default function ScheduleClient({
                   {isBlock ? (it.contactName === "Everyone" ? "Whole team" : it.contactName) : it.title}
                   {!isBlock && it.jobNumber ? ` · #${it.jobNumber}` : ""}
                 </span>
-                {it.tentative && <span className="stamp mt-1.5 text-blue-800">Awaiting approval</span>}
-                {it.conflictNote && (
-                  <span className="stamp mt-1.5 text-amber-700" title={it.conflictNote}>
-                    Double-booked
+                {it.tentative && (
+                  <span className="mr-1 mt-1.5 inline-flex">
+                    <Chip tone="secondary">Awaiting approval</Chip>
                   </span>
                 )}
-                {it.kind === "job" && it.outsourced && <span className="stamp mt-1.5 text-gray-500">Subcontractor</span>}
+                {it.conflictNote && (
+                  <span className="mr-1 mt-1.5 inline-flex" title={it.conflictNote}>
+                    <Chip tone="warn">Double-booked</Chip>
+                  </span>
+                )}
+                {it.kind === "job" && it.outsourced && (
+                  <span className="mr-1 mt-1.5 inline-flex">
+                    <Chip>Subcontractor</Chip>
+                  </span>
+                )}
                 {it.needsCrew && (
-                  <span className="stamp mt-1.5 text-amber-700" title="Nobody is assigned — it's on no one's schedule or calendar">
-                    Unassigned
+                  <span className="mr-1 mt-1.5 inline-flex" title="Nobody is assigned — it's on no one's schedule or calendar">
+                    <Chip tone="warn">Unassigned</Chip>
                   </span>
                 )}
               </span>
@@ -1131,7 +1139,7 @@ export default function ScheduleClient({
           return (
             <section
               key={di}
-              className={`${di > 0 ? "mt-5" : ""} rounded-xl transition-colors ${hot ? "bg-green-50 ring-2 ring-green-300" : ""}`}
+              className={`${di > 0 ? "mt-5" : ""} rounded-xl transition-colors ${hot ? "bg-[color:var(--ds-primary-soft)] ring-2 ring-[color:var(--ds-primary)]" : ""}`}
               {...(days.length > 1 ? { "data-drop": "day", "data-date": toParam(day) } : {})}
             >
               {summary && <p className="mb-2.5 px-0.5 text-[13px] font-medium text-gray-500">{summary}</p>}
@@ -1141,13 +1149,13 @@ export default function ScheduleClient({
                     {day.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
                   </h3>
                   {isToday && (
-                    <span className="stamp" style={{ color: "var(--wb-ink)" }}>
+                    <span className="stamp" style={{ color: "var(--ds-ink)" }}>
                       Today
                     </span>
                   )}
                   <span className="h-px flex-1 bg-gray-200" aria-hidden />
                   {armed && (
-                    <button onClick={() => placeArmed(day, null)} className="text-[12px] font-semibold text-green-700">
+                    <button onClick={() => placeArmed(day, null)} className="text-[12px] font-semibold text-[color:var(--ds-primary)]">
                       Place here
                     </button>
                   )}
@@ -1160,7 +1168,7 @@ export default function ScheduleClient({
                   <button
                     type="button"
                     onClick={() => armed && placeArmed(day, null)}
-                    className="card-tool w-full px-4 py-7 text-center"
+                    className="ds-card w-full px-4 py-7 text-center"
                   >
                     <p className="text-sm font-medium text-gray-500">{armed ? "Tap to place here" : "Nothing scheduled"}</p>
                     <p className="mt-0.5 text-xs text-gray-500">
@@ -1174,11 +1182,11 @@ export default function ScheduleClient({
                     i === nowIdx
                       ? [
                           <li key={`now-${di}`} aria-hidden className="flex items-center gap-2 py-1">
-                            <span className="numeral-ledger w-[56px] shrink-0 text-right text-[11px] font-bold" style={{ color: "#F86A0A" }}>
+                            <span className="numeral-ledger w-[56px] shrink-0 text-right text-[11px] font-bold" style={{ color: "var(--ds-secondary)" }}>
                               {fmtTime(new Date())}
                             </span>
-                            <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: "#F86A0A" }} />
-                            <span className="h-[2px] flex-1 rounded-full" style={{ backgroundColor: "#F86A0A" }} />
+                            <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: "var(--ds-secondary)" }} />
+                            <span className="h-[2px] flex-1 rounded-full" style={{ backgroundColor: "var(--ds-secondary)" }} />
                           </li>,
                           agendaRow(it),
                         ]
@@ -1208,8 +1216,8 @@ export default function ScheduleClient({
     const target = drag.state?.target?.type === "day" ? drag.state.target.date : null;
     return (
       <div className="lg:hidden">
-        <div className="card-tool overflow-hidden">
-          <div className="grid grid-cols-7 border-b border-gray-100 py-1.5">
+        <div className="ds-card overflow-hidden">
+          <div className="grid grid-cols-7 border-b border-[color:var(--ds-line)] py-1.5">
             {DAY_NAMES.map((d) => (
               <div key={d} className="text-center text-[10px] font-semibold uppercase text-gray-400">
                 {d[0]}
@@ -1234,15 +1242,15 @@ export default function ScheduleClient({
                   data-date={toParam(cellDate)}
                   onClick={() => (armed ? placeArmed(cellDate, null) : go({ date: cellDate }))}
                   aria-current={selected ? "date" : undefined}
-                  className={`flex flex-col items-center gap-1 rounded-xl py-1.5 transition-colors active:bg-gray-50 ${hot ? "bg-green-100" : ""}`}
+                  className={`flex flex-col items-center gap-1 rounded-xl py-1.5 transition-colors active:bg-gray-50 ${hot ? "bg-[color:var(--ds-primary-soft)]" : ""}`}
                 >
                   <span
                     className={`flex h-8 w-8 items-center justify-center rounded-full text-[15px] font-medium ${selected || isToday ? "" : "text-gray-900"}`}
                     style={
                       selected
-                        ? { backgroundColor: "var(--mobile-accent)", color: "var(--mobile-on-accent)" }
+                        ? { backgroundColor: "var(--ds-primary)", color: "var(--ds-on-primary)" }
                         : isToday
-                          ? { backgroundColor: "color-mix(in srgb, var(--mobile-accent) 14%, transparent)", color: "var(--wb-ink)" }
+                          ? { backgroundColor: "color-mix(in srgb, var(--ds-primary) 14%, transparent)", color: "var(--ds-ink)" }
                           : undefined
                     }
                   >
@@ -1254,7 +1262,7 @@ export default function ScheduleClient({
                         key={it.id}
                         className="h-1.5 w-1.5 rounded-full"
                         style={{
-                          backgroundColor: selected ? "var(--mobile-accent)" : "color-mix(in srgb, var(--mobile-accent) 55%, transparent)",
+                          backgroundColor: selected ? "var(--ds-primary)" : "color-mix(in srgb, var(--ds-primary) 55%, transparent)",
                         }}
                       />
                     ))}
@@ -1270,12 +1278,12 @@ export default function ScheduleClient({
             {anchor.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
           </h3>
           {sameDay(anchor, today) && (
-            <span className="stamp" style={{ color: "var(--wb-ink)" }}>
+            <span className="stamp" style={{ color: "var(--ds-ink)" }}>
               Today
             </span>
           )}
           <span className="h-px flex-1 bg-gray-200" aria-hidden />
-          <button onClick={() => go({ view: "day" })} className="text-[13px] font-semibold text-green-700">
+          <button onClick={() => go({ view: "day" })} className="text-[13px] font-semibold text-[color:var(--ds-primary)]">
             Day view
           </button>
         </div>
@@ -1311,7 +1319,7 @@ export default function ScheduleClient({
     return (
       <div
         aria-hidden
-        className="pointer-events-none fixed z-[70] w-[220px] max-w-[70vw] rounded-[12px] border border-green-300 bg-white px-3 py-2 text-sm shadow-[0_12px_30px_rgba(9,13,19,0.25)]"
+        className="pointer-events-none fixed z-[70] w-[220px] max-w-[70vw] rounded-[12px] border border-[color:var(--ds-primary)] bg-[color:var(--ds-surface)] px-3 py-2 text-sm shadow-[0_12px_30px_rgba(9,13,19,0.25)]"
         style={{
           // Keep the card on screen: a finger near the right edge used to
           // push it past the viewport and the page shifted sideways
@@ -1321,7 +1329,7 @@ export default function ScheduleClient({
       >
         <p className="truncate font-semibold text-gray-900">{label}</p>
         {sub && <p className="truncate text-xs text-gray-500">{sub}</p>}
-        <p className={`mt-1 text-[11px] font-semibold ${st.target ? "text-green-700" : "text-gray-400"}`}>{where}</p>
+        <p className={`mt-1 text-[11px] font-semibold ${st.target ? "text-[color:var(--ds-primary)]" : "text-gray-400"}`}>{where}</p>
       </div>
     );
   })();
@@ -1344,13 +1352,13 @@ export default function ScheduleClient({
             aria-label="Schedule someone"
             title="Schedule someone (P)"
             className={`relative flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] text-sm font-semibold transition-colors md:w-auto md:px-4 ${
-              paletteOpen ? "chip-pressed bg-green-50 text-green-700" : "btn-tool-line bg-white text-gray-700 hover:bg-gray-50"
+              paletteOpen ? "chip-pressed bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]" : "btn-tool-line bg-white text-gray-700 hover:bg-gray-50"
             }`}
           >
             <UserPlus size={16} />
             <span className="hidden md:inline">Schedule someone</span>
             {unscheduled.length > 0 && (
-              <span className="absolute -right-1 -top-1 min-w-[18px] rounded-full bg-amber-400 px-1 py-px text-center text-[11px] font-bold text-amber-950 md:static md:bg-amber-100 md:text-amber-700">
+              <span className="absolute -right-1 -top-1 min-w-[18px] rounded-full bg-[color:var(--ds-warn)] px-1 py-px text-center text-[11px] font-bold text-[color:var(--ds-surface)] md:static md:bg-[color:var(--ds-warn-soft)] md:text-[color:var(--ds-warn)]">
                 {unscheduled.length}
               </span>
             )}
@@ -1383,7 +1391,7 @@ export default function ScheduleClient({
               href="/app/appointments/new"
               aria-label="New appointment"
               title="New Appointment"
-              className="hidden h-10 items-center justify-center gap-1.5 rounded-[10px] btn-tool-line bg-blue-50 px-4 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100 md:flex"
+              className="hidden h-10 items-center justify-center gap-1.5 rounded-[10px] btn-tool-line bg-[color:var(--ds-secondary-soft)] px-4 text-sm font-semibold text-[color:var(--ds-secondary)] transition-colors hover:bg-[color-mix(in_srgb,var(--ds-secondary)_18%,transparent)] md:flex"
             >
               <CalendarClock size={16} />
               New Appointment
@@ -1433,7 +1441,7 @@ export default function ScheduleClient({
             value={team}
             onChange={(e) => go({ team: e.target.value })}
             aria-label="Team member"
-            className="max-w-[128px] shrink-0 rounded-[10px] border border-gray-200 bg-white py-2 pl-3 pr-2 text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="max-w-[128px] shrink-0 rounded-[10px] border border-gray-200 bg-white py-2 pl-3 pr-2 text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
           >
             <option value="">Everyone</option>
             {users.map((u) => (
@@ -1484,7 +1492,7 @@ export default function ScheduleClient({
             <select
               value={team}
               onChange={(e) => go({ team: e.target.value, board: false })}
-              className="min-w-0 rounded-[10px] border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="min-w-0 rounded-[10px] border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
             >
               <option value="">All team members</option>
               {users.map((u) => (
@@ -1498,12 +1506,12 @@ export default function ScheduleClient({
       </div>
 
       {armed && (
-        <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+        <div className="mb-3 flex items-center justify-between gap-3 rounded-lg bg-[color:var(--ds-primary-soft)] px-3 py-2 text-sm text-[color:var(--ds-ink)]">
           <span>
             Placing <strong>{armed.type === "job" ? armed.job.contactName : armed.type === "pick" ? "someone" : armed.name}</strong> — tap a day
             {view !== "month" ? " or time" : ""} on the calendar.
           </span>
-          <button onClick={() => setArmed(null)} className="p-0.5 text-green-500 hover:text-green-700" aria-label="Cancel">
+          <button onClick={() => setArmed(null)} className="p-0.5 text-[color:var(--ds-primary)] hover:text-[color:var(--ds-primary-strong)]" aria-label="Cancel">
             <X size={14} />
           </button>
         </div>
@@ -1519,7 +1527,7 @@ export default function ScheduleClient({
       )}
 
       {conflicts.length > 0 && (
-        <div className="mb-3 flex items-start justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        <div className="mb-3 flex items-start justify-between gap-3 rounded-lg bg-[color:var(--ds-warn-soft)] px-3 py-2 text-sm text-[color:var(--ds-warn)]">
           <div>
             <p className="font-semibold">Heads up — this overlaps:</p>
             {conflicts.map((c) => (
@@ -1528,7 +1536,7 @@ export default function ScheduleClient({
               </p>
             ))}
           </div>
-          <button onClick={() => setConflicts([])} className="p-0.5 text-amber-400 hover:text-amber-600">
+          <button onClick={() => setConflicts([])} className="p-0.5 text-[color:var(--ds-warn)] opacity-70 hover:opacity-100">
             <X size={14} />
           </button>
         </div>
@@ -1579,9 +1587,9 @@ export default function ScheduleClient({
 
           <div className="mt-4 hidden flex-wrap items-center gap-3 lg:flex">
             {[
-              ["bg-green-500", "Active job"],
-              ["bg-amber-500", "Requires invoicing"],
-              ["bg-blue-500", "Appointment"],
+              ["bg-[color:var(--ds-primary)]", "Active job"],
+              ["bg-[color:var(--ds-warn)]", "Requires invoicing"],
+              ["bg-[color:var(--ds-secondary)]", "Appointment"],
               ["bg-gray-400", "Closed"],
               ["bg-blocked border border-gray-400", "Blocked off"],
             ].map(([c, label]) => (
@@ -1591,8 +1599,11 @@ export default function ScheduleClient({
               </div>
             ))}
             {view !== "month" && (
-              <span className="ml-auto text-[11px] text-gray-400">
-                Drag to move · drag the bottom edge to change length · drag empty space for new · Shift-drag copies
+              <span className="ml-auto flex items-center gap-1 text-[11px] text-[color:var(--ds-muted)]">
+                How to drag
+                <InfoTip label="How to drag on the calendar" align="end">
+                  Drag to move · drag the bottom edge to change length · drag empty space for new · Shift-drag copies
+                </InfoTip>
               </span>
             )}
           </div>
@@ -1652,7 +1663,7 @@ export default function ScheduleClient({
                     setChooser(null);
                     setPlaceIntent({ entity: { type: "pick", kind: "appointment" }, date: toParam(c.date), minute: c.startMin, userId: c.userId ?? (team || undefined), durationMin: c.endMin - c.startMin });
                   }}
-                  className="flex items-center gap-2 rounded-[10px] btn-tool-line bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+                  className="flex items-center gap-2 rounded-[10px] btn-tool-line bg-[color:var(--ds-secondary-soft)] px-4 py-2.5 text-sm font-semibold text-[color:var(--ds-secondary)] hover:bg-[color-mix(in_srgb,var(--ds-secondary)_18%,transparent)]"
                 >
                   <CalendarClock size={15} /> New appointment
                 </button>
@@ -1677,11 +1688,16 @@ export default function ScheduleClient({
         {shiftSheet && (
           <div className="space-y-3 text-left">
             <div>
-              <h2 className="text-base font-semibold text-gray-900">Move the day</h2>
+              <h2 className="flex items-center gap-1.5 text-base font-semibold text-gray-900">
+                Move the day
+                <InfoTip>
+                  Everything keeps its time and length, just on a different date. Rained out, sick day, truck in the shop.
+                  {sameDay(anchor, today) ? " Visits that already started (or are on the clock) stay where they are." : ""}
+                </InfoTip>
+              </h2>
               <p className="mt-0.5 text-sm text-gray-500">
                 Everything on {dayLabelFor(anchor)}
-                {team ? ` for ${users.find((u) => u.id === team)?.name ?? "this tech"}` : ""} keeps its time and length, just on a different date. Rained out, sick day, truck in the shop.
-                {sameDay(anchor, today) ? " Visits that already started (or are on the clock) stay where they are." : ""}
+                {team ? ` for ${users.find((u) => u.id === team)?.name ?? "this tech"}` : ""}
               </p>
             </div>
             {shiftErr && <div role="alert" className="form-error">{shiftErr}</div>}
@@ -1691,7 +1707,7 @@ export default function ScheduleClient({
                 type="date"
                 value={shiftSheet.toDate}
                 onChange={(e) => setShiftSheet((s) => s && { ...s, toDate: e.target.value })}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               />
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {(
@@ -1706,7 +1722,7 @@ export default function ScheduleClient({
                     type="button"
                     onClick={() => setShiftSheet((s) => s && { ...s, toDate: toParam(d) })}
                     className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
-                      shiftSheet.toDate === toParam(d) ? "border-green-500 bg-green-50 text-green-700" : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                      shiftSheet.toDate === toParam(d) ? "border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]" : "border-gray-200 text-gray-600 hover:bg-gray-50"
                     }`}
                   >
                     {label}
@@ -1715,11 +1731,11 @@ export default function ScheduleClient({
               </div>
             </div>
             <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input type="checkbox" checked={shiftSheet.includeAppointments} onChange={(e) => setShiftSheet((s) => s && { ...s, includeAppointments: e.target.checked })} className="rounded text-green-600 focus:ring-green-500" />
+              <input type="checkbox" checked={shiftSheet.includeAppointments} onChange={(e) => setShiftSheet((s) => s && { ...s, includeAppointments: e.target.checked })} className="rounded text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]" />
               Move appointments too (calls, estimates)
             </label>
             <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input type="checkbox" checked={shiftSheet.notify} onChange={(e) => setShiftSheet((s) => s && { ...s, notify: e.target.checked })} className="rounded text-green-600 focus:ring-green-500" />
+              <input type="checkbox" checked={shiftSheet.notify} onChange={(e) => setShiftSheet((s) => s && { ...s, notify: e.target.checked })} className="rounded text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]" />
               Text or email each client their new time
             </label>
             <div className="flex items-center gap-2 pt-1">
@@ -1760,7 +1776,7 @@ export default function ScheduleClient({
                 disabled={!blockSheet.canEdit}
                 placeholder="Blocked off"
                 onChange={(e) => setBlockSheet((s) => s && { ...s, form: { ...s.form, title: e.target.value } })}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-500"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] disabled:bg-gray-50 disabled:text-gray-500"
               />
             </div>
             {canBlockForOthers ? (
@@ -1769,7 +1785,7 @@ export default function ScheduleClient({
                 <select
                   value={blockSheet.form.who}
                   onChange={(e) => setBlockSheet((s) => s && { ...s, form: { ...s.form, who: e.target.value } })}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                 >
                   <option value="everyone">Everyone (whole team)</option>
                   {users.map((u) => (
@@ -1795,7 +1811,7 @@ export default function ScheduleClient({
                 disabled={!blockSheet.canEdit}
                 placeholder="Address — so jobs get scheduled around the drive"
                 onChange={(e) => setBlockSheet((s) => s && { ...s, form: { ...s.form, address: e.target.value } })}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-500"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] disabled:bg-gray-50 disabled:text-gray-500"
               />
               {blockSheet.form.who !== "everyone" && blockSheet.form.address.trim() && (
                 <p className="mt-1 text-xs text-gray-500">Find a Time and the route map will count the drive to and from here.</p>
@@ -1807,7 +1823,7 @@ export default function ScheduleClient({
                 checked={blockSheet.form.allDay}
                 disabled={!blockSheet.canEdit}
                 onChange={(e) => setBlockSheet((s) => s && { ...s, form: { ...s.form, allDay: e.target.checked } })}
-                className="rounded text-green-600 focus:ring-green-500"
+                className="rounded text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
               />
               All day
             </label>
@@ -1827,7 +1843,7 @@ export default function ScheduleClient({
                         return { ...s, form: { ...s.form, startDate, endDate } };
                       })
                     }
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] disabled:bg-gray-50 disabled:text-gray-500"
                   />
                 </div>
                 <div>
@@ -1837,7 +1853,7 @@ export default function ScheduleClient({
                     value={blockSheet.form.endDate}
                     disabled={!blockSheet.canEdit}
                     onChange={(e) => setBlockSheet((s) => s && { ...s, form: { ...s.form, endDate: e.target.value } })}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] disabled:bg-gray-50 disabled:text-gray-500"
                   />
                 </div>
               </div>
@@ -1850,7 +1866,7 @@ export default function ScheduleClient({
                     value={blockSheet.form.startDate}
                     disabled={!blockSheet.canEdit}
                     onChange={(e) => setBlockSheet((s) => s && { ...s, form: { ...s.form, startDate: e.target.value } })}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-500"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] disabled:bg-gray-50 disabled:text-gray-500"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -1861,7 +1877,7 @@ export default function ScheduleClient({
                       value={blockSheet.form.startTime}
                       disabled={!blockSheet.canEdit}
                       onChange={(e) => setBlockSheet((s) => s && { ...s, form: { ...s.form, startTime: e.target.value } })}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-500"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] disabled:bg-gray-50 disabled:text-gray-500"
                     />
                   </div>
                   <div>
@@ -1871,7 +1887,7 @@ export default function ScheduleClient({
                       value={blockSheet.form.endTime}
                       disabled={!blockSheet.canEdit}
                       onChange={(e) => setBlockSheet((s) => s && { ...s, form: { ...s.form, endTime: e.target.value } })}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-50 disabled:text-gray-500"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] disabled:bg-gray-50 disabled:text-gray-500"
                     />
                   </div>
                 </div>

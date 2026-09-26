@@ -30,7 +30,7 @@ export function showApproveRitual(text = "Approved") {
   else stamp.style.transform = "rotate(-8deg)";
   stamp.style.cssText +=
     "display:inline-block;padding:10px 26px;border:3px solid #16A34A;border-radius:10px;" +
-    "color:#16A34A;font-family:Oxanium,sans-serif;font-weight:800;font-size:30px;" +
+    "color:#16A34A;font-family:Lexend,sans-serif;font-weight:800;font-size:30px;" +
     "letter-spacing:0.14em;text-transform:uppercase;background:rgba(255,255,255,0.85);";
   stamp.textContent = text;
   wrap.appendChild(stamp);

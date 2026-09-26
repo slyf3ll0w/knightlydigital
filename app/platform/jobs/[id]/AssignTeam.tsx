@@ -75,7 +75,7 @@ export default function AssignTeam({
   }
 
   return (
-    <div className="card-ledger p-4">
+    <div className="ds-card p-4">
       <div className="flex items-center justify-between mb-3">
         <SectionHeader
           title={
@@ -95,7 +95,7 @@ export default function AssignTeam({
               checked={!outsourced && selected.has(u.id)}
               onChange={() => toggle(u.id)}
               disabled={saving || outsourced}
-              className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+              className="h-3.5 w-3.5 rounded border-gray-300 accent-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
             />
             {u.name}
           </label>
@@ -107,7 +107,7 @@ export default function AssignTeam({
           checked={outsourced}
           onChange={(e) => toggleOutsourced(e.target.checked)}
           disabled={saving}
-          className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+          className="h-3.5 w-3.5 rounded border-gray-300 accent-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
         />
         Outsourced to a subcontractor
       </label>
@@ -118,14 +118,14 @@ export default function AssignTeam({
           onChange={(e) => setOutsourcedTo(e.target.value)}
           onBlur={saveOutsourcedTo}
           disabled={saving}
-          className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
           placeholder="Who's doing it (optional)"
         />
       )}
       {solo && !outsourced && (
         <p className="mt-2 text-xs text-gray-500">It&apos;s just you — your jobs are assigned to you automatically.</p>
       )}
-      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-xs text-[color:var(--ds-bad)]">{error}</p>}
     </div>
   );
 }

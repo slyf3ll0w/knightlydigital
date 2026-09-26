@@ -3,7 +3,6 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { ChevronRight, FileSignature, Plus } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
-import { SECTION_HUES } from "@/lib/section-colors";
 import { shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
@@ -171,7 +170,6 @@ export default async function ContractsPage({
       />
 
       <FilterBar
-        hue={SECTION_HUES.contracts}
         options={statusFilters}
         value={validStatus ?? ""}
         href={(v) => listHref("/app/contracts", { q: query, sort: sortRaw }, { status: v })}
@@ -182,11 +180,10 @@ export default async function ContractsPage({
         }}
       />
 
-      <div className="card-ledger overflow-hidden">
+      <div className="ds-card overflow-hidden">
         {contracts.length === 0 ? (
           <EmptyState
             art="quotes"
-            hue={SECTION_HUES.contracts}
             title={filtered ? "No agreements match this filter" : "No agreements yet"}
             body={
               filtered
@@ -198,7 +195,7 @@ export default async function ContractsPage({
           />
         ) : (
           <>
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-[color:var(--ds-line)]">
               <div className="hidden lg:grid grid-cols-[1fr_70px_140px_150px_40px] gap-4 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
                 <span>Client</span>
                 <span>#</span>

@@ -42,13 +42,13 @@ export default function CollectDepositNudge({
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-green-50 border border-green-200 rounded-lg mb-6">
-      <p className="text-sm font-medium text-green-800">
+    <div className="flex flex-wrap items-center justify-between gap-3 mb-6 rounded-[var(--ds-r)] bg-[color:var(--ds-primary-soft)] px-4 py-3">
+      <p className="text-sm font-medium text-[color:var(--ds-ink)]">
         This quote was approved with a {money(amount)} required deposit — collect it before the
         work starts.
       </p>
       <div className="flex items-center gap-3">
-        {error && <span className="text-xs text-red-600">{error}</span>}
+        {error && <span className="text-xs text-[color:var(--ds-bad)]">{error}</span>}
         <button
           onClick={collect}
           disabled={busy}

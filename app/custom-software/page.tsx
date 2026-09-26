@@ -47,13 +47,13 @@ export default function CustomSoftwarePage() {
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <p
             className="text-xs font-bold uppercase tracking-widest mb-5"
-            style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
           >
             Custom Software Design
           </p>
           <h1
             className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight max-w-4xl mb-6"
-            style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+            style={{ fontFamily: 'Lexend, system-ui, sans-serif' }}
           >
             Your Software. Your Workflows.{' '}
             <SketchUnderline color="#22C55E">Built for You.</SketchUnderline>
@@ -65,7 +65,7 @@ export default function CustomSoftwarePage() {
             <Link
               href="/contact"
               className="text-sm font-bold uppercase tracking-wider px-8 py-4 text-white transition-opacity hover:opacity-90"
-              style={{ backgroundColor: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ backgroundColor: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
             >
               Get a Free Quote →
             </Link>
@@ -75,7 +75,7 @@ export default function CustomSoftwarePage() {
               style={{
                 border: '1.5px solid rgba(255,255,255,0.25)',
                 color: 'rgba(255,255,255,0.8)',
-                fontFamily: 'Oxanium, system-ui, sans-serif',
+                fontFamily: 'Lexend, system-ui, sans-serif',
               }}
             >
               See How It Works
@@ -91,13 +91,13 @@ export default function CustomSoftwarePage() {
           <AnimateIn className="mb-14">
             <p
               className="text-xs font-bold uppercase tracking-widest mb-4"
-              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
             >
               Who It&apos;s For
             </p>
             <h2
               className="text-3xl lg:text-4xl font-bold"
-              style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ color: '#0A0A0F', fontFamily: 'Lexend, system-ui, sans-serif' }}
             >
               Two Different Goals. <SketchUnderline>One Build Team.</SketchUnderline>
             </h2>
@@ -114,13 +114,13 @@ export default function CustomSoftwarePage() {
                 <div className="p-8 flex flex-col flex-1">
                   <p
                     className="text-xs font-bold uppercase tracking-widest mb-4"
-                    style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    style={{ color: '#6B7280', fontFamily: 'Lexend, system-ui, sans-serif' }}
                   >
                     For Your Business
                   </p>
                   <h3
                     className="text-2xl font-bold mb-4 leading-snug"
-                    style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    style={{ color: '#0A0A0F', fontFamily: 'Lexend, system-ui, sans-serif' }}
                   >
                     Replace the manual work with a system built around how you actually operate.
                   </h3>
@@ -133,7 +133,7 @@ export default function CustomSoftwarePage() {
                   >
                     <p
                       className="text-xs uppercase tracking-widest mb-3"
-                      style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                      style={{ color: '#6B7280', fontFamily: 'Lexend, system-ui, sans-serif' }}
                     >
                       Common builds include
                     </p>
@@ -155,7 +155,7 @@ export default function CustomSoftwarePage() {
                   <Link
                     href="/contact"
                     className="text-sm font-bold uppercase tracking-wider transition-opacity hover:opacity-70 inline-flex items-center gap-2"
-                    style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
                   >
                     Get a Free Quote →
                   </Link>
@@ -171,13 +171,13 @@ export default function CustomSoftwarePage() {
                 <div className="p-8 flex flex-col flex-1">
                   <p
                     className="text-xs font-bold uppercase tracking-widest mb-4"
-                    style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
                   >
                     For Your Idea
                   </p>
                   <h3
                     className="text-2xl font-bold mb-4 leading-snug text-white"
-                    style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    style={{ fontFamily: 'Lexend, system-ui, sans-serif' }}
                   >
                     Turn your concept into a live software product you own and can sell.
                   </h3>
@@ -190,7 +190,7 @@ export default function CustomSoftwarePage() {
                   >
                     <p
                       className="text-xs uppercase tracking-widest mb-3"
-                      style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                      style={{ color: 'rgba(255,255,255,0.3)', fontFamily: 'Lexend, system-ui, sans-serif' }}
                     >
                       Common builds include
                     </p>
@@ -212,7 +212,7 @@ export default function CustomSoftwarePage() {
                   <Link
                     href="/contact"
                     className="text-sm font-bold uppercase tracking-wider transition-opacity hover:opacity-70 inline-flex items-center gap-2"
-                    style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
                   >
                     Start Your Project →
                   </Link>
@@ -240,13 +240,13 @@ export default function CustomSoftwarePage() {
           <div className="max-w-7xl mx-auto px-6 lg:px-8">
             <p
               className="text-xs font-bold uppercase tracking-widest mb-4"
-              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
             >
               Our Approach
             </p>
             <h2
               className="text-3xl lg:text-4xl font-bold text-white max-w-xl leading-tight"
-              style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ fontFamily: 'Lexend, system-ui, sans-serif' }}
             >
               We build with the tools modern software companies rely on — faster and for less than you&apos;d expect.
             </h2>
@@ -263,13 +263,13 @@ export default function CustomSoftwarePage() {
               <div>
                 <p
                   className="text-xs font-bold uppercase tracking-widest mb-5"
-                  style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
                 >
                   Why Streamflaire
                 </p>
                 <h2
                   className="text-4xl lg:text-5xl font-bold text-white leading-tight"
-                  style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  style={{ fontFamily: 'Lexend, system-ui, sans-serif' }}
                 >
                   Stop paying agency rates<br />for agency overhead.
                 </h2>
@@ -315,13 +315,13 @@ export default function CustomSoftwarePage() {
                 >
                   <p
                     className="font-bold mb-3"
-                    style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif', fontSize: '2.8rem', lineHeight: 1 }}
+                    style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif', fontSize: '2.8rem', lineHeight: 1 }}
                   >
                     {item.num}
                   </p>
                   <h3
                     className="text-base font-bold text-white mb-2"
-                    style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    style={{ fontFamily: 'Lexend, system-ui, sans-serif' }}
                   >
                     {item.title}
                   </h3>
@@ -344,13 +344,13 @@ export default function CustomSoftwarePage() {
             <AnimateIn>
               <p
                 className="text-xs font-bold uppercase tracking-widest mb-4"
-                style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
               >
                 How It Works
               </p>
               <h2
                 className="text-3xl lg:text-4xl font-bold mb-6 leading-tight"
-                style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                style={{ color: '#0A0A0F', fontFamily: 'Lexend, system-ui, sans-serif' }}
               >
                 From First Conversation to Full Launch
               </h2>
@@ -379,13 +379,13 @@ export default function CustomSoftwarePage() {
                     <div className="flex items-center gap-3 mb-2">
                       <span
                         className="text-2xl font-bold"
-                        style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                        style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
                       >
                         {step.num}
                       </span>
                       <h3
                         className="text-lg font-bold"
-                        style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                        style={{ color: '#0A0A0F', fontFamily: 'Lexend, system-ui, sans-serif' }}
                       >
                         {step.title}
                       </h3>
@@ -410,13 +410,13 @@ export default function CustomSoftwarePage() {
             <AnimateIn>
               <p
                 className="text-xs font-bold uppercase tracking-widest mb-4"
-                style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
               >
                 Free No-Obligation Quote
               </p>
               <h2
                 className="text-3xl lg:text-4xl font-bold mb-6 leading-tight"
-                style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                style={{ color: '#0A0A0F', fontFamily: 'Lexend, system-ui, sans-serif' }}
               >
                 A Custom Build Might Cost Less{' '}
                 <SketchUnderline>Than You Think.</SketchUnderline>
@@ -433,7 +433,7 @@ export default function CustomSoftwarePage() {
               <Link
                 href="/contact"
                 className="inline-block text-sm font-bold uppercase tracking-wider px-8 py-4 text-white transition-opacity hover:opacity-90"
-                style={{ backgroundColor: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                style={{ backgroundColor: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
               >
                 Get a Free Quote →
               </Link>
@@ -446,7 +446,7 @@ export default function CustomSoftwarePage() {
               >
                 <p
                   className="text-xl font-bold mb-6 tracking-wide"
-                  style={{ color: '#ffffff', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  style={{ color: '#ffffff', fontFamily: 'Lexend, system-ui, sans-serif' }}
                 >
                   WHAT&apos;S INCLUDED IN YOUR QUOTE:
                 </p>
@@ -469,7 +469,7 @@ export default function CustomSoftwarePage() {
                   className="p-5"
                   style={{ borderLeft: '4px solid #22C55E', backgroundColor: 'rgba(34,197,94,0.07)' }}
                 >
-                  <p className="text-sm leading-relaxed font-bold" style={{ color: 'rgba(255,255,255,0.85)', fontFamily: 'Oxanium, system-ui, sans-serif' }}>
+                  <p className="text-sm leading-relaxed font-bold" style={{ color: 'rgba(255,255,255,0.85)', fontFamily: 'Lexend, system-ui, sans-serif' }}>
                     &ldquo;We&apos;ve had clients get a quote expecting $50,000 and walk away with a build for a fraction of that. Just ask.&rdquo;
                   </p>
                 </div>
@@ -486,7 +486,7 @@ export default function CustomSoftwarePage() {
           <AnimateIn>
             <h2
               className="text-3xl lg:text-4xl font-bold text-white mb-4"
-              style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ fontFamily: 'Lexend, system-ui, sans-serif' }}
             >
               Ready to Build Something That{' '}
               <SketchUnderline color="#ffffff">Actually Works?</SketchUnderline>
@@ -497,7 +497,7 @@ export default function CustomSoftwarePage() {
             <Link
               href="/contact"
               className="inline-block bg-white font-bold text-sm uppercase tracking-wider px-10 py-4 transition-all hover:shadow-lg hover:-translate-y-0.5"
-              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
             >
               Get a Free Quote →
             </Link>

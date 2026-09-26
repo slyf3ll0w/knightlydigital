@@ -3,9 +3,8 @@
 import { useEffect, useState } from "react";
 import { Check, ChevronDown, ChevronRight, Copy, ExternalLink, Loader2 } from "lucide-react";
 import { Input, Select, Textarea } from "@/components/Input";
-import SectionHeader from "@/components/SectionHeader";
 import { useAssistant } from "@/components/AssistantContext";
-import { APP_THEME } from "@/components/EstimatorControls";
+import { InfoTip } from "@/components/ds";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { PUBLIC_LIMITS, PUBLIC_PHOTO_ASSIST_DAILY_CAP, publicSlugFrom, type EstimatorPublicConfig } from "@/lib/estimator-public";
 
@@ -34,7 +33,6 @@ export type PublishTool = {
 type Saved = { isPublic?: boolean; publicSlug?: string | null; publicConfig?: unknown; error?: string };
 
 export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDirty, initialOptionsOpen = false }: { tool: PublishTool; companySlug: string; baseUrl: string; onSaved: (t: Saved) => void; /** Tells the page there are unsaved options (it asks before leaving / switching sections). */ onDirty?: (dirty: boolean) => void; initialOptionsOpen?: boolean }) {
-  const theme = APP_THEME;
   const atlas = useAssistant();
   const [slug, setSlug] = useState(tool.publicSlug ?? publicSlugFrom(tool.name));
   const [cfg, setCfg] = useState<EstimatorPublicConfig>(tool.publicConfig);
@@ -94,8 +92,7 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
   }
 
   // segmented choices in the app accent, like every other selected control
-  const seg = (active: boolean) => `flex-1 rounded-lg border px-2 py-2 text-xs font-medium transition-colors ${active ? "" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`;
-  const segStyle = (active: boolean) => (active ? { backgroundColor: theme.accent, borderColor: theme.accent, color: theme.onAccent } : undefined);
+  const seg = (active: boolean) => `flex-1 rounded-lg border px-2 py-2 text-xs font-medium transition-colors ${active ? "border-[color:var(--ds-primary)] bg-[color:var(--ds-primary)] text-[color:var(--ds-on-primary)]" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`;
   const hidden = c.showPrice === "hidden";
   const funnel = `${tool.publicViews} view${tool.publicViews === 1 ? "" : "s"} → ${tool.publicCalcs} estimate${tool.publicCalcs === 1 ? "" : "s"} → ${tool.submissions} lead${tool.submissions === 1 ? "" : "s"}`;
   const label = "mb-1 block text-sm font-medium text-gray-800";
@@ -113,7 +110,7 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
       )}
 
       {/* ── publish + the link ── */}
-      <section className="card-ledger p-4 sm:p-5">
+      <section className="ds-card p-4 sm:p-5">
         <button
           type="button"
           role="switch"
@@ -126,7 +123,7 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
             <span className="block text-base font-semibold text-gray-900">{tool.isPublic ? "Published as a web form" : "Publish as a web form"}</span>
             <span className="mt-0.5 block text-xs text-gray-500">{tool.isPublic ? "It's live at the link below. Share the link, or paste the embed code into your website — visitors get an estimate and land in your leads." : "One tap gives you a link to share and an embed code for your website. Visitors get an estimate and land in your leads. Free to run."}</span>
           </span>
-          <span className="relative h-7 w-12 shrink-0 rounded-full transition-colors" style={{ backgroundColor: tool.isPublic ? theme.accent : "#d1d5db" }} aria-hidden>
+          <span className="relative h-7 w-12 shrink-0 rounded-full transition-colors" style={{ backgroundColor: tool.isPublic ? "var(--ds-primary)" : "var(--ds-line-strong)" }} aria-hidden>
             {busy === "publish" ? (
               <Loader2 size={14} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 animate-spin text-white" />
             ) : (
@@ -142,7 +139,7 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
               <div className="flex items-center gap-2">
                 <input readOnly value={hostedUrl} onFocus={(e) => e.currentTarget.select()} className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700" />
                 <button type="button" onClick={() => copy(hostedUrl, "link")} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50">
-                  {copied === "link" ? <Check size={14} className="text-green-600" /> : <Copy size={14} />} {copied === "link" ? "Copied" : "Copy"}
+                  {copied === "link" ? <Check size={14} className="text-[color:var(--ds-good)]" /> : <Copy size={14} />} {copied === "link" ? "Copied" : "Copy"}
                 </button>
                 <a href={`${hostedUrl}?preview=1`} target="_blank" rel="noreferrer" className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50">
                   <ExternalLink size={14} /> Open
@@ -154,7 +151,7 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
               <div className="flex items-start gap-2">
                 <textarea readOnly value={embedSnippet} rows={2} onFocus={(e) => e.currentTarget.select()} className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-[11px] text-gray-600" />
                 <button type="button" onClick={() => copy(embedSnippet, "embed")} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50">
-                  {copied === "embed" ? <Check size={14} className="text-green-600" /> : <Copy size={14} />} {copied === "embed" ? "Copied" : "Copy"}
+                  {copied === "embed" ? <Check size={14} className="text-[color:var(--ds-good)]" /> : <Copy size={14} />} {copied === "embed" ? "Copied" : "Copy"}
                 </button>
               </div>
             </div>
@@ -164,12 +161,12 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
       </section>
 
       {/* ── options ── */}
-      <section className="card-ledger overflow-hidden">
+      <section className="ds-card overflow-hidden">
         <button type="button" onClick={() => setOptions((o) => !o)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-gray-50" aria-expanded={options}>
-          <SectionHeader
-            title="Options"
-            hint={`${c.showPrice === "exact" ? "Shows the exact estimate" : c.showPrice === "range" ? `Shows a range (±${c.rangePct}%)` : "Shows no price"} · ${whenLine} · ${c.onSubmit === "send" ? "emails the quote" : c.onSubmit === "draft" ? "drafts a quote" : "creates a request"}${photoOn ? " · photo fill-in" : ""}`}
-          />
+          <span className="min-w-0">
+            <span className="block text-[14.5px] font-semibold text-[color:var(--ds-ink)]">Options</span>
+            <span className="ds-small mt-0.5 block">{`${c.showPrice === "exact" ? "Shows the exact estimate" : c.showPrice === "range" ? `Shows a range (±${c.rangePct}%)` : "Shows no price"} · ${whenLine} · ${c.onSubmit === "send" ? "emails the quote" : c.onSubmit === "draft" ? "drafts a quote" : "creates a request"}${photoOn ? " · photo fill-in" : ""}`}</span>
+          </span>
           {options ? <ChevronDown size={16} className="shrink-0 text-gray-400" /> : <ChevronRight size={16} className="shrink-0 text-gray-400" />}
         </button>
         {options && (
@@ -188,15 +185,18 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
             </div>
 
             <div>
-              <label className={label}>What the visitor sees</label>
+              <div className="mb-1 flex items-center gap-1.5">
+                <label className="block text-sm font-medium text-gray-800">What the visitor sees</label>
+                {hidden && <InfoTip>Visitors leave their details and you follow up with the number. The estimate is still worked out for you and lands on the request.</InfoTip>}
+              </div>
               <div className="flex gap-2">
-                <button type="button" onClick={() => patch({ showPrice: "exact" })} className={seg(c.showPrice === "exact")} style={segStyle(c.showPrice === "exact")}>
+                <button type="button" onClick={() => patch({ showPrice: "exact" })} className={seg(c.showPrice === "exact")}>
                   Exact estimate
                 </button>
-                <button type="button" onClick={() => patch({ showPrice: "range" })} className={seg(c.showPrice === "range")} style={segStyle(c.showPrice === "range")}>
+                <button type="button" onClick={() => patch({ showPrice: "range" })} className={seg(c.showPrice === "range")}>
                   A range
                 </button>
-                <button type="button" onClick={() => patch({ showPrice: "hidden", onSubmit: c.onSubmit === "send" ? "draft" : c.onSubmit })} className={seg(hidden)} style={segStyle(hidden)}>
+                <button type="button" onClick={() => patch({ showPrice: "hidden", onSubmit: c.onSubmit === "send" ? "draft" : c.onSubmit })} className={seg(hidden)}>
                   No price
                 </button>
               </div>
@@ -207,31 +207,32 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
                   <span>%</span>
                 </div>
               )}
-              {hidden && <p className="mt-1.5 text-xs text-gray-500">Visitors leave their details and you follow up with the number. The estimate is still worked out for you and lands on the request.</p>}
             </div>
 
             <div>
-              <label className={label}>When to ask for their name and contact details</label>
+              <div className="mb-1 flex items-center gap-1.5">
+                <label className="block text-sm font-medium text-gray-800">When to ask for their name and contact details</label>
+                <InfoTip>
+                  {c.reveal === "before_form"
+                    ? "Everyone who starts the form becomes a lead, even if they never finish. Fewer people finish."
+                    : c.reveal === "after_contact" || hidden
+                      ? "They answer the questions, leave their details, and the estimate follows. A fair trade for most visitors."
+                      : "They see the number first, then decide whether to leave their details. The most estimates, the fewest leads."}
+                </InfoTip>
+              </div>
               <div className="flex flex-col gap-2 sm:flex-row">
                 {!hidden && (
-                  <button type="button" onClick={() => patch({ reveal: "instant" })} className={seg(c.reveal === "instant")} style={segStyle(c.reveal === "instant")}>
+                  <button type="button" onClick={() => patch({ reveal: "instant" })} className={seg(c.reveal === "instant")}>
                     After the estimate
                   </button>
                 )}
-                <button type="button" onClick={() => patch({ reveal: "after_contact" })} className={seg(c.reveal === "after_contact" || (hidden && c.reveal === "instant"))} style={segStyle(c.reveal === "after_contact" || (hidden && c.reveal === "instant"))}>
+                <button type="button" onClick={() => patch({ reveal: "after_contact" })} className={seg(c.reveal === "after_contact" || (hidden && c.reveal === "instant"))}>
                   After the questions{hidden ? "" : ", before the estimate"}
                 </button>
-                <button type="button" onClick={() => patch({ reveal: "before_form" })} className={seg(c.reveal === "before_form")} style={segStyle(c.reveal === "before_form")}>
+                <button type="button" onClick={() => patch({ reveal: "before_form" })} className={seg(c.reveal === "before_form")}>
                   Before the questions
                 </button>
               </div>
-              <p className="mt-1.5 text-xs text-gray-500">
-                {c.reveal === "before_form"
-                  ? "Everyone who starts the form becomes a lead, even if they never finish. Fewer people finish."
-                  : c.reveal === "after_contact" || hidden
-                    ? "They answer the questions, leave their details, and the estimate follows. A fair trade for most visitors."
-                    : "They see the number first, then decide whether to leave their details. The most estimates, the fewest leads."}
-              </p>
             </div>
 
             <div>
@@ -251,11 +252,11 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
                   return (
                     <div key={k} className="flex items-center justify-between gap-3 px-3 py-2">
                       <label className="flex items-center gap-2 text-sm text-gray-800">
-                        <input type="checkbox" checked={fld.show} onChange={(e) => patchField(k, { show: e.target.checked, required: e.target.checked ? fld.required : false })} className="h-4 w-4 rounded accent-green-600" />
+                        <input type="checkbox" checked={fld.show} onChange={(e) => patchField(k, { show: e.target.checked, required: e.target.checked ? fld.required : false })} className="h-4 w-4 rounded accent-[color:var(--ds-primary)]" />
                         {k === "email" ? "Email" : k === "phone" ? "Phone" : "Service address"}
                       </label>
                       <label className={`flex items-center gap-1.5 text-xs ${fld.show ? "text-gray-600" : "text-gray-300"}`}>
-                        <input type="checkbox" disabled={!fld.show} checked={fld.required} onChange={(e) => patchField(k, { required: e.target.checked })} className="h-3.5 w-3.5 rounded accent-green-600" />
+                        <input type="checkbox" disabled={!fld.show} checked={fld.required} onChange={(e) => patchField(k, { required: e.target.checked })} className="h-3.5 w-3.5 rounded accent-[color:var(--ds-primary)]" />
                         required
                       </label>
                     </div>
@@ -263,7 +264,7 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
                 })}
                 <div className="flex items-center justify-between gap-3 px-3 py-2">
                   <label className="flex items-center gap-2 text-sm text-gray-800">
-                    <input type="checkbox" checked={c.fields.message.show} onChange={(e) => patch({ fields: { ...c.fields, message: { ...c.fields.message, show: e.target.checked } } })} className="h-4 w-4 rounded accent-green-600" />
+                    <input type="checkbox" checked={c.fields.message.show} onChange={(e) => patch({ fields: { ...c.fields, message: { ...c.fields.message, show: e.target.checked } } })} className="h-4 w-4 rounded accent-[color:var(--ds-primary)]" />
                     A message box
                   </label>
                   {c.fields.message.show && <Input value={c.fields.message.label} onChange={(e) => patch({ fields: { ...c.fields, message: { ...c.fields.message, label: e.target.value } } })} maxLength={PUBLIC_LIMITS.messageLabel} className="w-48 py-1 text-xs" />}
@@ -282,7 +283,7 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
                     Atlas fills in the answers. Uses your tokens — at most {PUBLIC_PHOTO_ASSIST_DAILY_CAP} a day.{atlas.locked ? " Your tokens are used up right now, so the form hides this step until they refill." : ""}
                   </span>
                 </span>
-                <input type="checkbox" checked={photoOn} disabled={tool.assessed} onChange={(e) => patch({ photoAssist: e.target.checked })} className="h-5 w-5 rounded accent-green-600 disabled:opacity-60" />
+                <input type="checkbox" checked={photoOn} disabled={tool.assessed} onChange={(e) => patch({ photoAssist: e.target.checked })} className="h-5 w-5 rounded accent-[color:var(--ds-primary)] disabled:opacity-60" />
               </label>
             )}
 

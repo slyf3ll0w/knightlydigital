@@ -419,7 +419,7 @@ export default function PlaceSheet({
             <div className="flex items-baseline justify-between gap-3">
               <h2 className="text-base font-semibold text-gray-900">{heading}</h2>
               {existingJob && (
-                <Link prefetch={false} href={`/app/jobs/${existingJob.id}`} className="shrink-0 text-xs font-medium text-green-700 hover:underline">
+                <Link prefetch={false} href={`/app/jobs/${existingJob.id}`} className="shrink-0 text-xs font-medium text-[color:var(--ds-primary)] hover:underline">
                   View job
                 </Link>
               )}
@@ -466,7 +466,7 @@ export default function PlaceSheet({
                 {contact && !contactQ ? (
                   <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm">
                     <span className="truncate font-medium text-gray-900">{contact.name}</span>
-                    <button type="button" onClick={() => setContactQ(" ")} className="shrink-0 text-xs font-medium text-green-700 hover:underline">
+                    <button type="button" onClick={() => setContactQ(" ")} className="shrink-0 text-xs font-medium text-[color:var(--ds-primary)] hover:underline">
                       Change
                     </button>
                   </div>
@@ -535,7 +535,7 @@ export default function PlaceSheet({
                   invoice flow that makes no sense for a sales visit — nudge
                   toward the record that ends with an optional quote instead */}
               {kind === "job" && canCreateAppointment && looksLikeAppointment(title) && (
-                <p className="mt-1 text-xs text-amber-700">
+                <p className="mt-1 text-xs text-[color:var(--ds-warn)]">
                   Sounds like an appointment — those end with an optional quote, never an invoice.{" "}
                   <button
                     type="button"
@@ -606,7 +606,7 @@ export default function PlaceSheet({
           </div>
           {kind === "job" && (
             <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input type="checkbox" checked={anytime} onChange={(ev) => setAnytime(ev.target.checked)} className="rounded text-green-600 focus:ring-green-500" />
+              <input type="checkbox" checked={anytime} onChange={(ev) => setAnytime(ev.target.checked)} className="rounded text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]" />
               Anytime that day (no set time)
             </label>
           )}
@@ -669,7 +669,7 @@ export default function PlaceSheet({
                           onChange={(ev) =>
                             setAssignees((a) => (ev.target.checked ? [...a, u.id] : a.filter((id) => id !== u.id)))
                           }
-                          className="rounded text-green-600 focus:ring-green-500"
+                          className="rounded text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
                         />
                         {u.id === meId ? `${u.name} (me)` : u.name}
                       </label>
@@ -680,7 +680,7 @@ export default function PlaceSheet({
                       type="checkbox"
                       checked={outsourced}
                       onChange={(ev) => setOutsourced(ev.target.checked)}
-                      className="rounded text-green-600 focus:ring-green-500"
+                      className="rounded text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
                     />
                     Outsourced to a subcontractor
                   </label>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, RotateCcw, Loader2 } from "lucide-react";
 import SectionHeader from "@/components/SectionHeader";
+import { Chip } from "@/components/ds";
 import { sendOrQueue } from "@/lib/outbox";
 
 export type ChecklistItemView = {
@@ -86,14 +87,12 @@ export default function JobChecklist({
   const sources = [...new Set(view.map((i) => i.sourceName))];
 
   return (
-    <div className="card-ledger p-5">
+    <div className="ds-card p-5">
       <div className="flex items-center justify-between mb-4">
         <SectionHeader title="Checklist" />
-        <span
-          className={`stamp ${resolved === items.length ? "text-green-700" : "text-gray-500"}`}
-        >
+        <Chip tone={resolved === items.length ? "good" : "neutral"}>
           {resolved}/{view.length} done
-        </span>
+        </Chip>
       </div>
       {error && (
         <div role="alert" className="form-error mb-3">
@@ -101,7 +100,7 @@ export default function JobChecklist({
         </div>
       )}
       {queued && !error && (
-        <p className="mb-3 text-xs text-amber-700">
+        <p className="mb-3 text-xs text-[color:var(--ds-warn)]">
           Saved — checklist changes will sync when you&apos;re back online.
         </p>
       )}
@@ -129,9 +128,9 @@ export default function JobChecklist({
                           }
                           className={`mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border-[1.5px] transition-colors ${
                             item.done
-                              ? "border-green-600 bg-green-500 text-white"
+                              ? "border-[color:var(--ds-good)] bg-[color:var(--ds-good)] text-white"
                               : item.skipReason
-                                ? "border-amber-400 bg-amber-50 text-amber-500"
+                                ? "border-[color:var(--ds-warn)] bg-[color:var(--ds-warn-soft)] text-[color:var(--ds-warn)]"
                                 : "border-gray-300 bg-white hover:border-gray-400"
                           } ${readOnly ? "cursor-default" : ""}`}
                           aria-label={
@@ -164,7 +163,7 @@ export default function JobChecklist({
                             <p className="text-[11px] text-gray-400">by {item.doneByName}</p>
                           )}
                           {item.skipReason && (
-                            <p className="text-[11px] text-amber-700">
+                            <p className="text-[11px] text-[color:var(--ds-warn)]">
                               <span className="font-semibold">Not done</span> —{" "}
                               {item.skipReason}
                             </p>
@@ -196,20 +195,20 @@ export default function JobChecklist({
                               if (e.key === "Escape") setSkippingId(null);
                             }}
                             placeholder="Why couldn't this be done?"
-                            className="min-w-0 flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                            className="min-w-0 flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] bg-white"
                           />
                           <button
                             type="button"
                             disabled={!reason.trim() || busy}
                             onClick={() => update(item.id, "skip", reason.trim())}
-                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-[8px] btn-tool transition-colors disabled:opacity-50"
+                            className="ds-btn ds-btn-sm bg-[color:var(--ds-warn)] text-white hover:opacity-90 disabled:opacity-50"
                           >
                             Skip task
                           </button>
                           <button
                             type="button"
                             onClick={() => setSkippingId(null)}
-                            className="px-3 py-1.5 border border-gray-300 text-xs font-medium text-gray-600 rounded-[8px] hover:bg-gray-50 transition-colors"
+                            className="ds-btn ds-btn-outline ds-btn-sm"
                           >
                             Cancel
                           </button>

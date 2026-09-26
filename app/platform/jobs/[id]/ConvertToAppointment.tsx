@@ -51,7 +51,7 @@ export default function ConvertToAppointmentNotice({ jobId }: { jobId: string })
   }
 
   return (
-    <div className="mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+    <div className="mb-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-[var(--ds-r)] bg-[color:var(--ds-warn-soft)] px-4 py-3 text-sm text-[color:var(--ds-ink)]">
       <p className="min-w-0 flex-1">
         <span className="font-semibold">This looks like an appointment, not a job.</span>{" "}
         Jobs end with an invoice; estimates and meetings end with an optional quote.
@@ -60,7 +60,7 @@ export default function ConvertToAppointmentNotice({ jobId }: { jobId: string })
         type="button"
         onClick={go}
         disabled={busy}
-        className="flex shrink-0 items-center gap-1.5 rounded-[10px] border border-amber-300 bg-white px-3 py-1.5 text-[13px] font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-60"
+        className="ds-btn ds-btn-outline ds-btn-sm shrink-0 disabled:opacity-60"
       >
         {busy ? <Loader2 size={13} className="animate-spin" /> : <CalendarClock size={13} />}
         Make it an appointment

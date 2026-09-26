@@ -6,7 +6,6 @@ import { Plus, ChevronRight, DollarSign, Receipt, Download } from "lucide-react"
 import PageTitle from "@/components/PageTitle";
 import FilterBar, { listHref } from "@/components/FilterBar";
 import { pickSort, INVOICE_SORTS, invoiceOrderBy } from "@/lib/list-sort";
-import { SECTION_HUES } from "@/lib/section-colors";
 import { money, shortDate } from "@/lib/statuses";
 import { pastDueFilter } from "@/lib/due-dates";
 import { invoiceBalance } from "@/lib/payments";
@@ -161,21 +160,21 @@ export default async function InvoicesPage({
           <a
             href="/api/app/export/invoices"
             title="Download all invoices as CSV"
-            className="flex items-center gap-1.5 px-3 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 active:bg-gray-100 transition-colors"
+            className="ds-btn ds-btn-outline ds-btn-sm"
           >
             <Download size={14} />
             Export
           </a>
           <Link
             href="/app/payments/new"
-            className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 active:bg-gray-100 transition-colors"
+            className="ds-btn ds-btn-outline ds-btn-sm"
           >
             <DollarSign size={14} />
             Collect Payment
           </Link>
           <Link
             href="/app/invoices/new"
-            className="btn-primary"
+            className="ds-btn ds-btn-primary ds-btn-sm"
           >
             <Plus size={15} />
             New Invoice
@@ -190,10 +189,9 @@ export default async function InvoicesPage({
         params={{ status: validStatus, sort: sortRaw }}
       />
 
-      <KpiStrip kpis={kpis} desktopCols={3} hue={SECTION_HUES.invoices} />
+      <KpiStrip kpis={kpis} desktopCols={3} />
 
       <FilterBar
-        hue={SECTION_HUES.invoices}
         options={statusFilters}
         value={validStatus ?? ""}
         href={(v) => listHref("/app/invoices", { q: query, sort: sortRaw }, { status: v })}
@@ -204,11 +202,11 @@ export default async function InvoicesPage({
         }}
       />
 
-      <div className="card-ledger overflow-hidden">
+      <div className="ds-card overflow-hidden">
         {invoices.length === 0 ? (
           <EmptyState
             art="invoices"
-            hue={SECTION_HUES.invoices}
+            hue="var(--ds-primary)"
             title={validStatus ? "No invoices with this status" : "No invoices yet"}
             body={
               validStatus
@@ -257,7 +255,7 @@ export default async function InvoicesPage({
                           <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900">
                             {inv.contact ? `${inv.contact.firstName} ${inv.contact.lastName}` : "—"}
                           </p>
-                          <p className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900">
+                          <p className="ds-num shrink-0 text-sm font-semibold text-gray-900">
                             {money(balance > 0 ? balance : inv.total)}
                           </p>
                         </div>
@@ -286,10 +284,10 @@ export default async function InvoicesPage({
                     <span className="hidden lg:block">
                       <StatusChip kind="invoice" status={inv.status} />
                     </span>
-                    <span className="numeral-ledger hidden lg:block text-sm text-gray-600 lg:text-right">
+                    <span className="ds-num hidden lg:block text-sm text-gray-600 lg:text-right">
                       {money(inv.total)}
                     </span>
-                    <span className="numeral-ledger hidden lg:block text-sm font-semibold text-gray-900 lg:text-right">
+                    <span className="ds-num hidden lg:block text-sm font-semibold text-gray-900 lg:text-right">
                       {money(balance)}
                     </span>
                     <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
@@ -306,13 +304,13 @@ export default async function InvoicesPage({
               <span className="hidden lg:block" />
               <span className="hidden lg:block" />
               <span className="hidden lg:block" />
-              <span className="numeral-ledger hidden text-sm font-semibold text-gray-600 lg:block lg:text-right">
+              <span className="ds-num hidden text-sm font-semibold text-gray-600 lg:block lg:text-right">
                 {money(pageTotal)}
               </span>
-              <span className="numeral-ledger lg:hidden text-sm font-bold text-gray-900">
+              <span className="ds-num lg:hidden text-sm font-bold text-gray-900">
                 {money(pageBalance > 0 ? pageBalance : pageTotal)}
               </span>
-              <span className="numeral-ledger hidden lg:block text-sm font-bold text-gray-900 lg:text-right">
+              <span className="ds-num hidden lg:block text-sm font-bold text-gray-900 lg:text-right">
                 {money(pageBalance)}
               </span>
               <span className="hidden lg:block" />

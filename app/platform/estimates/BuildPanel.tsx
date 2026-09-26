@@ -87,7 +87,7 @@ function SampleTile({ s, pending }: { s: BuildSample | null; pending: boolean })
     <div className="msg-enter rounded-lg border border-gray-200 px-3 py-2.5">
       <p className="truncate text-[11px] font-medium text-gray-500">{s?.label ?? (pending ? "Sample job" : "—")}</p>
       {s?.error ? (
-        <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-amber-700">
+        <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-[color:var(--ds-warn)]">
           <AlertTriangle size={12} /> didn&apos;t run
         </p>
       ) : (
@@ -391,7 +391,7 @@ export default function BuildPanel({
   };
 
   return (
-    <div className={compact ? "" : "card-ledger overflow-hidden"}>
+    <div className={compact ? "" : "ds-card overflow-hidden"}>
       {/* ── the ask ── */}
       {!stage && !questions && (
         <div className={compact ? "" : "p-4 sm:p-6"}>

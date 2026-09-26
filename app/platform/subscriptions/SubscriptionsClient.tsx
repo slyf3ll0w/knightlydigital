@@ -5,11 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Check, Repeat, Loader2, Pencil, Play, Pause, X, RotateCw } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
-import { SECTION_HUES } from "@/lib/section-colors";
 import { money } from "@/lib/statuses";
 import EmptyState from "@/components/EmptyState";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import PageTitle from "@/components/PageTitle";
+import { Chip, InfoTip } from "@/components/ds";
 
 type Frequency = "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "QUARTERLY" | "ANNUALLY";
 
@@ -288,14 +288,14 @@ export default function SubscriptionsClient({
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
       <div className="flex items-start justify-between gap-3 mb-6">
-        <PageTitle sub="Auto-charged plans, plus work billed per completed visit.">Recurring</PageTitle>
+        <PageTitle info="Auto-charged plans, plus work billed per completed visit.">Recurring</PageTitle>
         {canManage && (
           <div className="flex items-center gap-2">
             {active.length > 0 && (
               <button
                 onClick={runAll}
                 disabled={runningAll}
-                className="flex shrink-0 items-center gap-1.5 px-3 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="ds-btn ds-btn-outline shrink-0 disabled:opacity-50"
                 title="Generate invoices for any subscriptions that are due now"
                 aria-label="Run due now"
               >
@@ -319,24 +319,26 @@ export default function SubscriptionsClient({
         <div role="alert" className="form-error mb-4">{error}</div>
       )}
       {flash && (
-        <div className="mb-4 px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">{flash}</div>
+        <div className="mb-4 rounded-lg bg-[color:var(--ds-good-soft)] px-4 py-3 text-sm text-[color:var(--ds-good)]">{flash}</div>
       )}
 
       {/* Ready to bill — completed per-job work nothing has invoiced yet.
           Billing it here is the whole per-job model: click daily for
           per-visit invoices, click on the 1st for one monthly invoice. */}
       {readyGroups.length > 0 && !readyBilled && (
-        <div className="card-ledger mb-6 overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-3 px-4 lg:px-5 py-3.5 border-b border-gray-100 bg-green-50/50">
+        <div className="ds-card mb-6 overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 lg:px-5 py-3.5 border-b border-[color:var(--ds-line)] bg-[color:var(--ds-primary-soft)]">
             <div>
-              <p className="text-sm font-semibold text-gray-900">
-                Ready to bill{" "}
-                <span className="numeral-ledger">{money(readyTotal)}</span>
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-[color:var(--ds-ink)]">
+                <span>
+                  Ready to bill{" "}
+                  <span className="numeral-ledger">{money(readyTotal)}</span>
+                </span>
+                <InfoTip>One invoice per series, charged to the card on file.</InfoTip>
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-[color:var(--ds-muted)]">
                 {readyJobs.length} completed visit{readyJobs.length === 1 ? "" : "s"} ·{" "}
-                {readyGroups.length} client{readyGroups.length === 1 ? "" : "s"}. One invoice per
-                series, charged to the card on file.
+                {readyGroups.length} client{readyGroups.length === 1 ? "" : "s"}
               </p>
             </div>
             {canManage && (
@@ -372,16 +374,16 @@ export default function SubscriptionsClient({
       )}
 
       {subs.length === 0 ? (
-        <div className="card-ledger">
+        <div className="ds-card">
           <EmptyState
             icon={Repeat}
-            hue={SECTION_HUES.subscriptions}
+            hue="var(--ds-primary)"
             title="No recurring plans yet"
             body={
               <>
                 Start one with <span className="font-medium text-gray-700">New plan</span>, or mark
                 a service as recurring in{" "}
-                <Link href="/app/settings/products" className="text-green-600 hover:underline">
+                <Link href="/app/settings/products" className="ds-link">
                   Services
                 </Link>{" "}
                 so selling it starts a plan.
@@ -391,7 +393,7 @@ export default function SubscriptionsClient({
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="card-ledger overflow-hidden">
+          <div className="ds-card overflow-hidden">
             <div className="divide-y divide-gray-100">
               {active.map((s) =>
                 editId === s.id ? (
@@ -403,7 +405,7 @@ export default function SubscriptionsClient({
                           type="text"
                           value={editForm.name}
                           onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
-                          className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                          className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                         />
                       </div>
                       {(s.interval || s.billPerVisit) && (
@@ -418,7 +420,7 @@ export default function SubscriptionsClient({
                               step="0.01"
                               value={editForm.unitPrice}
                               onChange={(e) => setEditForm((f) => ({ ...f, unitPrice: e.target.value }))}
-                              className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                              className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                             />
                           </div>
                           <div>
@@ -429,7 +431,7 @@ export default function SubscriptionsClient({
                               step="0.001"
                               value={editForm.quantity}
                               onChange={(e) => setEditForm((f) => ({ ...f, quantity: e.target.value }))}
-                              className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                              className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                             />
                           </div>
                           {s.interval && (
@@ -441,7 +443,7 @@ export default function SubscriptionsClient({
                                   onChange={(e) =>
                                     setEditForm((f) => ({ ...f, interval: e.target.value as BillingInterval }))
                                   }
-                                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                                 >
                                   {(Object.keys(INTERVAL_LABEL) as BillingInterval[]).map((iv) => (
                                     <option key={iv} value={iv}>
@@ -456,7 +458,7 @@ export default function SubscriptionsClient({
                                   type="date"
                                   value={editForm.nextRunDate}
                                   onChange={(e) => setEditForm((f) => ({ ...f, nextRunDate: e.target.value }))}
-                                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                                 />
                               </div>
                             </>
@@ -469,7 +471,7 @@ export default function SubscriptionsClient({
                                 onChange={(e) =>
                                   setEditForm((f) => ({ ...f, savedCardId: e.target.value }))
                                 }
-                                className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                                className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                               >
                                 <option value="">
                                   Default card
@@ -493,8 +495,15 @@ export default function SubscriptionsClient({
                     </div>
                     {/* Visit schedule — visit cadence decoupled from billing */}
                     <div className="pt-3 border-t border-gray-200">
-                      <p className="text-[13px] font-semibold text-gray-500 mb-2">
+                      <p className="text-[13px] font-semibold text-gray-500 mb-2 flex items-center gap-1.5">
                         Visit schedule
+                        {editForm.visitFrequency && (
+                          <InfoTip>
+                            The next ~4 weeks of visits appear on the schedule as regular jobs — drag
+                            one to reschedule it, or delete it to skip that visit. Billing stays on
+                            its own cadence above.
+                          </InfoTip>
+                        )}
                       </p>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         <div className="col-span-2 sm:col-span-1">
@@ -507,7 +516,7 @@ export default function SubscriptionsClient({
                                 visitFrequency: e.target.value as "" | Frequency,
                               }))
                             }
-                            className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                            className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                           >
                             <option value="">No repeating visits</option>
                             {(Object.keys(FREQ_LABEL) as Frequency[]).map((fq) => (
@@ -527,7 +536,7 @@ export default function SubscriptionsClient({
                                 onChange={(e) =>
                                   setEditForm((f) => ({ ...f, nextVisitDate: e.target.value }))
                                 }
-                                className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                                className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                               />
                             </div>
                             <div>
@@ -537,7 +546,7 @@ export default function SubscriptionsClient({
                                 onChange={(e) =>
                                   setEditForm((f) => ({ ...f, visitTime: e.target.value }))
                                 }
-                                className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                                className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                               >
                                 <option value="">Anytime</option>
                                 {TIME_OPTIONS.map((t) => (
@@ -555,7 +564,7 @@ export default function SubscriptionsClient({
                                   onChange={(e) =>
                                     setEditForm((f) => ({ ...f, visitDuration: e.target.value }))
                                   }
-                                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                                 >
                                   {DURATION_OPTIONS.map((d) => (
                                     <option key={d.value} value={d.value}>
@@ -585,20 +594,13 @@ export default function SubscriptionsClient({
                                         : f.visitAssignees.filter((id) => id !== u.id),
                                     }))
                                   }
-                                  className="accent-green-600"
+                                  className="accent-[color:var(--ds-primary)]"
                                 />
                                 {u.name}
                               </label>
                             ))}
                           </div>
                         </div>
-                      )}
-                      {editForm.visitFrequency && (
-                        <p className="text-xs text-gray-500 mt-2">
-                          The next ~4 weeks of visits appear on the schedule as regular jobs — drag
-                          one to reschedule it, or delete it to skip that visit. Billing stays on
-                          its own cadence above.
-                        </p>
                       )}
                     </div>
                     <p className="text-xs text-gray-500">
@@ -609,7 +611,7 @@ export default function SubscriptionsClient({
                       <button
                         onClick={() => saveEdit(s.id)}
                         disabled={busyId === s.id}
-                        className="flex items-center gap-1 px-4 py-2.5 lg:px-3 lg:py-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-40"
+                        className="ds-btn ds-btn-primary ds-btn-sm disabled:opacity-40"
                       >
                         {busyId === s.id ? (
                           <Loader2 size={11} className="animate-spin" />
@@ -655,7 +657,7 @@ export default function SubscriptionsClient({
                             ? "Per-job billing"
                             : "Recurring job"}
                         {s.visitFrequency && (
-                          <span className="text-green-700">
+                          <span className="text-[color:var(--ds-primary)]">
                             {" · "}visits {FREQ_LABEL[s.visitFrequency].toLowerCase()}
                           </span>
                         )}
@@ -663,7 +665,7 @@ export default function SubscriptionsClient({
                         {(s.interval || s.billPerVisit) && s.invoiceMode === "DRAFT" && " · drafts only"}
                       </p>
                       {s.status === "PAUSED" && (
-                        <span className="stamp shrink-0 text-amber-700">Paused</span>
+                        <span className="shrink-0"><Chip tone="warn">Paused</Chip></span>
                       )}
                     </div>
                     <p className="mt-0.5 text-xs text-gray-500">
@@ -697,7 +699,7 @@ export default function SubscriptionsClient({
                           <button
                             onClick={() => billNow(s.id)}
                             disabled={busyId === s.id || s.status !== "ACTIVE"}
-                            className="flex h-10 items-center rounded-[10px] bg-green-50 px-3 text-xs font-medium text-green-700 active:bg-green-100 transition-colors disabled:opacity-40"
+                            className="flex h-10 items-center rounded-[10px] bg-[color:var(--ds-primary-soft)] px-3 text-xs font-medium text-[color:var(--ds-primary)] active:opacity-80 transition-colors disabled:opacity-40"
                             title={
                               s.interval
                                 ? "Generate this subscription's next invoice now"
@@ -721,7 +723,7 @@ export default function SubscriptionsClient({
                           <button
                             onClick={() => setStatus(s.id, "ACTIVE")}
                             disabled={busyId === s.id}
-                            className="flex h-10 items-center gap-1.5 rounded-[10px] border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600 active:bg-green-50 active:text-green-700 transition-colors disabled:opacity-40"
+                            className="flex h-10 items-center gap-1.5 rounded-[10px] border border-gray-200 bg-white px-3 text-xs font-medium text-gray-600 active:bg-[color:var(--ds-primary-soft)] active:text-[color:var(--ds-primary)] transition-colors disabled:opacity-40"
                             title="Resume"
                           >
                             <Play size={13} />
@@ -756,7 +758,7 @@ export default function SubscriptionsClient({
                       <p className="text-sm font-medium text-gray-900 flex items-center gap-2">
                         {s.name}
                         {s.status === "PAUSED" && (
-                          <span className="stamp text-amber-700">Paused</span>
+                          <Chip tone="warn">Paused</Chip>
                         )}
                       </p>
                       <p className="text-xs text-gray-500">
@@ -776,7 +778,7 @@ export default function SubscriptionsClient({
                               }`
                             : "Recurring job — no billing"}
                         {s.visitFrequency && (
-                          <span className="text-green-700">
+                          <span className="text-[color:var(--ds-primary)]">
                             {" · "}visits {FREQ_LABEL[s.visitFrequency].toLowerCase()}
                           </span>
                         )}
@@ -811,7 +813,7 @@ export default function SubscriptionsClient({
                           <button
                             onClick={() => billNow(s.id)}
                             disabled={busyId === s.id || s.status !== "ACTIVE"}
-                            className="px-2.5 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg transition-colors disabled:opacity-40"
+                            className="ds-btn ds-btn-soft ds-btn-sm disabled:opacity-40"
                             title={
                               s.interval
                                 ? "Generate this subscription's next invoice now"
@@ -834,7 +836,7 @@ export default function SubscriptionsClient({
                           <button
                             onClick={() => setStatus(s.id, "ACTIVE")}
                             disabled={busyId === s.id}
-                            className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-full transition-colors"
+                            className="p-1.5 text-gray-400 hover:text-[color:var(--ds-primary)] hover:bg-[color:var(--ds-primary-soft)] rounded-full transition-colors"
                             title="Resume"
                           >
                             <Play size={14} />
@@ -871,7 +873,7 @@ export default function SubscriptionsClient({
           {cancelled.length > 0 && (
             <div>
               <p className="text-xs font-medium text-gray-500 mb-2">Cancelled</p>
-              <div className="card-ledger overflow-hidden opacity-70">
+              <div className="ds-card overflow-hidden opacity-70">
                 <div className="divide-y divide-gray-100">
                   {cancelled.map((s) => (
                     <div key={s.id} className="px-5 py-3 text-sm text-gray-500">

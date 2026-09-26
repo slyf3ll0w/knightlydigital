@@ -45,7 +45,7 @@ export default function SoftphoneToggleCard({ initial }: { initial: boolean }) {
   }
 
   return (
-    <div className="card-ledger p-5 mt-5">
+    <div className="ds-card p-5 mt-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <SectionHeader
@@ -62,7 +62,7 @@ export default function SoftphoneToggleCard({ initial }: { initial: boolean }) {
           onClick={toggle}
           disabled={busy}
           className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-[10px] transition-colors disabled:opacity-50 shrink-0 ${
-            on ? "border border-gray-300 text-gray-700 hover:bg-gray-50" : "bg-green-500 hover:bg-green-600 active:bg-green-700 text-white"
+            on ? "border border-gray-300 text-gray-700 hover:bg-gray-50" : "bg-[color:var(--ds-primary)] hover:bg-[color:var(--ds-primary-strong)] active:bg-[color:var(--ds-primary-strong)] text-white"
           }`}
         >
           {busy ? <Loader2 size={13} className="animate-spin" /> : on ? <PhoneOff size={13} /> : <Headphones size={13} />}
@@ -71,7 +71,7 @@ export default function SoftphoneToggleCard({ initial }: { initial: boolean }) {
       </div>
       {on !== initial && <p className="mt-2 text-xs text-gray-500">Takes effect the next time a page loads.</p>}
       {error && (
-        <p className="mt-2 text-xs text-red-600" role="alert">
+        <p className="mt-2 text-xs text-[color:var(--ds-bad)]" role="alert">
           {error}
         </p>
       )}

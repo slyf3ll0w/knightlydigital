@@ -42,11 +42,11 @@ export default function PayoutButton({ dark = false }: { dark?: boolean }) {
       <button
         onClick={send}
         disabled={busy}
-        className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-[10px] border disabled:opacity-50 transition-colors ${
+        className={
           dark
-            ? "border-white/25 text-white hover:bg-white/10"
-            : "border-gray-200 text-gray-700 hover:bg-gray-50"
-        }`}
+            ? "flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-[10px] border border-white/25 text-white hover:bg-white/10 disabled:opacity-50 transition-colors"
+            : "ds-btn ds-btn-outline ds-btn-sm disabled:opacity-50"
+        }
       >
         {busy ? <Loader2 size={12} className="animate-spin" /> : <Landmark size={12} />}
         Send to bank now
@@ -57,10 +57,10 @@ export default function PayoutButton({ dark = false }: { dark?: boolean }) {
             dark
               ? isError
                 ? "text-amber-300"
-                : "text-emerald-300"
+                : "text-white"
               : isError
-                ? "text-amber-600"
-                : "text-green-600"
+                ? "text-[color:var(--ds-warn)]"
+                : "text-[color:var(--ds-good)]"
           }`}
         >
           {msg}

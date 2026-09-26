@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Mail, Phone, MapPin } from "lucide-react";
 import { shortDate, money } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
+import { Chip } from "@/components/ds";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import RequestActions from "./RequestActions";
@@ -80,14 +81,14 @@ export default async function RequestDetailPage({
             <>
               Request #{request.requestNumber} · Requested {shortDate(request.createdAt, tz)}
               {request.preferredDate && (
-                <span className="font-medium text-blue-700">
+                <span className="font-medium text-[color:var(--ds-secondary)]">
                   {" "}· Client prefers {shortDate(request.preferredDate, tz)}
                 </span>
               )}
               {request.estimator && (
                 <>
                   {" "}· From the{" "}
-                  <Link href={`/app/estimates/${request.estimator.id}?s=leads`} className="font-medium text-green-700 hover:underline">
+                  <Link href={`/app/estimates/${request.estimator.id}?s=leads`} className="font-medium text-[color:var(--ds-primary)] hover:underline">
                     {request.estimator.name}
                   </Link>{" "}
                   estimate form
@@ -111,7 +112,7 @@ export default async function RequestDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
         <div className="space-y-5">
           {/* Service details */}
-          <div className="card-ledger p-5">
+          <div className="ds-card p-5">
             <h2 className="text-sm font-semibold text-gray-700 mb-3">
               Service details
             </h2>
@@ -121,7 +122,7 @@ export default async function RequestDetailPage({
           </div>
 
           {/* Appointments (estimates / sales meetings) */}
-          <div className="card-ledger p-5">
+          <div className="ds-card p-5">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-gray-700">
                 Appointments
@@ -132,7 +133,7 @@ export default async function RequestDetailPage({
                     ? `&date=${request.preferredDate.toISOString().slice(0, 10)}`
                     : ""
                 }`}
-                className="text-xs text-green-600 hover:underline font-medium"
+                className="text-xs text-[color:var(--ds-primary)] hover:underline font-medium"
               >
                 + Schedule Appointment
               </Link>
@@ -149,7 +150,7 @@ export default async function RequestDetailPage({
                     prefetch={false} href={`/app/appointments/${a.id}`}
                     className="flex items-center justify-between gap-3 text-sm"
                   >
-                    <span className="text-green-700 hover:underline truncate">
+                    <span className="text-[color:var(--ds-primary)] hover:underline truncate">
                       {a.title} ·{" "}
                       {a.scheduledAnytime
                         ? `${shortDate(a.scheduledAt, tz)}, anytime`
@@ -163,9 +164,7 @@ export default async function RequestDetailPage({
                     </span>
                     <span className="flex items-center gap-1.5 shrink-0">
                       {a.tentative && a.status === "SCHEDULED" && (
-                        <span className="stamp text-red-700">
-                          Tentative
-                        </span>
+                        <Chip tone="warn">Tentative</Chip>
                       )}
                       <StatusChip kind="appointment" status={a.status} />
                     </span>
@@ -177,7 +176,7 @@ export default async function RequestDetailPage({
 
           {/* Linked work */}
           {(request.quotes.length > 0 || request.jobs.length > 0) && (
-            <div className="card-ledger p-5">
+            <div className="ds-card p-5">
               <h2 className="text-sm font-semibold text-gray-700 mb-3">
                 Used for
               </h2>
@@ -186,7 +185,7 @@ export default async function RequestDetailPage({
                   <Link
                     key={q.id}
                     prefetch={false} href={`/app/quotes/${q.id}`}
-                    className="flex items-center justify-between text-sm text-green-700 hover:underline"
+                    className="flex items-center justify-between text-sm text-[color:var(--ds-primary)] hover:underline"
                   >
                     <span>Quote #{q.quoteNumber}</span>
                     <span className="text-gray-500">{money(q.total)}</span>
@@ -196,7 +195,7 @@ export default async function RequestDetailPage({
                   <Link
                     key={j.id}
                     prefetch={false} href={`/app/jobs/${j.id}`}
-                    className="flex items-center justify-between text-sm text-green-700 hover:underline"
+                    className="flex items-center justify-between text-sm text-[color:var(--ds-primary)] hover:underline"
                   >
                     <span>Job #{j.jobNumber}</span>
                     <span className="text-gray-500">{shortDate(j.scheduledAt, tz)}</span>
@@ -209,10 +208,10 @@ export default async function RequestDetailPage({
 
         {/* Client card */}
         <div className="space-y-4">
-          <div className="card-ledger p-5">
+          <div className="ds-card p-5">
             <Link
               prefetch={false} href={`/app/contacts/${c.id}`}
-              className="text-base font-semibold text-green-700 hover:underline"
+              className="text-base font-semibold text-[color:var(--ds-primary)] hover:underline"
             >
               {c.firstName} {c.lastName}
             </Link>

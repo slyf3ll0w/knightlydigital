@@ -234,7 +234,7 @@ export default function InvoiceEditor({
       </div>
 
       {prefillJob && (
-        <div className="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+        <div className="mb-4 rounded-[var(--ds-r)] bg-[color:var(--ds-primary-soft)] px-4 py-3 text-sm text-[color:var(--ds-ink)]">
           Creating invoice for job: <strong>{prefillJob.title}</strong>
         </div>
       )}
@@ -254,7 +254,7 @@ export default function InvoiceEditor({
           </div>
         )}
 
-        <div className="card-ledger p-5 space-y-4">
+        <div className="ds-card p-5 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
             <input
@@ -262,7 +262,7 @@ export default function InvoiceEditor({
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               placeholder="e.g. Pressure Washing Services"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
             />
           </div>
           {/* Stacks on phones — two-up squeezed both fields on small screens */}
@@ -295,7 +295,7 @@ export default function InvoiceEditor({
                   setDueDate(e.target.value);
                   setDueDateTouched(true);
                 }}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               />
             </div>
           </div>
@@ -303,7 +303,7 @@ export default function InvoiceEditor({
 
         {/* Line items — no overflow-hidden: the price-book dropdown must be
             able to spill past the card edge (it was getting clipped) */}
-        <div className="card-ledger">
+        <div className="ds-card">
           <div className="px-5 py-4 border-b border-gray-100">
             <h2 className="text-sm font-semibold text-gray-700">Line Items</h2>
           </div>
@@ -320,7 +320,7 @@ export default function InvoiceEditor({
                   <label className="text-sm text-gray-600">Tax</label>
                   <input type="number" value={taxRate} onChange={(e) => setTaxRate(e.target.value)}
                     min="0" max="100" step="0.001" placeholder="0"
-                    className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                   />
                   <span className="text-sm text-gray-500">%</span>
                 </div>
@@ -329,7 +329,7 @@ export default function InvoiceEditor({
                   <select
                     value={discountType}
                     onChange={(e) => setDiscountType(e.target.value as "NONE" | "PERCENT" | "FIXED")}
-                    className="px-2 py-1 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="px-2 py-1 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                   >
                     <option value="NONE">None</option>
                     <option value="PERCENT">%</option>
@@ -339,7 +339,7 @@ export default function InvoiceEditor({
                     <input type="number" value={discountValue}
                       onChange={(e) => setDiscountValue(e.target.value)}
                       min="0" step="0.01" placeholder="0"
-                      className="w-24 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-24 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                     />
                   )}
                 </div>
@@ -350,7 +350,7 @@ export default function InvoiceEditor({
                   <span className="font-medium">{money(subtotal)}</span>
                 </div>
                 {discount > 0 && (
-                  <div className="flex justify-between gap-8 text-green-700">
+                  <div className="flex justify-between gap-8 text-[color:var(--ds-good)]">
                     <span>Discount{discountType === "PERCENT" ? ` (${discountNum}%)` : ""}</span>
                     <span className="font-medium">-{money(discount)}</span>
                   </div>
@@ -362,7 +362,7 @@ export default function InvoiceEditor({
                   </div>
                 )}
                 {depositApplied > 0 && (
-                  <div className="flex justify-between gap-8 text-green-700">
+                  <div className="flex justify-between gap-8 text-[color:var(--ds-good)]">
                     <span>Deposit applied</span>
                     <span className="font-medium">
                       -{money(Math.min(depositApplied, grossTotal))}
@@ -378,17 +378,17 @@ export default function InvoiceEditor({
           </div>
         </div>
 
-        <div className="card-ledger p-5">
+        <div className="ds-card p-5">
           <label className="block text-sm font-medium text-gray-700 mb-1">Client message</label>
           <textarea value={clientMessage} onChange={(e) => setClientMessage(e.target.value)} rows={3}
-            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
             placeholder="A message the client sees at the top of the invoice (thank-you note, payment instructions)..." />
         </div>
 
-        <div className="card-ledger p-5">
+        <div className="ds-card p-5">
           <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3}
-            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
             placeholder="Payment terms, thank you note, etc." />
         </div>
 
@@ -399,7 +399,7 @@ export default function InvoiceEditor({
             {editInvoice ? "Save Changes" : "Save Invoice"}
           </button>
           <Link href={backHref}
-            className="px-5 py-2.5 btn-tool-line bg-white text-sm font-medium text-gray-600 rounded-[10px] hover:bg-gray-50">
+            className="ds-btn ds-btn-outline">
             Cancel
           </Link>
         </div>

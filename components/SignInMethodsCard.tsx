@@ -213,7 +213,7 @@ export default function SignInMethodsCard({
   }
 
   return (
-    <div className="card-ledger p-5 mt-5">
+    <div className="ds-card p-5 mt-5">
       <SectionHeader
         title="Sign-in methods"
         hint="The ways this login opens. Changes here ask you to verify it's you first."
@@ -226,7 +226,7 @@ export default function SignInMethodsCard({
         </div>
       )}
       {flash && !error && (
-        <div className="mb-3 flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+        <div className="mb-3 flex items-center gap-1.5 rounded-lg bg-[color:var(--ds-good-soft)] px-3 py-2 text-sm text-[color:var(--ds-good)]">
           <Check size={13} /> {flash}
         </div>
       )}

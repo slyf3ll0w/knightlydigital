@@ -5,7 +5,8 @@ export default function LoginLayout({ children }: { children: React.ReactNode })
   return (
     <>
       <ForceLightTheme />
-      {children}
+      {/* Outside the AppShell (signed out): .ds switches on Lexend + the design tokens */}
+      <div className="ds">{children}</div>
     </>
   );
 }

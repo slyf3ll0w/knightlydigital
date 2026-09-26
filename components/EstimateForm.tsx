@@ -34,7 +34,7 @@ export function EstimateForm({ dark = false }: Props) {
         </div>
         <h3
           className="text-xl font-bold mb-2"
-          style={{ color: dark ? '#ffffff' : '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+          style={{ color: dark ? '#ffffff' : '#0A0A0F', fontFamily: 'Lexend, system-ui, sans-serif' }}
         >
           Request Received!
         </h3>
@@ -49,7 +49,7 @@ export function EstimateForm({ dark = false }: Props) {
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <h3
         className="text-xl font-bold mb-1"
-        style={{ color: dark ? '#ffffff' : '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+        style={{ color: dark ? '#ffffff' : '#0A0A0F', fontFamily: 'Lexend, system-ui, sans-serif' }}
       >
         Get a Free Estimate
       </h3>
@@ -117,7 +117,7 @@ export function EstimateForm({ dark = false }: Props) {
         className="w-full py-4 text-sm font-bold uppercase tracking-wider text-white transition-opacity hover:opacity-90 disabled:opacity-70"
         style={{
           backgroundColor: '#0B57D8',
-          fontFamily: 'Oxanium, system-ui, sans-serif',
+          fontFamily: 'Lexend, system-ui, sans-serif',
         }}
       >
         {submitting ? 'Sending...' : 'Get a Free Estimate →'}

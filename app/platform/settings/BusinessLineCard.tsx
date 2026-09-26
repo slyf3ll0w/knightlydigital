@@ -23,6 +23,8 @@ import {
   legalNameHint,
 } from "@/lib/business-line-shared";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
+import SectionHeader from "@/components/SectionHeader";
+import { InfoTip } from "@/components/ds";
 
 /**
  * Settings → Phone & texting: the company's business line (lib/business-line.ts).
@@ -48,9 +50,8 @@ const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
 
 const inputCls =
-  "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-900/10";
-const primaryBtn =
-  "inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50";
+  "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[color:var(--ds-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary-soft)]";
+const primaryBtn = "ds-btn ds-btn-primary disabled:opacity-50";
 const ghostBtn = "inline-flex items-center gap-1.5 text-sm text-gray-500 underline hover:text-gray-700 disabled:opacity-50";
 
 async function post<T>(url: string, body?: unknown, method = "POST"): Promise<T> {
@@ -74,21 +75,25 @@ export default function BusinessLineCard({ initial }: { initial: LineSummary }) 
   }, [error]);
 
   return (
-    <div className="card-ledger p-5 space-y-5">
-      <div>
-        <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-          <Phone size={15} className="text-gray-400" />
-          Business Line
-        </h2>
-        <p className="text-xs text-gray-500 mt-0.5">
-          A phone number that&apos;s yours: calls to it ring your cell and announce who&apos;s calling,
-          unanswered calls go to voicemail, you can call clients from it, and once the carriers
-          approve your business, reminders and quote and invoice links text from it too.
-        </p>
-      </div>
+    <div className="ds-card p-5 space-y-5">
+      <SectionHeader
+        title={
+          <>
+            <Phone size={15} className="text-[color:var(--ds-faint)]" />
+            Business Line
+          </>
+        }
+        hint={
+          <>
+            A phone number that&apos;s yours: calls to it ring your cell and announce who&apos;s calling,
+            unanswered calls go to voicemail, you can call clients from it, and once the carriers
+            approve your business, reminders and quote and invoice links text from it too.
+          </>
+        }
+      />
 
       {error && (
-        <p ref={errorRef} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700" role="alert">
+        <p ref={errorRef} className="rounded-lg bg-[color:var(--ds-bad-soft)] px-3 py-2 text-xs text-[color:var(--ds-bad)]" role="alert">
           {error}
         </p>
       )}
@@ -160,7 +165,7 @@ function GetNumber({
         ).map(([value, label, hint]) => (
           <label
             key={value}
-            className={`cursor-pointer rounded-lg border px-3 py-2 ${type === value ? "border-gray-900 bg-gray-50" : "border-gray-200"}`}
+            className={`cursor-pointer rounded-lg border px-3 py-2 ${type === value ? "border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)]" : "border-gray-200"}`}
           >
             <input type="radio" name="lineType" value={value} checked={type === value} onChange={() => setType(value)} className="mr-2" />
             <span className="text-sm font-medium text-gray-800">{label}</span>
@@ -214,12 +219,12 @@ function ReleaseNotice({ line }: { line: LineSummary }) {
     `Hi — my Voice plan ended and I'd like to keep ${line.number}. Please tell me how to port it to my new carrier.`
   );
   return (
-    <div className="space-y-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm">
-      <p className="flex items-center gap-2 font-medium text-red-800">
+    <div className="space-y-2 rounded-lg bg-[color:var(--ds-bad-soft)] px-4 py-3 text-sm">
+      <p className="flex items-center gap-2 font-medium text-[color:var(--ds-bad)]">
         <AlertTriangle size={16} />
         Your plan ended — this number is released on {when}
       </p>
-      <p className="text-xs text-red-700">
+      <p className="text-xs text-[color:var(--ds-ink-2)]">
         Calls keep forwarding until then. The number is yours to keep: {" "}
         <Link href="/app/settings/addon" className="font-medium underline">
           resubscribe
@@ -266,9 +271,23 @@ function NumberRow({
     <div className="rounded-lg border border-gray-200 px-4 py-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-lg font-semibold tabular-nums text-gray-900">{fmtPhone(line.number)}</p>
-        <p className="text-xs text-gray-500">
-          Your {line.type === "toll_free" ? "toll-free " : ""}business line
-          {line.provisionedAt ? ` · since ${fmtDate(line.provisionedAt)}` : ""}
+        <p className="flex items-center gap-1 text-xs text-gray-500">
+          <span>
+            Your {line.type === "toll_free" ? "toll-free " : ""}business line
+            {line.provisionedAt ? ` · since ${fmtDate(line.provisionedAt)}` : ""}
+          </span>
+          {line.voice.routed && (
+            <InfoTip align="end" label="How calls ring">
+              Calls ring first in the browser of anyone signed in on a computer (My Profile → Calls in the app), then
+              your cell — from the business number, announcing who&apos;s calling, so the cell&apos;s own voicemail can
+              never grab a customer. Missed calls and voicemails land in{" "}
+              <Link href="/app/calls" className="underline">
+                Calls
+              </Link>
+              . To call a client from this number, use <em>Call from line</em> on their page — from the browser, or from
+              {line.voice.canCall ? " your cell" : " your cell once it's added under My Profile"}.
+            </InfoTip>
+          )}
         </p>
       </div>
       {editing ? (
@@ -296,7 +315,7 @@ function NumberRow({
       ) : (
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm">
           <p className="text-gray-700">
-            <span className="inline-block h-2 w-2 rounded-full bg-green-500 mr-2 align-middle" />
+            <span className="inline-block h-2 w-2 rounded-full bg-[color:var(--ds-good)] mr-2 align-middle" />
             Calls ring through to {fmtPhone(line.forwardTo)}
             {line.voice.routed && <span className="text-gray-500"> · shows as {fmtPhone(line.number)}, press 1 to accept</span>}
           </p>
@@ -311,25 +330,14 @@ function NumberRow({
         </div>
       )}
       {!line.forwardTo && !editing && (
-        <p className="mt-2 text-xs text-amber-700">
+        <p className="mt-2 text-xs text-[color:var(--ds-warn)]">
           {line.voice.routed
             ? "Calls go straight to voicemail until you add a number to ring."
             : "Calls aren’t forwarded anywhere yet — add a number above."}
         </p>
       )}
-      {line.voice.routed ? (
-        <p className="mt-2 text-xs text-gray-500">
-          Calls ring first in the browser of anyone signed in on a computer (My Profile → Calls in the app), then
-          your cell — from the business number, announcing who&apos;s calling, so the cell&apos;s own voicemail can
-          never grab a customer. Missed calls and voicemails land in{" "}
-          <Link href="/app/calls" className="underline">
-            Calls
-          </Link>
-          . To call a client from this number, use <em>Call from line</em> on their page — from the browser, or from
-          {line.voice.canCall ? " your cell" : " your cell once it's added under My Profile"}.
-        </p>
-      ) : line.voice.available && line.forwardTo ? (
-        <p className="mt-2 text-xs text-amber-700">
+      {!line.voice.routed && line.voice.available && line.forwardTo ? (
+        <p className="mt-2 text-xs text-[color:var(--ds-warn)]">
           Save your ring-through number again to turn on call announcements, voicemail and calling from the app.
         </p>
       ) : null}
@@ -370,7 +378,17 @@ function CallerIdName({
   return (
     <div className="rounded-lg border border-gray-200 px-4 py-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-sm font-medium text-gray-800">Caller ID name</p>
+        <p className="flex items-center gap-1 text-sm font-medium text-gray-800">
+          Caller ID name
+          <InfoTip>
+            Landlines read this listing within days. Cell phones mostly don&apos;t — AT&amp;T, T-Mobile and Verizon show the
+            name their spam-screening partners hold. List your number with all three for free at{" "}
+            <a href="https://freecallerregistry.com/" target="_blank" rel="noopener noreferrer" className="ds-link underline">
+              freecallerregistry.com
+            </a>{" "}
+            (one form for Hiya, First Orion and TNS); it also keeps the number from being marked as spam.
+          </InfoTip>
+        </p>
         {!editing && (
           <button type="button" onClick={() => setEditing(true)} className={ghostBtn}>
             {line.voice.callerIdName ? "Change" : "Set it"}
@@ -424,14 +442,6 @@ function CallerIdName({
           )}
         </p>
       )}
-      <p className="mt-2 text-xs text-gray-500">
-        Landlines read this listing within days. Cell phones mostly don&apos;t — AT&amp;T, T-Mobile and Verizon show the
-        name their spam-screening partners hold. List your number with all three for free at{" "}
-        <a href="https://freecallerregistry.com/" target="_blank" rel="noopener noreferrer" className="font-medium text-gray-700 underline">
-          freecallerregistry.com
-        </a>{" "}
-        (one form for Hiya, First Orion and TNS); it also keeps the number from being marked as spam.
-      </p>
     </div>
   );
 }
@@ -557,24 +567,24 @@ function Texting({
 
   if (reg.status === "ACTIVE") {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm">
-        <p className="flex items-center gap-2 text-green-800">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[color:var(--ds-good-soft)] px-4 py-3 text-sm">
+        <p className="flex items-center gap-2 font-medium text-[color:var(--ds-good)]">
           <CheckCircle2 size={16} />
           Texting is on{reg.approvedAt ? ` · ${tollFree ? "verified" : "approved"} ${fmtDate(reg.approvedAt)}` : ""}
         </p>
-        <p className="text-xs text-green-700">{tollFree ? "Verified" : "Registered"} to {reg.form.legalName}</p>
+        <p className="text-xs text-[color:var(--ds-ink-2)]">{tollFree ? "Verified" : "Registered"} to {reg.form.legalName}</p>
       </div>
     );
   }
 
   if (reg.status === "AWAITING_REVIEW") {
     return (
-      <div className="space-y-3 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm">
-        <p className="flex items-center gap-2 font-medium text-sky-900">
+      <div className="space-y-3 rounded-lg bg-[color:var(--ds-primary-soft)] px-4 py-3 text-sm">
+        <p className="flex items-center gap-2 font-medium text-[color:var(--ds-primary)]">
           <Loader2 size={16} className="animate-spin" />
           We&apos;re checking your details before filing
         </p>
-        <p className="text-xs text-sky-800">
+        <p className="text-xs text-[color:var(--ds-ink-2)]">
           {reg.rejectionReason
             ? "This one needs a change on our side of the paperwork, so someone at Workbench looks it over before it goes back out"
             : "Someone at Workbench looks over each registration before it goes out"}{" "}
@@ -591,8 +601,8 @@ function Texting({
     // A campaign existed → the carriers rejected the platform's campaign copy, not this business's details.
     const campaignStage = !tollFree && Boolean(reg.campaignStatus);
     return (
-      <div className="space-y-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm">
-        <p className="flex items-center gap-2 font-medium text-red-800">
+      <div className="space-y-3 rounded-lg bg-[color:var(--ds-bad-soft)] px-4 py-3 text-sm">
+        <p className="flex items-center gap-2 font-medium text-[color:var(--ds-bad)]">
           <AlertTriangle size={16} />
           {campaignStage
             ? "The carriers sent the texting application back"
@@ -601,18 +611,18 @@ function Texting({
               : "The carriers didn't approve texting"}
         </p>
         {campaignStage ? (
-          <p className="text-red-700">
+          <p className="text-[color:var(--ds-ink-2)]">
             That&apos;s on our side of the paperwork — we&apos;re sorting it out with them and you don&apos;t need to change
             anything. Calls keep working in the meantime.
           </p>
         ) : (
           <>
-            <p className="text-red-700">{reg.rejectionReason}</p>
+            <p className="text-[color:var(--ds-ink-2)]">{reg.rejectionReason}</p>
             <div className="flex flex-wrap items-center gap-3">
               <button type="button" onClick={() => setResubmitting(true)} className={primaryBtn}>
                 Edit and resubmit
               </button>
-              <span className="text-xs text-red-600">Corrected details are re-filed right away. Calls keep forwarding either way.</span>
+              <span className="text-xs text-[color:var(--ds-ink-2)]">Corrected details are re-filed right away. Calls keep forwarding either way.</span>
             </div>
           </>
         )}
@@ -622,9 +632,9 @@ function Texting({
 
   if (reg.status === "QUEUED") {
     return (
-      <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
+      <div className="space-y-3 rounded-lg bg-[color:var(--ds-warn-soft)] px-4 py-3 text-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="flex items-center gap-2 font-medium text-amber-800">
+          <p className="flex items-center gap-2 font-medium text-[color:var(--ds-warn)]">
             <Loader2 size={16} className="animate-spin" />
             Your registration is queued
           </p>
@@ -633,7 +643,7 @@ function Texting({
             Check now
           </button>
         </div>
-        <p className="text-xs text-amber-700">
+        <p className="text-xs text-[color:var(--ds-ink-2)]">
           It files with the carriers automatically, usually within the hour — nothing to do on your end. Calls and
           voicemail work now; texting switches on once the carrier review after that clears.
           {checked ? ` ${checked}.` : ""}
@@ -647,9 +657,9 @@ function Texting({
 
   const awaitingPin = reg.status === "BRAND_PENDING" && reg.entityType === "SOLE_PROPRIETOR";
   return (
-    <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
+    <div className="space-y-3 rounded-lg bg-[color:var(--ds-warn-soft)] px-4 py-3 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="flex items-center gap-2 font-medium text-amber-800">
+        <p className="flex items-center gap-2 font-medium text-[color:var(--ds-warn)]">
           <Loader2 size={16} className="animate-spin" />
           {awaitingPin
             ? "Waiting on your verification PIN"
@@ -664,7 +674,7 @@ function Texting({
           Check now
         </button>
       </div>
-      <p className="text-xs text-amber-700">
+      <p className="text-xs text-[color:var(--ds-ink-2)]">
         {awaitingPin
           ? `We texted a PIN to ${fmtPhone(reg.form.contactPhone)}. Enter it below within 24 hours.`
           : tollFree
@@ -795,15 +805,18 @@ function RegistrationForm({
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <div>
-        <h3 className="text-sm font-semibold text-gray-700">{tollFree ? "Verify for texting" : "Register for texting"}</h3>
-        <p className="text-xs text-gray-500 mt-0.5">
-          {tollFree
-            ? "Toll-free numbers are verified by the carriers before they can text. This is filed once, in your business's name, and usually takes one to two weeks."
-            : "US carriers require every business that texts to be registered, under its own legal name. This is filed once, in your business's name, and takes 3–7 business days to clear."}
-          {!line.entitled && " Part of the Voice plan."}
-        </p>
-      </div>
+      <SectionHeader
+        as="h3"
+        title={tollFree ? "Verify for texting" : "Register for texting"}
+        hint={
+          <>
+            {tollFree
+              ? "Toll-free numbers are verified by the carriers before they can text. This is filed once, in your business's name, and usually takes one to two weeks."
+              : "US carriers require every business that texts to be registered, under its own legal name. This is filed once, in your business's name, and takes 3–7 business days to clear."}
+          </>
+        }
+      />
+      {!line.entitled && <p className="text-xs text-gray-500">Part of the Voice plan.</p>}
 
       {tollFree && (
         <div className="grid gap-3 sm:grid-cols-2">
@@ -837,7 +850,7 @@ function RegistrationForm({
         ).map(([value, label, hint]) => (
           <label
             key={value}
-            className={`cursor-pointer rounded-lg border px-3 py-2 ${f.entityType === value ? "border-gray-900 bg-gray-50" : "border-gray-200"}`}
+            className={`cursor-pointer rounded-lg border px-3 py-2 ${f.entityType === value ? "border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)]" : "border-gray-200"}`}
           >
             <input
               type="radio"
@@ -858,7 +871,7 @@ function RegistrationForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Legal business name" hint={sole ? "Your full legal name" : "Exactly as on your IRS letter (CP575 / 147C)"}>
           <input value={f.legalName} onChange={set("legalName")} className={inputCls} required />
-          {nameHint && <span className="mt-0.5 block text-[11px] text-amber-700">{nameHint}</span>}
+          {nameHint && <span className="mt-0.5 block text-[11px] text-[color:var(--ds-warn)]">{nameHint}</span>}
         </Field>
         <Field
           label="Brand name"
@@ -874,10 +887,10 @@ function RegistrationForm({
                 onChange={set("ein")}
                 inputMode="numeric"
                 placeholder="12-3456789"
-                className={`${inputCls}${einDigits && einProblem ? " border-red-400" : ""}`}
+                className={`${inputCls}${einDigits && einProblem ? " border-[color:var(--ds-bad)]" : ""}`}
                 required
               />
-              {einDigits && einProblem ? <span className="mt-0.5 block text-[11px] text-red-600">{einProblem}</span> : null}
+              {einDigits && einProblem ? <span className="mt-0.5 block text-[11px] text-[color:var(--ds-bad)]">{einProblem}</span> : null}
             </Field>
             <Field label="Confirm EIN" hint="Type it again — it has to match exactly">
               <input
@@ -885,12 +898,12 @@ function RegistrationForm({
                 onChange={(e) => setEinConfirm(e.target.value)}
                 inputMode="numeric"
                 placeholder="12-3456789"
-                className={`${inputCls}${einConfirm && einMismatch ? " border-red-400" : ""}`}
+                className={`${inputCls}${einConfirm && einMismatch ? " border-[color:var(--ds-bad)]" : ""}`}
                 required
               />
-              {einConfirm && einMismatch ? <span className="mt-0.5 block text-[11px] text-red-600">The two EINs don&apos;t match.</span> : null}
+              {einConfirm && einMismatch ? <span className="mt-0.5 block text-[11px] text-[color:var(--ds-bad)]">The two EINs don&apos;t match.</span> : null}
             </Field>
-            <p className="flex items-start gap-1.5 text-[11px] text-amber-700 sm:col-span-2">
+            <p className="flex items-start gap-1.5 text-[11px] text-[color:var(--ds-warn)] sm:col-span-2">
               <AlertTriangle size={12} className="mt-0.5 shrink-0" />
               An incorrect EIN is turned down by the carrier registry and delays texting by days — check it against your IRS
               letter before you submit.
@@ -965,15 +978,15 @@ function RegistrationForm({
             type="email"
             value={f.contactEmail}
             onChange={set("contactEmail")}
-            className={`${inputCls}${emailOffDomain ? " border-red-400" : ""}`}
+            className={`${inputCls}${emailOffDomain ? " border-[color:var(--ds-bad)]" : ""}`}
             required
           />
           {emailOffDomain && (
-            <span className="mt-0.5 block text-[11px] text-red-600">This address isn't at {siteDomain}, so the reviewer will send it back.</span>
+            <span className="mt-0.5 block text-[11px] text-[color:var(--ds-bad)]">This address isn't at {siteDomain}, so the reviewer will send it back.</span>
           )}
-          {emailHint && <span className="mt-0.5 block text-[11px] text-amber-700">{emailHint}</span>}
-          {freeMail && <span className="mt-0.5 block text-[11px] text-red-600">{FREE_MAIL_MESSAGE}</span>}
-          {groupMail && <span className="mt-0.5 block text-[11px] text-red-600">{GROUP_MAIL_MESSAGE}</span>}
+          {emailHint && <span className="mt-0.5 block text-[11px] text-[color:var(--ds-warn)]">{emailHint}</span>}
+          {freeMail && <span className="mt-0.5 block text-[11px] text-[color:var(--ds-bad)]">{FREE_MAIL_MESSAGE}</span>}
+          {groupMail && <span className="mt-0.5 block text-[11px] text-[color:var(--ds-bad)]">{GROUP_MAIL_MESSAGE}</span>}
           {(freeMail || groupMail) && (
             <span className="mt-1.5 block rounded-md bg-gray-50 px-2.5 py-2 text-[11px] leading-relaxed text-gray-600">
               <strong className="text-gray-700">No company email yet?</strong> If you own a web domain, your registrar
@@ -999,7 +1012,7 @@ function RegistrationForm({
       </p>
 
       {error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700" role="alert">
+        <p className="rounded-lg bg-[color:var(--ds-bad-soft)] px-3 py-2 text-xs text-[color:var(--ds-bad)]" role="alert">
           {error}
         </p>
       )}

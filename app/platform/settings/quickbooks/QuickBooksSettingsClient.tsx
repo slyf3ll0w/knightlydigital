@@ -6,6 +6,7 @@ import { CheckCircle2, Loader2, RefreshCw, Unplug, AlertTriangle } from "lucide-
 import SectionHeader from "@/components/SectionHeader";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
+import { Chip } from "@/components/ds";
 import { confirmSheet } from "@/components/ConfirmSheet";
 
 type Status = {
@@ -155,7 +156,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-start gap-3 mb-6">
         <BackLink href="/app/settings" className="mt-1.5" />
-        <PageTitle sub="Push your clients, invoices, and payments into QuickBooks so your books stay current without re-typing anything">
+        <PageTitle info="Push your clients, invoices, and payments into QuickBooks so your books stay current without re-typing anything.">
           QuickBooks Online
         </PageTitle>
       </div>
@@ -167,7 +168,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
         </div>
       )}
       {justConnected && (
-        <div className="mb-6 flex items-start gap-2 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+        <div className="mb-6 flex items-start gap-2 rounded-lg bg-[color:var(--ds-good-soft)] p-4 text-sm text-[color:var(--ds-good)]">
           <CheckCircle2 size={16} className="mt-0.5 shrink-0" />
           Connected! Your first sync is running in the background — the numbers below will fill in
           as it finishes.
@@ -175,18 +176,18 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
       )}
 
       {!configured ? (
-        <div className="card-ledger p-5">
+        <div className="ds-card p-5">
           <SectionHeader
             title="Coming Soon"
             hint="The QuickBooks connection isn't enabled on this server yet. Check back soon."
           />
         </div>
       ) : loading ? (
-        <div className="card-ledger p-8 flex items-center justify-center text-gray-400">
+        <div className="ds-card p-8 flex items-center justify-center text-gray-400">
           <Loader2 size={18} className="animate-spin" />
         </div>
       ) : loadError ? (
-        <div className="card-ledger p-5 space-y-3">
+        <div className="ds-card p-5 space-y-3">
           <div role="alert" className="form-error flex items-start gap-2">
             <AlertTriangle size={16} className="mt-0.5 shrink-0" />
             {loadError}
@@ -197,14 +198,14 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
               setLoading(true);
               loadStatus();
             }}
-            className="flex items-center gap-1.5 rounded-[10px] btn-tool-line bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+            className="ds-btn ds-btn-outline ds-btn-sm"
           >
             <RefreshCw size={13} />
             Try again
           </button>
         </div>
       ) : !status?.connected ? (
-        <div className="card-ledger p-5 space-y-4">
+        <div className="ds-card p-5 space-y-4">
           <div>
             <SectionHeader
               title="Connect Your QuickBooks"
@@ -229,16 +230,16 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="card-ledger p-5 space-y-4">
+          <div className="ds-card p-5 space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <SectionHeader title="Connected" />
                 <p className="text-sm text-gray-600 mt-1">
-                  <CheckCircle2 size={14} className="inline mr-1 text-green-600" />
+                  <CheckCircle2 size={14} className="inline mr-1 text-[color:var(--ds-good)]" />
                   {status.qboCompanyName || `QuickBooks company ${status.realmId}`}
                   {status.environment === "sandbox" && (
-                    <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                      Sandbox
+                    <span className="ml-2 inline-flex align-middle">
+                      <Chip tone="warn">Sandbox</Chip>
                     </span>
                   )}
                 </p>
@@ -255,7 +256,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
                 type="button"
                 onClick={syncNow}
                 disabled={syncing}
-                className="flex shrink-0 items-center gap-2 rounded-[10px] btn-tool bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+                className="ds-btn ds-btn-primary shrink-0 disabled:opacity-50"
               >
                 {syncing ? (
                   <Loader2 size={14} className="animate-spin" />
@@ -267,7 +268,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
             </div>
 
             {(status.reconnectNeeded || status.lastSyncError) && (
-              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <div className="flex items-start gap-2 rounded-lg bg-[color:var(--ds-warn-soft)] p-3 text-sm text-[color:var(--ds-warn)]">
                 <AlertTriangle size={15} className="mt-0.5 shrink-0" />
                 <div>
                   {status.reconnectNeeded
@@ -284,8 +285,8 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
                 </div>
               </div>
             )}
-            {syncMessage && <p className="text-sm text-green-700">{syncMessage}</p>}
-            {syncError && <p className="text-sm text-red-600">{syncError}</p>}
+            {syncMessage && <p className="text-sm text-[color:var(--ds-good)]">{syncMessage}</p>}
+            {syncError && <p className="text-sm text-[color:var(--ds-bad)]">{syncError}</p>}
             <p className="text-xs text-gray-500">
               New payments push to QuickBooks as they&apos;re recorded, and everything else sweeps
               in nightly — Sync now just does it immediately.
@@ -293,7 +294,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
           </div>
 
           {(status.counts?.errors ?? 0) > 0 && (
-            <div className="card-ledger p-5 space-y-3">
+            <div className="ds-card p-5 space-y-3">
               <SectionHeader
                 title={`Sync Problems (${status.counts?.errors})`}
                 hint="These records couldn't sync — they retry on every sync. If one keeps failing, the message usually says what QuickBooks objected to."
@@ -307,14 +308,14 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
                         {new Date(e.lastSyncedAt).toLocaleString()}
                       </span>
                     </p>
-                    <p className="text-xs text-red-600 mt-0.5 break-words">{e.error}</p>
+                    <p className="text-xs text-[color:var(--ds-bad)] mt-0.5 break-words">{e.error}</p>
                   </li>
                 ))}
               </ul>
             </div>
           )}
 
-          <div className="rounded-lg border border-gray-200 p-5">
+          <div className="ds-card p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <SectionHeader

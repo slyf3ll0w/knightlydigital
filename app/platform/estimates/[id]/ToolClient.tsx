@@ -9,6 +9,8 @@ import PageTitle from "@/components/PageTitle";
 import SectionHeader from "@/components/SectionHeader";
 import Monogram from "@/components/Monogram";
 import StatusChip from "@/components/StatusChip";
+import EmptyState from "@/components/EmptyState";
+import { Chip, InfoTip } from "@/components/ds";
 import { Input, Textarea } from "@/components/Input";
 import { EstimatorRunnerPanel, valuesToForm } from "@/components/EstimatorRunner";
 import { useAssistant } from "@/components/AssistantContext";
@@ -361,16 +363,16 @@ export default function ToolClient({
 
   const pills = (
     <>
-      {!tool.isActive && <span className="stamp text-gray-500">Off</span>}
-      {published && <span className="stamp text-sky-700">Published</span>}
-      {tool.sourceListingId && <span className="stamp text-gray-500">From the Library</span>}
+      {!tool.isActive && <Chip>Off</Chip>}
+      {published && <Chip tone="primary">Published</Chip>}
+      {tool.sourceListingId && <Chip>From the Library</Chip>}
     </>
   );
 
   const railItem = (s: (typeof SECTIONS)[number]) => {
     const active = section === s.key;
     return (
-      <button key={s.key} type="button" onClick={() => go(s.key)} className={`flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-left text-sm transition-colors ${active ? "bg-green-500/10 font-semibold text-green-700" : "font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}>
+      <button key={s.key} type="button" onClick={() => go(s.key)} className={`flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-left text-sm transition-colors ${active ? "bg-[color:var(--ds-primary-soft)] font-semibold text-[color:var(--ds-primary)]" : "font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"}`}>
         <s.icon size={16} className={active ? undefined : "text-gray-400"} />
         {s.label}
         {s.key === "leads" && leads.length > 0 && <span className="ml-auto text-xs font-normal tabular-nums text-gray-400">{leads.length}</span>}
@@ -380,7 +382,7 @@ export default function ToolClient({
 
   const indexRow = (s: (typeof SECTIONS)[number]) => (
     <button key={s.key} type="button" onClick={() => (s.key === "try" ? run() : go(s.key))} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-100">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-green-500/10 text-green-700">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]">
         <s.icon size={17} strokeWidth={2.25} />
       </span>
       <span className="min-w-0 flex-1">
@@ -490,12 +492,14 @@ export default function ToolClient({
       {/* ── phone header inside a section: back to the index + the section's title ── */}
       {section !== "overview" && (
         <div className="mb-4 lg:hidden">
-          <button type="button" onClick={() => go("overview")} className="-ml-1.5 flex max-w-full items-center gap-0.5 text-[15px] font-medium text-green-700">
+          <button type="button" onClick={() => go("overview")} className="-ml-1.5 flex max-w-full items-center gap-0.5 text-[15px] font-medium text-[color:var(--ds-primary)]">
             <ChevronLeft size={19} className="shrink-0" />
             <span className="truncate">{tool.name}</span>
           </button>
-          <h2 className="mt-1 text-[22px] font-bold text-gray-900">{section === "atlas" ? `Ask ${atlas.name}` : sectionLabel}</h2>
-          {subline[section] && <p className="mt-0.5 text-sm text-gray-500">{subline[section]}</p>}
+          <h2 className="mt-1 flex items-center gap-1.5 text-[22px] font-bold text-gray-900">
+            {section === "atlas" ? `Ask ${atlas.name}` : sectionLabel}
+            {subline[section] && <InfoTip>{subline[section]}</InfoTip>}
+          </h2>
         </div>
       )}
 
@@ -521,7 +525,7 @@ export default function ToolClient({
               {placeholders.length > 0 && manager && <RatesToConfirm items={placeholders} onDone={(i) => void confirmRate(i)} onOpenPricing={() => go("advanced", "pricing")} />}
 
               {spec && spec.samples && spec.samples.length > 0 && (
-                <div className="card-ledger overflow-hidden">
+                <div className="ds-card overflow-hidden">
                   <SectionHeader className="px-4 pt-4 sm:px-5" title="What it prices" hint="Sample jobs, priced by today's rules." />
                   <dl className="mt-3 grid grid-cols-1 divide-y divide-gray-100 border-t border-gray-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
                     {spec.samples.map((s) => (
@@ -535,11 +539,11 @@ export default function ToolClient({
               )}
 
               {/* phones: the index rows; desktop: the three things people come here for */}
-              <div className="card-ledger divide-y divide-gray-100 overflow-hidden lg:hidden">{allowed.filter((s) => s.key !== "overview").map(indexRow)}</div>
+              <div className="ds-card divide-y divide-gray-100 overflow-hidden lg:hidden">{allowed.filter((s) => s.key !== "overview").map(indexRow)}</div>
 
-              <div className="card-ledger hidden divide-y divide-gray-100 lg:block">
+              <div className="ds-card hidden divide-y divide-gray-100 lg:block">
                 <button type="button" onClick={run} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50">
-                  <Play size={16} className="text-green-700" />
+                  <Play size={16} className="text-[color:var(--ds-primary)]" />
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-medium text-gray-900">Try it</span>
                     <span className="block text-xs text-gray-500">{subline.try}</span>
@@ -548,7 +552,7 @@ export default function ToolClient({
                 </button>
                 {manager && (
                   <button type="button" onClick={() => go("atlas")} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50">
-                    <Sparkles size={16} className="text-green-700" />
+                    <Sparkles size={16} className="text-[color:var(--ds-primary)]" />
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-medium text-gray-900">Change it — just tell {atlas.name}</span>
                       <span className="block text-xs text-gray-500">{subline.atlas}</span>
@@ -558,7 +562,7 @@ export default function ToolClient({
                 )}
                 {manager && (
                   <div className="flex items-center gap-3 px-4 py-3">
-                    <Globe size={16} className="text-green-700" />
+                    <Globe size={16} className="text-[color:var(--ds-primary)]" />
                     <button type="button" onClick={() => void publishNow()} disabled={busy === "publish"} className="min-w-0 flex-1 text-left">
                       <span className="block text-sm font-medium text-gray-900">{tool.isPublic ? "Published as a web form" : "Publish as a web form"}</span>
                       <span className="block truncate text-xs text-gray-500">{tool.isPublic ? `Share the link or embed it on your site · ${hostedUrl}` : "One tap — you get a link to share and an embed code for your website."}</span>
@@ -567,13 +571,13 @@ export default function ToolClient({
                       <Loader2 size={14} className="animate-spin text-gray-400" />
                     ) : tool.isPublic ? (
                       <button type="button" onClick={() => void copyLink()} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-gray-200 px-2 text-xs font-medium text-gray-700 hover:bg-gray-100">
-                        {copied ? <Check size={12} className="text-green-600" /> : <Copy size={12} />} {copied ? "Copied" : "Copy link"}
+                        {copied ? <Check size={12} className="text-[color:var(--ds-good)]" /> : <Copy size={12} />} {copied ? "Copied" : "Copy link"}
                       </button>
                     ) : null}
                   </div>
                 )}
                 <button type="button" onClick={() => go("leads")} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50">
-                  <Users size={16} className="text-green-700" />
+                  <Users size={16} className="text-[color:var(--ds-primary)]" />
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-medium text-gray-900">Leads</span>
                     <span className="block text-xs text-gray-500">{subline.leads}</span>
@@ -583,17 +587,20 @@ export default function ToolClient({
               </div>
 
               {manager && spec && (
-                <div className="card-ledger p-4 sm:p-5">
+                <div className="ds-card p-4 sm:p-5">
                   <button type="button" role="switch" aria-checked={tool.usesAtlas} disabled={busy !== null || (!tool.usesAtlas && !fillable)} onClick={() => void toggleAssist(!tool.usesAtlas)} className="flex w-full items-center justify-between gap-3 text-left disabled:opacity-60">
-                    <SectionHeader title={`${atlas.name} fill-in`} hint={tool.usesAtlas ? `On — someone can add a photo or describe the job and ${atlas.name} fills in the answers it can. Uses tokens per use; typing the answers stays free.${assessed ? ` Turning it off also makes the question${spec.inputs.filter((i) => i.askAtlas).length === 1 ? "" : "s"} ${atlas.name} assesses plain.` : ""}` : fillable ? `Off — every answer is typed in, free. Turn it on and someone can add a photo or describe the job instead; ${atlas.name} fills in what it can.` : `Nothing to fill in — this tool only has text questions. Add a number, choice, count or yes/no question first.`} />
-                    <span className="relative h-7 w-12 shrink-0 rounded-full transition-colors" style={{ backgroundColor: tool.usesAtlas ? "var(--wb-accent)" : "#d1d5db" }} aria-hidden>
+                    <span className="min-w-0">
+                      <span className="block text-[14.5px] font-semibold text-[color:var(--ds-ink)]">{atlas.name} fill-in</span>
+                      <span className="ds-small mt-0.5 block">{tool.usesAtlas ? `On — someone can add a photo or describe the job and ${atlas.name} fills in the answers it can. Uses tokens per use; typing the answers stays free.${assessed ? ` Turning it off also makes the question${spec.inputs.filter((i) => i.askAtlas).length === 1 ? "" : "s"} ${atlas.name} assesses plain.` : ""}` : fillable ? `Off — every answer is typed in, free. Turn it on and someone can add a photo or describe the job instead; ${atlas.name} fills in what it can.` : `Nothing to fill in — this tool only has text questions. Add a number, choice, count or yes/no question first.`}</span>
+                    </span>
+                    <span className="relative h-7 w-12 shrink-0 rounded-full transition-colors" style={{ backgroundColor: tool.usesAtlas ? "var(--ds-primary)" : "var(--ds-line-strong)" }} aria-hidden>
                       {busy === "assist" ? <Loader2 size={14} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 animate-spin text-white" /> : <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${tool.usesAtlas ? "translate-x-[26px]" : "translate-x-1"}`} />}
                     </span>
                   </button>
                   {tool.usesAtlas && (
                     <>
                       {!(spec.assist?.instructions ?? "").trim() && (
-                        <div className="mt-3 flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
+                        <div className="mt-3 flex items-start gap-2.5 rounded-lg bg-[color:var(--ds-warn-soft)] px-3 py-2.5 text-xs text-[color:var(--ds-warn)]">
                           <Info size={15} className="mt-0.5 shrink-0" />
                           <span>
                             <span className="font-semibold">Give {atlas.name} instructions for this job.</span> Without them it fills the form with trade-typical guesses. Say what to look for in a photo or description, what to assume when it can&apos;t tell, and what it must never guess — for example: &ldquo;A two-car driveway is about 500 sq ft. Count the garage as one story. If the stains aren&apos;t visible, assume moderate. Never guess the fence length.&rdquo;
@@ -625,14 +632,14 @@ export default function ToolClient({
 
           {/* ── Try it ── */}
           {section === "try" && runner && (
-            <div className="card-ledger p-4 sm:p-5">
+            <div className="ds-card p-4 sm:p-5">
               <EstimatorRunnerPanel key={runKey} inline estimators={[runner]} onClose={() => go("overview")} showSamples={manager} />
             </div>
           )}
 
           {/* ── Ask Atlas — stays mounted (hidden) across sections so a change in progress is still there when you come back; the app-wide bar covers it meanwhile ── */}
           {manager && (
-            <div className={section === "atlas" ? "card-ledger p-4 sm:p-5" : "hidden"}>
+            <div className={section === "atlas" ? "ds-card p-4 sm:p-5" : "hidden"}>
               <SectionHeader size="block" className="mb-3 hidden lg:block" title={`Change “${tool.name}”`} hint="Say what should be different. The current version is kept under History." />
               {/* not keyed on updatedAt on purpose: the finished card ("Done — the changes are saved", the list of changes) must stay on screen after the save refreshes the page */}
               <BuildPanel
@@ -655,9 +662,9 @@ export default function ToolClient({
 
           {/* ── Leads ── */}
           {section === "leads" && (
-            <div className="card-ledger overflow-hidden">
+            <div className="ds-card overflow-hidden">
               {leads.length === 0 ? (
-                <p className="px-5 py-10 text-center text-sm text-gray-500">Nobody has used this tool yet. Website leads and quotes started from it land here.</p>
+                <EmptyState compact title="Nobody has used this tool yet" body="Website leads and quotes started from it land here." />
               ) : (
                 <>
                   <div className="divide-y divide-gray-100">
@@ -672,10 +679,10 @@ export default function ToolClient({
                     {leads.map(leadRow)}
                   </div>
                   <div className="flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5">
-                    <span className="text-xs font-medium text-gray-500">
+                    <span className="flex items-center gap-1 text-xs font-medium text-gray-500">
                       {leads.length} {leads.length === 1 ? "lead" : "leads"}
+                      <InfoTip>Website leads also carry a “Website estimate” source on the Leads board.</InfoTip>
                     </span>
-                    <span className="text-xs text-gray-500">Website leads also carry a “Website estimate” source on the Leads board.</span>
                   </div>
                 </>
               )}

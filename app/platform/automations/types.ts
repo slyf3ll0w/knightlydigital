@@ -66,7 +66,7 @@ export function ago(iso: string): string {
 }
 
 export function runDot(status: string): string {
-  return status === "ok" ? "bg-emerald-500" : status === "failed" ? "bg-red-500" : status === "waiting" ? "bg-amber-400" : "bg-gray-300";
+  return status === "ok" ? "bg-[color:var(--ds-good)]" : status === "failed" ? "bg-[color:var(--ds-bad)]" : status === "waiting" ? "bg-[color:var(--ds-warn)]" : "bg-[color:var(--ds-faint)]";
 }
 
 export const ENTITY_WORD: Partial<Record<EntityType | string, string>> = {

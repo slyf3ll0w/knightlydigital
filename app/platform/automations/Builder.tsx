@@ -8,7 +8,6 @@ import { useAssistant } from "@/components/AssistantContext";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { hapticNotify } from "@/lib/haptics";
-import { SECTION_HUES } from "@/lib/section-colors";
 import {
   ACTIONS,
   AUTOMATION_LIMITS,
@@ -60,9 +59,10 @@ import { type Draft, type Row, type Run, type TestResult } from "./types";
  * the summary, Atlas, Save — since cards need a desk.
  */
 
-const TRIGGER_TINT = SECTION_HUES.business;
-const FLOW_TINT = "#374151";
-const ACTION_TINT: Record<string, string> = { Messaging: "#0ea5e9", Records: "#8b5cf6", Integrations: "#f59e0b" };
+// Card icon tints: design-system tokens only (the brand primary leads, secondary sparingly).
+const TRIGGER_TINT = "var(--ds-primary)";
+const FLOW_TINT = "var(--ds-ink-2)";
+const ACTION_TINT: Record<string, string> = { Messaging: "var(--ds-primary)", Records: "var(--ds-secondary)", Integrations: "var(--ds-ink-2)" };
 
 type State = { name: string; description: string; trigger: TriggerSpec; lead: FilterStep; steps: Step[] };
 
@@ -336,15 +336,15 @@ export default function Builder({ initial, initialRuns, atlasFirst = false }: { 
       <div className="flex shrink-0 items-center gap-2">
         {initial && (
           <>
-            <button type="button" onClick={() => void toggleActive()} className="btn-tool-line bg-white text-gray-700 inline-flex h-10 items-center gap-1.5 px-3 text-sm" title={isActive ? "Pause" : "Resume"}>
+            <button type="button" onClick={() => void toggleActive()} className="btn-tool-line inline-flex h-10 items-center gap-1.5 px-3 text-sm" title={isActive ? "Pause" : "Resume"}>
               {isActive ? <><Pause size={14} /> Pause</> : <><Play size={14} /> Resume</>}
             </button>
-            <button type="button" onClick={() => void remove()} aria-label="Delete" title="Delete" className="btn-tool-line bg-white text-gray-700 inline-flex h-10 w-10 items-center justify-center text-red-600">
+            <button type="button" onClick={() => void remove()} aria-label="Delete" title="Delete" className="btn-tool-line inline-flex h-10 w-10 items-center justify-center text-[color:var(--ds-bad)]">
               <Trash2 size={15} />
             </button>
           </>
         )}
-        <button type="button" onClick={() => void test()} disabled={!compiled.ok} className="btn-tool-line bg-white text-gray-700 inline-flex h-10 items-center gap-1.5 px-3.5 text-sm disabled:opacity-50" title="Dry run over the last 30 days — nothing is sent">
+        <button type="button" onClick={() => void test()} disabled={!compiled.ok} className="btn-tool-line inline-flex h-10 items-center gap-1.5 px-3.5 text-sm disabled:opacity-50" title="Dry run over the last 30 days — nothing is sent">
           <FlaskConical size={14} /> Test
         </button>
         <button type="button" onClick={() => void save()} disabled={!canSave} className="btn-primary h-10 justify-center px-4 disabled:opacity-50">
@@ -360,7 +360,7 @@ export default function Builder({ initial, initialRuns, atlasFirst = false }: { 
         <div role="alert" className="form-error mb-4">{error}</div>
       )}
       {errors.length > 0 && st.steps.length > 0 && (
-        <ul className="mb-4 space-y-0.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        <ul className="mb-4 space-y-0.5 rounded-xl bg-[color:var(--ds-warn-soft)] px-3 py-2 text-xs text-[color:var(--ds-warn)]">
           {errors.slice(0, 6).map((e, i) => <li key={i}>{e}</li>)}
         </ul>
       )}
@@ -370,9 +370,9 @@ export default function Builder({ initial, initialRuns, atlasFirst = false }: { 
 
   const stack = (
     <div className="mx-auto w-full max-w-2xl">
-      <Card icon={Zap} tint={TRIGGER_TINT} title={triggerTitle(st.trigger)} preview="Trigger — what starts this automation" className={changed.has(-1) ? "ring-2 ring-amber-300" : ""}>
+      <Card icon={Zap} tint={TRIGGER_TINT} title={triggerTitle(st.trigger)} preview="Trigger — what starts this automation" className={changed.has(-1) ? "ring-2 ring-[color:var(--ds-warn)]" : ""}>
         <div className="space-y-3">
-          <button type="button" onClick={() => setTriggerOpen(true)} className="btn-tool-line bg-white text-gray-700 inline-flex h-9 items-center px-3 text-sm">Change trigger</button>
+          <button type="button" onClick={() => setTriggerOpen(true)} className="btn-tool-line inline-flex h-9 items-center px-3 text-sm">Change trigger</button>
           <TriggerEditor trigger={st.trigger} onChange={(t) => update({ trigger: t })} options={options} />
         </div>
       </Card>
@@ -457,7 +457,7 @@ export default function Builder({ initial, initialRuns, atlasFirst = false }: { 
           {st.description && <p className="mt-1 text-sm text-gray-500">{st.description}</p>}
         </div>
         {problems}
-        <div className="card-ledger px-4 py-3">
+        <div className="ds-card px-4 py-3">
           {described ? (
             <ol className="space-y-1.5">
               {[{ kind: "trigger", text: described.trigger }, ...described.steps].map((s, i) => (
@@ -489,7 +489,7 @@ export default function Builder({ initial, initialRuns, atlasFirst = false }: { 
           </div>
         )}
         {initial && isActive && !dirty && (
-          <button type="button" onClick={() => void toggleActive()} className="btn-tool-line bg-white text-gray-700 mt-4 inline-flex h-10 w-full items-center justify-center gap-1.5 px-3 text-sm"><Pause size={14} /> Pause</button>
+          <button type="button" onClick={() => void toggleActive()} className="btn-tool-line mt-4 inline-flex h-10 w-full items-center justify-center gap-1.5 px-3 text-sm"><Pause size={14} /> Pause</button>
         )}
         {initial && <div className="mt-6"><RunHistory runs={runs} onRefresh={refreshRuns} loading={runsLoading} /></div>}
         <p className="mt-4 text-center text-[11px] text-gray-400">{atlas.available ? `Change it by telling ${atlas.name} what should be different, or edit the cards on a desktop.` : "Edit the cards on a desktop."}</p>

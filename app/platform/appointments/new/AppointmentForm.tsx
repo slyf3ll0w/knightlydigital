@@ -175,12 +175,12 @@ export default function AppointmentForm({
             {error}
           </p>
         )}
-        <div className="card-ledger p-5 space-y-4">
+        <div className="ds-card p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700">Who &amp; what</h2>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Client *</label>
             <ContactPicker contacts={contacts} value={contactId} onChange={pickContact} />
-            <Link href="/app/contacts/new" className="text-xs text-green-600 hover:underline mt-1 inline-block">
+            <Link href="/app/contacts/new" className="text-xs text-[color:var(--ds-primary)] hover:underline mt-1 inline-block">
               + Add new client
             </Link>
           </div>
@@ -200,7 +200,7 @@ export default function AppointmentForm({
           )}
         </div>
 
-        <div className="card-ledger p-5 space-y-4">
+        <div className="ds-card p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700">How</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {TYPES.map((t) => {
@@ -212,11 +212,11 @@ export default function AppointmentForm({
                   onClick={() => setType(t.value)}
                   className={`rounded-lg border p-3 text-left transition-colors ${
                     active
-                      ? "border-green-500 bg-green-50 ring-1 ring-green-500"
-                      : "border-gray-200 bg-white hover:border-gray-300"
+                      ? "border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)] ring-1 ring-[color:var(--ds-primary)]"
+                      : "border-[color:var(--ds-line)] bg-[color:var(--ds-surface)] hover:border-[color:var(--ds-line-strong)]"
                   }`}
                 >
-                  <t.icon size={16} className={active ? "text-green-600" : "text-gray-400"} />
+                  <t.icon size={16} className={active ? "text-[color:var(--ds-primary)]" : "text-gray-400"} />
                   <p className="text-sm font-semibold text-gray-900 mt-1.5">{t.label}</p>
                   <p className="text-xs text-gray-500 mt-0.5">{t.hint}</p>
                 </button>
@@ -286,7 +286,7 @@ export default function AppointmentForm({
           )}
         </div>
 
-        <div className="card-ledger p-5 space-y-4">
+        <div className="ds-card p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700">When</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -328,7 +328,7 @@ export default function AppointmentForm({
               type="checkbox"
               checked={anytime}
               onChange={(e) => setAnytime(e.target.checked)}
-              className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+              className="h-3.5 w-3.5 rounded border-gray-300 text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
             />
             Anytime (no set time)
           </label>
@@ -361,7 +361,7 @@ export default function AppointmentForm({
           )}
         </div>
 
-        <div className="card-ledger p-5 space-y-4">
+        <div className="ds-card p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700">Details</h2>
           {users.length > 1 && (
             <div>
@@ -390,7 +390,7 @@ export default function AppointmentForm({
               type="checkbox"
               checked={remindClient}
               onChange={(e) => setRemindClient(e.target.checked)}
-              className="mt-0.5 accent-green-600"
+              className="mt-0.5 accent-[color:var(--ds-primary)]"
             />
             <span>
               Send the client automatic reminders

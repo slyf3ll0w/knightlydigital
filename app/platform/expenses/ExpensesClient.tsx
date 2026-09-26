@@ -5,7 +5,6 @@ import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
 import { Check, Download, Loader2, Pause, Pencil, Play, Plus, Receipt, Repeat, Trash2, X } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
-import { SECTION_HUES } from "@/lib/section-colors";
 import BackLink from "@/components/BackLink";
 import { money } from "@/lib/statuses";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -247,14 +246,14 @@ export default function ExpensesClient({
       {error && (
         <div role="alert" className="form-error mb-4 flex items-center justify-between">
           {error}
-          <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
+          <button onClick={() => setError("")} className="p-0.5 text-[color:var(--ds-bad)] opacity-70 hover:opacity-100">
             <X size={14} />
           </button>
         </div>
       )}
 
       {showAdd && (
-        <div className="card-ledger p-5 mb-5 space-y-3">
+        <div className="ds-card p-5 mb-5 space-y-3">
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Description *</label>
@@ -300,7 +299,7 @@ export default function ExpensesClient({
               type="checkbox"
               checked={repeatMonthly}
               onChange={(e) => setRepeatMonthly(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+              className="h-4 w-4 rounded border-gray-300 text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
             />
             <Repeat size={13} className="text-gray-400" />
             Repeat this every month
@@ -328,12 +327,12 @@ export default function ExpensesClient({
 
       {/* Monthly recurring templates */}
       {recurring.length > 0 && (
-        <div className="card-ledger mb-5">
+        <div className="ds-card mb-5">
           <div className="flex items-center gap-2 px-4 pt-3 pb-2">
             <Repeat size={14} className="text-gray-400" />
             <h2 className="text-sm font-semibold text-gray-900">Repeats monthly</h2>
           </div>
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-[color:var(--ds-line)]">
             {recurring.map((r) =>
               editRecId === r.id ? (
                 <div key={r.id} className="px-4 py-3 bg-gray-50/70 space-y-2">
@@ -433,7 +432,7 @@ export default function ExpensesClient({
                     <button
                       onClick={() => removeRec(r.id)}
                       disabled={busy}
-                      className="p-1.5 text-gray-300 hover:text-red-600 rounded-full"
+                      className="p-1.5 text-gray-300 hover:text-[color:var(--ds-bad)] rounded-full"
                       title="Stop repeating"
                     >
                       <Trash2 size={13} />
@@ -447,7 +446,7 @@ export default function ExpensesClient({
       )}
 
       {/* Export */}
-      <div className="card-ledger p-4 mb-5 flex flex-wrap items-end gap-3">
+      <div className="ds-card p-4 mb-5 flex flex-wrap items-end gap-3">
         <div>
           <label className="block text-xs text-gray-500 mb-1">From</label>
           <input type="date" value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} className={inputCls} />
@@ -458,7 +457,7 @@ export default function ExpensesClient({
         </div>
         <button
           onClick={exportCsv}
-          className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white rounded-[10px] text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className="flex items-center gap-1.5 px-4 py-2 btn-tool-line rounded-[10px] text-sm font-medium"
         >
           <Download size={14} />
           Export CSV
@@ -466,11 +465,10 @@ export default function ExpensesClient({
         <p className="text-xs text-gray-500">Leave dates empty to export everything.</p>
       </div>
 
-      <div className="card-ledger divide-y divide-gray-100">
+      <div className="ds-card divide-y divide-[color:var(--ds-line)]">
         {expenses.length === 0 ? (
           <EmptyState
             icon={Receipt}
-            hue={SECTION_HUES.business}
             title="No expenses logged yet"
             body="Track fuel, materials, and equipment to see real profit on Insights."
           />
@@ -569,7 +567,7 @@ export default function ExpensesClient({
                     <button
                       onClick={() => remove(e.id)}
                       disabled={busy}
-                      className="flex h-10 w-10 items-center justify-center rounded-full text-gray-400 active:bg-red-50 active:text-red-600 transition-colors"
+                      className="flex h-10 w-10 items-center justify-center rounded-full text-gray-400 active:bg-[color:var(--ds-bad-soft)] active:text-[color:var(--ds-bad)] transition-colors"
                       title="Delete expense"
                     >
                       <Trash2 size={15} />
@@ -603,7 +601,7 @@ export default function ExpensesClient({
                   <button
                     onClick={() => remove(e.id)}
                     disabled={busy}
-                    className="p-1.5 text-gray-300 hover:text-red-600 rounded-full"
+                    className="p-1.5 text-gray-300 hover:text-[color:var(--ds-bad)] rounded-full"
                     title="Delete expense"
                   >
                     <Trash2 size={13} />

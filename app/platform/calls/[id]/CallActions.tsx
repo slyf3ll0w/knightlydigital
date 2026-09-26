@@ -77,7 +77,7 @@ export default function CallActions({
   const tile = "flex flex-col items-center justify-center gap-1.5 rounded-[12px] btn-tool-line bg-white px-3 py-3.5 text-sm font-semibold text-gray-800 transition-colors hover:bg-gray-50";
 
   return (
-    <section className="card-ledger mt-4 p-4 sm:p-5">
+    <section className="ds-card mt-4 p-4 sm:p-5">
       {!contact ? (
         <>
           <div className="flex flex-wrap items-baseline justify-between gap-2">

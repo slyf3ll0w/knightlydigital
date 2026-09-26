@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Loader2, MessageSquareText } from "lucide-react";
+import SectionHeader from "@/components/SectionHeader";
 import { SMS_TERMS_URL } from "@/lib/sms-consent";
 
 /**
@@ -41,23 +42,27 @@ export default function SmsNotificationsCard({
   }
 
   return (
-    <div className="card-ledger p-5 space-y-4">
-      <div>
-        <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-          <MessageSquareText size={15} className="text-gray-400" />
-          Text Notifications
-        </h2>
-        <p className="text-xs text-gray-500 mt-0.5">
-          Appointment reminders, schedule changes, and quote and invoice links go to your clients
-          by text from {hasLine ? "your business line" : "your business line (set one up above)"}, in
-          your business&apos;s name. Every client with a phone number gets them unless you switch
-          that client off or they reply STOP.
-        </p>
-      </div>
+    <div className="ds-card p-5 space-y-4">
+      <SectionHeader
+        title={
+          <>
+            <MessageSquareText size={15} className="text-[color:var(--ds-faint)]" />
+            Text Notifications
+          </>
+        }
+        hint={
+          <>
+            Appointment reminders, schedule changes, and quote and invoice links go to your clients
+            by text from {hasLine ? "your business line" : "your business line (set one up above)"}, in
+            your business&apos;s name. Every client with a phone number gets them unless you switch
+            that client off or they reply STOP.
+          </>
+        }
+      />
       {onAt ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-gray-700">
-            <span className="inline-block h-2 w-2 rounded-full bg-green-500 mr-2 align-middle" />
+            <span className="inline-block h-2 w-2 rounded-full bg-[color:var(--ds-good)] mr-2 align-middle" />
             On since {new Date(onAt).toLocaleDateString()}
           </p>
           <button
@@ -83,14 +88,14 @@ export default function SmsNotificationsCard({
             type="button"
             onClick={() => toggle(true)}
             disabled={busy}
-            className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
+            className="ds-btn ds-btn-primary disabled:opacity-50"
           >
             {busy && <Loader2 size={14} className="animate-spin" />}
             Turn on text notifications
           </button>
         </div>
       )}
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-[color:var(--ds-bad)]">{error}</p>}
     </div>
   );
 }

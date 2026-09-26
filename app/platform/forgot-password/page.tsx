@@ -34,18 +34,18 @@ export default function ForgotPasswordPage() {
   return (
     // Same clean recipe as the login page: flat light ground, one white card
     // with a hairline border, blue accents.
-    <div className="app-ui flex min-h-screen flex-col items-center justify-center bg-[#FAFBFD] px-4 py-10">
+    <div className="app-ui flex min-h-screen flex-col items-center justify-center bg-[color:var(--ds-canvas)] px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/workbench-logo.png" alt="WorkBench" className="h-8 w-auto" />
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+        <div className="ds-card ds-card-raised p-8">
           {sent ? (
             <div className="text-center">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-                <MailCheck size={22} className="text-green-600" />
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--ds-good-soft)]">
+                <MailCheck size={22} className="text-[color:var(--ds-good)]" />
               </div>
               <h1 className="mb-1 text-xl font-bold tracking-tight text-gray-900">
                 Check your email
@@ -93,7 +93,7 @@ export default function ForgotPasswordPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0B57D8] py-3 text-[15px] font-bold text-white transition-colors hover:bg-[#0A4CBB] active:bg-[#09429F] disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-[color:var(--ds-primary)] py-3 text-[15px] font-bold text-[color:var(--ds-on-primary)] transition-colors hover:bg-[color:var(--ds-primary-strong)] active:bg-[color:var(--ds-primary-strong)] disabled:opacity-50"
                 >
                   {loading && <Loader2 size={14} className="animate-spin" />}
                   Send reset link
@@ -104,7 +104,7 @@ export default function ForgotPasswordPage() {
         </div>
 
         <p className="mt-6 text-center text-sm text-gray-500">
-          <Link href="/app/login" className="font-semibold text-[#0B57D8] hover:underline">
+          <Link href="/app/login" className="font-semibold text-[color:var(--ds-primary)] hover:underline">
             Back to log in
           </Link>
         </p>

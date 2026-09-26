@@ -53,7 +53,7 @@ export default function CollectSignature({ jobId }: { jobId: string }) {
 
   if (queued) {
     return (
-      <p className="text-xs text-amber-700">
+      <p className="text-xs text-[color:var(--ds-warn)]">
         Signed — the sign-off will sync when you&apos;re back online.
       </p>
     );
@@ -63,7 +63,7 @@ export default function CollectSignature({ jobId }: { jobId: string }) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors"
+        className="ds-btn ds-btn-outline"
       >
         <PenLine size={13} />
         Collect Signature
@@ -94,7 +94,7 @@ export default function CollectSignature({ jobId }: { jobId: string }) {
               onChange={(e) => setName(e.target.value)}
               autoFocus
               placeholder="Client's full name"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-[16px] sm:text-sm italic focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-[16px] sm:text-sm italic focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
             />
             <div className="flex gap-2 mt-4">
               <button
@@ -108,7 +108,7 @@ export default function CollectSignature({ jobId }: { jobId: string }) {
               <button
                 onClick={() => setOpen(false)}
                 disabled={busy}
-                className="px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-[10px] text-gray-600 hover:bg-gray-50"
+                className="ds-btn ds-btn-outline ds-btn-lg"
               >
                 Cancel
               </button>

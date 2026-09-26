@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Check, ChevronDown, ChevronRight, ChevronUp, Copy, ExternalLink, Globe, Link2, Loader2, MoreHorizontal, Plus, Power, Trash2, X } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
+import SectionHeader from "@/components/SectionHeader";
+import { Chip } from "@/components/ds";
 import BackLink from "@/components/BackLink";
 import Modal from "@/components/Modal";
 import { confirmSheet } from "@/components/ConfirmSheet";
@@ -277,11 +279,10 @@ export default function BookingHome({
   const thumbKey = `${JSON.stringify(lookSaved)}:${tick}`;
 
   const stateText = (t: ItemRow) => (!t.isActive ? "Off" : (t.showOnPage ? "On your page" : "Link only") + (t.id === hubForm ? " · Client hub" : ""));
-  const stateTone = (t: ItemRow) => (t.isActive && t.showOnPage ? "text-green-700" : "text-gray-500");
 
   const actionRow = (key: string, Icon: typeof Power, label: string, onClick: () => void, danger = false) => (
-    <button key={key} type="button" onClick={onClick} disabled={busy} className={`flex w-full items-center gap-3 px-4 py-3 text-left text-[15px] font-medium transition-colors active:bg-gray-50 disabled:opacity-50 ${danger ? "text-red-600" : "text-gray-800"}`}>
-      <Icon size={17} className={danger ? "text-red-500" : "text-gray-400"} />
+    <button key={key} type="button" onClick={onClick} disabled={busy} className={`flex w-full items-center gap-3 px-4 py-3 text-left text-[15px] font-medium transition-colors active:bg-gray-50 disabled:opacity-50 ${danger ? "text-[color:var(--ds-bad)]" : "text-gray-800"}`}>
+      <Icon size={17} className={danger ? "text-[color:var(--ds-bad)]" : "text-gray-400"} />
       {label}
     </button>
   );
@@ -304,7 +305,7 @@ export default function BookingHome({
           <PageTitle
             section="forms"
             icon={Globe}
-            sub="Where customers book a time, ask for a quote, or send a message."
+            info="Where customers book a time, ask for a quote, or send a message."
           >
             Booking & forms
           </PageTitle>
@@ -318,15 +319,15 @@ export default function BookingHome({
       {error && (
         <div role="alert" className="form-error mb-4 flex items-center justify-between">
           {error}
-          <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
+          <button onClick={() => setError("")} className="p-0.5 text-[color:var(--ds-bad)] opacity-70 hover:opacity-100">
             <X size={14} />
           </button>
         </div>
       )}
 
       {/* ── Your booking page ─────────────────────────────────────────────── */}
-      <h2 className="mb-2 text-[17px] font-bold text-gray-900">Your booking page</h2>
-      <div className="card-ledger mb-8 overflow-hidden">
+      <SectionHeader size="block" title="Your booking page" className="mb-2" />
+      <div className="ds-card mb-8 overflow-hidden">
         <div className="grid grid-cols-1 sm:grid-cols-[232px_minmax(0,1fr)]">
           <PageThumb src={`/book/${companySlug}?preview=1&thumb=1`} reloadKey={thumbKey} className="h-[190px] w-full border-b border-gray-100 sm:h-full sm:min-h-[176px] sm:border-b-0 sm:border-r" />
           <div className="flex min-w-0 flex-col justify-center gap-3 px-4 py-4 lg:px-5">
@@ -338,12 +339,12 @@ export default function BookingHome({
             <p className="text-xs text-gray-500">{pageFacts}</p>
             {!previewMode && (
               <div className="flex flex-wrap items-center gap-2">
-                <a href={pageUrl} target="_blank" rel="noopener noreferrer" className="flex h-9 items-center gap-1.5 rounded-[10px] btn-tool bg-green-500 px-3.5 text-sm font-semibold text-white transition-colors hover:bg-green-600 active:bg-green-700">
+                <a href={pageUrl} target="_blank" rel="noopener noreferrer" className="ds-btn ds-btn-primary ds-btn-sm">
                   <ExternalLink size={14} />
                   Open
                 </a>
-                <button type="button" onClick={() => copy(pageUrl, "page")} className="flex h-9 items-center gap-1.5 rounded-[10px] btn-tool-line bg-white px-3.5 text-sm font-medium text-gray-800">
-                  {copied === "page" ? <Check size={14} className="text-green-600" /> : <Link2 size={14} />}
+                <button type="button" onClick={() => copy(pageUrl, "page")} className="ds-btn ds-btn-outline ds-btn-sm">
+                  {copied === "page" ? <Check size={14} className="text-[color:var(--ds-good)]" /> : <Link2 size={14} />}
                   {copied === "page" ? "Copied" : "Copy link"}
                 </button>
               </div>
@@ -360,7 +361,7 @@ export default function BookingHome({
                   <div className="flex items-start gap-2">
                     <textarea readOnly value={embedSnippet} rows={4} className="min-w-0 flex-1 rounded-lg bg-gray-50 px-3 py-2 font-mono text-[11px] text-gray-700" />
                     <button type="button" onClick={() => copy(embedSnippet, "embed")} className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Copy snippet">
-                      {copied === "embed" ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
+                      {copied === "embed" ? <Check size={14} className="text-[color:var(--ds-good)]" /> : <Copy size={14} />}
                     </button>
                   </div>
                   <p className="text-xs text-gray-500">Paste it into your site&apos;s HTML. It resizes itself and carries your saved look; add ?theme=dark or ?transparent=1 to the src to override per placement.</p>
@@ -398,7 +399,7 @@ export default function BookingHome({
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <label className={smallLabel}>Font</label>
-                    <input value={look.font ?? ""} onChange={(e) => setLook({ ...look, font: e.target.value || undefined })} placeholder="Default — or any Google Font, e.g. Oxanium" className={inputCls} />
+                    <input value={look.font ?? ""} onChange={(e) => setLook({ ...look, font: e.target.value || undefined })} placeholder="Default — or any Google Font, e.g. Lexend" className={inputCls} />
                   </div>
                   <div>
                     <label className={smallLabel}>Accent color</label>
@@ -435,7 +436,7 @@ export default function BookingHome({
             {open === "rules" && (
               <div className="space-y-5 px-4 pb-4 lg:px-5">
                 {initialRules.bookableCount === 0 && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  <div className="rounded-lg bg-[color:var(--ds-warn-soft)] p-3 text-sm text-[color:var(--ds-ink)]">
                     Nobody on your team takes online bookings yet. Turn on <strong>Bookable online</strong> for someone on the{" "}
                     <Link href="/app/settings/team" className="font-semibold underline">
                       Team page
@@ -518,19 +519,23 @@ export default function BookingHome({
       </div>
 
       {/* ── What people can book ──────────────────────────────────────────── */}
-      <div className="mb-2 flex items-baseline justify-between gap-3">
-        <h2 className="text-[17px] font-bold text-gray-900">What people can book or send</h2>
-        {items.length > 0 && (
-          <span className="text-xs text-gray-500">
-            {onPage} of {items.length} on your page
-          </span>
-        )}
-      </div>
-      <div className="card-ledger overflow-hidden">
+      <SectionHeader
+        size="block"
+        title="What people can book or send"
+        className="mb-2"
+        action={
+          items.length > 0 ? (
+            <span className="text-xs text-gray-500">
+              {onPage} of {items.length} on your page
+            </span>
+          ) : undefined
+        }
+      />
+      <div className="ds-card overflow-hidden">
         {items.length === 0 ? (
           <div className="px-5 py-12 text-center text-sm text-gray-500">
             Nothing yet.{" "}
-            <button type="button" onClick={() => setCreating(true)} className="font-medium text-green-600 hover:underline">
+            <button type="button" onClick={() => setCreating(true)} className="ds-link hover:underline">
               Add a phone call, a visit, a service or a contact form.
             </button>
           </div>
@@ -553,14 +558,16 @@ export default function BookingHome({
                         {meta}
                         {takers ? ` · ${takers}` : ""}
                       </span>
-                      {warn && <span className="mt-0.5 block text-xs text-amber-700">{warn}</span>}
+                      {warn && <span className="mt-0.5 block text-xs text-[color:var(--ds-warn)]">{warn}</span>}
                     </Link>
-                    <span className={`stamp shrink-0 ${stateTone(t)}`}>{stateText(t)}</span>
+                    <span className="shrink-0">
+                      <Chip tone={t.isActive && t.showOnPage ? "good" : "neutral"}>{stateText(t)}</Chip>
+                    </span>
                     <div className="hidden shrink-0 items-center gap-1 lg:flex">
                       {!previewMode && t.isActive && (
                         <>
                           <button onClick={() => copy(url, t.id)} className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Copy link">
-                            {copied === t.id ? <Check size={14} className="text-green-600" /> : <Link2 size={14} />}
+                            {copied === t.id ? <Check size={14} className="text-[color:var(--ds-good)]" /> : <Link2 size={14} />}
                           </button>
                           <a href={url} target="_blank" rel="noopener noreferrer" className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Open">
                             <ExternalLink size={14} />
@@ -570,7 +577,7 @@ export default function BookingHome({
                       <button onClick={() => patch(t.id, { isActive: !t.isActive })} disabled={busy} className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title={t.isActive ? "Turn off" : "Turn on"}>
                         <Power size={14} />
                       </button>
-                      <button onClick={() => remove(t)} disabled={busy} className="rounded-full p-2 text-gray-400 hover:bg-red-50 hover:text-red-600" title="Delete">
+                      <button onClick={() => remove(t)} disabled={busy} className="rounded-full p-2 text-gray-400 hover:bg-[color:var(--ds-bad-soft)] hover:text-[color:var(--ds-bad)]" title="Delete">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -603,7 +610,7 @@ export default function BookingHome({
       {items.length > 0 && !hasContactForm && !previewMode && (
         <p className="mt-3 text-xs text-gray-500">
           Want a plain contact form for your website?{" "}
-          <button type="button" onClick={() => create("MESSAGE", "REQUEST", "")} disabled={busy} className="font-medium text-green-600 hover:underline disabled:opacity-50">
+          <button type="button" onClick={() => create("MESSAGE", "REQUEST", "")} disabled={busy} className="ds-link hover:underline disabled:opacity-50">
             Add one
           </button>
         </p>
@@ -628,9 +635,9 @@ export default function BookingHome({
                     const Icon = KIND_ICON[k];
                     const active = newKind === k;
                     return (
-                      <label key={k} className={`flex cursor-pointer items-start gap-3 px-3 py-2.5 ${active ? "bg-green-50/60" : ""}`}>
-                        <input type="radio" name="kind" checked={active} onChange={() => setNewKind(k)} className="mt-1 accent-green-600" />
-                        <Icon size={16} className={`mt-0.5 shrink-0 ${active ? "text-green-600" : "text-gray-400"}`} />
+                      <label key={k} className={`flex cursor-pointer items-start gap-3 px-3 py-2.5 ${active ? "bg-[color:var(--ds-primary-soft)]" : ""}`}>
+                        <input type="radio" name="kind" checked={active} onChange={() => setNewKind(k)} className="mt-1 accent-[color:var(--ds-primary)]" />
+                        <Icon size={16} className={`mt-0.5 shrink-0 ${active ? "text-[color:var(--ds-primary)]" : "text-gray-400"}`} />
                         <span className="min-w-0">
                           <span className="block text-sm font-medium text-gray-900">{meta.label}</span>
                           <span className="block text-xs text-gray-500">{meta.hint}</span>
@@ -644,11 +651,11 @@ export default function BookingHome({
             {KIND_META[newKind].schedulable && (
               <div className="mt-1 flex flex-wrap gap-x-5 gap-y-1">
                 <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input type="radio" name="mode" checked={newMode === "SCHEDULE"} onChange={() => setNewMode("SCHEDULE")} className="accent-green-600" />
+                  <input type="radio" name="mode" checked={newMode === "SCHEDULE"} onChange={() => setNewMode("SCHEDULE")} className="accent-[color:var(--ds-primary)]" />
                   Customer picks a time
                 </label>
                 <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input type="radio" name="mode" checked={newMode === "REQUEST"} onChange={() => setNewMode("REQUEST")} className="accent-green-600" />
+                  <input type="radio" name="mode" checked={newMode === "REQUEST"} onChange={() => setNewMode("REQUEST")} className="accent-[color:var(--ds-primary)]" />
                   They ask, you follow up
                 </label>
               </div>

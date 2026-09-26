@@ -51,7 +51,7 @@ export default function CustomFieldsCard({
   }
 
   return (
-    <div className="card-ledger p-4">
+    <div className="ds-card p-4">
       <div className="flex items-center justify-between mb-3">
         <SectionHeader title="Details" />
         {editing ? (
@@ -59,7 +59,7 @@ export default function CustomFieldsCard({
             <button
               onClick={save}
               disabled={busy}
-              className="p-1.5 text-green-600 hover:bg-green-50 rounded-full"
+              className="p-1.5 text-[color:var(--ds-primary)] hover:bg-[color:var(--ds-primary-soft)] rounded-full"
               title="Save"
             >
               {busy ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
@@ -117,7 +117,7 @@ export default function CustomFieldsCard({
           </div>
         ))}
       </div>
-      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-2 text-xs text-[color:var(--ds-bad)]">{error}</p>}
     </div>
   );
 }

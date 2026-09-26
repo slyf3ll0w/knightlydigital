@@ -156,7 +156,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
       <div className="mt-6">
         <EmptyState
           art="contacts"
-          hue="var(--sh-chat)"
+          hue="var(--ds-primary)"
           showPlusIcon={false}
           title={hasLine ? "No calls yet" : "No business line yet"}
           body={
@@ -171,7 +171,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
         />
         {manager && (
           <p className="mt-4 text-center">
-            <Link href="/app/settings?s=phone" className="text-sm font-medium underline text-gray-700">
+            <Link href="/app/settings?s=phone" className="ds-link text-sm">
               Open Settings → Phone &amp; texting
             </Link>
           </p>
@@ -188,7 +188,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
                 {badge(k) > 0 && (
                   <span
                     className={`ml-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[11px] font-bold leading-none ${
-                      filter === k ? "bg-white/25" : k === "missed" ? "bg-red-500 text-white" : "bg-blue-600 text-white"
+                      filter === k ? "bg-white/25" : k === "missed" ? "bg-[color:var(--ds-bad)] text-[color:var(--ds-surface)]" : "bg-[color:var(--ds-primary)] text-[color:var(--ds-on-primary)]"
                     }`}
                   >
                     {badge(k)}
@@ -201,7 +201,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
         <div className="hidden lg:block">
           <FilterRow>
             {FILTERS.map(([k, label]) => (
-              <FilterChip key={k} hue="var(--sh-chat)" active={filter === k} href={href(k)}>
+              <FilterChip key={k} hue="var(--ds-primary)" active={filter === k} href={href(k)}>
                 {label}
                 {badge(k) > 0 && <span className="numeral-ledger text-xs opacity-70">{badge(k)}</span>}
               </FilterChip>
@@ -210,7 +210,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
         </div>
 
         {groups.length === 0 ? (
-          <div className="card-ledger mt-4 px-4 py-10 text-center text-sm text-gray-500 lg:mt-0">
+          <div className="ds-card mt-4 px-4 py-10 text-center text-sm text-[color:var(--ds-muted)] lg:mt-0">
             {filter === "missed" ? "No missed calls." : filter === "voicemail" ? "No voicemails." : "No outgoing calls yet."}
           </div>
         ) : (
@@ -223,7 +223,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
                   <span className="hidden h-px flex-1 bg-gray-200 lg:block" aria-hidden />
                   <span className="numeral-ledger ml-auto font-normal text-gray-400 lg:ml-0">{g.rows.length}</span>
                 </h2>
-                <div className="card-ledger divide-y divide-gray-100 overflow-hidden">
+                <div className="ds-card divide-y divide-[color:var(--ds-line)] overflow-hidden">
                   {g.rows.map((c) => (
                     <CallRow key={c.id} call={c} tz={tz} canCall={routed} canText={smsReady} />
                   ))}

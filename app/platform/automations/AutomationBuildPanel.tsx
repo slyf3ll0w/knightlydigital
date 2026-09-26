@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Loader2, Sparkles, Zap } from "lucide-react";
 import { Textarea } from "@/components/Input";
 import { useAssistant } from "@/components/AssistantContext";
-import { APP_THEME, wash } from "@/components/EstimatorControls";
+import { Chip, InfoTip } from "@/components/ds";
 import { describeAutomation, type AutomationSpec } from "@/lib/automations";
 
 /**
@@ -64,7 +64,6 @@ export default function AutomationBuildPanel({
   placeholder?: string;
 }) {
   const atlas = useAssistant();
-  const theme = APP_THEME;
   const changing = Boolean(current);
   const [prompt, setPrompt] = useState("");
   const [running, setRunning] = useState(false);
@@ -128,16 +127,18 @@ export default function AutomationBuildPanel({
   const summary = finished ? describeAutomation(finished.spec) : null;
 
   return (
-    <div className={compact ? "" : "card-ledger overflow-hidden"}>
+    <div className={compact ? "" : "ds-card overflow-hidden"}>
       <div className={compact ? "" : "p-4 sm:p-6"}>
         {!compact && (
           <div className="mb-4">
-            <h2 className="text-xl font-bold tracking-tight text-gray-900">{changing ? `Change it with ${atlas.name}` : `Build it with ${atlas.name}`}</h2>
-            <p className="mt-1 text-sm text-gray-600">
-              {changing
-                ? `Say what should be different. ${atlas.name} keeps everything you don't mention and updates the cards — you press Save.`
-                : `Say what should happen, the way you'd tell a new office manager. ${atlas.name} picks the trigger, the conditions and the steps; you check the cards and press Save.`}
-            </p>
+            <h2 className="ds-h2 flex items-center gap-1.5">
+              {changing ? `Change it with ${atlas.name}` : `Build it with ${atlas.name}`}
+              <InfoTip>
+                {changing
+                  ? `Say what should be different. ${atlas.name} keeps everything you don't mention and updates the cards — you press Save.`
+                  : `Say what should happen, the way you'd tell a new office manager. ${atlas.name} picks the trigger, the conditions and the steps; you check the cards and press Save.`}
+              </InfoTip>
+            </h2>
           </div>
         )}
 
@@ -201,7 +202,7 @@ export default function AutomationBuildPanel({
                 <li key={p.key} className="flex items-center gap-2 text-sm">
                   <span
                     className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold ${done || active ? "" : "border-gray-200 text-gray-400"}`}
-                    style={done || active ? { backgroundColor: done ? theme.accent : "transparent", borderColor: theme.accent, color: done ? theme.onAccent : theme.accent } : undefined}
+                    style={done || active ? { backgroundColor: done ? "var(--ds-primary)" : "transparent", borderColor: "var(--ds-primary)", color: done ? "var(--ds-on-primary)" : "var(--ds-primary)" } : undefined}
                   >
                     {done ? <Check size={11} strokeWidth={3} /> : active ? <Loader2 size={11} className="animate-spin" /> : i + 1}
                   </span>
@@ -214,10 +215,10 @@ export default function AutomationBuildPanel({
 
         {/* ── the drafted rule, in plain English ── */}
         {finished && summary && !running && (
-          <div className="msg-enter mt-4 rounded-2xl border border-gray-200 bg-white">
+          <div className="msg-enter ds-card mt-4">
             <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-4 py-3">
               <div className="flex min-w-0 items-start gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]" style={{ backgroundColor: wash(theme, 12), color: theme.accent }} aria-hidden>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]" aria-hidden>
                   <Zap size={18} strokeWidth={2.25} />
                 </span>
                 <div className="min-w-0">
@@ -225,8 +226,8 @@ export default function AutomationBuildPanel({
                   {finished.description && <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">{finished.description}</p>}
                 </div>
               </div>
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold" style={{ backgroundColor: wash(theme, 12), color: theme.accent }}>
-                <Check size={12} strokeWidth={3} /> {changing ? "Cards updated" : "Cards filled in"}
+              <span className="shrink-0">
+                <Chip tone="primary" icon={Check}>{changing ? "Cards updated" : "Cards filled in"}</Chip>
               </span>
             </div>
             <ol className="space-y-1 px-4 py-3 text-sm">

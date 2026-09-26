@@ -25,19 +25,19 @@
     background: color-mix(in srgb, currentColor 10%, transparent);
   }
 
-  /* Big numerals (Oxanium) — dashboard counts and money figures. The squared
+  /* Big numerals (Lexend) — dashboard counts and money figures. The squared
      digits are the same face as the marketing site's display type. Doubled
      .app-ui specificity so this wins on h1/h2 inside the app. */
   .numeral-ledger,
   .app-ui .numeral-ledger {
-    font-family: "Oxanium", var(--font-body);
+    font-family: "Lexend", var(--font-body);
     font-variant-numeric: lining-nums tabular-nums;
     letter-spacing: 0;
   }
 
   /* ── Signature cut corner — one 45° chamfer on the top-right of solid
      surfaces (primary buttons, the Create button, logo tile, Atlas tile).
-     Echoes Oxanium's angular letterforms. Solid backgrounds only: clip-path
+     Echoes Lexend's angular letterforms. Solid backgrounds only: clip-path
      also clips borders and shadows, so bordered/tinted elements look broken. */
   .chamfer {
     clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%);
@@ -324,12 +324,12 @@
 }
 
 :root {
-  /* Typography: Inter for UI text, Oxanium for marketing display headings.
+  /* Typography: Inter for UI text, Lexend for marketing display headings.
      (These vars were previously referenced but never defined, so the site
      fell back to browser default fonts.) */
   --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
-  --font-sans: "Oxanium", var(--font-body);
+  --font-sans: "Lexend", var(--font-body);
 
   /* Marketing site colors */
   --background: #ffffff;
@@ -364,9 +364,9 @@ h1, h2, h3, h4, h5, h6, .font-display {
   font-family: var(--font-sans);
 }
 
-/* The product UI (app, client hub, public client pages): Oxanium display
+/* The product UI (app, client hub, public client pages): Lexend display
    headings (inherited from the global h1–h6 rule, same as the marketing
-   site), Inter for body and table text — Oxanium at paragraph size is a
+   site), Inter for body and table text — Lexend at paragraph size is a
    readability problem. */
 .app-ui {
   font-family: var(--font-body);
@@ -1500,13 +1500,13 @@ html[data-mode="dark"] .app-ui .card-tool {
 .app-ui aside a[data-rail-active="true"] > svg {
   animation: railIconPop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-/* Rail count — the stamp language for numbers: an Oxanium numeral on a
+/* Rail count — the stamp language for numbers: an Lexend numeral on a
    quiet wash mixed from its own ink (gray for news, red for past-due),
    squared like a ledger cell rather than a badge pill. It arrives on the
    house spring, and re-pops when the number changes (callers key the span
    by value). Also worn by the top-bar chat count. */
 .rail-count {
-  font-family: "Oxanium", var(--font-body);
+  font-family: "Lexend", var(--font-body);
   font-variant-numeric: lining-nums tabular-nums;
   font-size: 11.5px;
   font-weight: 700;

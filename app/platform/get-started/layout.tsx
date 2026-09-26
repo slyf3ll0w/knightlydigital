@@ -22,7 +22,8 @@ export default async function GetStartedLayout({ children }: { children: React.R
   return (
     <>
       <ForceLightTheme />
-      {children}
+      {/* Outside the AppShell (signed out): .ds switches on Lexend + the design tokens */}
+      <div className="ds">{children}</div>
     </>
   );
 }

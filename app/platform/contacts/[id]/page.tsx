@@ -262,7 +262,7 @@ export default async function ContactDetailPage({
         <BackLink href="/app/contacts" />
         <ContactStatus status={contact.status} />
         {isRepeat && contact.pipelineStageId && (
-          <span className="stamp text-blue-600" title="Has worked with you before">
+          <span className="ds-chip ds-chip-primary" title="Has worked with you before">
             Repeat
           </span>
         )}
@@ -286,12 +286,12 @@ export default async function ContactDetailPage({
             )}
             {contact.phone && (
               <span
-                className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                className={`ds-chip ${
                   contact.smsOptOut
-                    ? "bg-red-50 text-red-700"
+                    ? "ds-chip-bad"
                     : contact.smsDisabled || !textsReady
-                      ? "bg-gray-100 text-gray-500"
-                      : "bg-green-50 text-green-700"
+                      ? "ds-chip-neutral"
+                      : "ds-chip-good"
                 }`}
                 title={
                   contact.smsOptOut
@@ -398,9 +398,9 @@ export default async function ContactDetailPage({
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Main: work overview */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="card-ledger overflow-hidden">
+          <div className="ds-card overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-900 text-sm">Work overview</h2>
+              <h2 className="text-[14.5px] font-semibold text-[color:var(--ds-ink)]">Work overview</h2>
             </div>
             {workRows.length === 0 ? (
               <p className="px-4 py-10 text-sm text-gray-400 text-center">
@@ -466,7 +466,7 @@ export default async function ContactDetailPage({
           </div>
 
           {/* Contact info */}
-          <div className="card-ledger p-4">
+          <div className="ds-card p-4">
             <SectionHeader title="Details" className="mb-3" />
             <dl className="grid grid-cols-2 gap-3 text-sm">
               <div>
@@ -489,7 +489,7 @@ export default async function ContactDetailPage({
                 href={`/api/app/contacts/${contact.id}/statement-pdf`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-3 inline-block text-xs font-medium text-green-700 hover:underline"
+                className="mt-3 inline-block text-xs font-medium text-[color:var(--ds-primary)] hover:underline"
               >
                 Download statement (PDF)
               </a>
@@ -579,7 +579,7 @@ export default async function ContactDetailPage({
           />
 
           {/* Notes & activity (same pattern as job notes) */}
-          <div className="card-ledger">
+          <div className="ds-card">
             <div className="px-5 py-4 border-b border-gray-100">
               <SectionHeader title="Notes & Activity" />
             </div>
@@ -623,7 +623,7 @@ export default async function ContactDetailPage({
               isLead={contact.status === "LEAD"}
             />
           )}
-          <div className="card-ledger p-4">
+          <div className="ds-card p-4">
             <SectionHeader title="Assigned to" className="mb-2" />
             {canReassign ? (
               <AssignLead
@@ -643,7 +643,7 @@ export default async function ContactDetailPage({
           />
 
           {seeMoney && (
-            <div className="card-ledger p-4">
+            <div className="ds-card p-4">
               <SectionHeader title="Overview" className="mb-3" />
               <div className="space-y-3">
                 <div>
@@ -659,7 +659,7 @@ export default async function ContactDetailPage({
           )}
 
           {(recentCalls.length > 0 || canCallFromLine) && (
-            <div className="card-ledger p-4">
+            <div className="ds-card p-4">
               <div className="flex items-center justify-between mb-3">
                 <SectionHeader title="Recent calls" />
                 {recentCalls.length > 0 && (
@@ -671,7 +671,7 @@ export default async function ContactDetailPage({
               {recentCalls.length === 0 ? (
                 <p className="text-xs text-gray-500">No calls on your business line with this client yet.</p>
               ) : (
-                <div className="card-ledger divide-y divide-gray-100 overflow-hidden">
+                <div className="ds-card divide-y divide-gray-100 overflow-hidden">
                   {recentCalls.map((c) => (
                     <CallRow key={c.id} call={c} showContact={false} tz={contact.company.timezone} />
                   ))}

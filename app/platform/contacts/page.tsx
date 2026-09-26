@@ -2,7 +2,6 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { Plus, ChevronRight, UserCheck, Upload, ListPlus, Users, Download, Phone } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
-import { SECTION_HUES } from "@/lib/section-colors";
 import { FilterChip } from "@/components/FilterChips";
 import FilterBar, { listHref } from "@/components/FilterBar";
 import MobileSearch from "@/components/MobileSearch";
@@ -133,14 +132,13 @@ export default async function ContactsPage({
       />
 
       <FilterBar
-        hue={SECTION_HUES.clients}
         options={statusFilters}
         value={validStatus ?? ""}
         href={(v) => listHref("/app/contacts", cur, { status: v })}
         scope={
           showAll ? (
             <FilterChip
-              hue={SECTION_HUES.clients}
+              hue=""
               active={mineOnly}
               href={listHref("/app/contacts", cur, { assignee: mineOnly ? undefined : "me" })}
             >
@@ -156,7 +154,7 @@ export default async function ContactsPage({
         }}
       />
 
-      <div className="card-ledger overflow-hidden">
+      <div className="ds-card overflow-hidden">
         {contacts.length === 0 ? (
           <EmptyState
             art="contacts"
@@ -187,7 +185,7 @@ export default async function ContactsPage({
                 >
                 <Link
                   prefetch={false} href={`/app/contacts/${c.id}`}
-                  className="flex lg:grid lg:grid-cols-[1fr_1fr_110px_120px_120px_40px] gap-3 lg:gap-4 items-center px-4 py-3 lg:py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                  className="flex lg:grid lg:grid-cols-[1fr_1fr_110px_120px_120px_40px] gap-3 lg:gap-4 items-center px-4 py-3 lg:py-2.5 hover:bg-[color:var(--ds-surface-2)] active:bg-[color:var(--ds-line)] transition-colors"
                 >
                   {/* Monogram anchors the phone row (identity color, not a
                       section hue) — desktop keeps the dense ledger grid */}
@@ -234,7 +232,7 @@ export default async function ContactsPage({
               ))}
             </div>
             {/* Ledger foot — entry count */}
-            <div className="border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5">
+            <div className="border-t border-[color:var(--ds-line)] bg-[color:var(--ds-surface-2)] px-4 py-2.5">
               <span className="text-xs font-medium text-gray-500">
                 {contacts.length} {contacts.length === 1 ? "client" : "clients"}
               </span>

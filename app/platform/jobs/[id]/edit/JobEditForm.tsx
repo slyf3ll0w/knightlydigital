@@ -153,7 +153,7 @@ export default function JobEditForm({
           </div>
         )}
 
-        <div className="card-ledger p-5 space-y-4">
+        <div className="ds-card p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700">Job Details</h2>
 
           <div>
@@ -170,7 +170,7 @@ export default function JobEditForm({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
             />
           </div>
 
@@ -180,7 +180,7 @@ export default function JobEditForm({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
               placeholder="Details about the job, scope, special instructions..."
             />
           </div>
@@ -197,7 +197,7 @@ export default function JobEditForm({
                     setPropertyId(choice.key === "primary" ? "" : choice.key);
                   }
                 }}
-                className="w-full mb-2 px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full mb-2 px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               >
                 <option value="">Pick a saved address...</option>
                 {addressChoices.map((a) => (
@@ -215,7 +215,7 @@ export default function JobEditForm({
                 setAddress(e.target.value);
                 setPropertyId("");
               }}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
             />
           </div>
 
@@ -226,7 +226,7 @@ export default function JobEditForm({
               list="lead-sources"
               value={leadSource}
               onChange={(e) => setLeadSource(e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               placeholder="Where did this job come from?"
             />
             <datalist id="lead-sources">
@@ -244,7 +244,7 @@ export default function JobEditForm({
 
         {/* Line items — no overflow-hidden: the price-book dropdown must be
             able to spill past the card edge (it was getting clipped) */}
-        <div className="card-ledger">
+        <div className="ds-card">
             <div className="px-5 py-4 border-b border-gray-100">
               <h2 className="text-sm font-semibold text-gray-700">
                 Product / Service
@@ -275,7 +275,7 @@ export default function JobEditForm({
           </button>
           <Link
             prefetch={false} href={`/app/jobs/${job.id}`}
-            className="px-5 py-2.5 btn-tool-line bg-white text-sm font-medium text-gray-600 rounded-[10px] hover:bg-gray-50 transition-colors"
+            className="ds-btn ds-btn-outline"
           >
             Cancel
           </Link>

@@ -439,19 +439,17 @@ export default function ImportClient({
 
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
-      <div className="flex items-center gap-3 mb-1">
+      <div className="flex items-center gap-3 mb-6">
         <BackLink href="/app/settings" />
-        <PageTitle>Import Clients</PageTitle>
+        <PageTitle info="Bring your client list over from a spreadsheet or another CRM — Jobber and Housecall Pro exports are recognized automatically.">
+          Import Clients
+        </PageTitle>
       </div>
-      <p className="text-sm text-gray-500 mb-6 lg:ml-8">
-        Bring your client list over from a spreadsheet or another CRM — Jobber and Housecall Pro
-        exports are recognized automatically.
-      </p>
 
       {error && (
         <div role="alert" className="form-error mb-4 flex items-center justify-between">
           {error}
-          <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
+          <button onClick={() => setError("")} className="p-0.5 text-[color:var(--ds-bad)] opacity-70 hover:opacity-100">
             <X size={14} />
           </button>
         </div>
@@ -462,7 +460,7 @@ export default function ImportClient({
         <div className="space-y-4">
           <button
             onClick={() => fileRef.current?.click()}
-            className="w-full rounded-lg border-2 border-dashed border-gray-300 bg-white p-10 text-center hover:border-green-400 hover:bg-green-50/30 transition-colors"
+            className="w-full rounded-lg border-2 border-dashed border-gray-300 bg-white p-10 text-center hover:border-[color:var(--ds-primary)] hover:bg-[color:var(--ds-primary-soft)] transition-colors"
           >
             <Upload size={28} className="mx-auto text-gray-300 mb-3" />
             <p className="text-sm font-semibold text-gray-900">Choose a CSV file</p>
@@ -477,7 +475,7 @@ export default function ImportClient({
             className="hidden"
             onChange={(e) => onFile(e.target.files?.[0])}
           />
-          <div className="card-ledger p-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="ds-card p-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm font-medium text-gray-900">Starting from paper?</p>
               <p className="text-xs text-gray-500">
@@ -499,7 +497,7 @@ export default function ImportClient({
       {step === "map" && (
         <div className="space-y-5">
           <div className="flex items-center gap-2 text-sm text-gray-600">
-            <FileSpreadsheet size={15} className="text-green-600" />
+            <FileSpreadsheet size={15} className="text-[color:var(--ds-primary)]" />
             <span className="font-medium text-gray-900">{fileName}</span>
             <span>— {rows.length} rows</span>
             <button
@@ -510,7 +508,7 @@ export default function ImportClient({
             </button>
           </div>
 
-          <div className="card-ledger overflow-hidden">
+          <div className="ds-card overflow-hidden">
             <div className="hidden sm:grid grid-cols-[1fr_1fr_1fr] gap-3 px-4 py-2 bg-gray-50 text-xs font-medium text-gray-500">
               <span>Your column</span>
               <span>Example</span>
@@ -544,7 +542,7 @@ export default function ImportClient({
                         <option value={CREATE_FIELD}>+ Create custom field…</option>
                       </select>
                       {mapping[i] === CREATE_FIELD && (
-                        <p className="mt-1 text-[11px] text-green-700">
+                        <p className="mt-1 text-[11px] text-[color:var(--ds-primary)]">
                           Creates a {TYPE_LABEL[newType]} field called{" "}
                           <span className="font-semibold">{label}</span>
                         </p>
@@ -556,7 +554,7 @@ export default function ImportClient({
             </div>
           </div>
 
-          <div className="card-ledger p-4 grid sm:grid-cols-3 gap-3">
+          <div className="ds-card p-4 grid sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Import as</label>
               <select value={status} onChange={(e) => setStatus(e.target.value as "LEAD" | "ACTIVE")} className={`${inputClsAuto} w-full`}>
@@ -604,9 +602,9 @@ export default function ImportClient({
       {/* ── Step 2b: combine people who share a client ── */}
       {step === "combine" && (
         <div className="space-y-5">
-          <div className="card-ledger p-4">
+          <div className="ds-card p-4">
             <div className="flex items-start gap-2.5">
-              <Users size={16} className="mt-0.5 shrink-0 text-green-600" />
+              <Users size={16} className="mt-0.5 shrink-0 text-[color:var(--ds-primary)]" />
               <div>
                 <p className="text-sm font-semibold text-gray-900">
                   {groups.length === 1
@@ -627,13 +625,13 @@ export default function ImportClient({
               const set = (patch: Partial<Group>) =>
                 setGroups(groups.map((x, j) => (j === gi ? { ...x, ...patch } : x)));
               return (
-                <div key={g.key} className="card-ledger overflow-hidden">
+                <div key={g.key} className="ds-card overflow-hidden">
                   <label className="flex cursor-pointer items-center gap-2.5 border-b border-gray-100 bg-gray-50 px-4 py-2.5">
                     <input
                       type="checkbox"
                       checked={g.combine}
                       onChange={(e) => set({ combine: e.target.checked })}
-                      className="h-4 w-4 accent-green-600"
+                      className="h-4 w-4 accent-[color:var(--ds-primary)]"
                     />
                     <span className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900">
                       {g.title}
@@ -643,7 +641,7 @@ export default function ImportClient({
                     </span>
                   </label>
                   {g.rowIdxs.length > MAX_COMBINE_ROWS && (
-                    <p className="border-b border-gray-100 bg-amber-50 px-4 py-2 text-[11px] text-amber-800">
+                    <p className="border-b border-gray-100 bg-[color:var(--ds-warn-soft)] px-4 py-2 text-[11px] text-[color:var(--ds-warn)]">
                       Too many to combine — a client holds {MAX_COMBINE_ROWS - 1} extra contacts.
                       Left unchecked, these import as separate clients so nothing is lost.
                     </p>
@@ -667,7 +665,7 @@ export default function ImportClient({
                             checked={isPrimary}
                             disabled={!g.combine}
                             onChange={() => set({ primaryIdx: ri })}
-                            className="h-3.5 w-3.5 accent-green-600"
+                            className="h-3.5 w-3.5 accent-[color:var(--ds-primary)]"
                           />
                           <span className="min-w-0 flex-1 truncate text-sm text-gray-800">
                             {name}
@@ -709,11 +707,11 @@ export default function ImportClient({
 
       {/* ── Step 3: importing ── */}
       {step === "importing" && (
-        <div className="card-ledger p-10 text-center">
-          <Loader2 size={28} className="mx-auto animate-spin text-green-500 mb-4" />
+        <div className="ds-card p-10 text-center">
+          <Loader2 size={28} className="mx-auto animate-spin text-[color:var(--ds-primary)] mb-4" />
           <p className="text-sm font-semibold text-gray-900 mb-3">Importing clients…</p>
           <div className="h-2 max-w-sm mx-auto bg-gray-100 rounded-full overflow-hidden">
-            <div className="h-full bg-green-500 transition-all" style={{ width: `${progress}%` }} />
+            <div className="h-full bg-[color:var(--ds-primary)] transition-all" style={{ width: `${progress}%` }} />
           </div>
         </div>
       )}
@@ -721,21 +719,21 @@ export default function ImportClient({
       {/* ── Step 4: summary ── */}
       {step === "done" && summary && (
         <div className="space-y-4">
-          <div className="card-ledger p-6">
+          <div className="ds-card p-6">
             <div className="flex items-center gap-2 mb-4">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100">
-                <Check size={16} className="text-green-600" />
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--ds-primary-soft)]">
+                <Check size={16} className="text-[color:var(--ds-good)]" />
               </span>
               <h2 className="text-lg font-bold text-gray-900">Import finished</h2>
             </div>
             <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="rounded-lg bg-green-50 p-3">
-                <p className="text-2xl font-bold text-green-700">{summary.created}</p>
-                <p className="text-xs text-green-700">added</p>
+              <div className="rounded-lg bg-[color:var(--ds-primary-soft)] p-3">
+                <p className="text-2xl font-bold text-[color:var(--ds-primary)]">{summary.created}</p>
+                <p className="text-xs text-[color:var(--ds-primary)]">added</p>
               </div>
-              <div className="rounded-lg bg-blue-50 p-3">
-                <p className="text-2xl font-bold text-blue-700">{summary.updated}</p>
-                <p className="text-xs text-blue-700">updated</p>
+              <div className="rounded-lg bg-[color:var(--ds-primary-soft)] p-3">
+                <p className="text-2xl font-bold text-[color:var(--ds-primary)]">{summary.updated}</p>
+                <p className="text-xs text-[color:var(--ds-primary)]">updated</p>
               </div>
               <div className="rounded-lg bg-gray-50 p-3">
                 <p className="text-2xl font-bold text-gray-700">{summary.skippedDuplicates + summary.errors.length}</p>
@@ -743,7 +741,7 @@ export default function ImportClient({
               </div>
             </div>
             {summary.errors.length > 0 && (
-              <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+              <div className="mt-4 rounded-lg bg-[color:var(--ds-warn-soft)] p-3 text-xs text-[color:var(--ds-warn)]">
                 <p className="font-semibold mb-1">Rows that couldn&apos;t import:</p>
                 {summary.errors.slice(0, 20).map((e, i) => (
                   <p key={i}>

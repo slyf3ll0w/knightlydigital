@@ -74,9 +74,9 @@ export default function AskForReview({
           ? "Text the client your Google review link (opens your Messages app)"
           : "Set up your Google review link in Settings to use this"
       }
-      className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors"
+      className="ds-btn ds-btn-outline"
     >
-      <Star size={13} className={sent ? "text-green-600" : undefined} />
+      <Star size={13} className={sent ? "text-[color:var(--ds-good)]" : undefined} />
       Ask for Review{sent ? " ✓" : ""}
     </button>
   );

@@ -7,8 +7,8 @@ import Link from "next/link";
  */
 export default function SuspendedPage() {
   return (
-    <div className="bg-paper-plain flex min-h-screen items-center justify-center px-4">
-      <div className="card-ledger w-full max-w-md p-8 text-center">
+    <div className="ds bg-paper-plain flex min-h-screen items-center justify-center px-4">
+      <div className="ds-card w-full max-w-md p-8 text-center">
         <img src="/workbench-logo.png" alt="WorkBench" className="mx-auto mb-6 h-9 w-auto" />
         <h1 className="text-xl font-bold text-gray-900">Account suspended</h1>
         <p className="mt-3 text-sm leading-relaxed text-gray-600">
@@ -17,14 +17,14 @@ export default function SuspendedPage() {
         </p>
         <p className="mt-3 text-sm text-gray-600">
           If you believe this is a mistake, contact support at{" "}
-          <a href="mailto:info@streamflaire.com" className="font-medium text-[#0B57D8] underline">
+          <a href="mailto:info@streamflaire.com" className="font-medium text-[color:var(--ds-primary)] underline">
             info@streamflaire.com
           </a>
           .
         </p>
         <Link
           href="/api/auth/signout"
-          className="mt-6 inline-block rounded-full bg-[#0A1428] px-4 py-2 text-sm font-semibold text-white"
+          className="ds-btn ds-btn-primary mt-6"
         >
           Sign out
         </Link>

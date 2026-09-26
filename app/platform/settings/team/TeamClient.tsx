@@ -7,6 +7,7 @@ import { CalendarClock, KeyRound, Loader2, Plus, UserPlus, X } from "lucide-reac
 import SectionHeader from "@/components/SectionHeader";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
+import { Chip, InfoTip } from "@/components/ds";
 import Avatar from "@/components/Avatar";
 import BusinessHoursEditor from "@/components/BusinessHoursEditor";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -160,7 +161,7 @@ export default function TeamClient({
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6">
         <div className="flex min-w-0 items-start gap-3">
           <BackLink href="/app/settings" className="mt-1.5" />
-          <PageTitle sub="Add as many team members as you need — free, no per-user charges.">Team</PageTitle>
+          <PageTitle info="Add as many team members as you need — free, no per-user charges.">Team</PageTitle>
         </div>
         <button
           onClick={() => setShowAdd((v) => !v)}
@@ -174,7 +175,7 @@ export default function TeamClient({
       {error && (
         <div role="alert" className="form-error mb-4 flex items-center justify-between">
           {error}
-          <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600">
+          <button onClick={() => setError("")} className="p-0.5 text-[color:var(--ds-bad)] opacity-70 hover:opacity-100">
             <X size={14} />
           </button>
         </div>
@@ -182,7 +183,7 @@ export default function TeamClient({
 
       {/* Add member */}
       {showAdd && (
-        <div className="card-ledger p-5 mb-6">
+        <div className="ds-card p-5 mb-6">
           <SectionHeader
             className="mb-4"
             title={
@@ -270,7 +271,7 @@ export default function TeamClient({
       )}
 
       {/* Member list */}
-      <div className="card-ledger divide-y divide-gray-100 mb-6">
+      <div className="ds-card ds-divide mb-6">
         {users.map((m) => (
           <div key={m.id} className={`px-4 py-3 ${m.isActive ? "" : "opacity-60"}`}>
             <div className="flex flex-wrap items-center gap-3">
@@ -282,7 +283,7 @@ export default function TeamClient({
                   <p className="text-sm font-medium text-gray-900 truncate">
                     {m.name}
                     {m.id === actorId && <span className="text-xs text-gray-500"> (you)</span>}
-                    {!m.isActive && <span className="text-xs text-red-500"> · deactivated</span>}
+                    {!m.isActive && <span className="text-xs text-[color:var(--ds-bad)]"> · deactivated</span>}
                   </p>
                   <p className="text-xs text-gray-500 truncate">
                     {m.email}
@@ -311,7 +312,7 @@ export default function TeamClient({
                         patchMember(m.id, { hourlyCost: rates[m.id] || null });
                       }
                     }}
-                    className="w-16 px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-16 px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                   />
                   <span className="text-gray-400">/hr</span>
                 </label>
@@ -327,7 +328,7 @@ export default function TeamClient({
                     checked={m.bookable}
                     disabled={busy}
                     onChange={(e) => patchMember(m.id, { bookable: e.target.checked })}
-                    className="accent-green-600"
+                    className="accent-[color:var(--ds-primary)]"
                   />
                   Bookable online
                 </label>
@@ -347,7 +348,7 @@ export default function TeamClient({
                     setExtraDraft({ meetingLink: m.meetingLink ?? "", startAddress: m.startAddress ?? "" });
                   }}
                   className={`p-1.5 rounded-full hover:bg-gray-100 active:bg-gray-100 ${
-                    m.workingHours ? "text-green-600" : "text-gray-400 hover:text-gray-700"
+                    m.workingHours ? "text-[color:var(--ds-primary)]" : "text-gray-400 hover:text-gray-700"
                   }`}
                   title={
                     m.workingHours
@@ -364,7 +365,7 @@ export default function TeamClient({
                   value={m.role}
                   disabled={busy}
                   onChange={(e) => patchMember(m.id, { role: e.target.value })}
-                  className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                 >
                   {manageable.map((r) => (
                     <option key={r} value={r}>
@@ -373,9 +374,7 @@ export default function TeamClient({
                   ))}
                 </select>
               ) : (
-                <span className="px-2 py-1 rounded-full bg-gray-100 text-xs font-medium text-gray-600">
-                  {roleLabel[m.role] ?? m.role}
-                </span>
+                <Chip>{roleLabel[m.role] ?? m.role}</Chip>
               )}
 
               {canManage(m) && (
@@ -396,8 +395,8 @@ export default function TeamClient({
                     disabled={busy}
                     className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                       m.isActive
-                        ? "text-red-600 hover:bg-red-50"
-                        : "text-green-700 hover:bg-green-50"
+                        ? "text-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)]"
+                        : "text-[color:var(--ds-primary)] hover:bg-[color:var(--ds-primary-soft)]"
                     }`}
                   >
                     {m.isActive ? "Deactivate" : "Reactivate"}
@@ -408,6 +407,7 @@ export default function TeamClient({
 
             {hoursFor === m.id && (
               <div className="mt-3 space-y-3 rounded-xl border border-gray-100 bg-gray-50/60 p-3 sm:ml-11">
+                <div className="flex items-center gap-1">
                 <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
                   <input
                     type="checkbox"
@@ -417,15 +417,16 @@ export default function TeamClient({
                       setHoursCustom(!inherit);
                       if (!inherit) setHoursDraft(m.workingHours ?? companyHours);
                     }}
-                    className="h-4 w-4 accent-green-600"
+                    className="h-4 w-4 accent-[color:var(--ds-primary)]"
                   />
                   Works the company&apos;s business hours
                 </label>
-                {hoursCustom && <BusinessHoursEditor hours={hoursDraft} onChange={setHoursDraft} />}
-                <p className="text-xs text-gray-500">
+                <InfoTip>
                   Working hours feed Find a Time suggestions, online booking availability, and
                   the route optimizer&apos;s day start.
-                </p>
+                </InfoTip>
+                </div>
+                {hoursCustom && <BusinessHoursEditor hours={hoursDraft} onChange={setHoursDraft} />}
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <label className="block">
                     <span className="mb-1 block text-xs font-medium text-gray-500">Video meeting link</span>
@@ -434,7 +435,7 @@ export default function TeamClient({
                       value={extraDraft.meetingLink}
                       onChange={(e) => setExtraDraft({ ...extraDraft, meetingLink: e.target.value })}
                       placeholder="https://meet.google.com/…"
-                      className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                     />
                     <span className="mt-1 block text-[11px] text-gray-400">Sent with video-call bookings assigned to {m.name.split(" ")[0]}.</span>
                   </label>
@@ -445,7 +446,7 @@ export default function TeamClient({
                       value={extraDraft.startAddress}
                       onChange={(e) => setExtraDraft({ ...extraDraft, startAddress: e.target.value })}
                       placeholder="Leave blank for the shop"
-                      className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                     />
                     <span className="mt-1 block text-[11px] text-gray-400">The first drive of the day is measured from here.</span>
                   </label>
@@ -485,7 +486,7 @@ export default function TeamClient({
                   value={resetPassword}
                   onChange={(e) => setResetPassword(e.target.value)}
                   placeholder="New password (8+ characters)"
-                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 w-full sm:w-64"
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] w-full sm:w-64"
                 />
                 <button
                   onClick={async () => {
@@ -512,21 +513,21 @@ export default function TeamClient({
       </div>
 
       {/* Policies */}
-      <div className="card-ledger p-5 space-y-5">
+      <div className="ds-card p-5 space-y-5">
         <SectionHeader title="Lead routing & permissions" />
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-medium text-gray-900">Website leads go to</p>
-            <p className="text-xs text-gray-500">
-              New requests from your booking form are assigned to this person.
+            <p className="flex items-center gap-1 text-sm font-medium text-gray-900">
+              Website leads go to
+              <InfoTip>New requests from your booking form are assigned to this person.</InfoTip>
             </p>
           </div>
           <select
             value={defaultLeadUserId}
             disabled={policyBusy}
             onChange={(e) => patchPolicy({ defaultLeadUserId: e.target.value || null })}
-            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
           >
             <option value="">Company owner (default)</option>
             {activeMembers.map((u) => (
@@ -539,9 +540,9 @@ export default function TeamClient({
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4">
           <div>
-            <p className="text-sm font-medium text-gray-900">Sales can see invoices &amp; payments</p>
-            <p className="text-xs text-gray-500">
-              When off, Sales members only see their leads, requests, and quotes.
+            <p className="flex items-center gap-1 text-sm font-medium text-gray-900">
+              Sales can see invoices &amp; payments
+              <InfoTip>When off, Sales members only see their leads, requests, and quotes.</InfoTip>
             </p>
           </div>
           <button
@@ -550,7 +551,7 @@ export default function TeamClient({
             role="switch"
             aria-checked={salesSeePayments}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              salesSeePayments ? "bg-green-500" : "bg-gray-300"
+              salesSeePayments ? "bg-[color:var(--ds-primary)]" : "bg-gray-300"
             }`}
           >
             <span

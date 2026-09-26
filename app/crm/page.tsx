@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     'Clients, scheduling, quotes with e-signature, invoicing, card & ACH payments, recurring services, client portal, and an AI assistant — every feature free forever. No plans, no upsell, no catch.',
 };
 
-const OXANIUM = { fontFamily: 'Oxanium, system-ui, sans-serif' } as const;
+const OXANIUM = { fontFamily: 'Lexend, system-ui, sans-serif' } as const;
 
 function CheckIcon() {
   return (

@@ -6,6 +6,7 @@ import { Check, Copy, ExternalLink, Loader2, Pencil, Send, Trash2, X } from "luc
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import Modal from "@/components/Modal";
+import { InfoTip } from "@/components/ds";
 
 /** Contract controls: copy the signing link, email it (again), edit while
  *  unsigned, void/reopen, delete. */
@@ -193,7 +194,7 @@ export default function ContractActions({
           <button
             onClick={remove}
             disabled={busy}
-            className="p-2 btn-tool-line bg-white rounded-[10px] text-gray-400 hover:text-red-600 hover:border-red-300 hover:bg-red-50"
+            className="p-2 btn-tool-line rounded-[10px] text-gray-400 hover:text-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)]"
             title="Delete contract"
           >
             <Trash2 size={15} />
@@ -201,7 +202,7 @@ export default function ContractActions({
         )}
       </div>
       {error && !editing && (
-        <p className="flex items-center gap-1 text-xs text-red-600">
+        <p className="flex items-center gap-1 text-xs text-[color:var(--ds-bad)]">
           {error}
           <button onClick={() => setError("")}>
             <X size={12} />
@@ -218,11 +219,13 @@ export default function ContractActions({
       >
         {editing && (
           <div className="space-y-3 text-left">
-            <h2 className="text-base font-semibold text-gray-900">Edit Contract</h2>
-            <p className="text-xs text-gray-500">
-              Editable until the client signs. If it was already sent, the signing link shows the
-              updated text.
-            </p>
+            <h2 className="flex items-center gap-1.5 text-base font-semibold text-[color:var(--ds-ink)]">
+              Edit Contract
+              <InfoTip>
+                Editable until the client signs. If it was already sent, the signing link shows the
+                updated text.
+              </InfoTip>
+            </h2>
 
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-0.5">Title</label>
@@ -230,7 +233,7 @@ export default function ContractActions({
                 type="text"
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               />
             </div>
 
@@ -242,11 +245,11 @@ export default function ContractActions({
                 value={form.body}
                 onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
                 rows={14}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               />
             </div>
 
-            {error && <p className="text-xs text-red-600">{error}</p>}
+            {error && <p className="text-xs text-[color:var(--ds-bad)]">{error}</p>}
 
             <div className="flex items-center justify-end gap-2 pt-1">
               <button

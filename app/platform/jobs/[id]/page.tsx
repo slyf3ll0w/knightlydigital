@@ -212,7 +212,7 @@ export default async function JobDetailPage({
           {canOpenContact ? (
             <Link
               prefetch={false} href={`/app/contacts/${job.contact.id}`}
-              className="text-sm text-green-700 hover:underline"
+              className="ds-link text-sm"
             >
               {job.contact.firstName} {job.contact.lastName}
             </Link>
@@ -271,7 +271,7 @@ export default async function JobDetailPage({
       />
 
       {/* Header facts with backlinks */}
-      <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 card-ledger mb-6 text-sm">
+      <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 ds-card mb-6 text-sm">
         <div>
           <span className="text-xs font-medium text-gray-500 block">Job #</span>
           <span className="text-gray-800">{job.jobNumber}</span>
@@ -297,7 +297,7 @@ export default async function JobDetailPage({
         {job.completionSignedAt && (
           <div>
             <span className="text-xs font-medium text-gray-500 block">Client sign-off</span>
-            <span className="text-green-700 font-medium">
+            <span className="font-medium text-[color:var(--ds-good)]">
               {job.completionSignatureName} · {shortDate(job.completionSignedAt, tz)}
             </span>
           </div>
@@ -305,7 +305,7 @@ export default async function JobDetailPage({
         {job.quote && (
           <div>
             <span className="text-xs font-medium text-gray-500 block">From quote</span>
-            <Link prefetch={false} href={`/app/quotes/${job.quote.id}`} className="text-green-700 hover:underline">
+            <Link prefetch={false} href={`/app/quotes/${job.quote.id}`} className="ds-link">
               Quote #{job.quote.quoteNumber} ({quoteStatusLabel[job.quote.status]})
             </Link>
           </div>
@@ -313,7 +313,7 @@ export default async function JobDetailPage({
         {job.request && (
           <div>
             <span className="text-xs font-medium text-gray-500 block">From request</span>
-            <Link prefetch={false} href={`/app/requests/${job.request.id}`} className="text-green-700 hover:underline">
+            <Link prefetch={false} href={`/app/requests/${job.request.id}`} className="ds-link">
               {job.request.title}
             </Link>
           </div>
@@ -322,7 +322,7 @@ export default async function JobDetailPage({
           <div>
             <span className="text-xs font-medium text-gray-500 block">Recurring</span>
             {showMoney ? (
-              <Link href="/app/subscriptions" className="text-green-700 hover:underline">
+              <Link href="/app/subscriptions" className="ds-link">
                 {job.subscription.visitFrequency
                   ? `${visitFrequencyLabel[job.subscription.visitFrequency]} visit series`
                   : "From a subscription"}
@@ -348,7 +348,7 @@ export default async function JobDetailPage({
         {/* Main column */}
         <div className="lg:col-span-2 space-y-4">
           {/* Schedule + details */}
-          <div className="card-ledger p-5">
+          <div className="ds-card p-5">
             <SectionHeader title="Details" className="mb-4" />
             <div className="space-y-3">
               {/* Phones already show the schedule in the facts card above —
@@ -445,7 +445,7 @@ export default async function JobDetailPage({
                       </p>
                     </div>
                     {showMoney && (
-                      <p className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900">
+                      <p className="ds-num shrink-0 text-sm font-semibold text-[color:var(--ds-ink)]">
                         {money(li.total)}
                       </p>
                     )}
@@ -606,7 +606,7 @@ export default async function JobDetailPage({
 
           {/* Billing */}
           {showBilling && (
-          <div className="card-ledger p-4">
+          <div className="ds-card p-4">
             {/* Plan-billed recurring work is invoiced by its billing cycle —
                 offering "+ Create Invoice" here would double-bill the client */}
             {(() => {
@@ -619,7 +619,7 @@ export default async function JobDetailPage({
                     {!job.invoice && !planBilled && (
                       <Link
                         href={`/app/invoices/new?jobId=${job.id}`}
-                        className="text-xs text-green-600 hover:underline font-medium"
+                        className="ds-link text-xs font-medium"
                       >
                         + Create Invoice
                       </Link>
@@ -653,7 +653,7 @@ export default async function JobDetailPage({
 
           {/* Profit (when costs are tracked) */}
           {showMoney && (lineCost > 0 || laborCost > 0) && (
-            <div className="card-ledger p-4">
+            <div className="ds-card p-4">
               <SectionHeader title="Profit margin" className="mb-3" />
               <div className="space-y-1.5 text-sm">
                 <div className="flex justify-between">
@@ -676,7 +676,7 @@ export default async function JobDetailPage({
                   <span className="text-gray-900">Profit</span>
                   <span
                     className={
-                      lineTotal - lineCost - laborCost >= 0 ? "text-green-700" : "text-red-600"
+                      lineTotal - lineCost - laborCost >= 0 ? "text-[color:var(--ds-good)]" : "text-[color:var(--ds-bad)]"
                     }
                   >
                     {money(lineTotal - lineCost - laborCost)}
@@ -689,7 +689,7 @@ export default async function JobDetailPage({
           )}
 
           {/* Client */}
-          <div className="card-ledger p-4">
+          <div className="ds-card p-4">
             <SectionHeader title="Client" className="mb-3" />
             {(() => {
               const card = (

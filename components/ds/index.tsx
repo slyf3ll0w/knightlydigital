@@ -232,28 +232,41 @@ export function ListRow({
 }
 
 /**
- * Empty state: one friendly line and a hand-drawn arrow pointing at the one
- * thing to do next. Functional, not decorative — it disappears once there's data.
+ * Empty state: one friendly line (+ an (i) for any explanation) and a
+ * hand-drawn arrow pointing at the one thing to do next. Functional, not
+ * decorative — it disappears once there is data.
+ *
+ * Layout rule (David, 2026-09-26): decorations get their OWN space. The
+ * arrow sits in a fixed 44 x 58 slot between the line and the button, is
+ * drawn already pointing down (WBScribble "down"), and is never rotated or
+ * absolutely positioned — so it can never land on the text or the button.
  */
 export function Hint({
   title,
+  info,
   action,
   className = "",
 }: {
   title: React.ReactNode;
+  info?: React.ReactNode;
   action?: { href: string; label: string; icon?: LucideIcon };
   className?: string;
 }) {
   return (
-    <div className={`flex flex-col items-center px-6 py-10 text-center ${className}`}>
-      <p className="ds-body max-w-xs text-[15px] font-medium text-[color:var(--ds-ink)]">{title}</p>
+    <div className={`flex flex-col items-center px-6 py-9 text-center ${className}`}>
+      <p className="flex max-w-xs items-center justify-center gap-1 text-[15px] font-medium text-[color:var(--ds-ink)]">
+        <span>{title}</span>
+        {info && <InfoTip>{info}</InfoTip>}
+      </p>
       {action && (
-        <div className="mt-2 flex flex-col items-center">
-          <WBScribble variant="loop" tone="current" delay={0.3} className="h-[54px] w-[84px] rotate-[70deg] text-[color:var(--ds-ink-2)]" />
-          <Button href={action.href} icon={action.icon} className="mt-1">
+        <>
+          <span className="my-2 block h-[58px] w-[44px] shrink-0 text-[color:var(--ds-ink-2)]" aria-hidden>
+            <WBScribble variant="down" tone="current" delay={0.3} className="h-full w-full" />
+          </span>
+          <Button href={action.href} icon={action.icon}>
             {action.label}
           </Button>
-        </div>
+        </>
       )}
     </div>
   );

@@ -124,14 +124,14 @@ export default function LoginForm({ social }: { social: SocialSignIn }) {
     // ground, one white card with a hairline border, blue accents — no
     // patterns, gradients, or chrome. app-ui stays on the wrapper so the
     // form controls' green utilities keep bridging to the brand accent.
-    <div className="app-ui flex min-h-screen flex-col items-center justify-center bg-[#FAFBFD] px-4 py-10">
+    <div className="app-ui flex min-h-screen flex-col items-center justify-center bg-[color:var(--ds-canvas)] px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/workbench-logo.png" alt="WorkBench" className="h-8 w-auto" />
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+        <div className="ds-card ds-card-raised p-8">
           <div>
             <h1 className="text-center text-[22px] font-bold tracking-tight text-gray-900">
               Log in to your account
@@ -141,13 +141,13 @@ export default function LoginForm({ social }: { social: SocialSignIn }) {
             </p>
 
             {staleSession && (
-              <div className="mb-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+              <div className="mb-4 px-4 py-3 bg-[color:var(--ds-warn-soft)] rounded-lg text-sm text-[color:var(--ds-warn)]">
                 You&apos;re signed in as{" "}
                 <span className="font-semibold">{session?.user?.email}</span>, which doesn&apos;t
                 have a business on it yet.{" "}
                 <Link
                   href="/app/get-started"
-                  className="font-semibold text-amber-900 underline hover:no-underline"
+                  className="font-semibold text-[color:var(--ds-warn)] underline hover:no-underline"
                 >
                   Finish setting up
                 </Link>
@@ -155,7 +155,7 @@ export default function LoginForm({ social }: { social: SocialSignIn }) {
                 <button
                   type="button"
                   onClick={() => signOut({ redirect: false })}
-                  className="font-semibold text-amber-900 underline hover:no-underline"
+                  className="font-semibold text-[color:var(--ds-warn)] underline hover:no-underline"
                 >
                   sign out
                 </button>
@@ -235,7 +235,7 @@ export default function LoginForm({ social }: { social: SocialSignIn }) {
                   </label>
                   <Link
                     href="/app/forgot-password"
-                    className="text-xs font-semibold text-[#0B57D8] hover:underline"
+                    className="text-xs font-semibold text-[color:var(--ds-primary)] hover:underline"
                   >
                     Forgot password?
                   </Link>
@@ -269,7 +269,7 @@ export default function LoginForm({ social }: { social: SocialSignIn }) {
               <button
                 type="submit"
                 disabled={loading || !csrfToken || (captchaEnabled && !captchaToken)}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0B57D8] py-3 text-[15px] font-bold text-white transition-colors hover:bg-[#0A4CBB] active:bg-[#09429F] disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[color:var(--ds-primary)] py-3 text-[15px] font-bold text-[color:var(--ds-on-primary)] transition-colors hover:bg-[color:var(--ds-primary-strong)] active:bg-[color:var(--ds-primary-strong)] disabled:opacity-50"
               >
                 {loading && <Loader2 size={14} className="animate-spin" />}
                 Log in
@@ -282,7 +282,7 @@ export default function LoginForm({ social }: { social: SocialSignIn }) {
           Don&apos;t have an account?{" "}
           {/* Stays inside the app: /apply is a marketing-site path, and the
               native shell hands those to the system browser. */}
-          <Link href="/app/get-started" className="font-semibold text-[#0B57D8] hover:underline">
+          <Link href="/app/get-started" className="font-semibold text-[color:var(--ds-primary)] hover:underline">
             Get started free
           </Link>
         </p>

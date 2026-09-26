@@ -408,7 +408,7 @@ export default function InvoiceActions({
       {status === "PAID" && (
         <button
           onClick={() => setStatus("AWAITING_PAYMENT")}
-          className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 transition-colors"
+          className="ds-btn ds-btn-outline"
         >
           <RotateCcw size={13} />
           Re-open Invoice
@@ -418,7 +418,7 @@ export default function InvoiceActions({
       <div className="relative">
         <button
           onClick={() => setOpen((v) => !v)}
-          className="p-2 btn-tool-line bg-white rounded-[10px] text-gray-600 hover:bg-gray-50 transition-colors"
+          className="ds-btn-outline rounded-[10px] p-2 text-[color:var(--ds-ink-2)] transition-shadow"
         >
           <MoreHorizontal size={16} />
         </button>
@@ -528,7 +528,7 @@ export default function InvoiceActions({
             {canDelete && (
               <button
                 onClick={onDeleteClick}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50"
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)]"
               >
                 <Trash2 size={14} />
                 Delete Invoice
@@ -545,8 +545,8 @@ export default function InvoiceActions({
         {deleteOpen && (
           <>
             <div className="flex items-start justify-between mb-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-red-100">
-                <AlertTriangle size={17} className="text-red-600" />
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--ds-bad-soft)]">
+                <AlertTriangle size={17} className="text-[color:var(--ds-bad)]" />
               </span>
               <button
                 onClick={() => setDeleteOpen(false)}
@@ -575,10 +575,10 @@ export default function InvoiceActions({
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
               autoFocus
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 mb-3"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-bad)] mb-3"
             />
 
-            {deleteError && <p className="text-xs text-red-600 mb-3">{deleteError}</p>}
+            {deleteError && <p className="text-xs text-[color:var(--ds-bad)] mb-3">{deleteError}</p>}
 
             <div className="flex justify-end gap-2">
               <button
@@ -623,7 +623,7 @@ export default function InvoiceActions({
                   key={card.id || "legacy"}
                   className={`flex items-center gap-3 rounded-lg border px-3.5 py-3 cursor-pointer transition-colors ${
                     pickedId === card.id
-                      ? "border-green-500 bg-green-50"
+                      ? "border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)]"
                       : "border-gray-200 hover:bg-gray-50"
                   }`}
                 >
@@ -632,7 +632,7 @@ export default function InvoiceActions({
                     name="charge-card"
                     checked={pickedId === card.id}
                     onChange={() => setPickedId(card.id)}
-                    className="accent-green-600"
+                    className="accent-[color:var(--ds-primary)]"
                   />
                   <span className="flex-1 text-sm text-gray-800">{card.label}</span>
                   {card.isDefault && cardOptions.length > 1 && (
@@ -644,7 +644,7 @@ export default function InvoiceActions({
                 <label
                   className={`flex items-center gap-3 rounded-lg border px-3.5 py-3 cursor-pointer transition-colors ${
                     pickedId === "new"
-                      ? "border-green-500 bg-green-50"
+                      ? "border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)]"
                       : "border-gray-200 hover:bg-gray-50"
                   }`}
                 >
@@ -653,7 +653,7 @@ export default function InvoiceActions({
                     name="charge-card"
                     checked={pickedId === "new"}
                     onChange={() => setPickedId("new")}
-                    className="accent-green-600"
+                    className="accent-[color:var(--ds-primary)]"
                   />
                   <span className="flex-1 text-sm text-gray-800 flex items-center gap-2">
                     <CreditCard size={14} className="text-gray-400" />
@@ -682,7 +682,7 @@ export default function InvoiceActions({
                     type="checkbox"
                     checked={saveNewCard}
                     onChange={(e) => setSaveNewCard(e.target.checked)}
-                    className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    className="h-3.5 w-3.5 rounded border-gray-300 accent-[color:var(--ds-primary)]"
                   />
                   Save this card to the client&apos;s file for next time
                 </label>
@@ -691,7 +691,7 @@ export default function InvoiceActions({
                   server.
                 </p>
                 {finix?.environment === "sandbox" && (
-                  <p className="mt-1 text-[11px] text-amber-600">Test mode — no real cards.</p>
+                  <p className="mt-1 text-[11px] text-[color:var(--ds-warn)]">Test mode — no real cards.</p>
                 )}
               </div>
             )}

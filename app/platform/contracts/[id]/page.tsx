@@ -49,7 +49,7 @@ export default async function ContractDetailPage({
           <PageTitle>{contract.title}</PageTitle>
           <Link
             prefetch={false} href={`/app/contacts/${contract.contactId}`}
-            className="text-sm text-green-700 hover:underline"
+            className="text-sm text-[color:var(--ds-primary)] hover:underline"
           >
             {contract.contact.firstName} {contract.contact.lastName}
           </Link>
@@ -66,7 +66,7 @@ export default async function ContractDetailPage({
       </div>
 
       {(contract.sentAt || contract.firstViewedAt || contract.quote) && (
-        <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 card-ledger mb-6 text-sm">
+        <div className="flex flex-wrap gap-x-8 gap-y-2 px-5 py-4 ds-card mb-6 text-sm">
           {contract.sentAt && (
             <div>
               <span className="text-xs font-medium text-gray-500 block">Sent</span>
@@ -79,7 +79,7 @@ export default async function ContractDetailPage({
               <Link
                 prefetch={false}
                 href={`/app/quotes/${contract.quote.id}`}
-                className="text-green-700 hover:underline"
+                className="text-[color:var(--ds-primary)] hover:underline"
               >
                 Quote #{contract.quote.quoteNumber} ({quoteStatusLabel[contract.quote.status]})
               </Link>
@@ -96,7 +96,7 @@ export default async function ContractDetailPage({
       )}
 
       {contract.status === "SIGNED" && (
-        <div className="mb-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+        <div className="mb-5 rounded-lg bg-[color:var(--ds-good-soft)] px-4 py-3 text-sm text-[color:var(--ds-good)]">
           Signed by <span className="font-semibold">{contract.signatureName}</span>
           {contract.signedAt &&
             ` on ${contract.signedAt.toLocaleString("en-US", {
@@ -111,7 +111,7 @@ export default async function ContractDetailPage({
         </div>
       )}
 
-      <div className="card-ledger px-6 py-5">
+      <div className="ds-card px-6 py-5">
         <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{contract.body}</p>
       </div>
     </div>

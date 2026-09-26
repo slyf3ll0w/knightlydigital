@@ -10,7 +10,7 @@
  */
 
 const base =
-  "rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500";
+  "rounded-[12px] border border-[color:var(--ds-line-strong,#D1D5DB)] bg-[color:var(--ds-surface,#fff)] px-3 py-2.5 text-sm text-[color:var(--ds-ink,#111827)] placeholder:text-[color:var(--ds-faint,#9CA3AF)] focus:border-[color:var(--ds-primary,#0B57D8)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary-soft,#0B57D81A)]";
 
 /**
  * The same recipe as a class string, full width, for the raw <input>/<select>

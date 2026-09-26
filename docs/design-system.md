@@ -43,6 +43,13 @@ David's review; roll out page by page once approved.
    deliberately rather than shrinking the desktop.
 9. **Empty states point at the next step** with `Hint` (one line + arrow +
    one button), and disappear once there's data.
+10. **Decorations never overlap content** (David, 2026-09-26, after the first
+   dashboard arrow landed on its sentence and button). A hand-drawn arrow or
+   any decorative element gets its own slot in the layout: never
+   absolutely positioned over text/controls, never CSS-rotated (a rotated
+   SVG draws outside the box the layout reserved). Need another direction?
+   Add a path to `WBScribble` drawn that way (`down` exists). Check it at
+   phone and desktop widths before shipping.
 
 ## Rolling out a page
 

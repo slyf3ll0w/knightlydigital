@@ -5,8 +5,8 @@ import { BarChart3 } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import BackLink from "@/components/BackLink";
 import { FilterRow, FilterChip } from "@/components/FilterChips";
-import { SECTION_HUES } from "@/lib/section-colors";
 import EmptyState from "@/components/EmptyState";
+import { Chip, InfoTip } from "@/components/ds";
 import { money } from "@/lib/statuses";
 import { invoiceBalance } from "@/lib/payments";
 
@@ -50,10 +50,12 @@ function BreakdownCard({
   total: number;
 }) {
   return (
-    <div className="card-ledger">
-      <div className="border-b border-gray-100 px-4 py-3.5 lg:px-5 lg:py-4">
-        <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
-        <p className="text-xs text-gray-500">{subtitle}</p>
+    <div className="ds-card">
+      <div className="border-b border-[color:var(--ds-line)] px-4 py-3.5 lg:px-5 lg:py-4">
+        <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[color:var(--ds-ink)]">
+          {title}
+          <InfoTip>{subtitle}</InfoTip>
+        </h2>
       </div>
       {rows.length === 0 ? (
         <EmptyState compact title="No paid work in this period yet." />
@@ -73,7 +75,7 @@ function BreakdownCard({
                   </span>
                 </div>
                 <div className="h-1.5 overflow-hidden rounded-full bg-gray-100 lg:h-2">
-                  <div className="h-full rounded-full bg-green-500" style={{ width: `${pct}%` }} />
+                  <div className="h-full rounded-full bg-[color:var(--ds-primary)]" style={{ width: `${pct}%` }} />
                 </div>
               </div>
             );
@@ -117,9 +119,9 @@ function LedgerLine({
           strong ? "text-xl font-bold" : "text-[15px] font-semibold"
         } ${
           tone === "negative"
-            ? "text-red-600"
+            ? "text-[color:var(--ds-bad)]"
             : tone === "positive"
-              ? "text-green-700"
+              ? "text-[color:var(--ds-good)]"
               : "text-gray-900"
         }`}
       >
@@ -279,7 +281,7 @@ export default async function InsightsPage({
         <PageTitle
           section="business"
           icon={BarChart3}
-          sub="Revenue by source, service, and area."
+          info="Revenue by source, service, and area."
         >
           Insights
         </PageTitle>
@@ -292,7 +294,7 @@ export default async function InsightsPage({
         {ranges.map((r) => (
           <FilterChip
             key={r.value}
-            hue={SECTION_HUES.business}
+            hue="var(--ds-primary)"
             active={activeRange === r.value}
             href={`/app/insights?range=${r.value}`}
           >
@@ -304,7 +306,7 @@ export default async function InsightsPage({
       {/* Money summary. Phones get one card that reads like a mini P&L —
           revenue, expenses, and the profit line underneath — because three
           side-by-side $ figures don't fit at 375px. Desktop keeps the cards. */}
-      <div className="card-tool mb-5 divide-y divide-gray-100 lg:hidden">
+      <div className="ds-card mb-5 divide-y divide-[color:var(--ds-line)] lg:hidden">
         <LedgerLine
           label="Collected revenue"
           hint={`${paymentCount} in this period`}
@@ -329,37 +331,39 @@ export default async function InsightsPage({
       </div>
 
       <div className="mb-6 hidden gap-4 lg:grid lg:grid-cols-3">
-        <div className="card-ledger p-5">
+        <div className="ds-card p-5">
           <p className="mb-1 text-xs font-medium text-gray-500">Collected revenue</p>
           <p className="numeral-ledger text-3xl font-bold text-gray-900">{money(totalRevenue)}</p>
           <p className="mt-0.5 text-xs text-gray-500">{paymentCount} in this period</p>
         </div>
-        <div className="card-ledger p-5">
+        <div className="ds-card p-5">
           <p className="mb-1 text-xs font-medium text-gray-500">Expenses</p>
           <p className="numeral-ledger text-3xl font-bold text-gray-900">{money(totalExpenses)}</p>
-          <Link href="/app/expenses" className="mt-0.5 inline-block text-xs text-green-600 hover:underline">
+          <Link href="/app/expenses" className="mt-0.5 inline-block text-xs text-[color:var(--ds-primary)] hover:underline">
             {expenseAgg._count > 0
               ? `${expenseAgg._count} logged — manage →`
               : "Log expenses to track profit →"}
           </Link>
         </div>
-        <div className="card-ledger p-5">
-          <p className="mb-1 text-xs font-medium text-gray-500">Profit</p>
+        <div className="ds-card p-5">
+          <p className="mb-1 flex items-center gap-1 text-xs font-medium text-gray-500">
+            Profit
+            <InfoTip>Revenue minus expenses.</InfoTip>
+          </p>
           <p
             className={`numeral-ledger text-3xl font-bold ${
-              profit >= 0 ? "text-green-700" : "text-red-600"
+              profit >= 0 ? "text-[color:var(--ds-good)]" : "text-[color:var(--ds-bad)]"
             }`}
           >
             {money(profit)}
           </p>
-          <p className="mt-0.5 text-xs text-gray-500">revenue minus expenses</p>
         </div>
       </div>
 
       {/* A/R aging — who owes what, and how stale it's getting. The
           bookkeeper report every incumbent has and we didn't. */}
-      <div className="card-ledger mb-5 lg:mb-6">
-        <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3.5 lg:px-5 lg:py-4">
+      <div className="ds-card mb-5 lg:mb-6">
+        <div className="flex items-center justify-between gap-3 border-b border-[color:var(--ds-line)] px-4 py-3.5 lg:px-5 lg:py-4">
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-gray-900">Receivables aging</h2>
             <p className="text-xs text-gray-500">
@@ -368,12 +372,12 @@ export default async function InsightsPage({
           </div>
           <Link
             href="/app/invoices?status=PAST_DUE"
-            className="shrink-0 text-xs font-semibold text-green-600 hover:underline"
+            className="shrink-0 text-xs font-semibold text-[color:var(--ds-primary)] hover:underline"
           >
             Past-due invoices →
           </Link>
         </div>
-        <div className="grid grid-cols-5 divide-x divide-gray-100 border-b border-gray-100">
+        <div className="grid grid-cols-5 divide-x divide-[color:var(--ds-line)] border-b border-[color:var(--ds-line)]">
           {AGING_BUCKETS.map((b, i) => (
             <div key={b} className="px-2 py-3 text-center lg:px-4">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 lg:text-[11px]">
@@ -384,9 +388,9 @@ export default async function InsightsPage({
                   (aging.get(b) ?? 0) === 0
                     ? "text-gray-300"
                     : i >= 3
-                      ? "text-red-600"
+                      ? "text-[color:var(--ds-bad)]"
                       : i >= 1
-                        ? "text-amber-600"
+                        ? "text-[color:var(--ds-warn)]"
                         : "text-gray-900"
                 }`}
               >
@@ -411,9 +415,7 @@ export default async function InsightsPage({
                 )}
                 <span className="flex items-center gap-2 shrink-0">
                   {d.worst >= 1 && (
-                    <span className={`stamp ${d.worst >= 3 ? "text-red-700" : "text-amber-700"}`}>
-                      {AGING_BUCKETS[d.worst]}
-                    </span>
+                    <Chip tone={d.worst >= 3 ? "bad" : "warn"}>{AGING_BUCKETS[d.worst]}</Chip>
                   )}
                   <span className="numeral-ledger text-sm font-semibold text-gray-900">
                     {money(d.balance)}
@@ -428,8 +430,8 @@ export default async function InsightsPage({
       {/* Lead pipeline funnel — stages scroll edge-to-edge on phones (a
           wrapping flex row left orphaned columns and a stray divider), and
           the won/lost/rate outcomes sit in their own fixed 3-up row. */}
-      <div className="card-ledger mb-5 lg:mb-6">
-        <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-3.5 lg:px-5 lg:py-4">
+      <div className="ds-card mb-5 lg:mb-6">
+        <div className="flex items-center justify-between gap-3 border-b border-[color:var(--ds-line)] px-4 py-3.5 lg:px-5 lg:py-4">
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-gray-900">Lead pipeline</h2>
             {/* The won/lost caveat used to live here and wrapped to two lines
@@ -438,7 +440,7 @@ export default async function InsightsPage({
           </div>
           <Link
             href="/app/leads"
-            className="shrink-0 text-xs font-semibold text-green-600 hover:underline"
+            className="shrink-0 text-xs font-semibold text-[color:var(--ds-primary)] hover:underline"
           >
             Open board →
           </Link>
@@ -455,9 +457,9 @@ export default async function InsightsPage({
             ))}
           </div>
         )}
-        <div className="grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100">
+        <div className="grid grid-cols-3 divide-x divide-[color:var(--ds-line)] border-t border-[color:var(--ds-line)]">
           <div className="px-4 py-3 lg:px-5">
-            <p className="numeral-ledger text-2xl font-semibold text-green-700">{wonCount}</p>
+            <p className="numeral-ledger text-2xl font-semibold text-[color:var(--ds-good)]">{wonCount}</p>
             <p className="text-xs text-gray-500">Won</p>
           </div>
           <div className="px-4 py-3 lg:px-5">

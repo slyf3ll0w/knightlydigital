@@ -27,8 +27,9 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { hapticImpact } from "@/lib/haptics";
 import { showWinBurst } from "@/lib/win-burst";
 import { money } from "@/lib/statuses";
-import { SECTION_HUES, themedInkVars, themedBgVars } from "@/lib/section-colors";
+import { themedInkVars, themedBgVars } from "@/lib/section-colors";
 import EmptyState from "@/components/EmptyState";
+import { Chip } from "@/components/ds";
 
 export type BoardStage = {
   id: string;
@@ -364,14 +365,14 @@ export default function LeadsBoardClient({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search name, company, address, custom fields…"
-            className="pl-8 pr-3 py-1.5 w-56 max-w-full text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500"
+            className="pl-8 pr-3 py-1.5 w-56 max-w-full text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary-soft)] focus:border-[color:var(--ds-primary)]"
           />
         </div>
         {manager && team.length > 1 && (
           <select
             value={assignee}
             onChange={(e) => setAssignee(e.target.value)}
-            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500/30"
+            className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary-soft)]"
           >
             <option value="">Everyone</option>
             {team.map((t) => (
@@ -385,10 +386,10 @@ export default function LeadsBoardClient({
 
       {/* Board */}
       {board.length === 0 ? (
-        <div className="card-ledger max-w-xl">
+        <div className="ds-card max-w-xl">
           <EmptyState
             icon={SquareKanban}
-            hue={SECTION_HUES.leads}
+            hue="var(--ds-primary)"
             title="No leads on the board yet"
             body="New website requests and webhook leads land here automatically — or add one yourself and drag it through your stages to Won."
           >
@@ -469,7 +470,7 @@ export default function LeadsBoardClient({
                   {...dropProps(stage.id)}
                   className={`flex flex-col gap-2 min-h-[140px] rounded-lg p-1 -m-1 transition-colors ${
                     hoverStage === stage.id && dragId
-                      ? "bg-green-500/10 ring-2 ring-green-500/40 ring-dashed"
+                      ? "bg-[color:var(--ds-primary-soft)] ring-2 ring-[color:var(--ds-primary)] ring-dashed"
                       : ""
                   }`}
                 >
@@ -494,7 +495,7 @@ export default function LeadsBoardClient({
                         e.preventDefault();
                         setMenu({ card, anchor: { x: e.clientX, y: e.clientY } });
                       }}
-                      className={`card-ledger p-3 cursor-pointer lg:cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow select-none ${
+                      className={`ds-card p-3 cursor-pointer lg:cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow select-none ${
                         dragId === card.id ? "opacity-40" : ""
                       }`}
                     >
@@ -508,8 +509,8 @@ export default function LeadsBoardClient({
                           )}
                         </div>
                         {card.repeat && (
-                          <span className="stamp text-blue-600 shrink-0" title="Has worked with you before">
-                            Repeat
+                          <span className="shrink-0" title="Has worked with you before">
+                            <Chip tone="primary">Repeat</Chip>
                           </span>
                         )}
                       </div>
@@ -590,8 +591,8 @@ export default function LeadsBoardClient({
         <div className="hidden lg:flex fixed bottom-6 left-1/2 -translate-x-1/2 z-40 gap-3">
           <div
             {...zoneProps("won")}
-            className={`rounded-full flex items-center gap-2 px-8 py-4 text-sm font-bold text-white transition-transform ${
-              hoverZone === "won" ? "bg-green-600 scale-110" : "bg-green-500"
+            className={`rounded-full flex items-center gap-2 px-8 py-4 text-sm font-bold text-[color:var(--ds-surface)] transition-transform ${
+              hoverZone === "won" ? "bg-[color:var(--ds-good)] scale-110" : "bg-[color:var(--ds-good)] opacity-90"
             }`}
           >
             <Trophy size={18} />
@@ -685,7 +686,7 @@ export default function LeadsBoardClient({
               placeholder="Reason (optional) — price, timing, went elsewhere…"
               maxLength={300}
               autoFocus
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-green-500/30"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary-soft)]"
             />
             <div className="flex justify-end gap-2">
               <button
@@ -715,11 +716,11 @@ export default function LeadsBoardClient({
         <div className="fixed bottom-20 lg:bottom-6 right-4 z-50 max-w-sm">
           <div
             key={toast.message}
-            className={`msg-enter card-ledger flex items-center gap-3 px-4 py-3 text-sm font-medium ${
+            className={`msg-enter ds-card flex items-center gap-3 px-4 py-3 text-sm font-medium ${
               toast.tone === "red"
                 ? "border-red-200 text-red-700"
                 : toast.tone === "green"
-                  ? "border-green-200 text-gray-900"
+                  ? "text-[color:var(--ds-ink)]"
                   : "text-gray-700"
             }`}
           >
@@ -727,7 +728,7 @@ export default function LeadsBoardClient({
             {toast.undo && toast.undo.payload.stageId && (
               <button
                 onClick={() => undoClose(toast.undo!.cardId, toast.undo!.payload)}
-                className="flex items-center gap-1 text-green-600 hover:text-green-700 font-semibold shrink-0"
+                className="flex items-center gap-1 text-[color:var(--ds-primary)] hover:text-[color:var(--ds-primary-strong)] font-semibold shrink-0"
               >
                 <RotateCcw size={13} />
                 Undo
@@ -790,19 +791,19 @@ function QuickAdd({
   }
 
   return (
-    <form onSubmit={submit} className="card-ledger p-3 space-y-2">
+    <form onSubmit={submit} className="ds-card p-3 space-y-2">
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="Name"
         autoFocus
-        className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/30"
+        className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary-soft)]"
       />
       <input
         value={contact}
         onChange={(e) => setContact(e.target.value)}
         placeholder="Phone or email (optional)"
-        className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/30"
+        className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary-soft)]"
       />
       <div className="flex gap-2">
         <button
@@ -935,7 +936,7 @@ function ActionSheet({
         <div className="grid grid-cols-2 gap-2 mt-5">
           <button
             onClick={onWon}
-            className="rounded-[10px] btn-tool flex items-center justify-center gap-1.5 px-3 py-3 bg-green-500 hover:bg-green-600 text-white text-sm font-bold"
+            className="rounded-[10px] flex items-center justify-center gap-1.5 px-3 py-3 bg-[color:var(--ds-good)] hover:opacity-90 text-[color:var(--ds-surface)] text-sm font-bold"
           >
             <Trophy size={15} />
             Won

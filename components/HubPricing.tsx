@@ -9,7 +9,7 @@ import Link from 'next/link';
  * Monthly prices it at "Still free" — the joke is the whole pricing model.
  */
 
-const OXANIUM = { fontFamily: 'Oxanium, system-ui, sans-serif' } as const;
+const OXANIUM = { fontFamily: 'Lexend, system-ui, sans-serif' } as const;
 
 const featureGroups: { label: string; items: string[] }[] = [
   {

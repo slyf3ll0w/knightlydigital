@@ -6,7 +6,6 @@ import { Plus, ChevronRight, FileText, Download } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import FilterBar, { listHref } from "@/components/FilterBar";
 import { pickSort, QUOTE_SORTS, quoteOrderBy } from "@/lib/list-sort";
-import { SECTION_HUES } from "@/lib/section-colors";
 import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
@@ -135,14 +134,14 @@ export default async function QuotesPage({
           <a
             href="/api/app/export/quotes"
             title="Download all quotes as CSV"
-            className="flex items-center gap-1.5 px-3 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 active:bg-gray-100 transition-colors"
+            className="ds-btn ds-btn-outline ds-btn-sm"
           >
             <Download size={14} />
             Export
           </a>
           <Link
             href="/app/quotes/new"
-            className="btn-primary"
+            className="ds-btn ds-btn-primary ds-btn-sm"
           >
             <Plus size={15} />
             New Quote
@@ -157,10 +156,9 @@ export default async function QuotesPage({
         params={{ status: validStatus, sort: sortRaw }}
       />
 
-      <KpiStrip kpis={kpis} desktopCols={4} hue={SECTION_HUES.quotes} />
+      <KpiStrip kpis={kpis} desktopCols={4} />
 
       <FilterBar
-        hue={SECTION_HUES.quotes}
         options={statusFilters}
         value={validStatus ?? ""}
         href={(v) => listHref("/app/quotes", { q: query, sort: sortRaw }, { status: v })}
@@ -171,11 +169,11 @@ export default async function QuotesPage({
         }}
       />
 
-      <div className="card-ledger overflow-hidden">
+      <div className="ds-card overflow-hidden">
         {quotes.length === 0 ? (
           <EmptyState
             art="quotes"
-            hue={SECTION_HUES.quotes}
+            hue="var(--ds-primary)"
             title={validStatus ? "No quotes with this status" : "No quotes yet"}
             body={
               validStatus
@@ -217,7 +215,7 @@ export default async function QuotesPage({
                         <p className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900">
                           {q.contact.firstName} {q.contact.lastName}
                         </p>
-                        <p className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900">
+                        <p className="ds-num shrink-0 text-sm font-semibold text-gray-900">
                           {money(q.total)}
                         </p>
                       </div>
@@ -241,7 +239,7 @@ export default async function QuotesPage({
                   <span className="hidden lg:block">
                     <StatusChip kind="quote" status={q.status} />
                   </span>
-                  <span className="numeral-ledger hidden lg:block text-sm font-semibold text-gray-900 lg:text-right">
+                  <span className="ds-num hidden lg:block text-sm font-semibold text-gray-900 lg:text-right">
                     {money(q.total)}
                   </span>
                   <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
@@ -257,7 +255,7 @@ export default async function QuotesPage({
               <span className="hidden lg:block" />
               <span className="hidden lg:block" />
               <span className="hidden lg:block" />
-              <span className="numeral-ledger text-sm font-bold text-gray-900 lg:text-right">
+              <span className="ds-num text-sm font-bold text-gray-900 lg:text-right">
                 {money(pageTotal)}
               </span>
               <span className="hidden lg:block" />

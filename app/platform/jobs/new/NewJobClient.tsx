@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import SectionHeader from "@/components/SectionHeader";
+import { InfoTip } from "@/components/ds";
 import { Loader2 } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
@@ -259,7 +260,7 @@ function NewJobForm() {
           </div>
         )}
 
-        <div className="card-ledger p-5 space-y-4">
+        <div className="ds-card p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700">Job Details</h2>
 
           <div>
@@ -271,7 +272,7 @@ function NewJobForm() {
               placeholder="Select a customer..."
               title="Select a customer"
             />
-            <Link href="/app/contacts/new" className="text-xs text-green-600 hover:underline mt-1 inline-block">
+            <Link href="/app/contacts/new" className="ds-link text-xs mt-1 inline-block">
               + Add new customer
             </Link>
           </div>
@@ -287,13 +288,13 @@ function NewJobForm() {
                 set("title", e.target.value);
                 setTitleTouched(e.target.value.trim().length > 0);
               }}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               placeholder="Defaults to the service picked below"
             />
             {/* Estimates and meetings aren't billable work: steer them to the
                 record that ends with an optional quote instead of an invoice */}
             {looksLikeAppointment(form.title) && (
-              <p className="mt-1.5 text-xs text-amber-700">
+              <p className="mt-1.5 text-xs text-[color:var(--ds-warn)]">
                 Sounds like an appointment (an estimate or a meeting) rather than billable work.
                 Appointments end with an optional quote, never an invoice.{" "}
                 <Link
@@ -315,19 +316,22 @@ function NewJobForm() {
               value={form.description}
               onChange={(e) => set("description", e.target.value)}
               rows={3}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
               placeholder="Details about the job, scope, special instructions..."
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Lead source</label>
+            <div className="mb-1 flex items-center gap-1 text-sm font-medium text-gray-700">
+              Lead source
+              <InfoTip>Used in Insights to show which sources bring in the most revenue.</InfoTip>
+            </div>
             <input
               type="text"
               list="lead-sources"
               value={form.leadSource}
               onChange={(e) => set("leadSource", e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               placeholder="Where did this job come from?"
             />
             <datalist id="lead-sources">
@@ -340,9 +344,6 @@ function NewJobForm() {
               <option value="Repeat client" />
               <option value="Door hanger" />
             </datalist>
-            <p className="text-xs text-gray-500 mt-1">
-              Used in Insights to show which sources bring in the most revenue.
-            </p>
           </div>
         </div>
 
@@ -351,7 +352,7 @@ function NewJobForm() {
             checklist, and (for recurring services) can start the client's
             plan. No overflow-hidden: the picker dropdown must spill past the
             card edge. */}
-        <div className="card-ledger">
+        <div className="ds-card">
           <div className="px-5 py-4 border-b border-gray-100">
             <SectionHeader
               title="Product / Service"
@@ -386,7 +387,7 @@ function NewJobForm() {
           )}
         </div>
 
-        <div className="card-ledger p-5 space-y-4">
+        <div className="ds-card p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700">Scheduling</h2>
 
           {anytime ? (
@@ -396,7 +397,7 @@ function NewJobForm() {
                 type="date"
                 value={form.scheduledAt.slice(0, 10)}
                 onChange={(e) => set("scheduledAt", e.target.value ? `${e.target.value}T12:00` : "")}
-                className="w-full sm:w-56 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full sm:w-56 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               />
             </div>
           ) : (
@@ -407,7 +408,7 @@ function NewJobForm() {
                   value={form.scheduledAt}
                   intervalMinutes={interval}
                   dayStartMinutes={dayStart}
-                  inputCls="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  inputCls="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                   ariaLabel="Start"
                   onChange={(next) => {
                     set("scheduledAt", next);
@@ -426,7 +427,7 @@ function NewJobForm() {
                   value={form.scheduledEnd}
                   intervalMinutes={interval}
                   dayStartMinutes={dayStart}
-                  inputCls="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  inputCls="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                   ariaLabel="End"
                   onChange={(next) => set("scheduledEnd", next)}
                 />
@@ -438,7 +439,7 @@ function NewJobForm() {
               type="checkbox"
               checked={anytime}
               onChange={(e) => setAnytime(e.target.checked)}
-              className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+              className="h-3.5 w-3.5 rounded border-gray-300 accent-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
             />
             Anytime (no set time)
           </label>
@@ -462,7 +463,7 @@ function NewJobForm() {
               <select
                 value={window_}
                 onChange={(e) => setWindow(e.target.value)}
-                className="w-full sm:w-64 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full sm:w-64 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               >
                 <option value="">Company default</option>
                 {ARRIVAL_WINDOW_CHOICES.map((m) => (
@@ -476,7 +477,14 @@ function NewJobForm() {
 
           {team.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Assign to</label>
+              <div className="mb-1 flex items-center gap-1 text-sm font-medium text-gray-700">
+                Assign to
+                <InfoTip>
+                  {team.length === 1
+                    ? "It's just you, so your jobs land on your schedule and calendar sync automatically."
+                    : "Assigned techs see this job on their schedule, get it in their calendar sync, and their online-booking availability blocks off this time. A scheduled job needs someone on it unless it's outsourced."}
+                </InfoTip>
+              </div>
               <div className={`space-y-1.5 ${outsourced ? "opacity-50" : ""}`}>
                 {team.map((u) => (
                   <label
@@ -492,7 +500,7 @@ function NewJobForm() {
                           ids.includes(u.id) ? ids.filter((x) => x !== u.id) : [...ids, u.id]
                         )
                       }
-                      className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                      className="h-3.5 w-3.5 rounded border-gray-300 accent-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
                     />
                     {u.name}
                   </label>
@@ -503,7 +511,7 @@ function NewJobForm() {
                   type="checkbox"
                   checked={outsourced}
                   onChange={(e) => setOutsourced(e.target.checked)}
-                  className="h-3.5 w-3.5 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                  className="h-3.5 w-3.5 rounded border-gray-300 accent-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
                 />
                 Outsourced to a subcontractor
               </label>
@@ -512,15 +520,10 @@ function NewJobForm() {
                   type="text"
                   value={outsourcedTo}
                   onChange={(e) => setOutsourcedTo(e.target.value)}
-                  className="mt-2 w-full sm:w-64 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="mt-2 w-full sm:w-64 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                   placeholder="Who's doing it (optional)"
                 />
               )}
-              <p className="text-xs text-gray-500 mt-1">
-                {team.length === 1
-                  ? "It's just you, so your jobs land on your schedule and calendar sync automatically."
-                  : "Assigned techs see this job on their schedule, get it in their calendar sync, and their online-booking availability blocks off this time. A scheduled job needs someone on it unless it's outsourced."}
-              </p>
             </div>
           )}
 
@@ -542,7 +545,7 @@ function NewJobForm() {
                     }));
                   }
                 }}
-                className="w-full mb-2 px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full mb-2 px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               >
                 <option value="">Pick a saved address...</option>
                 {addressChoices.map((a) => (
@@ -560,7 +563,7 @@ function NewJobForm() {
                 setAddressTouched(true);
                 setForm((f) => ({ ...f, address: e.target.value, propertyId: "" }));
               }}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               placeholder="Defaults to customer address"
             />
           </div>
@@ -577,7 +580,7 @@ function NewJobForm() {
           </button>
           <Link
             href="/app/jobs"
-            className="px-5 py-2.5 btn-tool-line bg-white text-sm font-medium text-gray-600 rounded-[10px] hover:bg-gray-50 transition-colors"
+            className="ds-btn ds-btn-outline"
           >
             Cancel
           </Link>

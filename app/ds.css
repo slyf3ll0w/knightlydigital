@@ -109,7 +109,7 @@ html[data-mode="dark"] .ds {
   --ds-shadow-float: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 24px 50px -18px rgba(0, 0, 0, 0.75);
 }
 
-/* the app's global h1–h6 rule pins Oxanium; inside ds everything is Lexend */
+/* inside ds every heading, control and field is Lexend (the global h1–h6 rule uses --font-sans) */
 .ds :is(h1, h2, h3, h4, h5, h6, .font-display, button, input, select, textarea) {
   font-family: inherit;
 }
@@ -250,4 +250,72 @@ html[data-mode="dark"] .ds .ds-chip-secondary { color: var(--ds-secondary); }
 @media (prefers-reduced-motion: reduce) {
   .ds-rise, .ds-float, .ds-pop { animation: none; }
   .ds-btn:active, .ds-disc:active, a.ds-card:active { transform: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LEGACY BRIDGE (2026-09-26) — `.ds` now sits on the AppShell root, so
+   every app page wears the system. Pages not yet rebuilt on the kit still
+   use the older classes (card-ledger, card-tool, btn-tool, btn-primary,
+   stamp, numeral-ledger, chamfer); these rules make them look like the kit
+   so the whole app reads as one. Delete each rule once no page uses the
+   old class (grep before deleting).
+   ═══════════════════════════════════════════════════════════════════════ */
+.ds {
+  /* anything still reading the old font vars gets Lexend */
+  --font-body: var(--ds-font-stack);
+  --font-sans: var(--ds-font-stack);
+}
+
+/* cards → the ds card */
+.ds .card-ledger,
+.ds .card-tool {
+  background-color: var(--ds-surface);
+  background-image: none;
+  border: 0;
+  border-radius: var(--ds-r-lg);
+  box-shadow: var(--ds-shadow-1);
+}
+html[data-mode="dark"] .ds .card-ledger,
+html[data-mode="dark"] .ds .card-tool {
+  background-color: var(--ds-surface);
+  background-image: none;
+  border: 0;
+  box-shadow: var(--ds-shadow-1);
+}
+.ds a.card-ledger:hover, .ds a.card-tool:hover { box-shadow: var(--ds-shadow-2); }
+
+/* buttons → ds button shape; color still comes from the (primary-driven) accent bridge */
+.ds .btn-primary,
+.ds .btn-tool,
+.ds .btn-tool-line {
+  border-radius: 12px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.ds .btn-primary, .ds .btn-tool { box-shadow: 0 1px 2px rgba(10, 19, 40, 0.12); }
+.ds .btn-tool:hover { transform: none; box-shadow: 0 1px 2px rgba(10, 19, 40, 0.12); }
+.ds .btn-primary:active:not(:disabled), .ds .btn-tool:active, .ds .btn-tool-line:active { transform: scale(0.97); }
+.ds .btn-tool-line { border-color: var(--ds-line-strong); box-shadow: none; }
+.ds .btn-tool-line:hover { border-color: var(--ds-faint); box-shadow: none; }
+
+/* the Oxanium-era cut corner retires with Oxanium */
+.ds .chamfer { clip-path: none; border-radius: 12px; }
+
+/* status pill → ds chip proportions (tone still from its text color) */
+.ds .stamp {
+  height: 22px; padding: 0 9px;
+  font-size: 11.5px; font-weight: 600; letter-spacing: 0.005em;
+}
+
+/* big numerals: Lexend like everything else */
+.ds .numeral-ledger,
+.ds.app-ui .numeral-ledger {
+  font-family: var(--ds-font-stack);
+  font-variant-numeric: normal;
+  letter-spacing: -0.02em;
+}
+
+/* form fields that don't use components/Input yet */
+.ds :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea):focus-visible {
+  outline-color: var(--ds-primary);
 }

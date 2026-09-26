@@ -20,7 +20,7 @@ export default function SwipeRowContact({
 }) {
   const actions: SwipeRowAction[] = [
     ...(phone
-      ? [{ key: "call", label: "Call", icon: Phone, href: telHref(phone), bg: "#16A34A" }]
+      ? [{ key: "call", label: "Call", icon: Phone, href: telHref(phone), bg: "var(--ds-good, #16A34A)" }]
       : []),
     ...(address
       ? [
@@ -30,7 +30,7 @@ export default function SwipeRowContact({
             icon: Navigation,
             href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`,
             external: true,
-            bg: "#2563EB",
+            bg: "var(--ds-primary, #2563EB)",
           },
         ]
       : []),

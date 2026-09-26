@@ -5,7 +5,6 @@ import PageTitle from "@/components/PageTitle";
 import { FilterChip } from "@/components/FilterChips";
 import FilterBar, { listHref } from "@/components/FilterBar";
 import { pickSort, REQUEST_SORTS, requestOrderBy } from "@/lib/list-sort";
-import { SECTION_HUES } from "@/lib/section-colors";
 import { shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import EmptyState from "@/components/EmptyState";
@@ -110,7 +109,6 @@ export default async function RequestsPage({
 
       <KpiStrip
         desktopCols={4}
-        hue={SECTION_HUES.requests}
         kpis={[
           {
             label: "New requests",
@@ -133,14 +131,13 @@ export default async function RequestsPage({
       />
 
       <FilterBar
-        hue={SECTION_HUES.requests}
         options={statusFilters}
         value={validStatus ?? ""}
         href={(v) => listHref("/app/requests", cur, { status: v })}
         scope={
           showAll ? (
             <FilterChip
-              hue={SECTION_HUES.requests}
+              hue="var(--ds-primary)"
               active={mineOnly}
               href={listHref("/app/requests", cur, { assignee: mineOnly ? undefined : "me" })}
             >
@@ -156,11 +153,11 @@ export default async function RequestsPage({
         }}
       />
 
-      <div className="card-ledger overflow-hidden">
+      <div className="ds-card overflow-hidden">
         {requests.length === 0 ? (
           <EmptyState
             art="requests"
-            hue={SECTION_HUES.requests}
+            hue="var(--ds-primary)"
             title={validStatus ? "No requests with this status" : "No requests yet"}
             body={
               validStatus

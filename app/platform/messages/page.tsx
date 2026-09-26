@@ -49,7 +49,6 @@ export default async function MessagesInboxPage() {
         <div className="mt-6">
           <EmptyState
             art="contacts"
-            hue="var(--sh-chat)"
             showPlusIcon={false}
             title="No client messages yet"
             body="Clients can message you from the Messages tab in their portal — replies you send land back there (and mirror to text once SMS is on)."
@@ -68,7 +67,7 @@ export default async function MessagesInboxPage() {
               <Link
                 key={m.contactId}
                 href={`/app/messages/thread/${m.contactId}`}
-                className="flex items-center gap-3.5 card-ledger p-4 hover:shadow-sm transition-shadow"
+                className="ds-card flex items-center gap-3.5 p-4"
               >
                 <Monogram name={name} size={40} />
                 <div className="flex-1 min-w-0">
@@ -96,7 +95,7 @@ export default async function MessagesInboxPage() {
                   </p>
                 </div>
                 {unreadCount > 0 && (
-                  <span className="shrink-0 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-[var(--sh-chat)] text-white text-[11px] font-bold">
+                  <span className="shrink-0 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-[color:var(--ds-primary)] text-[color:var(--ds-on-primary)] text-[11px] font-bold">
                     {unreadCount > 99 ? "99+" : unreadCount}
                   </span>
                 )}

@@ -52,15 +52,15 @@ import { GOOGLE_FONT_RE } from "@/lib/booking-page";
 import { resolveWallpaper } from "@/lib/wallpapers";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import PageTitle from "@/components/PageTitle";
+import SectionHeader from "@/components/SectionHeader";
+import { Chip, InfoTip } from "@/components/ds";
 import SmsNotificationsCard from "./SmsNotificationsCard";
 import BusinessLineCard from "./BusinessLineCard";
 import type { LineSummary } from "@/lib/business-line-shared";
 import {
-  SECTION_HUES,
   SECTION_HUE_DEFAULTS,
   SECTION_KEYS,
   SECTION_LABELS,
-  hueInk,
   type SectionKey,
 } from "@/lib/section-colors";
 
@@ -106,12 +106,16 @@ const WALLPAPER_CHOICES: [string, string][] = [
 function ColorField({
   label,
   hint,
+  info,
   value,
   fallback,
   onChange,
 }: {
   label: string;
-  hint: string;
+  /** Field help, shown under the input. */
+  hint?: string;
+  /** What this color does — an (i) next to the label. */
+  info?: React.ReactNode;
   value: string;
   fallback: string;
   onChange: (v: string) => void;
@@ -130,7 +134,10 @@ function ColorField({
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <div className="mb-1 flex items-center gap-1">
+        <label className="block text-sm font-medium text-gray-700">{label}</label>
+        {info && <InfoTip>{info}</InfoTip>}
+      </div>
       <div className="flex items-center gap-2">
         <input
           type="color"
@@ -145,8 +152,8 @@ function ColorField({
           placeholder={fallback}
           maxLength={7}
           spellCheck={false}
-          className={`w-28 px-3 py-2 border rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500 ${
-            invalid ? "border-red-400" : "border-gray-300"
+          className={`w-28 px-3 py-2 border rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] ${
+            invalid ? "border-[color:var(--ds-bad)]" : "border-gray-300"
           }`}
         />
         {value && (
@@ -159,48 +166,59 @@ function ColorField({
           </button>
         )}
       </div>
-      <p className={`text-xs mt-1 ${invalid ? "text-red-600" : "text-gray-400"}`}>
-        {invalid ? "Use a 6-digit hex code like #0B57D8" : hint}
-      </p>
+      {(invalid || hint) && (
+        <p className={`text-xs mt-1 ${invalid ? "text-[color:var(--ds-bad)]" : "text-[color:var(--ds-muted)]"}`}>
+          {invalid ? "Use a 6-digit hex code like #0B57D8" : hint}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** A field label with an optional (i) for what the setting does. */
+function FieldLabel({ children, info }: { children: React.ReactNode; info?: React.ReactNode }) {
+  return (
+    <div className="mb-1 flex items-center gap-1">
+      <label className="block text-sm font-medium text-gray-700">{children}</label>
+      {info && <InfoTip>{info}</InfoTip>}
     </div>
   );
 }
 
 /**
  * Phone drill-in row — the iOS grouped-list idiom the More sheet uses:
- * section-hue icon tile, label + hint, right chevron. Rows stack inside one
- * card-ledger group per bucket; desktop keeps the classic "Manage →" cards.
+ * primary-tinted icon tile, label + hint, right chevron (the design-system
+ * row). Rows stack inside one ds-card group per bucket.
  */
 function SettingsLinkRow({
   href,
   label,
   sub,
-  hue,
   icon: Icon,
 }: {
   href: string;
   label: string;
   sub: string;
-  hue: string;
   icon: LucideIcon;
 }) {
   return (
-    <Link
-      href={href}
-      className="flex items-center gap-3 px-4 py-3 transition-colors active:bg-gray-100"
-    >
-      <span
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
-        style={{ backgroundColor: hue, color: hueInk(hue) }}
-      >
-        <Icon size={17} strokeWidth={2.25} />
-      </span>
+    <Link prefetch={false} href={href} className="ds-row">
+      <RowIcon icon={Icon} />
       <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-medium text-gray-900">{label}</span>
-        <span className="block truncate text-xs text-gray-500">{sub}</span>
+        <span className="block text-[15px] font-medium text-[color:var(--ds-ink)]">{label}</span>
+        <span className="ds-small block truncate">{sub}</span>
       </span>
-      <ChevronRight size={16} className="shrink-0 text-gray-300" />
+      <ChevronRight size={16} className="shrink-0 text-[color:var(--ds-faint)]" />
     </Link>
+  );
+}
+
+/** The icon tile on a settings row — one brand tint, not a hue per section. */
+function RowIcon({ icon: Icon }: { icon: LucideIcon }) {
+  return (
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]">
+      <Icon size={17} strokeWidth={2.25} />
+    </span>
   );
 }
 
@@ -245,9 +263,9 @@ function RailLink({ link }: { link: SettingsLink }) {
   return (
     <Link
       href={link.href}
-      className="flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+      className="flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-sm font-medium text-[color:var(--ds-ink-2)] transition-colors hover:bg-[color:var(--ds-surface-2)] hover:text-[color:var(--ds-ink)]"
     >
-      <Icon size={16} style={{ color: SECTION_HUES[link.hueKey] }} />
+      <Icon size={16} className="text-[color:var(--ds-faint)]" />
       {link.label}
     </Link>
   );
@@ -260,7 +278,6 @@ function LinkRow({ link }: { link: SettingsLink }) {
       href={link.href}
       label={link.label}
       sub={link.sub}
-      hue={SECTION_HUES[link.hueKey]}
       icon={LINK_ICONS[link.icon]}
     />
   );
@@ -342,18 +359,12 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
 
   if (status.comingSoon) {
     return (
-      <div className="card-ledger p-5 space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-700">Online Payments</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Let clients pay invoices by card or bank transfer, straight from their pay link
-            </p>
-          </div>
-          <span className="shrink-0 text-[11px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">
-            Coming soon
-          </span>
-        </div>
+      <div className="ds-card p-5 space-y-3">
+        <SectionHeader
+          title="Online Payments"
+          hint="Let clients pay invoices by card or bank transfer, straight from their pay link."
+          action={<Chip>Coming soon</Chip>}
+        />
         <p className="text-sm text-gray-600">
           Card and bank payments aren&apos;t switched on for your account yet. Your invoices
           still send with a link the client can view and download, and you record payments
@@ -368,25 +379,15 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
   const approved = state === "APPROVED";
 
   return (
-    <div className="card-ledger p-5 space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold text-gray-700">
-            Online Payments
-          </h2>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Let clients pay invoices by card or bank transfer, straight from their pay link
-          </p>
-        </div>
-        {status.environment === "sandbox" && (
-          <span className="shrink-0 text-[11px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">
-            Test mode
-          </span>
-        )}
-      </div>
+    <div className="ds-card p-5 space-y-3">
+      <SectionHeader
+        title="Online Payments"
+        hint="Let clients pay invoices by card or bank transfer, straight from their pay link."
+        action={status.environment === "sandbox" ? <Chip tone="warn">Test mode</Chip> : undefined}
+      />
 
       {approved ? (
-        <div className="flex items-center gap-2 text-sm text-green-700">
+        <div className="flex items-center gap-2 text-sm text-[color:var(--ds-good)]">
           <Check size={15} />
           <span>
             Online payments are <span className="font-semibold">enabled</span> — payouts go to
@@ -399,12 +400,12 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
           approved within 1–2 business days. We&apos;ll notify you the moment it clears.
         </p>
       ) : state === "REJECTED" ? (
-        <p className="text-sm text-red-600">
+        <p className="text-sm text-[color:var(--ds-bad)]">
           Your application couldn&apos;t be approved. Contact support and we&apos;ll help sort
           it out.
         </p>
       ) : state === "UPDATE_REQUESTED" ? (
-        <p className="text-sm text-amber-700">
+        <p className="text-sm text-[color:var(--ds-warn)]">
           The underwriter needs a little more information — reopen your application to finish
           up.
         </p>
@@ -420,7 +421,7 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
         </p>
       )}
 
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-[color:var(--ds-bad)]">{error}</p>}
 
       {!approved && state !== "PROVISIONING" && state !== "REJECTED" && (
         isOwner ? (
@@ -551,30 +552,18 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
   const verified = state.status === "verified";
 
   return (
-    <div className="card-ledger p-5 space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold text-gray-700">
-            Email Sending Domain
-          </h2>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Send quotes, invoices, and reminders from your own email address instead of ours
-          </p>
-        </div>
-        {state.domain && (
-          <span
-            className={`shrink-0 text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${
-              verified
-                ? "bg-green-100 text-green-700"
-                : state.status === "failed"
-                  ? "bg-red-100 text-red-700"
-                  : "bg-amber-100 text-amber-700"
-            }`}
-          >
-            {verified ? "Verified" : state.status === "failed" ? "Failed" : "Pending DNS"}
-          </span>
-        )}
-      </div>
+    <div className="ds-card p-5 space-y-3">
+      <SectionHeader
+        title="Email Sending Domain"
+        hint="Send quotes, invoices, and reminders from your own email address instead of ours."
+        action={
+          state.domain ? (
+            <Chip tone={verified ? "good" : state.status === "failed" ? "bad" : "warn"}>
+              {verified ? "Verified" : state.status === "failed" ? "Failed" : "Pending DNS"}
+            </Chip>
+          ) : undefined
+        }
+      />
 
       {!state.domain ? (
         isOwner ? (
@@ -624,7 +613,7 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
       ) : (
         <div className="space-y-3">
           {verified ? (
-            <div className="flex items-center gap-2 text-sm text-green-700">
+            <div className="flex items-center gap-2 text-sm text-[color:var(--ds-good)]">
               <Check size={15} />
               <span>
                 Client emails now send from{" "}
@@ -647,7 +636,7 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
                   <div
                     key={i}
                     className={`rounded-lg border border-gray-200 p-3 ${
-                      r.status === "verified" ? "text-green-700" : "text-gray-700"
+                      r.status === "verified" ? "text-[color:var(--ds-good)]" : "text-gray-700"
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -660,7 +649,7 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
                       >
                         {copiedValue === r.value ? (
                           <>
-                            <Check size={12} className="text-green-600" /> Copied
+                            <Check size={12} className="text-[color:var(--ds-good)]" /> Copied
                           </>
                         ) : (
                           <>
@@ -693,7 +682,7 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {(state.records ?? []).map((r, i) => (
-                    <tr key={i} className={r.status === "verified" ? "text-green-700" : "text-gray-700"}>
+                    <tr key={i} className={r.status === "verified" ? "text-[color:var(--ds-good)]" : "text-gray-700"}>
                       <td className="px-3 py-2 font-mono">{r.type}</td>
                       <td className="px-3 py-2 font-mono break-all">{r.name}</td>
                       <td className="px-3 py-2 font-mono break-all max-w-[280px]">{r.value}</td>
@@ -703,7 +692,7 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
                           title="Copy value"
                           className="text-gray-400 hover:text-gray-600"
                         >
-                          {copiedValue === r.value ? <Check size={13} className="text-green-600" /> : <Copy size={13} />}
+                          {copiedValue === r.value ? <Check size={13} className="text-[color:var(--ds-good)]" /> : <Copy size={13} />}
                         </button>
                       </td>
                     </tr>
@@ -714,7 +703,7 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
             </>
           )}
 
-          {error && <p className="text-xs text-red-600">{error}</p>}
+          {error && <p className="text-xs text-[color:var(--ds-bad)]">{error}</p>}
 
           <div className="flex flex-wrap items-center gap-2">
             {!verified && (
@@ -731,7 +720,7 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
               <button
                 onClick={remove}
                 disabled={busy}
-                className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-red-600 hover:bg-red-50 text-xs font-semibold rounded-[10px] transition-colors disabled:opacity-40"
+                className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-[color:var(--ds-surface)] text-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)] text-xs font-semibold rounded-[10px] transition-colors disabled:opacity-40"
               >
                 <Trash2 size={12} />
                 Remove domain
@@ -740,7 +729,7 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
           </div>
         </div>
       )}
-      {error && !state.domain && <p className="text-xs text-red-600">{error}</p>}
+      {error && !state.domain && <p className="text-xs text-[color:var(--ds-bad)]">{error}</p>}
     </div>
   );
 }
@@ -748,16 +737,13 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
 function PortalLinkCard({ slug }: { slug: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="flex items-center justify-between gap-4 card-ledger p-5 mb-6">
+    <div className="flex items-center justify-between gap-4 ds-card p-5 mb-6">
       <div className="min-w-0">
-        <h2 className="text-sm font-semibold text-gray-700">
-          Client Portal Sign-In
-        </h2>
-        <p className="text-xs text-gray-500 mt-0.5">
-          Clients enter their email at this page and get their portal link — put it on your
-          website or in your email signature.
-        </p>
-        <p className="text-xs font-mono text-gray-600 mt-1.5 truncate">/portal/{slug}</p>
+        <SectionHeader
+          title="Client Portal Sign-In"
+          hint="Clients enter their email at this page and get their portal link — put it on your website or in your email signature."
+        />
+        <p className="text-xs font-mono text-[color:var(--ds-ink-2)] mt-1.5 truncate">/portal/{slug}</p>
       </div>
       <button
         type="button"
@@ -766,7 +752,7 @@ function PortalLinkCard({ slug }: { slug: string }) {
           setCopied(true);
           setTimeout(() => setCopied(false), 1500);
         }}
-        className="text-sm font-medium text-green-600 hover:underline shrink-0"
+        className="ds-link text-sm shrink-0"
       >
         {copied ? "Copied!" : "Copy link"}
       </button>
@@ -824,14 +810,14 @@ function DangerZone({ companyName, signInMethods }: { companyName: string; signI
   }
 
   return (
-    <div className="mt-10 rounded-lg border border-red-200 bg-red-50/40 p-5">
+    <div className="mt-10 rounded-[var(--ds-r-lg)] bg-[color:var(--ds-bad-soft)] p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-red-700">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-[color:var(--ds-bad)]">
             <AlertTriangle size={14} />
             Danger Zone
           </h2>
-          <p className="mt-0.5 text-xs text-gray-500">
+          <p className="mt-0.5 text-xs text-[color:var(--ds-ink-2)]">
             Permanently delete this account — every client, job, quote, invoice, payment record,
             and team member. There is no undo and no recovery.
           </p>
@@ -840,7 +826,7 @@ function DangerZone({ companyName, signInMethods }: { companyName: string; signI
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="shrink-0 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+            className="shrink-0 rounded-[10px] border border-[color:var(--ds-bad)] bg-[color:var(--ds-surface)] px-3 py-1.5 text-xs font-semibold text-[color:var(--ds-bad)]"
           >
             Delete account…
           </button>
@@ -848,7 +834,7 @@ function DangerZone({ companyName, signInMethods }: { companyName: string; signI
       </div>
 
       {open && (
-        <div className="mt-4 space-y-3 border-t border-red-200 pt-4">
+        <div className="mt-4 space-y-3 border-t border-[color:var(--ds-line-strong)] pt-4">
           <FlashBanner flash={flash} onClose={() => setFlash(null)} />
           <p className="text-sm text-gray-700">
             To confirm, type the company name exactly —{" "}
@@ -862,19 +848,19 @@ function DangerZone({ companyName, signInMethods }: { companyName: string; signI
               value={confirmName}
               onChange={(e) => setConfirmName(e.target.value)}
               placeholder={companyName}
-              className="w-full max-w-sm rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+              className="w-full max-w-sm rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-bad)]"
             />
             {confirmName && !nameMatches && (
-              <p className="mt-1 text-xs text-red-600">Doesn&apos;t match yet — it&apos;s case-sensitive.</p>
+              <p className="mt-1 text-xs text-[color:var(--ds-bad)]">Doesn&apos;t match yet — it&apos;s case-sensitive.</p>
             )}
           </div>
-          {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+          {error && <p role="alert" className="text-sm text-[color:var(--ds-bad)]">{error}</p>}
           <div className="flex items-center gap-3 pt-1">
             <button
               type="button"
               onClick={deleteAccount}
               disabled={!nameMatches || busy}
-              className="flex items-center gap-2 rounded-[10px] bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex items-center gap-2 rounded-[12px] bg-[color:var(--ds-bad)] px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {busy ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
               Permanently delete everything
@@ -1223,20 +1209,20 @@ export default function SettingsClient({
               <button
                 type="button"
                 onClick={() => goSection("home")}
-                className="-ml-1.5 flex items-center gap-0.5 text-[15px] font-medium text-green-700"
+                className="-ml-1.5 flex items-center gap-0.5 text-[15px] font-medium text-[color:var(--ds-primary)]"
               >
                 <ChevronLeft size={19} />
                 Settings
               </button>
-              <h2 className="mt-1 text-[22px] font-bold text-gray-900">
+              <h2 className="mt-1 text-[22px] font-semibold tracking-tight text-[color:var(--ds-ink)]">
                 {SETTINGS_SECTIONS.find((s) => s.key === section)?.label}
               </h2>
             </div>
           )}
-          {saveError && <p className="mt-1 text-sm text-red-600">{saveError}</p>}
+          {saveError && <p className="mt-1 text-sm text-[color:var(--ds-bad)]">{saveError}</p>}
         </div>
         <span
-          className="flex shrink-0 items-center gap-1.5 pt-2 text-xs font-medium text-gray-400"
+          className="flex shrink-0 items-center gap-1.5 pt-2 text-xs font-medium text-[color:var(--ds-muted)]"
           aria-live="polite"
         >
           {saving ? (
@@ -1245,7 +1231,7 @@ export default function SettingsClient({
             </>
           ) : saved ? (
             <>
-              <Check size={12} className="text-green-600" /> Saved
+              <Check size={12} className="text-[color:var(--ds-good)]" /> Saved
             </>
           ) : null}
         </span>
@@ -1265,11 +1251,11 @@ export default function SettingsClient({
                     onClick={() => goSection(s.key)}
                     className={`flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-left text-sm transition-colors ${
                       active === s.key
-                        ? "bg-green-500/10 font-semibold text-green-700"
-                        : "font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        ? "bg-[color:var(--ds-primary-soft)] font-semibold text-[color:var(--ds-primary)]"
+                        : "font-medium text-[color:var(--ds-ink-2)] hover:bg-[color:var(--ds-surface-2)] hover:text-[color:var(--ds-ink)]"
                     }`}
                   >
-                    <Icon size={16} className={active === s.key ? undefined : "text-gray-400"} />
+                    <Icon size={16} className={active === s.key ? undefined : "text-[color:var(--ds-faint)]"} />
                     {s.label}
                   </button>
                   {s.key === "phone" && company.addonEnabled && <RailLink link={ADDON_LINK} />}
@@ -1279,7 +1265,7 @@ export default function SettingsClient({
           </div>
           {SETTINGS_LINK_GROUPS.map((g) => (
             <div key={g.key}>
-              <p className="mb-1 mt-6 px-3 text-xs font-semibold text-gray-400">{g.label}</p>
+              <p className="ds-label mb-1 mt-6 px-3">{g.label}</p>
               <div className="space-y-0.5">
                 {g.links.map((l) => (
                   <RailLink key={l.href} link={l} />
@@ -1292,7 +1278,7 @@ export default function SettingsClient({
         {/* Phones: the settings index — grouped rows, the iOS Settings idiom */}
         {section === "home" && (
           <div className="space-y-6 lg:hidden">
-            <div className="card-ledger divide-y divide-gray-100 overflow-hidden">
+            <div className="ds-card ds-divide overflow-hidden">
               {SETTINGS_SECTIONS.map((s) => {
                 const Icon = SECTION_ICONS[s.icon];
                 return (
@@ -1300,16 +1286,14 @@ export default function SettingsClient({
                     <button
                       type="button"
                       onClick={() => goSection(s.key)}
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-gray-100"
+                      className="ds-row w-full text-left active:bg-[color:var(--ds-line)]"
                     >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-green-500/10 text-green-700">
-                        <Icon size={17} strokeWidth={2.25} />
-                      </span>
+                      <RowIcon icon={Icon} />
                       <span className="min-w-0 flex-1">
-                        <span className="block text-[15px] font-medium text-gray-900">{s.label}</span>
-                        <span className="block truncate text-xs text-gray-500">{s.sub}</span>
+                        <span className="block text-[15px] font-medium text-[color:var(--ds-ink)]">{s.label}</span>
+                        <span className="ds-small block truncate">{s.sub}</span>
                       </span>
-                      <ChevronRight size={16} className="shrink-0 text-gray-300" />
+                      <ChevronRight size={16} className="shrink-0 text-[color:var(--ds-faint)]" />
                     </button>
                     {s.key === "phone" && company.addonEnabled && <LinkRow link={ADDON_LINK} />}
                   </Fragment>
@@ -1318,8 +1302,8 @@ export default function SettingsClient({
             </div>
             {SETTINGS_LINK_GROUPS.map((g) => (
               <div key={g.key}>
-                <p className="mb-2 px-1 text-[13px] font-semibold text-gray-500">{g.label}</p>
-                <div className="card-ledger divide-y divide-gray-100 overflow-hidden">
+                <p className="ds-label mb-2 px-1">{g.label}</p>
+                <div className="ds-card ds-divide overflow-hidden">
                   {g.links.map((l) => (
                     <LinkRow key={l.href} link={l} />
                   ))}
@@ -1336,16 +1320,16 @@ export default function SettingsClient({
       <div className="space-y-6">
         {/* Business info */}
         {show("company") && (
-        <div className="card-ledger p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700">Business Info</h2>
+        <div className="ds-card p-5 space-y-4">
+          <SectionHeader title="Business Info" />
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Business name *</label>
             <Input type="text" value={form.name} onChange={(e) => set("name", e.target.value)}
               required
               aria-invalid={Boolean(nameError)}
-              className={`w-full focus:ring-2 ${nameError ? "border-red-400" : ""}`} />
+              className={`w-full focus:ring-2 ${nameError ? "border-[color:var(--ds-bad)]" : ""}`} />
             {nameError && (
-              <p className="text-xs text-red-600 mt-1">{nameError} Your last saved name stays until you enter one.</p>
+              <p className="text-xs text-[color:var(--ds-bad)] mt-1">{nameError} Your last saved name stays until you enter one.</p>
             )}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -1391,7 +1375,7 @@ export default function SettingsClient({
               className="w-full focus:ring-2" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+            <FieldLabel info="Changing this doesn't touch your price book — edit that in Services.">Industry</FieldLabel>
             <Select value={INDUSTRIES.includes(form.industry as (typeof INDUSTRIES)[number]) ? form.industry : form.industry ? "Other" : ""}
               onChange={(e) => set("industry", e.target.value)}
               className="w-full focus:ring-2">
@@ -1400,22 +1384,18 @@ export default function SettingsClient({
                 <option key={ind} value={ind}>{ind}</option>
               ))}
             </Select>
-            <p className="text-xs text-gray-500 mt-1">
-              Changing this doesn&apos;t touch your price book — edit that in Services.
-            </p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">About your business</label>
+            <FieldLabel info="Shown on your public booking page, and used to describe your business when you register your number for texting.">
+              About your business
+            </FieldLabel>
             <textarea value={form.about} onChange={(e) => set("about", e.target.value)}
               rows={3} maxLength={500}
               placeholder="What you do and for whom, in a sentence or two."
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:ring-2" />
-            <p className="text-xs text-gray-500 mt-1">
-              Shown on your public booking page, and used to describe your business when you register your number for texting.
-            </p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Timezone</label>
+            <FieldLabel info="Used for scheduling and recurring billing dates.">Timezone</FieldLabel>
             <Select value={form.timezone} onChange={(e) => set("timezone", e.target.value)}
               className="w-full focus:ring-2">
               {!TIMEZONES.some((tz) => tz.value === form.timezone) && (
@@ -1425,14 +1405,11 @@ export default function SettingsClient({
                 <option key={tz.value} value={tz.value}>{tz.label}</option>
               ))}
             </Select>
-            <p className="text-xs text-gray-500 mt-1">
-              Used for scheduling and recurring billing dates.
-            </p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <FieldLabel info="Time options offered when you schedule jobs and appointments.">
               Scheduling time slots
-            </label>
+            </FieldLabel>
             <Select
               value={form.schedulingIntervalMinutes}
               onChange={(e) => set("schedulingIntervalMinutes", e.target.value)}
@@ -1442,9 +1419,6 @@ export default function SettingsClient({
               <option value="30">Every 30 minutes</option>
               <option value="60">Every hour</option>
             </Select>
-            <p className="text-xs text-gray-500 mt-1">
-              Time options offered when you schedule jobs and appointments.
-            </p>
           </div>
         </div>
         )}
@@ -1457,13 +1431,17 @@ export default function SettingsClient({
 
         {/* Branding */}
         {show("branding") && (
-        <div className="card-ledger p-5 space-y-4">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-700">Branding</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Shown on everything your clients see — quotes, invoices, the client hub, and booking forms
-            </p>
-          </div>
+        <div className="ds-card p-5 space-y-4">
+          <SectionHeader
+            title="Branding"
+            hint={
+              <>
+                Shown on everything your clients see — quotes, invoices, the client hub, and booking
+                forms. In the app, primary drives buttons, links, active states and charts; secondary
+                is an occasional highlight.
+              </>
+            }
+          />
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Logo</label>
             <input
@@ -1494,14 +1472,14 @@ export default function SettingsClient({
                 uploadLogo(file);
               }}
               className={`flex flex-wrap items-center gap-3 rounded-lg border border-dashed px-4 py-3 transition-colors ${
-                logoDragOver ? "border-green-500 bg-green-50" : "border-gray-300"
+                logoDragOver ? "border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)]" : "border-gray-300"
               }`}
             >
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={logoBusy}
-                className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 active:bg-gray-100 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-[color:var(--ds-surface)] text-sm font-medium text-[color:var(--ds-ink)] rounded-[10px] transition-colors disabled:opacity-50"
               >
                 {logoBusy ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
                 {form.logoUrl ? "Replace Logo" : "Upload Logo"}
@@ -1512,25 +1490,24 @@ export default function SettingsClient({
                   type="button"
                   onClick={removeLogo}
                   disabled={logoBusy}
-                  className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-500 transition-colors"
+                  className="flex items-center gap-1 text-xs text-gray-500 hover:text-[color:var(--ds-bad)] transition-colors"
                 >
                   <Trash2 size={12} />
                   Remove
                 </button>
               )}
             </div>
-            {logoError && <p className="text-xs text-red-600 mt-1">{logoError}</p>}
+            {logoError && <p className="text-xs text-[color:var(--ds-bad)] mt-1">{logoError}</p>}
             <p className="text-xs text-gray-500 mt-1">
               Any PNG, JPG, WebP, or GIF up to 15MB — it&apos;s optimized automatically.
               Transparent-background PNG looks best.
             </p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Wallpaper</label>
-            <p className="text-xs text-gray-500 mb-2">
-              A subtle backdrop behind every page of the app — your team sees it, clients never do
-            </p>
-            <div className="grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-5 gap-2">
+            <FieldLabel info="A subtle backdrop behind every page of the app — your team sees it, clients never do.">
+              Wallpaper
+            </FieldLabel>
+            <div className="mt-1 grid grid-cols-3 sm:grid-cols-4 xl:grid-cols-5 gap-2">
               {WALLPAPER_CHOICES.map(([value, label]) =>
                 value.startsWith("logo") && !form.logoUrl ? null : (
                   <button
@@ -1539,7 +1516,7 @@ export default function SettingsClient({
                     onClick={() => set("wallpaper", value)}
                     className={`rounded-lg border p-1.5 transition-colors ${
                       form.wallpaper === value
-                        ? "border-green-500 ring-2 ring-green-500/30"
+                        ? "border-[color:var(--ds-primary)] ring-2 ring-[color:var(--ds-primary-soft)]"
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                   >
@@ -1568,21 +1545,21 @@ export default function SettingsClient({
           <div className="grid sm:grid-cols-2 gap-4">
             <ColorField
               label="Primary color"
-              hint="Your main brand color — the app's outlines, frame, and surfaces"
+              info="Primary drives the app: buttons, links, active states, charts."
               value={form.brandColor}
               fallback="#0B57D8"
               onChange={(v) => set("brandColor", v)}
             />
             <ColorField
               label="Secondary color"
-              hint="Buttons, links, and accents — defaults to your primary color"
+              info="Secondary is an occasional highlight. On what your clients see, a blank secondary uses your primary."
               value={form.brandColorSecondary}
               fallback={form.brandColor || "#F86808"}
               onChange={(v) => set("brandColorSecondary", v)}
             />
             <ColorField
               label="Quotes & invoices color"
-              hint="Headers on client-facing pages and emails — quotes, invoices, the client hub. Defaults to your primary color."
+              info="Headers on client-facing pages and emails — quotes, invoices, the client hub. Defaults to your primary color."
               value={form.documentColor}
               fallback={form.brandColor || "#FFFFFF"}
               onChange={(v) => set("documentColor", v)}
@@ -1592,7 +1569,9 @@ export default function SettingsClient({
           {/* App font — same free-text Google Font convention as the form
               builder; the shell refreshes with the new font as it saves */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">App font</label>
+            <FieldLabel info="Changes the font across the whole app for your team. Quotes and invoices are not affected.">
+              App font
+            </FieldLabel>
             <Input
               type="text"
               value={form.brandFont}
@@ -1600,10 +1579,6 @@ export default function SettingsClient({
               placeholder="Default — or any Google Font name, e.g. Lexend"
               className="w-full focus:ring-2"
             />
-            <p className="text-xs text-gray-500 mt-1">
-              Changes the font across the whole app for your team. Ledger numerals
-              keep their stamped look. Quotes and invoices are not affected.
-            </p>
             {form.brandFont.trim() && GOOGLE_FONT_RE.test(form.brandFont.trim()) && (
               <>
                 {/* eslint-disable-next-line @next/next/no-page-custom-font */}
@@ -1624,26 +1599,27 @@ export default function SettingsClient({
 
           {/* Advanced: the app's per-section color language */}
           <div className="border-t border-gray-100 pt-4">
-            <button
-              type="button"
-              onClick={() => setShowSectionColors((v) => !v)}
-              className="flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-gray-900"
-            >
-              <ChevronRight
-                size={14}
-                className={`transition-transform ${showSectionColors ? "rotate-90" : ""}`}
-              />
-              Section colors
-              <span className="text-xs font-normal text-gray-400">Advanced</span>
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setShowSectionColors((v) => !v)}
+                className="flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-gray-900"
+              >
+                <ChevronRight
+                  size={14}
+                  className={`transition-transform ${showSectionColors ? "rotate-90" : ""}`}
+                />
+                Section colors
+                <span className="text-xs font-normal text-gray-400">Advanced</span>
+              </button>
+              <InfoTip>
+                The app color-codes each area — nav tiles, page headings, active filters. Override any
+                of them here. Picks that are too light for the light theme or too dark for the dark
+                theme are automatically adjusted so they always stay readable.
+              </InfoTip>
+            </div>
             {showSectionColors && (
               <>
-                <p className="mt-1.5 text-xs text-gray-500">
-                  The app color-codes each area — nav tiles, page headings, active
-                  filters. Override any of them here. Picks that are too light for
-                  the light theme or too dark for the dark theme are automatically
-                  adjusted so they always stay readable.
-                </p>
                 <div className="mt-3 grid gap-x-4 gap-y-2.5 sm:grid-cols-3">
                   {SECTION_KEYS.map((k) => (
                     <div key={k} className="flex items-center gap-2">
@@ -1686,13 +1662,8 @@ export default function SettingsClient({
 
         {/* Sidebar — desktop-only chrome, so the card hides on phones */}
         {show("branding") && (
-        <div className="hidden lg:block card-ledger p-5 space-y-4">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-700">Sidebar</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              How the desktop navigation rail looks for your whole team
-            </p>
-          </div>
+        <div className="hidden lg:block ds-card p-5 space-y-4">
+          <SectionHeader title="Sidebar" hint="How the desktop navigation rail looks for your whole team." />
           {/* Rail color follows the app theme (light/dark) since the calm-
               stage pass — the old black/white/gray picker is retired.
               Company.sidebarTheme survives in the schema, unused. */}
@@ -1708,7 +1679,10 @@ export default function SettingsClient({
           {form.logoUrl && (
             <div>
               <div className="flex items-baseline justify-between">
-                <label className="text-sm font-medium text-gray-700">Logo size</label>
+                <span className="flex items-center gap-1">
+                  <label className="text-sm font-medium text-gray-700">Logo size</label>
+                  <InfoTip>How tall the logo panel stands in the sidebar — the sidebar itself stays the same width.</InfoTip>
+                </span>
                 {form.sidebarLogoSize && form.sidebarLogoSize !== "56" && (
                   <button
                     type="button"
@@ -1722,10 +1696,6 @@ export default function SettingsClient({
                   </button>
                 )}
               </div>
-              <p className="text-xs text-gray-500 mt-0.5">
-                How tall the logo panel stands in the sidebar — the sidebar itself
-                stays the same width
-              </p>
               {/* Live: the rail plate reads --rail-logo-h before the saved value,
                   so the real sidebar follows the thumb as it drags */}
               <input
@@ -1742,7 +1712,7 @@ export default function SettingsClient({
                   );
                 }}
                 aria-label="Sidebar logo size"
-                className="mt-2 w-full accent-green-600"
+                className="mt-2 w-full accent-[color:var(--ds-primary)]"
               />
               <div className="flex justify-between text-[11px] text-gray-400">
                 <span>Small</span>
@@ -1757,15 +1727,11 @@ export default function SettingsClient({
             surfaces. Client pages are always light, so the mock pins its own
             colors (arbitrary values dodge the dark-theme utility remap). */}
         {show("branding") && (
-        <div className="hidden lg:block card-ledger p-5 space-y-4">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-700">
-              What Your Clients See
-            </h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Live preview of your branding on quotes, invoices, the client hub, and emails
-            </p>
-          </div>
+        <div className="hidden lg:block ds-card p-5 space-y-4">
+          <SectionHeader
+            title="What Your Clients See"
+            hint="Live preview of your branding on quotes, invoices, the client hub, and emails."
+          />
           <div className="theme-fixed overflow-hidden rounded-lg border border-gray-200 bg-white">
             {/* Client page header — the document color wins, like the live pages */}
             <div
@@ -1834,16 +1800,13 @@ export default function SettingsClient({
 
         {/* Surcharging */}
         {show("payments") && (
-        <div className="card-ledger p-5 space-y-4">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-700">Card Surcharging</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Pass card processing fees to your customer</p>
-          </div>
+        <div className="ds-card p-5 space-y-4">
+          <SectionHeader title="Card Surcharging" hint="Pass card processing fees to your customer." />
           <label className="flex items-center gap-3 cursor-pointer">
             <div
               onClick={() => set("surchargeEnabled", !form.surchargeEnabled)}
               className={`relative w-10 h-6 rounded-full transition-colors cursor-pointer ${
-                form.surchargeEnabled ? "bg-green-500" : "bg-gray-300"
+                form.surchargeEnabled ? "bg-[color:var(--ds-primary)]" : "bg-gray-300"
               }`}
             >
               <div
@@ -1869,10 +1832,10 @@ export default function SettingsClient({
                   }}
                   min="0" max="10" step="0.01"
                   aria-invalid={Boolean(surchargeError)}
-                  className={`w-24 focus:ring-2 ${surchargeError ? "border-red-400" : ""}`} />
+                  className={`w-24 focus:ring-2 ${surchargeError ? "border-[color:var(--ds-bad)]" : ""}`} />
                 <span className="text-sm text-gray-500">% added to card payments</span>
               </div>
-              {surchargeError && <p className="text-xs text-red-600 mt-1">{surchargeError}</p>}
+              {surchargeError && <p className="text-xs text-[color:var(--ds-bad)] mt-1">{surchargeError}</p>}
               <p className="text-xs text-gray-500 mt-1">
                 Example: on a $500 invoice, customer pays ${(500 * (1 + (surchargeRateOk ? surchargePct : 0) / 100)).toFixed(2)} by card
               </p>
@@ -1883,14 +1846,17 @@ export default function SettingsClient({
 
         {/* Default deposit */}
         {show("payments") && (
-        <div className="card-ledger p-5 space-y-4">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-700">Default Deposit</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Applied to quotes when a service has no deposit of its own. Set per-service deposits in
-              Services.
-            </p>
-          </div>
+        <div className="ds-card p-5 space-y-4">
+          <SectionHeader
+            title="Default Deposit"
+            hint={
+              <>
+                Applied to quotes when a service has no deposit of its own (set per-service deposits in
+                Services). On approval, the deposit is billed to the client as its own invoice; the
+                final invoice then subtracts what they&apos;ve already paid.
+              </>
+            }
+          />
           <div className="flex flex-wrap items-end gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Deposit</label>
@@ -1923,23 +1889,16 @@ export default function SettingsClient({
               </div>
             )}
           </div>
-          <p className="text-xs text-gray-500">
-            On approval, the deposit is billed to the client as its own invoice; the final invoice
-            then subtracts what they&apos;ve already paid.
-          </p>
         </div>
         )}
 
         {/* Default sales tax */}
         {show("payments") && (
-        <div className="card-ledger p-5 space-y-4">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-700">Sales Tax</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Prefills new quotes and invoices and applies to recurring invoices. Each document can
-              still change or remove its own rate.
-            </p>
-          </div>
+        <div className="ds-card p-5 space-y-4">
+          <SectionHeader
+            title="Sales Tax"
+            hint="Prefills new quotes and invoices and applies to recurring invoices. Each document can still change or remove its own rate."
+          />
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Default tax rate</label>
             <div className="flex items-center gap-2">
@@ -1955,14 +1914,11 @@ export default function SettingsClient({
 
         {/* Starting quote / invoice numbers (lib/doc-numbers.ts) */}
         {show("payments") && (
-        <div className="card-ledger p-5 space-y-4">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-700">Numbering</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Coming from another system? Pick up where your old quote and invoice numbers left off.
-              Numbers only ever go up — existing quotes and invoices keep theirs.
-            </p>
-          </div>
+        <div className="ds-card p-5 space-y-4">
+          <SectionHeader
+            title="Numbering"
+            hint="Coming from another system? Pick up where your old quote and invoice numbers left off. Numbers only ever go up — existing quotes and invoices keep theirs."
+          />
           <div className="grid gap-4 sm:grid-cols-2">
             {([
               ["quoteNumberStart", "Quotes start at", lastNumbers.quote],
@@ -1989,7 +1945,7 @@ export default function SettingsClient({
 
         {/* Accounting — QuickBooks Online lives on its own page */}
         {show("payments") && (
-        <div className="card-ledger overflow-hidden">
+        <div className="ds-card overflow-hidden">
           <LinkRow link={QUICKBOOKS_LINK} />
         </div>
         )}
@@ -1997,12 +1953,11 @@ export default function SettingsClient({
         {/* Automation rules — the Atlas-built "when this happens, do that"
             list has its own page; this is the one way in from Settings */}
         {show("automations") && (
-        <div className="card-ledger overflow-hidden">
+        <div className="ds-card overflow-hidden">
           <SettingsLinkRow
             href="/app/automations"
             label="Automations"
             sub="“When this happens, do that” rules — build them as cards or ask Atlas; run free, pause any time"
-            hue={SECTION_HUES.business}
             icon={Zap}
           />
         </div>
@@ -2010,11 +1965,8 @@ export default function SettingsClient({
 
         {/* AI assistant */}
         {show("automations") && (
-        <div className="card-ledger p-5 space-y-4">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-700">AI Assistant</h2>
-            <p className="text-xs text-gray-500 mt-0.5">The chat helper in the corner of every page</p>
-          </div>
+        <div className="ds-card p-5 space-y-4">
+          <SectionHeader title="AI Assistant" hint="The chat helper in the corner of every page." />
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Assistant name</label>
             <Input type="text" value={form.assistantName} onChange={(e) => set("assistantName", e.target.value)}
@@ -2033,16 +1985,16 @@ export default function SettingsClient({
 
         {/* On my way texts */}
         {show("phone") && (
-        <div className="card-ledger p-5 space-y-4">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-700">
-              &ldquo;On My Way&rdquo; Texts
-            </h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              The message behind the On My Way button on a job — it opens in your team
-              member&apos;s own texting app, prefilled and editable, so it&apos;s free to send
-            </p>
-          </div>
+        <div className="ds-card p-5 space-y-4">
+          <SectionHeader
+            title={<>&ldquo;On My Way&rdquo; Texts</>}
+            hint={
+              <>
+                The message behind the On My Way button on a job — it opens in your team
+                member&apos;s own texting app, prefilled and editable, so it&apos;s free to send.
+              </>
+            }
+          />
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Message template</label>
             <Textarea
@@ -2068,12 +2020,11 @@ export default function SettingsClient({
 
         {/* Call log — every call on the line, with voicemails */}
         {show("phone") && (
-        <div className="card-ledger overflow-hidden">
+        <div className="ds-card overflow-hidden">
           <SettingsLinkRow
             href="/app/calls"
             label="Call log"
             sub="Every call on your business line — answered, missed, and voicemails to play"
-            hue={SECTION_HUES.chat}
             icon={PhoneCall}
           />
         </div>
@@ -2081,11 +2032,8 @@ export default function SettingsClient({
 
         {/* Review requests — part of what clients experience after they pay */}
         {show("branding") && (
-        <div className="card-ledger p-5 space-y-4">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-700">Review Requests</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Automatically ask for a Google review after payment</p>
-          </div>
+        <div className="ds-card p-5 space-y-4">
+          <SectionHeader title="Review Requests" hint="Automatically ask for a Google review after payment." />
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Google review link</label>
             <Input type="url" value={form.reviewLink} onChange={(e) => set("reviewLink", e.target.value)}

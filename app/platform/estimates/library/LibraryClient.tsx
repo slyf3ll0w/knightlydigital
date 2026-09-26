@@ -7,8 +7,8 @@ import PageTitle from "@/components/PageTitle";
 import BackLink from "@/components/BackLink";
 import EstimatorRunner, { type RunnerEstimator } from "@/components/EstimatorRunner";
 import Monogram from "@/components/Monogram";
+import { Chip } from "@/components/ds";
 import { confirmSheet } from "@/components/ConfirmSheet";
-import { APP_THEME } from "@/components/EstimatorControls";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { INDUSTRIES } from "@/lib/pricebooks";
 import type { EstimatorSpec } from "@/lib/estimator";
@@ -26,7 +26,6 @@ type Sort = "likes" | "new";
 type Page = { listings: ListingCard[]; nextCursor: string | null };
 
 export default function LibraryClient({ manager, defaultIndustry, embedded = false }: { manager: boolean; defaultIndustry: string; /** Rendered as the Library view of /app/estimates — no page frame or title of its own */ embedded?: boolean }) {
-  const theme = APP_THEME;
   const [q, setQ] = useState("");
   const [industry, setIndustry] = useState(defaultIndustry);
   const [sort, setSort] = useState<Sort>("likes");
@@ -128,7 +127,7 @@ export default function LibraryClient({ manager, defaultIndustry, embedded = fal
     setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, added: true, adds: r.adds + 1 } : r)));
   }
 
-  const chip = (active: boolean) => `inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-[13px] font-medium transition-colors ${active ? "border-transparent" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`;
+  const chip = (active: boolean) => `inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-[13px] font-medium transition-colors ${active ? "border-transparent bg-[color:var(--ds-primary)] text-[color:var(--ds-on-primary)]" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`;
   const seg = (active: boolean) => `rounded-full px-3 py-1.5 text-[13px] font-medium ${active ? "bg-white text-gray-900 shadow-sm" : "text-gray-600"}`;
   const emptyText = q.trim() ? `Nothing in the Library matches “${q.trim()}”.` : industry ? `No ${industry} tools shared yet — be the first: open one of your tools and pick Library.` : "Nothing shared yet. Open one of your tools and pick Library to share it.";
 
@@ -138,7 +137,7 @@ export default function LibraryClient({ manager, defaultIndustry, embedded = fal
         <>
           <BackLink href="/app/estimates" className="mb-3" />
           <div className="mb-5">
-            <PageTitle section="quotes" icon={BookOpen} sub="Estimate tools other Workbench businesses have shared. Add one, set your rates, done.">
+            <PageTitle section="quotes" icon={BookOpen} info="Estimate tools other Workbench businesses have shared. Add one, set your rates, done.">
               Library
             </PageTitle>
           </div>
@@ -151,11 +150,11 @@ export default function LibraryClient({ manager, defaultIndustry, embedded = fal
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search tools…" className="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400" aria-label="Search the Library" />
         </div>
         <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 py-0.5">
-          <button type="button" onClick={() => setIndustry("")} className={chip(industry === "")} style={industry === "" ? { backgroundColor: theme.accent, color: theme.onAccent } : undefined}>
+          <button type="button" onClick={() => setIndustry("")} className={chip(industry === "")}>
             All
           </button>
           {INDUSTRIES.map((i) => (
-            <button key={i} type="button" onClick={() => setIndustry(i)} className={chip(industry === i)} style={industry === i ? { backgroundColor: theme.accent, color: theme.onAccent } : undefined}>
+            <button key={i} type="button" onClick={() => setIndustry(i)} className={chip(industry === i)}>
               {i}
             </button>
           ))}
@@ -179,7 +178,7 @@ export default function LibraryClient({ manager, defaultIndustry, embedded = fal
         </div>
       )}
 
-      <div className="card-ledger overflow-hidden">
+      <div className="ds-card overflow-hidden">
         {!loading && rows.length === 0 ? (
           <p className="px-5 py-10 text-center text-sm text-gray-500">{emptyText}</p>
         ) : (
@@ -195,8 +194,8 @@ export default function LibraryClient({ manager, defaultIndustry, embedded = fal
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                         <span className="text-[15px] font-semibold text-gray-900">{r.name}</span>
-                        <span className="stamp text-gray-500">{r.industry}</span>
-                        {r.mine && <span className="stamp text-sky-700">Yours</span>}
+                        <Chip>{r.industry}</Chip>
+                        {r.mine && <Chip tone="primary">Yours</Chip>}
                       </div>
                       <p className="mt-0.5 text-xs text-gray-500">{r.byName ? `by ${r.byName}` : "Shared anonymously"}</p>
                       <p className={`mt-2 whitespace-pre-line text-sm text-gray-700 ${open ? "" : "line-clamp-3"}`}>{r.description}</p>
@@ -212,14 +211,14 @@ export default function LibraryClient({ manager, defaultIndustry, embedded = fal
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-2 pl-[52px]">
-                    <button type="button" onClick={() => void like(r)} aria-pressed={r.liked} className={`inline-flex h-9 items-center gap-1.5 rounded-[10px] border px-3 text-sm font-medium ${r.liked ? "border-rose-200 bg-rose-50 text-rose-700" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}>
+                    <button type="button" onClick={() => void like(r)} aria-pressed={r.liked} className={`inline-flex h-9 items-center gap-1.5 rounded-[10px] border px-3 text-sm font-medium ${r.liked ? "border-transparent bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"}`}>
                       <Heart size={14} className={r.liked ? "fill-current" : ""} /> {r.likes.toLocaleString()}
                     </button>
                     <button type="button" disabled={busy !== null} onClick={() => void openPreview(r)} className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-gray-200 bg-white px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60">
                       {busy === `preview:${r.id}` ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />} Preview
                     </button>
                     {manager && !r.mine && (just ? (
-                      <Link href={`/app/estimates/${just.id}`} className="inline-flex h-9 items-center gap-1.5 rounded-[10px] bg-green-50 px-3 text-sm font-medium text-green-700 hover:bg-green-100">
+                      <Link href={`/app/estimates/${just.id}`} className="inline-flex h-9 items-center gap-1.5 rounded-[10px] bg-[color:var(--ds-good-soft)] px-3 text-sm font-medium text-[color:var(--ds-good)] hover:opacity-90">
                         <Check size={14} /> Added — open {just.name} <ChevronRight size={13} />
                       </Link>
                     ) : r.added ? (

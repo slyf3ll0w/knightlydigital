@@ -86,13 +86,13 @@ export default function AddonClient({
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-start gap-3 mb-6">
         <BackLink href="/app/settings" className="mt-1.5" />
-        <PageTitle sub="Your own business phone line inside WorkBench, billed monthly.">Voice</PageTitle>
+        <PageTitle info="Your own business phone line inside WorkBench, billed monthly.">Voice</PageTitle>
       </div>
 
       {isActive ? (
-        <div className="card-ledger p-6">
+        <div className="ds-card p-6">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-green-600 text-white">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[color:var(--ds-good)] text-white">
               <Check size={20} />
             </span>
             <div>
@@ -115,7 +115,7 @@ export default function AddonClient({
             <ul className="space-y-2">
               {FEATURES.map((f) => (
                 <li key={f.title} className="flex items-start gap-2 text-sm text-gray-700">
-                  <Check size={15} className="mt-0.5 shrink-0 text-green-600" />
+                  <Check size={15} className="mt-0.5 shrink-0 text-[color:var(--ds-primary)]" />
                   {f.title}
                 </li>
               ))}
@@ -123,7 +123,7 @@ export default function AddonClient({
           </div>
         </div>
       ) : activating ? (
-        <div className="card-ledger p-8 text-center">
+        <div className="ds-card p-8 text-center">
           <Loader2 size={28} className="mx-auto mb-3 animate-spin text-gray-400" />
           <p className="text-sm font-semibold text-gray-900">Activating your subscription…</p>
           <p className="mx-auto mt-1 max-w-sm text-xs text-gray-500">
@@ -132,16 +132,16 @@ export default function AddonClient({
           </p>
         </div>
       ) : (
-        <div className="card-ledger p-6">
+        <div className="ds-card p-6">
           {timedOut && (
-            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <div className="mb-4 rounded-lg bg-[color:var(--ds-warn-soft)] px-4 py-3 text-sm text-[color:var(--ds-ink)]">
               Your payment went through, but the confirmation hasn&apos;t arrived yet. It can
               lag a few minutes — check back shortly, and contact support if it doesn&apos;t
               activate.
             </div>
           )}
           <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-green-500/10 text-green-700">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]">
               <Sparkles size={19} />
             </span>
             <p className="text-sm leading-relaxed text-gray-600">
@@ -152,7 +152,7 @@ export default function AddonClient({
           <ul className="mt-5 space-y-3 border-t border-gray-100 pt-5">
             {FEATURES.map((f) => (
               <li key={f.title} className="flex items-start gap-2.5">
-                <Check size={16} className="mt-0.5 shrink-0 text-green-600" />
+                <Check size={16} className="mt-0.5 shrink-0 text-[color:var(--ds-primary)]" />
                 <span className="text-sm">
                   <span className="font-medium text-gray-900">{f.title}</span>
                   <span className="block text-xs text-gray-500">{f.sub}</span>
@@ -174,7 +174,7 @@ export default function AddonClient({
               <>
                 <a
                   href={checkoutUrl!}
-                  className="btn-tool inline-flex w-full items-center justify-center gap-2 py-3 text-sm font-semibold sm:w-auto sm:px-8"
+                  className="ds-btn ds-btn-primary ds-btn-lg w-full sm:w-auto sm:px-8"
                 >
                   <Lock size={14} />
                   Subscribe

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, MapPin, Timer, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin, Download } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
 import { entryMs, formatDuration, mapsHref } from "@/lib/time-entries";
@@ -7,6 +7,8 @@ import { startOfWeekIn, zonedMidnight, zonedParts } from "@/lib/timezone";
 import EntryActions from "./EntryActions";
 import AddEntry from "./AddEntry";
 import PageTitle from "@/components/PageTitle";
+import EmptyState from "@/components/EmptyState";
+import { Chip } from "@/components/ds";
 
 /**
  * Weekly timesheets. Techs see their own hours; owners/admins see the whole
@@ -118,7 +120,7 @@ export default async function TimesheetsPage({
           {!isCurrentWeek && (
             <Link
               href="/app/timesheets"
-              className="px-3 py-1.5 text-xs font-semibold text-green-700 rounded-lg hover:bg-gray-100"
+              className="px-3 py-1.5 text-xs font-semibold text-[color:var(--ds-primary)] rounded-lg hover:bg-[color:var(--ds-primary-soft)]"
             >
               This week
             </Link>
@@ -133,7 +135,7 @@ export default async function TimesheetsPage({
           <a
             href={`/api/app/export/timesheets?from=${toParam(weekStart)}&to=${toParam(weekLastDay)}`}
             title="Download this week as CSV"
-            className="ml-1 flex items-center gap-1.5 px-3 py-1.5 btn-tool-line bg-white text-xs font-medium text-gray-700 rounded-lg hover:bg-gray-50"
+            className="ml-1 flex items-center gap-1.5 px-3 py-1.5 btn-tool-line text-xs font-medium rounded-lg"
           >
             <Download size={13} />
             Export
@@ -149,25 +151,26 @@ export default async function TimesheetsPage({
       )}
 
       {groups.length === 0 ? (
-        <div className="card-ledger flex items-center gap-3 px-5 py-8 justify-center">
-          <Timer size={18} className="text-gray-400" />
-          <p className="text-sm text-gray-500">
-            No time logged this week. Clock in from any job page to start tracking.
-          </p>
+        <div className="ds-card">
+          <EmptyState
+            compact
+            title="No time logged this week"
+            body="Clock in from any job page to start tracking."
+          />
         </div>
       ) : (
         <div className="space-y-5">
           {groups.map((g) => {
             const total = g.entries.reduce((s, e) => s + entryMs(e, now), 0);
             return (
-              <div key={g.name} className="card-ledger overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+              <div key={g.name} className="ds-card overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-3.5 border-b border-[color:var(--ds-line)]">
                   <h2 className="text-sm font-semibold text-gray-900">{g.name}</h2>
                   <span className="numeral-ledger text-sm font-semibold text-gray-900 tabular-nums">
                     {formatDuration(total)}
                   </span>
                 </div>
-                <div className="divide-y divide-gray-50">
+                <div className="divide-y divide-[color:var(--ds-line)]">
                   {g.entries.map((e) => {
                     const open = !e.endedAt;
                     return (
@@ -179,7 +182,7 @@ export default async function TimesheetsPage({
                             {e.job ? (
                               <Link
                                 prefetch={false} href={`/app/jobs/${e.job.id}`}
-                                className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900 active:text-green-700"
+                                className="min-w-0 flex-1 truncate text-[15.5px] font-semibold text-gray-900 active:text-[color:var(--ds-primary)]"
                               >
                                 {e.job.title}
                               </Link>
@@ -191,13 +194,13 @@ export default async function TimesheetsPage({
                             <span className="flex shrink-0 items-center gap-1.5">
                               {open && (
                                 <span className="relative flex h-2 w-2" title="On the clock">
-                                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-60" />
-                                  <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+                                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[color:var(--ds-good)] opacity-60" />
+                                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[color:var(--ds-good)]" />
                                 </span>
                               )}
                               <span
                                 className={`numeral-ledger text-sm font-semibold tabular-nums ${
-                                  open ? "text-green-700" : "text-gray-900"
+                                  open ? "text-[color:var(--ds-good)]" : "text-gray-900"
                                 }`}
                               >
                                 {open ? formatDuration(entryMs(e, now)) : formatDuration(entryMs(e))}
@@ -209,10 +212,10 @@ export default async function TimesheetsPage({
                               {fmtDay(e.startedAt)} · {fmtTime(e.startedAt)}
                               {e.endedAt ? ` – ${fmtTime(e.endedAt)}` : ""}
                               {e.source === "MANUAL" && (
-                                <span className="ml-1.5 stamp text-gray-500">Manual</span>
+                                <span className="ml-1.5"><Chip>Manual</Chip></span>
                               )}
                               {e.source === "CLOCK" && e.editedById && (
-                                <span className="ml-1.5 stamp text-gray-500">Edited</span>
+                                <span className="ml-1.5"><Chip>Edited</Chip></span>
                               )}
                               {e.note && <span className="ml-1.5 text-gray-400">· {e.note}</span>}
                             </p>
@@ -223,7 +226,7 @@ export default async function TimesheetsPage({
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   title="Clock-in location"
-                                  className="p-2 text-gray-400 active:text-green-700"
+                                  className="p-2 text-gray-400 active:text-[color:var(--ds-primary)]"
                                 >
                                   <MapPin size={15} />
                                 </a>
@@ -250,7 +253,7 @@ export default async function TimesheetsPage({
                             {e.job ? (
                               <Link
                                 prefetch={false} href={`/app/jobs/${e.job.id}`}
-                                className="text-gray-900 font-medium hover:text-green-700 truncate block"
+                                className="text-gray-900 font-medium hover:text-[color:var(--ds-primary)] truncate block"
                               >
                                 {e.job.title}
                               </Link>
@@ -261,10 +264,10 @@ export default async function TimesheetsPage({
                               {fmtTime(e.startedAt)}
                               {e.endedAt ? ` – ${fmtTime(e.endedAt)}` : ""}
                               {e.source === "MANUAL" && (
-                                <span className="ml-1.5 stamp text-gray-500">Manual</span>
+                                <span className="ml-1.5"><Chip>Manual</Chip></span>
                               )}
                               {e.source === "CLOCK" && e.editedById && (
-                                <span className="ml-1.5 stamp text-gray-500">Edited</span>
+                                <span className="ml-1.5"><Chip>Edited</Chip></span>
                               )}
                               {e.note && <span className="ml-1.5 text-gray-400">· {e.note}</span>}
                             </p>
@@ -275,22 +278,22 @@ export default async function TimesheetsPage({
                               target="_blank"
                               rel="noopener noreferrer"
                               title="Clock-in location"
-                              className="text-gray-400 hover:text-green-700 shrink-0"
+                              className="text-gray-400 hover:text-[color:var(--ds-primary)] shrink-0"
                             >
                               <MapPin size={14} />
                             </a>
                           )}
                           <span
                             className={`numeral-ledger w-16 shrink-0 text-right font-semibold tabular-nums ${
-                              open ? "text-green-700" : "text-gray-900"
+                              open ? "text-[color:var(--ds-good)]" : "text-gray-900"
                             }`}
                           >
                             {open ? formatDuration(entryMs(e, now)) : formatDuration(entryMs(e))}
                           </span>
                           {open && (
                             <span className="relative flex h-2 w-2 shrink-0" title="On the clock">
-                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-60" />
-                              <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[color:var(--ds-good)] opacity-60" />
+                              <span className="relative inline-flex h-2 w-2 rounded-full bg-[color:var(--ds-good)]" />
                             </span>
                           )}
                           {manager && (

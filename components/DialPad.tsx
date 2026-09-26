@@ -235,7 +235,7 @@ export default function DialPad({
   const big = size === "lg";
   const sizeCls = (big ? { lg: "text-[34px]", md: "text-[28px]", sm: "text-[22px]" } : { lg: "text-[26px]", md: "text-[22px]", sm: "text-[18px]" })[dialDisplaySize(shown)];
   // Key hardware: WorkBench tool tiles (white, hairline, soft depth — the
-  // btn-tool-line surface every secondary control uses) with Oxanium digits.
+  // btn-tool-line surface every secondary control uses) with Lexend digits.
   // 60×52 in the desktop panel, 88×64 continuous-corner tiles on a phone sheet.
   const gridCls = big ? "mx-auto mt-4 grid w-fit grid-cols-3 gap-3" : "mx-auto mt-3 grid w-fit grid-cols-3 gap-2";
   const keyCls = big ? "h-[64px] w-[88px] rounded-[18px]" : "h-[52px] w-[60px] rounded-[12px]";

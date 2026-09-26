@@ -167,7 +167,7 @@ export default function PhotoUpload({ jobId, photos }: { jobId: string; photos: 
           value={photoType}
           onChange={(e) => setPhotoType(e.target.value as "BEFORE" | "AFTER" | "GENERAL")}
           disabled={busy}
-          className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+          className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
         >
           <option value="GENERAL">Photo</option>
           <option value="BEFORE">Before</option>
@@ -178,7 +178,7 @@ export default function PhotoUpload({ jobId, photos }: { jobId: string; photos: 
             type="button"
             onClick={() => void takePhoto()}
             disabled={busy}
-            className="flex items-center gap-1.5 px-3 py-1.5 btn-tool-line bg-white rounded-[10px] text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="ds-btn ds-btn-outline ds-btn-sm disabled:opacity-50"
           >
             {busy ? <Loader2 size={12} className="animate-spin" /> : <Camera size={12} />}
             Take photo
@@ -188,12 +188,12 @@ export default function PhotoUpload({ jobId, photos }: { jobId: string; photos: 
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={busy}
-          className="flex items-center gap-1.5 px-3 py-1.5 btn-tool-line bg-white rounded-[10px] text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+          className="ds-btn ds-btn-outline ds-btn-sm disabled:opacity-50"
         >
           {busy ? <Loader2 size={12} className="animate-spin" /> : native ? <ImagePlus size={12} /> : <Camera size={12} />}
           Add photos
         </button>
-        {error && <p className="text-xs text-red-600 w-full">{error}</p>}
+        {error && <p className="text-xs text-[color:var(--ds-bad)] w-full">{error}</p>}
       </div>
     </div>
   );

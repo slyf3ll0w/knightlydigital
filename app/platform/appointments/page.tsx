@@ -2,11 +2,11 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { Plus, ChevronRight, CalendarClock } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
-import { SECTION_HUES } from "@/lib/section-colors";
 import { shortDate } from "@/lib/statuses";
 import { fmtTime } from "@/lib/format";
 import { startOfDayIn } from "@/lib/timezone";
 import StatusChip from "@/components/StatusChip";
+import { Chip } from "@/components/ds";
 import EmptyState from "@/components/EmptyState";
 import Monogram from "@/components/Monogram";
 import { requirePageActor, canSell, appointmentScope } from "@/lib/permissions";
@@ -69,8 +69,8 @@ export default async function AppointmentsPage() {
   const section = (title: string, list: typeof upcoming) =>
     list.length > 0 && (
       <div className="mb-6">
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">{title}</h3>
-        <div className="card-ledger overflow-hidden divide-y divide-gray-100">
+        <h3 className="ds-eyebrow mb-2">{title}</h3>
+        <div className="ds-card overflow-hidden divide-y divide-[color:var(--ds-line)]">
           {list.map((a) => (
             <Link
               key={a.id}
@@ -88,7 +88,7 @@ export default async function AppointmentsPage() {
                       </span>
                     ) : null}
                   </p>
-                  {a.tentative && <span className="stamp text-amber-700">To approve</span>}
+                  {a.tentative && <Chip tone="warn">To approve</Chip>}
                 </div>
                 <p className="truncate text-xs text-gray-500 mt-0.5">
                   {a.contact.firstName} {a.contact.lastName} · {typeLabel[a.type] ?? a.type} ·{" "}
@@ -123,9 +123,9 @@ export default async function AppointmentsPage() {
       {upcoming.length === 0 && past.length === 0 ? (
         <EmptyState
           art="schedule"
-          hue={SECTION_HUES.schedule}
+          hue="var(--ds-primary)"
           title="No appointments yet"
-          body="Book estimates and sales calls — they show here and on the schedule."
+          body="Book estimates and sales calls. They show here and on the schedule."
           actionHref="/app/appointments/new"
           actionLabel="Book an Appointment"
         />

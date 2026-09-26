@@ -113,7 +113,7 @@ export default function ClockCard({
   const elapsed = entry ? Date.now() - new Date(entry.startedAt).getTime() : 0;
 
   return (
-    <div className="card-ledger p-4">
+    <div className="ds-card p-4">
       <div className="flex items-center justify-between mb-3">
         <SectionHeader title="Time clock" />
         {loggedMs > 0 && (
@@ -132,7 +132,7 @@ export default function ClockCard({
           <button
             onClick={() => punch("out")}
             disabled={busy}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-800 active:scale-[0.98] transition disabled:opacity-50"
+            className="ds-btn ds-btn-lg w-full justify-center bg-[color:var(--ds-ink)] text-[color:var(--ds-surface)] hover:opacity-90 disabled:opacity-50"
           >
             <Square size={14} fill="currentColor" />
             Clock Out
@@ -141,7 +141,7 @@ export default function ClockCard({
       ) : (
         <>
           {openElsewhereTitle && (
-            <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-3">
+            <p className="text-xs text-[color:var(--ds-warn)] bg-[color:var(--ds-warn-soft)] rounded-lg px-3 py-2 mb-3">
               You&apos;re still clocked in on &ldquo;{openElsewhereTitle}&rdquo; — clocking in
               here will clock you out there.
             </p>
@@ -162,8 +162,8 @@ export default function ClockCard({
           On the clock: {othersOnClock.join(", ")}
         </p>
       )}
-      {error && <p className="text-xs text-red-600 mt-2">{error}</p>}
-      {queuedNote && !error && <p className="text-xs text-amber-700 mt-2">{queuedNote}</p>}
+      {error && <p className="text-xs text-[color:var(--ds-bad)] mt-2">{error}</p>}
+      {queuedNote && !error && <p className="text-xs text-[color:var(--ds-warn)] mt-2">{queuedNote}</p>}
     </div>
   );
 }

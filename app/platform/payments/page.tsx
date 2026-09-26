@@ -12,7 +12,7 @@ import EmptyState from "@/components/EmptyState";
 import PageTitle from "@/components/PageTitle";
 import KpiStrip from "@/components/KpiStrip";
 import Pager from "@/components/Pager";
-import { SECTION_HUES } from "@/lib/section-colors";
+import { Chip, InfoTip } from "@/components/ds";
 import {
   getProcessor,
   processingFees,
@@ -45,8 +45,13 @@ import {
  */
 
 /** Section heading — bold sentence case, the iOS card-list pattern. */
-function RuledLabel({ children }: { children: React.ReactNode }) {
-  return <p className="mb-2.5 text-[17px] font-bold text-gray-900">{children}</p>;
+function RuledLabel({ children, info }: { children: React.ReactNode; info?: React.ReactNode }) {
+  return (
+    <p className="ds-h2 mb-2.5 flex items-center gap-1.5">
+      {children}
+      {info && <InfoTip>{info}</InfoTip>}
+    </p>
+  );
 }
 
 const PAGE_SIZE = 25;
@@ -248,17 +253,17 @@ export default async function PaymentsDashboardPage({
   const signedMoney = money; // money() signs negatives itself now
 
   // A settlement's real-world position, funding transfers beating raw status.
-  // Tones match StatusChip's dot-stamp language (see .stamp in globals.css).
+  // Tones are the design-system chip tones (StatusChip speaks the same).
   const payoutState = (s: FinixSettlement) => {
     const funding = fundingBySettlement.get(s.id) ?? [];
     if (funding.some((f) => f.state === "SUCCEEDED"))
-      return { label: "Paid out", tone: "text-green-700" };
+      return { label: "Paid out", tone: "good" as const };
     if (funding.some((f) => f.state === "PENDING"))
-      return { label: "On the way", tone: "text-blue-700" };
-    if (s.status === "ACCRUING") return { label: "Accruing", tone: "text-blue-700" };
+      return { label: "On the way", tone: "primary" as const };
+    if (s.status === "ACCRUING") return { label: "Accruing", tone: "primary" as const };
     if (s.status === "AWAITING_APPROVAL" || s.status === "APPROVED")
-      return { label: "Processing", tone: "text-gray-500" };
-    return { label: s.status ?? "Pending", tone: "text-gray-500" };
+      return { label: "Processing", tone: "neutral" as const };
+    return { label: s.status ?? "Pending", tone: "neutral" as const };
   };
 
   const settlementRows = settlements.map((s) => {
@@ -285,11 +290,11 @@ export default async function PaymentsDashboardPage({
   const stateStamp = (ref: string | null) => {
     const t = ref ? transferStates.get(ref) : undefined;
     if (!t) return <span className="hidden lg:block" />;
-    const tones: Record<string, string> = {
-      SUCCEEDED: "text-green-700",
-      PENDING: "text-blue-700",
-      FAILED: "text-red-700",
-      CANCELED: "text-gray-500",
+    const tones: Record<string, "good" | "primary" | "bad" | "neutral"> = {
+      SUCCEEDED: "good",
+      PENDING: "primary",
+      FAILED: "bad",
+      CANCELED: "neutral",
     };
     const labels: Record<string, string> = {
       SUCCEEDED: "Paid",
@@ -298,8 +303,8 @@ export default async function PaymentsDashboardPage({
       CANCELED: "Canceled",
     };
     return (
-      <span className={`stamp ${tones[t.state] ?? "text-gray-500"}`}>
-        {labels[t.state] ?? t.state}
+      <span>
+        <Chip tone={tones[t.state] ?? "neutral"}>{labels[t.state] ?? t.state}</Chip>
       </span>
     );
   };
@@ -310,7 +315,7 @@ export default async function PaymentsDashboardPage({
         <PageTitle section="payments" icon={DollarSign}>
           Payments
           {online && finixEnvironment() === "sandbox" && (
-            <span className="stamp text-amber-700">Test mode</span>
+            <Chip tone="warn">Test mode</Chip>
           )}
         </PageTitle>
         {/* Phones create from the tab-bar FAB */}
@@ -318,7 +323,7 @@ export default async function PaymentsDashboardPage({
           <a
             href="/api/app/export/payments"
             title="Download all payments as CSV"
-            className="flex items-center gap-1.5 px-3 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 active:bg-gray-100 transition-colors"
+            className="ds-btn ds-btn-outline ds-btn-sm"
           >
             <Download size={14} />
             Export
@@ -336,19 +341,19 @@ export default async function PaymentsDashboardPage({
       {/* Not set up yet — the statement card's spot holds the pitch, in the
           same grammar, so this page never opens on a plain gray banner */}
       {!online && (
-        <div className="card-tool mb-6 overflow-hidden">
+        <div className="ds-card mb-6 overflow-hidden">
           <div className="p-5 sm:p-6">
-            <p className="text-[13px] font-medium text-green-700">Online payments</p>
-            <p className="numeral-ledger mt-1 text-2xl font-semibold leading-tight text-gray-900">
+            <p className="text-[13px] font-medium text-[color:var(--ds-primary)]">Online payments</p>
+            <p className="mt-1 flex items-center gap-1.5 text-2xl font-semibold leading-tight text-[color:var(--ds-ink)]">
               Get paid by card or bank
-            </p>
-            <p className="mt-2 max-w-md text-xs leading-relaxed text-gray-500">
-              Clients pay invoices straight from their pay links — the money lands in your own
-              bank account, usually the next business day.
+              <InfoTip>
+                Clients pay invoices straight from their pay links — the money lands in your own
+                bank account, usually the next business day.
+              </InfoTip>
             </p>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 bg-gray-50/60 px-5 py-3 sm:px-6">
-            <p className="text-xs text-gray-500">A short application in Settings → Payments &amp; accounting starts it.</p>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--ds-line)] bg-[color:var(--ds-surface-2)] px-5 py-3 sm:px-6">
+            <p className="text-xs text-[color:var(--ds-muted)]">A short application in Settings → Payments &amp; accounting starts it.</p>
             <Link
               href="/app/settings?s=payments"
               className="btn-primary"
@@ -363,20 +368,22 @@ export default async function PaymentsDashboardPage({
              label + big numeral, then payout history and the action in a
              double-rule foot, same receipt grammar as the list pages. ────── */}
       {online && (
-        <div className="card-tool mb-6 overflow-hidden">
+        <div className="ds-card mb-6 overflow-hidden">
           <div className="p-5 sm:p-6">
-            <p className="text-[13px] font-medium text-gray-500">On its way to your bank</p>
-            <p className="numeral-ledger mt-1 text-[34px] sm:text-[38px] font-semibold leading-none text-gray-900">
+            <p className="ds-label flex items-center gap-1">
+              On its way to your bank
+              <InfoTip>
+                Payments clear in about a business day, then pay out to your bank
+                automatically every business day.
+              </InfoTip>
+            </p>
+            <p className="numeral-ledger mt-1 text-[34px] sm:text-[38px] font-semibold leading-none text-[color:var(--ds-ink)]">
               {signedMoney(onTheWay)}
             </p>
-            <p className="mt-2.5 max-w-md text-xs leading-relaxed text-gray-500">
-              Payments clear in about a business day, then pay out to your bank
-              automatically every business day.
-            </p>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-x-10 gap-y-3 border-t border-gray-100 bg-gray-50/60 px-5 py-3 sm:px-6">
+          <div className="flex flex-wrap items-center justify-between gap-x-10 gap-y-3 border-t border-[color:var(--ds-line)] bg-[color:var(--ds-surface-2)] px-5 py-3 sm:px-6">
             <div>
-              <p className="text-xs font-medium text-gray-500">
+              <p className="text-xs font-medium text-[color:var(--ds-muted)]">
                 Paid out to date
               </p>
               <p className="numeral-ledger mt-0.5 text-lg font-semibold leading-tight text-gray-900">
@@ -392,7 +399,6 @@ export default async function PaymentsDashboardPage({
           desktop cards, so this page stops speaking its own dialect */}
       <KpiStrip
         desktopCols={3}
-        hue={SECTION_HUES.payments}
         kpis={[
           {
             label: "Collected",
@@ -422,10 +428,18 @@ export default async function PaymentsDashboardPage({
       {disputes.length > 0 && (
         <div className="mb-8">
           <RuledLabel>Needs attention</RuledLabel>
-          <div className="card-ledger overflow-hidden">
-            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100">
-              <h2 className="text-sm font-semibold text-gray-900">Disputes</h2>
-              <span className="stamp text-red-700">{disputes.length} open</span>
+          <div className="ds-card overflow-hidden">
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[color:var(--ds-line)]">
+              <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[color:var(--ds-ink)]">
+                Disputes
+                <InfoTip>
+                  A client&apos;s bank flagged these charges. Upload evidence before the respond-by
+                  date — the invoice, a signed agreement, photos of the completed work, or messages
+                  with the client (PDF, JPG, or PNG). It goes straight to the bank reviewing the
+                  dispute, and we&apos;ll reach out to help with each one too.
+                </InfoTip>
+              </h2>
+              <Chip tone="bad">{disputes.length} open</Chip>
             </div>
             <div className="divide-y divide-gray-100">
               {disputes.map((d) => {
@@ -433,8 +447,8 @@ export default async function PaymentsDashboardPage({
                 return (
                   <div key={d.id} className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <span className="stamp text-red-700 shrink-0 capitalize">
-                        {(d.state ?? "Open").replaceAll("_", " ").toLowerCase()}
+                      <span className="shrink-0 capitalize">
+                        <Chip tone="bad">{(d.state ?? "Open").replaceAll("_", " ").toLowerCase()}</Chip>
                       </span>
                       <span className="flex-1 min-w-0 text-sm">
                         <span className="font-medium text-gray-900 capitalize">
@@ -467,12 +481,6 @@ export default async function PaymentsDashboardPage({
                 );
               })}
             </div>
-            <p className="px-4 py-2.5 border-t border-gray-100 bg-gray-50/60 text-xs text-gray-500">
-              A client&apos;s bank flagged these charges. Upload evidence before the respond-by
-              date — the invoice, a signed agreement, photos of the completed work, or messages
-              with the client (PDF, JPG, or PNG). It goes straight to the bank reviewing the
-              dispute, and we&apos;ll reach out to help with each one too.
-            </p>
           </div>
         </div>
       )}
@@ -480,15 +488,17 @@ export default async function PaymentsDashboardPage({
       {/* Payouts */}
       {online && (
         <div className="mb-8">
-          <RuledLabel>Payouts</RuledLabel>
-          <div className="card-ledger overflow-hidden">
-            <p className="px-4 py-2.5 text-xs text-gray-500 border-b border-gray-100">
-              Processing fees — cards {cardRate}, bank transfers {achRate} — come out of each
-              payout.
-            </p>
+          <RuledLabel
+            info={<>Processing fees — cards {cardRate}, bank transfers {achRate} — come out of each payout.</>}
+          >
+            Payouts
+          </RuledLabel>
+          <div className="ds-card overflow-hidden">
             {clearingTotal > 0 && (
-              <div className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-100">
-                <span className="stamp text-blue-700 w-24 shrink-0">Clearing</span>
+              <div className="flex items-center gap-3 px-4 py-2.5 border-b border-[color:var(--ds-line)]">
+                <span className="w-24 shrink-0">
+                  <Chip tone="primary">Clearing</Chip>
+                </span>
                 <span className="flex-1 text-xs text-gray-500">
                   ≈{money(clearingFees)} in fees will be deducted
                 </span>
@@ -521,8 +531,8 @@ export default async function PaymentsDashboardPage({
                       <span className="text-sm text-gray-500 w-20 lg:w-auto shrink-0">
                         {s.created_at ? shortDate(new Date(s.created_at), tz) : ""}
                       </span>
-                      <span className={`stamp ${state.tone} flex-1 lg:flex-none`}>
-                        {state.label}
+                      <span className="flex-1 lg:flex-none">
+                        <Chip tone={state.tone}>{state.label}</Chip>
                       </span>
                       <span className="numeral-ledger hidden lg:block text-sm text-gray-600 text-right">
                         {gross != null ? signedMoney(gross) : ""}
@@ -531,7 +541,7 @@ export default async function PaymentsDashboardPage({
                         {feeAmt != null ? money(feeAmt) : ""}
                       </span>
                       <span
-                        className={`numeral-ledger text-sm font-semibold text-right ${net != null && net < 0 ? "text-red-600" : "text-gray-900"}`}
+                        className={`numeral-ledger text-sm font-semibold text-right ${net != null && net < 0 ? "text-[color:var(--ds-bad)]" : "text-[color:var(--ds-ink)]"}`}
                       >
                         {net != null ? signedMoney(net) : ""}
                       </span>
@@ -550,7 +560,7 @@ export default async function PaymentsDashboardPage({
                     {money(payoutTotals.fees / 100)}
                   </span>
                   <span
-                    className={`numeral-ledger text-sm font-bold text-right ${payoutTotals.net < 0 ? "text-red-600" : "text-gray-900"}`}
+                    className={`numeral-ledger text-sm font-bold text-right ${payoutTotals.net < 0 ? "text-[color:var(--ds-bad)]" : "text-[color:var(--ds-ink)]"}`}
                   >
                     {signedMoney(payoutTotals.net / 100)}
                   </span>
@@ -564,10 +574,11 @@ export default async function PaymentsDashboardPage({
       {/* Recent online payments */}
       <div>
         <RuledLabel>Online payments</RuledLabel>
-        <div className="card-ledger overflow-hidden">
+        <div className="ds-card overflow-hidden">
           {payments.length === 0 ? (
             <EmptyState
               art="invoices"
+              hue="var(--ds-primary)"
               title="No online payments yet"
               body={
                 online
@@ -604,7 +615,7 @@ export default async function PaymentsDashboardPage({
                         Invoice #{p.invoice?.invoiceNumber}
                         <span className="lg:hidden"> · {p.method === "ACH" ? "Bank" : "Card"}</span>
                         {p.refunds.length > 0 && (
-                          <span className="text-amber-600"> · refunded</span>
+                          <span className="text-[color:var(--ds-warn)]"> · refunded</span>
                         )}
                       </p>
                     </div>

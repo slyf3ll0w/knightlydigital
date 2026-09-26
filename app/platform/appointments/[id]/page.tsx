@@ -9,6 +9,7 @@ import { appointmentTypeLabel } from "@/lib/statuses";
 import { resolveSlotInterval } from "@/lib/scheduling";
 import { earliestOpenMinutes, sanitizeBusinessHours } from "@/lib/business-hours";
 import StatusChip from "@/components/StatusChip";
+import { Chip } from "@/components/ds";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import JobActionRow from "@/components/JobActionRow";
@@ -77,14 +78,12 @@ export default async function AppointmentDetailPage({
         <BackLink href="/app/appointments" />
         <StatusChip kind="appointment" status={appt.status} />
         {appt.tentative && appt.status === "SCHEDULED" && (
-          <span className="stamp text-red-700">
-            Tentative — awaiting approval
-          </span>
+          <Chip tone="warn">Tentative — awaiting approval</Chip>
         )}
       </div>
 
       {appt.tentative && appt.status === "SCHEDULED" && appt.request && (
-        <div className="mb-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
+        <div className="mb-6 rounded-lg bg-[color:var(--ds-warn-soft)] px-4 py-3 text-sm text-[color:var(--ds-ink)]">
           This time was self-scheduled online and isn&apos;t confirmed yet —{" "}
           <Link prefetch={false} href={`/app/requests/${appt.request.id}`} className="font-semibold underline">
             accept or decline the booking on the request
@@ -97,10 +96,10 @@ export default async function AppointmentDetailPage({
         <div className="min-w-0">
           <PageTitle>{appt.title}</PageTitle>
           <p className="flex items-center gap-1.5 text-sm text-gray-500 mt-1">
-            <TypeIcon size={14} className="text-blue-500" />
+            <TypeIcon size={14} className="text-[color:var(--ds-secondary)]" />
             {appointmentTypeLabel[appt.type]}
             <span className="text-gray-300">·</span>
-            <Link prefetch={false} href={`/app/contacts/${appt.contact.id}`} className="text-green-700 hover:underline">
+            <Link prefetch={false} href={`/app/contacts/${appt.contact.id}`} className="text-[color:var(--ds-primary)] hover:underline">
               {appt.contact.firstName} {appt.contact.lastName}
             </Link>
           </p>
@@ -139,7 +138,7 @@ export default async function AppointmentDetailPage({
         address={appt.type === "IN_PERSON" ? (appt.address ?? appt.contact.address) : null}
       />
 
-      <div className="card-ledger p-5 mb-5 space-y-3">
+      <div className="ds-card p-5 mb-5 space-y-3">
         <div className="flex items-start gap-3">
           <CalendarDays size={15} className="text-gray-400 mt-0.5 shrink-0" />
           <p className="text-sm text-gray-800">{when}</p>
@@ -157,7 +156,7 @@ export default async function AppointmentDetailPage({
               href={appt.meetingLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-green-700 hover:underline flex items-center gap-1"
+              className="text-sm text-[color:var(--ds-primary)] hover:underline flex items-center gap-1"
             >
               Join meeting <ExternalLink size={12} />
             </a>
@@ -166,7 +165,7 @@ export default async function AppointmentDetailPage({
         {appt.type === "PHONE_CALL" && appt.contact.phone && (
           <div className="flex items-start gap-3">
             <Phone size={15} className="text-gray-400 mt-0.5 shrink-0" />
-            <a href={`tel:${appt.contact.phone}`} className="text-sm text-green-700 hover:underline">
+            <a href={`tel:${appt.contact.phone}`} className="text-sm text-[color:var(--ds-primary)] hover:underline">
               {fmtPhone(appt.contact.phone)}
             </a>
           </div>
@@ -186,7 +185,7 @@ export default async function AppointmentDetailPage({
         {appt.request && (
           <div className="pt-2 border-t border-gray-100 text-sm">
             <span className="text-xs font-medium text-gray-500 block mb-0.5">From request</span>
-            <Link prefetch={false} href={`/app/requests/${appt.request.id}`} className="text-green-700 hover:underline">
+            <Link prefetch={false} href={`/app/requests/${appt.request.id}`} className="text-[color:var(--ds-primary)] hover:underline">
               {appt.request.title}
             </Link>
             {appt.request.quotes.length > 0 && (
@@ -199,7 +198,7 @@ export default async function AppointmentDetailPage({
                     <span key={q.id} className="flex items-center gap-1.5">
                       <Link
                         prefetch={false} href={`/app/quotes/${q.id}`}
-                        className="text-green-700 hover:underline"
+                        className="text-[color:var(--ds-primary)] hover:underline"
                       >
                         Quote #{q.quoteNumber}
                       </Link>
@@ -214,7 +213,7 @@ export default async function AppointmentDetailPage({
       </div>
 
       {appt.notes && (
-        <div className="card-ledger p-5">
+        <div className="ds-card p-5">
           <SectionHeader title="Notes" className="mb-2" />
           <p className="text-sm text-gray-700 whitespace-pre-wrap">{appt.notes}</p>
         </div>

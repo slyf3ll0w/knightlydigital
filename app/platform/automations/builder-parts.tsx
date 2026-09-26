@@ -119,18 +119,18 @@ export function Card({
 }) {
   const [open, setOpen] = useState(true);
   return (
-    <div {...dragProps} className={`card-tool rounded-2xl border border-gray-200 bg-white transition-shadow ${changed ? "ring-2 ring-amber-300" : ""} ${className}`}>
+    <div {...dragProps} className={`ds-card transition-shadow ${changed ? "ring-2 ring-[color:var(--ds-warn)]" : ""} ${className}`}>
       <div className="flex items-center gap-2.5 px-3.5 py-2.5">
         {dragHandle && (
           <span className="cursor-grab text-gray-300 hover:text-gray-500 active:cursor-grabbing" title="Drag to reorder" aria-hidden>
             <GripVertical size={16} />
           </span>
         )}
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]" style={{ backgroundColor: tint, color: "#fff" }} aria-hidden>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]" style={{ backgroundColor: `color-mix(in srgb, ${tint} 14%, transparent)`, color: tint }} aria-hidden>
           <Icon size={15} strokeWidth={2.25} />
         </span>
         <button type="button" onClick={() => setOpen((o) => !o)} className="min-w-0 flex-1 text-left">
-          <span className="block text-[13px] font-semibold text-gray-900">{title}</span>
+          <span className="block text-[13px] font-semibold text-[color:var(--ds-ink)]">{title}</span>
           {preview && <span className="block truncate text-xs text-gray-500">{preview}</span>}
         </button>
         {children && (
@@ -139,12 +139,12 @@ export function Card({
           </button>
         )}
         {onRemove && (
-          <button type="button" onClick={onRemove} aria-label="Remove" className="rounded-md p-1 text-gray-400 hover:bg-red-50 hover:text-red-600">
+          <button type="button" onClick={onRemove} aria-label="Remove" className="rounded-md p-1 text-gray-400 hover:bg-[color:var(--ds-bad-soft)] hover:text-[color:var(--ds-bad)]">
             <X size={16} />
           </button>
         )}
       </div>
-      {children && open && <div className="border-t border-gray-100 px-3.5 py-3">{children}</div>}
+      {children && open && <div className="border-t border-[color:var(--ds-line)] px-3.5 py-3">{children}</div>}
     </div>
   );
 }
@@ -152,7 +152,7 @@ export function Card({
 /** The vertical rule between cards with a "+" pill to insert a step there. */
 export function Connector({ onAdd, dropProps, active }: { onAdd?: () => void; dropProps?: React.HTMLAttributes<HTMLDivElement>; active?: boolean }) {
   return (
-    <div {...dropProps} className={`relative mx-auto flex h-10 w-full items-center justify-center ${active ? "rounded-xl bg-amber-50" : ""}`}>
+    <div {...dropProps} className={`relative mx-auto flex h-10 w-full items-center justify-center ${active ? "rounded-xl bg-[color:var(--ds-primary-soft)]" : ""}`}>
       <span className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-gray-200" aria-hidden />
       {onAdd && (
         <button type="button" onClick={onAdd} aria-label="Add a step here" className="relative z-[1] flex h-7 w-7 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-500 shadow-sm hover:border-gray-400 hover:text-gray-800">
@@ -261,7 +261,7 @@ export function TemplateField({
       <div className="mb-1 flex items-center justify-between">
         <label className="text-xs font-medium text-gray-600">
           {label}
-          {required && <span className="text-red-500"> *</span>}
+          {required && <span className="text-[color:var(--ds-bad)]"> *</span>}
         </label>
         <InsertFieldMenu trigger={trigger} extra={extra} onInsert={insert} />
       </div>
@@ -372,7 +372,7 @@ function Labeled({ label, required, help, children }: { label: string; required?
     <div>
       <label className="mb-1 block text-xs font-medium text-gray-600">
         {label}
-        {required && <span className="text-red-500"> *</span>}
+        {required && <span className="text-[color:var(--ds-bad)]"> *</span>}
       </label>
       {children}
       {help && <p className="mt-1 text-[11px] text-gray-500">{help}</p>}
@@ -701,7 +701,7 @@ export function TestModal({ open, onClose, result, loading }: { open: boolean; o
         </div>
         {loading && <p className="flex items-center gap-2 text-sm text-gray-600"><Loader2 size={15} className="animate-spin" /> Checking your records…</p>}
         {!loading && result && !result.compiles && (
-          <ul className="space-y-1 text-sm text-red-700">{(result.errors ?? []).map((e, i) => <li key={i}>{e}</li>)}</ul>
+          <ul className="space-y-1 text-sm text-[color:var(--ds-bad)]">{(result.errors ?? []).map((e, i) => <li key={i}>{e}</li>)}</ul>
         )}
         {!loading && result?.compiles && (
           <>
@@ -714,12 +714,12 @@ export function TestModal({ open, onClose, result, loading }: { open: boolean; o
             {result.warnings.length > 0 && (
               <ul className="mt-3 space-y-1">
                 {result.warnings.map((w, i) => (
-                  <li key={i} className="flex gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800"><AlertTriangle size={14} className="mt-0.5 shrink-0" /> {w}</li>
+                  <li key={i} className="flex gap-2 rounded-lg bg-[color:var(--ds-warn-soft)] px-3 py-2 text-xs text-[color:var(--ds-warn)]"><AlertTriangle size={14} className="mt-0.5 shrink-0" /> {w}</li>
                 ))}
               </ul>
             )}
             {result.preview && result.preview.errors.length > 0 && (
-              <ul className="mt-3 space-y-1 text-xs text-red-700">{result.preview.errors.map((e, i) => <li key={i}>{e}</li>)}</ul>
+              <ul className="mt-3 space-y-1 text-xs text-[color:var(--ds-bad)]">{result.preview.errors.map((e, i) => <li key={i}>{e}</li>)}</ul>
             )}
             {result.preview && result.preview.sample.length > 0 && (
               <div className="mt-4 space-y-2">
@@ -758,7 +758,7 @@ export function RunHistory({ runs, onRefresh, loading }: { runs: Run[]; onRefres
       {runs.length === 0 ? (
         <p className="rounded-xl border border-dashed border-gray-200 px-3 py-4 text-center text-xs text-gray-500">Hasn't fired yet. Do the thing the trigger describes and a row lands here.</p>
       ) : (
-        <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white">
+        <div className="ds-card divide-y divide-[color:var(--ds-line)]">
           {runs.slice(0, 20).map((r) => (
             <div key={r.id} className="flex items-start gap-2 px-3 py-2 text-xs">
               <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${runDot(r.status)}`} aria-hidden />

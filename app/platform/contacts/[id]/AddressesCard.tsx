@@ -135,13 +135,13 @@ export default function AddressesCard({
 
 
   return (
-    <div className="card-ledger p-4">
+    <div className="ds-card p-4">
       <div className="flex items-center justify-between mb-3">
         <SectionHeader title="Addresses" />
         {editing === null && (
           <button
             onClick={startNew}
-            className="flex items-center gap-1 text-xs text-green-600 hover:underline font-medium"
+            className="flex items-center gap-1 text-xs text-[color:var(--ds-primary)] hover:underline font-medium"
           >
             <Plus size={12} />
             Add address
@@ -178,7 +178,7 @@ export default function AddressesCard({
                     {rows.length > 0 && (
                       <button
                         onClick={() => setOpenHistory(isOpen ? null : a.id)}
-                        className="flex items-center gap-0.5 text-[11px] text-green-700 hover:underline"
+                        className="flex items-center gap-0.5 text-[11px] text-[color:var(--ds-primary)] hover:underline"
                       >
                         {isOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
                         {rows.length} {rows.length === 1 ? "visit" : "visits"} here
@@ -195,7 +195,7 @@ export default function AddressesCard({
                 </button>
                 <button
                   onClick={() => remove(a.id)}
-                  className="p-1 text-gray-300 hover:text-red-600"
+                  className="p-1 text-gray-300 hover:text-[color:var(--ds-bad)]"
                   title="Remove address"
                 >
                   <Trash2 size={13} />
@@ -279,7 +279,7 @@ export default function AddressesCard({
               className={inputCls}
             />
           </div>
-          {error && <p className="text-xs text-red-600">{error}</p>}
+          {error && <p className="text-xs text-[color:var(--ds-bad)]">{error}</p>}
           <div className="flex items-center gap-2">
             <button
               onClick={save}

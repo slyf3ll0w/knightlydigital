@@ -140,7 +140,7 @@ export default function PaymentRow({
                   step="0.01"
                   value={form.amount}
                   onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                 />
               </div>
               <div>
@@ -148,7 +148,7 @@ export default function PaymentRow({
                 <select
                   value={form.method}
                   onChange={(e) => setForm((f) => ({ ...f, method: e.target.value }))}
-                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                 >
                   {METHODS.map((m) => (
                     <option key={m} value={m}>
@@ -163,7 +163,7 @@ export default function PaymentRow({
                   type="date"
                   value={form.paidAt}
                   onChange={(e) => setForm((f) => ({ ...f, paidAt: e.target.value }))}
-                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                 />
               </div>
             </>
@@ -175,11 +175,11 @@ export default function PaymentRow({
               value={form.referenceNumber}
               onChange={(e) => setForm((f) => ({ ...f, referenceNumber: e.target.value }))}
               placeholder="Check #, confirmation..."
-              className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
             />
           </div>
         </div>
-        {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
+        {error && <p className="text-xs text-[color:var(--ds-bad)] mb-2">{error}</p>}
         <div className="flex items-center gap-1.5">
           <button
             onClick={save}
@@ -211,7 +211,7 @@ export default function PaymentRow({
           {payment.referenceNumber && ` · Ref: ${payment.referenceNumber}`}
           {payment.details && ` · ${payment.details}`}
         </p>
-        {error && <p className="text-xs text-red-600 mt-0.5">{error}</p>}
+        {error && <p className="text-xs text-[color:var(--ds-bad)] mt-0.5">{error}</p>}
       </div>
       {/* Hover-revealed at a desk, always visible on touch — phones have no
           hover, so hiding these made refund/edit/delete unreachable there. */}
@@ -221,7 +221,7 @@ export default function PaymentRow({
             onClick={() => setRefunding(true)}
             disabled={busy}
             title="Refund payment"
-            className="p-1.5 text-gray-400 hover:text-amber-600 rounded-full"
+            className="p-1.5 text-gray-400 hover:text-[color:var(--ds-warn)] rounded-full"
           >
             {busy ? <Loader2 size={13} className="animate-spin" /> : <Undo2 size={13} />}
           </button>
@@ -238,13 +238,13 @@ export default function PaymentRow({
             onClick={remove}
             disabled={busy}
             title="Delete payment"
-            className="p-1.5 text-gray-400 hover:text-red-600 rounded-full"
+            className="p-1.5 text-gray-400 hover:text-[color:var(--ds-bad)] rounded-full"
           >
             {busy ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
           </button>
         )}
       </span>
-      <span className="font-semibold text-gray-900">{money(payment.amount)}</span>
+      <span className="ds-num font-semibold text-gray-900">{money(payment.amount)}</span>
       <RefundDialog
         paymentId={payment.id}
         maxAmount={payment.amount}

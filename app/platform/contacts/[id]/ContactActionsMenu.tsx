@@ -176,7 +176,7 @@ export default function ContactActionsMenu({
                 <div className="my-1 h-px bg-gray-100" />
                 <button
                   onClick={onDeleteClick}
-                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                  className="flex w-full items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)]"
                 >
                   <Trash2 size={14} />
                   Delete
@@ -196,8 +196,8 @@ export default function ContactActionsMenu({
         {deleteOpen && (
           <>
             <div className="flex items-start justify-between mb-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-red-100">
-                <AlertTriangle size={17} className="text-red-600" />
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[color:var(--ds-bad-soft)]">
+                <AlertTriangle size={17} className="text-[color:var(--ds-bad)]" />
               </span>
               <button
                 onClick={() => setDeleteOpen(false)}
@@ -216,7 +216,7 @@ export default function ContactActionsMenu({
               them off your list, archive them instead.
             </p>
 
-            <ul className="mb-4 rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-800 space-y-0.5">
+            <ul className="mb-4 rounded-lg bg-[color:var(--ds-bad-soft)] p-3 text-sm text-[color:var(--ds-bad)] space-y-0.5">
               {lines.map(([n, one, many]) => (
                 <li key={many}>
                   • {n} {n === 1 ? one : many}
@@ -231,15 +231,15 @@ export default function ContactActionsMenu({
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
               autoFocus
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 mb-3"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-bad)] mb-3"
             />
 
             {confirmText && !nameMatches && (
-              <p className="text-xs text-amber-600 mb-3">
+              <p className="text-xs text-[color:var(--ds-warn)] mb-3">
                 That doesn&apos;t match the client&apos;s name yet.
               </p>
             )}
-            {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
+            {error && <p className="text-xs text-[color:var(--ds-bad)] mb-3">{error}</p>}
 
             <div className="flex justify-end gap-2">
               <button

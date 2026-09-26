@@ -6,6 +6,7 @@ import { ArrowRight } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
+import { Chip } from "@/components/ds";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import ViewedFact from "@/components/ViewedFact";
@@ -124,7 +125,7 @@ export default async function InvoiceDetailPage({
           {invoice.contact && (
             <Link
               prefetch={false} href={`/app/contacts/${invoice.contact.id}`}
-              className="text-sm text-green-700 hover:underline"
+              className="ds-link text-sm hover:underline"
             >
               {invoice.contact.firstName} {invoice.contact.lastName}
             </Link>
@@ -160,17 +161,17 @@ export default async function InvoiceDetailPage({
       {showCloseJobNudge && (
         <Link
           prefetch={false} href={`/app/jobs/${invoice.job!.id}`}
-          className="flex items-center justify-between px-4 py-3 bg-green-50 border border-green-200 rounded-lg mb-6 hover:bg-green-100 transition-colors"
+          className="mb-6 flex items-center justify-between rounded-[var(--ds-r)] bg-[color:var(--ds-primary-soft)] px-4 py-3 transition-[filter] hover:brightness-95"
         >
-          <p className="text-sm font-medium text-green-800">
+          <p className="text-sm font-medium text-[color:var(--ds-ink)]">
             You may want to close this job: Job #{invoice.job!.jobNumber} — {invoice.job!.title}
           </p>
-          <ArrowRight size={14} className="text-green-700" />
+          <ArrowRight size={14} className="text-[color:var(--ds-primary)]" />
         </Link>
       )}
 
       {/* Header facts — 2-col grid on phones, flowing definition list at a desk */}
-      <div className="grid grid-cols-2 gap-3 lg:flex lg:flex-wrap lg:gap-x-8 lg:gap-y-2 px-5 py-4 card-ledger mb-6 text-sm">
+      <div className="grid grid-cols-2 gap-3 lg:flex lg:flex-wrap lg:gap-x-8 lg:gap-y-2 px-5 py-4 ds-card mb-6 text-sm">
         <div>
           <span className="text-xs font-medium text-gray-500 block">Invoice #</span>
           <span className="text-gray-800">{invoice.invoiceNumber}</span>
@@ -178,7 +179,7 @@ export default async function InvoiceDetailPage({
         {invoice.job && (
           <div>
             <span className="text-xs font-medium text-gray-500 block">Invoice for</span>
-            <Link prefetch={false} href={`/app/jobs/${invoice.job.id}`} className="text-green-700 hover:underline">
+            <Link prefetch={false} href={`/app/jobs/${invoice.job.id}`} className="ds-link hover:underline">
               Job #{invoice.job.jobNumber}
             </Link>
           </div>
@@ -186,7 +187,7 @@ export default async function InvoiceDetailPage({
         {sourceQuote && (
           <div>
             <span className="text-xs font-medium text-gray-500 block">From quote</span>
-            <Link prefetch={false} href={`/app/quotes/${sourceQuote.id}`} className="text-green-700 hover:underline">
+            <Link prefetch={false} href={`/app/quotes/${sourceQuote.id}`} className="ds-link hover:underline">
               Quote #{sourceQuote.quoteNumber}
             </Link>
           </div>
@@ -215,7 +216,7 @@ export default async function InvoiceDetailPage({
       </div>
 
       {/* Invoice body */}
-      <div className="card-ledger overflow-hidden mb-6">
+      <div className="ds-card overflow-hidden mb-6">
         {/* Line items — stacked rows on phones */}
         <div className="lg:hidden divide-y divide-gray-100">
           {invoice.lineItems.map((item) => (
@@ -225,9 +226,7 @@ export default async function InvoiceDetailPage({
                   {item.name || item.description}
                   {item.recurringInterval && " "}
                   {item.recurringInterval && (
-                    <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded-lg bg-green-100 text-green-700">
-                      Recurring
-                    </span>
+                    <Chip tone="primary">Recurring</Chip>
                   )}
                 </p>
                 {item.name && item.description && (
@@ -242,7 +241,7 @@ export default async function InvoiceDetailPage({
                   {Number(item.quantity)} × {money(item.unitPrice)}
                 </p>
               </div>
-              <p className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900">
+              <p className="ds-num shrink-0 text-sm font-semibold text-gray-900">
                 {money(item.total)}
               </p>
             </div>
@@ -276,9 +275,7 @@ export default async function InvoiceDetailPage({
                       {item.name || item.description}
                       {item.recurringInterval && " "}
                       {item.recurringInterval && (
-                        <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded-lg bg-green-100 text-green-700">
-                          Recurring
-                        </span>
+                        <Chip tone="primary">Recurring</Chip>
                       )}
                     </p>
                     {item.name && item.description && (
@@ -290,9 +287,9 @@ export default async function InvoiceDetailPage({
                       </p>
                     )}
                   </td>
-                  <td className="py-3 text-right text-gray-600">{Number(item.quantity)}</td>
-                  <td className="py-3 text-right text-gray-600">{money(item.unitPrice)}</td>
-                  <td className="py-3 text-right font-medium text-gray-900">{money(item.total)}</td>
+                  <td className="ds-num py-3 text-right text-gray-600">{Number(item.quantity)}</td>
+                  <td className="ds-num py-3 text-right text-gray-600">{money(item.unitPrice)}</td>
+                  <td className="ds-num py-3 text-right font-medium text-gray-900">{money(item.total)}</td>
                 </tr>
               ))}
             </tbody>
@@ -300,21 +297,21 @@ export default async function InvoiceDetailPage({
         </div>
 
         {/* Totals — full-width rows on phones, right-hand column at a desk */}
-        <div className="px-4 lg:px-6 py-4 border-t border-gray-100 bg-gray-50">
+        <div className="px-4 lg:px-6 py-4 border-t border-[color:var(--ds-line)] bg-[color:var(--ds-surface-2)]">
           <div className="ml-auto w-full lg:w-64 space-y-1.5 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-500">Subtotal</span>
-              <span className="text-gray-800">{money(invoice.subtotal)}</span>
+              <span className="ds-num text-gray-800">{money(invoice.subtotal)}</span>
             </div>
             {invoice.discount && Number(invoice.discount) > 0 && (
-              <div className="flex justify-between text-green-700">
+              <div className="flex justify-between text-[color:var(--ds-good)]">
                 <span>
                   Discount
                   {invoice.discountType === "PERCENT" && invoice.discountValue
                     ? ` (${Number(invoice.discountValue)}%)`
                     : ""}
                 </span>
-                <span>−{money(invoice.discount)}</span>
+                <span className="ds-num">−{money(invoice.discount)}</span>
               </div>
             )}
             {invoice.tax && (
@@ -322,28 +319,28 @@ export default async function InvoiceDetailPage({
                 <span className="text-gray-500">
                   Tax ({parseFloat((Number(invoice.taxRate) * 100).toFixed(3))}%)
                 </span>
-                <span className="text-gray-800">{money(invoice.tax)}</span>
+                <span className="ds-num text-gray-800">{money(invoice.tax)}</span>
               </div>
             )}
             {invoice.depositApplied && Number(invoice.depositApplied) > 0 && (
-              <div className="flex justify-between text-green-700">
+              <div className="flex justify-between text-[color:var(--ds-good)]">
                 <span>Deposit applied</span>
-                <span>−{money(invoice.depositApplied)}</span>
+                <span className="ds-num">−{money(invoice.depositApplied)}</span>
               </div>
             )}
             <div className="flex justify-between font-bold text-base pt-1.5 border-t border-gray-200">
               <span className="text-gray-900">Total</span>
-              <span className="text-gray-900">{money(invoice.total)}</span>
+              <span className="ds-num text-gray-900">{money(invoice.total)}</span>
             </div>
             {totalPaid > 0 && (
-              <div className="flex justify-between text-green-700">
+              <div className="flex justify-between text-[color:var(--ds-good)]">
                 <span>Payments</span>
-                <span>−{money(totalPaid)}</span>
+                <span className="ds-num">−{money(totalPaid)}</span>
               </div>
             )}
             <div className="flex justify-between font-semibold">
               <span className="text-gray-900">Invoice balance</span>
-              <span className={balance > 0 ? "text-gray-900" : "text-green-700"}>
+              <span className={`ds-num ${balance > 0 ? "text-gray-900" : "text-[color:var(--ds-good)]"}`}>
                 {money(balance)}
               </span>
             </div>
@@ -359,13 +356,13 @@ export default async function InvoiceDetailPage({
       </div>
 
       {/* Payments */}
-      <div className="card-ledger overflow-hidden">
+      <div className="ds-card overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <h2 className="text-sm font-semibold text-gray-700">Payments</h2>
           {balance > 0 && (
             <Link
               href={`/app/payments/new?invoiceId=${invoice.id}`}
-              className="text-xs text-green-600 hover:underline font-medium"
+              className="ds-link text-xs hover:underline"
             >
               + Collect Payment
             </Link>

@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileText, Loader2, Upload } from "lucide-react";
+import { Chip } from "@/components/ds";
 
 interface EvidenceFile {
   id: string;
@@ -64,11 +65,9 @@ export default function DisputeEvidence({
             <li key={e.id} className="flex items-center gap-2 text-xs text-gray-500">
               <FileText size={12} className="text-gray-400 shrink-0" />
               <span className="truncate">{e.fileName}</span>
-              <span
-                className={`stamp ${e.state === "FAILED" ? "text-red-700" : "text-green-700"}`}
-              >
+              <Chip tone={e.state === "FAILED" ? "bad" : "good"}>
                 {e.state === "FAILED" ? "Failed" : "Sent"}
-              </span>
+              </Chip>
             </li>
           ))}
         </ul>
@@ -88,7 +87,7 @@ export default function DisputeEvidence({
           <button
             onClick={() => inputRef.current?.click()}
             disabled={uploading}
-            className="flex items-center gap-1 text-xs font-medium text-red-700 hover:text-red-800 disabled:opacity-50"
+            className="flex items-center gap-1 text-xs font-medium text-[color:var(--ds-bad)] hover:opacity-80 disabled:opacity-50"
           >
             {uploading ? (
               <Loader2 size={12} className="animate-spin" />
@@ -97,7 +96,7 @@ export default function DisputeEvidence({
             )}
             {uploading ? "Uploading…" : evidence.length > 0 ? "Add more evidence" : "Upload evidence"}
           </button>
-          {error && <span className="text-xs text-red-600">{error}</span>}
+          {error && <span className="text-xs text-[color:var(--ds-bad)]">{error}</span>}
         </div>
       )}
     </div>

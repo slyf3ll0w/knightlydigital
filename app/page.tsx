@@ -49,7 +49,7 @@ export default function HomePage() {
           <h1
             className="anim-fade-up anim-delay-2 font-bold tracking-tight mb-4"
             style={{
-              fontFamily: 'Oxanium, system-ui, sans-serif',
+              fontFamily: 'Lexend, system-ui, sans-serif',
               fontSize: 'clamp(2rem, 5vw, 3.8rem)',
               color: '#0A0A0F',
               lineHeight: 1.12,
@@ -73,7 +73,7 @@ export default function HomePage() {
             <Link
               href="/contact"
               className="text-sm font-bold uppercase tracking-wider px-8 py-4 text-white transition-all hover:opacity-90 hover:-translate-y-0.5"
-              style={{ backgroundColor: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ backgroundColor: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
             >
               Start a Project →
             </Link>
@@ -83,7 +83,7 @@ export default function HomePage() {
               style={{
                 border: '1.5px solid #0A0A0F',
                 color: '#0A0A0F',
-                fontFamily: 'Oxanium, system-ui, sans-serif',
+                fontFamily: 'Lexend, system-ui, sans-serif',
               }}
             >
               Explore Services
@@ -101,7 +101,7 @@ export default function HomePage() {
                 )}
                 <span
                   className="text-xs uppercase tracking-widest font-medium"
-                  style={{ color: '#6B7280', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  style={{ color: '#6B7280', fontFamily: 'Lexend, system-ui, sans-serif' }}
                 >
                   {stat}
                 </span>
@@ -119,13 +119,13 @@ export default function HomePage() {
           <AnimateIn className="mb-12 text-center">
             <p
               className="text-xs font-bold uppercase tracking-widest mb-4"
-              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
             >
               The Free Job Manager
             </p>
             <h2
               className="text-3xl lg:text-4xl font-bold mb-5 leading-tight"
-              style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ color: '#0A0A0F', fontFamily: 'Lexend, system-ui, sans-serif' }}
             >
               Every Feature. <SketchUnderline>One Price: Free.</SketchUnderline>
             </h2>
@@ -143,7 +143,7 @@ export default function HomePage() {
             <Link
               href="/crm"
               className="inline-block text-sm font-bold uppercase tracking-wider px-7 py-3 transition-all hover:bg-black hover:text-white"
-              style={{ border: '1.5px solid #0A0A0F', color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ border: '1.5px solid #0A0A0F', color: '#0A0A0F', fontFamily: 'Lexend, system-ui, sans-serif' }}
             >
               See the Job Manager in Detail →
             </Link>
@@ -160,13 +160,13 @@ export default function HomePage() {
             <AnimateIn>
               <p
                 className="text-xs font-bold uppercase tracking-widest mb-4"
-                style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
               >
                 Custom Software Design
               </p>
               <h2
                 className="text-3xl lg:text-4xl font-bold mb-6 leading-tight"
-                style={{ color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                style={{ color: '#0A0A0F', fontFamily: 'Lexend, system-ui, sans-serif' }}
               >
                 Your Software. Your Workflows.{' '}
                 <SketchUnderline>Built for You.</SketchUnderline>
@@ -182,7 +182,7 @@ export default function HomePage() {
                 >
                   <p
                     className="text-xs font-bold uppercase tracking-widest mb-3"
-                    style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
                   >
                     For Your Business
                   </p>
@@ -201,7 +201,7 @@ export default function HomePage() {
                 >
                   <p
                     className="text-xs font-bold uppercase tracking-widest mb-3"
-                    style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
                   >
                     For Your Idea
                   </p>
@@ -220,14 +220,14 @@ export default function HomePage() {
                 <Link
                   href="/custom-software"
                   className="inline-block text-sm font-bold uppercase tracking-wider px-7 py-3 text-white transition-opacity hover:opacity-90"
-                  style={{ backgroundColor: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  style={{ backgroundColor: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
                 >
                   Get a Free Quote →
                 </Link>
                 <Link
                   href="/custom-software"
                   className="inline-block text-sm font-bold uppercase tracking-wider px-7 py-3 transition-all hover:bg-black hover:text-white"
-                  style={{ border: '1.5px solid #0A0A0F', color: '#0A0A0F', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  style={{ border: '1.5px solid #0A0A0F', color: '#0A0A0F', fontFamily: 'Lexend, system-ui, sans-serif' }}
                 >
                   Learn More
                 </Link>
@@ -253,7 +253,7 @@ export default function HomePage() {
                 >
                   <p
                     className="text-sm font-bold text-white mb-1"
-                    style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    style={{ fontFamily: 'Lexend, system-ui, sans-serif' }}
                   >
                     Competitive Pricing. Fast Turnaround.
                   </p>
@@ -292,7 +292,7 @@ export default function HomePage() {
                 >
                   <p
                     className="text-sm font-bold text-white mb-1"
-                    style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                    style={{ fontFamily: 'Lexend, system-ui, sans-serif' }}
                   >
                     Designed by Hand. Built to Perform.
                   </p>
@@ -306,13 +306,13 @@ export default function HomePage() {
             <AnimateIn delay={150}>
               <p
                 className="text-xs font-bold uppercase tracking-widest mb-4"
-                style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
               >
                 Custom Web Design
               </p>
               <h2
                 className="text-3xl lg:text-4xl font-bold text-white mb-6 leading-tight"
-                style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                style={{ fontFamily: 'Lexend, system-ui, sans-serif' }}
               >
                 No Templates.{' '}
                 <SketchUnderline color="#22C55E">No Compromises.</SketchUnderline>
@@ -337,7 +337,7 @@ export default function HomePage() {
                   >
                     <p
                       className="text-xs font-bold text-white mb-1"
-                      style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                      style={{ fontFamily: 'Lexend, system-ui, sans-serif' }}
                     >
                       {feature.label}
                     </p>
@@ -348,7 +348,7 @@ export default function HomePage() {
                 ))}
               </div>
 
-              <p className="text-xs mb-6" style={{ color: 'rgba(255,255,255,0.35)', fontFamily: 'Oxanium, system-ui, sans-serif' }}>
+              <p className="text-xs mb-6" style={{ color: 'rgba(255,255,255,0.35)', fontFamily: 'Lexend, system-ui, sans-serif' }}>
                 Fixed-price builds — most sites ship in 2–4 weeks.
               </p>
 
@@ -356,14 +356,14 @@ export default function HomePage() {
                 <Link
                   href="/custom-web-design"
                   className="inline-block text-sm font-bold uppercase tracking-wider px-7 py-3 text-white transition-opacity hover:opacity-90"
-                  style={{ backgroundColor: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  style={{ backgroundColor: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
                 >
                   Get a Free Quote →
                 </Link>
                 <Link
                   href="/custom-web-design"
                   className="inline-block text-sm font-bold uppercase tracking-wider px-7 py-3 transition-all hover:bg-white hover:text-black"
-                  style={{ border: '1.5px solid rgba(255,255,255,0.25)', color: 'rgba(255,255,255,0.8)', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+                  style={{ border: '1.5px solid rgba(255,255,255,0.25)', color: 'rgba(255,255,255,0.8)', fontFamily: 'Lexend, system-ui, sans-serif' }}
                 >
                   Learn More
                 </Link>
@@ -380,7 +380,7 @@ export default function HomePage() {
           <AnimateIn>
             <h2
               className="text-3xl lg:text-4xl font-bold text-white mb-4"
-              style={{ fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ fontFamily: 'Lexend, system-ui, sans-serif' }}
             >
               Ready to Build Something That <SketchUnderline color="#ffffff">Actually Works?</SketchUnderline>
             </h2>
@@ -390,7 +390,7 @@ export default function HomePage() {
             <Link
               href="/contact"
               className="inline-block bg-white font-bold text-sm uppercase tracking-wider px-10 py-4 transition-all hover:shadow-lg hover:-translate-y-0.5"
-              style={{ color: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+              style={{ color: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
             >
               Schedule a Free Consultation →
             </Link>

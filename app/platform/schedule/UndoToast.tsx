@@ -80,7 +80,7 @@ export default function UndoToast({
               <button
                 onClick={() => toast.onNotify?.()}
                 disabled={toast.notifyBusy || toast.notified}
-                className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-[10px] bg-green-500 px-3 text-[13px] font-semibold text-white hover:bg-green-400 disabled:opacity-60 lg:h-8 lg:flex-none lg:px-2.5 lg:text-xs"
+                className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-[10px] bg-[color:var(--ds-primary)] px-3 text-[13px] font-semibold text-[color:var(--ds-on-primary)] hover:bg-[color:var(--ds-primary-strong)] disabled:opacity-60 lg:h-8 lg:flex-none lg:px-2.5 lg:text-xs"
               >
                 {toast.notifyBusy ? <Loader2 size={14} className="animate-spin" /> : <MessageSquare size={14} />}
                 {toast.notified ? "Sent" : toast.notifyLabel ?? "Notify client"}

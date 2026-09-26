@@ -1462,8 +1462,8 @@ export default function AppShell({
   // up, and a color that can't hold 3:1 contrast against the actual rail
   // surface falls back to that surface's guaranteed ink — resolved once per
   // theme (the CSS vars pick the right half).
-  const railAccent = resolveAccent([brandColorSecondary, brandColor], "#F1F2F4", "#0A1428");
-  const railAccentDark = resolveAccent([brandColorSecondary, brandColor], "#1B1D22", "#FFFFFF");
+  const railAccent = resolveAccent([brandColor, brandColorSecondary], "#F1F2F4", "#0A1428");
+  const railAccentDark = resolveAccent([brandColor, brandColorSecondary], "#1B1D22", "#FFFFFF");
   const pathname = usePathname();
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -1830,6 +1830,23 @@ export default function AppShell({
     else router.push(mobileBack.to);
   };
 
+  // Portals (modals, sheets, the call card) render into <body>, outside this
+  // root — so the body wears the design system and brand tokens too while
+  // the app is mounted.
+  const dsVarsKey = JSON.stringify(
+    dsBrandVars(brandColor, brandColorSecondary, brandFont && GOOGLE_FONT_RE.test(brandFont) ? brandFont : null)
+  );
+  useEffect(() => {
+    const body = document.body;
+    const vars = JSON.parse(dsVarsKey) as Record<string, string>;
+    body.classList.add("ds");
+    for (const [k, v] of Object.entries(vars)) body.style.setProperty(k, v);
+    return () => {
+      body.classList.remove("ds");
+      for (const k of Object.keys(vars)) body.style.removeProperty(k);
+    };
+  }, [dsVarsKey]);
+
   if (isAuthPage) return <>{children}</>;
 
   // Live counts: new requests / unread messages (neutral), past-due
@@ -2007,7 +2024,9 @@ export default function AppShell({
   // Tenant brand color → per-theme mobile accent tokens (globals.css holds
   // the WorkBench-blue defaults; CSS resolves light vs dark, so the
   // active tab / create button read on BOTH bars).
-  const rawBrand = brandColorSecondary || brandColor || null;
+  // Design system (2026-09-26): the company PRIMARY drives the app accent;
+  // the secondary is only a sparing highlight (see lib/ds-theme.ts).
+  const rawBrand = brandColor || brandColorSecondary || null;
   const lightAccent = rawBrand ? surfaceAccent(rawBrand) : null;
   const darkAccent = rawBrand ? darkSurfaceAccent(rawBrand) : null;
   const mobileAccentVars =
@@ -2073,7 +2092,7 @@ export default function AppShell({
 
   // App-wide brand font (Settings → Branding & client experience): any Google Font, loaded on the
   // fly exactly like the booking forms do. Overrides body + display vars on
-  // the shell root; .numeral-ledger and .stamp pin Oxanium explicitly in
+  // the shell root; .numeral-ledger and .stamp pin Lexend explicitly in
   // globals.css, so ledger numerals keep their character.
   const appFont = brandFont && GOOGLE_FONT_RE.test(brandFont) ? brandFont : null;
   const fontHref = appFont
@@ -2082,7 +2101,7 @@ export default function AppShell({
   const fontVars = appFont
     ? ({
         "--font-body": `"${appFont}", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`,
-        "--font-sans": `"${appFont}", "Oxanium", sans-serif`,
+        "--font-sans": `"${appFont}", "Lexend", sans-serif`,
       } as React.CSSProperties)
     : undefined;
 
@@ -2093,7 +2112,7 @@ export default function AppShell({
 
   return (
     <div
-      className="app-ui flex h-screen bg-paper-plain overflow-hidden"
+      className="app-ui ds flex h-screen bg-paper-plain overflow-hidden"
       style={{ ...(mobileAccentVars ?? {}), ...(primaryVars ?? {}), ...sectionVars, ...(fontVars ?? {}), ...dsVars } as React.CSSProperties}
     >
       {fontHref && (

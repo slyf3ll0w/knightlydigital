@@ -6,6 +6,7 @@ import SectionHeader from "@/components/SectionHeader";
 import { money, shortDate, quoteDepositAmount } from "@/lib/statuses";
 import { quoteExpired } from "@/lib/quote-expiry";
 import StatusChip from "@/components/StatusChip";
+import { Chip } from "@/components/ds";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import ViewedFact from "@/components/ViewedFact";
@@ -94,7 +95,7 @@ export default async function QuoteDetailPage({
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <PageTitle
           sub={
-            <Link prefetch={false} href={`/app/contacts/${quote.contactId}`} className="text-green-700 hover:underline">
+            <Link prefetch={false} href={`/app/contacts/${quote.contactId}`} className="ds-link hover:underline">
               {quote.contact.firstName} {quote.contact.lastName}
             </Link>
           }
@@ -133,7 +134,7 @@ export default async function QuoteDetailPage({
 
       {/* Header facts (Jobber-style definition list with backlinks) —
           2-col grid on phones, flowing definition list at a desk */}
-      <div className="grid grid-cols-2 gap-3 lg:flex lg:flex-wrap lg:gap-x-8 lg:gap-y-2 px-5 py-4 card-ledger mb-6 text-sm">
+      <div className="grid grid-cols-2 gap-3 lg:flex lg:flex-wrap lg:gap-x-8 lg:gap-y-2 px-5 py-4 ds-card mb-6 text-sm">
         <div>
           <span className="text-xs font-medium text-gray-500 block">Quote #</span>
           <span className="text-gray-800">{quote.quoteNumber}</span>
@@ -156,7 +157,7 @@ export default async function QuoteDetailPage({
               className={
                 expired &&
                 ["DRAFT", "AWAITING_RESPONSE", "CHANGES_REQUESTED"].includes(quote.status)
-                  ? "font-medium text-red-700"
+                  ? "font-medium text-[color:var(--ds-bad)]"
                   : "text-gray-800"
               }
             >
@@ -178,7 +179,7 @@ export default async function QuoteDetailPage({
               <Link
                 prefetch={false} href={`/app/invoices/${depositInvoice.id}`}
                 className={`font-medium hover:underline ${
-                  depositInvoice.status === "PAID" ? "text-green-700" : "text-amber-700"
+                  depositInvoice.status === "PAID" ? "text-[color:var(--ds-good)]" : "text-[color:var(--ds-warn)]"
                 }`}
               >
                 {money(depositInvoice.total)} ·{" "}
@@ -195,7 +196,7 @@ export default async function QuoteDetailPage({
             <span className="text-xs font-medium text-gray-500 block">Agreement</span>
             <span
               className={`font-medium ${
-                agreementSigned ? "text-green-700" : agreementSent ? "text-amber-700" : "text-red-700"
+                agreementSigned ? "text-[color:var(--ds-good)]" : agreementSent ? "text-[color:var(--ds-warn)]" : "text-[color:var(--ds-bad)]"
               }`}
             >
               {agreementSigned
@@ -211,7 +212,7 @@ export default async function QuoteDetailPage({
             <span className="text-xs font-medium text-gray-500 block">From request</span>
             <Link
               prefetch={false} href={`/app/requests/${quote.requestId}`}
-              className="text-green-700 hover:underline"
+              className="ds-link hover:underline"
             >
               {quote.request.title}
             </Link>
@@ -220,7 +221,7 @@ export default async function QuoteDetailPage({
         {quote.job && (
           <div>
             <span className="text-xs font-medium text-gray-500 block">Used for</span>
-            <Link prefetch={false} href={`/app/jobs/${quote.jobId}`} className="text-green-700 hover:underline">
+            <Link prefetch={false} href={`/app/jobs/${quote.jobId}`} className="ds-link hover:underline">
               Job #{quote.job.jobNumber}
             </Link>
           </div>
@@ -238,9 +239,9 @@ export default async function QuoteDetailPage({
 
       {/* Changes requested note */}
       {quote.status === "CHANGES_REQUESTED" && quote.changeRequest && (
-        <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg mb-6 text-sm text-amber-800">
+        <div className="mb-6 rounded-[var(--ds-r)] bg-[color:var(--ds-warn-soft)] px-4 py-3 text-sm text-[color:var(--ds-ink)]">
           <span className="font-semibold">Client requested changes:</span> {quote.changeRequest}
-          <span className="block mt-1 text-amber-700">
+          <span className="block mt-1 text-[color:var(--ds-warn)]">
             <Link prefetch={false} href={`/app/quotes/${quote.id}/edit`} className="font-semibold underline">
               Edit the quote
             </Link>{" "}
@@ -250,7 +251,7 @@ export default async function QuoteDetailPage({
       )}
 
       {/* Quote body */}
-      <div className="card-ledger overflow-hidden">
+      <div className="ds-card overflow-hidden">
         {quote.clientMessage && (
           <div className="px-6 py-4 border-b border-gray-100">
             <p className="text-sm text-gray-700 whitespace-pre-wrap">{quote.clientMessage}</p>
@@ -273,15 +274,11 @@ export default async function QuoteDetailPage({
                       without them screen readers hear "ReplacementOptional" */}
                   {item.isOptional && " "}
                   {item.isOptional && (
-                    <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded-lg bg-gray-100 text-gray-500">
-                      Optional{item.optedOut ? " — removed by client" : ""}
-                    </span>
+                    <Chip>Optional{item.optedOut ? " — removed by client" : ""}</Chip>
                   )}
                   {item.recurringInterval && " "}
                   {item.recurringInterval && (
-                    <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded-lg bg-green-100 text-green-700">
-                      Recurring
-                    </span>
+                    <Chip tone="primary">Recurring</Chip>
                   )}
                 </p>
                 {item.name && item.description && (
@@ -291,7 +288,7 @@ export default async function QuoteDetailPage({
                   {Number(item.quantity)} × {money(item.unitPrice)}
                 </p>
               </div>
-              <p className="numeral-ledger shrink-0 text-sm font-semibold text-gray-900">
+              <p className="ds-num shrink-0 text-sm font-semibold text-gray-900">
                 {money(item.total)}
               </p>
             </div>
@@ -327,24 +324,20 @@ export default async function QuoteDetailPage({
                           without them screen readers hear "ReplacementOptional" */}
                       {item.isOptional && " "}
                       {item.isOptional && (
-                        <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded-lg bg-gray-100 text-gray-500">
-                          Optional{item.optedOut ? " — removed by client" : ""}
-                        </span>
+                        <Chip>Optional{item.optedOut ? " — removed by client" : ""}</Chip>
                       )}
                       {item.recurringInterval && " "}
                       {item.recurringInterval && (
-                        <span className="ml-2 text-xs font-medium px-1.5 py-0.5 rounded-lg bg-green-100 text-green-700">
-                          Recurring
-                        </span>
+                        <Chip tone="primary">Recurring</Chip>
                       )}
                     </p>
                     {item.name && item.description && (
                       <p className="text-gray-500 text-xs mt-0.5">{item.description}</p>
                     )}
                   </td>
-                  <td className="py-3 text-right text-gray-600">{Number(item.quantity)}</td>
-                  <td className="py-3 text-right text-gray-600">{money(item.unitPrice)}</td>
-                  <td className="py-3 text-right font-medium text-gray-900">{money(item.total)}</td>
+                  <td className="ds-num py-3 text-right text-gray-600">{Number(item.quantity)}</td>
+                  <td className="ds-num py-3 text-right text-gray-600">{money(item.unitPrice)}</td>
+                  <td className="ds-num py-3 text-right font-medium text-gray-900">{money(item.total)}</td>
                 </tr>
               ))}
             </tbody>
@@ -352,21 +345,21 @@ export default async function QuoteDetailPage({
         </div>
 
         {/* Totals — full-width rows on phones, right-hand column at a desk */}
-        <div className="px-4 lg:px-6 py-4 border-t border-gray-100 bg-gray-50">
+        <div className="px-4 lg:px-6 py-4 border-t border-[color:var(--ds-line)] bg-[color:var(--ds-surface-2)]">
           <div className="ml-auto w-full lg:w-64 space-y-1.5 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-500">Subtotal</span>
-              <span className="text-gray-800">{money(quote.subtotal)}</span>
+              <span className="ds-num text-gray-800">{money(quote.subtotal)}</span>
             </div>
             {quote.discount && Number(quote.discount) > 0 && (
-              <div className="flex justify-between text-green-700">
+              <div className="flex justify-between text-[color:var(--ds-good)]">
                 <span>
                   Discount
                   {quote.discountType === "PERCENT" && quote.discountValue
                     ? ` (${Number(quote.discountValue)}%)`
                     : ""}
                 </span>
-                <span>−{money(quote.discount)}</span>
+                <span className="ds-num">−{money(quote.discount)}</span>
               </div>
             )}
             {quote.tax && (
@@ -374,20 +367,20 @@ export default async function QuoteDetailPage({
                 <span className="text-gray-500">
                   Tax ({parseFloat((Number(quote.taxRate) * 100).toFixed(3))}%)
                 </span>
-                <span className="text-gray-800">{money(quote.tax)}</span>
+                <span className="ds-num text-gray-800">{money(quote.tax)}</span>
               </div>
             )}
             <div className="flex justify-between font-bold text-base pt-1.5 border-t border-gray-200">
               <span className="text-gray-900">Total</span>
-              <span className="text-gray-900">{money(quote.total)}</span>
+              <span className="ds-num text-gray-900">{money(quote.total)}</span>
             </div>
             {deposit > 0 && (
-              <div className="flex justify-between text-green-700">
+              <div className="flex justify-between text-[color:var(--ds-primary)]">
                 <span>
                   Required deposit
                   {quote.depositType === "PERCENT" ? ` (${Number(quote.depositValue)}%)` : ""}
                 </span>
-                <span className="font-semibold">{money(deposit)}</span>
+                <span className="ds-num font-semibold">{money(deposit)}</span>
               </div>
             )}
           </div>
@@ -413,8 +406,12 @@ export default async function QuoteDetailPage({
       </div>
 
       {quote.revisions.length > 0 && (
-        <div className="mt-6 card-ledger p-5">
-          <SectionHeader title="Revision history" className="mb-3" />
+        <div className="mt-6 ds-card p-5">
+          <SectionHeader
+            title="Revision history"
+            hint="Captured each time a sent quote was edited — the amounts the client saw before the change."
+            className="mb-3"
+          />
           <ul className="space-y-2">
             {quote.revisions.map((rev) => {
               const snap = rev.snapshot as {
@@ -438,17 +435,13 @@ export default async function QuoteDetailPage({
                     {" · replaced "}
                     {shortDate(rev.createdAt, tz)}
                   </span>
-                  <span className="numeral-ledger shrink-0 font-medium text-gray-700">
+                  <span className="ds-num shrink-0 font-medium text-gray-700">
                     {money(rev.total)}
                   </span>
                 </li>
               );
             })}
           </ul>
-          <p className="mt-2 text-[11px] text-gray-400">
-            Captured each time a sent quote was edited — the amounts the client saw before the
-            change.
-          </p>
         </div>
       )}
 

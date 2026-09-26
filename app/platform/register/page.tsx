@@ -116,10 +116,10 @@ export default function RegisterPage() {
     window.location.href = "/app/dashboard";
   }
 
-  // Same field recipe as the login card (components/Input base) — green focus
-  // utilities bridge to the brand accent under app-ui
+  // Same field recipe as the login card (components/Input base) — focus ring
+  // in the design-system primary (the layout wraps this page in .ds)
   const inputClass =
-    "w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500";
+    "w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[color:var(--ds-primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--ds-primary)]";
   const labelClass = "mb-1 block text-sm font-semibold text-gray-700";
 
   return (
@@ -150,7 +150,7 @@ export default function RegisterPage() {
                     You&apos;re signed in as{" "}
                     <span className="font-semibold text-gray-700">{session?.user?.email}</span>, with
                     no business on it yet. Have an invite code? Enter it below. Otherwise{" "}
-                    <a href="/app/get-started" className="font-semibold text-[#0B57D8] hover:underline">
+                    <a href="/app/get-started" className="font-semibold text-[color:var(--ds-primary)] hover:underline">
                       apply for an account
                     </a>{" "}
                     — it takes about two minutes.
@@ -183,7 +183,7 @@ export default function RegisterPage() {
                 />
                 <p className="mt-1.5 text-xs text-gray-500">
                   This page is for invite codes. Don&apos;t have one?{" "}
-                  <Link href="/app/get-started" className="font-semibold text-[#0B57D8] hover:underline">
+                  <Link href="/app/get-started" className="font-semibold text-[color:var(--ds-primary)] hover:underline">
                     Get started
                   </Link>{" "}
                   — no code needed.
@@ -300,7 +300,7 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={loading || (captchaEnabled && !captchaToken)}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0B57D8] py-3 text-[15px] font-bold text-white transition-colors hover:bg-[#0A4CBB] active:bg-[#09429F] disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[color:var(--ds-primary)] py-3 text-[15px] font-bold text-[color:var(--ds-on-primary)] transition-colors hover:bg-[color:var(--ds-primary-strong)] active:bg-[color:var(--ds-primary-strong)] disabled:opacity-50"
               >
                 {loading && <Loader2 size={14} className="animate-spin" />}
                 {attachMode ? "Create this company" : "Create my free account"}
@@ -313,7 +313,7 @@ export default function RegisterPage() {
                 <button
                   type="button"
                   onClick={() => signOut({ callbackUrl: "/app/login" })}
-                  className="font-semibold text-[#0B57D8] hover:underline"
+                  className="font-semibold text-[color:var(--ds-primary)] hover:underline"
                 >
                   Sign out
                 </button>
@@ -323,7 +323,7 @@ export default function RegisterPage() {
               <>
                 <p className="text-sm text-gray-500 text-center mt-4">
                   Have an account?{" "}
-                  <Link href="/app/login" className="font-semibold text-[#0B57D8] hover:underline">
+                  <Link href="/app/login" className="font-semibold text-[color:var(--ds-primary)] hover:underline">
                     Log in
                   </Link>
                 </p>

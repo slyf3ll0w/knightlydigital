@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, Copy, Loader2, Sparkles, Square, Trash2 } from "lucide-react";
 import SectionHeader from "@/components/SectionHeader";
+import { InfoTip } from "@/components/ds";
 import { Textarea } from "@/components/Input";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import type { AtlasNotesState } from "@/lib/call-notes";
@@ -192,13 +193,13 @@ export default function CallNotes({ callId, initial, atlas }: { callId: string; 
   const smallBtn = "inline-flex items-center gap-1.5 rounded-[10px] btn-tool-line bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50";
   const pulse = (
     <span className="relative flex h-2.5 w-2.5">
-      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500" />
+      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[color:var(--ds-good)] opacity-60" />
+      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[color:var(--ds-good)]" />
     </span>
   );
 
   return (
-    <section className="card-ledger mt-4 p-4 sm:p-5">
+    <section className="ds-card mt-4 p-4 sm:p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <SectionHeader title="Notes" />
         <span className={`text-xs ${saveState === "failed" ? "text-red-600" : "text-gray-400"}`} aria-live="polite">
@@ -235,11 +236,16 @@ export default function CallNotes({ callId, initial, atlas }: { callId: string; 
                 {busy === "start" ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
                 {connected ? `Let ${atlas.name} take notes` : `Have ${atlas.name} take notes on this call`}
               </button>
-              <p className="text-[11px] leading-snug text-gray-500 sm:max-w-[60%]">
-                {atlas.mode === "locked"
-                  ? atlas.reason
-                  : `${connected ? "Transcribes from now" : "Transcribes from the moment they answer"} and writes notes when the call ends — only once they're saved as a lead or client (${atlas.name} tokens). Where the law asks, tell them the call is being transcribed.`}
-              </p>
+              {atlas.mode === "locked" ? (
+                <p className="text-[11px] leading-snug text-gray-500 sm:max-w-[60%]">{atlas.reason}</p>
+              ) : (
+                <p className="flex items-center gap-1 text-[11px] leading-snug text-gray-500 sm:max-w-[60%]">
+                  <span>Where the law asks, tell them the call is being transcribed.</span>
+                  <InfoTip label={`How ${atlas.name} notes work`} align="end">
+                    {`${connected ? "Transcribes from now" : "Transcribes from the moment they answer"} and writes notes when the call ends — only once they're saved as a lead or client (${atlas.name} tokens).`}
+                  </InfoTip>
+                </p>
+              )}
             </div>
           )}
 
@@ -269,8 +275,8 @@ export default function CallNotes({ callId, initial, atlas }: { callId: string; 
           )}
 
           {st === "awaiting_contact" && (
-            <div className="rounded-[10px] border border-amber-200 bg-amber-50 px-3 py-2.5">
-              <p className="text-sm text-amber-900">
+            <div className="rounded-[10px] bg-[color:var(--ds-warn-soft)] px-3 py-2.5">
+              <p className="text-sm text-[color:var(--ds-ink)]">
                 {atlas.name} has the transcript. <span className="font-medium">Save them as a lead or client above</span> and the notes are written — or discard it and
                 nothing is kept.
               </p>
@@ -316,7 +322,7 @@ export default function CallNotes({ callId, initial, atlas }: { callId: string; 
 
           {st === "failed" && (
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm text-amber-800">{row.atlasNotesError ?? `${atlas.name} couldn’t write the notes.`}</p>
+              <p className="text-sm text-[color:var(--ds-warn)]">{row.atlasNotesError ?? `${atlas.name} couldn’t write the notes.`}</p>
               <div className="flex items-center gap-2">
                 {connected && (
                   <button type="button" onClick={() => void atlasAction("start")} disabled={busy !== null} className={smallBtn}>

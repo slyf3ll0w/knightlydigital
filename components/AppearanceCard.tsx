@@ -33,7 +33,7 @@ export default function AppearanceCard() {
   }
 
   return (
-    <div className="card-ledger p-5 mt-5">
+    <div className="ds-card p-5 mt-5">
       <SectionHeader
         title="Appearance — for this device"
         hint="Light or dark on this phone or computer only. Automatic follows the device's own setting."
@@ -54,7 +54,7 @@ export default function AppearanceCard() {
             aria-pressed={appearance === value}
             className={`rounded-[10px] border px-3.5 py-2 text-sm font-medium transition-colors ${
               appearance === value
-                ? "border-green-500 ring-2 ring-green-500/30 text-gray-900"
+                ? "border-[color:var(--ds-primary)] ring-2 ring-[color:var(--ds-primary-soft)] text-gray-900"
                 : "border-gray-300 text-gray-600 hover:bg-gray-50"
             }`}
           >

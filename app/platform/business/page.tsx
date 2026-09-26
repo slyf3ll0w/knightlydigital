@@ -6,6 +6,7 @@ import { requirePageActor, isManager } from "@/lib/permissions";
 import { entryMs, formatDuration } from "@/lib/time-entries";
 import { startOfMonthIn, startOfWeekIn } from "@/lib/timezone";
 import PageTitle from "@/components/PageTitle";
+import { InfoTip } from "@/components/ds";
 
 export const metadata: Metadata = { title: "Overview" };
 
@@ -49,7 +50,6 @@ export default async function BusinessPage() {
     {
       href: "/app/insights",
       icon: BarChart3,
-      tint: "#6366F1",
       title: "Insights",
       body: "Revenue, lead sources, and how the business is performing.",
       stat: `$${collected.toLocaleString("en-US", { maximumFractionDigits: 0 })} collected this month`,
@@ -57,7 +57,6 @@ export default async function BusinessPage() {
     {
       href: "/app/team-map",
       icon: Map,
-      tint: "#16A34A",
       title: "Team Map",
       body: "Where your clocked-in team is working right now.",
       stat:
@@ -68,7 +67,6 @@ export default async function BusinessPage() {
     {
       href: "/app/timesheets",
       icon: Timer,
-      tint: "#F59E0B",
       title: "Timesheets",
       body: "Hours by team member, with edits for missed punches.",
       stat: `${formatDuration(weekMs)} logged this week`,
@@ -76,7 +74,6 @@ export default async function BusinessPage() {
     {
       href: "/app/expenses",
       icon: Receipt,
-      tint: "#E11D48",
       title: "Expenses",
       body: "Materials, fuel, software — log costs to see real profit.",
       stat: `$${spent.toLocaleString("en-US", { maximumFractionDigits: 0 })} spent this month`,
@@ -85,7 +82,7 @@ export default async function BusinessPage() {
 
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
-      <PageTitle className="mb-6" sub="The view from the office.">
+      <PageTitle className="mb-6" info="The view from the office.">
         Business
       </PageTitle>
 
@@ -94,21 +91,20 @@ export default async function BusinessPage() {
           <Link
             key={c.href}
             href={c.href}
-            className="card-ledger group p-5 transition-shadow hover:shadow-md"
+            className="ds-card ds-card-link group p-5"
           >
-            <span
-              className="mb-4 flex h-9 w-9 items-center justify-center rounded-xl"
-              style={{ backgroundColor: `${c.tint}1A`, color: c.tint }}
-            >
+            <span className="mb-4 flex h-9 w-9 items-center justify-center rounded-xl bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]">
               <c.icon size={17} />
             </span>
-            <p className="font-display font-bold text-gray-900">{c.title}</p>
-            <p className="mt-1 text-xs text-gray-500">{c.body}</p>
-            <p className="mt-3 flex items-center gap-1 text-xs font-semibold text-gray-700">
+            <p className="font-display flex items-center gap-1 font-bold text-[color:var(--ds-ink)]">
+              {c.title}
+              <InfoTip>{c.body}</InfoTip>
+            </p>
+            <p className="mt-3 flex items-center gap-1 text-xs font-semibold text-[color:var(--ds-ink-2)]">
               {c.stat}
               <ArrowRight
                 size={11}
-                className="text-green-600 transition-transform group-hover:translate-x-0.5"
+                className="text-[color:var(--ds-primary)] transition-transform group-hover:translate-x-0.5"
               />
             </p>
           </Link>

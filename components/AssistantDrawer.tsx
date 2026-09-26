@@ -52,7 +52,7 @@ const DEFAULT_PRICING: AtlasPricing = { freeTokens: 10_000, planTokens: 150_000,
  * header band whose color says what kind of decision this is (brand accent
  * = ordinary change, amber = moves real money, red = permanent, green =
  * applied), the title in the display face, key/value ledger rows with
- * Oxanium numerals, and one solid pill to commit.
+ * Lexend numerals, and one solid pill to commit.
  *
  * Multi-step work: a reply can carry a queued next step (queue_next_step).
  * Once every card in that reply is confirmed the drawer sends the queued
@@ -156,7 +156,7 @@ function splitLine(line: string): { label: string; value: string } | null {
   return { label: m[1], value: m[2] };
 }
 
-/** Money, counts, dates and clock times get the console's Oxanium numerals. */
+/** Money, counts, dates and clock times get the console's Lexend numerals. */
 function isNumeral(v: string): boolean {
   const s = v.trim();
   return (

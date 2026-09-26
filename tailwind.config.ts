@@ -8,8 +8,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        // Oxanium: the Streamflaire display face — headings, nav labels, numerals
-        display: ['"Oxanium"', "system-ui", "sans-serif"],
+        // Lexend: the Streamflaire display face — headings, nav labels, numerals
+        display: ['"Lexend"', "system-ui", "sans-serif"],
       },
     },
   },

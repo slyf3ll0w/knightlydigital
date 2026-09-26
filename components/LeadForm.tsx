@@ -81,7 +81,7 @@ export function LeadForm({ dark = true }: Props) {
         type="submit"
         disabled={submitting}
         className="px-6 py-3 text-sm font-bold uppercase tracking-wider text-white whitespace-nowrap disabled:opacity-70 transition-all hover:opacity-90 hover:-translate-y-px"
-        style={{ backgroundColor: '#22C55E', fontFamily: 'Oxanium, system-ui, sans-serif' }}
+        style={{ backgroundColor: '#22C55E', fontFamily: 'Lexend, system-ui, sans-serif' }}
       >
         {submitting ? '...' : 'Get Started →'}
       </button>

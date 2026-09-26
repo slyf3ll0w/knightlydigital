@@ -26,7 +26,7 @@ export default function RefundAction({
           setOpen(true);
         }}
         title="Refund payment"
-        className="rounded-full p-1.5 text-gray-400 hover:text-amber-600"
+        className="rounded-full p-1.5 text-[color:var(--ds-faint)] hover:text-[color:var(--ds-warn)]"
       >
         <Undo2 size={14} />
       </button>

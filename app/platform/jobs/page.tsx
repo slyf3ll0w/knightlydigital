@@ -4,7 +4,6 @@ import EntityRowActions from "@/components/EntityRowActions";
 import Link from "next/link";
 import { Plus, ChevronRight, Briefcase, Download } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
-import { SECTION_HUES } from "@/lib/section-colors";
 import { money, shortDate } from "@/lib/statuses";
 import { fmtTime } from "@/lib/format";
 import StatusChip from "@/components/StatusChip";
@@ -120,7 +119,7 @@ export default async function JobsPage({
           <a
             href="/api/app/export/jobs"
             title="Download all jobs as CSV"
-            className="flex items-center gap-1.5 px-3 py-2 btn-tool-line bg-white text-sm font-medium text-gray-700 rounded-[10px] hover:bg-gray-50 active:bg-gray-100 transition-colors"
+            className="ds-btn ds-btn-outline ds-btn-sm"
           >
             <Download size={14} />
             Export
@@ -144,10 +143,9 @@ export default async function JobsPage({
         params={{ status: validStatus, unscheduled, sort: sortRaw }}
       />
 
-      <KpiStrip kpis={kpis} desktopCols={3} hue={SECTION_HUES.jobs} />
+      <KpiStrip kpis={kpis} desktopCols={3} />
 
       <FilterBar
-        hue={SECTION_HUES.jobs}
         options={statusFilters}
         value={unscheduled ? "unscheduled" : (validStatus ?? "")}
         href={(v) => listHref("/app/jobs", { q: query, sort: sortRaw }, { status: v })}
@@ -159,11 +157,11 @@ export default async function JobsPage({
         }}
       />
 
-      <div className="card-ledger overflow-hidden">
+      <div className="ds-card overflow-hidden">
         {jobs.length === 0 ? (
           <EmptyState
             art="jobs"
-            hue={SECTION_HUES.jobs}
+            hue="var(--ds-primary)"
             title={validStatus || unscheduled || query ? "No jobs match this filter" : "No jobs yet"}
             body={
               validStatus || unscheduled || query
@@ -241,7 +239,7 @@ export default async function JobsPage({
                     <span className="hidden lg:block">
                       <StatusChip kind="job" status={j.status} />
                     </span>
-                    <span className="numeral-ledger hidden lg:block text-sm font-semibold text-gray-900 lg:text-right">
+                    <span className="ds-num hidden lg:block text-sm font-semibold text-[color:var(--ds-ink)] lg:text-right">
                       {showMoney && total > 0 ? money(total) : "—"}
                     </span>
                     <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
@@ -258,7 +256,7 @@ export default async function JobsPage({
               <span className="hidden lg:block" />
               <span className="hidden lg:block" />
               <span className="hidden lg:block" />
-              <span className="numeral-ledger text-sm font-bold text-gray-900 lg:text-right">
+              <span className="ds-num text-sm font-bold text-[color:var(--ds-ink)] lg:text-right">
                 {showMoney && pageTotal > 0 ? money(pageTotal) : ""}
               </span>
               <span className="hidden lg:block" />

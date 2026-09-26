@@ -48,13 +48,13 @@ function useWhere(s: SoftphoneState, forwardTo: string | null): { where: React.R
       ) : (
         "On a call here"
       ),
-      dot: "bg-green-500",
+      dot: "bg-[color:var(--ds-good)]",
     };
   }
-  if (s.status === "ready") return { where: cell ? `Rings here first, then ${cell}` : "Rings here — add a ring-through number for when the app is closed", dot: "bg-green-500" };
+  if (s.status === "ready") return { where: cell ? `Rings here first, then ${cell}` : "Rings here — add a ring-through number for when the app is closed", dot: "bg-[color:var(--ds-good)]" };
   if (s.status === "connecting") return { where: "Connecting to your line…", dot: "bg-gray-300 animate-pulse" };
-  if (s.status === "error") return { where: "Reconnecting to your line…", dot: "bg-amber-500" };
-  if (s.reason === "other_tab") return { where: "Ringing in your other WorkBench tab", dot: "bg-green-500" };
+  if (s.status === "error") return { where: "Reconnecting to your line…", dot: "bg-[color:var(--ds-warn)]" };
+  if (s.reason === "other_tab") return { where: "Ringing in your other WorkBench tab", dot: "bg-[color:var(--ds-good)]" };
   if (s.reason === "disabled") return { where: cell ? `Rings ${cell} — calls in the app are off in My Profile` : "Calls in the app are off in My Profile", dot: "bg-gray-300" };
   if (s.reason === "native") return { where: cell ? `Rings ${cell}` : "Add a ring-through number", dot: "bg-gray-300" };
   return { where: cell ? `Rings ${cell}${s.reason === "unsupported" ? " — this browser can't take calls" : ""}` : "Add a ring-through number", dot: "bg-gray-300" };
@@ -81,7 +81,7 @@ export function LinePanel({
   const talkMin = Math.round(stats.talkWeekSec / 60);
 
   return (
-    <aside className={`card-tool overflow-hidden ${className}`}>
+    <aside className={`ds-card overflow-hidden ${className}`}>
       <div className="px-5 pt-5">
         <p className="flex items-center gap-2 text-[12px] font-medium text-gray-500">
           <span className={`h-2 w-2 rounded-full ${dot}`} />
@@ -98,7 +98,7 @@ export function LinePanel({
           <button
             type="button"
             onClick={() => void softphone.requestMic()}
-            className="mt-2 inline-flex items-center gap-1.5 rounded-[10px] border border-amber-300 bg-amber-50 px-3 py-1.5 text-left text-xs font-medium text-amber-900 hover:bg-amber-100"
+            className="mt-2 inline-flex items-center gap-1.5 rounded-[10px] bg-[color:var(--ds-warn-soft)] px-3 py-1.5 text-left text-xs font-medium text-[color:var(--ds-warn)] hover:bg-[color-mix(in_srgb,var(--ds-warn)_20%,transparent)]"
           >
             <Mic size={12} className="shrink-0" /> Allow the microphone now so the first call doesn&apos;t stall
           </button>
@@ -120,8 +120,8 @@ export function LinePanel({
 
       <div className="grid grid-cols-2 border-t border-gray-100 bg-gray-50/60">
         <Stat label="Today" value={String(stats.today)} className="border-b border-r border-gray-100" />
-        <Stat label="Missed" value={String(stats.missedUnseen)} tone={stats.missedUnseen ? "text-red-700" : undefined} hint={stats.missedUnseen ? "not yet seen" : undefined} className="border-b border-gray-100" />
-        <Stat label="Voicemails" value={String(stats.voicemailsUnseen)} tone={stats.voicemailsUnseen ? "text-blue-700" : undefined} hint={stats.voicemailsUnseen ? "unheard" : undefined} className="border-r border-gray-100" />
+        <Stat label="Missed" value={String(stats.missedUnseen)} tone={stats.missedUnseen ? "text-[color:var(--ds-bad)]" : undefined} hint={stats.missedUnseen ? "not yet seen" : undefined} className="border-b border-gray-100" />
+        <Stat label="Voicemails" value={String(stats.voicemailsUnseen)} tone={stats.voicemailsUnseen ? "text-[color:var(--ds-primary)]" : undefined} hint={stats.voicemailsUnseen ? "unheard" : undefined} className="border-r border-gray-100" />
         <Stat label="Talk time" value={talkMin < 60 ? `${talkMin}m` : `${Math.floor(talkMin / 60)}h ${talkMin % 60}m`} hint="last 7 days" />
       </div>
 

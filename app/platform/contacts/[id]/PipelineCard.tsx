@@ -46,7 +46,7 @@ export default function PipelineCard({
   }
 
   return (
-    <div className="card-ledger p-4">
+    <div className="ds-card p-4">
       <div className="flex items-center justify-between mb-2">
         <SectionHeader title="Pipeline" />
         <Link href="/app/leads" className="text-gray-400 hover:text-gray-600" title="Open the board">
@@ -57,7 +57,7 @@ export default function PipelineCard({
         value={currentStageId}
         disabled={busy}
         onChange={(e) => send({ stageId: e.target.value })}
-        className="w-full px-2.5 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500/30 mb-1.5"
+        className="w-full px-2.5 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] mb-1.5"
       >
         {stages.map((s) => (
           <option key={s.id} value={s.id}>
@@ -81,7 +81,7 @@ export default function PipelineCard({
               send({ action: "won" });
           }}
           disabled={busy}
-          className="rounded-[10px] flex items-center justify-center gap-1 px-2 py-2 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-xs font-bold"
+          className="rounded-[10px] flex items-center justify-center gap-1 px-2 py-2 bg-[color:var(--ds-primary)] hover:bg-[color:var(--ds-primary-strong)] disabled:opacity-50 text-white text-xs font-bold"
         >
           <Trophy size={13} />
           Won
@@ -103,7 +103,7 @@ export default function PipelineCard({
           Lost
         </button>
       </div>
-      {error && <p className="text-xs text-red-600 mt-2">{error}</p>}
+      {error && <p className="text-xs text-[color:var(--ds-bad)] mt-2">{error}</p>}
     </div>
   );
 }

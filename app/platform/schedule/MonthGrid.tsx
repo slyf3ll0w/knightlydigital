@@ -82,7 +82,7 @@ export default function MonthGrid({
       .reduce((s, it) => s + itemDuration(it), 0);
     const cap = capacityByDow[cellDate.getDay()] ?? 0;
     const fill = cap > 0 ? Math.min(1, booked / cap) : 0;
-    const loadTone = fill >= 0.95 ? "bg-red-400" : fill >= 0.7 ? "bg-amber-400" : "bg-green-400";
+    const loadTone = fill >= 0.95 ? "bg-[color:var(--ds-bad)]" : fill >= 0.7 ? "bg-[color:var(--ds-warn)]" : "bg-[color:var(--ds-good)]";
 
     cells.push(
       <div
@@ -97,14 +97,14 @@ export default function MonthGrid({
         className={`min-h-[80px] border-b border-r border-gray-100 p-1.5 transition-colors lg:min-h-[104px] ${
           onCellClick ? "cursor-pointer" : ""
         } ${
-          hot ? "bg-green-100/70 ring-2 ring-inset ring-green-400" : isToday ? "bg-green-50" : ""
+          hot ? "bg-[color:var(--ds-primary-soft)] ring-2 ring-inset ring-[color:var(--ds-primary)]" : isToday ? "bg-[color-mix(in_srgb,var(--ds-primary)_5%,transparent)]" : ""
         }`}
       >
         <div className="mb-1 flex items-center gap-1.5">
           <button
             onClick={() => onGoDay(cellDate)}
             className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
-              isToday ? "bg-green-500 text-white" : "text-gray-700 hover:bg-gray-100"
+              isToday ? "bg-[color:var(--ds-primary)] text-[color:var(--ds-on-primary)]" : "text-gray-700 hover:bg-gray-100"
             }`}
           >
             {d}
@@ -134,8 +134,8 @@ export default function MonthGrid({
               title={`${it.contactName} — ${it.title}${it.conflictNote ? `\n⚠ Overlaps: ${it.conflictNote}` : ""}${it.needsCrew ? "\n⚠ Nobody assigned" : ""}`}
             >
               <TypeGlyph apptType={it.apptType} recurring={it.recurring} />
-              {it.conflictNote && <AlertTriangleIcon size={11} className="shrink-0 text-amber-600" />}
-              {it.needsCrew && <UserXIcon size={11} className="shrink-0 text-amber-600" aria-label="Nobody assigned" />}
+              {it.conflictNote && <AlertTriangleIcon size={11} className="shrink-0 text-[color:var(--ds-warn)]" />}
+              {it.needsCrew && <UserXIcon size={11} className="shrink-0 text-[color:var(--ds-warn)]" aria-label="Nobody assigned" />}
               <span className="truncate">
                 {it.scheduledAnytime ? "" : `${fmtTime(new Date(it.scheduledAt!))} `}
                 {it.kind === "block" ? it.title || "Blocked off" : `${it.contactName} — ${it.title}`}
@@ -164,7 +164,7 @@ export default function MonthGrid({
   }
 
   return (
-    <div className="card-ledger overflow-hidden">
+    <div className="ds-card overflow-hidden">
       <div className="grid grid-cols-7 border-b border-gray-100">
         {DAY_NAMES.map((d) => (
           <div key={d} className="py-2 text-center text-[11px] font-semibold uppercase tracking-wide text-gray-500">

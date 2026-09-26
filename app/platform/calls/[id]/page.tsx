@@ -222,7 +222,7 @@ export default async function CallScreenPage({ params }: { params: Promise<{ id:
       />
 
       {onThisCall.length > 0 && (
-        <section className="card-ledger mt-4 p-4 sm:p-5">
+        <section className="ds-card mt-4 p-4 sm:p-5">
           <SectionHeader title="On this call" />
           <ul className="mt-2 divide-y divide-gray-100">
             {onThisCall.map((e) => {
@@ -242,7 +242,7 @@ export default async function CallScreenPage({ params }: { params: Promise<{ id:
       )}
 
       {contact && (
-        <section className="card-ledger mt-4 p-4 sm:p-5">
+        <section className="ds-card mt-4 p-4 sm:p-5">
           <div className="flex items-center justify-between gap-3">
             <SectionHeader title={`About ${firstName}`} />
             <Link href={`/app/contacts/${contact.id}`} className="inline-flex items-center gap-1 text-xs font-medium text-gray-700 hover:underline">
@@ -271,7 +271,7 @@ export default async function CallScreenPage({ params }: { params: Promise<{ id:
       )}
 
       {openCount > 0 && (
-        <section className="card-ledger mt-4 p-4 sm:p-5">
+        <section className="ds-card mt-4 p-4 sm:p-5">
           <SectionHeader title={`Open with ${firstName}`} />
           <ul className="mt-2 divide-y divide-gray-100">
             {quotes.map((q) => (
@@ -299,7 +299,7 @@ export default async function CallScreenPage({ params }: { params: Promise<{ id:
               All
             </Link>
           </h2>
-          <div className="card-ledger divide-y divide-gray-100 overflow-hidden">
+          <div className="ds-card divide-y divide-gray-100 overflow-hidden">
             {earlier.map((c) => (
               <CallRow key={c.id} call={c} showContact={false} tz={tz} canCall={false} />
             ))}
