@@ -28,6 +28,17 @@ Next.js 15 App Router, React 19, TypeScript, Tailwind CSS v4. Prisma 5 ORM with 
 
 **Background pattern**: `/public/bg-pattern.svg` (diamond grid). Applied via `.bg-patterned` utility class.
 
+## Design system (app UI)
+
+New and restyled app pages use the WorkBench design system: `components/ds`
+(kit), `app/ds.css` (tokens + styles, scoped under `.ds`), `lib/ds-theme.ts`
+(company primary/secondary → tokens), gallery at `/app/design`. Rules and the
+per-page rollout checklist: `docs/design-system.md` — Lexend only, the
+company's two brand colors drive everything (secondary sparingly), fixed
+good/warn/bad status colors, explanations in an InfoTip (never subtext),
+phones get their own simpler tree. First page on it: the dashboard
+(2026-09-25, staging, awaiting David's review).
+
 ## Project structure
 
 This repo has two distinct products:

@@ -5,7 +5,6 @@ import {
   FileText,
   Briefcase,
   Receipt,
-  ArrowRight,
   ChevronRight,
   Phone,
   Video,
@@ -18,6 +17,8 @@ import {
   Timer,
   Repeat,
   Navigation,
+  CalendarDays,
+  Plus,
 } from "lucide-react";
 import { money, appointmentTypeLabel } from "@/lib/statuses";
 import { invoiceBalance } from "@/lib/payments";
@@ -26,13 +27,13 @@ import { formatDuration, mapsHref, mapsSearchHref } from "@/lib/time-entries";
 import { renderMessageTemplate, DEFAULT_ON_MY_WAY_TEMPLATE } from "@/lib/messaging";
 import { arrivalTimeLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import { startOfDayIn, startOfMonthIn, startOfWeekIn, zonedMidnight, zonedParts } from "@/lib/timezone";
-import EmptyState from "@/components/EmptyState";
 import CountUp from "@/components/CountUp";
 import DashboardSetupCard from "./DashboardSetupCard";
 import UpNextActions from "./UpNextActions";
 import AtlasHomeButton from "@/components/AtlasHomeButton";
 import SwipeRowContact from "@/components/SwipeRowContact";
 import { PushNudge } from "@/components/PushNotifications";
+import { ActionLink, Button, Card, Chip, DsPage, Hint, ListRow, PageHeader, SectionTitle, Stat } from "@/components/ds";
 import {
   requirePageActor,
   isManager,
@@ -47,7 +48,7 @@ import {
 const apptIcons = { PHONE_CALL: Phone, VIDEO_CALL: Video, IN_PERSON: MapPin } as const;
 
 /** Tiny daily-revenue bar chart — pure SVG, renders on the server. */
-function Sparkline({ values, className = "text-green-600" }: { values: number[]; className?: string }) {
+function Sparkline({ values, className = "" }: { values: number[]; className?: string }) {
   const max = Math.max(...values, 1);
   const w = 100;
   const gap = 1.5;
@@ -55,7 +56,7 @@ function Sparkline({ values, className = "text-green-600" }: { values: number[];
   return (
     <svg
       viewBox={`0 0 ${w} 24`}
-      className={`mt-2 h-6 w-full ${className}`}
+      className={`mt-4 h-8 w-full ${className}`}
       preserveAspectRatio="none"
       aria-hidden
     >
@@ -69,18 +70,13 @@ function Sparkline({ values, className = "text-green-600" }: { values: number[];
             width={bw}
             height={h}
             rx={0.75}
-            fill="currentColor"
-            opacity={v > 0 ? 0.85 : 0.15}
+            fill={i === values.length - 1 ? "var(--ds-secondary)" : "var(--ds-primary)"}
+            opacity={v > 0 ? (i === values.length - 1 ? 1 : 0.8) : 0.15}
           />
         );
       })}
     </svg>
   );
-}
-
-/** Section heading — bold sentence case, the iOS card-list pattern. */
-function RuledLabel({ children }: { children: React.ReactNode }) {
-  return <p className="mb-2.5 text-[17px] font-bold text-gray-900">{children}</p>;
 }
 
 export default async function DashboardPage() {
@@ -461,500 +457,350 @@ export default async function DashboardPage() {
   const hour = local.hour;
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
-  return (
-    // Phone order: greeting → Up next hero → money pulse → Today timeline →
-    // Needs you → On the clock. Desktop keeps its own order (lg:block
-    // ignores the flex order classes entirely).
-    <div className="p-4 lg:p-8 max-w-6xl mx-auto flex flex-col lg:block">
-      <div className="mb-7 anim-fade-up order-1">
-        {/* "Your day" hero — the date rides with the greeting on every screen */}
-        <p className="text-sm font-medium text-gray-500">
-          {now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: tz })}
+  // ── Design system (components/ds, app/ds.css) ─────────────────────────────
+  // Desktop and phone are two trees built from the same pieces below: the
+  // phone is the iOS-style simple version (hero → numbers → today → needs),
+  // the desktop a two-column board. Explanations live in InfoTips.
+  const dateLine = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: tz });
+  const monthShort = now.toLocaleDateString("en-US", { month: "short", timeZone: tz });
+  const rise = (i: number) => ({ "--ds-i": i }) as React.CSSProperties;
+
+  const heroEl = upNext && (
+    <div className="ds-hero ds-rise p-5 lg:p-6" style={rise(1)}>
+      <Link prefetch={false} href={upNext.href} className="relative block active:opacity-95">
+        <div className="flex items-center justify-between gap-3">
+          <span className="ds-hero-pill">
+            {upNext === clockedHero ? "On the job" : upNext.apptType ? "Up next · appointment" : "Up next"}
+          </span>
+          {seePrices && upNext.value > 0 && (
+            <span className="text-[15px] font-semibold opacity-90">{money(upNext.value)}</span>
+          )}
+        </div>
+        <p className="mt-4 text-[34px] font-semibold leading-none tracking-[-0.03em] lg:text-[40px]">
+          {upNext.time === "Anytime" ? "Anytime today" : upNext.time}
         </p>
-        {/* Two-tone greeting, like the marketing headline — the name carries
-            the brand accent (text-green-* bridges to the tenant color) */}
-        <h1 className="font-display mt-0.5 text-[27px] font-bold tracking-tight text-gray-900">
-          {greeting}, <span className="text-green-600">{firstName}</span>
-        </h1>
-      </div>
+        <p className="mt-3 truncate text-[17px] font-semibold">{upNext.title}</p>
+        <p className="mt-0.5 truncate text-[13.5px] opacity-80">{upNext.heroSub}</p>
+      </Link>
+      <UpNextActions
+        kind={upNextJob ? "job" : "appointment"}
+        id={upNextJob ? upNextJob.id : upNext.id.slice(2)}
+        phone={upNext.phone ?? null}
+        address={upNext.address ?? null}
+        omwMessage={upNextOmwMessage}
+        omwSentAt={upNextJob?.onMyWaySentAt?.toISOString() ?? null}
+        clockEntry={
+          upNextJob && myOpenEntry?.jobId === upNextJob.id
+            ? { id: myOpenEntry.id, startedAt: myOpenEntry.startedAt.toISOString() }
+            : null
+        }
+        canClock={upNextJob?.status === "ACTIVE" && actor.role !== "SALES"}
+        apptType={upNext.apptType}
+      />
+    </div>
+  );
 
-      {/* Nudges ride below the day's actual work on phones */}
-      {showSetupCard && (
-        <div className="order-7">
-          <DashboardSetupCard />
-        </div>
-      )}
-      <div className="order-8">
-        <PushNudge />
-      </div>
+  const statInfo = {
+    collected: "Payments received since the 1st of this month, card, bank, cash and check. The bars are each day so far; today is highlighted.",
+    outstanding: "What clients owe you on invoices that are sent and not fully paid, past due included.",
+    booked: "The value of jobs on the calendar this week, Sunday through Saturday.",
+  };
 
-      {/* ── "Up next" hero (phones) — the one thing everyone opens the app
-          for: the next stop. The single saturated surface on the page: solid
-          brand gradient, big Oxanium time, job + client + street. Skipped
-          entirely on a clear day — no hollow placeholder card. */}
-      {upNext && (
-        <div
-          className="anim-fade-up anim-delay-1 order-2 mb-7 overflow-hidden rounded-2xl lg:hidden"
-          style={{
-            background:
-              "linear-gradient(135deg, var(--wb-accent-bright, #2E6FF2), var(--wb-accent-strong, #0A4CBB))",
-            color: "var(--wb-on-accent, #ffffff)",
-          }}
-        >
-          <div className="relative p-5">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0"
-              style={{
-                background:
-                  "radial-gradient(130% 90% at 100% 0%, color-mix(in srgb, currentColor 14%, transparent), transparent 60%)",
-              }}
-            />
-            <Link prefetch={false} href={upNext.href} className="relative block active:opacity-95">
-              <div className="flex items-start justify-between gap-3">
-                <p className="text-[13px] font-medium opacity-80">
-                  {upNext === clockedHero
-                    ? "On the job"
-                    : upNext.apptType
-                      ? "Up next — appointment"
-                      : "Up next"}
-                </p>
-                {seePrices && upNext.value > 0 && (
-                  <p className="numeral-ledger text-[15px] font-semibold">{money(upNext.value)}</p>
+  // One row per stop. Jobs wear the primary dot, appointments the secondary.
+  const todayRow = (item: (typeof todayItems)[number], phone: boolean) => {
+    const Icon = item.apptType ? apptIcons[item.apptType as keyof typeof apptIcons] : null;
+    const row = (
+      <div className="flex items-center">
+        <ListRow
+          href={item.href}
+          className="min-w-0 flex-1"
+          lead={
+            <span className="flex w-[74px] shrink-0 items-center gap-2.5">
+              <span className="ds-num w-12 text-right text-[12.5px] font-semibold text-[color:var(--ds-ink-2)]">
+                {item.time}
+              </span>
+              <span
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+                style={{ background: item.apptType ? "var(--ds-secondary-soft)" : "var(--ds-primary-soft)" }}
+              >
+                {Icon ? (
+                  <Icon size={12} strokeWidth={2.4} style={{ color: "var(--ds-secondary)" }} />
+                ) : (
+                  <span className="h-2 w-2 rounded-full" style={{ background: "var(--ds-primary)" }} />
                 )}
-              </div>
-              <p className="numeral-ledger mt-1.5 text-[30px] leading-none font-semibold">
-                {upNext.time === "Anytime" ? "Anytime today" : upNext.time}
-              </p>
-              <p className="mt-2.5 truncate text-[16px] font-semibold">{upNext.title}</p>
-              <p className="mt-0.5 truncate text-[13px] opacity-80">{upNext.heroSub}</p>
-            </Link>
-            {/* The moment's one-tap actions: On My Way / Directions / Clock In
-                before the visit; Clock Out (timer) / Photos / Checklist on the
-                clock; Call / Text / Directions for appointments. */}
-            <UpNextActions
-              kind={upNextJob ? "job" : "appointment"}
-              id={upNextJob ? upNextJob.id : upNext.id.slice(2)}
-              phone={upNext.phone ?? null}
-              address={upNext.address ?? null}
-              omwMessage={upNextOmwMessage}
-              omwSentAt={upNextJob?.onMyWaySentAt?.toISOString() ?? null}
-              clockEntry={
-                upNextJob && myOpenEntry?.jobId === upNextJob.id
-                  ? { id: myOpenEntry.id, startedAt: myOpenEntry.startedAt.toISOString() }
-                  : null
-              }
-              canClock={upNextJob?.status === "ACTIVE" && actor.role !== "SALES"}
-              apptType={upNext.apptType}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* ── The money pulse (phones) — three bare numbers straight on the
-          page, no card chrome: this is a glance, not a report. Whole
-          dollars; cents live on the Invoices page. */}
-      {seePerformance && (
-        <div className="anim-fade-up anim-delay-1 order-3 mb-8 grid grid-cols-3 divide-x divide-gray-200 lg:hidden">
-          <Link prefetch={false} href="/app/invoices" className="min-w-0 pr-3">
-            <p className="numeral-ledger truncate text-[22px] leading-none font-semibold text-gray-900">
-              <CountUp value={moneyRound(monthRevenue)} />
-            </p>
-            <p className="mt-1 text-[11px] font-medium text-gray-500">
-              Collected · {now.toLocaleDateString("en-US", { month: "short", timeZone: tz })}
-            </p>
-          </Link>
-          <Link prefetch={false} href="/app/invoices?status=AWAITING_PAYMENT" className="min-w-0 px-3">
-            <p
-              className={`numeral-ledger truncate text-[22px] leading-none font-semibold ${
-                receivableTotal > 0 ? "text-red-600" : "text-gray-900"
-              }`}
-            >
-              <CountUp value={moneyRound(receivableTotal)} />
-            </p>
-            <p className="mt-1 text-[11px] font-medium text-gray-500">Outstanding</p>
-          </Link>
-          <Link prefetch={false} href="/app/jobs" className="min-w-0 pl-3">
-            <p className="numeral-ledger truncate text-[22px] leading-none font-semibold text-gray-900">
-              <CountUp value={moneyRound(weekRevenue)} />
-            </p>
-            <p className="mt-1 text-[11px] font-medium text-gray-500">Booked this week</p>
-          </Link>
-        </div>
-      )}
-      {/* Atlas's seat on the phone home — desktop has the floating bubble.
-          Renders nothing when Atlas is off for the company. */}
-      <AtlasHomeButton className="anim-fade-up anim-delay-1 order-3 mb-8" />
-      {seePerformance && (
-        <div className="anim-fade-up anim-delay-1 mb-8 hidden gap-3 lg:grid lg:grid-cols-3">
-          <Link prefetch={false}
-            href="/app/invoices"
-            className="card-ledger block p-4 transition-shadow hover:shadow-md"
+              </span>
+            </span>
+          }
+          title={phone ? item.title : item.primary}
+          sub={phone ? item.sub : item.detail}
+          trail={
+            seePrices && item.value > 0 ? (
+              <span className="ds-num shrink-0 text-[13.5px] font-semibold text-[color:var(--ds-ink)]">{money(item.value)}</span>
+            ) : undefined
+          }
+        />
+        {phone && item.address && (
+          <a
+            href={mapsSearchHref(item.address)}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Directions to ${item.address}`}
+            className="ds-disc mr-3"
           >
-            <p className="text-xs font-medium text-gray-500">
-              Collected
-            </p>
-            <p className="numeral-ledger mt-1 text-[24px] leading-none font-semibold text-green-700">
-              <CountUp value={money(monthRevenue)} />
-            </p>
-            <p className="mt-1.5 text-xs text-gray-500">this month</p>
-            {dailyRevenue.length > 1 && monthRevenue > 0 && <Sparkline values={dailyRevenue} />}
-          </Link>
-          <Link prefetch={false}
-            href="/app/invoices?status=AWAITING_PAYMENT"
-            className="card-ledger block p-4 transition-shadow hover:shadow-md"
-          >
-            <p className="text-xs font-medium text-gray-500">
-              Outstanding
-            </p>
-            <p
-              className={`numeral-ledger mt-1 text-[24px] leading-none font-semibold ${
-                receivableTotal > 0 ? "text-red-600" : "text-gray-900"
-              }`}
-            >
-              {/* Real zeros, matching the Collected card — the three cards
-                  read as one ledger row */}
-              <CountUp value={money(receivableTotal)} />
-            </p>
-            <p className="mt-1.5 text-xs text-gray-500">
-              {receivableClients} {receivableClients === 1 ? "client owes" : "clients owe"} you
-            </p>
-          </Link>
-          <Link prefetch={false}
-            href="/app/jobs"
-            className="card-ledger col-span-2 block p-4 transition-shadow hover:shadow-md lg:col-span-1"
-          >
-            <p className="text-xs font-medium text-gray-500">
-              Booked this week
-            </p>
-            <p className="numeral-ledger mt-1 text-[24px] leading-none font-semibold text-gray-900">
-              <CountUp value={money(weekRevenue)} />
-            </p>
-            <p className="mt-1.5 text-xs text-gray-500">
-              {upcomingJobsWeek.length} {upcomingJobsWeek.length === 1 ? "job" : "jobs"} scheduled
-            </p>
-          </Link>
-        </div>
-      )}
-
-      {/* ── On the clock — who's working right now (owners/admins) ─────────── */}
-      {isManager(actor.role) && onClock.length > 0 && (
-        <div className="anim-fade-up anim-delay-2 mb-8 order-6">
-          <RuledLabel>On the clock</RuledLabel>
-          <div className="card-ledger divide-y divide-gray-50">
-            {onClock.map((e) => (
-              <div key={e.id} className="flex items-center gap-3 px-5 py-3">
-                <span className="relative flex h-2.5 w-2.5 shrink-0">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-60" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500" />
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{e.user.name}</p>
-                  {e.job ? (
-                    <Link
-                      prefetch={false} href={`/app/jobs/${e.job.id}`}
-                      className="text-xs text-green-700 hover:underline truncate block"
-                    >
-                      {e.job.title}
-                    </Link>
-                  ) : (
-                    <p className="text-xs text-gray-500">General time</p>
-                  )}
-                </div>
-                {e.startLat != null && e.startLng != null && (
-                  <a
-                    href={mapsHref(e.startLat, e.startLng)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="Clock-in location"
-                    className="text-gray-400 hover:text-green-700"
-                  >
-                    <MapPin size={15} />
-                  </a>
-                )}
-                <div className="text-right shrink-0">
-                  <p className="numeral-ledger text-sm font-semibold text-gray-900 tabular-nums">
-                    {formatDuration(now.getTime() - e.startedAt.getTime())}
-                  </p>
-                  <p className="text-[11px] text-gray-500">
-                    since{" "}
-                    {e.startedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz })}
-                  </p>
-                </div>
-              </div>
-            ))}
-            <div className="grid grid-cols-2 divide-x divide-gray-50">
-              <Link prefetch={false}
-                href="/app/team-map"
-                className="flex items-center justify-center gap-1.5 px-5 py-2.5 text-xs font-semibold text-green-700 hover:bg-gray-50 transition-colors"
-              >
-                <MapPin size={12} />
-                Team map
-                <ArrowRight size={11} />
-              </Link>
-              <Link prefetch={false}
-                href="/app/timesheets"
-                className="flex items-center justify-center gap-1.5 px-5 py-2.5 text-xs font-semibold text-green-700 hover:bg-gray-50 transition-colors"
-              >
-                <Timer size={12} />
-                Timesheets
-                <ArrowRight size={11} />
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Needs you ──────────────────────────────────────────────────────── */}
-      <div className="anim-fade-up anim-delay-2 mb-8 order-5" data-tour="workflow">
-        <RuledLabel>Needs you</RuledLabel>
-        {/* Phones: only what's worth acting on right now — top four,
-            urgency-ordered, count leading each row in the same left rail the
-            Today timeline uses. All-clear is one quiet line, not a card. */}
-        {needsMobile.length === 0 ? (
-          <p className="flex items-center gap-2 text-sm text-gray-500 lg:hidden">
-            <CheckCircle2 size={16} className="shrink-0 text-green-600" />
-            You&apos;re all caught up.
-          </p>
-        ) : (
-          <div className="card-tool divide-y divide-gray-100 overflow-hidden lg:hidden">
-            {needsMobile.map((n) => (
-              <Link prefetch={false}
-                key={n.href}
-                href={n.href}
-                className="flex items-center gap-3 px-4 py-3 transition-colors active:bg-gray-100"
-              >
-                <span
-                  className={`numeral-ledger w-[52px] shrink-0 text-[22px] leading-none font-semibold ${
-                    n.urgent ? "text-red-600" : "text-green-700"
-                  }`}
-                >
-                  {n.count}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
-                    <span className="truncate text-sm font-semibold text-gray-900">{n.title}</span>
-                    {n.urgent && <span className="stamp shrink-0 text-red-600">Overdue</span>}
-                  </span>
-                  <span className="block truncate text-xs text-gray-500">{n.action}</span>
-                </span>
-                <ChevronRight size={14} className="shrink-0 text-gray-400" />
-              </Link>
-            ))}
-          </div>
-        )}
-        {needs.length === 0 ? (
-          <div className="card-ledger hidden items-center gap-3 px-5 py-4 lg:flex">
-            <CheckCircle2 size={20} className="text-green-600 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-gray-900">You&apos;re all caught up</p>
-              <p className="text-xs text-gray-500">Nothing needs your attention right now.</p>
-            </div>
-          </div>
-        ) : (
-          <div className="hidden lg:grid lg:grid-cols-4 gap-3">
-            {needs.map((n) => (
-              <Link prefetch={false}
-                key={n.href}
-                href={n.href}
-                className={`card-ledger group p-4 transition-shadow hover:shadow-md ${
-                  n.urgent ? "border-red-200" : ""
-                }`}
-              >
-                <div className="mb-3 flex items-center justify-between">
-                  <n.icon
-                    size={15}
-                    className={n.urgent ? "text-red-500" : undefined}
-                    style={n.urgent ? undefined : { color: n.hue }}
-                  />
-                  {n.urgent && (
-                    <span className="stamp text-red-600">Overdue</span>
-                  )}
-                </div>
-                <p className="numeral-ledger text-[34px] leading-none font-semibold text-gray-900">
-                  {n.count}
-                </p>
-                <p className="mt-2 text-sm font-semibold text-gray-800">{n.title}</p>
-                <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-green-700">
-                  {n.action}
-                  <ArrowRight
-                    size={11}
-                    className="transition-transform group-hover:translate-x-0.5"
-                  />
-                </p>
-              </Link>
-            ))}
-          </div>
+            <Navigation size={16} strokeWidth={2.1} />
+          </a>
         )}
       </div>
+    );
+    return phone ? (
+      <SwipeRowContact key={item.id} phone={item.phone}>
+        {row}
+      </SwipeRowContact>
+    ) : (
+      <div key={item.id}>{row}</div>
+    );
+  };
 
-      {/* ── Today (phones) — the rest of the day as a chromeless timeline
-          straight on the page: time rail, stop markers on a hairline (solid
-          accent = job, blue = appointment). A clear day is one quiet
-          sentence, not a boxed illustration. */}
-      <div className="anim-fade-up anim-delay-2 order-4 mb-8 lg:hidden" data-tour="today">
-        <div className="mb-2 flex items-baseline justify-between">
-          <p className="text-[17px] font-bold text-gray-900">
+  const needsRows = (list: typeof needs) =>
+    list.map((n) => (
+      <ListRow
+        key={n.href}
+        href={n.href}
+        lead={<span className={`ds-count ${n.urgent ? "ds-count-bad" : ""}`}>{n.count}</span>}
+        title={n.title}
+        sub={n.action}
+        trail={
+          <span className="flex shrink-0 items-center gap-2">
+            {n.urgent && <Chip tone="bad">Overdue</Chip>}
+            <ChevronRight size={16} className="text-[color:var(--ds-faint)]" />
+          </span>
+        }
+      />
+    ));
+
+  const allClear = (
+    <Card className="flex items-center gap-3 px-5 py-4">
+      <CheckCircle2 size={20} className="shrink-0" style={{ color: "var(--ds-good)" }} />
+      <p className="text-[14.5px] font-medium">You&apos;re all caught up.</p>
+    </Card>
+  );
+
+  const needsInfo =
+    "Work waiting on you, most urgent first: past-due invoices and bookings to approve lead the list. Tap a row to jump straight to it.";
+
+  const onClockEl = isManager(actor.role) && onClock.length > 0 && (
+    <section>
+      <SectionTitle info="Everyone clocked in right now, with how long they've been on and where they clocked in.">
+        On the clock
+      </SectionTitle>
+      <Card className="ds-divide overflow-hidden">
+        {onClock.map((e) => (
+          <ListRow
+            key={e.id}
+            href={e.job ? `/app/jobs/${e.job.id}` : undefined}
+            lead={
+              <span className="relative flex h-2.5 w-2.5 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ background: "var(--ds-good)" }} />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ background: "var(--ds-good)" }} />
+              </span>
+            }
+            title={e.user.name}
+            sub={e.job ? e.job.title : "General time"}
+            trail={
+              <span className="shrink-0 text-right">
+                <span className="ds-num block text-[13.5px] font-semibold">{formatDuration(now.getTime() - e.startedAt.getTime())}</span>
+                <span className="ds-small block">
+                  since {e.startedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz })}
+                </span>
+              </span>
+            }
+          />
+        ))}
+        <div className="flex gap-1 px-2 py-1.5">
+          <Button href="/app/team-map" variant="ghost" size="sm" icon={MapPin} className="flex-1">
+            Team map
+          </Button>
+          <Button href="/app/timesheets" variant="ghost" size="sm" icon={Timer} className="flex-1">
+            Timesheets
+          </Button>
+        </div>
+      </Card>
+    </section>
+  );
+
+  const footer = (
+    <div className="mt-12 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-[color:var(--ds-line)] pt-5 text-center">
+      <Link prefetch={false} href="/app/roadmap" className="ds-small inline-flex items-center gap-1.5 hover:text-[color:var(--ds-primary)]">
+        <Megaphone size={12} />
+        See what&apos;s coming next
+      </Link>
+      <Link prefetch={false} href="/app/support" className="ds-small inline-flex items-center gap-1.5 hover:text-[color:var(--ds-primary)]">
+        <LifeBuoy size={12} />
+        Found a bug or have an idea? Tell us
+      </Link>
+    </div>
+  );
+
+  const greetingTitle = (
+    <>
+      {greeting}, <span style={{ color: "var(--ds-primary)" }}>{firstName}</span>
+    </>
+  );
+  const pageInfo =
+    "Your day at a glance: the next stop, money in and owed, what's waiting on you, and who's on the clock. Everything follows your company's time zone.";
+
+  return (
+    <DsPage>
+      <PageHeader
+        eyebrow={dateLine}
+        title={greetingTitle}
+        info={pageInfo}
+        actions={
+          <span className="hidden gap-2 lg:flex">
+            <Button href="/app/schedule" variant="outline" icon={CalendarDays}>
+              Schedule
+            </Button>
+            <Button href="/app/jobs/new" icon={Plus}>
+              New job
+            </Button>
+          </span>
+        }
+      />
+
+      {/* ─────────────── Phone ─────────────── */}
+      <div className="mt-6 flex flex-col gap-7 lg:hidden">
+        {heroEl}
+
+        {seePerformance && (
+          <Card className="ds-rise grid grid-cols-3" style={rise(2)}>
+            {[
+              { href: "/app/invoices", label: `Collected · ${monthShort}`, value: moneyRound(monthRevenue), bad: false },
+              { href: "/app/invoices?status=AWAITING_PAYMENT", label: "Outstanding", value: moneyRound(receivableTotal), bad: receivableTotal > 0 },
+              { href: "/app/jobs", label: "This week", value: moneyRound(weekRevenue), bad: false },
+            ].map((s, i) => (
+              <Link
+                prefetch={false}
+                key={s.href}
+                href={s.href}
+                className={`min-w-0 px-3.5 py-4 active:opacity-70 ${i > 0 ? "border-l border-[color:var(--ds-line)]" : ""}`}
+              >
+                <p className="truncate text-[20px] font-semibold leading-none tracking-[-0.02em]" style={s.bad ? { color: "var(--ds-bad)" } : undefined}>
+                  <CountUp value={s.value} />
+                </p>
+                <p className="ds-small mt-1.5 truncate text-[11.5px]">{s.label}</p>
+              </Link>
+            ))}
+          </Card>
+        )}
+
+        <AtlasHomeButton appearance="ds" />
+
+        <section className="ds-rise" style={rise(3)} data-tour="today">
+          <SectionTitle action={<ActionLink href="/app/schedule">Schedule</ActionLink>}>
             Today
             {todayItems.length > 0 && (
-              <span className="ml-1.5 text-[13px] font-medium text-gray-500">
-                · {todayItems.length} {todayItems.length === 1 ? "stop" : "stops"}
-              </span>
+              <span className="ds-small ml-1 font-normal">· {todayItems.length} {todayItems.length === 1 ? "stop" : "stops"}</span>
             )}
-          </p>
-          <Link prefetch={false}
-            href="/app/schedule"
-            className="flex items-center gap-1 text-[13px] font-semibold text-green-700"
-          >
-            Open schedule
-            <ArrowRight size={12} />
-          </Link>
-        </div>
-        {todayItems.length === 0 ? (
-          <p className="text-sm text-gray-500">
-            Nothing scheduled — enjoy the quiet or{" "}
-            <Link prefetch={false} href="/app/jobs/new" className="font-semibold text-green-700">
-              book a job
-            </Link>
-            .
-          </p>
-        ) : laterToday.length === 0 ? (
-          <p className="text-sm text-gray-500">That&apos;s your only stop — nothing after it.</p>
-        ) : (
-          <div className="relative">
-            {/* the rail: runs behind the stop markers, trimmed at both ends */}
-            <div className="absolute left-[68px] top-3 bottom-3 w-px bg-gray-200" aria-hidden />
-            {laterToday.map((item) => (
-              // Swipe a stop left for Call without opening it; Directions is
-              // a real button on the row (a sibling of the link, never nested
-              // inside it) so one tap opens the map instead of the stop.
-              <SwipeRowContact key={item.id} phone={item.phone}>
-                <div className="flex items-center gap-2">
-                  <Link prefetch={false}
-                    href={item.href}
-                    className="flex min-w-0 flex-1 items-center gap-3 py-2.5 transition-opacity active:opacity-70"
-                  >
-                    <span className="numeral-ledger w-[52px] shrink-0 text-[13px] font-semibold text-gray-700">
-                      {item.time}
-                    </span>
-                    <span
-                      className={`relative z-10 h-2.5 w-2.5 shrink-0 rounded-full ${
-                        item.apptType ? "bg-blue-400" : "bg-green-500"
-                      }`}
-                      aria-hidden
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-gray-900">{item.title}</p>
-                      {item.sub && <p className="truncate text-xs text-gray-500">{item.sub}</p>}
-                    </div>
-                    {seePrices && item.value > 0 && (
-                      <p className="numeral-ledger shrink-0 text-[13px] font-semibold text-gray-900">
-                        {money(item.value)}
-                      </p>
-                    )}
-                  </Link>
-                  {item.address && (
-                    <a
-                      href={mapsSearchHref(item.address)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={`Directions to ${item.address}`}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700 transition-transform active:scale-95"
-                    >
-                      <Navigation size={16} strokeWidth={2.1} />
-                    </a>
-                  )}
-                </div>
-              </SwipeRowContact>
-            ))}
+          </SectionTitle>
+          {todayItems.length === 0 ? (
+            <Card>
+              <Hint title="Nothing on the books today." action={{ href: "/app/jobs/new", label: "Schedule a job", icon: Plus }} />
+            </Card>
+          ) : laterToday.length === 0 ? (
+            <Card className="px-5 py-4">
+              <p className="ds-body">That&apos;s your only stop. Nothing after it.</p>
+            </Card>
+          ) : (
+            <Card className="ds-divide overflow-hidden">{laterToday.map((item) => todayRow(item, true))}</Card>
+          )}
+        </section>
+
+        <section className="ds-rise" style={rise(4)} data-tour="workflow">
+          <SectionTitle info={needsInfo}>Needs you</SectionTitle>
+          {needsMobile.length === 0 ? allClear : <Card className="ds-divide overflow-hidden">{needsRows(needsMobile)}</Card>}
+        </section>
+
+        {onClockEl}
+
+        {showSetupCard && <DashboardSetupCard />}
+        <PushNudge />
+        {footer}
+      </div>
+
+      {/* ─────────────── Desktop ─────────────── */}
+      <div className="hidden lg:block">
+        {showSetupCard && (
+          <div className="mt-6">
+            <DashboardSetupCard />
           </div>
         )}
-      </div>
+        <PushNudge />
 
-      {/* Desktop: timeline with a time rail — unchanged */}
-      <div
-        className="card-ledger anim-fade-up anim-delay-2 hidden self-start lg:block"
-        data-tour="today"
-      >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h2 className="font-display font-bold text-gray-900">Today</h2>
-          <Link prefetch={false} href="/app/schedule" className="font-display text-sm text-green-600 hover:underline font-semibold">
-            Schedule →
-          </Link>
-        </div>
-          {todayItems.length === 0 ? (
-            <EmptyState
-              art="schedule"
-              hue={SECTION_HUES.schedule}
-              title="Nothing scheduled today"
-              body="Jobs and appointments you schedule for today will show up here."
-              actionHref="/app/jobs/new"
-              actionLabel="Schedule a Job"
-              showPlusIcon={false}
+        {seePerformance && (
+          <div className="mt-7 grid grid-cols-3 gap-4">
+            <Stat
+              className="ds-rise"
+              style={rise(1)}
+              href="/app/invoices"
+              label="Collected"
+              info={statInfo.collected}
+              value={<CountUp value={money(monthRevenue)} />}
+              foot="this month"
+            >
+              {dailyRevenue.length > 1 && monthRevenue > 0 && <Sparkline values={dailyRevenue} />}
+            </Stat>
+            <Stat
+              className="ds-rise"
+              style={rise(2)}
+              href="/app/invoices?status=AWAITING_PAYMENT"
+              label="Outstanding"
+              info={statInfo.outstanding}
+              tone={receivableTotal > 0 ? "bad" : undefined}
+              value={<CountUp value={money(receivableTotal)} />}
+              foot={`${receivableClients} ${receivableClients === 1 ? "client owes" : "clients owe"} you`}
             />
-          ) : (
-            <div className="relative px-5 py-2">
-              {/* the rail: vertical hairline running behind the row markers */}
-              <div className="absolute left-[6.15rem] top-4 bottom-4 w-px bg-gray-200" aria-hidden />
-              {todayItems.map((item) => {
-                const Icon = item.apptType
-                  ? apptIcons[item.apptType as keyof typeof apptIcons]
-                  : null;
-                return (
-                  <Link prefetch={false}
-                    key={item.id}
-                    href={item.href}
-                    className="flex items-center gap-4 py-3 -mx-2 px-2 rounded-md hover:bg-gray-50 transition-colors"
-                  >
-                    <span className="numeral-ledger w-12 shrink-0 text-right text-[11px] font-semibold text-gray-500">
-                      {item.time}
-                    </span>
-                    <span
-                      className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border bg-white ${
-                        Icon ? "border-blue-200" : "border-gray-200"
-                      }`}
-                    >
-                      {Icon ? (
-                        <Icon size={13} className="text-blue-600" />
-                      ) : (
-                        <span className="h-2 w-2 rounded-full bg-green-500" />
-                      )}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{item.primary}</p>
-                      {item.detail && (
-                        <p className="text-xs text-gray-500 truncate">{item.detail}</p>
-                      )}
-                    </div>
-                    {seePrices && item.value > 0 && (
-                      <span className="text-sm font-semibold text-gray-900">{money(item.value)}</span>
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-      </div>
+            <Stat
+              className="ds-rise"
+              style={rise(3)}
+              href="/app/jobs"
+              label="Booked this week"
+              info={statInfo.booked}
+              value={<CountUp value={money(weekRevenue)} />}
+              foot={`${upcomingJobsWeek.length} ${upcomingJobsWeek.length === 1 ? "job" : "jobs"} scheduled`}
+            />
+          </div>
+        )}
 
-      {/* Quiet pointers to the roadmap + feedback — deliberately not in the sidebar */}
-      <div className="order-last mt-10 pt-5 border-t border-gray-200 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-center">
-        <Link prefetch={false}
-          href="/app/roadmap"
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-green-700 transition-colors"
-        >
-          <Megaphone size={12} />
-          See what&apos;s coming next — Upcoming Features
-          <ArrowRight size={11} />
-        </Link>
-        <Link prefetch={false}
-          href="/app/support"
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-green-700 transition-colors"
-        >
-          <LifeBuoy size={12} />
-          Found a bug or have an idea? Tell us
-          <ArrowRight size={11} />
-        </Link>
+        <div className="mt-8 grid grid-cols-[1.45fr_1fr] items-start gap-6">
+          <div className="flex flex-col gap-6">
+            {heroEl}
+            <section className="ds-rise" style={rise(4)} data-tour="today">
+              <SectionTitle action={<ActionLink href="/app/schedule">Open schedule</ActionLink>}>
+                Today
+                {todayItems.length > 0 && (
+                  <span className="ds-small ml-1 font-normal">· {todayItems.length} {todayItems.length === 1 ? "stop" : "stops"}</span>
+                )}
+              </SectionTitle>
+              {todayItems.length === 0 ? (
+                <Card>
+                  <Hint title="Nothing on the books today." action={{ href: "/app/jobs/new", label: "Schedule a job", icon: Plus }} />
+                </Card>
+              ) : (
+                <Card className="ds-divide overflow-hidden">{todayItems.map((item) => todayRow(item, false))}</Card>
+              )}
+            </section>
+          </div>
+
+          <div className="flex flex-col gap-6">
+            <section className="ds-rise" style={rise(5)} data-tour="workflow">
+              <SectionTitle info={needsInfo}>Needs you</SectionTitle>
+              {needs.length === 0 ? allClear : <Card className="ds-divide overflow-hidden">{needsRows(needs)}</Card>}
+            </section>
+            {onClockEl}
+          </div>
+        </div>
+        {footer}
       </div>
-    </div>
+    </DsPage>
   );
 }

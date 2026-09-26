@@ -32,13 +32,15 @@ export default function WBScribble({
 }: {
   variant?: keyof typeof PATHS;
   flip?: boolean;
-  /** "ink" = navy for light bands, "chalk" = white for dark bands and photos. */
-  tone?: "ink" | "chalk";
+  /** "ink" = navy for light bands, "chalk" = white for dark bands and photos,
+   *  "current" = currentColor with brand-secondary sparks (the app, app/ds.css). */
+  tone?: "ink" | "chalk" | "current";
   delay?: number;
   className?: string;
 }) {
   const p = PATHS[variant];
-  const ink = tone === "chalk" ? "#FFFFFF" : "#10244A";
+  const ink = tone === "chalk" ? "#FFFFFF" : tone === "current" ? "currentColor" : "#10244A";
+  const spark = tone === "current" ? "var(--ds-secondary, #F86A0A)" : "#F86A0A";
   return (
     <svg
       viewBox={p.viewBox}
@@ -50,7 +52,7 @@ export default function WBScribble({
       <path d={p.body} pathLength={1} stroke={ink} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />
       <path d={p.head} pathLength={1} stroke={ink} strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" className="wb-scribble-late" />
       {p.sparks.map((d) => (
-        <path key={d} d={d} pathLength={1} stroke="#F86A0A" strokeWidth={2.4} strokeLinecap="round" className="wb-scribble-spark" />
+        <path key={d} d={d} pathLength={1} stroke={spark} strokeWidth={2.4} strokeLinecap="round" className="wb-scribble-spark" />
       ))}
     </svg>
   );

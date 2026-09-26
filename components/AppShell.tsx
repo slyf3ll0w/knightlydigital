@@ -65,6 +65,7 @@ import LiveToasts, { type LiveToast } from "@/components/LiveToasts";
 import BuildProgressBar from "@/components/BuildProgressBar";
 import type { AtlasAccess, AtlasPricing } from "@/lib/assistant-access";
 import { resolveAccent, shade, textOn } from "@/lib/branding";
+import { dsBrandVars } from "@/lib/ds-theme";
 import {
   SECTION_HUES,
   hueInk,
@@ -2085,10 +2086,15 @@ export default function AppShell({
       } as React.CSSProperties)
     : undefined;
 
+  // Design-system brand tokens (lib/ds-theme.ts, read by app/ds.css under
+  // .ds): the company PRIMARY drives the look, SECONDARY the occasional
+  // highlight; WorkBench blue/orange when unset.
+  const dsVars = dsBrandVars(brandColor, brandColorSecondary, appFont);
+
   return (
     <div
       className="app-ui flex h-screen bg-paper-plain overflow-hidden"
-      style={{ ...(mobileAccentVars ?? {}), ...(primaryVars ?? {}), ...sectionVars, ...(fontVars ?? {}) } as React.CSSProperties}
+      style={{ ...(mobileAccentVars ?? {}), ...(primaryVars ?? {}), ...sectionVars, ...(fontVars ?? {}), ...dsVars } as React.CSSProperties}
     >
       {fontHref && (
         <>
