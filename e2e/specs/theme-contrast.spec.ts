@@ -63,11 +63,15 @@ function auditPage(): { mode: string | undefined; hits: Hit[] } {
     a: 1,
   });
   const dark = document.documentElement.dataset.mode === "dark";
-  const bgOf = (el: Element): Rgb => {
+  // null = the background can't be known from CSS colors alone (a gradient
+  // or image paints it — avatar and monogram discs), so the node is skipped.
+  const bgOf = (el: Element): Rgb | null => {
     const layers: Rgb[] = [];
     let e: Element | null = el;
     while (e) {
-      const c = parse(getComputedStyle(e).backgroundColor);
+      const cs = getComputedStyle(e);
+      if (cs.backgroundImage && cs.backgroundImage !== "none") return null;
+      const c = parse(cs.backgroundColor);
       if (c && c.a > 0) {
         layers.push(c);
         if (c.a >= 0.98) break;
@@ -88,6 +92,7 @@ function auditPage(): { mode: string | undefined; hits: Hit[] } {
     const fg0 = parse(cs.color);
     if (!fg0) return;
     const bg = bgOf(el);
+    if (!bg) return;
     const fg = fg0.a < 1 ? blend(fg0, bg) : fg0;
     const l1 = lum(fg);
     const l2 = lum(bg);
