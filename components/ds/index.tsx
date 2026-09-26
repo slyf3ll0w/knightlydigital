@@ -11,9 +11,8 @@ import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import Arrow from "./Arrow";
 import InfoTip from "./InfoTip";
-import Underline from "./Underline";
 
-export { InfoTip, Arrow, Underline };
+export { InfoTip, Arrow };
 
 type Tone = "primary" | "secondary" | "good" | "warn" | "bad" | "neutral";
 
@@ -28,15 +27,12 @@ export function PageHeader({
   title,
   info,
   actions,
-  underline = true,
   className = "",
 }: {
   eyebrow?: React.ReactNode;
   title: React.ReactNode;
   info?: React.ReactNode;
   actions?: React.ReactNode;
-  /** false when the title draws its own underline under one word (the dashboard greeting). */
-  underline?: boolean;
   className?: string;
 }) {
   return (
@@ -44,14 +40,10 @@ export function PageHeader({
       <div className="min-w-0">
         {eyebrow && <p className="ds-eyebrow">{eyebrow}</p>}
         <h1 className="ds-title mt-1 flex items-center gap-2">
-          {underline ? (
-            <span className="ds-underlined min-w-0">
-              {title}
-              <Underline className="ds-underline" />
-            </span>
-          ) : (
-            <span className="min-w-0">{title}</span>
-          )}
+          <span className="ds-wipe min-w-0">
+            <span className="ds-wipe-text">{title}</span>
+            <span className="ds-wipe-bar" aria-hidden />
+          </span>
           {info && <InfoTip label="About this page">{info}</InfoTip>}
         </h1>
       </div>

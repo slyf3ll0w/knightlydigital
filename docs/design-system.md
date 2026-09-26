@@ -74,8 +74,9 @@ David's review; roll out page by page once approved.
    2:1. The rule that matters: text with no color class inherits the
    `.ds` ink, so never set a background without also setting the ink.
 14. **The secondary color is present, never loud:** the eyebrow dot
-   (`.ds-eyebrow`), the hero pill, the title underline stroke
-   (`components/ds/Underline`), status-chip dots, "news" counts
+   (`.ds-eyebrow`), the hero pill, the title reveal's sweeping edge
+   (`.ds-wipe`, replaced the hand-drawn underline — David found the
+   scribble unprofessional for the software), status-chip dots, "news" counts
    (`.ds-count-news`, `--rail-news`), KPI label dots, the hovered list row's
    hairline, ledger totals (`.ds-ledger-total`), the link underline on hover,
    text selection, arrow sparks, and the phone canvas bloom

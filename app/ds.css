@@ -480,9 +480,31 @@ html[data-mode="dark"] .ds .ds-tile-e { --tile: #6F7E96; }
 .ds .ds-card a.ds-row:hover { box-shadow: inset 3px 0 0 var(--ds-secondary); }
 .ds-ledger-total { color: var(--ds-secondary-strong); }
 html[data-mode="dark"] .ds .ds-ledger-total { color: var(--ds-secondary); }
-/* the page title's underline slot (components/ds/Underline) */
-.ds-underlined { position: relative; display: inline-block; padding-bottom: 10px; }
-.ds-underlined > .ds-underline { position: absolute; left: 0; right: 0; bottom: -1px; height: 12px; width: 100%; display: block; }
+/* Title reveal (replaced the hand-drawn underline, 2026-09-26 — David:
+   "unprofessional for the software"). The title wipes in left to right
+   behind a thin secondary edge that sweeps across and fades; half a second,
+   then nothing is left on the page. CSS only, so it replays on every page
+   without touching hydration. */
+.ds-wipe { position: relative; display: inline-block; }
+.ds-wipe-text { display: inline-block; animation: ds-wipe-text 520ms var(--ds-ease) both; }
+.ds-wipe-bar {
+  position: absolute; top: 12%; bottom: 12%; left: 0; width: 3px; border-radius: 2px;
+  background: var(--ds-secondary);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--ds-secondary) 55%, transparent);
+  pointer-events: none;
+  animation: ds-wipe-bar 640ms var(--ds-ease) both;
+}
+@keyframes ds-wipe-text { from { clip-path: inset(-10% 100% -10% -2%); } to { clip-path: inset(-10% -2% -10% -2%); } }
+@keyframes ds-wipe-bar {
+  0% { left: 0; opacity: 0; }
+  12% { opacity: 1; }
+  80% { left: calc(100% - 3px); opacity: 1; }
+  100% { left: calc(100% - 3px); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ds-wipe-text { animation: none; clip-path: none; }
+  .ds-wipe-bar { display: none; }
+}
 
 /* rail "news" numerals (new requests, unread) in the secondary; past-due stays red */
 .ds { --rail-news: var(--ds-secondary-strong); }

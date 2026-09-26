@@ -1,6 +1,5 @@
 import type { LucideIcon } from "lucide-react";
 import InfoTip from "@/components/ds/InfoTip";
-import Underline from "@/components/ds/Underline";
 import type { SectionKey } from "@/lib/section-colors";
 import TitleSentinel from "@/components/TitleSentinel";
 
@@ -58,9 +57,9 @@ export default function PageTitle({
     <div className={`min-w-0 ${className ?? ""}`}>
       <h1 className="ds-title flex items-center gap-2">
         {text && <TitleSentinel title={text} />}
-        <span className="ds-underlined min-w-0">
-          {children}
-          <Underline className="ds-underline" />
+        <span className="ds-wipe min-w-0">
+          <span className="ds-wipe-text">{children}</span>
+          <span className="ds-wipe-bar" aria-hidden />
         </span>
         {info && <InfoTip label="About this page">{info}</InfoTip>}
       </h1>
