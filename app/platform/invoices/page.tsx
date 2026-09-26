@@ -307,10 +307,10 @@ export default async function InvoicesPage({
               <span className="ds-num hidden text-sm font-semibold text-gray-600 lg:block lg:text-right">
                 {money(pageTotal)}
               </span>
-              <span className="ds-num lg:hidden text-sm font-bold text-gray-900">
+              <span className="ds-num ds-ledger-total lg:hidden text-sm font-bold">
                 {money(pageBalance > 0 ? pageBalance : pageTotal)}
               </span>
-              <span className="ds-num hidden lg:block text-sm font-bold text-gray-900 lg:text-right">
+              <span className="ds-num ds-ledger-total hidden lg:block text-sm font-bold lg:text-right">
                 {money(pageBalance)}
               </span>
               <span className="hidden lg:block" />

@@ -255,7 +255,7 @@ export default async function QuotesPage({
               <span className="hidden lg:block" />
               <span className="hidden lg:block" />
               <span className="hidden lg:block" />
-              <span className="ds-num text-sm font-bold text-gray-900 lg:text-right">
+              <span className="ds-num ds-ledger-total text-sm font-bold lg:text-right">
                 {money(pageTotal)}
               </span>
               <span className="hidden lg:block" />

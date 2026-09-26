@@ -307,21 +307,6 @@ const createItems: NavItem[] = [
   { href: "/app/payments/new", label: "Payment", icon: DollarSign, show: moneyRoles },
 ];
 
-// One hue per entity so the create grid scans at a glance (identical ink
-// tiles made the sheet a guessing game). Hues live in lib/section-colors.ts —
-// the same palette drives page titles, filter pills, and KPI rules.
-const createTints: Record<string, string> = {
-  "/app/contacts/new": SECTION_HUES.clients,
-  "/app/contacts/new?type=lead": SECTION_HUES.leads,
-  "/app/requests/new": SECTION_HUES.requests,
-  "/app/appointments/new": SECTION_HUES.schedule,
-  "/app/quotes/new": SECTION_HUES.quotes,
-  "/app/estimates?run=1": SECTION_HUES.quotes,
-  "/app/contracts/new": SECTION_HUES.contracts,
-  "/app/jobs/new": SECTION_HUES.jobs,
-  "/app/invoices/new": SECTION_HUES.invoices,
-  "/app/payments/new": SECTION_HUES.payments,
-};
 
 // The same color language on navigation: More-sheet icon tiles and the
 // desktop sidebar's hover/active states. Home + Settings stay neutral (and
@@ -347,6 +332,22 @@ const sectionTints: Record<string, string> = {
   "/app/calls": SECTION_HUES.chat,
   "/app/settings/booking": SECTION_HUES.forms,
   "/app/settings/team": SECTION_HUES.team,
+};
+
+// Create-sheet tile tones (.ds-tile-a … e in app/ds.css), matching the More
+// sheet's groups: Clients → primary, Selling → secondary, Field work → slate,
+// Money → slate-2.
+const CREATE_TONES: Record<string, "a" | "b" | "c" | "d" | "e"> = {
+  "/app/contacts/new": "a",
+  "/app/contacts/new?type=lead": "a",
+  "/app/requests/new": "a",
+  "/app/appointments/new": "b",
+  "/app/quotes/new": "b",
+  "/app/estimates?run=1": "b",
+  "/app/contracts/new": "b",
+  "/app/jobs/new": "c",
+  "/app/invoices/new": "d",
+  "/app/payments/new": "d",
 };
 
 // Tab bar: Home · Schedule · [create] · Chat · More. Everything else lives
@@ -2542,8 +2543,10 @@ function MobileTabBar({
 }) {
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Payments are recorded from the invoice on phones (David, 2026-09-26) — no
+  // stand-alone Payment tile here; the desktop Create menu keeps it.
   const creates = forRole(createItems, role, salesMoney).filter(
-    (i) => !previewMode || (i.href !== "/app/invoices/new" && i.href !== "/app/payments/new")
+    (i) => i.href !== "/app/payments/new" && (!previewMode || i.href !== "/app/invoices/new")
   );
 
   useEffect(() => {
@@ -2634,16 +2637,11 @@ function MobileTabBar({
                     sheetOpen ? "anim-tile-pop" : ""
                   }`}
                 >
-                  {/* Solid hue tile — the create grid scans by color (one hue
-                      per entity, tenant-repaintable via Settings → Branding) */}
-                  <span
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px]"
-                    style={{
-                      backgroundColor: createTints[href] ?? "#0A1428",
-                      color: hueInk(createTints[href] ?? "#0A1428"),
-                    }}
-                  >
-                    <Icon size={19} strokeWidth={2.25} />
+                  {/* Brand tile (round 4): the same iOS-style icon as the More
+                      sheet, toned by where the thing lands — clients primary,
+                      selling secondary, jobs slate, money slate-2 */}
+                  <span className={`ds-tile ds-tile-${CREATE_TONES[href] ?? "a"} shrink-0`}>
+                    <Icon size={21} strokeWidth={2} />
                   </span>
                   <span className="font-display text-[11px] font-semibold text-gray-800">
                     {label}

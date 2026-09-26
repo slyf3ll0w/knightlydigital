@@ -70,7 +70,7 @@ function DotLabel({
   className: string;
   children: React.ReactNode;
 }) {
-  const dot = danger ? "#EF4444" : "var(--wb-ink, #0B57D8)";
+  const dot = danger ? "var(--ds-bad, #EF4444)" : "var(--ds-secondary, #F86A0A)";
   return (
     <p className={`flex items-center gap-1.5 ${className}`}>
       {dot && (

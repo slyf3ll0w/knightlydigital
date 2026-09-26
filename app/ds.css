@@ -90,15 +90,17 @@ html[data-mode="dark"] .ds {
   /* DUSK (2026-09-26): a neutral slate, not navy — David: "the blue on the
      dark theme has to go" so any brand color sits on it. Ground carries a
      3% whisper of the primary; surfaces step ground → card → raised. */
-  --ds-canvas: color-mix(in srgb, var(--ds-primary) 3%, #191E26);
-  --ds-surface: #262E38;
-  --ds-surface-2: #313A46;
-  --ds-line: rgba(255, 255, 255, 0.1);
-  --ds-line-strong: rgba(255, 255, 255, 0.18);
+  /* Round 4: "integrate more black" — the ground is near-black, cards one
+     slate step up, raised surfaces two. Still neutral, no navy. */
+  --ds-canvas: color-mix(in srgb, var(--ds-primary) 2%, #0E1114);
+  --ds-surface: #1A1F26;
+  --ds-surface-2: #242A33;
+  --ds-line: rgba(255, 255, 255, 0.08);
+  --ds-line-strong: rgba(255, 255, 255, 0.15);
   --ds-ink: #EDF1F6;
-  --ds-ink-2: #C6CFD9;
-  --ds-muted: #93A0AF;
-  --ds-faint: #77828F;
+  --ds-ink-2: #C3CAD3;
+  --ds-muted: #8C95A2;
+  --ds-faint: #6F7885;
 
   --ds-good: #4ADE80;
   --ds-good-soft: #4ADE801F;
@@ -185,18 +187,29 @@ a.ds-row:active { background: var(--ds-line); }
 .ds-disc:active { transform: scale(0.94); }
 
 /* ── chips (status tags) ──────────────────────────────────────────────── */
+/* Round 4: a status is a colored dot and plain words (the Linear / Stripe
+   read) — no tinted pill, which David read as generated. The dot carries
+   the tone; the words stay ink, except a problem, which stays red. */
 .ds-chip {
-  display: inline-flex; align-items: center; gap: 5px;
-  height: 22px; padding: 0 9px; border-radius: 999px;
-  font-size: 11.5px; font-weight: 600; letter-spacing: 0.005em; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 22px; padding: 0 2px; border-radius: 999px;
+  font-size: 12px; font-weight: 500; letter-spacing: 0; white-space: nowrap;
+  color: var(--ds-ink-2);
+  --chip: var(--ds-faint);
 }
-.ds-chip-primary { background: var(--ds-primary-soft); color: var(--ds-primary); }
-.ds-chip-secondary { background: var(--ds-secondary-soft); color: var(--ds-secondary-strong); }
-.ds-chip-good { background: var(--ds-good-soft); color: var(--ds-good); }
-.ds-chip-warn { background: var(--ds-warn-soft); color: var(--ds-warn); }
-.ds-chip-bad { background: var(--ds-bad-soft); color: var(--ds-bad); }
-.ds-chip-neutral { background: var(--ds-surface-2); color: var(--ds-ink-2); box-shadow: inset 0 0 0 1px var(--ds-line); }
-html[data-mode="dark"] .ds .ds-chip-secondary { color: var(--ds-secondary); }
+.ds-chip::before {
+  content: ""; display: inline-block; flex: none;
+  width: 7px; height: 7px; border-radius: 999px;
+  background: var(--chip);
+  box-shadow: 0 0 0 2.5px color-mix(in srgb, var(--chip) 22%, transparent);
+}
+.ds-chip > svg { display: none; }
+.ds-chip-primary { --chip: var(--ds-primary); }
+.ds-chip-secondary { --chip: var(--ds-secondary); }
+.ds-chip-good { --chip: var(--ds-good); }
+.ds-chip-warn { --chip: var(--ds-warn); }
+.ds-chip-bad { --chip: var(--ds-bad); color: var(--ds-bad); font-weight: 600; }
+.ds-chip-neutral { --chip: var(--ds-faint); }
 
 /* count badge in a list row */
 .ds-count {
@@ -303,10 +316,18 @@ html[data-mode="dark"] .ds .card-tool {
 /* the Oxanium-era cut corner retires with Oxanium */
 .ds .chamfer { clip-path: none; border-radius: 12px; }
 
-/* status pill → ds chip proportions (tone still from its text color) */
+/* status pill → the same dot-and-words read as .ds-chip (tone from the
+   text color the caller already passes) */
 .ds .stamp {
-  height: 22px; padding: 0 9px;
-  font-size: 11.5px; font-weight: 600; letter-spacing: 0.005em;
+  height: 22px; padding: 0 2px; gap: 6px;
+  font-size: 12px; font-weight: 500; letter-spacing: 0;
+  background: transparent;
+}
+.ds .stamp::before {
+  content: ""; display: inline-block; flex: none;
+  width: 7px; height: 7px; border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 0 0 2.5px color-mix(in srgb, currentColor 22%, transparent);
 }
 
 /* big numerals: Lexend like everything else */
@@ -352,7 +373,7 @@ html[data-mode="dark"] .ds .card-tool {
 }
 html[data-mode="dark"] .ds .ds-glass,
 html[data-mode="dark"] .ds.ds-glass {
-  background-color: color-mix(in srgb, var(--ds-primary) 6%, rgba(42, 50, 61, 0.66));
+  background-color: color-mix(in srgb, var(--ds-primary) 6%, rgba(26, 31, 38, 0.7));
   border-color: rgba(255, 255, 255, 0.1);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
@@ -361,7 +382,7 @@ html[data-mode="dark"] .ds.ds-glass {
 }
 html[data-mode="dark"] .ds .ds-glass-strong,
 html[data-mode="dark"] .ds.ds-glass-strong {
-  background-color: color-mix(in srgb, var(--ds-primary) 4%, rgba(42, 50, 61, 0.9));
+  background-color: color-mix(in srgb, var(--ds-primary) 4%, rgba(26, 31, 38, 0.92));
 }
 /* rows inside a glass menu: hover is a tint, not a solid fill */
 .ds .ds-glass .hover\:bg-gray-50:hover,
@@ -465,6 +486,17 @@ html[data-mode="dark"] .ds .ds-count-news { color: var(--ds-secondary); }
 html[data-mode="dark"] .ds .ds-tile-c { --tile: #4B5A78; }
 html[data-mode="dark"] .ds .ds-tile-d { --tile: #5A6A85; }
 html[data-mode="dark"] .ds .ds-tile-e { --tile: #6F7E96; }
+
+/* list rows inside a card: a secondary hairline slides in on hover, and
+   the ledger foot's total wears the secondary — so a page full of rows
+   carries the brand pair, not just the primary */
+.ds .ds-card .hover\:bg-gray-50:hover,
+.ds .ds-card a.ds-row:hover { box-shadow: inset 3px 0 0 var(--ds-secondary); }
+.ds-ledger-total { color: var(--ds-secondary-strong); }
+html[data-mode="dark"] .ds .ds-ledger-total { color: var(--ds-secondary); }
+/* the page title's underline slot (components/ds/Underline) */
+.ds-underlined { position: relative; display: inline-block; padding-bottom: 9px; }
+.ds-underlined > .ds-underline { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; width: 100%; }
 
 /* rail "news" numerals (new requests, unread) in the secondary; past-due stays red */
 .ds { --rail-news: var(--ds-secondary-strong); }
