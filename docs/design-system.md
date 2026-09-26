@@ -74,11 +74,20 @@ David's review; roll out page by page once approved.
    2:1. The rule that matters: text with no color class inherits the
    `.ds` ink, so never set a background without also setting the ink.
 14. **The secondary color is present, never loud:** the eyebrow dot
-   (`.ds-eyebrow`), the hero pill, the active-item dot on the rail and the
-   More sheet (`.ds-dot`), "news" counts (`.ds-count-news`, `--rail-news`),
-   the link underline on hover, text selection, the desktop keel line
-   under the top bar, arrow sparks, and the phone canvas bloom
-   (`.page-atmo::before`). Buttons, tabs and links stay primary.
+   (`.ds-eyebrow`), the hero pill, the title underline stroke
+   (`components/ds/Underline`), status-chip dots, "news" counts
+   (`.ds-count-news`, `--rail-news`), KPI label dots, the hovered list row's
+   hairline, ledger totals (`.ds-ledger-total`), the link underline on hover,
+   text selection, arrow sparks, and the phone canvas bloom
+   (`.page-atmo::before`). Buttons, tabs and links stay primary. Retired
+   2026-09-26 at David's request: the active-row dot and the keel line.
+15. **Every nav item has a quick menu:** right-click on the desktop rail,
+   press-and-hold on the tab bar and the More tiles (`RowActions` from
+   `components/QuickMenu`, actions from `navQuickActions` in AppShell:
+   open, open in new tab, the section's New …, copy link). QuickMenu
+   portals both its popover and its phone sheet to the app root — a
+   `fixed` sheet left under a glass surface is trapped by its backdrop
+   filter.
 
 ## Rolling out a page
 
