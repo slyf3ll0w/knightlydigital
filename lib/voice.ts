@@ -1195,7 +1195,7 @@ export async function startOutboundCall(
     prisma.user.findUnique({ where: { id: userId }, select: { phone: true } }),
   ]);
   if (!company) throw new VoiceError("Company not found.", 404);
-  if (!hasAddon(company)) throw new VoiceError("Calling from your business line is part of the Dispatch plan.", 402);
+  if (!hasAddon(company)) throw new VoiceError("Calling from your business line is part of the Voice plan.", 402);
   if (!isRealLineNumber(company.lineNumber)) throw new VoiceError("Get a business line first (Settings → Phone & texting).", 409);
   if (!company.lineVoiceAppAt && !(await ensureVoiceRouting(companyId))) {
     throw new VoiceError("Your line isn't on the voice app yet — try again in a minute.", 503);

@@ -2099,6 +2099,22 @@ html[data-mode="dark"] .app-ui .card-tool {
   .wb-float { animation: none; }
 }
 
+/* Hand-drawn arrow (components/wb/WBScribble.tsx): each stroke draws itself
+   in; inside an AnimateIn it waits for the reveal. */
+@keyframes wb-draw { to { stroke-dashoffset: 0; } }
+.wb-scribble path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: wb-draw 0.9s cubic-bezier(0.6, 0, 0.3, 1) forwards;
+  animation-delay: var(--wb-draw-delay, 0.3s);
+}
+.wb-scribble .wb-scribble-late { animation-duration: 0.25s; animation-delay: calc(var(--wb-draw-delay, 0.3s) + 0.85s); }
+.wb-scribble .wb-scribble-spark { animation-duration: 0.2s; animation-delay: calc(var(--wb-draw-delay, 0.3s) + 1.1s); }
+.reveal:not(.visible) .wb-scribble path { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .wb-scribble path { animation: none; stroke-dashoffset: 0; }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════
    WORKBENCH ACCENT BRIDGE — light mode, app scope (.app-ui). Screens are
    written in the green Tailwind palette from the Streamflaire era; this

@@ -137,7 +137,7 @@ function Drawer({ children, caption }: { children: React.ReactNode; caption: str
         </div>
         <div className="flex-1 space-y-3 px-4 pb-4 pt-4">{children}</div>
         <div className="border-t border-gray-200 bg-white px-3 pb-3 pt-2.5">
-          <div className="flex items-center justify-between text-[10px] font-semibold">
+          <div className="flex flex-wrap items-center justify-between gap-x-2 text-[10px] font-semibold">
             <span className="flex items-center gap-1 text-gray-500">
               <Coins size={11} />
               {leftTokens.toLocaleString("en-US")} of {freeTokens} free tokens left
@@ -164,7 +164,7 @@ function Drawer({ children, caption }: { children: React.ReactNode; caption: str
 
 export default function WBAtlasCards() {
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
       <Drawer caption="Sending anything to a client gets a card first. Atlas lays out exactly what goes out, and nothing moves until you tap Send.">
         <You>Send the Hendersons their quote.</You>
         <Atlas tokens="312">Quote #1042 is ready for Sarah Henderson. Here is what goes out:</Atlas>

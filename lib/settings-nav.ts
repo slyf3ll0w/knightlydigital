@@ -185,12 +185,12 @@ export const QUICKBOOKS_LINK: SettingsLink = {
 };
 
 /**
- * Dispatch, the business-line plan (lib/addon.ts, lib/plans.ts) — listed with Phone & texting, and only while
+ * Voice, the business-line plan (lib/addon.ts, lib/plans.ts) — listed with Phone & texting, and only while
  * the company's superadmin visibility switch (Company.addonEnabled) is on.
  */
 export const ADDON_LINK: SettingsLink = {
   href: "/app/settings/addon",
-  label: "Dispatch",
+  label: "Voice",
   sub: "Your own business phone line inside WorkBench",
   hueKey: "payments",
   icon: "Sparkles",

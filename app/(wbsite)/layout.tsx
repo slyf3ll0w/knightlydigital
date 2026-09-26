@@ -34,7 +34,7 @@ const softwareAppJsonLd = {
   operatingSystem: "Web, iOS",
   url: "https://workbenchfsm.com",
   description:
-    "WorkBench is free field service management software for home-service teams: online booking, lead pipeline, scheduling and dispatch, quotes with e-signature, clock-in, team chat, one-click invoicing, built-in card and ACH payments, recurring billing, and a client portal. It also includes Atlas, an AI assistant with 10,000 free tokens every month. Optional flat-priced add-ons: Dispatch (a business phone line), Shop (unlimited users, estimator, routes, automations, agreements, team map, timesheets, QuickBooks, Atlas Full), and Jobsite (job photos, coming soon).",
+    `WorkBench is field service management software for home-service teams: online booking, lead pipeline, scheduling and dispatch, quotes with e-signature, clock-in, team chat, one-click invoicing, built-in card and ACH payments, recurring billing, and a client portal. The core is free with full access for ${INCLUDED_SEATS} users, then ${formatCents(EXTRA_SEAT_CENTS)} per extra user a month. It also includes Atlas, an AI assistant with 10,000 free tokens every month. Optional flat-priced add-ons: ${PLANS.DISPATCH.name} (a business phone line), ${PLANS.SHOP.name} (unlimited users, estimator, routes, automations, agreements, team map, timesheets, QuickBooks, Atlas Full), and ${PLANS.JOBSITE.name} (job photos, coming soon).`,
   offers: [
     {
       "@type": "Offer",

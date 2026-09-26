@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
+import { Clock } from "lucide-react";
+import { WB_SHOTS } from "@/components/wb/WBSplitHero";
+import { WB_TRADE_PHOTOS } from "@/lib/wb-site";
 import { pickFeatures } from "@/lib/wb-features";
 
 export const metadata: Metadata = {
   title: "Time Tracking — WorkBench",
   description:
-    "Techs clock in and out right on the job. Weekly timesheets, a live map of who's on the clock, and real labor cost flowing into each job's profit margin. Clocking in and out is in the free plan; weekly timesheets, the live map, and labor costing come with the Shop add-on.",
+    "Techs clock in and out right on the job. Weekly timesheets, a live map of who's on the clock, and real labor cost flowing into each job's profit margin. Clocking in and out is in the free plan; weekly timesheets, the live map, and labor costing come with the Pro add-on.",
 };
 
 const timeFeatures = pickFeatures("run", ["Time tracking & timesheets", "Team map"]);
@@ -65,6 +68,9 @@ export default function TimeTrackingPage() {
         </>
       }
       intro="Techs clock in and out right on the job. Weekly timesheets roll up per person, managers can fix a forgotten clock-out, and every logged hour becomes real labor cost on that job's margin — not a guess at the end of the month."
+      photo={WB_TRADE_PHOTOS.roofing}
+      phone={WB_SHOTS.timeclock}
+      chip={{ icon: <Clock className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />, title: "Clocked in · 8:02 AM", sub: "Roof repair, Elm St" }}
       screenshot={{
         src: "/screens/mobile-timeclock.png",
         alt: "WorkBench job screen with a built-in time clock",

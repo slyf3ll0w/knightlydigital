@@ -276,7 +276,7 @@ export const STARTER_LANES: {
     accent: null,
   },
   {
-    name: "Bench",
+    name: "Core",
     kind: "TIER",
     price: "$0",
     priceNote: "forever, 2 users included",
@@ -284,7 +284,7 @@ export const STARTER_LANES: {
     accent: "#0B57D8",
   },
   {
-    name: "Dispatch",
+    name: "Voice",
     kind: "ADDON",
     price: "$25",
     priceNote: "per company, per month",
@@ -292,7 +292,7 @@ export const STARTER_LANES: {
     accent: "#F86A0A",
   },
   {
-    name: "Shop",
+    name: "Pro",
     kind: "ADDON",
     price: "$89",
     priceNote: "per company, per month",
@@ -300,7 +300,7 @@ export const STARTER_LANES: {
     accent: "#0B57D8",
   },
   {
-    name: "Jobsite",
+    name: "Gallery",
     kind: "ADDON",
     price: "$29",
     priceNote: "per company, per month — coming soon",

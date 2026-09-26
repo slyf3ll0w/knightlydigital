@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
-import WBHero from "@/components/wb/WBHero";
+import { ClipboardCheck } from "lucide-react";
+import WBSplitHero, { WB_SHOTS } from "@/components/wb/WBSplitHero";
+import WBScribble from "@/components/wb/WBScribble";
+import WBTestimonials from "@/components/wb/WBTestimonials";
+import { WB_TRADE_PHOTOS } from "@/lib/wb-site";
 import WBCta from "@/components/wb/WBCta";
 import WBFaq, { FaqItem } from "./WBFaq";
 import WBCompareTable, { CompareRow } from "./WBCompareTable";
@@ -11,8 +15,15 @@ import type { FeatureItem } from "@/lib/wb-features";
  * Shared template for /vs/[competitor] pages. The goal is an honest,
  * checkable comparison — not a takedown — so every page keeps the same
  * shape: a factual table, a section that credits what the competitor does
- * well, WorkBench's actual differentiators, then FAQ + CTA.
+ * well, WorkBench's actual differentiators, then FAQ + CTA. The hero is
+ * the home page's split hero (a different trade photo per competitor).
  */
+
+const PHOTO: Record<string, { src: string; alt: string }> = {
+  Jobber: WB_TRADE_PHOTOS.lawn,
+  "Housecall Pro": WB_TRADE_PHOTOS.plumbing,
+  ServiceTitan: WB_TRADE_PHOTOS.hvac,
+};
 export default function WBComparePage({
   competitorName,
   title,
@@ -33,40 +44,46 @@ export default function WBComparePage({
   return (
     <>
       {/* Hero */}
-      <WBHero>
-          <AnimateIn>
-            <span className="wb-label">
-              WorkBench vs. {competitorName}
-            </span>
-            <h1 className="mt-5 max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">{title}</h1>
-            <p className="mt-6 max-w-2xl text-[17px] leading-relaxed text-gray-600">{intro}</p>
-            <div className="mt-8 flex flex-wrap items-center gap-4">
-              <Link
-                href="/apply"
-                className="wb-pill wb-pill-primary"
-              >
-                Get started
-                <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-              </Link>
-              <Link
-                href="/pricing"
-                className="wb-pill wb-pill-outline"
-              >
-                How the pricing works
-              </Link>
-            </div>
-            <p className="mt-5 max-w-2xl text-[12.5px] text-gray-400">
-              Pricing and features change over time on both sides — the {competitorName} details
-              here are general and public; check their site for current plans. WorkBench's numbers
-              are exact and current.
-            </p>
-          </AnimateIn>
-      </WBHero>
+      <WBSplitHero
+        photo={PHOTO[competitorName] ?? WB_TRADE_PHOTOS.electrical}
+        phone={WB_SHOTS.jobs}
+        chip={{
+          icon: <ClipboardCheck className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />,
+          title: "Client list imported",
+          sub: "From a spreadsheet, in minutes",
+        }}
+      >
+        <span className="wb-label justify-center lg:justify-start">WorkBench vs. {competitorName}</span>
+        <h1 className="mt-5 text-4xl font-extrabold leading-[1.08] sm:text-5xl">{title}</h1>
+        <p className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed text-gray-600 lg:mx-0">{intro}</p>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-4 lg:justify-start">
+          <Link href="/apply" className="wb-pill wb-pill-primary">
+            Get started
+            <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+          </Link>
+          <Link href="/pricing" className="wb-pill wb-pill-outline">
+            How the pricing works
+          </Link>
+        </div>
+        <p className="mx-auto mt-5 max-w-2xl text-[12.5px] text-gray-400 lg:mx-0">
+          Pricing and features change over time on both sides — the {competitorName} details
+          here are general and public; check their site for current plans. WorkBench's numbers
+          are exact and current.
+        </p>
+      </WBSplitHero>
 
       {/* Table */}
       <section className="border-b border-gray-200 bg-[#F6F8FB]">
         <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8">
-          <AnimateIn>
+          <AnimateIn className="relative">
+            <div className="absolute -top-10 right-2 hidden items-end gap-1 lg:flex" aria-hidden>
+              <p className="pb-1 text-right text-[14.5px] font-extrabold leading-snug text-[#10244A]">
+                Side by side,
+                <br />
+                no fine print
+              </p>
+              <WBScribble variant="loop" delay={0.4} className="h-[56px] w-[88px] rotate-[64deg]" />
+            </div>
             <WBCompareTable competitorName={competitorName} rows={rows} />
           </AnimateIn>
         </div>
@@ -107,6 +124,8 @@ export default function WBComparePage({
         </div>
       </section>
 
+      <WBTestimonials />
+
       {/* FAQ */}
       <section className="mx-auto max-w-4xl px-5 py-16 sm:px-8">
         <AnimateIn>
@@ -136,8 +155,8 @@ export default function WBComparePage({
       </section>
 
       <WBCta
-        title="Free software. Pay only when you get paid."
-        body="No tiers to climb and no seats to count. Sign up and we onboard your company personally."
+        title="Free to start. Pay as the crew grows."
+        body="Free for 2 users, $10 a month per extra user, no contract. Sign up and we onboard your company personally."
         secondary={{ label: "See every feature", href: "/features" }}
       />
     </>

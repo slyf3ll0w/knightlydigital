@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
+import { MapPin } from "lucide-react";
+import { WB_SHOTS } from "@/components/wb/WBSplitHero";
+import { WB_DAY_PHOTOS } from "@/lib/wb-site";
 import { pickFeatures } from "@/lib/wb-features";
 
 export const metadata: Metadata = {
   title: "Scheduling & Dispatch — WorkBench",
   description:
-    "Drag-to-schedule calendars, recurring visit series, a live team map, and job notes with photos — the dispatch board WorkBench runs the day from. Scheduling is in the free plan; the live team map comes with the Shop add-on.",
+    "Drag-to-schedule calendars, recurring visit series, a live team map, and job notes with photos — the dispatch board WorkBench runs the day from. Scheduling is in the free plan; the live team map comes with the Pro add-on.",
 };
 
 const features = pickFeatures("run", [
@@ -89,6 +92,9 @@ export default function SchedulingDispatchPage() {
         </>
       }
       intro="Month, week, and day views with drag-to-schedule, time blocks, and per-tech filtering. Recurring visit series generate real jobs weeks ahead, every job carries its own notes, photos, and status, and each person can sync their schedule with their own Google Calendar — so the office and the crew are always looking at the same thing."
+      photo={WB_DAY_PHOTOS.morning}
+      phone={WB_SHOTS.schedule}
+      chip={{ icon: <MapPin className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />, title: "3 stops · 38 min driving", sub: "Today's route, in drive order" }}
       screenshot={{
         src: "/screens/desktop-schedule.jpg",
         alt: "WorkBench schedule with drag-to-schedule calendar views",

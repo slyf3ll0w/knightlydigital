@@ -28,6 +28,17 @@ Next.js 15 App Router, React 19, TypeScript, Tailwind CSS v4. Prisma 5 ORM with 
 
 **Background pattern**: `/public/bg-pattern.svg` (diamond grid). Applied via `.bg-patterned` utility class.
 
+## Design system (app UI)
+
+New and restyled app pages use the WorkBench design system: `components/ds`
+(kit), `app/ds.css` (tokens + styles, scoped under `.ds`), `lib/ds-theme.ts`
+(company primary/secondary → tokens), gallery at `/app/design`. Rules and the
+per-page rollout checklist: `docs/design-system.md` — Lexend only, the
+company's two brand colors drive everything (secondary sparingly), fixed
+good/warn/bad status colors, explanations in an InfoTip (never subtext),
+phones get their own simpler tree. First page on it: the dashboard
+(2026-09-25, staging, awaiting David's review).
+
 ## Project structure
 
 This repo has two distinct products:
@@ -313,10 +324,10 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
 - **Attach an existing number**: superadmin **line-attach** (`LineControl`)
   hands a company a number the Telnyx account already owns (Streamflaire’s
   own +1 833-495-0229, ported numbers) instead of buying one.
-- **Entitlement**: the Dispatch plan (`hasAddon`, lib/addon.ts — the Livery
+- **Entitlement**: the Voice plan (id DISPATCH; `hasAddon`, lib/addon.ts — the Livery
   subscription; `hasPlan(company, "DISPATCH")` in lib/plans.ts also honours
   a superadmin whitelist grant). Comp a company with the superadmin
-  **plan-grant** action (Plans card; a Dispatch grant also stamps
+  **plan-grant** action (Plans card; a Voice grant also stamps
   `addonActiveAt`) — never ship the gate open.
 - **The number is theirs** (`Company.lineReleaseAt`, cron step `lineReleases`,
   `runLineReleaseSweep` / `lineReleasePlan`): when the add-on lapses the sweep
@@ -727,7 +738,7 @@ GOOGLE_CALENDAR_CLIENT_SECRET=
 # Optional — per-company custom sending domains (lib/email-domains.ts). Needs a
 # paid Resend plan (extra domains); Settings card + API stay hidden until set.
 EMAIL_DOMAINS_ENABLED=   # "1" to enable
-# Optional — the Dispatch plan (business phone line), sold through Livery
+# Optional — the Voice plan (id DISPATCH: business phone line), sold through Livery
 # (lib/addon.ts; webhook receiver at /api/public/webhooks/livery). Both must
 # be set or the upsell page shows "not available yet". Visibility is
 # per-company (Company.addonEnabled, superadmin console); entitlement is

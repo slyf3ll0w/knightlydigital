@@ -59,6 +59,7 @@ export default function WBPhoneShowcase({ tone = "light" }: { tone?: "light" | "
               alt={s.caption}
               fill
               sizes="268px"
+              unoptimized
               className={`object-cover transition-opacity duration-500 ${
                 i === index ? "opacity-100" : "opacity-0"
               }`}

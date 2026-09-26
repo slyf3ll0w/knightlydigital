@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Clock4, Mail, MessageSquare, Phone } from "lucide-react";
 import WBCta from "@/components/wb/WBCta";
-import WBHero from "@/components/wb/WBHero";
-import { WB_EMAIL, WB_EMAIL_HREF, WB_PHONE } from "@/lib/wb-site";
+import WBSplitHero from "@/components/wb/WBSplitHero";
+import WBScribble from "@/components/wb/WBScribble";
+import { WB_DAY_PHOTOS, WB_EMAIL, WB_EMAIL_HREF, WB_PHONE } from "@/lib/wb-site";
 
 export const metadata: Metadata = {
   title: "Contact — WorkBench",
@@ -13,17 +14,24 @@ export const metadata: Metadata = {
 export default function WBContactPage() {
   return (
     <>
-      <WBHero>
-          <p className="wb-label">Contact</p>
-          <h1 className="mt-3 max-w-2xl text-4xl font-extrabold leading-[1.1] sm:text-5xl">
-            Talk to a person.
-          </h1>
-          <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-gray-600">
-            Questions about how WorkBench works, what it costs, or whether it fits
-            your trade. Call or email and you reach the people who build and
-            support it.
-          </p>
-      </WBHero>
+      <WBSplitHero
+        photo={WB_DAY_PHOTOS.paid}
+        chip={{ icon: <Phone className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />, title: WB_PHONE.display, sub: "Toll-free. A person answers." }}
+      >
+        <p className="wb-label justify-center lg:justify-start">Contact</p>
+        <h1 className="mt-3 text-4xl font-extrabold leading-[1.1] sm:text-5xl">Talk to a person.</h1>
+        <p className="mx-auto mt-5 max-w-2xl text-[17px] leading-relaxed text-gray-600 lg:mx-0">
+          Questions about how WorkBench works, what it costs, or whether it fits
+          your trade. Call or email and you reach the people who build and
+          support it.
+        </p>
+        <div className="mt-6 hidden items-end gap-1 lg:flex" aria-hidden>
+          <p className="pb-2 text-[15px] font-extrabold leading-snug text-[#10244A]">Yes, a real person
+            <br />
+            picks up.</p>
+          <WBScribble variant="loop" delay={0.6} className="h-[60px] w-[92px] rotate-[80deg]" />
+        </div>
+      </WBSplitHero>
 
       <section className="bg-[#F6F8FB]">
         <div className="mx-auto grid max-w-6xl gap-6 px-5 py-14 sm:px-8 sm:py-16 md:grid-cols-3">
@@ -48,7 +56,10 @@ export default function WBContactPage() {
               <Mail className="h-5 w-5 text-[#0B57D8]" strokeWidth={2} />
             </div>
             <p className="mt-5 text-[13.5px] font-bold text-gray-500">Email</p>
-            <p className="mt-1 break-all text-xl font-extrabold text-gray-900">{WB_EMAIL}</p>
+            <p className="mt-1 text-[19px] font-extrabold text-gray-900 md:text-base xl:text-[19px]">
+              {WB_EMAIL.split("@")[0]}@<wbr />
+              {WB_EMAIL.split("@")[1]}
+            </p>
             <p className="mt-2 text-[14px] leading-relaxed text-gray-600">
               For anything that is easier to write down, including screenshots.
             </p>

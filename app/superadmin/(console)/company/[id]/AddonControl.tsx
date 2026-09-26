@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 /**
- * Dispatch, the business-line plan (sold through Livery, lib/addon.ts) — the two switches:
+ * Voice, the business-line plan (sold through Livery, lib/addon.ts) — the two switches:
  * visibility (does this company see the upsell page at all — the preview
  * lever while the add-on is Streamflaire-only) and a manual entitlement
  * override on top of what the Livery webhook manages.
@@ -50,7 +50,7 @@ export function AddonControl({
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-      <h2 className="text-sm font-bold text-gray-700">Dispatch (Livery subscription)</h2>
+      <h2 className="text-sm font-bold text-gray-700">Voice (Livery subscription)</h2>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span
           className={`rounded-full px-2.5 py-1 text-xs font-semibold ${

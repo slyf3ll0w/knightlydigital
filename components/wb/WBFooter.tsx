@@ -64,7 +64,7 @@ export default function WBFooter() {
           />
           <p className="mt-5 text-[14px] leading-relaxed text-gray-500">
             Field service management software for home-service companies.
-            Free to use, funded by payment processing. Add-ons only if you want them.
+            Free for 2 users, funded by payment processing. Add-ons only if you want them.
           </p>
           <div className="mt-6 space-y-2 text-[14px] font-semibold text-gray-800">
             <a href={WB_PHONE.href} className="block hover:text-[#0B57D8]">

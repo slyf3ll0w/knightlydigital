@@ -8,18 +8,18 @@ import type { CompareRow } from "@/components/wb/WBCompareTable";
 export const metadata: Metadata = {
   title: "WorkBench vs. Jobber",
   description:
-    "How WorkBench compares to Jobber for home-service scheduling, quoting, invoicing, and payments — free software with a flat processing fee, versus Jobber's per-user monthly plans.",
+    "How WorkBench compares to Jobber for home-service scheduling, quoting, invoicing, and payments — free core software with a flat processing fee, versus Jobber's per-user monthly plans.",
 };
 
 const rows: CompareRow[] = [
   {
     label: "Pricing model",
-    workbench: "Free core software with full access for 2 users, not a trial. Optional flat-priced add-ons per company, from $25 a month: Dispatch (a business phone line), Shop (unlimited users and the ops tools, $89), and Jobsite (job photos, coming soon). WorkBench also earns a flat 2.9% + 30¢ (card) or 0.75% (ACH) when a client pays through it — nothing charged if you never process a payment.",
+    workbench: "Free core software with full access for 2 users, not a trial. Optional flat-priced add-ons per company, from $25 a month: Voice (a business phone line), Pro (unlimited users and the ops tools, $89), and Gallery (job photos, coming soon). WorkBench also earns a flat 2.9% + 30¢ (card) or 0.75% (ACH) when a client pays through it — nothing charged if you never process a payment.",
     competitor: "A monthly subscription with multiple pricing tiers, typically priced per user. Check jobber.com for current plans.",
   },
   {
     label: "Seats / users",
-    workbench: "2 included free, $10 a month each after that, or unlimited with the Shop add-on — owner, admin, sales, and tech roles on every plan.",
+    workbench: "2 included free, $10 a month each after that, or unlimited with the Pro add-on — owner, admin, sales, and tech roles on every plan.",
     competitor: "Higher tiers generally unlock more users; adding seats can move you to a higher tier.",
   },
   {
@@ -53,7 +53,7 @@ const differentiators: FeatureItem[] = [
   {
     icon: Banknote,
     title: "No monthly bill unless you add something",
-    body: "The core stays free, and there's no tier ladder to climb. If a busy season means five more techs on the app, that's $10 a seat, or $89 flat for unlimited users with the Shop add-on — never a jump to a bigger plan.",
+    body: "The core stays free, and there's no tier ladder to climb. If a busy season means five more techs on the app, that's $10 a seat, or $89 flat for unlimited users with the Pro add-on — never a jump to a bigger plan.",
   },
   {
     icon: Bot,
@@ -119,7 +119,7 @@ export default function VsJobberPage() {
       competitorName="Jobber"
       title={
         <>
-          WorkBench vs. Jobber: <span className="text-[#0B57D8]">free software</span>, one flat fee.
+          WorkBench vs. Jobber: <span className="text-[#0B57D8]">free core software</span>, one flat fee.
         </>
       }
       intro="Jobber and WorkBench both run scheduling, quoting, invoicing, and payments for home-service teams. The difference is the pricing model: Jobber is a per-user monthly subscription; WorkBench is free core software (full access for two users, not a trial) with flat-priced optional add-ons, funded mostly by a flat percentage of the payments you process through it."

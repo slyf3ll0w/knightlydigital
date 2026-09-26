@@ -8,13 +8,13 @@ import type { CompareRow } from "@/components/wb/WBCompareTable";
 export const metadata: Metadata = {
   title: "WorkBench vs. ServiceTitan",
   description:
-    "How WorkBench compares to ServiceTitan for home-service scheduling, dispatch, invoicing, and payments — free software for small and growing teams, versus ServiceTitan's enterprise platform.",
+    "How WorkBench compares to ServiceTitan for home-service scheduling, dispatch, invoicing, and payments — free core software for small and growing teams, versus ServiceTitan's enterprise platform.",
 };
 
 const rows: CompareRow[] = [
   {
     label: "Pricing model",
-    workbench: "Free core software with full access for 2 users, not a trial, funded by a flat 2.9% + 30¢ (card) or 0.75% (ACH) when a client pays through it. Optional flat-priced add-ons per company from $25 a month; unlimited users come with the Shop add-on at $89.",
+    workbench: "Free core software with full access for 2 users, not a trial, funded by a flat 2.9% + 30¢ (card) or 0.75% (ACH) when a client pays through it. Optional flat-priced add-ons per company from $25 a month; unlimited users come with the Pro add-on at $89.",
     competitor: "An enterprise platform with custom quotes, typically involving implementation and onboarding fees on top of subscription pricing. Contact ServiceTitan for a quote.",
   },
   {
@@ -52,7 +52,7 @@ const differentiators: FeatureItem[] = [
   },
   {
     icon: Banknote,
-    title: "No subscription to grow into",
+    title: "No contract to grow into",
     body: "There's no tier ladder to climb as the team grows — the core scales with the payments you actually process, and unlimited users is one flat add-on, not a negotiated contract.",
   },
   {

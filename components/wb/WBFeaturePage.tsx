@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
-import WBHero from "@/components/wb/WBHero";
+import WBSplitHero from "@/components/wb/WBSplitHero";
+import WBScribble from "@/components/wb/WBScribble";
+import WBTestimonials from "@/components/wb/WBTestimonials";
 import WBCta from "@/components/wb/WBCta";
 import WBFaq, { FaqItem } from "./WBFaq";
 import WBScreenshotFrame from "./WBScreenshotFrame";
 import type { FeatureItem } from "@/lib/wb-features";
-import { PLANS } from "@/lib/plans";
+import { FREE_PLAN_NAME, PLANS } from "@/lib/plans";
 
 type Accent = "blue" | "orange";
 
@@ -18,8 +20,9 @@ const ACCENT = {
 } as const;
 
 /**
- * Shared template for the /features/[topic] deep-dive pages: a focused
- * hero, one real screenshot, an optional "how it works" walkthrough, the
+ * Shared template for the /features/[topic] deep-dive pages: the home
+ * page's split hero (job-site photo + the real phone screenshot with a
+ * magnified close-up), the desktop screenshot when there is one, an optional "how it works" walkthrough, the
  * relevant slice of the feature catalog, an FAQ, and the standard CTA.
  * Keeps six pages visually consistent without six copies of this markup.
  */
@@ -29,6 +32,9 @@ export default function WBFeaturePage({
   title,
   intro,
   screenshot,
+  photo,
+  phone,
+  chip,
   steps,
   features,
   faq,
@@ -46,6 +52,11 @@ export default function WBFeaturePage({
   title: React.ReactNode;
   intro: string;
   screenshot: { src: string; alt: string; kind?: "desktop" | "mobile"; caption?: string };
+  /** Job-site photo behind the phone in the hero. */
+  photo: { src: string; alt: string };
+  /** Real phone screenshot for the hero (see WB_SHOTS in WBSplitHero). */
+  phone: React.ComponentProps<typeof WBSplitHero>["phone"];
+  chip?: React.ComponentProps<typeof WBSplitHero>["chip"];
   steps?: Step[];
   features: FeatureItem[];
   faq: FaqItem[];
@@ -58,42 +69,41 @@ export default function WBFeaturePage({
   return (
     <>
       {/* Hero */}
-      <WBHero>
-          <AnimateIn>
-            <span className={`inline-block rounded-full px-3 py-1 text-[12.5px] font-bold ${c.chip}`}>
-              {eyebrow}
-            </span>
-            <h1 className="mt-5 max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">{title}</h1>
-            <p className="mt-6 max-w-2xl text-[17px] leading-relaxed text-gray-600">{intro}</p>
-            <div className="mt-8 flex flex-wrap items-center gap-4">
-              <Link
-                href="/apply"
-                className="wb-pill text-white"
-                style={{ backgroundColor: c.hex }}
-              >
-                Get started
-                <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-              </Link>
-              <Link
-                href="/features"
-                className="wb-pill wb-pill-outline"
-              >
-                See every feature
-              </Link>
-            </div>
-          </AnimateIn>
-      </WBHero>
-
-      {/* Screenshot */}
-      <section className="border-b border-gray-200 bg-[#F6F8FB]">
-        <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8">
-          <AnimateIn className={screenshot.kind === "mobile" ? "flex justify-center" : ""}>
-            <div className={screenshot.kind === "mobile" ? "" : "mx-auto max-w-4xl"}>
-              <WBScreenshotFrame {...screenshot} />
-            </div>
-          </AnimateIn>
+      <WBSplitHero photo={photo} phone={phone} chip={chip}>
+        <span className={`inline-block rounded-full px-3 py-1 text-[12.5px] font-bold ${c.chip}`}>{eyebrow}</span>
+        <h1 className="mt-5 text-4xl font-extrabold leading-[1.08] sm:text-5xl">{title}</h1>
+        <p className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed text-gray-600 lg:mx-0">{intro}</p>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-4 lg:justify-start">
+          <Link href="/apply" className="wb-pill text-white" style={{ backgroundColor: c.hex }}>
+            Get started
+            <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+          </Link>
+          <Link href="/features" className="wb-pill wb-pill-outline">
+            See every feature
+          </Link>
         </div>
-      </section>
+      </WBSplitHero>
+
+      {/* Screenshot (desktop; the phone view is already in the hero) */}
+      {screenshot.kind !== "mobile" && (
+        <section className="border-b border-gray-200 bg-[#F6F8FB]">
+          <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8">
+            <AnimateIn className="relative">
+              <div className="absolute -top-9 right-0 hidden items-end gap-1 lg:flex" aria-hidden>
+                <p className="pb-1 text-right text-[14.5px] font-extrabold leading-snug text-[#10244A]">
+                  The real screen,
+                  <br />
+                  not a mockup
+                </p>
+                <WBScribble variant="loop" delay={0.4} className="h-[56px] w-[88px] rotate-[64deg]" />
+              </div>
+              <div className="mx-auto max-w-4xl">
+                <WBScreenshotFrame {...screenshot} />
+              </div>
+            </AnimateIn>
+          </div>
+        </section>
+      )}
 
       {/* How it works */}
       {steps && steps.length > 0 && (
@@ -129,8 +139,8 @@ export default function WBFeaturePage({
             <h2 className="text-2xl font-extrabold sm:text-3xl">What&apos;s included</h2>
             <p className="mt-2 text-[14.5px] font-semibold text-gray-500">
               {features.some((f) => f.plan)
-                ? "In the free plan unless marked with an add-on."
-                : "All of it is in the free plan."}
+                ? `In ${FREE_PLAN_NAME}, the free plan, unless marked with an add-on.`
+                : `All of it is in ${FREE_PLAN_NAME}, the free plan.`}
             </p>
           </AnimateIn>
           <div className="mt-10 grid gap-x-10 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
@@ -155,6 +165,8 @@ export default function WBFeaturePage({
           </div>
         </div>
       </section>
+
+      <WBTestimonials />
 
       {/* FAQ */}
       <section className="mx-auto max-w-4xl px-5 py-16 sm:px-8">

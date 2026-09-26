@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
+import { UserCheck } from "lucide-react";
+import { WB_SHOTS } from "@/components/wb/WBSplitHero";
+import { WB_DAY_PHOTOS } from "@/lib/wb-site";
 import { pickFeatures } from "@/lib/wb-features";
 
 export const metadata: Metadata = {
@@ -75,6 +78,9 @@ export default function ClientPortalPage() {
         </>
       }
       intro="A magic-link portal — no account, no password — where clients see upcoming visits, review and sign agreements, pay invoices, request more work, and message your team directly. Notifications go out automatically, and you'll know the moment they've looked."
+      photo={WB_DAY_PHOTOS.arrive}
+      phone={WB_SHOTS.clients}
+      chip={{ icon: <UserCheck className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />, title: "Maria approved her quote", sub: "From her client portal" }}
       screenshot={{
         src: "/screens/desktop-invoices.jpg",
         alt: "An invoice a client reviews and pays from a link, as seen from WorkBench",

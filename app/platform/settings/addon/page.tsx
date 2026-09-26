@@ -7,7 +7,7 @@ import AddonClient from "./AddonClient";
 export const dynamic = "force-dynamic";
 
 /**
- * Settings → Dispatch: the business-line plan upsell, sold through a
+ * Settings → Voice: the business-line plan upsell, sold through a
  * hosted Livery subscription checkout (lib/addon.ts). Only exists while the
  * company's superadmin visibility switch (addonEnabled) is on — everyone
  * else 404s to Settings as if the page were never built.

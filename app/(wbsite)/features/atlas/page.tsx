@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Compass } from "lucide-react";
+import { Compass, Sparkles } from "lucide-react";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
+import { WB_SHOTS } from "@/components/wb/WBSplitHero";
+import { WB_DAY_PHOTOS } from "@/lib/wb-site";
 import type { FeatureItem } from "@/lib/wb-features";
 import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } from "@/lib/atlas-pricing";
 
@@ -33,7 +35,7 @@ const atlasFeatures: FeatureItem[] = [
   {
     icon: Compass,
     title: `${freeTokens} free tokens a month, on every account`,
-    body: `No card, no sign-up step, no trial clock — the allowance refills on the 1st. Atlas Full is ${planTokens} tokens a month for ${planPrice} on its own, or included with the Shop add-on, refilled on your billing day. AI usage costs real money, so it's priced separately from the free core software instead of buried in it.`,
+    body: `No card, no sign-up step, no trial clock — the allowance refills on the 1st. Atlas Full is ${planTokens} tokens a month for ${planPrice} on its own, or included with the Pro add-on, refilled on your billing day. AI usage costs real money, so it's priced separately from the free core software instead of buried in it.`,
   },
 ];
 
@@ -111,6 +113,9 @@ export default function AtlasPage() {
         </>
       }
       intro="Atlas works the same tools your team does — scheduling, quotes, invoices, messages — with the same permissions, and it confirms with you before anything goes out the door. It handles the busywork so you don't have to touch it after hours."
+      photo={WB_DAY_PHOTOS.paid}
+      phone={WB_SHOTS.menu}
+      chip={{ icon: <Sparkles className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />, title: "Atlas drafted 3 invoices", sub: "Waiting for your OK" }}
       screenshot={{
         src: "/screens/mobile-atlas.png",
         alt: "Atlas, the WorkBench AI assistant, inside the mobile app",
@@ -141,7 +146,7 @@ export default function AtlasPage() {
       ctaTitle={`${freeTokens} free tokens a month. ${planPrice} when you want more.`}
       ctaBody={
         <>
-          The core WorkBench software is free to use, full access, not a trial. Atlas
+          The core WorkBench software is free with full access for 2 users, not a trial. Atlas
           comes with {freeTokens} free tokens every month on every account;
           Atlas Full is {planTokens} a month for {planPrice}.
         </>

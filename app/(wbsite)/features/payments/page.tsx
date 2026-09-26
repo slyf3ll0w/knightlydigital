@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
+import { CreditCard } from "lucide-react";
+import { WB_SHOTS } from "@/components/wb/WBSplitHero";
+import { WB_PHOTOS } from "@/lib/wb-site";
 import { pickFeatures } from "@/lib/wb-features";
 
 export const metadata: Metadata = {
@@ -87,6 +90,9 @@ export default function PaymentsPage() {
         </>
       }
       intro="Every invoice, quote, and booking can take card or bank payments at one flat rate — no monthly fees, no minimums. Saved cards autopay recurring work, declines retry automatically, and unpaid invoices get escalating reminders until the money lands."
+      photo={WB_PHOTOS.paid}
+      phone={WB_SHOTS.invoices}
+      chip={{ icon: <CreditCard className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />, title: "Invoice #2481 · Paid", sub: "$1,240.00 by card" }}
       screenshot={{
         src: "/screens/desktop-invoices.jpg",
         alt: "WorkBench invoices with card and ACH payment status",

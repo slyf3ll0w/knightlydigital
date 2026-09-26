@@ -1,0 +1,253 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   WorkBench design system ("ds") — the one look for the app.
+
+   Scope: everything lives under `.ds`. A page opts in by wrapping its
+   content in <DsPage> (components/ds). Rolling it out = more pages opt in;
+   once every page has, move `.ds` up to the app shell and delete the old
+   ledger/tool/green-bridge styles in globals.css.
+
+   Rules (see docs/design-system.md):
+   - Type: Lexend for everything (a company's own brand font wins when set).
+     Numbers stacked in COLUMNS use .ds-num (Inter tabular figures) —
+     Lexend has no tabular figures, so a column of amounts would wobble.
+   - Color: two brand roles from the company — PRIMARY (buttons, active,
+     links, the hero, charts) and SECONDARY (sparing highlights). Status
+     colors (good / warn / bad) are fixed. Never a raw hex in a page.
+   - Explanations live in an (i) InfoTip, never as a sentence under a title.
+   - Motion: one easing, three moves — rise (content arriving), pop
+     (something new/confirmed), draw (hand-drawn arrows). The quote stamp
+     and payment celebrations are the loudest moments; nothing competes.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.ds {
+  /* type */
+  --ds-font-stack: var(--ds-font, "Lexend", system-ui, -apple-system, "Segoe UI", sans-serif);
+  --ds-num-font: "Inter", system-ui, sans-serif;
+
+  /* brand roles (AppShell injects the -l/-d pairs from the company's colors) */
+  --ds-primary: var(--ds-primary-l, #0B57D8);
+  --ds-primary-strong: var(--ds-primary-strong-l, #094BBA);
+  --ds-primary-soft: var(--ds-primary-soft-l, #0B57D81A);
+  --ds-on-primary: var(--ds-on-primary-l, #FFFFFF);
+  --ds-secondary: var(--ds-secondary-l, #F86A0A);
+  --ds-secondary-strong: var(--ds-secondary-strong-l, #D55B09);
+  --ds-secondary-soft: var(--ds-secondary-soft-l, #F86A0A1A);
+  --ds-on-secondary: var(--ds-on-secondary-l, #FFFFFF);
+
+  /* neutrals */
+  --ds-canvas: #F5F7FA;
+  --ds-surface: #FFFFFF;
+  --ds-surface-2: #F7F9FC;
+  --ds-line: #E7EBF1;
+  --ds-line-strong: #D6DCE5;
+  --ds-ink: #0A1328;
+  --ds-ink-2: #3A475C;
+  --ds-muted: #687589;
+  --ds-faint: #9AA4B5;
+
+  /* status — fixed, never branded */
+  --ds-good: #15803D;
+  --ds-good-soft: #15803D17;
+  --ds-warn: #B45309;
+  --ds-warn-soft: #D9770617;
+  --ds-bad: #DC2626;
+  --ds-bad-soft: #DC262614;
+
+  /* shape */
+  --ds-r-sm: 10px;
+  --ds-r: 14px;
+  --ds-r-lg: 20px;
+  --ds-r-xl: 26px;
+
+  /* depth */
+  --ds-shadow-1: 0 1px 2px rgba(10, 19, 40, 0.04), 0 0 0 1px rgba(10, 19, 40, 0.06);
+  --ds-shadow-2: 0 1px 2px rgba(10, 19, 40, 0.04), 0 18px 40px -22px rgba(10, 19, 40, 0.28), 0 0 0 1px rgba(10, 19, 40, 0.05);
+  --ds-shadow-float: 0 1px 2px rgba(10, 19, 40, 0.06), 0 24px 50px -18px rgba(10, 19, 40, 0.32), 0 0 0 1px rgba(10, 19, 40, 0.05);
+
+  /* motion */
+  --ds-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ds-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ds-dur: 200ms;
+  --ds-dur-slow: 520ms;
+
+  font-family: var(--ds-font-stack);
+  color: var(--ds-ink);
+  letter-spacing: -0.006em;
+  font-variant-numeric: normal;
+  -webkit-font-smoothing: antialiased;
+}
+
+html[data-mode="dark"] .ds {
+  --ds-primary: var(--ds-primary-d, #3B82F6);
+  --ds-primary-strong: var(--ds-primary-strong-d, #6BA1F8);
+  --ds-primary-soft: var(--ds-primary-soft-d, #3B82F62E);
+  --ds-on-primary: var(--ds-on-primary-d, #FFFFFF);
+  --ds-secondary: var(--ds-secondary-d, #FB8A3C);
+  --ds-secondary-strong: var(--ds-secondary-strong-d, #FCA368);
+  --ds-secondary-soft: var(--ds-secondary-soft-d, #FB8A3C2E);
+  --ds-on-secondary: var(--ds-on-secondary-d, #111827);
+
+  --ds-canvas: #0E131D;
+  --ds-surface: #161D2B;
+  --ds-surface-2: #1C2435;
+  --ds-line: #262F44;
+  --ds-line-strong: #33405A;
+  --ds-ink: #EDF1F7;
+  --ds-ink-2: #BAC4D5;
+  --ds-muted: #8D98AD;
+  --ds-faint: #647086;
+
+  --ds-good: #4ADE80;
+  --ds-good-soft: #4ADE801F;
+  --ds-warn: #FBBF24;
+  --ds-warn-soft: #FBBF241F;
+  --ds-bad: #F87171;
+  --ds-bad-soft: #F871711F;
+
+  --ds-shadow-1: 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --ds-shadow-2: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 18px 40px -22px rgba(0, 0, 0, 0.7);
+  --ds-shadow-float: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 24px 50px -18px rgba(0, 0, 0, 0.75);
+}
+
+/* the app's global h1–h6 rule pins Oxanium; inside ds everything is Lexend */
+.ds :is(h1, h2, h3, h4, h5, h6, .font-display, button, input, select, textarea) {
+  font-family: inherit;
+}
+
+/* ── type ─────────────────────────────────────────────────────────────── */
+.ds-eyebrow { font-size: 13px; font-weight: 500; color: var(--ds-muted); letter-spacing: 0; }
+.ds-title { font-size: 28px; line-height: 1.12; font-weight: 650; letter-spacing: -0.022em; color: var(--ds-ink); }
+.ds-h2 { font-size: 17px; line-height: 1.3; font-weight: 600; letter-spacing: -0.012em; color: var(--ds-ink); }
+.ds-label { font-size: 12.5px; font-weight: 500; color: var(--ds-muted); letter-spacing: 0; }
+.ds-body { font-size: 14px; line-height: 1.45; color: var(--ds-ink-2); }
+.ds-small { font-size: 12.5px; line-height: 1.4; color: var(--ds-muted); }
+.ds-value { font-size: 28px; line-height: 1; font-weight: 600; letter-spacing: -0.025em; color: var(--ds-ink); }
+.ds-num { font-family: var(--ds-num-font); font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; letter-spacing: -0.01em; }
+.ds-link { color: var(--ds-primary); font-weight: 600; }
+.ds-link:hover { color: var(--ds-primary-strong); }
+@media (min-width: 1024px) { .ds-title { font-size: 30px; } }
+
+/* ── surfaces ─────────────────────────────────────────────────────────── */
+.ds-card {
+  background: var(--ds-surface);
+  border-radius: var(--ds-r-lg);
+  box-shadow: var(--ds-shadow-1);
+}
+.ds-card-raised { box-shadow: var(--ds-shadow-2); }
+a.ds-card, .ds-card-link {
+  transition: box-shadow var(--ds-dur) var(--ds-ease), transform var(--ds-dur) var(--ds-ease);
+}
+a.ds-card:hover, .ds-card-link:hover { box-shadow: var(--ds-shadow-2); transform: translateY(-1px); }
+a.ds-card:active, .ds-card-link:active { transform: scale(0.99); }
+
+.ds-divide > * + * { border-top: 1px solid var(--ds-line); }
+
+/* list row — the one row style for every list */
+.ds-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 18px;
+  transition: background-color var(--ds-dur) var(--ds-ease);
+}
+a.ds-row:hover { background: var(--ds-surface-2); }
+a.ds-row:active { background: var(--ds-line); }
+
+/* ── buttons ──────────────────────────────────────────────────────────── */
+.ds-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 40px; padding: 0 16px; border-radius: 12px;
+  font-size: 14.5px; font-weight: 600; letter-spacing: -0.005em; white-space: nowrap;
+  transition: background-color var(--ds-dur) var(--ds-ease), color var(--ds-dur) var(--ds-ease),
+    box-shadow var(--ds-dur) var(--ds-ease), transform 120ms var(--ds-ease);
+}
+.ds-btn:active { transform: scale(0.97); }
+.ds-btn:focus-visible { outline: 2px solid var(--ds-primary); outline-offset: 2px; }
+.ds-btn-sm { height: 34px; padding: 0 12px; font-size: 13.5px; border-radius: 10px; }
+.ds-btn-lg { height: 48px; padding: 0 20px; font-size: 15.5px; border-radius: 14px; }
+.ds-btn-primary { background: var(--ds-primary); color: var(--ds-on-primary); box-shadow: 0 1px 2px rgba(10, 19, 40, 0.12); }
+.ds-btn-primary:hover { background: var(--ds-primary-strong); }
+.ds-btn-soft { background: var(--ds-primary-soft); color: var(--ds-primary); }
+.ds-btn-soft:hover { background: color-mix(in srgb, var(--ds-primary) 16%, transparent); }
+.ds-btn-outline { background: var(--ds-surface); color: var(--ds-ink); box-shadow: inset 0 0 0 1px var(--ds-line-strong); }
+.ds-btn-outline:hover { box-shadow: inset 0 0 0 1px var(--ds-faint); }
+.ds-btn-ghost { background: transparent; color: var(--ds-ink-2); }
+.ds-btn-ghost:hover { background: var(--ds-surface-2); color: var(--ds-ink); }
+
+/* icon disc (a round tap target: directions, call…) */
+.ds-disc {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 36px; height: 36px; border-radius: 999px;
+  background: var(--ds-primary-soft); color: var(--ds-primary);
+  transition: transform 120ms var(--ds-ease), background-color var(--ds-dur) var(--ds-ease);
+}
+.ds-disc:active { transform: scale(0.94); }
+
+/* ── chips (status tags) ──────────────────────────────────────────────── */
+.ds-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 22px; padding: 0 9px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 600; letter-spacing: 0.005em; white-space: nowrap;
+}
+.ds-chip-primary { background: var(--ds-primary-soft); color: var(--ds-primary); }
+.ds-chip-secondary { background: var(--ds-secondary-soft); color: var(--ds-secondary-strong); }
+.ds-chip-good { background: var(--ds-good-soft); color: var(--ds-good); }
+.ds-chip-warn { background: var(--ds-warn-soft); color: var(--ds-warn); }
+.ds-chip-bad { background: var(--ds-bad-soft); color: var(--ds-bad); }
+.ds-chip-neutral { background: var(--ds-surface-2); color: var(--ds-ink-2); box-shadow: inset 0 0 0 1px var(--ds-line); }
+html[data-mode="dark"] .ds .ds-chip-secondary { color: var(--ds-secondary); }
+
+/* count badge in a list row */
+.ds-count {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  min-width: 38px; height: 38px; padding: 0 8px; border-radius: 12px;
+  font-size: 17px; font-weight: 600; letter-spacing: -0.02em;
+  background: var(--ds-primary-soft); color: var(--ds-primary);
+}
+.ds-count-bad { background: var(--ds-bad-soft); color: var(--ds-bad); }
+
+/* ── the info bubble ──────────────────────────────────────────────────── */
+.ds-info {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 22px; height: 22px; border-radius: 999px; color: var(--ds-faint);
+  transition: color var(--ds-dur) var(--ds-ease), background-color var(--ds-dur) var(--ds-ease);
+}
+.ds-info:hover, .ds-info[aria-expanded="true"] { color: var(--ds-primary); background: var(--ds-primary-soft); }
+.ds-pop {
+  position: absolute; z-index: 40; width: min(290px, calc(100vw - 32px));
+  padding: 12px 14px; border-radius: 14px;
+  background: var(--ds-surface); color: var(--ds-ink-2);
+  box-shadow: var(--ds-shadow-float);
+  font-size: 13.5px; font-weight: 400; line-height: 1.45; letter-spacing: 0; text-align: left;
+  animation: ds-pop 160ms var(--ds-ease) both;
+}
+
+/* ── the hero (the one saturated surface on a page) ───────────────────── */
+.ds-hero {
+  position: relative; overflow: hidden;
+  border-radius: var(--ds-r-xl);
+  background: linear-gradient(135deg, var(--ds-primary), var(--ds-primary-strong));
+  color: var(--ds-on-primary);
+  box-shadow: 0 24px 50px -24px color-mix(in srgb, var(--ds-primary) 70%, transparent);
+}
+.ds-hero::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, #fff 16%, transparent), transparent 60%);
+}
+.ds-hero-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 24px; padding: 0 10px; border-radius: 999px;
+  background: var(--ds-secondary); color: var(--ds-on-secondary);
+  font-size: 12px; font-weight: 600;
+}
+
+/* ── motion ───────────────────────────────────────────────────────────── */
+@keyframes ds-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes ds-pop { from { opacity: 0; transform: translateY(4px) scale(0.97); } to { opacity: 1; transform: none; } }
+.ds-rise { animation: ds-rise var(--ds-dur-slow) var(--ds-ease) both; animation-delay: calc(var(--ds-i, 0) * 60ms); }
+.ds-float {
+  box-shadow: var(--ds-shadow-float);
+  animation: ds-pop 320ms var(--ds-ease-spring) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ds-rise, .ds-float, .ds-pop { animation: none; }
+  .ds-btn:active, .ds-disc:active, a.ds-card:active { transform: none; }
+}

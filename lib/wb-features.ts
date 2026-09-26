@@ -35,7 +35,7 @@ export type FeatureItem = {
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   title: string;
   body: string;
-  /** Which add-on the feature belongs to; unset = in Bench, the free core (lib/plans.ts). */
+  /** Which add-on the feature belongs to; unset = in Core, the free plan (lib/plans.ts). */
   plan?: "SHOP" | "DISPATCH" | "JOBSITE";
 };
 
@@ -122,7 +122,7 @@ export const sections: FeatureSection[] = [
       {
         icon: Clock4,
         title: "Time tracking & timesheets",
-        body: "Techs clock in and out right on the job, on every plan. With Shop, weekly timesheets roll up per person, managers can fix a forgotten clock-out, and logged hours flow into each job's profit margin as real labor cost.",
+        body: "Techs clock in and out right on the job, on every plan. With Pro, weekly timesheets roll up per person, managers can fix a forgotten clock-out, and logged hours flow into each job's profit margin as real labor cost.",
         plan: "SHOP",
       },
       {
@@ -139,7 +139,7 @@ export const sections: FeatureSection[] = [
       {
         icon: Users,
         title: "Roles & permissions",
-        body: "Owner, admin, sales, and tech roles out of the box, each seeing what they need and nothing they don't. Two users are included free; more are $10 a month each, or unlimited with Shop.",
+        body: "Owner, admin, sales, and tech roles out of the box, each seeing what they need and nothing they don't. Two users are included free; more are $10 a month each, or unlimited with Pro.",
       },
       {
         icon: Keyboard,

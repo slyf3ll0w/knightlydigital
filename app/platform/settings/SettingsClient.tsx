@@ -1252,7 +1252,7 @@ export default function SettingsClient({
       </div>
 
       <div className="lg:grid lg:grid-cols-[230px_minmax(0,1fr)] lg:items-start lg:gap-10">
-        {/* Desktop: the settings nav rail. Dispatch rides with Phone &
+        {/* Desktop: the settings nav rail. Voice rides with Phone &
             texting (the business line is what it unlocks). */}
         <nav className="sticky top-8 hidden lg:block">
           <div className="space-y-0.5">

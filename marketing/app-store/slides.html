@@ -1,0 +1,156 @@
+<!doctype html>
+<!--
+  App Store screenshots for WorkBench, in the marketing site's look:
+  Nunito headline, blue + orange, a real job-site photo, the real app
+  screenshot in a phone frame, a magnified close-up of the same screenshot,
+  a status chip, and the hand-drawn arrow (components/wb/WBScribble.tsx).
+
+  Render one slide per page load: slides.html?s=1 … ?s=6 at a 1290 x 2796
+  viewport (App Store 6.9"/6.7" slot). marketing/app-store/README.md has the
+  steps. Swap SHOTS[*].src for full-resolution iPhone captures when you have
+  them (same screen, any size; `size` must match the file).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>WorkBench App Store slide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Inter:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root { --navy: #0A1328; --ink: #10244A; --blue: #0B57D8; --orange: #F86A0A; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1290px; height: 2796px; overflow: hidden; background: #F6F8FB; }
+  body { font-family: Inter, system-ui, sans-serif; color: var(--navy); position: relative; }
+  .bloom { position: absolute; inset: 0;
+    background:
+      radial-gradient(900px 700px at 0% 0%, rgba(11,87,216,0.16), transparent 70%),
+      radial-gradient(800px 700px at 100% 12%, rgba(248,106,10,0.13), transparent 70%),
+      radial-gradient(900px 900px at 50% 100%, rgba(11,87,216,0.08), transparent 70%); }
+  .top { position: absolute; left: 96px; right: 96px; top: 150px; }
+  .brand { display: flex; align-items: center; gap: 18px; font: 800 44px Nunito, sans-serif; letter-spacing: -0.5px; }
+  .brand img { height: 64px; width: auto; }
+  .brand .w { color: var(--blue); } .brand .b { color: var(--orange); }
+  h1 { margin-top: 70px; font: 900 124px/1.02 Nunito, sans-serif; letter-spacing: -2.5px; }
+  h1 em { font-style: normal; color: var(--blue); }
+  .sub { margin-top: 40px; font: 500 46px/1.35 Inter, sans-serif; color: #4B5563; max-width: 1050px; }
+
+  .stage { position: absolute; left: 0; right: 0; top: 1010px; bottom: 0; }
+  .photo { position: absolute; right: 70px; top: 40px; width: 900px; height: 1420px; border-radius: 72px; overflow: hidden;
+    box-shadow: 0 60px 120px rgba(10,20,40,0.25); }
+  .photo img { width: 100%; height: 100%; object-fit: cover; }
+  .photo::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.35), transparent 50%); }
+
+  .phone { position: absolute; left: 70px; top: 200px; padding: 20px; border-radius: 108px; background: #111827;
+    box-shadow: 0 60px 120px rgba(10,20,40,0.38); }
+  .phone .screen { width: 700px; border-radius: 90px; overflow: hidden; background: #fff; }
+  .phone .screen img { display: block; width: 100%; height: auto; }
+
+  .zoom { position: absolute; right: 60px; padding: 14px; background: #fff; border-radius: 40px;
+    box-shadow: 0 40px 90px rgba(10,20,40,0.28), 0 0 0 2px rgba(10,20,40,0.05); }
+  .zoom div { border-radius: 30px; background-repeat: no-repeat; }
+
+  .chip { position: absolute; right: 40px; top: 110px; display: flex; align-items: center; gap: 26px; background: #fff;
+    border-radius: 40px; padding: 26px 40px 26px 26px; box-shadow: 0 30px 70px rgba(10,20,40,0.25); transform: rotate(2deg); }
+  .chip .ic { width: 92px; height: 92px; border-radius: 28px; background: #FFF4EC; display: grid; place-items: center; }
+  .chip .ic svg { width: 46px; height: 46px; }
+  .chip b { display: block; font: 700 40px Inter, sans-serif; }
+  .chip span { display: block; font: 500 32px Inter, sans-serif; color: #6B7280; margin-top: 4px; }
+
+  .note { position: absolute; display: flex; align-items: flex-end; gap: 6px; }
+  .note p { font: 900 54px/1.1 Nunito, sans-serif; color: var(--ink); padding-bottom: 20px; }
+  .note svg { width: 230px; height: 150px; flex: none; }
+</style>
+</head>
+<body>
+<div class="bloom"></div>
+<div class="top">
+  <div class="brand"><img src="../../public/workbench-icon.png" alt="" /><span><span class="w">Work</span><span class="b">Bench</span></span></div>
+  <h1 id="h1"></h1>
+  <p class="sub" id="sub"></p>
+</div>
+<div class="stage">
+  <div class="photo"><img id="photo" alt="" /></div>
+  <div class="chip"><div class="ic" id="chipIcon"></div><div><b id="chipTitle"></b><span id="chipSub"></span></div></div>
+  <div class="phone"><div class="screen"><img id="shot" alt="" /></div></div>
+  <div class="zoom" id="zoom"><div id="zoomImg"></div></div>
+  <div class="note" id="note"><p id="noteText"></p>
+    <svg viewBox="0 0 140 90" fill="none">
+      <path d="M8 14 C 34 4, 66 8, 70 34 C 73 54, 50 62, 45 47 C 40 32, 66 24, 86 38 C 102 49, 114 62, 126 74" stroke="#10244A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M111 73 L127 75 L122 60" stroke="#10244A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M6 30 L1 34" stroke="#F86A0A" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M12 34 L10 40" stroke="#F86A0A" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M19 32 L20 38" stroke="#F86A0A" stroke-width="2.4" stroke-linecap="round"/>
+    </svg>
+  </div>
+</div>
+
+<script>
+  const U = (id) => `https://images.unsplash.com/${id}?w=1600&q=85&fit=crop`;
+  const ICON = {
+    pin: '<svg viewBox="0 0 24 24" fill="none" stroke="#F86A0A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+    card: '<svg viewBox="0 0 24 24" fill="none" stroke="#F86A0A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>',
+    sign: '<svg viewBox="0 0 24 24" fill="none" stroke="#F86A0A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+    phone: '<svg viewBox="0 0 24 24" fill="none" stroke="#F86A0A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>',
+    chart: '<svg viewBox="0 0 24 24" fill="none" stroke="#F86A0A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg>',
+  };
+  const S = "../../public/screens/";
+  const SLIDES = [
+    { h1: 'Run the entire job from <em>one place.</em>', sub: 'Scheduling, quotes, invoices, and payments for home-service crews.',
+      photo: U("photo-1621905251189-08b45d6a269e"), shot: S + "mobile-01.png", zoom: { x: 18, y: 540, w: 604, h: 142 },
+      chip: ["pin", "Clocked in · 8:02 AM", "Panel upgrade, Ravenwood Dr"], note: "The week,<br>per tech" },
+    { h1: 'Get paid before you <em>leave the driveway.</em>', sub: 'Send the invoice from the job. Clients pay by card or bank from a text.',
+      photo: U("photo-1632759145351-1d592919f522"), shot: S + "mobile-03.png", zoom: { x: 22, y: 414, w: 584, h: 188 },
+      chip: ["card", "Invoice #2481 · Paid", "$1,240.00 by card"], note: "Paid from<br>a link" },
+    { h1: 'Quotes clients <em>sign on their phone.</em>', sub: 'Approved quotes turn into scheduled jobs in one tap.',
+      photo: U("photo-1574359411659-15573a27fd0c"), shot: S + "mobile-05.png", zoom: { x: 24, y: 414, w: 588, h: 188 },
+      chip: ["sign", "Quote #4 approved", "Signed on a phone · 2:14 PM"], note: "Approved and<br>converted" },
+    { h1: 'Every job. <em>Every status.</em>', sub: 'Know what is active, what needs invoicing, and what is done.',
+      photo: U("photo-1558803116-b443d28fa878"), shot: S + "mobile-02.png", zoom: { x: 24, y: 590, w: 596, h: 180 },
+      chip: ["sign", "Job #214 complete", "Invoice sent from the driveway"], note: "Nothing<br>slips" },
+    { h1: 'Every client <em>in one place.</em>', sub: 'History, notes, and a call or text one tap away.',
+      photo: U("photo-1731341711541-e0cb3d60bdaf"), shot: S + "mobile-04.png", zoom: { x: 24, y: 516, w: 590, h: 176 },
+      chip: ["phone", "Call or text", "Straight from the client card"], note: "One tap to<br>call" },
+    { h1: 'Know what you <em>actually made.</em>', sub: 'Revenue, expenses, and profit, without a spreadsheet.',
+      photo: U("photo-1646980241033-cd7abda2ee88"), shot: S + "mobile-06.png", zoom: { x: 20, y: 366, w: 596, h: 252 },
+      chip: ["chart", "$1,191.69 profit", "Last 90 days"], note: "The real<br>numbers" },
+  ];
+
+  const n = Math.max(1, Math.min(SLIDES.length, Number(new URLSearchParams(location.search).get("s")) || 1));
+  const s = SLIDES[n - 1];
+  document.getElementById("h1").innerHTML = s.h1;
+  document.getElementById("sub").textContent = s.sub;
+  document.getElementById("photo").src = s.photo;
+  document.getElementById("shot").src = s.shot;
+  document.getElementById("chipIcon").innerHTML = ICON[s.chip[0]];
+  document.getElementById("chipTitle").textContent = s.chip[1];
+  document.getElementById("chipSub").textContent = s.chip[2];
+  document.getElementById("noteText").innerHTML = s.note;
+
+  // Place the close-up beside the part of the phone it magnifies.
+  const SRC_W = 640, SRC_H = 1385, SCREEN_W = 700, PHONE_TOP = 200 + 20, ZOOM_W = 720;
+  const scale = ZOOM_W / s.zoom.w, zh = Math.round(s.zoom.h * scale);
+  const z = document.getElementById("zoomImg");
+  Object.assign(z.style, {
+    width: ZOOM_W + "px", height: zh + "px", backgroundImage: `url(${s.shot})`,
+    backgroundSize: `${Math.round(SRC_W * scale)}px auto`,
+    backgroundPosition: `${-Math.round(s.zoom.x * scale)}px ${-Math.round(s.zoom.y * scale)}px`,
+  });
+  const regionCenter = PHONE_TOP + ((s.zoom.y + s.zoom.h / 2) / SRC_H) * (SCREEN_W * SRC_H / SRC_W);
+  const zoomTop = Math.round(regionCenter - zh / 2 - 14);
+  document.getElementById("zoom").style.top = zoomTop + "px";
+  // Arrow label in the open band under the text; the stage (photo + phone)
+  // starts below it, so a three-line headline never collides with it.
+  document.fonts.ready.then(() => {
+  const subBottom = document.getElementById("sub").getBoundingClientRect().bottom;
+  const stage = document.querySelector(".stage");
+  const stageTop = Math.max(1010, Math.round(subBottom + 250));
+  stage.style.top = stageTop + "px";
+  const note = document.getElementById("note");
+  Object.assign(note.style, { left: "96px", top: Math.round(subBottom + 40 - stageTop) + "px" });
+  note.querySelector("p").style.textAlign = "left";
+  note.querySelector("svg").style.transform = "rotate(38deg) translateY(40px)";
+  document.body.dataset.ready = "1";
+  });
+</script>
+</body>
+</html>

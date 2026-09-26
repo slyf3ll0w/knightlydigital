@@ -7,7 +7,7 @@ import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 
 /**
- * The Dispatch (business-line plan) upsell. Three states:
+ * The Voice (business-line plan) upsell. Three states:
  *  - subscribed → the active card
  *  - just back from Livery checkout (?checkout=done) → "Activating…" while we
  *    poll /api/app/addon waiting for the subscription.created webhook to land
@@ -86,7 +86,7 @@ export default function AddonClient({
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-start gap-3 mb-6">
         <BackLink href="/app/settings" className="mt-1.5" />
-        <PageTitle sub="Your own business phone line inside WorkBench, billed monthly.">Dispatch</PageTitle>
+        <PageTitle sub="Your own business phone line inside WorkBench, billed monthly.">Voice</PageTitle>
       </div>
 
       {isActive ? (
@@ -96,7 +96,7 @@ export default function AddonClient({
               <Check size={20} />
             </span>
             <div>
-              <p className="text-sm font-semibold text-gray-900">Dispatch is active</p>
+              <p className="text-sm font-semibold text-gray-900">Voice is active</p>
               <p className="text-xs text-gray-500">
                 {activeAt
                   ? `Subscribed since ${new Date(activeAt).toLocaleDateString("en-US", {
@@ -145,7 +145,7 @@ export default function AddonClient({
               <Sparkles size={19} />
             </span>
             <p className="text-sm leading-relaxed text-gray-600">
-              Everything in Workbench stays free. Dispatch adds your own business phone line
+              Everything in Workbench stays free. Voice adds your own business phone line
               — cancel anytime.
             </p>
           </div>
