@@ -56,7 +56,10 @@ export default function WBContactPage() {
               <Mail className="h-5 w-5 text-[#0B57D8]" strokeWidth={2} />
             </div>
             <p className="mt-5 text-[13.5px] font-bold text-gray-500">Email</p>
-            <p className="mt-1 break-all text-xl font-extrabold text-gray-900">{WB_EMAIL}</p>
+            <p className="mt-1 text-[19px] font-extrabold text-gray-900 md:text-base xl:text-[19px]">
+              {WB_EMAIL.split("@")[0]}@<wbr />
+              {WB_EMAIL.split("@")[1]}
+            </p>
             <p className="mt-2 text-[14px] leading-relaxed text-gray-600">
               For anything that is easier to write down, including screenshots.
             </p>

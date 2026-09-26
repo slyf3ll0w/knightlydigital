@@ -188,7 +188,7 @@ export default function WBHomePage() {
         <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
           <div className="text-center lg:text-left">
             <h1 className="mx-auto max-w-4xl text-[2.6rem] font-extrabold leading-[1.04] text-gray-900 sm:text-[3.6rem] lg:mx-0 lg:text-[3.55rem] xl:text-[3.8rem]">
-              Run the whole job
+              Run the entire job
               <br className="hidden sm:block" /> from <span className="text-[#0B57D8]">one place</span>.
             </h1>
             <p className="mx-auto mt-6 max-w-2xl lg:mx-0 lg:max-w-xl text-[17px] leading-relaxed text-gray-600 sm:text-[19px]">
