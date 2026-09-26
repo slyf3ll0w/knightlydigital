@@ -73,6 +73,7 @@ import {
   sectionColorVars,
 } from "@/lib/section-colors";
 import { hapticImpact } from "@/lib/haptics";
+import RowActions, { type QuickAction } from "@/components/QuickMenu";
 import { syncAppBadge } from "@/lib/badge";
 import { switchToMembership } from "@/lib/company-switch";
 import { WALLPAPER_PATTERNS } from "@/lib/wallpapers";
@@ -333,6 +334,50 @@ const sectionTints: Record<string, string> = {
   "/app/settings/booking": SECTION_HUES.forms,
   "/app/settings/team": SECTION_HUES.team,
 };
+
+// Right-click / press-and-hold menu for a nav item (rail, tab bar, More
+// sheet): open, open in a new tab, the section's "New …" when the role may
+// create there, and copy link. `creates` is the role-filtered create list.
+const NAV_CREATE: Record<string, { href: string; label: string }> = {
+  "/app/contacts": { href: "/app/contacts/new", label: "New client" },
+  "/app/leads": { href: "/app/contacts/new?type=lead", label: "New lead" },
+  "/app/requests": { href: "/app/requests/new", label: "New request" },
+  "/app/appointments": { href: "/app/appointments/new", label: "New appointment" },
+  "/app/schedule": { href: "/app/jobs/new", label: "New job" },
+  "/app/schedule/map": { href: "/app/jobs/new", label: "New job" },
+  "/app/jobs": { href: "/app/jobs/new", label: "New job" },
+  "/app/quotes": { href: "/app/quotes/new", label: "New quote" },
+  "/app/estimates": { href: "/app/estimates?run=1", label: "New estimate" },
+  "/app/contracts": { href: "/app/contracts/new", label: "New agreement" },
+  "/app/invoices": { href: "/app/invoices/new", label: "New invoice" },
+  "/app/payments": { href: "/app/payments/new", label: "Record a payment" },
+};
+function navQuickActions(href: string, label: string, creates: NavItem[]): QuickAction[] {
+  const create = NAV_CREATE[href];
+  const mayCreate = create && creates.some((c) => c.href === create.href);
+  return [
+    { key: "open", label: `Open ${label}`, href },
+    {
+      key: "tab",
+      label: "Open in new tab",
+      onSelect: () => {
+        window.open(href, "_blank", "noopener");
+      },
+    },
+    ...(mayCreate ? [{ key: "new", label: create.label, href: create.href }] : []),
+    {
+      key: "copy",
+      label: "Copy link",
+      onSelect: async () => {
+        try {
+          await navigator.clipboard.writeText(`${window.location.origin}${href}`);
+        } catch {
+          /* clipboard blocked — nothing to say */
+        }
+      },
+    },
+  ];
+}
 
 // Create-sheet tile tones (.ds-tile-a … e in app/ds.css), matching the More
 // sheet's groups: Clients → primary, Selling → secondary, Field work → slate,
@@ -1883,12 +1928,13 @@ export default function AppShell({
   // Rail v2 row: full-bleed (no rounded chip), neutral ink icon, ONE accent
   // (the sliding indicator paints it — rows carry no per-section hue), and
   // counts as right-aligned ledger numerals instead of badge pills.
+  const railCreates = forRole(createItems, role ?? "", salesMoney);
   const navLink = (href: string, label: string, Icon: typeof Home, animIndex?: number) => {
     const active = isActive(href);
     const badge = badgeCount(href);
     return (
+      <RowActions key={href} actions={navQuickActions(href, label, railCreates)} title={label}>
       <Link prefetch={false}
-        key={href}
         href={href}
         data-tour={tourKeys[href]}
         data-rail-active={active ? "true" : undefined}
@@ -1923,10 +1969,9 @@ export default function AppShell({
           >
             {badge > 99 ? "99+" : badge}
           </span>
-        ) : active ? (
-          <span className="ds-dot ml-auto" aria-hidden />
         ) : null}
       </Link>
+      </RowActions>
     );
   };
 
@@ -2568,12 +2613,12 @@ function MobileTabBar({
   ) => {
     const active = isActive(href);
     return (
+      <RowActions key={href} actions={navQuickActions(href, label, creates)} title={label} className="flex flex-1">
       <Link
-        key={href}
         href={href}
         data-tour={tourKeys[href]}
         onClick={() => hapticImpact("LIGHT")}
-        className={tabClass(active)}
+        className={`w-full ${tabClass(active)}`}
       >
         <span className="relative">
           <Icon size={24} />
@@ -2583,6 +2628,7 @@ function MobileTabBar({
         </span>
         {label}
       </Link>
+      </RowActions>
     );
   };
 
@@ -2828,13 +2874,14 @@ function MoreSheet({
     .map((h) => everything.find((i) => i.href === h))
     .filter((i): i is NavItem => Boolean(i));
 
+  const sheetCreates = forRole(createItems, role, salesMoney);
   const tile = ({ href, label, icon: Icon }: NavItem) => {
     const badge = badgeFor(href);
     const active = isActive(href);
     return (
+      <RowActions key={href} actions={navQuickActions(href, label, sheetCreates)} title={label}>
       <Link
         prefetch={false}
-        key={href}
         href={href}
         onClick={() => {
           hapticImpact("LIGHT");
@@ -2855,10 +2902,10 @@ function MoreSheet({
               {badge.count > 99 ? "99+" : badge.count}
             </span>
           )}
-          {active && !badge && <span className="ds-dot absolute -right-0.5 -top-0.5" aria-hidden />}
         </span>
         <span className="max-w-full truncate text-[11.5px] font-medium leading-tight text-gray-800">{label}</span>
       </Link>
+      </RowActions>
     );
   };
 

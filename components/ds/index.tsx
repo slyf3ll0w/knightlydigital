@@ -28,12 +28,15 @@ export function PageHeader({
   title,
   info,
   actions,
+  underline = true,
   className = "",
 }: {
   eyebrow?: React.ReactNode;
   title: React.ReactNode;
   info?: React.ReactNode;
   actions?: React.ReactNode;
+  /** false when the title draws its own underline under one word (the dashboard greeting). */
+  underline?: boolean;
   className?: string;
 }) {
   return (
@@ -41,10 +44,14 @@ export function PageHeader({
       <div className="min-w-0">
         {eyebrow && <p className="ds-eyebrow">{eyebrow}</p>}
         <h1 className="ds-title mt-1 flex items-center gap-2">
-          <span className="ds-underlined min-w-0">
-            {title}
-            <Underline className="ds-underline" />
-          </span>
+          {underline ? (
+            <span className="ds-underlined min-w-0">
+              {title}
+              <Underline className="ds-underline" />
+            </span>
+          ) : (
+            <span className="min-w-0">{title}</span>
+          )}
           {info && <InfoTip label="About this page">{info}</InfoTip>}
         </h1>
       </div>

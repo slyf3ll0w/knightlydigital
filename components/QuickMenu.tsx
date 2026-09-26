@@ -193,12 +193,19 @@ export function QuickMenu({ open, anchor, title, actions, onClose }: { open: boo
         )
       : null;
 
+  // The phone sheet is portaled out too (2026-09-26): a `fixed` sheet left
+  // inline under a glass surface (the tab bar, the More sheet) is contained by
+  // that surface's backdrop-filter and opens inside a 56px strip.
+  const sheet = (
+    <BottomSheet open={open} onClose={onClose} title={title}>
+      <div className="divide-y divide-gray-100/80">{items.map(phoneItem)}</div>
+    </BottomSheet>
+  );
+
   return (
     <>
       {popover}
-      <BottomSheet open={open} onClose={onClose} title={title}>
-        <div className="divide-y divide-gray-100/80">{items.map(phoneItem)}</div>
-      </BottomSheet>
+      {typeof document !== "undefined" ? createPortal(sheet, document.querySelector(".app-ui") ?? document.body) : sheet}
     </>
   );
 }

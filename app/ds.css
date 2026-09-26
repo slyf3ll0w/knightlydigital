@@ -433,20 +433,6 @@ html[data-mode="dark"] .ds .ds-count-news { color: var(--ds-secondary); }
   background: var(--ds-secondary);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--ds-secondary) 22%, transparent);
 }
-/* the keel — the site's primary→secondary hairline, along the top of the
-   desktop work area */
-@media (min-width: 1024px) {
-  .ds .app-header::after {
-    content: "";
-    position: absolute;
-    left: 0; right: 0; bottom: -1px;
-    height: 2px;
-    pointer-events: none;
-    background: linear-gradient(90deg, var(--ds-primary) 0%, var(--ds-primary) 55%, var(--ds-secondary) 100%);
-    opacity: 0.9;
-  }
-}
-
 /* ── phone canvas: a breath of both brand colors at the top, so the home
    screen isn't a flat gray sheet (the site's hero bloom at a whisper) ── */
 @media (max-width: 1023px) {
@@ -495,8 +481,8 @@ html[data-mode="dark"] .ds .ds-tile-e { --tile: #6F7E96; }
 .ds-ledger-total { color: var(--ds-secondary-strong); }
 html[data-mode="dark"] .ds .ds-ledger-total { color: var(--ds-secondary); }
 /* the page title's underline slot (components/ds/Underline) */
-.ds-underlined { position: relative; display: inline-block; padding-bottom: 9px; }
-.ds-underlined > .ds-underline { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; width: 100%; }
+.ds-underlined { position: relative; display: inline-block; padding-bottom: 10px; }
+.ds-underlined > .ds-underline { position: absolute; left: 0; right: 0; bottom: -1px; height: 12px; width: 100%; display: block; }
 
 /* rail "news" numerals (new requests, unread) in the secondary; past-due stays red */
 .ds { --rail-news: var(--ds-secondary-strong); }

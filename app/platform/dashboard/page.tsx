@@ -33,7 +33,7 @@ import UpNextActions from "./UpNextActions";
 import AtlasHomeButton from "@/components/AtlasHomeButton";
 import SwipeRowContact from "@/components/SwipeRowContact";
 import { PushNudge } from "@/components/PushNotifications";
-import { ActionLink, Button, Card, Chip, DsPage, Hint, ListRow, PageHeader, SectionTitle, Stat } from "@/components/ds";
+import { ActionLink, Button, Card, Chip, DsPage, Hint, ListRow, PageHeader, SectionTitle, Stat, Underline } from "@/components/ds";
 import {
   requirePageActor,
   isManager,
@@ -643,7 +643,11 @@ export default async function DashboardPage() {
 
   const greetingTitle = (
     <>
-      {greeting}, <span style={{ color: "var(--ds-primary)" }}>{firstName}</span>
+      {greeting},{" "}
+      <span className="ds-underlined" style={{ color: "var(--ds-primary)" }}>
+        {firstName}
+        <Underline className="ds-underline" />
+      </span>
     </>
   );
   const pageInfo =
@@ -654,6 +658,7 @@ export default async function DashboardPage() {
       <PageHeader
         eyebrow={dateLine}
         title={greetingTitle}
+        underline={false}
         info={pageInfo}
         actions={
           <span className="hidden gap-2 lg:flex">

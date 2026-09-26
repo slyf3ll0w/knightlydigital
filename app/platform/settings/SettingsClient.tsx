@@ -1289,7 +1289,6 @@ export default function SettingsClient({
                       <Icon size={14} strokeWidth={2.25} />
                     </span>
                     <span className="min-w-0 flex-1 truncate">{s.label}</span>
-                    {active === s.key && <span className="ds-dot" aria-hidden />}
                   </button>
                   {s.key === "phone" && company.addonEnabled && <RailLink link={ADDON_LINK} />}
                 </Fragment>
