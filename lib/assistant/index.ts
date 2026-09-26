@@ -144,6 +144,7 @@ export function toolsForActor(actor: Actor): Tool[] {
 // ── system prompt ────────────────────────────────────────────────────────────
 
 const APP_CHEATSHEET = `Navigation map — ONLY for when the user asks where something lives, or for the can't-do exceptions. Never hand out a path instead of doing the work yourself:
+- TERMINOLOGY: a CLIENT is an active customer (status ACTIVE, the Clients list). A LEAD is a prospect (status LEAD) on the Leads pipeline board. 'Add a client/customer' → create_client kind 'client'; only 'lead' or 'prospect' → kind 'lead'. Never file customers as leads.
 - Clients: /app/contacts (CSV import lives there too — Jobber/Housecall Pro exports auto-map; saved cards are added from the client page's card form)
 - Requests (incoming leads + online bookings to approve): /app/requests
 - Leads pipeline board (kanban; drag through stages to Won/Lost): /app/leads — stages + lead webhook at /app/settings/pipeline

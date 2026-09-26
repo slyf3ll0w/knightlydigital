@@ -263,10 +263,12 @@ function RailLink({ link }: { link: SettingsLink }) {
   return (
     <Link
       href={link.href}
-      className="flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-sm font-medium text-[color:var(--ds-ink-2)] transition-colors hover:bg-[color:var(--ds-surface-2)] hover:text-[color:var(--ds-ink)]"
+      className="flex w-full items-center gap-2.5 rounded-[10px] px-2 py-1.5 text-sm font-medium text-[color:var(--ds-ink-2)] transition-colors hover:bg-[color:var(--ds-surface-2)] hover:text-[color:var(--ds-ink)]"
     >
-      <Icon size={16} className="text-[color:var(--ds-faint)]" />
-      {link.label}
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-[color:var(--ds-surface-2)] text-[color:var(--ds-muted)]">
+        <Icon size={14} strokeWidth={2.25} />
+      </span>
+      <span className="min-w-0 flex-1 truncate">{link.label}</span>
     </Link>
   );
 }
@@ -1193,7 +1195,7 @@ export default function SettingsClient({
   }
 
   return (
-    <div className="p-4 lg:p-8 max-w-4xl mx-auto">
+    <div className="p-4 lg:p-8 max-w-5xl mx-auto">
       {/* Header — on phones inside a section, the back control and the
           section's own title take the h1's place (the h1 belongs to the
           index screen and to desktop). */}
@@ -1237,10 +1239,32 @@ export default function SettingsClient({
         </span>
       </div>
 
-      <div className="lg:grid lg:grid-cols-[230px_minmax(0,1fr)] lg:items-start lg:gap-10">
+      {/* Who these settings belong to — the page's one saturated surface
+          (desktop always; phones on the index) */}
+      <div className={`ds-hero mb-6 items-center gap-4 p-5 ${section === "home" ? "flex" : "hidden lg:flex"}`}>
+        {form.logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={form.logoUrl} alt="" className="theme-fixed h-14 w-14 shrink-0 rounded-2xl bg-white object-contain p-1.5" />
+        ) : (
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-xl font-bold">
+            {(form.name.trim()[0] ?? "W").toUpperCase()}
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-[22px] font-semibold tracking-tight">{form.name || "Your business"}</h2>
+          <p className="mt-0.5 truncate text-[13px] opacity-80">
+            {[form.industry, form.city && [form.city, form.state].filter(Boolean).join(", "), TIMEZONES.find((t) => t.value === form.timezone)?.label]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        </div>
+        <span className="ds-hero-pill hidden sm:inline-flex">/portal/{company.slug}</span>
+      </div>
+
+      <div className="lg:grid lg:grid-cols-[262px_minmax(0,1fr)] lg:items-start lg:gap-8">
         {/* Desktop: the settings nav rail. Voice rides with Phone &
             texting (the business line is what it unlocks). */}
-        <nav className="sticky top-8 hidden lg:block">
+        <nav className="ds-card sticky top-8 hidden p-2 lg:block">
           <div className="space-y-0.5">
             {SETTINGS_SECTIONS.map((s) => {
               const Icon = SECTION_ICONS[s.icon];
@@ -1249,14 +1273,23 @@ export default function SettingsClient({
                   <button
                     type="button"
                     onClick={() => goSection(s.key)}
-                    className={`flex w-full items-center gap-2.5 rounded-[10px] px-3 py-2 text-left text-sm transition-colors ${
+                    className={`flex w-full items-center gap-2.5 rounded-[10px] px-2 py-1.5 text-left text-sm transition-colors ${
                       active === s.key
                         ? "bg-[color:var(--ds-primary-soft)] font-semibold text-[color:var(--ds-primary)]"
                         : "font-medium text-[color:var(--ds-ink-2)] hover:bg-[color:var(--ds-surface-2)] hover:text-[color:var(--ds-ink)]"
                     }`}
                   >
-                    <Icon size={16} className={active === s.key ? undefined : "text-[color:var(--ds-faint)]"} />
-                    {s.label}
+                    <span
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] ${
+                        active === s.key
+                          ? "bg-[color:var(--ds-primary)] text-[color:var(--ds-on-primary)]"
+                          : "bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]"
+                      }`}
+                    >
+                      <Icon size={14} strokeWidth={2.25} />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{s.label}</span>
+                    {active === s.key && <span className="ds-dot" aria-hidden />}
                   </button>
                   {s.key === "phone" && company.addonEnabled && <RailLink link={ADDON_LINK} />}
                 </Fragment>
@@ -1265,7 +1298,7 @@ export default function SettingsClient({
           </div>
           {SETTINGS_LINK_GROUPS.map((g) => (
             <div key={g.key}>
-              <p className="ds-label mb-1 mt-6 px-3">{g.label}</p>
+              <p className="ds-eyebrow mb-1 mt-5 px-2">{g.label}</p>
               <div className="space-y-0.5">
                 {g.links.map((l) => (
                   <RailLink key={l.href} link={l} />

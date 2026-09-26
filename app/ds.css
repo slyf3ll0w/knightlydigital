@@ -87,15 +87,18 @@ html[data-mode="dark"] .ds {
   --ds-secondary-soft: var(--ds-secondary-soft-d, #FB8A3C2E);
   --ds-on-secondary: var(--ds-on-secondary-d, #111827);
 
-  --ds-canvas: #0E131D;
-  --ds-surface: #161D2B;
-  --ds-surface-2: #1C2435;
-  --ds-line: #262F44;
-  --ds-line-strong: #33405A;
-  --ds-ink: #EDF1F7;
-  --ds-ink-2: #BAC4D5;
-  --ds-muted: #8D98AD;
-  --ds-faint: #647086;
+  /* DUSK (2026-09-26): a neutral slate, not navy — David: "the blue on the
+     dark theme has to go" so any brand color sits on it. Ground carries a
+     3% whisper of the primary; surfaces step ground → card → raised. */
+  --ds-canvas: color-mix(in srgb, var(--ds-primary) 3%, #191E26);
+  --ds-surface: #262E38;
+  --ds-surface-2: #313A46;
+  --ds-line: rgba(255, 255, 255, 0.1);
+  --ds-line-strong: rgba(255, 255, 255, 0.18);
+  --ds-ink: #EDF1F6;
+  --ds-ink-2: #C6CFD9;
+  --ds-muted: #93A0AF;
+  --ds-faint: #77828F;
 
   --ds-good: #4ADE80;
   --ds-good-soft: #4ADE801F;
@@ -349,7 +352,7 @@ html[data-mode="dark"] .ds .card-tool {
 }
 html[data-mode="dark"] .ds .ds-glass,
 html[data-mode="dark"] .ds.ds-glass {
-  background-color: color-mix(in srgb, var(--ds-primary) 8%, rgba(22, 29, 43, 0.66));
+  background-color: color-mix(in srgb, var(--ds-primary) 6%, rgba(42, 50, 61, 0.66));
   border-color: rgba(255, 255, 255, 0.1);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
@@ -358,7 +361,7 @@ html[data-mode="dark"] .ds.ds-glass {
 }
 html[data-mode="dark"] .ds .ds-glass-strong,
 html[data-mode="dark"] .ds.ds-glass-strong {
-  background-color: color-mix(in srgb, var(--ds-primary) 6%, rgba(22, 29, 43, 0.9));
+  background-color: color-mix(in srgb, var(--ds-primary) 4%, rgba(42, 50, 61, 0.9));
 }
 /* rows inside a glass menu: hover is a tint, not a solid fill */
 .ds .ds-glass .hover\:bg-gray-50:hover,
@@ -444,6 +447,25 @@ html[data-mode="dark"] .ds .ds-count-news { color: var(--ds-secondary); }
       radial-gradient(55% 45% at 100% -6%, color-mix(in srgb, var(--ds-secondary) 12%, transparent), transparent 70%);
   }
 }
+/* ── nav tiles (the phone More sheet): iOS-style app icons in the company's
+   own colors — primary, secondary, and three slate steps — never a rainbow.
+   White glyph, a soft top-light, one shadow. ── */
+.ds-tile {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 48px; height: 48px; border-radius: 15px;
+  color: #fff;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--tile) 78%, #fff) 0%, var(--tile) 48%, color-mix(in srgb, var(--tile) 82%, #000) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 1px 2px rgba(10, 19, 40, 0.16), 0 6px 14px -8px color-mix(in srgb, var(--tile) 60%, transparent);
+}
+.ds-tile-a { --tile: var(--ds-primary); }
+.ds-tile-b { --tile: var(--ds-secondary); }
+.ds-tile-c { --tile: #22314F; }
+.ds-tile-d { --tile: #3A475C; }
+.ds-tile-e { --tile: #687589; }
+html[data-mode="dark"] .ds .ds-tile-c { --tile: #4B5A78; }
+html[data-mode="dark"] .ds .ds-tile-d { --tile: #5A6A85; }
+html[data-mode="dark"] .ds .ds-tile-e { --tile: #6F7E96; }
+
 /* rail "news" numerals (new requests, unread) in the secondary; past-due stays red */
 .ds { --rail-news: var(--ds-secondary-strong); }
 html[data-mode="dark"] .ds { --rail-news: var(--ds-secondary); }

@@ -136,7 +136,12 @@ export default function LeadsBoardClient({
     toastTimer.current = setTimeout(() => setToast(null), 8000);
   }
 
-  const refresh = () => startTransition(() => router.refresh());
+  const refresh = () => {
+    // The rail's Leads count reads the board's entry stage; tell the shell a
+    // card moved so the badge settles now, not on the next 45 s poll.
+    window.dispatchEvent(new CustomEvent("wb:nav-counts"));
+    startTransition(() => router.refresh());
+  };
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();

@@ -6,16 +6,10 @@
  * theme-fixed: the gradient is self-lit and identical in both themes.
  */
 
-const PALETTE = [
-  "#3B82F6",
-  "#8B5CF6",
-  "#10B981",
-  "#F97316",
-  "#0EA5E9",
-  "#EC4899",
-  "#F59E0B",
-  "#14B8A6",
-];
+// Brand duotone (2026-09-26): every client wears one of three fills from
+// the company's own palette — primary, secondary, or the console slate —
+// picked by name so a client keeps their color everywhere.
+const PALETTE = ["var(--ds-primary, #0B57D8)", "var(--ds-secondary, #F86A0A)", "#22314F"];
 
 export default function Monogram({
   name,
@@ -45,7 +39,7 @@ export default function Monogram({
         height: size,
         fontSize: Math.round(size * 0.33),
         letterSpacing: "0.01em",
-        background: `radial-gradient(130% 130% at 30% 22%, color-mix(in srgb, ${base} 72%, #fff) 0%, ${base} 55%, color-mix(in srgb, ${base} 72%, #000) 100%)`,
+        background: `radial-gradient(130% 130% at 30% 22%, color-mix(in srgb, ${base} 76%, #fff) 0%, ${base} 55%, color-mix(in srgb, ${base} 76%, #000) 100%)`,
       }}
     >
       {initials}

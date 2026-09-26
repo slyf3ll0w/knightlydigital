@@ -377,6 +377,18 @@ function trackPath(pathname: string): string | null {
 // The More sheet remembers the last four pages opened from it (per device).
 const MORE_RECENT_KEY = "wb-more-recent";
 
+// The More sheet's groups (2026-09-26): five short sections instead of one
+// fifteen-tile "Work" wall, each in ONE color from the company's own palette
+// (.ds-tile-a … e in app/ds.css: primary, secondary, three slates). Items
+// come from navGroups (role-filtered); this only decides where they sit.
+const MORE_GROUPS: { label: string; tone: "a" | "b" | "c" | "d" | "e"; hrefs: string[] }[] = [
+  { label: "Clients", tone: "a", hrefs: ["/app/contacts", "/app/leads", "/app/requests", "/app/messages", "/app/calls"] },
+  { label: "Selling", tone: "b", hrefs: ["/app/quotes", "/app/estimates", "/app/contracts", "/app/appointments"] },
+  { label: "Field work", tone: "c", hrefs: ["/app/schedule/map", "/app/jobs", "/app/timesheets", "/app/chat"] },
+  { label: "Money", tone: "d", hrefs: ["/app/invoices", "/app/payments", "/app/subscriptions"] },
+  { label: "Business", tone: "e", hrefs: ["/app/business", "/app/automations", "/app/settings/products", "/app/settings/booking", "/app/settings/team"] },
+];
+
 const forRole = (items: NavItem[], role: string, salesMoney: boolean) =>
   items.filter((i) => !i.show || i.show(role, salesMoney));
 
@@ -1904,7 +1916,7 @@ export default function AppShell({
             key={badge}
             className={`rail-count ml-auto ${
               href === "/app/invoices"
-                ? "text-[color:var(--rail-num-due)]"
+                ? "text-[color:var(--rail-news)]" /* was red; David 2026-09-26: no red dots in the rail */
                 : "text-[color:var(--rail-news)]"
             }`}
           >
@@ -2681,7 +2693,7 @@ function MobileTabBar({
             <span className="relative">
               <MoreFill size={24} />
               {pastDue > 0 && (
-                <span className="absolute -right-1 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-[color:var(--fab-ring)]" />
+                <span className="absolute -right-1 -top-0.5 h-2.5 w-2.5 rounded-full bg-[color:var(--ds-secondary)] ring-2 ring-[color:var(--fab-ring)]" />
               )}
             </span>
             More
@@ -2798,15 +2810,21 @@ function MoreSheet({
     ...(manager ? [{ href: "/app/settings", label: "Settings", icon: Settings }] : []),
     { href: "/app/support", label: "Help & Feedback", icon: LifeBuoy },
   ];
-  const sections = navGroups
-    .slice(1) // Home + Schedule live on the tab bar
-    .map((g) => ({ label: g.label ?? "", items: forRole(g.items, role, salesMoney) }))
-    .filter((s) => s.items.length > 0);
-  if (sections[0] && teamItems.length) sections[0] = { ...sections[0], items: [...sections[0].items, ...teamItems] };
+  // Home + Schedule live on the tab bar; everything else is bucketed by MORE_GROUPS
+  const pool = [...navGroups.slice(1).flatMap((g) => forRole(g.items, role, salesMoney)), ...teamItems];
+  const placed = new Set<string>();
+  const sections = MORE_GROUPS.map((g) => {
+    const items = g.hrefs.map((h) => pool.find((i) => i.href === h)).filter((i): i is NavItem => Boolean(i));
+    for (const i of items) placed.add(i.href);
+    return { label: g.label, tone: g.tone, items };
+  }).filter((s) => s.items.length > 0);
+  const stray = pool.filter((i) => !placed.has(i.href));
+  if (stray.length && sections.length) sections[sections.length - 1].items.push(...stray);
   const everything = [...sections.flatMap((s) => s.items), ...accountItems];
+  const toneOf = (href: string) => sections.find((s) => s.items.some((i) => i.href === href))?.tone ?? "e";
   const needle = query.trim().toLowerCase();
   const shown = needle
-    ? [{ label: "", items: everything.filter((i) => i.label.toLowerCase().includes(needle)) }]
+    ? [{ label: "", tone: "a" as const, items: everything.filter((i) => i.label.toLowerCase().includes(needle)) }]
     : sections;
   const recentItems = recent
     .map((h) => everything.find((i) => i.href === h))
@@ -2815,7 +2833,6 @@ function MoreSheet({
   const tile = ({ href, label, icon: Icon }: NavItem) => {
     const badge = badgeFor(href);
     const active = isActive(href);
-    const tint = sectionTints[href];
     return (
       <Link
         prefetch={false}
@@ -2829,19 +2846,12 @@ function MoreSheet({
           active ? "bg-[color:var(--ds-primary-soft)]" : ""
         }`}
       >
-        <span
-          className="relative flex h-12 w-12 items-center justify-center rounded-[15px]"
-          style={
-            tint
-              ? { backgroundColor: `color-mix(in srgb, ${tint} 15%, transparent)`, color: tint }
-              : { backgroundColor: "var(--ds-primary-soft)", color: "var(--ds-primary)" }
-          }
-        >
-          <Icon size={21} strokeWidth={2.1} />
+        <span className={`ds-tile ds-tile-${toneOf(href)} relative`}>
+          <Icon size={22} strokeWidth={2} />
           {badge && (
             <span
               className={`absolute -right-1.5 -top-1.5 min-w-[19px] rounded-full px-1.5 py-0.5 text-center text-[10.5px] font-bold tabular-nums ${
-                badge.urgent ? "bg-red-500 text-white" : "ds-count-news"
+                badge.urgent ? "ds-count-news font-bold" : "ds-count-news"
               }`}
             >
               {badge.count > 99 ? "99+" : badge.count}
@@ -2951,7 +2961,7 @@ function MoreSheet({
                     }}
                     className="flex shrink-0 items-center gap-1.5 rounded-full bg-gray-100 py-1.5 pl-2.5 pr-3 text-[13px] font-medium text-gray-800 active:bg-gray-200"
                   >
-                    <Icon size={14} strokeWidth={2.2} style={{ color: sectionTints[href] ?? "var(--ds-primary)" }} />
+                    <Icon size={14} strokeWidth={2.2} className="text-[color:var(--ds-primary)]" />
                     {label}
                   </Link>
                 ))}

@@ -216,11 +216,12 @@ export const clientTools: Tool[] = [
     decl: {
       name: "create_client",
       description:
-        "Stage adding a new client. The user sees a confirmation card and must press Confirm. First and last name required.",
+        "Stage adding a new person. TERMINOLOGY: a CLIENT (kind 'client', the default) is someone the business works with — an active customer, status ACTIVE, listed under Clients. A LEAD (kind 'lead') is only a prospect: status LEAD, and they land on the Leads pipeline board to be worked. When the user says client, customer, or just 'add these people', use 'client'. Use 'lead' ONLY when they say lead or prospect. The user sees a confirmation card and must press Confirm. First and last name required.",
       parameters: {
         type: "object",
         properties: {
           firstName: { type: "string" }, lastName: { type: "string" },
+          kind: { type: "string", enum: ["client", "lead"], description: "client = active customer (default); lead = prospect on the pipeline board" },
           companyName: { type: "string" }, email: { type: "string" },
           phone: { type: "string" }, address: { type: "string" }, notes: { type: "string" },
         },
@@ -232,8 +233,11 @@ export const clientTools: Tool[] = [
       const firstName = str(args.firstName, 60);
       const lastName = str(args.lastName, 60);
       if (!firstName || !lastName) return { error: "firstName and lastName are required" };
+      const lead = str(args.kind, 12).toLowerCase() === "lead";
       const payload = {
         firstName, lastName,
+        // The contacts API defaults to LEAD; a client the user asked for is ACTIVE.
+        status: lead ? ("LEAD" as const) : ("ACTIVE" as const),
         companyName: str(args.companyName, 100) || undefined,
         email: str(args.email, 200) || undefined,
         phone: str(args.phone, 40) || undefined,
@@ -242,7 +246,7 @@ export const clientTools: Tool[] = [
       };
       return stage(ctx, {
         kind: "create_client",
-        title: `Add client ${firstName} ${lastName}`,
+        title: `Add ${lead ? "lead" : "client"} ${firstName} ${lastName}`,
         lines: [
           payload.companyName && `Company: ${payload.companyName}`,
           payload.email && `Email: ${payload.email}`,

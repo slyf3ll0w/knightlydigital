@@ -39,7 +39,8 @@ export default function Avatar({
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const seed = name?.trim() || "?";
-  const hue = hashHue(seed);
+  // Brand duotone: primary / secondary / console slate, picked by name.
+  const tone = ["var(--ds-primary, #0B57D8)", "var(--ds-secondary, #F86A0A)", "#22314F"][hashHue(seed) % 3];
   const tryPhoto = !!userId && !failed;
   // Initials always paint underneath; the photo sits on top and only becomes
   // visible once it actually loads. A missing photo (404) therefore never
@@ -51,7 +52,7 @@ export default function Avatar({
         width: size,
         height: size,
         fontSize: Math.round(size * 0.36),
-        background: `linear-gradient(135deg, hsl(${hue} 62% 48%), hsl(${(hue + 50) % 360} 65% 36%))`,
+        background: `linear-gradient(135deg, color-mix(in srgb, ${tone} 78%, #fff), ${tone} 55%, color-mix(in srgb, ${tone} 76%, #000))`,
         letterSpacing: "0.02em",
       }}
       title={name ?? undefined}
