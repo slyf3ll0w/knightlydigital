@@ -1570,7 +1570,10 @@ export default function AppShell({
       ind.classList.remove("rail-indicator-on");
       return;
     }
-    ind.style.transform = `translateY(${el.offsetTop + 5}px)`;
+    // Rects, not offsetTop: each row now sits in a `relative` quick-menu
+    // wrapper, which made offsetTop read 0 and parked the bar on the first row.
+    const top = el.getBoundingClientRect().top - nav.getBoundingClientRect().top + nav.scrollTop;
+    ind.style.transform = `translateY(${Math.round(top) + 5}px)`;
     ind.style.height = `${el.offsetHeight - 10}px`;
     ind.classList.add("rail-indicator-on");
   });

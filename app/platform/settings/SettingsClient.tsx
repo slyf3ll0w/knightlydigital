@@ -23,6 +23,7 @@ import {
   Phone,
   PhoneCall,
   RefreshCw,
+  Search,
   Tags,
   Sparkles,
   UserRound,
@@ -922,6 +923,14 @@ export default function SettingsClient({
   useEffect(() => setSection(normalizedSection), [normalizedSection]);
   // Desktop always shows a panel — "home" (the phone index) reads as Company
   const active: SectionId = section === "home" ? "company" : section;
+  // Rail search (desktop): filters sections and standalone pages by name or blurb.
+  const [navQ, setNavQ] = useState("");
+  const nq = navQ.trim().toLowerCase();
+  const navMatch = (label: string, sub?: string) => !nq || label.toLowerCase().includes(nq) || (sub ?? "").toLowerCase().includes(nq);
+  const railSections = SETTINGS_SECTIONS.filter((s) => navMatch(s.label, s.sub));
+  const railGroups = SETTINGS_LINK_GROUPS.map((g) => ({ ...g, links: g.links.filter((l) => navMatch(l.label, l.sub)) })).filter((g) => g.links.length > 0);
+  const activeSection = SETTINGS_SECTIONS.find((s) => s.key === active);
+  const ActiveIcon = activeSection ? SECTION_ICONS[activeSection.icon] : Building2;
   const show = (s: SectionId) => active === s;
   function goSection(s: Section) {
     setSection(s);
@@ -1239,34 +1248,39 @@ export default function SettingsClient({
         </span>
       </div>
 
-      {/* Who these settings belong to — the page's one saturated surface
-          (desktop always; phones on the index) */}
-      <div className={`ds-hero mb-6 items-center gap-4 p-5 ${section === "home" ? "flex" : "hidden lg:flex"}`}>
-        {form.logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={form.logoUrl} alt="" className="theme-fixed h-14 w-14 shrink-0 rounded-2xl bg-white object-contain p-1.5" />
-        ) : (
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-xl font-bold">
-            {(form.name.trim()[0] ?? "W").toUpperCase()}
-          </span>
-        )}
-        <div className="min-w-0 flex-1">
-          <h2 className="truncate text-[22px] font-semibold tracking-tight">{form.name || "Your business"}</h2>
-          <p className="mt-0.5 truncate text-[13px] opacity-80">
-            {[form.industry, form.city && [form.city, form.state].filter(Boolean).join(", "), TIMEZONES.find((t) => t.value === form.timezone)?.label]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
-        </div>
-        <span className="ds-hero-pill hidden sm:inline-flex">/portal/{company.slug}</span>
-      </div>
-
-      <div className="lg:grid lg:grid-cols-[262px_minmax(0,1fr)] lg:items-start lg:gap-8">
+      <div className="lg:grid lg:grid-cols-[264px_minmax(0,1fr)] lg:items-start lg:gap-8">
         {/* Desktop: the settings nav rail. Voice rides with Phone &
             texting (the business line is what it unlocks). */}
         <nav className="ds-card sticky top-8 hidden p-2 lg:block">
+          {/* Whose settings: logo or initial, name, portal handle */}
+          <div className="mb-2 flex items-center gap-2.5 border-b border-[color:var(--ds-line)] px-1.5 pb-3 pt-1">
+            {form.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={form.logoUrl} alt="" className="theme-fixed h-9 w-9 shrink-0 rounded-[10px] bg-white object-contain p-1" />
+            ) : (
+              <span className="ds-tile ds-tile-a !h-9 !w-9 !rounded-[10px] text-[13px] font-bold">{(form.name.trim()[0] ?? "W").toUpperCase()}</span>
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-[13.5px] font-semibold text-[color:var(--ds-ink)]">{form.name || "Your business"}</p>
+              <p className="ds-small truncate">/portal/{company.slug}</p>
+            </div>
+          </div>
+          <label className="relative mb-2 block">
+            <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[color:var(--ds-faint)]" />
+            <input
+              type="search"
+              value={navQ}
+              onChange={(e) => setNavQ(e.target.value)}
+              placeholder="Search settings"
+              aria-label="Search settings"
+              className="w-full rounded-[10px] bg-[color:var(--ds-surface-2)] py-1.5 pl-8 pr-2 text-[13px] text-[color:var(--ds-ink)] outline-none placeholder:text-[color:var(--ds-faint)] focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+            />
+          </label>
+          {nq && railSections.length === 0 && railGroups.length === 0 && (
+            <p className="px-2 py-3 text-[13px] text-[color:var(--ds-muted)]">Nothing matches “{navQ.trim()}”.</p>
+          )}
           <div className="space-y-0.5">
-            {SETTINGS_SECTIONS.map((s) => {
+            {railSections.map((s) => {
               const Icon = SECTION_ICONS[s.icon];
               return (
                 <Fragment key={s.key}>
@@ -1295,7 +1309,7 @@ export default function SettingsClient({
               );
             })}
           </div>
-          {SETTINGS_LINK_GROUPS.map((g) => (
+          {railGroups.map((g) => (
             <div key={g.key}>
               <p className="ds-eyebrow mb-1 mt-5 px-2">{g.label}</p>
               <div className="space-y-0.5">
@@ -1310,6 +1324,18 @@ export default function SettingsClient({
         {/* Phones: the settings index — grouped rows, the iOS Settings idiom */}
         {section === "home" && (
           <div className="space-y-6 lg:hidden">
+            <div className="flex items-center gap-3 px-1">
+              {form.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={form.logoUrl} alt="" className="theme-fixed h-11 w-11 shrink-0 rounded-[12px] bg-white object-contain p-1" />
+              ) : (
+                <span className="ds-tile ds-tile-a !h-11 !w-11 !rounded-[12px] text-[15px] font-bold">{(form.name.trim()[0] ?? "W").toUpperCase()}</span>
+              )}
+              <div className="min-w-0">
+                <p className="truncate text-[15px] font-semibold text-[color:var(--ds-ink)]">{form.name || "Your business"}</p>
+                <p className="ds-small truncate">/portal/{company.slug}</p>
+              </div>
+            </div>
             <div className="ds-card ds-divide overflow-hidden">
               {SETTINGS_SECTIONS.map((s) => {
                 const Icon = SECTION_ICONS[s.icon];
@@ -1347,6 +1373,17 @@ export default function SettingsClient({
 
         {/* The open section's cards — hidden on phones while the index shows */}
         <div className={section === "home" ? "hidden lg:block" : ""}>
+      {activeSection && (
+        <div className="mb-5 hidden items-center gap-3 lg:flex">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]">
+            <ActiveIcon size={20} strokeWidth={2.2} />
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-[20px] font-semibold tracking-tight text-[color:var(--ds-ink)]">{activeSection.label}</h2>
+            <p className="ds-small mt-0.5">{activeSection.sub}</p>
+          </div>
+        </div>
+      )}
       {show("company") && <PortalLinkCard slug={company.slug} />}
 
       <div className="space-y-6">
