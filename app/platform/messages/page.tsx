@@ -6,6 +6,7 @@ import PageTitle from "@/components/PageTitle";
 import EmptyState from "@/components/EmptyState";
 import Monogram from "@/components/Monogram";
 import { shortDate } from "@/lib/statuses";
+import NewMessageButton from "./NewMessageButton";
 
 /**
  * Client messages inbox: one row per conversation (contact), newest activity
@@ -41,17 +42,20 @@ export default async function MessagesInboxPage() {
 
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
-      <PageTitle section="chat" icon={MessageSquare}>
-        Messages
-      </PageTitle>
+      <div className="flex items-center justify-between gap-2">
+        <PageTitle section="chat" icon={MessageSquare}>
+          Messages
+        </PageTitle>
+        <NewMessageButton />
+      </div>
 
       {latest.length === 0 ? (
         <div className="mt-6">
           <EmptyState
             art="contacts"
             showPlusIcon={false}
-            title="No client messages yet"
-            body="Clients can message you from the Messages tab in their portal — replies you send land back there (and mirror to text once SMS is on)."
+            title="No conversations yet"
+            body="Start one with New message — it texts from your business line once texting is on, and reaches the client portal either way. Texts and portal replies land here."
           />
         </div>
       ) : (

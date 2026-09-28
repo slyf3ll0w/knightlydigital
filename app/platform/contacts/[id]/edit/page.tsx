@@ -36,6 +36,7 @@ export default async function EditContactPage({
         smsConsent: !contact.smsDisabled,
         smsConsentNote: contact.smsConsentNote ?? "",
         status: contact.status,
+        kind: contact.kind,
         customFields: (contact.customFields as Record<string, string>) ?? {},
       }}
     />

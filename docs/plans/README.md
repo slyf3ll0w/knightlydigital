@@ -34,6 +34,8 @@ documents (`roadmap.md`, `ideas.md`, `native-release-queue.md`) never "finish".
 - `crud-cohesion-overhaul.md` — client/appointment editing gaps (2026-07-02).
 - `ux-consistency-audit-2026-09-03.md` — list/detail consistency audit; batches F1 + F2 shipped, rest folded into `code-audit-2026-09-18.md`.
 
+- `messaging-contacts-2026-09-28.md` — Message from the contact card, New message picker, business contacts (`Contact.kind`), texting status stuck on REJECTED (2026-09-28). Test recipes inside.
+
 ## Reference / runbooks
 - `mobile-app-runbook-mac.md` — iOS build + submission steps, § PLAY STORE for Android.
 - `play-store-listing.md` — Play Console listing copy; `play-assets/` holds the screenshots and feature graphic.

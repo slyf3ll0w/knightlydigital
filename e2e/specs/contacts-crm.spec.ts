@@ -25,6 +25,41 @@ test.describe("contacts & CRM", () => {
     expect(contact.lastName).toBe("CRM-Renamed");
   });
 
+  test("a business contact is never a lead and becomes a client with their first job", async () => {
+    // kind CONTACT wins over a LEAD status: ACTIVE, off the Leads board
+    const created = await api.post("/api/app/contacts", {
+      firstName: runTag,
+      lastName: "CRM-Contact",
+      kind: "CONTACT",
+      status: "LEAD",
+    });
+    try {
+      let row = await db().contact.findUniqueOrThrow({ where: { id: created.id } });
+      expect(row.kind).toBe("CONTACT");
+      expect(row.status).toBe("ACTIVE");
+      expect(row.pipelineStageId).toBeNull();
+
+      // The Contacts tab lists them; the default Clients list does not (server-rendered pages read the DB the same way)
+      const contactsTab = await db().contact.findMany({
+        where: { companyId: row.companyId, kind: "CONTACT", status: { not: "ARCHIVED" } },
+        select: { id: true },
+      });
+      expect(contactsTab.map((c) => c.id)).toContain(created.id);
+
+      // Messaging a contact works before they are a client (the New-message picker lands here)
+      const sent = await api.post(`/api/app/messages/${created.id}`, { body: "Hi from the e2e suite" }, 201);
+      expect(sent.message.direction).toBe("OUTBOUND");
+
+      // First job → client
+      await api.post("/api/app/jobs", { contactId: created.id, title: "E2E first job for a contact" });
+      row = await db().contact.findUniqueOrThrow({ where: { id: created.id } });
+      expect(row.kind).toBe("CLIENT");
+      expect(row.status).toBe("ACTIVE");
+    } finally {
+      await deleteContact(api, created.id);
+    }
+  });
+
   test("saved service address becomes the job-site snapshot", async () => {
     const { address } = await api.post(
       `/api/app/contacts/${contactId}/addresses`,

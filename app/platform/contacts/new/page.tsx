@@ -19,12 +19,13 @@ export default async function NewContactPage({
       })
     : [];
 
-  // /new?type=lead preselects Lead (pipeline board); default is a plain
-  // client. The form has a toggle either way.
+  // /new?type=lead preselects Lead (pipeline board), ?type=contact a business
+  // connection (Clients → Contacts); default is a plain client. The form has
+  // the toggle either way.
   return (
     <ContactForm
       mode="create"
-      initial={{ status: type === "lead" ? "LEAD" : "ACTIVE" }}
+      initial={{ status: type === "lead" ? "LEAD" : "ACTIVE", kind: type === "contact" ? "CONTACT" : "CLIENT" }}
       canAssign={canAssign}
       users={users}
     />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Phone, MessageSquare, Navigation } from "lucide-react";
+import { Phone, MessageSquare, MessageCircle, Navigation } from "lucide-react";
 import { telHref, smsHref, canSendSms } from "@/lib/messaging";
 
 /**
@@ -10,20 +10,30 @@ import { telHref, smsHref, canSendSms } from "@/lib/messaging";
  * directions. Legacy FSM apps put these one tap from the job; ours were
  * buried in the Client card at the bottom of the page.
  *
+ * `messageHref` adds a Message tile that opens the client's conversation in
+ * WorkBench (/app/messages/thread/…): texts go from the business line and
+ * replies land in the inbox, unlike the Text tile, which opens the phone's
+ * own Messages app from the tech's personal number.
+ *
  * Accent-tinted tiles (green utilities bridge to the tenant color).
  * Renders nothing when there's neither a phone nor an address.
  */
 export default function JobActionRow({
   phone,
   address,
+  messageHref,
 }: {
   phone?: string | null;
   address?: string | null;
+  messageHref?: string | null;
 }) {
   const [smsOk, setSmsOk] = useState(false);
   useEffect(() => setSmsOk(canSendSms()), []);
 
   const actions = [
+    ...(messageHref
+      ? [{ href: messageHref, icon: MessageCircle, label: "Message" }]
+      : []),
     ...(phone
       ? [{ href: telHref(phone), icon: Phone, label: "Call" }]
       : []),

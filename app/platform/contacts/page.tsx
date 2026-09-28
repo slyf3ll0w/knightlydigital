@@ -16,9 +16,12 @@ import { contactSearchWhere } from "@/lib/contact-search";
 import Monogram from "@/components/Monogram";
 
 // Leads live on the Leads board now — this page is clients (searching still
-// finds leads so the header search never dead-ends).
+// finds leads so the header search never dead-ends). Contacts = business
+// connections (Contact.kind CONTACT): subs, suppliers, referral partners —
+// kept in the same book, never leads, clients the day they get a job.
 const statusFilters = [
   { value: "", label: "Clients" },
+  { value: "CONTACTS", label: "Contacts" },
   { value: "ARCHIVED", label: "Archived" },
 ];
 
@@ -39,9 +42,10 @@ export default async function ContactsPage({
   const { q, status, assignee, page: pageParam, sort: sortRaw } = await searchParams;
   const sort = pickSort(sortRaw, CLIENT_SORTS);
   const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
-  const validStatus = ["ARCHIVED"].includes(status ?? "")
-    ? (status as "ARCHIVED")
+  const validStatus = ["ARCHIVED", "CONTACTS"].includes(status ?? "")
+    ? (status as "ARCHIVED" | "CONTACTS")
     : undefined;
+  const contactsTab = validStatus === "CONTACTS";
 
   // Managers can flip to "Mine"; sales/user are always scoped to theirs
   const showAll = seesAllLeads(actor.role);
@@ -55,9 +59,16 @@ export default async function ContactsPage({
     companyId,
     ...contactScope(actor),
     ...(mineOnly ? { assignedToId: actor.id } : {}),
-    // A search sweeps every status (so leads are still findable here);
-    // otherwise the list is active clients, or the Archived tab
-    status: validStatus ? validStatus : q ? undefined : ("ACTIVE" as const),
+    // A search sweeps every status and kind (so leads and contacts are still
+    // findable here); otherwise the list is active clients, the Contacts
+    // tab (business connections, not archived), or the Archived tab
+    ...(contactsTab
+      ? { kind: "CONTACT" as const, status: { not: "ARCHIVED" as const } }
+      : validStatus === "ARCHIVED"
+        ? { status: "ARCHIVED" as const }
+        : q
+          ? {}
+          : { status: "ACTIVE" as const, kind: "CLIENT" as const }),
     ...(search ?? {}),
   };
   const [contacts, listCount] = await Promise.all([
@@ -113,13 +124,13 @@ export default async function ContactsPage({
               </a>
             </>
           )}
-          {/* Phones create from the tab-bar FAB */}
+          {/* Phones create from the tab-bar FAB (the form has the Contact option) */}
           <Link
-            href="/app/contacts/new"
+            href={contactsTab ? "/app/contacts/new?type=contact" : "/app/contacts/new"}
             className="btn-primary hidden lg:flex h-10"
           >
             <Plus size={15} />
-            New Client
+            {contactsTab ? "New Contact" : "New Client"}
           </Link>
         </div>
       </div>
@@ -158,14 +169,22 @@ export default async function ContactsPage({
         {contacts.length === 0 ? (
           <EmptyState
             art="contacts"
-            title={q || validStatus ? "No clients match this filter" : "No clients yet"}
-            body={
-              q || validStatus
-                ? "Try a different search or status filter."
-                : "Your client list powers everything — quotes, jobs, and invoices all start here."
+            title={
+              contactsTab && !q
+                ? "No contacts yet"
+                : q || validStatus
+                  ? "No clients match this filter"
+                  : "No clients yet"
             }
-            actionHref="/app/contacts/new"
-            actionLabel="Add Your First Client"
+            body={
+              contactsTab && !q
+                ? "Business connections — subs, suppliers, referral partners — live here, apart from your clients. Schedule one a job and they move to Clients."
+                : q || validStatus
+                  ? "Try a different search or status filter."
+                  : "Your client list powers everything — quotes, jobs, and invoices all start here."
+            }
+            actionHref={contactsTab ? "/app/contacts/new?type=contact" : "/app/contacts/new"}
+            actionLabel={contactsTab ? "Add a Contact" : "Add Your First Client"}
           />
         ) : (
           <>
@@ -207,7 +226,7 @@ export default async function ContactsPage({
                   <span className="hidden lg:block text-sm text-gray-500 truncate">
                     {[c.address, c.city, c.state].filter(Boolean).join(", ") || "—"}
                   </span>
-                  <ContactStatus status={c.status} />
+                  <ContactStatus status={c.status} kind={c.kind} />
                   <span className="hidden lg:block text-sm text-gray-500 truncate">
                     {c.assignedTo?.name ?? "—"}
                   </span>
@@ -234,7 +253,8 @@ export default async function ContactsPage({
             {/* Ledger foot — entry count */}
             <div className="border-t border-[color:var(--ds-line)] bg-[color:var(--ds-surface-2)] px-4 py-2.5">
               <span className="text-xs font-medium text-gray-500">
-                {contacts.length} {contacts.length === 1 ? "client" : "clients"}
+                {contacts.length}{" "}
+                {contactsTab ? (contacts.length === 1 ? "contact" : "contacts") : contacts.length === 1 ? "client" : "clients"}
               </span>
             </div>
           </>

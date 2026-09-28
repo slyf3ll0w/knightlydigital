@@ -79,11 +79,32 @@ assert.deepEqual(deriveRegistration({ ...base, brandStatus: "VERIFIED" }), {
 });
 assert.equal(deriveRegistration({ ...base, brandStatus: "VETTED_VERIFIED" }).next, "create_campaign");
 
-// Campaign exists, number not bound yet → bind it
-assert.deepEqual(
-  deriveRegistration({ ...base, brandStatus: "VERIFIED", hasCampaign: true, campaignStatus: "TCR_ACCEPTED" }),
-  { status: "CAMPAIGN_PENDING", reason: null, next: "assign_number" }
-);
+// Campaign accepted by TCR, number not bound yet → bind it
+for (const campaignStatus of ["TCR_ACCEPTED", "MNO_PENDING", "MNO_ACCEPTED", "MNO_PROVISIONED"]) {
+  assert.deepEqual(
+    deriveRegistration({ ...base, brandStatus: "VERIFIED", hasCampaign: true, campaignStatus }),
+    { status: "CAMPAIGN_PENDING", reason: null, next: "assign_number" },
+    campaignStatus
+  );
+}
+// Still with TCR (or no status yet) → wait; Telnyx refuses a binding before
+// TCR accepts, and that refusal was once stamped as the rejection reason
+// (Lessly Holdings, 2026-09-25).
+for (const campaignStatus of ["TCR_PENDING", null, undefined]) {
+  assert.deepEqual(
+    deriveRegistration({ ...base, brandStatus: "VERIFIED", hasCampaign: true, campaignStatus }),
+    { status: "CAMPAIGN_PENDING", reason: null, next: null },
+    String(campaignStatus)
+  );
+}
+
+// A transient Telnyx failure is marked so fileFromRow leaves the row pending
+{
+  const plain = new LineError("The carrier registry rejected the submission", 424);
+  assert.equal(plain.transient, false);
+  const hiccup = new LineError("Telnyx check failed: resource is being processed", 424, { transient: true });
+  assert.equal(hiccup.transient, true);
+}
 
 // Bound but carriers still reviewing → pending, nothing to do
 assert.deepEqual(

@@ -5,6 +5,7 @@ import BackLink from "@/components/BackLink";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, contactScope } from "@/lib/permissions";
 import Monogram from "@/components/Monogram";
+import { fmtPhone } from "@/lib/format";
 import TeamThread from "./TeamThread";
 
 /** One client's conversation — the team side of the hub Messages tab. */
@@ -18,9 +19,43 @@ export default async function MessageThreadPage({
   const { contactId } = await params;
   const contact = await prisma.contact.findFirst({
     where: { id: contactId, companyId: actor.companyId, ...contactScope(actor) },
-    select: { id: true, firstName: true, lastName: true, companyName: true, email: true, phone: true },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      companyName: true,
+      email: true,
+      phone: true,
+      kind: true,
+      smsOptOut: true,
+      smsDisabled: true,
+      // How a reply reaches them (lib/sms.ts companySender + canText, mirrored
+      // for the composer's hint): attestation + a registered line + a number.
+      company: {
+        select: {
+          smsAcknowledgedAt: true,
+          lineNumber: true,
+          messagingRegistration: { select: { status: true } },
+        },
+      },
+    },
   });
   if (!contact) notFound();
+
+  const line = contact.company.lineNumber;
+  const textsReady =
+    Boolean(contact.company.smsAcknowledgedAt) &&
+    Boolean(line && !line.startsWith("pending:")) &&
+    contact.company.messagingRegistration?.status === "ACTIVE" &&
+    Boolean(contact.phone) &&
+    !contact.smsOptOut &&
+    !contact.smsDisabled;
+  const channel =
+    textsReady && line
+      ? ({ kind: "sms", from: fmtPhone(line) } as const)
+      : contact.email || contact.phone
+        ? ({ kind: "portal" } as const)
+        : ({ kind: "none" } as const);
 
   const messages = await prisma.portalMessage.findMany({
     where: { contactId: contact.id },
@@ -69,6 +104,7 @@ export default async function MessageThreadPage({
       <TeamThread
         contactId={contact.id}
         contactFirstName={contact.firstName}
+        channel={channel}
         initialMessages={messages.map((m) => ({
           id: m.id,
           direction: m.direction,

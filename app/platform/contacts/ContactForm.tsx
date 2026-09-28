@@ -40,6 +40,8 @@ export type ContactFormInitial = {
   smsConsent: boolean;
   smsConsentNote: string;
   status: string;
+  /** CLIENT (leads and clients) or CONTACT (a business connection — never a lead). */
+  kind: string;
   customFields: Record<string, string>;
 };
 
@@ -80,6 +82,7 @@ export default function ContactForm({
     smsConsent: initial?.smsConsent ?? true,
     smsConsentNote: initial?.smsConsentNote ?? "",
     status: initial?.status ?? "LEAD",
+    kind: initial?.kind ?? "CLIENT",
     assignedToId: "",
   });
   const [fieldDefs, setFieldDefs] = useState<FieldDef[]>([]);
@@ -133,6 +136,7 @@ export default function ContactForm({
       paymentTermsDays: terms,
       smsConsent: form.smsConsent,
       smsConsentNote: form.smsConsentNote,
+      kind: form.kind,
       customFields,
     };
 
@@ -165,7 +169,15 @@ export default function ContactForm({
       <div className="flex items-center gap-3 mb-6">
         <BackLink href={backHref} />
         <PageTitle>
-          {mode === "create" ? (form.status === "LEAD" ? "New Lead" : "New Client") : "Edit Client"}
+          {mode === "create"
+            ? form.kind === "CONTACT"
+              ? "New Contact"
+              : form.status === "LEAD"
+                ? "New Lead"
+                : "New Client"
+            : form.kind === "CONTACT"
+              ? "Edit Contact"
+              : "Edit Client"}
         </PageTitle>
       </div>
 
@@ -176,30 +188,43 @@ export default function ContactForm({
           </div>
         )}
 
-        {/* Lead vs. client — a lead works the pipeline board; a client is
-            already-won business and skips it entirely */}
+        {/* Lead vs. client vs. contact — a lead works the pipeline board; a
+            client is already-won business and skips it; a contact is a
+            business connection (sub, supplier, referral partner) who becomes
+            a client the day you schedule them a job */}
         {mode === "create" && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {(
               [
-                ["LEAD", "Lead", "Goes on your Leads board to work toward a sale"],
-                ["ACTIVE", "Client", "Existing business — skips the Leads board"],
+                ["lead", "Lead", "Goes on your Leads board to work toward a sale"],
+                ["client", "Client", "Existing business — skips the Leads board"],
+                ["contact", "Contact", "A business connection — a sub, supplier or referral partner. Becomes a client when you schedule them a job"],
               ] as const
-            ).map(([value, label, hint]) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => set("status", value)}
-                title={hint}
-                className={`rounded-[10px] border px-4 py-2 text-sm font-medium transition-colors ${
-                  form.status === value
-                    ? "border-[color:var(--ds-primary)] ring-2 ring-[color:var(--ds-primary-soft)] text-gray-900"
-                    : "border-gray-300 text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+            ).map(([value, label, hint]) => {
+              const active =
+                value === "contact" ? form.kind === "CONTACT" : form.kind !== "CONTACT" && form.status === (value === "lead" ? "LEAD" : "ACTIVE");
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() =>
+                    setForm((f) => ({
+                      ...f,
+                      kind: value === "contact" ? "CONTACT" : "CLIENT",
+                      status: value === "lead" ? "LEAD" : "ACTIVE",
+                    }))
+                  }
+                  title={hint}
+                  className={`rounded-[10px] border px-4 py-2 text-sm font-medium transition-colors ${
+                    active
+                      ? "border-[color:var(--ds-primary)] ring-2 ring-[color:var(--ds-primary-soft)] text-gray-900"
+                      : "border-gray-300 text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -359,14 +384,34 @@ export default function ContactForm({
             </div>
             {mode === "edit" && (
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <select
+                  value={form.kind}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      kind: e.target.value,
+                      // A business connection is never a lead
+                      status: e.target.value === "CONTACT" && f.status === "LEAD" ? "ACTIVE" : f.status,
+                    }))
+                  }
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+                >
+                  <option value="CLIENT">Client</option>
+                  <option value="CONTACT">Contact (business connection)</option>
+                </select>
+              </div>
+            )}
+            {mode === "edit" && (
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
                 <select
                   value={form.status}
                   onChange={(e) => set("status", e.target.value)}
                   className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                 >
-                  <option value="LEAD">Lead</option>
-                  <option value="ACTIVE">Active client</option>
+                  {form.kind !== "CONTACT" && <option value="LEAD">Lead</option>}
+                  <option value="ACTIVE">{form.kind === "CONTACT" ? "Active" : "Active client"}</option>
                   <option value="ARCHIVED">Archived</option>
                 </select>
               </div>
@@ -444,7 +489,13 @@ export default function ContactForm({
             className="btn-primary btn-lg"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
-            {mode === "create" ? (form.status === "LEAD" ? "Save Lead" : "Save Client") : "Save Changes"}
+            {mode === "create"
+              ? form.kind === "CONTACT"
+                ? "Save Contact"
+                : form.status === "LEAD"
+                  ? "Save Lead"
+                  : "Save Client"
+              : "Save Changes"}
           </button>
           <Link
             href={backHref}

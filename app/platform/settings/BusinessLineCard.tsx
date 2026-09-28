@@ -611,10 +611,20 @@ function Texting({
               : "The carriers didn't approve texting"}
         </p>
         {campaignStage ? (
-          <p className="text-[color:var(--ds-ink-2)]">
-            That&apos;s on our side of the paperwork — we&apos;re sorting it out with them and you don&apos;t need to change
-            anything. Calls keep working in the meantime.
-          </p>
+          <>
+            <p className="text-[color:var(--ds-ink-2)]">
+              That&apos;s on our side of the paperwork — we&apos;re sorting it out with them and you don&apos;t need to change
+              anything. Calls keep working in the meantime.
+            </p>
+            {/* The carriers can clear a re-filed campaign without a webhook — a re-read is how the card catches up. */}
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="button" onClick={refresh} disabled={busy} className={ghostBtn}>
+                <RefreshCw size={13} className={busy ? "animate-spin" : ""} />
+                Check now
+              </button>
+              {checked ? <span className="text-xs text-[color:var(--ds-ink-2)]">{checked}.</span> : null}
+            </div>
+          </>
         ) : (
           <>
             <p className="text-[color:var(--ds-ink-2)]">{reg.rejectionReason}</p>
