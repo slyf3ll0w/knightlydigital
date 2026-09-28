@@ -7,7 +7,7 @@ import WBScribble from "@/components/wb/WBScribble";
 import { WB_DAY_PHOTOS, WB_EMAIL, WB_EMAIL_HREF, WB_PHONE } from "@/lib/wb-site";
 
 export const metadata: Metadata = {
-  title: "Contact — WorkBench",
+  title: "Contact",
   description: `Call WorkBench at ${WB_PHONE.display} or email ${WB_EMAIL}. Questions about the software, pricing, or getting your company set up.`,
 };
 

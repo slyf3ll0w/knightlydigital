@@ -7,7 +7,7 @@ import { WB_DAY_PHOTOS } from "@/lib/wb-site";
 import { pickFeatures } from "@/lib/wb-features";
 
 export const metadata: Metadata = {
-  title: "Client Portal — WorkBench",
+  title: "Client Portal",
   description:
     "A magic-link client hub — no account, no password — where clients see upcoming visits, review and pay invoices, sign agreements, message your team, and leave a review. A client experience that looks like a company twice your size.",
 };

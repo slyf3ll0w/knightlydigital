@@ -4,7 +4,7 @@ import { AnimateIn } from "@/components/AnimateIn";
 import WBHero from "@/components/wb/WBHero";
 
 export const metadata: Metadata = {
-  title: "Terms & Conditions — WorkBench",
+  title: "Terms & Conditions",
   description: "The terms that govern your use of WorkBench.",
 };
 

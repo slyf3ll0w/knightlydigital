@@ -151,8 +151,8 @@ const pricingFaq = [
 ];
 
 export const metadata: Metadata = {
-  title: "Pricing — WorkBench",
-  description: `WorkBench's core is free: full access for ${INCLUDED_SEATS} users, not a trial, funded by payment processing at 2.9% + 30¢. Optional add-ons from ${formatCents(dispatch.monthlyCents)} a month: ${dispatch.name} (business phone line), ${shop.name} (unlimited users and the ops tools), and ${jobsite.name} (job photos, coming soon).`,
+  title: "Pricing",
+  description: `WorkBench FSM's core is free: full access for ${INCLUDED_SEATS} users, not a trial, funded by payment processing at 2.9% + 30¢. Optional add-ons from ${formatCents(dispatch.monthlyCents)} a month: ${dispatch.name} (business phone line), ${shop.name} (unlimited users and the ops tools), and ${jobsite.name} (job photos, coming soon).`,
 };
 
 export default function WBPricingPage() {

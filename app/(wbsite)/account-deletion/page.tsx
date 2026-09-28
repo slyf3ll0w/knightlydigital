@@ -4,7 +4,7 @@ import { AnimateIn } from "@/components/AnimateIn";
 import WBHero from "@/components/wb/WBHero";
 
 export const metadata: Metadata = {
-  title: "Delete Your Account — WorkBench",
+  title: "Delete Your Account",
   description:
     "How to permanently delete your WorkBench account and data, in the app or by request.",
 };

@@ -4,7 +4,7 @@ import { AnimateIn } from "@/components/AnimateIn";
 import WBHero from "@/components/wb/WBHero";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — WorkBench",
+  title: "Privacy Policy",
   description:
     "How WorkBench collects, uses, and protects your information — and why we never sell it.",
 };

@@ -5,7 +5,7 @@ import WBCta from "@/components/wb/WBCta";
 import { REGISTRATION_CHECKLIST } from "@/lib/business-line-shared";
 
 export const metadata: Metadata = {
-  title: "Registering for texting — WorkBench",
+  title: "Registering for texting",
   description:
     "What a business needs before it registers its number for texting, why US carriers ask for it, and what happens after you submit. The same rules apply to every software product.",
 };

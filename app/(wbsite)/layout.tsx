@@ -3,7 +3,7 @@ import WBNav from "@/components/wb/WBNav";
 import WBFooter from "@/components/wb/WBFooter";
 import WBSiteChat from "@/components/wb/WBSiteChat";
 import { siteChatCompanyId } from "@/lib/site-chat";
-import { WB_EMAIL, WB_PHONE } from "@/lib/wb-site";
+import { APP_STORE_URL, PLAY_STORE_URL, WB_EMAIL, WB_PHONE } from "@/lib/wb-site";
 import {
   DISPATCH_MINUTES_INCLUDED,
   DISPATCH_SETUP_CENTS,
@@ -18,7 +18,7 @@ import {
 
 // Escape the agency-site "| Streamflaire Group LLC" title template
 export const metadata: Metadata = {
-  title: { template: "%s", default: "WorkBench" },
+  title: { template: "%s | WorkBench FSM", default: "WorkBench FSM — Free field service management software" },
 };
 
 // SoftwareApplication structured data — read by search engines and AI
@@ -28,13 +28,14 @@ export const metadata: Metadata = {
 const softwareAppJsonLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  name: "WorkBench",
+  name: "WorkBench FSM",
+  alternateName: ["WorkBench", "Workbench FSM", "WorkBench Field Service Management"],
   applicationCategory: "BusinessApplication",
   applicationSubCategory: "Field Service Management Software",
-  operatingSystem: "Web, iOS",
+  operatingSystem: "Web, iOS, Android",
   url: "https://workbenchfsm.com",
   description:
-    `WorkBench is field service management software for home-service teams: online booking, lead pipeline, scheduling and dispatch, quotes with e-signature, clock-in, team chat, one-click invoicing, built-in card and ACH payments, recurring billing, and a client portal. The core is free with full access for ${INCLUDED_SEATS} users, then ${formatCents(EXTRA_SEAT_CENTS)} per extra user a month. It also includes Atlas, an AI assistant with 10,000 free tokens every month. Optional flat-priced add-ons: ${PLANS.DISPATCH.name} (a business phone line), ${PLANS.SHOP.name} (unlimited users, estimator, routes, automations, agreements, team map, timesheets, QuickBooks, Atlas Full), and ${PLANS.JOBSITE.name} (job photos, coming soon).`,
+    `WorkBench FSM (WorkBench) is field service management software for home-service teams: online booking, lead pipeline, scheduling and dispatch, quotes with e-signature, clock-in, team chat, one-click invoicing, built-in card and ACH payments, recurring billing, and a client portal. The core is free with full access for ${INCLUDED_SEATS} users, then ${formatCents(EXTRA_SEAT_CENTS)} per extra user a month. It also includes Atlas, an AI assistant with 10,000 free tokens every month. Optional flat-priced add-ons: ${PLANS.DISPATCH.name} (a business phone line), ${PLANS.SHOP.name} (unlimited users, estimator, routes, automations, agreements, team map, timesheets, QuickBooks, Atlas Full), and ${PLANS.JOBSITE.name} (job photos, coming soon).`,
   offers: [
     {
       "@type": "Offer",
@@ -86,7 +87,7 @@ const softwareAppJsonLd = {
     telephone: WB_PHONE.e164,
     email: WB_EMAIL,
   },
-  sameAs: ["https://apps.apple.com/app/workbench-fsm/id6789991103"],
+  sameAs: [APP_STORE_URL, PLAY_STORE_URL],
 };
 
 /**

@@ -4,7 +4,7 @@ import { AnimateIn } from "@/components/AnimateIn";
 import WBHero from "@/components/wb/WBHero";
 
 export const metadata: Metadata = {
-  title: "Text Message Terms — WorkBench",
+  title: "Text Message Terms",
   description:
     "How WorkBench text notifications work: what you'll receive, how you opted in, and how to stop.",
 };

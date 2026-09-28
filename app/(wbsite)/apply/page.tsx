@@ -10,7 +10,7 @@ import { socialSignInFor } from "@/lib/sign-in-options";
 import { ClipboardList, ShieldCheck, Wrench } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Get started — WorkBench",
+  title: "Get started",
   description:
     "Open your WorkBench account in minutes: tell us about your business, verify payments, and start setting up. Free with full access for 2 users, not a trial.",
 };
@@ -36,8 +36,8 @@ const steps = [
   },
 ];
 
-export default async function WBApplyPage() {
-  const ua = (await headers()).get("user-agent");
+export default async function WBApplyPage() {
+  const ua = (await headers()).get("user-agent");
   return (
     <>
       {/* ── Hero ── */}

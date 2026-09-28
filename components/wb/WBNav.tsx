@@ -42,10 +42,10 @@ export default function WBNav() {
       <div className="wb-keel" aria-hidden />
       <header className="fixed inset-x-0 top-0 z-50 px-3 pt-4 sm:px-5 sm:pt-5">
         <div className="wb-navpill mx-auto flex h-14 max-w-5xl items-center rounded-full pl-4 pr-2 sm:pl-5">
-          <Link href={WB_HOME} className="flex shrink-0 items-center" aria-label="WorkBench home">
+          <Link href={WB_HOME} className="flex shrink-0 items-center" aria-label="WorkBench FSM home">
             <Image
               src="/workbench-logo.png"
-              alt="WorkBench"
+              alt="WorkBench FSM"
               width={1714}
               height={285}
               priority

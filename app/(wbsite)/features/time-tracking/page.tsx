@@ -6,7 +6,7 @@ import { WB_TRADE_PHOTOS } from "@/lib/wb-site";
 import { pickFeatures } from "@/lib/wb-features";
 
 export const metadata: Metadata = {
-  title: "Time Tracking — WorkBench",
+  title: "Time Tracking",
   description:
     "Techs clock in and out right on the job. Weekly timesheets, a live map of who's on the clock, and real labor cost flowing into each job's profit margin. Clocking in and out is in the free plan; weekly timesheets, the live map, and labor costing come with the Pro add-on.",
 };

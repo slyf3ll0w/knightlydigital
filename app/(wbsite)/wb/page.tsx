@@ -40,9 +40,9 @@ import {
 } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "WorkBench — Field service management software, free to start",
+  title: { absolute: "WorkBench FSM — Free field service management software" },
   description:
-    "WorkBench is scheduling, quoting, invoicing, and payment software for home-service companies. Online booking, dispatch, a client portal, team chat, an AI assistant, and native iPhone and Android apps. The Core plan is free for 2 users with full access, not a trial; extra users are $10 a month, and optional add-ons cover a phone line, unlimited users, and job photos.",
+    "WorkBench FSM is field service management software for home-service companies: scheduling, quoting, invoicing, and payments. Online booking, dispatch, a client portal, team chat, an AI assistant, and native iPhone and Android apps. The Core plan is free for 2 users with full access, not a trial; extra users are $10 a month, and optional add-ons cover a phone line, unlimited users, and job photos.",
 };
 
 const tradeCards = [
@@ -170,6 +170,17 @@ const faqItems = [
     ),
   },
   {
+    q: "What does FSM stand for?",
+    a: (
+      <p>
+        Field service management. WorkBench FSM is the full name of the
+        product, and it is how the app is listed on the App Store and Google
+        Play. On this site we usually just say WorkBench. It is not related to
+        any other software called Workbench.
+      </p>
+    ),
+  },
+  {
     q: "Can I get my data out?",
     a: (
       <p>
@@ -192,8 +203,8 @@ export default function WBHomePage() {
               <br className="hidden sm:block" /> from <span className="text-[#0B57D8]">one place</span>.
             </h1>
             <p className="mx-auto mt-6 max-w-2xl lg:mx-0 lg:max-w-xl text-[17px] leading-relaxed text-gray-600 sm:text-[19px]">
-              WorkBench is scheduling, quotes, invoicing, and payments for
-              home-service companies. The {FREE_PLAN_NAME} plan is free for your
+              WorkBench FSM is field service management software: scheduling,
+              quotes, invoicing, and payments for home-service companies. The {FREE_PLAN_NAME} plan is free for your
               first {INCLUDED_SEATS} users, with full access and no trial clock. Add
               users or add-ons only when you need them.
             </p>

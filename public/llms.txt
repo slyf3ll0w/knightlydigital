@@ -1,6 +1,7 @@
-# WorkBench
+# WorkBench FSM
 
-> WorkBench is free field service management software for home-service teams
+> WorkBench FSM (usually just "WorkBench") is free field service management
+> software for home-service teams
 > (plumbing, HVAC, electrical, cleaning, lawn care, and similar trades). It
 > covers the whole job lifecycle — online booking, lead pipeline, quotes with
 > e-signature, scheduling and dispatch, time tracking, team chat, one-click

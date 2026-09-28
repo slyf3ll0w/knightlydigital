@@ -6,7 +6,7 @@ import { WB_PHOTOS } from "@/lib/wb-site";
 import { pickFeatures } from "@/lib/wb-features";
 
 export const metadata: Metadata = {
-  title: "Quotes & Invoicing — WorkBench",
+  title: "Quotes & Invoicing",
   description:
     "Quotes with e-signature and automatic follow-ups, deposits collected up front, one-click invoicing, and a price book both pull from. From a signed quote to a paid invoice without a spreadsheet in between.",
 };

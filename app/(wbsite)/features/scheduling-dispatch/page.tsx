@@ -6,7 +6,7 @@ import { WB_DAY_PHOTOS } from "@/lib/wb-site";
 import { pickFeatures } from "@/lib/wb-features";
 
 export const metadata: Metadata = {
-  title: "Scheduling & Dispatch — WorkBench",
+  title: "Scheduling & Dispatch",
   description:
     "Drag-to-schedule calendars, recurring visit series, a live team map, and job notes with photos — the dispatch board WorkBench runs the day from. Scheduling is in the free plan; the live team map comes with the Pro add-on.",
 };

@@ -57,14 +57,14 @@ export default function WBFooter() {
         <div className="max-w-xs">
           <Image
             src="/workbench-logo.png"
-            alt="WorkBench"
+            alt="WorkBench FSM"
             width={1714}
             height={285}
             className="h-6 w-auto"
           />
           <p className="mt-5 text-[14px] leading-relaxed text-gray-500">
-            Field service management software for home-service companies.
-            Free for 2 users, funded by payment processing. Add-ons only if you want them.
+            WorkBench FSM: field service management software for home-service
+            companies. Free for 2 users, funded by payment processing. Add-ons only if you want them.
           </p>
           <div className="mt-6 space-y-2 text-[14px] font-semibold text-gray-800">
             <a href={WB_PHONE.href} className="block hover:text-[#0B57D8]">
@@ -121,7 +121,7 @@ export default function WBFooter() {
       <div className="border-t border-gray-100">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-5 py-5 sm:px-8">
           <p className="text-[13px] text-gray-400">
-            © 2026 WorkBench, by{" "}
+            © 2026 WorkBench FSM, by{" "}
             <a href="https://streamflaire.com" target="_blank" rel="noopener" className="hover:text-gray-600">
               Streamflaire
             </a>

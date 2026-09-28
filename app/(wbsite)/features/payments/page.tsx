@@ -7,7 +7,7 @@ import { WB_PHOTOS } from "@/lib/wb-site";
 import { pickFeatures } from "@/lib/wb-features";
 
 export const metadata: Metadata = {
-  title: "Payments — WorkBench",
+  title: "Payments",
   description:
     "Card and ACH built into every invoice, quote, and booking at one flat rate: 2.9% + 30¢ per card transaction, 0.75% ACH. No monthly fees, saved cards with autopay, automatic reminders, and same-day-ish payouts.",
 };

@@ -12,7 +12,7 @@ const planTokens = tokenCount(ATLAS_PLAN_TOKENS);
 const planPrice = formatPlanPrice();
 
 export const metadata: Metadata = {
-  title: "Atlas AI Assistant — WorkBench",
+  title: "Atlas AI Assistant",
   description: `Atlas is WorkBench's built-in AI assistant. It works the same scheduling, quotes, invoices, and messages your team does, with the same permissions, and confirms with you before anything goes out the door. ${freeTokens} free tokens every month on every account; Atlas Full is ${planPrice}/month for ${planTokens}.`,
 };
 
