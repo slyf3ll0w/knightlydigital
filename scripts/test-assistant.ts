@@ -41,7 +41,7 @@ assert.deepEqual(
     "find_a_time", "get_client_activity", "get_client_details",
     "get_company_settings", "get_document", "get_job_checklist",
     "get_lead_board", "get_price_book", "get_route_plan", "get_schedule",
-    "get_statement", "list_agreement_templates", "list_agreements",
+    "get_statement", "help_search", "list_agreement_templates", "list_agreements",
     "list_clients", "list_expenses", "list_money", "list_pipeline",
     "list_subscriptions", "list_team", "log_expense", "lookup_part_price", "manage_address",
     "manage_automation", "manage_booking_item", "manage_client_fields", "manage_estimator", "manage_lead_webhook", "manage_person",
@@ -69,7 +69,7 @@ assert.deepEqual(
   names(tech),
   [
     "add_job_note", "clock", "export_data", "find_a_time", "get_document",
-    "get_job_checklist", "get_route_plan", "get_schedule", "list_pipeline",
+    "get_job_checklist", "get_route_plan", "get_schedule", "help_search", "list_pipeline",
     "manage_time_block", "optimize_route", "post_team_message", "query_records",
     "queue_next_step", "record_job_signoff", "report", "request_review", "send_on_my_way",
     "update_checklist_item", "update_job", "update_job_status",
