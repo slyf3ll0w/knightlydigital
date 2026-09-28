@@ -1566,32 +1566,34 @@ export function platformTollFreeInput(number: string, form: RegistrationForm): T
     contactEmail: form.contactEmail,
     contactPhone: form.contactPhone,
     messageVolume: form.messageVolume ?? "1,000",
-    useCase: "Mixed",
+    // One use case, and a summary that describes only it. "Mixed" over a summary naming sales, support and
+    // testing came back "Use Case and Use Case Summary Inconsistent" (2026-09-25).
+    useCase: "Conversational / Alerts",
     // Telnyx caps every free-text field at 500 characters (tested).
     useCaseSummary:
-      "Streamflaire Group LLC makes WorkBench (workbenchfsm.com), field-service software for home-service businesses. " +
-      "This is WorkBench's own sales and support line: replies to businesses asking about WorkBench (demos, pricing, setup), " +
-      "account and support messages to WorkBench account holders, and testing/demonstration of the platform by its own team. " +
-      "Recipients are prospects and account holders who asked to be texted; those businesses' own customers are never messaged from this number.",
+      "Streamflaire Group LLC makes WorkBench (workbenchfsm.com), field-service software. " +
+      "This number is WorkBench's customer support line. It carries two-way conversations with people who contacted WorkBench first " +
+      "and asked to be texted: answers to their questions about their WorkBench account or the software, and follow-ups on the issue they raised. " +
+      "Every thread is started by the recipient. No marketing, promotions or bulk messages are sent.",
     productionMessageContent:
-      "Hi Maria, it's David from WorkBench. Thanks for asking about the business line — happy to walk you through it whenever works for you. Reply STOP to opt out.",
+      "WorkBench: Hi Maria, this is David with WorkBench support. Your booking page is live now; the link is in Settings > Booking & forms. Anything else I can help with? Reply STOP to opt out.",
     optInWorkflow:
-      "Prospects and account holders give WorkBench their mobile number themselves: on the account application at https://workbenchfsm.com/apply " +
+      "People who contact WorkBench give it their mobile number themselves: on the account application at https://workbenchfsm.com/apply " +
       "(unchecked SMS consent checkbox by the phone field, linking to https://workbenchfsm.com/sms-terms), by texting this number first, " +
       "or by asking to be texted during a call or email. Every text includes opt-out language; STOP opts out immediately, HELP returns support info.",
     // The whole /apply form with the checkbox ticked (public/sms-opt-in-workbench.png) plus the texting terms
     // page as an image — a cropped checkbox came back "OPT in example must be complete" (2026-09-22).
     optInImageUrls: ["https://workbenchfsm.com/sms-opt-in-workbench.png", "https://workbenchfsm.com/sms-terms-workbench.png"],
     additionalInformation:
-      "Streamflaire Group LLC is the sender and only user of this number: its own sales and support line for its WorkBench software, " +
-      "not a number provided to a customer; no third party sends from it. Conversational two-party traffic plus account notices; no bulk marketing. " +
+      "Streamflaire Group LLC is the sender and only user of this number: its own customer support line for its WorkBench software, " +
+      "not a number provided to a customer; no third party sends from it. Two-party support conversations only; no marketing. " +
       "STOP/HELP handled at the Telnyx edge and mirrored in the application.",
     privacyPolicyURL: "https://workbenchfsm.com/privacy",
     termsAndConditionURL: "https://workbenchfsm.com/sms-terms",
     webhookUrl: tollFreeWebhookUrl(),
     isvReseller: null,
     optInConfirmationResponse: "You are opted in to texts from WorkBench. Reply STOP to opt out, HELP for help. Msg&data rates may apply.",
-    helpMessageResponse: "This is WorkBench (Streamflaire Group LLC) sales & support. Reply STOP to opt out. Terms: workbenchfsm.com/sms-terms",
+    helpMessageResponse: "This is WorkBench (Streamflaire Group LLC) support. Reply STOP to opt out. Terms: workbenchfsm.com/sms-terms",
   };
 }
 
