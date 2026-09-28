@@ -152,3 +152,40 @@ Recipes:
 - The Contacts tab lives on the Clients page as a filter, not as a nav
   item — David asked for it "accessible from the client page".
 - The personal-phone "Text" button stays next to the new "Message" button.
+
+## Round 3 (same day, texting live)
+
+David's first live texts: the thread and inbox felt slow, and every reply
+went out as "Lessly Holdings: … Reply STOP to opt out." — a name nobody who
+texts him knows him by.
+
+**Live conversations.** `TeamThread` polls every 3 s whenever texts are in
+play (the channel is SMS, or the thread holds an inbound text) — the same
+tick website chat already had — and catches up the moment the tab or phone
+comes back to the foreground. Portal-only threads keep the 15 s tick. The
+inbox got `InboxLive.tsx`: a 4 s heartbeat against `GET
+/api/app/messages/latest` (the company's newest message stamp, one indexed
+row) that re-renders the list only when something landed.
+
+**Bare texts.** `conversationText` in `lib/portal-messages.ts` is what a
+thread reply goes out as: the message itself, up to ~1,000 chars (was cut at
+260), no company prefix, no opt-out tail. The single exception is the first
+text the business ever sends someone who has never written it and never
+been texted by it — that one ends "— David at Lessly Holdings. Reply STOP to
+opt out." because a business-initiated conversation has to say who is
+texting and how to stop, once (CTIA). Someone who texted first never sees
+it. Telnyx still honours STOP at the edge on every message. Automated texts
+(appointment reminders, invoice links, schedule changes) keep their brand +
+STOP wording: they are the registered campaign's templates, not a
+conversation. Pinned in `scripts/test-conversation-text.ts`.
+
+Recipes:
+12. Open a thread with someone who has texted you. Have them text you: the
+    bubble appears within ~3 s, no tap needed. Leave the thread open in a
+    background tab, come back — it catches up instantly. Reply: their phone
+    gets just the words, nothing before or after.
+13. Messages inbox open on the desktop; a text arrives — the row moves to
+    the top with the bold unread count within ~4 s, no reload.
+14. New message → type a number you have never texted and that never texted
+    you → send "Hi". That phone gets "Hi" plus one line "— David at Lessly
+    Holdings. Reply STOP to opt out." Send a second message: bare.

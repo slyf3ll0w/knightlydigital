@@ -252,7 +252,12 @@ nav-counts) + `/app/messages/thread/[contactId]`, replies via
 `lib/portal-messages.ts`: client message → team push + company email
 (first-unread-only throttle); team reply → client web push
 (`ContactPushSubscription` + `notifyContact` in lib/push.ts, subscribe at
-`/api/hub/push`) + SMS mirror when Telnyx is live + email fallback. Inbound
+`/api/hub/push`) + SMS mirror when Telnyx is live + email fallback. The SMS
+mirror is the message itself (`conversationText`, ≤1,000 chars, no company
+prefix, no STOP tail); only the first business-initiated text to someone who
+never wrote or was texted before carries a one-line "— <first name> at
+<company>. Reply STOP to opt out." Text threads poll every 3 s and the inbox
+re-renders off `GET /api/app/messages/latest` (`InboxLive.tsx`). Inbound
 conversational texts land in the thread through the Telnyx webhook (contact
 matched by phone digits; multi-match prefers latest thread activity).
 

@@ -60,7 +60,7 @@ export async function GET(
   });
 
   // Mark inbound as read — but only when this poll actually saw something
-  // unread. The thread polls every 15 s; an unconditional write per poll is
+  // unread. A text thread polls every 3 s; an unconditional write per poll is
   // a row-lock probe for nothing.
   if (messages.some((m) => m.direction === "INBOUND" && !m.readByTeamAt)) {
     await prisma.portalMessage.updateMany({
@@ -116,7 +116,7 @@ export async function POST(
     include: { sender: { select: { name: true } } },
   });
 
-  await notifyClientOfReply(contact, message.id, body);
+  await notifyClientOfReply(contact, message.id, body, message.sender?.name);
   // A text from the team counts as reaching the lead (Leads board automation).
   fireAutomations(actor.companyId, "lead.contact_made", contact.id);
   await autoAdvance(prisma, actor.companyId, contact.id, "CONTACT_MADE").catch((err) =>

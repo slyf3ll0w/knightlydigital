@@ -19,10 +19,13 @@ type ThreadMessage = {
   senderName: string | null;
 };
 
-// Portal/SMS threads poll lazily; a website-chat thread is a live
-// conversation, so it polls like team chat does.
+// A text or website-chat thread is a live conversation and polls like team
+// chat does (2026-09-28: 15 s made texting back and forth feel dead). A
+// portal-only thread, where the client answers from their hub or by email,
+// polls lazily. The GET is one indexed `after` query, so the fast tick is
+// cheap, and it pauses whenever the tab is hidden.
 const POLL_MS = 15_000;
-const WEB_POLL_MS = 3_000;
+const LIVE_POLL_MS = 3_000;
 const TYPING_PING_MS = 2_500;
 
 function prettyPhone(e164: string): string {
@@ -71,6 +74,8 @@ export default function TeamThread({
 
   // A thread the client started (or continued) from the website chat widget.
   const webChat = messages.some((m) => m.via === "web");
+  // Texts in play: replies go out as SMS, or they have texted us before.
+  const live = webChat || channel?.kind === "sms" || messages.some((m) => m.via === "sms");
 
   const lastCreatedAt = messages.length ? messages[messages.length - 1].createdAt : null;
   const lastRef = useRef(lastCreatedAt);
@@ -120,15 +125,22 @@ export default function TeamThread({
         /* transient — next tick retries */
       }
     };
-    if (webChat) void poll();
-    const interval = setInterval(poll, webChat ? WEB_POLL_MS : POLL_MS);
+    if (live) void poll();
+    const interval = setInterval(poll, live ? LIVE_POLL_MS : POLL_MS);
+    // Coming back to the tab (or the phone waking) catches up at once
+    // instead of waiting out the next tick.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void poll();
+    };
     window.addEventListener("focus", poll);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       stopped = true;
       clearInterval(interval);
       window.removeEventListener("focus", poll);
+      document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [contactId, webChat]);
+  }, [contactId, live]);
 
   // Typing heartbeat, only where someone is listening (the website widget).
   function pingTyping() {
