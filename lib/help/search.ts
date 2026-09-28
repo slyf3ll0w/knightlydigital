@@ -25,6 +25,10 @@ export function findHelpArticle(slug: string): { article: HelpArticle; section: 
   return ALL.find((a) => a.article.slug === slug) ?? null;
 }
 
+export function findHelpSection(id: string): HelpSection | null {
+  return HELP_SECTIONS.find((s) => s.id === id) ?? null;
+}
+
 /** Previous/next article in reading order (across sections). */
 export function helpNeighbors(slug: string): { prev: HelpArticle | null; next: HelpArticle | null } {
   const i = ALL.findIndex((a) => a.article.slug === slug);
