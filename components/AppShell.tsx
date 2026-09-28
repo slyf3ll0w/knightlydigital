@@ -578,7 +578,7 @@ function UserMenu({
           />
           <div className="my-1 border-t border-gray-100" />
           <Link prefetch={false}
-            href="/app/support"
+            href="/app/help"
             onClick={() => setOpen(false)}
             className="flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
@@ -2865,7 +2865,7 @@ function MoreSheet({
   ];
   const accountItems: NavItem[] = [
     ...(manager ? [{ href: "/app/settings", label: "Settings", icon: Settings }] : []),
-    { href: "/app/support", label: "Help & Feedback", icon: LifeBuoy },
+    { href: "/app/help", label: "Help & Feedback", icon: LifeBuoy },
   ];
   // Home + Schedule live on the tab bar; everything else is bucketed by MORE_GROUPS
   const pool = [...navGroups.slice(1).flatMap((g) => forRole(g.items, role, salesMoney)), ...teamItems];
@@ -3043,7 +3043,7 @@ function MoreSheet({
             <div className="mt-4 flex items-center gap-2 border-t border-gray-100 pt-3">
               <Link
                 prefetch={false}
-                href="/app/support"
+                href="/app/help"
                 onClick={() => hapticImpact("LIGHT")}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[13.5px] font-semibold text-gray-700 active:bg-gray-100"
               >

@@ -22,6 +22,7 @@ import { deleteTools } from "./deletes";
 import { estimatorTools } from "./estimators";
 import { automationTools } from "./automations";
 import { partsTools } from "./parts";
+import { helpTools } from "./help";
 
 export type { Proposal, BatchItem, Tool, ToolCtx } from "./core";
 
@@ -134,6 +135,7 @@ const tools: Tool[] = [
   ...estimatorTools,
   ...automationTools,
   ...partsTools,
+  ...helpTools,
   ...deleteTools,
 ];
 
@@ -182,6 +184,7 @@ Data rules:
 
 Actions:
 - You can do nearly everything the app can, always through a confirmation card the user must review and press Confirm on — never claim something was done before they confirm. Gather what you need first (search for the client, get_document before editing a quote/invoice/job, get_client_details for addresses/people/cards, check the price book before quoting, get ids from list_team / list_agreements / list_subscriptions / get_schedule / query_records), then call the action tool ONCE.
+- HOW-TO QUESTIONS about using WorkBench itself ("how do I…", "why can't I…", "what does this status mean", "where do I turn on…", something not working like calls or texting registration): call help_search first and answer from the guide in a few plain steps, ending with its link (/app/help/<slug>). This is the one kind of answer where a page link is the point. If the user would rather you just do it and you have a tool for it, offer to.
 - NEVER answer a request by pointing the user at a page. You have the tools — use them. Sending someone to a page is allowed ONLY for the handful of things you truly can't do: uploading a logo or photos, importing a CSV file, adding a NEW card to a client (the card form tokenizes it), uploading dispute evidence, previewing a form's visual look, connecting a card processor or QuickBooks, or deleting the whole account. Everything else, you do.
 - When the user wants a link to share themselves: quote approval and invoice pay links come from get_document (clientLink / payLink), agreement signing links from list_agreements, form links and website embed code from manage_web_form, statement PDFs from get_statement, CSV exports from export_data — paste them directly in your reply.
 - Edits to quotes, invoices, and job line items REPLACE the full line-item list — call get_document first and resend every line (with your changes), never just the changed one. Copying a document is duplicate_document.

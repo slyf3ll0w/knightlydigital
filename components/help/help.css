@@ -1,0 +1,283 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   HELP CENTER (/help public, /app/help in the app). App design system
+   (.ds tokens, Lexend, the company's two colors) with a few pieces
+   borrowed from the marketing site: the two-color bloom and graph paper
+   behind the hero, the brand-dot label, pill search, a navy band.
+   Everything reads tokens, so dark mode and company colors just work.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Hero: the site's bloom (primary top-left, secondary top-right) over
+   graph paper that fades out before the content starts. */
+.help-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--ds-r-xl);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-1);
+  isolation: isolate;
+}
+.help-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    radial-gradient(55% 70% at 8% -10%, color-mix(in srgb, var(--ds-primary) 24%, transparent), transparent 70%),
+    radial-gradient(40% 60% at 96% -8%, color-mix(in srgb, var(--ds-secondary) 20%, transparent), transparent 70%);
+}
+.help-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--ds-primary) 9%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--ds-primary) 9%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 85%);
+  mask-image: linear-gradient(180deg, #000 0%, transparent 85%);
+}
+
+/* The site's section label: brand-dot in the secondary color. */
+.help-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ds-primary);
+}
+.help-label::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--ds-secondary);
+  flex: none;
+}
+
+/* Pill search, like the site's pill buttons. */
+.help-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 54px;
+  padding: 0 8px 0 18px;
+  border-radius: 999px;
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-2);
+  transition: box-shadow var(--ds-dur) var(--ds-ease);
+}
+.help-search:focus-within {
+  box-shadow: var(--ds-shadow-2), 0 0 0 3px var(--ds-primary-soft), 0 0 0 1px var(--ds-primary);
+}
+.help-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-size: 16px; /* 16px keeps iOS from zooming the page on focus */
+  color: var(--ds-ink);
+}
+.ds .help-search input:focus-visible { box-shadow: none; outline: none; }
+.help-search input::placeholder { color: var(--ds-faint); }
+.help-kbd {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 7px;
+  background: var(--ds-surface-2);
+  box-shadow: inset 0 0 0 1px var(--ds-line);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ds-muted);
+}
+
+/* Popular-question chips under the search. */
+.help-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 13px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ds-surface) 80%, transparent);
+  box-shadow: inset 0 0 0 1px var(--ds-line-strong);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ds-ink-2);
+  white-space: nowrap;
+  transition: box-shadow var(--ds-dur) var(--ds-ease), color var(--ds-dur) var(--ds-ease);
+}
+.help-pill:hover { color: var(--ds-primary); box-shadow: inset 0 0 0 1px var(--ds-primary); }
+
+/* Section icon tile. */
+.help-tile {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--ds-primary-soft);
+  color: var(--ds-primary);
+}
+.help-tile-sm { width: 32px; height: 32px; border-radius: 9px; }
+
+/* A UI label in running text: `Send quote`. */
+.help-ui {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--ds-surface-2);
+  box-shadow: inset 0 0 0 1px var(--ds-line);
+  font-size: 0.92em;
+  font-weight: 550;
+  line-height: 1.5;
+  color: var(--ds-ink);
+  white-space: nowrap;
+}
+
+/* Article body */
+.help-prose { font-size: 15.5px; line-height: 1.65; color: var(--ds-ink-2); }
+.help-prose > * + * { margin-top: 16px; }
+.help-prose h2 { margin-top: 30px; font-size: 18px; font-weight: 600; letter-spacing: -0.015em; color: var(--ds-ink); }
+
+/* Numbered steps with a rail joining the numbers. */
+.help-steps { counter-reset: help-step; }
+.help-steps li {
+  position: relative;
+  padding: 0 0 18px 46px;
+  counter-increment: help-step;
+}
+.help-steps li::before {
+  content: counter(help-step);
+  position: absolute;
+  left: 0;
+  top: -2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--ds-primary);
+  color: var(--ds-on-primary);
+  font-size: 13.5px;
+  font-weight: 650;
+}
+.help-steps li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 14.5px;
+  top: 32px;
+  bottom: 2px;
+  width: 1px;
+  background: var(--ds-line-strong);
+}
+.help-steps li:last-child { padding-bottom: 0; }
+
+.help-bullets li { position: relative; padding-left: 20px; }
+.help-bullets li + li { margin-top: 8px; }
+.help-bullets li::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 0.68em;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--ds-secondary);
+}
+
+/* Callouts */
+.help-callout {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--ds-r);
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+.help-callout-tip { background: var(--ds-primary-soft); color: var(--ds-ink); }
+.help-callout-tip svg { color: var(--ds-primary); }
+.help-callout-warn { background: var(--ds-warn-soft); color: var(--ds-ink); }
+.help-callout-warn svg { color: var(--ds-warn); }
+
+/* Troubleshooting accordion */
+.help-faq {
+  border-radius: var(--ds-r);
+  background: var(--ds-surface);
+  box-shadow: var(--ds-shadow-1);
+  overflow: hidden;
+}
+.help-faq details + details { border-top: 1px solid var(--ds-line); }
+.help-faq summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 14.5px;
+  font-weight: 550;
+  color: var(--ds-ink);
+}
+.help-faq summary::-webkit-details-marker { display: none; }
+.help-faq summary svg { flex: none; color: var(--ds-faint); transition: transform var(--ds-dur) var(--ds-ease); }
+.help-faq details[open] summary svg { transform: rotate(45deg); color: var(--ds-primary); }
+.help-faq .help-faq-a { padding: 0 16px 16px; font-size: 14.5px; line-height: 1.6; color: var(--ds-ink-2); }
+
+/* Navy band, the site's dark CTA — stays navy in both themes. */
+.help-band {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--ds-r-xl);
+  background-color: #0A1428; /* theme-ok: the site's navy band is dark by design */
+  background-image:
+    radial-gradient(55% 80% at 10% 0%, color-mix(in srgb, var(--ds-primary) 45%, transparent), transparent 70%),
+    radial-gradient(40% 60% at 100% 100%, color-mix(in srgb, var(--ds-secondary) 22%, transparent), transparent 70%);
+  color: #FFFFFF;
+}
+.help-band .help-band-sub { color: rgba(255, 255, 255, 0.72); }
+.help-band-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: filter var(--ds-dur) var(--ds-ease), background-color var(--ds-dur) var(--ds-ease);
+}
+.help-band-btn-light { background: #FFFFFF; color: #0A1428; } /* theme-ok: on the navy band */
+.help-band-btn-light:hover { filter: brightness(0.94); }
+.help-band-btn-ghost { color: #FFFFFF; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3); }
+.help-band-btn-ghost:hover { background: rgba(255, 255, 255, 0.1); }
+
+/* Floating fragment beside the hero (desktop only, own column). */
+@keyframes help-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+.help-bob { animation: help-bob 6.5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .help-bob { animation: none; } }
+
+/* Sticky side nav on article pages */
+.help-side a {
+  display: block;
+  padding: 7px 12px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  line-height: 1.35;
+  color: var(--ds-ink-2);
+}
+.help-side a:hover { background: var(--ds-surface-2); color: var(--ds-ink); }
+.help-side a[aria-current="page"] { background: var(--ds-primary-soft); color: var(--ds-primary); font-weight: 600; }
+
+/* Search highlight */
+.help-mark { background: color-mix(in srgb, var(--ds-secondary) 22%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }

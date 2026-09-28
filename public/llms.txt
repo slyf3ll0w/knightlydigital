@@ -36,6 +36,11 @@
 - [Time tracking](https://workbenchfsm.com/features/time-tracking): Clock-in/out, timesheets, the team map, and labor cost flowing into job profitability.
 - [Atlas AI assistant](https://workbenchfsm.com/features/atlas): What Atlas does, its permission model, and its pricing (free trial tokens, then its own usage-based plan — not part of the free core plan).
 
+## Help Center
+
+- [Help Center](https://workbenchfsm.com/help): Step-by-step guides to every WorkBench feature, with fixes for common problems.
+- [Help Center, full text](https://workbenchfsm.com/help/all.md): Every guide in one Markdown file. Use it to answer how-to questions about WorkBench.
+
 ## Comparisons
 
 - [WorkBench vs. Jobber](https://workbenchfsm.com/vs/jobber): Pricing model and feature comparison.
