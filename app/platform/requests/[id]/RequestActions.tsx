@@ -15,6 +15,7 @@ export default function RequestActions({
   title,
   details,
   canDelete = false,
+  quote = null,
 }: {
   requestId: string;
   status: string;
@@ -23,6 +24,8 @@ export default function RequestActions({
   details: string;
   /** The DELETE route is managers-only — don't offer what would 403 */
   canDelete?: boolean;
+  /** The newest quote already made from this request (an estimate form drafts one) — open it instead of starting blank */
+  quote?: { id: string; quoteNumber: number; status: string } | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -108,7 +111,12 @@ export default function RequestActions({
 
   return (
     <div className="flex items-center gap-2" ref={ref}>
-      {status === "NEW" && (
+      {status === "NEW" && quote && (
+        <button onClick={() => router.push(`/app/quotes/${quote.id}`)} className="btn-primary">
+          Open Quote #{quote.quoteNumber}
+        </button>
+      )}
+      {status === "NEW" && !quote && (
         <button
           onClick={() =>
             router.push(`/app/quotes/new?contactId=${contactId}&requestId=${requestId}`)
@@ -146,7 +154,7 @@ export default function RequestActions({
                   className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   <FileText size={14} className="text-gray-400" />
-                  Convert to Quote
+                  {quote ? "New Quote" : "Convert to Quote"}
                 </button>
                 <button
                   onClick={() =>

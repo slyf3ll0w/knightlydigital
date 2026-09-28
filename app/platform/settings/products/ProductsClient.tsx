@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import SectionHeader from "@/components/SectionHeader";
 import { money } from "@/lib/statuses";
-import { Plus, Pencil, Trash2, Loader2, Package } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Package } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -546,7 +546,22 @@ export default function ProductsClient({
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <BackLink href="/app/settings" />
+        {/* with an item open, back closes the editor; only from the list does it leave the page */}
+        {editingId !== null ? (
+          <button
+            type="button"
+            onClick={() => {
+              setEditingId(null);
+              setError("");
+            }}
+            aria-label="Back to the list"
+            className="hidden lg:block text-gray-400 hover:text-gray-600"
+          >
+            <ArrowLeft size={18} />
+          </button>
+        ) : (
+          <BackLink href="/app/settings" />
+        )}
         <PageTitle info="Your price book. These items autocomplete on quotes and invoices.">Services</PageTitle>
       </div>
 

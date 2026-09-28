@@ -49,10 +49,14 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
   const [followUp, setFollowUp] = useState<"idle" | "busy" | "done" | "exists">("idle");
   const [followUpError, setFollowUpError] = useState("");
 
+  // Re-baseline only when the SAVED tool changes — the parent re-creates the
+  // `tool` object on every render, and keying on it reset every edit the
+  // moment it was typed (the Options form could never be saved).
   useEffect(() => {
     setSlug(tool.publicSlug ?? publicSlugFrom(tool.name));
     setCfg(tool.publicConfig);
-  }, [tool]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tool.id, tool.name, tool.publicSlug, tool.publicConfig]);
 
   const c = cfg;
   const optionsDirty = JSON.stringify(cfg) !== JSON.stringify(tool.publicConfig);
@@ -332,16 +336,25 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
             </div>
 
             {c.fields.address.show && (
-              <label className={`flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2.5 ${hasServiceZips ? "" : "opacity-60"}`}>
-                <span>
+              <div className="rounded-lg border border-gray-200 px-3 py-2.5">
+                <label className="flex items-center justify-between gap-3">
                   <span className="flex items-center gap-1.5 text-sm font-medium text-gray-800">
                     Only quote addresses in my service area
-                    <InfoTip>{hasServiceZips ? "The service address is checked against your service ZIPs. Out of area: the lead still lands as a request (no quote), the request says so, and the visitor sees the message below instead of a price." : "Set your service ZIPs under Settings → Business first."}</InfoTip>
+                    <InfoTip>The service address is checked against your service ZIPs. Out of area: the lead still lands as a request (no quote), the request says so, and the visitor sees the message below instead of a price.</InfoTip>
                   </span>
-                  {c.serviceArea && <span className="mt-1 block"><Textarea value={c.outOfAreaMessage} onChange={(e) => patch({ outOfAreaMessage: e.target.value })} rows={2} placeholder={DEFAULT_OUT_OF_AREA} maxLength={PUBLIC_LIMITS.successMessage} className="w-full" /></span>}
-                </span>
-                <input type="checkbox" checked={c.serviceArea} disabled={!hasServiceZips} onChange={(e) => patch({ serviceArea: e.target.checked })} className="h-5 w-5 shrink-0 rounded accent-[color:var(--ds-primary)] disabled:opacity-60" />
-              </label>
+                  <input type="checkbox" checked={c.serviceArea} onChange={(e) => patch({ serviceArea: e.target.checked })} className="h-5 w-5 shrink-0 rounded accent-[color:var(--ds-primary)]" />
+                </label>
+                {c.serviceArea && !hasServiceZips && (
+                  <p className="mt-1.5 text-xs text-[color:var(--ds-warn)]">
+                    You haven&apos;t set any service ZIPs yet, so every address counts as in area.{" "}
+                    <a href="/app/settings/booking" className="font-medium underline">
+                      Add them under Booking &amp; forms → Scheduling rules
+                    </a>
+                    .
+                  </p>
+                )}
+                {c.serviceArea && <Textarea value={c.outOfAreaMessage} onChange={(e) => patch({ outOfAreaMessage: e.target.value })} rows={2} placeholder={DEFAULT_OUT_OF_AREA} maxLength={PUBLIC_LIMITS.successMessage} className="mt-2 w-full" />}
+              </div>
             )}
 
             {!tool.usesAtlas && <p className="text-xs text-gray-500">Want visitors to attach a photo and have Atlas fill in the answers? Turn on Atlas fill-in on the tool&apos;s Overview first.</p>}

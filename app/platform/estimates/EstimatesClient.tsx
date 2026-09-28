@@ -54,7 +54,7 @@ const GRID = "lg:grid-cols-[minmax(0,1fr)_90px_140px_150px_40px]";
 
 const statusFilters = [
   { value: "", label: "All", mobile: "All" },
-  { value: "published", label: "Published", mobile: "Published" },
+  { value: "published", label: "On website", mobile: "Website" },
   { value: "off", label: "Turned off", mobile: "Off" },
 ];
 
@@ -69,10 +69,11 @@ export function toolFacts(t: Pick<Tool, "spec">, atlasName: string): string[] {
   ].filter((x): x is string => Boolean(x));
 }
 
+/** One stamp, only when it says something: Off, or On website. A plain working tool wears nothing. */
 function ToolStamp({ t }: { t: Tool }) {
   if (!t.isActive) return <Chip>Off</Chip>;
-  if (t.isPublic && t.publicSlug) return <Chip tone="primary">Published</Chip>;
-  return <Chip tone="good">Live</Chip>;
+  if (t.isPublic && t.publicSlug) return <Chip tone="primary">On website</Chip>;
+  return null;
 }
 
 /** One ledger row — hoisted so a parent re-render (opening the runner, the builder) never remounts it and drops an open menu. */
@@ -193,7 +194,9 @@ export default function EstimatesClient({
                 autoStart={Boolean(initialPrompt)}
                 autoFocus={Boolean(initialPrompt) || totalCount > 0}
                 onBuilt={(t: BuiltTool) => {
-                  // straight into the new tool: the form, the sample chips, Ask Atlas one tap away
+                  // the list this page rendered is now stale — refresh it so coming back shows the new tool at once —
+                  // then straight into the new tool: the form, the sample chips, Ask Atlas one tap away
+                  router.refresh();
                   router.push(`/app/estimates/${t.id}?s=try`);
                 }}
               />

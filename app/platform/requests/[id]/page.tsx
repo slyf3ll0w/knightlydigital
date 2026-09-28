@@ -105,6 +105,7 @@ export default async function RequestDetailPage({
           contactId={request.contactId}
           title={request.title}
           details={request.details ?? ""}
+          quote={request.quotes[0] ? { id: request.quotes[0].id, quoteNumber: request.quotes[0].quoteNumber, status: request.quotes[0].status } : null}
           canDelete={isManager(actor.role)}
         />
       </div>

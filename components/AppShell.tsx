@@ -52,6 +52,7 @@ import PullToRefresh from "@/components/PullToRefresh";
 import ConfirmSheetHost from "@/components/ConfirmSheet";
 import { HomeFill, ScheduleFill, ChatFill, MoreFill } from "@/components/TabIcons";
 import { mobileBackFor } from "@/lib/mobile-nav";
+import { confirmLeave } from "@/lib/nav-guard";
 import { SETTINGS_SECTIONS, settingsHref } from "@/lib/settings-nav";
 import { AtlasMark } from "@/components/AtlasIcon";
 import { AssistantProvider } from "@/components/AssistantContext";
@@ -1063,9 +1064,13 @@ function CommandPalette({
   };
 
   const go = (row: Row) => {
-    savePick(drill && row.href === drill.href ? drill : row);
-    onClose();
-    router.push(row.href);
+    // a page with unsaved changes gets the same "leave without saving?" a link click gets
+    void confirmLeave().then((ok) => {
+      if (!ok) return;
+      savePick(drill && row.href === drill.href ? drill : row);
+      onClose();
+      router.push(row.href);
+    });
   };
 
   const enterDrill = (row: DrillTarget) => {
@@ -1394,7 +1399,9 @@ function KeyboardShortcuts({
         if (hit) {
           e.preventDefault();
           // `n` creates carry the record you're standing on into the form
-          router.push(mode === "n" ? withCreateContext(hit.href, pathname) : hit.href);
+          void confirmLeave().then((ok) => {
+            if (ok) router.push(mode === "n" ? withCreateContext(hit.href, pathname) : hit.href);
+          });
           return;
         }
         // no match — fall through so the key can start a fresh sequence
@@ -1890,8 +1897,11 @@ export default function AppShell({
   const mobileBack = mobileBackFor(pathname, trackPath(pathname));
   const goBack = () => {
     if (!mobileBack) return;
-    if (window.history.length > 1) router.back();
-    else router.push(mobileBack.to);
+    void confirmLeave().then((ok) => {
+      if (!ok) return;
+      if (window.history.length > 1) router.back();
+      else router.push(mobileBack.to);
+    });
   };
 
   // Portals (modals, sheets, the call card) render into <body>, outside this

@@ -7,7 +7,7 @@ import { ArrowLeft, Calculator, Camera, Check, FileText, Loader2, Sparkles, X } 
 import Modal from "@/components/Modal";
 import { Textarea } from "@/components/Input";
 import { useAssistant } from "@/components/AssistantContext";
-import { APP_THEME, Breakdown, ChoiceControl, CountsControl, MultiControl, NumberControl, PriceHero, ToggleRow, moneyExact, pickedIncludes, wash, useCountUp } from "@/components/EstimatorControls";
+import { Breakdown, ChoiceControl, CountsControl, MultiControl, NumberControl, PriceHero, ToggleRow, moneyExact, pickedIncludes, useAppControlTheme, wash, useCountUp } from "@/components/EstimatorControls";
 import { postJson } from "@/lib/safe-fetch";
 import { askAtlasInputs, formDefaults, inputsComplete, sectionsOf, visibleInputIds, type EstimatorResultLine, type EstimatorSpec, type FormValue, type PriceDriver } from "@/lib/estimator";
 import { fileToAssistPhoto, type AssistPhoto } from "@/lib/image-downscale";
@@ -151,7 +151,7 @@ export function EstimatorRunnerPanel({
 }) {
   const atlas = useAssistant();
   const router = useRouter();
-  const theme = APP_THEME;
+  const theme = useAppControlTheme();
   const single = estimators.length === 1 ? estimators[0] : null;
   const [selectedId, setSelectedId] = useState<string>(single?.id ?? "");
   const [values, setValues] = useState<FormValues>(single ? formDefaults(single.spec) : {});

@@ -47,6 +47,28 @@ export const APP_THEME: ControlTheme = {
   input: inputCls,
 };
 
+/**
+ * The in-app theme when the app is in dark mode. The gray text / border /
+ * surface classes are already remapped by the dark bridge in globals.css;
+ * what the bridge can't see is the inline work — the accent washes, the
+ * toggle track, the selected-card fill — which key off `dark`.
+ */
+const APP_THEME_DARK: ControlTheme = { ...APP_THEME, dark: true };
+
+/** APP_THEME, following the app's light / dark mode (html[data-mode]) live. */
+export function useAppControlTheme(): ControlTheme {
+  const [dark, setDark] = useState(false);
+  useEffect(() => {
+    const el = document.documentElement;
+    const read = () => setDark(el.getAttribute("data-mode") === "dark");
+    read();
+    const mo = new MutationObserver(read);
+    mo.observe(el, { attributes: true, attributeFilter: ["data-mode"] });
+    return () => mo.disconnect();
+  }, []);
+  return dark ? APP_THEME_DARK : APP_THEME;
+}
+
 export function publicTheme(dark: boolean, accent: string): ControlTheme {
   return {
     dark,
