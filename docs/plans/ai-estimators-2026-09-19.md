@@ -1614,13 +1614,11 @@ say how many.
   (Z%)" for managers (`showMargin`, defaults to `showSamples`). Templates
   may use `{quote_total}` and `{labor_hours}` (`hours` / `total` were NOT
   reserved — they are common input ids).
-- **Speed to lead**: the web-lead push now carries Call / Text action
+- **Speed to lead**: the web-lead push carries Call / Text action
   buttons (`webLeadPushPayload` → `/app/calls?contact=` and
-  `/app/messages/thread/`), and the Web form section has a one-tap
-  "Follow up automatically" card that creates the automation "Web
-  estimate follow-up" (request.created · source = estimate_form · wait 1 h
-  · email the client · notify the managers) through the ordinary
-  automations API; a second tap finds it already there (409).
+  `/app/messages/thread/`). A one-tap follow-up automation card was built
+  and then removed the same day (David: buggy, not that useful — owners
+  can make the automation themselves).
 - **Service-area gate**: Web form → Options → "Only quote addresses in my
   service area" (needs the address field + `Company.serviceZips`): an
   out-of-area ZIP (`zipOf` / `outOfServiceArea`) still lands as a request
@@ -1634,8 +1632,7 @@ say how many.
 
 ### Kept consistent with what exists
 Discounts use the quote's own discount field; recurring uses the price
-book + `QuoteLineItem.recurringInterval`; the follow-up is a plain
-automation; hours land in `Quote.notes`; the price-book guard mirrors the
+book + `QuoteLineItem.recurringInterval`; hours land in `Quote.notes`; the price-book guard mirrors the
 "archive instead of delete" rule; the public failure code is 424 like
 every upstream failure (Cloudflare eats 502/504). No schema change.
 Tests: `scripts/test-estimator.ts` §16, `test-estimator-public.ts` §10,
@@ -1666,11 +1663,9 @@ Tests: `scripts/test-estimator.ts` §16, `test-estimator-public.ts` §10,
    area" → submit with an out-of-area ZIP → thank-you says so, the request
    says "Outside your service area", no quote; an in-area ZIP behaves as
    before.
-9. Web form → "Follow up automatically" → Set it up → Automations lists
-   "Web estimate follow-up"; tap again → "Already set up".
-10. A tool with 3+ decided quotes → Overview shows "How it's doing"; Ask
+9. A tool with 3+ decided quotes → Overview shows "How it's doing"; Ask
     Atlas "is this priced right?" → the answer cites the win rate.
-11. Share a tool anonymously whose intro names the company → the listing's
+10. Share a tool anonymously whose intro names the company → the listing's
     words say "our team".
 
 ## Later

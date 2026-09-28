@@ -112,5 +112,8 @@ export default function Modal({
       </div>
     </div>
   );
-  return portal && typeof document !== "undefined" ? createPortal(node, document.body) : node;
+  // A body portal sits outside the app wrapper, where the dark bridge and the
+  // material classes are scoped (.app-ui) — mount inside it when it exists,
+  // the same way QuickMenu does, so a portaled dialog is themed like the page.
+  return portal && typeof document !== "undefined" ? createPortal(node, document.querySelector(".app-ui") ?? document.body) : node;
 }

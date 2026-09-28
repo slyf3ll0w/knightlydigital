@@ -181,6 +181,8 @@ const WEBSITE_PARAM = {
     disclaimer: { type: "string", description: "fine print under the estimate; a sensible default exists" },
     successMessage: { type: "string", description: "thank-you text; default fits onSubmit" },
     photoAssist: { type: "boolean", description: "visitors may attach a photo / describe the job and Atlas fills in the answers — spends the OWNER's tokens (capped per day); needs the tool's assist; default false (turns on by itself when a change turns the tool's assist on). Offer it only when the owner asks for photos or the tool already uses assist." },
+    serviceArea: { type: "boolean", description: "check the service address against the company's service ZIPs (Settings → Booking & forms); an out-of-area address still lands as a request, no quote, and the visitor sees outOfAreaMessage instead of a price. Needs askAddress. Default false." },
+    outOfAreaMessage: { type: "string", description: "thank-you text for an out-of-area visitor; a sensible default exists" },
   },
 } as const;
 
@@ -200,6 +202,8 @@ function websiteConfigFrom(raw: Record<string, unknown>, base: EstimatorPublicCo
     ...(typeof raw.disclaimer === "string" ? { disclaimer: raw.disclaimer } : {}),
     ...(typeof raw.successMessage === "string" ? { successMessage: raw.successMessage } : {}),
     ...(typeof raw.photoAssist === "boolean" ? { photoAssist: raw.photoAssist } : {}),
+    ...(typeof raw.serviceArea === "boolean" ? { serviceArea: raw.serviceArea } : {}),
+    ...(typeof raw.outOfAreaMessage === "string" ? { outOfAreaMessage: raw.outOfAreaMessage } : {}),
     fields: {
       ...base.fields,
       phone: { show: askPhone, required: askPhone && bool(raw.requirePhone, base.fields.phone.required) },

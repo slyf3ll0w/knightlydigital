@@ -54,7 +54,7 @@ const GRID = "lg:grid-cols-[minmax(0,1fr)_90px_140px_150px_40px]";
 
 const statusFilters = [
   { value: "", label: "All", mobile: "All" },
-  { value: "published", label: "On website", mobile: "Website" },
+  { value: "published", label: "Published", mobile: "Published" },
   { value: "off", label: "Turned off", mobile: "Off" },
 ];
 
@@ -69,10 +69,10 @@ export function toolFacts(t: Pick<Tool, "spec">, atlasName: string): string[] {
   ].filter((x): x is string => Boolean(x));
 }
 
-/** One stamp, only when it says something: Off, or On website. A plain working tool wears nothing. */
+/** One stamp, only when it says something: Off, or Published (the web form is on — whether or not it's embedded anywhere). A plain working tool wears nothing. */
 function ToolStamp({ t }: { t: Tool }) {
   if (!t.isActive) return <Chip>Off</Chip>;
-  if (t.isPublic && t.publicSlug) return <Chip tone="primary">On website</Chip>;
+  if (t.isPublic && t.publicSlug) return <Chip tone="primary">Published</Chip>;
   return null;
 }
 

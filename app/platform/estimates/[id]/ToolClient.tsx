@@ -378,7 +378,7 @@ export default function ToolClient({
   const pills = (
     <>
       {!tool.isActive && <Chip>Off</Chip>}
-      {published && <Chip tone="primary">On website</Chip>}
+      {published && <Chip tone="primary">Published</Chip>}
       {tool.sourceListingId && <Chip>From the Library</Chip>}
     </>
   );
