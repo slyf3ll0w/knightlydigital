@@ -80,6 +80,25 @@ export function geocodeCacheKey(key: string, home: { state?: string | null; lat?
 const GEOCODE_COUNTRY = (process.env.GEOCODE_COUNTRY ?? "us").toLowerCase();
 const FAILED_RETRY_DAYS = 30;
 
+type CompanyHome = { lat: number | null; lng: number | null; state: string | null };
+// A route day geocodes every stop through here; the shop's position is the
+// same for all of them, so it is read once a minute per tenant, not once
+// per stop.
+const homeCache = new Map<string, { at: number; home: CompanyHome | null }>();
+const HOME_CACHE_MS = 60_000;
+
+async function companyHome(companyId: string): Promise<CompanyHome | null> {
+  const hit = homeCache.get(companyId);
+  if (hit && Date.now() - hit.at < HOME_CACHE_MS) return hit.home;
+  const home = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { lat: true, lng: true, state: true },
+  });
+  if (homeCache.size > 500) homeCache.clear();
+  homeCache.set(companyId, { at: Date.now(), home });
+  return home;
+}
+
 export type GeocodeFeature = {
   geometry?: { coordinates?: [number, number] };
   properties?: {
@@ -126,12 +145,7 @@ export async function geocodeAddress(
   // and near the shop when we know where that is. A bare "412 Oak St"
   // otherwise resolves to the best-known Oak St anywhere in the world and
   // quietly inserts a six-hour drive into the route walk.
-  const home = companyId
-    ? await prisma.company.findUnique({
-        where: { id: companyId },
-        select: { lat: true, lng: true, state: true },
-      })
-    : null;
+  const home = companyId ? await companyHome(companyId) : null;
   const cacheKey = geocodeCacheKey(key, home);
 
   const cached = await prisma.geocodeCache.findUnique({ where: { query: cacheKey } });
