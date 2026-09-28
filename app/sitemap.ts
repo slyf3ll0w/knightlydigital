@@ -32,6 +32,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/apply`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE}/roadmap`, changeFrequency: "weekly", priority: 0.5 },
     { url: `${BASE}/help`, changeFrequency: "weekly", priority: 0.7 },
+    ...HELP_SECTIONS.map((s) => ({
+      url: `${BASE}/help/topic/${s.id}`,
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
+    })),
     ...HELP_SECTIONS.flatMap((s) =>
       s.articles.map((a) => ({
         url: `${BASE}/help/${a.slug}`,

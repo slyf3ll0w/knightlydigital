@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import HelpHome from "@/components/help/HelpHome";
-import { helpArticleCount } from "@/lib/help/search";
 
 export const metadata: Metadata = {
   title: "Help Center",
-  description: `How to use WorkBench FSM: ${helpArticleCount()} step-by-step guides to booking, scheduling, quotes, invoices, payments, the business phone line, texting, automations and Atlas, with fixes for common problems.`,
+  description: `How to use WorkBench FSM: step-by-step guides to booking, scheduling, quotes, invoices, payments, the business phone line, texting, automations and Atlas, with fixes for common problems.`,
 };
 
 /**

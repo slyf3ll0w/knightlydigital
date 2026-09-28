@@ -1,39 +1,44 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   HELP CENTER (/help public, /app/help in the app). Styled like the
-   marketing site, not the app: Nunito headings over Inter, white pages
-   with #F6F8FB bands, a bloom + graph-paper hero, flat sections (no card
-   boxes), orange line icons, numbered chips, pill buttons, the navy band.
+   HELP CENTER (/help public, /app/help in the app). A classic help center
+   built from the marketing site's parts (Nunito headings over Inter, the
+   bloom + graph-paper hero, white rounded-[1.25rem] cards with a gray
+   hairline, pill search, the navy band) and the app's motion (the title
+   wipe and the staggered ds-rise). The root also carries `.ds`, which
+   supplies the motion tokens on the public site.
    Always light: /app/help is pinned light (ForceLightTheme + the pre-paint
    path list in app/layout.tsx). Accents read the company's colors in the
    app (--ds-primary / --ds-secondary) and fall back to WorkBench's.
    ═══════════════════════════════════════════════════════════════════════ */
 
-.help-root {
+.help-root.help-root {
   --hb: var(--ds-primary, #0B57D8);
-  --hb-soft: color-mix(in srgb, var(--hb) 8%, #fff);
+  --hb-soft: color-mix(in srgb, var(--hb) 9%, #fff);
   --ho: var(--ds-secondary, #F86A0A);
-  --ho-soft: color-mix(in srgb, var(--ho) 9%, #fff);
   --hi: #0A1428;
-  font-family: var(--font-body);
+  /* The site's body face. Not var(--font-body): .ds redefines that as Lexend. */
+  --help-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--help-body);
   color: #111827;
   background: #fff;
   letter-spacing: normal;
 }
 /* Doubled class: beats `.ds :is(h1…)` (Lexend) whatever the load order. */
 .help-root.help-root :is(h1, h2, h3, h4) {
-  font-family: "Nunito", var(--font-body);
+  font-family: "Nunito", var(--help-body);
   letter-spacing: -0.02em;
   color: var(--hi);
 }
+/* The wipe's sweeping edge is the secondary color, like every app title. */
+.help-root .ds-wipe-bar { background: var(--ho); }
 
 /* Hero: the site's bloom + graph paper, fading to white. */
 .help-hero { position: relative; overflow: hidden; }
 .help-hero::before {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background-image:
-    radial-gradient(55% 62% at 14% -12%, color-mix(in srgb, var(--hb) 24%, transparent), transparent 70%),
-    radial-gradient(42% 55% at 90% -8%, color-mix(in srgb, var(--ho) 20%, transparent), transparent 70%),
-    linear-gradient(180deg, #F2F5FC 0%, #FFFFFF 78%);
+    radial-gradient(55% 62% at 14% -12%, color-mix(in srgb, var(--hb) 22%, transparent), transparent 70%),
+    radial-gradient(42% 55% at 90% -8%, color-mix(in srgb, var(--ho) 18%, transparent), transparent 70%),
+    linear-gradient(180deg, #F2F5FC 0%, #FFFFFF 85%);
 }
 .help-hero::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
@@ -46,14 +51,18 @@
 }
 .help-hero > * { position: relative; z-index: 1; }
 
-/* Section label with the orange dot (the site's .wb-label). */
-.help-label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--hb); }
-.help-label::before { content: ""; width: 6px; height: 6px; border-radius: 999px; background: var(--ho); flex: none; }
+/* Topic icon tile: the marker for every topic name. */
+.help-tile {
+  display: inline-flex; flex: none; align-items: center; justify-content: center;
+  width: 44px; height: 44px; border-radius: 12px;
+  background: var(--hb-soft); color: var(--hb);
+}
+.help-tile-sm { width: 30px; height: 30px; border-radius: 9px; }
 
 /* Search: one pill, like the site's floating nav. */
 .help-search {
   display: flex; align-items: center; gap: 10px;
-  height: 58px; padding: 0 7px 0 20px;
+  height: 60px; padding: 0 7px 0 22px;
   border-radius: 999px; background: #fff;
   box-shadow: 0 1px 2px rgba(10, 20, 40, 0.05), 0 12px 34px -14px rgba(10, 20, 40, 0.25), 0 0 0 1px rgba(10, 20, 40, 0.08);
   transition: box-shadow 0.15s ease;
@@ -64,18 +73,21 @@
 .help-search input {
   flex: 1; min-width: 0; height: 100%;
   background: transparent; border: 0; outline: none; box-shadow: none;
-  font-size: 16px; color: #111827; font-family: var(--font-body);
+  font-size: 16px; color: #111827; font-family: var(--help-body);
 }
 .help-root .help-search input:focus-visible { outline: none; box-shadow: none; }
 .help-search input::placeholder { color: #9CA3AF; }
 .help-search input::-webkit-search-cancel-button { display: none; }
 
-/* Chips: the site's rounded-full soft pills. */
-.help-chip { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 700; line-height: 1.2; transition: opacity 0.15s ease; }
+/* The site's card: white, rounded-[1.25rem], gray hairline. */
+.help-card { border-radius: 1.25rem; border: 1px solid #E5E7EB; background: #fff; }
+a.help-card { transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+a.help-card:hover { border-color: #D1D5DB; box-shadow: 0 18px 40px -24px rgba(10, 20, 40, 0.28); }
+
+/* Soft pill links (the site's chips). */
+.help-chip { display: inline-flex; align-items: center; border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 700; line-height: 1.2; background: var(--hb-soft); color: var(--hb); transition: opacity 0.15s ease; }
 .help-chip:hover { opacity: 0.8; }
-.help-chip-blue { background: var(--hb-soft); color: var(--hb); }
-.help-chip-orange { background: var(--ho-soft); color: color-mix(in srgb, var(--ho) 88%, #000); }
-.help-num { display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 10px; font-size: 11.5px; font-weight: 800; background: var(--ho-soft); color: color-mix(in srgb, var(--ho) 88%, #000); }
+.help-chip-quiet { background: #F3F4F6; color: #374151; }
 
 /* Pill buttons (the site's .wb-pill, colored by the company in the app). */
 .help-pill { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; padding: 0.7rem 1.3rem; font-size: 14.5px; font-weight: 700; line-height: 1.2; white-space: nowrap; transition: filter 0.15s ease, background-color 0.15s ease, border-color 0.15s ease; }
@@ -87,12 +99,10 @@
 .help-pill-outline:hover { border-color: #111827; }
 .help-pill-ghost { color: #fff; border: 1px solid rgba(255, 255, 255, 0.32); }
 .help-pill-ghost:hover { background: rgba(255, 255, 255, 0.1); }
-.help-pill-light { background: #fff; color: var(--hi); }
-.help-pill-light:hover { background: #EEF4FE; }
 
 /* Links in running text */
 .help-a { color: var(--hb); font-weight: 600; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--hb) 30%, transparent); text-underline-offset: 3px; }
-.help-a:hover { text-decoration-color: var(--ho); }
+.help-a:hover { text-decoration-color: var(--hb); }
 
 /* A button or label name in running text: `Send quote` */
 .help-ui { font-weight: 700; color: #111827; white-space: nowrap; }
@@ -105,33 +115,32 @@
 .help-prose h2 { margin-top: 36px; font-size: 21px; font-weight: 800; line-height: 1.25; }
 
 .help-steps { counter-reset: help-step; }
-.help-steps > li { position: relative; padding: 0 0 20px 50px; counter-increment: help-step; }
+.help-steps > li { position: relative; padding: 0 0 20px 46px; counter-increment: help-step; }
 .help-steps > li::before {
-  content: counter(help-step, decimal-leading-zero);
-  position: absolute; left: 0; top: 1px;
+  content: counter(help-step);
+  position: absolute; left: 0; top: 0;
   display: inline-flex; align-items: center; justify-content: center;
-  min-width: 34px; height: 24px; padding: 0 8px; border-radius: 999px;
-  background: var(--ho-soft); color: color-mix(in srgb, var(--ho) 88%, #000);
-  font-size: 12px; font-weight: 800; font-family: var(--font-body);
+  width: 28px; height: 28px; border-radius: 999px;
+  background: var(--hb-soft); color: var(--hb);
+  font-size: 13.5px; font-weight: 800; font-family: var(--help-body);
 }
 .help-steps > li:last-child { padding-bottom: 0; }
 
 .help-bullets > li { position: relative; padding-left: 22px; }
 .help-bullets > li + li { margin-top: 10px; }
-.help-bullets > li::before { content: ""; position: absolute; left: 3px; top: 0.72em; width: 6px; height: 6px; border-radius: 999px; background: var(--ho); }
+.help-bullets > li::before { content: ""; position: absolute; left: 4px; top: 0.72em; width: 6px; height: 6px; border-radius: 2px; background: #9CA3AF; }
 
 .help-note { border-radius: 1.25rem; padding: 18px 20px; font-size: 15px; line-height: 1.6; }
 .help-note-tip { background: #F6F8FB; border: 1px solid #E5E7EB; color: #374151; }
 .help-note-warn { background: #FFFBEB; border: 1px solid #FDE68A; color: #3F2E07; }
-.help-note-title { display: block; margin-bottom: 2px; font-size: 13px; font-weight: 800; }
+.help-note-title { display: block; margin-bottom: 2px; font-size: 13.5px; font-weight: 800; }
 .help-note-tip .help-note-title { color: var(--hb); }
 .help-note-warn .help-note-title { color: #B45309; }
 
-/* Side list on article pages: plain text, active = the site's nav dot. */
-.help-side a { position: relative; display: block; padding: 6px 0 6px 16px; font-size: 14px; line-height: 1.4; color: #4B5563; }
-.help-side a:hover { color: #111827; }
-.help-side a[aria-current="page"] { color: var(--hi); font-weight: 700; }
-.help-side a[aria-current="page"]::before { content: ""; position: absolute; left: 2px; top: 13px; width: 6px; height: 6px; border-radius: 999px; background: var(--ho); }
+/* Side list on article and topic pages; the current guide gets a soft fill. */
+.help-side a { display: block; margin: 1px 0; padding: 7px 12px; border-radius: 10px; font-size: 14px; line-height: 1.4; color: #4B5563; }
+.help-side a:hover { background: #F6F8FB; color: #111827; }
+.help-side a[aria-current="page"] { background: var(--hb-soft); color: var(--hb); font-weight: 700; }
 
 /* The navy band (the site's .wb-dark). */
 .help-band {
@@ -143,12 +152,7 @@
 }
 .help-root.help-root .help-band :is(h2, h3) { color: #fff; }
 
-/* Floating chip over the hero photo (the site's .wb-float). */
-@keyframes help-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-.help-float {
-  animation: help-bob 6.5s ease-in-out infinite;
-  box-shadow: 0 1px 2px rgba(10, 20, 40, 0.05), 0 22px 50px -18px rgba(10, 20, 40, 0.3), 0 0 0 1px rgba(10, 20, 40, 0.06);
-}
-@media (prefers-reduced-motion: reduce) { .help-float { animation: none; } }
+.help-mark { background: color-mix(in srgb, var(--ho) 18%, #fff); color: inherit; border-radius: 3px; padding: 0 1px; }
 
-.help-mark { background: var(--ho-soft); color: inherit; border-radius: 3px; padding: 0 1px; }
+/* .ds gives buttons and fields the app face; here they match the site. */
+.help-root.help-root :is(button, input, select, textarea) { font-family: var(--help-body); }
