@@ -36,6 +36,7 @@ import { nextInvoiceNumber, withDocNumberRetry } from "@/lib/doc-numbers";
 import { dueDateFromTerms } from "@/lib/due-dates";
 import { findScheduleConflicts } from "@/lib/schedule-conflicts";
 import { fireAutomations } from "@/lib/automations-server";
+import { composeAddress } from "@/lib/geocoding";
 
 type Tx = Prisma.TransactionClient | PrismaClient;
 
@@ -305,7 +306,7 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
           jobNumber: (lastJob?.jobNumber ?? 0) + 1,
           title: sub.name,
           leadSource: sub.contact.leadSource,
-          address: sub.contact.address,
+          address: composeAddress(sub.contact) || null,
           ...(cycleCrew.length > 0 && { assignments: { create: cycleCrew.map((userId) => ({ userId })) } }),
           lineItems: {
             create: {
@@ -970,7 +971,7 @@ export async function generateDueVisits(
                   ? [sub.property.address, sub.property.city, sub.property.state, sub.property.zip]
                       .filter(Boolean)
                       .join(", ")
-                  : sub.contact.address,
+                  : composeAddress(sub.contact) || null,
                 propertyId: sub.propertyId,
                 scheduledAt,
                 scheduledEnd,

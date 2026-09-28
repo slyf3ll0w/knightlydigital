@@ -31,6 +31,7 @@ import { arrivalSlotLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-win
 import { pastDueFilter } from "@/lib/due-dates";
 import { invoiceBalance } from "@/lib/payments";
 import { fireAutomations } from "@/lib/automations-server";
+import { completeAddress, composeAddress } from "@/lib/geocoding";
 
 const DAY = 86400000;
 
@@ -660,7 +661,7 @@ export async function runTechHeadsUp(now: Date = new Date()): Promise<Appointmen
       company: { is: { suspendedAt: null } },
     },
     include: {
-      contact: { select: { firstName: true, lastName: true, phone: true, address: true } },
+      contact: { select: { firstName: true, lastName: true, phone: true, address: true, city: true, state: true, zip: true } },
       assignments: { select: { userId: true } },
       company: { select: { timezone: true } },
     },
@@ -683,7 +684,7 @@ export async function runTechHeadsUp(now: Date = new Date()): Promise<Appointmen
         hour: "numeric",
         minute: "2-digit",
       }).format(job.scheduledAt!);
-      const address = job.address ?? job.contact.address;
+      const address = completeAddress(job.address, job.contact) || composeAddress(job.contact) || null;
       const clientName = `${job.contact.firstName} ${job.contact.lastName}`.trim();
 
       const actions = [

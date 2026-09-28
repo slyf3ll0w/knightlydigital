@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
 import { dayStartFor, parseRouteDate, resolveDriveLegs, resolveRouteDay } from "@/lib/route-plan";
 import { directionsEnabled, routeGeometry } from "@/lib/directions";
-import { geocodingEnabled } from "@/lib/geocoding";
+import { completeAddress, composeAddress, geocodingEnabled } from "@/lib/geocoding";
 import { roadTimesState } from "@/lib/mapbox-budget";
 import { checkFeature } from "@/lib/plan-gate";
 
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
         jobNumber: true,
         title: true,
         address: true,
-        contact: { select: { firstName: true, lastName: true, address: true } },
+        contact: { select: { firstName: true, lastName: true, address: true, city: true, state: true, zip: true } },
         assignments: { select: { userId: true } },
         outsourced: true,
       },
@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
     jobNumber: j.jobNumber,
     title: j.title,
     contactName: `${j.contact.firstName} ${j.contact.lastName}`.trim(),
-    address: j.address ?? j.contact.address ?? null,
+    address: completeAddress(j.address, j.contact) || composeAddress(j.contact) || null,
     assigneeIds: j.assignments.map((a) => a.userId),
     outsourced: j.outsourced,
   }));

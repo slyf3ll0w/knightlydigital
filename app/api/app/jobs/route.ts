@@ -9,6 +9,7 @@ import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { syncJobChecklist } from "@/lib/job-checklist";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { clientWindowPatch } from "@/lib/client-window";
+import { composeAddress } from "@/lib/geocoding";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 import {
   cleanOutsourcedTo,
@@ -173,7 +174,7 @@ export async function POST(req: NextRequest) {
             ? Number(body.arrivalWindowMinutes)
             : null,
         ...clientWindowPatch(body),
-        address: address || propertyLine || contact.address || null,
+        address: address || propertyLine || composeAddress(contact) || null,
         propertyId: property?.id ?? null,
         outsourced,
         outsourcedTo,

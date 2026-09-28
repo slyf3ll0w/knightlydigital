@@ -22,6 +22,7 @@ import {
 } from "./core";
 import { itemsPayload } from "./pipeline";
 import { DEFAULT_JOB_TITLE } from "../job-crew";
+import { composeAddress } from "../geocoding";
 
 /** Resolve an array of member ids/names against the active team (full-replace crew). */
 async function resolveCrew(
@@ -158,7 +159,7 @@ export const scheduleTools: Tool[] = [
       }
       const crew = await resolveCrew(actor.companyId, args.crew);
       if ("error" in crew) return crew;
-      const address = str(args.address, 200) || contact.address || undefined;
+      const address = str(args.address, 200) || composeAddress(contact) || undefined;
       return stage(ctx, {
         kind: "create_job",
         title: `New job: ${title} — ${whenLabel}`,
@@ -398,7 +399,7 @@ export const scheduleTools: Tool[] = [
       const type = ["PHONE_CALL", "VIDEO_CALL", "IN_PERSON"].includes(str(args.type, 20))
         ? str(args.type, 20)
         : "IN_PERSON";
-      const address = str(args.address, 200) || contact.address || "";
+      const address = str(args.address, 200) || composeAddress(contact) || "";
       if (type === "IN_PERSON" && !address) {
         return { error: "In-person needs an address and the client has none on file — ask the user for one." };
       }

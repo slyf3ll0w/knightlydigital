@@ -33,6 +33,7 @@ import JobChecklist from "./JobChecklist";
 import ConvertToAppointmentNotice from "./ConvertToAppointment";
 import { looksLikeAppointment } from "@/lib/appointment-hint";
 import Fold from "@/components/Fold";
+import { completeAddress, composeAddress } from "@/lib/geocoding";
 
 export default async function JobDetailPage({
   params,
@@ -287,7 +288,7 @@ export default async function JobDetailPage({
             companyWindowMinutes={company?.arrivalWindowMinutes}
             arriveAfterMin={job.arriveAfterMin}
             arriveBeforeMin={job.arriveBeforeMin}
-            address={job.address}
+            address={completeAddress(job.address, job.contact) ?? composeAddress(job.contact)}
             assigneeId={job.assignments[0]?.userId ?? actor.id}
             intervalMinutes={resolveSlotInterval({
               companyIntervalMinutes: company?.schedulingIntervalMinutes,

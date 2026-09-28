@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
-import { composeAddress, geocodeAddress } from "@/lib/geocoding";
+import { completeAddress, composeAddress, geocodeAddress } from "@/lib/geocoding";
 import { featureAllowedFor } from "@/lib/plan-gate";
 import { driveTimeMatrix } from "@/lib/routing";
 import { fireAutomations } from "@/lib/automations-server";
@@ -39,7 +39,7 @@ export async function POST(
 
   // Where the job is: the saved property pin, else its address line, else
   // the client's address — the same order the route plan resolves
-  const destQuery = job.address?.trim() || (job.property ? composeAddress(job.property) : composeAddress(job.contact));
+  const destQuery = completeAddress(job.address, job.contact) || (job.property ? composeAddress(job.property) : composeAddress(job.contact));
   let etaMinutes: number | null = null;
   if (
     Number.isFinite(lat) &&

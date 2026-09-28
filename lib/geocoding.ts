@@ -63,6 +63,32 @@ export function addressNamesPlace(key: string): boolean {
   return /,\s*[a-z]{2}(\s*,)?\s*$/.test(key) || /,\s*[a-z]{2}\s+\d{5}/.test(key);
 }
 
+function hasWord(haystack: string, word: string): boolean {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i").test(haystack);
+}
+
+/**
+ * A job's or appointment's address LINE, completed with the client's city,
+ * state and ZIP when the line doesn't name a place of its own. A job created
+ * from a client used to copy just the street ("4405 Stonebridge Dr") — the
+ * geocoder then found a Stonebridge Dr in another state. Parts the line
+ * already contains aren't repeated; a line that names a state or ZIP is
+ * returned as typed. Pure (unit-tested).
+ */
+export function completeAddress(
+  line: string | null | undefined,
+  parts: { city?: string | null; state?: string | null; zip?: string | null } | null | undefined
+): string | null {
+  const l = (line ?? "").trim();
+  if (!l) return null;
+  if (addressNamesPlace(normalizeAddressKey(l))) return l;
+  const extra = [parts?.city, parts?.state, parts?.zip]
+    .map((p) => (p ?? "").trim())
+    .filter((p) => p && !hasWord(l, p));
+  return extra.length ? `${l}, ${extra.join(", ")}` : l;
+}
+
 /**
  * The GeocodeCache row key for a query from this company: shared when the
  * address is complete, scoped to the company's state (or its shop's

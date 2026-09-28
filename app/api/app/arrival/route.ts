@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
-import { geocodeAddress } from "@/lib/geocoding";
+import { completeAddress, composeAddress, geocodeAddress } from "@/lib/geocoding";
 import { localDayParts, wallTimeToUtc } from "@/lib/booking-engine";
 
 /**
@@ -57,14 +57,14 @@ export async function GET() {
         id: true,
         title: true,
         address: true,
-        contact: { select: { address: true } },
+        contact: { select: { address: true, city: true, state: true, zip: true } },
       },
     }),
   ]);
 
   if (!job) return NextResponse.json({ job: null, clockedInJobId: openEntry?.jobId ?? null });
 
-  const address = job.address ?? job.contact.address;
+  const address = completeAddress(job.address, job.contact) || composeAddress(job.contact);
   const pin = address ? await geocodeAddress(address, actor.companyId) : null;
 
   return NextResponse.json({

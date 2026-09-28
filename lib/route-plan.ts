@@ -17,7 +17,7 @@
  */
 
 import { prisma } from "@/lib/db";
-import { composeAddress, geocodeAddress, geocodingEnabled } from "@/lib/geocoding";
+import { completeAddress, composeAddress, geocodeAddress, geocodingEnabled } from "@/lib/geocoding";
 import type { Actor } from "@/lib/permissions";
 import { appointmentScope, isManager, jobScope } from "@/lib/permissions";
 import { localDayParts, wallTimeToUtc } from "@/lib/booking-engine";
@@ -230,7 +230,7 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
         scheduledAt: { gte: dayStart, lt: dayEnd },
       },
       include: {
-        contact: { select: { firstName: true, lastName: true } },
+        contact: { select: { firstName: true, lastName: true, city: true, state: true, zip: true } },
         property: true,
       },
       orderBy: { scheduledAt: "asc" },
@@ -262,9 +262,12 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
       lat = hit?.lat ?? null;
       lng = hit?.lng ?? null;
     }
+    // The address line completed with the client's city/state/ZIP — a job
+    // made from a client carries only their street, which on its own
+    // geocodes to the wrong town (or state)
+    const line = completeAddress(j.address, j.contact) || (j.property ? composeAddress(j.property) : composeAddress(j.contact)) || null;
     if (lat == null) {
-      const query = j.address?.trim() || composeAddress(j.contact);
-      const hit = query ? await geocodeAddress(query, actor.companyId) : null;
+      const hit = line ? await geocodeAddress(line, actor.companyId) : null;
       lat = hit?.lat ?? null;
       lng = hit?.lng ?? null;
     }
@@ -278,7 +281,7 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
       status: j.status,
       progress: done ? "done" : j.timeEntries.length > 0 ? "active" : "pending",
       contactName: `${j.contact.firstName} ${j.contact.lastName}`.trim(),
-      address: j.address?.trim() || (j.property ? composeAddress(j.property) : composeAddress(j.contact)) || null,
+      address: line,
       scheduledAt: j.scheduledAt ? j.scheduledAt.toISOString() : null,
       scheduledEnd: j.scheduledEnd ? j.scheduledEnd.toISOString() : null,
       scheduledAnytime: j.scheduledAnytime,
@@ -294,8 +297,9 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
   const apptStops = await mapLimit(appointments, 6, async (a): Promise<RouteStop> => {
     let lat = a.property?.lat ?? null;
     let lng = a.property?.lng ?? null;
-    if (lat == null && a.address) {
-      const hit = await geocodeAddress(a.address, actor.companyId);
+    const apptLine = completeAddress(a.address, a.contact);
+    if (lat == null && apptLine) {
+      const hit = await geocodeAddress(apptLine, actor.companyId);
       lat = hit?.lat ?? null;
       lng = hit?.lng ?? null;
     }
@@ -307,7 +311,7 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
       status: a.status,
       progress: a.scheduledEnd && a.scheduledEnd.getTime() < Date.now() ? "done" : "pending",
       contactName: `${a.contact.firstName} ${a.contact.lastName}`.trim(),
-      address: a.address,
+      address: apptLine,
       scheduledAt: a.scheduledAt.toISOString(),
       scheduledEnd: a.scheduledEnd ? a.scheduledEnd.toISOString() : null,
       scheduledAnytime: a.scheduledAnytime,

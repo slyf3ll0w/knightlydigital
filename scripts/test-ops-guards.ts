@@ -7,7 +7,7 @@
  */
 import assert from "node:assert/strict";
 import { quoteExpired } from "../lib/quote-expiry";
-import { acceptGeocodeMatch, addressNamesPlace, geocodeCacheKey, normalizeAddressKey } from "../lib/geocoding";
+import { acceptGeocodeMatch, addressNamesPlace, completeAddress, geocodeCacheKey, normalizeAddressKey } from "../lib/geocoding";
 import { withSerializationRetry } from "../lib/booking-submit";
 import { Prisma } from "@prisma/client";
 
@@ -65,6 +65,21 @@ async function main() {
     assert.equal(geocodeCacheKey(bare, tx), "412 oak st |near tx");
     assert.equal(geocodeCacheKey(bare, { state: null, lat: 33.04, lng: -96.71 }), "412 oak st |near 33.0,-96.7");
     assert.equal(geocodeCacheKey(bare, null), bare);
+  });
+
+  await test("completeAddress: a bare street borrows the client's city, state and ZIP", () => {
+    const mckinney = { city: "McKinney", state: "TX", zip: "75072" };
+    assert.equal(completeAddress("4405 Stonebridge Dr", mckinney), "4405 Stonebridge Dr, McKinney, TX, 75072");
+    assert.equal(completeAddress("4405 Stonebridge Dr, McKinney", mckinney), "4405 Stonebridge Dr, McKinney, TX, 75072");
+    // Already complete → as typed
+    assert.equal(completeAddress("4405 Stonebridge Dr, McKinney, TX 75072", mckinney), "4405 Stonebridge Dr, McKinney, TX 75072");
+    assert.equal(completeAddress("100 Main St, Tulsa, OK", mckinney), "100 Main St, Tulsa, OK");
+    // No client parts → as typed; empty → null
+    assert.equal(completeAddress("4405 Stonebridge Dr", {}), "4405 Stonebridge Dr");
+    assert.equal(completeAddress("  ", mckinney), null);
+    assert.equal(completeAddress(null, mckinney), null);
+    // A state code inside a street name doesn't count as naming the state
+    assert.equal(completeAddress("12 Texline Rd", { state: "TX", zip: "79087" }), "12 Texline Rd, TX, 79087");
   });
 
   await test("serialization aborts (P2034) retry; anything else surfaces at once", async () => {
