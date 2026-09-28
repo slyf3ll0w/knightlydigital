@@ -15,7 +15,7 @@ export default function HelpText({ text, base }: { text: string; base: string })
         if (!part) return null;
         if (part.startsWith("**") && part.endsWith("**")) {
           return (
-            <strong key={i} className="font-semibold text-[color:var(--ds-ink)]">
+            <strong key={i} className="font-bold text-gray-900">
               {part.slice(2, -2)}
             </strong>
           );
@@ -33,11 +33,11 @@ export default function HelpText({ text, base }: { text: string; base: string })
           if (href.startsWith("/help/")) href = `${base}/${href.slice(6)}`;
           const external = /^https?:/.test(href);
           return external ? (
-            <a key={i} href={href} target="_blank" rel="noreferrer" className="ds-link">
+            <a key={i} href={href} target="_blank" rel="noreferrer" className="help-a">
               {link[1]}
             </a>
           ) : (
-            <Link key={i} prefetch={false} href={href} className="ds-link">
+            <Link key={i} prefetch={false} href={href} className="help-a">
               {link[1]}
             </Link>
           );

@@ -1,283 +1,154 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   HELP CENTER (/help public, /app/help in the app). App design system
-   (.ds tokens, Lexend, the company's two colors) with a few pieces
-   borrowed from the marketing site: the two-color bloom and graph paper
-   behind the hero, the brand-dot label, pill search, a navy band.
-   Everything reads tokens, so dark mode and company colors just work.
+   HELP CENTER (/help public, /app/help in the app). Styled like the
+   marketing site, not the app: Nunito headings over Inter, white pages
+   with #F6F8FB bands, a bloom + graph-paper hero, flat sections (no card
+   boxes), orange line icons, numbered chips, pill buttons, the navy band.
+   Always light: /app/help is pinned light (ForceLightTheme + the pre-paint
+   path list in app/layout.tsx). Accents read the company's colors in the
+   app (--ds-primary / --ds-secondary) and fall back to WorkBench's.
    ═══════════════════════════════════════════════════════════════════════ */
 
-/* Hero: the site's bloom (primary top-left, secondary top-right) over
-   graph paper that fades out before the content starts. */
-.help-hero {
-  position: relative;
-  overflow: hidden;
-  border-radius: var(--ds-r-xl);
-  background: var(--ds-surface);
-  box-shadow: var(--ds-shadow-1);
-  isolation: isolate;
+.help-root {
+  --hb: var(--ds-primary, #0B57D8);
+  --hb-soft: color-mix(in srgb, var(--hb) 8%, #fff);
+  --ho: var(--ds-secondary, #F86A0A);
+  --ho-soft: color-mix(in srgb, var(--ho) 9%, #fff);
+  --hi: #0A1428;
+  font-family: var(--font-body);
+  color: #111827;
+  background: #fff;
+  letter-spacing: normal;
 }
+/* Doubled class: beats `.ds :is(h1…)` (Lexend) whatever the load order. */
+.help-root.help-root :is(h1, h2, h3, h4) {
+  font-family: "Nunito", var(--font-body);
+  letter-spacing: -0.02em;
+  color: var(--hi);
+}
+
+/* Hero: the site's bloom + graph paper, fading to white. */
+.help-hero { position: relative; overflow: hidden; }
 .help-hero::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
+  content: ""; position: absolute; inset: 0; pointer-events: none;
   background-image:
-    radial-gradient(55% 70% at 8% -10%, color-mix(in srgb, var(--ds-primary) 24%, transparent), transparent 70%),
-    radial-gradient(40% 60% at 96% -8%, color-mix(in srgb, var(--ds-secondary) 20%, transparent), transparent 70%);
+    radial-gradient(55% 62% at 14% -12%, color-mix(in srgb, var(--hb) 24%, transparent), transparent 70%),
+    radial-gradient(42% 55% at 90% -8%, color-mix(in srgb, var(--ho) 20%, transparent), transparent 70%),
+    linear-gradient(180deg, #F2F5FC 0%, #FFFFFF 78%);
 }
 .help-hero::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
+  content: ""; position: absolute; inset: 0; pointer-events: none;
   background-image:
-    linear-gradient(to right, color-mix(in srgb, var(--ds-primary) 9%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--ds-primary) 9%, transparent) 1px, transparent 1px);
-  background-size: 28px 28px;
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 85%);
-  mask-image: linear-gradient(180deg, #000 0%, transparent 85%);
+    linear-gradient(to right, rgba(11, 87, 216, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(11, 87, 216, 0.06) 1px, transparent 1px);
+  background-size: 32px 32px;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 80%);
+  mask-image: linear-gradient(180deg, #000 0%, transparent 80%);
 }
+.help-hero > * { position: relative; z-index: 1; }
 
-/* The site's section label: brand-dot in the secondary color. */
-.help-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ds-primary);
-}
-.help-label::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--ds-secondary);
-  flex: none;
-}
+/* Section label with the orange dot (the site's .wb-label). */
+.help-label { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--hb); }
+.help-label::before { content: ""; width: 6px; height: 6px; border-radius: 999px; background: var(--ho); flex: none; }
 
-/* Pill search, like the site's pill buttons. */
+/* Search: one pill, like the site's floating nav. */
 .help-search {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 54px;
-  padding: 0 8px 0 18px;
-  border-radius: 999px;
-  background: var(--ds-surface);
-  box-shadow: var(--ds-shadow-2);
-  transition: box-shadow var(--ds-dur) var(--ds-ease);
+  display: flex; align-items: center; gap: 10px;
+  height: 58px; padding: 0 7px 0 20px;
+  border-radius: 999px; background: #fff;
+  box-shadow: 0 1px 2px rgba(10, 20, 40, 0.05), 0 12px 34px -14px rgba(10, 20, 40, 0.25), 0 0 0 1px rgba(10, 20, 40, 0.08);
+  transition: box-shadow 0.15s ease;
 }
 .help-search:focus-within {
-  box-shadow: var(--ds-shadow-2), 0 0 0 3px var(--ds-primary-soft), 0 0 0 1px var(--ds-primary);
+  box-shadow: 0 1px 2px rgba(10, 20, 40, 0.05), 0 12px 34px -14px rgba(10, 20, 40, 0.25), 0 0 0 2px var(--hb);
 }
 .help-search input {
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-  background: transparent;
-  border: 0;
-  outline: none;
-  font-size: 16px; /* 16px keeps iOS from zooming the page on focus */
-  color: var(--ds-ink);
+  flex: 1; min-width: 0; height: 100%;
+  background: transparent; border: 0; outline: none; box-shadow: none;
+  font-size: 16px; color: #111827; font-family: var(--font-body);
 }
-.ds .help-search input:focus-visible { box-shadow: none; outline: none; }
-.help-search input::placeholder { color: var(--ds-faint); }
-.help-kbd {
-  display: inline-flex;
-  align-items: center;
-  height: 24px;
-  padding: 0 8px;
-  border-radius: 7px;
-  background: var(--ds-surface-2);
-  box-shadow: inset 0 0 0 1px var(--ds-line);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ds-muted);
-}
+.help-root .help-search input:focus-visible { outline: none; box-shadow: none; }
+.help-search input::placeholder { color: #9CA3AF; }
+.help-search input::-webkit-search-cancel-button { display: none; }
 
-/* Popular-question chips under the search. */
-.help-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 13px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--ds-surface) 80%, transparent);
-  box-shadow: inset 0 0 0 1px var(--ds-line-strong);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--ds-ink-2);
-  white-space: nowrap;
-  transition: box-shadow var(--ds-dur) var(--ds-ease), color var(--ds-dur) var(--ds-ease);
-}
-.help-pill:hover { color: var(--ds-primary); box-shadow: inset 0 0 0 1px var(--ds-primary); }
+/* Chips: the site's rounded-full soft pills. */
+.help-chip { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 700; line-height: 1.2; transition: opacity 0.15s ease; }
+.help-chip:hover { opacity: 0.8; }
+.help-chip-blue { background: var(--hb-soft); color: var(--hb); }
+.help-chip-orange { background: var(--ho-soft); color: color-mix(in srgb, var(--ho) 88%, #000); }
+.help-num { display: inline-flex; align-items: center; border-radius: 999px; padding: 3px 10px; font-size: 11.5px; font-weight: 800; background: var(--ho-soft); color: color-mix(in srgb, var(--ho) 88%, #000); }
 
-/* Section icon tile. */
-.help-tile {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: var(--ds-primary-soft);
-  color: var(--ds-primary);
-}
-.help-tile-sm { width: 32px; height: 32px; border-radius: 9px; }
+/* Pill buttons (the site's .wb-pill, colored by the company in the app). */
+.help-pill { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; padding: 0.7rem 1.3rem; font-size: 14.5px; font-weight: 700; line-height: 1.2; white-space: nowrap; transition: filter 0.15s ease, background-color 0.15s ease, border-color 0.15s ease; }
+.help-pill-blue { background: var(--hb); color: #fff; }
+.help-pill-blue:hover { filter: brightness(0.92); }
+.help-pill-orange { background: var(--ho); color: #fff; }
+.help-pill-orange:hover { filter: brightness(0.94); }
+.help-pill-outline { background: #fff; color: #111827; border: 1px solid #D1D5DB; }
+.help-pill-outline:hover { border-color: #111827; }
+.help-pill-ghost { color: #fff; border: 1px solid rgba(255, 255, 255, 0.32); }
+.help-pill-ghost:hover { background: rgba(255, 255, 255, 0.1); }
+.help-pill-light { background: #fff; color: var(--hi); }
+.help-pill-light:hover { background: #EEF4FE; }
 
-/* A UI label in running text: `Send quote`. */
-.help-ui {
-  display: inline-block;
-  padding: 0 6px;
-  border-radius: 6px;
-  background: var(--ds-surface-2);
-  box-shadow: inset 0 0 0 1px var(--ds-line);
-  font-size: 0.92em;
-  font-weight: 550;
-  line-height: 1.5;
-  color: var(--ds-ink);
-  white-space: nowrap;
-}
+/* Links in running text */
+.help-a { color: var(--hb); font-weight: 600; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--hb) 30%, transparent); text-underline-offset: 3px; }
+.help-a:hover { text-decoration-color: var(--ho); }
+
+/* A button or label name in running text: `Send quote` */
+.help-ui { font-weight: 700; color: #111827; white-space: nowrap; }
+.help-ui::before { content: "“"; color: #9CA3AF; font-weight: 400; }
+.help-ui::after { content: "”"; color: #9CA3AF; font-weight: 400; }
 
 /* Article body */
-.help-prose { font-size: 15.5px; line-height: 1.65; color: var(--ds-ink-2); }
-.help-prose > * + * { margin-top: 16px; }
-.help-prose h2 { margin-top: 30px; font-size: 18px; font-weight: 600; letter-spacing: -0.015em; color: var(--ds-ink); }
+.help-prose { font-size: 16px; line-height: 1.7; color: #374151; }
+.help-prose > * + * { margin-top: 18px; }
+.help-prose h2 { margin-top: 36px; font-size: 21px; font-weight: 800; line-height: 1.25; }
 
-/* Numbered steps with a rail joining the numbers. */
 .help-steps { counter-reset: help-step; }
-.help-steps li {
-  position: relative;
-  padding: 0 0 18px 46px;
-  counter-increment: help-step;
+.help-steps > li { position: relative; padding: 0 0 20px 50px; counter-increment: help-step; }
+.help-steps > li::before {
+  content: counter(help-step, decimal-leading-zero);
+  position: absolute; left: 0; top: 1px;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 34px; height: 24px; padding: 0 8px; border-radius: 999px;
+  background: var(--ho-soft); color: color-mix(in srgb, var(--ho) 88%, #000);
+  font-size: 12px; font-weight: 800; font-family: var(--font-body);
 }
-.help-steps li::before {
-  content: counter(help-step);
-  position: absolute;
-  left: 0;
-  top: -2px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  background: var(--ds-primary);
-  color: var(--ds-on-primary);
-  font-size: 13.5px;
-  font-weight: 650;
-}
-.help-steps li:not(:last-child)::after {
-  content: "";
-  position: absolute;
-  left: 14.5px;
-  top: 32px;
-  bottom: 2px;
-  width: 1px;
-  background: var(--ds-line-strong);
-}
-.help-steps li:last-child { padding-bottom: 0; }
+.help-steps > li:last-child { padding-bottom: 0; }
 
-.help-bullets li { position: relative; padding-left: 20px; }
-.help-bullets li + li { margin-top: 8px; }
-.help-bullets li::before {
-  content: "";
-  position: absolute;
-  left: 4px;
-  top: 0.68em;
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--ds-secondary);
-}
+.help-bullets > li { position: relative; padding-left: 22px; }
+.help-bullets > li + li { margin-top: 10px; }
+.help-bullets > li::before { content: ""; position: absolute; left: 3px; top: 0.72em; width: 6px; height: 6px; border-radius: 999px; background: var(--ho); }
 
-/* Callouts */
-.help-callout {
-  display: flex;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: var(--ds-r);
-  font-size: 14.5px;
-  line-height: 1.55;
-}
-.help-callout-tip { background: var(--ds-primary-soft); color: var(--ds-ink); }
-.help-callout-tip svg { color: var(--ds-primary); }
-.help-callout-warn { background: var(--ds-warn-soft); color: var(--ds-ink); }
-.help-callout-warn svg { color: var(--ds-warn); }
+.help-note { border-radius: 1.25rem; padding: 18px 20px; font-size: 15px; line-height: 1.6; }
+.help-note-tip { background: #F6F8FB; border: 1px solid #E5E7EB; color: #374151; }
+.help-note-warn { background: #FFFBEB; border: 1px solid #FDE68A; color: #3F2E07; }
+.help-note-title { display: block; margin-bottom: 2px; font-size: 13px; font-weight: 800; }
+.help-note-tip .help-note-title { color: var(--hb); }
+.help-note-warn .help-note-title { color: #B45309; }
 
-/* Troubleshooting accordion */
-.help-faq {
-  border-radius: var(--ds-r);
-  background: var(--ds-surface);
-  box-shadow: var(--ds-shadow-1);
-  overflow: hidden;
-}
-.help-faq details + details { border-top: 1px solid var(--ds-line); }
-.help-faq summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px;
-  cursor: pointer;
-  list-style: none;
-  font-size: 14.5px;
-  font-weight: 550;
-  color: var(--ds-ink);
-}
-.help-faq summary::-webkit-details-marker { display: none; }
-.help-faq summary svg { flex: none; color: var(--ds-faint); transition: transform var(--ds-dur) var(--ds-ease); }
-.help-faq details[open] summary svg { transform: rotate(45deg); color: var(--ds-primary); }
-.help-faq .help-faq-a { padding: 0 16px 16px; font-size: 14.5px; line-height: 1.6; color: var(--ds-ink-2); }
+/* Side list on article pages: plain text, active = the site's nav dot. */
+.help-side a { position: relative; display: block; padding: 6px 0 6px 16px; font-size: 14px; line-height: 1.4; color: #4B5563; }
+.help-side a:hover { color: #111827; }
+.help-side a[aria-current="page"] { color: var(--hi); font-weight: 700; }
+.help-side a[aria-current="page"]::before { content: ""; position: absolute; left: 2px; top: 13px; width: 6px; height: 6px; border-radius: 999px; background: var(--ho); }
 
-/* Navy band, the site's dark CTA — stays navy in both themes. */
+/* The navy band (the site's .wb-dark). */
 .help-band {
-  position: relative;
-  overflow: hidden;
-  border-radius: var(--ds-r-xl);
-  background-color: #0A1428; /* theme-ok: the site's navy band is dark by design */
+  background-color: #0A1428;
   background-image:
-    radial-gradient(55% 80% at 10% 0%, color-mix(in srgb, var(--ds-primary) 45%, transparent), transparent 70%),
-    radial-gradient(40% 60% at 100% 100%, color-mix(in srgb, var(--ds-secondary) 22%, transparent), transparent 70%);
-  color: #FFFFFF;
+    radial-gradient(55% 60% at 12% 0%, rgba(46, 111, 242, 0.34), transparent 70%),
+    radial-gradient(40% 45% at 100% 100%, rgba(248, 106, 10, 0.16), transparent 70%);
+  color: #fff;
 }
-.help-band .help-band-sub { color: rgba(255, 255, 255, 0.72); }
-.help-band-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 42px;
-  padding: 0 18px;
-  border-radius: 999px;
-  font-size: 14px;
-  font-weight: 600;
-  white-space: nowrap;
-  transition: filter var(--ds-dur) var(--ds-ease), background-color var(--ds-dur) var(--ds-ease);
+.help-root.help-root .help-band :is(h2, h3) { color: #fff; }
+
+/* Floating chip over the hero photo (the site's .wb-float). */
+@keyframes help-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.help-float {
+  animation: help-bob 6.5s ease-in-out infinite;
+  box-shadow: 0 1px 2px rgba(10, 20, 40, 0.05), 0 22px 50px -18px rgba(10, 20, 40, 0.3), 0 0 0 1px rgba(10, 20, 40, 0.06);
 }
-.help-band-btn-light { background: #FFFFFF; color: #0A1428; } /* theme-ok: on the navy band */
-.help-band-btn-light:hover { filter: brightness(0.94); }
-.help-band-btn-ghost { color: #FFFFFF; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3); }
-.help-band-btn-ghost:hover { background: rgba(255, 255, 255, 0.1); }
+@media (prefers-reduced-motion: reduce) { .help-float { animation: none; } }
 
-/* Floating fragment beside the hero (desktop only, own column). */
-@keyframes help-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
-.help-bob { animation: help-bob 6.5s ease-in-out infinite; }
-@media (prefers-reduced-motion: reduce) { .help-bob { animation: none; } }
-
-/* Sticky side nav on article pages */
-.help-side a {
-  display: block;
-  padding: 7px 12px;
-  border-radius: 10px;
-  font-size: 13.5px;
-  line-height: 1.35;
-  color: var(--ds-ink-2);
-}
-.help-side a:hover { background: var(--ds-surface-2); color: var(--ds-ink); }
-.help-side a[aria-current="page"] { background: var(--ds-primary-soft); color: var(--ds-primary); font-weight: 600; }
-
-/* Search highlight */
-.help-mark { background: color-mix(in srgb, var(--ds-secondary) 22%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
+.help-mark { background: var(--ho-soft); color: inherit; border-radius: 3px; padding: 0 1px; }
