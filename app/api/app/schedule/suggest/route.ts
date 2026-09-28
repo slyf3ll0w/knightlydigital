@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { parseRouteDate } from "@/lib/route-plan";
 import { suggestTimes } from "@/lib/find-a-time";
+import { checkFeature } from "@/lib/plan-gate";
 
 /**
  * POST /api/app/schedule/suggest — "Find a Time": drive-time-aware start-time
@@ -21,6 +22,9 @@ import { suggestTimes } from "@/lib/find-a-time";
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Find a Time is part of Route Manager (Pro) — the chips simply stay hidden without it
+  const gate = await checkFeature(actor.companyId, "routes");
+  if (!gate.ok) return gate.response;
 
   const body = await req.json().catch(() => ({}));
   const userId = typeof body.userId === "string" && body.userId ? body.userId : actor.id;

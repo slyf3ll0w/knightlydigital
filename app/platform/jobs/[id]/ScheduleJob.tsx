@@ -10,6 +10,8 @@ import SlotTimePicker from "@/components/SlotTimePicker";
 import SuggestedTimes from "@/components/SuggestedTimes";
 import { addMinutesToLocalDateTime, DEFAULT_JOB_DURATION_MINUTES } from "@/lib/scheduling";
 import { ARRIVAL_WINDOW_CHOICES, arrivalWindowChoiceLabel } from "@/lib/arrival-window";
+import { minuteToTime, timeToMinute } from "@/lib/client-window";
+import { InfoTip } from "@/components/ds";
 
 const SLOT_INPUT_CLS =
   "min-w-0 flex-[1.15] px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]";
@@ -34,6 +36,8 @@ export default function ScheduleJob({
   scheduledAnytime,
   arrivalWindowMinutes,
   companyWindowMinutes,
+  arriveAfterMin = null,
+  arriveBeforeMin = null,
   address,
   assigneeId,
   intervalMinutes = 30,
@@ -48,6 +52,9 @@ export default function ScheduleJob({
   arrivalWindowMinutes?: number | null;
   /** Company default window width, for the "Company default (…)" label. */
   companyWindowMinutes?: number;
+  /** The client's window — minutes from midnight, company-local (lib/client-window.ts). */
+  arriveAfterMin?: number | null;
+  arriveBeforeMin?: number | null;
   /** Job-site address + a tech — enables the "Find a Time" suggestion chips. */
   address?: string | null;
   assigneeId?: string;
@@ -70,6 +77,9 @@ export default function ScheduleJob({
   const [window_, setWindow] = useState(
     arrivalWindowMinutes == null ? "" : String(arrivalWindowMinutes)
   );
+  // "HH:mm" or "" — when the client can take the visit
+  const [after, setAfter] = useState(minuteToTime(arriveAfterMin));
+  const [before, setBefore] = useState(minuteToTime(arriveBeforeMin));
 
   // A fresh draft every time the panel opens: Cancel used to leave abandoned
   // edits behind for the next open, and after a save + router.refresh() the
@@ -80,6 +90,8 @@ export default function ScheduleJob({
     setEnd(toLocalInput(scheduledEnd));
     setDay(toLocalDate(scheduledAt));
     setWindow(arrivalWindowMinutes == null ? "" : String(arrivalWindowMinutes));
+    setAfter(minuteToTime(arriveAfterMin));
+    setBefore(minuteToTime(arriveBeforeMin));
     setError("");
     setOpen(true);
   }
@@ -93,9 +105,17 @@ export default function ScheduleJob({
       setError("Pick a time, or choose Anytime");
       return;
     }
+    const afterMin = after ? timeToMinute(after) : null;
+    const beforeMin = before ? timeToMinute(before) : null;
+    if (typeof afterMin === "number" && typeof beforeMin === "number" && beforeMin <= afterMin) {
+      setError("The client's window must end after it starts");
+      return;
+    }
     setLoading(true);
     const body = {
       arrivalWindowMinutes: window_ === "" ? null : Number(window_),
+      arriveAfterMin: afterMin,
+      arriveBeforeMin: beforeMin,
       ...(anytime
         ? {
             // date-only: anchor at noon so the date survives timezone shifts
@@ -244,6 +264,46 @@ export default function ScheduleJob({
           </select>
         </div>
       )}
+      <div>
+        <label className="mb-0.5 flex items-center gap-1 text-xs text-gray-500">
+          Client can take it
+          <InfoTip>
+            When the client is available — "not before 1 PM", "before noon". Optimize waits for the window to open and warns if an order would arrive after it closes. Leave both blank for any time.
+          </InfoTip>
+        </label>
+        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
+          <span className="text-xs">from</span>
+          <input
+            type="time"
+            value={after}
+            step={900}
+            onChange={(e) => setAfter(e.target.value)}
+            aria-label="Client available from"
+            className="px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+          />
+          <span className="text-xs">until</span>
+          <input
+            type="time"
+            value={before}
+            step={900}
+            onChange={(e) => setBefore(e.target.value)}
+            aria-label="Client available until"
+            className="px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+          />
+          {(after || before) && (
+            <button
+              type="button"
+              onClick={() => {
+                setAfter("");
+                setBefore("");
+              }}
+              className="text-xs text-gray-500 hover:underline"
+            >
+              Any time
+            </button>
+          )}
+        </div>
+      </div>
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pt-0.5">
         <label className="flex items-center gap-1.5 text-xs text-gray-600 select-none">
           <input

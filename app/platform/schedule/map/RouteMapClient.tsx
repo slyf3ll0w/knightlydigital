@@ -13,9 +13,12 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  Check,
   CornerDownRight,
   Crosshair,
   GripVertical,
+  Lock,
+  LockOpen,
   Inbox,
   Link2,
   Loader2,
@@ -36,7 +39,7 @@ import Modal from "@/components/Modal";
 import { Chip, InfoTip } from "@/components/ds";
 import { hapticImpact } from "@/lib/haptics";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
-import { localInputToISO } from "@/lib/statuses";
+import { wallTimeToUtc } from "@/lib/booking-engine";
 import { isApplePlatform } from "@/lib/messaging";
 import { addBasemap, initialView, reducedMotion, rememberView } from "@/lib/basemap";
 import { useMainFill } from "@/lib/use-main-fill";
@@ -59,8 +62,12 @@ import "leaflet/dist/leaflet.css";
  *    preview with that order — nothing is written until Apply) or drop it on
  *    another tech's card to hand it over.
  *  - "Optimize" solves the order by drive time; the preview supports a
- *    "Day starts at" anchor, round trip back to base, and texting every
- *    client whose time changed on Apply.
+ *    "Day starts at" anchor, round trip back to base, per-stop locks (a
+ *    stop whose client already got a reminder starts locked), the client's
+ *    own window ("after 1 PM") as a chip, and — off by default — texting
+ *    every client whose time changed on Apply.
+ *  - Every clock time on the page is the COMPANY's wall clock
+ *    (Company.timezone), never the browser's.
  *  - Per stop: Navigate (Google Maps, Apple Maps on Apple devices). Per
  *    route: send the whole day to a phone as one multi-stop directions link,
  *    copy that link, or print the day sheet.
@@ -83,12 +90,19 @@ type RouteStop = {
   jobNumber: number | null;
   title: string;
   status: string;
+  /** On the clock ("active"), finished, or still to come. */
+  progress: "pending" | "active" | "done";
   contactName: string;
   address: string | null;
   scheduledAt: string | null;
   scheduledEnd: string | null;
   scheduledAnytime: boolean;
   tentative: boolean;
+  /** A visit reminder already told the client this time. */
+  reminded: boolean;
+  /** The client's window for the day, as ISO instants (jobs only). */
+  windowStart: string | null;
+  windowEnd: string | null;
   assigneeIds: string[];
   lat: number | null;
   lng: number | null;
@@ -108,6 +122,8 @@ type Pin = { lat: number; lng: number; label: string };
 
 type RouteDay = {
   enabled: boolean;
+  /** "paused" = a monthly Mapbox cap is spent; figures fall back to estimates until it resets. */
+  roadTimes?: "ok" | "paused" | "off";
   start: Pin | null;
   memberStarts?: Record<string, Pin>;
   stops: RouteStop[];
@@ -132,9 +148,27 @@ type OptimizeStop = {
   address: string | null;
   currentStart: string | null;
   scheduledAnytime: boolean;
+  reminded: boolean;
+  windowStart: string | null;
+  windowEnd: string | null;
+  /** Arrives after the client's cut-off in this order. */
+  late: boolean;
+  waitMinutes: number;
   proposedStart: string;
   proposedEnd: string;
   driveMinutesFromPrev: number | null;
+};
+
+type PinnedStop = {
+  id: string;
+  kind: "job" | "appointment" | "block";
+  title: string;
+  contactName: string;
+  reason: string;
+  /** A lock the dispatcher set (or the reminder default) — can be released. */
+  locked: boolean;
+  start: string | null;
+  end: string | null;
 };
 
 type OptimizeResult = {
@@ -149,8 +183,13 @@ type OptimizeResult = {
   totalDriveMinutes: number;
   savedMinutes: number;
   skipped: string[];
-  /** Stops kept at their current time (already started, in progress, or running into tomorrow). */
+  /** Stops kept at their current time (already started, in progress, running into tomorrow, or locked). */
   pinned?: string[];
+  pinnedStops?: PinnedStop[];
+  /** The lock list this preview was built with — echoed back on every re-run. */
+  keep?: string[];
+  /** Clients a notify-on-apply would reach with this order. */
+  movedCount?: number;
   warnings: string[];
   applied: boolean;
   notified: number;
@@ -195,9 +234,30 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-function fmtTime(iso: string | null): string {
+/** A clock time on the COMPANY's wall clock — a dispatcher two zones away sees what the tech sees. */
+function fmtTime(iso: string | null, tz: string): string {
   if (!iso) return "";
-  return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  try {
+    return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz });
+  } catch {
+    return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  }
+}
+
+/** "after 1 PM" / "before noon" / "8 AM – 10 AM" from a stop's client window. */
+function windowLabel(stop: { windowStart: string | null; windowEnd: string | null }, tz: string): string | null {
+  const a = stop.windowStart ? fmtTime(stop.windowStart, tz) : null;
+  const b = stop.windowEnd ? fmtTime(stop.windowEnd, tz) : null;
+  if (a && b) return `${a} – ${b}`;
+  if (a) return `after ${a}`;
+  if (b) return `before ${b}`;
+  return null;
+}
+
+/** Noon on that calendar day, company-local — the anchor an "Anytime" job sits on. */
+function companyNoonISO(dateStr: string, tz: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return wallTimeToUtc(tz, y, m, d, 12 * 60).toISOString();
 }
 
 function fmtDateLabel(dateStr: string): string {
@@ -217,13 +277,13 @@ function shiftDate(dateStr: string, days: number): string {
 }
 
 /** "8:00 AM – 3:30 PM" from a route's first start to its last end. */
-function spanLabel(stops: RouteStop[]): string {
+function spanLabel(stops: RouteStop[], tz: string): string {
   const timed = stops.filter((s) => !s.scheduledAnytime && s.scheduledAt);
   if (!timed.length) return "Anytime";
   const first = timed[0];
   const last = timed[timed.length - 1];
   const end = last.scheduledEnd ?? last.scheduledAt;
-  return `${fmtTime(first.scheduledAt)} – ${fmtTime(end)}`;
+  return `${fmtTime(first.scheduledAt, tz)} – ${fmtTime(end, tz)}`;
 }
 
 function miles(km: number | undefined): string | null {
@@ -240,10 +300,14 @@ function navigateHref(stop: { lat: number | null; lng: number | null; address: s
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=driving`;
 }
 
+/** Google's URL API takes an origin, a destination and 9 waypoints — 10 stops with the shop as origin. */
+const MAPS_LINK_MAX_STOPS = 10;
+
 /**
  * The whole route as one Google Maps directions link (origin → waypoints →
  * destination). Google caps waypoints at 9 in the URL API, so a longer day
- * sends the first ten stops — the tech re-opens for the rest.
+ * sends the first ten stops — the card says so, and the tech re-opens for
+ * the rest.
  */
 function routeHref(start: Pin | null, stops: RouteStop[]): string | null {
   const pts = stops
@@ -252,7 +316,7 @@ function routeHref(start: Pin | null, stops: RouteStop[]): string | null {
   if (pts.length === 0) return null;
   const origin = start ? `${start.lat},${start.lng}` : pts.shift()!;
   if (pts.length === 0) return null;
-  const chain = pts.slice(0, 10);
+  const chain = pts.slice(0, MAPS_LINK_MAX_STOPS);
   const destination = chain.pop()!;
   const params = new URLSearchParams({ api: "1", origin, destination, travelmode: "driving" });
   if (chain.length) params.set("waypoints", chain.join("|"));
@@ -310,8 +374,9 @@ type ListDrag = {
 export default function RouteMapClient({
   date,
   today,
+  timezone: tz,
   team,
-  users,
+  users: allUsers,
   meId,
   meName,
   canDispatch,
@@ -322,8 +387,11 @@ export default function RouteMapClient({
   date: string;
   /** Today on the company's clock (YYYY-MM-DD). */
   today: string;
+  /** Company.timezone — every clock time on the page is formatted in it. */
+  timezone: string;
   team: string;
-  users: { id: string; name: string }[];
+  /** Everyone on the company (dispatchers only); inactive members still own their old stops. */
+  users: { id: string; name: string; role: string; isActive: boolean }[];
   meId: string;
   meName: string;
   canDispatch: boolean;
@@ -357,7 +425,14 @@ export default function RouteMapClient({
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<(OptimizeResult & { userId: string; manualOrder?: boolean }) | null>(null);
   const [previewBusy, setPreviewBusy] = useState(false);
-  const [notifyOnApply, setNotifyOnApply] = useState(true);
+  // Off by default: re-timing a day is routine; texting every client about
+  // it is a decision, so the box names how many would hear.
+  const [notifyOnApply, setNotifyOnApply] = useState(false);
+  /** Every route-plan fetch gets a ticket; a slower, older answer is dropped. */
+  const fetchSeq = useRef(0);
+  // Active members for the crew filter and the assign menus; the rest only
+  // show up as owners of stops they still hold.
+  const users = useMemo(() => allUsers.filter((u) => u.isActive), [allUsers]);
   const [applied, setApplied] = useState("");
   const [trayOpen, setTrayOpen] = useState(false);
   const [addingId, setAddingId] = useState("");
@@ -370,11 +445,11 @@ export default function RouteMapClient({
 
   // Selection replaces popups: a pin tap or a row tap picks a stop
   const [selected, setSelected] = useState<string | null>(null);
-  const [hovered, setHovered] = useState<string | null>(null);
   const selectedRef = useRef<string | null>(null);
+  // Hover only touches marker classes — a ref, so a 30-row list doesn't
+  // re-render on every mouse move
   const hoveredRef = useRef<string | null>(null);
   selectedRef.current = selected;
-  hoveredRef.current = hovered;
   /** Where the last selection came from — a pin tap scrolls the row into view, a row tap doesn't. */
   const selectSourceRef = useRef<"pin" | "row">("row");
 
@@ -403,19 +478,24 @@ export default function RouteMapClient({
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const refresh = useCallback(async () => {
+    const ticket = ++fetchSeq.current;
     setLoading(true);
     try {
       const res = await fetch(`/api/app/route-plan?date=${date}&geometry=1`);
+      if (ticket !== fetchSeq.current) return; // a newer day was asked for meanwhile
       if (!res.ok) {
-        setError(GENERIC_ERROR);
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        setError(body?.error ?? GENERIC_ERROR);
         return;
       }
-      setData((await res.json()) as RouteDay);
+      const day = (await res.json()) as RouteDay;
+      if (ticket !== fetchSeq.current) return;
+      setData(day);
       setError("");
     } catch {
-      setError("You appear to be offline — routes need a connection.");
+      if (ticket === fetchSeq.current) setError("You appear to be offline — routes need a connection.");
     } finally {
-      setLoading(false);
+      if (ticket === fetchSeq.current) setLoading(false);
     }
   }, [date]);
 
@@ -459,17 +539,20 @@ export default function RouteMapClient({
     const sorted = [...data.stops].sort(
       (a, b) => new Date(a.scheduledAt ?? 0).getTime() - new Date(b.scheduledAt ?? 0).getTime()
     );
-    const visible = team ? roster.filter((u) => u.id === team) : roster;
-    const out: { userId: string; name: string; color: string; stops: RouteStop[]; start: Pin | null }[] = [];
+    const inactive = canDispatch && !team ? allUsers.filter((u) => !u.isActive) : [];
+    const visible = team ? roster.filter((u) => u.id === team) : [...roster, ...inactive];
+    const out: { userId: string; name: string; color: string; stops: RouteStop[]; start: Pin | null; inactive?: boolean }[] = [];
     for (const u of visible) {
       const stops = sorted.filter((s) => s.assigneeIds.includes(u.id));
       if (stops.length) {
+        const gone = !roster.some((r) => r.id === u.id);
         out.push({
           userId: u.id,
-          name: u.name,
-          color: TECH_COLORS[Math.max(0, roster.findIndex((r) => r.id === u.id)) % TECH_COLORS.length],
+          name: gone ? `${u.name} (inactive)` : u.name,
+          color: gone ? UNASSIGNED_COLOR : TECH_COLORS[Math.max(0, roster.findIndex((r) => r.id === u.id)) % TECH_COLORS.length],
           stops,
           start: (data.memberStarts && data.memberStarts[u.id]) || data.start,
+          inactive: gone,
         });
       }
     }
@@ -480,7 +563,25 @@ export default function RouteMapClient({
       }
     }
     return out;
-  }, [data, roster, team, canDispatch]);
+  }, [data, roster, allUsers, team, canDispatch]);
+
+  /** Active members with nothing on the day — drop targets while a stop is being dragged. */
+  const idleMembers = useMemo(
+    () => (canDispatch && !team ? users.filter((u) => !groups.some((g) => g.userId === u.id)) : []),
+    [canDispatch, team, users, groups]
+  );
+
+  /** May this stop be handed to that member? (Never to nobody; appointments never to a tech.) */
+  const canDropOn = useCallback(
+    (stop: RouteStop, toUserId: string) => {
+      if (!toUserId || stop.kind === "block") return false;
+      const target = allUsers.find((u) => u.id === toUserId);
+      if (!target || !target.isActive) return false;
+      if (stop.kind === "appointment" && target.role === "TECH") return false;
+      return true;
+    },
+    [allUsers]
+  );
 
   // Phone/video appointments ride along pin-less by design (they hold the
   // tech's time but have no address) — the "check the address" nudge is only
@@ -498,6 +599,7 @@ export default function RouteMapClient({
   const stopCount = useMemo(() => groups.reduce((n, g) => n + g.stops.length, 0), [groups]);
   const measured = data?.drive?.measured !== false;
   const tilde = measured ? "" : "~";
+  const roadPaused = data?.roadTimes === "paused";
 
   // A selected stop that left the day (reassigned away, filtered out) is no longer selected
   useEffect(() => {
@@ -591,7 +693,7 @@ export default function RouteMapClient({
 
   useEffect(() => {
     applyFocus();
-  }, [selected, hovered, applyFocus]);
+  }, [selected, applyFocus]);
 
   useEffect(() => {
     let cancelled = false;
@@ -710,7 +812,7 @@ export default function RouteMapClient({
         L.marker([t.lat, t.lng], { icon, zIndexOffset: 1000, keyboard: false })
           .addTo(layer)
           .bindPopup(
-            `<p class="route-live-name">${t.name}</p><p class="route-live-line">${t.jobTitle ? `At ${t.jobTitle} since ${fmtTime(t.startedAt)}` : "Clocked in"}</p>${
+            `<p class="route-live-name">${t.name}</p><p class="route-live-line">${t.jobTitle ? `At ${t.jobTitle} since ${fmtTime(t.startedAt, tz)}` : "Clocked in"}</p>${
               late ? `<p class="route-live-late-note">Running past the planned end</p>` : ""
             }${ago !== null ? `<p class="route-live-seen">seen ${ago === 0 ? "just now" : `${ago} min ago`}</p>` : ""}`,
             { className: "route-live-pop", closeButton: false, offset: [0, -14], maxWidth: 240 }
@@ -721,7 +823,7 @@ export default function RouteMapClient({
     return () => {
       cancelled = true;
     };
-  }, [team_, roster, team, data]);
+  }, [team_, roster, team, data, tz]);
 
   /** Row tap: fly to the pin and select it. */
   const focusStop = useCallback((groupUserId: string, stop: RouteStop) => {
@@ -818,12 +920,21 @@ export default function RouteMapClient({
 
   // ── Optimize flow ─────────────────────────────────────────────────────────
   const runOptimize = useCallback(
-    async (userId: string, order?: string[], anchorTime?: string, roundTrip?: boolean, manualOrder = Boolean(order)) => {
+    async (
+      userId: string,
+      order?: string[],
+      anchorTime?: string,
+      roundTrip?: boolean,
+      manualOrder = Boolean(order),
+      /** Locks: undefined on the first run (the server defaults to reminded stops), then echoed from the preview. */
+      keep?: string[]
+    ) => {
       setPreviewBusy(true);
       const { ok, data: result } = await postJson<OptimizeResult>("/api/app/route-plan/optimize", {
         date,
         userId,
         ...(order ? { order } : {}),
+        ...(keep ? { keep } : {}),
         ...(anchorTime ? { anchorTime } : {}),
         ...(roundTrip !== undefined ? { roundTrip } : {}),
       });
@@ -841,6 +952,23 @@ export default function RouteMapClient({
     [date]
   );
 
+  /** Lock a stop at its current time (or release a lock) and rebuild the preview. */
+  const toggleKeep = useCallback(
+    (stopId: string, keepIt: boolean) => {
+      if (!preview) return;
+      const keep = keepIt
+        ? [...new Set([...(preview.keep ?? []), stopId])]
+        : (preview.keep ?? []).filter((id) => id !== stopId);
+      // A locked stop leaves the order, a released one rejoins it — re-solve
+      // unless the order was set by hand (then it rejoins at the end).
+      const order = preview.manualOrder
+        ? [...preview.stops.map((s) => s.id).filter((id) => id !== stopId), ...(keepIt ? [] : [stopId])]
+        : undefined;
+      runOptimize(preview.userId, order, preview.anchorTime, preview.roundTrip, Boolean(preview.manualOrder), keep);
+    },
+    [preview, runOptimize]
+  );
+
   const applyPreview = useCallback(async () => {
     if (!preview) return;
     setPreviewBusy(true);
@@ -848,6 +976,7 @@ export default function RouteMapClient({
       date,
       userId: preview.userId,
       order: preview.stops.map((s) => s.id),
+      keep: preview.keep ?? [],
       anchorTime: preview.anchorTime,
       roundTrip: preview.roundTrip,
       notify: notifyOnApply,
@@ -866,8 +995,7 @@ export default function RouteMapClient({
     );
     setPreview(null);
     refresh();
-    router.refresh();
-  }, [preview, date, refresh, router, notifyOnApply]);
+  }, [preview, date, refresh, notifyOnApply]);
 
   const movePreviewStop = useCallback(
     (index: number, dir: -1 | 1) => {
@@ -876,14 +1004,15 @@ export default function RouteMapClient({
       const j = index + dir;
       if (j < 0 || j >= ids.length) return;
       [ids[index], ids[j]] = [ids[j], ids[index]];
-      runOptimize(preview.userId, ids, preview.anchorTime, preview.roundTrip);
+      runOptimize(preview.userId, ids, preview.anchorTime, preview.roundTrip, true, preview.keep);
     },
     [preview, runOptimize]
   );
 
   const mayOptimize = useCallback(
-    (userId: string) => canOptimize && userId !== "" && (canDispatch || userId === meId),
-    [canOptimize, canDispatch, meId]
+    (userId: string) =>
+      canOptimize && userId !== "" && (canDispatch || userId === meId) && (userId === meId || users.some((u) => u.id === userId)),
+    [canOptimize, canDispatch, meId, users]
   );
 
   // ── Hand a stop to another tech ───────────────────────────────────────────
@@ -910,9 +1039,8 @@ export default function RouteMapClient({
         `${stop.title} handed to ${toName}.${res?.conflicts?.length ? ` Heads up — it overlaps: ${res.conflicts.join("; ")}` : ""}`
       );
       refresh();
-      router.refresh();
     },
-    [users, refresh, router]
+    [users, refresh]
   );
 
   // ── Drag-to-reorder (grip handle, pointer events; works with a finger) ────
@@ -941,9 +1069,11 @@ export default function RouteMapClient({
         over = { group: card.dataset.routeGroup ?? "", index: -1 };
       }
       const next = { ...d, y: e.clientY, over, active: true };
+      const changed =
+        !d.active || d.over?.group !== over?.group || d.over?.index !== over?.index;
       listDragRef.current = next;
-      setListDrag(next);
-      if (next.active) e.preventDefault();
+      if (changed) setListDrag(next);
+      e.preventDefault();
     };
     const onUp = (e: PointerEvent) => {
       const d = listDragRef.current;
@@ -956,6 +1086,14 @@ export default function RouteMapClient({
       if (!from || !stop) return;
       if (d.over.group !== d.fromGroup) {
         if (!canDispatch) return;
+        if (!canDropOn(stop, d.over.group)) {
+          setError(
+            !d.over.group
+              ? "A scheduled stop needs someone on it — hand it to a team member instead."
+              : "Appointments go to team members who handle sales, not techs."
+          );
+          return;
+        }
         reassign(stop, d.fromGroup, d.over.group);
         return;
       }
@@ -969,8 +1107,12 @@ export default function RouteMapClient({
       ids.splice(to, 0, d.stopId);
       if (!mayOptimize(from.userId)) return;
       // The reorder lands as an Optimize preview with this exact order —
-      // Apply gives every stop its new time, nothing moves until then
-      const routable = from.stops.filter((s) => s.lat != null && (s.kind === "job" || !s.tentative)).map((s) => s.id);
+      // Apply gives every stop its new time, nothing moves until then. The
+      // server ignores ids it can't route (done, started, pinned), so a
+      // half-finished day reorders fine.
+      const routable = from.stops
+        .filter((s) => s.lat != null && s.progress !== "done" && (s.kind === "job" ? s.status === "ACTIVE" : s.kind === "appointment" && !s.tentative))
+        .map((s) => s.id);
       runOptimize(from.userId, ids.filter((id) => routable.includes(id)));
     };
     document.addEventListener("pointermove", onMove, { passive: false });
@@ -981,7 +1123,7 @@ export default function RouteMapClient({
       document.removeEventListener("pointerup", onUp);
       document.removeEventListener("pointercancel", onUp);
     };
-  }, [groups, canDispatch, mayOptimize, reassign, runOptimize]);
+  }, [groups, canDispatch, canDropOn, mayOptimize, reassign, runOptimize]);
 
   // Preview list reorder (same grip, local until Apply)
   const previewDrag = useRef<{ pointerId: number; id: string; startY: number; active: boolean; over: number | null } | null>(null);
@@ -1019,7 +1161,7 @@ export default function RouteMapClient({
       if (to === fromIdx) return;
       ids.splice(fromIdx, 1);
       ids.splice(to, 0, d.id);
-      runOptimize(preview.userId, ids, preview.anchorTime, preview.roundTrip);
+      runOptimize(preview.userId, ids, preview.anchorTime, preview.roundTrip, true, preview.keep);
     };
     document.addEventListener("pointermove", onMove, { passive: false });
     document.addEventListener("pointerup", onUp);
@@ -1050,7 +1192,7 @@ export default function RouteMapClient({
       const { ok, data: res } = await postJson<{ error?: string }>(
         `/api/app/jobs/${job.id}`,
         {
-          scheduledAt: localInputToISO(`${date}T12:00`),
+          scheduledAt: companyNoonISO(date, tz),
           scheduledEnd: null,
           scheduledAnytime: true,
           ...(assignTo ? { assigneeIds: [...job.assigneeIds, assignTo] } : {}),
@@ -1069,9 +1211,8 @@ export default function RouteMapClient({
           : `Job #${job.jobNumber} added to ${fmtDateLabel(date)} — assign it to a tech, then Optimize slots it.`
       );
       refresh();
-      router.refresh();
     },
-    [date, team, users, meId, refresh, router]
+    [date, tz, team, users, meId, refresh]
   );
 
   useEffect(() => {
@@ -1081,13 +1222,17 @@ export default function RouteMapClient({
     return () => window.removeEventListener("keydown", onKey);
   }, [preview]);
 
+  /** This day's route page for one crew — a link a teammate can open in WorkBench. */
+  const appRouteHref = (userId: string) =>
+    `${typeof window !== "undefined" ? window.location.origin : ""}/app/schedule/map?date=${date}${userId ? `&team=${userId}` : ""}`;
+
   const copyRoute = async (href: string, key: string) => {
     try {
       await navigator.clipboard.writeText(href);
       setCopied(key);
       window.setTimeout(() => setCopied(""), 1800);
     } catch {
-      window.open(href, "_blank", "noopener");
+      setError("Couldn't copy — your browser blocked the clipboard.");
     }
   };
 
@@ -1111,16 +1256,18 @@ export default function RouteMapClient({
       {data && !data.enabled && (
         <div className="no-print flex items-start gap-2 rounded-lg bg-[color:var(--ds-warn-soft)] px-3 py-2 text-sm text-[color:var(--ds-warn)]">
           <MapPin size={15} className="mt-0.5 shrink-0" />
-          <span>
-            Map pins and drive times need a Mapbox token — add{" "}
-            <code className="font-mono text-xs">MAPBOX_TOKEN</code> to the server environment.
-            Stops still list here.
-          </span>
+          <span>Map pins and drive times are being set up on our side — stops still list here, and the day can still be built.</span>
         </div>
       )}
-      {data?.enabled && !measured && groups.length > 0 && (
+      {data?.enabled && roadPaused && groups.length > 0 && (
         <div className="no-print rounded-lg bg-[color:var(--ds-warn-soft)] px-3 py-2 text-xs text-[color:var(--ds-warn)]">
-          Drive times shown are straight-line estimates right now (road times weren&apos;t available). Figures are marked with ~.
+          Road times are paused for the rest of the month (this account&apos;s mapping allowance is used up). Legs already driven
+          stay exact; new ones are straight-line estimates marked with ~.
+        </div>
+      )}
+      {data?.enabled && !roadPaused && !measured && groups.length > 0 && (
+        <div className="no-print rounded-lg bg-[color:var(--ds-warn-soft)] px-3 py-2 text-xs text-[color:var(--ds-warn)]">
+          Some drive times are straight-line estimates right now (road times weren&apos;t available). Figures are marked with ~.
         </div>
       )}
       {unlocated.length > 0 && (
@@ -1213,8 +1360,12 @@ export default function RouteMapClient({
 
       {groups.map((g) => {
         const href = routeHref(g.start, g.stops);
-        const dropHere = listDrag?.active && listDrag.over?.group === g.userId && listDrag.fromGroup !== g.userId;
+        const draggingStop = listDrag?.active ? groups.find((x) => x.userId === listDrag.fromGroup)?.stops.find((s) => s.id === listDrag.stopId) : undefined;
+        const dropHere = Boolean(
+          listDrag?.active && listDrag.over?.group === g.userId && listDrag.fromGroup !== g.userId && draggingStop && canDropOn(draggingStop, g.userId)
+        );
         const mi = miles(data?.drive?.kmTotals?.[g.userId]);
+        const mappedCount = g.stops.filter((s) => s.lat != null).length;
         // Optimize needs two stops it can place on the map for this tech
         const pinned = g.stops.filter((s) => s.lat != null && (s.kind === "job" || !s.tentative)).length;
         const optimizeBlocker =
@@ -1240,7 +1391,7 @@ export default function RouteMapClient({
                 <div className="min-w-0">
                   <p className="truncate text-sm font-bold text-gray-900">{g.name}</p>
                   <p className="numeral-ledger text-[11px] text-gray-500">
-                    {g.stops.length} stop{g.stops.length === 1 ? "" : "s"} · {spanLabel(g.stops)}
+                    {g.stops.length} stop{g.stops.length === 1 ? "" : "s"} · {spanLabel(g.stops, tz)}
                     {(data?.drive?.totals[g.userId] ?? 0) > 0 && ` · ${tilde}${Math.round(data!.drive!.totals[g.userId])} min drive`}
                     {mi && ` · ${tilde}${mi}`}
                   </p>
@@ -1257,6 +1408,12 @@ export default function RouteMapClient({
                   {g.userId !== "" && mayOptimize(g.userId) && g.stops.length >= 2 && pinned < 2 && (
                     <p className="text-[11px] font-medium text-[color:var(--ds-warn)]">{optimizeBlocker}</p>
                   )}
+                  {g.inactive && (
+                    <p className="text-[11px] font-medium text-[color:var(--ds-warn)]">No longer on the team — hand these stops to someone.</p>
+                  )}
+                  {href && mappedCount > MAPS_LINK_MAX_STOPS && (
+                    <p className="text-[11px] text-gray-400">The maps link carries the first {MAPS_LINK_MAX_STOPS} stops.</p>
+                  )}
                   {dropHere && <p className="text-[11px] font-semibold text-[color:var(--ds-primary)]">Drop to hand it to {g.name}</p>}
                 </div>
               </div>
@@ -1267,15 +1424,15 @@ export default function RouteMapClient({
                       href={href}
                       target="_blank"
                       rel="noopener"
-                      title="Open the whole route in Google Maps"
+                      title={`Open the whole route in Google Maps${mappedCount > MAPS_LINK_MAX_STOPS ? ` (first ${MAPS_LINK_MAX_STOPS} stops)` : ""}`}
                       className="flex h-8 w-8 items-center justify-center rounded-[10px] btn-tool-line bg-white text-gray-700 hover:bg-gray-50"
-                      aria-label="Send route to phone"
+                      aria-label="Open the route in Google Maps"
                     >
                       <Send size={13} />
                     </a>
                     <button
-                      onClick={() => copyRoute(href, g.userId)}
-                      title="Copy the route link"
+                      onClick={() => copyRoute(appRouteHref(g.userId), g.userId)}
+                      title="Copy a link to this route in WorkBench"
                       className="flex h-8 w-8 items-center justify-center rounded-[10px] btn-tool-line bg-white text-gray-700 hover:bg-gray-50"
                       aria-label="Copy route link"
                     >
@@ -1306,6 +1463,8 @@ export default function RouteMapClient({
                 const insertBefore = listDrag?.active && listDrag.over?.group === g.userId && listDrag.over.index === i && listDrag.fromGroup === g.userId;
                 const canGrip = g.userId ? mayOptimize(g.userId) || canDispatch : canDispatch;
                 const isSelected = selected === key;
+                const window_ = windowLabel(s, tz);
+                const done = s.progress === "done";
                 return (
                   <li key={s.id} data-stop-row data-stop-key={key} data-group={g.userId} data-index={i} className={insertBefore ? "border-t-2 border-t-[color:var(--ds-primary)]" : ""}>
                     {leg != null && leg > 0 && (
@@ -1320,11 +1479,17 @@ export default function RouteMapClient({
                       aria-pressed={isSelected}
                       onClick={() => focusStop(g.userId, s)}
                       onKeyDown={(e) => e.key === "Enter" && focusStop(g.userId, s)}
-                      onMouseEnter={() => setHovered(key)}
-                      onMouseLeave={() => setHovered((h) => (h === key ? null : h))}
+                      onMouseEnter={() => {
+                        hoveredRef.current = key;
+                        applyFocus();
+                      }}
+                      onMouseLeave={() => {
+                        if (hoveredRef.current === key) hoveredRef.current = null;
+                        applyFocus();
+                      }}
                       className={`route-row flex w-full cursor-pointer items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-gray-50 active:bg-gray-50 ${
                         isSelected ? "route-row-selected" : ""
-                      } ${dragging ? "opacity-40" : ""} ${reassigning === s.id ? "opacity-50" : ""}`}
+                      } ${dragging ? "opacity-40" : ""} ${reassigning === s.id ? "opacity-50" : ""} ${done ? "route-row-done" : ""}`}
                     >
                       {canGrip ? (
                         <button
@@ -1343,16 +1508,20 @@ export default function RouteMapClient({
                         <span className="w-1" />
                       )}
                       <span
-                        className="numeral-ledger flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-                        style={{ background: s.lat == null ? "var(--ds-faint)" : g.color }}
+                        className={`numeral-ledger flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
+                          s.progress === "active" ? "route-stop-active" : ""
+                        }`}
+                        style={{ background: s.lat == null ? "var(--ds-faint)" : done ? "var(--ds-good)" : g.color }}
+                        title={done ? "Done" : s.progress === "active" ? "On site now" : undefined}
                       >
-                        {i + 1}
+                        {done ? <Check size={13} strokeWidth={3} /> : i + 1}
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-gray-900">
                           <span className="truncate">{s.title}</span>
                           {s.kind === "appointment" && <span className="stamp shrink-0 text-purple-700">Appt</span>}
                           {s.kind === "block" && <span className="stamp shrink-0 text-gray-600">Busy</span>}
+                          {s.progress === "active" && <span className="stamp shrink-0 text-[color:var(--ds-good)]">On site</span>}
                           {s.lat == null && (
                             <span className="shrink-0">
                               <Chip tone="warn">No pin</Chip>
@@ -1363,6 +1532,11 @@ export default function RouteMapClient({
                           {s.kind === "block" ? "Blocked off" : s.contactName}
                           {s.address ? ` · ${s.address}` : ""}
                         </p>
+                        {window_ && (
+                          <p className="numeral-ledger text-[11px] font-medium text-[color:var(--ds-warn)]" title="When the client can take the visit">
+                            Client: {window_}
+                          </p>
+                        )}
                       </div>
                       {g.userId === "" && canDispatch && s.kind !== "block" && users.length > 0 && (
                         <select
@@ -1389,7 +1563,7 @@ export default function RouteMapClient({
                         {s.scheduledAnytime ? (
                           <Chip tone="warn">Anytime</Chip>
                         ) : (
-                          <p className="numeral-ledger text-xs font-semibold text-gray-900">{fmtTime(s.scheduledAt)}</p>
+                          <p className="numeral-ledger text-xs font-semibold text-gray-900">{fmtTime(s.scheduledAt, tz)}</p>
                         )}
                         <span className="no-print flex items-center justify-end gap-2">
                           {nav && (
@@ -1426,6 +1600,31 @@ export default function RouteMapClient({
           </div>
         );
       })}
+
+      {/* While a stop is being dragged: members with an empty day are targets too */}
+      {listDrag?.active && idleMembers.length > 0 && (
+        <div className="ds-card no-print overflow-hidden">
+          <p className="border-b border-gray-100 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Hand to someone with a free day</p>
+          <ul className="divide-y divide-gray-100">
+            {idleMembers.map((u) => {
+              const draggingStop = groups.find((x) => x.userId === listDrag.fromGroup)?.stops.find((s) => s.id === listDrag.stopId);
+              const ok = draggingStop ? canDropOn(draggingStop, u.id) : false;
+              const over = listDrag.over?.group === u.id;
+              return (
+                <li
+                  key={u.id}
+                  data-route-group={u.id}
+                  className={`flex items-center gap-2.5 px-4 py-2.5 text-sm ${over && ok ? "bg-[color:var(--ds-primary-soft)]" : ""} ${ok ? "" : "opacity-40"}`}
+                >
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 text-[10px] font-bold text-gray-600">{initials(u.name)}</span>
+                  <span className="font-medium text-gray-800">{u.id === meId ? `${u.name} (me)` : u.name}</span>
+                  {over && ok && <span className="ml-auto text-[11px] font-semibold text-[color:var(--ds-primary)]">Drop to hand it over</span>}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </div>
   );
 
@@ -1477,6 +1676,13 @@ export default function RouteMapClient({
           box-shadow: inset 3px 0 0 var(--ds-primary);
           background: color-mix(in srgb, var(--ds-primary) 6%, var(--ds-surface));
         }
+        .route-row-done { opacity: 0.6; }
+        .route-row-done p { text-decoration: none; }
+        .route-stop-active { animation: route-stop-pulse 2s ease-in-out infinite; }
+        @keyframes route-stop-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ds-good) 45%, transparent); }
+          50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--ds-good) 0%, transparent); }
+        }
         /* The one popup left: the live tech marker, as a small ledger card */
         .route-map .route-live-pop .leaflet-popup-content-wrapper {
           border-radius: 10px; padding: 0;
@@ -1503,7 +1709,7 @@ export default function RouteMapClient({
         @media (prefers-reduced-motion: reduce) {
           .route-pin { animation: none; transition: none; }
           .route-dock, .leaflet-marker-icon, .route-map .route-line { transition: none; }
-          .route-live, .route-me { animation: none; }
+          .route-live, .route-me, .route-stop-active { animation: none; }
         }
         @media print {
           .route-page { height: auto !important; }
@@ -1511,6 +1717,7 @@ export default function RouteMapClient({
           .route-page .route-map, .route-page .route-controls, .route-page .route-cluster, .route-page .route-tray,
           .route-page .route-dock-head, .route-page .no-print { display: none !important; }
           .route-page .route-dock {
+            display: flex !important; /* a collapsed desktop panel still prints */
             position: static !important; height: auto !important; width: 100% !important; max-width: none !important;
             transform: none !important; background: #fff !important; backdrop-filter: none !important;
             border: 0 !important; box-shadow: none !important; border-radius: 0 !important;
@@ -1620,9 +1827,9 @@ export default function RouteMapClient({
         </div>
 
         {/* Transient notices float under the header */}
-        {(error || applied) && (
+        {((error && !preview) || applied) && (
           <div className="no-print pointer-events-none absolute left-1/2 top-16 z-[1005] w-[min(92%,30rem)] -translate-x-1/2 space-y-2">
-            {error && (
+            {error && !preview && (
               <div role="alert" className="form-error pointer-events-auto flex items-center justify-between shadow-lg">
                 {error}
                 <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600" aria-label="Dismiss">
@@ -1738,7 +1945,8 @@ export default function RouteMapClient({
                   {preview.userName}&apos;s route, optimized
                   <InfoTip>
                     Applying rewrites the calendar times — durations are kept, drive time spaces the stops, and moved visits re-send their
-                    reminders at the new times. Unconfirmed bookings, calls, and blocked time never move.
+                    reminders at the new times. Locked stops (a client who already got a reminder starts locked) keep their time; tap the
+                    lock to change that. Unconfirmed bookings, calls, and blocked time never move.
                   </InfoTip>
                 </h2>
                 <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-gray-500">
@@ -1763,6 +1971,14 @@ export default function RouteMapClient({
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
+              {error && (
+                <div role="alert" className="form-error mb-3 flex items-center justify-between gap-2">
+                  <span>{error}</span>
+                  <button onClick={() => setError("")} className="p-0.5 text-red-400 hover:text-red-600" aria-label="Dismiss">
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
               <div className="mb-3 space-y-1.5">
                 <label className="flex items-center gap-2 text-xs text-gray-600">
                   Day starts at
@@ -1771,7 +1987,7 @@ export default function RouteMapClient({
                     value={preview.anchorTime}
                     disabled={previewBusy}
                     onChange={(e) =>
-                      e.target.value && runOptimize(preview.userId, preview.stops.map((s) => s.id), e.target.value, preview.roundTrip)
+                      e.target.value && runOptimize(preview.userId, preview.stops.map((s) => s.id), e.target.value, preview.roundTrip, true, preview.keep)
                     }
                     className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                   />
@@ -1782,7 +1998,7 @@ export default function RouteMapClient({
                     <button
                       key={p.value}
                       disabled={previewBusy}
-                      onClick={() => runOptimize(preview.userId, preview.stops.map((s) => s.id), p.value, preview.roundTrip)}
+                      onClick={() => runOptimize(preview.userId, preview.stops.map((s) => s.id), p.value, preview.roundTrip, true, preview.keep)}
                       className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold transition-colors disabled:opacity-50 ${
                         preview.anchorTime === p.value
                           ? "border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]"
@@ -1806,7 +2022,8 @@ export default function RouteMapClient({
                         preview.manualOrder ? preview.stops.map((s) => s.id) : undefined,
                         preview.anchorTime,
                         e.target.checked,
-                        Boolean(preview.manualOrder)
+                        Boolean(preview.manualOrder),
+                        preview.keep
                       )
                     }
                     className="rounded text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
@@ -1827,8 +2044,37 @@ export default function RouteMapClient({
               {preview.skipped.length > 0 && (
                 <p className="mb-3 text-xs text-gray-500">Left in place (no map pin): {preview.skipped.join(", ")}</p>
               )}
-              {(preview.pinned?.length ?? 0) > 0 && (
-                <p className="mb-3 text-xs text-gray-500">Kept at their current time: {preview.pinned!.join(", ")}</p>
+              {(preview.pinnedStops?.length ?? 0) > 0 && (
+                <div className="mb-3 rounded-[12px] border border-dashed border-gray-300 px-3 py-2">
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Kept at their time</p>
+                  <ul className="space-y-1">
+                    {preview.pinnedStops!.map((p) => (
+                      <li key={p.id} className="flex items-center gap-2 text-xs text-gray-700">
+                        {p.locked ? (
+                          <button
+                            type="button"
+                            disabled={previewBusy}
+                            onClick={() => toggleKeep(p.id, false)}
+                            title="Unlock — let Optimize move this stop"
+                            aria-label={`Unlock ${p.title}`}
+                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[color:var(--ds-primary)] hover:bg-gray-100 disabled:opacity-50"
+                          >
+                            <Lock size={13} />
+                          </button>
+                        ) : (
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center text-gray-300" title={p.reason}>
+                            <Lock size={13} />
+                          </span>
+                        )}
+                        <span className="min-w-0 flex-1 truncate">
+                          <span className="font-semibold text-gray-900">{p.title}</span>
+                          <span className="text-gray-400"> · {p.reason}</span>
+                        </span>
+                        {p.start && <span className="numeral-ledger shrink-0 font-semibold text-gray-800">{fmtTime(p.start, tz)}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
               <ol className="space-y-1.5">
                 {preview.stops.map((s, i) => (
@@ -1858,19 +2104,35 @@ export default function RouteMapClient({
                       <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-gray-900">
                         <span className="truncate">{s.title}</span>
                         {s.kind === "appointment" && <span className="stamp shrink-0 text-purple-700">Appt</span>}
+                        {s.reminded && <span className="stamp shrink-0 text-[color:var(--ds-warn)]" title="The client already got a reminder for the old time">Reminded</span>}
+                        {s.late && <span className="shrink-0"><Chip tone="bad">Late</Chip></span>}
                       </p>
                       <p className="numeral-ledger text-xs text-gray-500">
                         {!s.scheduledAnytime && s.currentStart && (
-                          <span className="mr-1.5 text-gray-400 line-through">{fmtTime(s.currentStart)}</span>
+                          <span className="mr-1.5 text-gray-400 line-through">{fmtTime(s.currentStart, tz)}</span>
                         )}
                         <span className="font-semibold text-gray-800">
-                          {fmtTime(s.proposedStart)} – {fmtTime(s.proposedEnd)}
+                          {fmtTime(s.proposedStart, tz)} – {fmtTime(s.proposedEnd, tz)}
                         </span>
+                        {windowLabel(s, tz) && <span className="ml-1.5 text-[color:var(--ds-warn)]">client: {windowLabel(s, tz)}</span>}
+                        {s.waitMinutes >= 15 && <span className="ml-1.5 text-gray-400">waits {s.waitMinutes}m</span>}
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
                       {s.driveMinutesFromPrev != null && (
                         <span className="numeral-ledger text-[11px] text-gray-400">+{s.driveMinutesFromPrev}m</span>
+                      )}
+                      {!s.scheduledAnytime && s.currentStart && (
+                        <button
+                          type="button"
+                          disabled={previewBusy}
+                          onClick={() => toggleKeep(s.id, true)}
+                          title="Lock — keep this stop at its current time"
+                          aria-label={`Keep ${s.title} at its time`}
+                          className="rounded p-0.5 text-gray-300 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30"
+                        >
+                          <LockOpen size={14} />
+                        </button>
                       )}
                       <span className="flex flex-col">
                         <button
@@ -1901,7 +2163,9 @@ export default function RouteMapClient({
                   onChange={(e) => setNotifyOnApply(e.target.checked)}
                   className="rounded text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
                 />
-                Text or email each client whose time changes
+                {(preview.movedCount ?? 0) === 0
+                  ? "No client's time changes with this order"
+                  : `Text or email the ${preview.movedCount} client${preview.movedCount === 1 ? "" : "s"} whose time changes`}
               </label>
             </div>
 

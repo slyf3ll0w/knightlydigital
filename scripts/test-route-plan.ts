@@ -8,10 +8,13 @@ import {
   ceilToMinutes,
   clampedDurationMinutes,
   dayInterval,
+  repairWindows,
   routedChain,
   runsPastDay,
   walkDay,
+  type WalkStop,
 } from "../lib/route-walk";
+import { clientWindowPatch, clientWindowLabel, minuteToTime, timeToMinute } from "../lib/client-window";
 import { wallTimeToUtc } from "../lib/booking-engine";
 import { autoCloseAt, AUTO_CLOSE_MAX_MS } from "../lib/time-entries";
 // lib/routing pulls Prisma in for the matrix cache — mirror its 5-minute gap rounding here
@@ -46,7 +49,10 @@ test("clampedDurationMinutes: ordinary spans keep their length; untimed fall bac
     90
   );
   assert.equal(clampedDurationMinutes({ scheduledAt: iso(at(9)), scheduledEnd: null, scheduledAnytime: false }, DAY_START, DAY_END, 45), 45);
-  assert.equal(clampedDurationMinutes({ scheduledAt: iso(at(9)), scheduledEnd: iso(at(10)), scheduledAnytime: true }, DAY_START, DAY_END, 30), 30);
+  // An Anytime stop with a set length (a generated visit: noon + the series' minutes) keeps it…
+  assert.equal(clampedDurationMinutes({ scheduledAt: iso(at(9)), scheduledEnd: iso(at(10)), scheduledAnytime: true }, DAY_START, DAY_END, 30), 60);
+  // …one without an end falls back
+  assert.equal(clampedDurationMinutes({ scheduledAt: iso(at(12)), scheduledEnd: null, scheduledAnytime: true }, DAY_START, DAY_END, 30), 30);
   assert.equal(runsPastDay({ scheduledAt: iso(at(9)), scheduledEnd: iso(at(10)), scheduledAnytime: false }, DAY_END), false);
 });
 
@@ -173,6 +179,69 @@ test("autoCloseAt: closes at the closing moment, capped 12 h after start, never 
   assert.equal(autoCloseAt(start, at(16)).getTime(), at(16).getTime());
   assert.equal(autoCloseAt(start, at(9, 0, 3)).getTime(), start.getTime() + AUTO_CLOSE_MAX_MS);
   assert.equal(autoCloseAt(start, at(7)).getTime(), start.getTime());
+});
+
+test("walkDay: a client window opens later than the route arrives — the walk waits, and says so", () => {
+  const out = walkDay({
+    anchorMs: at(8).getTime(),
+    stops: [
+      { id: "a", durationMin: 60 }, // 8:00–9:00
+      { id: "b", durationMin: 30, earliestMs: at(10).getTime() }, // would be 9:10 → waits for 10:00
+      { id: "c", durationMin: 30, latestMs: at(10, 30).getTime() }, // 10:40 arrival is past the cut-off
+    ],
+    driveMinutes: () => 10,
+    gapMinutes: roundGapMinutes,
+  });
+  assert.equal(new Date(out[1].startMs).toISOString(), iso(at(10)));
+  assert.equal(out[1].waitMin, 50);
+  assert.equal(out[1].late, false);
+  assert.equal(out[2].late, true);
+  assert.equal(out[0].waitMin, 0);
+});
+
+test("repairWindows: moves a late stop to where it arrives on time, cheapest first", () => {
+  // Drive-optimal order is a → b → c, but c must be done before 9:30: c goes first
+  const stops: Record<string, WalkStop> = {
+    a: { id: "a", durationMin: 60 },
+    b: { id: "b", durationMin: 60 },
+    c: { id: "c", durationMin: 30, latestMs: at(9, 30).getTime() },
+  };
+  const drive = (from: string, to: string) => (from === "a" && to === "b" ? 5 : from === "b" && to === "c" ? 5 : 20);
+  const walk = (order: string[]) =>
+    walkDay({
+      anchorMs: at(8).getTime(),
+      stops: order.map((id) => stops[id]),
+      driveMinutes: (p, i) => drive(order[p], order[i]),
+      gapMinutes: roundGapMinutes,
+    });
+  const cost = (order: string[]) => order.slice(1).reduce((sum, id, i) => sum + drive(order[i], id), 0);
+  assert.ok(walk(["a", "b", "c"]).some((w) => w.late), "the drive-optimal order is late for c");
+  const fixed = repairWindows(["a", "b", "c"], walk, cost);
+  assert.equal(fixed[0], "c");
+  assert.equal(walk(fixed).some((w) => w.late), false);
+  // Nothing late → nothing moves
+  assert.deepEqual(repairWindows(["a", "b"], walk, cost), ["a", "b"]);
+  // Impossible windows leave the order alone rather than thrashing
+  const never: Record<string, WalkStop> = { x: { id: "x", durationMin: 60, latestMs: at(7).getTime() }, y: { id: "y", durationMin: 60, latestMs: at(7).getTime() } };
+  const walkNever = (order: string[]) => walkDay({ anchorMs: at(8).getTime(), stops: order.map((id) => never[id]), driveMinutes: () => 10 });
+  assert.deepEqual(repairWindows(["x", "y"], walkNever, () => 0), ["x", "y"]);
+});
+
+test("client window: minutes ⇄ HH:mm, patch shape, labels", () => {
+  assert.equal(timeToMinute("13:30"), 810);
+  assert.equal(timeToMinute("7:05"), 425);
+  assert.equal(timeToMinute("nope"), "nope");
+  assert.equal(minuteToTime(810), "13:30");
+  assert.equal(minuteToTime(null), "");
+  assert.deepEqual(clientWindowPatch({ arriveAfterMin: "13:00", arriveBeforeMin: 900 }), { arriveAfterMin: 780, arriveBeforeMin: 900 });
+  assert.deepEqual(clientWindowPatch({ arriveAfterMin: null }), { arriveAfterMin: null });
+  assert.deepEqual(clientWindowPatch({ title: "x" }), {});
+  assert.deepEqual(clientWindowPatch({ arriveAfterMin: 900, arriveBeforeMin: 780 }), {}, "a window that ends first is dropped");
+  assert.deepEqual(clientWindowPatch({ arriveAfterMin: 99999 }), {}, "out of range is ignored");
+  assert.equal(clientWindowLabel({ arriveAfterMin: 780, arriveBeforeMin: null }), "after 1 PM");
+  assert.equal(clientWindowLabel({ arriveAfterMin: null, arriveBeforeMin: 720 }), "before 12 PM");
+  assert.equal(clientWindowLabel({ arriveAfterMin: 480, arriveBeforeMin: 630 }), "8 AM – 10:30 AM");
+  assert.equal(clientWindowLabel({}), null);
 });
 
 console.log(`\n${passed} passed`);

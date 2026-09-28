@@ -46,6 +46,7 @@ type Counters = Partial<{
   smsSegments: number;
   geocodeCalls: number;
   matrixElements: number;
+  directionsCalls: number;
 }>;
 
 async function bump(companyId: string | null | undefined, counters: Counters) {
@@ -108,6 +109,11 @@ export function recordGeocodeCall(companyId: string | null | undefined): void {
 /** One Mapbox Matrix API request — billed per cell (N stops = N² elements). */
 export function recordMatrixCall(companyId: string | null | undefined, elements: number): void {
   void bump(companyId, { matrixElements: Math.max(1, elements) });
+}
+
+/** One Mapbox Directions API request (road line + per-leg drive times) — billed per request. */
+export function recordDirectionsCall(companyId: string | null | undefined): void {
+  void bump(companyId, { directionsCalls: 1 });
 }
 
 /**

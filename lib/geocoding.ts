@@ -8,6 +8,18 @@
  * paid for at most once platform-wide. Callers that own a durable row
  * (ContactAddress.lat/lng, Company.lat/lng) also persist the result there via
  * the helpers below; free-text job addresses resolve through the cache alone.
+ *
+ * Two rules keep the shared cache honest across tenants (2026-09-28):
+ *  - A COMPLETE address (one that names a state or a ZIP) means what it says
+ *    wherever it was typed, so its answer is shared platform-wide and is
+ *    accepted even when the pin lands in another state than the shop — a
+ *    Texas company's customer in Texarkana, AR is a real customer.
+ *  - A BARE address ("412 Oak St") only resolves relative to the company
+ *    that typed it (proximity bias + the home-state check), so its cache
+ *    entry is scoped to that company's state — one tenant's guess can never
+ *    become another tenant's pin.
+ * A failed lookup is retried after FAILED_RETRY_DAYS: geocoders improve,
+ * and new construction gets an address eventually.
  */
 
 import { prisma } from "@/lib/db";
@@ -40,8 +52,33 @@ export function normalizeAddressKey(query: string): string {
   return query.toLowerCase().replace(/[.#]/g, "").replace(/\s+/g, " ").trim().slice(0, 300);
 }
 
+/**
+ * Does the (normalized) query name where it is — a ZIP, or a state after a
+ * comma ("…, tx" / "…, tx 75093")? Such an address is unambiguous on its
+ * own; a bare street needs the company's neighbourhood to mean anything.
+ * Pure (unit-tested).
+ */
+export function addressNamesPlace(key: string): boolean {
+  if (/\b\d{5}(-\d{4})?\b/.test(key)) return true;
+  return /,\s*[a-z]{2}(\s*,)?\s*$/.test(key) || /,\s*[a-z]{2}\s+\d{5}/.test(key);
+}
+
+/**
+ * The GeocodeCache row key for a query from this company: shared when the
+ * address is complete, scoped to the company's state (or its shop's
+ * rough position) when it is bare. Pure (unit-tested).
+ */
+export function geocodeCacheKey(key: string, home: { state?: string | null; lat?: number | null; lng?: number | null } | null): string {
+  if (addressNamesPlace(key)) return key;
+  const state = home?.state?.trim().toLowerCase();
+  if (state) return `${key} |near ${state}`;
+  if (home?.lat != null && home?.lng != null) return `${key} |near ${home.lat.toFixed(1)},${home.lng.toFixed(1)}`;
+  return key;
+}
+
 /** ISO country the forward geocoder is restricted to (Mapbox `country=`). */
 const GEOCODE_COUNTRY = (process.env.GEOCODE_COUNTRY ?? "us").toLowerCase();
+const FAILED_RETRY_DAYS = 30;
 
 export type GeocodeFeature = {
   geometry?: { coordinates?: [number, number] };
@@ -53,15 +90,17 @@ export type GeocodeFeature = {
 
 /**
  * Is this the address the user typed, or the geocoder's best guess at
- * something else? Low-confidence matches and results in another state (when
- * the company's state is known) are rejected — a wrong pin is worse than no
- * pin, because everything downstream (route order, drive times, ETAs) trusts
- * it. Pure so it can be unit-tested.
+ * something else? Low-confidence matches are rejected outright. A result in
+ * another state than the company's is rejected only for a BARE query (the
+ * geocoder guessed the place); a query that named its own state or ZIP is
+ * trusted as typed — a wrong pin is worse than no pin, but so is dropping a
+ * real cross-border customer. Pure so it can be unit-tested.
  */
-export function acceptGeocodeMatch(feature: GeocodeFeature | undefined, homeState: string | null): boolean {
+export function acceptGeocodeMatch(feature: GeocodeFeature | undefined, homeState: string | null, namesPlace = false): boolean {
   if (!feature?.geometry?.coordinates) return false;
   const confidence = feature.properties?.match_code?.confidence?.toLowerCase();
   if (confidence === "low") return false;
+  if (namesPlace) return true;
   const region = feature.properties?.context?.region?.region_code?.toUpperCase();
   const home = homeState?.trim().toUpperCase();
   if (home && home.length === 2 && region && region !== home) return false;
@@ -81,16 +120,7 @@ export async function geocodeAddress(
 ): Promise<LatLng | null> {
   const key = normalizeAddressKey(query);
   if (!key || key.length < 4) return null;
-
-  const cached = await prisma.geocodeCache.findUnique({ where: { query: key } });
-  if (cached) return cached.status === "ok" && cached.lat != null && cached.lng != null
-    ? { lat: cached.lat, lng: cached.lng }
-    : null;
-
-  if (!geocodingEnabled()) return null;
-  // Free-tier kill switch — over the monthly cap this behaves exactly like a
-  // missing token, and nothing is cached so the address retries next month.
-  if (!(await geocodeBudgetOk())) return null;
+  const namesPlace = addressNamesPlace(key);
 
   // Bias the lookup toward where this company works: country-restricted,
   // and near the shop when we know where that is. A bare "412 Oak St"
@@ -102,6 +132,19 @@ export async function geocodeAddress(
         select: { lat: true, lng: true, state: true },
       })
     : null;
+  const cacheKey = geocodeCacheKey(key, home);
+
+  const cached = await prisma.geocodeCache.findUnique({ where: { query: cacheKey } });
+  if (cached) {
+    if (cached.status === "ok" && cached.lat != null && cached.lng != null) return { lat: cached.lat, lng: cached.lng };
+    // A failure is not forever — retry a stale one
+    if (Date.now() - cached.updatedAt.getTime() < FAILED_RETRY_DAYS * 86400_000) return null;
+  }
+
+  if (!geocodingEnabled()) return null;
+  // Free-tier kill switch — over the monthly cap this behaves exactly like a
+  // missing token, and nothing is cached so the address retries next month.
+  if (!(await geocodeBudgetOk())) return null;
 
   let result: LatLng | null = null;
   try {
@@ -113,7 +156,7 @@ export async function geocodeAddress(
     });
     if (home?.lat != null && home?.lng != null) params.set("proximity", `${home.lng},${home.lat}`);
     const url = `https://api.mapbox.com/search/geocode/v6/forward?${params.toString()}`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(8_000) });
     recordGeocodeCall(companyId); // a request was sent — meter it, ok or not
     if (res.ok) {
       const data = (await res.json()) as { features?: GeocodeFeature[] };
@@ -123,7 +166,7 @@ export async function geocodeAddress(
         coords &&
         Number.isFinite(coords[0]) &&
         Number.isFinite(coords[1]) &&
-        acceptGeocodeMatch(feature, home?.state ?? null)
+        acceptGeocodeMatch(feature, home?.state ?? null, namesPlace)
       ) {
         result = { lat: coords[1], lng: coords[0] };
       }
@@ -140,8 +183,8 @@ export async function geocodeAddress(
 
   try {
     await prisma.geocodeCache.upsert({
-      where: { query: key },
-      create: { query: key, lat: result?.lat, lng: result?.lng, status: result ? "ok" : "failed" },
+      where: { query: cacheKey },
+      create: { query: cacheKey, lat: result?.lat, lng: result?.lng, status: result ? "ok" : "failed" },
       update: { lat: result?.lat, lng: result?.lng, status: result ? "ok" : "failed" },
     });
   } catch {

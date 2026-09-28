@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
-import { geocodeAddress } from "@/lib/geocoding";
+import { composeAddress, geocodeAddress } from "@/lib/geocoding";
+import { featureAllowedFor } from "@/lib/plan-gate";
 import { driveTimeMatrix } from "@/lib/routing";
 import { fireAutomations } from "@/lib/automations-server";
 
@@ -25,7 +26,10 @@ export async function POST(
   const { id } = await params;
   const job = await prisma.job.findFirst({
     where: { id, companyId: actor.companyId, ...jobScope(actor) },
-    include: { contact: { select: { firstName: true } } },
+    include: {
+      contact: { select: { firstName: true, address: true, city: true, state: true, zip: true } },
+      property: { select: { lat: true, lng: true, address: true, city: true, state: true, zip: true } },
+    },
   });
   if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
 
@@ -33,15 +37,22 @@ export async function POST(
   const lat = Number((body as Record<string, unknown>).lat);
   const lng = Number((body as Record<string, unknown>).lng);
 
+  // Where the job is: the saved property pin, else its address line, else
+  // the client's address — the same order the route plan resolves
+  const destQuery = job.address?.trim() || (job.property ? composeAddress(job.property) : composeAddress(job.contact));
   let etaMinutes: number | null = null;
   if (
     Number.isFinite(lat) &&
     Number.isFinite(lng) &&
     Math.abs(lat) <= 90 &&
     Math.abs(lng) <= 180 &&
-    job.address
+    (job.property?.lat != null || destQuery) &&
+    (await featureAllowedFor(actor.companyId, "routes"))
   ) {
-    const dest = await geocodeAddress(job.address, actor.companyId);
+    const dest =
+      job.property?.lat != null && job.property?.lng != null
+        ? { lat: job.property.lat, lng: job.property.lng }
+        : await geocodeAddress(destQuery, actor.companyId);
     if (dest) {
       try {
         const matrix = await driveTimeMatrix([{ lat, lng }, dest], actor.companyId);

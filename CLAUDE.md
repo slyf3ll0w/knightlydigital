@@ -814,6 +814,52 @@ matters with a team. Beyond crew auto-assign above:
   America/Chicago until someone found the setting. Pre-existing companies
   keep whatever they have; Settings → timezone still edits it.
 
+## Route Manager (routes, Optimize, Find a Time)
+
+`/app/schedule/map` (`app/platform/schedule/map/`), read model `lib/route-plan.ts`,
+engine `lib/routing.ts` + `lib/directions.ts`, geocoding `lib/geocoding.ts`,
+optimizer `app/api/app/route-plan/optimize`, Find a Time `lib/find-a-time.ts`.
+Audit + design decisions: `docs/plans/route-manager-audit-2026-09-28.md`.
+
+- **Mapbox spend (2026-09-28).** Display legs (routes page, calendar drive
+  gaps) come from `driveChainLegs`: the `DriveLegCache` table first (every
+  road leg ever answered, keyed on the rounded coordinate pair, 45 days),
+  then ONE Directions request per tech per day — never an N² Matrix over the
+  whole company. The Matrix API is only asked by Optimize / Find a Time, for
+  the pairs the cache lacks. `lib/mapbox-budget.ts` caps the platform
+  (`MAPBOX_GEOCODE_MONTHLY_CAP` / `MAPBOX_MATRIX_MONTHLY_CAP` /
+  `MAPBOX_DIRECTIONS_MONTHLY_CAP`, default 90k each) AND each tenant
+  (`MAPBOX_TENANT_MATRIX_MONTHLY_CAP` 25k elements,
+  `MAPBOX_TENANT_DIRECTIONS_MONTHLY_CAP` 3k requests); over a cap the route
+  page says "road times are paused" (`roadTimes` in the route-plan GET) and
+  figures carry a `~`. Superadmin console shows month-to-date for all three.
+- **Plan gate.** Routes, Optimize, Find a Time, the on-my-way ETA and the
+  Atlas route tools check `featureAllowed(company, "routes")`
+  (`lib/plans.ts` / `lib/plan-gate.ts` → 402 `PLAN_REQUIRED`). The gate is
+  dark until **`PLAN_GATING=1`** is set on Railway (after the first accounts
+  are whitelisted in superadmin). The e2e tenant A is provisioned with the
+  SHOP grant so the suite survives the switch.
+- **Optimize honours promised times.** A stop whose client already got a
+  reminder starts **locked** (`keep` in the body; the preview shows a lock
+  per stop); a job's **client window** (`Job.arriveAfterMin/BeforeMin`,
+  minutes from midnight company-local, set on the job page "Client can take
+  it", `lib/client-window.ts`) makes the walk wait and `repairWindows`
+  reorders so nobody is arrived at after their cut-off. "Text clients" on
+  Apply is off by default and names how many would hear. A hand order may
+  carry ids the server can't route (done / started / pinned) — they are
+  ignored, not a 409. An all-day block on the tech (or the company) refuses
+  the optimize with a plain message.
+- **Geocode cache.** A complete address (state or ZIP named) is shared
+  platform-wide and trusted across state lines; a bare "412 Oak St" is
+  keyed to the company's state (`geocodeCacheKey`) and rejected when the
+  pin lands out of state. Failed lookups retry after 30 days.
+- Every clock time on the routes page is the COMPANY's timezone (passed
+  from the page); "Anytime" jobs added from the map anchor at company noon.
+- Tests: `npx tsx scripts/test-routing.ts`, `test-route-plan.ts` (windows,
+  repair, client-window), `test-ops-guards.ts` (geocode keys),
+  `test-plans.ts` (gate); e2e `schedule-tools` (optimize locks / superset
+  order / no-notify apply).
+
 ## Calendar sync (ICS feed + Google Calendar push)
 
 Design: `docs/plans/google-calendar-sync-2026-09-11.md`. Per USER, any role,

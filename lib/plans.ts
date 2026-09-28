@@ -200,3 +200,34 @@ export function activePlans(company: PlanHolder): PlanId[] {
 export function normalizeGrants(grants: readonly string[]): PlanId[] {
   return PLAN_IDS.filter((id) => grants.includes(id));
 }
+
+// ── Feature gates ──
+
+/** The Pro features that carry a gate in code. Each one names its own copy. */
+export type GatedFeature = "routes";
+
+const FEATURE_LABEL: Record<GatedFeature, string> = {
+  routes: "Route Manager",
+};
+
+export function featureLabel(feature: GatedFeature): string {
+  return FEATURE_LABEL[feature];
+}
+
+/**
+ * Gates ship dark and switch on together: PLAN_GATING=1 on Railway once the
+ * first accounts are whitelisted (the plan doc's roll-out order). Until
+ * then every feature check answers "allowed", exactly as today.
+ */
+export function planGatingLive(env: Record<string, string | undefined> = process.env): boolean {
+  return env.PLAN_GATING === "1";
+}
+
+/** May this company use the feature right now? */
+export function featureAllowed(company: PlanHolder, feature: GatedFeature, live: boolean = planGatingLive()): boolean {
+  if (!live) return true;
+  switch (feature) {
+    case "routes":
+      return hasPlan(company, "SHOP");
+  }
+}

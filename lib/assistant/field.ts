@@ -2,6 +2,7 @@ import { prisma } from "../db";
 import { type Actor, isManager, jobScope } from "../permissions";
 import { parseRouteDate, resolveRouteDay, resolveDriveLegs, type RouteDrive } from "../route-plan";
 import { suggestTimes } from "../find-a-time";
+import { featureAllowedFor } from "../plan-gate";
 import { type Tool, str, num, day, clientName, companyTz, fmtWhen, stage } from "./core";
 
 /**
@@ -393,6 +394,7 @@ export const fieldTools: Tool[] = [
     },
     allowed: () => true,
     run: async (actor, args) => {
+      if (!(await featureAllowedFor(actor.companyId, "routes"))) return { error: "Route Manager is part of the Pro plan — not on this account." };
       const tz = await companyTz(actor.companyId);
       const date = parseRouteDate(str(args.date, 10) || null, tz);
       const dayPlan = await resolveRouteDay(actor, date);
@@ -428,6 +430,7 @@ export const fieldTools: Tool[] = [
     },
     allowed: notSales,
     run: async (actor, args, ctx) => {
+      if (!(await featureAllowedFor(actor.companyId, "routes"))) return { error: "Route Manager is part of the Pro plan — not on this account." };
       const m = await findMember(actor.companyId, str(args.member, 80));
       if (!m) return { error: "No active team member matches that." };
       if (actor.role === "TECH" && m.id !== actor.id) return { error: "Techs can only optimize their own route." };
@@ -438,7 +441,7 @@ export const fieldTools: Tool[] = [
       return stage(ctx, {
         kind: "optimize_route",
         title: `Optimize ${m.name}'s route for ${dateStr}`,
-        lines: ["Reorders and re-times the day's mapped stops by drive time; durations are kept.", ...(anchor ? [`Day starts at ${anchor}`] : []), "Reminders re-send for moved visits."],
+        lines: ["Reorders and re-times the day's mapped stops by drive time; durations are kept.", "Stops whose client already got a reminder keep their time.", ...(anchor ? [`Day starts at ${anchor}`] : []), "Reminders re-send for moved visits; clients are not texted."],
         endpoint: "/api/app/route-plan/optimize", method: "POST",
         payload: { userId: m.id, date: dateStr, apply: true, ...(/^\d{2}:\d{2}$/.test(anchor) ? { anchorTime: anchor } : {}) },
         confirmLabel: "Optimize route", href: "/app/schedule/map",
@@ -457,6 +460,7 @@ export const fieldTools: Tool[] = [
     },
     allowed: () => true,
     run: async (actor, args) => {
+      if (!(await featureAllowedFor(actor.companyId, "routes"))) return { error: "Route Manager is part of the Pro plan — not on this account." };
       const tz = await companyTz(actor.companyId);
       const memberArg = str(args.member, 80);
       const m = memberArg ? await findMember(actor.companyId, memberArg) : { id: actor.id, name: actor.name };

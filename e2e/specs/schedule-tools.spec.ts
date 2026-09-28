@@ -151,12 +151,92 @@ test.describe("schedule tools", () => {
     await api.delete(`/api/app/time-blocks/${block.id}`);
   });
 
-  test("route plan carries distance and a measured flag", async () => {
+  test("route plan carries distance, a measured flag, the company clock and the road-times state", async () => {
     const plan = await api.get(`/api/app/route-plan?date=${ymd(dayStart)}&geometry=1`);
     expect(plan.drive).toBeTruthy();
     expect(typeof plan.drive.measured).toBe("boolean");
     expect(plan.drive.km).toBeTruthy();
     expect(plan.drive.kmTotals).toBeTruthy();
+    expect(typeof plan.timezone).toBe("string");
+    expect(["ok", "paused", "off"]).toContain(plan.roadTimes);
+    for (const s of plan.stops) {
+      expect(["pending", "active", "done"]).toContain(s.progress);
+      expect(typeof s.reminded).toBe("boolean");
+    }
+  });
+
+  test("optimize: a hand order may carry ids the server can't route, locks hold a stop, nobody is texted by default", async () => {
+    // Three mapped stops on a far-future day, one with a client window and
+    // one that has (as far as the client knows) already been reminded
+    const day = daysFrom(7);
+    const at = (h: number) => new Date(day.getTime() + h * 3600_000).toISOString();
+    const mk = (title: string, address: string, h: number, extra: Record<string, unknown> = {}) =>
+      api.post("/api/app/jobs", {
+        contactId,
+        title: `${runTag} ${title}`,
+        address,
+        scheduledAt: at(h),
+        scheduledEnd: at(h + 1),
+        assigneeIds: [state.ownerA.userId],
+        ...extra,
+      });
+    const a = await mk("opt A", "6000 W Plano Pkwy, Plano, TX 75093", 0);
+    const b = await mk("opt B", "1000 E 15th St, Plano, TX 75074", 2, { arriveAfterMin: 13 * 60 });
+    const c = await mk("opt C", "2000 E Spring Creek Pkwy, Plano, TX 75074", 4);
+    try {
+      // The client window landed on the job and comes back on the route stop
+      const plan = await api.get(`/api/app/route-plan?date=${ymd(day)}`);
+      const stopB = plan.stops.find((s: { id: string }) => s.id === b.id);
+      expect(stopB).toBeTruthy();
+      expect(stopB.windowStart).toBeTruthy();
+      expect(stopB.windowEnd).toBeNull();
+
+      const first = await api.raw("POST", "/api/app/route-plan/optimize", { date: ymd(day), userId: state.ownerA.userId });
+      const solved = await first.json();
+      if (first.status === 400) {
+        // No map pins on this environment (no MAPBOX_TOKEN) — the rest needs geometry
+        expect(solved.error).toContain("mapped stops");
+        return;
+      }
+      expect(first.status).toBe(200);
+      expect(solved.applied).toBe(false);
+      expect(Array.isArray(solved.keep)).toBe(true);
+      expect(typeof solved.movedCount).toBe("number");
+      expect(solved.stops.map((s: { id: string }) => s.id).sort()).toEqual([a.id, b.id, c.id].sort());
+      // B waits for its window: never proposed before 1 PM on the company clock
+      const proposedB = solved.stops.find((s: { id: string }) => s.id === b.id);
+      const hour = Number(new Date(proposedB.proposedStart).toLocaleTimeString("en-US", { hour: "2-digit", hour12: false, timeZone: solved.timezone }));
+      expect(hour).toBeGreaterThanOrEqual(13);
+
+      // A manual order with a stray id (a stop the server won't route) is accepted, not a 409
+      const manual = await api.json("POST", "/api/app/route-plan/optimize", {
+        date: ymd(day),
+        userId: state.ownerA.userId,
+        order: [c.id, a.id, "not-a-stop", b.id],
+      }, 200);
+      expect(manual.stops[0].id).toBe(c.id);
+
+      // Lock A: it leaves the routed list and shows up as kept
+      const locked = await api.json("POST", "/api/app/route-plan/optimize", { date: ymd(day), userId: state.ownerA.userId, keep: [a.id] }, 200);
+      expect(locked.stops.some((s: { id: string }) => s.id === a.id)).toBe(false);
+      expect(locked.pinnedStops.some((p: { id: string; locked: boolean }) => p.id === a.id && p.locked)).toBe(true);
+
+      // Apply without notify: times move, nobody is told
+      const applied = await api.json("POST", "/api/app/route-plan/optimize", {
+        date: ymd(day),
+        userId: state.ownerA.userId,
+        order: locked.stops.map((s: { id: string }) => s.id),
+        keep: [a.id],
+        apply: true,
+      }, 200);
+      expect(applied.applied).toBe(true);
+      expect(applied.notified).toBe(0);
+      const after = await api.get(`/api/app/route-plan?date=${ymd(day)}`);
+      const stopA = after.stops.find((s: { id: string }) => s.id === a.id);
+      expect(new Date(stopA.scheduledAt).toISOString()).toBe(at(0)); // locked → untouched
+    } finally {
+      for (const j of [a, b, c]) await api.json("DELETE", `/api/app/jobs/${j.id}`, undefined, 200).catch(() => {});
+    }
   });
 
   test("tenant B sees none of it", async () => {

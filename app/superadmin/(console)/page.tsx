@@ -341,8 +341,18 @@ export default async function SuperadminDashboard({
         >
           {compact(mapbox.matrixElements)} / {compact(mapbox.matrixCap)} matrix elements
         </span>
-        . At a cap the Route Manager falls back to estimates for the rest of the month — the free
-        tier is never exceeded, so cost stays $0.
+        {" · "}
+        <span
+          className={
+            mapbox.directionsCalls >= mapbox.directionsCap * 0.8 ? "font-semibold text-amber-600" : ""
+          }
+        >
+          {compact(mapbox.directionsCalls)} / {compact(mapbox.directionsCap)} directions
+        </span>
+        . At a cap the Route Manager falls back to estimates for the rest of the month and says so
+        on the routes page; a single tenant is paused first (MAPBOX_TENANT_* caps) so one busy
+        company never spends everyone else’s month. Road legs are cached 45 days, so repeat
+        customers cost nothing after the first drive.
       </p>
       <p className="text-xs text-gray-500">
         Platform overhead (unattributed emails/AI — password resets, portal logins):{" "}

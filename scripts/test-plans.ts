@@ -17,6 +17,8 @@ import {
   isPlanId,
   normalizeGrants,
   separatelyMonthlyCents,
+  featureAllowed,
+  planGatingLive,
 } from "../lib/plans";
 
 // ── Catalog sanity: the numbers the site prints ──
@@ -75,5 +77,15 @@ assert.deepEqual(activePlans(everything), ["DISPATCH", "SHOP", "JOBSITE"]);
 // A holder without the optional field still works (a select that skipped addonActiveAt).
 assert.equal(hasPlan({ planGrants: ["DISPATCH"] }, "DISPATCH"), true);
 assert.equal(hasPlan({ planGrants: [] }, "DISPATCH"), false);
+
+// Feature gates: dark until PLAN_GATING=1, then Pro-only.
+assert.equal(featureAllowed(bench, "routes", false), true);
+assert.equal(featureAllowed(bench, "routes", true), false);
+assert.equal(featureAllowed(granted, "routes", true), true);
+assert.equal(featureAllowed(everything, "routes", true), true);
+assert.equal(featureAllowed(paid, "routes", true), false, "Voice alone is not Pro");
+assert.equal(planGatingLive({}), false);
+assert.equal(planGatingLive({ PLAN_GATING: "1" }), true);
+assert.equal(planGatingLive({ PLAN_GATING: "0" }), false);
 
 console.log("test-plans: ok");

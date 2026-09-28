@@ -7,7 +7,7 @@
  */
 import assert from "node:assert/strict";
 import { quoteExpired } from "../lib/quote-expiry";
-import { acceptGeocodeMatch } from "../lib/geocoding";
+import { acceptGeocodeMatch, addressNamesPlace, geocodeCacheKey, normalizeAddressKey } from "../lib/geocoding";
 import { withSerializationRetry } from "../lib/booking-submit";
 import { Prisma } from "@prisma/client";
 
@@ -44,6 +44,27 @@ async function main() {
     assert.equal(acceptGeocodeMatch({ ...tx, properties: { ...tx.properties, match_code: { confidence: "low" } } }, "TX"), false);
     assert.equal(acceptGeocodeMatch({ geometry: { coordinates: [-96.8, 32.8] } }, "TX"), true); // no metadata → accept
     assert.equal(acceptGeocodeMatch(undefined, "TX"), false);
+    // A query that named its own state is trusted across the border (Texarkana, Kansas City…)
+    const ok = { ...tx, properties: { ...tx.properties, context: { region: { region_code: "OK" } } } };
+    assert.equal(acceptGeocodeMatch(ok, "TX", true), true);
+    assert.equal(acceptGeocodeMatch({ ...ok, properties: { ...ok.properties, match_code: { confidence: "low" } } }, "TX", true), false);
+  });
+
+  await test("geocode cache: complete addresses share one key; bare ones are scoped to the company", () => {
+    assert.equal(addressNamesPlace(normalizeAddressKey("6000 W Plano Pkwy, Plano, TX 75093")), true);
+    assert.equal(addressNamesPlace(normalizeAddressKey("100 Main St, Texarkana, AR")), true);
+    assert.equal(addressNamesPlace(normalizeAddressKey("412 Oak St")), false);
+    assert.equal(addressNamesPlace(normalizeAddressKey("412 Oak St, Plano")), false);
+    const tx = { state: "TX", lat: 33.0, lng: -96.7 };
+    const ok = { state: "OK", lat: 35.5, lng: -97.5 };
+    const full = normalizeAddressKey("412 Oak St, Plano, TX 75074");
+    assert.equal(geocodeCacheKey(full, tx), full);
+    assert.equal(geocodeCacheKey(full, ok), full);
+    const bare = normalizeAddressKey("412 Oak St");
+    assert.notEqual(geocodeCacheKey(bare, tx), geocodeCacheKey(bare, ok));
+    assert.equal(geocodeCacheKey(bare, tx), "412 oak st |near tx");
+    assert.equal(geocodeCacheKey(bare, { state: null, lat: 33.04, lng: -96.71 }), "412 oak st |near 33.0,-96.7");
+    assert.equal(geocodeCacheKey(bare, null), bare);
   });
 
   await test("serialization aborts (P2034) retry; anything else surfaces at once", async () => {

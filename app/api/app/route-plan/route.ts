@@ -3,6 +3,9 @@ import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
 import { dayStartFor, parseRouteDate, resolveDriveLegs, resolveRouteDay } from "@/lib/route-plan";
 import { directionsEnabled, routeGeometry } from "@/lib/directions";
+import { geocodingEnabled } from "@/lib/geocoding";
+import { roadTimesState } from "@/lib/mapbox-budget";
+import { checkFeature } from "@/lib/plan-gate";
 
 /**
  * GET /api/app/route-plan?date=YYYY-MM-DD — one day of field work as
@@ -13,10 +16,15 @@ import { directionsEnabled, routeGeometry } from "@/lib/directions";
  * matches the schedule: techs get their assigned jobs only, sales their
  * leads', managers/USER everything. Tech filtering happens client-side —
  * the whole day is one payload.
+ *
+ * Part of Route Manager (Pro): 402 { code: "PLAN_REQUIRED" } once the gate
+ * is live — the calendar's drive-gap fetch treats that as "no legs".
  */
 export async function GET(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "routes");
+  if (!gate.ok) return gate.response;
 
   // "Today" resolves in the company's timezone, not the server's
   const tz = await prisma.company.findUnique({
@@ -24,7 +32,7 @@ export async function GET(req: NextRequest) {
     select: { timezone: true },
   });
   const date = parseRouteDate(req.nextUrl.searchParams.get("date"), tz?.timezone);
-  const [day, unscheduledRows] = await Promise.all([
+  const [day, unscheduledRows, roadTimes] = await Promise.all([
     resolveRouteDay(actor, date),
     prisma.job.findMany({
       where: {
@@ -45,6 +53,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
       take: 50,
     }),
+    roadTimesState(actor.companyId, geocodingEnabled()),
   ]);
   const drive = await resolveDriveLegs(day, actor.companyId);
 
@@ -80,5 +89,5 @@ export async function GET(req: NextRequest) {
     assigneeIds: j.assignments.map((a) => a.userId),
     outsourced: j.outsourced,
   }));
-  return NextResponse.json({ ...day, drive, unscheduled, geometry });
+  return NextResponse.json({ ...day, drive, roadTimes, unscheduled, geometry });
 }

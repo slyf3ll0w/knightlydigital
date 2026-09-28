@@ -930,6 +930,21 @@ model GeocodeCache {
   updatedAt DateTime @updatedAt
 }
 
+// Road drive time + distance between two pins (lib/routing.ts). Keyed on the
+// rounded coordinate pair, platform-wide: a leg between the shop and a
+// customer, or between two regulars, is bought from Mapbox once and reused
+// by every route page, calendar day view, Find-a-Time and Optimize for
+// LEG_CACHE_DAYS. Rows past that age are ignored on read and pruned by the
+// daily cron.
+model DriveLegCache {
+  key       String   @id // "lat,lng>lat,lng" at 4 decimals (≈11 m)
+  minutes   Float
+  km        Float
+  updatedAt DateTime @default(now())
+
+  @@index([updatedAt])
+}
+
 // Other people who belong to the same client: a second decision-maker at a
 // business, or a spouse on a residential account. They are NOT their own
 // client — one record still owns all the work, quotes and invoices, so the
@@ -1745,6 +1760,12 @@ model Job {
   // Date-only scheduling: scheduledAt anchored at T12:00, shown in the
   // calendar's "Anytime" row rather than at a clock position.
   scheduledAnytime        Boolean         @default(false)
+  // Time window the CLIENT can take the visit (minutes from midnight, company
+  // local; null = any time). The route optimizer waits for arriveAfterMin and
+  // warns past arriveBeforeMin (lib/route-walk.ts). Distinct from the
+  // arrival window below, which is the promise made once a time is set.
+  arriveAfterMin          Int?
+  arriveBeforeMin         Int?
   // Per-job arrival-window override (lib/arrival-window.ts): null = the
   // company default (Company.arrivalWindowMinutes), 0 = promise the exact
   // start time. Techs always see exact times — this only changes what the
@@ -2390,6 +2411,9 @@ model CompanyUsageDaily {
   // The month-to-date platform-wide sum is the free-tier kill switch.
   geocodeCalls   Int      @default(0)
   matrixElements Int      @default(0)
+  // Mapbox Directions requests (road lines + consecutive drive legs) — billed
+  // per request, so they carry their own counter and cap.
+  directionsCalls Int     @default(0)
   storageBytes   BigInt? // nightly snapshot (photos + logos + avatars), not a counter
   updatedAt      DateTime @updatedAt
 

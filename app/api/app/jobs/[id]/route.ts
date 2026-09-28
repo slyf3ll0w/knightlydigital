@@ -7,6 +7,7 @@ import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { syncJobChecklist } from "@/lib/job-checklist";
 import { cleanOutsourcedTo, crewMissing, NEEDS_CREW_CODE, NEEDS_CREW_ERROR, resolveCrew } from "@/lib/job-crew";
 import { fireAutomations } from "@/lib/automations-server";
+import { clientWindowPatch } from "@/lib/client-window";
 
 export async function PATCH(
   req: NextRequest,
@@ -122,6 +123,8 @@ export async function PATCH(
     }),
     ...(body.scheduledEnd !== undefined && { scheduledEnd: body.scheduledEnd ? new Date(body.scheduledEnd) : null }),
     ...(body.scheduledAnytime !== undefined && { scheduledAnytime: Boolean(body.scheduledAnytime) }),
+    // The client's window ("not before 1 PM", "before noon") — see lib/client-window.ts
+    ...clientWindowPatch(body),
     // Arrival window override: null = company default, 0 = exact time
     ...(body.arrivalWindowMinutes !== undefined && {
       arrivalWindowMinutes:

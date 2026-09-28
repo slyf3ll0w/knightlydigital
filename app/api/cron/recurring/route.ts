@@ -21,6 +21,7 @@ import { runGoogleCalendarPullSweep } from "@/lib/google-calendar-pull";
 import { runRecurringExpenses } from "@/lib/expenses";
 import { expireApprovalBookings } from "@/lib/approval-bookings";
 import { rollupStorageSnapshots } from "@/lib/usage";
+import { pruneLegCache } from "@/lib/routing";
 import { runNightlyReconciliation } from "@/lib/reconcile";
 import { runLineRegistrationSweep, runLineReleaseSweep } from "@/lib/business-line";
 import { runStaleCallSweep } from "@/lib/voice";
@@ -182,6 +183,8 @@ export async function POST(req: NextRequest) {
     await step("staleCalls", () => runStaleCallSweep(now));
     // Team-map retention: location history older than 30 days is deleted —
     // deliberate; keep the window short.
+    // Road legs older than LEG_CACHE_DAYS are re-bought when next needed
+    await step("prunedLegs", () => pruneLegCache(now));
     await step("prunedPings", async () => {
       const r = await prisma.locationPing.deleteMany({
         where: { recordedAt: { lt: new Date(now.getTime() - 30 * 86400000) } },

@@ -21,8 +21,10 @@ import { composeAddress, geocodeAddress, geocodingEnabled } from "@/lib/geocodin
 import type { Actor } from "@/lib/permissions";
 import { appointmentScope, isManager, jobScope } from "@/lib/permissions";
 import { localDayParts, wallTimeToUtc } from "@/lib/booking-engine";
-import { driveMatrix } from "@/lib/routing";
+import { driveChainLegs } from "@/lib/routing";
 import { routedChain } from "@/lib/route-walk";
+
+export type StopProgress = "pending" | "active" | "done";
 
 export type RouteStop = {
   id: string;
@@ -32,6 +34,8 @@ export type RouteStop = {
   jobNumber: number | null;
   title: string;
   status: string;
+  /** Where the visit stands today: on the clock ("active"), finished, or still to come. */
+  progress: StopProgress;
   contactName: string;
   address: string | null;
   scheduledAt: string | null;
@@ -39,6 +43,11 @@ export type RouteStop = {
   scheduledAnytime: boolean;
   /** Unconfirmed online booking (appointments only) — never auto-moved. */
   tentative: boolean;
+  /** A visit reminder already went to the client for this time. */
+  reminded: boolean;
+  /** The client's window for this day (Job.arriveAfterMin/arriveBeforeMin), as ISO instants. */
+  windowStart: string | null;
+  windowEnd: string | null;
   assigneeIds: string[];
   lat: number | null;
   lng: number | null;
@@ -48,6 +57,8 @@ export type RoutePin = { lat: number; lng: number; label: string };
 
 export type RouteDay = {
   enabled: boolean;
+  /** The company's timezone — every wall-clock label downstream uses it. */
+  timezone: string;
   /** The shop — where a day starts unless the member set their own start address. */
   start: RoutePin | null;
   /** Members who start the day somewhere else (User.startAddress), by user id. */
@@ -69,71 +80,63 @@ export type RouteDrive = {
   /** km[userId][stopId] = road distance into that stop; kmTotals[userId] = the day. */
   km: Record<string, Record<string, number>>;
   kmTotals: Record<string, number>;
-  /** true = Mapbox road figures; false = straight-line estimate (hedge the copy). */
+  /** true = every leg is a Mapbox road figure; false = at least one straight-line estimate (hedge the copy). */
   measured: boolean;
 };
 
 /**
  * Per-tech drive legs for the day, in the order the calendar reads right now.
- * One Matrix call covers every tech (points dedupe through the matrix cache);
- * days too big for the API silently use the haversine estimate — display
- * copy should hedge ("~12 min") either way.
+ * One chain per tech (shop → stops in time order), answered from the leg
+ * cache or one Directions request each — never an N² matrix over the whole
+ * company, so a six-tech day gets road figures like a one-tech day does.
+ * Display copy should hedge ("~12 min") whenever `measured` is false.
  */
 export async function resolveDriveLegs(day: RouteDay, companyId: string): Promise<RouteDrive> {
-  const drive: RouteDrive = { legs: {}, totals: {}, km: {}, kmTotals: {}, measured: false };
+  const drive: RouteDrive = { legs: {}, totals: {}, km: {}, kmTotals: {}, measured: true };
   const located = day.stops.filter((s) => s.lat != null && s.lng != null);
-  if (!located.length) return drive;
-
-  // One matrix over every start pin (shop + members' own) and every located
-  // stop — points dedupe through the matrix cache, so this is one call.
-  const starts = new Map<string, { lat: number; lng: number }>();
-  if (day.start) starts.set("shop", { lat: day.start.lat, lng: day.start.lng });
-  for (const [uid, pin] of Object.entries(day.memberStarts)) starts.set(uid, { lat: pin.lat, lng: pin.lng });
-  const startKeys = [...starts.keys()];
-  const points = [
-    ...startKeys.map((k) => starts.get(k)!),
-    ...located.map((s) => ({ lat: s.lat!, lng: s.lng! })),
-  ];
-  if (points.length < 2) return drive;
-  const offset = startKeys.length;
-  const dm = await driveMatrix(points, companyId);
-  const matrix = dm.minutes;
-  drive.measured = dm.measured;
-  const indexOf = new Map(located.map((s, i) => [s.id, i + offset]));
-  const startIndex = (userId: string): number | null => {
-    const key = day.memberStarts[userId] ? userId : day.start ? "shop" : null;
-    return key == null ? null : startKeys.indexOf(key);
-  };
+  if (!located.length) {
+    drive.measured = day.enabled;
+    return drive;
+  }
 
   // Timed stops only: an "Anytime"/all-day stop has no place in the
   // sequence, so a leg measured from it would label the wrong gap on the
   // calendar (and flag a false "tight" one). Find-a-Time skips them too.
-  const userIds = new Set(located.flatMap((s) => s.assigneeIds));
-  for (const userId of userIds) {
-    const route = routedChain(located, userId);
-    if (!route.length) continue;
-    const legs: Record<string, number> = {};
-    const kms: Record<string, number> = {};
-    let total = 0;
-    let kmTotal = 0;
-    let prev = startIndex(userId); // matrix index of the previous point
-    for (const stop of route) {
-      const here = indexOf.get(stop.id)!;
-      if (prev != null) {
-        const minutes = Math.round(matrix[prev][here]);
+  const userIds = [...new Set(located.flatMap((s) => s.assigneeIds))];
+  await Promise.all(
+    userIds.map(async (userId) => {
+      const route = routedChain(located, userId);
+      if (!route.length) return;
+      const start = dayStartFor(day, userId);
+      const points = [
+        ...(start ? [{ lat: start.lat, lng: start.lng }] : []),
+        ...route.map((s) => ({ lat: s.lat!, lng: s.lng! })),
+      ];
+      if (points.length < 2) return;
+      const chain = await driveChainLegs(points, companyId);
+      if (!chain.measured) drive.measured = false;
+      const legs: Record<string, number> = {};
+      const kms: Record<string, number> = {};
+      let total = 0;
+      let kmTotal = 0;
+      // With a start pin, leg i lands on route[i]; without one, leg i lands on route[i+1]
+      const offset = start ? 0 : 1;
+      chain.legs.forEach((leg, i) => {
+        const stop = route[i + offset];
+        if (!stop) return;
+        const minutes = Math.round(leg.minutes);
         legs[stop.id] = minutes;
         total += minutes;
-        const km = Math.round(dm.km[prev][here] * 10) / 10;
+        const km = Math.round(leg.km * 10) / 10;
         kms[stop.id] = km;
         kmTotal += km;
-      }
-      prev = here;
-    }
-    drive.legs[userId] = legs;
-    drive.totals[userId] = total;
-    drive.km[userId] = kms;
-    drive.kmTotals[userId] = Math.round(kmTotal * 10) / 10;
-  }
+      });
+      drive.legs[userId] = legs;
+      drive.totals[userId] = total;
+      drive.km[userId] = kms;
+      drive.kmTotals[userId] = Math.round(kmTotal * 10) / 10;
+    })
+  );
   return drive;
 }
 
@@ -156,7 +159,8 @@ export function parseRouteDate(s?: string | null, tz?: string | null): Date {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
     if (m) {
       const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-      if (!isNaN(d.getTime())) return d;
+      // "2026-02-31" would roll into March; refuse the roll-over, fall through to today
+      if (!isNaN(d.getTime()) && d.getMonth() === Number(m[2]) - 1 && d.getDate() === Number(m[3])) return d;
     }
   }
   if (tz) {
@@ -169,6 +173,15 @@ export function parseRouteDate(s?: string | null, tz?: string | null): Date {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return today;
+}
+
+/** A Job's client window (minutes from midnight, company-local) as instants on this day. */
+function windowOn(tz: string, date: Date, afterMin: number | null, beforeMin: number | null) {
+  const at = (min: number) => wallTimeToUtc(tz, date.getFullYear(), date.getMonth() + 1, date.getDate(), min).toISOString();
+  return {
+    windowStart: afterMin != null ? at(afterMin) : null,
+    windowEnd: beforeMin != null ? at(beforeMin) : null,
+  };
 }
 
 export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDay> {
@@ -196,6 +209,8 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
         contact: { select: { firstName: true, lastName: true, address: true, city: true, state: true, zip: true } },
         property: true,
         assignments: { select: { userId: true } },
+        // On the clock right now = an open time entry
+        timeEntries: { where: { endedAt: null }, select: { id: true }, take: 1 },
       },
       orderBy: { scheduledAt: "asc" },
       take: 200,
@@ -254,18 +269,22 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
       lng = hit?.lng ?? null;
     }
 
+    const done = j.status === "REQUIRES_INVOICING" || j.completedAt != null;
     return {
       id: j.id,
       kind: "job",
       jobNumber: j.jobNumber,
       title: j.title,
       status: j.status,
+      progress: done ? "done" : j.timeEntries.length > 0 ? "active" : "pending",
       contactName: `${j.contact.firstName} ${j.contact.lastName}`.trim(),
       address: j.address?.trim() || (j.property ? composeAddress(j.property) : composeAddress(j.contact)) || null,
       scheduledAt: j.scheduledAt ? j.scheduledAt.toISOString() : null,
       scheduledEnd: j.scheduledEnd ? j.scheduledEnd.toISOString() : null,
       scheduledAnytime: j.scheduledAnytime,
       tentative: false,
+      reminded: j.reminderDaySentAt != null || j.reminderHourSentAt != null,
+      ...windowOn(tz, date, j.arriveAfterMin, j.arriveBeforeMin),
       assigneeIds: j.assignments.map((a) => a.userId),
       lat,
       lng,
@@ -286,12 +305,16 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
       jobNumber: null,
       title: a.title,
       status: a.status,
+      progress: a.scheduledEnd && a.scheduledEnd.getTime() < Date.now() ? "done" : "pending",
       contactName: `${a.contact.firstName} ${a.contact.lastName}`.trim(),
       address: a.address,
       scheduledAt: a.scheduledAt.toISOString(),
       scheduledEnd: a.scheduledEnd ? a.scheduledEnd.toISOString() : null,
       scheduledAnytime: a.scheduledAnytime,
       tentative: a.tentative,
+      reminded: a.reminderDaySentAt != null || a.reminderHourSentAt != null,
+      windowStart: null,
+      windowEnd: null,
       assigneeIds: a.assignedToId ? [a.assignedToId] : [],
       lat,
       lng,
@@ -319,6 +342,7 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
     jobNumber: null,
     title: b.title || "Blocked off",
     status: "BLOCK",
+    progress: "pending",
     contactName: "",
     address: b.address,
     // Clamp multi-day blocks to this day so the walk stays inside it
@@ -326,6 +350,9 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
     scheduledEnd: new Date(Math.min(b.endAt.getTime(), dayEnd.getTime())).toISOString(),
     scheduledAnytime: b.allDay,
     tentative: false,
+    reminded: false,
+    windowStart: null,
+    windowEnd: null,
     assigneeIds: [b.userId!],
     lat: b.lat,
     lng: b.lng,
@@ -363,5 +390,5 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
     memberStarts[u.id] = { lat: u.startLat!, lng: u.startLng!, label: u.startAddress ? `${u.name} — ${u.startAddress}` : u.name };
   }
 
-  return { enabled: geocodingEnabled(), start, memberStarts, stops };
+  return { enabled: geocodingEnabled(), timezone: tz, start, memberStarts, stops };
 }
