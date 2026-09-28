@@ -7,6 +7,7 @@ import { requirePageActor, canSell, contactScope } from "@/lib/permissions";
 import Monogram from "@/components/Monogram";
 import { fmtPhone } from "@/lib/format";
 import TeamThread from "./TeamThread";
+import SaveContactCard from "./SaveContactCard";
 
 /** One client's conversation — the team side of the hub Messages tab. */
 export default async function MessageThreadPage({
@@ -27,6 +28,7 @@ export default async function MessageThreadPage({
       email: true,
       phone: true,
       kind: true,
+      placeholder: true,
       smsOptOut: true,
       smsDisabled: true,
       // How a reply reaches them (lib/sms.ts companySender + canText, mirrored
@@ -101,9 +103,12 @@ export default async function MessageThreadPage({
         </div>
       </div>
 
+      {/* A thread started with a typed-in number: name them before (or after) the first text */}
+      {contact.placeholder && <SaveContactCard contactId={contact.id} phone={contact.phone ? fmtPhone(contact.phone) : name} />}
+
       <TeamThread
         contactId={contact.id}
-        contactFirstName={contact.firstName}
+        contactFirstName={contact.placeholder ? "them" : contact.firstName}
         channel={channel}
         initialMessages={messages.map((m) => ({
           id: m.id,

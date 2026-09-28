@@ -59,6 +59,8 @@ export default async function ContactsPage({
     companyId,
     ...contactScope(actor),
     ...(mineOnly ? { assignedToId: actor.id } : {}),
+    // An unsaved texted number (Messages → New message) lives in the inbox only
+    placeholder: false,
     // A search sweeps every status and kind (so leads and contacts are still
     // findable here); otherwise the list is active clients, the Contacts
     // tab (business connections, not archived), or the Archived tab

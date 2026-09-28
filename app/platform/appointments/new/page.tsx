@@ -21,7 +21,7 @@ export default async function NewAppointmentPage({
 
   const [contacts, users, request, company] = await Promise.all([
     prisma.contact.findMany({
-      where: { companyId, ...contactScope(actor), status: { in: ["LEAD", "ACTIVE"] } },
+      where: { companyId, ...contactScope(actor), status: { in: ["LEAD", "ACTIVE"] }, placeholder: false },
       select: {
         id: true,
         firstName: true,

@@ -34,10 +34,12 @@ export default async function MessagesInboxPage() {
       where: { companyId: actor.companyId, direction: "INBOUND", readByTeamAt: null },
       _count: { _all: true },
     }),
-    // Dates render in the company's zone — the server clock is UTC.
-    prisma.company.findUnique({ where: { id: actor.companyId }, select: { timezone: true } }),
+    // Dates render in the company's zone — the server clock is UTC. The line
+    // decides whether New message may start a thread with a typed number.
+    prisma.company.findUnique({ where: { id: actor.companyId }, select: { timezone: true, lineNumber: true } }),
   ]);
   const tz = company?.timezone ?? "America/Chicago";
+  const hasLine = Boolean(company?.lineNumber && !company.lineNumber.startsWith("pending:"));
   const unreadByContact = new Map(unread.map((u) => [u.contactId, u._count._all]));
 
   return (
@@ -46,7 +48,7 @@ export default async function MessagesInboxPage() {
         <PageTitle section="chat" icon={MessageSquare}>
           Messages
         </PageTitle>
-        <NewMessageButton />
+        <NewMessageButton hasLine={hasLine} />
       </div>
 
       {latest.length === 0 ? (

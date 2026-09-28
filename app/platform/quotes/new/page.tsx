@@ -15,7 +15,7 @@ export default async function NewQuotePage({
 
   const [contacts, workItems, company, request, estimatorRows] = await Promise.all([
     prisma.contact.findMany({
-      where: { companyId, ...contactScope(actor), status: { in: ["LEAD", "ACTIVE"] } },
+      where: { companyId, ...contactScope(actor), status: { in: ["LEAD", "ACTIVE"] }, placeholder: false },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
       include: { addresses: { orderBy: { createdAt: "asc" } } },
     }),

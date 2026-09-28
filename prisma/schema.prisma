@@ -781,6 +781,11 @@ model Contact {
   notes                String?
   status               ContactStatus  @default(LEAD)
   kind                 ContactKind    @default(CLIENT)
+  // A number the team texted before anyone was saved (Messages → New message
+  // → type a number): the row exists so the thread has somewhere to live, and
+  // stays out of the Clients list, the Leads board and every picker until the
+  // thread's Save card names them (which clears this and sets kind/status).
+  placeholder          Boolean        @default(false)
   leadSource           String?
   // Lead pipeline (kanban): a set stage = a card on the Leads board. LEAD
   // contacts always carry a stage; ACTIVE clients re-enter when they submit

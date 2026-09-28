@@ -35,13 +35,50 @@ function prettyPhone(raw: string): string {
   return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : raw;
 }
 
-export default function NewMessageButton({ compact = false }: { compact?: boolean }) {
+export default function NewMessageButton({
+  compact = false,
+  hasLine = false,
+}: {
+  compact?: boolean;
+  /** The company has a business line — a typed-in number can start a thread (texts go from that line). */
+  hasLine?: boolean;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [phone, setPhone] = useState(false); // which surface: sheet (phone) or modal (desktop)
   const [contacts, setContacts] = useState<FeedContact[] | null>(null);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
+  const [starting, setStarting] = useState(false);
+
+  // A typed number that nobody in the book has yet: 10 digits (or 11 with a
+  // leading 1) and no phone match → offer to start a thread with it.
+  const typedDigits = query.replace(/\D/g, "").replace(/^1(?=\d{10}$)/, "");
+  const typedNumber = hasLine && typedDigits.length === 10 ? typedDigits : null;
+
+  async function startWithNumber(digits: string) {
+    if (starting) return;
+    setStarting(true);
+    setError("");
+    try {
+      const res = await fetch("/api/app/messages/new-number", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: digits }),
+      });
+      const data = (await res.json().catch(() => null)) as { contactId?: string; error?: string } | null;
+      if (!res.ok || !data?.contactId) {
+        setError(data?.error ?? "Couldn't start that conversation. Try again.");
+        return;
+      }
+      setOpen(false);
+      router.push(`/app/messages/thread/${data.contactId}`);
+    } catch {
+      setError("Couldn't reach the server. Check your connection and try again.");
+    } finally {
+      setStarting(false);
+    }
+  }
 
   useEffect(() => {
     if (!open || contacts) return;
@@ -93,7 +130,7 @@ export default function NewMessageButton({ compact = false }: { compact?: boolea
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search name, company or phone…"
+        placeholder={hasLine ? "Name, company, or a phone number to text…" : "Search name, company or phone…"}
         autoComplete="off"
         autoFocus={!big}
         className={`w-full bg-transparent outline-none placeholder:text-gray-400 ${big ? "text-[16px]" : "text-sm"}`}
@@ -103,15 +140,37 @@ export default function NewMessageButton({ compact = false }: { compact?: boolea
 
   const list = (
     <div className={`overflow-y-auto overscroll-contain ${phone ? "max-h-[55dvh] px-2" : "max-h-[24rem] -mx-1 pr-1"}`}>
-      {error ? (
-        <p className="px-3 py-6 text-center text-sm text-[color:var(--ds-bad)]">{error}</p>
-      ) : !contacts ? (
+      {error && <p className="px-3 py-2 text-center text-sm text-[color:var(--ds-bad)]">{error}</p>}
+      {/* A number nobody has: start a thread with it (texts go from the business line). Above the matches so a partial hit never hides it. */}
+      {typedNumber && contacts && !matches.some((c) => c.phone && c.phone.replace(/\D/g, "").endsWith(typedNumber)) && (
+        <button
+          type="button"
+          onClick={() => startWithNumber(typedNumber)}
+          disabled={starting}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-[color:var(--ds-surface-2)] active:bg-black/5 disabled:opacity-60"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]">
+            {starting ? <Loader2 size={16} className="animate-spin" /> : <MessageSquarePlus size={16} />}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[15px] font-medium text-gray-900">Text {prettyPhone(typedNumber)}</span>
+            <span className="block truncate text-[13px] text-gray-500">New conversation · save them as a lead, client or contact from the thread</span>
+          </span>
+        </button>
+      )}
+      {!error && !contacts ? (
         <p className="flex items-center justify-center gap-2 px-3 py-8 text-sm text-gray-400">
           <Loader2 size={15} className="animate-spin" /> Loading…
         </p>
-      ) : matches.length === 0 ? (
+      ) : !error && contacts && matches.length === 0 && !typedNumber ? (
         <p className="px-3 py-6 text-center text-sm text-gray-400">
-          {contacts.length === 0 ? "No clients yet — add one from Clients first." : "No one matches that."}
+          {contacts.length === 0
+            ? hasLine
+              ? "No clients yet — type a phone number to text someone new, or add a client first."
+              : "No clients yet — add one from Clients first."
+            : hasLine
+              ? "No one matches that. Type a full phone number to text someone new."
+              : "No one matches that."}
         </p>
       ) : (
         matches.map((c) => (

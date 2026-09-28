@@ -25,6 +25,46 @@ test.describe("contacts & CRM", () => {
     expect(contact.lastName).toBe("CRM-Renamed");
   });
 
+  test("a texted number is a hidden placeholder until the thread's Save card names them", async () => {
+    // Needs a business line: the e2e company may have none, in which case the route refuses (409) and that is the whole test.
+    const res = await api.raw("POST", "/api/app/messages/new-number", { phone: "(214) 555-0199" });
+    if (res.status === 409) {
+      expect((await res.json()).error).toMatch(/business line/);
+      return;
+    }
+    expect(res.status).toBe(201);
+    const { contactId: id } = (await res.json()) as { contactId: string };
+    try {
+      let row = await db().contact.findUniqueOrThrow({ where: { id } });
+      expect(row.placeholder).toBe(true);
+      expect(row.status).toBe("ACTIVE");
+      expect(row.pipelineStageId).toBeNull();
+      expect(row.phoneDigits).toBe("2145550199");
+      // Hidden from the picker feed
+      const feed = (await api.get("/api/app/contacts")) as { id: string }[];
+      expect(feed.map((c) => c.id)).not.toContain(id);
+      // Same number again → same thread
+      const again = await api.post("/api/app/messages/new-number", { phone: "2145550199" }, 200);
+      expect(again.contactId).toBe(id);
+      // Save needs a name
+      await api.json("PATCH", `/api/app/contacts/${id}`, { placeholder: false, kind: "CLIENT", status: "LEAD" }, 400);
+      // Save as a lead → on the board, visible, named
+      await api.patch(`/api/app/contacts/${id}`, {
+        firstName: runTag,
+        lastName: "Texted-Lead",
+        kind: "CLIENT",
+        status: "LEAD",
+        placeholder: false,
+      });
+      row = await db().contact.findUniqueOrThrow({ where: { id } });
+      expect(row.placeholder).toBe(false);
+      expect(row.status).toBe("LEAD");
+      expect(row.firstName).toBe(runTag);
+    } finally {
+      await deleteContact(api, id);
+    }
+  });
+
   test("a business contact is never a lead and becomes a client with their first job", async () => {
     // kind CONTACT wins over a LEAD status: ACTIVE, off the Leads board
     const created = await api.post("/api/app/contacts", {

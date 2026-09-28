@@ -666,6 +666,14 @@ function Texting({
   }
 
   const awaitingPin = reg.status === "BRAND_PENDING" && reg.entityType === "SOLE_PROPRIETOR";
+  // Campaign approved, number still being attached at AT&T / T-Mobile — the
+  // last carrier step, usually hours. Worth its own line: "reviewing" reads
+  // as if the application were still open.
+  const attaching =
+    !tollFree &&
+    reg.status === "CAMPAIGN_PENDING" &&
+    (reg.campaignStatus === "MNO_ACCEPTED" || reg.campaignStatus === "MNO_PROVISIONED") &&
+    reg.assignmentStatus === "PENDING_ASSIGNMENT";
   return (
     <div className="space-y-3 rounded-lg bg-[color:var(--ds-warn-soft)] px-4 py-3 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -677,7 +685,9 @@ function Texting({
               ? "Toll-free verification is under review"
               : reg.status === "BRAND_PENDING"
                 ? "Verifying your business with the carrier registry"
-                : "Carriers are reviewing your texting registration"}
+                : attaching
+                  ? "Approved — the carriers are attaching your number"
+                  : "Carriers are reviewing your texting registration"}
         </p>
         <button type="button" onClick={refresh} disabled={busy} className={ghostBtn}>
           <RefreshCw size={13} className={busy ? "animate-spin" : ""} />
@@ -689,7 +699,9 @@ function Texting({
           ? `We texted a PIN to ${fmtPhone(reg.form.contactPhone)}. Enter it below within 24 hours.`
           : tollFree
             ? "Calls, voicemail and the number itself are live now. Texting from it switches on when the toll-free review clears — usually one to two weeks. Until then reminders and links go by email, and the free Text button on jobs keeps working from your phone."
-            : "Calls, voicemail and the number itself are live now. Texting from it switches on when carriers approve the registration — usually 1–3 business days, up to 7. Until then reminders and links go by email, and the free Text button on jobs keeps working from your phone."}
+            : attaching
+              ? "The carriers approved your registration. AT&T and T-Mobile are now attaching your number to it — usually a few hours, occasionally a day. Texting switches on by itself the moment they finish; Check now asks them again."
+              : "Calls, voicemail and the number itself are live now. Texting from it switches on when carriers approve the registration — usually 1–3 business days, up to 7. Until then reminders and links go by email, and the free Text button on jobs keeps working from your phone."}
         {reg.verificationStatus ? ` Telnyx status: ${reg.verificationStatus}.` : ""}
         {checked ? ` ${checked}.` : ""}
       </p>

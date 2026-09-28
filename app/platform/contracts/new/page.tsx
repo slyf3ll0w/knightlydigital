@@ -15,7 +15,7 @@ export default async function NewContractPage({
 
   const [contacts, templates] = await Promise.all([
     prisma.contact.findMany({
-      where: { companyId: actor.companyId, ...contactScope(actor), status: { in: ["LEAD", "ACTIVE"] } },
+      where: { companyId: actor.companyId, ...contactScope(actor), status: { in: ["LEAD", "ACTIVE"] }, placeholder: false },
       select: { id: true, firstName: true, lastName: true },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     }),

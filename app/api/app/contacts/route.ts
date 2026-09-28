@@ -21,6 +21,7 @@ export async function GET() {
       companyId: actor.companyId,
       ...contactScope(actor),
       status: { in: ["LEAD", "ACTIVE"] },
+      placeholder: false, // an unsaved texted number is not someone to book a job for
     },
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
     select: {

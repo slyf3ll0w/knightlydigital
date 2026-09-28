@@ -113,7 +113,7 @@ All job manager API routes are scoped to `session.user.companyId` for multi-tena
 Key multi-tenant models, all scoped by `companyId`:
 - `Company` — tenant, has slug for booking URL
 - `User` — roles: SUPERADMIN (Streamflare), OWNER, MANAGER, TECH
-- `Contact` — customer database. `kind` CLIENT (leads + clients) or CONTACT (a business connection: sub, supplier, referral partner — never a lead, listed under Clients → Contacts, becomes CLIENT on their first job via `lib/pipeline.ts becomeClient`)
+- `Contact` — customer database. `kind` CLIENT (leads + clients) or CONTACT (a business connection: sub, supplier, referral partner — never a lead, listed under Clients → Contacts, becomes CLIENT on their first job via `lib/pipeline.ts becomeClient`). `placeholder` = a number the team texted from Messages before anyone was saved (`/api/app/messages/new-number`, needs a business line): hidden from lists, board and pickers until the thread's Save card names them
 - `Job` — work order, statuses: LEAD → SCHEDULED → IN_PROGRESS → COMPLETE → INVOICED → PAID
 - `Quote` / `QuoteLineItem` — estimates with customer acceptance via `publicToken`
 - `Invoice` / `InvoiceLineItem` — with `publicToken` for pay-by-link

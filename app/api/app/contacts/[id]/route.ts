@@ -97,6 +97,13 @@ export async function PATCH(
     kind = body.kind;
   }
 
+  // Saving a texted number as a real person (the thread's Save card): the
+  // placeholder flag only ever clears, and the save needs a name.
+  const saving = body.placeholder === false;
+  if (saving && (!String(body.firstName ?? "").trim() || !String(body.lastName ?? "").trim())) {
+    return NextResponse.json({ error: "Add their first and last name to save them." }, { status: 400 });
+  }
+
   const opt = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
 
   // Status CHANGES keep the pipeline board consistent; an unchanged status
@@ -152,6 +159,7 @@ export async function PATCH(
       ...(status !== undefined && { status }),
       ...(paymentTermsDays !== undefined && { paymentTermsDays }),
       ...(kind !== undefined && { kind }),
+      ...(saving && { placeholder: false }),
       // Leaving LEAD takes the card off the board (becoming LEAD re-enters below)
       ...(statusChange === "ACTIVE" || statusChange === "ARCHIVED"
         ? { pipelineStageId: null, stageChangedAt: null }
@@ -166,7 +174,11 @@ export async function PATCH(
 
   if (contact.count === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  if (statusChange === "ARCHIVED") fireAutomations(actor.companyId, "client.archived", id);
+  if (saving) {
+    // A texted number just became a person: this is their real "created" moment.
+    const savedKind = kind ?? "CLIENT";
+    if (savedKind === "CLIENT") fireAutomations(actor.companyId, (status ?? previousStatus) === "LEAD" ? "lead.created" : "client.created", id);
+  } else if (statusChange === "ARCHIVED") fireAutomations(actor.companyId, "client.archived", id);
   else if (statusChange && previousStatus === "ARCHIVED") fireAutomations(actor.companyId, "client.reactivated", id);
   for (const fieldId of changedFieldIds) fireAutomations(actor.companyId, "client.field_changed", id, { fieldId });
 

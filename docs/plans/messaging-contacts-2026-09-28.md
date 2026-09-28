@@ -106,6 +106,44 @@ check:design`, `npx next build`; e2e `contacts-crm.spec.ts` gained "a
 business contact is never a lead and becomes a client with their first
 job" (kind, status, no stage, message thread POST, job → CLIENT).
 
+## Round 2 (same day)
+
+**Status still not ACTIVE.** Production after the deploy: the row moved
+REJECTED → CAMPAIGN_PENDING and the number was bound at 20:58; Telnyx shows
+the binding `PENDING_ASSIGNMENT` (AT&T and T-Mobile mapping still
+`PENDING`). That is the carriers' last step, typically hours. The sweep
+flips it to ACTIVE on its own; the card now says "Approved — the carriers
+are attaching your number" for this exact state instead of "reviewing".
+
+**Text a typed-in number** (only with a business line):
+- Messages → New message → type a 10-digit number nobody has → "Text (xxx)
+  xxx-xxxx" row → `POST /api/app/messages/new-number` → a PLACEHOLDER
+  contact named after the number (`Contact.placeholder`, hidden from
+  Clients, the Leads board and every picker; a known number reuses its
+  contact) → the thread.
+- The thread shows a "Who is (xxx) xxx-xxxx?" card: first/last, company,
+  Lead / Client / Contact, Save → `PATCH` clears the placeholder, sets
+  kind/status, a lead enters the board, `lead.created` / `client.created`
+  fire. The card disappears once saved.
+- Without a line the picker never offers the row and the route answers 409.
+
+**White on white.** Lessly Holdings' secondary brand color is `#FFFFFF`.
+`Monogram` painted a third of all people (by name hash) with the secondary
+fill and hard-coded white initials → white circle, white letters, in dark
+mode especially (the light theme darkens the fill to a readable grey). The
+initials now use the matching `--ds-on-primary` / `--ds-on-secondary` ink.
+
+Recipes:
+9. Messages → New message → type your cell (not the line). Expect the
+   "Text (…)" row; tap → empty thread titled with the number, Save card on
+   top. Send "hi" → your cell gets it from (469) 860-5060 once texting is
+   ACTIVE. Fill the card as a Lead → title becomes the name, card gone, the
+   lead is on the Leads board. Clients list never showed the number.
+10. New message → type a number already on a client → their thread, no
+   "Text" row.
+11. Dark mode, Clients list and Messages inbox: every monogram's initials
+   readable (black letters on the white circles).
+
 ## Decisions taken without asking (flag if wrong)
 - Contacts are a `kind` on Contact, not a new model: the thread, calls,
   notes, custom fields and pickers all keep working for them unchanged.
