@@ -2,6 +2,13 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
+  // Railway sets RAILWAY_ENVIRONMENT_NAME on the build too; inline it so the
+  // browser Sentry init can tag errors "staging" vs "production". Without
+  // this the client fell back to NODE_ENV and staging errors read as
+  // production.
+  env: {
+    NEXT_PUBLIC_RAILWAY_ENVIRONMENT_NAME: process.env.RAILWAY_ENVIRONMENT_NAME ?? "",
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },

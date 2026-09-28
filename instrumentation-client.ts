@@ -5,7 +5,9 @@ import * as Sentry from "@sentry/nextjs";
 // is a public write-only endpoint, not a secret.
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-  environment: process.env.RAILWAY_ENVIRONMENT_NAME || process.env.NODE_ENV,
+  // Inlined at build time by next.config.ts (RAILWAY_ENVIRONMENT_NAME itself
+  // never reaches the browser bundle).
+  environment: process.env.NEXT_PUBLIC_RAILWAY_ENVIRONMENT_NAME || process.env.NODE_ENV,
   tracesSampleRate: 0,
   sendDefaultPii: false,
   // Errors only. The default BrowserSession integration POSTs a "session"
