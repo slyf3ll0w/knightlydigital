@@ -126,10 +126,20 @@ export type { BrandEntityType, LineSummary, LineType, RegistrationForm, Registra
  */
 export class LineError extends Error {
   status: number;
-  constructor(message: string, status = 400) {
+  /**
+   * A Telnyx hiccup mid-chain (timeout, "resource is being processed"), not a
+   * verdict on the registration: the row stays pending and the sweep retries.
+   * fileFromRow must never record one of these as REJECTED — Lessly Holdings
+   * sat on "the carriers sent it back" for days because binding the number
+   * before the campaign cleared TCR threw, and that message was stamped as
+   * the rejection reason.
+   */
+  transient: boolean;
+  constructor(message: string, status = 400, opts: { transient?: boolean } = {}) {
     super(message);
     this.name = "LineError";
     this.status = status;
+    this.transient = opts.transient ?? false;
   }
 }
 
@@ -240,6 +250,11 @@ const CAMPAIGN_FAILED = new Set([
   "MNO_PROVISIONING_FAILED",
 ]);
 const CAMPAIGN_LIVE = new Set(["MNO_ACCEPTED", "MNO_PROVISIONED"]);
+// A number can only be bound once TCR has accepted the campaign. Binding
+// while it is still TCR_PENDING is refused ("Campaign … is still pending and
+// has not been approved yet"), and that refusal used to be recorded as the
+// registration's rejection.
+const CAMPAIGN_ASSIGNABLE = new Set(["TCR_ACCEPTED", "MNO_PENDING", ...CAMPAIGN_LIVE]);
 
 /**
  * Collapse the three Telnyx statuses into ours. Kept pure so
@@ -285,7 +300,10 @@ export function deriveRegistration(s: RegistrationSnapshot): Derived {
       next: null,
     };
   }
-  if (!s.assignmentStatus) return { status: "CAMPAIGN_PENDING", reason: null, next: "assign_number" };
+  if (!s.assignmentStatus) {
+    const assignable = s.campaignStatus ? CAMPAIGN_ASSIGNABLE.has(s.campaignStatus) : false;
+    return { status: "CAMPAIGN_PENDING", reason: null, next: assignable ? "assign_number" : null };
+  }
 
   const live = s.campaignStatus ? CAMPAIGN_LIVE.has(s.campaignStatus) : false;
   if (live && s.assignmentStatus === "ASSIGNED") return { status: "ACTIVE", reason: null, next: null };
@@ -1495,6 +1513,13 @@ async function fileFromRow(reg: RegWithCompany): Promise<MessagingRegistration> 
   } catch (err) {
     if (!(err instanceof LineError)) throw err;
     if (err.message === LINE_PAUSED_MESSAGE) throw err; // funds: the row is QUEUED / pending and the sweep retries
+    // A Telnyx hiccup after the filing went in (advance() persisted what it
+    // could and left the row pending) is retried by the sweep, never recorded
+    // as the carriers' answer.
+    if (err.transient) {
+      console.warn(`[line] stored registration for "${company.name}": transient Telnyx failure, left pending: ${err.message}`);
+      throw err;
+    }
     console.warn(`[line] stored registration for "${company.name}" rejected on filing: ${err.message}`);
     await prisma.messagingRegistration.update({
       where: { id: reg.id },
@@ -2058,7 +2083,10 @@ async function advance(
     await prisma.messagingRegistration.update({ where: { id: reg.id }, data: patch });
     if (err instanceof LineError) throw err;
     console.error(`[line] refresh failed for company ${reg.companyId}:`, err);
-    throw await lineFailure("Telnyx check failed", err, `10DLC campaign step for "${reg.company.name}"`);
+    const failure = await lineFailure("Telnyx check failed", err, `10DLC campaign step for "${reg.company.name}"`);
+    // Not a verdict: the next sweep re-reads the same objects and moves on.
+    failure.transient = true;
+    throw failure;
   }
 
   const final = deriveRegistration(snap);
@@ -2092,8 +2120,15 @@ export async function runLineRegistrationSweep(): Promise<{ checked: number; err
   const stale = new Date(Date.now() - 50 * 60_000);
   const pending = await prisma.messagingRegistration.findMany({
     where: {
-      status: { in: ["QUEUED", "BRAND_PENDING", "CAMPAIGN_PENDING"] },
-      OR: [{ lastCheckedAt: null }, { lastCheckedAt: { lt: stale } }],
+      OR: [
+        { status: { in: ["QUEUED", "BRAND_PENDING", "CAMPAIGN_PENDING"] } },
+        // A campaign-stage rejection is re-read too (refreshRegistration allows
+        // it): an appeal or edit in the Telnyx portal re-queues the campaign
+        // without telling us, and a transient error recorded as a rejection
+        // by an older build heals itself here. The GET is free.
+        { status: "REJECTED", kind: "10DLC", campaignId: { not: null } },
+      ],
+      AND: [{ OR: [{ lastCheckedAt: null }, { lastCheckedAt: { lt: stale } }] }],
     },
     select: { companyId: true },
     take: 100,
@@ -2122,7 +2157,10 @@ export async function refreshByTelnyxId(ids: { brandId?: string | null; campaign
     select: { companyId: true, lastCheckedAt: true, status: true },
   });
   if (!reg) return false;
-  if (reg.status === "ACTIVE" || reg.status === "REJECTED") return true;
+  // REJECTED is not terminal for a campaign-stage row (an appeal re-queues it
+  // in the Telnyx portal and this webhook is how we hear) — refreshRegistration
+  // decides which rejections are worth a re-read.
+  if (reg.status === "ACTIVE") return true;
   // Debounce: TCR can fire several events for one change.
   if (reg.lastCheckedAt && Date.now() - reg.lastCheckedAt.getTime() < 30_000) return true;
   try {

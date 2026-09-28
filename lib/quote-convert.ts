@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
-import { recordLeadWin, type PipelineMove } from "@/lib/pipeline";
+import { recordLeadWin, becomeClient, type PipelineMove } from "@/lib/pipeline";
 import { resolveCrew } from "@/lib/job-crew";
 
 /**
@@ -139,6 +139,8 @@ export async function convertQuoteToJob(tx: Prisma.TransactionClient, quote: Con
 
   // First real work closes the lead: active client, off the pipeline board
   const leadMove = opts.deferLeadWin ? null : await recordLeadWin(tx, companyId, quote.contact);
+  // …and turns a business connection (Clients → Contacts) into a client.
+  await becomeClient(tx, companyId, quote.contactId);
 
   return { job: created, subscriptionIds, leadMove };
 }

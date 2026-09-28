@@ -87,6 +87,16 @@ export async function PATCH(
     paymentTermsDays = n;
   }
 
+  // Client ⇄ business connection. A connection is never a lead: making one
+  // takes them off the board and out of LEAD.
+  let kind: "CLIENT" | "CONTACT" | undefined;
+  if (body.kind !== undefined) {
+    if (!["CLIENT", "CONTACT"].includes(body.kind)) {
+      return NextResponse.json({ error: "Invalid type." }, { status: 400 });
+    }
+    kind = body.kind;
+  }
+
   const opt = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
 
   // Status CHANGES keep the pipeline board consistent; an unchanged status
@@ -141,9 +151,14 @@ export async function PATCH(
       ...(body.leadSource !== undefined && { leadSource: opt(body.leadSource) }),
       ...(status !== undefined && { status }),
       ...(paymentTermsDays !== undefined && { paymentTermsDays }),
+      ...(kind !== undefined && { kind }),
       // Leaving LEAD takes the card off the board (becoming LEAD re-enters below)
       ...(statusChange === "ACTIVE" || statusChange === "ARCHIVED"
         ? { pipelineStageId: null, stageChangedAt: null }
+        : {}),
+      // A business connection is never a lead — off the board, ACTIVE unless archived.
+      ...(kind === "CONTACT"
+        ? { pipelineStageId: null, stageChangedAt: null, ...((status ?? previousStatus) === "LEAD" ? { status: "ACTIVE" as const } : {}) }
         : {}),
       ...assignment,
     },
@@ -155,7 +170,7 @@ export async function PATCH(
   else if (statusChange && previousStatus === "ARCHIVED") fireAutomations(actor.companyId, "client.reactivated", id);
   for (const fieldId of changedFieldIds) fireAutomations(actor.companyId, "client.field_changed", id, { fieldId });
 
-  if (statusChange === "LEAD") {
+  if (statusChange === "LEAD" && kind !== "CONTACT") {
     await enterPipeline(prisma, actor.companyId, id);
   }
   // A number was set or changed: unmatched calls from it now show this person's name.

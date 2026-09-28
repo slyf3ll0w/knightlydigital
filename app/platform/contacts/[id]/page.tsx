@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, canSeeMoney, contactScope, seesAllLeads, isManager } from "@/lib/permissions";
 import Link from "next/link";
 import SectionHeader from "@/components/SectionHeader";
-import { Phone, Mail, MapPin, ChevronRight, Pencil, Eye } from "lucide-react";
+import { Phone, Mail, MapPin, ChevronRight, Pencil, Eye, MessageCircle } from "lucide-react";
 import { money, shortDate, clientMessageStatus, type StatusKind } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import BackLink from "@/components/BackLink";
@@ -259,8 +259,8 @@ export default async function ContactDetailPage({
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
-        <BackLink href="/app/contacts" />
-        <ContactStatus status={contact.status} />
+        <BackLink href={contact.kind === "CONTACT" ? "/app/contacts?status=CONTACTS" : "/app/contacts"} />
+        <ContactStatus status={contact.status} kind={contact.kind} />
         {isRepeat && contact.pipelineStageId && (
           <span className="ds-chip ds-chip-primary" title="Has worked with you before">
             Repeat
@@ -337,6 +337,23 @@ export default async function ContactDetailPage({
         </div>
         <div className="flex items-center gap-2">
           {/* Phones get the 52px action circles below instead */}
+          {/* Message = the WorkBench conversation: texts from the business line
+              once texting is on (client portal + email otherwise), replies in
+              the inbox. The Text button beside it is the phone's own Messages
+              app from the tech's number. */}
+          <Link
+            prefetch={false}
+            href={`/app/messages/thread/${contact.id}`}
+            className="hidden lg:flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-[10px] transition-colors"
+            title={
+              textsReady && !contact.smsOptOut && !contact.smsDisabled
+                ? `Text ${contact.firstName} from ${fmtPhone(lineNumber!)} — replies land in Messages`
+                : `Message ${contact.firstName} — reaches their client portal and email; texts once texting is on`
+            }
+          >
+            <MessageCircle size={14} />
+            Message
+          </Link>
           {contact.phone && (
             <div className="hidden lg:flex items-center gap-2">
               <CallTextButtons phone={contact.phone} />
@@ -388,6 +405,7 @@ export default async function ContactDetailPage({
           inside the component) */}
       <JobActionRow
         phone={contact.phone}
+        messageHref={`/app/messages/thread/${contact.id}`}
         address={
           [contact.address, contact.city, contact.state, contact.zip]
             .filter(Boolean)

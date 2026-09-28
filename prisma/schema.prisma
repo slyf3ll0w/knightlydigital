@@ -712,6 +712,16 @@ enum ContactStatus {
   ARCHIVED
 }
 
+// Who the person is to the business. CLIENT = someone you do (or hope to do)
+// work for — leads and clients alike. CONTACT = a business connection kept in
+// the same book (a supplier, a sub, a referral partner, an inspector): never a
+// lead, never on the Leads board, listed under Clients → Contacts. The first
+// job created for a CONTACT makes them a CLIENT (lib/pipeline.ts becomeClient).
+enum ContactKind {
+  CLIENT
+  CONTACT
+}
+
 // ─── Lead pipeline (kanban board) ────────────────────────────────────────────
 
 // App events that can auto-advance a lead's card to a stage claiming them.
@@ -770,6 +780,7 @@ model Contact {
   zip                  String?
   notes                String?
   status               ContactStatus  @default(LEAD)
+  kind                 ContactKind    @default(CLIENT)
   leadSource           String?
   // Lead pipeline (kanban): a set stage = a card on the Leads board. LEAD
   // contacts always carry a stage; ACTIVE clients re-enter when they submit

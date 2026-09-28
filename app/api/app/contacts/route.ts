@@ -27,6 +27,11 @@ export async function GET() {
       id: true,
       firstName: true,
       lastName: true,
+      // The New-message picker searches company and phone too, and tells a
+      // business connection apart from a client.
+      companyName: true,
+      phone: true,
+      kind: true,
       address: true,
       city: true,
       state: true,
@@ -86,15 +91,20 @@ export async function POST(req: NextRequest) {
     if (target) assignedToId = target.id;
   }
 
+  // A business connection (a sub, a supplier, a referral partner) is kept in
+  // the same book but is never a lead: ACTIVE, off the board, listed under
+  // Clients → Contacts until their first job makes them a client.
+  const kind = body.kind === "CONTACT" ? ("CONTACT" as const) : ("CLIENT" as const);
   // Leads land on the pipeline board; clients created directly (status
   // ACTIVE) skip it — they're already won business, not a lead to work.
-  const status = body.status === "ACTIVE" ? ("ACTIVE" as const) : ("LEAD" as const);
+  const status = kind === "CONTACT" || body.status === "ACTIVE" ? ("ACTIVE" as const) : ("LEAD" as const);
 
   const contact = await prisma.contact.create({
     data: {
       companyId: actor.companyId,
       hubToken: randomBytes(24).toString("hex"),
       status,
+      kind,
       firstName,
       lastName,
       companyName: companyName || null,
@@ -121,8 +131,9 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // New leads go straight onto the pipeline board
-  fireAutomations(actor.companyId, status === "LEAD" ? "lead.created" : "client.created", contact.id);
+  // New leads go straight onto the pipeline board. A business connection is
+  // neither a lead nor a client yet, so no automation hears about it.
+  if (kind === "CLIENT") fireAutomations(actor.companyId, status === "LEAD" ? "lead.created" : "client.created", contact.id);
   if (status === "LEAD") await enterPipeline(prisma, actor.companyId, contact.id);
   // Calls from this number that never matched anyone are theirs now (the call log shows the name).
   await linkCallsToContact(actor.companyId, contact.id, contact.phone).catch(() => 0);

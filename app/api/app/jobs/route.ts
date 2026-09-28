@@ -3,7 +3,7 @@ import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, jobScope, contactScope } from "@/lib/permissions";
 import { findScheduleConflicts } from "@/lib/schedule-conflicts";
-import { recordLeadWin, firePipelineMoves } from "@/lib/pipeline";
+import { recordLeadWin, becomeClient, firePipelineMoves } from "@/lib/pipeline";
 import { fireAutomations } from "@/lib/automations-server";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { syncJobChecklist } from "@/lib/job-checklist";
@@ -222,6 +222,8 @@ export async function POST(req: NextRequest) {
     // First real work closes the lead: active client, off the pipeline board
     // (repeat clients on the board leave it the same way)
     const leadMove = await recordLeadWin(tx, companyId, contact);
+    // …and turns a business connection (Clients → Contacts) into a client.
+    await becomeClient(tx, companyId, contactId);
 
     return { job: created, converted, subscriptionIds, leadMove };
   }));

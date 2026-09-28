@@ -284,6 +284,20 @@ export async function recordLeadWin(
 }
 
 /**
+ * A business connection (Contact.kind CONTACT — a sub, a supplier, a referral
+ * partner) got their first job: they're a client now, in the Clients list
+ * with everyone else. Callers run it right after a job create, in the same
+ * transaction; a no-op for anyone already a CLIENT.
+ */
+export async function becomeClient(db: Db, companyId: string, contactId: string): Promise<boolean> {
+  const r = await db.contact.updateMany({
+    where: { id: contactId, companyId, kind: "CONTACT" },
+    data: { kind: "CLIENT", status: "ACTIVE" },
+  });
+  return r.count > 0;
+}
+
+/**
  * The lead didn't buy. Leads archive (restorable from Clients → Archived,
  * or by a new request resurrecting them); repeat clients just leave the
  * board and stay ACTIVE.

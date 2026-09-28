@@ -42,14 +42,22 @@ function timeLabel(iso: string): string {
   });
 }
 
+export type ThreadChannel =
+  | { kind: "sms"; from: string } // texts go out from the business line, replies land here
+  | { kind: "portal" } // client portal + email; no text (no line, not registered, no number, or opted out)
+  | { kind: "none" }; // nothing reaches them: no phone, no email
+
 export default function TeamThread({
   contactId,
   contactFirstName,
   initialMessages,
+  channel,
 }: {
   contactId: string;
   contactFirstName: string;
   initialMessages: ThreadMessage[];
+  /** How a reply reaches this client right now — the line under the composer. */
+  channel?: ThreadChannel;
 }) {
   const [messages, setMessages] = useState<ThreadMessage[]>(initialMessages);
   const [draft, setDraft] = useState("");
@@ -185,7 +193,13 @@ export default function TeamThread({
         <EmptyState
           compact
           title="No messages yet"
-          body={`Anything you send reaches ${contactFirstName} in their client portal — plus a text or email so they see it fast.`}
+          body={
+            channel?.kind === "sms"
+              ? `Your first message texts ${contactFirstName} from ${channel.from}. Their reply lands right here.`
+              : channel?.kind === "none"
+                ? `${contactFirstName} has no phone or email on file — add one so a message can reach them.`
+                : `Anything you send reaches ${contactFirstName} in their client portal — plus an email so they see it fast.`
+          }
         />
       ) : (
         <div className="space-y-3 max-h-[30rem] overflow-y-auto pr-1">
@@ -249,6 +263,15 @@ export default function TeamThread({
         </button>
       </form>
       {error && <p className="mt-2 text-sm text-[color:var(--ds-bad)]">{error}</p>}
+      {channel && !error && (
+        <p className="mt-2 text-[11px] text-gray-500">
+          {channel.kind === "sms"
+            ? `Texts ${contactFirstName} from ${channel.from} · replies land here`
+            : channel.kind === "none"
+              ? `No phone or email on file for ${contactFirstName}`
+              : `Reaches ${contactFirstName} in their client portal and by email`}
+        </p>
+      )}
     </div>
   );
 }
