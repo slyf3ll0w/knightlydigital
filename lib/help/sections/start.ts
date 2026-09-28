@@ -1,0 +1,169 @@
+import type { HelpSection } from "../types";
+
+export const startSection: HelpSection = {
+  id: "getting-started",
+  title: "Getting started",
+  icon: "start",
+  tagline: "Activate your account, set up the basics, find your way around.",
+  articles: [
+    {
+      slug: "activate-payments",
+      title: "Activate your account (business verification)",
+      summary: "The one-time verification that turns on online payments and emails to your clients.",
+      keywords: ["verify", "verification", "kyc", "finix", "underwriting", "activate", "approved", "invite code", "under review"],
+      where: { label: "Activate", href: "/app/activate" },
+      roles: "Account owner",
+      blocks: [
+        {
+          type: "p",
+          text: "Before WorkBench can take card and bank payments for you, the payment processor has to verify your business. It's a standard form, about 10 minutes, and only the **account owner** can fill it in.",
+        },
+        {
+          type: "steps",
+          items: [
+            "Open WorkBench. New accounts land on **Verify your business to activate your account**.",
+            "Press `Start verification` (or `Continue verification` to pick up where you left off).",
+            "Enter your legal business name and address, your EIN (or SSN if you're a sole proprietor), the owner's identity details, and the bank account for your payouts.",
+            "Submit. You'll see **Verification submitted — you're in**, and you can use the app right away.",
+            "Approval usually takes 1–2 business days. Until then, charging cards and sending emails to clients stay off.",
+          ],
+        },
+        {
+          type: "p",
+          text: "Check where you stand in **Settings → Payments & accounting → Online Payments**. It shows **under review**, **enabled**, or a request for more information with a `Continue application` button.",
+        },
+        {
+          type: "tip",
+          text: "Joined with an invite code? You skipped this step. Online payments show as **Coming soon** until the business is verified.",
+        },
+        {
+          type: "faq",
+          items: [
+            {
+              q: "Why can't my clients see a Pay button?",
+              a: "Online payments turn on when your business is approved. Until then the pay page says your business isn't taking online payments yet. You can still record cash, check and other payments with `Collect Payment`.",
+            },
+            {
+              q: "Emails to clients fail with \"Email isn't set up on this server yet.\"",
+              a: "Client emails switch on with approval too. In the meantime, use `Copy client link` on quotes and `Copy payment link` on invoices and send them yourself.",
+            },
+            {
+              q: "The underwriter asked for more information.",
+              a: "Press `Continue application` in the Online Payments card, answer what they asked for, and submit again.",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "first-week-setup",
+      title: "Set up WorkBench in your first week",
+      summary: "The short list that gets you from a new account to sending your first quote.",
+      keywords: ["setup", "onboarding", "checklist", "new account", "getting started", "first steps"],
+      where: { label: "Settings", href: "/app/settings" },
+      roles: "Owners and admins",
+      blocks: [
+        {
+          type: "steps",
+          items: [
+            "**Verify your business** so you can take payments. See [Activate your account](/help/activate-payments).",
+            "**Company info and timezone**: Settings → Company. The timezone decides what \"today\" means on your schedule and dashboard.",
+            "**Branding**: add your logo and colors in Settings → Branding. Clients see them on quotes, invoices and the client portal.",
+            "**Price book**: add your services and products in Settings → Services, so quotes and invoices fill themselves in.",
+            "**Bring in your clients** with a CSV. See [Import your clients](/help/import-clients).",
+            "**Add your team** and pick each person's role. See [Add team members](/help/add-team-members).",
+            "**Booking page**: share your link or put the form on your website. See [Take bookings online](/help/online-booking).",
+            "Send your first quote. See [Create and send a quote](/help/create-and-send-a-quote).",
+          ],
+        },
+        {
+          type: "tip",
+          text: "Atlas can do most of this for you. Try \"add a service called Drain cleaning for $189\" or \"build me a booking form for free estimates\".",
+        },
+      ],
+    },
+    {
+      slug: "find-your-way-around",
+      title: "Find your way around (and keyboard shortcuts)",
+      summary: "Where everything lives on desktop and on your phone, plus the shortcuts that save clicks.",
+      keywords: ["navigation", "menu", "sidebar", "more", "shortcuts", "keyboard", "command palette", "search", "cmd k", "ctrl k"],
+      blocks: [
+        {
+          type: "h",
+          text: "On a computer",
+        },
+        {
+          type: "p",
+          text: "The sidebar has Home, Schedule, Clients, Quotes, Jobs and Invoices at the top, then groups: **Work** (Leads, Requests, Estimates, Messages, Calls, Appointments, Routes, Agreements, Timesheets), **Money** (Payments, Recurring) and **Business** (Overview, Automations, Services, Booking & forms, Team & roles). You only see what your role can open.",
+        },
+        {
+          type: "h",
+          text: "On your phone",
+        },
+        {
+          type: "p",
+          text: "The tab bar has Home and Schedule. Everything else is in **More**, grouped as Clients, Selling, Field work, Money and Business. Press and hold any item for quick actions like `New …`.",
+        },
+        {
+          type: "h",
+          text: "Keyboard shortcuts",
+        },
+        {
+          type: "list",
+          items: [
+            "`⌘ K` / `Ctrl K` opens the command palette: search anything and jump to it.",
+            "`?` shows every shortcut.",
+            "`g` then a letter goes somewhere: `g` `s` Schedule, `g` `c` Clients, `g` `q` Quotes, `g` `j` Jobs, `g` `i` Invoices, `g` `l` Leads.",
+            "`n` then a letter creates something: `n` `c` client, `n` `q` quote, `n` `j` job, `n` `i` invoice, `n` `a` appointment.",
+            "On the Schedule: `T` jumps to today, `←` `→` step through days, `N` starts a new job.",
+          ],
+        },
+        {
+          type: "faq",
+          items: [
+            {
+              q: "A link sent me back to the Dashboard.",
+              a: "That page isn't open to your role. For example, techs don't see Quotes or Invoices, and Sales doesn't see Timesheets. Ask an owner or admin to change your role if you need it.",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "roles-and-permissions",
+      title: "Roles: who can see and do what",
+      summary: "Owner, Admin, Sales + Tech, Sales and Tech, and what each one can open.",
+      keywords: ["role", "permissions", "access", "owner", "admin", "tech", "technician", "sales", "can't see"],
+      where: { label: "Team & roles", href: "/app/settings/team" },
+      blocks: [
+        {
+          type: "list",
+          items: [
+            "**Owner**: everything, including managing other owners and admins.",
+            "**Admin**: everything except managing owners and admins.",
+            "**Sales + Tech**: sales and field work combined. The full job board, invoices and payments, but only the leads and clients assigned to them. No settings or team access.",
+            "**Sales**: their assigned leads, requests and quotes, and converting them to jobs. Sees invoices and payments only if **Sales can see invoices & payments** is on. Doesn't clock in.",
+            "**Tech**: their assigned jobs and schedule. No prices anywhere, and no Clients, Leads, Quotes or Invoices lists. They do see contact info for clients on their own jobs.",
+          ],
+        },
+        {
+          type: "p",
+          text: "Owners and admins are called **managers** in these guides. Managers see every lead and client. Only managers can delete, refund, charge a saved card, send payouts early, and open Expenses, Insights and QuickBooks.",
+        },
+        {
+          type: "faq",
+          items: [
+            {
+              q: "A salesperson can't find a client.",
+              a: "Sales and Sales + Tech only see clients assigned to them. Open the client as a manager and assign them to that person.",
+            },
+            {
+              q: "My tech can't see prices on a job.",
+              a: "That's on purpose. Techs never see pricing. Change their role to Sales + Tech if they need it.",
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};

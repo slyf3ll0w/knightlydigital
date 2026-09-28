@@ -41,6 +41,7 @@ const columns: {
     links: [
       { label: "Get started", href: "/apply" },
       { label: "Log in", href: "/app/login" },
+      { label: "Help Center", href: "/help" },
       { label: "Contact", href: "/contact" },
       { label: "Streamflaire", href: "https://streamflaire.com", external: true },
       { label: "Privacy", href: "/privacy" },
