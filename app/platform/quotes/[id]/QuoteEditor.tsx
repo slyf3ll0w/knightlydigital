@@ -145,11 +145,18 @@ export default function QuoteEditor({
       unitPrice: l.unitPrice.toFixed(2),
       unitCost: l.unitCost != null ? String(l.unitCost) : "",
       workItemId: l.workItemId ?? "",
+      recurringInterval: l.recurringInterval ?? null,
       isOptional: l.isOptional,
     }));
     setLineItems((prev) => [...prev.filter((li) => li.name || li.description || li.unitPrice), ...fresh]);
     if (!title && r.title) setTitle(r.title);
     if (!clientMessage && r.clientMessage) setClientMessage(r.clientMessage);
+    // the tool's discount rules → the quote's one FIXED discount (only when none is set yet)
+    if (r.discount && r.discount > 0 && discountType === "NONE") {
+      setDiscountType("FIXED");
+      setDiscountValue(r.discount.toFixed(2));
+    }
+    if (r.hours && r.hours > 0) setNotes((n) => (n ? n : `Estimated labor: ${r.hours} h${r.toolId ? " (from the estimate tool)" : ""}`));
   }
 
   // Onsite flow: the Estimate page (or a settings Try-it) stashed its result and opened us with ?fromTool=1

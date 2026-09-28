@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, isManager } from "@/lib/permissions";
-import { ESTIMATOR_SELECT, runnerEstimators } from "@/lib/estimator-server";
+import { ESTIMATOR_SELECT, loadPriceBook, missingItemsOf, runnerEstimators } from "@/lib/estimator-server";
 import { sanitizePublicConfig } from "@/lib/estimator-public";
 import { resumableBuildId } from "@/lib/estimator-build-jobs";
 import { INDUSTRIES } from "@/lib/pricebooks";
@@ -27,13 +27,14 @@ export default async function EstimatesPage({ searchParams }: { searchParams: Pr
   const manager = isManager(actor.role);
   const sp = await searchParams;
   const view: "tools" | "library" = sp.view === "library" ? "library" : "tools";
-  const [rows, company] = await Promise.all([
+  const [rows, company, book] = await Promise.all([
     prisma.estimator.findMany({
       where: { companyId: actor.companyId, ...(manager ? {} : { isActive: true }) },
       select: ESTIMATOR_SELECT,
       orderBy: [{ isActive: "desc" }, { updatedAt: "desc" }],
     }),
     prisma.company.findUnique({ where: { id: actor.companyId }, select: { slug: true, timezone: true, industry: true } }),
+    loadPriceBook(actor.companyId),
   ]);
   // a new-tool build still running (or waiting on answers) — the builder picks it up
   const resumeBuildId = manager ? await resumableBuildId(actor.companyId, null) : null;
@@ -53,6 +54,7 @@ export default async function EstimatesPage({ searchParams }: { searchParams: Pr
       submissions: row.submissions,
       sourceListingId: row.sourceListingId,
       updatedAt: row.updatedAt.toISOString(),
+      missingItems: missingItemsOf(row.spec, book),
     };
   });
 

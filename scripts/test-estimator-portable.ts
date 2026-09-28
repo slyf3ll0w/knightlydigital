@@ -4,7 +4,7 @@
  */
 import assert from "node:assert";
 import { runEstimator, specFromJson, type PriceBookEntry } from "../lib/estimator";
-import { imageIdsIn, inlinePriceRefs, listingFacts, remapImages, toPortableSpec } from "../lib/estimator-portable";
+import { imageIdsIn, inlinePriceRefs, listingFacts, remapImages, scrubCompanyName, toPortableSpec } from "../lib/estimator-portable";
 
 const book: PriceBookEntry[] = [
   { id: "wi_drive", name: "Driveway Cleaning", unitPrice: 0.3, unitCost: 0.1 },
@@ -66,3 +66,35 @@ const stories = remapped.inputs[2];
 assert.ok(stories.type === "select" && stories.options[0].image === "/api/estimate-images/img_option_1", "unmapped ids keep their URL");
 
 console.log("estimator-portable: all tests passed");
+
+// Batch 14: discounts / hours / cost travel with the spec; an anonymous listing loses the company's name
+{
+  const withDiscount = {
+    ...raw,
+    lines: [{ name: "Driveway", description: "Pressure wash of the driveway", quantity: "sqft", workItemName: "Driveway Cleaning", hours: "sqft / 500", unitCost: "cost(\"Driveway Cleaning\")" }],
+    discounts: [{ label: "Bundle discount", when: "seal", percent: "10" }, { label: "Trip fee waived", amount: "price(\"Trip Fee\")" }],
+  };
+  const p = toPortableSpec(specFromJson(withDiscount)!, book);
+  assert.ok(p.ok, JSON.stringify(p));
+  if (p.ok) {
+    assert.equal(p.spec.discounts?.length, 2);
+    assert.equal(p.spec.discounts?.[1].amount, "49", "price() inside a discount becomes a literal");
+    assert.equal(p.spec.lines[0].unitCost, "0.1", "cost() inside unitCost becomes a literal");
+    assert.equal(p.spec.lines[0].hours, "sqft / 500");
+    const r = runEstimator(p.spec, { sqft: 1000, seal: true, stories: "1" }, []);
+    assert.ok(r.ok && r.discount === 30 + 49 && r.hours === 2 && r.cost === 100, JSON.stringify(r));
+  }
+  const named = specFromJson({
+    ...raw,
+    intro: "Lessly Holdings LLC prices every driveway the same way.",
+    clientMessage: "Thanks for choosing Lessly Holdings! Lessly's crew will confirm on site.",
+    lines: [{ name: "Lessly Holdings wash", description: "The Lessly Holdings signature wash", quantity: "sqft", unitPrice: "0.3" }],
+  })!;
+  const scrubbed = scrubCompanyName(named, "Lessly Holdings LLC");
+  assert.equal(scrubbed.intro, "our team prices every driveway the same way.");
+  assert.equal(scrubbed.clientMessage, "Thanks for choosing our team! Lessly's crew will confirm on site.", "only the company name goes, not every surname");
+  assert.equal(scrubbed.lines[0].name, "our team wash");
+  assert.equal(scrubbed.lines[0].description, "The our team signature wash");
+  assert.deepEqual(scrubCompanyName(named, "AB"), named, "a two-letter name is left alone");
+}
+console.log("estimator-portable: batch 14 ok");

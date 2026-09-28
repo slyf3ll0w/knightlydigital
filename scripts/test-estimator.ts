@@ -157,7 +157,7 @@ console.log("ok 3: compile happy path");
   if (r.ok) {
     assert.equal(r.lines[0].quantity, 1, "fractional quantity folds to one unit");
     assert.equal(r.lines[0].unitPrice, 237.5);
-    assert.equal(r.lines[0].description, "2.5 × $95.00");
+    assert.equal(r.lines[0].description, "2.5 at $95.00 each");
   }
 }
 console.log("ok 4: run");
@@ -649,4 +649,89 @@ console.log("ok 14: explainRun price drivers");
   assert.equal((preferMapInput(bare, "length") as { inputs: { type: string }[] }).inputs[0].type, "map");
 }
 console.log("ok 15: preferMapInput for map-first trades");
+console.log("\nestimator: all green");
+
+// 16. Batch 14: choice answers add, yes/no words are falsy, discounts, hours, cost, the minimum with only add-ons
+{
+  assert.equal(ev("beds + baths", { beds: "3", baths: "2" }), 5, "two numeric choice answers ADD");
+  assert.equal(ev("(beds + baths) * 50", { beds: "3", baths: "2" }), 250);
+  assert.equal(ev("'Deck' + ' wash'"), "Deck wash", "words still join");
+  assert.equal(ev("gate ? 1 : 0", { gate: "no" }), 0, "a 'no' answer is false");
+  assert.equal(ev("gate ? 1 : 0", { gate: "yes" }), 1);
+  assert.equal(ev("gate ? 1 : 0", { gate: "None" }), 0);
+  assert.equal(ev("notes ? 1 : 0", { notes: "please call first" }), 1);
+
+  const spec = {
+    inputs: [
+      { id: "sqft", label: "Size", type: "number", unit: "sq ft" },
+      { id: "extras", label: "Extras", type: "multi", options: ["Gutters", "Fence"] },
+      { id: "cash", label: "Paying cash", type: "toggle" },
+    ],
+    lines: [
+      { name: "Wash", description: "Soft wash of the house", quantity: "sqft", unitPrice: "0.25", hours: "sqft / 500", unitCost: "0.05" },
+      { name: "Gutters", description: "Gutter clean-out", when: "has(extras, 'Gutters')", quantity: "1", unitPrice: "120", hours: "1", workItemName: "Driveway Cleaning" },
+      { name: "Sealant", description: "Two-year sealer", quantity: "sqft", unitPrice: "0.45", isOptional: true, hours: "3" },
+    ],
+    discounts: [
+      { label: "Bundle discount", when: "count(extras) >= 1", percent: "10" },
+      { label: "Cash discount", when: "cash", amount: "25" },
+    ],
+    minimumTotal: 150,
+    quoteTitle: "Wash — {quote_total|money} · {labor_hours} h",
+  };
+  const c = compileSpec(spec);
+  assert.ok(c.ok, JSON.stringify(c));
+  if (c.ok) {
+    assert.equal(c.compiled.spec.discounts?.length, 2);
+    const r = runEstimator(spec, { sqft: 1000, extras: ["Gutters"], cash: true }, book);
+    assert.ok(r.ok, JSON.stringify(r));
+    if (r.ok) {
+      assert.equal(r.subtotal, 370, "non-optional lines: 250 + 120");
+      assert.deepEqual(r.discounts, [{ label: "Bundle discount", amount: 37 }, { label: "Cash discount", amount: 25 }]);
+      assert.equal(r.discount, 62);
+      assert.equal(r.total, 308);
+      assert.equal(r.hours, 3, "2 h wash + 1 h gutters; optional sealant not counted");
+      assert.equal(r.cost, 1000 * 0.05 + 30, "line cost + the linked item's cost");
+      assert.equal(r.lines[1].unitCost, 30, "linked line inherits the item's cost");
+      assert.equal(r.title, "Wash — $308.00 · 3 h");
+    }
+    // no discount applies → total = subtotal; the discount never exceeds the subtotal
+    const r2 = runEstimator(spec, { sqft: 100, extras: [], cash: false }, book);
+    assert.ok(r2.ok && r2.discount === 0 && r2.total === r2.subtotal && r2.subtotal === 150);
+    const big = runEstimator({ ...spec, discounts: [{ label: "Everything off", amount: "9999" }] }, { sqft: 1000, extras: [], cash: false }, book);
+    assert.ok(big.ok && big.discount === 250 && big.total === 0);
+    // a variant / explain run prices the AFTER-discount total
+    const vr = runVariants(c.compiled, { sqft: 1000, extras: ["Gutters"], cash: false }, book, { input: "extras", values: ["Gutters", "Fence"] });
+    assert.equal(vr.Gutters, 333, "370 − 10%");
+  }
+  // a job of only optional add-ons gets no minimum top-up
+  const onlyOpt = runEstimator({ inputs: [{ id: "sqft", label: "Size", type: "number" }], lines: [{ name: "Sealant", description: "x", quantity: "sqft", unitPrice: "0.5", isOptional: true }], minimumTotal: 150 }, { sqft: 100 }, book);
+  assert.ok(onlyOpt.ok && onlyOpt.lines.length === 1 && onlyOpt.subtotal === 0);
+  // a linked line with no description reads the item's own
+  const inherit = runEstimator({ inputs: [{ id: "n", label: "N", type: "number" }], lines: [{ name: "Wash", quantity: "n", workItemName: "House Washing" }] }, { n: 1 }, [{ ...book[0], description: "Soft wash of the whole exterior" }]);
+  assert.ok(inherit.ok && inherit.lines[0].description === "Soft wash of the whole exterior");
+  // a recurring item marks the line
+  const rec = runEstimator({ inputs: [{ id: "n", label: "N", type: "number" }], lines: [{ name: "Mow", description: "Weekly mow", quantity: "n", workItemName: "House Washing" }] }, { n: 1 }, [{ ...book[0], recurringInterval: "MONTHLY" }]);
+  assert.ok(rec.ok && rec.lines[0].recurringInterval === "MONTHLY");
+  // input problems are flagged as such; a missing price-book item is not
+  const bad = runEstimator(spec, { sqft: "abc" }, book);
+  assert.ok(!bad.ok && bad.inputProblems === true);
+  const missing = runEstimator(spec, { sqft: 1000, extras: ["Gutters"] }, []);
+  assert.ok(!missing.ok && missing.inputProblems === undefined);
+  // compile rejects a discount with neither percent nor amount, or both
+  const dc = compileSpec({ ...spec, discounts: [{ label: "x" }] });
+  assert.ok(!dc.ok && dc.errors.some((e) => /percent/.test(e)));
+  const dc2 = compileSpec({ ...spec, discounts: [{ label: "x", percent: "5", amount: "5" }] });
+  assert.ok(!dc2.ok);
+  // the audit warns about formula-shaped descriptions
+  const mathy = compileSpec({ ...spec, lines: [{ name: "Wash", description: "{sqft} sq ft at {rate|money}/sq ft", quantity: "sqft", unitPrice: "0.25" }], variables: [{ id: "rate", expr: "0.25" }], samples: [{ label: "Small", inputs: { sqft: 200 } }, { label: "Large", inputs: { sqft: 2000 } }] });
+  assert.ok(mathy.ok);
+  if (mathy.ok) assert.ok(auditSpec(mathy.compiled, book).warnings.some((w) => /reads like the formula/.test(w)));
+  // change descriptions cover discounts and hours
+  if (c.ok) {
+    const changed = describeSpecChanges(c.compiled.spec, { ...c.compiled.spec, discounts: [c.compiled.spec.discounts![0]], lines: c.compiled.spec.lines.map((l, i) => (i === 0 ? { ...l, hours: "sqft / 400" } : l)) });
+    assert.ok(changed.some((x) => /Removed discount "Cash discount"/.test(x)) && changed.some((x) => /Labor hours for "Wash"/.test(x)), changed.join(" | "));
+  }
+}
+console.log("ok 16: choice arithmetic, yes/no words, discounts, hours, cost");
 console.log("\nestimator: all green");

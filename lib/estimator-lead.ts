@@ -9,6 +9,7 @@ import { notifyUsers, requestNotifyUserIds } from "./push";
 import { companyNotifyAddress } from "./notify";
 import { sendEmail, newRequestEmail, quoteLinkEmail } from "./email";
 import { derivedQuoteDeposit } from "./statuses";
+import { computeQuoteTotals } from "./quote-totals";
 import type { EstimatorRun } from "./estimator";
 import type { PublicEstimator } from "./estimator-server";
 import { estimateLabel, shapeEstimate, type PublicEstimate } from "./estimator-public";
@@ -46,6 +47,8 @@ export type EstimateLeadInput = {
   src?: string;
   /** The visitor used the photo fill-in — worth knowing when reading the answers */
   usedPhoto?: boolean;
+  /** The service address is outside the company's service ZIPs (form option): request only, no quote, marked on the request */
+  outOfArea?: boolean;
 };
 
 export type EstimateLeadResult = {
@@ -56,16 +59,37 @@ export type EstimateLeadResult = {
   estimate: PublicEstimate;
 };
 
+/** The team's push for a new web lead: tap-through to the request, plus Call / Text buttons where the platform renders them. */
+export function webLeadPushPayload(input: { contactId: string; contactName: string; requestId: string; title: string; shown: string; phone: string }) {
+  return {
+    title: `New estimate request from ${input.contactName}`,
+    body: `${input.title}${input.shown ? ` — ${input.shown}` : ""}`,
+    url: `/app/requests/${input.requestId}`,
+    tag: `request-${input.requestId}`,
+    ...(input.phone
+      ? {
+          actions: [
+            { action: "call", title: "Call", url: `/app/calls?contact=${input.contactId}` },
+            { action: "text", title: "Text", url: `/app/messages/thread/${input.contactId}` },
+          ],
+        }
+      : {}),
+  };
+}
+
 const cents = (x: number) => Math.round((x + Number.EPSILON) * 100) / 100;
 
 export async function createEstimateLead(input: EstimateLeadInput): Promise<EstimateLeadResult> {
-  const { pub, result, answers, customer, page, src, usedPhoto } = input;
+  const { pub, result, answers, customer, page, src, usedPhoto, outOfArea = false } = input;
   const { company, row, spec, config } = pub;
-  const send = config.onSubmit === "send";
-  const makeQuote = config.onSubmit !== "request";
+  // Out of the service area: the lead lands as a request only — no quote for work the business won't do there
+  const send = config.onSubmit === "send" && !outOfArea;
+  const makeQuote = config.onSubmit !== "request" && !outOfArea;
   const title = (result.title || row.name).slice(0, 200);
   const estimate = shapeEstimate(result, config, spec.minimumTotal);
   const shown = estimateLabel(estimate);
+  // Tool prices are pre-tax; the quote adds the company's sales tax like the quote editor does
+  const taxRate = company.defaultTaxRate === null || company.defaultTaxRate === undefined ? null : Number(company.defaultTaxRate) || null;
 
   const out = await withDocNumberRetry(() =>
     prisma.$transaction(async (tx) => {
@@ -93,6 +117,9 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
         const wiById = new Map(wi.map((w) => [w.id, w] as const));
         // App convention (POST /api/app/quotes): the subtotal counts every line, optional ones included
         const subtotal = cents(result.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0));
+        // The tool's discount rules become the quote's one FIXED discount (off the subtotal before tax)
+        const discountValue = result.discount > 0 ? Math.min(result.discount, subtotal) : 0;
+        const totals = computeQuoteTotals({ subtotal, discountType: discountValue > 0 ? "FIXED" : "NONE", discountValue, taxRate });
         const deposit = derivedQuoteDeposit(
           result.lines.map((l) => {
             const w = l.workItemId ? wiById.get(l.workItemId) : undefined;
@@ -115,10 +142,16 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
             title,
             status: send ? "AWAITING_RESPONSE" : "DRAFT",
             subtotal,
-            total: subtotal,
+            discountType: discountValue > 0 ? "FIXED" : "NONE",
+            discountValue: discountValue > 0 ? discountValue : null,
+            discount: totals.discount > 0 ? totals.discount : null,
+            taxRate,
+            tax: totals.tax,
+            total: cents(totals.total),
             depositType: deposit > 0 ? "FIXED" : "NONE",
             depositValue: deposit > 0 ? deposit : null,
             clientMessage: result.clientMessage?.slice(0, 2000) || null,
+            notes: result.hours > 0 ? `Estimated labor: ${result.hours} h (from the ${row.name} tool)` : null,
             sentAt: send ? new Date() : null,
             lineItems: {
               create: result.lines.map((l, i) => {
@@ -141,7 +174,7 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
           },
           select: { id: true, quoteNumber: true, publicToken: true },
         });
-        quote = { ...created, total: subtotal, deposit };
+        quote = { ...created, total: cents(totals.total), deposit };
       }
 
       const last = await tx.request.findFirst({ where: { companyId: company.id }, orderBy: { requestNumber: "desc" }, select: { requestNumber: true } });
@@ -154,11 +187,13 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
           details: [
             customer.message ? `Message: ${customer.message}` : null,
             answers.length ? `Answers:\n${answers.map((a) => `  • ${a}`).join("\n")}` : null,
-            `Estimate: $${result.subtotal.toFixed(2)}${
+            `Estimate: $${result.total.toFixed(2)}${result.discount > 0 ? ` after ${result.discounts.map((d) => `${d.label} −$${d.amount.toFixed(2)}`).join(", ")}` : ""}${
               config.showPrice === "hidden" ? " (not shown to the client)" : config.showPrice === "range" ? ` (shown as ${shown})` : " (shown to the client)"
-            }`,
+            }${taxRate ? ", before tax" : ""}`,
+            result.hours > 0 ? `Estimated labor: ${result.hours} h` : null,
             quote ? `Quote #${quote.quoteNumber} created automatically (${send ? "sent for approval" : "draft"})${quote.deposit > 0 ? ` — deposit $${quote.deposit.toFixed(2)}` : ""}.` : null,
-            customer.address ? `Address: ${customer.address}` : null,
+            outOfArea ? `Outside your service area — ${customer.address ? `the address ${customer.address} ` : ""}isn't in your service ZIPs. No quote was created.` : null,
+            customer.address && !outOfArea ? `Address: ${customer.address}` : null,
             usedPhoto ? "Answers were filled in from a photo the visitor attached — double-check them." : null,
             src ? `From link: ${src}` : null,
             page ? `From page: ${page}` : null,
@@ -192,12 +227,10 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
 
   const contactName = `${customer.firstName} ${customer.lastName}`.trim();
   try {
-    await notifyUsers(await requestNotifyUserIds(company.id, out.contact.assignedToId), {
-      title: `New estimate request from ${contactName}`,
-      body: `${out.request.title}${shown ? ` — ${shown}` : ""}`,
-      url: `/app/requests/${out.request.id}`,
-      tag: `request-${out.request.id}`,
-    });
+    await notifyUsers(
+      await requestNotifyUserIds(company.id, out.contact.assignedToId),
+      webLeadPushPayload({ contactId: out.contact.id, contactName, requestId: out.request.id, title: out.request.title, shown: outOfArea ? "outside your service area" : shown, phone: customer.phone })
+    );
   } catch (err) {
     console.error("[estimate-form] push failed:", err);
   }

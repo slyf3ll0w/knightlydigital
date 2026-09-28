@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager } from "@/lib/permissions";
 import { ESTIMATOR_LIMITS, specFromJson } from "@/lib/estimator";
-import { checkSpec, ESTIMATOR_SELECT, estimatorSummary, publicSlugTaken, snapshotEstimator } from "@/lib/estimator-server";
+import { checkSpec, ESTIMATOR_SELECT, estimatorSummary, loadPriceBook, missingItemsOf, publicSlugTaken, snapshotEstimator } from "@/lib/estimator-server";
 import { publicSlugFrom, sanitizePublicConfig } from "@/lib/estimator-public";
 
 /**
@@ -20,11 +20,14 @@ export async function GET() {
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const manager = isManager(actor.role);
-  const rows = await prisma.estimator.findMany({
-    where: { companyId: actor.companyId, ...(manager ? {} : { isActive: true }) },
-    select: ESTIMATOR_SELECT,
-    orderBy: [{ isActive: "desc" }, { name: "asc" }],
-  });
+  const [rows, book] = await Promise.all([
+    prisma.estimator.findMany({
+      where: { companyId: actor.companyId, ...(manager ? {} : { isActive: true }) },
+      select: ESTIMATOR_SELECT,
+      orderBy: [{ isActive: "desc" }, { name: "asc" }],
+    }),
+    loadPriceBook(actor.companyId),
+  ]);
   const out: Record<string, unknown>[] = [];
   for (const r of rows) {
     const spec = specFromJson(r.spec);
@@ -32,7 +35,9 @@ export async function GET() {
       if (manager) out.push(estimatorBroken(r));
       continue;
     }
-    out.push({ ...estimatorSummary(r, spec), spec });
+    // price-book items the rules name that are gone — the tool can't run until they're back
+    const missingItems = missingItemsOf(r.spec, book);
+    out.push({ ...estimatorSummary(r, spec), spec, ...(missingItems.length > 0 ? { missingItems } : {}) });
   }
   return NextResponse.json(out);
 }

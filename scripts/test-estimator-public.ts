@@ -16,6 +16,9 @@ import {
   defaultButtonLabel,
   defaultSuccessMessage,
   shapeVariants,
+  taxNoteFor,
+  zipOf,
+  outOfServiceArea,
 } from "../lib/estimator-public";
 
 // 1. defaults + sanitize
@@ -186,3 +189,49 @@ console.log("ok 8: shapeVariants + groups");
   assert.equal(describePublicConfig(d).length, 3);
 }
 console.log("ok 9: details-first forms");
+
+// 10. Batch 14: the after-discount total, the tax note, the service-area check
+{
+  const lines = [
+    { name: "Wash", description: "Soft wash", quantity: 1000, unitPrice: 0.25, isOptional: false, recurringInterval: "MONTHLY" },
+    { name: "Sealant", description: "Sealer", quantity: 1000, unitPrice: 0.45, isOptional: true },
+  ];
+  const exact = shapeEstimate({ lines, subtotal: 250, discount: 25, discounts: [{ label: "Cash discount", amount: 25 }], total: 225 }, { showPrice: "exact", rangePct: 15 });
+  assert.ok(exact.mode === "exact");
+  if (exact.mode === "exact") {
+    assert.equal(exact.subtotal, 250);
+    assert.equal(exact.discount, 25);
+    assert.equal(exact.total, 225, "the visitor's number is after the discount");
+    assert.deepEqual(exact.discounts, [{ label: "Cash discount", amount: 25 }]);
+    assert.equal(exact.lines[0].recurringInterval, "MONTHLY", "recurring lines are labelled for the visitor");
+    assert.equal(estimateLabel(exact), "$225.00");
+  }
+  // an old-shaped result (no total) still works
+  const legacy = shapeEstimate({ lines, subtotal: 250 }, { showPrice: "exact", rangePct: 15 });
+  assert.ok(legacy.mode === "exact" && legacy.total === 250 && legacy.discount === 0);
+  // a range is built from the after-discount total
+  const range = shapeEstimate({ lines, subtotal: 1000, total: 900 }, { showPrice: "range", rangePct: 10 });
+  assert.ok(range.mode === "range" && range.low === 800 && range.high === 1000, JSON.stringify(range)); // 810 / 990 rounded to the $25 step
+
+  assert.equal(taxNoteFor(0.0825), "Before sales tax (8.25%).");
+  assert.equal(taxNoteFor(0.08), "Before sales tax (8%).");
+  assert.equal(taxNoteFor(null), "");
+  assert.equal(taxNoteFor(0), "");
+
+  assert.equal(zipOf("123 Main St, Dallas, TX 75201"), "75201");
+  assert.equal(zipOf("123 Main St, Dallas, TX 75201-1234"), "75201");
+  assert.equal(zipOf("12345 Long Rd, Allen TX 75013"), "75013", "the street number isn't mistaken for the ZIP");
+  assert.equal(zipOf("no zip here"), null);
+  const on = { serviceArea: true };
+  assert.equal(outOfServiceArea(on, ["75013", "75002"], "1 Elm St, Allen, TX 75013"), false);
+  assert.equal(outOfServiceArea(on, ["75013", "75002"], "1 Elm St, Dallas, TX 75201"), true);
+  assert.equal(outOfServiceArea(on, ["75013"], "1 Elm St, Dallas"), false, "no ZIP typed → not decided");
+  assert.equal(outOfServiceArea(on, [], "1 Elm St, Dallas, TX 75201"), false, "no ZIPs set → never out of area");
+  assert.equal(outOfServiceArea({ serviceArea: false }, ["75013"], "1 Elm St, Dallas, TX 75201"), false);
+  const cfg = sanitizePublicConfig({ serviceArea: true, outOfAreaMessage: "Sorry — not yet." });
+  assert.equal(cfg.serviceArea, true);
+  assert.equal(cfg.outOfAreaMessage, "Sorry — not yet.");
+  assert.equal(sanitizePublicConfig(null).serviceArea, false);
+  assert.match(describePublicConfig(cfg).join(" "), /outside your service ZIPs/);
+}
+console.log("ok 10: after-discount total, tax note, service area");

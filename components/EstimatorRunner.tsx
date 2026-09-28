@@ -47,11 +47,27 @@ export type EstimatorApply = {
   lines: EstimatorResultLine[];
   title?: string;
   clientMessage?: string;
+  /** The tool's discount rules that applied, added up — the quote's FIXED discount */
+  discount?: number;
+  discountLabel?: string;
+  /** Labor hours across the lines — lands in the quote's internal notes */
+  hours?: number;
   /** The saved tool the lines came from (absent for unsaved previews) — stamped on the quote */
   toolId?: string;
 };
 
-type RunOk = { ok: true; lines: EstimatorResultLine[]; subtotal: number; title?: string; clientMessage?: string; warnings: string[]; drivers?: PriceDriver[] };
+type RunOk = { ok: true; lines: EstimatorResultLine[]; subtotal: number; discount: number; discounts: { label: string; amount: number }[]; total: number; hours: number; cost: number | null; title?: string; clientMessage?: string; warnings: string[]; drivers?: PriceDriver[] };
+
+/** What the result carries onto a quote (Add to quote / Create quote). */
+function applyPayload(result: RunOk): Omit<EstimatorApply, "toolId"> {
+  return {
+    lines: result.lines,
+    title: result.title,
+    clientMessage: result.clientMessage,
+    ...(result.discount > 0 ? { discount: result.discount, discountLabel: result.discounts.map((d) => d.label).join(" + ") } : {}),
+    ...(result.hours > 0 ? { hours: result.hours } : {}),
+  };
+}
 type RunReply = Partial<RunOk> & { ok?: boolean; error?: string; errors?: string[]; variants?: Record<string, number | null> };
 type FormValues = Record<string, FormValue>;
 
@@ -115,6 +131,7 @@ export function EstimatorRunnerPanel({
   allowQuote = true,
   closeLabel = "Cancel",
   showSamples = false,
+  showMargin = showSamples,
   inline = false,
 }: {
   estimators: RunnerEstimator[];
@@ -127,6 +144,8 @@ export function EstimatorRunnerPanel({
   closeLabel?: string;
   /** Offer the tool's built-in sample jobs as one-tap fills (owners trying a tool). */
   showSamples?: boolean;
+  /** Show the business's cost and margin under the result (managers; defaults to showSamples). */
+  showMargin?: boolean;
   /** Rendered in a page, not a dialog: no close button, the page scrolls. */
   inline?: boolean;
 }) {
@@ -173,7 +192,7 @@ export function EstimatorRunnerPanel({
       const variants = packageInput && packageInput.type === "select" ? { input: packageInput.id, values: packageInput.options.map((o) => o.value) } : undefined;
       const { data } = await runRequest(tool, values, true, variants);
       if (cancelled) return;
-      setLive(data && data.ok && typeof data.subtotal === "number" ? data.subtotal : null);
+      setLive(data && data.ok && typeof data.total === "number" ? data.total : data && data.ok && typeof data.subtotal === "number" ? data.subtotal : null);
       if (variants && data?.variants) {
         const out: Record<string, string | null> = {};
         for (const [k, v] of Object.entries(data.variants)) out[k] = v === null ? null : moneyExact(v);
@@ -270,14 +289,14 @@ export function EstimatorRunnerPanel({
 
   function apply() {
     if (!result) return;
-    onApply?.({ lines: result.lines, title: result.title, clientMessage: result.clientMessage, ...(tool && !tool.preview ? { toolId: tool.id } : {}) });
+    onApply?.({ ...applyPayload(result), ...(tool && !tool.preview ? { toolId: tool.id } : {}) });
     onClose();
   }
 
   function startQuote() {
     if (!result || !tool) return;
     setStarting(true);
-    stashEstimateDraft({ lines: result.lines, title: result.title, clientMessage: result.clientMessage, toolName: tool.name, toolId: tool.id });
+    stashEstimateDraft({ ...applyPayload(result), toolName: tool.name, toolId: tool.id });
     router.push("/app/quotes/new?fromTool=1");
   }
 
@@ -441,7 +460,7 @@ export function EstimatorRunnerPanel({
       {/* step 3: result */}
       {result && tool && (
         <div className="space-y-4">
-          <PriceHero theme={theme} label="Your estimate" amount={result.subtotal} sub={result.title} />
+          <PriceHero theme={theme} label="Your estimate" amount={result.total} sub={result.title} />
           {included && (
             <div className="rounded-xl border border-gray-200 p-4">
               <p className="text-xs font-semibold text-gray-500">{included.tier} includes</p>
@@ -455,7 +474,25 @@ export function EstimatorRunnerPanel({
               </ul>
             </div>
           )}
-          <Breakdown theme={theme} lines={result.lines} subtotal={result.subtotal} />
+          <Breakdown theme={theme} lines={result.lines} subtotal={result.subtotal} discounts={result.discounts} total={result.total} />
+          {(result.hours > 0 || (showMargin && result.cost !== null)) && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-gray-200 px-4 py-2.5 text-xs text-gray-600">
+              {result.hours > 0 && (
+                <span>
+                  About <span className="font-semibold text-gray-900">{result.hours} h</span> of work
+                </span>
+              )}
+              {showMargin && result.cost !== null && (
+                <span>
+                  Your cost <span className="font-semibold text-gray-900">{moneyExact(result.cost)}</span> · margin{" "}
+                  <span className={`font-semibold ${result.total - result.cost < 0 ? "text-[color:var(--ds-bad)]" : "text-gray-900"}`}>
+                    {moneyExact(result.total - result.cost)}
+                    {result.total > 0 ? ` (${Math.round(((result.total - result.cost) / result.total) * 100)}%)` : ""}
+                  </span>
+                </span>
+              )}
+            </div>
+          )}
           {result.drivers && result.drivers.length > 0 && (
             <div className="rounded-xl border border-gray-200 p-4">
               <p className="text-xs font-semibold text-gray-500">What moves this price</p>

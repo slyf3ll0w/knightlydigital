@@ -3,10 +3,11 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, isManager, viaContactScope } from "@/lib/permissions";
-import { ESTIMATOR_SELECT } from "@/lib/estimator-server";
+import { ESTIMATOR_SELECT, loadPriceBook, missingItemsOf } from "@/lib/estimator-server";
 import { specFromJson } from "@/lib/estimator";
 import { sanitizePublicConfig } from "@/lib/estimator-public";
 import { resumableBuildId } from "@/lib/estimator-build-jobs";
+import { loadToolStats } from "@/lib/estimator-context";
 import { Suspense } from "react";
 import ToolClient, { type LeadRow } from "./ToolClient";
 
@@ -38,15 +39,16 @@ export default async function ToolPage({ params, searchParams }: { params: Promi
   const manager = isManager(actor.role);
   const { id } = await params;
   const sp = await searchParams;
-  const [row, company] = await Promise.all([
+  const [row, company, book] = await Promise.all([
     prisma.estimator.findFirst({ where: { id, companyId: actor.companyId, ...(manager ? {} : { isActive: true }) }, select: ESTIMATOR_SELECT }),
-    prisma.company.findUnique({ where: { id: actor.companyId }, select: { slug: true, name: true, industry: true, timezone: true } }),
+    prisma.company.findUnique({ where: { id: actor.companyId }, select: { slug: true, name: true, industry: true, timezone: true, serviceZips: true, defaultTaxRate: true } }),
+    loadPriceBook(actor.companyId),
   ]);
   if (!row) notFound();
   const spec = specFromJson(row.spec);
   const scope = viaContactScope(actor);
   // who used it: website leads (requests) and quotes started from an in-app run
-  const [resumeBuildId, requests, quotes] = await Promise.all([
+  const [resumeBuildId, requests, quotes, stats] = await Promise.all([
     // an Atlas change to this tool still running (or waiting on answers)
     manager ? resumableBuildId(actor.companyId, row.id) : Promise.resolve(null),
     prisma.request.findMany({
@@ -77,6 +79,7 @@ export default async function ToolPage({ params, searchParams }: { params: Promi
         contact: { select: { firstName: true, lastName: true, companyName: true } },
       },
     }),
+    loadToolStats(actor.companyId, row.id),
   ]);
   const leads: LeadRow[] = [
     ...requests.map((r) => ({
@@ -120,6 +123,10 @@ export default async function ToolPage({ params, searchParams }: { params: Promi
         baseUrl={baseUrl}
         tz={company?.timezone ?? "America/Chicago"}
         leads={leads}
+        stats={stats}
+        missingItems={missingItemsOf(row.spec, book)}
+        hasServiceZips={(company?.serviceZips?.length ?? 0) > 0}
+        taxRate={company?.defaultTaxRate === null || company?.defaultTaxRate === undefined ? null : Number(company.defaultTaxRate)}
         initialSection={typeof sp.s === "string" ? sp.s : undefined}
         initialPrompt={manager && typeof sp.prompt === "string" ? sp.prompt.slice(0, 4000) : ""}
         resumeBuildId={resumeBuildId}

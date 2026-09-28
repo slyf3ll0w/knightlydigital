@@ -6,7 +6,8 @@ import { Input, Select, Textarea } from "@/components/Input";
 import { useAssistant } from "@/components/AssistantContext";
 import { InfoTip } from "@/components/ds";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
-import { PUBLIC_LIMITS, PUBLIC_PHOTO_ASSIST_DAILY_CAP, publicSlugFrom, type EstimatorPublicConfig } from "@/lib/estimator-public";
+import { DEFAULT_OUT_OF_AREA, PUBLIC_LIMITS, PUBLIC_PHOTO_ASSIST_DAILY_CAP, publicSlugFrom, taxNoteFor, type EstimatorPublicConfig } from "@/lib/estimator-public";
+import { confirmGuessedRates } from "@/components/RatesToConfirm";
 
 /**
  * A tool's Web form section. One switch publishes it (saved on the spot) and
@@ -32,7 +33,10 @@ export type PublishTool = {
 
 type Saved = { isPublic?: boolean; publicSlug?: string | null; publicConfig?: unknown; error?: string };
 
-export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDirty, initialOptionsOpen = false }: { tool: PublishTool; companySlug: string; baseUrl: string; onSaved: (t: Saved) => void; /** Tells the page there are unsaved options (it asks before leaving / switching sections). */ onDirty?: (dirty: boolean) => void; initialOptionsOpen?: boolean }) {
+/** The follow-up automation's name — one per company; a second tap finds it already there (409). */
+const FOLLOW_UP_NAME = "Web estimate follow-up";
+
+export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDirty, initialOptionsOpen = false, placeholders = [], hasServiceZips = false, taxRate = null }: { tool: PublishTool; companySlug: string; baseUrl: string; onSaved: (t: Saved) => void; /** Tells the page there are unsaved options (it asks before leaving / switching sections). */ onDirty?: (dirty: boolean) => void; initialOptionsOpen?: boolean; /** Rates Atlas guessed (spec.placeholders) — publishing asks first */ placeholders?: string[]; /** The company has service ZIPs, so the address check can be offered */ hasServiceZips?: boolean; /** Company sales tax on quotes; the form says prices are before it */ taxRate?: number | null }) {
   const atlas = useAssistant();
   const [slug, setSlug] = useState(tool.publicSlug ?? publicSlugFrom(tool.name));
   const [cfg, setCfg] = useState<EstimatorPublicConfig>(tool.publicConfig);
@@ -41,6 +45,9 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
   const [copied, setCopied] = useState<string | null>(null);
   const [options, setOptions] = useState(initialOptionsOpen);
   const [saved, setSaved] = useState(false);
+  // the one-tap follow-up automation (email an hour after a web estimate + remind the team)
+  const [followUp, setFollowUp] = useState<"idle" | "busy" | "done" | "exists">("idle");
+  const [followUpError, setFollowUpError] = useState("");
 
   useEffect(() => {
     setSlug(tool.publicSlug ?? publicSlugFrom(tool.name));
@@ -91,6 +98,31 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
     return true;
   }
 
+  async function setUpFollowUp() {
+    setFollowUp("busy");
+    setFollowUpError("");
+    const { ok, data, status } = await postJson<{ id?: string; error?: string }>("/api/app/automations", {
+      name: FOLLOW_UP_NAME,
+      description: "An hour after someone gets an estimate on the website, email them a nudge and remind the team to call.",
+      spec: {
+        version: 2,
+        trigger: { event: "request.created" },
+        steps: [
+          { type: "filter", match: "all", rules: [{ field: "request_source", op: "eq", value: "estimate_form" }] },
+          { type: "wait", amount: 1, unit: "hours" },
+          { type: "email_client", subject: "Your estimate from {company_name}", body: "Hi {client_first_name},\n\nThanks for pricing a job with us online. Your estimate is ready whenever you are — reply to this email or give us a call and we'll get it on the calendar.\n\n{company_name}" },
+          { type: "notify_team", to: "managers", title: "Web estimate waiting an hour: {client_first_name} {client_last_name}", body: "{request_title} — leads answered in the first hour close far more often. Call or text them." },
+        ],
+      },
+    });
+    if (ok) setFollowUp("done");
+    else if (status === 409) setFollowUp("exists");
+    else {
+      setFollowUp("idle");
+      setFollowUpError(data?.error ?? GENERIC_ERROR);
+    }
+  }
+
   // segmented choices in the app accent, like every other selected control
   const seg = (active: boolean) => `flex-1 rounded-lg border px-2 py-2 text-xs font-medium transition-colors ${active ? "border-[color:var(--ds-primary)] bg-[color:var(--ds-primary)] text-[color:var(--ds-on-primary)]" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`;
   const hidden = c.showPrice === "hidden";
@@ -116,7 +148,10 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
           role="switch"
           aria-checked={tool.isPublic}
           disabled={busy !== null}
-          onClick={() => void send({ isPublic: !tool.isPublic, publicSlug: slug || publicSlugFrom(tool.name) }, "publish")}
+          onClick={() => void (async () => {
+            if (!tool.isPublic && !(await confirmGuessedRates(placeholders))) return;
+            await send({ isPublic: !tool.isPublic, publicSlug: slug || publicSlugFrom(tool.name) }, "publish");
+          })()}
           className="flex w-full items-center justify-between gap-3 text-left"
         >
           <span className="min-w-0">
@@ -159,6 +194,29 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
           </div>
         )}
       </section>
+
+      {/* ── speed to lead: the follow-up automation ── */}
+      {tool.isPublic && (
+        <section className="ds-card flex items-center justify-between gap-3 p-4 sm:p-5">
+          <span className="min-w-0">
+            <span className="flex items-center gap-1.5 text-[14.5px] font-semibold text-[color:var(--ds-ink)]">
+              Follow up automatically
+              <InfoTip>One tap adds an automation: an hour after a web estimate lands, the visitor gets a short email and the managers get a push to call. Edit or turn it off under Automations any time.</InfoTip>
+            </span>
+            <span className="ds-small mt-0.5 block">{followUp === "done" ? "On — see Automations to change the wording or timing." : followUp === "exists" ? "Already set up — see Automations." : "Leads answered in the first hour close far more often."}</span>
+            {followUpError && <span className="mt-1 block text-xs text-[color:var(--ds-bad)]">{followUpError}</span>}
+          </span>
+          {followUp === "done" || followUp === "exists" ? (
+            <a href="/app/automations" className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50">
+              <ExternalLink size={14} /> Automations
+            </a>
+          ) : (
+            <button type="button" disabled={followUp === "busy"} onClick={() => void setUpFollowUp()} className="btn-primary h-9 shrink-0 justify-center">
+              {followUp === "busy" ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Set it up
+            </button>
+          )}
+        </section>
+      )}
 
       {/* ── options ── */}
       <section className="ds-card overflow-hidden">
@@ -273,6 +331,19 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
               <p className="mt-1 text-xs text-gray-500">Name is always asked. Quotes sent for approval need an email.</p>
             </div>
 
+            {c.fields.address.show && (
+              <label className={`flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2.5 ${hasServiceZips ? "" : "opacity-60"}`}>
+                <span>
+                  <span className="flex items-center gap-1.5 text-sm font-medium text-gray-800">
+                    Only quote addresses in my service area
+                    <InfoTip>{hasServiceZips ? "The service address is checked against your service ZIPs. Out of area: the lead still lands as a request (no quote), the request says so, and the visitor sees the message below instead of a price." : "Set your service ZIPs under Settings → Business first."}</InfoTip>
+                  </span>
+                  {c.serviceArea && <span className="mt-1 block"><Textarea value={c.outOfAreaMessage} onChange={(e) => patch({ outOfAreaMessage: e.target.value })} rows={2} placeholder={DEFAULT_OUT_OF_AREA} maxLength={PUBLIC_LIMITS.successMessage} className="w-full" /></span>}
+                </span>
+                <input type="checkbox" checked={c.serviceArea} disabled={!hasServiceZips} onChange={(e) => patch({ serviceArea: e.target.checked })} className="h-5 w-5 shrink-0 rounded accent-[color:var(--ds-primary)] disabled:opacity-60" />
+              </label>
+            )}
+
             {!tool.usesAtlas && <p className="text-xs text-gray-500">Want visitors to attach a photo and have Atlas fill in the answers? Turn on Atlas fill-in on the tool&apos;s Overview first.</p>}
             {tool.usesAtlas && (
               <label className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2.5">
@@ -304,6 +375,7 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
             <div>
               <label className={label}>Fine print under the estimate</label>
               <Textarea value={c.disclaimer} onChange={(e) => patch({ disclaimer: e.target.value })} rows={2} maxLength={PUBLIC_LIMITS.disclaimer} className="w-full" />
+              {taxNoteFor(taxRate) && <p className="mt-1 text-xs text-gray-500">The form also says “{taxNoteFor(taxRate)}” — your quotes add that tax; the tool prices before it.</p>}
             </div>
             <div>
               <label className={label}>Thank-you message</label>

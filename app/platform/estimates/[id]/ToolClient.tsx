@@ -17,12 +17,13 @@ import { useAssistant } from "@/components/AssistantContext";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { QuickMenu, type MenuAnchor, type QuickAction } from "@/components/QuickMenu";
 import { moneyExact } from "@/components/EstimatorControls";
-import RatesToConfirm from "@/components/RatesToConfirm";
+import RatesToConfirm, { confirmGuessedRates } from "@/components/RatesToConfirm";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { money, shortDate } from "@/lib/statuses";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import type { EstimatorSpec } from "@/lib/estimator";
 import { sanitizePublicConfig, type EstimatorPublicConfig } from "@/lib/estimator-public";
+import type { ToolStats } from "@/lib/estimator-context";
 import BuildPanel, { type BuiltTool } from "../BuildPanel";
 import EstimatorEditor, { type EditorSection } from "../EstimatorEditor";
 import PublishPanel from "../PublishPanel";
@@ -121,6 +122,10 @@ export default function ToolClient({
   baseUrl,
   tz,
   leads,
+  stats,
+  missingItems = [],
+  hasServiceZips = false,
+  taxRate = null,
   initialSection,
   initialPrompt = "",
   resumeBuildId = null,
@@ -133,6 +138,14 @@ export default function ToolClient({
   baseUrl: string;
   tz: string;
   leads: LeadRow[];
+  /** Quotes started from this tool: won / open / lost (lib/estimator-context.ts) */
+  stats?: ToolStats;
+  /** Price-book items the rules name that are gone (renamed / archived) — the tool can't run until they're back */
+  missingItems?: string[];
+  /** The company has service ZIPs set — the web form can check addresses against them */
+  hasServiceZips?: boolean;
+  /** The company's default sales tax on quotes (tool prices are pre-tax); null = none */
+  taxRate?: number | null;
   initialSection?: string;
   /** Atlas (the chat) sent the owner here with a change request — Ask Atlas builds it at once. */
   initialPrompt?: string;
@@ -286,6 +299,7 @@ export default function ToolClient({
       go("website");
       return;
     }
+    if (!(await confirmGuessedRates(placeholders))) return;
     if (await patch({ isPublic: true }, "publish")) go("website");
   }
 
@@ -522,7 +536,38 @@ export default function ToolClient({
             <div className="space-y-4">
               {!spec && <div className="form-error">This tool&apos;s saved rules no longer compile. Restore an earlier version under History, or rebuild it.</div>}
 
+              {missingItems.length > 0 && (
+                <div className="form-error">
+                  This tool can&apos;t run: {missingItems.length === 1 ? "a price-book item it uses is" : `${missingItems.length} price-book items it uses are`} missing ({missingItems.map((m) => `“${m}”`).join(", ")}) — renamed or archived under Settings → Products &amp; Services. Bring {missingItems.length === 1 ? "it" : "them"} back, or point the pricing lines at another item{manager ? " (Advanced → Pricing)" : ""}.
+                </div>
+              )}
+
               {placeholders.length > 0 && manager && <RatesToConfirm items={placeholders} onDone={(i) => void confirmRate(i)} onOpenPricing={() => go("advanced", "pricing")} />}
+
+              {stats && stats.quotes > 0 && (
+                <div className="ds-card overflow-hidden">
+                  <SectionHeader className="px-4 pt-4 sm:px-5" title="How it's doing" hint={`${stats.quotes} quote${stats.quotes === 1 ? "" : "s"} started from this tool.`} />
+                  <dl className="mt-3 grid grid-cols-2 divide-y divide-gray-100 border-t border-gray-100 sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+                    {[
+                      { k: "Win rate", v: stats.winRate === null ? "—" : `${stats.winRate}%`, hint: stats.winRate === null ? "Needs 3 decided quotes" : `${stats.won} won · ${stats.lost} lost` },
+                      { k: "Open", v: String(stats.open), hint: "Sent, no answer yet" },
+                      { k: "Average quote", v: stats.avgTicket === null ? "—" : moneyExact(stats.avgTicket), hint: "All quotes" },
+                      { k: "Average won", v: stats.avgWonTicket === null ? "—" : moneyExact(stats.avgWonTicket), hint: "Approved quotes" },
+                    ].map((s) => (
+                      <div key={s.k} className="px-4 py-3 sm:px-5">
+                        <dt className="text-xs font-medium text-gray-500">{s.k}</dt>
+                        <dd className="numeral-ledger mt-0.5 text-lg font-semibold tabular-nums text-gray-900">{s.v}</dd>
+                        <dd className="text-[11px] text-gray-400">{s.hint}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                  {manager && stats.winRate !== null && (stats.winRate >= 85 || stats.winRate <= 30) && (
+                    <p className="border-t border-gray-100 px-4 py-2.5 text-xs text-gray-600 sm:px-5">
+                      {stats.winRate >= 85 ? "Nearly every quote wins — the rates may be low." : "Most quotes don't win — the rates may be high, or the tool asks the wrong things."} Ask {atlas.name} about the pricing: it sees these numbers.
+                    </p>
+                  )}
+                </div>
+              )}
 
               {spec && spec.samples && spec.samples.length > 0 && (
                 <div className="ds-card overflow-hidden">
@@ -717,6 +762,9 @@ export default function ToolClient({
               tool={{ id: tool.id, name: tool.name, usesAtlas: tool.usesAtlas, assessed, isPublic: tool.isPublic, publicSlug: tool.publicSlug, publicConfig: tool.publicConfig, publicViews: tool.publicViews, publicCalcs: tool.publicCalcs, submissions: tool.submissions }}
               companySlug={companySlug}
               baseUrl={baseUrl}
+              placeholders={placeholders}
+              hasServiceZips={hasServiceZips}
+              taxRate={taxRate}
               onDirty={setPanelDirty}
               onSaved={(t) => {
                 setTool((prev) => merge(t as Record<string, unknown>, prev));

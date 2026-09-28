@@ -42,3 +42,21 @@ export default function RatesToConfirm({ items, onDone, onOpenPricing, compact =
     </div>
   );
 }
+
+/**
+ * The hard stop before a tool with GUESSED rates goes public: the owner
+ * can still publish, but only after reading which numbers are Atlas's,
+ * not theirs. Resolves true when there is nothing to confirm.
+ */
+export async function confirmGuessedRates(placeholders: string[]): Promise<boolean> {
+  if (placeholders.length === 0) return true;
+  const { confirmSheet } = await import("@/components/ConfirmSheet");
+  const shown = placeholders.slice(0, 4).map((p) => `• ${p}`).join("\n");
+  const more = placeholders.length > 4 ? `\n• …and ${placeholders.length - 4} more` : "";
+  return confirmSheet({
+    title: "Publish with guessed rates?",
+    message: `Atlas used typical numbers where you didn't give a rate — visitors would be quoted those prices as yours:\n${shown}${more}\n\nSet your own under Advanced → Pricing first, or publish anyway and fix them soon.`,
+    confirmLabel: "Publish Anyway",
+    destructive: true,
+  });
+}

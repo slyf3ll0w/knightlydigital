@@ -4,10 +4,17 @@ import { verifyCaptcha } from "@/lib/captcha";
 import { runCompiled, formatValue, visibleInputIds, type Value } from "@/lib/estimator";
 import { loadPriceBook, resolvePublicEstimator } from "@/lib/estimator-server";
 import { createEstimateLead } from "@/lib/estimator-lead";
+import { DEFAULT_OUT_OF_AREA, outOfServiceArea } from "@/lib/estimator-public";
 import { limit, clientIp } from "@/lib/rate-limit";
 
-// Same backstop as the booking form: one runaway bot can't flood a company
+// Same backstop as the booking form: one runaway bot can't flood a company.
+// Counts requests that came in from the public (forms, the client hub), not
+// the ones the team files in the app — a busy office must not lock its forms.
 const MAX_REQUESTS_PER_COMPANY_PER_DAY = 200;
+export const PUBLIC_REQUEST_SOURCES = ["booking_form", "estimate_form", "client_hub"];
+
+/** What a visitor is told when the rules themselves can't price (a renamed price-book item, a formula error) — never the internals. */
+export const PUBLIC_RUN_FAILED = "We can't price this online right now — please send your details and we'll get back to you with a quote.";
 
 /**
  * POST /api/public/estimate/[companySlug]/[toolSlug]
@@ -61,10 +68,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
 
   const inputs = (body.inputs && typeof body.inputs === "object" && !Array.isArray(body.inputs) ? body.inputs : {}) as Record<string, unknown>;
   const result = runCompiled(pub.compiled, inputs, await loadPriceBook(company.id));
-  if (!result.ok) return NextResponse.json({ error: result.errors[0], errors: result.errors }, { status: 400 });
+  if (!result.ok) {
+    if (result.inputProblems) return NextResponse.json({ error: result.errors[0], errors: result.errors }, { status: 400 });
+    console.error("[estimate-form] tool can't run", { estimatorId: pub.row.id, errors: result.errors });
+    return NextResponse.json({ error: PUBLIC_RUN_FAILED }, { status: 424 });
+  }
 
   const since = new Date(Date.now() - 86400000);
-  const recent = await prisma.request.count({ where: { companyId: company.id, source: { not: "webhook" }, createdAt: { gte: since } } });
+  const recent = await prisma.request.count({ where: { companyId: company.id, source: { in: PUBLIC_REQUEST_SOURCES }, createdAt: { gte: since } } });
   if (recent >= MAX_REQUESTS_PER_COMPANY_PER_DAY) {
     return NextResponse.json({ error: "This business can't accept more requests right now. Please call instead." }, { status: 429 });
   }
@@ -103,6 +114,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   const page = /^https?:\/\//i.test(pageRaw) ? pageRaw : "";
   // ?src=truck on the owner's per-channel links — tags the lead with where it came from
   const src = str(body.src, 40).toLowerCase().replace(/[^a-z0-9 _-]/g, "").trim();
+  // Service-area check (form option): an address outside the company's ZIPs still lands, as a request only
+  const outOfArea = Boolean(address) && outOfServiceArea(config, company.serviceZips ?? [], address);
   const lead = await createEstimateLead({
     pub,
     result,
@@ -111,6 +124,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     page: page || undefined,
     src: src || undefined,
     usedPhoto: (config.photoAssist || spec.inputs.some((i) => i.askAtlas)) && body.usedPhoto === true,
+    outOfArea,
   });
-  return NextResponse.json({ success: true, estimate: lead.estimate, quoteNumber: lead.quoteNumber }, { status: 201 });
+  return NextResponse.json(
+    {
+      success: true,
+      estimate: outOfArea ? { mode: "hidden" as const, title: lead.estimate.title } : lead.estimate,
+      quoteNumber: lead.quoteNumber,
+      ...(outOfArea ? { outOfArea: true, message: config.outOfAreaMessage || DEFAULT_OUT_OF_AREA } : {}),
+    },
+    { status: 201 }
+  );
 }

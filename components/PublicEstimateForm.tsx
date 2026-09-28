@@ -53,6 +53,7 @@ export default function PublicEstimateForm({
   photoAssist = false,
   assistAvailable = true,
   mapCenter = null,
+  taxNote = "",
 }: {
   companySlug: string;
   toolSlug: string;
@@ -75,6 +76,8 @@ export default function PublicEstimateForm({
   assistAvailable?: boolean;
   /** Where map questions open (the business's location) */
   mapCenter?: LatLngTuple | null;
+  /** "Before sales tax (8.25%)." when the business adds tax on quotes — tool prices are pre-tax */
+  taxNote?: string;
 }) {
   const { dark, accent, transparent } = appearance;
   const f = config.fields;
@@ -96,6 +99,8 @@ export default function PublicEstimateForm({
 
   const [estimate, setEstimate] = useState<PublicEstimate | null>(null);
   const [finalEstimate, setFinalEstimate] = useState<PublicEstimate | null>(null);
+  // the service address was outside the business's area: the thank-you says so instead of a price
+  const [outOfArea, setOutOfArea] = useState<string | null>(null);
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", address: "", message: "" });
   const [smsConsent, setSmsConsent] = useState(false);
   const [captchaToken, setCaptchaToken] = useState("");
@@ -310,11 +315,12 @@ export default function PublicEstimateForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ inputs: values, ...form, smsConsent: offerSms ? smsConsent : undefined, captchaToken, website: honeypot, elapsedMs: Date.now() - startedAt, page, src: src || undefined, usedPhoto }),
       });
-      const data = (await res.json().catch(() => null)) as { success?: boolean; estimate?: PublicEstimate; error?: string } | null;
+      const data = (await res.json().catch(() => null)) as { success?: boolean; estimate?: PublicEstimate; error?: string; outOfArea?: boolean; message?: string } | null;
       if (!res.ok) {
         setError(data?.error ?? "Something went wrong. Please try again.");
         return;
       }
+      if (data?.outOfArea) setOutOfArea(data.message ?? "That address is outside the area we serve right now.");
       setFinalEstimate(data?.estimate ?? estimate);
       setStep("done");
     } catch {
@@ -340,7 +346,7 @@ export default function PublicEstimateForm({
         {e.mode === "range" ? (
           <PriceHero theme={theme} label="Estimated range" text={estimateLabel(e)} sub={e.title} />
         ) : (
-          <PriceHero theme={theme} label="Your estimate" amount={e.subtotal} sub={e.title} />
+          <PriceHero theme={theme} label="Your estimate" amount={e.total} sub={e.title} />
         )}
         {included && !compact && (
           <div className={`rounded-xl border p-4 ${rowBox}`}>
@@ -355,8 +361,8 @@ export default function PublicEstimateForm({
             </ul>
           </div>
         )}
-        {e.mode === "exact" && !compact && <Breakdown theme={theme} lines={e.lines} subtotal={e.subtotal} />}
-        {config.disclaimer && <p className={`text-xs ${muted}`}>{config.disclaimer}</p>}
+        {e.mode === "exact" && !compact && <Breakdown theme={theme} lines={e.lines} subtotal={e.subtotal} discounts={e.discounts} total={e.total} taxNote={taxNote || undefined} />}
+        {(config.disclaimer || (taxNote && (e.mode !== "exact" || compact))) && <p className={`text-xs ${muted}`}>{[config.disclaimer, e.mode !== "exact" || compact ? taxNote : ""].filter(Boolean).join(" ")}</p>}
       </div>
     );
   }
@@ -370,10 +376,10 @@ export default function PublicEstimateForm({
           <CheckCircle size={28} style={{ color: accent }} />
         </div>
         <div>
-          <h2 className={`mb-2 text-xl font-bold ${ink}`}>{config.onSubmit === "send" ? "Your quote is on its way" : "Request received"}</h2>
-          <p className={`text-sm ${muted}`}>{defaultSuccessMessage(config, businessName)}</p>
+          <h2 className={`mb-2 text-xl font-bold ${ink}`}>{outOfArea ? "Thanks — we've got your details" : config.onSubmit === "send" ? "Your quote is on its way" : "Request received"}</h2>
+          <p className={`text-sm ${muted}`}>{outOfArea ?? defaultSuccessMessage(config, businessName)}</p>
         </div>
-        {shown && (
+        {shown && !outOfArea && (
           <div className="text-left">
             <EstimatePanel e={shown} />
           </div>

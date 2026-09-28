@@ -46,6 +46,8 @@ export type Tool = RunnerEstimator & {
   /** Copied from a Library listing */
   sourceListingId?: string | null;
   updatedAt: string;
+  /** Price-book items the rules name that are gone (renamed / archived) — the tool can't run until they're back */
+  missingItems?: string[];
 };
 
 const GRID = "lg:grid-cols-[minmax(0,1fr)_90px_140px_150px_40px]";
@@ -77,7 +79,8 @@ function ToolStamp({ t }: { t: Tool }) {
 function ToolRow({ t, manager, atlasName, tz, onRun }: { t: Tool; manager: boolean; atlasName: string; tz: string; onRun: (t: Tool) => void }) {
   const placeholders = t.spec.placeholders?.length ?? 0;
   const facts = toolFacts(t, atlasName);
-  const sub = [t.description || facts.join(" · "), placeholders > 0 && manager ? `${placeholders} rate${placeholders === 1 ? "" : "s"} to confirm` : null].filter(Boolean).join(" · ");
+  const missing = t.missingItems?.length ?? 0;
+  const sub = [t.description || facts.join(" · "), placeholders > 0 && manager ? `${placeholders} rate${placeholders === 1 ? "" : "s"} to confirm` : null, missing > 0 && manager ? `can't run — ${missing === 1 ? "a price-book item is" : `${missing} price-book items are`} missing` : null].filter(Boolean).join(" · ");
   return (
     <EntityRowActions meta={{ kind: "tool", id: t.id, name: t.name, isActive: t.isActive, isPublic: Boolean(t.isPublic && t.publicSlug), manager }} onRun={t.isActive ? () => onRun(t) : undefined}>
       <Link href={`/app/estimates/${t.id}`} prefetch={false} className={`block px-4 py-3 transition-colors hover:bg-gray-50 active:bg-gray-100 lg:grid lg:items-center lg:gap-4 lg:py-2.5 ${GRID} ${t.isActive ? "" : "opacity-70"}`}>

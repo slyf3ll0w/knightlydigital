@@ -9,7 +9,7 @@ import RatesToConfirm from "@/components/RatesToConfirm";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
-import { ESTIMATOR_LIMITS, toIdentifier, type EstimatorInput, type EstimatorLine, type EstimatorOption, type EstimatorSpec, type EstimatorVariable } from "@/lib/estimator";
+import { ESTIMATOR_LIMITS, toIdentifier, type EstimatorDiscount, type EstimatorInput, type EstimatorLine, type EstimatorOption, type EstimatorSpec, type EstimatorVariable } from "@/lib/estimator";
 
 /**
  * The manual side of a tool, on the tool page (Questions / Pricing / Words /
@@ -42,7 +42,8 @@ const CHEATSHEET = [
   ["Pick-several", "has(picks, 'Fence')  count(picks)  join(picks)"],
   ["Item counts", "qty(windows, 'picture')  total(windows)  join(windows)"],
   ["Price book", "price(\"Item name\")  cost(\"Item name\")"],
-  ["Text", "{sqft} sq ft at {rate|money}  in names and descriptions"],
+  ["Text", "{sqft} sq ft, {rate|money}  in line names, the quote title and the client message"],
+  ["Quote words", "{subtotal}  {quote_total}  {labor_hours}  in the quote title / client message"],
 ] as const;
 
 function clone<T>(x: T): T {
@@ -162,6 +163,7 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
   const [openQ, setOpenQ] = useState<Set<string>>(new Set());
   const [openL, setOpenL] = useState<Set<string>>(new Set());
   const [openVars, setOpenVars] = useState(false);
+  const [openDiscounts, setOpenDiscounts] = useState(false);
   const [saved, setSaved] = useState(false);
   const baseline = useRef(JSON.stringify({ name: tool.name, description: tool.description ?? "", spec: tool.spec }));
 
@@ -310,6 +312,13 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
     touch((s) => s.variables.push({ id: `rate${s.variables.length + 1}`, expr: "0" }));
   };
   const removeVar = (i: number) => touch((s) => s.variables.splice(i, 1));
+  // discounts: the rules that apply add up to one discount on the quote
+  const setDiscount = (i: number, patch: Partial<EstimatorDiscount>) => touch((s) => Object.assign((s.discounts ??= [])[i], patch));
+  const addDiscount = () => {
+    setOpenDiscounts(true);
+    touch((s) => (s.discounts ??= []).push({ id: `discount_${Date.now().toString(36)}`, label: "Bundle discount", percent: "10" }));
+  };
+  const removeDiscount = (i: number) => touch((s) => s.discounts?.splice(i, 1));
 
   // ── actions ──
   async function check(): Promise<boolean> {
@@ -728,6 +737,45 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
                 <Plus size={12} /> Add variable
               </button>
             </Row>
+            <Row
+              open={openDiscounts}
+              onToggle={() => setOpenDiscounts((o) => !o)}
+              header={
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium text-gray-900">Discounts</span>
+                  <span className="block truncate text-xs text-gray-500">{(spec.discounts ?? []).length === 0 ? "None — money off for bundles, cash, first-time clients (never a negative line)" : (spec.discounts ?? []).map((d) => `${d.label}: ${d.percent ? `${d.percent}%` : `$${d.amount}`}`).join(", ")}</span>
+                </span>
+              }
+            >
+              {(spec.discounts ?? []).map((d, i) => (
+                <div key={d.id} className="grid grid-cols-1 gap-2 rounded-lg border border-gray-200 p-3 sm:grid-cols-[minmax(0,1fr)_120px_minmax(0,1fr)_auto] sm:items-end">
+                  <div>
+                    <label className={fieldLabel}>Label on the quote</label>
+                    <Input value={d.label} onChange={(e) => setDiscount(i, { label: e.target.value })} maxLength={80} placeholder="Bundle discount" className="w-full" />
+                  </div>
+                  <div>
+                    <label className={fieldLabel}>{d.amount !== undefined ? "Amount ($)" : "Percent off"}</label>
+                    <div className="flex items-center gap-1">
+                      <Input value={d.amount !== undefined ? d.amount : d.percent ?? ""} onChange={(e) => setDiscount(i, d.amount !== undefined ? { amount: e.target.value } : { percent: e.target.value })} maxLength={ESTIMATOR_LIMITS.exprLen} placeholder={d.amount !== undefined ? "25" : "10"} className={`w-full ${mono}`} />
+                      <button type="button" onClick={() => setDiscount(i, d.amount !== undefined ? { amount: undefined, percent: d.amount } : { percent: undefined, amount: d.percent })} className="shrink-0 rounded-md border border-gray-200 px-1.5 py-1 text-[11px] font-medium text-gray-600 hover:bg-gray-50" title="Switch between a percent and a dollar amount">
+                        {d.amount !== undefined ? "→ %" : "→ $"}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className={fieldLabel}>Only when</label>
+                    <Input value={d.when ?? ""} onChange={(e) => setDiscount(i, { when: e.target.value || undefined })} maxLength={ESTIMATOR_LIMITS.exprLen} placeholder="always" className={`w-full ${mono}`} />
+                  </div>
+                  <button type="button" onClick={() => removeDiscount(i)} className={`${iconBtn} mb-0.5`} aria-label="Remove discount">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))}
+              <p className="text-xs text-gray-500">A percent is off the subtotal (before optional items). The rules that apply add up to one discount on the quote — the client sees it as a line under the subtotal.</p>
+              <button type="button" disabled={(spec.discounts ?? []).length >= ESTIMATOR_LIMITS.discounts} onClick={addDiscount} className="inline-flex items-center gap-1 text-xs font-medium text-gray-700 hover:underline disabled:opacity-50">
+                <Plus size={12} /> Add discount
+              </button>
+            </Row>
           </div>
 
           <div className="flex items-center justify-between">
@@ -779,8 +827,8 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
                       <Input list={`groups-${tool.id}`} value={l.group ?? ""} onChange={(e) => setLine(i, { group: e.target.value || undefined })} maxLength={40} placeholder="Labor" className="w-full" />
                     </div>
                     <div className="sm:col-span-3">
-                      <label className={fieldLabel}>Description on the quote</label>
-                      <Input value={l.description ?? ""} onChange={(e) => setLine(i, { description: e.target.value || undefined })} maxLength={ESTIMATOR_LIMITS.templateLen} placeholder="{sqft} sq ft at {rate|money}/sq ft" className="w-full" />
+                      <label className={fieldLabel}>Description on the quote — what the client gets, in plain words</label>
+                      <Input value={l.description ?? ""} onChange={(e) => setLine(i, { description: e.target.value || undefined })} maxLength={ESTIMATOR_LIMITS.templateLen} placeholder={l.workItemName ? "Blank = the price-book item's own description" : "Pressure wash of the whole driveway, with a degreaser on oil stains"} className="w-full" />
                     </div>
                     <div>
                       <label className={fieldLabel}>Unit price</label>
@@ -802,6 +850,14 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
                       <input type="checkbox" checked={l.isOptional === true} onChange={(e) => setLine(i, { isOptional: e.target.checked })} className="h-4 w-4 rounded accent-[color:var(--ds-primary)]" />
                       Optional on the quote
                     </label>
+                    <div>
+                      <label className={fieldLabel}>Labor hours (books the job)</label>
+                      <Input value={l.hours ?? ""} onChange={(e) => setLine(i, { hours: e.target.value || undefined })} maxLength={ESTIMATOR_LIMITS.exprLen} placeholder="sqft / 600" className={`w-full ${mono}`} />
+                    </div>
+                    <div>
+                      <label className={fieldLabel}>Your cost per unit (margin)</label>
+                      <Input value={l.unitCost ?? ""} onChange={(e) => setLine(i, { unitCost: e.target.value || undefined })} maxLength={ESTIMATOR_LIMITS.exprLen} placeholder={l.workItemName ? "price book" : "0.06 or a formula"} className={`w-full ${mono}`} />
+                    </div>
                   </div>
                   <div className="flex justify-end">
                     <button type="button" onClick={() => removeLine(i)} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)]">

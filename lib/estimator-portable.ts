@@ -64,8 +64,11 @@ export function toPortableSpec(spec: EstimatorSpec, book: PriceBookEntry[]): Por
       ...(rest.quantity ? { quantity: inline(rest.quantity) } : {}),
       ...(rest.when ? { when: inline(rest.when) } : {}),
       ...(unitPrice ? { unitPrice } : {}),
+      ...(rest.hours ? { hours: inline(rest.hours) } : {}),
+      ...(rest.unitCost ? { unitCost: inline(rest.unitCost) } : {}),
     };
   });
+  const discounts = spec.discounts?.map((d) => ({ ...d, ...(d.when ? { when: inline(d.when) } : {}), ...(d.percent ? { percent: inline(d.percent) } : {}), ...(d.amount ? { amount: inline(d.amount) } : {}) }));
   if (spec.minimumTotal) confirm.push(`Minimum job charge: ${money(spec.minimumTotal)} — from the Library, set your own`);
 
   const out: EstimatorSpec = {
@@ -73,6 +76,7 @@ export function toPortableSpec(spec: EstimatorSpec, book: PriceBookEntry[]): Por
     inputs,
     variables,
     lines,
+    ...(discounts && discounts.length > 0 ? { discounts } : {}),
     ...(spec.quoteTitle ? { quoteTitle: inline(spec.quoteTitle) } : {}),
     ...(spec.clientMessage ? { clientMessage: inline(spec.clientMessage) } : {}),
     placeholders: confirm.slice(0, ESTIMATOR_LIMITS.placeholders),
@@ -84,6 +88,37 @@ export function toPortableSpec(spec: EstimatorSpec, book: PriceBookEntry[]): Por
     return { ok: false, errors: [`Still tied to the price book: ${c.compiled.priceBookNames.join(", ")}`] };
   }
   return { ok: true, spec: c.compiled.spec };
+}
+
+/**
+ * An ANONYMOUS listing must not carry the sharer's name in its words — the
+ * intro, client message, quote title, line names/descriptions, discount
+ * labels and question text are copied verbatim into every adopter's tool.
+ * Every mention of the company name (and its first word when it's a
+ * distinctive one, "Lessly's …") becomes "our team".
+ */
+export function scrubCompanyName(spec: EstimatorSpec, companyName: string): EstimatorSpec {
+  const name = companyName.trim();
+  if (name.length < 3) return spec;
+  const esc = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const forms = [name, name.replace(/[,.]?\s*(LLC|L\.L\.C\.|Inc\.?|Corp\.?|Co\.?|Ltd\.?)$/i, "").trim()].filter((f, i, arr) => f.length >= 3 && arr.indexOf(f) === i);
+  const re = new RegExp(`\\b(?:${forms.map(esc).join("|")})(?:'s|’s)?\\b`, "gi");
+  const fix = (t: string | undefined): string | undefined => (t === undefined ? t : t.replace(re, (m) => (/['’]s$/.test(m) ? "our team's" : "our team")));
+  return {
+    ...spec,
+    ...(spec.intro !== undefined ? { intro: fix(spec.intro) } : {}),
+    ...(spec.quoteTitle !== undefined ? { quoteTitle: fix(spec.quoteTitle) } : {}),
+    ...(spec.clientMessage !== undefined ? { clientMessage: fix(spec.clientMessage) } : {}),
+    inputs: spec.inputs.map((i) => ({
+      ...i,
+      label: fix(i.label) as string,
+      ...(i.help !== undefined ? { help: fix(i.help) } : {}),
+      ...("options" in i ? { options: i.options.map((o) => ({ ...o, label: fix(o.label) as string, ...(o.blurb !== undefined ? { blurb: fix(o.blurb) } : {}), ...(o.includes ? { includes: o.includes.map((x) => fix(x) as string) } : {}) })) } : {}),
+    })) as EstimatorSpec["inputs"],
+    lines: spec.lines.map((l) => ({ ...l, name: fix(l.name) as string, ...(l.description !== undefined ? { description: fix(l.description) } : {}) })),
+    ...(spec.discounts ? { discounts: spec.discounts.map((d) => ({ ...d, label: fix(d.label) as string })) } : {}),
+    ...(spec.assist?.instructions ? { assist: { ...spec.assist, instructions: fix(spec.assist.instructions) } } : {}),
+  };
 }
 
 /** The facts line a listing card shows ("6 questions · 3 packages · map measure"). */

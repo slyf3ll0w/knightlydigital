@@ -5,6 +5,26 @@ import { Prisma } from "@prisma/client";
 import { sanitizeRecurringAndAgreement, sanitizeDuration, sanitizePriceDisplay } from "@/lib/work-items";
 import { sanitizeDeposit } from "@/lib/deposits";
 import { sanitizeChecklist } from "@/lib/job-checklist";
+import { estimatorsUsingItem } from "@/lib/estimator-server";
+
+/**
+ * Estimate tools link price-book items BY NAME (lib/estimator.ts); renaming
+ * or archiving an item they use would make every run of those tools fail —
+ * including a published web form, in front of a visitor. Refuse with the
+ * tool names so the owner changes the lines first.
+ */
+async function estimatorGuard(companyId: string, itemName: string, what: string): Promise<NextResponse | null> {
+  const used = await estimatorsUsingItem(companyId, itemName);
+  if (used.length === 0) return null;
+  const names = used.map((t) => `“${t.name}”`).join(", ");
+  return NextResponse.json(
+    {
+      error: `${what} — ${used.length === 1 ? "an estimate tool uses it" : `${used.length} estimate tools use it`}: ${names}. Change those pricing lines first (Estimates → the tool → Advanced → Pricing).`,
+      estimators: used,
+    },
+    { status: 409 }
+  );
+}
 
 // Price-book edits are settings territory: managers only
 async function getCompanyId() {
@@ -25,6 +45,13 @@ export async function PATCH(
   if (!item) return NextResponse.json({ error: "Item not found." }, { status: 404 });
 
   const body = await req.json();
+
+  const renaming = body.name !== undefined && String(body.name).trim().toLowerCase() !== item.name.trim().toLowerCase();
+  const archiving = body.isActive !== undefined && body.isActive === false && item.isActive;
+  if (renaming || archiving) {
+    const blocked = await estimatorGuard(companyId, item.name, renaming ? `“${item.name}” can't be renamed yet` : `“${item.name}” can't be archived yet`);
+    if (blocked) return blocked;
+  }
 
   // Recurring + agreement settings are revalidated together (the gate flag is
   // derived from the attached template, so it can't be patched independently)
@@ -88,6 +115,9 @@ export async function DELETE(
   const { id } = await params;
   const item = await prisma.workItem.findFirst({ where: { id, companyId } });
   if (!item) return NextResponse.json({ error: "Item not found." }, { status: 404 });
+
+  const blocked = await estimatorGuard(companyId, item.name, `“${item.name}” can't be deleted yet`);
+  if (blocked) return blocked;
 
   // An item referenced by history (quote/invoice lines, subscriptions) is
   // ARCHIVED instead of deleted — a hard delete used to orphan those links

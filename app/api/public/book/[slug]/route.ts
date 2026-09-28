@@ -110,7 +110,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   }
 
   const since = new Date(Date.now() - 86400000);
-  const recent = await prisma.request.count({ where: { companyId: company.id, source: { not: "webhook" }, createdAt: { gte: since } } });
+  // public sources only — the team's own requests in the app never lock the forms
+  const recent = await prisma.request.count({ where: { companyId: company.id, source: { in: ["booking_form", "estimate_form", "client_hub"] }, createdAt: { gte: since } } });
   if (recent >= MAX_REQUESTS_PER_COMPANY_PER_DAY) {
     return NextResponse.json({ error: "This business can't accept more requests right now. Please call instead." }, { status: 429 });
   }

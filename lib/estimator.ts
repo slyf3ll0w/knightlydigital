@@ -23,10 +23,14 @@
 // ── limits ───────────────────────────────────────────────────────────────────
 
 export const ESTIMATOR_LIMITS = {
-  inputs: 40,
-  variables: 60,
-  lines: 60,
-  options: 24,
+  // Roomy enough for a repair trade's job menu (a plumbing tool branches
+  // into a dozen job types, each with its own questions and lines) while
+  // still bounding a hostile spec.
+  inputs: 60,
+  variables: 80,
+  lines: 100,
+  options: 60,
+  discounts: 12,
   exprLen: 500,
   textLen: 300,
   templateLen: 400,
@@ -127,6 +131,33 @@ export type EstimatorLine = {
   isOptional?: boolean;
   /** Breakdown heading the line sits under ("Materials", "Labor", "Add-ons"). */
   group?: string;
+  /**
+   * Expression → labor hours this line takes when it applies (the whole
+   * line, not per unit: "sqft / 400" or "2.5"). Adds up to the run's
+   * `hours` — how long to book the job for — and never touches the price.
+   */
+  hours?: string;
+  /**
+   * Expression → the business's cost per unit (materials + labor), so the
+   * runner shows the margin before the number goes out. Falls back to the
+   * linked price-book item's cost. Never shown to clients.
+   */
+  unitCost?: string;
+};
+
+/**
+ * A discount rule: when it applies, the quote gets a discount (one FIXED
+ * amount on the quote, the app's own discount field — never a negative
+ * line). `percent` is off the non-optional subtotal; `amount` is dollars.
+ * "10% off when you add gutters" = { label: "Bundle discount", when:
+ * "has(extras, 'Gutters')", percent: "10" }.
+ */
+export type EstimatorDiscount = {
+  id: string;
+  label: string;
+  when?: string;
+  percent?: string;
+  amount?: string;
 };
 
 /** A worked example the builder tests with and the owner can replay ("Typical job"). */
@@ -144,6 +175,8 @@ export type EstimatorSpec = {
   inputs: EstimatorInput[];
   variables: EstimatorVariable[];
   lines: EstimatorLine[];
+  /** Discount rules — the ones that apply add up to one discount on the quote. */
+  discounts?: EstimatorDiscount[];
   /** Job minimum — a "Minimum job charge" line tops the quote up to this. */
   minimumTotal?: number;
   /** Templates for the quote header + client note. */
@@ -166,6 +199,10 @@ export type PriceBookEntry = {
   name: string;
   unitPrice: number;
   unitCost: number | null;
+  /** The item's own client-facing description — a linked line without one of its own reads this on the quote. */
+  description?: string | null;
+  /** Set on recurring services (MONTHLY / QUARTERLY / …): the quote line carries it and conversion spins up the subscription. */
+  recurringInterval?: string | null;
 };
 
 export type EstimatorResultLine = {
@@ -178,19 +215,40 @@ export type EstimatorResultLine = {
   isOptional: boolean;
   /** Breakdown heading (from the line rule). */
   group?: string;
+  /** Labor hours for this line (from the rule's `hours`). */
+  hours?: number;
+  /** Recurring service (from the linked price-book item) — "MONTHLY", "QUARTERLY", …; the quote line carries it. */
+  recurringInterval?: string | null;
 };
+
+/** A discount that applied on this run. */
+export type EstimatorDiscountResult = { label: string; amount: number };
 
 export type EstimatorRun =
   | {
       ok: true;
       lines: EstimatorResultLine[];
-      /** Sum of the non-optional lines (what the client owes if they change nothing). */
+      /** Sum of the non-optional lines before any discount (what the client owes if they change nothing). */
       subtotal: number;
+      /** The discount rules that applied, added up (0 when none). */
+      discount: number;
+      discounts: EstimatorDiscountResult[];
+      /** subtotal − discount: the number the client sees. Pre-tax. */
+      total: number;
+      /** Labor hours across the applied non-optional lines (0 when no line says). */
+      hours: number;
+      /** The business's cost across the non-optional lines, when every one of them has a cost; null otherwise. */
+      cost: number | null;
       title?: string;
       clientMessage?: string;
       warnings: string[];
     }
-  | { ok: false; errors: string[] };
+  | {
+      ok: false;
+      errors: string[];
+      /** true = the answers are wrong or missing (fixable by the person); absent = the rules themselves failed (a missing price-book item, a formula error). */
+      inputProblems?: true;
+    };
 
 // ── expression language ──────────────────────────────────────────────────────
 
@@ -554,12 +612,24 @@ function describe(v: Value): string {
   return String(v);
 }
 
+/** Words a yes/no choice answers "no" with — falsy in a condition, so `when: "gate"` on a yes/no select does what it reads. */
+const NO_WORDS = new Set(["no", "false", "0", "none", "off", "n"]);
+
 export function truthy(v: Value): boolean {
   if (v === null) return false;
-  if (typeof v === "string") return v.trim() !== "";
+  if (typeof v === "string") {
+    const t = v.trim();
+    return t !== "" && !NO_WORDS.has(t.toLowerCase());
+  }
   if (Array.isArray(v)) return v.length > 0;
   if (typeof v === "object") return Object.keys(v).length > 0;
   return Boolean(v);
+}
+
+/** A value `+` may add rather than join: numbers, booleans, null, and text that reads as a number (a select's "3"). */
+function numish(v: Value): boolean {
+  if (typeof v === "number" || typeof v === "boolean" || v === null) return true;
+  return typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v));
 }
 
 function eq(a: Value, b: Value): boolean {
@@ -604,8 +674,10 @@ export function evaluate(node: Node, ctx: EvalCtx, depth = 0): Value {
       const b = evaluate(node.b, ctx, depth + 1);
       switch (node.op) {
         case "+":
-          if (typeof a === "string" || typeof b === "string") return `${a ?? ""}${b ?? ""}`;
-          return n(a, "Left side of +") + n(b, "Right side of +");
+          // Choice answers are text ("3" bedrooms): two numbers-as-text ADD.
+          // Only genuine words join ("Deck" + " wash").
+          if (numish(a) && numish(b)) return n(a, "Left side of +") + n(b, "Right side of +");
+          return `${a ?? ""}${b ?? ""}`;
         case "-":
           return n(a, "Left side of -") - n(b, "Right side of -");
         case "*":
@@ -856,11 +928,14 @@ export type CompiledSpec = {
     when: Node | null;
     quantity: Node | null;
     unitPrice: Node | null;
+    hours: Node | null;
+    unitCost: Node | null;
   }[];
   quoteTitle: TemplatePart[] | null;
   clientMessage: TemplatePart[] | null;
   /** Price-book names the spec depends on (workItemName + price()/cost()). */
   priceBookNames: string[];
+  discounts: { rule: EstimatorDiscount; when: Node | null; percent: Node | null; amount: Node | null }[];
 };
 
 export type CompileResult = { ok: true; compiled: CompiledSpec } | { ok: false; errors: string[] };
@@ -963,7 +1038,7 @@ export function compileSpec(raw: unknown): CompileResult {
       errors.push(`Input id "${id}" must be letters, digits and underscores, starting with a letter`);
       continue;
     }
-    if (KEYWORDS.has(id) || (FUNCTIONS as readonly string[]).includes(id) || id === "subtotal") {
+    if (KEYWORDS.has(id) || (FUNCTIONS as readonly string[]).includes(id) || id === "subtotal" || id === "quote_total" || id === "labor_hours") {
       errors.push(`Input id "${id}" is a reserved word`);
       continue;
     }
@@ -1093,7 +1168,7 @@ export function compileSpec(raw: unknown): CompileResult {
       errors.push(`Variable id "${id}" must be letters, digits and underscores`);
       continue;
     }
-    if (KEYWORDS.has(id) || (FUNCTIONS as readonly string[]).includes(id) || id === "subtotal") {
+    if (KEYWORDS.has(id) || (FUNCTIONS as readonly string[]).includes(id) || id === "subtotal" || id === "quote_total" || id === "labor_hours") {
       errors.push(`Variable id "${id}" is a reserved word`);
       continue;
     }
@@ -1173,6 +1248,8 @@ export function compileSpec(raw: unknown): CompileResult {
       workItemName,
       isOptional: o.isOptional === true,
       ...(s(o.group, 40) ? { group: s(o.group, 40) } : {}),
+      ...(s(o.hours, ESTIMATOR_LIMITS.exprLen + 1) ? { hours: s(o.hours, ESTIMATOR_LIMITS.exprLen + 1) } : {}),
+      ...(s(o.unitCost, ESTIMATOR_LIMITS.exprLen + 1) ? { unitCost: s(o.unitCost, ESTIMATOR_LIMITS.exprLen + 1) } : {}),
     };
     lines.push({
       rule,
@@ -1181,7 +1258,48 @@ export function compileSpec(raw: unknown): CompileResult {
       when: compileExpr(`${where} when`, rule.when),
       quantity: compileExpr(`${where} quantity`, rule.quantity),
       unitPrice: compileExpr(`${where} unitPrice`, rule.unitPrice),
+      hours: compileExpr(`${where} hours`, rule.hours),
+      unitCost: compileExpr(`${where} unitCost`, rule.unitCost),
     });
+  });
+
+  // discounts: label + when + percent (of the non-optional subtotal) or amount
+  const discounts: CompiledSpec["discounts"] = [];
+  const discountSrc: EstimatorDiscount[] = [];
+  const rawDiscounts = Array.isArray(r.discounts) ? r.discounts : [];
+  if (rawDiscounts.length > ESTIMATOR_LIMITS.discounts) errors.push(`At most ${ESTIMATOR_LIMITS.discounts} discounts`);
+  const discountIds = new Set<string>();
+  rawDiscounts.slice(0, ESTIMATOR_LIMITS.discounts).forEach((rd, idx) => {
+    const o = (rd ?? {}) as Record<string, unknown>;
+    const label = s(o.label, 80);
+    let id = s(o.id, 40) || toIdentifier(label) || `discount_${idx + 1}`;
+    while (discountIds.has(id)) id = `${id}_${idx + 1}`;
+    discountIds.add(id);
+    const where = `Discount "${label || id}"`;
+    if (!label) {
+      errors.push(`Discount ${idx + 1} needs a label (the client reads it on the quote)`);
+      return;
+    }
+    const percent = s(o.percent, ESTIMATOR_LIMITS.exprLen + 1) || undefined;
+    const amount = s(o.amount, ESTIMATOR_LIMITS.exprLen + 1) || undefined;
+    if (!percent && !amount) errors.push(`${where}: needs a percent (of the subtotal) or an amount in dollars`);
+    if (percent && amount) errors.push(`${where}: give a percent OR an amount, not both`);
+    const rule: EstimatorDiscount = { id, label, ...(s(o.when, ESTIMATOR_LIMITS.exprLen + 1) ? { when: s(o.when, ESTIMATOR_LIMITS.exprLen + 1) } : {}), ...(percent ? { percent } : {}), ...(amount ? { amount } : {}) };
+    discountSrc.push(rule);
+    // discounts may read `subtotal` (the non-optional lines, after the minimum)
+    const withSubtotal = (label: string, src: string | undefined): Node | null => {
+      if (!src) return null;
+      try {
+        const node = parseExpr(src);
+        for (const name of identifiersIn(node)) if (!known.has(name) && name !== "subtotal") errors.push(`${label}: unknown name "${name}"`);
+        priceBookRefsIn(node).forEach((p) => priceBookNames.add(p));
+        return node;
+      } catch (e) {
+        errors.push(`${label}: ${(e as Error).message}`);
+        return null;
+      }
+    };
+    discounts.push({ rule, when: withSubtotal(`${where} when`, rule.when), percent: withSubtotal(`${where} percent`, rule.percent), amount: withSubtotal(`${where} amount`, rule.amount) });
   });
 
   const minimumTotal = optNum(r.minimumTotal);
@@ -1189,9 +1307,9 @@ export function compileSpec(raw: unknown): CompileResult {
 
   const quoteTitleSrc = s(r.quoteTitle, ESTIMATOR_LIMITS.templateLen) || undefined;
   const clientMessageSrc = s(r.clientMessage, 1200) || undefined;
-  // `subtotal` is available to the two quote-level templates only
-  const quoteTitle = compileTpl("quoteTitle", quoteTitleSrc, ["subtotal"]);
-  const clientMessage = compileTpl("clientMessage", clientMessageSrc, ["subtotal"]);
+  // `subtotal` / `quote_total` / `labor_hours` are available to the two quote-level templates only
+  const quoteTitle = compileTpl("quoteTitle", quoteTitleSrc, ["subtotal", "quote_total", "labor_hours"]);
+  const clientMessage = compileTpl("clientMessage", clientMessageSrc, ["subtotal", "quote_total", "labor_hours"]);
 
   let assist: EstimatorAssist | null = null;
   if (r.assist && typeof r.assist === "object") {
@@ -1244,6 +1362,7 @@ export function compileSpec(raw: unknown): CompileResult {
     inputs,
     variables: variableSrc,
     lines: lines.map((l) => l.rule),
+    ...(discountSrc.length > 0 ? { discounts: discountSrc } : {}),
     minimumTotal: minimumTotal && minimumTotal > 0 ? Math.round(minimumTotal * 100) / 100 : undefined,
     quoteTitle: quoteTitleSrc,
     clientMessage: clientMessageSrc,
@@ -1254,7 +1373,7 @@ export function compileSpec(raw: unknown): CompileResult {
 
   return {
     ok: true,
-    compiled: { spec, variables, lines, quoteTitle, clientMessage, priceBookNames: Array.from(priceBookNames) },
+    compiled: { spec, variables, lines, discounts, quoteTitle, clientMessage, priceBookNames: Array.from(priceBookNames) },
   };
 }
 
@@ -1490,7 +1609,7 @@ export function runCompiled(
 ): EstimatorRun {
   const { spec } = compiled;
   const { values, problems } = coerceInputs(spec, rawInputs);
-  if (problems.length > 0) return { ok: false, errors: problems.map((p) => p.message) };
+  if (problems.length > 0) return { ok: false, errors: problems.map((p) => p.message), inputProblems: true };
 
   const ctx: EvalCtx = {
     vars: { ...values },
@@ -1502,6 +1621,9 @@ export function runCompiled(
     for (const v of compiled.variables) ctx.vars[v.id] = evaluate(v.node, ctx);
 
     const lines: EstimatorResultLine[] = [];
+    let hoursTotal = 0;
+    // the business's cost across the non-optional lines — null as soon as one line has no cost
+    let costTotal: number | null = 0;
     for (const l of compiled.lines) {
       if (l.when && !truthy(evaluate(l.when, ctx))) continue;
       const item = l.rule.workItemName ? ctx.priceBook.get(l.rule.workItemName.trim().toLowerCase()) : undefined;
@@ -1511,36 +1633,53 @@ export function runCompiled(
       let unitPrice = l.unitPrice ? n(evaluate(l.unitPrice, ctx), `Line "${l.rule.name}" unitPrice`) : item!.unitPrice;
       if (qty <= 0) continue; // nothing to sell
       if (unitPrice < 0) {
-        warnings.push(`"${l.rule.name}" came out negative — clamped to $0`);
+        warnings.push(`"${l.rule.name}" came out negative — clamped to $0 (use a discount rule for money off)`);
         unitPrice = 0;
       }
-      let description = l.description ? renderTemplate(l.description, ctx) : "";
+      // The line's own cost per unit, else the linked item's
+      let unitCost: number | null = l.unitCost ? n(evaluate(l.unitCost, ctx), `Line "${l.rule.name}" unitCost`) : item?.unitCost ?? null;
+      if (unitCost !== null && unitCost < 0) unitCost = 0;
+      const hours = l.hours ? Math.max(0, n(evaluate(l.hours, ctx), `Line "${l.rule.name}" hours`)) : 0;
+      // The client reads the description: the line's own words, else the
+      // price-book item's — what the service is, never the formula.
+      let description = l.description ? renderTemplate(l.description, ctx) : (item?.description ?? "").replace(/\s+/g, " ").trim().slice(0, 500);
       // Quotes sell whole units. A fractional quantity (2.5 hours, 1.5 pallets)
-      // folds into one unit at the full extended price so nothing is lost.
+      // folds into one unit at the full extended price so nothing is lost;
+      // the description says how many unless it already does.
       if (!Number.isInteger(qty)) {
         const shown = Math.round(qty * 100) / 100;
-        const suffix = `${shown} × $${cents(unitPrice).toFixed(2)}`;
-        description = description ? `${description} (${suffix})` : suffix;
+        const rate = `$${cents(unitPrice).toFixed(2)}`;
+        if (!description.includes(String(shown))) description = description ? `${description} — ${shown} at ${rate} each` : `${shown} at ${rate} each`;
         unitPrice = qty * unitPrice;
+        if (unitCost !== null) unitCost = qty * unitCost;
         qty = 1;
       }
       if (qty > 9999) throw new ExprError(`Line "${l.rule.name}": quantity ${qty} is unreasonably large`);
       if (unitPrice > 1_000_000) throw new ExprError(`Line "${l.rule.name}": price came out above $1,000,000`);
-      const cost = item?.unitCost ?? null;
+      const optional = l.rule.isOptional === true;
+      if (!optional) {
+        hoursTotal += hours;
+        if (costTotal !== null) costTotal = unitCost === null ? null : costTotal + qty * unitCost;
+      }
       lines.push({
         name: renderTemplate(l.name, ctx) || l.rule.name,
         description,
         quantity: qty,
         unitPrice: cents(unitPrice),
-        unitCost: cost !== null ? cents(cost) : null,
+        unitCost: unitCost !== null ? cents(unitCost) : null,
         workItemId: item?.id ?? null,
-        isOptional: l.rule.isOptional === true,
+        isOptional: optional,
         ...(l.rule.group ? { group: l.rule.group } : {}),
+        ...(hours > 0 ? { hours: Math.round(hours * 100) / 100 } : {}),
+        ...(item?.recurringInterval ? { recurringInterval: item.recurringInterval } : {}),
       });
     }
 
     let subtotal = cents(lines.filter((l) => !l.isOptional).reduce((sum, l) => sum + l.quantity * l.unitPrice, 0));
-    if (spec.minimumTotal && lines.length > 0 && subtotal < spec.minimumTotal) {
+    // The minimum tops up the lines the client is committing to. A job of
+    // only optional add-ons has nothing to top up (the add-ons would sit on
+    // top of the minimum, not inside it).
+    if (spec.minimumTotal && lines.some((l) => !l.isOptional) && subtotal < spec.minimumTotal) {
       const diff = cents(spec.minimumTotal - subtotal);
       lines.push({
         name: "Minimum job charge",
@@ -1553,13 +1692,35 @@ export function runCompiled(
       });
       subtotal = cents(spec.minimumTotal);
     }
-    if (lines.length === 0) return { ok: false, errors: ["Nothing to quote with those inputs — no line applied."] };
+    if (lines.length === 0) return { ok: false, errors: ["Nothing to quote with those inputs — no line applied."], inputProblems: true };
 
+    // Discount rules: each one that applies adds to ONE quote discount,
+    // percent rules off the non-optional subtotal; never past the subtotal.
     ctx.vars.subtotal = subtotal;
+    const discounts: EstimatorDiscountResult[] = [];
+    let discount = 0;
+    for (const d of compiled.discounts) {
+      if (d.when && !truthy(evaluate(d.when, ctx))) continue;
+      let amount = 0;
+      if (d.percent) amount = (subtotal * n(evaluate(d.percent, ctx), `Discount "${d.rule.label}" percent`)) / 100;
+      else if (d.amount) amount = n(evaluate(d.amount, ctx), `Discount "${d.rule.label}" amount`);
+      amount = cents(Math.max(0, Math.min(amount, subtotal - discount)));
+      if (amount <= 0) continue;
+      discounts.push({ label: d.rule.label, amount });
+      discount = cents(discount + amount);
+    }
+    const total = cents(subtotal - discount);
+    ctx.vars.quote_total = total;
+    ctx.vars.labor_hours = Math.round(hoursTotal * 100) / 100;
     return {
       ok: true,
       lines,
       subtotal,
+      discount,
+      discounts,
+      total,
+      hours: Math.round(hoursTotal * 100) / 100,
+      cost: costTotal === null ? null : cents(costTotal),
       title: compiled.quoteTitle ? renderTemplate(compiled.quoteTitle, ctx) : undefined,
       clientMessage: compiled.clientMessage ? renderTemplate(compiled.clientMessage, ctx) : undefined,
       warnings,
@@ -1604,7 +1765,7 @@ export function runVariants(compiled: CompiledSpec, rawInputs: Record<string, un
   const out: Record<string, number | null> = {};
   for (const value of req.values) {
     const r = runCompiled(compiled, { ...rawInputs, [req.input]: value }, priceBook);
-    out[value] = r.ok ? r.subtotal : null;
+    out[value] = r.ok ? r.total : null;
   }
   return out;
 }
@@ -1649,7 +1810,7 @@ export function explainRun(compiled: CompiledSpec, rawInputs: Record<string, unk
     if (runs >= EXPLAIN_MAX_RUNS) return null;
     runs++;
     const r = runCompiled(compiled, { ...rawInputs, ...patch }, priceBook);
-    return r.ok ? r.subtotal : null;
+    return r.ok ? r.total : null;
   };
   const out: PriceDriver[] = [];
   const push = (inp: EstimatorInput, delta: number, text: string) => {
@@ -1671,12 +1832,12 @@ export function explainRun(compiled: CompiledSpec, rawInputs: Record<string, unk
         const unit = inp.type === "number" ? inp.unit : inp.measure === "length" ? "ft" : "sq ft";
         const max = inp.max;
         const up = max === undefined || n + d <= max ? sub({ [inp.id]: n + d }) : null;
-        if (up !== null) push(inp, up - base.subtotal, `${driverMoney(up - base.subtotal)} per extra ${fmtNum(d)}${unit ? ` ${unit}` : ""}`);
+        if (up !== null) push(inp, up - base.total, `${driverMoney(up - base.total)} per extra ${fmtNum(d)}${unit ? ` ${unit}` : ""}`);
         else {
           const min = inp.min ?? 0;
           if (n - d >= min) {
             const down = sub({ [inp.id]: n - d });
-            if (down !== null) push(inp, down - base.subtotal, `${driverMoney(down - base.subtotal)} for ${fmtNum(d)}${unit ? ` ${unit}` : ""} less`);
+            if (down !== null) push(inp, down - base.total, `${driverMoney(down - base.total)} for ${fmtNum(d)}${unit ? ` ${unit}` : ""} less`);
           }
         }
         break;
@@ -1684,7 +1845,7 @@ export function explainRun(compiled: CompiledSpec, rawInputs: Record<string, unk
       case "toggle": {
         const on = cur === true;
         const flipped = sub({ [inp.id]: !on });
-        if (flipped !== null) push(inp, flipped - base.subtotal, on ? `${driverMoney(flipped - base.subtotal)} without ${inp.label.toLowerCase()}` : `${driverMoney(flipped - base.subtotal)} with ${inp.label.toLowerCase()}`);
+        if (flipped !== null) push(inp, flipped - base.total, on ? `${driverMoney(flipped - base.total)} without ${inp.label.toLowerCase()}` : `${driverMoney(flipped - base.total)} with ${inp.label.toLowerCase()}`);
         break;
       }
       case "select": {
@@ -1694,7 +1855,7 @@ export function explainRun(compiled: CompiledSpec, rawInputs: Record<string, unk
           if (o.value === now) continue;
           const s = sub({ [inp.id]: o.value });
           if (s === null) continue;
-          const delta = s - base.subtotal;
+          const delta = s - base.total;
           if (!best || Math.abs(delta) > Math.abs(best.delta)) best = { delta, label: o.label };
         }
         if (best) push(inp, best.delta, `${driverMoney(best.delta)} for ${best.label}`);
@@ -1708,7 +1869,7 @@ export function explainRun(compiled: CompiledSpec, rawInputs: Record<string, unk
           const next = add ? [...picked, o.value] : Array.from(picked).filter((v) => v !== o.value);
           const s = sub({ [inp.id]: next });
           if (s === null) continue;
-          const delta = s - base.subtotal;
+          const delta = s - base.total;
           if (!best || Math.abs(delta) > Math.abs(best.delta)) best = { delta, label: o.label, add };
         }
         if (best) push(inp, best.delta, best.add ? `${driverMoney(best.delta)} adding ${best.label}` : `${driverMoney(best.delta)} without ${best.label}`);
@@ -1722,7 +1883,7 @@ export function explainRun(compiled: CompiledSpec, rawInputs: Record<string, unk
           if (inp.max !== undefined && n + 1 > inp.max) continue;
           const s = sub({ [inp.id]: { ...table, [o.value]: n + 1 } });
           if (s === null) continue;
-          const delta = s - base.subtotal;
+          const delta = s - base.total;
           if (!best || Math.abs(delta) > Math.abs(best.delta)) best = { delta, label: o.label };
         }
         if (best) push(inp, best.delta, `${driverMoney(best.delta)} per extra ${best.label.toLowerCase()}`);
@@ -1758,7 +1919,9 @@ export function auditSpec(compiled: CompiledSpec, priceBook: PriceBookEntry[]): 
 
   if (!spec.inputs.some((i) => i.type !== "text")) errors.push("The tool needs at least one question that changes the price (a number, choice, map or yes/no).");
   for (const l of spec.lines) {
-    if (!l.description) errors.push(`Line "${l.name}" needs a description — the client reads it on the quote (say what the number covers, e.g. "{sqft} sq ft at {rate|money}/sq ft").`);
+    // a linked price-book item lends its own description when the line has none
+    if (!l.description && !l.workItemName) errors.push(`Line "${l.name}" needs a description — the client reads it on the quote. Say what the service is and what it includes, in plain words (e.g. "Pressure wash of the driveway with a degreaser on oil stains").`);
+    if (l.description && descriptionReadsLikeMath(l.description)) warnings.push(`"${l.name}"'s description reads like the formula ("${l.description.slice(0, 60)}"). The quote already shows quantity × price — say what the service is instead.`);
     if (l.unitPrice && /^0(\.0+)?$/.test(l.unitPrice) && !l.isOptional) errors.push(`Line "${l.name}" is priced at $0 — give it a real rate or mark it optional.`);
   }
   for (const i of spec.inputs) {
@@ -1781,18 +1944,27 @@ export function auditSpec(compiled: CompiledSpec, priceBook: PriceBookEntry[]): 
       errors.push(`Sample "${smp.label}" failed: ${r.errors[0]}`);
       continue;
     }
-    samples.push({ label: smp.label, subtotal: r.subtotal, lines: r.lines.length });
-    if (r.subtotal <= 0) errors.push(`Sample "${smp.label}" priced at $0 — a real job never costs nothing.`);
+    samples.push({ label: smp.label, subtotal: r.total, lines: r.lines.length });
+    if (r.total <= 0) errors.push(`Sample "${smp.label}" priced at $0 — a real job never costs nothing.`);
     const key = smp.label.toLowerCase();
-    if (/small|minimum|basic/.test(key)) bySize.small = r.subtotal;
-    else if (/typical|average|medium|standard/.test(key)) bySize.typical = r.subtotal;
-    else if (/large|big|premium|max/.test(key)) bySize.large = r.subtotal;
+    if (/small|minimum|basic/.test(key)) bySize.small = r.total;
+    else if (/typical|average|medium|standard/.test(key)) bySize.typical = r.total;
+    else if (/large|big|premium|max/.test(key)) bySize.large = r.total;
   }
   if ((spec.samples?.length ?? 0) < 2) errors.push('Give at least two samples ("Small job", "Typical job", "Large job") with every required question answered, so the math is proven before saving.');
   if (bySize.small !== undefined && bySize.typical !== undefined && bySize.small > bySize.typical) errors.push(`The "small" sample ($${bySize.small.toFixed(2)}) prices above the "typical" one ($${bySize.typical.toFixed(2)}) — check the math or the samples.`);
   if (bySize.typical !== undefined && bySize.large !== undefined && bySize.typical > bySize.large) errors.push(`The "typical" sample ($${bySize.typical.toFixed(2)}) prices above the "large" one ($${bySize.large.toFixed(2)}) — check the math or the samples.`);
 
   return { errors: Array.from(new Set(errors)).slice(0, 20), warnings: Array.from(new Set(warnings)).slice(0, 8), samples };
+}
+
+/**
+ * A description template that prints the math ("{sqft} sq ft at {rate|money}/sq ft",
+ * "{qty} × {rate}") rather than telling the client what the service is. The
+ * quote's quantity and price columns already carry the numbers.
+ */
+export function descriptionReadsLikeMath(tpl: string): boolean {
+  return /\|money\}|\bat \{|\{[^}]*\}\s*(×|x|\*)\s*\{|\bper\s+\{|\{[^}]*rate[^}]*\}/i.test(tpl);
 }
 
 /** Read a stored spec back into its type (stored specs passed compileSpec). */
@@ -1829,11 +2001,14 @@ spec = {
   ],
   variables: [ { id: "rate", expr: "tier(sqft, [[500, 0.30], [2000, 0.22]], 0.18)" } ],   // evaluated in order
   lines: [
-    { name: "Driveway cleaning", description: "{sqft} sq ft at {rate|money}/sq ft", quantity: "sqft", unitPrice: "rate", workItemName: "Driveway Cleaning", group: "Cleaning" },
+    { name: "Driveway cleaning", description: "Pressure wash of the whole driveway, with a degreaser on oil and rust stains", quantity: "sqft", unitPrice: "rate", workItemName: "Driveway Cleaning", group: "Cleaning", hours: "sqft / 600", unitCost: "0.06" },
     { name: "Two-story surcharge", description: "Ladder work on a two-story home", when: "stories == '2'", quantity: "1", unitPrice: "pct(sqft * rate, 15)", group: "Cleaning" },
     { name: "Walkways and porch", description: "Included in the Plus and Premium packages", when: "package != 'basic'", quantity: "1", unitPrice: "95", group: "Package" },
-    { name: "Penetrating sealant", description: "{sqft} sq ft at $0.45/sq ft — two-year protection", when: "package == 'premium'", quantity: "sqft", unitPrice: "0.45", group: "Package" },
-    { name: "Fence wash", description: "{fence_ft} ft of fence", when: "has(extras, 'Fence')", quantity: "fence_ft", unitPrice: "1.25", group: "Extras" }
+    { name: "Penetrating sealant", description: "Penetrating sealer over the clean driveway — two years of protection against stains and weather", when: "package == 'premium'", quantity: "sqft", unitPrice: "0.45", group: "Package", hours: "sqft / 1200" },
+    { name: "Fence wash", description: "Soft wash of both sides of the fence to lift dirt, algae and mildew", when: "has(extras, 'Fence')", quantity: "fence_ft", unitPrice: "1.25", group: "Extras" }
+  ],
+  discounts: [                     // money off, as ONE discount on the quote (never a negative line); [] when the business gives none
+    { label: "Bundle discount", when: "count(extras) >= 2", percent: "10" }
   ],
   minimumTotal: 150,
   quoteTitle: "Pressure washing — {sqft} sq ft",
@@ -1852,14 +2027,19 @@ Rules:
 - Input types: number, select (one of), multi (several — the value is a LIST of option values), counts (items AND how many of each — the value is a TABLE {optionValue: count}; qty(windows, 'picture') is one item's count, total(windows) all of them, has()/count() work too; use it for windows by type, trees by size, junk items, fixtures, rooms by size), map, toggle, text. type "map" = the customer draws on a satellite map: measure "length" (a fence line; the value is FEET) or "area" (lawn, roof, driveway, patio; the value is SQUARE FEET) — use it whenever a size is the main price driver (fencing, lawn care, roofing, paving, irrigation, sealcoating) instead of asking them to guess a number. Pictures on options/questions are added by the owner in the editor, never by you. "section" groups questions under a heading (the website form shows one section per step); "showWhen" (an expression over OTHER inputs, no variables/price book) hides a question until it matters — a hidden question reads as untouched (its default). Complex trades (roofing, remodels, HVAC, moving) want 2–4 sections and showWhen branches instead of one wall of questions.
 - Number questions: "control" = "slider" (a size with a sensible max — set min/max/step), "stepper" (a count: windows, rooms, gates) or "field" (default). Add 2–5 "presets" whenever a homeowner wouldn't know the number cold ("Two-car — 550 sq ft"). Always give a "unit".
 - Select questions: "style" = "cards" (2–6 choices with a one-line "blurb" each) or "packages" (2–4 good/better/best tiers; each option needs "blurb" + "includes" bullets, mark ONE "recommended"; the form prints each tier's live price). Lines then switch on the tier: when: "package == 'premium'". Packages ONLY when this business sells tiers — the owner said so (packages / tiers / levels / good-better-best) or their price book and quotes show tiered services. A per-unit, hourly, flat-menu or repair job gets one clear price and NO package picker. Never invent tiers.
-- Every line needs a "description" (the client reads it on the quote) and a "group" heading for the breakdown ("Labor", "Materials", "Add-ons", "Package") — 2–4 groups.
+- Every line needs a "description" the CLIENT reads on the quote: what the service is and what it includes, in plain words ("Pressure wash of the whole driveway, with a degreaser on oil stains"). NEVER the math — no "{sqft} sq ft at {rate|money}", no rates, no formulas; the quote already prints quantity × price on its own columns. A line that links a price-book item may leave description out and inherit the item's. Give every line a "group" heading for the breakdown ("Labor", "Materials", "Add-ons", "Package") — 2–4 groups.
+- "hours" on a line = an expression for the labor hours that line takes when it applies ("sqft / 600", "2.5") — the tool then says how long to book the job for; it never changes the price. Give it on the lines that take time; skip it on parts and fees.
+- "unitCost" on a line = an expression for the business's cost per unit (materials + labor) so the runner shows the margin; a linked price-book item brings its own cost. Never shown to clients.
+- "discounts": money off is a DISCOUNT RULE, never a negative line (negative prices are clamped to $0). Each rule: label (the client reads it), optional when, and percent (of the non-optional subtotal) OR amount (dollars). The rules that apply add up to one discount on the quote. Use it for bundles ("10% off when you add gutters"), first-time / cash / senior discounts, seasonal promos.
+- RECURRING services (weekly mowing, monthly pool service, quarterly pest): the price book decides. Link the line with workItemName to a price-book service marked recurring — the quote line then carries the billing cadence and conversion sets up the subscription. If no such item exists, the line is a per-visit price: say "per visit" in the line name or description and make the frequency question change the per-visit rate, never multiply visits into one lump sum.
 - "askAtlas": true on a question means Atlas answers it from the customer's description and photo at run time (a metered call — the business pays tokens per estimate; the person can always override). Use it ONLY when a human estimator would have to LOOK at the job to answer and the price truly depends on it: condition (light / moderate / heavy), access difficulty, hazard near a house or power line, scope of damage. Give such a question "help" that says exactly what to look for. Never on sizes the customer can measure or draw, never on choices the customer makes (material, package), never more than 3 per tool. A simple per-unit or flat-rate trade never needs it.
 - "placeholders": when the owner did not give a rate you need, do NOT stop to ask — use a reasonable US-market placeholder, and list it here in plain words so the owner sets it. Ask a question ONLY when you cannot tell what job the tool is for. [] when nothing was guessed.
 - "samples": 2–3 realistic jobs (labels containing "small", "typical", "large") with every required question answered; the builder runs them and rejects a tool whose small job prices above its typical one.
-- Line unitPrice/quantity/when are EXPRESSIONS (strings). name/description/quoteTitle/clientMessage are TEMPLATES: {expr}, {expr|money}, {expr|int}. quoteTitle/clientMessage may also use {subtotal}.
+- Line unitPrice/quantity/when/hours/unitCost are EXPRESSIONS (strings). name/description/quoteTitle/clientMessage are TEMPLATES: {expr}, {expr|money}, {expr|int}. quoteTitle/clientMessage may also use {subtotal} (before discounts), {quote_total} (after) and {labor_hours}.
+- Choice answers are TEXT. "3" + "2" adds (5) when both read as numbers, and a yes/no select answered "no" / "none" / "0" is FALSE in a condition — but prefer a toggle for yes/no and compare choices explicitly (stories == '2').
 - workItemName links a line to a price-book item (exact name): it brings the item's cost, id and — when unitPrice is omitted — its price. price("Name") / cost("Name") read the price book inside any expression. Names must exist in the price book (get_price_book) — never invent items; create them with create_service first.
 - Quantity may be fractional (2.5 hours): it folds into one unit at the extended price automatically.
-- Lines with quantity <= 0 or a false "when" are skipped. minimumTotal adds a "Minimum job charge" top-up line when needed.
+- Lines with quantity <= 0 or a false "when" are skipped. minimumTotal adds a "Minimum job charge" top-up line when needed (only against the non-optional lines).
 - Expression language: + - * / % ; comparisons == != < <= > >= ; and/or/not (or && || !) ; cond ? a : b ; strings in quotes; lists [a, b]; tables {small: 100, large: 200}.
   Functions: min max round(x, decimals) floor ceil abs sqrt if(c, a, b) clamp(x, lo, hi) pct(amount, percent) roundTo(x, step) tier(x, [[upTo, value], ...], else) lookup(key, {k: v}, default) price("Name") cost("Name") len(text) contains(text, part) lower(text) number(x) has(picks, value) count(picks) sum(list) join(picks, ", ").
 - lookup() on a multi: sum the picks' prices with a variable per pick, e.g. has(rooms, 'kitchen') * 250 + has(rooms, 'bath') * 180 (has() is 1/0 in arithmetic).
@@ -1929,6 +2109,22 @@ export function describeSpecChanges(from: EstimatorSpec, to: EstimatorSpec): str
     if ((o.description ?? "") !== (l.description ?? "")) out.push(`Description for "${l.name}" changed`);
   }
   for (const o of from.lines) if (!toLines.has(o.id)) out.push(`Removed line "${o.name}"`);
+  for (const l of to.lines) {
+    const o = fromLines.get(l.id);
+    if (!o) continue;
+    if ((o.hours ?? "") !== (l.hours ?? "")) out.push(l.hours ? `Labor hours for "${l.name}": ${l.hours}` : `"${l.name}" no longer counts labor hours`);
+    if ((o.unitCost ?? "") !== (l.unitCost ?? "")) out.push(l.unitCost ? `Cost for "${l.name}": ${rateText(l.unitCost)}` : `"${l.name}" no longer has its own cost`);
+  }
+
+  const fromDisc = new Map((from.discounts ?? []).map((d) => [d.id, d]));
+  const toDisc = new Map((to.discounts ?? []).map((d) => [d.id, d]));
+  const discText = (d: EstimatorDiscount) => (d.percent ? `${d.percent}%` : `$${d.amount}`) + (d.when ? ` when ${d.when}` : "");
+  for (const d of to.discounts ?? []) {
+    const o = fromDisc.get(d.id);
+    if (!o) out.push(`Added discount "${d.label}": ${discText(d)}`);
+    else if (o.label !== d.label || (o.when ?? "") !== (d.when ?? "") || (o.percent ?? "") !== (d.percent ?? "") || (o.amount ?? "") !== (d.amount ?? "")) out.push(`Discount "${d.label}": ${discText(o)} → ${discText(d)}`);
+  }
+  for (const o of from.discounts ?? []) if (!toDisc.has(o.id)) out.push(`Removed discount "${o.label}"`);
 
   if ((from.minimumTotal ?? 0) !== (to.minimumTotal ?? 0)) out.push(`Minimum job charge: $${(from.minimumTotal ?? 0).toFixed(2)} → $${(to.minimumTotal ?? 0).toFixed(2)}`);
   const fromPh = from.placeholders?.length ?? 0, toPh = to.placeholders?.length ?? 0;

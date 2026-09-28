@@ -4,6 +4,7 @@ import { parseVariants, runCompiled, runVariants } from "@/lib/estimator";
 import { loadPriceBook, resolvePublicEstimator } from "@/lib/estimator-server";
 import { shapeEstimate, shapeVariants } from "@/lib/estimator-public";
 import { limit, clientIp } from "@/lib/rate-limit";
+import { PUBLIC_RUN_FAILED } from "../route";
 
 /**
  * POST /api/public/estimate/[companySlug]/[toolSlug]/calc  { inputs, variants? }
@@ -42,7 +43,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   }
 
   const result = runCompiled(pub.compiled, inputs, book);
-  if (!result.ok) return NextResponse.json({ error: result.errors[0], errors: result.errors }, { status: 400 });
+  if (!result.ok) {
+    // wrong / missing answers are the visitor's to fix; a broken rule (a
+    // renamed price-book item) is the owner's — the visitor gets a plain line
+    if (result.inputProblems) return NextResponse.json({ error: result.errors[0], errors: result.errors }, { status: 400 });
+    console.error("[estimate-form] tool can't run", { estimatorId: pub.row.id, errors: result.errors });
+    return NextResponse.json({ error: PUBLIC_RUN_FAILED }, { status: 424 });
+  }
 
   if (!pub.previewing) void prisma.estimator.update({ where: { id: pub.row.id }, data: { publicCalcs: { increment: 1 } } }).catch(() => {});
 

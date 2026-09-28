@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { isBotUserAgent } from "@/lib/bots";
 import { atlasAccess, ATLAS_ACCESS_SELECT } from "@/lib/assistant-access";
 import { resolvePublicEstimator } from "@/lib/estimator-server";
-import { defaultButtonLabel, publicInputs } from "@/lib/estimator-public";
+import { defaultButtonLabel, publicInputs, taxNoteFor } from "@/lib/estimator-public";
 import { appearanceFor, type AppearanceOverrides } from "../schedule/shell";
 import ScheduleFrame from "../schedule/ScheduleFrame";
 import { offersSmsConsent } from "@/lib/sms-consent";
@@ -74,6 +74,7 @@ export default async function EstimateView({
       photoAssist={config.photoAssist && Boolean(spec.assist)}
       assistAvailable={assistAvailable}
       mapCenter={typeof company.lat === "number" && typeof company.lng === "number" ? [company.lat, company.lng] : null}
+      taxNote={taxNoteFor(company.defaultTaxRate === null || company.defaultTaxRate === undefined ? null : Number(company.defaultTaxRate))}
     />
   );
 

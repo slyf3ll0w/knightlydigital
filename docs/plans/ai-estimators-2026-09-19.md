@@ -1518,6 +1518,161 @@ Clients; a history of who used each tool; audit the rest.
   a tick. Cheap today; if it shows up in Railway metrics, the answer is a
   single SSE stream or a cheaper "anything new since T" endpoint.
 
+## Batch 14 — the paid-feature audit: fixes, industry fit, the standout layer (BUILT 2026-09-28)
+
+David (2026-09-28): the estimator is going to be a PAID feature — audit it
+for real problems, for whether it is useful to businesses in every
+industry, and for what would make it a standout. Then: "fix all of them",
+a hard warning (not a block) before publishing guessed rates, descriptions
+that tell the customer about the service rather than the formula, the
+industry-fit changes, and the standout additions minus abandoned-estimate
+leads (the form's contact-first option already covers that). Plan gating
+comes later. US-only. "Be careful — a lot of times we add things and they
+mess up existing features."
+
+### The audit (what was wrong, in order of damage)
+1. **`+` joined choice answers as text.** Select values are strings, and
+   the evaluator concatenated whenever either side was a string — a
+   cleaning tool's `bedrooms + bathrooms` priced 3 + 2 as 32, and the audit
+   step never caught it. Now `+` ADDS when both sides read as numbers
+   (`numish`) and only joins genuine words (`lib/estimator.ts`).
+2. **No discounts.** Negative lines clamped to $0 and the spec had no
+   discount concept. Now `spec.discounts[]` rules (label, `when`,
+   `percent` of the non-optional subtotal OR `amount`) add up to ONE
+   discount on the run (`discount`, `discounts[]`, `total = subtotal −
+   discount`), which becomes the quote's own FIXED discount — never a
+   negative line. Web-form quotes (`createEstimateLead`) and the runner's
+   Create quote / Add to quote (`QuoteEditor.applyEstimate`) carry it.
+   Variants, explain and the audit all price the after-discount `total`.
+3. **Renaming or archiving a price-book item silently broke every tool
+   linking it** (by name), and the public form printed the raw error.
+   `estimatorsUsingItem` + `estimatorGuard` on the work-item PATCH
+   (rename / archive) and DELETE answer 409 with the tool names; the
+   estimates list and the tool page show "can't run — N price-book items
+   missing" (`missingItemsOf`); the public calc / submit routes answer a
+   plain line (`PUBLIC_RUN_FAILED`, 424) for rule failures and keep the
+   real message only for the visitor's own input problems
+   (`EstimatorRun.inputProblems`).
+4. **The visitor's number wasn't the quote's number.** The web-form quote
+   now carries the company's `defaultTaxRate` through `computeQuoteTotals`
+   (tax, discount, total) like the quote editor; the form's breakdown says
+   "Before sales tax (8.25%)." (`taxNoteFor`) and the request records
+   "before tax". Optional lines stay outside the hero ("before optional
+   items") on purpose — the quote's approval page is where the client
+   toggles them.
+5. **Guessed rates could go public unnoticed.** `confirmGuessedRates`
+   (components/RatesToConfirm.tsx) is the hard warning on both publish
+   paths (Overview row + the Web form switch): it lists the placeholders
+   and needs "Publish Anyway".
+6. Smaller: the minimum top-up no longer fires on a job of only optional
+   add-ons; a yes/no choice answered "no" / "none" / "0" / "off" is FALSE
+   in a condition (`NO_WORDS` in `truthy`); anonymous Library listings
+   lose the company's name from every word field (`scrubCompanyName`,
+   share route); the per-company daily request cap counts public sources
+   only (`PUBLIC_REQUEST_SOURCES`, booking route too).
+
+### Descriptions are for the client
+`description` is what the client reads: what the service is and includes,
+never the math — the quote's own columns show quantity × price. The guide,
+the principles, the draft rules and the editor placeholder all say so; the
+audit warns when a description "reads like the formula"
+(`descriptionReadsLikeMath`); a line that links a price-book item and has
+no description of its own inherits the item's (`loadPriceBook` now
+selects `description` + `recurringInterval`). The fractional-quantity fold
+now writes "2.5 at $85.00 each" only when the description doesn't already
+say how many.
+
+### Industry fit
+- **Recurring trades (lawn, pool, pest, cleaning).** No new field: the
+  price book already decides. A line that links a recurring price-book
+  service carries `recurringInterval` on the result line → the quote line
+  → conversion spins up the subscription (the existing plumbing). The
+  runner and the web form tag those lines "Billed monthly"; the business
+  context tells the builder which items are RECURRING; the playbook says
+  to link them and never to multiply visits into a lump sum.
+- **Repair trades (HVAC, plumbing, electrical, appliance, garage door).**
+  Limits raised (60 inputs / 80 variables / 100 lines / 60 options) so a
+  job menu fits; the playbook positions these tools as installs and
+  replacements, with a diagnostic / trip fee line credited on approval
+  and "something else → a request, no price".
+- **Eight new playbook trades**: PC building & repair (in the industry
+  list but had no entry), auto detailing, mobile mechanic, septic, solar,
+  insulation, siding, decks / patios / pergolas (34 trades now).
+
+### The standout layer (what shipped)
+- **Win rate per tool** (`loadToolStats` in lib/estimator-context.ts,
+  from `Quote.estimatorId`): the tool page's Overview shows "How it's
+  doing" (win rate once 3 quotes are decided, open, average quote,
+  average won) with a nudge at ≥85% / ≤30%; a CHANGE build gets the same
+  numbers in its prompt (`toolStatsText`) so Atlas can say "Premium never
+  wins" when asked about pricing — and is told never to move rates the
+  owner didn't ask about.
+- **Labor hours + cost per line**: `line.hours` (expression, whole line)
+  → `run.hours` ("About 6.5 h of work" on the result; the quote's internal
+  notes; the request details) and `line.unitCost` (expression, falls back
+  to the linked item's cost) → `run.cost` → "Your cost $X · margin $Y
+  (Z%)" for managers (`showMargin`, defaults to `showSamples`). Templates
+  may use `{quote_total}` and `{labor_hours}` (`hours` / `total` were NOT
+  reserved — they are common input ids).
+- **Speed to lead**: the web-lead push now carries Call / Text action
+  buttons (`webLeadPushPayload` → `/app/calls?contact=` and
+  `/app/messages/thread/`), and the Web form section has a one-tap
+  "Follow up automatically" card that creates the automation "Web
+  estimate follow-up" (request.created · source = estimate_form · wait 1 h
+  · email the client · notify the managers) through the ordinary
+  automations API; a second tap finds it already there (409).
+- **Service-area gate**: Web form → Options → "Only quote addresses in my
+  service area" (needs the address field + `Company.serviceZips`): an
+  out-of-area ZIP (`zipOf` / `outOfServiceArea`) still lands as a request
+  (no quote), the request says so, and the thank-you shows
+  `outOfAreaMessage` (or `DEFAULT_OUT_OF_AREA`) instead of a price.
+  Distance-based trip charges were left for later (geocoding + a metered
+  variable).
+- Not built, on purpose: abandoned-estimate leads (David: the contact-first
+  form option covers it), the interactive proposal (1–2 weeks, its own
+  batch), distance geopricing, plan gating (David: later).
+
+### Kept consistent with what exists
+Discounts use the quote's own discount field; recurring uses the price
+book + `QuoteLineItem.recurringInterval`; the follow-up is a plain
+automation; hours land in `Quote.notes`; the price-book guard mirrors the
+"archive instead of delete" rule; the public failure code is 424 like
+every upstream failure (Cloudflare eats 502/504). No schema change.
+Tests: `scripts/test-estimator.ts` §16, `test-estimator-public.ts` §10,
+`test-estimator-portable.ts` batch-14 block.
+
+### Batch 14 Test (owed)
+1. Build a house-cleaning tool with Bedrooms and Bathrooms as tap cards
+   and a line `(bedrooms + bathrooms) * 40` → 3 + 2 prices $200, not $1,280.
+2. Advanced → Pricing → Discounts → "Bundle discount 10% when
+   count(extras) >= 2" → Try it: the breakdown shows Subtotal, the
+   discount row, the total; Create quote → the quote editor opens with a
+   FIXED discount of that amount; the web form shows the same total.
+3. Settings → Products & Services → rename an item a tool links →
+   refused with the tool's name; the tool page shows nothing wrong. Archive
+   an item nothing links → fine.
+4. A company with a sales tax rate: the web form's total says "Before
+   sales tax (8.25%)."; submit with "email the quote" → the emailed quote
+   carries tax and totals accordingly.
+5. A tool with rates to confirm → Overview → Publish as a web form → the
+   sheet lists the guessed rates; Publish Anyway publishes; Cancel doesn't.
+6. Put `hours: "sqft / 500"` on a line and a cost on another → the result
+   shows "About N h of work" and (manager) cost + margin; Create quote →
+   internal notes say "Estimated labor: N h".
+7. Link a line to a recurring price-book service → the runner tags it
+   "Billed monthly"; a web-form quote's line carries the interval;
+   converting the approved quote creates the subscription as before.
+8. Web form → Options → address on + "Only quote addresses in my service
+   area" → submit with an out-of-area ZIP → thank-you says so, the request
+   says "Outside your service area", no quote; an in-area ZIP behaves as
+   before.
+9. Web form → "Follow up automatically" → Set it up → Automations lists
+   "Web estimate follow-up"; tap again → "Already set up".
+10. A tool with 3+ decided quotes → Overview shows "How it's doing"; Ask
+    Atlas "is this priced right?" → the answer cites the win rate.
+11. Share a tool anonymously whose intro names the company → the listing's
+    words say "our team".
+
 ## Later
 - **Smarter still (proposed 2026-09-22, not built)** — the upgrade-worthy
   layer on top of the Library:

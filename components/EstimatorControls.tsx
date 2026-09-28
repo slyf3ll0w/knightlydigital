@@ -422,11 +422,37 @@ export function StepRail({ titles, idx, theme }: { titles: (string | null)[]; id
 
 // ── breakdown ────────────────────────────────────────────────────────────────
 
-export type BreakdownLine = { name: string; description?: string; quantity: number; unitPrice: number; isOptional: boolean; group?: string };
+export type BreakdownLine = { name: string; description?: string; quantity: number; unitPrice: number; isOptional: boolean; group?: string; recurringInterval?: string | null };
 
-/** Lines grouped under their headings, each group subtotaled, optional lines tagged. Reads like the quote will. */
-export function Breakdown({ lines, subtotal, theme, exact = true }: { lines: BreakdownLine[]; subtotal: number; theme: ControlTheme; exact?: boolean }) {
+const RECURRING_LABEL: Record<string, string> = { MONTHLY: "Billed monthly", QUARTERLY: "Billed quarterly", SEMIANNUAL: "Billed every 6 months", ANNUAL: "Billed yearly" };
+
+/**
+ * Lines grouped under their headings, each group subtotaled, optional lines
+ * tagged, recurring lines labelled, then the discount rows and the total
+ * (after the discount, before tax). Reads like the quote will.
+ */
+export function Breakdown({
+  lines,
+  subtotal,
+  discounts = [],
+  total,
+  taxNote,
+  theme,
+  exact = true,
+}: {
+  lines: BreakdownLine[];
+  subtotal: number;
+  /** The discount rules that applied (lib/estimator.ts) — one row each */
+  discounts?: { label: string; amount: number }[];
+  /** After the discounts; defaults to the subtotal */
+  total?: number;
+  /** "Before sales tax (8.25%)." when the business adds tax on quotes */
+  taxNote?: string;
+  theme: ControlTheme;
+  exact?: boolean;
+}) {
   const money = exact ? moneyExact : moneyRound;
+  const shownTotal = total ?? subtotal;
   const groups: { title: string | null; lines: BreakdownLine[] }[] = [];
   for (const l of lines) {
     const title = l.group ?? null;
@@ -452,6 +478,7 @@ export function Breakdown({ lines, subtotal, theme, exact = true }: { lines: Bre
                 <p className={`text-sm font-medium ${theme.ink}`}>
                   {l.name}
                   {l.isOptional && <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${theme.surface} ${theme.faint}`}>optional</span>}
+                  {l.recurringInterval && <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${theme.surface} ${theme.faint}`}>{RECURRING_LABEL[l.recurringInterval] ?? "Recurring"}</span>}
                 </p>
                 {l.description && <p className={`text-xs ${theme.muted}`}>{l.description}</p>}
                 {l.quantity !== 1 && (
@@ -465,9 +492,26 @@ export function Breakdown({ lines, subtotal, theme, exact = true }: { lines: Bre
           ))}
         </div>
       ))}
+      {discounts.length > 0 && (
+        <div className={`border-t px-4 py-2 ${theme.border}`}>
+          <div className={`flex items-center justify-between text-xs ${theme.muted}`}>
+            <span>Subtotal{hasOptional ? " (before optional items)" : ""}</span>
+            <span className="tabular-nums">{money(subtotal)}</span>
+          </div>
+          {discounts.map((d, i) => (
+            <div key={`${d.label}-${i}`} className={`mt-1 flex items-center justify-between text-xs ${theme.muted}`}>
+              <span>{d.label}</span>
+              <span className="tabular-nums">−{money(d.amount)}</span>
+            </div>
+          ))}
+        </div>
+      )}
       <div className={`flex items-center justify-between border-t px-4 py-3 ${theme.border} ${theme.surface}`}>
-        <span className={`text-sm font-medium ${theme.muted}`}>Total{hasOptional ? " (before optional items)" : ""}</span>
-        <span className={`text-base font-bold tabular-nums ${theme.ink}`}>{money(subtotal)}</span>
+        <span className={`text-sm font-medium ${theme.muted}`}>
+          Total{hasOptional ? " (before optional items)" : ""}
+          {taxNote && <span className={`block text-[11px] font-normal ${theme.faint}`}>{taxNote}</span>}
+        </span>
+        <span className={`text-base font-bold tabular-nums ${theme.ink}`}>{money(shownTotal)}</span>
       </div>
     </div>
   );

@@ -50,6 +50,15 @@ export type EstimatorPublicConfig = {
    * opt-in, needs the tool's `assist`, and is capped per company per day.
    */
   photoAssist: boolean;
+  /**
+   * Check the service address against the company's service ZIPs
+   * (Settings → business hours / service area). Out of area: the lead still
+   * lands (as a request, no quote), the thank-you says so, and the request
+   * is marked. Needs the address field shown and service ZIPs set.
+   */
+  serviceArea: boolean;
+  /** Thank-you text for an out-of-area visitor; "" = a default. */
+  outOfAreaMessage: string;
 };
 
 /** Website photo fill-ins a company will pay for in one day (rolling). */
@@ -87,7 +96,25 @@ export function defaultPublicConfig(): EstimatorPublicConfig {
     disclaimer: DEFAULT_DISCLAIMER,
     successMessage: "",
     photoAssist: false,
+    serviceArea: false,
+    outOfAreaMessage: "",
   };
+}
+
+export const DEFAULT_OUT_OF_AREA = "That address is outside the area we serve right now. We've kept your details and will be in touch if that changes.";
+
+/** The 5-digit ZIP in a typed US address ("123 Main St, Dallas, TX 75201-1234" → "75201"), or null. */
+export function zipOf(address: string): string | null {
+  const m = address.match(/\b(\d{5})(?:-\d{4})?\b(?!.*\b\d{5}\b)/);
+  return m ? m[1] : null;
+}
+
+/** Out of the company's service area? Only decided when the form checks it, ZIPs are set, and the address carries a ZIP. */
+export function outOfServiceArea(config: Pick<EstimatorPublicConfig, "serviceArea">, serviceZips: string[], address: string): boolean {
+  if (!config.serviceArea || serviceZips.length === 0) return false;
+  const zip = zipOf(address);
+  if (!zip) return false;
+  return !serviceZips.some((z) => z.trim().slice(0, 5) === zip);
 }
 
 function str(v: unknown, max: number): string {
@@ -146,6 +173,8 @@ export function sanitizePublicConfig(raw: unknown): EstimatorPublicConfig {
     disclaimer: r.disclaimer === "" ? "" : str(r.disclaimer, PUBLIC_LIMITS.disclaimer) || d.disclaimer,
     successMessage: str(r.successMessage, PUBLIC_LIMITS.successMessage),
     photoAssist: r.photoAssist === true || r.photoAssist === "true",
+    serviceArea: r.serviceArea === true || r.serviceArea === "true",
+    outOfAreaMessage: str(r.outOfAreaMessage, PUBLIC_LIMITS.successMessage),
   };
 }
 
@@ -186,22 +215,23 @@ export function publicInputs(spec: EstimatorSpec): PublicEstimatorInput[] {
   return spec.inputs.map((i) => ({ ...i }));
 }
 
-export type PublicEstimateLine = { name: string; description: string; quantity: number; unitPrice: number; total: number; isOptional: boolean; group?: string };
+export type PublicEstimateLine = { name: string; description: string; quantity: number; unitPrice: number; total: number; isOptional: boolean; group?: string; recurringInterval?: string | null };
 
-/** The estimate as the visitor sees it, shaped by showPrice. */
+/** The estimate as the visitor sees it, shaped by showPrice. `total` = after the discount, before tax. */
 export type PublicEstimate =
-  | { mode: "exact"; lines: PublicEstimateLine[]; subtotal: number; title?: string }
+  | { mode: "exact"; lines: PublicEstimateLine[]; subtotal: number; discount: number; discounts: { label: string; amount: number }[]; total: number; title?: string }
   | { mode: "range"; low: number; high: number; title?: string }
   | { mode: "hidden"; title?: string };
 
 export function shapeEstimate(
-  result: { lines: EstimatorResultLine[]; subtotal: number; title?: string },
+  result: { lines: EstimatorResultLine[]; subtotal: number; total?: number; discount?: number; discounts?: { label: string; amount: number }[]; title?: string },
   config: Pick<EstimatorPublicConfig, "showPrice" | "rangePct">,
   minimumTotal?: number
 ): PublicEstimate {
+  const total = result.total ?? result.subtotal;
   if (config.showPrice === "hidden") return { mode: "hidden", title: result.title };
   if (config.showPrice === "range") {
-    const { low, high } = estimateRange(result.subtotal, config.rangePct, minimumTotal);
+    const { low, high } = estimateRange(total, config.rangePct, minimumTotal);
     return { mode: "range", low, high, title: result.title };
   }
   return {
@@ -214,8 +244,12 @@ export function shapeEstimate(
       total: Math.round(l.quantity * l.unitPrice * 100) / 100,
       isOptional: l.isOptional,
       ...(l.group ? { group: l.group } : {}),
+      ...(l.recurringInterval ? { recurringInterval: l.recurringInterval } : {}),
     })),
     subtotal: result.subtotal,
+    discount: result.discount ?? 0,
+    discounts: result.discounts ?? [],
+    total,
     title: result.title,
   };
 }
@@ -225,7 +259,7 @@ export const moneyWhole = (n: number) => `$${Math.round(n).toLocaleString("en-US
 
 /** "$850 – $1,150" / "$1,234.00" / "" */
 export function estimateLabel(e: PublicEstimate): string {
-  if (e.mode === "exact") return money(e.subtotal);
+  if (e.mode === "exact") return money(e.total);
   if (e.mode === "range") return `${moneyWhole(e.low)} – ${moneyWhole(e.high)}`;
   return "";
 }
@@ -267,7 +301,13 @@ export function describePublicConfig(c: EstimatorPublicConfig): string[] {
     `Asks for: ${asks.join(", ")}`,
     result[0].toUpperCase() + result.slice(1),
     ...(c.photoAssist ? [`Visitors can attach a photo and Atlas fills in the answers (your tokens, at most ${PUBLIC_PHOTO_ASSIST_DAILY_CAP} a day)`] : []),
+    ...(c.serviceArea ? ["Addresses outside your service ZIPs get a request only, no quote"] : []),
   ];
+}
+
+/** Fine print for the price when the company adds sales tax on quotes (tool prices are pre-tax). */
+export function taxNoteFor(taxRate: number | null | undefined): string {
+  return taxRate && taxRate > 0 ? `Before sales tax (${(taxRate * 100).toFixed(taxRate * 100 % 1 === 0 ? 0 : 2)}%).` : "";
 }
 
 /** Default thank-you copy per onSubmit. */

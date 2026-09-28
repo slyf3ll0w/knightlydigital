@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { specFromJson } from "@/lib/estimator";
 import { checkSpec } from "@/lib/estimator-server";
-import { toPortableSpec } from "@/lib/estimator-portable";
+import { scrubCompanyName, toPortableSpec } from "@/lib/estimator-portable";
 import { isIndustry, LISTING_DESCRIPTION, LISTING_SELECT, LISTING_STATUS, shareState } from "@/lib/estimator-library";
 
 /**
@@ -62,13 +62,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!portable.ok) return NextResponse.json({ error: portable.errors.join(" ") }, { status: 400 });
 
   const company = await prisma.company.findUnique({ where: { id: actor.companyId }, select: { name: true } });
+  // an anonymous listing's words must not name the company either
+  const shared = anonymous && company ? scrubCompanyName(portable.spec, company.name) : portable.spec;
   const data = {
-    name: tool.name,
+    name: anonymous && company ? scrubCompanyName({ ...portable.spec, intro: tool.name }, company.name).intro ?? tool.name : tool.name,
     description,
     industry,
     anonymous,
     byName: anonymous ? null : (company?.name ?? null),
-    spec: portable.spec as unknown as Prisma.InputJsonValue,
+    spec: shared as unknown as Prisma.InputJsonValue,
     status: LISTING_STATUS.live,
   };
   const row = existing

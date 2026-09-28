@@ -42,7 +42,7 @@ export async function loadBusinessContext(companyId: string, opts: { excludeEsti
     loadPriceBook(companyId),
     prisma.workItem.findMany({
       where: { companyId, isActive: true },
-      select: { name: true, description: true, unitPrice: true, unitCost: true, durationMinutes: true, depositValue: true },
+      select: { name: true, description: true, unitPrice: true, unitCost: true, durationMinutes: true, depositValue: true, recurringInterval: true },
       orderBy: { name: "asc" },
       take: 80,
     }),
@@ -96,7 +96,8 @@ export async function loadBusinessContext(companyId: string, opts: { excludeEsti
 
   const bookLines = items.length
     ? items.map((w) => {
-        const bits = [money(Number(w.unitPrice)), w.unitCost !== null ? `cost ${money(Number(w.unitCost))}` : null, w.durationMinutes ? `${w.durationMinutes} min` : null, w.depositValue !== null ? `deposit ${Number(w.depositValue) <= 100 ? `${Number(w.depositValue)}%` : money(Number(w.depositValue))}` : null].filter(Boolean);
+        const recurring = w.recurringInterval ? `RECURRING — billed ${w.recurringInterval.toLowerCase()} (link it for a subscription)` : null;
+        const bits = [money(Number(w.unitPrice)), w.unitCost !== null ? `cost ${money(Number(w.unitCost))}` : null, w.durationMinutes ? `${w.durationMinutes} min` : null, w.depositValue !== null ? `deposit ${Number(w.depositValue) <= 100 ? `${Number(w.depositValue)}%` : money(Number(w.depositValue))}` : null, recurring].filter(Boolean);
         return `- ${w.name} — ${bits.join(", ")}${w.description ? ` — ${w.description.replace(/\s+/g, " ").slice(0, 140)}` : ""}`;
       })
     : ["(empty)"];
@@ -106,7 +107,7 @@ export async function loadBusinessContext(companyId: string, opts: { excludeEsti
 
   const text = [
     `THE BUSINESS (from Workbench — use it):\n${bizLines.join("\n")}`,
-    `\nPrice book — services and products with the rates they sell at (exact names; link lines with workItemName):\n${bookLines.join("\n")}`,
+    `\nPrice book — services and products with the rates they sell at (exact names; link lines with workItemName; a linked line inherits the item's cost, description and recurring billing):\n${bookLines.join("\n")}`,
     charged.length > 0 ? `\nWhat they've actually charged on quotes in the last year (the truest rates — prefer these over guesses):\n${charged.join("\n")}` : "\nNo priced quotes in the last year yet.",
     bookingLines.length > 0 ? `\nServices offered for online booking:\n${bookingLines.join("\n")}` : null,
     toolLines.length > 0 ? `\nEstimate tools they already have (don't duplicate; keep naming consistent):\n${toolLines.join("\n")}` : null,
@@ -124,4 +125,70 @@ export async function loadBusinessContext(companyId: string, opts: { excludeEsti
     .join("\n");
 
   return { text, brief, book, industry: company?.industry ?? null };
+}
+
+// ── win rate per tool (the feedback nobody gives an owner on their pricing) ──
+
+export type ToolStats = {
+  /** Quotes that started from this tool (web form + in-app runs), all statuses */
+  quotes: number;
+  /** Approved or converted */
+  won: number;
+  /** Sent and still waiting, or changes requested */
+  open: number;
+  /** Sent quotes that were archived without approval */
+  lost: number;
+  /** won / (won + lost), null until at least 3 decided */
+  winRate: number | null;
+  /** Average total of the won quotes, null when none */
+  avgWonTicket: number | null;
+  /** Average total of every quote */
+  avgTicket: number | null;
+};
+
+const EMPTY_STATS: ToolStats = { quotes: 0, won: 0, open: 0, lost: 0, winRate: null, avgWonTicket: null, avgTicket: null };
+
+/** Quotes stamped with this tool (Quote.estimatorId), grouped into won / open / lost. */
+export async function loadToolStats(companyId: string, estimatorId: string): Promise<ToolStats> {
+  const rows = await prisma.quote.findMany({
+    where: { companyId, estimatorId },
+    select: { status: true, total: true, sentAt: true },
+    take: 2000,
+  });
+  if (rows.length === 0) return EMPTY_STATS;
+  let won = 0, open = 0, lost = 0, wonSum = 0, sum = 0;
+  for (const q of rows) {
+    const total = Number(q.total);
+    sum += total;
+    if (q.status === "APPROVED" || q.status === "CONVERTED") {
+      won++;
+      wonSum += total;
+    } else if (q.status === "AWAITING_RESPONSE" || q.status === "CHANGES_REQUESTED") open++;
+    else if (q.status === "ARCHIVED" && q.sentAt) lost++;
+  }
+  const decided = won + lost;
+  return {
+    quotes: rows.length,
+    won,
+    open,
+    lost,
+    winRate: decided >= 3 ? Math.round((won / decided) * 100) : null,
+    avgWonTicket: won > 0 ? Math.round(wonSum / won) : null,
+    avgTicket: Math.round(sum / rows.length),
+  };
+}
+
+/** The stats as a prompt block for a change build — so Atlas can say "Premium never wins" when asked about pricing. */
+export function toolStatsText(stats: ToolStats, toolName: string): string {
+  if (stats.quotes === 0) return "";
+  const bits = [
+    `${stats.quotes} quote${stats.quotes === 1 ? "" : "s"} started from it`,
+    `${stats.won} won`,
+    `${stats.lost} lost (sent, never approved)`,
+    `${stats.open} still open`,
+    stats.winRate !== null ? `win rate ${stats.winRate}%` : "too few decided to call a win rate",
+    stats.avgWonTicket !== null ? `average won ticket ${money(stats.avgWonTicket)}` : null,
+    stats.avgTicket !== null ? `average quote ${money(stats.avgTicket)}` : null,
+  ].filter(Boolean);
+  return `How "${toolName}" has been doing: ${bits.join(" · ")}. A win rate above ~85% on a good sample usually means the tool is priced low; well under ~30% means high or the wrong shape — say so when the owner asks about pricing, and never change rates they didn't ask you to change.`;
 }

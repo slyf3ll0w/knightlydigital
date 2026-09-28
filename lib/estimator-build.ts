@@ -3,7 +3,7 @@ import type { Actor } from "./permissions";
 import { meteredOneShot, oneShotJson } from "./atlas-oneshot";
 import { auditSpec, describeSpecChanges, ESTIMATOR_GUIDE, ESTIMATOR_LIMITS, specFromJson, type EstimatorSpec, type SpecAudit } from "./estimator";
 import { checkSpec, ESTIMATOR_SELECT, estimatorSummary, snapshotEstimator, type EstimatorRow } from "./estimator-server";
-import { loadBusinessContext } from "./estimator-context";
+import { loadBusinessContext, loadToolStats, toolStatsText } from "./estimator-context";
 import { sanitizePublicConfig, type EstimatorPublicConfig } from "./estimator-public";
 import { ESTIMATOR_PRINCIPLES, guessTrade, playbookByKey, playbookText, PLAYBOOK_INDEX, preferMapInput } from "./estimator-playbook";
 
@@ -127,7 +127,8 @@ ${hasImage ? `- The owner attached a PHOTO of their price sheet / rate card / ol
 - Use type "map" (measure "length" for fences/gutters in ft, "area" for lawns/roofs/driveways/patios in sq ft) whenever a size is the main driver — customers draw it instead of guessing. Pair it with number presets only when a map makes no sense.
 - More than 5 questions → group them with "section" (2–4 sections, in the order a pro asks). Use "showWhen" so follow-ups only appear when relevant. Use "multi" for pick-several add-ons.
 - Write plain-English labels a homeowner understands — SHORT (under 70 characters, one line); anything longer, and any "(optional)" or explanation, goes in "help". Blurbs on cards and tiers sell the option in a few words.
-- Every line: a description that explains the number ({qty} at {rate|money}), and a "group".
+- Every line: a description the CLIENT reads — what the service is and includes, in plain words, never the math (the quote prints quantity × price itself) — and a "group". Add "hours" (labor time) on the lines that take time, and "unitCost" where you know the business's cost, so the runner can say how long to book and what the margin is.
+- Money off is a "discounts" rule (bundle, cash, first-time, seasonal), never a negative line. A recurring service (weekly / monthly / quarterly) links the recurring price-book item; without one, price PER VISIT and say so.
 - "assist" (Atlas fill-in from a photo / description) is a SEPARATE switch the owner turns on later on the tool's page. Leave "assist" null and never set "askAtlas" on your own — the ONLY exception is when the owner's words ask for photo / description fill-in: then set "assist": {"instructions": "..."} and WRITE the instructions: 2–4 plain sentences telling Atlas what to look for in the photo or words, what to assume when it can't tell (typical sizes and counts for this trade, the middle option for condition), and the one or two things it must never guess. On a change, keep the tool's existing "assist" as it is unless the owner asks to change it.
 - You know this business (below): its trade, its price book, what it has actually charged on quotes, the services it books. USE IT. A rate the owner didn't say but the business data shows is a REAL rate, not a placeholder — take it from the price book (link the line with workItemName, exact name) or from what they've charged. When the tool sells a listed service, link it. Match their vocabulary and their existing tools' naming.
 - Rates the owner never gave, that the business data doesn't show either (and they didn't answer when asked): use a sensible placeholder and list it in "placeholders". Never stop to ask for a rate at this stage.
@@ -327,7 +328,9 @@ export async function* buildEstimator(
 
   const trade = playbookByKey(planKey) ?? guessTrade(prompt) ?? (currentSpec ? guessTrade(`${currentRow!.name} ${currentRow!.description ?? ""}`) : null) ?? (biz.industry ? guessTrade(biz.industry) : null);
   const system = draftSystem(biz.text, currentRow && currentSpec ? { name: currentRow.name, description: currentRow.description, spec: currentSpec } : null, trade ? playbookText(trade) : null, opts.assistantName, Boolean(image));
-  let userPrompt = currentRow ? `The owner's change request:\n${prompt || "(see the attached price sheet)"}${answersText(answers)}` : `The owner's description:\n${prompt || "(see the attached price sheet)"}${answersText(answers)}${plan ? `\n\nThe plan (follow it, then make it real):\n${JSON.stringify(plan)}` : ""}`;
+  // A change to a tool that has quoted real jobs: Atlas sees how it has been doing
+  const statsText = currentRow ? toolStatsText(await loadToolStats(actor.companyId, currentRow.id), currentRow.name) : "";
+  let userPrompt = currentRow ? `The owner's change request:\n${prompt || "(see the attached price sheet)"}${answersText(answers)}${statsText ? `\n\n${statsText}` : ""}` : `The owner's description:\n${prompt || "(see the attached price sheet)"}${answersText(answers)}${plan ? `\n\nThe plan (follow it, then make it real):\n${JSON.stringify(plan)}` : ""}`;
   if (wantsPhoto) {
     userPrompt += `\n\nThe owner is asking for PHOTO / DESCRIPTION FILL-IN. This part is REQUIRED: the spec must carry "assist": {"instructions": "..."} — 2–4 plain sentences on what to look for in a photo or description of THIS kind of job, what to assume when it can't tell, and what it must never guess — so the form offers "add a photo or describe the job" and Atlas fills in the answers. Keep every other rule as it is unless the owner asked for more.`;
   }

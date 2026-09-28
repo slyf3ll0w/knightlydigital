@@ -22,7 +22,7 @@ import {
 export async function loadPriceBook(companyId: string): Promise<PriceBookEntry[]> {
   const rows = await prisma.workItem.findMany({
     where: { companyId, isActive: true },
-    select: { id: true, name: true, unitPrice: true, unitCost: true },
+    select: { id: true, name: true, unitPrice: true, unitCost: true, description: true, recurringInterval: true },
     orderBy: { name: "asc" },
   });
   return rows.map((r) => ({
@@ -30,6 +30,8 @@ export async function loadPriceBook(companyId: string): Promise<PriceBookEntry[]
     name: r.name,
     unitPrice: Number(r.unitPrice),
     unitCost: r.unitCost === null ? null : Number(r.unitCost),
+    description: r.description,
+    recurringInterval: r.recurringInterval,
   }));
 }
 
@@ -37,6 +39,31 @@ export async function loadPriceBook(companyId: string): Promise<PriceBookEntry[]
 export function missingPriceBookNames(compiled: CompiledSpec, book: PriceBookEntry[]): string[] {
   const have = new Set(book.map((b) => b.name.trim().toLowerCase()));
   return compiled.priceBookNames.filter((n) => !have.has(n.trim().toLowerCase()));
+}
+
+/**
+ * The company's tools whose rules name this price-book item (a line's
+ * workItemName or a price()/cost() call). Renaming or archiving the item
+ * would make every run of those tools fail, so the price-book routes refuse
+ * until the lines are changed — the same way an item on old quotes is
+ * archived rather than deleted.
+ */
+export async function estimatorsUsingItem(companyId: string, itemName: string): Promise<{ id: string; name: string }[]> {
+  const want = itemName.trim().toLowerCase();
+  if (!want) return [];
+  const rows = await prisma.estimator.findMany({ where: { companyId }, select: { id: true, name: true, spec: true } });
+  const out: { id: string; name: string }[] = [];
+  for (const r of rows) {
+    const c = compileSpec(r.spec);
+    if (c.ok && c.compiled.priceBookNames.some((n) => n.trim().toLowerCase() === want)) out.push({ id: r.id, name: r.name });
+  }
+  return out;
+}
+
+/** Price-book items a stored tool names that are gone (renamed / archived) — the tool can't run until they're back. Empty when healthy. */
+export function missingItemsOf(spec: unknown, book: PriceBookEntry[]): string[] {
+  const c = compileSpec(spec);
+  return c.ok ? missingPriceBookNames(c.compiled, book) : [];
 }
 
 export type SpecCheck =
