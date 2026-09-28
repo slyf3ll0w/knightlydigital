@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { DsPage } from "@/components/ds";
 import HelpHome from "@/components/help/HelpHome";
 import { requirePageActor } from "@/lib/permissions";
 
@@ -14,8 +13,6 @@ export default async function AppHelpPage({ searchParams }: { searchParams: Prom
   await requirePageActor();
   const { q } = await searchParams;
   return (
-    <DsPage className="max-w-6xl">
-      <HelpHome base="/app/help" inApp initialQuery={typeof q === "string" ? q.slice(0, 120) : ""} />
-    </DsPage>
+    <HelpHome base="/app/help" inApp initialQuery={typeof q === "string" ? q.slice(0, 120) : ""} />
   );
 }

@@ -15,10 +15,6 @@ export const metadata: Metadata = {
 export default async function PublicHelpPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q } = await searchParams;
   return (
-    <div className="ds bg-[color:var(--ds-canvas)]">
-      <div className="mx-auto max-w-6xl px-4 pb-16 pt-4 sm:px-8 sm:pt-6">
-        <HelpHome base="/help" inApp={false} initialQuery={typeof q === "string" ? q.slice(0, 120) : ""} />
-      </div>
-    </div>
+    <HelpHome base="/help" inApp={false} initialQuery={typeof q === "string" ? q.slice(0, 120) : ""} />
   );
 }

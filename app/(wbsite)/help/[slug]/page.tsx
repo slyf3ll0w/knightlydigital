@@ -51,15 +51,13 @@ export default async function PublicHelpArticlePage({ params }: { params: Promis
   ];
 
   return (
-    <div className="ds bg-[color:var(--ds-canvas)]">
+    <>
       <script
         type="application/ld+json"
         // eslint-disable-next-line react/no-danger
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\u003c") }}
       />
-      <div className="mx-auto max-w-6xl px-4 pb-16 pt-6 sm:px-8 sm:pt-10">
-        <HelpArticleView article={article} section={section} base="/help" inApp={false} />
-      </div>
-    </div>
+      <HelpArticleView article={article} section={section} base="/help" inApp={false} />
+    </>
   );
 }

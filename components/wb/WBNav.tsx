@@ -20,6 +20,7 @@ const links = [
   { href: "/features", label: "Features" },
   { href: "/pricing", label: "Pricing" },
   { href: "/vs/jobber", label: "Compare", match: "/vs" },
+  { href: "/help", label: "Help" },
   { href: "/contact", label: "Contact" },
 ];
 

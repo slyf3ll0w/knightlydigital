@@ -2,13 +2,14 @@
 
 import "./help.css";
 import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ChevronDown, ChevronRight, Search, X } from "lucide-react";
-import { Card } from "@/components/ds";
 import { AtlasMark } from "@/components/AtlasIcon";
 import { useAssistant } from "@/components/AssistantContext";
 import { HELP_SECTIONS, POPULAR_SLUGS, START_HERE_SLUGS } from "@/lib/help/content";
 import { findHelpArticle, helpArticleCount, searchHelp } from "@/lib/help/search";
+import { WB_DAY_PHOTOS } from "@/lib/wb-site";
 import { HELP_ICONS } from "./icons";
 import HelpFooterBand from "./HelpFooterBand";
 
@@ -37,10 +38,11 @@ function Highlight({ text, query }: { text: string; query: string }) {
 }
 
 /**
- * Help Center home — shared by the public /help and the in-app /app/help.
- * Desktop: bloom hero with search + an Atlas fragment, "Start here", a grid
- * of every feature with its articles, the navy "still stuck" band.
- * Phone: search, popular chips, one grouped list of features that expand.
+ * Help Center home — the public /help and the in-app /app/help. Built like
+ * a page of the marketing site: bloom hero with a job-site photo, flat
+ * "start here" and topic sections on white and #F6F8FB bands, the navy
+ * band last. Phones get the same hero, then one list of topics that open
+ * in place.
  */
 export default function HelpHome({
   base,
@@ -54,13 +56,12 @@ export default function HelpHome({
 }) {
   const atlas = useAssistant();
   const [query, setQuery] = useState(initialQuery);
-  const [openSection, setOpenSection] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const hits = useMemo(() => searchHelp(query, 12), [query]);
   const searching = query.trim().length > 0;
   const total = helpArticleCount();
 
-  // "/" jumps to search (desktop habit); Escape clears it.
+  // "/" jumps to search (desktop habit).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
@@ -86,21 +87,35 @@ export default function HelpHome({
   const startHere = START_HERE_SLUGS.map((s) => findHelpArticle(s)).filter((a) => a !== null);
 
   return (
-    <div className="space-y-8 lg:space-y-10">
+    <div className="help-root">
       {/* ── Hero ───────────────────────────────────────────── */}
-      <section className="ds-rise help-hero px-5 pb-6 pt-7 sm:px-10 sm:pb-10 sm:pt-12">
-        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <section className={`help-hero border-b border-gray-200 ${inApp ? "" : "-mt-20 sm:-mt-24"}`}>
+        <div
+          className={`mx-auto grid max-w-6xl items-center gap-12 px-5 pb-12 sm:px-8 sm:pb-16 lg:grid-cols-[1.1fr_1fr] lg:gap-14 ${
+            inApp ? "pt-10 sm:pt-14" : "pt-[7.5rem] sm:pt-[9.5rem]"
+          }`}
+        >
           <div className="min-w-0">
             <p className="help-label">Help Center</p>
-            <h1 className="mt-3 text-[30px] font-semibold leading-[1.08] tracking-[-0.03em] text-[color:var(--ds-ink)] sm:text-[42px]">
-              How can we help?
+            <h1 className="mt-3 text-4xl font-extrabold leading-[1.08] sm:text-5xl">
+              <span className="ds-wipe">
+                <span className="ds-wipe-text">How can we help?</span>
+                <span className="ds-wipe-bar" aria-hidden />
+              </span>
             </h1>
-            <p className="ds-small mt-2 text-[13.5px]">
-              {total} guides to every part of WorkBench
+            <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-gray-600">
+              {total} step-by-step guides to every part of WorkBench, with fixes for the things that trip people up.
             </p>
 
-            <label className="help-search mt-5 sm:mt-7 lg:max-w-xl">
-              <Search size={19} className="flex-none text-[color:var(--ds-muted)]" aria-hidden />
+            <form
+              className="help-search mt-7 max-w-xl"
+              role="search"
+              onSubmit={(e) => {
+                e.preventDefault();
+                inputRef.current?.blur();
+              }}
+            >
+              <Search className="h-5 w-5 flex-none text-gray-400" strokeWidth={2.2} aria-hidden />
               <input
                 ref={inputRef}
                 value={query}
@@ -114,30 +129,33 @@ export default function HelpHome({
                 enterKeyHint="search"
                 autoComplete="off"
               />
-              {searching ? (
+              {searching && (
                 <button
                   type="button"
                   onClick={() => {
                     setQuery("");
                     inputRef.current?.focus();
                   }}
-                  className="flex h-9 w-9 flex-none items-center justify-center rounded-full text-[color:var(--ds-muted)] hover:bg-[color:var(--ds-surface-2)]"
+                  className="flex h-10 w-10 flex-none items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700"
                   aria-label="Clear search"
                 >
-                  <X size={17} />
+                  <X className="h-[18px] w-[18px]" strokeWidth={2.2} />
                 </button>
-              ) : (
-                <span className="mr-2 hidden lg:block" aria-hidden>
-                  <span className="help-kbd">/</span>
-                </span>
               )}
-            </label>
+              <button type="submit" className="help-pill help-pill-blue hidden sm:inline-flex">
+                Search
+              </button>
+            </form>
 
             {!searching && (
-              <div className="-mx-5 mt-4 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
-                <span className="ds-small hidden self-center pr-1 sm:inline">Popular:</span>
-                {popular.map((a) => (
-                  <Link key={a.slug} prefetch={false} href={`${base}/${a.slug}`} className="help-pill">
+              <div className="mt-5 flex flex-wrap gap-2">
+                {popular.map((a, i) => (
+                  <Link
+                    key={a.slug}
+                    prefetch={false}
+                    href={`${base}/${a.slug}`}
+                    className={`help-chip ${i % 2 ? "help-chip-orange" : "help-chip-blue"}`}
+                  >
                     {a.title}
                   </Link>
                 ))}
@@ -145,22 +163,32 @@ export default function HelpHome({
             )}
           </div>
 
-          {/* A hand-built fragment, like the site's: Atlas answering from these guides. */}
-          <div className="hidden lg:block" aria-hidden>
-            <div className="help-bob ds-card ds-card-raised space-y-3 p-4">
-              <div className="ml-auto w-fit max-w-[88%] rounded-2xl rounded-br-md bg-[color:var(--ds-primary)] px-3.5 py-2 text-[13px] text-[color:var(--ds-on-primary)]">
-                How do I refund a payment?
-              </div>
-              <div className="flex items-start gap-2.5">
-                <AtlasMark size={28} accent={atlas.accent} className="flex-none rounded-[8px]" />
-                <div className="rounded-2xl rounded-tl-md bg-[color:var(--ds-surface-2)] px-3.5 py-2.5 text-[13px] leading-snug text-[color:var(--ds-ink-2)]">
-                  Go to Payments, press <span className="help-ui">↺</span> on the payment, enter the amount and confirm.
-                  <span className="mt-2 flex items-center gap-1.5 text-[11.5px] font-medium text-[color:var(--ds-primary)]">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--ds-secondary)]" />
-                    From the Help Center
-                  </span>
-                </div>
-              </div>
+          {/* A real job-site photo with two floating notes, like the site's heroes. */}
+          <div className="relative mx-auto hidden w-full max-w-md lg:block lg:max-w-none" aria-hidden>
+            <div className="relative aspect-[4/5] max-h-[440px] w-full overflow-hidden rounded-[2rem] shadow-[0_30px_70px_rgba(10,20,40,0.22)]">
+              <Image
+                src={WB_DAY_PHOTOS.paid.src}
+                alt=""
+                fill
+                sizes="(min-width: 1024px) 480px, 90vw"
+                className="object-cover"
+                priority
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
+            </div>
+            <div
+              className="help-float absolute -left-8 bottom-10 flex max-w-[270px] items-start gap-3 rounded-2xl bg-white py-3 pl-3 pr-4"
+              style={{ animationDelay: "-2.2s" }}
+            >
+              <AtlasMark size={34} accent={atlas.accent} className="flex-none rounded-[10px]" />
+              <span>
+                <span className="block text-[13.5px] font-bold text-gray-900">&ldquo;How do I refund a payment?&rdquo;</span>
+                <span className="mt-0.5 block text-[12px] leading-snug text-gray-500">Atlas answers from these guides</span>
+              </span>
+            </div>
+            <div className="help-float absolute -right-4 top-8 rounded-2xl bg-white px-4 py-2.5">
+              <span className="block text-[20px] font-extrabold leading-none text-gray-900">{total}</span>
+              <span className="mt-1 block text-[12px] text-gray-500">guides, updated with the app</span>
             </div>
           </div>
         </div>
@@ -168,164 +196,140 @@ export default function HelpHome({
 
       {/* ── Search results ─────────────────────────────────── */}
       {searching && (
-        <section className="ds-rise">
-          <p className="ds-small mb-3">
-            {hits.length === 0
-              ? "No guides match that yet."
-              : `${hits.length} ${hits.length === 1 ? "guide" : "guides"} for “${query.trim()}”`}
-          </p>
-          {hits.length > 0 ? (
-            <Card className="ds-divide overflow-hidden">
-              {hits.map(({ article, section }) => {
-                const Icon = HELP_ICONS[section.icon];
-                return (
-                  <Link key={article.slug} prefetch={false} href={`${base}/${article.slug}`} className="ds-row">
-                    <span className="help-tile help-tile-sm">
-                      <Icon size={16} strokeWidth={2.1} />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[14.5px] font-medium text-[color:var(--ds-ink)]">
-                        <Highlight text={article.title} query={query} />
-                      </span>
-                      <span className="ds-small mt-0.5 block truncate">
-                        {section.title} · <Highlight text={article.summary} query={query} />
-                      </span>
-                    </span>
-                    <ChevronRight size={16} className="flex-none text-[color:var(--ds-faint)]" />
-                  </Link>
-                );
-              })}
-            </Card>
-          ) : (
-            <Card className="px-5 py-6">
-              <p className="ds-body">
-                Try fewer words, or the name of the screen you&apos;re on (like “invoice” or “schedule”).
-              </p>
-            </Card>
-          )}
+        <section className="bg-white">
+          <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8">
+            <p className="text-[14px] font-semibold text-gray-500">
+              {hits.length === 0
+                ? "No guides match that yet. Try fewer words, or the name of the screen you're on."
+                : `${hits.length} ${hits.length === 1 ? "guide" : "guides"} for “${query.trim()}”`}
+            </p>
+            {hits.length > 0 && (
+              <ul className="mt-5 divide-y divide-gray-200 overflow-hidden rounded-[1.25rem] border border-gray-200 bg-white">
+                {hits.map(({ article, section }) => {
+                  const Icon = HELP_ICONS[section.icon];
+                  return (
+                    <li key={article.slug}>
+                      <Link
+                        prefetch={false}
+                        href={`${base}/${article.slug}`}
+                        className="group flex items-start gap-4 px-5 py-4 transition-colors hover:bg-[#F6F8FB] sm:px-6"
+                      >
+                        <Icon className="mt-0.5 h-5 w-5 flex-none text-[color:var(--ho)]" strokeWidth={1.9} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[15.5px] font-bold text-gray-900">
+                            <Highlight text={article.title} query={query} />
+                          </span>
+                          <span className="mt-0.5 block text-[14px] leading-relaxed text-gray-600">
+                            <span className="font-semibold text-gray-500">{section.title}</span> ·{" "}
+                            <Highlight text={article.summary} query={query} />
+                          </span>
+                        </span>
+                        <ArrowRight className="mt-1 hidden h-4 w-4 flex-none text-gray-300 transition-colors group-hover:text-[color:var(--hb)] sm:block" strokeWidth={2.5} />
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </section>
       )}
 
       {!searching && (
         <>
           {/* ── Start here ──────────────────────────────────── */}
-          <section className="ds-rise" style={{ "--ds-i": 1 } as React.CSSProperties}>
-            <h2 className="ds-h2 mb-3">New to WorkBench? Start here</h2>
-            {/* Phone: one grouped list */}
-            <Card className="ds-divide overflow-hidden lg:hidden">
-              {startHere.map(({ article }, i) => (
-                <Link key={article.slug} prefetch={false} href={`${base}/${article.slug}`} className="ds-row">
-                  <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[color:var(--ds-primary)] text-[13px] font-semibold text-[color:var(--ds-on-primary)]">
-                    {i + 1}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-[14.5px] font-medium text-[color:var(--ds-ink)]">
-                    {article.title}
-                  </span>
-                  <ChevronRight size={16} className="flex-none text-[color:var(--ds-faint)]" />
-                </Link>
-              ))}
-            </Card>
-            {/* Desktop: numbered cards */}
-            <div className="hidden gap-4 lg:grid lg:grid-cols-3">
-              {startHere.map(({ article }, i) => (
-                <Card key={article.slug} href={`${base}/${article.slug}`} className="ds-card-link group p-5">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--ds-primary)] text-[13.5px] font-semibold text-[color:var(--ds-on-primary)]">
-                    {i + 1}
-                  </span>
-                  <p className="mt-4 text-[16px] font-semibold tracking-[-0.01em] text-[color:var(--ds-ink)]">{article.title}</p>
-                  <p className="ds-small mt-1 text-[13.5px]">{article.summary}</p>
-                  <p className="ds-link mt-4 inline-flex items-center gap-1 text-[13.5px]">
-                    Read guide <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
-                  </p>
-                </Card>
-              ))}
+          <section className="bg-white">
+            <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-16">
+              <h2 className="text-2xl font-extrabold sm:text-3xl">New to WorkBench? Start here</h2>
+              <div className="mt-8 grid gap-x-10 gap-y-8 sm:grid-cols-3">
+                {startHere.map(({ article }, i) => (
+                  <Link key={article.slug} prefetch={false} href={`${base}/${article.slug}`} className="group block">
+                    <span className="help-num">0{i + 1}</span>
+                    <h3 className="mt-3 text-[17px] font-extrabold transition-colors group-hover:text-[color:var(--hb)]">{article.title}</h3>
+                    <p className="mt-1.5 text-[14.5px] leading-relaxed text-gray-600">{article.summary}</p>
+                    <span className="mt-3 inline-flex items-center gap-1.5 text-[14px] font-bold text-[color:var(--hb)]">
+                      Read the guide
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" strokeWidth={2.5} />
+                    </span>
+                  </Link>
+                ))}
+              </div>
             </div>
           </section>
 
-          {/* ── Every feature ───────────────────────────────── */}
-          <section className="ds-rise" style={{ "--ds-i": 2 } as React.CSSProperties}>
-            <h2 className="ds-h2 mb-3">Browse by feature</h2>
+          {/* ── Every topic ─────────────────────────────────── */}
+          <section className="border-t border-gray-200 bg-[#F6F8FB]">
+            <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-16">
+              <h2 className="text-2xl font-extrabold sm:text-3xl">Browse by topic</h2>
 
-            {/* Phone: grouped rows that open in place */}
-            <Card className="ds-divide overflow-hidden lg:hidden">
-              {HELP_SECTIONS.map((s) => {
-                const Icon = HELP_ICONS[s.icon];
-                const open = openSection === s.id;
-                return (
-                  <div key={s.id} id={s.id}>
-                    <button
-                      type="button"
-                      onClick={() => setOpenSection(open ? null : s.id)}
-                      aria-expanded={open}
-                      className="ds-row w-full text-left"
-                    >
-                      <span className="help-tile help-tile-sm">
-                        <Icon size={16} strokeWidth={2.1} />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[14.5px] font-medium text-[color:var(--ds-ink)]">{s.title}</span>
-                        <span className="ds-small block truncate">{s.articles.length} {s.articles.length === 1 ? "guide" : "guides"}</span>
-                      </span>
-                      <ChevronDown
-                        size={17}
-                        className={`flex-none text-[color:var(--ds-faint)] transition-transform ${open ? "rotate-180" : ""}`}
-                      />
-                    </button>
-                    {open && (
-                      <div className="ds-rise bg-[color:var(--ds-surface-2)] py-1">
+              {/* Phone: one list, each topic opens in place (the site's FAQ list) */}
+              <div className="mt-6 divide-y divide-gray-200 overflow-hidden rounded-[1.25rem] border border-gray-200 bg-white lg:hidden">
+                {HELP_SECTIONS.map((s) => {
+                  const Icon = HELP_ICONS[s.icon];
+                  return (
+                    <details key={s.id} id={s.id} className="group">
+                      <summary className="flex cursor-pointer list-none items-center gap-3.5 px-5 py-4 [&::-webkit-details-marker]:hidden">
+                        <Icon className="h-5 w-5 flex-none text-[color:var(--ho)]" strokeWidth={1.9} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[15.5px] font-bold text-gray-900">{s.title}</span>
+                          <span className="block text-[13px] text-gray-500">
+                            {s.articles.length} {s.articles.length === 1 ? "guide" : "guides"}
+                          </span>
+                        </span>
+                        <ChevronDown
+                          className="h-4 w-4 flex-none text-gray-400 transition-transform duration-200 group-open:rotate-180"
+                          strokeWidth={2.5}
+                        />
+                      </summary>
+                      <ul className="border-t border-gray-100 bg-[#F6F8FB] py-1">
                         {s.articles.map((a) => (
-                          <Link
-                            key={a.slug}
-                            prefetch={false}
-                            href={`${base}/${a.slug}`}
-                            className="flex items-center gap-3 py-2.5 pl-[60px] pr-4 text-[14px] text-[color:var(--ds-ink-2)] active:opacity-70"
-                          >
-                            <span className="min-w-0 flex-1">{a.title}</span>
-                            <ChevronRight size={15} className="flex-none text-[color:var(--ds-faint)]" />
-                          </Link>
+                          <li key={a.slug}>
+                            <Link
+                              prefetch={false}
+                              href={`${base}/${a.slug}`}
+                              className="flex items-center gap-3 py-3 pl-[54px] pr-5 text-[14.5px] text-gray-700 active:bg-gray-100"
+                            >
+                              <span className="min-w-0 flex-1">{a.title}</span>
+                              <ChevronRight className="h-4 w-4 flex-none text-gray-300" strokeWidth={2.5} />
+                            </Link>
+                          </li>
                         ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </Card>
+                      </ul>
+                    </details>
+                  );
+                })}
+              </div>
 
-            {/* Desktop: a card per feature listing its guides */}
-            <div className="hidden gap-4 lg:grid lg:grid-cols-3">
-              {HELP_SECTIONS.map((s) => {
-                const Icon = HELP_ICONS[s.icon];
-                return (
-                  <Card key={s.id} className="flex flex-col p-5">
-                    <div id={s.id} className="flex items-start gap-3">
-                      <span className="help-tile">
-                        <Icon size={19} strokeWidth={2} />
-                      </span>
-                      <div className="min-w-0">
-                        <h3 className="text-[16px] font-semibold tracking-[-0.01em] text-[color:var(--ds-ink)]">{s.title}</h3>
-                        <p className="ds-small mt-0.5 text-[13px]">{s.tagline}</p>
+              {/* Desktop: flat columns, like the features page */}
+              <div className="mt-10 hidden gap-x-10 gap-y-12 lg:grid lg:grid-cols-3">
+                {HELP_SECTIONS.map((s) => {
+                  const Icon = HELP_ICONS[s.icon];
+                  return (
+                    <div key={s.id} id={s.id} className="scroll-mt-24">
+                      <div className="flex gap-3.5">
+                        <Icon className="mt-0.5 h-5 w-5 flex-none text-[color:var(--ho)]" strokeWidth={1.9} />
+                        <div className="min-w-0">
+                          <h3 className="text-[16.5px] font-extrabold">{s.title}</h3>
+                          <p className="mt-0.5 text-[14px] leading-relaxed text-gray-600">{s.tagline}</p>
+                          <ul className="mt-3 space-y-1.5">
+                            {s.articles.map((a) => (
+                              <li key={a.slug}>
+                                <Link
+                                  prefetch={false}
+                                  href={`${base}/${a.slug}`}
+                                  className="text-[14.5px] font-semibold text-[color:var(--hb)] hover:underline hover:decoration-[color:var(--ho)] hover:underline-offset-4"
+                                >
+                                  {a.title}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
                       </div>
                     </div>
-                    <ul className="mt-4 space-y-0.5 border-t border-[color:var(--ds-line)] pt-3">
-                      {s.articles.map((a) => (
-                        <li key={a.slug}>
-                          <Link
-                            prefetch={false}
-                            href={`${base}/${a.slug}`}
-                            className="group -mx-2 flex items-center gap-2 rounded-lg px-2 py-1.5 text-[13.5px] text-[color:var(--ds-ink-2)] hover:bg-[color:var(--ds-surface-2)] hover:text-[color:var(--ds-primary)]"
-                          >
-                            <span className="min-w-0 flex-1">{a.title}</span>
-                            <ChevronRight
-                              size={14}
-                              className="flex-none text-[color:var(--ds-faint)] opacity-0 transition-opacity group-hover:opacity-100"
-                            />
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </Card>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </section>
         </>
