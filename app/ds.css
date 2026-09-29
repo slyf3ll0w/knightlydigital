@@ -436,14 +436,19 @@ html[data-mode="dark"] .ds .ds-count-news { color: var(--ds-secondary); }
 /* ── phone canvas: a breath of both brand colors at the top, so the home
    screen isn't a flat gray sheet (the site's hero bloom at a whisper) ── */
 @media (max-width: 1023px) {
-  .ds .page-atmo { isolation: isolate; }
+  /* No `isolation: isolate` and no negative z-index here (2026-09-29): the
+     stage wraps <main>, so isolating it trapped every dialog a PAGE renders
+     (Modal, the chat conversation overlay, bottom sheets) inside a stacking
+     context that paints UNDER the shell's fixed tab bar — the New chat sheet
+     and the chat composer sat behind the bar. The bloom is the first
+     positioned child instead, so its siblings (wallpaper, header, main —
+     all positioned) paint over it in tree order. */
   .ds .page-atmo::before {
     content: "";
     position: absolute;
     top: 0; left: 0; right: 0;
     height: 360px;
     pointer-events: none;
-    z-index: -1;
     background:
       radial-gradient(70% 55% at 8% -10%, color-mix(in srgb, var(--ds-primary) 18%, transparent), transparent 70%),
       radial-gradient(55% 45% at 100% -6%, color-mix(in srgb, var(--ds-secondary) 14%, transparent), transparent 70%);
@@ -464,8 +469,12 @@ html[data-mode="dark"] .ds .ds-count-news { color: var(--ds-secondary); }
   background: linear-gradient(150deg, color-mix(in srgb, var(--tile) 78%, #fff) 0%, var(--tile) 48%, color-mix(in srgb, var(--tile) 82%, #000) 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 1px 2px rgba(10, 19, 40, 0.16), 0 6px 14px -8px color-mix(in srgb, var(--tile) 60%, transparent);
 }
-.ds-tile-a { --tile: var(--ds-primary); }
-.ds-tile-b { --tile: var(--ds-secondary); }
+/* The glyph is white, so the tile must read against WHITE in both modes —
+   the light-surface guarded tokens (≥3:1 on #fff, lib/ds-theme.ts), never
+   the dark-mode ones: a white or pale brand color stays white there, and
+   the tile came out white on white (2026-09-29). */
+.ds-tile-a { --tile: var(--ds-primary-l, var(--ds-primary)); }
+.ds-tile-b { --tile: var(--ds-secondary-l, var(--ds-secondary)); }
 .ds-tile-c { --tile: #22314F; }
 .ds-tile-d { --tile: #3A475C; }
 .ds-tile-e { --tile: #687589; }

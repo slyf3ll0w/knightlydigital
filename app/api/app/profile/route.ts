@@ -52,6 +52,15 @@ export async function PATCH(req: NextRequest) {
     });
   }
 
+  // Per-membership: team notification emails when push already carries the
+  // news (lib/notify.ts). true = always, false = never, null = automatic.
+  if (body.emailAlerts !== undefined) {
+    if (body.emailAlerts !== null && typeof body.emailAlerts !== "boolean") {
+      return NextResponse.json({ error: "emailAlerts must be true, false or null." }, { status: 400 });
+    }
+    await prisma.user.update({ where: { id: actor.id }, data: { emailAlerts: body.emailAlerts } });
+  }
+
   // Plain text only — rendered escaped into client emails
   if (body.emailSignature !== undefined) {
     await prisma.user.update({

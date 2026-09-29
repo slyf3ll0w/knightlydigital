@@ -393,6 +393,11 @@ model User {
   // Last heartbeat from a registered softphone; online = within the last
   // ~75 s (SOFTPHONE_PRESENCE_MS). Cleared when the tab closes cleanly.
   softphoneSeenAt  DateTime?
+  // Team-side notification emails (new request, client message, booking…)
+  // when this person also gets the push (lib/notify.ts). null = automatic:
+  // no email while a device of theirs has push on; true = always email too;
+  // false = never email. Set from My Profile.
+  emailAlerts      Boolean?
   // Per-user Telnyx telephony credential (under Company.lineSipConnectionId);
   // sipUsername is what Call Control dials (sip:<username>@sip.telnyx.com).
   // One credential per device kind: the browser's and the iPhone app's are

@@ -972,7 +972,7 @@ async function onRecordingSaved(p: VoiceEventPayload): Promise<void> {
     if (call.status !== "MISSED") await notifyMissed(call);
   } else {
     await notifyTeam(call.companyId, {
-      title: `Voicemail · ${call.company.name}`,
+      title: "Voicemail", // lib/push.ts adds the company name for multi-company people
       body: `${displayParty(call)} left a ${secs !== null ? fmtDuration(secs) + " " : ""}message.`,
       url: "/app/calls",
       tag: `call-${call.id}`,
@@ -1151,7 +1151,7 @@ export function fmtDuration(secs: number): string {
 
 async function notifyMissed(call: CallRow): Promise<void> {
   await notifyTeam(call.companyId, {
-    title: `Missed call · ${call.company.name}`,
+    title: "Missed call", // lib/push.ts adds the company name for multi-company people
     body: `${displayParty(call)} called your business line and hung up.`,
     url: "/app/calls",
     tag: `call-${call.id}`,

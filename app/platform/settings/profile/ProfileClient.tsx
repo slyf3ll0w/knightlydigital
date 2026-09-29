@@ -13,6 +13,7 @@ import { PushToggleCard } from "@/components/PushNotifications";
 import { AppLockToggleCard } from "@/components/AppLock";
 import CalendarSyncCard from "@/components/CalendarSyncCard";
 import SoftphoneToggleCard from "@/components/SoftphoneToggleCard";
+import EmailAlertsCard from "@/components/EmailAlertsCard";
 import AppearanceCard from "@/components/AppearanceCard";
 import Avatar from "@/components/Avatar";
 import AvatarCropModal from "@/components/AvatarCropModal";
@@ -35,6 +36,8 @@ export default function ProfileClient({
   identities: initialIdentities,
   social,
   softphoneEnabled = null,
+  emailAlerts = null,
+  pushOn = false,
 }: {
   userId: string;
   hasAvatar: boolean;
@@ -54,6 +57,10 @@ export default function ProfileClient({
   social: SocialSignIn;
   /** Business-line calls in the browser (lib/softphone.ts): the saved switch, or null when the line isn't on the voice app. */
   softphoneEnabled?: boolean | null;
+  /** Team notification emails: true always, false never, null automatic (lib/notify.ts). */
+  emailAlerts?: boolean | null;
+  /** Whether any of this person's devices has push on (decides what automatic means today). */
+  pushOn?: boolean;
 }) {
   const router = useRouter();
   const [name, setName] = useState(initialName);
@@ -407,6 +414,8 @@ export default function ProfileClient({
       {dialog}
 
       <PushToggleCard />
+
+      <EmailAlertsCard initial={emailAlerts} pushOn={pushOn} />
 
       {softphoneEnabled !== null && <SoftphoneToggleCard initial={softphoneEnabled} />}
 

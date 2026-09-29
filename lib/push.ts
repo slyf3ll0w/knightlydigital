@@ -172,12 +172,20 @@ export async function notifyUsers(userIds: string[], payload: PushPayload): Prom
     const accountIds = [
       ...new Set(targets.map((t) => t.accountId).filter((a): a is string => Boolean(a))),
     ];
+    // Every row on the account may hold a device subscription (delivery), but
+    // only memberships the person can actually sign into count toward
+    // "multi-company" (same rule as lib/account.ts eligibleMembershipsFor and
+    // lib/voip.ts): a deactivated row or a company-less sign-up row used to
+    // make a one-company person see "Acme · New request" (2026-09-29).
     const siblingRows = accountIds.length
       ? await prisma.user.findMany({
           where: { accountId: { in: accountIds } },
-          select: { id: true, accountId: true },
+          select: { id: true, accountId: true, isActive: true, companyId: true, role: true },
         })
       : [];
+    const memberships = siblingRows.filter(
+      (r) => r.isActive && r.companyId && r.role !== "SUPERADMIN"
+    );
     const rowAccount = new Map(siblingRows.map((r) => [r.id, r.accountId as string]));
 
     const subs = await prisma.pushSubscription.findMany({
@@ -196,7 +204,7 @@ export async function notifyUsers(userIds: string[], payload: PushPayload): Prom
         (s) => s.userId === t.id || (t.accountId && rowAccount.get(s.userId) === t.accountId)
       );
       const multiCompany = t.accountId
-        ? siblingRows.filter((r) => r.accountId === t.accountId).length > 1
+        ? memberships.filter((r) => r.accountId === t.accountId).length > 1
         : false;
       // In-app links (main tap AND action buttons) route through /app/open so
       // multi-company accounts land in the right membership; external action

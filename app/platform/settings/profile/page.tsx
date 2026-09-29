@@ -5,6 +5,7 @@ import { canSell, requirePageActor, roleLabel } from "@/lib/permissions";
 import { hasAddon } from "@/lib/addon";
 import { voiceConfigured } from "@/lib/telnyx";
 import { socialSignInFor } from "@/lib/sign-in-options";
+import { hasPushDevice } from "@/lib/notify";
 import ProfileClient from "./ProfileClient";
 
 export const metadata: Metadata = { title: "My Profile" };
@@ -23,6 +24,8 @@ export default async function ProfilePage() {
         avatarMime: true,
         emailSignature: true,
         softphoneEnabled: true,
+        emailAlerts: true,
+        accountId: true,
         company: { select: { name: true, phone: true, website: true, lineVoiceAppAt: true, addonActiveAt: true } },
         // The login behind this membership: whether it has a password, and
         // which third-party sign-ins are connected (Connected sign-ins card).
@@ -46,6 +49,10 @@ export default async function ProfilePage() {
     }),
     headers().then((h) => h.get("user-agent")),
   ]);
+
+  // Team notification emails are skipped while a device has push on (lib/notify.ts) —
+  // the card says which way things fall today.
+  const pushOn = user ? await hasPushDevice(actor.id, user.accountId) : false;
 
   // The "Calls in the app" switch only means something once the line is on the voice app (lib/softphone.ts).
   const softphoneRelevant = Boolean(voiceConfigured() && user?.company?.lineVoiceAppAt && hasAddon(user.company) && canSell(actor.role));
@@ -82,6 +89,8 @@ export default async function ProfilePage() {
       }))}
       social={socialSignInFor(ua)}
       softphoneEnabled={softphoneRelevant ? (user?.softphoneEnabled ?? true) : null}
+      emailAlerts={user?.emailAlerts ?? null}
+      pushOn={pushOn}
     />
   );
 }
