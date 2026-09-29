@@ -4,6 +4,7 @@ import HelpHome from "@/components/help/HelpHome";
 export const metadata: Metadata = {
   title: "Help Center",
   description: `How to use WorkBench FSM: step-by-step guides to booking, scheduling, quotes, invoices, payments, the business phone line, texting, automations and Atlas, with fixes for common problems.`,
+  alternates: { canonical: "https://workbenchfsm.com/help" },
 };
 
 /**
