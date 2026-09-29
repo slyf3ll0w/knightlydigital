@@ -287,7 +287,7 @@ const NUDGE_KEY = "sfh-push-nudge-dismissed";
  * One-time dashboard nudge. Renders nothing when push is on, unsupported,
  * blocked, unconfigured, or previously dismissed on this device.
  */
-export function PushNudge() {
+export function PushNudge({ className = "" }: { className?: string }) {
   const { state, busy, enable } = usePush();
   const [dismissed, setDismissed] = useState(true);
 
@@ -302,7 +302,7 @@ export function PushNudge() {
   if (dismissed || state !== "off") return null;
 
   return (
-    <div className="card-ledger p-4 mb-6 flex flex-wrap items-center gap-3">
+    <div className={`card-ledger p-4 mb-6 flex flex-wrap items-center gap-3 ${className}`}>
       <Bell size={18} className="text-gray-400 shrink-0" />
       <p className="flex-1 min-w-52 text-sm text-gray-700">
         Turn on notifications to hear about new requests, chat messages, and payments the

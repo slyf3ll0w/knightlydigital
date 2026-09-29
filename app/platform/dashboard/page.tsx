@@ -734,7 +734,7 @@ export default async function DashboardPage() {
             <DashboardSetupCard />
           </div>
         )}
-        <PushNudge />
+        <PushNudge className="mt-6" />
 
         {seePerformance && (
           <div className="mt-7 grid grid-cols-3 gap-4">

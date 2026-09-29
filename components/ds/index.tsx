@@ -38,7 +38,7 @@ export function PageHeader({
   return (
     <div className={`ds-rise flex flex-wrap items-end justify-between gap-4 ${className}`}>
       <div className="min-w-0">
-        {eyebrow && <p className="ds-eyebrow">{eyebrow}</p>}
+        {eyebrow && <p className="ds-eyebrow ds-eyebrow-plain">{eyebrow}</p>}
         <h1 className="ds-title mt-1 flex items-center gap-2">
           <span className="ds-wipe min-w-0">
             <span className="ds-wipe-text">{title}</span>
