@@ -20,6 +20,8 @@
 .help-root.help-root {
   --hb: var(--ds-primary, #0B57D8);
   --hb-soft: color-mix(in srgb, var(--hb) 9%, #fff);
+  /* Accent as text (fills use --hb). Same as --hb in light. */
+  --hb-ink: var(--hb);
   --ho: var(--ds-secondary, #F86A0A);
   --hi: #0A1428;
   /* The site's body face. Not var(--font-body): .ds redefines that as Lexend. */
@@ -62,7 +64,7 @@
 .help-tile {
   display: inline-flex; flex: none; align-items: center; justify-content: center;
   width: 44px; height: 44px; border-radius: 12px;
-  background: var(--hb-soft); color: var(--hb);
+  background: var(--hb-soft); color: var(--hb-ink);
 }
 .help-tile-sm { width: 30px; height: 30px; border-radius: 9px; }
 
@@ -92,15 +94,15 @@ a.help-card { transition: border-color 0.15s ease, box-shadow 0.15s ease; }
 a.help-card:hover { border-color: #D1D5DB; box-shadow: 0 18px 40px -24px rgba(10, 20, 40, 0.28); }
 
 /* Soft pill links (the site's chips). */
-.help-chip { display: inline-flex; align-items: center; border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 700; line-height: 1.2; background: var(--hb-soft); color: var(--hb); transition: opacity 0.15s ease; }
+.help-chip { display: inline-flex; align-items: center; border-radius: 999px; padding: 7px 14px; font-size: 13px; font-weight: 700; line-height: 1.2; background: var(--hb-soft); color: var(--hb-ink); transition: opacity 0.15s ease; }
 .help-chip:hover { opacity: 0.8; }
 .help-chip-quiet { background: #F3F4F6; color: #374151; }
 
 /* Pill buttons (the site's .wb-pill, colored by the company in the app). */
 .help-pill { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; padding: 0.7rem 1.3rem; font-size: 14.5px; font-weight: 700; line-height: 1.2; white-space: nowrap; transition: filter 0.15s ease, background-color 0.15s ease, border-color 0.15s ease; }
-.help-pill-blue { background: var(--hb); color: #fff; }
+.help-pill-blue { background: var(--hb); color: var(--ds-on-primary, #fff); }
 .help-pill-blue:hover { filter: brightness(0.92); }
-.help-pill-orange { background: var(--ho); color: #fff; }
+.help-pill-orange { background: var(--ho); color: var(--ds-on-secondary, #fff); }
 .help-pill-orange:hover { filter: brightness(0.94); }
 .help-pill-outline { background: #fff; color: #111827; border: 1px solid #D1D5DB; }
 .help-pill-outline:hover { border-color: #111827; }
@@ -108,8 +110,8 @@ a.help-card:hover { border-color: #D1D5DB; box-shadow: 0 18px 40px -24px rgba(10
 .help-pill-ghost:hover { background: rgba(255, 255, 255, 0.1); }
 
 /* Links in running text */
-.help-a { color: var(--hb); font-weight: 600; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--hb) 30%, transparent); text-underline-offset: 3px; }
-.help-a:hover { text-decoration-color: var(--hb); }
+.help-a { color: var(--hb-ink); font-weight: 600; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--hb-ink) 30%, transparent); text-underline-offset: 3px; }
+.help-a:hover { text-decoration-color: var(--hb-ink); }
 
 /* A button or label name in running text: `Send quote` */
 .help-ui { font-weight: 700; color: #111827; white-space: nowrap; }
@@ -128,7 +130,7 @@ a.help-card:hover { border-color: #D1D5DB; box-shadow: 0 18px 40px -24px rgba(10
   position: absolute; left: 0; top: 0;
   display: inline-flex; align-items: center; justify-content: center;
   width: 28px; height: 28px; border-radius: 999px;
-  background: var(--hb-soft); color: var(--hb);
+  background: var(--hb-soft); color: var(--hb-ink);
   font-size: 13.5px; font-weight: 800; font-family: var(--help-body);
 }
 .help-steps > li:last-child { padding-bottom: 0; }
@@ -141,13 +143,13 @@ a.help-card:hover { border-color: #D1D5DB; box-shadow: 0 18px 40px -24px rgba(10
 .help-note-tip { background: #F6F8FB; border: 1px solid #E5E7EB; color: #374151; }
 .help-note-warn { background: #FFFBEB; border: 1px solid #FDE68A; color: #3F2E07; }
 .help-note-title { display: block; margin-bottom: 2px; font-size: 13.5px; font-weight: 800; }
-.help-note-tip .help-note-title { color: var(--hb); }
+.help-note-tip .help-note-title { color: var(--hb-ink); }
 .help-note-warn .help-note-title { color: #B45309; }
 
 /* Side list on article and topic pages; the current guide gets a soft fill. */
 .help-side a { display: block; margin: 1px 0; padding: 7px 12px; border-radius: 10px; font-size: 14px; line-height: 1.4; color: #4B5563; }
 .help-side a:hover { background: #F6F8FB; color: #111827; }
-.help-side a[aria-current="page"] { background: var(--hb-soft); color: var(--hb); font-weight: 700; }
+.help-side a[aria-current="page"] { background: var(--hb-soft); color: var(--hb-ink); font-weight: 700; }
 
 /* The navy band (the site's .wb-dark). */
 .help-band {
@@ -168,8 +170,10 @@ a.help-card:hover { border-color: #D1D5DB; box-shadow: 0 18px 40px -24px rgba(10
    tokens as the app's dark bridge (globals.css); Tailwind grays in the
    help components are already remapped by that bridge. ── */
 html[data-mode="dark"] .app-ui .help-root.help-root {
-  /* The brand ink the app brightens for dark (a navy primary stays legible) */
-  --hb: var(--wb-ink, var(--ds-primary, #3B82F6));
+  /* Fills keep --ds-primary (ds.css already swaps it for the dark variant,
+     paired with --ds-on-primary); accent TEXT uses the app's brightened
+     brand ink so a navy or gray primary stays legible on dark. */
+  --hb-ink: var(--wb-ink, var(--hb));
   --hb-soft: color-mix(in srgb, var(--hb) 20%, var(--t-surface));
   --hi: var(--t-ink);
   color: var(--t-ink);
@@ -211,7 +215,11 @@ html[data-mode="dark"] .app-ui .help-note-warn .help-note-title { color: #FBBF24
 html[data-mode="dark"] .app-ui .help-side a { color: #9DA6B2; }
 html[data-mode="dark"] .app-ui .help-side a:hover { background: var(--t-raised); color: var(--t-ink); }
 html[data-mode="dark"] .app-ui .help-side a[aria-current="page"] { background: var(--hb-soft); color: var(--t-ink); }
-html[data-mode="dark"] .app-ui .help-root .bg-\[\#F6F8FB\],
+/* Row hovers lift; the one #F6F8FB band (Popular guides) sinks below the
+   ground so the card on it reads as raised, like in light. */
 html[data-mode="dark"] .app-ui .help-root .hover\:bg-\[\#F6F8FB\]:hover { background-color: var(--t-raised); }
+html[data-mode="dark"] .app-ui .help-root .bg-\[\#F6F8FB\] { background-color: color-mix(in srgb, var(--t-ground) 70%, #000); }
+/* divide-gray-200 isn't in the app bridge: white rules between list rows */
+html[data-mode="dark"] .app-ui .help-root .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: var(--t-line); }
 html[data-mode="dark"] .app-ui .help-band { background-color: #0A0F18; }
 html[data-mode="dark"] .app-ui .help-mark { background: color-mix(in srgb, var(--ho) 32%, transparent); }

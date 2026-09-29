@@ -231,7 +231,7 @@ export default function HelpHome({
                       <span className="min-w-0 flex-1">
                         <h3 className="text-[17px] font-extrabold leading-snug">{s.title}</h3>
                         <span className="mt-1 hidden text-[14px] leading-relaxed text-gray-600 sm:block">{s.tagline}</span>
-                        <span className="mt-3 hidden sm:inline-flex items-center gap-0.5 text-[13.5px] font-bold text-[color:var(--hb)]">
+                        <span className="mt-3 hidden sm:inline-flex items-center gap-0.5 text-[13.5px] font-bold text-[color:var(--hb-ink)]">
                           {s.articles.length} {s.articles.length === 1 ? "guide" : "guides"}
                           <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" strokeWidth={2.5} />
                         </span>

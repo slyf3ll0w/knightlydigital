@@ -156,7 +156,7 @@ export default function HelpArticleView({
               <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-gray-500">
                 <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2.5} /> Previous
               </span>
-              <span className="mt-1 block text-[15.5px] font-bold text-gray-900 group-hover:text-[color:var(--hb)]">
+              <span className="mt-1 block text-[15.5px] font-bold text-gray-900 group-hover:text-[color:var(--hb-ink)]">
                 {prev.title}
               </span>
             </Link>
@@ -168,7 +168,7 @@ export default function HelpArticleView({
               <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-gray-500">
                 Next <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
               </span>
-              <span className="mt-1 block text-[15.5px] font-bold text-gray-900 group-hover:text-[color:var(--hb)]">
+              <span className="mt-1 block text-[15.5px] font-bold text-gray-900 group-hover:text-[color:var(--hb-ink)]">
                 {next.title}
               </span>
             </Link>
