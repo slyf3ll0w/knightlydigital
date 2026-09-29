@@ -11,6 +11,9 @@ import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import ViewedFact from "@/components/ViewedFact";
 import InvoiceActions from "./InvoiceActions";
+import { canText } from "@/lib/sms-consent";
+import { companyCanSendSms } from "@/lib/sms";
+import { fmtPhone } from "@/lib/format";
 import RunAutomationMenu from "@/components/RunAutomationMenu";
 import { getProcessor, invoiceBalance } from "@/lib/payments";
 import { finixApplicationId, finixEnvironment } from "@/lib/finix";
@@ -57,6 +60,9 @@ export default async function InvoiceDetailPage({
   const publicUrl = `${baseUrl}/pay/${invoice.publicToken}`;
   const totalPaid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
   const balance = Math.max(0, invoiceBalance(invoice));
+  // Send to Client can text the pay link from the business line
+  const canTextClient =
+    Boolean(invoice.contact?.phone) && canText(invoice.contact!) && (await companyCanSendSms(companyId));
 
   // Jobber-style nudge: invoice paid but the linked job is still open
   const showCloseJobNudge =
@@ -141,6 +147,8 @@ export default async function InvoiceDetailPage({
           paymentCount={invoice.payments.length}
           paymentTotal={totalPaid}
           contactEmail={invoice.contact?.email ?? ""}
+          contactPhone={invoice.contact?.phone ? fmtPhone(invoice.contact.phone) : ""}
+          canTextClient={canTextClient}
           chargeStoredLabel={chargeStoredLabel}
           savedCards={savedCards}
           contactId={invoice.contact?.id ?? ""}

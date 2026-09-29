@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { limit } from "@/lib/rate-limit";
 import { getActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import { sendEmail, invoiceLinkEmail } from "@/lib/email";
-import { sendSms, canText, invoiceLinkText } from "@/lib/sms";
+import { sendSms, canText, companyCanSendSms, invoiceLinkText } from "@/lib/sms";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { dueDateFromTerms } from "@/lib/due-dates";
 import { fireAutomations } from "@/lib/automations-server";
@@ -48,9 +48,15 @@ export async function POST(
   if (invoice.status === "PAID") {
     return NextResponse.json({ error: "This invoice is already paid." }, { status: 400 });
   }
-  if (!invoice.contact?.email) {
+  // Two ways to reach them: email, and a text from the business line once
+  // texting is on. Either alone is enough (2026-09-28: a client with a phone
+  // and no email could not be sent an invoice at all, and the text only ever
+  // rode along silently behind "Email to Client").
+  const contact = invoice.contact;
+  const textable = Boolean(contact?.phone) && canText(contact!) && (await companyCanSendSms(invoice.companyId));
+  if (!contact || (!contact.email && !textable)) {
     return NextResponse.json(
-      { error: "This client has no email on file — add one, or share the invoice with Copy payment link." },
+      { error: "This client has no email or textable phone on file — add one, or share the invoice with Copy payment link." },
       { status: 400 }
     );
   }
@@ -68,37 +74,42 @@ export async function POST(
     payable,
   });
 
-  const emailed = await sendEmail({
-    companyId: invoice.companyId,
-    to: invoice.contact.email,
-    subject,
-    html,
-    replyTo: invoice.company.email || undefined,
-    fromName: invoice.company.name,
-  });
-  if (!emailed) {
-    return NextResponse.json(
-      { error: "Email isn't set up on this server yet — share the invoice with Copy payment link instead." },
-      { status: 424 }
-    );
-  }
+  const emailed = contact.email
+    ? await sendEmail({
+        companyId: invoice.companyId,
+        to: contact.email,
+        subject,
+        html,
+        replyTo: invoice.company.email || undefined,
+        fromName: invoice.company.name,
+      })
+    : false;
 
-  // Best-effort text with the same link — never fails the send.
   let texted = false;
-  if (invoice.contact.phone && canText(invoice.contact)) {
+  if (textable && contact.phone) {
     texted = await sendSms({
       companyId: invoice.companyId,
       contactId: invoice.contactId,
-      to: invoice.contact.phone,
+      to: contact.phone,
       text: invoiceLinkText({
         companyName: invoice.company.name,
-        firstName: invoice.contact.firstName,
+        firstName: contact.firstName,
         invoiceNumber: invoice.invoiceNumber,
         total: Number(invoice.total),
         payUrl: `${baseUrl}/pay/${invoice.publicToken}`,
         payable,
       }),
     });
+  }
+  if (!emailed && !texted) {
+    return NextResponse.json(
+      {
+        error: contact.email
+          ? "Email isn't set up on this server yet — share the invoice with Copy payment link instead."
+          : "The text didn't go out — check Text Notifications in Settings → Phone & texting, or share the invoice with Copy payment link.",
+      },
+      { status: 424 }
+    );
   }
 
   // Sending IS issuing: stamp the dates a drafted engine invoice (or any
@@ -110,7 +121,7 @@ export async function POST(
     ...(invoice.issuedAt ? {} : { issuedAt: now }),
     ...(invoice.dueDate
       ? {}
-      : { dueDate: dueDateFromTerms(now, invoice.contact.paymentTermsDays) }),
+      : { dueDate: dueDateFromTerms(now, contact.paymentTermsDays) }),
   };
   if (Object.keys(patch).length > 0) {
     await prisma.invoice.update({ where: { id: invoice.id }, data: patch });
@@ -118,5 +129,5 @@ export async function POST(
   // First send only (a re-send of an issued invoice is a reminder, not a send)
   if (invoice.status === "DRAFT") fireAutomations(invoice.companyId, "invoice.sent", invoice.id);
 
-  return NextResponse.json({ emailed: true, texted, to: invoice.contact.email });
+  return NextResponse.json({ emailed, texted, to: contact.email, phone: texted ? contact.phone : null });
 }

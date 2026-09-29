@@ -131,7 +131,7 @@ export function useEntityActions(meta: RowMeta, opts: { onRun?: (id: string) => 
         if (!paid && meta.status !== "ARCHIVED")
           out.push({
             key: "send",
-            label: meta.status === "DRAFT" ? "Email to client" : "Email to client again",
+            label: meta.status === "DRAFT" ? "Send to client" : "Send to client again",
             icon: Mail,
             disabled: !meta.hasEmail,
             hint: meta.hasEmail ? undefined : "no email on file",

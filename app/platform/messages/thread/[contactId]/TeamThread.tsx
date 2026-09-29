@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 
 /**
@@ -17,6 +17,8 @@ type ThreadMessage = {
   via: string;
   createdAt: string;
   senderName: string | null;
+  /** Client-side only: shown before the server has answered. */
+  pending?: boolean;
 };
 
 // A text or website-chat thread is a live conversation and polls like team
@@ -64,25 +66,30 @@ export default function TeamThread({
 }) {
   const [messages, setMessages] = useState<ThreadMessage[]>(initialMessages);
   const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [clientTyping, setClientTyping] = useState(false);
   const [visitorOnline, setVisitorOnline] = useState<boolean | null>(null);
   const [contactPhone, setContactPhone] = useState<string | null | undefined>(undefined);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const lastTypingPing = useRef(0);
+  const mounted = useRef(false);
 
   // A thread the client started (or continued) from the website chat widget.
   const webChat = messages.some((m) => m.via === "web");
   // Texts in play: replies go out as SMS, or they have texted us before.
   const live = webChat || channel?.kind === "sms" || messages.some((m) => m.via === "sms");
 
-  const lastCreatedAt = messages.length ? messages[messages.length - 1].createdAt : null;
+  // The poll's cursor: the newest SERVER row — a pending bubble carries the
+  // browser's clock, which could sit ahead of the server's and hide a reply.
+  const settled = messages.filter((m) => !m.pending);
+  const lastCreatedAt = settled.length ? settled[settled.length - 1].createdAt : null;
   const lastRef = useRef(lastCreatedAt);
   lastRef.current = lastCreatedAt;
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: "nearest" });
+    bottomRef.current?.scrollIntoView({ block: "nearest", behavior: mounted.current ? "smooth" : "auto" });
+    mounted.current = true;
   }, [messages.length]);
 
   // The server page marks this thread's inbound messages read as it renders
@@ -151,12 +158,21 @@ export default function TeamThread({
     void fetch(`/api/app/messages/${contactId}/typing`, { method: "POST" }).catch(() => {});
   }
 
+  // Optimistic send: the bubble appears and the box clears the instant the
+  // button is pressed; the server row replaces the bubble when it answers,
+  // and a failure hands the words back to the box.
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
     const body = draft.trim();
-    if (!body || sending) return;
+    if (!body) return; // sends may overlap: each has its own bubble
     setError("");
-    setSending(true);
+    const tempId = `pending-${Date.now()}`;
+    setMessages((prev) => [
+      ...prev,
+      { id: tempId, direction: "OUTBOUND", body, via: "portal", createdAt: new Date().toISOString(), senderName: null, pending: true },
+    ]);
+    setDraft("");
+    inputRef.current?.focus();
     try {
       const res = await fetch(`/api/app/messages/${contactId}`, {
         method: "POST",
@@ -164,16 +180,17 @@ export default function TeamThread({
         body: JSON.stringify({ body }),
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        setError(data?.error ?? "Something went wrong. Please try again.");
-        return;
-      }
-      if (data?.message) setMessages((prev) => [...prev, data.message as ThreadMessage]);
-      setDraft("");
-    } catch {
-      setError("Something went wrong. Please try again.");
-    } finally {
-      setSending(false);
+      if (!res.ok) throw new Error(data?.error ?? "Something went wrong. Please try again.");
+      const saved = data?.message as ThreadMessage | undefined;
+      setMessages((prev) => {
+        const rest = prev.filter((m) => m.id !== tempId);
+        // the poll may have delivered the server row already
+        return saved && !rest.some((m) => m.id === saved.id) ? [...rest, saved] : rest;
+      });
+    } catch (err) {
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setDraft((d) => d || body);
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     }
   }
 
@@ -221,16 +238,18 @@ export default function TeamThread({
               <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[85%] sm:max-w-[min(75%,30rem)] ${mine ? "text-right" : ""}`}>
                   <div
-                    className={`inline-block rounded-2xl px-3.5 py-2 text-left ${
+                    className={`inline-block rounded-2xl px-3.5 py-2 text-left transition-opacity ${
                       mine ? "bg-[color:var(--ds-primary)] text-[color:var(--ds-on-primary)]" : "bg-[color:var(--ds-surface-2)] text-[color:var(--ds-ink)]"
-                    }`}
+                    } ${m.pending ? "opacity-60" : ""}`}
                   >
                     <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                       {m.body}
                     </p>
                   </div>
                   <p className="mt-1 text-[11px] text-gray-400">
-                    {mine
+                    {m.pending
+                      ? "Sending…"
+                      : mine
                       ? `${m.senderName || "You"} · ${timeLabel(m.createdAt)}`
                       : `${contactFirstName}${m.via === "sms" ? " (by text)" : m.via === "web" ? " (website chat)" : ""} · ${timeLabel(m.createdAt)}`}
                   </p>
@@ -249,6 +268,7 @@ export default function TeamThread({
 
       <form onSubmit={handleSend} className="mt-4 flex items-end gap-2">
         <textarea
+          ref={inputRef}
           value={draft}
           onChange={(e) => {
             setDraft(e.target.value);
@@ -267,11 +287,11 @@ export default function TeamThread({
         />
         <button
           type="submit"
-          disabled={sending || !draft.trim()}
+          disabled={!draft.trim()}
           aria-label="Send message"
           className="shrink-0 rounded-[10px] p-2.5 bg-[color:var(--ds-primary)] hover:bg-[color:var(--ds-primary-strong)] active:bg-[color:var(--ds-primary-strong)] text-[color:var(--ds-on-primary)] transition-colors disabled:opacity-40"
         >
-          {sending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+          <Send size={18} />
         </button>
       </form>
       {error && <p className="mt-2 text-sm text-[color:var(--ds-bad)]">{error}</p>}

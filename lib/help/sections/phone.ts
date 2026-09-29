@@ -339,6 +339,7 @@ export const textingSection: HelpSection = {
           items: [
             "A client who replies **STOP**, STOPALL, UNSUBSCRIBE, CANCEL, END or QUIT, as the whole message, gets no more texts. **START** or UNSTOP turns texts back on. **HELP** or INFO gets your contact details.",
             "\"Cancel Friday's visit\" is a normal message that lands in your inbox, not an opt-out.",
+            "Which texts go out on their own: appointment reminders the day before and about an hour ahead, schedule changes, the invoice pay link when you press `Send to Client`, on-my-way, and any `Text client` step in an automation. Those say who they are from and how to stop. Your own replies in Messages are texts too, sent exactly as you typed them.",
             "Quotes are never texted, because carriers treat them as marketing. They go by email.",
             "There's a limit of 500 texts a day per company.",
           ],

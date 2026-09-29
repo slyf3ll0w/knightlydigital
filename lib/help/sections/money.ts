@@ -20,7 +20,7 @@ export const invoicesSection: HelpSection = {
             "From a finished job, press `Create Invoice`. Or go to **Invoices** and press `New`.",
             "Check the customer, the **Due date**, the line items, tax and any discount. Add a **Client message** if you want.",
             "Save it. It starts as a **Draft**.",
-            "Press `Email to Client`. They get a link to pay by card or bank, and a text too if your texting is set up. The invoice moves to **Awaiting Payment**.",
+            "Press `Send to Client`. The pay link goes by email, and by text from your business line once texting is on (Settings → Phone & texting → `Turn on text notifications`). A client with only a phone number gets the text alone. The invoice moves to **Awaiting Payment**.",
           ],
         },
         {
@@ -35,7 +35,7 @@ export const invoicesSection: HelpSection = {
           type: "faq",
           items: [
             {
-              q: "Email to Client failed.",
+              q: "Send to Client failed.",
               a: "Client emails switch on once your business is approved for payments. Until then, use `Copy payment link` and send it yourself. If the button says `Mark as Sent`, the client has no email on file.",
             },
             {

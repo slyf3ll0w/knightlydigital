@@ -26,6 +26,7 @@ import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
 import { hapticImpact } from "@/lib/haptics";
 import ChargeOverlay, { type ChargePhase } from "@/components/ChargeOverlay";
 import { showSendRitual } from "@/lib/send-ritual";
+import { fmtPhone } from "@/lib/format";
 import { FINIX_JS_SRC, type FinixConfig, type FinixForm } from "@/lib/finix-js";
 import MenuPopover from "@/components/MenuPopover";
 
@@ -39,6 +40,8 @@ export default function InvoiceActions({
   paymentCount = 0,
   paymentTotal = 0,
   contactEmail = "",
+  contactPhone = "",
+  canTextClient = false,
   chargeStoredLabel = null,
   savedCards = [],
   balance = 0,
@@ -53,6 +56,10 @@ export default function InvoiceActions({
   paymentCount?: number;
   paymentTotal?: number;
   contactEmail?: string;
+  /** Pretty-printed; shown in the confirmation when the pay link was texted. */
+  contactPhone?: string;
+  /** The business line can text this client right now (texting on, client not opted out). */
+  canTextClient?: boolean;
   /** Default-card label when this invoice can be charged to a card on file. */
   chargeStoredLabel?: string | null;
   /** Every card on the client's file — a picker shows when there's a choice. */
@@ -295,7 +302,16 @@ export default function InvoiceActions({
     }, 1800);
   }
 
-  // Email the client their pay link (DRAFT invoices move to Awaiting Payment)
+  // "Emailed to a@b.com", "Texted to (469) 860-5060", or both
+  function sentLine(data: { emailed?: boolean; texted?: boolean; to?: string | null; phone?: string | null } | null): string {
+    const parts: string[] = [];
+    if (data?.emailed ?? true) parts.push(`Emailed to ${data?.to ?? contactEmail}`);
+    if (data?.texted) parts.push(`Texted to ${data?.phone ? fmtPhone(data.phone) : contactPhone}`);
+    return parts.join(" · ") || "Sent";
+  }
+
+  // Send the client their pay link — email, a text from the business line,
+  // or both (DRAFT invoices move to Awaiting Payment)
   async function emailToClient() {
     setOpen(false);
     setBusy(true);
@@ -306,11 +322,12 @@ export default function InvoiceActions({
         alertSheet({ message: data?.error ?? "Couldn't send the invoice." });
         return;
       }
-      setSentTo(data?.to ?? contactEmail);
+      const line = sentLine(data);
+      setSentTo(line);
       hapticImpact("LIGHT");
       // Body-attached on purpose — the refresh below swaps the action
       // buttons and would kill any overlay held in this component's state
-      showSendRitual(data?.to ?? contactEmail);
+      showSendRitual(line);
     } finally {
       setBusy(false);
       router.refresh();
@@ -363,24 +380,31 @@ export default function InvoiceActions({
         // animation's transform doesn't fight -translate-x-1/2
         <span className="fixed left-1/2 -translate-x-1/2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] lg:bottom-8 z-40 max-w-[calc(100vw-2rem)]">
           <span className="msg-enter block truncate rounded-full bg-gray-900/95 px-4 py-2 text-xs font-medium text-white shadow-lg">
-            Emailed to {sentTo}
+            {sentTo}
           </span>
         </span>
       )}
 
       {status === "DRAFT" &&
-        (contactEmail ? (
+        (contactEmail || canTextClient ? (
           <button
             onClick={emailToClient}
             className="btn-primary"
+            title={
+              contactEmail && canTextClient
+                ? `Emails ${contactEmail} and texts ${contactPhone} the pay link`
+                : canTextClient
+                  ? `Texts ${contactPhone} the pay link from your business line`
+                  : `Emails ${contactEmail} the pay link`
+            }
           >
             <Send size={13} />
-            Email to Client
+            Send to Client
           </button>
         ) : (
           <button
             onClick={() => setStatus("AWAITING_PAYMENT")}
-            title="No client email on file — this only marks the invoice as sent"
+            title="No client email or textable phone on file — this only marks the invoice as sent"
             className="btn-primary"
           >
             <Send size={13} />
@@ -477,22 +501,22 @@ export default function InvoiceActions({
               <CopyPlus size={14} className="text-gray-400" />
               Duplicate Invoice
             </button>
-            {contactEmail && status === "DRAFT" && (
+            {(contactEmail || canTextClient) && status === "DRAFT" && (
               <button
                 onClick={() => setStatus("AWAITING_PAYMENT")}
                 className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
                 <Send size={14} className="text-gray-400" />
-                Mark as Sent (no email)
+                Mark as Sent (don&apos;t send)
               </button>
             )}
-            {contactEmail && (status === "AWAITING_PAYMENT" || status === "PAST_DUE") && (
+            {(contactEmail || canTextClient) && (status === "AWAITING_PAYMENT" || status === "PAST_DUE") && (
               <button
                 onClick={emailToClient}
                 className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
                 <Send size={14} className="text-gray-400" />
-                Email to client again
+                Send to client again
               </button>
             )}
             {status !== "PAID" && status !== "ARCHIVED" && (

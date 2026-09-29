@@ -35,49 +35,16 @@ const preview = (s: string, max: number) =>
 const SMS_CONVERSATION_MAX = 1000;
 
 /**
- * The text a thread reply goes out as. A conversation reads like one: the
- * message itself, no "Company:" prefix and no opt-out tail (2026-09-28 —
- * "Lessly Holdings: … Reply STOP to opt out." on every reply read like a
- * robot to people who know the owner by name). The one exception is the
- * FIRST text the business ever sends someone who never wrote first: CTIA
- * asks a business-initiated conversation to say who is texting and how to
- * stop, once. Telnyx honours STOP at the edge whether or not a text says so.
+ * The text a thread reply goes out as: the message itself. No "Company:"
+ * prefix and no opt-out tail (2026-09-28 — "Lessly Holdings: … Reply STOP
+ * to opt out." on every reply read like a robot to people who know the
+ * owner by name; David also dropped a one-time intro line the same day).
+ * Telnyx honours STOP at the edge whether or not a text says so. The
+ * automated templates (reminders, invoice links, schedule changes) keep
+ * their brand + STOP wording — they are the registered campaign's messages.
  */
-export function conversationText({
-  body,
-  companyName,
-  senderName,
-  introduce,
-}: {
-  body: string;
-  companyName: string;
-  senderName?: string | null;
-  /** True only for the first business-initiated text to this person. */
-  introduce: boolean;
-}): string {
-  const text = preview(body.trim(), SMS_CONVERSATION_MAX);
-  if (!introduce) return text;
-  const first = senderName?.trim().split(/\s+/)[0];
-  const who = first ? `${first} at ${companyName}` : companyName;
-  return `${text}\n\n— ${who}. Reply STOP to opt out.`;
-}
-
-/**
- * Has this person ever written the company, or been texted by it? Either
- * way they know who is on the line and the reply goes out bare.
- */
-async function knowsUs(contact: { id: string; companyId: string }): Promise<boolean> {
-  const [inbound, texted] = await Promise.all([
-    prisma.portalMessage.findFirst({
-      where: { contactId: contact.id, direction: "INBOUND" },
-      select: { id: true },
-    }),
-    prisma.smsSend.findFirst({
-      where: { companyId: contact.companyId, contactId: contact.id },
-      select: { id: true },
-    }),
-  ]);
-  return Boolean(inbound || texted);
+export function conversationText(body: string): string {
+  return preview(body.trim(), SMS_CONVERSATION_MAX);
 }
 
 export type PortalThreadContact = {
@@ -174,8 +141,7 @@ export async function notifyTeamOfClientMessage(
 export async function notifyClientOfReply(
   contact: PortalThreadContact,
   messageId: string,
-  body: string,
-  senderName?: string | null
+  body: string
 ): Promise<void> {
   const messagesUrl = `${baseUrl()}/hub/${contact.hubToken}/messages`;
 
@@ -191,10 +157,9 @@ export async function notifyClientOfReply(
   // to the text drops their answer straight back into the thread via the webhook.
   let smsSent = false;
   if (smsEnabled() && contact.phone && canText(contact)) {
-    const introduce = !(await knowsUs(contact));
     smsSent = await sendSms({
       to: contact.phone,
-      text: conversationText({ body, companyName: contact.company.name, senderName, introduce }),
+      text: conversationText(body),
       companyId: contact.companyId,
       contactId: contact.id,
     });

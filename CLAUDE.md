@@ -254,10 +254,15 @@ nav-counts) + `/app/messages/thread/[contactId]`, replies via
 (`ContactPushSubscription` + `notifyContact` in lib/push.ts, subscribe at
 `/api/hub/push`) + SMS mirror when Telnyx is live + email fallback. The SMS
 mirror is the message itself (`conversationText`, ≤1,000 chars, no company
-prefix, no STOP tail); only the first business-initiated text to someone who
-never wrote or was texted before carries a one-line "— <first name> at
-<company>. Reply STOP to opt out." Text threads poll every 3 s and the inbox
-re-renders off `GET /api/app/messages/latest` (`InboxLive.tsx`). Inbound
+prefix, no STOP tail, nothing added — David dropped even a one-time intro
+line 2026-09-28). The POST answers before the fan-out (`after()`); the
+thread renders the bubble optimistically. Text threads poll every 3 s and the
+inbox re-renders off `GET /api/app/messages/latest` (`InboxLive.tsx`). The
+service worker hands a push to a focused /app tab (`wb:push` message → a
+LiveToast, or nothing when that tab is already on the push's URL) instead of
+showing an OS notification; unfocused/closed → OS notification as before.
+Invoices: `Send to Client` emails and/or texts the pay link
+(`companyCanSendSms` + `canText`; phone-only clients get the text alone). Inbound
 conversational texts land in the thread through the Telnyx webhook (contact
 matched by phone digits; multi-match prefers latest thread activity).
 

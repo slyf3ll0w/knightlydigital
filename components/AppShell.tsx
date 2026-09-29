@@ -1645,6 +1645,40 @@ export default function AppShell({
   const prevCountsRef = useRef<typeof counts | null>(null);
   const lastPollAtRef = useRef(0);
   const toastedRef = useRef<Set<string>>(new Set());
+  // Pushes the service worker handed to this tab instead of showing an OS
+  // notification (public/sw.js "wb:push"): shown as a card at once, unless
+  // this tab is already on the page the push points at. The href is
+  // remembered for a minute so the count-poll doesn't card the same thing.
+  const pushedRef = useRef<Map<string, number>>(new Map());
+  const pathRef = useRef(pathname);
+  pathRef.current = pathname;
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+    const kindFor = (href: string): LiveToast["kind"] =>
+      href.startsWith("/app/chat")
+        ? "chat"
+        : href.startsWith("/app/leads")
+          ? "lead"
+          : href.startsWith("/app/requests")
+            ? "request"
+            : href.startsWith("/app/payments") || href.startsWith("/app/invoices")
+              ? "payment"
+              : href.startsWith("/app/schedule") || href.startsWith("/app/appointments")
+                ? "booking"
+                : "message";
+    const onMessage = (e: MessageEvent) => {
+      const d = e.data as { type?: string; title?: string; body?: string; url?: string; tag?: string | null } | null;
+      if (!d || d.type !== "wb:push" || !d.url) return;
+      const href = d.url;
+      pushedRef.current.set(href, Date.now());
+      if (pathRef.current === href.split("?")[0]) return; // already looking at it
+      hapticImpact("LIGHT");
+      const id = `push-${d.tag ?? href}-${Date.now()}`;
+      setToasts((t) => [{ id, kind: kindFor(href), title: d.title || "WorkBench", sub: d.body || "", href }, ...t].slice(0, 3));
+    };
+    navigator.serviceWorker.addEventListener("message", onMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", onMessage);
+  }, []);
   // Bumped whenever a page patches the counts itself (wb:nav-counts with a
   // detail) so a poll that was already in flight can't overwrite the patch
   // with a stale answer — the reason the chat dot sometimes came back after
@@ -1760,7 +1794,9 @@ export default function AppShell({
           if (cancelled || !d?.items) return;
           const cutoff = since - 15_000;
           const wanted = new Set<string>([...(next.requests > prev.requests ? ["request"] : []), ...(next.leads > prev.leads ? ["lead"] : []), ...(next.messages > prev.messages ? ["message"] : [])]);
-          const items = d.items;
+          // Already shown as a push card, or the page we're on (the thread shows the message itself)
+          const muted = (i: LiveToast) => i.href === pathname || (pushedRef.current.get(i.href) ?? 0) > Date.now() - 60_000;
+          const items = d.items.filter((i) => !muted(i));
           let picked = items.filter((i) => wanted.has(i.kind) && new Date(i.at).getTime() >= cutoff && !toastedRef.current.has(i.id));
           // clock skew or a stale window: fall back to the newest item of each grown kind
           if (picked.length === 0) picked = [...wanted].map((k) => items.find((i) => i.kind === k && !toastedRef.current.has(i.id))).filter((i): i is LiveToast & { at: string } => Boolean(i));

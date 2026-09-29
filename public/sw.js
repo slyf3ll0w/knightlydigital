@@ -313,17 +313,39 @@ self.addEventListener("push", (event) => {
     : [];
   const actionUrls = {};
   for (const a of actions) actionUrls[a.action] = a.url;
+  const url = data.url || "/app/dashboard";
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body: data.body || "",
-      // Client-facing pushes (hub messages) carry the company logo; the
-      // WorkBench icon is the operator-app fallback
-      icon: data.icon || "/pwa/icon-192.png",
-      badge: "/pwa/icon-192.png",
-      tag: data.tag || undefined,
-      actions: actions.map((a) => ({ action: a.action, title: a.title })),
-      data: { url: data.url || "/app/dashboard", actionUrls },
-    })
+    (async () => {
+      // An /app tab that is open AND in front shows this itself — the in-app
+      // card (AppShell listens for "wb:push"), or nothing at all when it is
+      // already on the page the push points at, where the thread shows the
+      // message. An OS notification on top of that was a double ping
+      // (2026-09-28). Hub (client) pushes and unfocused tabs are unchanged.
+      if (url.startsWith("/app")) {
+        try {
+          const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+          const front = windows.find(
+            (c) => c.visibilityState === "visible" && c.focused && new URL(c.url).pathname.startsWith("/app")
+          );
+          if (front) {
+            front.postMessage({ type: "wb:push", title, body: data.body || "", url, tag: data.tag || null });
+            return;
+          }
+        } catch {
+          /* fall through to the OS notification */
+        }
+      }
+      await self.registration.showNotification(title, {
+        body: data.body || "",
+        // Client-facing pushes (hub messages) carry the company logo; the
+        // WorkBench icon is the operator-app fallback
+        icon: data.icon || "/pwa/icon-192.png",
+        badge: "/pwa/icon-192.png",
+        tag: data.tag || undefined,
+        actions: actions.map((a) => ({ action: a.action, title: a.title })),
+        data: { url, actionUrls },
+      });
+    })()
   );
 });
 

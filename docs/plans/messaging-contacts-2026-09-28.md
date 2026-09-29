@@ -169,15 +169,13 @@ row) that re-renders the list only when something landed.
 
 **Bare texts.** `conversationText` in `lib/portal-messages.ts` is what a
 thread reply goes out as: the message itself, up to ~1,000 chars (was cut at
-260), no company prefix, no opt-out tail. The single exception is the first
-text the business ever sends someone who has never written it and never
-been texted by it — that one ends "— David at Lessly Holdings. Reply STOP to
-opt out." because a business-initiated conversation has to say who is
-texting and how to stop, once (CTIA). Someone who texted first never sees
-it. Telnyx still honours STOP at the edge on every message. Automated texts
-(appointment reminders, invoice links, schedule changes) keep their brand +
-STOP wording: they are the registered campaign's templates, not a
-conversation. Pinned in `scripts/test-conversation-text.ts`.
+260), no company prefix, no opt-out tail, nothing added. (A one-time
+"— David at Lessly Holdings. Reply STOP to opt out." on the first
+business-initiated text shipped for an hour and David dropped it: it looked
+wrong on a conversation.) Telnyx honours STOP at the edge on every message.
+Automated texts (appointment reminders, invoice links, schedule changes)
+keep their brand + STOP wording: they are the registered campaign's
+templates, not a conversation. Pinned in `scripts/test-conversation-text.ts`.
 
 Recipes:
 12. Open a thread with someone who has texted you. Have them text you: the
@@ -186,6 +184,43 @@ Recipes:
     gets just the words, nothing before or after.
 13. Messages inbox open on the desktop; a text arrives — the row moves to
     the top with the bold unread count within ~4 s, no reload.
-14. New message → type a number you have never texted and that never texted
-    you → send "Hi". That phone gets "Hi" plus one line "— David at Lessly
-    Holdings. Reply STOP to opt out." Send a second message: bare.
+14. New message → type a number you have never texted → send "Hi". That
+    phone gets exactly "Hi". Nothing before, nothing after, first text or
+    tenth.
+
+## Round 4 (same day)
+
+**Smoother sending.** The bubble appears and the box clears the instant Send
+is pressed (a faint bubble marked "Sending…" until the server answers; a
+failure hands the words back to the box), the cursor stays in the box, and
+the list scrolls smoothly. The POST answers as soon as the row is written —
+the text, push, email and Leads board move run in `after()` — so a send no
+longer waits on Telnyx.
+
+**Invoice by text.** `Send to Client` (was "Email to Client") sends the pay
+link by email AND by text from the business line when Text Notifications is
+on and the client can be texted; a client with only a phone gets the text
+alone (the route used to refuse without an email). The confirmation names
+what went out: "Emailed to … · Texted to (…)". The text keeps its
+"Lessly Holdings sent you invoice #… Reply STOP to opt out." wording.
+
+**No double notifications.** When a WorkBench tab is open and focused, the
+service worker no longer shows an OS notification for a push — it hands the
+payload to the tab, which shows the in-app card (top-right on desktop, a
+banner on phones) unless you are already on that very page (the thread
+shows the message itself). Background tab, phone locked, app closed: the
+OS notification as before.
+
+Recipes:
+15. Thread open, press Send: the bubble is there before you lift your
+    finger, the box is empty and still focused. Airplane mode → send → the
+    bubble vanishes and the words are back in the box with an error.
+16. Invoice for a client with a phone and no email: `Send to Client` is
+    offered (tooltip says it texts), the phone gets the invoice text, the
+    confirmation reads "Texted to (…)". With both on file, both go and the
+    confirmation names both. Settings → Phone & texting → Text Notifications
+    must be ON for any of it; the (i) on that card explains.
+17. Desktop, WorkBench focused on the Dashboard, someone texts you: an
+    in-app card slides in top-right, no Windows/macOS notification. Same
+    while on their thread: nothing but the bubble. Switch to another app:
+    the OS notification comes back.

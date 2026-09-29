@@ -136,7 +136,7 @@ export default function QuoteActions({
       hapticImpact("LIGHT");
       // Body-attached on purpose — the refresh below swaps the action
       // buttons and would kill any overlay held in this component's state
-      showSendRitual(data?.to ?? contactEmail);
+      showSendRitual(`Emailed to ${data?.to ?? contactEmail}`);
     } finally {
       setBusy(false);
       router.refresh();

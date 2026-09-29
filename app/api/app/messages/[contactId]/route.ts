@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
 import {
@@ -116,12 +116,19 @@ export async function POST(
     include: { sender: { select: { name: true } } },
   });
 
-  await notifyClientOfReply(contact, message.id, body, message.sender?.name);
-  // A text from the team counts as reaching the lead (Leads board automation).
-  fireAutomations(actor.companyId, "lead.contact_made", contact.id);
-  await autoAdvance(prisma, actor.companyId, contact.id, "CONTACT_MADE").catch((err) =>
-    console.error("[messages] lead auto-advance failed:", err)
-  );
+  // The row is the message; the text / push / email and the Leads board
+  // move run after the response so the bubble lands the moment it is sent
+  // (2026-09-28: waiting on Telnyx + push + email made every send feel slow).
+  after(async () => {
+    await notifyClientOfReply(contact, message.id, body).catch((err) =>
+      console.error("[messages] client notify failed:", err)
+    );
+    // A text from the team counts as reaching the lead (Leads board automation).
+    fireAutomations(actor.companyId, "lead.contact_made", contact.id);
+    await autoAdvance(prisma, actor.companyId, contact.id, "CONTACT_MADE").catch((err) =>
+      console.error("[messages] lead auto-advance failed:", err)
+    );
+  });
 
   return NextResponse.json({ message: serialize(message) }, { status: 201 });
 }

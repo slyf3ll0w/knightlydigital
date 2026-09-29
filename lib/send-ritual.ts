@@ -18,7 +18,8 @@ const esc = (s: string) =>
 // lucide "send" glyph, matching the button iconography
 const PLANE = `<svg class="send-fly" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;left:50%;top:50%;margin:-17px 0 0 -17px"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>`;
 
-export function showSendRitual(to: string) {
+/** `line` is the confirmation under "On its way": "Emailed to a@b.com", "Texted to (469) 860-5060", or both. */
+export function showSendRitual(line: string) {
   if (typeof document === "undefined") return;
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -41,7 +42,7 @@ export function showSendRitual(to: string) {
     `<svg viewBox="0 0 48 48" style="width:48px;height:48px"><path class="charge-draw" d="M12 25 L21 34 L37 16" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>` +
     `</div>` +
     `<p style="margin-top:20px;font-size:18px;font-weight:700;color:#111827;">On its way</p>` +
-    `<p style="margin-top:4px;font-size:14px;color:#4B5563;word-break:break-all;">Emailed to ${esc(to)}</p>`;
+    `<p style="margin-top:4px;font-size:14px;color:#4B5563;word-break:break-all;">${esc(line)}</p>`;
 
   if (reduced) {
     inner.innerHTML = sent;
