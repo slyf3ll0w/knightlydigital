@@ -10,9 +10,11 @@
    "down" loops back over its own start (David, 2026-09-28). The home search
    note keeps WBScribble "swoop" (the only right-pointing one). Desktop only,
    each in its own layout slot, never CSS-rotated.
-   Always light: /app/help is pinned light (ForceLightTheme + the pre-paint
-   path list in app/layout.tsx). Accents read the company's colors in the
-   app (--ds-primary / --ds-secondary) and fall back to WorkBench's.
+   Theme: the public /help is always light (the marketing site has no dark
+   mode). /app/help follows the app's theme: the dark layer at the bottom
+   is scoped to .app-ui, so it never reaches the public site. Accents read
+   the company's colors in the app (--ds-primary / --ds-secondary) and
+   fall back to WorkBench's.
    ═══════════════════════════════════════════════════════════════════════ */
 
 .help-root.help-root {
@@ -161,3 +163,55 @@ a.help-card:hover { border-color: #D1D5DB; box-shadow: 0 18px 40px -24px rgba(10
 
 /* .ds gives buttons and fields the app face; here they match the site. */
 .help-root.help-root :is(button, input, select, textarea) { font-family: var(--help-body); }
+
+/* ── Dark: /app/help only (.app-ui), following the app's theme. Same
+   tokens as the app's dark bridge (globals.css); Tailwind grays in the
+   help components are already remapped by that bridge. ── */
+html[data-mode="dark"] .app-ui .help-root.help-root {
+  /* The brand ink the app brightens for dark (a navy primary stays legible) */
+  --hb: var(--wb-ink, var(--ds-primary, #3B82F6));
+  --hb-soft: color-mix(in srgb, var(--hb) 20%, var(--t-surface));
+  --hi: var(--t-ink);
+  color: var(--t-ink);
+  background: var(--t-ground);
+}
+html[data-mode="dark"] .app-ui .help-hero::before {
+  background-image:
+    radial-gradient(55% 62% at 14% -12%, color-mix(in srgb, var(--hb) 26%, transparent), transparent 70%),
+    radial-gradient(42% 55% at 90% -8%, color-mix(in srgb, var(--ho) 16%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--t-surface) 0%, var(--t-ground) 85%);
+}
+html[data-mode="dark"] .app-ui .help-hero::after {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+}
+/* WBScribble's default navy ink */
+html[data-mode="dark"] .app-ui .help-root path[stroke="#10244A"] { stroke: var(--t-ink); }
+html[data-mode="dark"] .app-ui .help-search {
+  background: var(--t-surface);
+  box-shadow: 0 12px 34px -14px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--t-line);
+}
+html[data-mode="dark"] .app-ui .help-search:focus-within { box-shadow: 0 12px 34px -14px rgba(0, 0, 0, 0.6), 0 0 0 2px var(--hb); }
+html[data-mode="dark"] .app-ui .help-search input { color: var(--t-ink); }
+html[data-mode="dark"] .app-ui .help-search input::placeholder { color: #6F7885; }
+html[data-mode="dark"] .app-ui .help-card { background: var(--t-surface); border-color: var(--t-line); }
+html[data-mode="dark"] .app-ui a.help-card:hover { border-color: rgba(255, 255, 255, 0.2); box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.7); }
+html[data-mode="dark"] .app-ui .help-chip-quiet { background: var(--t-raised); color: #C3CAD3; }
+html[data-mode="dark"] .app-ui .help-pill-outline { background: var(--t-surface); color: var(--t-ink); border-color: rgba(255, 255, 255, 0.15); }
+html[data-mode="dark"] .app-ui .help-pill-outline:hover { border-color: rgba(255, 255, 255, 0.4); }
+html[data-mode="dark"] .app-ui .help-ui { color: var(--t-ink); }
+html[data-mode="dark"] .app-ui .help-ui::before,
+html[data-mode="dark"] .app-ui .help-ui::after { color: #6F7885; }
+html[data-mode="dark"] .app-ui .help-prose { color: #C3CAD3; }
+html[data-mode="dark"] .app-ui .help-bullets > li::before { background: #6F7885; }
+html[data-mode="dark"] .app-ui .help-note-tip { background: var(--t-raised); border-color: var(--t-line); color: #C3CAD3; }
+html[data-mode="dark"] .app-ui .help-note-warn { background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.3); color: #F3E3BD; }
+html[data-mode="dark"] .app-ui .help-note-warn .help-note-title { color: #FBBF24; }
+html[data-mode="dark"] .app-ui .help-side a { color: #9DA6B2; }
+html[data-mode="dark"] .app-ui .help-side a:hover { background: var(--t-raised); color: var(--t-ink); }
+html[data-mode="dark"] .app-ui .help-side a[aria-current="page"] { background: var(--hb-soft); color: var(--t-ink); }
+html[data-mode="dark"] .app-ui .help-root .bg-\[\#F6F8FB\],
+html[data-mode="dark"] .app-ui .help-root .hover\:bg-\[\#F6F8FB\]:hover { background-color: var(--t-raised); }
+html[data-mode="dark"] .app-ui .help-band { background-color: #0A0F18; }
+html[data-mode="dark"] .app-ui .help-mark { background: color-mix(in srgb, var(--ho) 32%, transparent); }
