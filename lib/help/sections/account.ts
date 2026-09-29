@@ -51,7 +51,7 @@ export const settingsSection: HelpSection = {
       slug: "notifications",
       title: "Turn on notifications",
       summary: "Get pushes for new leads, bookings, payments, messages and calls on each device.",
-      keywords: ["notifications", "push", "alerts", "bell", "not getting notifications", "add to home screen"],
+      keywords: ["notifications", "push", "alerts", "bell", "not getting notifications", "add to home screen", "email me too", "notification emails", "stop emails"],
       where: { label: "My Profile", href: "/app/settings/profile" },
       blocks: [
         {
@@ -67,8 +67,24 @@ export const settingsSection: HelpSection = {
           text: "You'll be told about new requests and leads, bookings, chat messages, payments (and failed ones), when a client views a quote, invoice or agreement, your next job (with On My Way and Directions buttons), and missed calls and voicemails on your business line.",
         },
         {
+          type: "h",
+          text: "Emails too, or push only",
+        },
+        {
+          type: "p",
+          text: "New requests, client messages and bookings also go to your company's notification inbox by email. Once a device of yours has notifications on, that email is skipped so you don't hear the same thing twice. **My Profile → Email me too** changes this: `Only when push is off` (the default), `Always`, or `Never`.",
+        },
+        {
           type: "faq",
           items: [
+            {
+              q: "I turned on notifications and the emails stopped.",
+              a: "That's the default: push replaces the email once a phone or browser of yours has notifications on. Pick `Always` under My Profile → Email me too to get both.",
+            },
+            {
+              q: "Why does a notification start with a company name?",
+              a: "Only when your login belongs to more than one company, so you know which one is talking. With a single company the name is left off.",
+            },
             {
               q: "Notifications don't work on my iPhone in Safari.",
               a: "Apple only allows web notifications for sites added to your Home Screen. In Safari, tap Share → Add to Home Screen, open WorkBench from there, and turn notifications on. Or use the WorkBench FSM app from the App Store, which doesn't need this.",
