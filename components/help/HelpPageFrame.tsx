@@ -45,7 +45,7 @@ export default function HelpPageFrame({
           <Link
             prefetch={false}
             href={onTopicPage ? base : `${base}/topic/${section.id}`}
-            className="inline-flex items-center gap-0.5 text-[15px] font-semibold text-[color:var(--hb)] sm:hidden"
+            className="inline-flex items-center gap-0.5 text-[15px] font-semibold text-[color:var(--hb-ink)] sm:hidden"
           >
             <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
             {onTopicPage ? "Help Center" : section.title}
@@ -112,7 +112,7 @@ export default function HelpPageFrame({
                       {a.title}
                     </Link>
                   ))}
-                  <Link prefetch={false} href={base} className="!mt-5 !font-semibold !text-[color:var(--hb)]">
+                  <Link prefetch={false} href={base} className="!mt-5 !font-semibold !text-[color:var(--hb-ink)]">
                     All topics
                   </Link>
                 </>
