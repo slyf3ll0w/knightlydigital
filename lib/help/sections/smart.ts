@@ -1,4 +1,5 @@
 import type { HelpSection } from "../types";
+import { ATLAS_FREE, ATLAS_FULL, ATLAS_FULL_PRICE, MAX, PRO, PRO_CHIP, PRO_PRICE, proTip } from "../plan-copy";
 
 export const automationsSection: HelpSection = {
   id: "automations",
@@ -10,10 +11,12 @@ export const automationsSection: HelpSection = {
       slug: "build-an-automation",
       title: "Build an automation",
       summary: "Pick a trigger, add conditions, waits and actions, test it, and turn it on.",
+      plan: PRO_CHIP,
       keywords: ["automation", "workflow", "rule", "trigger", "action", "zapier", "when then", "follow up automatically", "dry run"],
       where: { label: "Automations", href: "/app/automations" },
       roles: "Owners and admins",
       blocks: [
+        proTip("Automations"),
         {
           type: "p",
           text: "An automation is one **trigger** (something that happens) followed by steps: **Only continue if…** conditions, **Wait** steps, and **actions**.",
@@ -53,6 +56,7 @@ export const automationsSection: HelpSection = {
       slug: "automation-limits",
       title: "What automations can't do (and why one didn't fire)",
       summary: "Limits, run history, and the usual reasons a rule skipped.",
+      plan: PRO_CHIP,
       keywords: ["didn't fire", "not working", "skipped", "failed", "paused", "limits", "run history", "run automation"],
       where: { label: "Automations", href: "/app/automations" },
       roles: "Owners and admins",
@@ -131,7 +135,7 @@ export const atlasSection: HelpSection = {
         },
         {
           type: "tip",
-          text: "Owners can rename the assistant in Settings → Automations & assistant.",
+          text: `Every account gets ${ATLAS_FREE} Atlas tokens a month free. **Atlas Full** (${ATLAS_FULL} a month) comes with ${PRO} and ${MAX}, or ${ATLAS_FULL_PRICE} on its own. See [Atlas tokens and limits](/help/atlas-tokens). Owners can rename the assistant in Settings → Automations & assistant.`,
         },
         {
           type: "p",
@@ -148,10 +152,12 @@ export const atlasSection: HelpSection = {
         {
           type: "list",
           items: [
-            "Every account gets **10,000 Atlas tokens free each month**, refilled on the 1st.",
+            `Every account gets **${ATLAS_FREE} Atlas tokens free each month**, refilled on the 1st.`,
+            `**Atlas Full** is **${ATLAS_FULL} tokens a month**. It comes with the **${PRO}** plan (${PRO_PRICE}) and **${MAX}**, or costs ${ATLAS_FULL_PRICE} on its own. Its tokens refill on your billing day.`,
             "Each reply shows how many tokens it used.",
             "Call notes, building estimate tools and drafting automation text also use tokens.",
             "When they're gone, Atlas says so and opens again when the meter refills. Everything else in WorkBench keeps working.",
+            "Using Atlas every day? Atlas Full is the way to stop running out. Call or email us to switch it on.",
           ],
         },
         {
@@ -182,10 +188,12 @@ export const estimatorSection: HelpSection = {
       slug: "build-an-estimate-tool",
       title: "Build an estimate tool",
       summary: "Describe how you price a job (or snap your price sheet) and Atlas builds a calculator.",
+      plan: PRO_CHIP,
       keywords: ["estimator", "calculator", "pricing tool", "price sheet", "estimate tool", "build"],
       where: { label: "Estimates", href: "/app/estimates" },
       roles: "Owners and admins build; sales roles run them",
       blocks: [
+        proTip("Estimate tools"),
         {
           type: "steps",
           items: [
@@ -214,6 +222,7 @@ export const estimatorSection: HelpSection = {
       slug: "run-an-estimate-onsite",
       title: "Price a job onsite and measure from the map",
       summary: "Answer the tool's questions, measure on a satellite map, and turn the result into a quote.",
+      plan: PRO_CHIP,
       keywords: ["measure", "map", "satellite", "square feet", "area", "length", "onsite", "run estimate"],
       where: { label: "Estimates", href: "/app/estimates" },
       blocks: [
@@ -235,6 +244,7 @@ export const estimatorSection: HelpSection = {
       slug: "estimate-tool-on-your-website",
       title: "Put an estimate tool on your website",
       summary: "Let visitors price the job themselves and come in as leads.",
+      plan: PRO_CHIP,
       keywords: ["website", "instant quote", "web form", "publish", "embed", "lead form", "online estimate"],
       where: { label: "Estimates", href: "/app/estimates" },
       roles: "Owners and admins",
@@ -259,6 +269,7 @@ export const estimatorSection: HelpSection = {
       slug: "estimate-tool-library",
       title: "Share and borrow tools in the Library",
       summary: "Start from another business's tool, then set your own rates.",
+      plan: PRO_CHIP,
       keywords: ["library", "share", "template", "borrow", "rates to confirm"],
       where: { label: "Library", href: "/app/estimates/library" },
       blocks: [

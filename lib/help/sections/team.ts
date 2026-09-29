@@ -1,4 +1,5 @@
 import type { HelpSection } from "../types";
+import { CORE, EXTRA_SEAT, MAX, PRO, PRO_CHIP, PRO_PRICE, SEATS_INCLUDED, proTip } from "../plan-copy";
 
 export const teamSection: HelpSection = {
   id: "team",
@@ -43,16 +44,22 @@ export const teamSection: HelpSection = {
           type: "tip",
           text: "Admins can add and edit Sales + Tech, Sales and Tech members. Only owners manage other owners and admins.",
         },
+        {
+          type: "tip",
+          text: `**${CORE}** (free) includes ${SEATS_INCLUDED} users. Each extra user is ${EXTRA_SEAT}. **${PRO}** (${PRO_PRICE}) and **${MAX}** include unlimited users. See [Plans and pricing](/help/plans-and-pricing).`,
+        },
       ],
     },
     {
       slug: "clock-in-and-timesheets",
       title: "Clock in and out, and timesheets",
       summary: "Track time on jobs, fix missed punches, and see labor cost.",
+      plan: `${PRO_CHIP} (timesheets)`,
       keywords: ["clock in", "clock out", "time clock", "hours", "timesheet", "payroll", "gps", "labor cost", "forgot to clock out"],
       where: { label: "Timesheets", href: "/app/timesheets" },
       roles: "Everyone except Sales",
       blocks: [
+        { type: "tip", text: `Clocking in and out works on every plan. The weekly **Timesheets** page, labor cost on jobs and the payroll CSV are part of **${PRO}** (${PRO_PRICE}), along with unlimited users and the team map. See [Plans and pricing](/help/plans-and-pricing).` },
         {
           type: "list",
           items: [
@@ -77,10 +84,12 @@ export const teamSection: HelpSection = {
       slug: "team-map",
       title: "See your team on the map",
       summary: "Live positions of everyone who's clocked in.",
+      plan: PRO_CHIP,
       keywords: ["team map", "location", "where is", "tracking", "gps"],
       where: { label: "Team map", href: "/app/team-map" },
       roles: "Owners and admins",
       blocks: [
+        proTip("The team map"),
         {
           type: "p",
           text: "The **Team map** (from Overview) shows where everyone who's clocked in is right now. Location is only shared while someone is on the clock with WorkBench open, and never after they clock out. The **On the clock** card on Home shows who's working and for how long.",
@@ -208,10 +217,12 @@ export const reportsSection: HelpSection = {
       slug: "quickbooks",
       title: "Connect QuickBooks Online",
       summary: "Send clients, invoices, payments and expenses to QuickBooks automatically.",
+      plan: PRO_CHIP,
       keywords: ["quickbooks", "qbo", "accounting", "sync", "bookkeeper", "intuit", "reconnect"],
       where: { label: "QuickBooks", href: "/app/settings/quickbooks" },
       roles: "Owners and admins",
       blocks: [
+        { type: "tip", text: `QuickBooks sync is part of **${PRO}** (${PRO_PRICE}). If your bookkeeper or accountant sent you to WorkBench, we turn QuickBooks on free on ${CORE}: mention it when you sign up, or call us.` },
         {
           type: "steps",
           items: [

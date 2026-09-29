@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, ChevronDown } from "lucide-react";
 import { helpNeighbors } from "@/lib/help/search";
 import type { HelpArticle, HelpBlock, HelpSection } from "@/lib/help/types";
-import WBScribble from "@/components/wb/WBScribble";
+import Arrow from "@/components/ds/Arrow";
 import HelpText from "./HelpText";
 import HelpPageFrame from "./HelpPageFrame";
 
@@ -90,9 +90,11 @@ function NotedBlock({ block, base, delay }: { block: HelpBlock; base: string; de
   if (!note) return <Block block={block} base={base} />;
   return (
     <div>
-      <div className="mb-1 hidden items-end gap-2 pl-1 lg:flex" aria-hidden>
+      <div className="mb-1 hidden items-end gap-5 pl-1 lg:flex" aria-hidden>
         <p className="whitespace-nowrap pb-3 text-[15px] font-extrabold leading-snug text-[color:var(--hi)]">{note}</p>
-        <WBScribble variant="down" delay={delay} className="h-[56px] w-[43px] flex-none" />
+        <span className="block h-[56px] w-[43px] flex-none text-[color:var(--hi)]">
+          <Arrow variant="droop" delay={delay} className="h-full w-full" />
+        </span>
       </div>
       <Block block={block} base={base} />
     </div>

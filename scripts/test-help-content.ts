@@ -79,6 +79,9 @@ const expect: [string, string][] = [
   ["add an employee", "add-team-members"],
   ["google calendar sync", "calendar-sync"],
   ["recurring weekly mowing", "recurring-visits"],
+  ["how do I get more atlas tokens", "atlas-tokens"],
+  ["how much is the pro plan", "plans-and-pricing"],
+  ["how many users are included", "add-team-members"],
 ];
 for (const [q, slug] of expect) {
   const top = searchHelp(q, 3).map((h) => h.article.slug);

@@ -1,4 +1,5 @@
 import type { HelpSection } from "../types";
+import { PRO_CHIP, proTip } from "../plan-copy";
 
 export const invoicesSection: HelpSection = {
   id: "invoices",
@@ -287,10 +288,12 @@ export const agreementsSection: HelpSection = {
       slug: "send-an-agreement",
       title: "Send an agreement for e-signature",
       summary: "Write a template once, send it to any client, and track the signature.",
+      plan: PRO_CHIP,
       keywords: ["contract", "agreement", "e-sign", "signature", "template", "terms", "signing link expired"],
       where: { label: "Agreements", href: "/app/contracts" },
       roles: "Owners, admins and sales roles",
       blocks: [
+        proTip("Agreements"),
         {
           type: "steps",
           items: [

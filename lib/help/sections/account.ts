@@ -1,12 +1,23 @@
-import {
-  EXTRA_SEAT_CENTS,
-  FREE_PLAN_NAME,
-  FULL_SHOP,
-  INCLUDED_SEATS,
-  PLANS,
-  formatCents,
-} from "../../plans";
+import { ANNUAL_MONTHS, DISPATCH_MINUTES_INCLUDED, DISPATCH_TEXTS_INCLUDED } from "../../plans";
 import type { HelpSection } from "../types";
+import {
+  ATLAS_FREE,
+  ATLAS_FULL,
+  ATLAS_FULL_PRICE,
+  CORE,
+  EXTRA_SEAT,
+  GALLERY,
+  GALLERY_PRICE,
+  HOW_TO_ADD_PRO,
+  MAX,
+  MAX_PRICE,
+  PRO,
+  PRO_PRICE,
+  SEATS_INCLUDED,
+  VOICE,
+  VOICE_PRICE,
+  VOICE_SETUP,
+} from "../plan-copy";
 
 export const settingsSection: HelpSection = {
   id: "account",
@@ -85,26 +96,48 @@ export const settingsSection: HelpSection = {
     {
       slug: "plans-and-pricing",
       title: "Plans and pricing",
-      summary: "What's free, what each add-on includes, and how processing fees work.",
-      keywords: ["price", "pricing", "plan", "cost", "subscription", "billing", "core", "voice", "pro", "max", "upgrade", "users", "seats"],
+      summary: "What's free, what each paid add-on adds, how to add one, and how processing fees work.",
+      keywords: ["price", "pricing", "plan", "cost", "subscription", "billing", "core", "voice", "pro", "max", "gallery", "upgrade", "add-on", "users", "seats", "atlas full", "tokens"],
       blocks: [
         {
+          type: "p",
+          text: `**${CORE}** is free and is the whole app. Everything else is an add-on you turn on when you want it, priced per company, not per user.`,
+        },
+        {
+          type: "h",
+          text: "What each plan adds",
+        },
+        {
           type: "list",
+          note: "Pick what you need",
           items: [
-            `**${FREE_PLAN_NAME}** is free: the whole app (booking, scheduling, quotes, invoicing, payments, client portal, team chat) for ${INCLUDED_SEATS} users, then ${formatCents(EXTRA_SEAT_CENTS)} per extra user a month. It's paid for by processing fees when clients pay you: 2.9% + 30¢ per card payment, 0.75% per bank payment.`,
-            `**${PLANS.DISPATCH.name}** (${formatCents(PLANS.DISPATCH.monthlyCents)}/month): your business phone line, with calls in the app, voicemail, texting and Atlas call notes.`,
-            `**${PLANS.SHOP.name}** (${formatCents(PLANS.SHOP.monthlyCents)}/month): unlimited users, estimate tools, Route Manager, automations, agreements, team map, timesheets, QuickBooks, and more Atlas tokens.`,
-            `**${FULL_SHOP.name}** (${formatCents(FULL_SHOP.monthlyCents)}/month): ${PLANS.DISPATCH.name} and ${PLANS.SHOP.name} together.`,
-            `**${PLANS.JOBSITE.name}** (job photos) is coming soon.`,
+            `**${CORE}** (free): booking, scheduling, jobs, quotes, invoicing, card and bank payments, recurring billing, the client portal, team chat, clock in and out, and ${ATLAS_FREE} Atlas tokens a month, for ${SEATS_INCLUDED} users. Each extra user is ${EXTRA_SEAT}.`,
+            `**${VOICE}** (${VOICE_PRICE}, plus a one-time ${VOICE_SETUP} number setup): your business phone number, with calls in the app, voicemail, texting from the number, and Atlas call notes. ${DISPATCH_TEXTS_INCLUDED} texts and ${DISPATCH_MINUTES_INCLUDED} minutes a month are included. See [Get your business phone number](/help/set-up-business-line).`,
+            `**${PRO}** (${PRO_PRICE}): unlimited users, [estimate tools](/help/build-an-estimate-tool), [Route Manager](/help/plan-routes), [automations](/help/build-an-automation), [agreements](/help/send-an-agreement), the [team map](/help/team-map), [timesheets](/help/clock-in-and-timesheets), [QuickBooks sync](/help/quickbooks), and **Atlas Full** (${ATLAS_FULL} Atlas tokens a month).`,
+            `**${MAX}** (${MAX_PRICE}): ${VOICE} and ${PRO} together, for less than both.`,
+            `**${GALLERY}** (${GALLERY_PRICE}, coming soon): job photos stamped with who, when and where, before-and-after pairs, client galleries and photo reports. It joins ${MAX} at no extra charge for anyone already on it.`,
+            `**Atlas Full** on its own (${ATLAS_FULL_PRICE}): ${ATLAS_FULL} Atlas tokens a month, if Atlas is the only extra you want. See [Atlas tokens and limits](/help/atlas-tokens).`,
           ],
         },
         {
-          type: "p",
-          text: "Every account also gets 10,000 Atlas tokens a month free. Full details are on the [pricing page](https://workbenchfsm.com/pricing).",
+          type: "h",
+          text: "How to add one",
+        },
+        {
+          type: "list",
+          items: [
+            `**${VOICE}**: the account owner presses \`Subscribe\` in Settings → Phone & texting. Billing runs through Livery, our payments partner.`,
+            `**${PRO}**, **${MAX}** and **Atlas Full**: ${HOW_TO_ADD_PRO} Call (833) 495-0229 or email contact@workbenchfsm.com.`,
+            `Paying yearly costs ${ANNUAL_MONTHS} months' price for 12 months (two months free).`,
+          ],
+        },
+        {
+          type: "h",
+          text: "Processing fees",
         },
         {
           type: "p",
-          text: `The ${PLANS.DISPATCH.name} plan is managed in Settings → Phone & texting, and billing runs through Livery, our payments partner.`,
+          text: "When a client pays you through WorkBench: 2.9% + 30¢ per card payment and 0.75% per bank payment. No monthly fees or minimums. Full details are on the [pricing page](https://workbenchfsm.com/pricing).",
         },
       ],
     },

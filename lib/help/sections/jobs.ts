@@ -1,4 +1,5 @@
 import type { HelpSection } from "../types";
+import { GALLERY, GALLERY_PRICE, PRO_CHIP, proTip } from "../plan-copy";
 
 export const jobsSection: HelpSection = {
   id: "jobs",
@@ -80,6 +81,10 @@ export const jobsSection: HelpSection = {
         {
           type: "tip",
           text: "No signal? Clock punches, notes, checklist ticks and status changes save on your phone and sync when you're back online.",
+        },
+        {
+          type: "tip",
+          text: `Job photos are included on every plan. **${GALLERY}** (${GALLERY_PRICE}, coming soon) adds photos stamped with who, when and where, before-and-after pairs with markup, a client gallery link and photo report PDFs.`,
         },
       ],
     },
@@ -268,9 +273,11 @@ export const scheduleSection: HelpSection = {
       slug: "plan-routes",
       title: "Plan and optimize routes",
       summary: "See each tech's day on a map and reorder stops by drive time.",
+      plan: PRO_CHIP,
       keywords: ["route", "map", "optimize", "drive time", "directions", "no pin", "route manager", "google maps"],
       where: { label: "Routes", href: "/app/schedule/map" },
       blocks: [
+        proTip("Route Manager"),
         {
           type: "steps",
           items: [

@@ -7,8 +7,10 @@ import {
   formatCents,
 } from "../../plans";
 import type { HelpSection } from "../types";
+import { MAX, VOICE_CHIP } from "../plan-copy";
 
 const VOICE = `${PLANS.DISPATCH.name} plan`;
+const VOICE_CHIP_LABEL = VOICE_CHIP;
 
 export const phoneSection: HelpSection = {
   id: "phone",
@@ -22,12 +24,12 @@ export const phoneSection: HelpSection = {
       summary: "Pick a local or toll-free number, choose where calls ring, and set your voicemail.",
       keywords: ["phone number", "business number", "voice", "local number", "toll-free", "ring through", "forwarding", "caller id", "voicemail greeting"],
       where: { label: "Phone & texting", href: "/app/settings?s=phone" },
-      plan: VOICE,
+      plan: VOICE_CHIP_LABEL,
       roles: "Owners and admins (only the owner can subscribe)",
       blocks: [
         {
           type: "p",
-          text: `The business line is part of the **${VOICE}** (${formatCents(PLANS.DISPATCH.monthlyCents)}/month plus a one-time ${formatCents(DISPATCH_SETUP_CENTS)} setup, with ${DISPATCH_TEXTS_INCLUDED} texts and ${DISPATCH_MINUTES_INCLUDED} minutes a month included). Without it, the free Call and Text buttons keep working from your own phone.`,
+          text: `The business line is part of the **${VOICE}** (${formatCents(PLANS.DISPATCH.monthlyCents)}/month plus a one-time ${formatCents(DISPATCH_SETUP_CENTS)} setup, with ${DISPATCH_TEXTS_INCLUDED} texts and ${DISPATCH_MINUTES_INCLUDED} minutes a month included). Without it, the free Call and Text buttons keep working from your own phone. **${MAX}** includes Voice together with Pro.`,
         },
         {
           type: "steps",
@@ -65,7 +67,7 @@ export const phoneSection: HelpSection = {
       summary: "Who rings first, when your cell rings, and when callers go to voicemail.",
       keywords: ["ring", "ringing", "incoming call", "press 1", "whisper", "voicemail", "missed call", "cell rings"],
       where: { label: "Calls", href: "/app/calls" },
-      plan: VOICE,
+      plan: VOICE_CHIP_LABEL,
       blocks: [
         {
           type: "steps",
@@ -95,7 +97,7 @@ export const phoneSection: HelpSection = {
       summary: "Take calls on your computer or iPhone, call customers from your business number, and use the call screen.",
       keywords: ["softphone", "call in app", "browser calls", "dial", "keypad", "call back", "hold", "mute", "call from line", "outgoing"],
       where: { label: "Calls", href: "/app/calls" },
-      plan: VOICE,
+      plan: VOICE_CHIP_LABEL,
       roles: "Everyone except Tech",
       blocks: [
         {
@@ -148,7 +150,7 @@ export const phoneSection: HelpSection = {
       summary: "Microphone problems, one-way audio, and the Test it button.",
       keywords: ["can't hear", "one-way audio", "microphone", "mic", "no sound", "echo", "headset", "test it", "blocked", "vpn"],
       where: { label: "Calls", href: "/app/calls" },
-      plan: VOICE,
+      plan: VOICE_CHIP_LABEL,
       blocks: [
         {
           type: "p",
@@ -189,7 +191,7 @@ export const phoneSection: HelpSection = {
       summary: "Atlas transcribes the call and writes a summary on the client's record.",
       keywords: ["transcribe", "transcript", "call notes", "summary", "record call", "atlas notes"],
       where: { label: "Calls", href: "/app/calls" },
-      plan: VOICE,
+      plan: VOICE_CHIP_LABEL,
       blocks: [
         {
           type: "steps",
@@ -217,7 +219,7 @@ export const phoneSection: HelpSection = {
       title: "Texts and minutes on the Voice plan",
       summary: "What's included each month and what happens past it.",
       keywords: ["minutes", "texts included", "overage", "usage", "cost", "voice plan price"],
-      plan: VOICE,
+      plan: VOICE_CHIP_LABEL,
       blocks: [
         {
           type: "list",
@@ -245,7 +247,7 @@ export const textingSection: HelpSection = {
       summary: "The one-time carrier registration, what you need, and how long it takes.",
       keywords: ["10dlc", "registration", "a2p", "brand", "campaign", "ein", "sole proprietor", "verify for texting", "toll-free verification", "texting approval"],
       where: { label: "Phone & texting", href: "/app/settings?s=phone" },
-      plan: VOICE,
+      plan: VOICE_CHIP_LABEL,
       roles: "Owners and admins",
       blocks: [
         {
@@ -288,7 +290,7 @@ export const textingSection: HelpSection = {
       summary: "Queued, checking, verifying, reviewing, approved or rejected, and what to do.",
       keywords: ["pending", "rejected", "queued", "under review", "brand pending", "campaign pending", "check now", "resubmit", "carriers didn't approve"],
       where: { label: "Phone & texting", href: "/app/settings?s=phone" },
-      plan: VOICE,
+      plan: VOICE_CHIP_LABEL,
       blocks: [
         {
           type: "list",
@@ -332,7 +334,7 @@ export const textingSection: HelpSection = {
       summary: "Which texts clients get, and how opting out works.",
       keywords: ["stop", "unsubscribe", "opt out", "opt in", "start", "help", "text notifications", "consent", "reminder texts"],
       where: { label: "Phone & texting", href: "/app/settings?s=phone" },
-      plan: VOICE,
+      plan: VOICE_CHIP_LABEL,
       blocks: [
         {
           type: "p",
