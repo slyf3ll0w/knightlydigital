@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, Bug, Lightbulb, Mail, Phone } from "lucide-react";
 import { useAssistant } from "@/components/AssistantContext";
-import WBScribble from "@/components/wb/WBScribble";
+import Arrow from "@/components/ds/Arrow";
 import { WB_EMAIL_HREF, WB_PHONE } from "@/lib/wb-site";
 
 /**
@@ -27,8 +27,10 @@ export default function HelpFooterBand({ inApp }: { inApp: boolean }) {
         <div className="lg:justify-self-end">
         {/* The site's note + hand-drawn arrow, in its own row above the button it points at */}
         {(!inApp || atlas.available) && (
-          <div className="mb-1 hidden items-start gap-2 pl-[4.5rem] lg:flex" aria-hidden>
-            <WBScribble variant="down" tone="chalk" delay={0.8} className="h-[62px] w-[48px] flex-none" />
+          <div className="mb-1 hidden items-start gap-4 pl-[4.5rem] lg:flex" aria-hidden>
+            <span className="block h-[62px] w-[48px] flex-none text-white">
+              <Arrow variant="ess" delay={0.8} className="h-full w-full" />
+            </span>
             <p className="whitespace-nowrap pt-1 text-[15px] font-extrabold leading-snug text-white">
               {inApp ? <>{atlas.name} has read<br />every guide.</> : <>Yes, a real person<br />picks up.</>}
             </p>

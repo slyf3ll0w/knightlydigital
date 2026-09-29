@@ -39,6 +39,26 @@ good/warn/bad status colors, explanations in an InfoTip (never subtext),
 phones get their own simpler tree. First page on it: the dashboard
 (2026-09-25, staging, awaiting David's review).
 
+## Help Center upkeep (required, David 2026-09-28)
+
+The Help Center documents every user-facing feature: guides in
+`lib/help/sections/*.ts`, shown at `/help` (public) and `/app/help`, read by
+Atlas (`help_search`) and exported at `/help/all.md`. A code change can make
+a guide wrong without anyone noticing, so:
+
+1. **Any change a user could notice** (a button label, steps, statuses,
+   limits, prices or plans, roles, a feature added, moved or removed) means
+   checking the Help Center: grep `lib/help` for the feature and its labels.
+2. **When you think the work is done, ask David before finishing:** list the
+   guides that look affected and what would change in each, and ask whether
+   to revise the Help Center now. Don't edit guides without his go-ahead
+   (unless the task is itself a Help Center task). If nothing looks
+   affected, say so in one line.
+3. When revising: plan names, prices and allowances come from
+   `lib/help/plan-copy.ts` (it reads `lib/plans.ts` and
+   `lib/atlas-pricing.ts`), never typed into a guide. Then run
+   `npx tsx scripts/test-help-content.ts`.
+
 ## Project structure
 
 This repo has two distinct products:

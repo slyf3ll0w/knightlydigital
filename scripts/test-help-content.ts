@@ -7,6 +7,7 @@
 import { HELP_SECTIONS, POPULAR_SLUGS, START_HERE_SLUGS } from "../lib/help/content";
 import { articleMarkdown, findHelpArticle, helpCenterMarkdown, searchHelp } from "../lib/help/search";
 import type { HelpBlock } from "../lib/help/types";
+import { llmsFullTxt, llmsTxt } from "../lib/llms";
 
 let failed = 0;
 function check(ok: boolean, msg: string) {
@@ -79,6 +80,9 @@ const expect: [string, string][] = [
   ["add an employee", "add-team-members"],
   ["google calendar sync", "calendar-sync"],
   ["recurring weekly mowing", "recurring-visits"],
+  ["how do I get more atlas tokens", "atlas-tokens"],
+  ["how much is the pro plan", "plans-and-pricing"],
+  ["how many users are included", "add-team-members"],
 ];
 for (const [q, slug] of expect) {
   const top = searchHelp(q, 3).map((h) => h.article.slug);
@@ -90,6 +94,12 @@ check(findHelpArticle("activate-payments") !== null, "findHelpArticle");
 check(articleMarkdown(findHelpArticle("refund-a-payment")!.article).includes("## Refund a payment"), "articleMarkdown heading");
 const md = helpCenterMarkdown();
 check(!/\*\*|`/.test(md.replace(/^# .*$/gm, "")), "markdown export should have inline markup stripped");
+
+// llms.txt: points AIs at the Help Center and never repeats claims the site dropped.
+const llms = llmsTxt();
+check(llms.includes("/help/all.md") && llms.includes("/help/topic/"), "llms.txt should link the Help Center and its topics");
+check(!/unlimited users;|NOT part of the free|invite-only/i.test(llms), "llms.txt repeats a retired claim (unlimited free users / Atlas not free / invite-only)");
+check(llmsFullTxt().includes("## Refund a payment"), "llms-full.txt should carry every guide");
 
 const total = [...slugs].length;
 if (failed) {

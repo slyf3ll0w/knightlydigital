@@ -100,7 +100,7 @@ export default function HelpHome({
 
           {/* Search, with the site's hand-drawn note in its own column on wide screens */}
           <div className="mt-8 lg:grid lg:grid-cols-[1fr_minmax(0,42rem)_1fr] lg:items-center lg:gap-4">
-          <div className="hidden items-end justify-end gap-2.5 pb-7 lg:flex" aria-hidden>
+          <div className="hidden items-end justify-end gap-5 pb-7 lg:flex" aria-hidden>
             <p className="whitespace-nowrap pb-1 text-right text-[15px] font-extrabold leading-snug text-[color:var(--hi)]">
               Type what
               <br />
