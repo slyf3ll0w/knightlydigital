@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, ChevronDown } from "lucide-react";
 import { helpNeighbors } from "@/lib/help/search";
 import type { HelpArticle, HelpBlock, HelpSection } from "@/lib/help/types";
+import WBScribble from "@/components/wb/WBScribble";
 import HelpText from "./HelpText";
 import HelpPageFrame from "./HelpPageFrame";
 
@@ -80,6 +81,24 @@ function Block({ block, base }: { block: HelpBlock; base: string }) {
   }
 }
 
+/**
+ * A block with a `note`: the site's hand-drawn note and arrow in their own
+ * row, pointing down at the block (desktop only; never over the text).
+ */
+function NotedBlock({ block, base, delay }: { block: HelpBlock; base: string; delay: number }) {
+  const note = "note" in block ? block.note : undefined;
+  if (!note) return <Block block={block} base={base} />;
+  return (
+    <div>
+      <div className="mb-1 hidden items-end gap-2 pl-1 lg:flex" aria-hidden>
+        <p className="whitespace-nowrap pb-3 text-[15px] font-extrabold leading-snug text-[color:var(--hi)]">{note}</p>
+        <WBScribble variant="down" delay={delay} className="h-[56px] w-[43px] flex-none" />
+      </div>
+      <Block block={block} base={base} />
+    </div>
+  );
+}
+
 /** One Help Center guide, shared by /help/[slug] and /app/help/[slug]. */
 export default function HelpArticleView({
   article,
@@ -125,7 +144,7 @@ export default function HelpArticleView({
       <article className="max-w-2xl">
         <div className="help-prose">
           {article.blocks.map((b, i) => (
-            <Block key={i} block={b} base={base} />
+            <NotedBlock key={i} block={b} base={base} delay={0.9} />
           ))}
         </div>
 

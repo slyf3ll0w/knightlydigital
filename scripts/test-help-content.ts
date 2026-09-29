@@ -43,6 +43,8 @@ for (const s of HELP_SECTIONS) {
     slugs.add(a.slug);
     check(a.summary.length > 0 && a.summary.length <= 140, `${a.slug}: summary missing or over 140 chars`);
     check(a.blocks.length > 0, `${a.slug}: no content`);
+    const notes = a.blocks.filter((b) => "note" in b && b.note).length;
+    check(notes <= 1, `${a.slug}: at most one arrow note per guide (has ${notes})`);
     if (a.where) check(a.where.href.startsWith("/app/"), `${a.slug}: where.href must be an /app/ path`);
   }
 }

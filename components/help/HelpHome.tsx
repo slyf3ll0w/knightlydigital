@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ChevronRight, Search, X } from "lucide-react";
 import { HELP_SECTIONS, POPULAR_SLUGS } from "@/lib/help/content";
 import { findHelpArticle, searchHelp } from "@/lib/help/search";
+import WBScribble from "@/components/wb/WBScribble";
 import { HELP_ICONS } from "./icons";
 import HelpFooterBand from "./HelpFooterBand";
 
@@ -86,7 +87,7 @@ export default function HelpHome({
       {/* ── Hero: title + search ───────────────────────────── */}
       <section className={`help-hero ${inApp ? "" : "-mt-20 sm:-mt-24"}`}>
         <div
-          className={`mx-auto max-w-3xl px-5 pb-12 text-center sm:px-8 sm:pb-16 ${
+          className={`mx-auto max-w-6xl px-5 pb-12 text-center sm:px-8 sm:pb-16 ${
             inApp ? "pt-12 sm:pt-16" : "pt-[7.5rem] sm:pt-[9.5rem]"
           }`}
         >
@@ -97,8 +98,18 @@ export default function HelpHome({
             </span>
           </h1>
 
+          {/* Search, with the site's hand-drawn note in its own column on wide screens */}
+          <div className="mt-8 lg:grid lg:grid-cols-[1fr_minmax(0,42rem)_1fr] lg:items-center lg:gap-4">
+          <div className="hidden items-end justify-end gap-2.5 pb-7 lg:flex" aria-hidden>
+            <p className="whitespace-nowrap pb-1 text-right text-[15px] font-extrabold leading-snug text-[color:var(--hi)]">
+              Type what
+              <br />
+              you&apos;re stuck on
+            </p>
+            <WBScribble variant="swoop" delay={0.9} className="h-[44px] w-[88px] flex-none" />
+          </div>
           <form
-            className="help-search ds-rise mx-auto mt-8 max-w-2xl text-left"
+            className="help-search ds-rise mx-auto w-full max-w-2xl text-left"
             style={rise(1)}
             role="search"
             onSubmit={(e) => {
@@ -137,6 +148,8 @@ export default function HelpHome({
               Search
             </button>
           </form>
+          <span className="hidden lg:block" />
+          </div>
 
           {!searching && (
             <div className="ds-rise mt-5 hidden flex-wrap items-center justify-center gap-2 sm:flex" style={rise(2)}>

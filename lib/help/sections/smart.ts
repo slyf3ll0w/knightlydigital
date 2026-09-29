@@ -34,6 +34,7 @@ export const automationsSection: HelpSection = {
         },
         {
           type: "list",
+          note: "Start with one of these",
           items: [
             "Nudge a client whose quote has sat unanswered for 5 days.",
             "Ask for a review the day after a job is completed.",
@@ -110,6 +111,7 @@ export const atlasSection: HelpSection = {
         },
         {
           type: "list",
+          note: "Try one of these",
           items: [
             "\"Who owes me money?\" or \"How did we do last month?\"",
             "\"Quote the Hendersons for a spring cleanup and email it.\"",

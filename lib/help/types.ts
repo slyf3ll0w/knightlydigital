@@ -14,15 +14,22 @@ export type HelpBlock =
   /** A small heading inside an article. */
   | { type: "h"; text: string }
   /** Numbered steps (the heart of most articles). */
-  | { type: "steps"; items: string[] }
+  | { type: "steps"; items: string[]; note?: string }
   /** A bulleted list. */
-  | { type: "list"; items: string[] }
+  | { type: "list"; items: string[]; note?: string }
   /** "Good to know" — a helpful aside. */
   | { type: "tip"; text: string }
   /** "Heads up" — something that trips people up or can't be undone. */
   | { type: "warn"; text: string }
   /** Troubleshooting: the questions people actually ask. */
-  | { type: "faq"; items: { q: string; a: string }[] };
+  | { type: "faq"; items: { q: string; a: string }[]; note?: string };
+
+/*
+ * `note` (steps, list, faq): a short hand-drawn note with the site's arrow
+ * pointing down at that block, on desktop. Use it sparingly, at most once
+ * per guide, on the part a reader should not miss ("Start with one of
+ * these"). Pages only; Atlas and the text export leave it out.
+ */
 
 export interface HelpArticle {
   /** Globally unique; the URL is /help/<slug>. */

@@ -5,6 +5,11 @@
    hairline, pill search, the navy band) and the app's motion (the title
    wipe and the staggered ds-rise). The root also carries `.ds`, which
    supplies the motion tokens on the public site.
+   Arrows: the site's own WBScribble (note + hand-drawn arrow), not the
+   app's components/ds/Arrow, because these pages are the site's look in
+   both places (David, 2026-09-28). Same rules: desktop only, each in its own
+   layout slot, never CSS-rotated (swoop = right, flipped swoop = left,
+   down = down).
    Always light: /app/help is pinned light (ForceLightTheme + the pre-paint
    path list in app/layout.tsx). Accents read the company's colors in the
    app (--ds-primary / --ds-secondary) and fall back to WorkBench's.

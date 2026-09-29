@@ -124,6 +124,7 @@ export const phoneSection: HelpSection = {
         },
         {
           type: "faq",
+          note: "Calls ringing your cell? Look here",
           items: [
             {
               q: "Calls ring my cell instead of the app.",
@@ -155,6 +156,7 @@ export const phoneSection: HelpSection = {
         },
         {
           type: "steps",
+          note: "Start with Test it",
           items: [
             "On the **Calls** page, find **Microphone**, pick the mic you actually talk into, and press `Test it`.",
             "Speak. \"We heard you\" means it works. \"Nothing came through\" or \"isn't producing any audio\" means try another mic in the list.",
@@ -256,6 +258,7 @@ export const textingSection: HelpSection = {
         },
         {
           type: "list",
+          note: "Most rejections start here",
           items: [
             "A **booking form with the phone field on**. The texting consent checkbox sits under it, and carriers check it. See [Take bookings online](/help/online-booking).",
             "**Registered business (has an EIN):** your legal name, EIN and address **exactly** as on your IRS letter (CP575 or 147C), including \"LLC\" or \"Inc.\"",
@@ -289,6 +292,7 @@ export const textingSection: HelpSection = {
       blocks: [
         {
           type: "list",
+          note: "Find the words on your card",
           items: [
             "**Your registration is queued**: it files by itself, usually within the hour.",
             "**We're checking your details before filing**: a WorkBench person looks it over first, usually the same business day. You can still `Edit the details`.",
