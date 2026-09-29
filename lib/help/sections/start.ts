@@ -20,6 +20,7 @@ export const startSection: HelpSection = {
         },
         {
           type: "steps",
+          note: "About 10 minutes, owner only",
           items: [
             "Open WorkBench. New accounts land on **Verify your business to activate your account**.",
             "Press `Start verification` (or `Continue verification` to pick up where you left off).",
@@ -65,6 +66,7 @@ export const startSection: HelpSection = {
       blocks: [
         {
           type: "steps",
+          note: "Go top to bottom",
           items: [
             "**Verify your business** so you can take payments. See [Activate your account](/help/activate-payments).",
             "**Company info and timezone**: Settings → Company. The timezone decides what \"today\" means on your schedule and dashboard.",

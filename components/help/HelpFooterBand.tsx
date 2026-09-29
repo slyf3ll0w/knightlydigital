@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, Bug, Lightbulb, Mail, Phone } from "lucide-react";
 import { useAssistant } from "@/components/AssistantContext";
+import WBScribble from "@/components/wb/WBScribble";
 import { WB_EMAIL_HREF, WB_PHONE } from "@/lib/wb-site";
 
 /**
@@ -23,7 +24,17 @@ export default function HelpFooterBand({ inApp }: { inApp: boolean }) {
               : "Talk to a person. We answer the phone and reply to every email."}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+        <div className="lg:justify-self-end">
+        {/* The site's note + hand-drawn arrow, in its own row above the button it points at */}
+        {(!inApp || atlas.available) && (
+          <div className="mb-1 hidden items-start gap-2 pl-[4.5rem] lg:flex" aria-hidden>
+            <WBScribble variant="down" tone="chalk" delay={0.8} className="h-[62px] w-[48px] flex-none" />
+            <p className="whitespace-nowrap pt-1 text-[15px] font-extrabold leading-snug text-white">
+              {inApp ? <>{atlas.name} has read<br />every guide.</> : <>Yes, a real person<br />picks up.</>}
+            </p>
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-3">
           {inApp ? (
             <>
               {atlas.available && (
@@ -49,6 +60,7 @@ export default function HelpFooterBand({ inApp }: { inApp: boolean }) {
               </a>
             </>
           )}
+        </div>
         </div>
       </div>
     </section>
