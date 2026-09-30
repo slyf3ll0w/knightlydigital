@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSuperadmin } from "@/lib/superadmin";
+import { logConsoleAction } from "@/lib/console-audit";
 import { LISTING_STATUS } from "@/lib/estimator-library";
 
 /**
@@ -14,17 +15,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
   const body = (await req.json().catch(() => ({}))) as { action?: unknown; reason?: unknown };
-  const row = await prisma.estimatorListing.findUnique({ where: { id }, select: { id: true, status: true } });
+  const row = await prisma.estimatorListing.findUnique({
+    where: { id },
+    select: { id: true, name: true, status: true, company: { select: { id: true, name: true } } },
+  });
   if (!row) return NextResponse.json({ error: "Listing not found." }, { status: 404 });
 
   if (body.action === "remove") {
     const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 500) : "";
     if (!reason) return NextResponse.json({ error: "Give the owner a reason." }, { status: 400 });
     const updated = await prisma.estimatorListing.update({ where: { id }, data: { status: LISTING_STATUS.removed, removedReason: reason, removedAt: new Date() }, select: { id: true, status: true, removedReason: true } });
+    logConsoleAction(admin, "library-remove", { company: row.company, detail: `${row.name} — ${reason}` });
     return NextResponse.json({ listing: updated });
   }
   if (body.action === "restore") {
     const updated = await prisma.estimatorListing.update({ where: { id }, data: { status: LISTING_STATUS.live, removedReason: null, removedAt: null }, select: { id: true, status: true } });
+    logConsoleAction(admin, "library-restore", { company: row.company, detail: row.name });
     return NextResponse.json({ listing: updated });
   }
   return NextResponse.json({ error: "Unknown action." }, { status: 400 });

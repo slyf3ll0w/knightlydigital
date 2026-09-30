@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button, Card, Chip, InfoTip } from "@/components/ds";
 
 /**
  * Atlas assistant access control. Default policy (lib/assistant-access.ts):
@@ -59,15 +60,15 @@ export function AssistantControl({
       : `free tier — ${free.used.toLocaleString()} of ${free.included.toLocaleString()} tokens used`;
   const statusChip = overridden
     ? assistantEnabled
-      ? { label: "Full (whitelisted)", cls: "bg-green-100 text-green-700" }
-      : { label: "Off", cls: "bg-gray-100 text-gray-600" }
+      ? { label: "Full (whitelisted)", tone: "primary" as const }
+      : { label: "Off", tone: "neutral" as const }
     : plan
       ? plan.remaining > 0
-        ? { label: "Paid plan (test)", cls: "bg-indigo-100 text-indigo-700" }
-        : { label: "Plan spent", cls: "bg-amber-100 text-amber-700" }
+        ? { label: "Paid plan (test)", tone: "primary" as const }
+        : { label: "Plan spent", tone: "warn" as const }
       : freeSpent
-        ? { label: "Free tier spent", cls: "bg-amber-100 text-amber-700" }
-        : { label: "Free tier", cls: "bg-blue-100 text-blue-700" };
+        ? { label: "Free tier spent", tone: "warn" as const }
+        : { label: "Free tier", tone: "neutral" as const };
 
   const fmtDate = (iso: string) =>
     new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -104,142 +105,123 @@ export function AssistantControl({
     }
   }
 
-  const btn =
-    "rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50";
-  const quiet = "rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-500 hover:bg-gray-50 disabled:opacity-50";
-
-  const meterBar = (m: { used: number; included: number }, color: string) => (
-    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-gray-200">
+  const meterBar = (m: { used: number; included: number }) => (
+    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[color:var(--ds-line)]">
       <div
-        className={`h-full rounded-full ${color}`}
+        className="h-full rounded-full bg-[color:var(--ds-primary)]"
         style={{ width: `${Math.min(100, Math.round((m.used / Math.max(1, m.included)) * 100))}%` }}
       />
     </div>
   );
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-      <h2 className="text-sm font-bold text-gray-700">Atlas assistant</h2>
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusChip.cls}`}>
-          {statusChip.label}
-        </span>
-        <span className="text-xs text-gray-500">
-          {overridden ? `forced ${assistantEnabled ? "on" : "off"} (override)` : defaultLabel}
-        </span>
+    <Card className="p-5">
+      <div className="flex items-center gap-1.5">
+        <h2 className="ds-h2">Atlas assistant</h2>
+        <InfoTip>
+          By default every company gets {free.included.toLocaleString()} free tokens a month on the spend meter,
+          refilled on the 1st, then the plan upsell. Whitelist gives full unmetered Atlas (test accounts); Turn off
+          hides Atlas completely. The paid plan ({planPrice}/month, {planTokens.toLocaleString()} tokens per billing
+          month, refilled on the day it started; 1 token = 0.01¢ of our cost) is not sold yet — grant it here to test
+          the meter; the override still wins.
+        </InfoTip>
       </div>
-      <p className="mt-2 text-xs leading-relaxed text-gray-500">
-        By default every company gets {free.included.toLocaleString()} free tokens a month on the
-        spend meter, refilled on the 1st, then the plan upsell. Turn it on to whitelist this company
-        (full unmetered Atlas — test accounts); turn it off to hide Atlas completely.
-      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Chip tone={statusChip.tone}>{statusChip.label}</Chip>
+        <span className="ds-small">{overridden ? `forced ${assistantEnabled ? "on" : "off"} (override)` : defaultLabel}</span>
+      </div>
       {!plan && (
-        <div className="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
+        <div className="mt-3 rounded-xl bg-[color:var(--ds-surface-2)] px-3.5 py-2.5 text-xs text-[color:var(--ds-ink-2)]">
           <div className="flex items-center justify-between">
             <span>
-              <span className="font-semibold text-gray-900">{free.remaining.toLocaleString()}</span> of{" "}
+              <span className="font-semibold text-[color:var(--ds-ink)]">{free.remaining.toLocaleString()}</span> of{" "}
               {free.included.toLocaleString()} free tokens left
             </span>
             <span>refills {fmtDate(free.periodEnd)}</span>
           </div>
-          {meterBar(free, "bg-blue-500")}
+          {meterBar(free)}
         </div>
       )}
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button disabled={busy || assistantEnabled === true} onClick={() => send("assistant-on")} className={btn}>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" disabled={busy || assistantEnabled === true} onClick={() => send("assistant-on")}>
           Whitelist (full)
-        </button>
-        <button disabled={busy || assistantEnabled === false} onClick={() => send("assistant-off")} className={btn}>
+        </Button>
+        <Button variant="outline" size="sm" disabled={busy || assistantEnabled === false} onClick={() => send("assistant-off")}>
           Turn off
-        </button>
+        </Button>
         {overridden && (
-          <button disabled={busy} onClick={() => send("assistant-default")} className={quiet}>
-            Reset to default (free tier)
-          </button>
+          <Button variant="ghost" size="sm" disabled={busy} onClick={() => send("assistant-default")}>
+            Reset to default
+          </Button>
         )}
         {free.used > 0 && (
-          <button
-            disabled={busy}
-            onClick={() => send("atlas-free-reset")}
-            className={quiet}
-            title="Zero this month's free-tier usage — re-run a burn-down on a test company"
-          >
+          <Button variant="ghost" size="sm" disabled={busy} onClick={() => send("atlas-free-reset")} title="Zero this month's free-tier usage — re-run a burn-down on a test company">
             Refill free tier
-          </button>
+          </Button>
         )}
       </div>
 
       {/* ── Paid plan (not sold yet — granted here for testing) ── */}
-      <div className="mt-4 border-t border-gray-100 pt-3">
-        <p className="text-xs font-bold text-gray-700">Paid plan · {planPrice}/month</p>
-        <p className="mt-1 text-xs leading-relaxed text-gray-500">
-          {planTokens.toLocaleString()} tokens per billing month, refilled on the day the plan
-          started; 1 token = 0.01¢ of our cost (Gemini usage × platform unit prices). Not sold yet —
-          grant it to test the meter; the override above still wins.
-        </p>
+      <div className="mt-5 border-t border-[color:var(--ds-line)] pt-4">
+        <p className="text-[13px] font-semibold text-[color:var(--ds-ink)]">Paid plan · {planPrice}/month</p>
         {plan && (
-          <div className="mt-2 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          <div className="mt-2 rounded-xl bg-[color:var(--ds-surface-2)] px-3.5 py-2.5 text-xs text-[color:var(--ds-ink-2)]">
             <div className="flex items-center justify-between">
               <span>
-                <span className="font-semibold text-gray-900">{plan.remaining.toLocaleString()}</span> of{" "}
+                <span className="font-semibold text-[color:var(--ds-ink)]">{plan.remaining.toLocaleString()}</span> of{" "}
                 {plan.included.toLocaleString()} tokens left
               </span>
               <span>refills {fmtDate(plan.periodEnd)}</span>
             </div>
-            {meterBar(plan, "bg-indigo-500")}
-            <p className="mt-1 text-[11px] text-gray-400">active since {fmtDate(plan.activeAt)}</p>
+            {meterBar(plan)}
+            <p className="ds-small mt-1 text-[11.5px]">active since {fmtDate(plan.activeAt)}</p>
           </div>
         )}
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap gap-2">
           {!plan ? (
-            <button disabled={busy} onClick={() => send("atlas-plan-grant")} className={btn}>
+            <Button variant="outline" size="sm" disabled={busy} onClick={() => send("atlas-plan-grant")}>
               Grant plan (test)
-            </button>
+            </Button>
           ) : (
             <>
-              <button disabled={busy} onClick={() => send("atlas-plan-reset")} className={btn}>
+              <Button variant="outline" size="sm" disabled={busy} onClick={() => send("atlas-plan-reset")}>
                 Refill period
-              </button>
-              <button disabled={busy} onClick={() => send("atlas-plan-revoke")} className={quiet}>
+              </Button>
+              <Button variant="ghost" size="sm" disabled={busy} onClick={() => send("atlas-plan-revoke")}>
                 Revoke plan
-              </button>
+              </Button>
             </>
           )}
         </div>
       </div>
 
       {/* ── Ledger ── */}
-      <div className="mt-4 border-t border-gray-100 pt-3">
-        <p className="text-xs font-bold text-gray-700">Last {usage.days} days</p>
+      <div className="mt-5 border-t border-[color:var(--ds-line)] pt-4">
+        <p className="text-[13px] font-semibold text-[color:var(--ds-ink)]">Last {usage.days} days</p>
         {usage.turns === 0 ? (
-          <p className="mt-1 text-xs text-gray-500">No Atlas turns yet.</p>
+          <p className="ds-small mt-1">No Atlas turns yet.</p>
         ) : (
-          <dl className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-4">
-            <div>
-              <dt className="text-gray-400">Turns</dt>
-              <dd className="font-semibold text-gray-900">{usage.turns.toLocaleString()}</dd>
-            </div>
-            <div>
-              <dt className="text-gray-400">Our cost</dt>
-              <dd className="font-semibold text-gray-900">{dollars(usage.costCents)}</dd>
-            </div>
-            <div>
-              <dt className="text-gray-400">Tokens metered</dt>
-              <dd className="font-semibold text-gray-900">{usage.atlasTokens.toLocaleString()}</dd>
-            </div>
-            <div>
-              <dt className="text-gray-400">Tool calls</dt>
-              <dd className="font-semibold text-gray-900">{usage.toolCalls.toLocaleString()}</dd>
-            </div>
+          <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-4">
+            {[
+              ["Turns", usage.turns.toLocaleString()],
+              ["Our cost", dollars(usage.costCents)],
+              ["Tokens metered", usage.atlasTokens.toLocaleString()],
+              ["Tool calls", usage.toolCalls.toLocaleString()],
+            ].map(([k, v]) => (
+              <div key={k}>
+                <dt className="ds-small">{k}</dt>
+                <dd className="ds-num font-semibold text-[color:var(--ds-ink)]">{v}</dd>
+              </div>
+            ))}
           </dl>
         )}
         {usage.lastAt && (
-          <p className="mt-1 text-[11px] text-gray-400">
+          <p className="ds-small mt-1.5 text-[11.5px]">
             last turn {fmtDate(usage.lastAt)} · avg {dollars(usage.costCents / Math.max(1, usage.turns))}/turn
           </p>
         )}
       </div>
-      {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
-    </div>
+      {error && <p className="mt-2 text-sm text-[color:var(--ds-bad)]">{error}</p>}
+    </Card>
   );
 }

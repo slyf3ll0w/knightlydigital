@@ -1951,8 +1951,9 @@ html[data-mode="dark"] .app-ui .card-tool {
    body, white pages with #F6F8FB bands, graph-paper heroes under a floating
    pill nav and a blue→orange keel, rounded-full buttons, rounded-2xl cards,
    hand-built UI fragments instead of illustrations.
-   .wb-site also wraps the superadmin console and /roadmap, so only the
-   heading face lives on the scope itself — everything else is opt-in wb-*.
+   .wb-site also wraps /roadmap, so only the heading face lives on the scope
+   itself — everything else is opt-in wb-*. (The superadmin console left
+   this scope on 2026-09-30: it wears the app's .app-ui .ds kit now.)
    ═══════════════════════════════════════════════════════════════════════ */
 .wb-site h1, .wb-site h2, .wb-site h3, .wb-site h4 {
   font-family: "Nunito", var(--font-body);

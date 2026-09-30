@@ -4,6 +4,7 @@
 // to the specs via e2e/.state.json.
 import { writeFileSync } from "node:fs";
 import { encode } from "next-auth/jwt";
+import { createSuperadminSessionToken } from "../lib/superadmin-session";
 import {
   loadE2eEnv,
   STATE_FILE,
@@ -57,6 +58,15 @@ export default async function globalSetup(): Promise<void> {
     const a = await mint(COMPANY_A_SLUG, OWNER_A_EMAIL);
     const b = await mint(COMPANY_B_SLUG, OWNER_B_EMAIL);
 
+    // The platform console signs in with its own cookie (no NextAuth, no
+    // emailed code): mint one for the first active superadmin, if any.
+    const saUser = await prisma.user.findFirst({
+      where: { role: "SUPERADMIN", isActive: true },
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    });
+    const superadmin = saUser ? { token: await createSuperadminSessionToken(saUser.id), userId: saUser.id } : null;
+
     // Hard safety gate for the specs that move (sandbox) money: the DEPLOYED
     // processor must be finix AND the local env must say sandbox AND company A
     // must hold an APPROVED merchant. FINIX_ENVIRONMENT=live disables them —
@@ -86,10 +96,11 @@ export default async function globalSetup(): Promise<void> {
             password: process.env.FINIX_API_PASSWORD!,
           }
         : null,
+      superadmin,
     };
     writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), "utf8");
     console.log(
-      `[e2e] target ${baseUrl} · card tests ${cardTestsEnabled ? "ENABLED (sandbox)" : "skipped"}`
+      `[e2e] target ${baseUrl} · card tests ${cardTestsEnabled ? "ENABLED (sandbox)" : "skipped"} · console ${superadmin ? "signed in" : "skipped (no superadmin)"}`
     );
   } finally {
     await prisma.$disconnect();

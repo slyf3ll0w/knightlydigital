@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSuperadmin } from "@/lib/superadmin";
+import { logConsoleAction } from "@/lib/console-audit";
 
 /**
  * POST — import a Finix Net Profit report CSV (multipart: month + file).
@@ -132,5 +133,8 @@ export async function POST(req: NextRequest) {
     imported++;
   }
 
+  logConsoleAction(admin, "finix-import", {
+    detail: `${month} — ${imported} merchant row${imported === 1 ? "" : "s"}${unmatched ? `, ${unmatched} unmatched` : ""}`,
+  });
   return NextResponse.json({ imported, unmatched, month });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getSuperadmin } from "@/lib/superadmin";
+import { logConsoleAction } from "@/lib/console-audit";
 import { generateInviteCode } from "@/lib/invites";
 import { sendEmail as sendEmailNow, inviteCodeEmail } from "@/lib/email";
 
@@ -45,6 +46,9 @@ export async function POST(req: NextRequest) {
       if (!codeClash || attempt >= 2) throw e;
     }
   }
+  logConsoleAction(admin, "invite-create", {
+    detail: [invite.code, note, email].filter(Boolean).join(" — "),
+  });
 
   let emailed = false;
   if (shouldEmail) {

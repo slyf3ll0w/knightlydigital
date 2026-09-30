@@ -213,6 +213,10 @@ model Company {
   // reinstates. Deletion is separate and permanent.
   suspendedAt               DateTime?
   suspendedReason           String?
+  // Platform console: a test / internal account (ours, a tester's, the demo).
+  // Kept out of every total and chart and listed under "Test accounts" on
+  // /superadmin; flipped from the accounts table (lib/console-audit.ts logs it).
+  isTest                    Boolean     @default(false)
   // Self-serve onboarding review: stamped when the company was created through
   // the public /apply flow and a person hasn't reviewed the application yet.
   // The app stays fully usable (banner warns access is provisional); approving
@@ -393,6 +397,17 @@ model User {
   // Last heartbeat from a registered softphone; online = within the last
   // ~75 s (SOFTPHONE_PRESENCE_MS). Cleared when the tab closes cleanly.
   softphoneSeenAt  DateTime?
+  // Presence for the platform console (lib/presence.ts): loadActor stamps
+  // this at most once a minute on any signed-in page or API request, and
+  // the app polls every 20–45 s while it is open, so "online" = seen within
+  // the last few minutes. lastSeenVia = "web" | "ios" | "android" from the
+  // user agent (the native shell tags itself in capacitor.config.ts).
+  lastSeenAt       DateTime?
+  lastSeenVia      String?
+  // Stamped by the NextAuth jwt callback on every fresh sign-in (not on a
+  // token refresh or a company switch).
+  lastSignInAt     DateTime?
+  signInCount      Int       @default(0)
   // Team-side notification emails (new request, client message, booking…)
   // when this person also gets the push (lib/notify.ts). null = automatic:
   // no email while a device of theirs has push on; true = always email too;
@@ -444,6 +459,7 @@ model User {
   @@index([companyId])
   @@index([role])
   @@index([accountId])
+  @@index([lastSeenAt])
 }
 
 // Self-serve password reset. We store only a SHA-256 hash of the emailed token,
@@ -481,6 +497,24 @@ model EmailChangeToken {
 
 // Second factor for /superadmin/login: a 6-digit code emailed after the
 // password checks out. SHA-256 hash only, one live code per user (issuing
+// Platform console audit trail: every action a superadmin takes on an
+// account (suspend, grants, waivers, line changes, the test flag, deletion…)
+// — who, what, when. companyId/companyName are plain strings so the trail
+// survives the company's deletion and reads well afterwards.
+model ConsoleAudit {
+  id             String   @id @default(cuid())
+  superadminId   String
+  superadminName String
+  companyId      String?
+  companyName    String?
+  action         String
+  detail         String?
+  createdAt      DateTime @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([createdAt])
+}
+
 // replaces), short-lived, consumed on successful sign-in, and attempt-capped
 // so the 1M keyspace can't be walked.
 model SuperadminLoginCode {

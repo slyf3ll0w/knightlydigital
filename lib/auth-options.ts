@@ -328,6 +328,16 @@ export function buildAuthOptions(ctx: AuthRequestContext | null = null): NextAut
           token.companyId = (user as { companyId?: string | null }).companyId;
           token.companyName = (user as { companyName?: string | null }).companyName ?? null;
           token.signInMethod = signInMethodOf(account?.provider);
+          // Platform console: last sign-in + count on the membership that
+          // signed in (lib/presence.ts reads them). Fire-and-forget — a
+          // sign-in never waits on, or fails over, a bookkeeping write.
+          prisma.user
+            .update({
+              where: { id: user.id },
+              data: { lastSignInAt: new Date(), signInCount: { increment: 1 } },
+              select: { id: true },
+            })
+            .catch(() => {});
         }
 
         // Company switch: the client calls useSession().update({ switchToUserId })

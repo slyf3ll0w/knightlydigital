@@ -14,9 +14,10 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
-const ROOTS = ["app/platform", "components"];
+const ROOTS = ["app/platform", "app/superadmin", "components"];
 const SKIP = [
   /^components[\\/]wb[\\/]/, // marketing site
+  /^app[\\/]superadmin[\\/]login[\\/]/, // forced light (console front door)
   /^components[\\/](paper-doc|Header|Footer|MarketingWrapper|HubPricing|LeadForm|ApplyForm|InviteSignupForm|PublicEstimateForm|ForceLightTheme|NativeShell|TurnstileWidget)\.tsx$/,
   /^app[\\/]platform[\\/](login|register|activate|forgot-password|get-started|suspended|verify-email)[\\/]/, // forced light
 ];

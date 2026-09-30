@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSuperadmin } from "@/lib/superadmin";
+import { logConsoleAction } from "@/lib/console-audit";
 
 /** Revoke an unused invite code — it stays listed for the audit trail. */
 export async function DELETE(
@@ -22,5 +23,8 @@ export async function DELETE(
   if (invite.revokedAt) return NextResponse.json({ success: true });
 
   await prisma.inviteCode.update({ where: { id }, data: { revokedAt: new Date() } });
+  logConsoleAction(admin, "invite-revoke", {
+    detail: [invite.code, invite.note, invite.email].filter(Boolean).join(" — "),
+  });
   return NextResponse.json({ success: true });
 }

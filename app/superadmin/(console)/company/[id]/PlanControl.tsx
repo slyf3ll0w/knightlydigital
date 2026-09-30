@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { FREE_PLAN_NAME, type PlanId } from "@/lib/plans";
+import { Button, Card, Chip, InfoTip } from "@/components/ds";
 
 /**
  * The plan whitelist (lib/plans.ts): grant a company any add-on plan for
@@ -54,86 +55,63 @@ export function PlanControl({
     }
   }
 
-  const btn =
-    "rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50";
-  const quiet = "rounded-lg px-3 py-1.5 text-sm font-semibold text-gray-500 hover:bg-gray-50 disabled:opacity-50";
-
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+    <Card className="p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-bold text-gray-700">Plans (whitelist)</h2>
-        <span
-          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-            everything
-              ? "bg-green-100 text-green-700"
-              : grants.length > 0
-                ? "bg-indigo-100 text-indigo-700"
-                : "bg-gray-100 text-gray-600"
-          }`}
-        >
+        <div className="flex items-center gap-1.5">
+          <h2 className="ds-h2">Plans</h2>
+          <InfoTip>
+            Grants put this company on an add-on plan for free — no checkout, no billing. The first users get
+            everything; use it for comped accounts and testing too. Voice also unlocks the business line; Pro also
+            starts the Atlas paid plan (150,000 tokens). Revoking Voice or Pro never switches off a paying Livery
+            subscription.
+          </InfoTip>
+        </div>
+        <Chip tone={everything ? "primary" : grants.length > 0 ? "primary" : "neutral"}>
           {everything ? "Max (everything)" : grants.length > 0 ? `${grants.length} of ${plans.length} granted` : `${FREE_PLAN_NAME} (free core)`}
-        </span>
+        </Chip>
       </div>
-      <p className="mt-2 text-xs leading-relaxed text-gray-500">
-        Grants put this company on an add-on plan for free — no checkout, no billing. The first
-        users get everything; use it for comped accounts and testing too. Voice also unlocks
-        the business line below; Pro also starts the Atlas paid plan (150,000 tokens).
-      </p>
 
-      <ul className="mt-3 divide-y divide-gray-100 rounded-lg border border-gray-100">
+      <ul className="ds-divide mt-4 overflow-hidden rounded-xl bg-[color:var(--ds-surface-2)]">
         {plans.map((p) => {
           const granted = grants.includes(p.id);
           const paid = p.id === "DISPATCH" && dispatchPaid;
-          const on = granted || paid;
           return (
-            <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5">
+            <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5">
               <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-semibold text-gray-900">{p.name}</span>
-                  <span className="text-xs text-gray-400">{p.price}/mo</span>
-                  {p.comingSoon && (
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                      Coming soon
-                    </span>
-                  )}
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                      on ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
-                    }`}
-                  >
-                    {granted ? "Granted" : paid ? "Paid (Livery)" : "Off"}
-                  </span>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="text-[14px] font-semibold text-[color:var(--ds-ink)]">{p.name}</span>
+                  <span className="ds-small">{p.price}/mo</span>
+                  {p.comingSoon && <Chip tone="warn">Coming soon</Chip>}
+                  <Chip tone={granted || paid ? "good" : "neutral"}>{granted ? "Granted" : paid ? "Paid (Livery)" : "Off"}</Chip>
                 </div>
-                <p className="mt-0.5 text-xs text-gray-500">{p.tagline}</p>
+                <p className="ds-small mt-0.5">{p.tagline}</p>
               </div>
-              <button
+              <Button
+                variant={granted ? "ghost" : "outline"}
+                size="sm"
                 disabled={busy !== null}
                 onClick={() => send(granted ? "plan-revoke" : "plan-grant", p.id)}
-                className={granted ? quiet : btn}
               >
-                {busy === `${granted ? "plan-revoke" : "plan-grant"}:${p.id}`
-                  ? "Saving…"
-                  : granted
-                    ? "Revoke"
-                    : "Grant free"}
-              </button>
+                {busy === `${granted ? "plan-revoke" : "plan-grant"}:${p.id}` ? "Saving…" : granted ? "Revoke" : "Grant free"}
+              </Button>
             </li>
           );
         })}
       </ul>
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-4 flex flex-wrap gap-2">
         {!everything ? (
-          <button disabled={busy !== null} onClick={() => send("plan-grant", "ALL")} className={btn}>
+          <Button variant="outline" size="sm" disabled={busy !== null} onClick={() => send("plan-grant", "ALL")}>
             {busy === "plan-grant:ALL" ? "Saving…" : "Grant everything (Max)"}
-          </button>
+          </Button>
         ) : (
-          <button disabled={busy !== null} onClick={() => send("plan-revoke", "ALL")} className={quiet}>
+          <Button variant="ghost" size="sm" disabled={busy !== null} onClick={() => send("plan-revoke", "ALL")}>
             {busy === "plan-revoke:ALL" ? "Saving…" : "Revoke all grants"}
-          </button>
+          </Button>
         )}
       </div>
-      {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
-    </div>
+      {error && <p className="mt-2 text-sm text-[color:var(--ds-bad)]">{error}</p>}
+    </Card>
   );
 }

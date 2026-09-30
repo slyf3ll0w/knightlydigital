@@ -37,6 +37,9 @@ export interface E2eState {
    *  and company A has an APPROVED sandbox merchant. Never against live money. */
   cardTestsEnabled: boolean;
   finix: { applicationId: string; username: string; password: string } | null;
+  /** Platform console session (its own HMAC cookie, lib/superadmin-session.ts)
+   *  for the first active SUPERADMIN user; null when the target has none. */
+  superadmin: { token: string; userId: string } | null;
 }
 
 export const STATE_FILE = path.join(E2E_DIR, ".state.json");

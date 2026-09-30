@@ -1,99 +1,23 @@
-import Image from "next/image";
-import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireSuperadminPage } from "@/lib/superadmin";
-import SignOutButton from "./SignOutButton";
+import ConsoleShell from "@/components/console/ConsoleShell";
+import ConfirmSheetHost from "@/components/ConfirmSheet";
 
 /**
- * Platform-owner shell in the WorkBench MARKETING site's language (WBNav's
- * cousin): the blue→orange brand keel, white header with the wordmark and a
- * "Platform console" tag, orange-underline nav links, rounded white cards on
- * a plain canvas. Deliberately not the tenant app's dark-rail console look.
+ * Platform-owner shell. Since 2026-09-30 it wears the tenant app's own
+ * design system (components/console/ConsoleShell): rail, Lexend, .ds tokens,
+ * dark theme — not the marketing site's language it used to borrow.
  */
 export default async function SuperadminLayout({ children }: { children: React.ReactNode }) {
   const user = await requireSuperadminPage();
-  const openFeedback = await prisma.feedbackTicket.count({ where: { status: "OPEN" } });
+  const [pending, feedback] = await Promise.all([
+    prisma.accessApplication.count({ where: { status: "PENDING" } }),
+    prisma.feedbackTicket.count({ where: { status: "OPEN" } }),
+  ]);
   return (
-    <div className="wb-site min-h-screen bg-gray-50 text-gray-900">
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl">
-        {/* brand keel — blue into orange, like the wordmark */}
-        <div
-          className="h-[3px]"
-          style={{ background: "linear-gradient(90deg, #0B57D8 0%, #0B57D8 55%, #F86A0A 100%)" }}
-          aria-hidden
-        />
-        <div className="border-b border-gray-200">
-          <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-8">
-            <Link href="/superadmin" className="flex items-center gap-3" aria-label="Platform console">
-              <Image
-                src="/workbench-logo.png"
-                alt="WorkBench"
-                width={1714}
-                height={285}
-                priority
-                className="h-7 w-auto"
-              />
-              <span className="mt-1 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-gray-400">
-                Platform console
-              </span>
-            </Link>
-            <nav className="flex items-center gap-6">
-              <Link
-                href="/superadmin"
-                className="wb-navlink text-[14px] font-semibold text-gray-600 transition-colors hover:text-gray-900"
-              >
-                Profitability
-              </Link>
-              <Link
-                href="/superadmin/packaging"
-                className="wb-navlink text-[14px] font-semibold text-gray-600 transition-colors hover:text-gray-900"
-              >
-                Packaging
-              </Link>
-              <Link
-                href="/superadmin/applications"
-                className="wb-navlink text-[14px] font-semibold text-gray-600 transition-colors hover:text-gray-900"
-              >
-                Applications
-              </Link>
-              <Link
-                href="/superadmin/invites"
-                className="wb-navlink text-[14px] font-semibold text-gray-600 transition-colors hover:text-gray-900"
-              >
-                Invite codes
-              </Link>
-              <Link
-                href="/superadmin/feedback"
-                className="wb-navlink flex items-center gap-1.5 text-[14px] font-semibold text-gray-600 transition-colors hover:text-gray-900"
-              >
-                Feedback
-                {openFeedback > 0 && (
-                  <span className="rounded-full bg-[#F86A0A] px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">
-                    {openFeedback > 99 ? "99+" : openFeedback}
-                  </span>
-                )}
-              </Link>
-              <Link
-                href="/superadmin/library"
-                className="wb-navlink text-[14px] font-semibold text-gray-600 transition-colors hover:text-gray-900"
-              >
-                Library
-              </Link>
-              <Link
-                href="/superadmin/finix"
-                className="wb-navlink text-[14px] font-semibold text-gray-600 transition-colors hover:text-gray-900"
-              >
-                Finix import
-              </Link>
-              <span className="hidden text-[12px] font-medium text-gray-400 md:block">
-                {user.email}
-              </span>
-              <SignOutButton />
-            </nav>
-          </div>
-        </div>
-      </header>
-      <main className="mx-auto max-w-7xl px-5 py-8 sm:px-8">{children}</main>
-    </div>
+    <ConsoleShell user={{ name: user.name, email: user.email }} counts={{ pending, feedback }}>
+      {children}
+      <ConfirmSheetHost />
+    </ConsoleShell>
   );
 }

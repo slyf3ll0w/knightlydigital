@@ -101,3 +101,10 @@ David's review; roll out page by page once approved.
 When every page is on the kit: move `.ds` to the AppShell root (the sidebar
 and mobile bars get Lexend too), drop Oxanium from `app/layout.tsx`, and
 delete the green→blue bridge and ledger/tool styles from `globals.css`.
+
+The platform console (`/superadmin`) is on the kit since 2026-09-30:
+`components/console/ConsoleShell` is the rail + top bar (the app's rail
+hardware, WorkBench blue/orange as the fixed brand), every page is a
+`DsPage`, and `npm run check:theme` covers `app/superadmin` too. Its
+own pieces live in `components/console/` (PresenceDot, DeviceIcons,
+ConsoleSearch, AccountsClient, SignupsClient).

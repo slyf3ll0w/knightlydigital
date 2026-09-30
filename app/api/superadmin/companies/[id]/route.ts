@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyPasswordForUser } from "@/lib/account";
 import { getSuperadmin } from "@/lib/superadmin";
+import { logConsoleAction } from "@/lib/console-audit";
 import { limit } from "@/lib/rate-limit";
 import { companyHasProtectedUser, deleteCompanyCascade } from "@/lib/company-delete";
 import { LineError, appealCampaignRegistration, approveRegistration, attachExistingNumber, keepLine, refreshKeywordReplies, releaseLine } from "@/lib/business-line";
@@ -13,17 +14,50 @@ import type { Prisma } from "@prisma/client";
  * Superadmin account controls.
  *
  * PATCH  — suspend / reinstate (reversible: data untouched, the tenant app and
- *          public surfaces go dark until reinstated), payments-gate waiver,
- *          the Atlas assistant override (on / off / back to default policy),
- *          and the plan whitelist (plan-grant / plan-revoke, lib/plans.ts).
+ *          public surfaces go dark until reinstated), the test-account flag
+ *          (mark-test / mark-live — out of the console's totals, nothing
+ *          changes for the tenant), payments-gate waiver, the Atlas assistant
+ *          override (on / off / back to default policy), and the plan
+ *          whitelist (plan-grant / plan-revoke, lib/plans.ts).
  * DELETE — permanent removal behind the heaviest gate in the product: the
  *          exact slug retyped, the superadmin's own password re-verified, and
  *          for companies with real data ("large": any payments, or >25
  *          contacts, or >25 jobs) the literal phrase PERMANENTLY DELETE as a
  *          third factor. Rate-limited so the password check can't be farmed.
+ *
+ * Every successful action lands in the console audit trail (lib/console-audit.ts).
  */
 
 const DELETE_PHRASE = "PERMANENTLY DELETE";
+
+const ACTIONS = new Set([
+  "suspend",
+  "reinstate",
+  "mark-test",
+  "mark-live",
+  "waive-payments",
+  "require-payments",
+  "assistant-on",
+  "assistant-off",
+  "assistant-default",
+  "atlas-plan-grant",
+  "atlas-plan-revoke",
+  "atlas-plan-reset",
+  "atlas-free-reset",
+  "addon-show",
+  "addon-hide",
+  "line-release",
+  "line-attach",
+  "line-keep",
+  "line-voice-sync",
+  "line-file",
+  "line-appeal",
+  "line-keywords",
+  "addon-grant",
+  "addon-revoke",
+  "plan-grant",
+  "plan-revoke",
+]);
 
 /** Real-data threshold: above this the delete gate demands the typed phrase. */
 async function dataFootprint(companyId: string) {
@@ -47,33 +81,8 @@ export async function PATCH(
   const { id } = await params;
 
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-  const action = body.action;
-  if (
-    action !== "suspend" &&
-    action !== "reinstate" &&
-    action !== "waive-payments" &&
-    action !== "require-payments" &&
-    action !== "assistant-on" &&
-    action !== "assistant-off" &&
-    action !== "assistant-default" &&
-    action !== "atlas-plan-grant" &&
-    action !== "atlas-plan-revoke" &&
-    action !== "atlas-plan-reset" &&
-    action !== "atlas-free-reset" &&
-    action !== "addon-show" &&
-    action !== "addon-hide" &&
-    action !== "line-release" &&
-    action !== "line-attach" &&
-    action !== "line-keep" &&
-    action !== "line-voice-sync" &&
-    action !== "line-file" &&
-    action !== "line-appeal" &&
-    action !== "line-keywords" &&
-    action !== "addon-grant" &&
-    action !== "addon-revoke" &&
-    action !== "plan-grant" &&
-    action !== "plan-revoke"
-  ) {
+  const action = typeof body.action === "string" ? body.action : "";
+  if (!ACTIONS.has(action)) {
     return NextResponse.json({ error: "Unknown action." }, { status: 400 });
   }
 
@@ -83,6 +92,7 @@ export async function PATCH(
       id: true,
       name: true,
       suspendedAt: true,
+      isTest: true,
       planGrants: true,
       addonActiveAt: true,
       addonLiverySubId: true,
@@ -91,6 +101,20 @@ export async function PATCH(
     },
   });
   if (!company) return NextResponse.json({ error: "Company not found." }, { status: 404 });
+
+  const audit = (detail?: string) => logConsoleAction(admin, action, { company, detail });
+
+  // Test account: the console's own bookkeeping — totals, charts and the
+  // Live list skip it; the tenant notices nothing.
+  if (action === "mark-test" || action === "mark-live") {
+    const isTest = action === "mark-test";
+    if (isTest !== company.isTest) {
+      await prisma.company.update({ where: { id }, data: { isTest } });
+      console.warn(`[superadmin] "${company.name}" (${id}) marked ${isTest ? "TEST" : "LIVE"} by ${admin.email}`);
+      audit();
+    }
+    return NextResponse.json({ success: true, isTest });
+  }
 
   // Plan whitelist (lib/plans.ts): put the company on an add-on plan for
   // free, or take it off again. "ALL" is Max. A Voice grant also
@@ -126,6 +150,7 @@ export async function PATCH(
     console.warn(
       `[superadmin] plans ${grant ? "GRANTED" : "REVOKED"} ${target.join("+")} for "${company.name}" (${id}) by ${admin.email} → now [${planGrants.join(", ") || "none"}]`
     );
+    audit(`${body.plan === "ALL" ? "everything (Max)" : target.join("+")} → now ${planGrants.join(", ") || "none"}`);
     return NextResponse.json({ success: true, planGrants });
   }
 
@@ -137,6 +162,7 @@ export async function PATCH(
     console.warn(
       `[superadmin] payments gate ${waived ? "WAIVED" : "REQUIRED"} for "${company.name}" (${id}) by ${admin.email}`
     );
+    audit();
     return NextResponse.json({ success: true });
   }
 
@@ -149,6 +175,7 @@ export async function PATCH(
     console.warn(
       `[superadmin] assistant ${assistantEnabled === null ? "reset to DEFAULT" : assistantEnabled ? "forced ON" : "forced OFF"} for "${company.name}" (${id}) by ${admin.email}`
     );
+    audit();
     return NextResponse.json({ success: true });
   }
 
@@ -164,6 +191,7 @@ export async function PATCH(
           : { atlasPeriodTokensUsed: 0 };
     await prisma.company.update({ where: { id }, data });
     console.warn(`[superadmin] atlas plan ${action.replace("atlas-plan-", "")} for "${company.name}" (${id}) by ${admin.email}`);
+    audit();
     return NextResponse.json({ success: true });
   }
 
@@ -175,6 +203,7 @@ export async function PATCH(
       data: { atlasFreeTokensUsed: 0 },
     });
     console.warn(`[superadmin] atlas free tier refilled for "${company.name}" (${id}) by ${admin.email}`);
+    audit();
     return NextResponse.json({ success: true });
   }
 
@@ -188,6 +217,7 @@ export async function PATCH(
     console.warn(
       `[superadmin] add-on ${enabled ? "SHOWN to" : "HIDDEN from"} "${company.name}" (${id}) by ${admin.email}`
     );
+    audit();
     return NextResponse.json({ success: true });
   }
   if (action === "addon-grant" || action === "addon-revoke") {
@@ -199,6 +229,7 @@ export async function PATCH(
     console.warn(
       `[superadmin] add-on entitlement ${grant ? "GRANTED (manual)" : "REVOKED"} for "${company.name}" (${id}) by ${admin.email}`
     );
+    audit();
     return NextResponse.json({ success: true });
   }
 
@@ -213,6 +244,7 @@ export async function PATCH(
     try {
       const out = await attachExistingNumber(id, typeof body.phoneNumber === "string" ? body.phoneNumber : "");
       console.warn(`[superadmin] ${out.type} ${out.number} ATTACHED to "${company.name}" (${id}) by ${admin.email}`);
+      audit(`${out.type} ${out.number}`);
       return NextResponse.json({ success: true, ...out });
     } catch (err) {
       if (err instanceof LineError) return NextResponse.json({ error: err.message }, { status: err.status });
@@ -225,6 +257,7 @@ export async function PATCH(
   if (action === "line-keep") {
     await keepLine(id);
     console.warn(`[superadmin] business line release CANCELLED for "${company.name}" (${id}) by ${admin.email}`);
+    audit();
     return NextResponse.json({ success: true });
   }
 
@@ -235,6 +268,7 @@ export async function PATCH(
       const routed = await ensureVoiceRouting(id);
       if (!routed) return NextResponse.json({ error: "Voice isn't configured on this server, or the company has no number." }, { status: 409 });
       console.warn(`[superadmin] business line moved onto the voice app for "${company.name}" (${id}) by ${admin.email}`);
+      audit();
       return NextResponse.json({ success: true });
     } catch (err) {
       if (err instanceof VoiceError) return NextResponse.json({ error: err.message }, { status: err.status });
@@ -248,6 +282,7 @@ export async function PATCH(
     try {
       const reg = await approveRegistration(id);
       console.warn(`[superadmin] texting registration FILED for "${company.name}" (${id}) by ${admin.email} → ${reg.status}`);
+      audit(`→ ${reg.status}`);
       return NextResponse.json({ success: true, status: reg.status });
     } catch (err) {
       if (err instanceof LineError) return NextResponse.json({ error: err.message }, { status: err.status });
@@ -262,6 +297,7 @@ export async function PATCH(
     try {
       const reg = await appealCampaignRegistration(id);
       console.warn(`[superadmin] texting campaign APPEALED for "${company.name}" (${id}) by ${admin.email} → ${reg.status}`);
+      audit(`→ ${reg.status}`);
       return NextResponse.json({ success: true, status: reg.status });
     } catch (err) {
       if (err instanceof LineError) return NextResponse.json({ error: err.message }, { status: err.status });
@@ -275,6 +311,7 @@ export async function PATCH(
     try {
       const profileId = await refreshKeywordReplies(id);
       console.warn(`[superadmin] keyword replies set for "${company.name}" (${id}) on profile ${profileId} by ${admin.email}`);
+      audit();
       return NextResponse.json({ success: true, profileId });
     } catch (err) {
       if (err instanceof LineError) return NextResponse.json({ error: err.message }, { status: err.status });
@@ -291,6 +328,7 @@ export async function PATCH(
       throw err;
     }
     console.warn(`[superadmin] business line RELEASED for "${company.name}" (${id}) by ${admin.email}`);
+    audit();
     return NextResponse.json({ success: true });
   }
 
@@ -305,12 +343,14 @@ export async function PATCH(
       data: { suspendedAt: company.suspendedAt ?? new Date(), suspendedReason: reason },
     });
     console.warn(`[superadmin] company SUSPENDED: "${company.name}" (${id}) by ${admin.email}${reason ? ` — ${reason}` : ""}`);
+    audit(reason ?? undefined);
   } else {
     await prisma.company.update({
       where: { id },
       data: { suspendedAt: null, suspendedReason: null },
     });
     console.warn(`[superadmin] company REINSTATED: "${company.name}" (${id}) by ${admin.email}`);
+    audit();
   }
   return NextResponse.json({ success: true });
 }
@@ -369,5 +409,9 @@ export async function DELETE(
   console.warn(
     `[superadmin] company DELETED: "${company.name}" (${id}, /${company.slug}) by ${admin.email} — footprint: ${JSON.stringify(footprint)}`
   );
+  logConsoleAction(admin, "delete", {
+    company,
+    detail: `/${company.slug} — ${footprint.users} users, ${footprint.contacts} contacts, ${footprint.jobs} jobs, ${footprint.invoices} invoices, ${footprint.payments} payments`,
+  });
   return NextResponse.json({ success: true });
 }

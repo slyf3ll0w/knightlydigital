@@ -3,18 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  Bug,
-  Check,
-  ExternalLink,
-  Lightbulb,
-  Loader2,
-  Megaphone,
-  MessageSquare,
-  RotateCcw,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Bug, Check, ExternalLink, Lightbulb, Loader2, Megaphone, MessageSquare, RotateCcw, Trash2, X } from "lucide-react";
+import { Button, Card, Chip, DsPage, PageHeader, SectionTitle } from "@/components/ds";
+import { Input, Textarea } from "@/components/Input";
+import { confirmSheet } from "@/components/ConfirmSheet";
+import { fullDate } from "@/lib/console-format";
 
 type Ticket = {
   id: string;
@@ -32,11 +25,11 @@ type Ticket = {
 
 type PanelMode = "approve" | "resolve" | "decline" | "reply";
 
-const statusChip: Record<Ticket["status"], { label: string; cls: string }> = {
-  OPEN: { label: "Open", cls: "bg-amber-100 text-amber-700" },
-  PLANNED: { label: "On the board", cls: "bg-blue-100 text-blue-700" },
-  RESOLVED: { label: "Resolved", cls: "bg-green-100 text-green-700" },
-  DECLINED: { label: "Declined", cls: "bg-gray-200 text-gray-600" },
+const statusChip: Record<Ticket["status"], { label: string; tone: "warn" | "primary" | "good" | "neutral" }> = {
+  OPEN: { label: "Open", tone: "warn" },
+  PLANNED: { label: "On the board", tone: "primary" },
+  RESOLVED: { label: "Resolved", tone: "good" },
+  DECLINED: { label: "Declined", tone: "neutral" },
 };
 
 const CATEGORIES = [
@@ -54,6 +47,7 @@ export default function FeedbackClient({ tickets }: { tickets: Ticket[] }) {
   const visible = filter === "ALL" ? tickets : tickets.filter((t) => t.type === filter);
   const open = visible.filter((t) => t.status === "OPEN");
   const reviewed = visible.filter((t) => t.status !== "OPEN");
+  const openAll = tickets.filter((t) => t.status === "OPEN").length;
 
   async function patch(id: string, body: Record<string, unknown>): Promise<boolean> {
     setError("");
@@ -77,7 +71,13 @@ export default function FeedbackClient({ tickets }: { tickets: Ticket[] }) {
   }
 
   async function remove(t: Ticket) {
-    if (!confirm(`Delete "${t.title}"? The submitter loses it from their list too.`)) return;
+    const ok = await confirmSheet({
+      title: `Delete "${t.title}"?`,
+      message: "The submitter loses it from their list too.",
+      confirmLabel: "Delete ticket",
+      destructive: true,
+    });
+    if (!ok) return;
     setBusy(t.id);
     try {
       await fetch(`/api/superadmin/feedback/${t.id}`, { method: "DELETE" });
@@ -88,35 +88,27 @@ export default function FeedbackClient({ tickets }: { tickets: Ticket[] }) {
   }
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Support &amp; suggestions</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Bug reports and feature ideas filed from Help &amp; Feedback inside the app. Approving
-            posts an editable copy onto the public Upcoming Features board.
-          </p>
-        </div>
-        <nav className="flex gap-1 rounded-md border border-gray-200 bg-white p-0.5 text-xs">
-          {(
-            [
-              ["ALL", "All"],
-              ["BUG", "Bugs"],
-              ["SUGGESTION", "Suggestions"],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              onClick={() => setFilter(value)}
-              className={`rounded px-2.5 py-1 font-medium ${
-                filter === value ? "bg-[#0B57D8] text-white" : "text-gray-500 hover:text-gray-900"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </nav>
-      </div>
+    <DsPage>
+      <PageHeader
+        eyebrow={openAll > 0 ? `${openAll} open` : "Nothing open"}
+        title="Feedback"
+        info="Bug reports and feature ideas filed from Help & Feedback inside the app. Approving posts an editable copy onto the public Upcoming Features board; resolve and decline close the ticket with an optional reply the submitter sees on their tickets list."
+        actions={
+          <nav className="flex gap-1" aria-label="Type">
+            {(
+              [
+                ["ALL", "All"],
+                ["BUG", "Bugs"],
+                ["SUGGESTION", "Suggestions"],
+              ] as const
+            ).map(([value, label]) => (
+              <button key={value} type="button" onClick={() => setFilter(value)} className={`ds-btn ds-btn-sm ${filter === value ? "ds-btn-soft" : "ds-btn-ghost"}`} aria-pressed={filter === value}>
+                {label}
+              </button>
+            ))}
+          </nav>
+        }
+      />
 
       {error && (
         <div role="alert" className="form-error mt-4">
@@ -126,9 +118,9 @@ export default function FeedbackClient({ tickets }: { tickets: Ticket[] }) {
 
       <div className="mt-6 space-y-3">
         {open.length === 0 && (
-          <p className="rounded-xl border border-dashed border-gray-300 bg-white px-5 py-8 text-center text-sm text-gray-400">
-            No open tickets.
-          </p>
+          <Card className="px-6 py-9 text-center">
+            <p className="ds-small">No open tickets.</p>
+          </Card>
         )}
         {open.map((t) => (
           <TicketCard key={t.id} t={t} busy={busy === t.id} onPatch={patch} onDelete={remove} />
@@ -137,17 +129,15 @@ export default function FeedbackClient({ tickets }: { tickets: Ticket[] }) {
 
       {reviewed.length > 0 && (
         <>
-          <h2 className="mt-10 text-sm font-semibold uppercase tracking-wide text-gray-400">
-            Reviewed
-          </h2>
-          <div className="mt-3 space-y-3">
+          <SectionTitle className="mt-10">Reviewed</SectionTitle>
+          <div className="space-y-3">
             {reviewed.map((t) => (
               <TicketCard key={t.id} t={t} busy={busy === t.id} onPatch={patch} onDelete={remove} />
             ))}
           </div>
         </>
       )}
-    </div>
+    </DsPage>
   );
 }
 
@@ -185,9 +175,7 @@ function TicketCard({
       setDraftTitle(t.title);
       setDraftDetails(t.details);
       setDraftCategory(t.type === "BUG" ? "BUG" : "FEATURE");
-      setDraftPrivate(
-        `From ${t.user ? `${t.user.name} (${t.user.email})` : "a deleted user"} · ${t.company.name}`
-      );
+      setDraftPrivate(`From ${t.user ? `${t.user.name} (${t.user.email})` : "a deleted user"} · ${t.company.name}`);
     }
     setDraftResponse(next === "reply" ? (t.response ?? "") : "");
   }
@@ -197,48 +185,38 @@ function TicketCard({
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5">
+    <Card className="p-5">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3 min-w-0">
-          <span
-            className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-              t.type === "BUG" ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-600"
-            }`}
-          >
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="ds-disc mt-0.5" style={{ color: t.type === "BUG" ? "var(--ds-bad)" : "var(--ds-warn)", background: t.type === "BUG" ? "var(--ds-bad-soft)" : "var(--ds-warn-soft)" }}>
             {t.type === "BUG" ? <Bug size={16} /> : <Lightbulb size={16} />}
           </span>
           <div className="min-w-0">
-            <h3 className="font-semibold text-gray-900">{t.title}</h3>
-            <p className="text-xs text-gray-500">
+            <h3 className="ds-h2">{t.title}</h3>
+            <p className="ds-small">
               {t.user ? `${t.user.name} — ${t.user.email}` : "Deleted user"} ·{" "}
-              <Link href={`/superadmin/company/${t.company.id}`} className="hover:underline">
+              <Link prefetch={false} href={`/superadmin/company/${t.company.id}`} className="ds-link font-medium">
                 {t.company.name}
               </Link>{" "}
-              · {new Date(t.createdAt).toLocaleDateString()}
+              · {fullDate(t.createdAt)}
               {t.pageUrl ? ` · ${t.pageUrl}` : ""}
             </p>
           </div>
         </div>
-        <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${chip.cls}`}>
-          {chip.label}
-        </span>
+        <Chip tone={chip.tone}>{chip.label}</Chip>
       </div>
 
-      <p className="mt-3 whitespace-pre-line text-sm text-gray-700">{t.details}</p>
+      <p className="mt-3 whitespace-pre-line text-[14px] text-[color:var(--ds-ink)]">{t.details}</p>
 
       {t.response && (
-        <p className="mt-3 border-l-2 border-gray-300 bg-gray-50 px-3 py-2 text-xs text-gray-600 whitespace-pre-line">
+        <p className="mt-3 whitespace-pre-line border-l-2 border-[color:var(--ds-line-strong)] bg-[color:var(--ds-surface-2)] px-3 py-2 text-[13px] text-[color:var(--ds-ink-2)]">
           <span className="font-semibold">Your reply:</span> {t.response}
         </p>
       )}
       {t.roadmapItem && (
-        <p className="mt-3 text-xs text-gray-500">
+        <p className="ds-small mt-3">
           Posted to the board as{" "}
-          <Link
-            href="/roadmap"
-            target="_blank"
-            className="inline-flex items-center gap-1 font-semibold text-[#0B57D8] hover:underline"
-          >
+          <Link href="/roadmap" target="_blank" className="ds-link inline-flex items-center gap-1">
             {t.roadmapItem.title} <ExternalLink size={11} />
           </Link>
           {t.roadmapItem.shippedAt ? " (shipped)" : ""}
@@ -250,193 +228,94 @@ function TicketCard({
         <div className="mt-4 flex flex-wrap gap-2">
           {t.status === "OPEN" && (
             <>
-              <button
-                onClick={() => openPanel("approve")}
-                disabled={busy}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B57D8] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0A4CBB] disabled:opacity-50"
-              >
-                <Megaphone size={14} /> Approve &amp; post to board
-              </button>
-              <button
-                onClick={() => openPanel("resolve")}
-                disabled={busy}
-                className="btn-primary inline-flex"
-              >
-                <Check size={14} /> {t.type === "BUG" ? "Mark fixed" : "Mark done"}
-              </button>
-              <button
-                onClick={() => openPanel("decline")}
-                disabled={busy}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-              >
-                <X size={14} /> Decline
-              </button>
+              <Button size="sm" icon={Megaphone} onClick={() => openPanel("approve")} disabled={busy}>
+                Approve &amp; post to board
+              </Button>
+              <Button variant="outline" size="sm" icon={Check} onClick={() => openPanel("resolve")} disabled={busy}>
+                {t.type === "BUG" ? "Mark fixed" : "Mark done"}
+              </Button>
+              <Button variant="ghost" size="sm" icon={X} onClick={() => openPanel("decline")} disabled={busy}>
+                Decline
+              </Button>
             </>
           )}
           {t.status !== "OPEN" && (
             <>
-              <button
-                onClick={() => openPanel("reply")}
-                disabled={busy}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-              >
-                <MessageSquare size={12} />
+              <Button variant="outline" size="sm" icon={MessageSquare} onClick={() => openPanel("reply")} disabled={busy}>
                 {t.response ? "Edit reply" : "Add reply"}
-              </button>
-              <button
-                onClick={() => submit({ action: "reopen" })}
-                disabled={busy}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-              >
-                {busy ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />}
+              </Button>
+              <Button variant="ghost" size="sm" icon={busy ? Loader2 : RotateCcw} onClick={() => submit({ action: "reopen" })} disabled={busy} className={busy ? "[&>svg]:animate-spin" : ""}>
                 Reopen
-              </button>
+              </Button>
             </>
           )}
-          <button
-            onClick={() => onDelete(t)}
-            disabled={busy}
-            className="ml-auto inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-400 hover:text-red-600"
-          >
-            <Trash2 size={13} /> Delete
-          </button>
+          <Button variant="ghost" size="sm" icon={Trash2} onClick={() => onDelete(t)} disabled={busy} className="ml-auto hover:!text-[color:var(--ds-bad)]">
+            Delete
+          </Button>
         </div>
       )}
 
       {/* ── Approve editor — edit before it goes public ── */}
       {mode === "approve" && (
-        <div className="mt-4 space-y-2.5 rounded-lg border border-blue-200 bg-blue-50/50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[#0B57D8]">
-            Edit before posting — this is what everyone sees on Upcoming Features
-          </p>
-          <div className="flex flex-wrap gap-2">
+        <div className="mt-4 space-y-2.5 rounded-xl bg-[color:var(--ds-primary-soft)] p-4">
+          <p className="ds-label text-[color:var(--ds-primary)]">Edit before posting — this is what everyone sees on Upcoming Features</p>
+          <div className="flex flex-wrap gap-1">
             {CATEGORIES.map((c) => (
-              <button
-                key={c.value}
-                onClick={() => setDraftCategory(c.value)}
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  draftCategory === c.value
-                    ? "bg-[#0B57D8] text-white"
-                    : "border border-gray-300 bg-white text-gray-600 hover:border-gray-400"
-                }`}
-              >
+              <button key={c.value} type="button" onClick={() => setDraftCategory(c.value)} className={`ds-btn ds-btn-sm ${draftCategory === c.value ? "ds-btn-primary" : "ds-btn-outline"}`} aria-pressed={draftCategory === c.value}>
                 {c.label}
               </button>
             ))}
           </div>
-          <input
-            value={draftTitle}
-            onChange={(e) => setDraftTitle(e.target.value)}
-            maxLength={200}
-            placeholder="Board title"
-            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0B57D8]"
-          />
-          <textarea
-            value={draftDetails}
-            onChange={(e) => setDraftDetails(e.target.value)}
-            maxLength={2000}
-            rows={3}
-            placeholder="Public details (optional)"
-            className="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0B57D8]"
-          />
-          <textarea
-            value={draftPrivate}
-            onChange={(e) => setDraftPrivate(e.target.value)}
-            maxLength={5000}
-            rows={2}
-            placeholder="Private note — only board editors see this (optional)"
-            className="w-full resize-none border border-amber-300 bg-amber-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-          />
-          <textarea
-            value={draftResponse}
-            onChange={(e) => setDraftResponse(e.target.value)}
-            maxLength={2000}
-            rows={2}
-            placeholder="Reply to the submitter — shows on their tickets list (optional)"
-            className="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0B57D8]"
-          />
+          <Input value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} maxLength={200} placeholder="Board title" className="w-full" />
+          <Textarea value={draftDetails} onChange={(e) => setDraftDetails(e.target.value)} maxLength={2000} rows={3} placeholder="Public details (optional)" className="w-full resize-none" />
+          <Textarea value={draftPrivate} onChange={(e) => setDraftPrivate(e.target.value)} maxLength={5000} rows={2} placeholder="Private note — only board editors see this (optional)" className="w-full resize-none" />
+          <Textarea value={draftResponse} onChange={(e) => setDraftResponse(e.target.value)} maxLength={2000} rows={2} placeholder="Reply to the submitter — shows on their tickets list (optional)" className="w-full resize-none" />
           <div className="flex items-center gap-2">
-            <button
-              onClick={() =>
-                submit({
-                  action: "approve",
-                  title: draftTitle,
-                  details: draftDetails,
-                  category: draftCategory,
-                  privateNotes: draftPrivate,
-                  response: draftResponse,
-                })
-              }
+            <Button
+              size="sm"
+              icon={busy ? Loader2 : Megaphone}
+              onClick={() => submit({ action: "approve", title: draftTitle, details: draftDetails, category: draftCategory, privateNotes: draftPrivate, response: draftResponse })}
               disabled={busy || !draftTitle.trim()}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B57D8] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0A4CBB] disabled:opacity-50"
+              className={busy ? "[&>svg]:animate-spin" : ""}
             >
-              {busy ? <Loader2 size={14} className="animate-spin" /> : <Megaphone size={14} />}
               Post to board
-            </button>
-            <button
-              onClick={() => setMode(null)}
-              className="px-3 py-2 text-sm font-semibold text-gray-500 hover:text-gray-800"
-            >
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setMode(null)}>
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       {/* ── Resolve / decline / standalone reply — the submitter sees this ── */}
       {(mode === "resolve" || mode === "decline" || mode === "reply") && (
-        <div className="mt-4 space-y-2.5 rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <textarea
+        <div className="mt-4 space-y-2.5 rounded-xl bg-[color:var(--ds-surface-2)] p-4">
+          <Textarea
             autoFocus
             value={draftResponse}
             onChange={(e) => setDraftResponse(e.target.value)}
             maxLength={2000}
             rows={2}
-            placeholder={
-              mode === "decline"
-                ? "Let them know why (optional)"
-                : 'Reply to the submitter, e.g. "Fixed in today\'s update" (optional)'
-            }
-            className="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0B57D8]"
+            placeholder={mode === "decline" ? "Let them know why (optional)" : 'Reply to the submitter, e.g. "Fixed in today\'s update" (optional)'}
+            className="w-full resize-none"
           />
           <div className="flex items-center gap-2">
-            <button
+            <Button
+              size="sm"
+              variant={mode === "decline" ? "outline" : "primary"}
+              icon={busy ? Loader2 : mode === "resolve" ? Check : mode === "reply" ? MessageSquare : X}
               onClick={() => submit({ action: mode, response: draftResponse })}
               disabled={busy}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 ${
-                mode === "resolve"
-                  ? "bg-green-500 hover:bg-green-600"
-                  : mode === "reply"
-                    ? "bg-[#0B57D8] hover:bg-[#0A4CBB]"
-                    : "bg-gray-500 hover:bg-gray-600"
-              }`}
+              className={busy ? "[&>svg]:animate-spin" : ""}
             >
-              {busy ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : mode === "resolve" ? (
-                <Check size={14} />
-              ) : mode === "reply" ? (
-                <MessageSquare size={14} />
-              ) : (
-                <X size={14} />
-              )}
-              {mode === "resolve"
-                ? t.type === "BUG"
-                  ? "Mark fixed"
-                  : "Mark done"
-                : mode === "reply"
-                  ? "Save reply"
-                  : "Decline ticket"}
-            </button>
-            <button
-              onClick={() => setMode(null)}
-              className="px-3 py-2 text-sm font-semibold text-gray-500 hover:text-gray-800"
-            >
+              {mode === "resolve" ? (t.type === "BUG" ? "Mark fixed" : "Mark done") : mode === "reply" ? "Save reply" : "Decline ticket"}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setMode(null)}>
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getSuperadmin } from "@/lib/superadmin";
+import { logConsoleAction } from "@/lib/console-audit";
 import { generateInviteCode } from "@/lib/invites";
 import { sendEmail, inviteCodeEmail, applicationApprovedEmail } from "@/lib/email";
 
@@ -41,6 +42,12 @@ export async function PATCH(
     return NextResponse.json({ error: "This application has already been decided." }, { status: 409 });
   }
 
+  const audit = (detail?: string) =>
+    logConsoleAction(admin, `application-${action}`, {
+      company: application.company ? { id: application.company.id, name: application.company.name } : null,
+      detail: detail ?? `${application.companyName} — ${application.email}`,
+    });
+
   // ── Self-serve: the account exists, the decision acts on it ──────────────
   if (application.company) {
     if (action === "reject") {
@@ -64,6 +71,7 @@ export async function PATCH(
       console.warn(
         `[superadmin] application REJECTED — company "${application.company.name}" suspended (${application.company.id}) by ${admin.email}`
       );
+      audit(`${application.companyName} — account suspended`);
       return NextResponse.json({ success: true });
     }
 
@@ -77,6 +85,7 @@ export async function PATCH(
         data: { accessPendingAt: null },
       }),
     ]);
+    audit();
     const emailBody = applicationApprovedEmail({
       name: application.name,
       companyName: application.companyName,
@@ -91,6 +100,7 @@ export async function PATCH(
       where: { id },
       data: { status: "REJECTED", decidedAt: new Date() },
     });
+    audit();
     return NextResponse.json({ success: true });
   }
 
@@ -124,6 +134,7 @@ export async function PATCH(
       if (!codeClash || attempt >= 2) throw e;
     }
   }
+  audit(`${application.companyName} — invite code ${code}`);
 
   const emailBody = inviteCodeEmail({ name: application.name, code });
   const emailed = await sendEmail({ to: application.email, ...emailBody });

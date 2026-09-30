@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button, Card, Chip, InfoTip } from "@/components/ds";
 
 /**
  * Payment-verification status + waiver toggle. Waiving exempts the company
@@ -24,24 +25,16 @@ export function PaymentsControl({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const stateLabel =
+  const state =
     onboardingState === "APPROVED"
-      ? "Approved — payments live"
+      ? { label: "Approved — payments live", tone: "good" as const }
       : onboardingState === "PROVISIONING"
-        ? "Under review (form submitted)"
+        ? { label: "Under review (form submitted)", tone: "warn" as const }
         : onboardingState === "UPDATE_REQUESTED"
-          ? "Underwriter needs more info"
+          ? { label: "Underwriter needs more info", tone: "warn" as const }
           : onboardingState === "REJECTED"
-            ? "Rejected by underwriting"
-            : "Not started — held at the activation gate";
-  const stateTone =
-    onboardingState === "APPROVED"
-      ? "bg-green-100 text-green-700"
-      : onboardingState === "REJECTED"
-        ? "bg-red-100 text-red-700"
-        : onboardingState
-          ? "bg-amber-100 text-amber-700"
-          : "bg-gray-100 text-gray-600";
+            ? { label: "Rejected by underwriting", tone: "bad" as const }
+            : { label: "Not started", tone: "neutral" as const };
 
   async function setWaived(waived: boolean) {
     setBusy(true);
@@ -66,33 +59,27 @@ export function PaymentsControl({
   }
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-      <h2 className="text-sm font-bold text-gray-700">Payment verification</h2>
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${stateTone}`}>
-          {stateLabel}
-        </span>
-        {paymentsWaived && (
-          <span className="rounded-full bg-purple-100 px-2.5 py-1 text-xs font-semibold text-purple-700">
-            Gate waived
-          </span>
-        )}
+    <Card className="p-5">
+      <div className="flex items-center gap-1.5">
+        <h2 className="ds-h2">Payment verification</h2>
+        <InfoTip>
+          {!onboardingOpen && onboardingState !== "APPROVED"
+            ? "Payments onboarding is closed platform-wide (PAYMENTS_ONBOARDING_OPEN is off): no underwriting gate, Online payments show as Coming soon in Settings, pay pages are view-only and invoice emails say View instead of Pay. The waiver only matters once onboarding reopens."
+            : paymentsWaived
+              ? "This company skips the underwriting gate (invite or universal code, or waived here). Online payments show as Coming soon in their Settings, their pay pages are view-only and invoice emails say View instead of Pay. Require verification to send the owner through the Finix form — once approved, payments switch on."
+              : "Companies without Finix approval are held at the activation gate until underwriting approves them."}
+        </InfoTip>
       </div>
-      <p className="mt-2 text-xs leading-relaxed text-gray-500">
-        {!onboardingOpen && onboardingState !== "APPROVED"
-          ? "Payments onboarding is closed platform-wide (PAYMENTS_ONBOARDING_OPEN is off): no underwriting gate, Online payments show as Coming soon in Settings, pay pages are view-only and invoice emails say View instead of Pay. The waiver only matters once onboarding reopens."
-          : paymentsWaived
-          ? "This company skips the underwriting gate (invite or universal code, or waived here). Online payments show as Coming soon in their Settings, their pay pages are view-only and invoice emails say View instead of Pay. Require verification to send the owner through the Finix form — once approved, payments switch on."
-          : "Companies without Finix approval are held at the activation gate until underwriting approves them."}
-      </p>
-      <button
-        disabled={busy}
-        onClick={() => setWaived(!paymentsWaived)}
-        className="mt-3 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-      >
-        {busy ? "Saving…" : paymentsWaived ? "Require verification" : "Waive verification…"}
-      </button>
-      {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
-    </div>
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Chip tone={state.tone}>{state.label}</Chip>
+        {paymentsWaived && <Chip tone="neutral">Gate waived</Chip>}
+      </div>
+      <div className="mt-4">
+        <Button variant="outline" size="sm" disabled={busy} onClick={() => setWaived(!paymentsWaived)}>
+          {busy ? "Saving…" : paymentsWaived ? "Require verification" : "Waive verification"}
+        </Button>
+      </div>
+      {error && <p className="mt-2 text-sm text-[color:var(--ds-bad)]">{error}</p>}
+    </Card>
   );
 }

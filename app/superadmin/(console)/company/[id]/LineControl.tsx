@@ -2,6 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button, Card, Chip, InfoTip } from "@/components/ds";
+import { Input } from "@/components/Input";
+import { confirmSheet } from "@/components/ConfirmSheet";
 
 /**
  * Business line (lib/business-line.ts) as support sees it: the number, where
@@ -78,213 +81,196 @@ export function LineControl({
 
   async function release() {
     if (!number) return;
-    if (!window.confirm(`Release ${number}? The number goes back to Telnyx and the texting registration is deleted. This cannot be undone.`)) return;
-    await send({ action: "line-release" });
+    const ok = await confirmSheet({
+      title: `Release ${number}?`,
+      message: "The number goes back to Telnyx and the texting registration is deleted. This cannot be undone.",
+      confirmLabel: "Release number",
+      destructive: true,
+    });
+    if (ok) await send({ action: "line-release" });
   }
 
   const fmt = (iso: string | null) =>
     iso ? new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
   const statusTone =
-    registration?.status === "ACTIVE"
-      ? "bg-green-100 text-green-700"
-      : registration?.status === "REJECTED"
-        ? "bg-red-100 text-red-700"
-        : registration
-          ? "bg-amber-100 text-amber-700"
-          : "bg-gray-100 text-gray-600";
+    registration?.status === "ACTIVE" ? "good" : registration?.status === "REJECTED" ? "bad" : registration ? "warn" : "neutral";
+
+  const row = (k: React.ReactNode, v: React.ReactNode, tone?: "bad") => (
+    <>
+      <dt className={`ds-small whitespace-nowrap ${tone === "bad" ? "!text-[color:var(--ds-bad)]" : ""}`}>{k}</dt>
+      <dd className={`min-w-0 text-[13.5px] ${tone === "bad" ? "text-[color:var(--ds-bad)]" : "text-[color:var(--ds-ink)]"}`}>{v}</dd>
+    </>
+  );
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-      <h2 className="text-sm font-bold text-gray-700">Business line (Telnyx)</h2>
+    <Card className="p-5">
+      <div className="flex items-center gap-1.5">
+        <h2 className="ds-h2">Business line</h2>
+        <InfoTip>
+          The Telnyx number, where calls ring, and the texting registration chain with Telnyx&apos;s raw statuses — read
+          this before answering &quot;why aren&apos;t my texts going out&quot;. Filing and re-filing spend carrier fees, so they
+          are a person&apos;s click here. Appeal is free when only the flow or samples failed. Release gives the number
+          back to Telnyx for good.
+        </InfoTip>
+      </div>
       {!number ? (
-        <div className="mt-2 space-y-2">
-          <p className="text-xs text-gray-500">
+        <div className="mt-3 space-y-3">
+          <p className="ds-small">
             No number provisioned. The company buys one from Settings → Phone &amp; texting, or attach a number the
             Telnyx account already owns (a toll-free bought by hand, a ported number):
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <input
+            <Input
               value={attach}
               onChange={(e) => setAttach(e.target.value)}
               placeholder="+1 833 555 0100"
               inputMode="tel"
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-mono text-gray-900 focus:border-gray-900 focus:outline-none"
+              aria-label="Number to attach"
+              className="ds-num w-48"
             />
-            <button
-              type="button"
-              onClick={() => send({ action: "line-attach", phoneNumber: attach })}
-              disabled={busy || attach.replace(/\D/g, "").length < 10}
-              className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
-            >
+            <Button size="sm" onClick={() => send({ action: "line-attach", phoneNumber: attach })} disabled={busy || attach.replace(/\D/g, "").length < 10}>
               Attach number
-            </button>
-            {error && <span className="text-xs text-red-600">{error}</span>}
+            </Button>
           </div>
+          {error && <p className="text-sm text-[color:var(--ds-bad)]">{error}</p>}
         </div>
       ) : (
         <>
-          <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
-            <dt className="text-gray-500">Number</dt>
-            <dd className="font-mono text-gray-800">{number}</dd>
-            <dt className="text-gray-500">Calls ring</dt>
-            <dd className="font-mono text-gray-800">{forwardTo ?? "nowhere (voicemail only)"}</dd>
-            <dt className="text-gray-500">Caller ID name</dt>
-            <dd className="font-mono text-gray-800">{callerIdName ?? "none"}</dd>
-            <dt className="text-gray-500">Voice</dt>
-            <dd className="text-gray-800">
-              {voiceAppAt ? (
+          <dl className="mt-3 grid grid-cols-[auto_1fr] items-baseline gap-x-5 gap-y-2">
+            {row("Number", <span className="ds-num">{number}</span>)}
+            {row("Calls ring", <span className="ds-num">{forwardTo ?? "nowhere (voicemail only)"}</span>)}
+            {row("Caller ID name", callerIdName ?? "none")}
+            {row(
+              "Voice",
+              voiceAppAt ? (
                 <>Call Control (whisper, voicemail, app calls) since {fmt(voiceAppAt)}</>
               ) : voiceAvailable ? (
                 <>
                   plain forwarding ·{" "}
-                  <button type="button" onClick={() => send({ action: "line-voice-sync" })} disabled={busy} className="underline">
+                  <button type="button" onClick={() => send({ action: "line-voice-sync" })} disabled={busy} className="ds-link">
                     move onto the voice app
                   </button>
                 </>
               ) : (
                 "plain forwarding (TELNYX_VOICE_APP_ID not set)"
-              )}
-            </dd>
-            <dt className="text-gray-500">Provisioned</dt>
-            <dd className="text-gray-800">{fmt(provisionedAt)}</dd>
-            {releaseAt && (
-              <>
-                <dt className="text-red-600">Release scheduled</dt>
-                <dd className="text-red-700">
+              )
+            )}
+            {row("Provisioned", fmt(provisionedAt))}
+            {releaseAt &&
+              row(
+                "Release scheduled",
+                <>
                   {fmt(releaseAt)} (add-on lapsed) ·{" "}
-                  <button type="button" onClick={() => send({ action: "line-keep" })} disabled={busy} className="underline">
+                  <button type="button" onClick={() => send({ action: "line-keep" })} disabled={busy} className="ds-link">
                     keep the number
                   </button>
-                </dd>
-              </>
-            )}
-            <dt className="text-gray-500">Texting</dt>
-            <dd>
-              <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusTone}`}>
-                {registration?.status ?? "NOT REGISTERED"}
-              </span>
-            </dd>
+                </>,
+                "bad"
+              )}
+            {row("Texting", <Chip tone={statusTone}>{registration?.status ?? "NOT REGISTERED"}</Chip>)}
             {registration && (
               <>
-                <dt className="text-gray-500">Registered as</dt>
-                <dd className="text-gray-800">
-                  {registration.legalName} · {registration.entityType === "SOLE_PROPRIETOR" ? "sole prop" : "EIN"} ·{" "}
-                  {registration.kind === "TOLL_FREE" ? "toll-free verification" : "10DLC"}
-                </dd>
-                {registration.kind === "TOLL_FREE" ? (
+                {row(
+                  "Registered as",
                   <>
-                    <dt className="text-gray-500">Telnyx verification</dt>
-                    <dd className="font-mono text-gray-800">{registration.verificationStatus ?? "—"}</dd>
-                  </>
-                ) : (
-                  <>
-                    <dt className="text-gray-500">Brand / campaign / number</dt>
-                    <dd className="font-mono text-gray-800">
-                      {registration.brandStatus ?? "—"} / {registration.campaignStatus ?? "—"} / {registration.assignmentStatus ?? "—"}
-                    </dd>
+                    {registration.legalName} · {registration.entityType === "SOLE_PROPRIETOR" ? "sole prop" : "EIN"} ·{" "}
+                    {registration.kind === "TOLL_FREE" ? "toll-free verification" : "10DLC"}
                   </>
                 )}
-                <dt className="text-gray-500">Submitted · checked · approved</dt>
-                <dd className="text-gray-800">
-                  {fmt(registration.submittedAt)} · {fmt(registration.lastCheckedAt)} · {fmt(registration.approvedAt)}
-                </dd>
-                {registration.rejectionReason && (
+                {registration.kind === "TOLL_FREE"
+                  ? row("Telnyx verification", <span className="ds-num">{registration.verificationStatus ?? "—"}</span>)
+                  : row(
+                      "Brand / campaign / number",
+                      <span className="ds-num">
+                        {registration.brandStatus ?? "—"} / {registration.campaignStatus ?? "—"} / {registration.assignmentStatus ?? "—"}
+                      </span>
+                    )}
+                {row(
+                  "Submitted · checked · approved",
                   <>
-                    <dt className="text-red-600">{registration.status === "AWAITING_REVIEW" ? "Previous rejection" : "Rejected"}</dt>
-                    <dd className="text-red-700">{registration.rejectionReason}</dd>
+                    {fmt(registration.submittedAt)} · {fmt(registration.lastCheckedAt)} · {fmt(registration.approvedAt)}
                   </>
                 )}
+                {registration.rejectionReason &&
+                  row(registration.status === "AWAITING_REVIEW" ? "Previous rejection" : "Rejected", registration.rejectionReason, "bad")}
                 {registration.kind === "10DLC" &&
                   registration.status === "REJECTED" &&
-                  (registration.campaignStatus === "TELNYX_FAILED" || registration.campaignStatus === "MNO_REJECTED") && (
-                    <>
-                      <dt className="text-gray-500">Appeal</dt>
-                      <dd>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (
-                              window.confirm(
-                                "Appeal this campaign with Telnyx? The current message flow, samples and HELP reply are pushed into the campaign and Telnyx compliance re-reviews it by hand. No new campaign, no fee unless it passes. If the rejection names the description, the opt-in/opt-out replies or the privacy policy, an appeal can't fix it and this will say so: use Re-file."
-                              )
-                            )
-                              void send({ action: "line-appeal" });
-                          }}
-                          disabled={busy}
-                          className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
-                        >
-                          Appeal with current copy
-                        </button>
-                        <span className="ml-2 text-[11px] text-gray-500">
-                          Free, when only the flow or samples failed. Description, keyword replies or privacy/terms → Re-file (new campaign, $15; the failed one is retired).
-                        </span>
-                      </dd>
-                    </>
-                  )}
-                {registration.kind === "10DLC" && (
-                  <>
-                    <dt className="text-gray-500">STOP/HELP replies</dt>
-                    <dd>
-                      <button
-                        type="button"
-                        onClick={() => void send({ action: "line-keywords" })}
+                  (registration.campaignStatus === "TELNYX_FAILED" || registration.campaignStatus === "MNO_REJECTED") &&
+                  row(
+                    "Appeal",
+                    <span className="flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
                         disabled={busy}
-                        className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-50"
+                        onClick={async () => {
+                          const ok = await confirmSheet({
+                            title: "Appeal this campaign with Telnyx?",
+                            message:
+                              "The current message flow, samples and HELP reply are pushed into the campaign and Telnyx compliance re-reviews it by hand. No new campaign, no fee unless it passes. If the rejection names the description, the opt-in/opt-out replies or the privacy policy, an appeal can't fix it and this will say so: use Re-file.",
+                            confirmLabel: "Appeal",
+                          });
+                          if (ok) void send({ action: "line-appeal" });
+                        }}
                       >
+                        Appeal with current copy
+                      </Button>
+                      <span className="ds-small">Free, when only the flow or samples failed. Description, keyword replies or privacy/terms → Re-file (new campaign, $15; the failed one is retired).</span>
+                    </span>
+                  )}
+                {registration.kind === "10DLC" &&
+                  row(
+                    "STOP/HELP replies",
+                    <span className="flex flex-wrap items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => void send({ action: "line-keywords" })} disabled={busy}>
                         Set brand-named replies
-                      </button>
-                      <span className="ml-2 text-[11px] text-gray-500">
-                        Free. Moves the number to its own messaging profile whose STOP / START / HELP replies name the business (filing does this too).
-                      </span>
-                    </dd>
-                  </>
-                )}
-                {(registration.status === "AWAITING_REVIEW" || registration.status === "REJECTED" || registration.status === "QUEUED") && (
-                  <>
-                    <dt className="text-gray-500">File with Telnyx</dt>
-                    <dd>
-                      <button
-                        type="button"
-                        onClick={() => {
+                      </Button>
+                      <span className="ds-small">Free. Moves the number to its own messaging profile whose STOP / START / HELP replies name the business (filing does this too).</span>
+                    </span>
+                  )}
+                {(registration.status === "AWAITING_REVIEW" || registration.status === "REJECTED" || registration.status === "QUEUED") &&
+                  row(
+                    "File with Telnyx",
+                    <span className="flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        disabled={busy}
+                        onClick={async () => {
                           const fees =
                             registration.kind === "TOLL_FREE"
                               ? "Toll-free verification is free."
                               : registration.brandStatus === "VERIFIED" || registration.brandStatus === "VETTED_VERIFIED"
                                 ? "Re-uses the verified brand; files a campaign: $15 review + $4.50."
                                 : "Files a brand ($4.50), then a campaign once verified ($15 review + $4.50).";
-                          if (window.confirm(`Send this registration to Telnyx now? ${fees}`)) void send({ action: "line-file" });
+                          const ok = await confirmSheet({
+                            title: "Send this registration to Telnyx now?",
+                            message: fees,
+                            confirmLabel: registration.status === "AWAITING_REVIEW" ? "Approve and file" : "Re-file",
+                          });
+                          if (ok) void send({ action: "line-file" });
                         }}
-                        disabled={busy}
-                        className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-800 disabled:opacity-50"
                       >
                         {registration.status === "AWAITING_REVIEW" ? "Approve and file" : "Re-file now"}
-                      </button>
-                      <span className="ml-2 text-[11px] text-gray-500">
+                      </Button>
+                      <span className="ds-small">
                         {registration.status === "AWAITING_REVIEW"
                           ? "The tenant is waiting on this — nothing has been sent to Telnyx yet."
                           : registration.status === "QUEUED"
                             ? "Queued for funds; the hourly sweep files it on its own, or file it now."
                             : "Only after the cause is fixed — each submission is a carrier fee."}
                       </span>
-                    </dd>
-                  </>
-                )}
+                    </span>
+                  )}
               </>
             )}
           </dl>
-          <div className="mt-3 flex items-center gap-3">
-            <button
-              type="button"
-              onClick={release}
-              disabled={busy}
-              className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
-            >
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Button variant="outline" size="sm" onClick={release} disabled={busy} className="!text-[color:var(--ds-bad)]">
               Release number
-            </button>
-            {error && <span className="text-xs text-red-600">{error}</span>}
+            </Button>
+            {error && <span className="text-sm text-[color:var(--ds-bad)]">{error}</span>}
           </div>
         </>
       )}
-    </div>
+    </Card>
   );
 }

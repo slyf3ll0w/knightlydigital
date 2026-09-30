@@ -4,6 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Heart, Loader2, RotateCcw, Trash2 } from "lucide-react";
+import { Button, Card, Chip, DsPage, PageHeader } from "@/components/ds";
+import { promptSheet } from "@/components/ConfirmSheet";
+import { fullDate, shortDate } from "@/lib/console-format";
 
 type Listing = {
   id: string;
@@ -22,10 +25,10 @@ type Listing = {
   company: { id: string; name: string };
 };
 
-const statusChip: Record<Listing["status"], { label: string; cls: string }> = {
-  LIVE: { label: "Live", cls: "bg-green-100 text-green-700" },
-  HIDDEN: { label: "Unlisted by owner", cls: "bg-gray-200 text-gray-600" },
-  REMOVED: { label: "Removed", cls: "bg-red-100 text-red-700" },
+const statusChip: Record<Listing["status"], { label: string; tone: "good" | "neutral" | "bad" }> = {
+  LIVE: { label: "Live", tone: "good" },
+  HIDDEN: { label: "Unlisted by owner", tone: "neutral" },
+  REMOVED: { label: "Removed", tone: "bad" },
 };
 
 export default function LibraryClient({ listings }: { listings: Listing[] }) {
@@ -36,6 +39,7 @@ export default function LibraryClient({ listings }: { listings: Listing[] }) {
   const [open, setOpen] = useState<Set<string>>(new Set());
 
   const visible = filter === "ALL" ? listings : listings.filter((l) => l.status === filter);
+  const live = listings.filter((l) => l.status === "LIVE").length;
 
   async function patch(id: string, body: Record<string, unknown>) {
     setError("");
@@ -53,8 +57,14 @@ export default function LibraryClient({ listings }: { listings: Listing[] }) {
     }
   }
 
-  function remove(l: Listing) {
-    const reason = prompt(`Remove "${l.name}" from the Library? The owner will see this reason on their tool page. Copies other companies added stay with them.`, "");
+  async function remove(l: Listing) {
+    const reason = await promptSheet({
+      title: `Remove "${l.name}" from the Library?`,
+      message: "The owner will see this reason on their tool page. Copies other companies added stay with them.",
+      confirmLabel: "Remove",
+      destructive: true,
+      placeholder: "Reason the owner will see",
+    });
     if (reason === null) return;
     if (!reason.trim()) {
       setError("Give the owner a reason.");
@@ -64,29 +74,28 @@ export default function LibraryClient({ listings }: { listings: Listing[] }) {
   }
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Library</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Estimate tools businesses have shared with each other. Removing one only stops it showing publicly — the tools other companies already copied are theirs.
-          </p>
-        </div>
-        <nav className="flex gap-1 rounded-md border border-gray-200 bg-white p-0.5 text-xs">
-          {(
-            [
-              ["ALL", "All"],
-              ["LIVE", "Live"],
-              ["HIDDEN", "Unlisted"],
-              ["REMOVED", "Removed"],
-            ] as const
-          ).map(([value, label]) => (
-            <button key={value} onClick={() => setFilter(value)} className={`rounded px-2.5 py-1 font-medium ${filter === value ? "bg-[#0B57D8] text-white" : "text-gray-500 hover:text-gray-900"}`}>
-              {label}
-            </button>
-          ))}
-        </nav>
-      </div>
+    <DsPage>
+      <PageHeader
+        eyebrow={`${live} live listing${live === 1 ? "" : "s"}`}
+        title="Library"
+        info="Estimate tools businesses have shared with each other. Removing one only stops it showing publicly, with a reason the owner sees on their tool page — the tools other companies already copied are theirs. Restore puts it back."
+        actions={
+          <nav className="flex gap-1" aria-label="Status">
+            {(
+              [
+                ["ALL", "All"],
+                ["LIVE", "Live"],
+                ["HIDDEN", "Unlisted"],
+                ["REMOVED", "Removed"],
+              ] as const
+            ).map(([value, label]) => (
+              <button key={value} type="button" onClick={() => setFilter(value)} className={`ds-btn ds-btn-sm ${filter === value ? "ds-btn-soft" : "ds-btn-ghost"}`} aria-pressed={filter === value}>
+                {label}
+              </button>
+            ))}
+          </nav>
+        }
+      />
 
       {error && (
         <div role="alert" className="form-error mt-4">
@@ -95,53 +104,70 @@ export default function LibraryClient({ listings }: { listings: Listing[] }) {
       )}
 
       <div className="mt-6 space-y-3">
-        {visible.length === 0 && <p className="rounded-xl border border-dashed border-gray-300 bg-white px-5 py-8 text-center text-sm text-gray-400">Nothing here.</p>}
+        {visible.length === 0 && (
+          <Card className="px-6 py-9 text-center">
+            <p className="ds-small">Nothing here.</p>
+          </Card>
+        )}
         {visible.map((l) => {
           const chip = statusChip[l.status];
           const expanded = open.has(l.id);
           return (
-            <div key={l.id} className="rounded-xl border border-gray-200 bg-white p-4">
+            <Card key={l.id} className="p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[15px] font-semibold text-gray-900">{l.name}</span>
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${chip.cls}`}>{chip.label}</span>
-                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">{l.industry}</span>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="ds-h2">{l.name}</span>
+                    <Chip tone={chip.tone}>{chip.label}</Chip>
+                    <Chip tone="neutral">{l.industry}</Chip>
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    <Link href={`/superadmin/company/${l.company.id}`} className="font-medium text-gray-700 hover:underline">
+                  <p className="ds-small mt-1">
+                    <Link prefetch={false} href={`/superadmin/company/${l.company.id}`} className="ds-link font-medium">
                       {l.company.name}
                     </Link>
-                    {l.anonymous ? " · shared anonymously" : ""} · shared {new Date(l.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} · updated {new Date(l.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    {l.anonymous ? " · shared anonymously" : ""} · shared {fullDate(l.createdAt)} · updated {shortDate(l.updatedAt)}
                   </p>
-                  <p className="mt-1 inline-flex items-center gap-3 text-xs text-gray-600">
-                    <span className="inline-flex items-center gap-1"><Heart size={12} /> {l.likes}</span>
+                  <p className="ds-small mt-1 inline-flex items-center gap-3">
+                    <span className="inline-flex items-center gap-1">
+                      <Heart size={12} /> {l.likes}
+                    </span>
                     <span>added {l.adds}×</span>
                   </p>
-                  <p className={`mt-2 whitespace-pre-line text-sm text-gray-700 ${expanded ? "" : "line-clamp-2"}`}>{l.description}</p>
+                  <p className={`mt-2 whitespace-pre-line text-[14px] text-[color:var(--ds-ink)] ${expanded ? "" : "line-clamp-2"}`}>{l.description}</p>
                   {l.description.length > 160 && (
-                    <button type="button" onClick={() => setOpen((s) => { const n = new Set(s); if (n.has(l.id)) n.delete(l.id); else n.add(l.id); return n; })} className="mt-1 text-xs font-medium text-gray-500 hover:text-gray-900">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpen((s) => {
+                          const n = new Set(s);
+                          if (n.has(l.id)) n.delete(l.id);
+                          else n.add(l.id);
+                          return n;
+                        })
+                      }
+                      className="ds-link mt-1 text-[13px]"
+                    >
                       {expanded ? "Less" : "More"}
                     </button>
                   )}
-                  {l.status === "REMOVED" && l.removedReason && <p className="mt-2 rounded-md bg-red-50 px-2.5 py-1.5 text-xs text-red-700">Reason given: {l.removedReason}</p>}
+                  {l.status === "REMOVED" && l.removedReason && <p className="mt-2 rounded-lg bg-[color:var(--ds-bad-soft)] px-2.5 py-1.5 text-[13px] text-[color:var(--ds-bad)]">Reason given: {l.removedReason}</p>}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   {l.status === "REMOVED" ? (
-                    <button type="button" disabled={busy === l.id} onClick={() => void patch(l.id, { action: "restore" })} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50">
-                      {busy === l.id ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />} Restore
-                    </button>
+                    <Button variant="outline" size="sm" icon={busy === l.id ? Loader2 : RotateCcw} disabled={busy === l.id} onClick={() => void patch(l.id, { action: "restore" })} className={busy === l.id ? "[&>svg]:animate-spin" : ""}>
+                      Restore
+                    </Button>
                   ) : (
-                    <button type="button" disabled={busy === l.id} onClick={() => remove(l)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-200 px-3 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50">
-                      {busy === l.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />} Remove
-                    </button>
+                    <Button variant="outline" size="sm" icon={busy === l.id ? Loader2 : Trash2} disabled={busy === l.id} onClick={() => remove(l)} className={`!text-[color:var(--ds-bad)] ${busy === l.id ? "[&>svg]:animate-spin" : ""}`}>
+                      Remove
+                    </Button>
                   )}
                 </div>
               </div>
-            </div>
+            </Card>
           );
         })}
       </div>
-    </div>
+    </DsPage>
   );
 }

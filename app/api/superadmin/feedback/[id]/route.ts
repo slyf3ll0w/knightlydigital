@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSuperadmin } from "@/lib/superadmin";
+import { logConsoleAction } from "@/lib/console-audit";
 import { ROADMAP_CATEGORIES } from "@/lib/roadmap";
 
 /**
@@ -24,8 +25,13 @@ export async function PATCH(
       ? body.response.trim().slice(0, 2000)
       : null;
 
-  const ticket = await prisma.feedbackTicket.findUnique({ where: { id } });
+  const ticket = await prisma.feedbackTicket.findUnique({
+    where: { id },
+    include: { company: { select: { id: true, name: true } } },
+  });
   if (!ticket) return NextResponse.json({ error: "Ticket not found." }, { status: 404 });
+  const audit = (kind: string) =>
+    logConsoleAction(admin, `feedback-${kind}`, { company: ticket.company, detail: ticket.title });
 
   if (action === "approve") {
     const title = typeof body.title === "string" ? body.title.trim().slice(0, 200) : "";
@@ -48,6 +54,7 @@ export async function PATCH(
       where: { id },
       data: { status: "PLANNED", roadmapItemId: item.id, ...(response ? { response } : {}) },
     });
+    audit("approve");
     return NextResponse.json({ ticket: updated, roadmapItem: item });
   }
 
@@ -59,6 +66,7 @@ export async function PATCH(
         ...(response ? { response } : {}),
       },
     });
+    audit(action);
     return NextResponse.json({ ticket: updated });
   }
 
@@ -68,6 +76,7 @@ export async function PATCH(
       where: { id },
       data: { response },
     });
+    audit("reply");
     return NextResponse.json({ ticket: updated });
   }
 
@@ -78,6 +87,7 @@ export async function PATCH(
       where: { id },
       data: { status: "OPEN" },
     });
+    audit("reopen");
     return NextResponse.json({ ticket: updated });
   }
 
@@ -93,6 +103,9 @@ export async function DELETE(
   if (!admin) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  await prisma.feedbackTicket.delete({ where: { id } }).catch(() => null);
+  const ticket = await prisma.feedbackTicket
+    .delete({ where: { id }, include: { company: { select: { id: true, name: true } } } })
+    .catch(() => null);
+  if (ticket) logConsoleAction(admin, "feedback-delete", { company: ticket.company, detail: ticket.title });
   return NextResponse.json({ success: true });
 }

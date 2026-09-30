@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button, Card, InfoTip } from "@/components/ds";
+import { Input } from "@/components/Input";
 
 /**
  * Superadmin account controls: reversible suspension, and permanent deletion
@@ -59,68 +61,76 @@ export function AccountActions({
   }
 
   return (
-    <div className="rounded-2xl border border-red-200 bg-white p-4 shadow-sm">
-      <h2 className="text-sm font-bold text-red-700">Danger zone</h2>
+    <Card className="p-5" style={{ boxShadow: "0 0 0 1px var(--ds-bad-soft), var(--ds-shadow-1)" }}>
+      <div className="flex items-center gap-1.5">
+        <h2 className="ds-h2" style={{ color: "var(--ds-bad)" }}>
+          Suspend or delete
+        </h2>
+        <InfoTip>
+          Suspending locks the whole team out immediately; public booking, the lead webhook, online payments and
+          automated reminders stop. All data stays intact and it is reversible here at any time. Deleting is
+          permanent and removes every record under the account — if the business simply misbehaved, suspend
+          instead.
+        </InfoTip>
+      </div>
 
       {suspended && (
-        <p className="mt-2 text-sm text-red-700">
+        <p className="mt-3 text-sm text-[color:var(--ds-bad)]">
           Suspended since {new Date(suspendedAt as string).toLocaleDateString("en-US")}
-          {suspendedReason ? ` — ${suspendedReason}` : ""}. The owner must contact support to be
-          reinstated.
+          {suspendedReason ? ` — ${suspendedReason}` : ""}. The owner must contact support to be reinstated.
         </p>
       )}
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-4 flex flex-wrap gap-2">
         {suspended ? (
-          <button
+          <Button
+            size="sm"
             disabled={busy}
             onClick={async () => {
               if (await call("PATCH", { action: "reinstate" })) router.refresh();
             }}
-            className="wb-btn-tool rounded-lg bg-[#0B57D8] px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50"
           >
             Reinstate account
-          </button>
+          </Button>
         ) : (
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             disabled={busy}
             onClick={() => {
               setShowSuspend((v) => !v);
               setShowDelete(false);
               setError(null);
             }}
-            className="rounded-lg border border-amber-400 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-800"
+            className="!text-[color:var(--ds-warn)]"
           >
             Suspend account…
-          </button>
+          </Button>
         )}
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           disabled={busy}
           onClick={() => {
             setShowDelete((v) => !v);
             setShowSuspend(false);
             setError(null);
           }}
-          className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-semibold text-red-700"
+          className="!text-[color:var(--ds-bad)]"
         >
           Delete account…
-        </button>
+        </Button>
       </div>
 
       {showSuspend && !suspended && (
-        <div className="mt-3 space-y-2 rounded border border-amber-200 bg-amber-50/60 p-3">
-          <p className="text-xs text-amber-900">
-            The whole team is locked out immediately; public booking, the lead webhook, online
-            payments, and automated reminders stop. All data stays intact. Reversible here at any
-            time.
+        <div className="mt-4 space-y-3 rounded-xl bg-[color:var(--ds-warn-soft)] p-4">
+          <p className="text-sm text-[color:var(--ds-ink)]">
+            The whole team is locked out immediately; public booking, the lead webhook, online payments, and
+            automated reminders stop. All data stays intact. Reversible here at any time.
           </p>
-          <input
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Internal reason (optional, shown only here)"
-            className="w-full rounded border border-amber-300 bg-white px-2 py-1.5 text-sm"
-          />
-          <button
+          <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Internal reason (optional, shown only here)" className="w-full" />
+          <Button
+            size="sm"
             disabled={busy}
             onClick={async () => {
               if (await call("PATCH", { action: "suspend", reason })) {
@@ -128,73 +138,51 @@ export function AccountActions({
                 router.refresh();
               }
             }}
-            className="rounded bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+            className="!bg-[color:var(--ds-warn)]"
           >
             {busy ? "Suspending…" : `Suspend ${name}`}
-          </button>
+          </Button>
         </div>
       )}
 
       {showDelete && (
-        <div className="mt-3 space-y-2 rounded border border-red-200 bg-red-50/60 p-3">
-          <p className="text-xs font-medium text-red-900">
-            Permanently deletes {name} and every record under it — {footprint.users} users,{" "}
-            {footprint.contacts} contacts, {footprint.jobs} jobs, {footprint.invoices} invoices,{" "}
-            {footprint.payments} payments. There is no recovery. If the business simply misbehaved,
-            suspend instead.
+        <div className="mt-4 space-y-3 rounded-xl bg-[color:var(--ds-bad-soft)] p-4">
+          <p className="text-sm font-medium text-[color:var(--ds-ink)]">
+            Permanently deletes {name} and every record under it — {footprint.users} users, {footprint.contacts}{" "}
+            contacts, {footprint.jobs} jobs, {footprint.invoices} invoices, {footprint.payments} payments. There is no
+            recovery.
           </p>
-          <label className="block text-xs text-red-900">
-            Type the company slug <code className="rounded bg-red-100 px-1">{slug}</code> to
-            confirm:
-            <input
-              value={confirmSlug}
-              onChange={(e) => setConfirmSlug(e.target.value)}
-              className="mt-1 w-full rounded border border-red-300 bg-white px-2 py-1.5 text-sm"
-              autoComplete="off"
-            />
+          <label className="block text-sm text-[color:var(--ds-ink)]">
+            Type the company slug <code className="ds-num rounded bg-[color:var(--ds-surface)] px-1">{slug}</code> to confirm:
+            <Input value={confirmSlug} onChange={(e) => setConfirmSlug(e.target.value)} className="mt-1 w-full" autoComplete="off" />
           </label>
-          <label className="block text-xs text-red-900">
+          <label className="block text-sm text-[color:var(--ds-ink)]">
             Your superadmin password:
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full rounded border border-red-300 bg-white px-2 py-1.5 text-sm"
-              autoComplete="current-password"
-            />
+            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1 w-full" autoComplete="current-password" />
           </label>
           {footprint.large && (
-            <label className="block text-xs font-semibold text-red-900">
-              This company has real data. Type <code className="rounded bg-red-100 px-1">PERMANENTLY DELETE</code>:
-              <input
-                value={phrase}
-                onChange={(e) => setPhrase(e.target.value)}
-                className="mt-1 w-full rounded border border-red-400 bg-white px-2 py-1.5 text-sm"
-                autoComplete="off"
-              />
+            <label className="block text-sm font-semibold text-[color:var(--ds-ink)]">
+              This company has real data. Type <code className="ds-num rounded bg-[color:var(--ds-surface)] px-1">PERMANENTLY DELETE</code>:
+              <Input value={phrase} onChange={(e) => setPhrase(e.target.value)} className="mt-1 w-full" autoComplete="off" />
             </label>
           )}
-          <button
-            disabled={
-              busy ||
-              confirmSlug !== slug ||
-              !password ||
-              (footprint.large && phrase !== "PERMANENTLY DELETE")
-            }
+          <Button
+            size="sm"
+            disabled={busy || confirmSlug !== slug || !password || (footprint.large && phrase !== "PERMANENTLY DELETE")}
             onClick={async () => {
               if (await call("DELETE", { confirmSlug, password, phrase })) {
                 router.push("/superadmin");
                 router.refresh();
               }
             }}
-            className="rounded bg-red-700 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
+            className="!bg-[color:var(--ds-bad)]"
           >
             {busy ? "Deleting…" : "Permanently delete this account"}
-          </button>
+          </Button>
         </div>
       )}
 
-      {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
-    </div>
+      {error && <p className="mt-2 text-sm text-[color:var(--ds-bad)]">{error}</p>}
+    </Card>
   );
 }
