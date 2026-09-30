@@ -268,6 +268,8 @@ export default async function JobDetailPage({
       {/* Phone quick actions — call / text / directions, one tap from the job */}
       <JobActionRow
         phone={job.contact.phone}
+        contactId={job.contact.id}
+        name={`${job.contact.firstName} ${job.contact.lastName}`.trim()}
         address={job.address ?? job.contact.address}
       />
 
@@ -719,7 +721,7 @@ export default async function JobDetailPage({
             })()}
             {job.contact.phone && (
               <div className="flex gap-2 mt-3">
-                <CallTextButtons phone={job.contact.phone} compact />
+                <CallTextButtons phone={job.contact.phone} contactId={job.contact.id} name={`${job.contact.firstName} ${job.contact.lastName}`.trim()} compact />
               </div>
             )}
           </div>

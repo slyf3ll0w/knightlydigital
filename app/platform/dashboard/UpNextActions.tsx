@@ -15,6 +15,7 @@ import {
 import { smsHref, telHref, isApplePlatform, canSendSms, fillEta } from "@/lib/messaging";
 import { sendOrQueue } from "@/lib/outbox";
 import { hapticImpact } from "@/lib/haptics";
+import { callFromLine, useLineCalling } from "@/lib/line-calling";
 import { formatDuration } from "@/lib/time-entries";
 
 type ClockEntry = { id: string; startedAt: string };
@@ -54,6 +55,8 @@ export default function UpNextActions({
   apptType: string | null;
 }) {
   const router = useRouter();
+  // "Call" dials from the business line when the company has one (lib/line-calling.ts).
+  const lineCalling = useLineCalling();
   const [entry, setEntry] = useState<ClockEntry | null>(clockEntry);
   const [busy, setBusy] = useState<"omw" | "clock" | null>(null);
   const [omwSent, setOmwSent] = useState(Boolean(omwSentAt));
@@ -168,7 +171,9 @@ export default function UpNextActions({
   let actions: Action[] = [];
   if (kind === "appointment") {
     actions = [
-      ...(phone ? [{ key: "call", label: "Call", icon: Phone, href: telHref(phone) }] : []),
+      ...(phone
+        ? [lineCalling ? { key: "call", label: "Call", icon: Phone, onClick: () => void callFromLine({ to: phone }) } : { key: "call", label: "Call", icon: Phone, href: telHref(phone) }]
+        : []),
       ...(phone && smsOk
         ? [{ key: "text", label: "Text", icon: MessageSquare, href: smsHref(phone) }]
         : []),

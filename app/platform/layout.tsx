@@ -19,6 +19,7 @@ import ForegroundRefresh from "@/components/ForegroundRefresh";
 import TeamLocationReporter from "@/components/TeamLocationReporter";
 import ArrivalNudge from "@/components/ArrivalNudge";
 import Softphone from "@/components/Softphone";
+import LineCalling from "@/components/LineCalling";
 import { resolveWallpaper } from "@/lib/wallpapers";
 
 export const metadata: Metadata = {
@@ -157,6 +158,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <TeamLocationReporter />
       <ArrivalNudge />
       {(softphone || ringsForSibling) && <Softphone />}
+      {/* Every Call button dials from the line under the same conditions (components/CallLink.tsx). */}
+      <LineCalling enabled={softphone} />
       <AppShell
         userName={user?.name ?? session.user.name}
         userEmail={session.user.email}

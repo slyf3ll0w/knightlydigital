@@ -11,7 +11,7 @@ import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import ContactStatus from "@/components/ContactStatus";
 import CallTextButtons from "@/components/CallTextButtons";
-import CallFromLineButton from "@/components/CallFromLineButton";
+import CallLink from "@/components/CallLink";
 import CallRow from "@/components/CallRow";
 import JobActionRow from "@/components/JobActionRow";
 import ContactCreateMenu from "./ContactCreateMenu";
@@ -244,10 +244,9 @@ export default async function ContactDetailPage({
   const hasLine = Boolean(lineNumber && !lineNumber.startsWith("pending:"));
   const lineRegistered = contact.company.messagingRegistration?.status === "ACTIVE";
   const textsReady = Boolean(contact.company.smsAcknowledgedAt) && hasLine && lineRegistered;
-  // Calls from the business number (lib/voice.ts) need the line on the voice
-  // app and a cell to ring first: the user's own (My Profile) or the line's.
-  const agentPhone = senderUser?.phone?.trim() || contact.company.lineForwardTo || "";
-  // In a browser the softphone needs no cell (components/Softphone.tsx); the button picks the flow itself.
+  // Calls from the business number (lib/voice.ts): every Call control on the
+  // page dials from the line once it is on the voice app (components/CallLink.tsx
+  // reads the layout's flag); this only decides whether the Recent-calls card shows.
   const canCallFromLine = Boolean(contact.company.lineVoiceAppAt && contact.phone);
   const textsSetupHint = !hasLine
     ? "Set up a business line in Settings → Phone & texting to start texting clients"
@@ -276,13 +275,15 @@ export default async function ContactDetailPage({
           )}
           <div className="flex flex-wrap items-center gap-3 mt-1">
             {contact.phone && (
-              <a
-                href={`tel:${contact.phone}`}
+              <CallLink
+                phone={contact.phone}
+                contactId={contact.id}
+                name={`${contact.firstName} ${contact.lastName}`.trim()}
                 className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
               >
                 <Phone size={13} />
                 {fmtPhone(contact.phone)}
-              </a>
+              </CallLink>
             )}
             {contact.phone && (
               <span
@@ -356,14 +357,7 @@ export default async function ContactDetailPage({
           </Link>
           {contact.phone && (
             <div className="hidden lg:flex items-center gap-2">
-              <CallTextButtons phone={contact.phone} />
-              {canCallFromLine && (
-                <CallFromLineButton
-                  contactId={contact.id}
-                  contactName={`${contact.firstName} ${contact.lastName}`.trim()}
-                  agentPhone={fmtPhone(agentPhone)}
-                />
-              )}
+              <CallTextButtons phone={contact.phone} contactId={contact.id} name={`${contact.firstName} ${contact.lastName}`.trim()} />
             </div>
           )}
           {contact.email && (
@@ -406,6 +400,8 @@ export default async function ContactDetailPage({
       <JobActionRow
         phone={contact.phone}
         messageHref={`/app/messages/thread/${contact.id}`}
+        contactId={contact.id}
+        name={`${contact.firstName} ${contact.lastName}`.trim()}
         address={
           [contact.address, contact.city, contact.state, contact.zip]
             .filter(Boolean)
@@ -687,22 +683,12 @@ export default async function ContactDetailPage({
                 )}
               </div>
               {recentCalls.length === 0 ? (
-                <p className="text-xs text-gray-500">No calls on your business line with this client yet.</p>
+                <p className="text-xs text-gray-500">No calls on your business line with this client yet — the Call button above dials from it.</p>
               ) : (
                 <div className="ds-card divide-y divide-gray-100 overflow-hidden">
                   {recentCalls.map((c) => (
                     <CallRow key={c.id} call={c} showContact={false} tz={contact.company.timezone} />
                   ))}
-                </div>
-              )}
-              {canCallFromLine && contact.phone && (
-                <div className="mt-3 lg:hidden">
-                  <CallFromLineButton
-                    contactId={contact.id}
-                    contactName={`${contact.firstName} ${contact.lastName}`.trim()}
-                    agentPhone={fmtPhone(agentPhone)}
-                    compact
-                  />
                 </div>
               )}
             </div>

@@ -24,6 +24,7 @@ import PageTitle from "@/components/PageTitle";
 import { FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { telHref } from "@/lib/messaging";
+import { callFromLine, useLineCalling } from "@/lib/line-calling";
 import Modal from "@/components/Modal";
 import SwipeRow, { type SwipeRowAction } from "@/components/SwipeRow";
 import { Chip, InfoTip } from "@/components/ds";
@@ -140,6 +141,8 @@ export default function ScheduleClient({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  // Agenda swipe "Call" dials from the business line when the company has one (lib/line-calling.ts).
+  const lineCalling = useLineCalling();
   const [items, setItems] = useState<ScheduleJobDTO[]>(jobs);
   useEffect(() => setItems(jobs), [jobs]);
 
@@ -1031,7 +1034,13 @@ export default function ScheduleClient({
     const swipeActions: SwipeRowAction[] = isBlock
       ? []
       : [
-          ...(it.phone ? [{ key: "call", label: "Call", icon: PhoneIcon, href: telHref(it.phone), bg: "var(--ds-good)" }] : []),
+          ...(it.phone
+            ? [
+                lineCalling
+                  ? { key: "call", label: "Call", icon: PhoneIcon, onClick: () => void callFromLine({ contactId: it.contactId ?? null, to: it.phone, label: it.contactName }), bg: "var(--ds-good)" }
+                  : { key: "call", label: "Call", icon: PhoneIcon, href: telHref(it.phone), bg: "var(--ds-good)" },
+              ]
+            : []),
           ...(it.address
             ? [
                 {

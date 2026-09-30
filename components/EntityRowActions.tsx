@@ -6,6 +6,7 @@ import { Archive, ArchiveRestore, CheckCircle2, Copy, ExternalLink, FileText, Gl
 import RowActions, { type QuickAction } from "@/components/QuickMenu";
 import { alertSheet, confirmSheet } from "@/components/ConfirmSheet";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { callFromLine, useLineCalling } from "@/lib/line-calling";
 
 /**
  * The quick-action menus for list rows, one per entity — the same verbs
@@ -38,6 +39,8 @@ function fail(data: { error?: string } | null) {
 export function useEntityActions(meta: RowMeta, opts: { onRun?: (id: string) => void } = {}): QuickAction[] {
   const router = useRouter();
   const refresh = () => router.refresh();
+  // "Call" dials from the business line when the company has one (lib/line-calling.ts).
+  const lineCalling = useLineCalling();
 
   return useMemo(() => {
     const out: QuickAction[] = [];
@@ -96,7 +99,14 @@ export function useEntityActions(meta: RowMeta, opts: { onRun?: (id: string) => 
         const base = `/api/app/contacts/${meta.id}`;
         out.push({ key: "open", label: "Open", icon: ExternalLink, href: `/app/contacts/${meta.id}` });
         out.push({ key: "edit", label: "Edit client", icon: Pencil, href: `/app/contacts/${meta.id}/edit` });
-        if (meta.phone) out.push({ key: "call", label: "Call", icon: Phone, hint: meta.phone, href: `tel:${meta.phone.replace(/[^\d+]/g, "")}` });
+        if (meta.phone) {
+          const phone = meta.phone;
+          out.push(
+            lineCalling
+              ? { key: "call", label: "Call", icon: Phone, hint: phone, onSelect: () => callFromLine({ contactId: meta.id, to: phone, label: meta.name }) }
+              : { key: "call", label: "Call", icon: Phone, hint: phone, href: `tel:${phone.replace(/[^\d+]/g, "")}` }
+          );
+        }
         out.push({ key: "quote", label: "New quote", icon: FileText, href: `/app/quotes/new?contactId=${meta.id}` });
         out.push({ key: "job", label: "New job", icon: Briefcase, href: `/app/jobs/new?contactId=${meta.id}` });
         if (meta.status === "ARCHIVED") out.push({ key: "reactivate", label: "Reactivate", icon: ArchiveRestore, onSelect: () => void call(base, { status: "ACTIVE" }, "PATCH") });
@@ -279,7 +289,7 @@ export function useEntityActions(meta: RowMeta, opts: { onRun?: (id: string) => 
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(meta), opts.onRun]);
+  }, [JSON.stringify(meta), opts.onRun, lineCalling]);
 }
 
 export default function EntityRowActions({ meta, children, className, onRun }: { meta: RowMeta; children: ReactNode; className?: string; onRun?: (id: string) => void }) {

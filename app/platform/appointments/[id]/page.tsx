@@ -13,6 +13,7 @@ import { Chip } from "@/components/ds";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import JobActionRow from "@/components/JobActionRow";
+import CallLink from "@/components/CallLink";
 import AppointmentActions from "./AppointmentActions";
 
 const typeIcons = { PHONE_CALL: Phone, VIDEO_CALL: Video, IN_PERSON: MapPin } as const;
@@ -135,6 +136,8 @@ export default async function AppointmentDetailPage({
           there's somewhere to drive to) */}
       <JobActionRow
         phone={appt.contact.phone}
+        contactId={appt.contact.id}
+        name={`${appt.contact.firstName} ${appt.contact.lastName}`.trim()}
         address={appt.type === "IN_PERSON" ? (appt.address ?? appt.contact.address) : null}
       />
 
@@ -165,9 +168,14 @@ export default async function AppointmentDetailPage({
         {appt.type === "PHONE_CALL" && appt.contact.phone && (
           <div className="flex items-start gap-3">
             <Phone size={15} className="text-gray-400 mt-0.5 shrink-0" />
-            <a href={`tel:${appt.contact.phone}`} className="text-sm text-[color:var(--ds-primary)] hover:underline">
+            <CallLink
+              phone={appt.contact.phone}
+              contactId={appt.contact.id}
+              name={`${appt.contact.firstName} ${appt.contact.lastName}`.trim()}
+              className="text-sm text-[color:var(--ds-primary)] hover:underline"
+            >
               {fmtPhone(appt.contact.phone)}
-            </a>
+            </CallLink>
           </div>
         )}
         {appt.contact.email && (

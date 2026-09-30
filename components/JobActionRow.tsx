@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Phone, MessageSquare, MessageCircle, Navigation } from "lucide-react";
-import { telHref, smsHref, canSendSms } from "@/lib/messaging";
+import { smsHref, canSendSms } from "@/lib/messaging";
+import CallLink from "@/components/CallLink";
 
 /**
  * Phone-only quick actions under a job/appointment header — the three things
@@ -16,14 +17,19 @@ import { telHref, smsHref, canSendSms } from "@/lib/messaging";
  * own Messages app from the tech's personal number.
  *
  * Accent-tinted tiles (green utilities bridge to the tenant color).
- * Renders nothing when there's neither a phone nor an address.
+ * Renders nothing when there's neither a phone nor an address. Call is
+ * components/CallLink.tsx — the business line when the company has one.
  */
 export default function JobActionRow({
   phone,
+  contactId,
+  name,
   address,
   messageHref,
 }: {
   phone?: string | null;
+  contactId?: string | null;
+  name?: string;
   address?: string | null;
   messageHref?: string | null;
 }) {
@@ -34,9 +40,7 @@ export default function JobActionRow({
     ...(messageHref
       ? [{ href: messageHref, icon: MessageCircle, label: "Message" }]
       : []),
-    ...(phone
-      ? [{ href: telHref(phone), icon: Phone, label: "Call" }]
-      : []),
+    ...(phone ? [{ call: true as const, icon: Phone, label: "Call" }] : []),
     ...(phone && smsOk
       ? [{ href: smsHref(phone), icon: MessageSquare, label: "Text" }]
       : []),
@@ -58,21 +62,36 @@ export default function JobActionRow({
     // accent-soft targets with the label underneath, like the phone's own
     // contact card. The green utilities bridge to the tenant accent.
     <div className="mb-5 flex justify-around lg:hidden">
-      {actions.map(({ href, icon: Icon, label, ...rest }) => (
-        <a
-          key={label}
-          href={href}
-          {...("external" in rest && rest.external
-            ? { target: "_blank", rel: "noopener noreferrer" }
-            : {})}
-          className="flex flex-col items-center gap-1.5 text-[12px] font-semibold text-green-700 active:opacity-70"
-        >
-          <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-green-100 transition-transform active:scale-95">
-            <Icon size={22} strokeWidth={2.1} />
-          </span>
-          {label}
-        </a>
-      ))}
+      {actions.map(({ icon: Icon, label, ...rest }) => {
+        const cls = "flex flex-col items-center gap-1.5 text-[12px] font-semibold text-green-700 active:opacity-70 disabled:opacity-60";
+        const face = (
+          <>
+            <span className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-green-100 transition-transform active:scale-95">
+              <Icon size={22} strokeWidth={2.1} />
+            </span>
+            {label}
+          </>
+        );
+        if ("call" in rest) {
+          return (
+            <CallLink key={label} phone={phone!} contactId={contactId} name={name} className={cls}>
+              {face}
+            </CallLink>
+          );
+        }
+        return (
+          <a
+            key={label}
+            href={rest.href}
+            {...("external" in rest && rest.external
+              ? { target: "_blank", rel: "noopener noreferrer" }
+              : {})}
+            className={cls}
+          >
+            {face}
+          </a>
+        );
+      })}
     </div>
   );
 }

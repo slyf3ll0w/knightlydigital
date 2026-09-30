@@ -21,6 +21,8 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { QuickMenu, type QuickAction } from "@/components/QuickMenu";
+import CallLink from "@/components/CallLink";
+import { callFromLine, useLineCalling } from "@/lib/line-calling";
 import Modal from "@/components/Modal";
 import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -111,6 +113,8 @@ export default function LeadsBoardClient({
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
+  // "Call" dials from the business line when the company has one (lib/line-calling.ts).
+  const lineCalling = useLineCalling();
 
   // Optimistic copy — resets whenever the server sends fresh cards
   const [board, setBoard] = useState<BoardCard[]>(cards);
@@ -628,7 +632,14 @@ export default function LeadsBoardClient({
               { key: "open", label: "Open profile", icon: ExternalLink, href: `/app/contacts/${c.id}` },
               { key: "edit", label: "Edit", icon: Pencil, href: `/app/contacts/${c.id}/edit` },
             ];
-            if (c.phone) out.push({ key: "call", label: "Call", icon: Phone, hint: c.phone, href: `tel:${c.phone.replace(/[^\d+]/g, "")}` });
+            if (c.phone) {
+              const phone = c.phone;
+              out.push(
+                lineCalling
+                  ? { key: "call", label: "Call", icon: Phone, hint: phone, onSelect: () => callFromLine({ contactId: c.id, to: phone, label: c.name }) }
+                  : { key: "call", label: "Call", icon: Phone, hint: phone, href: `tel:${phone.replace(/[^\d+]/g, "")}` }
+              );
+            }
             out.push({ key: "quote", label: "New quote", icon: FileText, href: `/app/quotes/new?contactId=${c.id}${c.openRequestId ? `&requestId=${c.openRequestId}` : ""}` });
             const others = stages.filter((s) => !s.isConverted && s.id !== c.stageId);
             if (others.length > 0) out.push({ key: "h-move", label: "Move to", heading: true });
@@ -874,13 +885,15 @@ function ActionSheet({
             Open profile
           </Link>
           {card.phone ? (
-            <a
-              href={`tel:${card.phone.replace(/[^\d+]/g, "")}`}
+            <CallLink
+              phone={card.phone}
+              contactId={card.id}
+              name={card.name}
               className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-800"
             >
               <Phone size={15} />
               Call
-            </a>
+            </CallLink>
           ) : (
             <Link
               href={`/app/quotes/new?contactId=${card.id}${card.openRequestId ? `&requestId=${card.openRequestId}` : ""}`}

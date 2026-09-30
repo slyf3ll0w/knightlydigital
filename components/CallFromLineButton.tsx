@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { PhoneOutgoing, Loader2, Check, Headphones } from "lucide-react";
-import { getSoftphoneState, softphone, softphoneElsewhere, softphoneIdle, softphoneRecoverable, useSoftphone, waitForSoftphone } from "@/lib/softphone-client";
+import { softphoneElsewhere, softphoneIdle, softphoneRecoverable, useSoftphone } from "@/lib/softphone-client";
+import { lineCallTitle, placeLineCall } from "@/lib/line-calling";
 
 /**
  * "Call from line" — place a call from the company's business number
@@ -17,8 +18,10 @@ import { getSoftphoneState, softphone, softphoneElsewhere, softphoneIdle, softph
  *                     button's whole job is to say "pick up your phone".
  *
  * Target is a contact (`contactId`) or a raw number (`to`, e.g. "Call back"
- * on a Calls row from an unknown caller). The plain tel: Call button next to
- * it still dials from the personal cell for free.
+ * on a Calls row from an unknown caller). The placing itself is
+ * lib/line-calling.ts placeLineCall, shared with every plain Call control
+ * (components/CallLink.tsx); this button is the shape with room to show the
+ * ringing state inline.
  */
 export default function CallFromLineButton({
   contactId,
@@ -61,35 +64,8 @@ export default function CallFromLineButton({
     setState("busy");
     setError("");
     try {
-      let viaApp = inApp;
-      if (!viaApp && (softphoneRecoverable(sp) || softphoneElsewhere(sp))) {
-        // Registered a moment ago and lost it, or another tab holds the
-        // line: bring it here first (up to 8 s), so the call goes out from
-        // this browser rather than surprising the caller with their cell.
-        if (softphoneElsewhere(sp)) softphone.takeOver();
-        else softphone.reconnect();
-        viaApp = (await waitForSoftphone(8_000)) && softphoneIdle(getSoftphoneState());
-        if (!viaApp && softphoneElsewhere(getSoftphoneState())) {
-          throw new Error("Your other WorkBench tab kept the line — it may be on a call. Call from that tab, or close it and try again.");
-        }
-      }
-      if (!viaApp) {
-        const st = getSoftphoneState();
-        console.info(`[softphone] call button: placing the call via the cell (softphone ${st.status}${st.reason ? ` ${st.reason}` : ""})`);
-      }
-      if (viaApp) {
-        await softphone.placeCall({ ...target, label: contactName });
-        setState("idle");
-        return;
-      }
-      const res = await fetch("/api/app/line/call", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(target),
-      });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) throw new Error(data.error || "Couldn't place the call.");
-      setState("ringing");
+      const out = await placeLineCall({ ...target, label: contactName });
+      setState(out.via === "app" ? "idle" : "ringing");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't place the call.");
       setState("error");
@@ -115,17 +91,7 @@ export default function CallFromLineButton({
         onClick={call}
         disabled={disabled}
         className={cls}
-        title={
-          inApp
-            ? `Call ${contactName} from this browser. They see your business number.`
-            : softphoneElsewhere(sp)
-              ? `Your line is in another WorkBench tab — it's brought here first, then ${contactName} is called from this browser.`
-              : reconnecting
-                ? `The browser is reconnecting to your line — it tries that first, then rings ${agentPhone || "your cell"}.`
-              : agentPhone
-              ? `Ring ${agentPhone} first, then connect ${contactName}. They see your business number.`
-              : `Ring your cell first, then connect ${contactName}. They see your business number.`
-        }
+        title={lineCallTitle(sp, contactName, agentPhone)}
       >
         {state === "busy" ? (
           <Loader2 size={size} className="animate-spin" />

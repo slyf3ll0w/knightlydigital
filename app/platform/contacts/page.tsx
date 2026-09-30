@@ -12,6 +12,7 @@ import ContactStatus from "@/components/ContactStatus";
 import EmptyState from "@/components/EmptyState";
 import { requirePageActor, canSell, contactScope, seesAllLeads, isManager } from "@/lib/permissions";
 import EntityRowActions from "@/components/EntityRowActions";
+import CallLink from "@/components/CallLink";
 import { contactSearchWhere } from "@/lib/contact-search";
 import Monogram from "@/components/Monogram";
 
@@ -240,14 +241,16 @@ export default async function ContactsPage({
                 </Link>
                 {/* Call from the card, like a lead card — a sibling of the link, since a link can't nest one. */}
                 {c.phone && (
-                  <a
-                    href={`tel:${c.phone.replace(/[^\d+]/g, "")}`}
+                  <CallLink
+                    phone={c.phone}
+                    contactId={c.id}
+                    name={`${c.firstName} ${c.lastName}`.trim()}
                     aria-label={`Call ${c.firstName} ${c.lastName}`}
                     title="Call"
                     className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300 lg:right-4"
                   >
                     <Phone size={15} />
-                  </a>
+                  </CallLink>
                 )}
                 </EntityRowActions>
               ))}

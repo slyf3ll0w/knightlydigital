@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Mail, Phone, MapPin } from "lucide-react";
 import { shortDate, money } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
+import CallLink from "@/components/CallLink";
 import { Chip } from "@/components/ds";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
@@ -227,9 +228,9 @@ export default async function RequestDetailPage({
               {c.phone && (
                 <p className="flex items-center gap-2">
                   <Phone size={14} className="text-gray-400" />
-                  <a href={`tel:${c.phone}`} className="hover:underline">
+                  <CallLink phone={c.phone} contactId={c.id} name={`${c.firstName} ${c.lastName}`.trim()} className="hover:underline">
                     {c.phone}
-                  </a>
+                  </CallLink>
                 </p>
               )}
               {c.email && (

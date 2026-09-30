@@ -379,6 +379,8 @@ export default async function DashboardPage() {
       sort: job.scheduledAnytime ? 0 : new Date(job.scheduledAt!).getTime(),
       // Swipe actions on the timeline rows
       phone: job.contact.phone,
+      contactId: job.contact.id,
+      contactName: `${job.contact.firstName} ${job.contact.lastName}`.trim(),
       address: job.address ?? job.contact.address,
     })),
     ...todayAppointments.map((a) => ({
@@ -400,6 +402,8 @@ export default async function DashboardPage() {
       value: 0,
       sort: a.scheduledAnytime ? 0 : new Date(a.scheduledAt).getTime(),
       phone: a.contact.phone,
+      contactId: a.contact.id,
+      contactName: `${a.contact.firstName} ${a.contact.lastName}`.trim(),
       // Where the meeting IS — the appointment's own address first (a job
       // site, a coffee shop), the client's home only as the fallback
       address: a.type === "IN_PERSON" ? (a.address ?? a.contact.address) : null,
@@ -553,7 +557,7 @@ export default async function DashboardPage() {
       </div>
     );
     return phone ? (
-      <SwipeRowContact key={item.id} phone={item.phone}>
+      <SwipeRowContact key={item.id} phone={item.phone} contactId={item.contactId} name={item.contactName}>
         {row}
       </SwipeRowContact>
     ) : (

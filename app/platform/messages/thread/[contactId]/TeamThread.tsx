@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Phone, RotateCcw, SendHorizonal } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import Monogram from "@/components/Monogram";
+import CallLink from "@/components/CallLink";
 import { hapticImpact } from "@/lib/haptics";
 import { useMeasuredHeight } from "@/lib/use-measured-height";
 
@@ -67,10 +68,6 @@ function dayLabel(iso: string, tz: string): string {
 
 function timeLabel(iso: string, tz: string): string {
   return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz });
-}
-
-function telHref(phone: string): string {
-  return `tel:${phone.replace(/[^+\d]/g, "")}`;
 }
 
 /** Render message text with URLs as links. */
@@ -400,13 +397,15 @@ export default function TeamThread({
             </p>
           </div>
           {phone && (
-            <a
-              href={telHref(phone)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[color:var(--ds-primary)] transition-colors hover:bg-[color:var(--ds-primary-soft)] active:bg-[color:var(--ds-primary-soft)]"
+            <CallLink
+              phone={phone}
+              contactId={contactId}
+              name={contactName}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[color:var(--ds-primary)] transition-colors hover:bg-[color:var(--ds-primary-soft)] active:bg-[color:var(--ds-primary-soft)] disabled:opacity-60"
               aria-label={`Call ${contactName}`}
             >
               <Phone size={18} />
-            </a>
+            </CallLink>
           )}
         </div>
 

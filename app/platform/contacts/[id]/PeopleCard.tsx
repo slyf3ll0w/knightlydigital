@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Mail, Pencil, Phone, Plus, Trash2, User } from "lucide-react";
 import SectionHeader from "@/components/SectionHeader";
+import CallLink from "@/components/CallLink";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { postJson } from "@/lib/safe-fetch";
 
@@ -162,13 +163,14 @@ export default function PeopleCard({
                 {/* tel:/mailto: so a phone can just tap the row */}
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
                   {p.phone && (
-                    <a
-                      href={`tel:${p.phone.replace(/[^\d+]/g, "")}`}
+                    <CallLink
+                      phone={p.phone}
+                      name={fullName(p)}
                       className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-[color:var(--ds-primary-strong)]"
                     >
                       <Phone size={10} />
                       {fmtPhone(p.phone)}
-                    </a>
+                    </CallLink>
                   )}
                   {p.email && (
                     <a
