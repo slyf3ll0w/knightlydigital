@@ -45,7 +45,8 @@ test.describe("platform console", () => {
     page.on("pageerror", (e) => errors.push(e.message));
 
     await page.goto(`${state.baseUrl}/superadmin`);
-    await expect(page.getByRole("heading", { name: "Accounts", exact: true, level: 1 })).toBeVisible();
+    // The h1's accessible name also carries the (i) bubble's label.
+    await expect(page.getByRole("heading", { name: /^Accounts\b/, level: 1 })).toBeVisible();
     await expect(page.getByRole("heading", { name: /^Live accounts/, level: 2 })).toBeVisible();
     await expect(page.getByRole("heading", { name: /^Test accounts/, level: 2 })).toBeVisible();
 
