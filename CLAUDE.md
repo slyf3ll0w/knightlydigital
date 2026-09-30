@@ -203,6 +203,15 @@ there (`POST /api/app/activate/invite`). What a code does NOT grant is
 taking money online — `onlinePaymentsHeld` keeps that off until Finix
 approves them (`lib/payments-gate.ts`).
 
+**Payments onboarding is CLOSED by default (2026-09-30, first real users).**
+`PAYMENTS_ONBOARDING_OPEN` unset: no `/app/activate` gate at any door
+(`paymentsGateEnabled` false, so booking pages are public too), every
+company Finix hasn't APPROVED gets `onlinePaymentsHeld` — Settings shows
+Online Payments "Coming soon", POST refuses the Finix form — and client
+surfaces (pay page, deposit/invoice emails, hub) just offer no online
+payment, with no "coming soon" wording. Already-APPROVED companies are
+untouched. Set `PAYMENTS_ONBOARDING_OPEN=1` on Railway to restore the gate.
+
 ## Offline mode (phase 1 — read-only snapshot)
 
 Field techs can view previously loaded pages without a connection; writes are

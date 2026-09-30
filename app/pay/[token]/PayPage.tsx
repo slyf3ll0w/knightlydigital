@@ -232,7 +232,7 @@ export default function PayPage({
       setCharge(null);
       const data = res ? await res.json().catch(() => null) : null;
       // 503 = no money can move. The processor-not-enabled case (identified by
-      // the processorLive field) gets the "coming soon" copy with the
+      // the processorLive field) gets the "pay the business directly" copy with the
       // business's contact details; anything else — a paused account, say —
       // already sends copy that fits, so show that instead of overriding it.
       if (res && res.status === 503 && data && "processorLive" in data) {
@@ -240,7 +240,7 @@ export default function PayPage({
           .filter(Boolean)
           .join(" or ");
         setError(
-          `Online payments are coming soon. Please contact ${invoice.company.name}${contactBits ? ` at ${contactBits}` : ""} to arrange payment.`
+          `Online payment isn't available for this invoice. Please contact ${invoice.company.name}${contactBits ? ` at ${contactBits}` : ""} to arrange payment.`
         );
       } else {
         setError(data?.error ?? "Payment failed. Please try again.");
@@ -462,8 +462,7 @@ export default function PayPage({
             <div className="mt-8 border-t-2 border-gray-900 pt-5">
               <h2 className="text-sm font-semibold text-gray-700 mb-2">How to pay</h2>
               <p className="text-sm leading-relaxed text-gray-600">
-                {invoice.company.name} isn&apos;t taking online payments yet — please settle
-                this invoice with them directly.
+                Please pay {invoice.company.name} directly.
                 {(invoice.company.phone || invoice.company.email) && (
                   <>
                     {" "}

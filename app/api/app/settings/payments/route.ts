@@ -10,7 +10,7 @@ import {
   FinixError,
 } from "@/lib/finix";
 import { syncFromFinix } from "@/lib/finix-status";
-import { onlinePaymentsHeld } from "@/lib/payments-gate";
+import { onlinePaymentsHeld, paymentsOnboardingOpen } from "@/lib/payments-gate";
 
 /**
  * Online-payments setup (Finix merchant onboarding).
@@ -24,10 +24,9 @@ import { onlinePaymentsHeld } from "@/lib/payments-gate";
  *        There is deliberately NO in-app way to skip the form, and the E2E
  *        harness provisions its merchant server-side via e2e/provision.mts.
  *
- * Companies let in on an invite code (paymentsWaived) get { comingSoon: true }
- * from GET and a 403 from POST: online payments are held back for them until
- * a superadmin requires verification and Finix approves them
- * (lib/payments-gate.ts onlinePaymentsHeld).
+ * Companies Finix hasn't approved — every one while onboarding is closed,
+ * or one let in on an invite code (paymentsWaived) — get { comingSoon: true }
+ * from GET and a 403 from POST (lib/payments-gate.ts onlinePaymentsHeld).
  */
 
 export async function GET() {
@@ -37,15 +36,21 @@ export async function GET() {
 
   const processor = getProcessor();
   if (processor.name !== "finix" || !finixConfigured()) {
-    return NextResponse.json({ available: false });
+    // Onboarding closed: the card still says Coming soon rather than vanish.
+    return NextResponse.json(paymentsOnboardingOpen() ? { available: false } : { available: true, comingSoon: true });
   }
 
   const held = await prisma.company.findUnique({
     where: { id: actor.companyId },
-    select: { paymentsWaived: true, finixOnboardingState: true },
+    select: { paymentsWaived: true, finixOnboardingState: true, finixOnboardingFormId: true },
   });
   if (held && onlinePaymentsHeld(held)) {
-    return NextResponse.json({ available: true, comingSoon: true, environment: finixEnvironment() });
+    // A form already with the underwriter can still come back approved —
+    // look before saying Coming soon (the webhook is only the faster path).
+    const synced = held.finixOnboardingFormId ? await syncFromFinix(actor.companyId) : null;
+    if (synced?.state !== "APPROVED") {
+      return NextResponse.json({ available: true, comingSoon: true, environment: finixEnvironment() });
+    }
   }
 
   const status = await syncFromFinix(actor.companyId);

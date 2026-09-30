@@ -17,23 +17,36 @@ import { finixConfigured } from "@/lib/finix";
  */
 export type PaymentsGateStatus = "off" | "activate" | "pending" | "rejected" | "approved";
 
+/**
+ * Is Finix onboarding open to new companies? Closed by default (2026-09-30,
+ * the first real users): no underwriting gate at signup, and every company
+ * Finix hasn't already approved gets Online payments "Coming soon" — no
+ * Finix form, no pay button. Companies already APPROVED keep taking
+ * payments. `PAYMENTS_ONBOARDING_OPEN=1` restores the gate and the form.
+ */
+export function paymentsOnboardingOpen(): boolean {
+  return process.env.PAYMENTS_ONBOARDING_OPEN === "1";
+}
+
 export function paymentsGateEnabled(): boolean {
-  return getProcessor().name === "finix" && finixConfigured();
+  return paymentsOnboardingOpen() && getProcessor().name === "finix" && finixConfigured();
 }
 
 /**
- * "Online payments: coming soon." A company let in past underwriting (the
- * universal invite code, a minted invite, or a superadmin waiver) hasn't
- * been approved to move money, so every surface that offers card/bank
- * payment steps aside: the Settings card says Coming soon instead of opening
- * the Finix form, pay pages are view-only, invoice emails say View. Clears
- * the moment Finix approves them (after a superadmin requires verification).
+ * "Online payments: coming soon." A company that hasn't been approved to move
+ * money — any company while onboarding is closed, or one let in past
+ * underwriting (the universal invite code, a minted invite, or a superadmin
+ * waiver) — sees the Settings card say Coming soon instead of opening the
+ * Finix form. Client-facing surfaces key off canChargeOnline, so their pay
+ * pages are view-only and invoice emails say View. Clears the moment Finix
+ * approves them.
  */
 export function onlinePaymentsHeld(company: {
   paymentsWaived: boolean;
   finixOnboardingState: string | null;
 }): boolean {
-  return company.paymentsWaived && company.finixOnboardingState !== "APPROVED";
+  if (company.finixOnboardingState === "APPROVED") return false;
+  return !paymentsOnboardingOpen() || company.paymentsWaived;
 }
 
 /**

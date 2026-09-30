@@ -59,10 +59,13 @@ const ENTITY_TYPES = [
 export default function ApplyForm({
   social = NO_SOCIAL_SIGN_IN,
   appearance = "site",
+  verifyPayments = false,
 }: {
   /** Which social buttons this visitor gets, and how they run (lib/sign-in-options.ts). */
   social?: SocialSignIn;
   appearance?: "site" | "app";
+  /** Finix underwriting follows signup (lib/payments-gate.ts paymentsGateEnabled). Off = no verification step. */
+  verifyPayments?: boolean;
 }) {
   const inApp = appearance === "app";
   const selfUrl = inApp ? "/app/get-started" : "/apply";
@@ -191,8 +194,9 @@ export default function ApplyForm({
       }
 
       setDone(true);
-      // A code waives underwriting — there's no gate to send them to.
-      const landing = waived ? "/app/dashboard" : "/app/activate";
+      // A code waives underwriting, and a closed onboarding has no gate —
+      // either way there's nothing to send them to.
+      const landing = waived || !verifyPayments ? "/app/dashboard" : "/app/activate";
 
       if (attachMode) {
         // Already signed in (Google) — re-point the session at the new company.
@@ -240,7 +244,7 @@ export default function ApplyForm({
           {waived ? "Your account is open." : "Your account is created."}
         </h2>
         <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-gray-600">
-          {waived
+          {waived || !verifyPayments
             ? "Signing you in and taking you to WorkBench."
             : "Signing you in and taking you to payment verification — complete it and you're in."}
         </p>
@@ -334,8 +338,14 @@ export default function ApplyForm({
         )}
         {waived ? (
           <>
-            your code skips the application review and the payment-verification
-            step, so you&apos;ll land straight on your dashboard.
+            your code skips the application review{verifyPayments && " and the payment-verification step"},
+            so you&apos;ll land straight on your dashboard.
+          </>
+        ) : !verifyPayments ? (
+          <>
+            you&apos;ll land straight on your dashboard. A person also reviews every
+            application within a business day; your account keeps working while
+            that happens.
           </>
         ) : (
           <>
@@ -670,9 +680,10 @@ export default function ApplyForm({
       <p className="mt-4 text-[13px] text-gray-400">
         {waived ? (
           <>
-            Free forever — we make money when you get paid, not before. Taking
-            card payments online stays switched off on a code account until the
-            business is verified.
+            Free forever — we make money when you get paid, not before.{" "}
+            {verifyPayments
+              ? "Taking card payments online stays switched off on a code account until the business is verified."
+              : "Online card and bank payments are coming soon."}
           </>
         ) : (
           <>

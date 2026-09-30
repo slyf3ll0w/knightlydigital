@@ -3,6 +3,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import ApplyForm from "@/components/ApplyForm";
 import { socialSignInFor } from "@/lib/sign-in-options";
+import { paymentsGateEnabled } from "@/lib/payments-gate";
 
 export const metadata: Metadata = {
   title: "Get started",
@@ -17,7 +18,8 @@ export const metadata: Metadata = {
  *
  * Same form as /apply (components/ApplyForm.tsx), in the app's skin: enter a
  * code and it's a four-field signup straight to the dashboard; leave it empty
- * and it's the full application, ending at payment verification.
+ * and it's the full application (ending at payment verification while
+ * payments onboarding is open — lib/payments-gate.ts).
  */
 export default async function AppGetStartedPage() {
   const ua = (await headers()).get("user-agent");
@@ -29,6 +31,7 @@ export default async function AppGetStartedPage() {
         <ApplyForm
           social={socialSignInFor(ua)}
           appearance="app"
+          verifyPayments={paymentsGateEnabled()}
         />
         <p className="mt-8 text-center text-sm text-gray-500">
           Already have an account?{" "}

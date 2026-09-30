@@ -8,14 +8,15 @@ import { WB_DAY_PHOTOS } from "@/lib/wb-site";
 import ApplyForm from "@/components/ApplyForm";
 import { socialSignInFor } from "@/lib/sign-in-options";
 import { ClipboardList, ShieldCheck, Wrench } from "lucide-react";
+import { paymentsGateEnabled } from "@/lib/payments-gate";
 
 export const metadata: Metadata = {
   title: "Get started",
   description:
-    "Open your WorkBench account in minutes: tell us about your business, verify payments, and start setting up. Free with full access for 2 users, not a trial.",
+    "Open your WorkBench account in minutes: tell us about your business and start setting up. Free with full access for 2 users, not a trial.",
 };
 
-const steps = [
+const verifySteps = [
   {
     icon: ClipboardList,
     step: "Step 1",
@@ -36,8 +37,32 @@ const steps = [
   },
 ];
 
+// Payments onboarding closed (lib/payments-gate.ts): no verification step.
+const reviewSteps = [
+  {
+    icon: ClipboardList,
+    step: "Step 1",
+    title: "Tell us about your business",
+    body: "The application below creates your account on the spot and takes you straight to your dashboard.",
+  },
+  {
+    icon: ShieldCheck,
+    step: "Step 2",
+    title: "A person reviews it",
+    body: "Every application is read within a business day — WorkBench moves real money, so we check that every company on it is a real business. Your account works the whole time.",
+  },
+  {
+    icon: Wrench,
+    step: "Step 3",
+    title: "Set up your account",
+    body: "You're in: add your prices, your team, and your clients right away. Until your application is approved the account is provisional — if we can't approve it, access closes.",
+  },
+];
+
 export default async function WBApplyPage() {
   const ua = (await headers()).get("user-agent");
+  const verifyPayments = paymentsGateEnabled();
+  const steps = verifyPayments ? verifySteps : reviewSteps;
   return (
     <>
       {/* ── Hero ── */}
@@ -47,11 +72,10 @@ export default async function WBApplyPage() {
       >
         <h1 className="text-4xl font-extrabold leading-[1.08] sm:text-5xl">Get started with WorkBench</h1>
         <p className="mx-auto mt-6 max-w-2xl text-[16.5px] leading-relaxed text-gray-600 lg:mx-0">
-          Your account opens today — no waiting on an invite. Because
-          card and ACH payments are built into everything WorkBench
-          does, getting started has two quick verification steps built
-          in: a short application (a person reads every one) and the
-          standard payment check every processor requires.
+          Your account opens today — no waiting on an invite.{" "}
+          {verifyPayments
+            ? "Because card and ACH payments are built into everything WorkBench does, getting started has two quick verification steps built in: a short application (a person reads every one) and the standard payment check every processor requires."
+            : "Fill out a short application and you're in; a person reads every one within a business day while you set up."}
         </p>
         <div className="mt-6 hidden items-end gap-1 lg:flex" aria-hidden>
           <p className="pb-2 text-[15px] font-extrabold leading-snug text-[#10244A]">Three steps,
@@ -82,7 +106,7 @@ export default async function WBApplyPage() {
       {/* ── Application form ── */}
       <section className="mx-auto max-w-3xl px-5 pb-20 sm:px-8">
         <AnimateIn>
-          <ApplyForm social={socialSignInFor(ua)} />
+          <ApplyForm social={socialSignInFor(ua)} verifyPayments={verifyPayments} />
         </AnimateIn>
       </section>
 

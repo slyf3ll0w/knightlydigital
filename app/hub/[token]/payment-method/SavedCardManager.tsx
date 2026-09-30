@@ -143,8 +143,7 @@ export default function SavedCardManager({
   if (!finix) {
     return (
       <div className="card-ledger p-5 text-sm text-gray-500">
-        {companyName} isn&apos;t set up for online payments yet, so cards can&apos;t be
-        saved here. Check back soon.
+        Cards can&apos;t be saved here. Please arrange payment with {companyName} directly.
       </div>
     );
   }

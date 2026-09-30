@@ -21,6 +21,7 @@ import {
   planBalance,
 } from "@/lib/assistant-billing";
 import { PaymentsControl } from "./PaymentsControl";
+import { paymentsOnboardingOpen } from "@/lib/payments-gate";
 
 export const dynamic = "force-dynamic";
 
@@ -475,6 +476,7 @@ export default async function CompanyReport({
             companyId={company.id}
             onboardingState={company.finixOnboardingState}
             paymentsWaived={company.paymentsWaived}
+            onboardingOpen={paymentsOnboardingOpen()}
           />
 
           <AssistantControl

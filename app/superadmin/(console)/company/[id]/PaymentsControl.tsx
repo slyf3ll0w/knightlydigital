@@ -12,10 +12,13 @@ export function PaymentsControl({
   companyId,
   onboardingState,
   paymentsWaived,
+  onboardingOpen,
 }: {
   companyId: string;
   onboardingState: string | null;
   paymentsWaived: boolean;
+  /** PAYMENTS_ONBOARDING_OPEN — closed = no gate, Coming soon for every unapproved company. */
+  onboardingOpen: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -76,7 +79,9 @@ export function PaymentsControl({
         )}
       </div>
       <p className="mt-2 text-xs leading-relaxed text-gray-500">
-        {paymentsWaived
+        {!onboardingOpen && onboardingState !== "APPROVED"
+          ? "Payments onboarding is closed platform-wide (PAYMENTS_ONBOARDING_OPEN is off): no underwriting gate, Online payments show as Coming soon in Settings, pay pages are view-only and invoice emails say View instead of Pay. The waiver only matters once onboarding reopens."
+          : paymentsWaived
           ? "This company skips the underwriting gate (invite or universal code, or waived here). Online payments show as Coming soon in their Settings, their pay pages are view-only and invoice emails say View instead of Pay. Require verification to send the owner through the Finix form — once approved, payments switch on."
           : "Companies without Finix approval are held at the activation gate until underwriting approves them."}
       </p>
