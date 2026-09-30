@@ -45,9 +45,9 @@ test.describe("platform console", () => {
     page.on("pageerror", (e) => errors.push(e.message));
 
     await page.goto(`${state.baseUrl}/superadmin`);
-    await expect(page.getByRole("heading", { name: "Accounts" })).toBeVisible();
-    await expect(page.getByText("Live accounts")).toBeVisible();
-    await expect(page.getByText("Test accounts")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Accounts", exact: true, level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^Live accounts/, level: 2 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^Test accounts/, level: 2 })).toBeVisible();
 
     // The e2e harness company is a real row: open it and walk the tabs.
     const link = page.locator(`a[href="/superadmin/company/${state.ownerA.companyId}"]`).first();
@@ -58,7 +58,7 @@ test.describe("platform console", () => {
       await page.getByRole("link", { name: tab, exact: true }).click();
       await expect(page.getByRole("link", { name: tab, exact: true })).toHaveAttribute("aria-current", "page");
     }
-    await expect(page.getByText("Console history")).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^Console history/, level: 2 })).toBeVisible();
 
     for (const [path, heading] of [
       ["/superadmin/signups", "Sign-ups"],
