@@ -20,8 +20,11 @@ export default function LineCalling({ enabled }: { enabled: boolean }) {
 
   const notice = useLineCallNotice();
   if (!notice) return null;
+  // Mounted outside AppShell, so it carries the shell's own wrapper classes:
+  // the glass recipe (.app-ui .sheet-material) and the theme tokens (.ds) are
+  // scoped to them — without them the banner paints as clear glass, unreadable.
   return (
-    <div className="pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top)+0.5rem)] z-[70] flex flex-col gap-2 lg:inset-x-auto lg:right-5 lg:top-5 lg:w-[360px]" role="status" aria-live="polite">
+    <div className="app-ui ds pointer-events-none fixed inset-x-3 top-[calc(env(safe-area-inset-top)+0.5rem)] z-[70] flex flex-col gap-2 lg:inset-x-auto lg:right-5 lg:top-5 lg:w-[360px]" role="status" aria-live="polite">
       <Card key={notice.id} n={notice} onDismiss={() => dismissLineCallNotice(notice.id)} />
     </div>
   );
