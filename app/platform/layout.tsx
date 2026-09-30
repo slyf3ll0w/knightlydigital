@@ -123,9 +123,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // ── The one status banner ──────────────────────────────────────────────────
   // Accounts are fully usable from day one; the banner's job is to keep the
   // onboarding moving. Never stack notices (it reads as clutter): the most
-  // actionable thing wins — an underwriter request, then finishing payment
-  // setup, then the pending-approval warning, then "under review" FYI.
-  const pendingApproval = Boolean(company?.accessPendingAt && !company.suspendedAt);
+  // actionable thing wins — an underwriter request, then "under review" FYI.
+  // The application review (Company.accessPendingAt) shows no banner
+  // (David 2026-09-30): it still runs in superadmin, rejection still suspends.
   // Business-line calls in the browser (lib/softphone.ts): mounted only once
   // the number is on the voice app; the grant route re-checks everything else.
   const softphone = Boolean(company && user && voiceConfigured() && company.lineVoiceAppAt && hasAddon(company) && canSell(user.role as Role));
@@ -190,13 +190,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <Link href="/app/activate" className="font-bold underline">
               Finish verification
             </Link>
-          </div>
-        ) : pendingApproval ? (
-          <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            <span className="font-semibold">Account pending approval</span> — a person is
-            reviewing your application, usually within a business day. You can use WorkBench
-            normally in the meantime, but if the application isn&apos;t approved you&apos;ll
-            lose access to this account.
           </div>
         ) : gate === "pending" ? (
           <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
