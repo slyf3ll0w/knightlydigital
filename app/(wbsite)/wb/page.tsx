@@ -354,6 +354,34 @@ export default function WBHomePage() {
         </div>
       </section>
 
+      {/* ── The 30-second intro (silent loop; the full cut with music is on YouTube).
+           Rendered from ~/workbench-intro (Remotion) — scripts/render.sh writes the web cut. ── */}
+      <section className="bg-white">
+        <div className="mx-auto max-w-5xl px-5 pt-20 sm:px-8 sm:pt-28">
+          <AnimateIn className="mx-auto max-w-3xl text-center">
+            <p className="wb-label justify-center">See it in action</p>
+            <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
+              WorkBench in 30 seconds.
+            </h2>
+          </AnimateIn>
+          <AnimateIn delay={120} className="mt-10">
+            <div className="wb-frame-hero overflow-hidden rounded-2xl bg-[#0A1428]">
+              <video
+                className="block aspect-video w-full"
+                src="/video/workbench-intro.mp4"
+                poster="/video/workbench-intro-poster.jpg"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                aria-label="WorkBench FSM in 30 seconds: a quote approved from a phone, jobs dragged onto the schedule, an invoice paid in the driveway, and Atlas sending payment reminders"
+              />
+            </div>
+          </AnimateIn>
+        </div>
+      </section>
+
       {/* ── One system, four tabs ── */}
       <section className="bg-white">
         <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
