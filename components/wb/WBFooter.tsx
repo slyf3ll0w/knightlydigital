@@ -46,6 +46,7 @@ const columns: {
       { label: "Streamflaire", href: "https://streamflaire.com", external: true },
       { label: "Privacy", href: "/privacy" },
       { label: "Terms of Service", href: "/terms" },
+      { label: "Status", href: "/status" },
       { label: "Registering for texting", href: "/texting-registration" },
     ],
   },
