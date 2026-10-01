@@ -104,7 +104,7 @@ export const startSection: HelpSection = {
         },
         {
           type: "p",
-          text: "The tab bar has Home and Schedule. Everything else is in **More**, grouped as Clients, Selling, Field work, Money and Business. Press and hold any item for quick actions like `New …`.",
+          text: "The tab bar has Home and Schedule. Everything else is in **More**, grouped as Clients, Sales, Field work, Money and Business. Press and hold any item for quick actions like `New …`.",
         },
         {
           type: "h",

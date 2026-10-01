@@ -3119,7 +3119,8 @@ function MoreSheet({
           )}
 
           {shown.map((s, si) => (
-            <div key={s.label || `s${si}`} className="mt-3">
+            // A hairline above every section after the first marks where it starts
+            <div key={s.label || `s${si}`} className={si > 0 ? "mt-3 border-t border-gray-100 pt-3" : "mt-3"}>
               {s.label && <p className="ds-eyebrow ds-eyebrow-plain px-1 pb-1">{s.label}</p>}
               {s.items.length === 0 ? (
                 <p className="px-1 py-6 text-center text-sm text-gray-500">Nothing matches “{query.trim()}”.</p>
