@@ -51,7 +51,8 @@ test.describe("platform console", () => {
     await expect(page.getByRole("heading", { name: /^Test accounts/, level: 2 })).toBeVisible();
 
     // The e2e harness company is a real row: open it and walk the tabs.
-    const link = page.locator(`a[href="/superadmin/company/${state.ownerA.companyId}"]`).first();
+    // Both the phone list and the desktop table carry the link; take the visible one.
+    const link = page.locator(`a[href="/superadmin/company/${state.ownerA.companyId}"]:visible`).first();
     await expect(link).toBeVisible();
     await link.click();
     await expect(page).toHaveURL(new RegExp(`/superadmin/company/${state.ownerA.companyId}`));
