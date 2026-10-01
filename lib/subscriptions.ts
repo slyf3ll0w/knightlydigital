@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Recurring services engine.
  *
@@ -739,7 +740,7 @@ export async function billAllReadyWork(
       }
     } catch (err) {
       summary.errors++;
-      console.error("[subscriptions] ready-work billing failed for", sub.id, err);
+      reportError("[subscriptions] ready-work billing failed for", sub.id, err);
     }
   }
   return summary;
@@ -788,7 +789,7 @@ export async function runMonthlyConsolidations(
       summary[outcome]++;
     } catch (err) {
       summary.errors++;
-      console.error("[subscriptions] consolidation failed for", sub.id, err);
+      reportError("[subscriptions] consolidation failed for", sub.id, err);
     }
   }
   return summary;
@@ -1018,12 +1019,12 @@ export async function generateDueVisits(
             });
           }
         } catch (e) {
-          console.error("[subscriptions] visit conflict check failed for", v.id, e);
+          reportError("[subscriptions] visit conflict check failed for", v.id, e);
         }
       }
     } catch (err) {
       summary.errors++;
-      console.error("[subscriptions] visit generation failed for", sub.id, err);
+      reportError("[subscriptions] visit generation failed for", sub.id, err);
     }
   }
   return summary;
@@ -1155,7 +1156,7 @@ export async function runDueSubscriptions(
       summary[outcome]++;
     } catch (err) {
       summary.errors++;
-      console.error("[subscriptions] cycle failed for", sub.id, err);
+      reportError("[subscriptions] cycle failed for", sub.id, err);
     }
   }
   return summary;

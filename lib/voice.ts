@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Voice on the business line — Telnyx Call Control (lib/telnyx.ts).
  *
@@ -262,7 +263,7 @@ async function advanceLeadForCall(call: Pick<Call, "id" | "companyId" | "contact
   try {
     await autoAdvance(prisma, call.companyId, call.contactId, trigger);
   } catch (err) {
-    console.error(`[voice] lead auto-advance failed for call ${call.id}:`, err);
+    reportError(`[voice] lead auto-advance failed for call ${call.id}:`, err);
   }
 }
 
@@ -329,7 +330,7 @@ export async function routeNumberToVoiceApp(numberId: string, fallbackForwardTo?
   } catch (err) {
     // Never leave the number dead: put the old forwarding back before failing.
     if (fallbackForwardTo) {
-      await setCallForwarding(numberId, fallbackForwardTo).catch((e) => console.error("[voice] forwarding restore failed:", e));
+      await setCallForwarding(numberId, fallbackForwardTo).catch((e) => reportError("[voice] forwarding restore failed:", e));
     }
     throw err;
   }
@@ -461,7 +462,7 @@ export async function handleVoiceEvent(ev: VoiceEvent): Promise<void> {
         return;
     }
   } catch (err) {
-    console.error(`[voice] ${ev.event_type} failed:`, err);
+    reportError(`[voice] ${ev.event_type} failed:`, err);
   }
 }
 
@@ -616,7 +617,7 @@ async function dialCell(call: CallRow, opts: { ringback: boolean }): Promise<voi
     });
     await prisma.call.update({ where: { id: call.id }, data: { agentCallId: leg2.call_control_id, agentNumber: forwardTo } });
   } catch (err) {
-    console.error("[voice] dialing the cell failed:", err);
+    reportError("[voice] dialing the cell failed:", err);
     await prisma.call.update({ where: { id: call.id }, data: { agentCallId: null } });
     await toVoicemail(call);
   }
@@ -656,7 +657,7 @@ async function ringSoftphones(call: CallRow, targets: RingTarget[], woke = false
       });
       ringing++;
     } catch (err) {
-      console.error(`[voice] dialing softphone ${t.sipUsername} failed:`, err);
+      reportError(`[voice] dialing softphone ${t.sipUsername} failed:`, err);
     }
   }
   return ringing;
@@ -678,7 +679,7 @@ function scheduleCellFallback(callId: string, delayMs: number): void {
       const open = await prisma.callLeg.count({ where: { callId, endedAt: null } });
       if (open > 0) return;
       await dialCell(call, { ringback: false });
-    })().catch((err) => console.error("[voice] cell fallback failed:", err));
+    })().catch((err) => reportError("[voice] cell fallback failed:", err));
   }, delayMs);
 }
 
@@ -727,7 +728,7 @@ async function hangupAppLegs(callId: string, keep: string | null): Promise<void>
     select: { telnyxCallId: true },
   });
   for (const l of legs) {
-    await callAction(l.telnyxCallId, "hangup").catch((e) => console.error("[voice] app leg hangup failed:", e));
+    await callAction(l.telnyxCallId, "hangup").catch((e) => reportError("[voice] app leg hangup failed:", e));
   }
 }
 
@@ -744,13 +745,13 @@ async function bridgeLegs(call: CallRow): Promise<void> {
       client_state: encodeState({ callId: call.id, leg: "agent", stage: "bridged" }),
     });
   } catch (err) {
-    console.error("[voice] bridge failed:", err);
+    reportError("[voice] bridge failed:", err);
   }
   if (ok) {
     await prisma.call.updateMany({ where: { id: call.id, status: "RINGING" }, data: { status: "IN_PROGRESS", answeredAt: new Date() } });
     await advanceLeadForCall(call, "IN_PROGRESS", call.direction);
     // Atlas was asked for before they answered: listen from the first word.
-    if (call.atlasNotesState === "armed") await beginTranscription(call.id, call.telnyxCallId).catch((e) => console.error("[voice] armed transcription failed:", e));
+    if (call.atlasNotesState === "armed") await beginTranscription(call.id, call.telnyxCallId).catch((e) => reportError("[voice] armed transcription failed:", e));
     return;
   }
   // Nobody stays stranded on ringback: the cell leg is dropped and an inbound
@@ -807,7 +808,7 @@ async function dialCustomer(call: CallRow): Promise<void> {
       data: { telnyxCallId: leg.call_control_id, customerLegId: leg.call_leg_id ?? null },
     });
   } catch (err) {
-    console.error("[voice] dialing the customer failed:", err);
+    reportError("[voice] dialing the customer failed:", err);
     await prisma.call.update({
       where: { id: call.id },
       data: { telnyxCallId: null, status: "FAILED", hangupCause: "dial_failed", endedAt: new Date() },
@@ -1113,7 +1114,7 @@ export async function stopAtlasNotes(companyId: string, callId: string): Promise
   const call = await prisma.call.findFirst({ where: { id: callId, companyId }, select: notesSelect });
   if (!call) throw new VoiceError("Call not found.", 404);
   if (call.atlasNotesState === "listening" && voiceEnabled() && realLeg(call.telnyxCallId)) {
-    await callAction(call.telnyxCallId, "transcription_stop").catch((e) => console.error("[voice] transcription_stop failed:", e));
+    await callAction(call.telnyxCallId, "transcription_stop").catch((e) => reportError("[voice] transcription_stop failed:", e));
   }
   const out = await finishAtlasNotes(call);
   if (out) return out;
@@ -1169,7 +1170,7 @@ async function notifyTeam(companyId: string, payload: { title: string; body: str
       payload
     );
   } catch (err) {
-    console.error("[voice] push failed:", err);
+    reportError("[voice] push failed:", err);
   }
 }
 
@@ -1320,7 +1321,7 @@ export async function cancelCall(companyId: string, callId: string): Promise<{ s
   if (isTerminalStatus(call.status)) return { status: call.status };
   if (voiceEnabled()) {
     for (const ccid of [call.agentCallId, call.telnyxCallId]) {
-      if (ccid && !ccid.startsWith("pending:")) await callAction(ccid, "hangup").catch((e) => console.error("[voice] cancel hangup failed:", e));
+      if (ccid && !ccid.startsWith("pending:")) await callAction(ccid, "hangup").catch((e) => reportError("[voice] cancel hangup failed:", e));
     }
     await hangupAppLegs(call.id, null).catch(() => {});
   }

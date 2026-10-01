@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Platform usage metering — one CompanyUsageDaily row per company per UTC
  * day, upserted with atomic increments. Every recorder here is fire-and-
@@ -73,7 +74,7 @@ async function bump(companyId: string | null | undefined, counters: Counters) {
         data: increments,
       });
     } catch {
-      console.error("[usage] failed to record", id, counters, err);
+      reportError("[usage] failed to record", id, counters, err);
     }
   }
 }

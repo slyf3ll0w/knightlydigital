@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Platform-level alerts: things only the operator can fix (Telnyx out of
  * funds, …), as distinct from tenant notifications (lib/push.ts) and the
@@ -38,13 +39,13 @@ export async function alertOperator(
     if (!(await limit(`ops-alert:${key}`, 1, dedupeMs)).ok) return false;
     const to = await operatorEmail();
     if (!to) {
-      console.error(`[ops-alert] ${key}: no operator email configured`);
+      reportError(`[ops-alert] ${key}: no operator email configured`);
       return false;
     }
     await sendEmail({ to, subject, html });
     return true;
   } catch (err) {
-    console.error(`[ops-alert] ${key} failed:`, err);
+    reportError(`[ops-alert] ${key} failed:`, err);
     return false;
   }
 }
@@ -57,7 +58,7 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
  * operator's side of it. `context` says what was refused and for whom.
  */
 export async function alertTelnyxFunds(context: string): Promise<void> {
-  console.error(`[telnyx] out of funds: ${context}`);
+  reportError(`[telnyx] out of funds: ${context}`);
   await alertOperator(
     "telnyx-funds",
     "Telnyx account is out of funds — business-line actions are paused",

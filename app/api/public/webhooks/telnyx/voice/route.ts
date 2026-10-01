@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { handleVoiceEvent, type VoiceEvent } from "@/lib/voice";
 import { telnyxWebhookConfigured, verifyTelnyxSignature } from "@/lib/telnyx-webhook";
@@ -17,7 +18,7 @@ import { telnyxWebhookConfigured, verifyTelnyxSignature } from "@/lib/telnyx-web
  */
 export async function POST(req: NextRequest) {
   if (!telnyxWebhookConfigured()) {
-    console.error("[voice] TELNYX_PUBLIC_KEY is not set; rejecting webhook");
+    reportError("[voice] TELNYX_PUBLIC_KEY is not set; rejecting webhook");
     return NextResponse.json({ error: "Webhook not configured" }, { status: 503 });
   }
   const raw = await req.text();

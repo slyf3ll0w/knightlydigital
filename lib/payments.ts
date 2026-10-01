@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Payment processing layer.
  *
@@ -234,7 +235,7 @@ class FinixProcessor implements PaymentProcessor {
         // Card declines etc. surface as API errors too — show Finix's message.
         return { success: false, error: err.message };
       }
-      console.error("[payments] finix charge failed", err);
+      reportError("[payments] finix charge failed", err);
       return { success: false, error: "Payment failed. Please try again." };
     }
   }
@@ -331,7 +332,7 @@ class FinixProcessor implements PaymentProcessor {
           cardType: instrument?.card_type ?? null,
         };
       }
-      console.error("[payments] finix stored charge failed", err);
+      reportError("[payments] finix stored charge failed", err);
       return {
         success: false,
         error: err instanceof finix.FinixError ? err.message : "Auto-charge failed.",
@@ -500,7 +501,7 @@ export async function recordPayment(params: RecordPaymentParams) {
     // forget raced the caller's own cursor writes (Bill now, the engine's
     // cycle advance) and the plan's billing day came out nondeterministic.
     await anchorPlanFromFirstPayment(result.subscriptionId, params.paidAt ?? new Date()).catch((e) =>
-      console.error("[payments] plan anchor failed", e)
+      reportError("[payments] plan anchor failed", e)
     );
   }
 
@@ -540,7 +541,7 @@ export async function recordPayment(params: RecordPaymentParams) {
       amount: params.amount,
       method: params.method,
       pending: params.receiptPending ?? false,
-    }).catch((e) => console.error("[payments] receipt email failed", e));
+    }).catch((e) => reportError("[payments] receipt email failed", e));
   }
 
   return { payment: result.payment, fullyPaid: result.fullyPaid };
@@ -803,7 +804,7 @@ export async function acquireChargeLock(invoiceId: string): Promise<boolean> {
 export async function releaseChargeLock(invoiceId: string): Promise<void> {
   await prisma.invoice
     .updateMany({ where: { id: invoiceId }, data: { chargeLockedAt: null } })
-    .catch((e) => console.error("[payments] charge lock release failed", invoiceId, e));
+    .catch((e) => reportError("[payments] charge lock release failed", invoiceId, e));
 }
 
 /** Calculate the surcharge amount for a given payment total and rate. */

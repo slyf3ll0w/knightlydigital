@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       await putObject(key, bytes, file.type);
       await prisma.estimatorImage.update({ where: { id: row.id }, data: { storageKey: key, data: null } });
     } catch (err) {
-      console.error("[estimator-images] R2 upload failed; bytes stay in Postgres", err);
+      reportError("[estimator-images] R2 upload failed; bytes stay in Postgres", err);
     }
   }
   return NextResponse.json({ id: row.id, url: `/api/estimate-images/${row.id}` }, { status: 201 });

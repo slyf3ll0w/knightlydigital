@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import {
@@ -197,11 +198,11 @@ export async function POST(
         last4: result.cardLast4,
         expMonth: result.cardExpMonth,
         expYear: result.cardExpYear,
-      }).catch((e) => console.error("[pay] save card failed", e));
+      }).catch((e) => reportError("[pay] save card failed", e));
       // The working card they just paid with un-stalls any OTHER autopay
       // invoices whose old card was declining (this one is about to be PAID).
       await reviveAutopayForContact(invoice.contact.id).catch((e) =>
-        console.error("[pay] autopay revive failed", e)
+        reportError("[pay] autopay revive failed", e)
       );
     }
 
@@ -247,7 +248,7 @@ export async function POST(
         email: invoice.contact.email,
         contactFirstName: invoice.contact.firstName,
         jobTitle: null,
-      }).catch((e) => console.error("[pay] review request failed", e));
+      }).catch((e) => reportError("[pay] review request failed", e));
     }
 
     return NextResponse.json({

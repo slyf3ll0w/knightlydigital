@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { refreshByTelnyxId } from "@/lib/business-line";
 
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
     try {
       await refreshByTelnyxId(ids);
     } catch (err) {
-      console.error("[telnyx 10dlc] refresh failed:", err);
+      reportError("[telnyx 10dlc] refresh failed:", err);
     }
   }
   return NextResponse.json({ received: true });

@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -239,7 +240,7 @@ export async function POST(req: NextRequest) {
   // before this, a directly-created job could never have one.
   if (namedLines.length > 0) {
     await syncJobChecklist(job.id, companyId).catch((e) =>
-      console.error("[jobs] checklist sync failed for", job.id, e)
+      reportError("[jobs] checklist sync failed for", job.id, e)
     );
   }
 

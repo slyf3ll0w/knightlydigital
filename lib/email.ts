@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Transactional email via Resend. Env-gated like the captcha: without
  * RESEND_API_KEY every send is a silent no-op, so the code can ship before
@@ -431,13 +432,13 @@ ${html}
       }),
     });
     if (!res.ok) {
-      console.error("[email] resend send failed:", res.status, await res.text());
+      reportError("[email] resend send failed:", res.status, await res.text());
     } else {
       recordEmailSent(companyId);
     }
     return res.ok;
   } catch (err) {
-    console.error("[email] resend send threw:", err);
+    reportError("[email] resend send threw:", err);
     return false;
   }
 }

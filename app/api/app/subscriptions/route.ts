@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, isManager, contactScope } from "@/lib/permissions";
@@ -217,7 +218,7 @@ export async function POST(req: NextRequest) {
   let firstBill: "billed" | "drafted" | "charged" | "empty" | null = null;
   if (bills && !preview) {
     firstBill = await billSubscriptionNow(sub.id, companyId).catch((e) => {
-      console.error("[subscriptions] first cycle failed for", sub.id, e);
+      reportError("[subscriptions] first cycle failed for", sub.id, e);
       return null;
     });
   }

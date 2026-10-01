@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager, contactScope } from "@/lib/permissions";
@@ -36,7 +37,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (!url) return NextResponse.json({ error: "No recording for this call." }, { status: 404 });
     return NextResponse.redirect(url, { status: 302 });
   } catch (err) {
-    console.error("[voice] voicemail fetch failed:", err);
+    reportError("[voice] voicemail fetch failed:", err);
     return NextResponse.json({ error: "Couldn't fetch the recording right now." }, { status: 424 });
   }
 }

@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Business line — one local phone number per company that carries their
  * automated texts (lib/sms.ts) and a forwarded business phone line.
@@ -400,7 +401,7 @@ export async function provisionLine(
       try {
         await setNumberMessagingProfile(record.id);
       } catch (err) {
-        console.error("[line] messaging profile assignment failed:", err);
+        reportError("[line] messaging profile assignment failed:", err);
       }
     }
     // Voice: onto the Call Control app when this server has one (lib/voice.ts
@@ -412,7 +413,7 @@ export async function provisionLine(
         voiceRouted = await routeNumberToVoiceApp(record.id);
         if (!voiceRouted && forwardTo) await setCallForwarding(record.id, forwardTo);
       } catch (err) {
-        console.error("[line] voice routing failed at provision:", err);
+        reportError("[line] voice routing failed at provision:", err);
       }
     }
 
@@ -435,7 +436,7 @@ export async function provisionLine(
   } catch (err) {
     await prisma.company.updateMany({ where: { id: companyId, lineNumber: claim }, data: { lineNumber: null } });
     if (err instanceof LineError) throw err;
-    console.error("[line] provision failed:", err);
+    reportError("[line] provision failed:", err);
     throw await lineFailure("Telnyx couldn't complete that", err, `number purchase for "${company.name}"`);
   }
 }
@@ -480,7 +481,7 @@ export async function attachExistingNumber(companyId: string, phoneNumber: strin
   try {
     voiceRouted = await routeNumberToVoiceApp(record.id);
   } catch (err) {
-    console.error("[line] voice routing failed at attach:", err);
+    reportError("[line] voice routing failed at attach:", err);
   }
   const callerIdName = await tryCnam(record.id, company.name);
   await prisma.company.update({
@@ -525,7 +526,7 @@ export async function setLineForwarding(companyId: string, forwardTo: string | n
   try {
     routed = await ensureVoiceRouting(companyId);
   } catch (err) {
-    console.error("[line] voice routing at forwarding save failed (falling back to forwarding):", err);
+    reportError("[line] voice routing at forwarding save failed (falling back to forwarding):", err);
   }
   if (!routed) {
     try {
@@ -1289,7 +1290,7 @@ async function fileRegistration(
       await updateBrand(prior.brandId!, brandInputOf(form));
     } catch (err) {
       if (isInsufficientFunds(err)) return queueRegistration(company, form, "10DLC");
-      console.error(`[line] brand ${prior.brandId} update failed for ${company.name} (${companyId}):`, err);
+      reportError(`[line] brand ${prior.brandId} update failed for ${company.name} (${companyId}):`, err);
       throw await lineFailure("The carrier registry refused the brand update", err, `10DLC brand update for "${company.name}"`);
     }
     // A failed campaign can't have its description or keyword replies edited — it is replaced. Retire it so it never renews.
@@ -1351,11 +1352,11 @@ async function fileRegistration(
         brand = await createBrand(brandInput);
       } catch (err2) {
         if (isInsufficientFunds(err2)) return queueRegistration(company, form, "10DLC");
-        console.error(`[line] 10DLC brand create failed for ${company.name} (${companyId}):`, err2);
+        reportError(`[line] 10DLC brand create failed for ${company.name} (${companyId}):`, err2);
         throw await lineFailure("The carrier registry rejected the submission", err2, `10DLC brand for "${company.name}"`);
       }
     } else {
-      console.error(`[line] 10DLC brand ${failedBrandId ? "update" : "create"} failed for ${company.name} (${companyId}):`, err);
+      reportError(`[line] 10DLC brand ${failedBrandId ? "update" : "create"} failed for ${company.name} (${companyId}):`, err);
       throw await lineFailure("The carrier registry rejected the submission", err, `10DLC brand for "${company.name}"`);
     }
   }
@@ -1407,7 +1408,7 @@ async function fileRegistration(
     try {
       await triggerBrandOtp(brand.brandId, form.displayName || form.legalName);
     } catch (err) {
-      console.error("[line] OTP trigger failed:", err);
+      reportError("[line] OTP trigger failed:", err);
     }
   }
 
@@ -1710,7 +1711,7 @@ async function submitTollFreeVerification(
         null;
     }
   } catch (err) {
-    console.error("[line] toll-free lookup failed (filing fresh):", err);
+    reportError("[line] toll-free lookup failed (filing fresh):", err);
   }
 
   let request: TollFreeVerification;
@@ -1820,7 +1821,7 @@ export async function refreshByVerificationId(verificationId: string): Promise<b
   try {
     await refreshRegistration(reg.companyId, { includeRejected: true });
   } catch (err) {
-    console.error("[line] toll-free webhook refresh failed:", err);
+    reportError("[line] toll-free webhook refresh failed:", err);
   }
   return true;
 }
@@ -1937,7 +1938,7 @@ so there is nothing to approve unless it keeps failing or they ask for help.</p>
       );
     }
   } catch (err) {
-    console.error(`[line] notify ${outcome} for "${reg.company.name}" (${reg.companyId}) failed:`, err);
+    reportError(`[line] notify ${outcome} for "${reg.company.name}" (${reg.companyId}) failed:`, err);
   }
 }
 
@@ -2025,7 +2026,7 @@ async function advance(
       await ensureKeywordProfile(reg.companyId, copy).catch((err) => {
         if (isInsufficientFunds(err)) throw err;
         // The campaign still files; the operator fixes the replies (superadmin line-keywords) before it clears.
-        console.error(`[line] branded STOP/HELP replies not set for "${reg.company.name}" (${reg.companyId}):`, err);
+        reportError(`[line] branded STOP/HELP replies not set for "${reg.company.name}" (${reg.companyId}):`, err);
       });
       const campaign = await createCampaign({
         brandId: reg.brandId,
@@ -2082,7 +2083,7 @@ async function advance(
     // whatever advanced, keep the pending status, and let the caller decide.
     await prisma.messagingRegistration.update({ where: { id: reg.id }, data: patch });
     if (err instanceof LineError) throw err;
-    console.error(`[line] refresh failed for company ${reg.companyId}:`, err);
+    reportError(`[line] refresh failed for company ${reg.companyId}:`, err);
     const failure = await lineFailure("Telnyx check failed", err, `10DLC campaign step for "${reg.company.name}"`);
     // Not a verdict: the next sweep re-reads the same objects and moves on.
     failure.transient = true;
@@ -2139,7 +2140,7 @@ export async function runLineRegistrationSweep(): Promise<{ checked: number; err
       await refreshRegistration(companyId);
     } catch (err) {
       errors++;
-      console.error(`[line] sweep: company ${companyId}`, err);
+      reportError(`[line] sweep: company ${companyId}`, err);
     }
   }
   return { checked: pending.length, errors };
@@ -2166,7 +2167,7 @@ export async function refreshByTelnyxId(ids: { brandId?: string | null; campaign
   try {
     await refreshRegistration(reg.companyId);
   } catch (err) {
-    console.error("[line] webhook-triggered refresh failed:", err);
+    reportError("[line] webhook-triggered refresh failed:", err);
   }
   return true;
 }
@@ -2233,7 +2234,7 @@ export async function runLineReleaseSweep(now = new Date()): Promise<{ stamped: 
       }
     } catch (err) {
       out.errors++;
-      console.error(`[line] release sweep: company ${c.id} (${action})`, err);
+      reportError(`[line] release sweep: company ${c.id} (${action})`, err);
     }
   }
   return out;
@@ -2261,7 +2262,7 @@ export async function releaseLine(companyId: string): Promise<void> {
     try {
       await unassignNumberFromCampaign(company.lineNumber);
     } catch (err) {
-      console.error("[line] campaign unassign failed (continuing):", err);
+      reportError("[line] campaign unassign failed (continuing):", err);
     }
     let id = company.lineNumberId;
     if (!id) id = (await findOwnedNumber(company.lineNumber))?.id ?? null;
@@ -2276,7 +2277,7 @@ export async function releaseLine(companyId: string): Promise<void> {
     }
   }
   // Softphone credentials die with the number (best effort — never blocks the release).
-  await deleteSoftphoneResources(companyId).catch((err) => console.error("[line] softphone teardown failed (continuing):", err));
+  await deleteSoftphoneResources(companyId).catch((err) => reportError("[line] softphone teardown failed (continuing):", err));
   await prisma.$transaction([
     prisma.messagingRegistration.deleteMany({ where: { companyId } }),
     prisma.company.update({

@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { prisma } from "@/lib/db";
 import { fireAutomations } from "@/lib/automations-server";
 
@@ -91,7 +92,7 @@ export async function runRecurringExpenses(
         summary.processed++;
       } catch (err) {
         summary.errors++;
-        console.error("[expenses] recurring post failed for", t.id, err);
+        reportError("[expenses] recurring post failed for", t.id, err);
       }
     }
   }

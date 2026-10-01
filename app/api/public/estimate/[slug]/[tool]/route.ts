@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyCaptcha } from "@/lib/captcha";
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   const result = runCompiled(pub.compiled, inputs, await loadPriceBook(company.id));
   if (!result.ok) {
     if (result.inputProblems) return NextResponse.json({ error: result.errors[0], errors: result.errors }, { status: 400 });
-    console.error("[estimate-form] tool can't run", { estimatorId: pub.row.id, errors: result.errors });
+    reportError("[estimate-form] tool can't run", { estimatorId: pub.row.id, errors: result.errors });
     return NextResponse.json({ error: PUBLIC_RUN_FAILED }, { status: 424 });
   }
 

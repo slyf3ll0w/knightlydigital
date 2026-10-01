@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager, jobScope } from "@/lib/permissions";
@@ -122,7 +123,7 @@ export async function POST(
       })
     );
   } catch (e) {
-    console.error("[job → appointment] failed", { jobId: job.id, error: e });
+    reportError("[job → appointment] failed", { jobId: job.id, error: e });
     return NextResponse.json(
       { error: "Couldn't turn this job into an appointment. Please try again." },
       { status: 500 }

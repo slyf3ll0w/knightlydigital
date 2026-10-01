@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
@@ -142,7 +143,7 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({ url: form.onboarding_link?.link_url });
   } catch (err) {
-    console.error("[payments] onboarding form failed", err);
+    reportError("[payments] onboarding form failed", err);
     const message =
       err instanceof FinixError
         ? `Payment setup failed: ${err.message}`

@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { isBlobStorageConfigured, signedGetUrl } from "@/lib/blob-storage";
@@ -20,7 +21,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       const url = await signedGetUrl(img.storageKey);
       return NextResponse.redirect(url, { status: 302, headers: { "Cache-Control": "public, max-age=300" } });
     } catch (err) {
-      console.error("[estimate-images] signing failed", { id, error: err });
+      reportError("[estimate-images] signing failed", { id, error: err });
     }
   }
   if (!img.data) return new NextResponse(null, { status: 404 });

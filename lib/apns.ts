@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import http2 from "http2";
 import { createPrivateKey, sign as cryptoSign, type KeyObject } from "crypto";
 
@@ -141,7 +142,7 @@ export async function sendVoipPush(
     try {
       reply = await post(gateway, path, headers, body);
     } catch (err) {
-      console.error(`[apns] ${gateway} send failed:`, err instanceof Error ? err.message : err);
+      reportError(`[apns] ${gateway} send failed:`, err instanceof Error ? err.message : err);
       return "error";
     }
     if (reply.status === 200) {
@@ -158,7 +159,7 @@ export async function sendVoipPush(
       continue;
     }
     if (reply.status === 403 && reply.reason === "ExpiredProviderToken") jwt = null;
-    console.error(`[apns] ${gateway} answered ${reply.status} ${reply.reason ?? ""}`);
+    reportError(`[apns] ${gateway} answered ${reply.status} ${reply.reason ?? ""}`);
     return "error";
   }
   // BadDeviceToken on both gateways: the token is garbage.

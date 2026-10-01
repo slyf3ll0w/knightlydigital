@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Nightly financial reconciliation.
  *
@@ -100,13 +101,13 @@ export async function runNightlyReconciliation(
     });
 
     if (findings.length) {
-      console.error(
+      reportError(
         `[reconcile] ${errors} error(s), ${warnings} warning(s) across ${companies} companies`
       );
     }
     return { ran: true, errors, warnings };
   } catch (err) {
-    console.error("[reconcile] sweep failed", err);
+    reportError("[reconcile] sweep failed", err);
     return { ran: false };
   }
 }
@@ -522,7 +523,7 @@ async function maybeSendReport(
       : `<p style="color:#16a34a"><strong>All invariants hold.</strong></p>`);
 
   const sent = await sendEmail({ to, subject, html }).catch((err) => {
-    console.error("[reconcile] report email failed", err);
+    reportError("[reconcile] report email failed", err);
     return false;
   });
   return sent ? to : null;

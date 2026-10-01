@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { getActor, isManager } from "@/lib/permissions";
 import { LineError, lineSummary, resendRegistrationOtp, verifyRegistrationOtp } from "@/lib/business-line";
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(await lineSummary(actor.companyId, { name: actor.name }));
   } catch (err) {
     if (err instanceof LineError) return NextResponse.json({ error: err.message }, { status: err.status });
-    console.error("[line] otp route error:", err);
+    reportError("[line] otp route error:", err);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }

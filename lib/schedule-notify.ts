@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { prisma } from "@/lib/db";
 import { bookingRescheduledEmail, emailEnabled, sendEmail } from "@/lib/email";
 import { sendSms, smsEnabled, canText } from "@/lib/sms";
@@ -148,7 +149,7 @@ export async function notifyClientOfMove(params: {
       tag: `portal-thread-${contact.id}`,
     }).catch(() => {});
   } catch (err) {
-    console.error("[schedule-notify] portal post failed:", err);
+    reportError("[schedule-notify] portal post failed:", err);
   }
 
   const canEmail = emailEnabled() && Boolean(contact.email);

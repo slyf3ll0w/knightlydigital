@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Push notifications, env-gated like email so send points ship before keys
  * exist in an environment:
@@ -39,7 +40,7 @@ function loadServiceAccount(): ServiceAccount | null {
   } catch {
     /* fall through */
   }
-  console.error("[push] FIREBASE_SERVICE_ACCOUNT is set but not valid service-account JSON");
+  reportError("[push] FIREBASE_SERVICE_ACCOUNT is set but not valid service-account JSON");
   return null;
 }
 
@@ -115,7 +116,7 @@ async function sendFcm(
   // 404 = UNREGISTERED (token invalid/expired). 400 INVALID_ARGUMENT on a
   // well-formed request also means a garbage token.
   if (res.status === 404) return "dead";
-  console.error("[push] FCM send failed:", res.status, (await res.text()).slice(0, 300));
+  reportError("[push] FCM send failed:", res.status, (await res.text()).slice(0, 300));
   return "error";
 }
 
@@ -244,7 +245,7 @@ export async function notifyUsers(userIds: string[], payload: PushPayload): Prom
         } catch (err) {
           const status = (err as { statusCode?: number }).statusCode;
           if (status === 404 || status === 410) dead.push(sub.id);
-          else console.error("[push] send failed:", status ?? err);
+          else reportError("[push] send failed:", status ?? err);
         }
       })
     );
@@ -252,7 +253,7 @@ export async function notifyUsers(userIds: string[], payload: PushPayload): Prom
       await prisma.pushSubscription.deleteMany({ where: { id: { in: dead } } });
     }
   } catch (err) {
-    console.error("[push] notify threw:", err);
+    reportError("[push] notify threw:", err);
   }
 }
 
@@ -283,7 +284,7 @@ export async function notifyContact(contactId: string, payload: PushPayload): Pr
         } catch (err) {
           const status = (err as { statusCode?: number }).statusCode;
           if (status === 404 || status === 410) dead.push(sub.id);
-          else console.error("[push] contact send failed:", status ?? err);
+          else reportError("[push] contact send failed:", status ?? err);
         }
       })
     );
@@ -291,7 +292,7 @@ export async function notifyContact(contactId: string, payload: PushPayload): Pr
       await prisma.contactPushSubscription.deleteMany({ where: { id: { in: dead } } });
     }
   } catch (err) {
-    console.error("[push] notifyContact threw:", err);
+    reportError("[push] notifyContact threw:", err);
   }
 }
 

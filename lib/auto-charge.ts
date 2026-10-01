@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Autopay engine: card-on-file charging for engine-generated (subscription)
  * invoices, with Stripe-style retry + dunning on failures.
@@ -142,7 +143,7 @@ export async function attemptAutoCharge(params: {
 
     if (result.transient) {
       await bookProcessorDown(params.invoiceId, params.companyId, result.error).catch((e) =>
-        console.error("[auto-charge] processor-down booking failed", params.invoiceId, e)
+        reportError("[auto-charge] processor-down booking failed", params.invoiceId, e)
       );
       return "processor_down";
     }
@@ -154,7 +155,7 @@ export async function attemptAutoCharge(params: {
       cardLabel,
       error: result.error,
       code: result.code,
-    }).catch((e) => console.error("[auto-charge] failure handling failed", params.invoiceId, e));
+    }).catch((e) => reportError("[auto-charge] failure handling failed", params.invoiceId, e));
     return "failed";
   } finally {
     await releaseChargeLock(params.invoiceId);
@@ -209,7 +210,7 @@ async function bookProcessorDown(invoiceId: string, companyId: string, error: st
         url: `/app/invoices/${invoiceId}`,
         tag: `autopay-processor-${invoiceId}`,
       }
-    ).catch((e) => console.error("[auto-charge] processor-down push failed", e));
+    ).catch((e) => reportError("[auto-charge] processor-down push failed", e));
     return;
   }
   await prisma.invoice.update({
@@ -302,7 +303,7 @@ async function handleAutoChargeFailure(params: {
         url: `/app/invoices/${params.invoiceId}`,
         tag: `autopay-${params.invoiceId}`,
       }
-    ).catch((e) => console.error("[auto-charge] owner notify failed", e));
+    ).catch((e) => reportError("[auto-charge] owner notify failed", e));
   }
 
   // The client hears once, on the first failure: their card declined, with a
@@ -326,7 +327,7 @@ async function handleAutoChargeFailure(params: {
       html,
       replyTo: invoice.company.email || undefined,
       fromName: invoice.company.name,
-    }).catch((e) => console.error("[auto-charge] client dunning email failed", e));
+    }).catch((e) => reportError("[auto-charge] client dunning email failed", e));
   }
 }
 
@@ -428,7 +429,7 @@ export async function runAutoChargeRetries(now: Date = new Date()): Promise<Retr
       }
     } catch (err) {
       summary.failed++;
-      console.error("[auto-charge] retry failed for", inv.id, err);
+      reportError("[auto-charge] retry failed for", inv.id, err);
     }
   }
   return summary;
@@ -474,7 +475,7 @@ async function giveUpNoCard(
       url: `/app/invoices/${inv.id}`,
       tag: `autopay-${inv.id}`,
     }
-  ).catch((e) => console.error("[auto-charge] owner notify failed", e));
+  ).catch((e) => reportError("[auto-charge] owner notify failed", e));
 }
 
 /**
@@ -577,7 +578,7 @@ export async function runCardExpiryNudges(now: Date = new Date()): Promise<numbe
         sent++;
       }
     } catch (err) {
-      console.error("[auto-charge] expiry nudge failed for card", card.id, err);
+      reportError("[auto-charge] expiry nudge failed for card", card.id, err);
     }
   }
   return sent;

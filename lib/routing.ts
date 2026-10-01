@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Drive-time engine for the Route Manager. Three layers:
  *
@@ -103,7 +104,7 @@ async function loadCachedLegs(keys: string[]): Promise<Map<string, RouteLeg>> {
     });
     for (const r of rows) out.set(r.key, { minutes: r.minutes, km: r.km });
   } catch (err) {
-    console.error("[routing] leg cache read failed:", err);
+    reportError("[routing] leg cache read failed:", err);
   }
   return out;
 }
@@ -117,7 +118,7 @@ function storeLegs(rows: { key: string; minutes: number; km: number }[]): void {
       await prisma.driveLegCache.deleteMany({ where: { key: { in: keys } } });
       await prisma.driveLegCache.createMany({ data: rows, skipDuplicates: true });
     } catch (err) {
-      console.error("[routing] leg cache write failed:", err);
+      reportError("[routing] leg cache write failed:", err);
     }
   })();
 }
@@ -253,7 +254,7 @@ export async function driveMatrix(
     const res = await fetch(url, { signal: AbortSignal.timeout(12_000) });
     recordMatrixCall(companyId, n * n);
     if (!res.ok) {
-      console.error("[routing] mapbox matrix failed:", res.status, await res.text());
+      reportError("[routing] mapbox matrix failed:", res.status, await res.text());
       return matrix;
     }
     const data = (await res.json()) as {
@@ -280,7 +281,7 @@ export async function driveMatrix(
     remember(key, matrix);
     return matrix;
   } catch (err) {
-    console.error("[routing] mapbox matrix threw:", err);
+    reportError("[routing] mapbox matrix threw:", err);
     return matrix;
   }
 }

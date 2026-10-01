@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { refreshByVerificationId } from "@/lib/business-line";
 
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
     try {
       await refreshByVerificationId(id);
     } catch (err) {
-      console.error("[telnyx tollfree] refresh failed:", err);
+      reportError("[telnyx tollfree] refresh failed:", err);
     }
   }
   return NextResponse.json({ received: true });

@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { isBlobStorageConfigured, putObject, signedGetUrl } from "./blob-storage";
@@ -142,12 +143,12 @@ async function copyImages(spec: EstimatorSpec, companyId: string, estimatorId: s
           await putObject(key, bytes, src.mimeType);
           await prisma.estimatorImage.update({ where: { id: row.id }, data: { storageKey: key, data: null } });
         } catch (err) {
-          console.error("[library] R2 copy failed; bytes stay in Postgres", err);
+          reportError("[library] R2 copy failed; bytes stay in Postgres", err);
         }
       }
       map.set(src.id, row.id);
     } catch (err) {
-      console.error("[library] picture copy failed; keeping the original URL", { id: src.id, error: err });
+      reportError("[library] picture copy failed; keeping the original URL", { id: src.id, error: err });
     }
   }
   return map.size > 0 ? remapImages(spec, map) : spec;

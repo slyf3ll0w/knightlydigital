@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { createHash } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
@@ -62,6 +63,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   const entityId = createHash("sha256").update(`${token}:${minute}:${raw}`).digest("hex").slice(0, 32);
   // Runs behind the response — the caller (Zapier, a form) shouldn't wait on
   // our emails. The engine never throws.
-  void fireWebhook(automation, entityId, payload).catch((err) => console.error("[automations] webhook run failed", err));
+  void fireWebhook(automation, entityId, payload).catch((err) => reportError("[automations] webhook run failed", err));
   return NextResponse.json({ ok: true }, { status: 202 });
 }

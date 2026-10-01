@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { getActor } from "@/lib/permissions";
 import { softphoneHeartbeat } from "@/lib/softphone";
@@ -18,6 +19,6 @@ export async function POST(req: NextRequest) {
   } catch {
     /* an unreadable beacon still counts as "here" */
   }
-  await softphoneHeartbeat(actor.id, online).catch((err) => console.error("[softphone] heartbeat failed:", err));
+  await softphoneHeartbeat(actor.id, online).catch((err) => reportError("[softphone] heartbeat failed:", err));
   return NextResponse.json({ ok: true });
 }

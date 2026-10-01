@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Google Calendar push (tier 2 of calendar sync — design in
  * docs/plans/google-calendar-sync-2026-09-11.md).
@@ -528,7 +529,7 @@ async function listMarkedEvents(token: string, calendarId: string): Promise<Map<
 export async function recordError(connectionId: string, err: unknown): Promise<void> {
   const message = err instanceof Error ? err.message : "Sync failed";
   const reconnect = err instanceof GoogleAuthError && err.reconnect;
-  console.error("[google-calendar] sync failed", connectionId, message);
+  reportError("[google-calendar] sync failed", connectionId, message);
   await prisma.googleCalendarConnection
     .update({
       where: { id: connectionId },
@@ -565,7 +566,7 @@ export async function disconnectUser(userId: string): Promise<void> {
     });
     await revoke(fresh);
   } catch (err) {
-    console.error("[google-calendar] disconnect cleanup failed", err);
+    reportError("[google-calendar] disconnect cleanup failed", err);
   }
   // The mirrored Google busy blocks go with the connection
   await prisma.timeBlock.deleteMany({ where: { userId, source: "GOOGLE" } });
@@ -635,7 +636,7 @@ export async function scheduleGoogleCalendarSync(companyId: string | null): Prom
       id,
       setTimeout(() => {
         pendingByCompany.delete(id);
-        syncCompany(id).catch((err) => console.error("[google-calendar] debounced sync failed", err));
+        syncCompany(id).catch((err) => reportError("[google-calendar] debounced sync failed", err));
       }, DEBOUNCE_MS)
     );
   }

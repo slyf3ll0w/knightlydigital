@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { randomBytes } from "crypto";
 import { lookup } from "dns/promises";
 import { prisma } from "./db";
@@ -112,7 +113,7 @@ async function notify(automation: AutomationRow, userIds: string[], title: strin
   if (userIds.length === 0) return;
   await prisma.automationNotice
     .createMany({ data: userIds.map((userId) => ({ companyId: automation.companyId, userId, automationId: automation.id, title: t, body: b ?? null, url: link })) })
-    .catch((err) => console.error("[automations] notice write failed", err));
+    .catch((err) => reportError("[automations] notice write failed", err));
 }
 
 export async function runAction(automation: AutomationRow, compiled: CompiledAutomation, index: number, loaded: Loaded, now = new Date()): Promise<string> {

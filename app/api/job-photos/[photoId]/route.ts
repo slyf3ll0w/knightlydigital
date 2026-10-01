@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
@@ -37,7 +38,7 @@ export async function GET(
         headers: { "Cache-Control": "private, max-age=300" },
       });
     } catch (err) {
-      console.error("[job-photos] signing failed", { photoId, error: err });
+      reportError("[job-photos] signing failed", { photoId, error: err });
       // Fall through: a photo mid-migration may still have its bytes here.
     }
   }

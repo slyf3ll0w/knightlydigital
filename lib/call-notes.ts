@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Call notes — the person's own, and the ones Atlas takes.
  *
@@ -111,7 +112,7 @@ export async function appendTranscript(callId: string, line: string): Promise<vo
       SET "transcript" = left(coalesce("transcript", '') || ${line} || E'\n', ${TRANSCRIPT_MAX_CHARS}::int)
       WHERE "id" = ${callId} AND "atlasNotesState" IN ('listening', 'summarizing', 'awaiting_contact')`;
   } catch (err) {
-    console.error(`[call-notes] transcript append failed for ${callId}:`, err);
+    reportError(`[call-notes] transcript append failed for ${callId}:`, err);
   }
 }
 
@@ -190,7 +191,7 @@ export async function summarizeCallNotes(callId: string): Promise<AtlasNotesSnap
     });
     return { state: "done", notes: text, error: null, tokens: res.atlasTokens };
   } catch (err) {
-    console.error(`[call-notes] summary failed for ${callId}:`, err);
+    reportError(`[call-notes] summary failed for ${callId}:`, err);
     return fail(`${assistantName} couldn't write the notes just now — the transcript is kept, try again from the call screen.`);
   }
 }

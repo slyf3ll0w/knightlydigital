@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
@@ -46,7 +47,7 @@ export async function POST() {
         { status: 400 }
       );
     }
-    console.error("[payments] payout failed", err);
+    reportError("[payments] payout failed", err);
     const message =
       err instanceof FinixError ? `Payout failed: ${err.message}` : "Payout failed. Please try again.";
     return NextResponse.json({ error: message }, { status: 424 });

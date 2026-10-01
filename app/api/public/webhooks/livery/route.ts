@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyLiverySignature } from "@/lib/addon";
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
         url: "/app/settings/addon",
         tag: "addon-active",
       }
-    ).catch((e) => console.error("[livery-webhook] owner notify failed", e));
+    ).catch((e) => reportError("[livery-webhook] owner notify failed", e));
     return NextResponse.json({ received: true, matched: true });
   }
 
@@ -122,7 +123,7 @@ export async function POST(req: NextRequest) {
         url: "/app/settings/addon",
         tag: "addon-failed",
       }
-    ).catch((e) => console.error("[livery-webhook] owner notify failed", e));
+    ).catch((e) => reportError("[livery-webhook] owner notify failed", e));
     return NextResponse.json({ received: true, matched: true });
   }
 

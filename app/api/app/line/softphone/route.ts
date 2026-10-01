@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { getActor, canSell } from "@/lib/permissions";
 import { limit } from "@/lib/rate-limit";
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(await issueSoftphoneGrant(as.id, as.companyId, device), { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     if (err instanceof SoftphoneError) return NextResponse.json({ error: err.message }, { status: err.status });
-    console.error("[softphone] grant failed:", err);
+    reportError("[softphone] grant failed:", err);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }

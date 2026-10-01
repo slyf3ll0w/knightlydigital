@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
@@ -93,7 +94,7 @@ export function buildAuthOptions(ctx: AuthRequestContext | null = null): NextAut
     try {
       appleSecret = appleClientSecret();
     } catch (e) {
-      console.error("[auth] Sign in with Apple disabled:", e instanceof Error ? e.message : e);
+      reportError("[auth] Sign in with Apple disabled:", e instanceof Error ? e.message : e);
     }
   }
 

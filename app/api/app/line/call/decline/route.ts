@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { getActor, canSell } from "@/lib/permissions";
 import { VoiceError, declineCall } from "@/lib/voice";
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(await declineCall(actor.companyId, body.id));
   } catch (err) {
     if (err instanceof VoiceError) return NextResponse.json({ error: err.message }, { status: err.status });
-    console.error("[voice] decline route error:", err);
+    reportError("[voice] decline route error:", err);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }

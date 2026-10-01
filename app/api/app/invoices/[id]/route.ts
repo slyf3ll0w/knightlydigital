@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import type { InvoiceStatus, RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -244,7 +245,7 @@ export async function DELETE(
         : []),
     ]);
   } catch (e) {
-    console.error("[invoice delete] failed", { invoiceId: invoice.id, error: e });
+    reportError("[invoice delete] failed", { invoiceId: invoice.id, error: e });
     return NextResponse.json({ error: "Couldn't delete this invoice. Please try again." }, { status: 500 });
   }
 

@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { directionsBudgetOk } from "@/lib/mapbox-budget";
 import { recordDirectionsCall } from "@/lib/usage";
 import type { RoutePoint } from "@/lib/geo-estimate";
@@ -75,7 +76,7 @@ async function fetchWindow(points: RoutePoint[], companyId?: string | null): Pro
   const res = await fetch(url, { signal: AbortSignal.timeout(12_000) });
   recordDirectionsCall(companyId);
   if (!res.ok) {
-    console.error("[directions] mapbox failed:", res.status, await res.text());
+    reportError("[directions] mapbox failed:", res.status, await res.text());
     return null;
   }
   const data = (await res.json()) as {
@@ -130,7 +131,7 @@ export async function routeDirections(points: RoutePoint[], companyId?: string |
     cache.set(key, { at: Date.now(), directions });
     return directions;
   } catch (err) {
-    console.error("[directions] mapbox threw:", err);
+    reportError("[directions] mapbox threw:", err);
     return null;
   }
 }

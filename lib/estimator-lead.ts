@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { offersSmsConsent } from "@/lib/sms-consent";
 import { randomBytes } from "crypto";
 import { prisma } from "./db";
@@ -232,7 +233,7 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
       webLeadPushPayload({ contactId: out.contact.id, contactName, requestId: out.request.id, title: out.request.title, shown: outOfArea ? "outside your service area" : shown, phone: customer.phone })
     );
   } catch (err) {
-    console.error("[estimate-form] push failed:", err);
+    reportError("[estimate-form] push failed:", err);
   }
 
   try {
@@ -252,7 +253,7 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
       await sendEmail({ companyId: company.id, to: notifyTo, subject, html, replyTo: customer.email || undefined });
     }
   } catch (err) {
-    console.error("[estimate-form] team email failed:", err);
+    reportError("[estimate-form] team email failed:", err);
   }
 
   if (out.quote && send && customer.email) {
@@ -268,7 +269,7 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
       });
       await sendEmail({ companyId: company.id, to: customer.email, subject, html, replyTo: company.email || undefined, fromName: company.name });
     } catch (err) {
-      console.error("[estimate-form] quote email failed:", err);
+      reportError("[estimate-form] quote email failed:", err);
     }
   }
 

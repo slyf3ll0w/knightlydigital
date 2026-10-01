@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
@@ -96,7 +97,7 @@ async function syncFromResend(companyId: string, domainId: string) {
         select: COMPANY_SELECT,
       });
     }
-    console.error("[email-domain] sync failed:", err);
+    reportError("[email-domain] sync failed:", err);
     return null;
   }
 }
@@ -176,7 +177,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     if (err instanceof EmailDomainError)
       return NextResponse.json({ error: err.message }, { status: 400 });
-    console.error("[email-domain] create failed:", err);
+    reportError("[email-domain] create failed:", err);
     return NextResponse.json({ error: "Couldn't register the domain — try again." }, { status: 424 });
   }
 }
@@ -199,7 +200,7 @@ export async function PATCH(req: NextRequest) {
       await verifyDomain(company.emailDomainId);
     } catch (err) {
       if (!(err instanceof EmailDomainError && err.status === 404)) {
-        console.error("[email-domain] verify failed:", err);
+        reportError("[email-domain] verify failed:", err);
       }
     }
     const synced = await syncFromResend(actor.companyId, company.emailDomainId);
@@ -240,7 +241,7 @@ export async function DELETE() {
     } catch (err) {
       // Already gone at Resend is fine — we're clearing our side regardless
       if (!(err instanceof EmailDomainError && err.status === 404)) {
-        console.error("[email-domain] delete failed:", err);
+        reportError("[email-domain] delete failed:", err);
       }
     }
   }

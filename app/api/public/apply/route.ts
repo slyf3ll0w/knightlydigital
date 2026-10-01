@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getServerSession } from "next-auth";
@@ -267,7 +268,7 @@ export async function POST(req: NextRequest) {
   try {
     await sendEmail({ to: APPLICATION_INBOX, ...notification });
   } catch (e) {
-    console.error("[apply] application notice failed", e);
+    reportError("[apply] application notice failed", e);
   }
 
   // userId = the new OWNER membership; the signed-in (Google) form re-points

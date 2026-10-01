@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Softphone — business-line calls in the browser (tier 2 of
  * docs/plans/business-line-voice-2026-09-18.md).
@@ -117,7 +118,7 @@ async function ensureSipConnection(company: { id: string; name: string; lineSipC
       sipUriChecked.add(company.lineSipConnectionId);
       await ensureSipUriCalling(company.lineSipConnectionId).catch((err) => {
         sipUriChecked.delete(company.lineSipConnectionId!);
-        console.error("[softphone] sip_uri_calling repair failed:", err);
+        reportError("[softphone] sip_uri_calling repair failed:", err);
       });
     }
     return company.lineSipConnectionId;
@@ -278,11 +279,11 @@ export async function deleteSoftphoneResources(companyId: string): Promise<void>
   ]);
   for (const u of users) {
     for (const id of [u.sipCredentialId, u.sipCredentialIdIos]) {
-      if (id) await deleteTelephonyCredential(id).catch((e) => console.error("[softphone] credential delete failed:", e));
+      if (id) await deleteTelephonyCredential(id).catch((e) => reportError("[softphone] credential delete failed:", e));
     }
   }
   if (company?.lineSipConnectionId) {
-    await deleteCredentialConnection(company.lineSipConnectionId).catch((e) => console.error("[softphone] connection delete failed:", e));
+    await deleteCredentialConnection(company.lineSipConnectionId).catch((e) => reportError("[softphone] connection delete failed:", e));
   }
   await prisma.$transaction([
     prisma.user.updateMany({ where: { companyId }, data: { sipCredentialId: null, sipUsername: null, sipCredentialIdIos: null, sipUsernameIos: null, softphoneSeenAt: null } }),

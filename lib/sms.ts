@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Provider-sent (automated) SMS via Telnyx — the paid counterpart to the free
  * sms: deep links in lib/messaging.ts. Env-gated like Resend in lib/email.ts:
@@ -146,14 +147,14 @@ export async function sendSms({
       }),
     });
     if (!res.ok) {
-      console.error("[sms] telnyx send failed:", res.status, await res.text());
+      reportError("[sms] telnyx send failed:", res.status, await res.text());
     } else {
       recordSmsSent(companyId, smsSegmentCount(text));
       await logSmsSend({ companyId, contactId, to: e164, from });
     }
     return res.ok;
   } catch (err) {
-    console.error("[sms] telnyx send threw:", err);
+    reportError("[sms] telnyx send threw:", err);
     return false;
   }
 }
@@ -180,7 +181,7 @@ async function logSmsSend({
   try {
     await prisma.smsSend.create({ data: { companyId, contactId: contactId ?? null, toDigits, fromNumber: from } });
   } catch (err) {
-    console.error("[sms] send log failed:", err);
+    reportError("[sms] send log failed:", err);
   }
 }
 

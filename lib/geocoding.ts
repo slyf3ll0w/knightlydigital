@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Forward geocoding via Mapbox — the coordinate source for the Route Manager.
  * Env-gated like Telnyx in lib/sms.ts: without MAPBOX_TOKEN every lookup is a
@@ -211,13 +212,13 @@ export async function geocodeAddress(
         result = { lat: coords[1], lng: coords[0] };
       }
     } else {
-      console.error("[geocode] mapbox lookup failed:", res.status, await res.text());
+      reportError("[geocode] mapbox lookup failed:", res.status, await res.text());
       // Rate limits / bad token are transient platform problems, not facts
       // about the address — don't negative-cache them.
       if (res.status === 401 || res.status === 403 || res.status === 429) return null;
     }
   } catch (err) {
-    console.error("[geocode] mapbox lookup threw:", err);
+    reportError("[geocode] mapbox lookup threw:", err);
     return null; // network blip — leave uncached so a later load retries
   }
 
@@ -257,7 +258,7 @@ export async function geocodeContactAddress(id: string): Promise<void> {
       data: { lat: hit?.lat ?? null, lng: hit?.lng ?? null, geocodedAt: new Date() },
     });
   } catch (err) {
-    console.error("[geocode] contact address stamp failed:", id, err);
+    reportError("[geocode] contact address stamp failed:", id, err);
   }
 }
 
@@ -275,7 +276,7 @@ export async function geocodeCompany(id: string): Promise<void> {
       data: { lat: hit?.lat ?? null, lng: hit?.lng ?? null, geocodedAt: new Date() },
     });
   } catch (err) {
-    console.error("[geocode] company stamp failed:", id, err);
+    reportError("[geocode] company stamp failed:", id, err);
   }
 }
 
@@ -348,7 +349,7 @@ export async function suggestAddresses(query: string, companyId: string | null):
     }
     return out;
   } catch (err) {
-    console.error("[geocode] suggest failed:", err);
+    reportError("[geocode] suggest failed:", err);
     return [];
   }
 }

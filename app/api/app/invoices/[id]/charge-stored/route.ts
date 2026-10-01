@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
@@ -167,9 +168,9 @@ export async function POST(
           last4: result.cardLast4,
           expMonth: result.cardExpMonth,
           expYear: result.cardExpYear,
-        }).catch((e) => console.error("[charge] save card failed", e));
+        }).catch((e) => reportError("[charge] save card failed", e));
         await reviveAutopayForContact(invoice.contact.id).catch((e) =>
-          console.error("[charge] autopay revive failed", e)
+          reportError("[charge] autopay revive failed", e)
         );
       }
     }
@@ -197,7 +198,7 @@ export async function POST(
         email: invoice.contact.email,
         contactFirstName: invoice.contact.firstName,
         jobTitle: null,
-      }).catch((e) => console.error("[charge-stored] review request failed", e));
+      }).catch((e) => reportError("[charge-stored] review request failed", e));
     }
 
     logActivity({

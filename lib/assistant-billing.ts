@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { prisma } from "@/lib/db";
 import { unitPrices } from "@/lib/platform-costs";
 import { ATLAS_TOKEN_CENTS, ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS } from "@/lib/atlas-pricing";
@@ -306,7 +307,7 @@ export function recordAssistantTurn(row: {
         ok: row.ok,
       },
     })
-    .catch((err) => console.error("[assistant-billing] failed to record turn", err));
+    .catch((err) => reportError("[assistant-billing] failed to record turn", err));
 }
 
 /** Rolling usage summary for the superadmin console. */

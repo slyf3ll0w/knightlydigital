@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { prisma } from "@/lib/db";
 
 /**
@@ -31,7 +32,7 @@ export function logActivity(params: {
         detail: params.detail?.slice(0, 500) ?? null,
       },
     })
-    .catch((e) => console.error("[activity] log failed", params.action, e));
+    .catch((e) => reportError("[activity] log failed", params.action, e));
 }
 
 /** The audit rows for one entity, newest first (detail-page display). */

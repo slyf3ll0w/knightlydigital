@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest) {
     // recordPayment's own "Invoice not found" is pre-checked above (scoped),
     // so anything landing here is a DB/email failure — log it and keep the
     // internals (Prisma messages, table names) out of the response.
-    console.error("[payments] recordPayment failed:", e);
+    reportError("[payments] recordPayment failed:", e);
     return NextResponse.json({ error: "Failed to record payment." }, { status: 500 });
   }
 }

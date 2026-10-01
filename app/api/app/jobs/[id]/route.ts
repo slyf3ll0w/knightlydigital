@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -190,7 +191,7 @@ export async function PATCH(
 
     // Re-materialize the close-out checklist for the new service set
     await syncJobChecklist(job.id, actor.companyId).catch((e) =>
-      console.error("[jobs] checklist sync failed for", job.id, e)
+      reportError("[jobs] checklist sync failed for", job.id, e)
     );
   }
 
@@ -276,7 +277,7 @@ export async function DELETE(
       prisma.job.delete({ where: { id: job.id } }),
     ]);
   } catch (e) {
-    console.error("[job delete] failed", { jobId: job.id, error: e });
+    reportError("[job delete] failed", { jobId: job.id, error: e });
     return NextResponse.json(
       { error: "Couldn't delete this job. Please try again." },
       { status: 500 }

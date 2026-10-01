@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Mapbox spend guards for the Route Manager — two layers:
  *
@@ -85,7 +86,7 @@ export async function geocodeBudgetOk(): Promise<boolean> {
   } catch (err) {
     // If the meter itself is broken, spending money on faith is the wrong
     // default — treat unknown as over-cap.
-    console.error("[mapbox-budget] usage check failed:", err);
+    reportError("[mapbox-budget] usage check failed:", err);
     return false;
   }
 }
@@ -100,7 +101,7 @@ export async function matrixBudgetOk(elements: number, companyId?: string | null
     }
     return true;
   } catch (err) {
-    console.error("[mapbox-budget] usage check failed:", err);
+    reportError("[mapbox-budget] usage check failed:", err);
     return false;
   }
 }
@@ -115,7 +116,7 @@ export async function directionsBudgetOk(companyId?: string | null): Promise<boo
     }
     return true;
   } catch (err) {
-    console.error("[mapbox-budget] usage check failed:", err);
+    reportError("[mapbox-budget] usage check failed:", err);
     return false;
   }
 }

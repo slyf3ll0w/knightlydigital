@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { randomBytes } from "crypto";
 import * as Sentry from "@sentry/nextjs";
 import { Prisma } from "@prisma/client";
@@ -218,7 +219,7 @@ export async function createServiceBooking(params: {
       const fresh = await prisma.contact.findUnique({ where: { id: result.contact.id }, select: { id: true, status: true, pipelineStageId: true } });
       if (fresh) await recordLeadWin(prisma, company.id, fresh);
     } catch (err) {
-      console.error("[booking] lead win (no deposit owed) failed:", err);
+      reportError("[booking] lead win (no deposit owed) failed:", err);
     }
   }
   if (collect && result.depositInvoice) {
@@ -256,7 +257,7 @@ export async function createServiceBooking(params: {
         // invoice before deciding: found = the money moved, carry on as paid;
         // not found = nothing moved, so the booking is unwound rather than
         // left as a confirmed job nobody paid for.
-        console.error("[booking] charge threw:", err);
+        reportError("[booking] charge threw:", err);
         const settled = await findUnrecordedTransferForInvoice(inv.id, Math.round((amount + surchargeAmount) * 100)).catch(() => null);
         if (!settled) {
           await unwind(result);
@@ -296,11 +297,11 @@ export async function createServiceBooking(params: {
       try {
         await record();
       } catch (first) {
-        console.error("[booking] recording the payment failed once, retrying:", first);
+        reportError("[booking] recording the payment failed once, retrying:", first);
         try {
           await record();
         } catch (second) {
-          console.error("[booking] PAYMENT NOT RECORDED — transfer", paid.transactionId, "invoice", inv.id, second);
+          reportError("[booking] PAYMENT NOT RECORDED — transfer", paid.transactionId, "invoice", inv.id, second);
           Sentry.captureException(second, { extra: { transferId: paid.transactionId, invoiceId: inv.id } });
         }
       }
@@ -317,7 +318,7 @@ export async function createServiceBooking(params: {
       const fresh = await prisma.contact.findUnique({ where: { id: result.contact.id }, select: { id: true, status: true, pipelineStageId: true } });
       if (fresh) await recordLeadWin(prisma, company.id, fresh);
     } catch (err) {
-      console.error("[booking] lead win after charge failed:", err);
+      reportError("[booking] lead win after charge failed:", err);
     }
   }
 
@@ -335,7 +336,7 @@ export async function createServiceBooking(params: {
       tag: `job-${result.job.id}`,
     });
   } catch (err) {
-    console.error("[booking] push failed:", err);
+    reportError("[booking] push failed:", err);
   }
   try {
     const notifyTo = await companyNotifyAddress(company.id, company.email);
@@ -353,7 +354,7 @@ export async function createServiceBooking(params: {
       await sendEmail({ companyId: company.id, to: notifyTo, subject: mail.subject, html: mail.html, replyTo: result.contact.email || undefined });
     }
   } catch (err) {
-    console.error("[booking] team email failed:", err);
+    reportError("[booking] team email failed:", err);
   }
   if (result.contact.email) {
     try {
@@ -388,7 +389,7 @@ export async function createServiceBooking(params: {
         ],
       });
     } catch (err) {
-      console.error("[booking] client email failed:", err);
+      reportError("[booking] client email failed:", err);
     }
   }
 
@@ -429,6 +430,6 @@ async function unwind(r: { job: { id: string }; quote: { id: string }; request: 
       if (r.subscriptionIds.length) await tx.subscription.deleteMany({ where: { id: { in: r.subscriptionIds } } });
     });
   } catch (err) {
-    console.error("[booking] unwind after decline failed:", err);
+    reportError("[booking] unwind after decline failed:", err);
   }
 }

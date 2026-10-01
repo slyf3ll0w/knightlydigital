@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
@@ -195,7 +196,7 @@ export async function PATCH(
   let seriesPaused = 0;
   if (statusChange === "ARCHIVED") {
     const r = await pauseSubscriptionsForContact(id, actor.companyId).catch((e) => {
-      console.error("[contacts] pausing series on archive failed", id, e);
+      reportError("[contacts] pausing series on archive failed", id, e);
       return { paused: 0, visitsDeleted: 0 };
     });
     seriesPaused = r.paused;
@@ -319,7 +320,7 @@ export async function DELETE(
       await tx.contact.delete({ where: { id } });
     });
   } catch (e) {
-    console.error("[contact force-delete] failed", { contactId: id, error: e });
+    reportError("[contact force-delete] failed", { contactId: id, error: e });
     return NextResponse.json(
       { error: "Couldn't delete this client — some of their records are linked in an unexpected way. Please try again or contact support." },
       { status: 500 }

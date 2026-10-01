@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { getActor, isManager } from "@/lib/permissions";
 import { LineError, lineSummary, setCallerIdName, setLineForwarding, setVoicemailGreeting } from "@/lib/business-line";
@@ -45,6 +46,6 @@ export async function PATCH(req: NextRequest) {
 
 function lineErrorResponse(err: unknown): NextResponse {
   if (err instanceof LineError) return NextResponse.json({ error: err.message }, { status: err.status });
-  console.error("[line] route error:", err);
+  reportError("[line] route error:", err);
   return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
 }

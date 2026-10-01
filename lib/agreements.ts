@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Agreement auto-send for recurring/contract services.
  *
@@ -141,6 +142,6 @@ export async function autoSendQuoteAgreements(
       }
     }
   } catch (err) {
-    console.error("[agreements] auto-send failed for quote", quoteId, err);
+    reportError("[agreements] auto-send failed for quote", quoteId, err);
   }
 }

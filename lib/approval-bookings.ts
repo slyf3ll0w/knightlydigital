@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { prisma } from "@/lib/db";
 import { sendEmail, bookingDeclinedEmail } from "@/lib/email";
 import { slotLabel } from "@/lib/booking-engine";
@@ -125,7 +126,7 @@ export async function expireApprovalBookings(now: Date): Promise<{ expired: numb
         tag: `request-${appt.request.id}`,
       });
     } catch (err) {
-      console.error("[approval-bookings] expire failed for appointment", appt.id, err);
+      reportError("[approval-bookings] expire failed for appointment", appt.id, err);
     }
   }
 
@@ -156,7 +157,7 @@ export async function expireApprovalBookings(now: Date): Promise<{ expired: numb
         });
         nudged += 1;
       } catch (err) {
-        console.error("[approval-bookings] nudge failed for company", company.id, err);
+        reportError("[approval-bookings] nudge failed for company", company.id, err);
       }
     }
   }

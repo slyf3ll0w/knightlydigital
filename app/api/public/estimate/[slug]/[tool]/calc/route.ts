@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { parseVariants, runCompiled, runVariants } from "@/lib/estimator";
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     // wrong / missing answers are the visitor's to fix; a broken rule (a
     // renamed price-book item) is the owner's — the visitor gets a plain line
     if (result.inputProblems) return NextResponse.json({ error: result.errors[0], errors: result.errors }, { status: 400 });
-    console.error("[estimate-form] tool can't run", { estimatorId: pub.row.id, errors: result.errors });
+    reportError("[estimate-form] tool can't run", { estimatorId: pub.row.id, errors: result.errors });
     return NextResponse.json({ error: PUBLIC_RUN_FAILED }, { status: 424 });
   }
 

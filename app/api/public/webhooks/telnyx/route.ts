@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
@@ -40,7 +41,7 @@ import { fireAutomations } from "@/lib/automations-server";
 
 export async function POST(req: NextRequest) {
   if (!telnyxWebhookConfigured()) {
-    console.error("Telnyx webhook: TELNYX_PUBLIC_KEY is not set; rejecting request");
+    reportError("Telnyx webhook: TELNYX_PUBLIC_KEY is not set; rejecting request");
     return NextResponse.json({ error: "Webhook not configured" }, { status: 503 });
   }
   const raw = await req.text();
@@ -118,7 +119,7 @@ async function setOptOut(digits: string, optOut: boolean, companyId: string | nu
       data: { smsOptOut: optOut },
     });
   } catch (err) {
-    console.error("[telnyx] opt-out update failed:", err);
+    reportError("[telnyx] opt-out update failed:", err);
   }
 }
 
@@ -229,6 +230,6 @@ async function landInboundSms(digits: string, fromE164: string, text: string, co
     fireAutomations(contact.companyId, "message.text_received", message.id);
     await notifyTeamOfClientMessage(contact, message.id, text, "sms");
   } catch (err) {
-    console.error("[telnyx] inbound SMS → thread failed:", err);
+    reportError("[telnyx] inbound SMS → thread failed:", err);
   }
 }

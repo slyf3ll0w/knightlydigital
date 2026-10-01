@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
@@ -121,12 +122,12 @@ export async function POST(
   // (2026-09-28: waiting on Telnyx + push + email made every send feel slow).
   after(async () => {
     await notifyClientOfReply(contact, message.id, body).catch((err) =>
-      console.error("[messages] client notify failed:", err)
+      reportError("[messages] client notify failed:", err)
     );
     // A text from the team counts as reaching the lead (Leads board automation).
     fireAutomations(actor.companyId, "lead.contact_made", contact.id);
     await autoAdvance(prisma, actor.companyId, contact.id, "CONTACT_MADE").catch((err) =>
-      console.error("[messages] lead auto-advance failed:", err)
+      reportError("[messages] lead auto-advance failed:", err)
     );
   });
 

@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, isManager } from "@/lib/permissions";
@@ -60,7 +61,7 @@ export async function GET(
       })),
     });
   } catch (err) {
-    console.error("[payments] dispute evidence list failed", err);
+    reportError("[payments] dispute evidence list failed", err);
     return NextResponse.json({ error: "Couldn't load evidence." }, { status: 424 });
   }
 }
@@ -111,7 +112,7 @@ export async function POST(
       { status: 201 }
     );
   } catch (err) {
-    console.error("[payments] dispute evidence upload failed", err);
+    reportError("[payments] dispute evidence upload failed", err);
     const message =
       err instanceof FinixError ? `Upload failed: ${err.message}` : "Upload failed. Please try again.";
     return NextResponse.json({ error: message }, { status: 424 });

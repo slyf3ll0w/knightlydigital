@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { prisma } from "@/lib/db";
 import { getMerchant, getOnboardingForm, listMerchantsForIdentity } from "@/lib/finix";
 import { notifyUsers } from "@/lib/push";
@@ -40,7 +41,7 @@ export async function syncFromFinix(companyId: string) {
     }
   } catch (err) {
     // A Finix hiccup shouldn't break the page — serve the stored state
-    console.error("[payments] finix status sync failed", err);
+    reportError("[payments] finix status sync failed", err);
   }
 
   if (

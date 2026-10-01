@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { getActor, isManager } from "@/lib/permissions";
 import { connectCompany, syncCompany, verifyState } from "@/lib/quickbooks";
@@ -45,14 +46,14 @@ export async function GET(req: NextRequest) {
   try {
     await connectCompany({ companyId: actor.companyId, code, realmId });
   } catch (err) {
-    console.error("[quickbooks] token exchange failed", err);
+    reportError("[quickbooks] token exchange failed", err);
     return settingsRedirect(req, { error: "exchange_failed" });
   }
 
   // First sync runs in the background — the settings page shows progress
   // via its status poll instead of blocking this redirect.
   syncCompany(actor.companyId).catch((err) =>
-    console.error("[quickbooks] initial sync failed", err)
+    reportError("[quickbooks] initial sync failed", err)
   );
 
   return settingsRedirect(req, { connected: "1" });

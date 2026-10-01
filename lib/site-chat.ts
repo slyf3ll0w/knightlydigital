@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { createHmac, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/db";
 import { notifyUsers, requestNotifyUserIds } from "@/lib/push";
@@ -30,7 +31,7 @@ export async function siteChatCompanyId(): Promise<string | null> {
     const co = await prisma.company.findUnique({ where: { lineNumber: WB_PHONE.e164 }, select: { id: true } });
     id = co?.id ?? null;
   } catch (err) {
-    console.error("[site-chat] company lookup failed:", err);
+    reportError("[site-chat] company lookup failed:", err);
   }
   cached = { id, at: Date.now() };
   return id;

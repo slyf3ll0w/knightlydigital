@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Cloudflare Turnstile verification (server side).
  *
@@ -58,7 +59,7 @@ export async function verifyCaptcha(
     // out of login/signup with nothing on screen. This is a deploy
     // misconfiguration, not an attack (an attacker can't unset the site
     // key), so pass loudly instead of failing the whole product closed.
-    console.error(
+    reportError(
       "[captcha] TURNSTILE_SECRET_KEY is set but NEXT_PUBLIC_TURNSTILE_SITE_KEY is missing — captcha check skipped; set both keys"
     );
     return true;
@@ -74,7 +75,7 @@ export async function verifyCaptcha(
       body: new URLSearchParams({ secret, response: token }),
     });
     if (!res.ok) {
-      console.error("[captcha] siteverify HTTP %d", res.status);
+      reportError("[captcha] siteverify HTTP %d", res.status);
       return false;
     }
     const data = (await res.json()) as {
@@ -86,16 +87,16 @@ export async function verifyCaptcha(
     if (data.success !== true) {
       // Cloudflare's error-codes are the only way to tell a bad secret
       // (invalid-input-secret) from a replayed token (timeout-or-duplicate).
-      console.error("[captcha] rejected: %j", data["error-codes"] ?? []);
+      reportError("[captcha] rejected: %j", data["error-codes"] ?? []);
       return false;
     }
     if (action && data.action !== action) {
-      console.error("[captcha] action mismatch: got %j want %j", data.action, action);
+      reportError("[captcha] action mismatch: got %j want %j", data.action, action);
       return false;
     }
     const allowed = allowedHostnames();
     if (!data.hostname || !allowed.has(String(data.hostname).toLowerCase())) {
-      console.error(
+      reportError(
         "[captcha] hostname %j not in allowlist %j — set TURNSTILE_HOSTNAMES",
         data.hostname,
         [...allowed]

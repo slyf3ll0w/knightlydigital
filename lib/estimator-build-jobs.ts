@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import type { Actor } from "./permissions";
@@ -74,7 +75,7 @@ export async function runBuildJob(
     const r = await prisma.estimatorBuild
       .updateMany({ where: { id, status: { not: "cancelled" } }, data: { events: events as unknown as Prisma.InputJsonValue, status, ...(toolId ? { toolId } : {}) } })
       .catch((err) => {
-        console.error("[estimator-build-jobs] flush failed", { id, error: err });
+        reportError("[estimator-build-jobs] flush failed", { id, error: err });
         return { count: 1 };
       });
     if (r.count === 0) throw new BuildCancelled();
@@ -97,7 +98,7 @@ export async function runBuildJob(
     }
   } catch (err) {
     if (err instanceof BuildCancelled) return;
-    console.error("[estimator-build-jobs] build crashed", { id, error: err });
+    reportError("[estimator-build-jobs] build crashed", { id, error: err });
     events.push({ error: "Something went wrong while building — please try again.", tokens: 0 });
     status = "error";
     await flush().catch(() => undefined);

@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
@@ -111,7 +112,7 @@ export async function POST(
     if (!added.ok) return NextResponse.json({ error: added.error }, { status: 400 });
     // A fresh card un-stalls any autopay invoices whose old card was declining
     await reviveAutopayForContact(contact.id).catch((e) =>
-      console.error("[contacts] autopay revive failed", e)
+      reportError("[contacts] autopay revive failed", e)
     );
     // cardId lets save-then-charge flows (invoice "Charge Card" with a new
     // card) charge exactly the card that was just vaulted
@@ -120,7 +121,7 @@ export async function POST(
     if (err instanceof finix.FinixError) {
       return NextResponse.json({ error: err.message }, { status: 402 });
     }
-    console.error("[contacts] save card failed", err);
+    reportError("[contacts] save card failed", err);
     return NextResponse.json(
       { error: "Couldn't save the card. Please try again." },
       { status: 500 }

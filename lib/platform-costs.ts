@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Platform unit economics — what each metered unit costs US, priced against
  * the CompanyUsageDaily counters and Payment rows for the /superadmin
@@ -95,7 +96,7 @@ function interchangeTable(): typeof DEFAULT_INTERCHANGE {
   try {
     return { ...DEFAULT_INTERCHANGE, ...JSON.parse(raw) };
   } catch {
-    console.error("[platform-costs] COST_INTERCHANGE_TABLE_JSON is not valid JSON — using defaults");
+    reportError("[platform-costs] COST_INTERCHANGE_TABLE_JSON is not valid JSON — using defaults");
     return DEFAULT_INTERCHANGE;
   }
 }

@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextResponse } from "next/server";
 import { getActor, isManager } from "@/lib/permissions";
 import { LineError, lineSummary, refreshRegistration } from "@/lib/business-line";
@@ -16,7 +17,7 @@ export async function POST() {
     return NextResponse.json(await lineSummary(actor.companyId, { name: actor.name }));
   } catch (err) {
     if (err instanceof LineError) return NextResponse.json({ error: err.message }, { status: err.status });
-    console.error("[line] refresh route error:", err);
+    reportError("[line] refresh route error:", err);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }

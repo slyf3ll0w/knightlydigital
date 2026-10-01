@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { randomBytes } from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -323,7 +324,7 @@ export async function notifyBooking(input: BookingNoticeInput): Promise<void> {
       tag: `appointment-${appointment.id}`,
     });
   } catch (err) {
-    console.error("[booking] push failed:", err);
+    reportError("[booking] push failed:", err);
   }
 
   try {
@@ -343,7 +344,7 @@ export async function notifyBooking(input: BookingNoticeInput): Promise<void> {
       await sendEmail({ companyId: company.id, to: notifyTo, subject, html, replyTo: contact.email || undefined });
     }
   } catch (err) {
-    console.error("[booking] team email failed:", err);
+    reportError("[booking] team email failed:", err);
   }
 
   if (!contact.email) return;
@@ -403,7 +404,7 @@ export async function notifyBooking(input: BookingNoticeInput): Promise<void> {
       attachments: [ics],
     });
   } catch (err) {
-    console.error("[booking] client email failed:", err);
+    reportError("[booking] client email failed:", err);
   }
 }
 

@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * QuickBooks Online integration (Phase 1: one-way push).
  *
@@ -212,7 +213,7 @@ export async function connectCompany(params: {
       });
     }
   } catch (err) {
-    console.error("[quickbooks] companyinfo fetch failed", err);
+    reportError("[quickbooks] companyinfo fetch failed", err);
   }
   return connection;
 }
@@ -232,7 +233,7 @@ export async function disconnectCompany(companyId: string): Promise<void> {
       body: JSON.stringify({ token: decryptToken(connection.refreshTokenEnc) }),
     });
   } catch (err) {
-    console.error("[quickbooks] token revoke failed (connection still deleted)", err);
+    reportError("[quickbooks] token revoke failed (connection still deleted)", err);
   }
   await prisma.quickBooksConnection.delete({ where: { id: connection.id } });
 }
@@ -296,7 +297,7 @@ async function freshAccessToken(connection: QuickBooksConnection): Promise<strin
       break;
     } catch (err) {
       if (attempt >= 2) {
-        console.error(
+        reportError(
           "[quickbooks] CRITICAL: refreshed token could not be saved — this connection now needs reconnecting",
           { companyId: connection.companyId, error: err }
         );
@@ -1195,7 +1196,7 @@ export function queueQuickBooksUnwind(params: {
         console.log(`[quickbooks] removed ${params.entityType} ${params.localId} from QuickBooks`);
       }
     } catch (err) {
-      console.error("[quickbooks] unwind failed", params, err);
+      reportError("[quickbooks] unwind failed", params, err);
     }
   })();
 }
@@ -1224,7 +1225,7 @@ export function queueQuickBooksInvoiceUnwind(params: {
       }
       await unwindQboEntity(connection, "INVOICE", params.invoiceId);
     } catch (err) {
-      console.error("[quickbooks] invoice unwind failed", params, err);
+      reportError("[quickbooks] invoice unwind failed", params, err);
     }
   })();
 }
@@ -1260,7 +1261,7 @@ export function queueQuickBooksPaymentRefresh(params: {
         await pushPayment(connection, params.paymentId, { force: true });
       }
     } catch (err) {
-      console.error("[quickbooks] payment refresh failed", params, err);
+      reportError("[quickbooks] payment refresh failed", params, err);
     }
   })();
 }
@@ -1479,7 +1480,7 @@ export function queueQuickBooksPaymentSync(params: {
       await pushInvoice(connection, params.invoiceId);
       await pushPayment(connection, params.paymentId);
     } catch (err) {
-      console.error("[quickbooks] background payment sync failed", err);
+      reportError("[quickbooks] background payment sync failed", err);
     }
   })();
 }
@@ -1504,7 +1505,7 @@ export async function runQuickBooksNightlySync(): Promise<{
       failed += s.invoices.failed + s.payments.failed + s.quotes.failed + s.expenses.failed;
     } catch (err) {
       failed++;
-      console.error(`[quickbooks] nightly sync failed for company ${companyId}`, err);
+      reportError(`[quickbooks] nightly sync failed for company ${companyId}`, err);
     }
   }
   return { companies: connections.length, pushed, failed };

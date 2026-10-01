@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
@@ -96,7 +97,7 @@ export async function POST(
     } catch (err) {
       // Keep the upload rather than lose the tech's photo — it stays in
       // Postgres and the backfill script can move it later.
-      console.error("[job-photos] R2 upload failed, keeping bytes in Postgres", err);
+      reportError("[job-photos] R2 upload failed, keeping bytes in Postgres", err);
     }
   }
 

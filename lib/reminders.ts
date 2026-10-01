@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Automated payment reminders (dunning).
  *
@@ -99,7 +100,20 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
       // Archived clients are closed out — no dunning
       contact: { is: { email: { not: null }, status: { not: "ARCHIVED" } } },
       company: { is: { suspendedAt: null } },
+      // Only invoices with a stage that is DUE and UNSENT. Without this the
+      // window below filled up with fully-reminded invoices that stay unpaid
+      // for months, and once there were `take` of those, newer invoices were
+      // never looked at again (found 2026-09-30). Mirrors the `eligible`
+      // test in the loop exactly: daysPastDue >= s.days ⇔ dueDate <= now - s.days.
+      OR: STAGES.map((s) => ({
+        dueDate: { lte: new Date(now.getTime() - s.days * DAY) },
+        reminders: { none: { type: s.type } },
+      })),
     },
+    // Newest-eligible first: an invoice that just crossed a threshold is at
+    // the front, and the only rows that can sit in this set without ever
+    // leaving it (companies whose email is still blocked) sink to the back.
+    orderBy: { dueDate: "desc" },
     include: {
       payments: { select: { amount: true, surchargeAmount: true } },
       reminders: { select: { type: true } },
@@ -193,11 +207,11 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
         summary.sent++;
       } else {
         summary.errors++;
-        console.error("[reminders] send failed after claim for invoice", inv.id, stage.type);
+        reportError("[reminders] send failed after claim for invoice", inv.id, stage.type);
       }
     } catch (err) {
       summary.errors++;
-      console.error("[reminders] failed for invoice", inv.id, err);
+      reportError("[reminders] failed for invoice", inv.id, err);
     }
   }
 
@@ -228,10 +242,21 @@ export async function runQuoteFollowUps(
     where: {
       status: "AWAITING_RESPONSE",
       sentAt: { not: null, lte: new Date(now.getTime() - 3 * DAY) },
-      OR: [{ validUntil: null }, { validUntil: { gt: now } }],
+      AND: [
+        { OR: [{ validUntil: null }, { validUntil: { gt: now } }] },
+        // Same starvation guard as the invoice dunning above: only quotes
+        // with a follow-up stage that is due and not yet sent.
+        {
+          OR: QUOTE_STAGES.map((s) => ({
+            sentAt: { lte: new Date(now.getTime() - s.days * DAY) },
+            reminders: { none: { type: s.type } },
+          })),
+        },
+      ],
       contact: { is: { email: { not: null } } },
       company: { is: { suspendedAt: null } },
     },
+    orderBy: { sentAt: "desc" },
     include: {
       reminders: { select: { type: true } },
       contact: { select: { email: true } },
@@ -305,11 +330,11 @@ export async function runQuoteFollowUps(
         summary.sent++;
       } else {
         summary.errors++;
-        console.error("[reminders] follow-up send failed after claim for quote", quote.id, stage.type);
+        reportError("[reminders] follow-up send failed after claim for quote", quote.id, stage.type);
       }
     } catch (err) {
       summary.errors++;
-      console.error("[reminders] follow-up failed for quote", quote.id, err);
+      reportError("[reminders] follow-up failed for quote", quote.id, err);
     }
   }
 
@@ -365,6 +390,8 @@ export async function runAppointmentReminders(
         },
       },
     },
+    // Soonest first: the ~1-hour stage is the time-critical one
+    orderBy: { scheduledAt: "asc" },
     take: 1000,
   });
 
@@ -482,11 +509,11 @@ export async function runAppointmentReminders(
         }
       } else {
         summary.errors++;
-        console.error("[reminders] send failed after claim for appointment", appt.id, stage);
+        reportError("[reminders] send failed after claim for appointment", appt.id, stage);
       }
     } catch (err) {
       summary.errors++;
-      console.error("[reminders] failed for appointment", appt.id, err);
+      reportError("[reminders] failed for appointment", appt.id, err);
     }
   }
 
@@ -533,6 +560,7 @@ export async function runVisitReminders(
         },
       },
     },
+    orderBy: { scheduledAt: "asc" },
     take: 1000,
   });
 
@@ -630,11 +658,11 @@ export async function runVisitReminders(
         // techs hear about remindClient=false jobs too, with action buttons.)
       } else {
         summary.errors++;
-        console.error("[reminders] send failed after claim for job visit", job.id, stage);
+        reportError("[reminders] send failed after claim for job visit", job.id, stage);
       }
     } catch (err) {
       summary.errors++;
-      console.error("[reminders] failed for job visit", job.id, err);
+      reportError("[reminders] failed for job visit", job.id, err);
     }
   }
 
@@ -665,6 +693,7 @@ export async function runTechHeadsUp(now: Date = new Date()): Promise<Appointmen
       assignments: { select: { userId: true } },
       company: { select: { timezone: true } },
     },
+    orderBy: { scheduledAt: "asc" },
     take: 1000,
   });
 
@@ -715,7 +744,7 @@ export async function runTechHeadsUp(now: Date = new Date()): Promise<Appointmen
       summary.sent++;
     } catch (err) {
       summary.errors++;
-      console.error("[reminders] tech heads-up failed for job", job.id, err);
+      reportError("[reminders] tech heads-up failed for job", job.id, err);
     }
   }
 

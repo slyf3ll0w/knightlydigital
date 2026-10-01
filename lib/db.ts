@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { PrismaClient } from "@prisma/client";
 import { phoneDigits } from "@/lib/phone";
 
@@ -96,7 +97,7 @@ if (!globalForTrigger.calendarSyncTriggerInstalled) {
         null;
       import("@/lib/google-calendar")
         .then((m) => m.scheduleGoogleCalendarSync(companyId))
-        .catch((err) => console.error("[calendar-sync] trigger failed", err));
+        .catch((err) => reportError("[calendar-sync] trigger failed", err));
     }
     return result;
   });

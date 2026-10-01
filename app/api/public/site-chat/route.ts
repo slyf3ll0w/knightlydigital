@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { clientIp, limit } from "@/lib/rate-limit";
@@ -102,7 +103,7 @@ export async function POST(req: NextRequest) {
       });
     } catch (err) {
       // A wrong SITE_CHAT_COMPANY_ID (no such company) lands here.
-      console.error("[site-chat] contact create failed:", err);
+      reportError("[site-chat] contact create failed:", err);
       return notReady();
     }
     contactId = created.id;
@@ -118,7 +119,7 @@ export async function POST(req: NextRequest) {
   });
   markVisitorSeen(contact.id);
   notifyTeamOfClientMessage(contact, message.id, body, "web").catch((err) =>
-    console.error("[site-chat] notify failed:", err)
+    reportError("[site-chat] notify failed:", err)
   );
 
   return NextResponse.json(

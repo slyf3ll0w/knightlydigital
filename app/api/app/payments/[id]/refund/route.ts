@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
@@ -155,9 +156,9 @@ export async function POST(
         data: { amount: payment.amount, surchargeAmount: payment.surchargeAmount },
       })
       .catch((restoreErr) => {
-        console.error("[payments] refund reservation rollback failed", restoreErr);
+        reportError("[payments] refund reservation rollback failed", restoreErr);
       });
-    console.error("[payments] refund failed", err);
+    reportError("[payments] refund failed", err);
     const message =
       err instanceof FinixError
         ? `Refund failed: ${err.message}`

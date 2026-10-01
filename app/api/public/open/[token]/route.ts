@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { notifyUsers, companyManagerIds } from "@/lib/push";
@@ -129,7 +130,7 @@ export async function GET(
       });
     }
   } catch (err) {
-    console.error("[open-pixel] failed:", err);
+    reportError("[open-pixel] failed:", err);
   }
   return gif();
 }

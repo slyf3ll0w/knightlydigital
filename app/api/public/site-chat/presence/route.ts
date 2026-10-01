@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { clientIp, limit } from "@/lib/rate-limit";
 import { markVisitorLeft, siteChatCompanyId, verifySiteChatToken } from "@/lib/site-chat";
@@ -21,6 +22,6 @@ export async function POST(req: NextRequest) {
   }
   const contactId = verifySiteChatToken(token);
   if (!contactId || !(await siteChatCompanyId())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  await markVisitorLeft(contactId).catch((err) => console.error("[site-chat] leave failed:", err));
+  await markVisitorLeft(contactId).catch((err) => reportError("[site-chat] leave failed:", err));
   return NextResponse.json({ ok: true });
 }

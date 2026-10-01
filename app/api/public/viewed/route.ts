@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
@@ -204,7 +205,7 @@ export async function POST(req: NextRequest) {
       await notifyUsers([...ids], push);
     }
   } catch (err) {
-    console.error("[viewed] beacon failed:", err);
+    reportError("[viewed] beacon failed:", err);
   }
   return ok;
 }

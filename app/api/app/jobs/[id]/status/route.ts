@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { fireAutomations } from "@/lib/automations-server";
 import { prisma } from "@/lib/db";
@@ -133,7 +134,7 @@ export async function PATCH(
   let visitBilling: "charged" | "billed" | "drafted" | null = null;
   if (status === "REQUIRES_INVOICING" && job.status !== "REQUIRES_INVOICING" && job.subscriptionId) {
     visitBilling = await billCompletedVisit(id, companyId).catch((e) => {
-      console.error("[jobs] per-visit billing failed for", id, e);
+      reportError("[jobs] per-visit billing failed for", id, e);
       return null;
     });
   }
@@ -154,7 +155,7 @@ export async function PATCH(
         email: contact.email,
         contactFirstName: contact.firstName,
         jobTitle: job.title,
-      }).catch((e) => console.error("[jobs] review request failed", e));
+      }).catch((e) => reportError("[jobs] review request failed", e));
     }
   }
 

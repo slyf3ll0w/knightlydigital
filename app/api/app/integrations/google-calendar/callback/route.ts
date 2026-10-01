@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
@@ -59,15 +60,15 @@ export async function GET(req: NextRequest) {
   try {
     await connectUser({ userId, companyId, code });
   } catch (err) {
-    console.error("[google-calendar] token exchange failed", err);
+    reportError("[google-calendar] token exchange failed", err);
     return landing(req, signedIn, "exchange_failed");
   }
 
   // First pull + push run in the background — the card polls status for progress
   pullUserGoogleCalendar(userId)
-    .catch((err) => console.error("[google-calendar] initial pull failed", err))
+    .catch((err) => reportError("[google-calendar] initial pull failed", err))
     .then(() => syncUserGoogleCalendar(userId))
-    .catch((err) => console.error("[google-calendar] initial sync failed", err));
+    .catch((err) => reportError("[google-calendar] initial sync failed", err));
 
   return landing(req, signedIn, "connected");
 }

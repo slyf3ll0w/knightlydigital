@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { limit, clientIp } from "@/lib/rate-limit";
@@ -132,14 +133,14 @@ export async function POST(req: NextRequest) {
     // A fresh card un-stalls any autopay invoices whose old card was
     // declining — the next cron pass retries them against it.
     await reviveAutopayForContact(contact.id).catch((e) =>
-      console.error("[hub] autopay revive failed", e)
+      reportError("[hub] autopay revive failed", e)
     );
     return NextResponse.json({ saved: true, label, cards: await cardList(contact.id) });
   } catch (err) {
     if (err instanceof finix.FinixError) {
       return NextResponse.json({ error: err.message }, { status: 402 });
     }
-    console.error("[hub] save payment method failed", err);
+    reportError("[hub] save payment method failed", err);
     return NextResponse.json(
       { error: "Couldn't save the card. Please try again." },
       { status: 500 }

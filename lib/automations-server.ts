@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { randomBytes } from "crypto";
 import { prisma } from "./db";
 import { logActivity } from "./activity";
@@ -106,7 +107,7 @@ async function runSteps(
     } catch (err) {
       failed = true;
       lines.push(`${step.type}: failed — ${err instanceof Error ? err.message : "error"}`);
-      console.error(`[automations] ${automation.name} step ${i} threw`, err);
+      reportError(`[automations] ${automation.name} step ${i} threw`, err);
     }
   }
   return { status: failed ? "failed" : "ok", lines };
@@ -229,7 +230,7 @@ export function fireAutomations(companyId: string, event: TriggerName, rawEntity
         await fireOne(row, compiled, event, entityType, entityId, loaded, now);
       }
     } catch (err) {
-      console.error(`[automations] ${event} dispatch failed`, err);
+      reportError(`[automations] ${event} dispatch failed`, err);
     }
   })();
 }
@@ -302,7 +303,7 @@ export async function runAutomationResumes(now = new Date()): Promise<{ resumed:
       resumed++;
     } catch (err) {
       errors++;
-      console.error(`[automations] resume ${job.id} failed`, err);
+      reportError(`[automations] resume ${job.id} failed`, err);
     }
   }
   return { resumed, cancelled, errors };
@@ -328,83 +329,128 @@ function todayIn(tz: string, now: Date): { start: Date; end: Date; key: string }
   return { start, end: new Date(start.getTime() + DAY), key: `${p.y}-${String(p.m).padStart(2, "0")}-${String(p.d).padStart(2, "0")}` };
 }
 
-/** Entities a sweep trigger matches right now. */
-async function sweepCandidates(companyId: string, event: TriggerName, spec: AutomationSpec, now: Date, take: number, tz: string): Promise<Candidate[]> {
+/** One page of sweep candidates; `exhausted` = the query has no further page. */
+type SweepPage = { items: Candidate[]; exhausted: boolean };
+const NO_CANDIDATES: SweepPage = { items: [], exhausted: true };
+
+/** Pages a sweep may read per rule per tick while skipping already-fired rows. */
+const SWEEP_MAX_PAGES = 5;
+
+/**
+ * Entities a sweep trigger matches right now — one page of `take`, starting
+ * `skip` rows in. Every query orders NEWEST-ELIGIBLE FIRST: a row enters a
+ * sweep's set by crossing its threshold (the quote that just turned 7 days
+ * old, the invoice that just went 3 days overdue), and with that ordering
+ * it enters at the front. Ordered the other way round — the original code —
+ * the front of the set was the oldest rows, which had all fired long ago and
+ * never leave (an unpaid invoice stays overdue), so once `take` of those
+ * had piled up no new row was ever reached (found 2026-09-30).
+ */
+async function sweepCandidates(companyId: string, event: TriggerName, spec: AutomationSpec, now: Date, take: number, tz: string, skip = 0): Promise<SweepPage> {
   const def: TriggerDef = TRIGGERS[event];
   const days = spec.trigger.days ?? def.days?.default ?? 7;
   const hours = spec.trigger.hours ?? def.hours?.default ?? 24;
   const dayCutoff = new Date(now.getTime() - days * DAY);
   const daysOf = (d: Date | null) => (d ? Math.floor((now.getTime() - d.getTime()) / DAY) : days);
+  const page = <R,>(rows: R[], map: (r: R) => Candidate | null): SweepPage => ({
+    items: rows.map(map).filter((c): c is Candidate => c !== null),
+    exhausted: rows.length < take,
+  });
   switch (event) {
     case "quote.unanswered": {
-      const rows = await prisma.quote.findMany({ where: { companyId, status: "AWAITING_RESPONSE", sentAt: { not: null, lte: dayCutoff } }, select: { id: true, sentAt: true }, orderBy: { sentAt: "asc" }, take });
-      return rows.map((r) => ({ id: r.id, days: daysOf(r.sentAt) }));
+      const rows = await prisma.quote.findMany({ where: { companyId, status: "AWAITING_RESPONSE", sentAt: { not: null, lte: dayCutoff } }, select: { id: true, sentAt: true }, orderBy: { sentAt: "desc" }, take, skip });
+      return page(rows, (r) => ({ id: r.id, days: daysOf(r.sentAt) }));
     }
     case "invoice.overdue": {
-      const rows = await prisma.invoice.findMany({ where: { companyId, status: { in: ["AWAITING_PAYMENT", "PAST_DUE"] }, dueDate: { not: null, lte: dayCutoff } }, select: { id: true, dueDate: true }, orderBy: { dueDate: "asc" }, take });
-      return rows.map((r) => ({ id: r.id, days: daysOf(r.dueDate) }));
+      const rows = await prisma.invoice.findMany({ where: { companyId, status: { in: ["AWAITING_PAYMENT", "PAST_DUE"] }, dueDate: { not: null, lte: dayCutoff } }, select: { id: true, dueDate: true }, orderBy: { dueDate: "desc" }, take, skip });
+      return page(rows, (r) => ({ id: r.id, days: daysOf(r.dueDate) }));
     }
     case "lead.stale": {
       const rows = await prisma.contact.findMany({
         where: { companyId, status: "LEAD", pipelineStageId: { not: null }, stageChangedAt: { not: null, lte: dayCutoff }, pipelineStage: { isConverted: false } },
-        select: { id: true, stageChangedAt: true }, orderBy: { stageChangedAt: "asc" }, take,
+        select: { id: true, stageChangedAt: true }, orderBy: { stageChangedAt: "desc" }, take, skip,
       });
-      return rows.map((r) => ({ id: r.id, days: daysOf(r.stageChangedAt) }));
+      return page(rows, (r) => ({ id: r.id, days: daysOf(r.stageChangedAt) }));
     }
     case "client.inactive": {
-      // ACTIVE clients whose most recent completed job is older than N days (clients with no jobs are skipped)
+      // ACTIVE clients whose most recent completed job is older than N days
+      // (clients with no jobs are skipped). No single column says when a
+      // client crossed the line, so this one relies on the paging alone.
       const rows = await prisma.contact.findMany({
         where: { companyId, status: "ACTIVE", jobs: { some: { completedAt: { not: null } }, none: { completedAt: { gt: dayCutoff } } } },
         select: { id: true, jobs: { where: { completedAt: { not: null } }, orderBy: { completedAt: "desc" }, take: 1, select: { completedAt: true } } },
-        take,
+        orderBy: { id: "asc" }, take, skip,
       });
-      return rows.map((r) => ({ id: r.id, days: daysOf(r.jobs[0]?.completedAt ?? null) }));
+      return page(rows, (r) => ({ id: r.id, days: daysOf(r.jobs[0]?.completedAt ?? null) }));
     }
     case "appointment.upcoming": {
+      // Enters the set at the far edge of the window (scheduledAt = now + N h)
       const rows = await prisma.appointment.findMany({
         where: { companyId, status: "SCHEDULED", tentative: false, scheduledAt: { gt: now, lte: new Date(now.getTime() + hours * HOUR) } },
-        select: { id: true, scheduledAt: true }, orderBy: { scheduledAt: "asc" }, take,
+        select: { id: true, scheduledAt: true }, orderBy: { scheduledAt: "desc" }, take, skip,
       });
-      return rows.map((r) => ({ id: r.id, hours: Math.max(0, Math.round((r.scheduledAt.getTime() - now.getTime()) / HOUR)) }));
+      return page(rows, (r) => ({ id: r.id, hours: Math.max(0, Math.round((r.scheduledAt.getTime() - now.getTime()) / HOUR)) }));
     }
     case "appointment.no_quote": {
       const cutoff = new Date(now.getTime() - hours * HOUR);
       const rows = await prisma.appointment.findMany({
         where: { companyId, status: "COMPLETED", scheduledAt: { lte: cutoff, gte: new Date(now.getTime() - 60 * DAY) } },
-        select: { id: true, scheduledAt: true, contactId: true }, orderBy: { scheduledAt: "asc" }, take: take * 2,
+        select: { id: true, scheduledAt: true, contactId: true }, orderBy: { scheduledAt: "desc" }, take, skip,
       });
       const out: Candidate[] = [];
       for (const r of rows) {
         const quoted = await prisma.quote.findFirst({ where: { companyId, contactId: r.contactId, sentAt: { gte: r.scheduledAt } }, select: { id: true } });
         if (!quoted) out.push({ id: r.id, hours: Math.round((now.getTime() - r.scheduledAt.getTime()) / HOUR) });
-        if (out.length >= take) break;
       }
-      return out;
+      return { items: out, exhausted: rows.length < take };
     }
     case "job.today": {
       // "Each morning" — the first hourly tick at or after 6am local, not
       // the one just past midnight
-      if (zonedParts(tz, now).hour < 6) return [];
+      if (zonedParts(tz, now).hour < 6) return NO_CANDIDATES;
       const { start, end, key } = todayIn(tz, now);
-      const rows = await prisma.job.findMany({ where: { companyId, status: "ACTIVE", scheduledAt: { gte: start, lt: end } }, select: { id: true }, orderBy: { scheduledAt: "asc" }, take });
-      return rows.map((r) => ({ id: `${r.id}:${key}`, days: 0 }));
+      const rows = await prisma.job.findMany({ where: { companyId, status: "ACTIVE", scheduledAt: { gte: start, lt: end } }, select: { id: true }, orderBy: { scheduledAt: "desc" }, take, skip });
+      return page(rows, (r) => ({ id: `${r.id}:${key}`, days: 0 }));
     }
     case "job.unscheduled": {
-      const rows = await prisma.job.findMany({ where: { companyId, status: "ACTIVE", scheduledAt: null, outsourced: false, createdAt: { lte: dayCutoff } }, select: { id: true, createdAt: true }, orderBy: { createdAt: "asc" }, take });
-      return rows.map((r) => ({ id: r.id, days: daysOf(r.createdAt) }));
+      const rows = await prisma.job.findMany({ where: { companyId, status: "ACTIVE", scheduledAt: null, outsourced: false, createdAt: { lte: dayCutoff } }, select: { id: true, createdAt: true }, orderBy: { createdAt: "desc" }, take, skip });
+      return page(rows, (r) => ({ id: r.id, days: daysOf(r.createdAt) }));
     }
     case "job.completed_ago": {
-      const rows = await prisma.job.findMany({ where: { companyId, completedAt: { not: null, lte: dayCutoff, gte: new Date(dayCutoff.getTime() - 30 * DAY) } }, select: { id: true, completedAt: true }, orderBy: { completedAt: "asc" }, take });
-      return rows.map((r) => ({ id: r.id, days: daysOf(r.completedAt) }));
+      const rows = await prisma.job.findMany({ where: { companyId, completedAt: { not: null, lte: dayCutoff, gte: new Date(dayCutoff.getTime() - 30 * DAY) } }, select: { id: true, completedAt: true }, orderBy: { completedAt: "desc" }, take, skip });
+      return page(rows, (r) => ({ id: r.id, days: daysOf(r.completedAt) }));
     }
     case "team.long_shift": {
       const cutoff = new Date(now.getTime() - hours * HOUR);
-      const rows = await prisma.timeEntry.findMany({ where: { companyId, endedAt: null, startedAt: { lte: cutoff } }, select: { id: true, startedAt: true }, take });
-      return rows.map((r) => ({ id: r.id, hours: Math.floor((now.getTime() - r.startedAt.getTime()) / HOUR) }));
+      const rows = await prisma.timeEntry.findMany({ where: { companyId, endedAt: null, startedAt: { lte: cutoff } }, select: { id: true, startedAt: true }, orderBy: { startedAt: "desc" }, take, skip });
+      return page(rows, (r) => ({ id: r.id, hours: Math.floor((now.getTime() - r.startedAt.getTime()) / HOUR) }));
     }
     default:
-      return [];
+      return NO_CANDIDATES;
   }
+}
+
+/**
+ * Up to `batch` candidates that have NOT already fired for this rule, read
+ * page by page (at most SWEEP_MAX_PAGES) so a backlog of already-fired rows
+ * at the front of the set never hides the fresh ones behind it.
+ */
+async function freshSweepCandidates(row: { id: string; companyId: string }, event: TriggerName, spec: AutomationSpec, now: Date, batch: number, tz: string): Promise<Candidate[]> {
+  const fresh: Candidate[] = [];
+  for (let pageNo = 0; pageNo < SWEEP_MAX_PAGES && fresh.length < batch; pageNo++) {
+    const { items, exhausted } = await sweepCandidates(row.companyId, event, spec, now, batch, tz, pageNo * batch);
+    if (items.length > 0) {
+      const done = await prisma.automationRun.findMany({ where: { automationId: row.id, event, entityId: { in: items.map((x) => x.id) } }, select: { entityId: true } });
+      const seen = new Set(done.map((d) => d.entityId));
+      for (const cand of items) {
+        if (seen.has(cand.id)) continue;
+        fresh.push(cand);
+        if (fresh.length >= batch) break;
+      }
+    }
+    if (exhausted) break;
+  }
+  return fresh;
 }
 
 const AUTOMATION_ROW_SELECT = { id: true, companyId: true, name: true, createdById: true, spec: true, company: { select: { timezone: true } } } as const;
@@ -427,13 +473,10 @@ export async function runAutomationSweeps(now = new Date()): Promise<{ automatio
     if (TRIGGERS[event].kind !== "sweep") continue;
     try {
       const tz = row.company.timezone ?? "America/Chicago";
-      const cands = await sweepCandidates(row.companyId, event, c.compiled.spec, now, AUTOMATION_LIMITS.sweepBatch, tz);
+      const cands = await freshSweepCandidates(row, event, c.compiled.spec, now, AUTOMATION_LIMITS.sweepBatch, tz);
       if (cands.length === 0) continue;
-      const done = await prisma.automationRun.findMany({ where: { automationId: row.id, event, entityId: { in: cands.map((x) => x.id) } }, select: { entityId: true } });
-      const seen = new Set(done.map((d) => d.entityId));
       const entityType = c.compiled.entity;
       for (const cand of cands) {
-        if (seen.has(cand.id)) continue;
         const loaded = await loadContext(row.companyId, entityType, cand.id, now, { days: cand.days, hours: cand.hours });
         if (!loaded) continue;
         const status = await fireOne(row, c.compiled, event, entityType, cand.id, loaded, now);
@@ -442,7 +485,7 @@ export async function runAutomationSweeps(now = new Date()): Promise<{ automatio
       }
     } catch (err) {
       errors++;
-      console.error(`[automations] sweep ${row.name} failed`, err);
+      reportError(`[automations] sweep ${row.name} failed`, err);
     }
   }
   return { automations: rows.length, fired, errors };
@@ -482,7 +525,7 @@ export async function runScheduledAutomations(now = new Date()): Promise<{ autom
       if (status === "failed") errors++;
     } catch (err) {
       errors++;
-      console.error(`[automations] schedule ${row.name} failed`, err);
+      reportError(`[automations] schedule ${row.name} failed`, err);
     }
   }
   return { automations: rows.length, fired, errors };
@@ -495,7 +538,7 @@ async function previewCandidates(companyId: string, spec: AutomationSpec, entity
   const since = new Date(now.getTime() - windowDays * DAY);
   const event = spec.trigger.event;
   const def: TriggerDef = TRIGGERS[event];
-  if (def.kind === "sweep") return sweepCandidates(companyId, event, spec, now, take, tz);
+  if (def.kind === "sweep") return (await sweepCandidates(companyId, event, spec, now, take, tz)).items;
   if (def.kind === "schedule") return [{ id: `${companyId}:preview` }];
   if (def.kind === "webhook") return [{ id: "preview" }];
   const ids = (rows: { id: string }[]) => rows.map((r) => ({ id: r.id }));

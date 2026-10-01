@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { getActor, canSell } from "@/lib/permissions";
 import { limit } from "@/lib/rate-limit";
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(out, { status: 201 });
   } catch (err) {
     if (err instanceof VoiceError) return NextResponse.json({ error: err.message }, { status: err.status });
-    console.error("[voice] call route error:", err);
+    reportError("[voice] call route error:", err);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }
@@ -53,7 +54,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json(await cancelCall(actor.companyId, id));
   } catch (err) {
     if (err instanceof VoiceError) return NextResponse.json({ error: err.message }, { status: err.status });
-    console.error("[voice] cancel route error:", err);
+    reportError("[voice] cancel route error:", err);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }
@@ -69,7 +70,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json(await setHoldMusic(actor.companyId, body.id, body.hold !== false));
   } catch (err) {
     if (err instanceof VoiceError) return NextResponse.json({ error: err.message }, { status: err.status });
-    console.error("[voice] hold route error:", err);
+    reportError("[voice] hold route error:", err);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }

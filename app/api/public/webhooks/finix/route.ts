@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getMerchant, getTransfer, finixConfigured } from "@/lib/finix";
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     // Never bounce webhooks — Finix retries failures and the state re-syncs on
     // settings load anyway.
-    console.error("[finix webhook] handler failed", err);
+    reportError("[finix webhook] handler failed", err);
   }
 
   return NextResponse.json({ received: true });
@@ -125,7 +126,7 @@ async function handleTransferSettled(transferId: string) {
     jobId: payment.invoice.jobId,
     email: contact.email,
     contactFirstName: contact.firstName,
-  }).catch((e) => console.error("[finix webhook] review request failed", e));
+  }).catch((e) => reportError("[finix webhook] review request failed", e));
 }
 
 async function handleTransfer(transferId: string) {

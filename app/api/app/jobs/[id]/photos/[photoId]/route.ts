@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
@@ -26,7 +27,7 @@ export async function DELETE(
   // than surfaced — the user's delete did happen.
   if (photo.storageKey && isBlobStorageConfigured()) {
     await deleteObject(photo.storageKey).catch((err) =>
-      console.error("[job-photos] orphaned object in R2", { key: photo.storageKey, error: err })
+      reportError("[job-photos] orphaned object in R2", { key: photo.storageKey, error: err })
     );
   }
 

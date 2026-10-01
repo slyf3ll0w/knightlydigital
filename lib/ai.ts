@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Minimal Gemini REST wrapper — the AI counterpart to lib/email.ts's
  * sendEmail(): one fetch, env-gated, no SDK. No GEMINI_API_KEY means AI
@@ -102,7 +103,7 @@ export async function askAI(
       signal: AbortSignal.timeout(opts.useSearch ? 100_000 : 60_000),
     });
     if (!res.ok) {
-      console.error("askAI: Gemini error", res.status, (await res.text()).slice(0, 500));
+      reportError("askAI: Gemini error", res.status, (await res.text()).slice(0, 500));
       // out of quota on this model → one shot on the fallback model
       if (res.status === 429 && model !== FALLBACK_MODEL && !opts.model) {
         return askAI({ ...opts, model: FALLBACK_MODEL });
@@ -130,7 +131,7 @@ export async function askAI(
     const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
     return text || null;
   } catch (err) {
-    console.error("askAI: request failed", err);
+    reportError("askAI: request failed", err);
     return null;
   }
 }
@@ -146,7 +147,7 @@ export async function askAIJson<T>(opts: Omit<AskAIOptions, "json">): Promise<T 
     try {
       return JSON.parse(text) as T;
     } catch {
-      console.error("askAIJson: unparseable response", text.slice(0, 300));
+      reportError("askAIJson: unparseable response", text.slice(0, 300));
     }
   }
   return null;
@@ -180,7 +181,7 @@ export async function askAIGroundedJson<T>(
     if (text === null) return null;
     const parsed = extractJsonObject<T>(text);
     if (parsed !== null) return parsed;
-    console.error("askAIGroundedJson: unparseable response", text.slice(0, 300));
+    reportError("askAIGroundedJson: unparseable response", text.slice(0, 300));
   }
   return null;
 }
@@ -269,12 +270,12 @@ export async function aiChat(opts: AIChatOptions): Promise<AIPart[] | null> {
         signal: opts.signal ? AbortSignal.any([opts.signal, AbortSignal.timeout(opts.timeoutMs ?? 60_000)]) : AbortSignal.timeout(opts.timeoutMs ?? 60_000),
       });
       if (res.status === 503 && attempt === 0) {
-        console.error("aiChat: Gemini 503 — quick retry");
+        reportError("aiChat: Gemini 503 — quick retry");
         await new Promise((r) => setTimeout(r, 2_000));
         continue;
       }
       if (!res.ok) {
-        console.error("aiChat: Gemini error", model, res.status, (await res.text()).slice(0, 300));
+        reportError("aiChat: Gemini error", model, res.status, (await res.text()).slice(0, 300));
         return null;
       }
       const data = (await res.json()) as {
@@ -294,12 +295,12 @@ export async function aiChat(opts: AIChatOptions): Promise<AIPart[] | null> {
       // Truncation eats trailing functionCalls — the visible symptom is bulk
       // work silently missing records, so make it loud in the logs.
       if (candidate?.finishReason && candidate.finishReason !== "STOP") {
-        console.error("aiChat: non-STOP finishReason", model, candidate.finishReason);
+        reportError("aiChat: non-STOP finishReason", model, candidate.finishReason);
       }
       return candidate?.content?.parts ?? null;
     } catch (err) {
       if (opts.signal?.aborted) return null; // cancelled by the caller — not an error
-      console.error("aiChat: request failed", err);
+      reportError("aiChat: request failed", err);
       return null;
     }
   }

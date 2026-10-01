@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { prisma } from "../db";
 import { type Actor, roleLabel } from "../permissions";
 import {
@@ -404,7 +405,7 @@ export async function runAssistant(
           try {
             response = await tool.run(actor, call.functionCall.args ?? {}, ctx);
           } catch (err) {
-            console.error(`assistant tool ${call.functionCall.name} failed`, err);
+            reportError(`assistant tool ${call.functionCall.name} failed`, err);
             response = {
               error:
                 "The tool errored — apologize briefly and offer to try again. Don't route the user to a page over this.",

@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
@@ -16,7 +17,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     try {
       await deleteObject(row.storageKey);
     } catch (err) {
-      console.error("[estimator-images] R2 delete failed", err);
+      reportError("[estimator-images] R2 delete failed", err);
     }
   }
   return NextResponse.json({ ok: true });

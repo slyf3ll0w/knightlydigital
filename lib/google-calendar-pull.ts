@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 /**
  * Google Calendar → Workbench (the "two-way" half of calendar sync; design
  * in docs/plans/google-calendar-sync-2026-09-11.md §Two-way).
@@ -213,7 +214,7 @@ async function runPull(userId: string): Promise<PullSummary> {
   } catch (err) {
     summary.errors++;
     const message = err instanceof Error ? err.message : "Pull failed";
-    console.error("[google-calendar] pull failed", connection.id, message);
+    reportError("[google-calendar] pull failed", connection.id, message);
     if (err instanceof GoogleApiError && err.status === 401) {
       await recordError(connection.id, err);
     } else {
