@@ -22,7 +22,13 @@ export type HelpBlock =
   /** "Heads up" — something that trips people up or can't be undone. */
   | { type: "warn"; text: string }
   /** Troubleshooting: the questions people actually ask. */
-  | { type: "faq"; items: { q: string; a: string }[]; note?: string };
+  | { type: "faq"; items: { q: string; a: string }[]; note?: string }
+  /**
+   * A short silent how-to video (captions burned in), shown with player
+   * controls. `src`/`poster` are public paths (public/video/…). `text`
+   * describes what it shows: it is what search and the text export read.
+   */
+  | { type: "video"; src: string; poster: string; title: string; text: string };
 
 /*
  * `note` (steps, list, faq): a short hand-drawn note with the site's arrow

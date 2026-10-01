@@ -58,6 +58,8 @@ function blockText(b: HelpBlock): string {
       return b.items.join(" ");
     case "faq":
       return b.items.map((f) => `${f.q} ${f.a}`).join(" ");
+    case "video":
+      return `${b.title} ${b.text}`;
   }
 }
 
@@ -149,6 +151,9 @@ export function articleMarkdown(a: HelpArticle, base = "https://workbenchfsm.com
         break;
       case "warn":
         out.push(`Heads up: ${plainText(b.text)}`, "");
+        break;
+      case "video":
+        out.push(`Video: ${b.title} (${base}${b.src}). ${plainText(b.text)}`, "");
         break;
       case "faq":
         out.push("Troubleshooting:", "");

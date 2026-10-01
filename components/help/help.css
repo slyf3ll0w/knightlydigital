@@ -146,6 +146,15 @@ a.help-card:hover { border-color: #D1D5DB; box-shadow: 0 18px 40px -24px rgba(10
 .help-note-tip .help-note-title { color: var(--hb-ink); }
 .help-note-warn .help-note-title { color: #B45309; }
 
+/* A silent how-to video (captions burned in), framed like the site's hero shots. */
+.help-video { margin: 0; }
+.help-video video {
+  display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: 1.25rem; background: #0A1428;
+  box-shadow: 0 0 0 1px rgba(10, 20, 40, 0.08), 0 24px 50px -24px rgba(10, 20, 40, 0.35);
+}
+.help-video figcaption { margin-top: 10px; }
+.help-video .help-note-title { color: var(--hb-ink); }
+
 /* Side list on article and topic pages; the current guide gets a soft fill. */
 .help-side a { display: block; margin: 1px 0; padding: 7px 12px; border-radius: 10px; font-size: 14px; line-height: 1.4; color: #4B5563; }
 .help-side a:hover { background: #F6F8FB; color: #111827; }

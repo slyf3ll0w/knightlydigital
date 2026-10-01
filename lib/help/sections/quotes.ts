@@ -132,6 +132,13 @@ export const quotesSection: HelpSection = {
       where: { label: "Quotes", href: "/app/quotes" },
       blocks: [
         {
+          type: "video",
+          src: "/video/tip-quote-to-job.mp4",
+          poster: "/video/tip-quote-to-job-poster.jpg",
+          title: "Quote to job in two taps (28 seconds, no sound)",
+          text: "On a phone: open a quote that's Awaiting Response, press Mark Approved when the client says yes, then press Convert to Job. The quote shows Converted and links to the new job.",
+        },
+        {
           type: "steps",
           items: [
             "Open the approved quote.",

@@ -29,6 +29,8 @@ function strings(b: HelpBlock): string[] {
       return b.items;
     case "faq":
       return b.items.flatMap((f) => [f.q, f.a]);
+    case "video":
+      return [b.text];
   }
 }
 

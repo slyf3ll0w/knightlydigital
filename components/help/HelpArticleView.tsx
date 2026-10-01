@@ -54,6 +54,23 @@ function Block({ block, base }: { block: HelpBlock; base: string }) {
           <HelpText text={block.text} base={base} />
         </aside>
       );
+    case "video":
+      return (
+        <figure className="help-video">
+          <video
+            src={block.src}
+            poster={block.poster}
+            controls
+            muted
+            playsInline
+            preload="metadata"
+            aria-label={`${block.title}: ${block.text}`}
+          />
+          <figcaption>
+            <span className="help-note-title">Watch: {block.title}</span>
+          </figcaption>
+        </figure>
+      );
     case "faq":
       return (
         <div className="!mt-12">
