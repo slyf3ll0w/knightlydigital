@@ -9,6 +9,7 @@ import { useSession } from "next-auth/react";
 import { nativeVoip } from "@/lib/native-voip";
 import { startNativeSoftphone } from "@/components/SoftphoneNativeEngine";
 import { MicRow, MicWarning } from "@/components/MicControls";
+import { callViaCell } from "@/lib/line-calling";
 import { MIC_CHOICE_KEY, MIC_SILENT_PEAK, MicWatchdog, levelFromSamples, micLabelFor } from "@/lib/softphone-mic";
 import {
   fmtElapsed,
@@ -385,6 +386,8 @@ export default function Softphone() {
   const cancelled = useRef<Set<string>>(new Set());
   const ringer = useRef<Ringer | null>(null);
   const levelMeter = useRef<LevelMeter | null>(null);
+  // Who the current outbound call is for — so a leg that never reaches this browser can ring the cell for the same person.
+  const outboundTarget = useRef<{ contactId: string | null; to: string | null; label?: string } | null>(null);
   const notice = useRef<Notification | null>(null);
   /** Set before a hangup we caused (or a failure the poll saw), so the end-of-call cue knows whose it was. */
   const endedBy = useRef<"local" | "remote" | null>(null);
@@ -1090,6 +1093,7 @@ export default function Softphone() {
         }
         const placedId = data.callId;
         pendingOutbound.current = { callId: placedId, at: Date.now() };
+        outboundTarget.current = { contactId: target.contactId ?? null, to: target.to ?? null, label: target.label };
         const outLabel = target.label || fmtNumber(data.customerNumber) || "Calling…";
         setSoftphoneState({
           error: null,
@@ -1109,11 +1113,17 @@ export default function Softphone() {
           if (pendingOutbound.current?.callId !== placedId) return;
           pendingOutbound.current = null;
           if (!callRef.current) {
-            console.info("[softphone] outbound INVITE never arrived; cancelling", placedId);
+            // Our registration is stale (the INVITE went to a socket that is
+            // gone): ring the cell for the same person right away and start
+            // the browser over — one press, one ringing phone (David
+            // 2026-10-01: "at first it told me that it couldn't connect").
+            console.info("[softphone] outbound INVITE never arrived; cancelling, ringing the cell instead", placedId);
             dropStaged();
             void hangupServerSide(placedId);
-            setSoftphoneState({ call: null, error: "The call never reached this browser — reconnecting. Try again in a moment." });
+            const t = outboundTarget.current;
+            setSoftphoneState({ call: null, error: t ? null : "The call never reached this browser — reconnecting. Try again in a moment." });
             restart(0);
+            if (t) void callViaCell(t, "The browser lost the line.");
           }
         }, OUTBOUND_INVITE_WAIT_MS);
       },
@@ -1249,7 +1259,15 @@ export default function Softphone() {
         } else if (TERMINAL.has(j.call.status)) {
           // The leg to this browser or to the customer failed / went unanswered: don't leave a stuck card.
           endedBy.current = "remote"; // not your hangup — the other side never came on
+          const ourLegNeverCame = !callRef.current; // the customer was never dialed: this browser's leg is what failed
+          const t = outboundTarget.current;
           softphone.hangup();
+          if (ourLegNeverCame && j.call.status !== "NO_ANSWER" && t) {
+            // Same as the INVITE that never arrives: the fault is on this side, so the cell takes the call.
+            setSoftphoneState({ call: null, error: null });
+            void callViaCell(t, "The browser couldn't take the call.");
+            return;
+          }
           setSoftphoneState({
             call: null,
             error:
@@ -1300,8 +1318,10 @@ function useNow(active: boolean): number {
  * .app-ui/.ds, which AppShell owns and this (mounted beside it) carries itself.
  */
 const DOCK_TOP = "top-[calc(env(safe-area-inset-top)+63px)] lg:top-[65px]";
-const GLASS =
-  "app-ui ds sheet-material border border-white/60 text-[color:var(--ds-ink)] shadow-[0_10px_30px_rgba(15,23,42,0.18)] dark:border-white/10";
+// .ds-glass is the notifications dropdown's material (app/ds.css) and applies to the element itself
+// (`.ds.ds-glass`); .sheet-material only styles a DESCENDANT of .app-ui, which is why the first
+// banner rendered see-through (David 2026-10-01).
+const GLASS = "app-ui ds ds-glass text-[color:var(--ds-ink)]";
 /** How long the full banner stays open after the call connects before folding to the pill. */
 const BANNER_OPEN_MS = 6_000;
 
@@ -1369,6 +1389,11 @@ function CallCard({ call }: { call: SoftphoneCall }) {
           </span>
           <span className="truncate">{call.label}</span>
           <span className="shrink-0 tabular-nums font-medium text-[color:var(--ds-muted)]">{held ? "on hold" : fmtElapsed(call.startedAt, now)}</span>
+          {speaker && (
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-500/20 text-green-600 dark:text-green-400" title="Speaker on" aria-label="Speaker on">
+              <Volume2 size={11} />
+            </span>
+          )}
         </button>
       </div>
     );

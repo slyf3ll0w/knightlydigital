@@ -144,6 +144,38 @@ export function dismissLineCallNotice(id: number): void {
 }
 
 /**
+ * Straight to the cell flow, skipping the softphone: what the softphone
+ * itself falls back to when its own leg never reaches this browser
+ * (components/Softphone.tsx) — the person pressed Call once and gets a
+ * ringing phone, not an error to read and a button to press again.
+ */
+export async function callViaCell(target: PlaceCallTarget, why?: string): Promise<void> {
+  const who = target.label || (target.to ? fmtPhone(target.to) : "the client");
+  try {
+    const res = await fetch("/api/app/line/call", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(target.contactId ? { contactId: target.contactId } : { to: target.to ?? null }),
+    });
+    const data = (await res.json().catch(() => ({}))) as { error?: string; agentNumber?: string | null };
+    if (!res.ok) throw new Error(data.error || "Couldn't place the call.");
+    setNotice({
+      id: ++noticeSeq,
+      kind: "ringing",
+      title: why ? `${why} Pick up your phone` : "Pick up your phone",
+      sub: `Ringing ${data.agentNumber ? fmtPhone(data.agentNumber) : "your cell"} — press 1 to connect ${who}.`,
+    });
+  } catch (err) {
+    setNotice({
+      id: ++noticeSeq,
+      kind: "error",
+      title: "Couldn't place the call",
+      sub: err instanceof Error ? err.message : "Something went wrong. Please try again.",
+    });
+  }
+}
+
+/**
  * The fire-and-forget form for controls without their own state (a menu
  * item, a swipe tray, a number in a card): places the call and reports
  * through the notice — a "pick up your phone" banner for the cell flow,
