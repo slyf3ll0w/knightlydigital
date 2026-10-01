@@ -1,3 +1,4 @@
+import { reportError } from "@/lib/report-error";
 import { prisma } from "@/lib/db";
 import type { SuperadminUser } from "@/lib/superadmin";
 
@@ -27,7 +28,7 @@ export function logConsoleAction(
       select: { id: true },
     })
     .catch((err: unknown) => {
-      console.error("[console-audit] write failed", err);
+      reportError("[console-audit] write failed", err);
     });
 }
 
