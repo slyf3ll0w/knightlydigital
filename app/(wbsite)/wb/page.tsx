@@ -7,6 +7,7 @@ import WBCta from "@/components/wb/WBCta";
 import WBDayOnTheJob from "@/components/wb/WBDayOnTheJob";
 import WBFaq from "@/components/wb/WBFaq";
 import WBHero from "@/components/wb/WBHero";
+import WBInAction from "@/components/wb/WBInAction";
 import WBPhoneShowcase from "@/components/wb/WBPhoneShowcase";
 import WBPhoneReal, { WBZoom } from "@/components/wb/WBPhoneReal";
 import WBTestimonials from "@/components/wb/WBTestimonials";
@@ -674,6 +675,21 @@ export default function WBHomePage() {
                 optional add-ons and cancel any time.
               </p>
             </div>
+          </AnimateIn>
+        </div>
+      </section>
+
+      {/* ── WorkBench in action: short silent how-to videos (list in lib/wb-videos.ts) ── */}
+      <section className="border-t border-gray-200 bg-[#F6F8FB]">
+        <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
+          <AnimateIn className="mx-auto max-w-3xl text-center">
+            <p className="wb-label justify-center">WorkBench in action</p>
+            <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
+              See what a few taps can do.
+            </h2>
+          </AnimateIn>
+          <AnimateIn delay={120} className="mt-10">
+            <WBInAction />
           </AnimateIn>
         </div>
       </section>
