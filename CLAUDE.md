@@ -1107,6 +1107,17 @@ site key must have the staging hostname added in Cloudflare before public
 forms render the captcha there; Google OAuth redirect URIs don't include
 staging (Calendar connect won't complete there).
 
+**Running it: `docs/runbook.md`** (2026-09-30) — the Railway pieces that
+are not in this repo (the `Streamflaire Recurring Billing` cron service and
+its own `NEXTAUTH_URL`/`CRON_SECRET`, native Postgres backups), the health
+endpoints, the GitHub `Uptime` workflow, and what to do when each goes red.
+Two conventions it relies on: server code calls **`reportError(...)`**
+(`lib/report-error.ts`, same arguments as `console.error`, also lands in
+Sentry — `onRequestError` only sees UNCAUGHT errors, so a caught-and-logged
+failure is otherwise invisible), and cron sweeps never take a fixed window
+of oldest-first rows and then skip the handled ones (filter them out in the
+query, or order newest-eligible first and page — see `freshSweepCandidates`).
+
 **Cloudflare sits in front of workbenchfsm.com** and replaces any origin
 `502`/`504` response body with its own HTML error page, so a JSON
 `{ error }` sent with those statuses never reaches the browser (the client

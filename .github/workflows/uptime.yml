@@ -1,0 +1,41 @@
+# Production uptime probe. GitHub emails the committer of this file when a
+# scheduled run fails (Settings → Notifications → Actions: failed workflows
+# only), so a red run here is the alert. No secrets: both URLs are public.
+#
+# What a failure means:
+#   "App + database"   — workbenchfsm.com is down, or /api/health answered 503
+#                        because Postgres is unreachable.
+#   "Hourly cron"      — /api/health?cron=1 answered 503: the nightly reconcile
+#                        (last step of the hourly cron) has not run in >30 h.
+#                        Check the "Streamflaire Recurring Billing" cron
+#                        service in Railway (its NEXTAUTH_URL + CRON_SECRET must
+#                        match the app's) and the cron route's Sentry issues.
+#
+# Cadence: every 15 minutes (GitHub may run it a few minutes late under load).
+# A proper monitor (Better Stack / UptimeRobot) with SMS paging is the next
+# step up; keep this as the free backstop either way.
+name: Uptime
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: uptime
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: App + database
+        run: |
+          body=$(curl -fsS -m 20 --retry 2 --retry-delay 10 "https://workbenchfsm.com/api/health")
+          echo "$body"
+      - name: Hourly cron dead-man switch
+        run: |
+          body=$(curl -sS -m 20 --retry 2 --retry-delay 10 -w '\n%{http_code}' "https://workbenchfsm.com/api/health?cron=1")
+          echo "$body"
+          [ "$(echo "$body" | tail -n1)" = "200" ]
