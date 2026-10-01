@@ -1,6 +1,7 @@
 # Superadmin console redesign — scope (2026-09-30)
 
-Status: **APPROVED by David 2026-09-30 and BUILT the same day** on branch
+Status: **SHIPPED 2026-09-30** — 52615986 + three e2e locator fixes, staging
+e2e run 36794452482 green (88/88), main fast-forwarded to e78e220d. Built on branch
 `superadmin-redesign` (worktree `knightlydigital-wt/superadmin`). Decisions
 from his review: retire Packaging outright; the presence dot has three
 states (green = in the app now, hollow = active today in the account's
