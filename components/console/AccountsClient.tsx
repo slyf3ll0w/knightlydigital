@@ -126,7 +126,7 @@ export default function AccountsClient({ rows, days }: { rows: AccountRow[]; day
       key: "toggle",
       label: r.isTest ? "Mark as live" : "Mark as test",
       icon: FlaskConical,
-      hint: r.isTest ? "Back into the Live list and every total" : "Out of every stat, chart and the Live list",
+      hint: r.isTest ? "back into the totals" : "out of the totals",
       disabled: busy !== null,
       onSelect: () => toggle(r),
     },
