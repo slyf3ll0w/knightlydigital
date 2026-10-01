@@ -3,23 +3,25 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, FlaskConical, Loader2, Search } from "lucide-react";
-import { Button, Card, Chip, ListRow, SectionTitle } from "@/components/ds";
+import { ArrowUpRight, ChevronRight, ExternalLink, FlaskConical, Link2, Search } from "lucide-react";
+import { Card, Chip, ListRow, SectionTitle } from "@/components/ds";
 import { Select } from "@/components/Input";
+import RowActions, { QuickMenu, type MenuAnchor, type QuickAction } from "@/components/QuickMenu";
 import PresenceDot from "./PresenceDot";
-import DeviceIcons from "./DeviceIcons";
-import { monthYear, usd, usdFine } from "@/lib/console-format";
+import { monthYear } from "@/lib/console-format";
 import type { AccountRow } from "@/lib/console-accounts";
 
 /**
  * The two account lists (Live, Test) with the filters, search and sort that
- * work on them, and the Test / Live toggle on every row. Everything here is
- * already loaded — filtering is instant — and a toggle re-fetches the page
- * so the stats and charts above agree with the lists.
+ * work on them. The home page keeps to the basics — who they are, whether
+ * they are live, when they were last in, team and client counts — and the
+ * company page holds everything else. Right-click a row on the desktop
+ * (press and hold on a phone) for Open / new tab / copy link / Mark as
+ * test or live, the same quick menu as the app's rail.
  */
 
 type Filter = "all" | "live" | "attention" | "pending" | "suspended";
-type Sort = "active" | "newest" | "clients" | "collected";
+type Sort = "active" | "newest" | "clients";
 
 const FILTERS: { key: Filter; label: string }[] = [
   { key: "all", label: "All" },
@@ -51,13 +53,13 @@ function sorter(s: Sort) {
         return b.createdAt.localeCompare(a.createdAt);
       case "clients":
         return b.clients.total - a.clients.total;
-      case "collected":
-        return b.collectedCents - a.collectedCents;
       default:
         return (b.lastSeenAt ?? "").localeCompare(a.lastSeenAt ?? "") || b.createdAt.localeCompare(a.createdAt);
     }
   };
 }
+
+const hrefOf = (r: AccountRow) => `/superadmin/company/${r.id}`;
 
 export default function AccountsClient({ rows, days }: { rows: AccountRow[]; days: number }) {
   const router = useRouter();
@@ -66,6 +68,7 @@ export default function AccountsClient({ rows, days }: { rows: AccountRow[]; day
   const [sort, setSort] = useState<Sort>("active");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [menu, setMenu] = useState<{ row: AccountRow; anchor: MenuAnchor } | null>(null);
 
   const term = q.trim().toLowerCase();
   const search = (r: AccountRow) =>
@@ -108,6 +111,27 @@ export default function AccountsClient({ rows, days }: { rows: AccountRow[]; day
     }
   }
 
+  // One menu for every row, the app's rail quick menu: open, open in a new
+  // tab, copy the link, and the Test / Live switch.
+  const actionsFor = (r: AccountRow): QuickAction[] => [
+    { key: "open", label: "Open", icon: ArrowUpRight, href: hrefOf(r) },
+    { key: "tab", label: "Open in new tab", icon: ExternalLink, onSelect: () => void window.open(hrefOf(r), "_blank", "noopener") },
+    {
+      key: "copy",
+      label: "Copy link",
+      icon: Link2,
+      onSelect: () => void navigator.clipboard.writeText(`${window.location.origin}${hrefOf(r)}`),
+    },
+    {
+      key: "toggle",
+      label: r.isTest ? "Mark as live" : "Mark as test",
+      icon: FlaskConical,
+      hint: r.isTest ? "Back into the Live list and every total" : "Out of every stat, chart and the Live list",
+      disabled: busy !== null,
+      onSelect: () => toggle(r),
+    },
+  ];
+
   return (
     <div className="mt-8">
       <div className="flex flex-wrap items-center gap-2">
@@ -140,7 +164,6 @@ export default function AccountsClient({ rows, days }: { rows: AccountRow[]; day
             <option value="active">Last active</option>
             <option value="newest">Newest</option>
             <option value="clients">Most clients</option>
-            <option value="collected">Most collected</option>
           </Select>
         </div>
       </div>
@@ -153,19 +176,21 @@ export default function AccountsClient({ rows, days }: { rows: AccountRow[]; day
 
       <SectionTitle
         className="mt-6"
-        info="Every real business on WorkBench. Sorted by who was in the app most recently unless you pick another order. Mark an account as test to move it to the list below and out of every total."
+        info="Every real business on WorkBench, most recently active first. Right-click a row on a computer, or press and hold on a phone, to open it, copy its link, or mark it as a test account. Everything else about an account — money, usage, devices, controls — is on its own page."
       >
         Live accounts <span className="ds-small ml-1 font-normal">{live.length}</span>
       </SectionTitle>
-      <AccountsTable rows={live} days={days} busy={busy} onToggle={toggle} empty={rows.some((r) => !r.isTest) ? "No accounts match." : "No live accounts yet."} />
+      <AccountsTable rows={live} days={days} actionsFor={actionsFor} onMenu={setMenu} empty={rows.some((r) => !r.isTest) ? "No accounts match." : "No live accounts yet."} />
 
       <SectionTitle
         className="mt-10"
-        info="Ours, testers' and the demo company. Test accounts are left out of every stat, chart and the Live list. Mark one live to move it back."
+        info="Ours, testers' and the demo company. Test accounts are left out of every stat, chart and the Live list. Right-click (or press and hold) to mark one live again."
       >
         Test accounts <span className="ds-small ml-1 font-normal">{test.length}</span>
       </SectionTitle>
-      <AccountsTable rows={test} days={days} busy={busy} onToggle={toggle} empty="No test accounts. Mark one from the Live list." />
+      <AccountsTable rows={test} days={days} actionsFor={actionsFor} onMenu={setMenu} empty="No test accounts. Right-click a live account to mark it as test." />
+
+      <QuickMenu open={menu !== null} anchor={menu?.anchor ?? null} title={menu?.row.name} actions={menu ? actionsFor(menu.row) : []} onClose={() => setMenu(null)} />
     </div>
   );
 }
@@ -173,14 +198,14 @@ export default function AccountsClient({ rows, days }: { rows: AccountRow[]; day
 function AccountsTable({
   rows,
   days,
-  busy,
-  onToggle,
+  actionsFor,
+  onMenu,
   empty,
 }: {
   rows: AccountRow[];
   days: number;
-  busy: string | null;
-  onToggle: (r: AccountRow) => void;
+  actionsFor: (r: AccountRow) => QuickAction[];
+  onMenu: (m: { row: AccountRow; anchor: MenuAnchor }) => void;
   empty: string;
 }) {
   if (rows.length === 0) {
@@ -192,23 +217,24 @@ function AccountsTable({
   }
   return (
     <>
-      {/* ── Phones: one column, the essentials ─────────────────────── */}
+      {/* ── Phones: one column, the essentials; press and hold for the menu ── */}
       <Card className="ds-divide overflow-hidden lg:hidden">
         {rows.map((r) => (
-          <ListRow
-            key={r.id}
-            href={`/superadmin/company/${r.id}`}
-            lead={<PresenceDot state={r.presence} />}
-            title={r.name}
-            sub={`${r.status.label} · ${r.clients.total} client${r.clients.total === 1 ? "" : "s"} · ${r.team.total} on the team · seen ${r.lastSeen}`}
-            trail={<ChevronRight size={16} className="text-[color:var(--ds-faint)]" />}
-          />
+          <RowActions key={r.id} actions={actionsFor(r)} title={r.name}>
+            <ListRow
+              href={hrefOf(r)}
+              lead={<PresenceDot state={r.presence} />}
+              title={r.name}
+              sub={`${r.status.label} · ${r.clients.total} client${r.clients.total === 1 ? "" : "s"} · ${r.team.total} on the team · seen ${r.lastSeen}`}
+              trail={<ChevronRight size={16} className="text-[color:var(--ds-faint)]" />}
+            />
+          </RowActions>
         ))}
       </Card>
 
-      {/* ── Desktop: the full table ─────────────────────────────────── */}
+      {/* ── Desktop: the basics; right-click a row for the menu ── */}
       <Card className="hidden overflow-x-auto lg:block">
-        <table className="w-full min-w-[1380px] text-[13.5px]">
+        <table className="w-full min-w-[760px] text-[13.5px]">
           <thead>
             <tr className="ds-label border-b border-[color:var(--ds-line)] text-left [&>th]:whitespace-nowrap">
               <th className="px-4 py-2.5 font-medium">Account</th>
@@ -216,23 +242,21 @@ function AccountsTable({
               <th className="px-3 py-2.5 font-medium">Last seen</th>
               <th className="px-3 py-2.5 text-right font-medium">Team</th>
               <th className="px-3 py-2.5 text-right font-medium">Clients</th>
-              <th className="px-3 py-2.5 text-right font-medium" title="Jobs · quotes · invoices · payments created in the range">
-                Jobs · quotes · inv · paid
-              </th>
-              <th className="px-3 py-2.5 text-right font-medium">Collected</th>
-              <th className="px-3 py-2.5 text-right font-medium">Our cost</th>
-              <th className="min-w-[250px] px-3 py-2.5 font-medium">Plan</th>
-              <th className="px-3 py-2.5 font-medium">Devices</th>
-              <th className="px-3 py-2.5 font-medium">Referral</th>
-              <th className="px-3 py-2.5 font-medium">Joined</th>
-              <th className="px-3 py-2.5" />
+              <th className="px-4 py-2.5 text-right font-medium">Joined</th>
             </tr>
           </thead>
           <tbody className="ds-divide">
             {rows.map((r) => (
-              <tr key={r.id} className="transition-colors hover:bg-[color:var(--ds-surface-2)]">
-                <td className="px-4 py-2.5">
-                  <Link prefetch={false} href={`/superadmin/company/${r.id}`} className="group block min-w-0">
+              <tr
+                key={r.id}
+                className="transition-colors hover:bg-[color:var(--ds-surface-2)]"
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  onMenu({ row: r, anchor: { x: e.clientX, y: e.clientY } });
+                }}
+              >
+                <td className="px-4 py-3">
+                  <Link prefetch={false} href={hrefOf(r)} className="group block min-w-0">
                     <span className="block truncate font-medium text-[color:var(--ds-ink)] group-hover:text-[color:var(--ds-primary)]">{r.name}</span>
                     <span className="ds-small block truncate">
                       /{r.slug}
@@ -241,10 +265,10 @@ function AccountsTable({
                     </span>
                   </Link>
                 </td>
-                <td className="px-3 py-2.5">
+                <td className="px-3 py-3">
                   <Chip tone={r.status.tone}>{r.status.label}</Chip>
                 </td>
-                <td className="px-3 py-2.5">
+                <td className="px-3 py-3">
                   <span className="inline-flex items-center gap-2 whitespace-nowrap">
                     <PresenceDot state={r.presence} />
                     <span className={r.presence === "online" ? "font-medium text-[color:var(--ds-good)]" : "text-[color:var(--ds-ink-2)]"}>
@@ -252,11 +276,11 @@ function AccountsTable({
                     </span>
                   </span>
                 </td>
-                <td className="ds-num px-3 py-2.5 text-right">
+                <td className="ds-num px-3 py-3 text-right">
                   {r.team.total}
                   {r.team.online > 0 && <span className="ds-small block text-[color:var(--ds-good)]">{r.team.online} online</span>}
                 </td>
-                <td className="ds-num px-3 py-2.5 text-right">
+                <td className="ds-num px-3 py-3 text-right">
                   {r.clients.total}
                   {r.clients.added > 0 && (
                     <span className="ds-small block">
@@ -264,45 +288,7 @@ function AccountsTable({
                     </span>
                   )}
                 </td>
-                <td className="ds-num whitespace-nowrap px-3 py-2.5 text-right text-[color:var(--ds-ink-2)]">
-                  {r.activity.jobs} · {r.activity.quotes} · {r.activity.invoices} · {r.activity.payments}
-                </td>
-                <td className="ds-num px-3 py-2.5 text-right">{usd(r.collectedCents)}</td>
-                <td
-                  className="ds-num px-3 py-2.5 text-right text-[color:var(--ds-ink-2)]"
-                  title={`AI ${usdFine(r.cost.ai)} · email/SMS ${usdFine(r.cost.comms)} · storage ${usdFine(r.cost.storage)} · card cost ${usdFine(r.cost.processing)}`}
-                >
-                  {usdFine(r.costCents)}
-                </td>
-                <td className="px-3 py-2.5">
-                  <span className="flex flex-wrap gap-x-3 gap-y-1">
-                    {r.chips.map((c) => (
-                      <Chip key={c.label} tone={c.tone}>
-                        {c.label}
-                      </Chip>
-                    ))}
-                  </span>
-                </td>
-                <td className="px-3 py-2.5">
-                  <DeviceIcons devices={r.devices} />
-                </td>
-                <td className="max-w-[140px] truncate px-3 py-2.5 text-[color:var(--ds-ink-2)]" title={r.referralSource ?? undefined}>
-                  {r.referralSource || <span className="ds-small">—</span>}
-                </td>
-                <td className="whitespace-nowrap px-3 py-2.5 text-[color:var(--ds-ink-2)]">{monthYear(r.createdAt)}</td>
-                <td className="px-3 py-2.5 text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    icon={busy === r.id ? Loader2 : FlaskConical}
-                    disabled={busy !== null}
-                    onClick={() => onToggle(r)}
-                    title={r.isTest ? "Move back to the Live list" : "Move to the Test list (out of every total)"}
-                    className={busy === r.id ? "[&>svg]:animate-spin" : ""}
-                  >
-                    {r.isTest ? "Mark live" : "Mark test"}
-                  </Button>
-                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-right text-[color:var(--ds-ink-2)]">{monthYear(r.createdAt)}</td>
               </tr>
             ))}
           </tbody>

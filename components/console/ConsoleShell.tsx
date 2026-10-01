@@ -101,6 +101,15 @@ export default function ConsoleShell({
     ind.classList.add("rail-indicator-on");
   }, [pathname]);
 
+  // Floating surfaces (info bubbles, quick menus) portal to <body>, outside
+  // this tree — the glass material and the .ds tokens only reach them when
+  // body carries the classes, exactly as AppShell does for the tenant app.
+  useEffect(() => {
+    const body = document.body;
+    body.classList.add("app-ui", "ds");
+    return () => body.classList.remove("app-ui", "ds");
+  }, []);
+
   // The console is a working screen, not a marketing page: title it.
   useEffect(() => {
     const hit = GROUPS.flatMap((g) => g.items).find((i) => isActive(pathname, i.href));
