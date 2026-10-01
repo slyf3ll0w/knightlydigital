@@ -186,6 +186,13 @@ export const scheduleSection: HelpSection = {
       where: { label: "Schedule", href: "/app/schedule" },
       blocks: [
         {
+          type: "video",
+          src: "/video/tip-reschedule.mp4",
+          poster: "/video/tip-reschedule-poster.jpg",
+          title: "Reschedule with a drag (27 seconds, no sound)",
+          text: "On the week view: grab a job, drag it to a new day and time (it snaps to 15 minutes), let go, and the toast that appears offers Undo.",
+        },
+        {
           type: "list",
           items: [
             "Switch between **Month**, **Week** and **Day**. In Day view, **By tech** shows one column per person, like a dispatch board. Phones open on Day.",

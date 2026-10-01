@@ -106,6 +106,13 @@ export const atlasSection: HelpSection = {
       keywords: ["atlas", "ai", "assistant", "chat", "ask", "bot", "gpt"],
       blocks: [
         {
+          type: "video",
+          src: "/video/tip-ask-atlas.mp4",
+          poster: "/video/tip-ask-atlas-poster.jpg",
+          title: "Ask Atlas anything (26 seconds, no sound)",
+          text: "On a phone: ask Atlas who owes you money and it answers from your real numbers; then ask it to move a job, and the change waits on a Needs your OK card until you press Save changes.",
+        },
+        {
           type: "p",
           text: "Atlas is the assistant built into WorkBench. It reads your real data and can do almost anything you can do in the app. On a computer, open it with the Atlas button at the bottom-right. On a phone, it's the **Ask Atlas** row on Home and at the top of **More**.",
         },
