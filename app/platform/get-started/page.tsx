@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
+import { ChevronLeft } from "lucide-react";
 import ApplyForm from "@/components/ApplyForm";
 import { socialSignInFor } from "@/lib/sign-in-options";
 import { paymentsGateEnabled } from "@/lib/payments-gate";
@@ -25,7 +26,16 @@ export default async function AppGetStartedPage() {
   const ua = (await headers()).get("user-agent");
   return (
     <div className="app-ui min-h-screen bg-white">
-      <div className="mx-auto w-full max-w-lg px-6 py-10 sm:py-14">
+      {/* The app shell draws under the status bar, so the top padding clears
+          the notch / Dynamic Island before the page starts (2026-10-01). */}
+      <div className="mx-auto w-full max-w-lg px-6 pb-10 pt-[max(1rem,calc(env(safe-area-inset-top)+0.75rem))] sm:pb-14 sm:pt-8">
+        <Link
+          href="/app/login"
+          className="-ml-2 mb-6 inline-flex items-center gap-1 rounded-full py-2 pl-1 pr-3 text-[15px] font-semibold text-[color:var(--ds-primary)] active:bg-gray-100"
+        >
+          <ChevronLeft size={20} strokeWidth={2.4} />
+          Back
+        </Link>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/workbench-logo.png" alt="WorkBench" className="mb-8 h-7 w-auto" />
         <ApplyForm

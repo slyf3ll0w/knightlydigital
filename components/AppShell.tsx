@@ -381,7 +381,7 @@ function navQuickActions(href: string, label: string, creates: NavItem[]): Quick
 }
 
 // Create-sheet tile tones (.ds-tile-a … e in app/ds.css), matching the More
-// sheet's groups: Clients → primary, Selling → secondary, Field work → slate,
+// sheet's groups: Clients → primary, Sales → secondary, Field work → slate,
 // Money → slate-2.
 const CREATE_TONES: Record<string, "a" | "b" | "c" | "d" | "e"> = {
   "/app/contacts/new": "a",
@@ -430,7 +430,7 @@ const MORE_RECENT_KEY = "wb-more-recent";
 // come from navGroups (role-filtered); this only decides where they sit.
 const MORE_GROUPS: { label: string; tone: "a" | "b" | "c" | "d" | "e"; hrefs: string[] }[] = [
   { label: "Clients", tone: "a", hrefs: ["/app/contacts", "/app/leads", "/app/requests", "/app/messages", "/app/calls"] },
-  { label: "Selling", tone: "b", hrefs: ["/app/quotes", "/app/estimates", "/app/contracts", "/app/appointments"] },
+  { label: "Sales", tone: "b", hrefs: ["/app/quotes", "/app/estimates", "/app/contracts", "/app/appointments"] },
   { label: "Field work", tone: "c", hrefs: ["/app/schedule/map", "/app/jobs", "/app/timesheets", "/app/chat"] },
   { label: "Money", tone: "d", hrefs: ["/app/invoices", "/app/payments", "/app/subscriptions"] },
   { label: "Business", tone: "e", hrefs: ["/app/business", "/app/automations", "/app/settings/products", "/app/settings/booking", "/app/settings/team"] },
@@ -2924,6 +2924,51 @@ function MoreSheet({
     .filter((i): i is NavItem => Boolean(i));
 
   const sheetCreates = forRole(createItems, role, salesMoney);
+
+  // Swipe down to close (2026-10-01). A downward drag on the handle, or on
+  // the list while it is scrolled to the top, carries the sheet with the
+  // finger; let go past ~a quarter of its height (or with a flick) and it
+  // closes, otherwise it springs back.
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ y0: number; t0: number; live: boolean } | null>(null);
+  const [dragY, setDragY] = useState(0);
+  useEffect(() => {
+    if (!open) setDragY(0);
+  }, [open]);
+  const onDragStart = (e: React.TouchEvent) => {
+    drag.current = { y0: e.touches[0].clientY, t0: Date.now(), live: false };
+  };
+  const onDragMove = (e: React.TouchEvent) => {
+    const d = drag.current;
+    if (!d) return;
+    const dy = e.touches[0].clientY - d.y0;
+    if (!d.live) {
+      // Only claim a downward pull that starts with the list at its top
+      if (dy <= 6 || (scrollRef.current?.scrollTop ?? 0) > 0) {
+        if (dy < -6 || (scrollRef.current?.scrollTop ?? 0) > 0) drag.current = null;
+        return;
+      }
+      d.live = true;
+      d.y0 = e.touches[0].clientY;
+      d.t0 = Date.now();
+    }
+    setDragY(Math.max(0, e.touches[0].clientY - d.y0));
+  };
+  const onDragEnd = () => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d?.live) return;
+    const h = sheetRef.current?.offsetHeight ?? 600;
+    const speed = dragY / Math.max(1, Date.now() - d.t0);
+    if (dragY > h * 0.25 || (dragY > 40 && speed > 0.6)) {
+      hapticImpact("LIGHT");
+      onClose();
+    } else {
+      setDragY(0);
+    }
+  };
+
   const tile = ({ href, label, icon: Icon }: NavItem) => {
     const badge = badgeFor(href);
     const active = isActive(href);
@@ -2968,12 +3013,22 @@ function MoreSheet({
         aria-hidden
       />
       <div
-        className={`sheet-material fixed inset-x-0 bottom-0 z-50 lg:hidden flex max-h-[88dvh] flex-col rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${
+        ref={sheetRef}
+        onTouchStart={onDragStart}
+        onTouchMove={onDragMove}
+        onTouchEnd={onDragEnd}
+        onTouchCancel={onDragEnd}
+        style={open && dragY > 0 ? { transform: `translateY(${dragY}px)` } : undefined}
+        className={`sheet-material fixed inset-x-0 bottom-0 z-50 lg:hidden flex max-h-[88dvh] flex-col rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] ${
+          drag.current?.live ? "" : "transition-transform duration-300"
+        } [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${
           open ? "" : "translate-y-full pointer-events-none"
         }`}
       >
-        <div className="mx-auto mt-2.5 h-1 w-9 shrink-0 rounded-full bg-gray-300" />
-        <div className="overflow-y-auto px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2">
+        <div className="flex shrink-0 justify-center pb-1 pt-2.5">
+          <div className="h-1 w-9 rounded-full bg-gray-300" />
+        </div>
+        <div ref={scrollRef} className="overscroll-contain overflow-y-auto px-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-2">
           {/* Who + where to: profile on the left, settings on the right */}
           <div className="flex items-center gap-2">
             <Link
@@ -3042,7 +3097,7 @@ function MoreSheet({
           {/* Where you were last */}
           {!needle && recentItems.length > 0 && (
             <div className="mt-3">
-              <p className="ds-eyebrow px-1 pb-1.5">Recent</p>
+              <p className="ds-eyebrow ds-eyebrow-plain px-1 pb-1.5">Recent</p>
               <div className="flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
                 {recentItems.map(({ href, label, icon: Icon }) => (
                   <Link
@@ -3065,7 +3120,7 @@ function MoreSheet({
 
           {shown.map((s, si) => (
             <div key={s.label || `s${si}`} className="mt-3">
-              {s.label && <p className="ds-eyebrow px-1 pb-1">{s.label}</p>}
+              {s.label && <p className="ds-eyebrow ds-eyebrow-plain px-1 pb-1">{s.label}</p>}
               {s.items.length === 0 ? (
                 <p className="px-1 py-6 text-center text-sm text-gray-500">Nothing matches “{query.trim()}”.</p>
               ) : (
