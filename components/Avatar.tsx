@@ -39,18 +39,25 @@ export default function Avatar({
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const seed = name?.trim() || "?";
-  // Brand duotone: primary / secondary / console slate, picked by name.
-  const tone = ["var(--ds-primary, #0B57D8)", "var(--ds-secondary, #F86A0A)", "#22314F"][hashHue(seed) % 3];
+  // Brand duotone: primary / secondary / console slate, picked by name. The
+  // initials take the matching on-color token, as in Monogram: a company
+  // whose secondary is white got white initials on a white circle (2026-10-01).
+  const { bg: tone, ink } = [
+    { bg: "var(--ds-primary, #0B57D8)", ink: "var(--ds-on-primary, #FFFFFF)" },
+    { bg: "var(--ds-secondary, #F86A0A)", ink: "var(--ds-on-secondary, #FFFFFF)" },
+    { bg: "#22314F", ink: "#FFFFFF" },
+  ][hashHue(seed) % 3];
   const tryPhoto = !!userId && !failed;
   // Initials always paint underneath; the photo sits on top and only becomes
   // visible once it actually loads. A missing photo (404) therefore never
   // flashes the browser's broken-image glyph — the initials just stay.
   return (
     <div
-      className={`relative rounded-full flex items-center justify-center font-semibold text-white select-none shrink-0 overflow-hidden ring-1 ring-white/20 ${className}`}
+      className={`relative rounded-full flex items-center justify-center font-semibold select-none shrink-0 overflow-hidden ring-1 ring-black/10 ${className}`}
       style={{
         width: size,
         height: size,
+        color: ink,
         fontSize: Math.round(size * 0.36),
         background: `linear-gradient(135deg, color-mix(in srgb, ${tone} 78%, #fff), ${tone} 55%, color-mix(in srgb, ${tone} 76%, #000))`,
         letterSpacing: "0.02em",

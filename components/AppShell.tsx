@@ -101,6 +101,22 @@ function darkSurfaceAccent(hex: string): string {
   return luminance === null || luminance < 70 ? "#FFFFFF" : hex;
 }
 
+/** A brand color with almost no hue (grays, gray-blues). */
+function isGrayish(hex: string): boolean {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return false;
+  const n = parseInt(m[1], 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  return Math.max(...ch) - Math.min(...ch) < 46;
+}
+
+/** Dark-theme tab bar / create button: a gray brand turns white there.
+ *  The idle tabs are already gray, so a gray active tab looked the same as
+ *  the rest (2026-10-01). Buttons elsewhere keep the brand's own gray. */
+function darkTabAccent(hex: string): string {
+  return isGrayish(hex) ? "#FFFFFF" : darkSurfaceAccent(hex);
+}
+
 /** Mix two hexes — `t` is the weight of `b` (0 = all a, 1 = all b). */
 function mixHex(a: string, b: string, t: number): string {
   const pa = /^#?([0-9a-f]{6})$/i.exec(a);
@@ -2136,15 +2152,16 @@ export default function AppShell({
   const rawBrand = brandColor || brandColorSecondary || null;
   const lightAccent = rawBrand ? surfaceAccent(rawBrand) : null;
   const darkAccent = rawBrand ? darkSurfaceAccent(rawBrand) : null;
+  const darkTab = rawBrand ? darkTabAccent(rawBrand) : null;
   const mobileAccentVars =
     rawBrand && lightAccent && darkAccent
       ? ({
           "--mobile-accent-light": lightAccent,
           "--mobile-on-accent-light": textOn(lightAccent),
           "--mobile-accent-soft-light": `${lightAccent}1A`,
-          "--mobile-accent-dark": darkAccent,
-          "--mobile-on-accent-dark": textOn(darkAccent),
-          "--mobile-accent-soft-dark": `${darkAccent}24`,
+          "--mobile-accent-dark": darkTab ?? darkAccent,
+          "--mobile-on-accent-dark": textOn(darkTab ?? darkAccent),
+          "--mobile-accent-soft-dark": `${darkTab ?? darkAccent}24`,
           // Solid primary buttons app-wide (the green→accent bridge in
           // globals.css): 500/600/700 slots as bright/base/pressed.
           "--wb-accent-bright-light": tint(lightAccent, 0.14),
