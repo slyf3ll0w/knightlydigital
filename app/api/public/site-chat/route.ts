@@ -17,6 +17,10 @@ import {
 /**
  * Website chat (the "Chat with us" widget on the marketing site).
  *
+ * DORMANT since 2026-10-01: the site shows the "Contact us" form instead
+ * (components/wb/WBContactButton.tsx → /api/public/contact). These routes
+ * stay so old website-chat threads in Messages keep working.
+ *
  * A visitor's message lands in the WorkBench company that owns the
  * business line on the site (lib/site-chat.ts; SITE_CHAT_COMPANY_ID
  * overrides) as an INBOUND PortalMessage on a contact created for that

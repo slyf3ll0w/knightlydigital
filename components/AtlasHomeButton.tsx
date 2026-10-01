@@ -28,6 +28,7 @@ export default function AtlasHomeButton({
         hapticImpact("LIGHT");
         atlas.open();
       }}
+      data-tour="atlas"
       className={
         ds
           ? `ds-card ds-card-link flex w-full items-center gap-3 px-4 py-3.5 text-left lg:hidden ${className}`

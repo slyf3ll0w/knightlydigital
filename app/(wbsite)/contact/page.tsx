@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Clock4, Mail, MessageSquare, Phone } from "lucide-react";
 import WBCta from "@/components/wb/WBCta";
+import WBContactForm from "@/components/wb/WBContactForm";
 import WBSplitHero from "@/components/wb/WBSplitHero";
 import WBScribble from "@/components/wb/WBScribble";
 import { WB_DAY_PHOTOS, WB_EMAIL, WB_EMAIL_HREF, WB_PHONE } from "@/lib/wb-site";
@@ -77,6 +78,19 @@ export default function WBContactPage() {
               Log in
               <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
             </Link>
+          </div>
+        </div>
+      </section>
+
+      <section id="message" className="scroll-mt-24 bg-white">
+        <div className="mx-auto max-w-3xl px-5 py-14 sm:px-8 sm:py-16">
+          <h2 className="text-2xl font-extrabold sm:text-3xl">Send us a message</h2>
+          <p className="mt-3 text-[15.5px] leading-relaxed text-gray-600">
+            Tell us a little about your business and what you need. We reply by email,
+            or by phone if you leave a number.
+          </p>
+          <div className="mt-7 rounded-[1.5rem] border border-gray-200 bg-white p-5 sm:p-7">
+            <WBContactForm />
           </div>
         </div>
       </section>

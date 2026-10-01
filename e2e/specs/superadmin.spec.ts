@@ -71,6 +71,7 @@ test.describe("platform console", () => {
       ["/superadmin/signups", "Sign-ups"],
       ["/superadmin/profitability", "Profitability"],
       ["/superadmin/feedback", "Feedback"],
+      ["/superadmin/contact", "Contact form"],
       ["/superadmin/library", "Library"],
     ] as const) {
       await page.goto(`${state.baseUrl}${path}`);
@@ -110,6 +111,7 @@ test.describe("platform console", () => {
           "/superadmin/signups?tab=invites",
           "/superadmin/profitability",
           "/superadmin/feedback",
+          "/superadmin/contact",
           "/superadmin/library",
         ];
         const failures: string[] = [];

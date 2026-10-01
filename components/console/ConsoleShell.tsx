@@ -10,6 +10,7 @@ import {
   Library,
   Loader2,
   LogOut,
+  Mail,
   MessageSquare,
   TrendingUp,
   type LucideIcon,
@@ -27,7 +28,7 @@ import ConsoleSearch from "./ConsoleSearch";
  * column (design rule 8 — simpler, not smaller).
  */
 
-export type ConsoleCounts = { pending: number; feedback: number };
+export type ConsoleCounts = { pending: number; feedback: number; contact: number };
 
 type Item = { href: string; label: string; icon: LucideIcon; badge?: keyof ConsoleCounts };
 const GROUPS: { key: string; label: string; items: Item[] }[] = [
@@ -37,6 +38,7 @@ const GROUPS: { key: string; label: string; items: Item[] }[] = [
     items: [
       { href: "/superadmin", label: "Accounts", icon: Building2 },
       { href: "/superadmin/signups", label: "Sign-ups", icon: Inbox, badge: "pending" },
+      { href: "/superadmin/contact", label: "Contact form", icon: Mail, badge: "contact" },
     ],
   },
   { key: "money", label: "Money", items: [{ href: "/superadmin/profitability", label: "Profitability", icon: TrendingUp }] },

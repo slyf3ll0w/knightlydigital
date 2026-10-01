@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import WBNav from "@/components/wb/WBNav";
 import WBFooter from "@/components/wb/WBFooter";
-import WBSiteChat from "@/components/wb/WBSiteChat";
-import { siteChatCompanyId } from "@/lib/site-chat";
+import WBContactButton from "@/components/wb/WBContactButton";
 import { APP_STORE_URL, PLAY_STORE_URL, WB_EMAIL, WB_PHONE } from "@/lib/wb-site";
 import {
   DISPATCH_MINUTES_INCLUDED,
@@ -94,10 +93,9 @@ const softwareAppJsonLd = {
  * WorkBench marketing site shell (/wb, /pricing, /apply). These pages move
  * to the site root when workbenchfsm.com takes over this app.
  */
-export default async function WBSiteLayout({
+export default function WBSiteLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const chat = Boolean(await siteChatCompanyId());
   return (
     <div className="wb-site min-h-screen bg-white text-gray-900">
       <script
@@ -108,7 +106,7 @@ export default async function WBSiteLayout({
       <WBNav />
       <main className="pt-20 sm:pt-24">{children}</main>
       <WBFooter />
-      {chat ? <WBSiteChat /> : null}
+      <WBContactButton />
     </div>
   );
 }

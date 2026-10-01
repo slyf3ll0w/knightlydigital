@@ -442,12 +442,7 @@ const forRole = (items: NavItem[], role: string, salesMoney: boolean) =>
 // Guided-tour anchors (components/TourGuide.tsx). Keyed by href so the
 // desktop sidebar and mobile tab bar both carry them — the visible one wins.
 const tourKeys: Record<string, string> = {
-  "/app/requests": "nav-requests",
-  "/app/quotes": "nav-quotes",
-  "/app/schedule": "nav-schedule",
-  "/app/invoices": "nav-invoices",
-  "/app/settings/booking": "nav-forms",
-  "/app/settings/team": "nav-team",
+  "/app/chat": "chat",
 };
 
 /**
@@ -2381,6 +2376,7 @@ export default function AppShell({
           <button
             type="button"
             onClick={() => setPaletteOpen(true)}
+            data-tour="search"
             className="ml-auto hidden w-full max-w-xs items-center gap-2 rounded-md border border-transparent bg-gray-100 px-3 py-1.5 text-sm text-gray-400 transition-colors hover:border-gray-300 hover:bg-gray-50 sm:flex"
           >
             <Search size={14} />
@@ -2399,6 +2395,7 @@ export default function AppShell({
               a teammate, and hiding it entirely read as "chat is gone". */}
           <Link prefetch={false}
             href="/app/chat"
+            data-tour="chat"
             className={`hidden lg:flex relative items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
               isActive("/app/chat")
                 ? "border-gray-900 bg-gray-900 text-white"
@@ -2586,6 +2583,7 @@ export default function AppShell({
               setAssistantOpen(true);
             }}
             aria-label="Open assistant"
+            data-tour="atlas"
             title={assistantName || "Atlas"}
             className="fixed z-40 hidden lg:block rounded-full shadow-lg transition-transform hover:scale-105 lg:bottom-6 lg:right-6"
           >
@@ -2605,7 +2603,7 @@ export default function AppShell({
         />
       )}
 
-      <TourGuide role={userRole} needsTour={needsTour} />
+      <TourGuide needsTour={needsTour} />
     </div>
   );
 }
@@ -2781,6 +2779,7 @@ function MobileTabBar({
               hapticImpact("LIGHT");
               openMore();
             }}
+            data-tour="more"
             className={tabClass(false)}
           >
             <span className="relative">

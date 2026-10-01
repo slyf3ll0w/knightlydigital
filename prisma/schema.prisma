@@ -657,6 +657,27 @@ enum RoadmapCategory {
   QOL // quality of life
 }
 
+// The marketing site's "Contact us" form (components/wb/WBContactForm.tsx →
+// /api/public/contact). Platform-level, not company-scoped: these are people
+// asking about WorkBench itself. Listed at /superadmin/contact; readAt is
+// stamped the first time the console lists it (the rail badge counts unread,
+// non-spam rows); spam is the superadmin's call and hides it from the inbox.
+model ContactSubmission {
+  id           String    @id @default(cuid())
+  name         String
+  email        String
+  phone        String?
+  businessName String?
+  message      String    @db.Text
+  pageUrl      String? // site path the form was sent from
+  ip           String?
+  spam         Boolean   @default(false)
+  readAt       DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([spam, createdAt])
+}
+
 // Product-wide (not company-scoped): the public "what's coming / what shipped"
 // board at /roadmap. Anyone can view; only the allowlisted editor accounts in
 // lib/roadmap.ts can write.

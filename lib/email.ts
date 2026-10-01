@@ -868,6 +868,37 @@ export function newFeedbackEmail({
   return { subject: `WorkBench ${kind.toLowerCase()} — ${title}`, html };
 }
 
+/** Platform notification — someone sent the marketing site's contact form. */
+export function newContactSubmissionEmail({
+  name,
+  email,
+  phone,
+  businessName,
+  message,
+}: {
+  name: string;
+  email: string;
+  phone: string | null;
+  businessName: string | null;
+  message: string;
+}): { subject: string; html: string } {
+  const row = (label: string, value: string | null, first = false) =>
+    value
+      ? `${fieldLabel(label, first ? 0 : 16)}<p style="margin:0 0 12px;color:#111827;font-size:14px;white-space:pre-line;">${esc(value)}</p>`
+      : "";
+  const html = wbShell({
+    label: "Website contact form",
+    inner: `
+      ${row("Name", name, true)}
+      ${row("Business", businessName)}
+      ${row("Email", email)}
+      ${row("Phone", phone)}
+      ${row("How can we help", message)}
+      ${wbBtn(`${APP_URL}/superadmin/contact`, "Open in the console")}`,
+  });
+  return { subject: `Website contact — ${name}${businessName ? ` (${businessName})` : ""}`, html };
+}
+
 /** Invite code delivery — sent on application approval or a direct invite. */
 export function inviteCodeEmail({
   name,
