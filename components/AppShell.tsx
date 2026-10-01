@@ -1793,6 +1793,30 @@ export default function AppShell({
         if (fresh.length > 0) {
           hapticImpact("LIGHT");
           setToasts((t) => [...fresh.filter((f) => !t.some((x) => x.id === f.id)), ...t].slice(0, 3));
+          // The tab is behind another window or app: a card nobody is looking
+          // at is no notification. Raise the system's own (the permission is
+          // the one "Turn on notifications" asked for) — click brings the tab
+          // back and opens the item. Push covers a closed browser; this covers
+          // an open one in the background (David 2026-10-01: "my computer
+          // showed no indication I had just been texted").
+          if (
+            typeof Notification !== "undefined" &&
+            Notification.permission === "granted" &&
+            (document.visibilityState !== "visible" || !document.hasFocus())
+          ) {
+            for (const f of fresh) {
+              try {
+                const n = new Notification(f.title, { body: f.sub, tag: `wb-live-${f.id}` });
+                n.onclick = () => {
+                  window.focus();
+                  router.push(f.href);
+                  n.close();
+                };
+              } catch {
+                /* a browser without constructor notifications (Android Chrome) — push covers it */
+              }
+            }
+          }
         }
       };
       if (!grew) {
@@ -1853,8 +1877,18 @@ export default function AppShell({
     load();
     // Live: while the app is open and in front, re-count every 20 s so a new
     // request, lead, message or chat shows up as a card without a reload.
+    // Hidden (another tab or window in front): still every 60 s, so the
+    // Messages count and the system notification above arrive while you're
+    // elsewhere on the computer rather than only once you come back.
+    let hiddenTicks = 0;
     const live = setInterval(() => {
-      if (document.visibilityState === "visible" && navigator.onLine) load(true);
+      if (!navigator.onLine) return;
+      if (document.visibilityState === "visible") {
+        hiddenTicks = 0;
+        load(true);
+      } else if (++hiddenTicks % 3 === 0) {
+        load(true);
+      }
     }, 20_000);
     // Back from the pocket: the badges are the first thing a phone user
     // glances at, so a real absence (not an app-switch flicker) re-counts

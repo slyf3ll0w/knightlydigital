@@ -24,6 +24,7 @@ import { rollupStorageSnapshots } from "@/lib/usage";
 import { pruneLegCache } from "@/lib/routing";
 import { runNightlyReconciliation } from "@/lib/reconcile";
 import { runLineRegistrationSweep, runLineReleaseSweep } from "@/lib/business-line";
+import { runMessageMediaSweep } from "@/lib/message-media";
 import { runStaleCallSweep } from "@/lib/voice";
 import { runAutomationSweeps, runAutomationResumes, runScheduledAutomations } from "@/lib/automations-server";
 import { pruneBuilds } from "@/lib/estimator-build-jobs";
@@ -181,6 +182,9 @@ export async function POST(req: NextRequest) {
     // Business-line calls whose hangup webhook never arrived: close them so
     // the Calls page never shows a call "ringing" since yesterday.
     await step("staleCalls", () => runStaleCallSweep(now));
+    // Text-thread photos: bytes dropped after MESSAGE_MEDIA_DAYS (7); the
+    // bubble keeps a "photo expired" placeholder.
+    await step("messageMedia", () => runMessageMediaSweep(now));
     // Team-map retention: location history older than 30 days is deleted —
     // deliberate; keep the window short.
     // Road legs older than LEG_CACHE_DAYS are re-bought when next needed

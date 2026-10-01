@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { threadMedia, type MediaRow } from "@/lib/message-media";
+import { MEDIA_SELECT, threadMedia, type MediaRow } from "@/lib/message-media";
 import { limit, clientIp } from "@/lib/rate-limit";
 import {
   notifyTeamOfClientMessage,
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
     },
     orderBy: { createdAt: "asc" },
     take: 500,
-    include: { sender: { select: { name: true } }, media: { select: { id: true, contentType: true, sizeBytes: true } } },
+    include: { sender: { select: { name: true } }, media: { select: MEDIA_SELECT } },
   });
 
   // Read receipt for the client side — same rule as the team thread: write

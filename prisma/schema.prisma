@@ -1233,9 +1233,13 @@ model PortalMessageMedia {
   sizeBytes   Int
   data        Bytes?
   storageKey  String?
+  // Retention: the bytes are dropped after MESSAGE_MEDIA_DAYS (lib/message-media.ts
+  // runMessageMediaSweep); the row stays so the bubble can say the photo expired.
+  expiredAt   DateTime?
   createdAt   DateTime      @default(now())
 
   @@index([messageId])
+  @@index([expiredAt, createdAt])
 }
 
 // Web-push subscriptions for CLIENTS (contacts) — the hub counterpart of

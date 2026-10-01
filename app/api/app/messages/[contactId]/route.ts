@@ -10,7 +10,7 @@ import { autoAdvance } from "@/lib/pipeline";
 import { fireAutomations } from "@/lib/automations-server";
 import { activeTypers } from "@/lib/chat";
 import { visitorOnline } from "@/lib/site-chat";
-import { threadMedia, type MediaRow } from "@/lib/message-media";
+import { MEDIA_SELECT, threadMedia, type MediaRow } from "@/lib/message-media";
 
 /**
  * Team side of a portal message thread. GET polls for new messages (and
@@ -60,7 +60,7 @@ export async function GET(
     },
     orderBy: { createdAt: "asc" },
     take: 500,
-    include: { sender: { select: { name: true } }, media: { select: { id: true, contentType: true, sizeBytes: true } } },
+    include: { sender: { select: { name: true } }, media: { select: MEDIA_SELECT } },
   });
 
   // Mark inbound as read — but only when this poll actually saw something

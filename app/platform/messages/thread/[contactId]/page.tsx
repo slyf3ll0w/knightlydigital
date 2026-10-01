@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { threadMedia } from "@/lib/message-media";
+import { MEDIA_SELECT, threadMedia } from "@/lib/message-media";
 import { requirePageActor, canSell, contactScope } from "@/lib/permissions";
 import { fmtPhone } from "@/lib/format";
 import TeamThread from "./TeamThread";
@@ -55,7 +55,7 @@ export default async function MessageThreadPage({
       where: { contactId, companyId: actor.companyId },
       orderBy: { createdAt: "asc" },
       take: 500,
-      include: { sender: { select: { name: true } }, media: { select: { id: true, contentType: true, sizeBytes: true } } },
+      include: { sender: { select: { name: true } }, media: { select: MEDIA_SELECT } },
     }),
   ]);
   if (!contact) notFound();

@@ -44,10 +44,15 @@ export const MMS_MAX_BYTES = 1_000_000;
 /** Inbound: what we keep of what Telnyx fetched for us. */
 export const INBOUND_MAX_BYTES = 5_000_000;
 
-export type MediaRow = { id: string; contentType: string; sizeBytes: number };
+export type MediaRow = { id: string; contentType: string; sizeBytes: number; expiredAt?: Date | null };
+
+/** How long a thread photo's bytes are kept (David 2026-10-01: "after a week or so to save storage"). */
+export const MESSAGE_MEDIA_DAYS = Math.max(1, parseInt(process.env.MESSAGE_MEDIA_DAYS ?? "7", 10) || 7);
 
 /** Shape the thread JSON carries per attachment; `url` is the door for whoever is reading. */
-export type ThreadMedia = { id: string; type: string; url: string };
+export type ThreadMedia = { id: string; type: string; url: string; expired?: boolean };
+
+export const MEDIA_SELECT = { id: true, contentType: true, sizeBytes: true, expiredAt: true } as const;
 
 export function threadMedia(rows: MediaRow[], door: "team" | "hub", hubToken?: string): ThreadMedia[] {
   return rows.map((m) => ({
@@ -57,6 +62,7 @@ export function threadMedia(rows: MediaRow[], door: "team" | "hub", hubToken?: s
       door === "team"
         ? `/api/message-media/${m.id}`
         : `/api/hub/message-media/${m.id}?token=${encodeURIComponent(hubToken ?? "")}`,
+    ...(m.expiredAt ? { expired: true } : {}),
   }));
 }
 
@@ -161,34 +167,82 @@ export async function fetchInboundMedia(url: string, contentTypeHint?: string | 
   }
 }
 
-/** The HTTP answer for one attachment: a redirect to a signed R2 URL, or the bytes. The caller has already authorised. */
-export async function mediaResponse(id: string, cache: "private" | "public" = "private"): Promise<NextResponse> {
+/**
+ * The HTTP answer for one attachment: a redirect to a signed R2 URL, or the
+ * bytes. The caller has already authorised. `download` streams the bytes
+ * through us with a filename (a redirect to R2 can't carry the download
+ * attribute cross-origin, and the browser can't fetch R2 without CORS), so
+ * Save on a computer and the share sheet on a phone both work.
+ */
+export async function mediaResponse(
+  id: string,
+  cache: "private" | "public" = "private",
+  opts: { download?: boolean } = {}
+): Promise<NextResponse> {
   const row = await prisma.portalMessageMedia.findUnique({
     where: { id },
-    select: { data: true, contentType: true, storageKey: true },
+    select: { data: true, contentType: true, storageKey: true, expiredAt: true, createdAt: true },
   });
   if (!row) return new NextResponse(null, { status: 404 });
+  if (row.expiredAt) return new NextResponse(null, { status: 410 });
+  const disposition: Record<string, string> = opts.download
+    ? { "Content-Disposition": `attachment; filename="${mediaNoun(row.contentType).toLowerCase().replace(/ /g, "-")}-${row.createdAt.toISOString().slice(0, 10)}.${extensionFor(row.contentType)}"` }
+    : {};
+  let bytes: Uint8Array<ArrayBuffer> | null = null;
   if (row.storageKey && isBlobStorageConfigured()) {
     try {
       const url = await signedGetUrl(row.storageKey, 600);
-      // Never let a cache hand out an expired signed URL.
-      return NextResponse.redirect(url, { status: 302, headers: { "Cache-Control": "no-store" } });
+      if (!opts.download) {
+        // Never let a cache hand out an expired signed URL.
+        return NextResponse.redirect(url, { status: 302, headers: { "Cache-Control": "no-store" } });
+      }
+      const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+      if (res.ok) bytes = new Uint8Array(await res.arrayBuffer());
     } catch (err) {
-      reportError("[message-media] signed URL failed:", err);
-      if (!row.data) return new NextResponse(null, { status: 502 });
+      reportError("[message-media] R2 read failed:", err);
     }
   }
-  if (!row.data) return new NextResponse(null, { status: 404 });
-  const bytes = new Uint8Array(row.data.byteLength);
-  bytes.set(row.data);
+  if (!bytes && row.data) {
+    bytes = new Uint8Array(row.data.byteLength);
+    bytes.set(row.data);
+  }
+  if (!bytes) return new NextResponse(null, { status: row.storageKey ? 502 : 404 });
   return new NextResponse(bytes, {
     headers: {
       "Content-Type": row.contentType,
       "Content-Length": String(bytes.byteLength),
       "Cache-Control": cache === "public" ? "public, max-age=3600" : "private, max-age=3600",
       "X-Content-Type-Options": "nosniff",
+      ...disposition,
     },
   });
+}
+
+/**
+ * Hourly: drop the bytes of thread photos older than MESSAGE_MEDIA_DAYS —
+ * R2 object and/or the Postgres column — and stamp the row expired so the
+ * bubble says so instead of showing a broken image. Small batches; the
+ * sweep runs every hour and catches up.
+ */
+export async function runMessageMediaSweep(now = new Date()): Promise<{ expired: number }> {
+  const cutoff = new Date(now.getTime() - MESSAGE_MEDIA_DAYS * 86_400_000);
+  const rows = await prisma.portalMessageMedia.findMany({
+    where: { expiredAt: null, createdAt: { lt: cutoff } },
+    select: { id: true, storageKey: true },
+    orderBy: { createdAt: "asc" },
+    take: 200,
+  });
+  let expired = 0;
+  for (const r of rows) {
+    try {
+      if (r.storageKey) await deleteObject(r.storageKey);
+      await prisma.portalMessageMedia.update({ where: { id: r.id }, data: { data: null, storageKey: null, expiredAt: now } });
+      expired++;
+    } catch (err) {
+      reportError("[message-media] sweep failed for", r.id, err);
+    }
+  }
+  return { expired };
 }
 
 /** Best-effort cleanup when a message is deleted outside the cascade. */

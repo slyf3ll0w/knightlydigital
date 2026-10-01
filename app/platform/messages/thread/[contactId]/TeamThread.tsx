@@ -8,7 +8,7 @@ import Monogram from "@/components/Monogram";
 import CallLink from "@/components/CallLink";
 import { hapticImpact } from "@/lib/haptics";
 import { useMeasuredHeight } from "@/lib/use-measured-height";
-import { resizePhotoFile } from "@/lib/resize-image";
+import { resizeForMms } from "@/lib/resize-image";
 import MessageMedia, { type ThreadMedia } from "@/components/MessageMedia";
 
 /**
@@ -342,7 +342,7 @@ export default function TeamThread({
     let name = file.name;
     if (file.type.startsWith("image/") && file.type !== "image/gif") {
       try {
-        const r = await resizePhotoFile(file, 1600);
+        const r = await resizeForMms(file);
         upload = r.blob;
         name = r.filename;
       } catch {
@@ -595,7 +595,7 @@ export default function TeamThread({
               onClick={() => fileRef.current?.click()}
               disabled={channel?.kind === "none" || attaching}
               aria-label="Send a photo"
-              title={channel?.kind === "sms" ? "Send a photo or short video by text" : "Send a photo (lands in their client portal)"}
+              title={`${channel?.kind === "sms" ? "Send a photo or short video by text" : "Send a photo (lands in their client portal)"} — photos stay in the thread for a week`}
               className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full text-[color:var(--ds-primary)] transition-colors hover:bg-[color:var(--ds-primary-soft)] active:bg-[color:var(--ds-primary-soft)] disabled:opacity-40"
             >
               {attaching ? <Loader2 size={20} className="animate-spin" /> : <ImagePlus size={20} />}

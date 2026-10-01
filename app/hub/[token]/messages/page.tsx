@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { threadMedia } from "@/lib/message-media";
+import { MEDIA_SELECT, threadMedia } from "@/lib/message-media";
 import { brandHeader } from "@/lib/branding";
 import HubMessagesThread from "./HubMessagesThread";
 
@@ -32,7 +32,7 @@ export default async function HubMessagesPage({
     where: { contactId: contact.id },
     orderBy: { createdAt: "asc" },
     take: 500,
-    include: { sender: { select: { name: true } }, media: { select: { id: true, contentType: true, sizeBytes: true } } },
+    include: { sender: { select: { name: true } }, media: { select: MEDIA_SELECT } },
   });
 
   await prisma.portalMessage.updateMany({

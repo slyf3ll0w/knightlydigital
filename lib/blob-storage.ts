@@ -84,12 +84,14 @@ export async function putObject(
   const bytes = new Uint8Array(body.byteLength);
   bytes.set(body);
 
-  // A Blob rather than the raw Buffer: it satisfies BodyInit and carries its
-  // own length, so fetch sets Content-Length for us.
+  // The length goes on the request by hand: aws4fetch rebuilds the request
+  // around the signed headers and a Blob body went out chunked — R2 answered
+  // 411 MissingContentLength (2026-10-01) and every upload fell back to the
+  // database.
   const res = await client().fetch(bucketUrl(key), {
     method: "PUT",
-    body: new Blob([bytes], { type: contentType }),
-    headers: { "Content-Type": contentType },
+    body: bytes,
+    headers: { "Content-Type": contentType, "Content-Length": String(bytes.byteLength) },
   });
   if (!res.ok) {
     throw new Error(`R2 PUT ${key} failed: ${res.status} ${(await res.text()).slice(0, 300)}`);

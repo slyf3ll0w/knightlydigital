@@ -115,6 +115,50 @@ export async function resizeImageFile(
  * and phone camera PNGs/HEIC-converted files are enormous). 1600px is plenty
  * for before/after documentation while keeping DB rows a few hundred KB.
  */
+/**
+ * A picture for an MMS: as sharp as the carriers allow. They cap a body near
+ * a megabyte and recompress anything they like, so the best we can do is
+ * hand over the most pixels that fit — 2048 px on the long edge at high JPEG
+ * quality, stepping the quality (then the size) down until it fits under
+ * `maxBytes`. The 1600 px / 0.82 job-photo recipe looked soft on a phone
+ * (David 2026-10-01).
+ */
+export async function resizeForMms(file: File, maxBytes = 950_000): Promise<{ blob: Blob; filename: string }> {
+  const bitmap = await createImageBitmap(file);
+  try {
+    for (const [maxDimension, quality] of [
+      [2048, 0.92],
+      [2048, 0.85],
+      [2048, 0.78],
+      [1600, 0.82],
+      [1280, 0.8],
+      [1024, 0.75],
+    ] as const) {
+      const blob = await encodeJpeg(bitmap, maxDimension, quality);
+      if (blob.size <= maxBytes) return { blob, filename: "photo.jpg" };
+    }
+    return { blob: await encodeJpeg(bitmap, 800, 0.7), filename: "photo.jpg" };
+  } finally {
+    bitmap.close();
+  }
+}
+
+async function encodeJpeg(bitmap: ImageBitmap, maxDimension: number, quality: number): Promise<Blob> {
+  const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+  const width = Math.max(1, Math.round(bitmap.width * scale));
+  const height = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas not supported");
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Image processing failed"))), "image/jpeg", quality);
+  });
+}
+
 export async function resizePhotoFile(
   file: File,
   maxDimension = 1600

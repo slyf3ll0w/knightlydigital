@@ -473,7 +473,9 @@ export const sipUri = (username: string): string => `sip:${username}@${SIP_DOMAI
  * wideband fallback. The customer's PSTN leg stays G.711 either way, but
  * the browser leg no longer adds a second narrowband hop.
  */
-export const SOFTPHONE_CODECS = ["OPUS", "G722", "PCMU", "PCMA"];
+// Telnyx's names: G711U/G711A, not the SDP names PCMU/PCMA (a 422 "must be one of G722, G711U, G711A,
+// G729, OPUS, …" on 2026-10-01 — the repair ran on every grant and never took).
+export const SOFTPHONE_CODECS = ["OPUS", "G722", "G711U", "G711A"];
 
 export async function createCredentialConnection(name: string): Promise<{ id: string }> {
   const out = await call<{ data?: { id?: string } }>("POST", "/credential_connections", {
