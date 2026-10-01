@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft, Phone, RotateCcw, SendHorizonal } from "lucide-react";
+import { ArrowLeft, ImagePlus, Loader2, Phone, RotateCcw, SendHorizonal } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import Monogram from "@/components/Monogram";
 import CallLink from "@/components/CallLink";
 import { hapticImpact } from "@/lib/haptics";
 import { useMeasuredHeight } from "@/lib/use-measured-height";
+import { resizePhotoFile } from "@/lib/resize-image";
+import MessageMedia, { type ThreadMedia } from "@/components/MessageMedia";
 
 /**
  * Team side of a client thread — built to feel exactly like Team Chat
@@ -35,6 +37,10 @@ export type ThreadMessage = {
   pending?: boolean;
   /** Client-side only: the POST failed — the bubble stays with a retry. */
   failed?: boolean;
+  /** Pictures/clips on the message (MMS both ways, or a photo on a portal thread). */
+  media?: ThreadMedia[];
+  /** Client-side only: the file behind a pending photo bubble, for the retry. */
+  pendingFile?: File;
 };
 
 export type ThreadChannel =
@@ -118,6 +124,8 @@ export default function TeamThread({
   const [messages, setMessages] = useState<ThreadMessage[]>(initialMessages);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
+  const [attaching, setAttaching] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [clientTyping, setClientTyping] = useState(false);
   const [visitorOnline, setVisitorOnline] = useState<boolean | null>(null);
   const [contactPhone, setContactPhone] = useState<string | null | undefined>(undefined);
@@ -324,9 +332,84 @@ export default function TeamThread({
     void postMessage(body);
   }
 
+  // A photo (or clip) with whatever is in the draft: the bubble shows the
+  // picture at once from the file itself, the upload settles behind it. It
+  // goes out as an MMS from the business line on a text thread, and lands in
+  // the client portal either way. Pictures are downsized on the device
+  // first — carriers cap an MMS body near a megabyte.
+  async function postMedia(file: File, body: string) {
+    let upload: Blob = file;
+    let name = file.name;
+    if (file.type.startsWith("image/") && file.type !== "image/gif") {
+      try {
+        const r = await resizePhotoFile(file, 1600);
+        upload = r.blob;
+        name = r.filename;
+      } catch {
+        /* send as-is */
+      }
+    }
+    if (upload.size > 1_000_000) {
+      setError(file.type.startsWith("video/") ? "Videos have to be under 1 MB to text — trim it or send a photo." : "That file is too big to text.");
+      return;
+    }
+    const previewUrl = URL.createObjectURL(upload);
+    const temp: ThreadMessage = {
+      id: `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      direction: "OUTBOUND",
+      body,
+      via: "portal",
+      createdAt: new Date().toISOString(),
+      senderName: null,
+      pending: true,
+      media: [{ id: "pending", type: upload.type || file.type, url: previewUrl }],
+      pendingFile: file,
+    };
+    seenRef.current.add(temp.id);
+    stickToBottomRef.current = true;
+    setMessages((prev) => [...prev, temp]);
+    try {
+      const fd = new FormData();
+      fd.append("file", upload, name);
+      if (body) fd.append("body", body);
+      const res = await fetch(`/api/app/messages/${contactId}/media`, { method: "POST", body: fd });
+      const data = await res.json().catch(() => null);
+      const saved = data?.message as ThreadMessage | undefined;
+      if (!res.ok || !saved) throw new Error(data?.error ?? "Not delivered.");
+      seenRef.current.add(saved.id);
+      setMessages((prev) =>
+        prev.some((m) => m.id === saved.id) ? prev.filter((m) => m.id !== temp.id) : prev.map((m) => (m.id === temp.id ? saved : m))
+      );
+    } catch (err) {
+      setError(err instanceof Error && err.message !== "Not delivered." ? err.message : "");
+      setMessages((prev) => prev.map((m) => (m.id === temp.id ? { ...m, pending: false, failed: true } : m)));
+    }
+  }
+
+  async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setError("");
+    setAttaching(true);
+    hapticImpact("LIGHT");
+    const body = draft.trim();
+    setDraft("");
+    requestAnimationFrame(autoGrow);
+    try {
+      await postMedia(file, body);
+    } finally {
+      setAttaching(false);
+    }
+  }
+
   function retrySend(m: ThreadMessage) {
     setError("");
     setMessages((prev) => prev.filter((x) => x.id !== m.id));
+    if (m.pendingFile) {
+      void postMedia(m.pendingFile, m.body);
+      return;
+    }
     void postMessage(m.body);
   }
 
@@ -452,7 +535,8 @@ export default function TeamThread({
                           : `bg-gray-100 text-gray-900 ${firstOfRun ? "rounded-2xl rounded-bl-md" : lastOfRun ? "rounded-2xl rounded-tl-md" : "rounded-2xl rounded-l-md"}`
                       }`}
                     >
-                      <Linkified text={m.body} />
+                      {m.media && m.media.length > 0 && <MessageMedia media={m.media} className={m.body ? "mb-1.5" : ""} />}
+                      {m.body && <Linkified text={m.body} />}
                       <span className={`ml-2 inline-block translate-y-px text-[10px] ${mine ? "text-white/60" : "text-gray-400"}`}>
                         {m.pending ? "Sending…" : `${viaTag}${timeLabel(m.createdAt, tz)}`}
                       </span>
@@ -498,6 +582,24 @@ export default function TeamThread({
         >
           {error && <p className="mb-1.5 text-xs text-[color:var(--ds-bad)]">{error}</p>}
           <div className="glass-control flex items-end gap-2 max-lg:rounded-[27px] max-lg:p-1.5 max-lg:pl-1">
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*,video/mp4,video/quicktime,video/3gpp"
+              className="hidden"
+              onChange={onPickFile}
+              tabIndex={-1}
+            />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={channel?.kind === "none" || attaching}
+              aria-label="Send a photo"
+              title={channel?.kind === "sms" ? "Send a photo or short video by text" : "Send a photo (lands in their client portal)"}
+              className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full text-[color:var(--ds-primary)] transition-colors hover:bg-[color:var(--ds-primary-soft)] active:bg-[color:var(--ds-primary-soft)] disabled:opacity-40"
+            >
+              {attaching ? <Loader2 size={20} className="animate-spin" /> : <ImagePlus size={20} />}
+            </button>
             <textarea
               ref={inputRef}
               value={draft}

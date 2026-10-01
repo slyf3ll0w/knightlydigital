@@ -1605,14 +1605,17 @@ export function platformTollFreeInput(number: string, form: RegistrationForm): T
       "WorkBench: Hi Maria, this is David with WorkBench support. Your booking page is live now; the link is in Settings > Booking & forms. Anything else I can help with? Reply STOP to opt out.",
     optInWorkflow:
       "People who contact WorkBench give it their mobile number themselves: on the account application at https://workbenchfsm.com/apply " +
-      "(unchecked SMS consent checkbox by the phone field, linking to https://workbenchfsm.com/sms-terms), by texting this number first, " +
+      "(an SMS consent checkbox by the phone field that is UNCHECKED by default and must be ticked by the applicant; it links to https://workbenchfsm.com/sms-terms), by texting this number first, " +
       "or by asking to be texted during a call or email. Every text includes opt-out language; STOP opts out immediately, HELP returns support info.",
-    // The whole /apply form with the checkbox ticked (public/sms-opt-in-workbench.png) plus the texting terms
-    // page as an image — a cropped checkbox came back "OPT in example must be complete" (2026-09-22).
+    // The whole /apply form in its DEFAULT state — checkbox unchecked, with a close-up of the checkbox and its
+    // wording (public/sms-opt-in-workbench.png, scripts/sms-opt-in-workbench-shot.mjs) — plus the texting terms
+    // page as an image. A cropped checkbox came back "OPT in example must be complete" (2026-09-22); the same
+    // shot with the box ticked came back "Opt-In Checkbox is Pre-selected" (2026-10-01).
     optInImageUrls: ["https://workbenchfsm.com/sms-opt-in-workbench.png", "https://workbenchfsm.com/sms-terms-workbench.png"],
     additionalInformation:
       "Streamflaire Group LLC is the sender and only user of this number: its own customer support line for its WorkBench software, " +
       "not a number provided to a customer; no third party sends from it. Two-party support conversations only; no marketing. " +
+      "The opt-in checkbox is not pre-selected: the screenshot shows the form as it loads (box unchecked) and the applicant must tick it. " +
       "STOP/HELP handled at the Telnyx edge and mirrored in the application.",
     privacyPolicyURL: "https://workbenchfsm.com/privacy",
     termsAndConditionURL: "https://workbenchfsm.com/sms-terms",

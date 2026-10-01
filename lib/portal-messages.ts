@@ -20,6 +20,7 @@ import {
 import { companyNotifyAddress } from "@/lib/notify";
 import { notifyUsers, notifyContact, requestNotifyUserIds } from "@/lib/push";
 import { sendSms, smsEnabled, canText } from "@/lib/sms";
+import { mediaPreview, publicMmsUrls, type MediaRow } from "@/lib/message-media";
 
 const baseUrl = () =>
   (process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com").replace(/\/+$/, "");
@@ -141,13 +142,16 @@ export async function notifyTeamOfClientMessage(
 export async function notifyClientOfReply(
   contact: PortalThreadContact,
   messageId: string,
-  body: string
+  body: string,
+  /** Pictures/clips on the message (lib/message-media.ts): an MMS when the thread is a text conversation. */
+  media: MediaRow[] = []
 ): Promise<void> {
   const messagesUrl = `${baseUrl()}/hub/${contact.hubToken}/messages`;
+  const shown = mediaPreview(body, media);
 
   await notifyContact(contact.id, {
     title: contact.company.name,
-    body: preview(body, 140),
+    body: preview(shown, 140),
     url: `/hub/${contact.hubToken}/messages`,
     tag: `portal-thread-${contact.id}`,
     icon: absUrl(contact.company.logoUrl),
@@ -159,9 +163,10 @@ export async function notifyClientOfReply(
   if (smsEnabled() && contact.phone && canText(contact)) {
     smsSent = await sendSms({
       to: contact.phone,
-      text: conversationText(body),
+      text: body ? conversationText(body) : "",
       companyId: contact.companyId,
       contactId: contact.id,
+      mediaUrls: publicMmsUrls(baseUrl(), media),
     });
   }
   if (smsSent) return;
@@ -183,7 +188,7 @@ export async function notifyClientOfReply(
     brand: contact.company,
     companyName: contact.company.name,
     contactFirstName: contact.firstName,
-    messageBody: body,
+    messageBody: media.length ? `${shown} — open the thread to see it.` : body,
     messagesUrl,
   });
   await sendEmail({

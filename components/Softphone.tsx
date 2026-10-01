@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Maximize2, Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneOff, Play, Volume2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Maximize2, Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneOff, Play, Volume2, X } from "lucide-react";
 import { getCapacitor, nativePlatform } from "@/components/NativeShell";
 import { useSession } from "next-auth/react";
 import { nativeVoip } from "@/lib/native-voip";
@@ -437,9 +437,14 @@ export default function Softphone() {
       }
     };
     setSoftphoneState({ micId: readMicChoice() });
+    // Ask for the browser's voice processing by name. Chrome defaults to all
+    // three; Safari and the Android WebView do not always, and a phone on
+    // cellular data with no noise suppression or gain control is what the
+    // other party hears as a thin, muddy line (David, 2026-10-01).
+    const MIC_PROCESSING: MediaTrackConstraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true };
     const micConstraints = (): MediaStreamConstraints => {
       const id = getSoftphoneState().micId;
-      return { audio: id ? { deviceId: { exact: id } } : true };
+      return { audio: id ? { ...MIC_PROCESSING, deviceId: { exact: id } } : MIC_PROCESSING };
     };
     const deviceGone = (err: unknown) =>
       err instanceof Error && (err.name === "OverconstrainedError" || err.name === "NotFoundError" || err.name === "NotReadableError");
@@ -458,7 +463,7 @@ export default function Softphone() {
         console.info("[softphone] chosen microphone unavailable, back to the default:", err);
         writeMicChoice(null);
         setSoftphoneState({ micId: null });
-        return navigator.mediaDevices.getUserMedia({ audio: true });
+        return navigator.mediaDevices.getUserMedia({ audio: MIC_PROCESSING });
       }
     };
     const refreshDevices = async () => {
@@ -1263,16 +1268,32 @@ function useNow(active: boolean): number {
   return now;
 }
 
+/**
+ * Where the call lives on screen: a strip docked under the app header, the
+ * way iOS keeps a call in the status bar — never over the page's action rows
+ * (David 2026-10-01: the bottom-right card "blocks important parts of the
+ * screen" while booking the caller). Phones: edge to edge under the 57 px
+ * header; desktop: a centered pill under the header, clear of the toasts in
+ * the top-right corner. The glass tokens are scoped to .app-ui/.ds, which
+ * AppShell owns and this (mounted beside it) must carry itself.
+ */
+const DOCK =
+  "app-ui ds fixed z-[70] inset-x-3 top-[calc(env(safe-area-inset-top)+63px)] lg:inset-x-0 lg:mx-auto lg:top-[65px] lg:w-[440px]";
+
 function CallCard({ call }: { call: SoftphoneCall }) {
   const speaker = useSoftphone().speaker;
   const now = useNow(call.state === "active" || call.state === "held");
   const pathname = usePathname();
+  // The strip opens to the full controls on tap; a new call starts folded.
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => setExpanded(false), [call.callId]);
   const ringing = call.state === "ringing";
   const dialing = call.state === "dialing";
   const held = call.state === "held";
   // The call screen (/app/calls/[id]) carries the full controls for this very call — no second card on top of it.
   const screenHref = call.callId ? `/app/calls/${call.callId}` : null;
   if (screenHref && pathname === screenHref) return null;
+  const numberLine = call.number && call.label !== fmtNumber(call.number) ? `${fmtNumber(call.number)} · ` : "";
   const subtitle = ringing
     ? "calling your business line"
     : dialing
@@ -1280,97 +1301,118 @@ function CallCard({ call }: { call: SoftphoneCall }) {
       : held
         ? `on hold · ${fmtElapsed(call.startedAt, now)}`
         : fmtElapsed(call.startedAt, now);
-  const btn = "flex items-center justify-center w-10 h-10 rounded-full transition-colors disabled:opacity-50";
+  const round = "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-50";
+
+  if (ringing) {
+    return (
+      <div
+        role="dialog"
+        aria-live="polite"
+        aria-label={`Incoming call from ${call.label}`}
+        className={`${DOCK} rounded-2xl border border-green-300 bg-white text-gray-900 shadow-2xl ring-4 ring-green-100`}
+      >
+        <div className="flex items-center gap-3 px-3.5 py-3">
+          <span className="flex h-10 w-10 shrink-0 animate-pulse items-center justify-center rounded-full bg-green-100 text-green-700">
+            <PhoneIncoming size={18} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold">{call.label}</p>
+            <p className="truncate text-xs text-gray-500">
+              {numberLine}
+              {subtitle}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => softphone.decline()}
+            className={`${round} h-10 w-10 bg-red-500 text-white hover:bg-red-600`}
+            title="Decline — sends the caller to voicemail"
+            aria-label="Decline"
+          >
+            <PhoneOff size={18} />
+          </button>
+          <button
+            type="button"
+            onClick={() => softphone.answer()}
+            className="flex h-10 shrink-0 items-center gap-2 rounded-full bg-green-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-600"
+            aria-label="Answer"
+          >
+            <Phone size={18} /> Answer
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
       role="dialog"
       aria-live="polite"
-      aria-label={ringing ? `Incoming call from ${call.label}` : `Call with ${call.label}`}
-      className={`fixed z-[70] right-4 bottom-20 lg:bottom-6 w-[calc(100vw-2rem)] max-w-xs rounded-2xl border bg-white text-gray-900 shadow-2xl ${
-        ringing ? "border-green-300 ring-4 ring-green-100" : "border-gray-200"
-      }`}
+      aria-label={`Call with ${call.label}`}
+      className={`${DOCK} rounded-2xl border border-gray-200 bg-white text-gray-900 shadow-xl`}
     >
-      <div className="flex items-center gap-3 px-4 pt-4 pb-3">
-        <span
-          className={`flex shrink-0 items-center justify-center w-10 h-10 rounded-full ${
-            ringing ? "bg-green-100 text-green-700 animate-pulse" : "bg-gray-100 text-gray-700"
-          }`}
-        >
-          {ringing ? <PhoneIncoming size={18} /> : <Phone size={18} />}
+      <div className="flex items-center gap-2 py-1.5 pl-2.5 pr-1.5">
+        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${held ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-700"}`}>
+          <Phone size={15} />
         </span>
-        <div className="min-w-0 flex-1">
-          {call.contactId ? (
-            <Link href={`/app/contacts/${call.contactId}`} className="block text-sm font-bold truncate hover:underline">
-              {call.label}
-            </Link>
-          ) : (
-            <p className="text-sm font-bold truncate">{call.label}</p>
-          )}
-          <p className="text-xs text-gray-500 truncate">
-            {call.number && call.label !== fmtNumber(call.number) ? `${fmtNumber(call.number)} · ` : ""}
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className="min-w-0 flex-1 text-left"
+          title={expanded ? "Fewer controls" : "Hold, speaker and microphone"}
+        >
+          <span className="flex items-center gap-1">
+            <span className="truncate text-[13px] font-bold leading-tight">{call.label}</span>
+            {expanded ? <ChevronUp size={13} className="shrink-0 text-gray-400" /> : <ChevronDown size={13} className="shrink-0 text-gray-400" />}
+          </span>
+          <span className="block truncate text-[11px] leading-tight text-gray-500">
+            {numberLine}
             {subtitle}
-          </p>
-        </div>
-        {screenHref && !ringing && (
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => softphone.toggleMute()}
+          disabled={dialing}
+          className={`${round} ${call.muted ? "bg-amber-100 text-amber-800" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+          title={call.muted ? "Unmute" : "Mute"}
+          aria-label={call.muted ? "Unmute" : "Mute"}
+        >
+          {call.muted ? <MicOff size={16} /> : <Mic size={16} />}
+        </button>
+        {screenHref && (
           <Link
             href={screenHref}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
+            className={`${round} text-gray-500 hover:bg-gray-100 hover:text-gray-900`}
             title="Open the call screen — save them, quote, schedule or invoice while you talk"
             aria-label="Open the call screen"
           >
             <Maximize2 size={15} />
           </Link>
         )}
+        <button
+          type="button"
+          onClick={() => softphone.hangup()}
+          className="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-red-500 px-3 text-[13px] font-semibold text-white transition-colors hover:bg-red-600"
+          aria-label="Hang up"
+        >
+          <PhoneOff size={15} /> {dialing ? "Cancel" : "End"}
+        </button>
       </div>
-      {!ringing && (
-        <div className="-mt-1 px-4 pb-3">
-          <MicRow />
-          <MicWarning className="mt-2" />
-        </div>
-      )}
-      <div className="flex items-center justify-end gap-2 px-4 pb-4">
-        {ringing ? (
-          <>
-            <button
-              type="button"
-              onClick={() => softphone.decline()}
-              className={`${btn} bg-red-500 text-white hover:bg-red-600`}
-              title="Decline — sends the caller to voicemail"
-              aria-label="Decline"
-            >
-              <PhoneOff size={18} />
-            </button>
-            <button
-              type="button"
-              onClick={() => softphone.answer()}
-              className={`${btn} bg-green-500 text-white hover:bg-green-600 px-5 w-auto gap-2 font-semibold text-sm`}
-              aria-label="Answer"
-            >
-              <Phone size={18} /> Answer
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              type="button"
-              onClick={() => softphone.toggleMute()}
-              disabled={dialing}
-              className={`${btn} ${call.muted ? "bg-amber-100 text-amber-800" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
-              title={call.muted ? "Unmute" : "Mute"}
-              aria-label={call.muted ? "Unmute" : "Mute"}
-            >
-              {call.muted ? <MicOff size={18} /> : <Mic size={18} />}
-            </button>
+      {expanded && (
+        <div className="border-t border-gray-100 px-3 pb-3 pt-2.5">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => softphone.toggleHold()}
               disabled={dialing}
-              className={`${btn} ${held ? "bg-amber-100 text-amber-800" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+              className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition-colors disabled:opacity-50 ${
+                held ? "bg-amber-100 text-amber-800" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
               title={held ? "Resume" : "Hold"}
-              aria-label={held ? "Resume" : "Hold"}
             >
-              {held ? <Play size={18} /> : <Pause size={18} />}
+              {held ? <Play size={15} /> : <Pause size={15} />} {held ? "Resume" : "Hold"}
             </button>
             {speaker !== null && (
               // iPhone: speakerphone (the system call screen has the same switch).
@@ -1378,31 +1420,31 @@ function CallCard({ call }: { call: SoftphoneCall }) {
                 type="button"
                 onClick={() => softphone.toggleSpeaker()}
                 disabled={dialing}
-                className={`${btn} ${speaker ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                className={`flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition-colors disabled:opacity-50 ${
+                  speaker ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                }`}
                 title={speaker ? "Speaker off" : "Speaker"}
-                aria-label={speaker ? "Speaker off" : "Speaker"}
               >
-                <Volume2 size={18} />
+                <Volume2 size={15} /> Speaker
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => softphone.hangup()}
-              className={`${btn} bg-red-500 text-white hover:bg-red-600 px-5 w-auto gap-2 font-semibold text-sm`}
-              aria-label="Hang up"
-            >
-              <PhoneOff size={18} /> {dialing ? "Cancel" : "Hang up"}
-            </button>
-          </>
-        )}
-      </div>
+            {call.contactId && (
+              <Link href={`/app/contacts/${call.contactId}`} className="ml-auto text-[12px] font-semibold text-[color:var(--ds-primary)] hover:underline">
+                Open client
+              </Link>
+            )}
+          </div>
+          <MicRow className="mt-2.5" />
+        </div>
+      )}
+      <MicWarning className="mx-2.5 mb-2" />
     </div>
   );
 }
 
 function ErrorPill({ message }: { message: string }) {
   return (
-    <div className="fixed z-[70] right-4 bottom-20 lg:bottom-6 max-w-xs flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 shadow-lg" role="status">
+    <div className={`${DOCK} flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 shadow-lg`} role="status">
       <span className="flex-1">{message}</span>
       <button type="button" onClick={() => setSoftphoneState({ error: null })} aria-label="Dismiss" className="shrink-0 text-amber-700 hover:text-amber-900">
         <X size={14} />

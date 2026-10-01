@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Bell, BellRing, Loader2, MessageSquare, Send, Share, SquarePlus, X } from "lucide-react";
 import { textOn } from "@/lib/branding";
+import MessageMedia, { type ThreadMedia } from "@/components/MessageMedia";
 
 /**
  * The client's side of the portal message thread. Their own messages sit
@@ -19,6 +20,8 @@ export type ThreadMessage = {
   via: string;
   createdAt: string;
   senderName: string | null;
+  /** Pictures/clips the company sent (or you texted in). */
+  media?: ThreadMedia[];
 };
 
 const POLL_MS = 20_000;
@@ -324,13 +327,16 @@ export default function HubMessagesThread({
                       }`}
                       style={mine ? { background: accent, color: accentText } : undefined}
                     >
-                      <p
-                        className={`text-sm leading-relaxed whitespace-pre-wrap break-words ${
-                          mine ? "" : "text-gray-900"
-                        }`}
-                      >
-                        {m.body}
-                      </p>
+                      {m.media && m.media.length > 0 && <MessageMedia media={m.media} className={m.body ? "mb-1.5" : ""} />}
+                      {m.body && (
+                        <p
+                          className={`text-sm leading-relaxed whitespace-pre-wrap break-words ${
+                            mine ? "" : "text-gray-900"
+                          }`}
+                        >
+                          {m.body}
+                        </p>
+                      )}
                     </div>
                     <p className="mt-1 text-[11px] text-gray-400">
                       {mine

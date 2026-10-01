@@ -56,7 +56,7 @@ export default function EmailAlertsCard({ initial, pushOn }: { initial: boolean 
     <div className="ds-card p-5 mt-5">
       <SectionHeader
         title="Email me too"
-        hint="New requests, client messages and bookings reach you as a push. Whether they also land in your inbox:"
+        hint="New requests, client messages and bookings reach you as a push. Whether they also land in your inbox (as the owner, this covers the company inbox from Settings too):"
       />
       <div className="mt-3 flex flex-col gap-1.5" role="radiogroup" aria-label="Notification emails">
         {OPTIONS.map((o) => {

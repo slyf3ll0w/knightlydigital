@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { threadMedia, type MediaRow } from "@/lib/message-media";
 import { limit, clientIp } from "@/lib/rate-limit";
 import {
   notifyTeamOfClientMessage,
@@ -15,20 +16,25 @@ import { fireAutomations } from "@/lib/automations-server";
  * the read receipt. POST sends a message and wakes the team.
  */
 
-const serialize = (m: {
-  id: string;
-  direction: string;
-  body: string;
-  via: string;
-  createdAt: Date;
-  sender: { name: string | null } | null;
-}) => ({
+const serialize = (
+  m: {
+    id: string;
+    direction: string;
+    body: string;
+    via: string;
+    createdAt: Date;
+    sender: { name: string | null } | null;
+    media?: MediaRow[];
+  },
+  token: string
+) => ({
   id: m.id,
   direction: m.direction,
   body: m.body,
   via: m.via,
   createdAt: m.createdAt.toISOString(),
   senderName: m.sender?.name ?? null,
+  media: threadMedia(m.media ?? [], "hub", token),
 });
 
 export async function GET(req: NextRequest) {
@@ -50,7 +56,7 @@ export async function GET(req: NextRequest) {
     },
     orderBy: { createdAt: "asc" },
     take: 500,
-    include: { sender: { select: { name: true } } },
+    include: { sender: { select: { name: true } }, media: { select: { id: true, contentType: true, sizeBytes: true } } },
   });
 
   // Read receipt for the client side — same rule as the team thread: write
@@ -62,7 +68,7 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({ messages: messages.map(serialize) });
+  return NextResponse.json({ messages: messages.map((m) => serialize(m, token)) });
 }
 
 export async function POST(req: NextRequest) {
@@ -111,7 +117,7 @@ export async function POST(req: NextRequest) {
   await notifyTeamOfClientMessage(contact, message.id, body, "portal");
 
   return NextResponse.json(
-    { message: serialize({ ...message, sender: null }) },
+    { message: serialize({ ...message, sender: null }, token) },
     { status: 201 }
   );
 }

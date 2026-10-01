@@ -1180,6 +1180,10 @@ model PortalMessage {
   sender         User?                  @relation(fields: [senderId], references: [id])
   body           String                 @db.Text
   via            String                 @default("portal") // "portal" | "sms"
+  // Telnyx message id on inbound texts: the dedupe key for webhook retries
+  // (the body alone can't tell two photo-only texts apart)
+  externalId     String?
+  media          PortalMessageMedia[]
   // Read state, one side each: INBOUND rows get readByTeamAt when the team
   // opens the thread; OUTBOUND rows get readByClientAt when the hub loads it
   readByTeamAt   DateTime?
@@ -1189,6 +1193,28 @@ model PortalMessage {
   @@index([companyId, createdAt])
   @@index([companyId, direction, readByTeamAt])
   @@index([contactId, createdAt])
+  @@index([externalId])
+}
+
+// A picture or clip on a thread message: MMS both ways, plus photos the team
+// attaches on a portal-only thread. Bytes live in R2 when object storage is
+// configured (storageKey set, data null), else in `data` — the JobPhoto
+// pattern. Served signed-in by /api/message-media/[id] (team) and
+// /api/hub/message-media/[id] (client); Telnyx fetches outbound MMS bodies
+// from /api/public/mms/[id] (the cuid is the only key, like Telnyx's own
+// media links).
+model PortalMessageMedia {
+  id          String        @id @default(cuid())
+  messageId   String
+  message     PortalMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  companyId   String
+  contentType String
+  sizeBytes   Int
+  data        Bytes?
+  storageKey  String?
+  createdAt   DateTime      @default(now())
+
+  @@index([messageId])
 }
 
 // Web-push subscriptions for CLIENTS (contacts) — the hub counterpart of

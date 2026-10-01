@@ -10,6 +10,7 @@ import { classifySmsKeyword } from "@/lib/sms-keywords";
 import { phoneDigits } from "@/lib/phone";
 import { telnyxWebhookConfigured, verifyTelnyxSignature } from "@/lib/telnyx-webhook";
 import { fireAutomations } from "@/lib/automations-server";
+import { fetchInboundMedia, mediaPreview, storeMessageMedia } from "@/lib/message-media";
 
 /**
  * Telnyx inbound-message webhook (set as the webhook URL on the WorkBench
@@ -53,9 +54,12 @@ export async function POST(req: NextRequest) {
     data?: {
       event_type?: string;
       payload?: {
+        id?: string;
         from?: { phone_number?: string };
         to?: Array<{ phone_number?: string }>;
         text?: string;
+        /** MMS: Telnyx's copies of the attachments (fetched and stored by landInboundSms). */
+        media?: Array<{ url?: string; content_type?: string | null; size?: number | null }>;
       };
     };
   };
@@ -69,14 +73,15 @@ export async function POST(req: NextRequest) {
     const from = event.data.payload?.from?.phone_number ?? "";
     const to = event.data.payload?.to?.[0]?.phone_number ?? "";
     const text = (event.data.payload?.text ?? "").trim();
+    const media = (event.data.payload?.media ?? []).filter((m): m is { url: string; content_type?: string | null } => typeof m?.url === "string");
     const digits = phoneDigits(from);
     const keyword = classifySmsKeyword(text);
     const company = to ? await companyByLine(to) : null;
-    if (digits && (keyword === "STOP" || keyword === "START")) {
+    if (digits && (keyword === "STOP" || keyword === "START") && media.length === 0) {
       await setOptOut(digits, keyword === "STOP", company?.id ?? null);
-    } else if (digits && text && keyword !== "HELP") {
-      // Everything that isn't a bare keyword is a message for the business
-      await landInboundSms(digits, from, text.slice(0, 5000), company?.id ?? null);
+    } else if (digits && (text || media.length) && (keyword !== "HELP" || media.length)) {
+      // Everything that isn't a bare keyword is a message for the business — a photo with no words included
+      await landInboundSms(digits, from, text.slice(0, 5000), company?.id ?? null, media, event.data.payload?.id ?? null);
     }
   }
 
@@ -141,7 +146,14 @@ function prettyDigits(digits: string): string {
  * the most recently updated contact. Errors never bubble: a failed thread
  * write must not make Telnyx retry.
  */
-async function landInboundSms(digits: string, fromE164: string, text: string, companyId: string | null): Promise<void> {
+async function landInboundSms(
+  digits: string,
+  fromE164: string,
+  text: string,
+  companyId: string | null,
+  media: Array<{ url: string; content_type?: string | null }> = [],
+  externalId: string | null = null
+): Promise<void> {
   try {
     const candidates = await prisma.contact.findMany({
       where: { phoneDigits: digits, ...(companyId ? { companyId } : {}) },
@@ -198,16 +210,19 @@ async function landInboundSms(digits: string, fromE164: string, text: string, co
       }
     }
 
-    // Telnyx retries webhooks on slow responses — drop exact duplicates
-    // arriving within a few minutes rather than double-posting the thread.
+    // Telnyx retries webhooks on slow responses (fetching a photo can make us
+    // slow) — drop the retry by Telnyx's message id, or, for older events
+    // without one, an identical body within a few minutes.
     const dupe = await prisma.portalMessage.findFirst({
-      where: {
-        contactId,
-        direction: "INBOUND",
-        via: "sms",
-        body: text,
-        createdAt: { gte: new Date(Date.now() - 5 * 60_000) },
-      },
+      where: externalId
+        ? { contactId, direction: "INBOUND", externalId }
+        : {
+            contactId,
+            direction: "INBOUND",
+            via: "sms",
+            body: text,
+            createdAt: { gte: new Date(Date.now() - 5 * 60_000) },
+          },
       select: { id: true },
     });
     if (dupe) return;
@@ -225,10 +240,23 @@ async function landInboundSms(digits: string, fromE164: string, text: string, co
         direction: "INBOUND",
         body: text,
         via: "sms",
+        externalId,
       },
     });
+    // MMS: keep our own copy of each picture (Telnyx's links are not forever), up to ten.
+    const kept: Array<{ contentType: string }> = [];
+    for (const m of media.slice(0, 10)) {
+      const got = await fetchInboundMedia(m.url, m.content_type);
+      if (!got) continue;
+      kept.push(await storeMessageMedia({ companyId: contact.companyId, messageId: message.id, bytes: got.bytes, contentType: got.contentType }));
+    }
+    if (!text && kept.length === 0) {
+      // Nothing we could keep (unsupported type, too big, gone): don't leave an empty bubble.
+      await prisma.portalMessage.delete({ where: { id: message.id } }).catch(() => {});
+      return;
+    }
     fireAutomations(contact.companyId, "message.text_received", message.id);
-    await notifyTeamOfClientMessage(contact, message.id, text, "sms");
+    await notifyTeamOfClientMessage(contact, message.id, mediaPreview(text, kept), "sms");
   } catch (err) {
     reportError("[telnyx] inbound SMS → thread failed:", err);
   }

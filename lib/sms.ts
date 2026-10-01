@@ -111,6 +111,7 @@ export async function sendSms({
   text,
   companyId,
   contactId,
+  mediaUrls,
 }: {
   to: string;
   text: string;
@@ -118,10 +119,17 @@ export async function sendSms({
   companyId?: string | null;
   /** The client being texted, when known — lets the inbound webhook route their reply. */
   contactId?: string | null;
+  /**
+   * Pictures/clips to send as MMS (public URLs Telnyx can fetch — lib/message-media.ts
+   * publicMmsUrls). With any, the message goes as MMS, text optional, up to 10.
+   */
+  mediaUrls?: string[];
 }): Promise<boolean> {
   if (!smsEnabled()) return false;
   const e164 = toE164(to);
   if (!e164) return false;
+  const media = (mediaUrls ?? []).slice(0, 10);
+  if (!text && media.length === 0) return false;
   // Every text belongs to a business; there is no platform sender any more.
   if (!companyId) return false;
   const sender = await companySender(companyId);
@@ -140,16 +148,19 @@ export async function sendSms({
       body: JSON.stringify({
         from,
         to: e164,
-        text,
+        ...(text ? { text } : {}),
+        ...(media.length ? { media_urls: media } : {}),
         // The line's own profile once it has one (brand-named STOP/HELP replies), else the shared one
         messaging_profile_id: sender.profileId ?? MESSAGING_PROFILE_ID,
-        type: "SMS",
+        type: media.length ? "MMS" : "SMS",
       }),
     });
     if (!res.ok) {
       reportError("[sms] telnyx send failed:", res.status, await res.text());
     } else {
-      recordSmsSent(companyId, smsSegmentCount(text));
+      // An MMS is one message at roughly twice the per-segment rate (1.5¢ vs 0.7¢ in
+      // lib/platform-costs.ts), so it is metered as two segments.
+      recordSmsSent(companyId, media.length ? 2 : smsSegmentCount(text));
       await logSmsSend({ companyId, contactId, to: e164, from });
     }
     return res.ok;

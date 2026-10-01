@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { sendEmail, contractSignedCopyEmail, contractSignedNotifyEmail } from "@/lib/email";
+import { companyNotifyAddress } from "@/lib/notify";
 import { isContractLinkExpired } from "@/lib/agreements";
 import { suspendedResponse } from "@/lib/suspension";
 import { fireAutomations } from "@/lib/automations-server";
@@ -98,7 +99,9 @@ export async function POST(
       fromName: company.name,
     });
   }
-  if (company?.email) {
+  // Same inbox rule as every other team notification (lib/notify.ts): skipped while push carries it.
+  const notifyTo = company ? await companyNotifyAddress(contract.companyId, company.email) : null;
+  if (company && notifyTo) {
     const notify = contractSignedNotifyEmail({
       companyName: company.name,
       contractId: contract.id,
@@ -108,7 +111,7 @@ export async function POST(
     });
     await sendEmail({
       companyId: contract.companyId,
-      to: company.email,
+      to: notifyTo,
       subject: notify.subject,
       html: notify.html,
       replyTo: contact?.email ?? undefined,

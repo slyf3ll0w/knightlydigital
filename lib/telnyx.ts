@@ -464,6 +464,17 @@ export const sipUri = (username: string): string => `sip:${username}@${SIP_DOMAI
  * registered browser. At the default (disabled) Telnyx answers every such
  * dial with SIP 403 after ~300 ms — the 2026-09-21 live test.
  */
+/**
+ * What Telnyx offers the browser, in order. The default (PCMU, PCMA, G722)
+ * never offers Opus, so every softphone call ran on 8 kHz G.711 with no
+ * packet-loss concealment — on a phone over cellular data that is the
+ * muffled, clipped line clients complained about (2026-10-01). Opus is
+ * wideband with in-band FEC and is what WebRTC does best; G.722 is the
+ * wideband fallback. The customer's PSTN leg stays G.711 either way, but
+ * the browser leg no longer adds a second narrowband hop.
+ */
+export const SOFTPHONE_CODECS = ["OPUS", "G722", "PCMU", "PCMA"];
+
 export async function createCredentialConnection(name: string): Promise<{ id: string }> {
   const out = await call<{ data?: { id?: string } }>("POST", "/credential_connections", {
     connection_name: name.slice(0, 64), // Telnyx: "is too long (maximum is 64 characters)"
@@ -471,18 +482,34 @@ export async function createCredentialConnection(name: string): Promise<{ id: st
     password: randomAlnum(40),
     active: true,
     sip_uri_calling_preference: "internal",
+    inbound: { codecs: SOFTPHONE_CODECS },
   });
   if (!out.data?.id) throw new TelnyxError(502, "No credential connection id returned");
   return { id: out.data.id };
 }
 
-/** Idempotent repair for a connection created before the preference was set (lib/softphone.ts runs it once per company per process). */
+/**
+ * Idempotent repair for a connection created before the preference / the
+ * codec list was set (lib/softphone.ts runs it once per company per process):
+ * SIP URI calling on, Opus-first codecs.
+ */
 export async function ensureSipUriCalling(connectionId: string): Promise<void> {
-  const out = await call<{ data?: { sip_uri_calling_preference?: string | null } }>("GET", `/credential_connections/${encodeURIComponent(connectionId)}`);
+  const out = await call<{ data?: { sip_uri_calling_preference?: string | null; inbound?: { codecs?: string[] | null } | null } }>(
+    "GET",
+    `/credential_connections/${encodeURIComponent(connectionId)}`
+  );
   const pref = out.data?.sip_uri_calling_preference;
-  if (pref === "internal" || pref === "unrestricted") return;
-  await call("PATCH", `/credential_connections/${encodeURIComponent(connectionId)}`, { sip_uri_calling_preference: "internal" });
-  console.warn(`[telnyx] credential connection ${connectionId}: sip_uri_calling_preference ${pref ?? "unset"} → internal`);
+  const codecs = out.data?.inbound?.codecs ?? [];
+  const patch: Record<string, unknown> = {};
+  if (pref !== "internal" && pref !== "unrestricted") patch.sip_uri_calling_preference = "internal";
+  if (codecs.join(",") !== SOFTPHONE_CODECS.join(",")) patch.inbound = { codecs: SOFTPHONE_CODECS };
+  if (Object.keys(patch).length === 0) return;
+  await call("PATCH", `/credential_connections/${encodeURIComponent(connectionId)}`, patch);
+  console.warn(
+    `[telnyx] credential connection ${connectionId}: ${Object.keys(patch)
+      .map((k) => (k === "inbound" ? `codecs ${codecs.join("/") || "unset"} → ${SOFTPHONE_CODECS.join("/")}` : `sip_uri_calling_preference ${pref ?? "unset"} → internal`))
+      .join("; ")}`
+  );
 }
 
 export async function deleteCredentialConnection(id: string): Promise<void> {

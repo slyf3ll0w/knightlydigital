@@ -34,19 +34,32 @@ async function oldestOwnerEmail(companyId: string): Promise<string | null> {
 }
 
 /**
- * Should the notification email go to `address`? Pure policy over the
- * address's owner: not a member → yes; member said always/never → that;
- * otherwise (automatic) only while none of their devices has push on.
- * Exported for the profile card's "what happens now" line.
+ * Should the notification email go to `address`? Pure policy over whoever
+ * reads that inbox: the member whose login it is — else the company's
+ * oldest owner, because a Settings "company email" that isn't anyone's
+ * login (info@…, contact@…) is in practice the owner's own forwarding
+ * inbox (David 2026-10-01: "still getting those notification emails
+ * despite having push" — his company inbox was never his login, so the
+ * 2026-09-29 rule never applied to it). That person said always/never →
+ * that; otherwise (automatic) only while none of their devices has push on.
+ * Nobody to ask (no owner at all) → send. Exported for the profile card's
+ * "what happens now" line.
  */
 export async function emailWanted(companyId: string, address: string): Promise<boolean> {
-  const user = await prisma.user.findFirst({
+  const member = await prisma.user.findFirst({
     where: { companyId, isActive: true, email: { equals: address, mode: "insensitive" } },
     select: { id: true, accountId: true, emailAlerts: true },
   });
-  if (!user) return true;
-  if (user.emailAlerts !== null) return user.emailAlerts;
-  return !(await hasPushDevice(user.id, user.accountId));
+  const reader =
+    member ??
+    (await prisma.user.findFirst({
+      where: { companyId, role: "OWNER", isActive: true },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, accountId: true, emailAlerts: true },
+    }));
+  if (!reader) return true;
+  if (reader.emailAlerts !== null) return reader.emailAlerts;
+  return !(await hasPushDevice(reader.id, reader.accountId));
 }
 
 /**

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { mediaPreview } from "@/lib/message-media";
 import { viaContactScope, type Actor } from "@/lib/permissions";
 
 /**
@@ -52,6 +53,7 @@ export async function loadInbox(actor: Actor): Promise<InboxRow[]> {
     include: {
       contact: { select: { id: true, firstName: true, lastName: true, companyName: true } },
       sender: { select: { name: true } },
+      media: { select: { contentType: true } },
     },
   });
   const unreadByContact = new Map(unread.map((u) => [u.contactId, u._count._all]));
@@ -67,8 +69,8 @@ export async function loadInbox(actor: Actor): Promise<InboxRow[]> {
       companyName: m.contact.companyName,
       preview:
         m.direction === "OUTBOUND"
-          ? `${m.sender?.name ? m.sender.name.split(" ")[0] : "You"}: ${m.body}`
-          : m.body,
+          ? `${m.sender?.name ? m.sender.name.split(" ")[0] : "You"}: ${mediaPreview(m.body, m.media)}`
+          : mediaPreview(m.body, m.media),
       at: m.createdAt.toISOString(),
       unread: unreadByContact.get(m.contactId) ?? 0,
     });

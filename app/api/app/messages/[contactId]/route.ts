@@ -10,6 +10,7 @@ import { autoAdvance } from "@/lib/pipeline";
 import { fireAutomations } from "@/lib/automations-server";
 import { activeTypers } from "@/lib/chat";
 import { visitorOnline } from "@/lib/site-chat";
+import { threadMedia, type MediaRow } from "@/lib/message-media";
 
 /**
  * Team side of a portal message thread. GET polls for new messages (and
@@ -24,6 +25,7 @@ const serialize = (m: {
   via: string;
   createdAt: Date;
   sender: { name: string | null } | null;
+  media?: MediaRow[];
 }) => ({
   id: m.id,
   direction: m.direction,
@@ -31,6 +33,7 @@ const serialize = (m: {
   via: m.via,
   createdAt: m.createdAt.toISOString(),
   senderName: m.sender?.name ?? null,
+  media: threadMedia(m.media ?? [], "team"),
 });
 
 export async function GET(
@@ -57,7 +60,7 @@ export async function GET(
     },
     orderBy: { createdAt: "asc" },
     take: 500,
-    include: { sender: { select: { name: true } } },
+    include: { sender: { select: { name: true } }, media: { select: { id: true, contentType: true, sizeBytes: true } } },
   });
 
   // Mark inbound as read — but only when this poll actually saw something
