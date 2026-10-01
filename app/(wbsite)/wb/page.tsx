@@ -679,18 +679,25 @@ export default function WBHomePage() {
         </div>
       </section>
 
-      {/* ── WorkBench in action: short silent how-to videos (list in lib/wb-videos.ts) ── */}
-      <section className="border-t border-gray-200 bg-[#F6F8FB]">
-        <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
+      {/* ── WorkBench in action: short silent clips (list in lib/wb-videos.ts) ── */}
+      <section className="border-t border-gray-200 bg-white">
+        <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
           <AnimateIn className="mx-auto max-w-3xl text-center">
             <p className="wb-label justify-center">WorkBench in action</p>
             <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
-              See what a few taps can do.
+              Watch it work.{" "}
+              <span className="text-gray-400">Short clips, no sound needed.</span>
             </h2>
           </AnimateIn>
-          <AnimateIn delay={120} className="mt-10">
+          <div className="mt-14">
             <WBInAction />
-          </AnimateIn>
+          </div>
+          <p className="mt-12 text-center text-[14.5px] text-gray-600">
+            That&apos;s just a few of the things WorkBench can do.{" "}
+            <Link href="/contact" className="font-bold text-[#0B57D8] hover:underline">
+              Contact us to learn more
+            </Link>
+          </p>
         </div>
       </section>
 
