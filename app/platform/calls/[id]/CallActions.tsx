@@ -198,8 +198,8 @@ function SaveForm({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!firstName.trim() || !lastName.trim()) {
-      setError("First and last name, please.");
+    if (!firstName.trim()) {
+      setError("A first name, please.");
       return;
     }
     setBusy(true);
@@ -235,7 +235,7 @@ function SaveForm({
       </div>
       <div className="mt-2 grid grid-cols-2 gap-2">
         <Input autoFocus placeholder="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="off" />
-        <Input placeholder="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="off" />
+        <Input placeholder="Last name (optional)" value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="off" />
         <Input type="tel" placeholder="Phone" value={number} onChange={(e) => setNumber(e.target.value)} className="numeral-ledger" />
         <Input type="email" placeholder="Email (optional)" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" />
       </div>

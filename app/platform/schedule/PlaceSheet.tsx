@@ -11,6 +11,8 @@ import { slotTimeOptions } from "@/lib/scheduling";
 import { looksLikeAppointment } from "@/lib/appointment-hint";
 import ServiceChips, { type ServiceLite } from "@/components/ServiceChips";
 import { titleFromServices } from "@/lib/service-title";
+import { InfoTip } from "@/components/ds";
+import { RecentTitleOptions, refreshRecentTitles, useRecentTitles } from "@/components/RecentTitles";
 import { durationLabel, pad, parseParam, type PaletteEntity } from "./schedule-lib";
 
 /** What was dropped where — the sheet fills itself in from this. */
@@ -102,6 +104,10 @@ export default function PlaceSheet({
   const [workItems, setWorkItems] = useState<ServiceChip[] | null>(null);
   const [services, setServices] = useState<ServiceChip[]>([]);
   const [titleTouched, setTitleTouched] = useState(false);
+  // Typed by hand in this sheet → remembered as a suggestion for next time
+  const [titleTyped, setTitleTyped] = useState(false);
+  const recentApptTitles = useRecentTitles("appointment");
+  const recentJobTitles = useRecentTitles("job");
   const [apptType, setApptType] = useState<"PHONE_CALL" | "VIDEO_CALL" | "IN_PERSON">("PHONE_CALL");
   const [address, setAddress] = useState("");
   const [contact, setContact] = useState<ContactHit | null>(null);
@@ -127,6 +133,7 @@ export default function PlaceSheet({
     setContactHits([]);
     setServices([]);
     setTitleTouched(false);
+    setTitleTyped(false);
     setOutsourced(false);
     setOutsourcedTo("");
     const crew = intent.userId ? [intent.userId] : [];
@@ -356,6 +363,7 @@ export default function PlaceSheet({
           contactId,
           requestId,
           title: finalTitle || undefined,
+          rememberTitle: titleTyped && Boolean(title.trim()),
           scheduledAt,
           scheduledEnd,
           scheduledAnytime: anytime,
@@ -377,12 +385,14 @@ export default function PlaceSheet({
           })),
         });
         if (!ok || !data?.id) return setErr(data?.error ?? GENERIC_ERROR);
+        if (titleTyped) refreshRecentTitles();
         onDone({ kind: "job", id: data.id, label: data.title || finalTitle, conflicts: data.conflicts ?? [], contactName });
       } else {
         const { ok, data } = await postJson<{ id: string; conflicts?: string[] }>("/api/app/appointments", {
           contactId,
           requestId,
           title: finalTitle,
+          rememberTitle: titleTyped && Boolean(title.trim()),
           type: apptType,
           scheduledAt,
           scheduledEnd,
@@ -391,6 +401,7 @@ export default function PlaceSheet({
           assignedToId: assignees[0] ?? meId,
         });
         if (!ok || !data?.id) return setErr(data?.error ?? GENERIC_ERROR);
+        if (titleTyped) refreshRecentTitles();
         onDone({ kind: "appointment", id: data.id, label: finalTitle, conflicts: data.conflicts ?? [], contactName });
       }
     } finally {
@@ -512,9 +523,12 @@ export default function PlaceSheet({
           )}
           {!existingJob && (
             <div>
-              <label className="mb-0.5 block text-xs font-medium text-gray-500">
+              <label className="mb-0.5 flex items-center gap-1 text-xs font-medium text-gray-500">
                 {kind === "job" ? "Job title" : "Title"}
-                <span className="ml-1 font-normal text-gray-400">optional</span>
+                <span className="font-normal text-gray-400">optional</span>
+                <InfoTip label="Who sees the title?">
+                  Your client sees this in their reminders and on their client portal. Leave it blank and WorkBench names it for you.
+                </InfoTip>
               </label>
               <input
                 className={inputCls}
@@ -522,7 +536,9 @@ export default function PlaceSheet({
                 onChange={(ev) => {
                   setTitle(ev.target.value);
                   setTitleTouched(ev.target.value.trim().length > 0);
+                  setTitleTyped(true);
                 }}
+                list={kind === "job" ? "place-recent-job-titles" : "place-recent-appointment-titles"}
                 placeholder={
                   kind === "job"
                     ? workItems && workItems.length > 0
@@ -530,6 +546,10 @@ export default function PlaceSheet({
                       : "e.g. Gutter cleaning"
                     : APPT_DEFAULT_TITLE[apptType]
                 }
+              />
+              <RecentTitleOptions
+                id={kind === "job" ? "place-recent-job-titles" : "place-recent-appointment-titles"}
+                titles={kind === "job" ? recentJobTitles : recentApptTitles}
               />
               {/* A job titled "Friday appointment" would end in a Complete Job →
                   invoice flow that makes no sense for a sales visit — nudge

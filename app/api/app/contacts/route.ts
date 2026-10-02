@@ -65,8 +65,9 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { firstName, lastName, companyName, email, phone, address, city, state, zip, notes, leadSource } = body;
 
-  if (!firstName || !lastName) {
-    return NextResponse.json({ error: "First and last name are required." }, { status: 400 });
+  // Last name is optional (a caller who only gave "Mike" is still a lead)
+  if (!String(firstName ?? "").trim()) {
+    return NextResponse.json({ error: "First name is required." }, { status: 400 });
   }
 
   let paymentTermsDays: number | undefined;
@@ -106,8 +107,8 @@ export async function POST(req: NextRequest) {
       hubToken: randomBytes(24).toString("hex"),
       status,
       kind,
-      firstName,
-      lastName,
+      firstName: String(firstName).trim(),
+      lastName: String(lastName ?? "").trim(),
       companyName: companyName || null,
       email: email || null,
       phone: phone || null,
@@ -125,6 +126,9 @@ export async function POST(req: NextRequest) {
         ? { smsConsentNote: body.smsConsentNote.trim().slice(0, 300) }
         : {}),
       assignedToId,
+      // Typed in by the team: the bell's "New lead" is for leads that came
+      // in on their own (forms, calls, webhooks), not ones you just added.
+      createdById: actor.id,
       customFields:
         body.customFields !== undefined
           ? sanitizeCustomFields(body.customFields, await getActiveFieldDefs(actor.companyId))

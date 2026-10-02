@@ -124,6 +124,11 @@ export function fmtTime(d: Date): string {
   return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }).toLowerCase().replace(" ", "");
 }
 
+/** Compact clock for tight chips: "9am", "4:30pm". */
+export function fmtShortTime(d: Date): string {
+  return fmtTime(d).replace(":00", "");
+}
+
 /** Minutes since midnight → "9:45am" (used by the drag ghost's live badge). */
 export function fmtMinute(min: number): string {
   const d = new Date(2000, 0, 1, 0, 0, 0, 0);

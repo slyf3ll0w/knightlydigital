@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -15,6 +15,8 @@ import ContactPicker from "@/components/ContactPicker";
 import SuggestedTimes from "@/components/SuggestedTimes";
 import { addMinutesToLocalDateTime } from "@/lib/scheduling";
 import { ARRIVAL_WINDOW_CHOICES, arrivalWindowChoiceLabel } from "@/lib/arrival-window";
+import { InfoTip } from "@/components/ds";
+import { RecentTitleOptions, refreshRecentTitles, useRecentTitles } from "@/components/RecentTitles";
 
 /**
  * Book a sales meeting / estimate. Type drives the extra field:
@@ -76,9 +78,17 @@ export default function AppointmentForm({
 }) {
   const router = useRouter();
   const [contactId, setContactId] = useState(prefilledContactId);
-  const [title, setTitle] = useState(
-    prefilledTitle || (requestTitle ? `Estimate — ${requestTitle}` : "Estimate")
-  );
+  // From a request, the purpose names it; otherwise the box starts with the
+  // last purpose this person typed (blank = "Estimate" on save).
+  const linkedTitle = prefilledTitle || (requestTitle ? `Estimate — ${requestTitle}` : "");
+  const [title, setTitle] = useState(linkedTitle);
+  const [titleTyped, setTitleTyped] = useState(false);
+  const recentTitles = useRecentTitles("appointment");
+  useEffect(() => {
+    if (!linkedTitle && !titleTyped && recentTitles?.[0]) setTitle(recentTitles[0]);
+    // only when the list first arrives
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recentTitles]);
   const [type, setType] = useState<string>("PHONE_CALL");
   const [start, setStart] = useState(prefilledDate ? `${prefilledDate}T09:00` : "");
   const [end, setEnd] = useState("");
@@ -132,6 +142,7 @@ export default function AppointmentForm({
       contactId,
       requestId: requestId || null,
       title,
+      rememberTitle: Boolean(title.trim()) && title.trim() !== linkedTitle,
       type,
       scheduledAt: anytime ? localInputToISO(`${start.slice(0, 10)}T12:00`) : localInputToISO(start),
       scheduledEnd: anytime ? null : localInputToISO(end),
@@ -159,6 +170,7 @@ export default function AppointmentForm({
       });
     }
 
+    refreshRecentTitles();
     router.push(`/app/appointments/${data.id}`);
   }
 
@@ -185,13 +197,23 @@ export default function AppointmentForm({
             </Link>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Purpose *</label>
+            <label className="mb-1 flex items-center gap-1.5 text-sm font-medium text-gray-700">
+              Purpose <span className="text-xs font-normal text-gray-400">(optional)</span>
+              <InfoTip label="Who sees the purpose?">
+                Your client sees this. It's in their reminder texts and emails and on their client portal. Leave it blank and it says "Estimate". WorkBench remembers what you type here for next time.
+              </InfoTip>
+            </label>
             <input
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Estimate, Sales call, Walkthrough"
+              onChange={(e) => {
+                setTitle(e.target.value);
+                setTitleTyped(true);
+              }}
+              list="recent-appointment-titles"
+              placeholder="Estimate"
               className={inputCls}
             />
+            <RecentTitleOptions id="recent-appointment-titles" titles={recentTitles} />
           </div>
           {requestId && (
             <p className="text-xs text-gray-500">

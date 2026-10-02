@@ -64,9 +64,6 @@ export async function PATCH(
   if (body.firstName !== undefined && !String(body.firstName).trim()) {
     return NextResponse.json({ error: "First name is required." }, { status: 400 });
   }
-  if (body.lastName !== undefined && !String(body.lastName).trim()) {
-    return NextResponse.json({ error: "Last name is required." }, { status: 400 });
-  }
 
   let status: "LEAD" | "ACTIVE" | "ARCHIVED" | undefined;
   if (body.status !== undefined) {
@@ -101,8 +98,8 @@ export async function PATCH(
   // Saving a texted number as a real person (the thread's Save card): the
   // placeholder flag only ever clears, and the save needs a name.
   const saving = body.placeholder === false;
-  if (saving && (!String(body.firstName ?? "").trim() || !String(body.lastName ?? "").trim())) {
-    return NextResponse.json({ error: "Add their first and last name to save them." }, { status: 400 });
+  if (saving && !String(body.firstName ?? "").trim()) {
+    return NextResponse.json({ error: "Add their first name to save them." }, { status: 400 });
   }
 
   const opt = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);

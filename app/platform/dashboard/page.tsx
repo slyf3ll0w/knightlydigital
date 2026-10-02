@@ -19,6 +19,7 @@ import {
   Navigation,
   CalendarDays,
   Plus,
+  SquareKanban,
 } from "lucide-react";
 import { money, appointmentTypeLabel } from "@/lib/statuses";
 import { invoiceBalance } from "@/lib/payments";
@@ -41,6 +42,7 @@ import {
   canSeeMoney,
   canSeePricing,
   viaContactScope,
+  contactScope,
   jobScope,
   appointmentScope,
 } from "@/lib/permissions";
@@ -125,6 +127,7 @@ export default async function DashboardPage() {
     readyToBill,
     heroCompany,
     myOpenEntry,
+    newLeads,
   ] = await Promise.all([
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEW" } }),
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEEDS_APPROVAL" } }),
@@ -207,6 +210,21 @@ export default async function DashboardPage() {
       where: { userId: actor.id, endedAt: null },
       select: { id: true, startedAt: true, jobId: true },
     }),
+    // New leads = cards waiting in the Leads board's first column (the same
+    // rule as the sidebar badge); before the board exists, unstaged leads.
+    sell
+      ? prisma.pipelineStage
+          .findFirst({ where: { companyId, isConverted: false }, orderBy: { sortOrder: "asc" }, select: { id: true } })
+          .then((first) =>
+            prisma.contact.count({
+              where: {
+                companyId,
+                ...contactScope(actor),
+                ...(first ? { pipelineStageId: first.id } : { status: "LEAD", pipelineStageId: null }),
+              },
+            })
+          )
+      : Promise.resolve(0),
   ]);
   const showSetupCard = isManager(actor.role) && setupCompany?.setupWizardAt == null;
 
@@ -264,6 +282,16 @@ export default async function DashboardPage() {
       action: "Send a reminder",
       href: "/app/invoices?status=PAST_DUE",
       urgent: true,
+    },
+    {
+      show: sell,
+      count: newLeads,
+      icon: SquareKanban,
+      hue: SECTION_HUES.leads,
+      title: plural(newLeads, "New lead", "New leads"),
+      action: "Reach out",
+      href: "/app/leads",
+      urgent: false,
     },
     {
       show: sell,

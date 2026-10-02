@@ -134,6 +134,14 @@ export const leadsSection: HelpSection = {
           text: "Every lead is a card on the board. The default stages are **New**, **Contacted**, **Estimate Scheduled** and **Quote Sent**, with **Converted** pinned at the end. Each card shows how many days it's been in its stage.",
         },
         {
+          type: "p",
+          text: "Press `New Lead` to add one yourself. Only a first name is needed; the last name is optional. Leads in **New** are counted on the Leads badge and under **Needs you** on Home.",
+        },
+        {
+          type: "p",
+          text: "The bell shows a **New lead** for leads that came in on their own, from a form, a call or a connected lead source. Leads you or your team add by hand don't go to the bell. A lead leaves the bell as soon as its card moves out of **New**.",
+        },
+        {
           type: "h",
           text: "Cards move by themselves",
         },

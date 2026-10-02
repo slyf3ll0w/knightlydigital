@@ -28,6 +28,7 @@ import {
 import { ARRIVAL_WINDOW_CHOICES, arrivalWindowChoiceLabel } from "@/lib/arrival-window";
 import { looksLikeAppointment } from "@/lib/appointment-hint";
 import { titleFromServices } from "@/lib/service-title";
+import { RecentTitleOptions, refreshRecentTitles, useRecentTitles } from "@/components/RecentTitles";
 
 type ContactAddress = {
   id: string;
@@ -71,6 +72,9 @@ function NewJobForm() {
   const [outsourcedTo, setOutsourcedTo] = useState("");
   // Typed a title → stop auto-naming the job after its services
   const [titleTouched, setTitleTouched] = useState(false);
+  // Typed in THIS form (vs. the last title prefilled below) — what gets remembered
+  const [titleTyped, setTitleTyped] = useState(false);
+  const recentTitles = useRecentTitles("job");
   const [interval, setInterval] = useState(DEFAULT_SLOT_INTERVAL_MINUTES);
   const [dayStart, setDayStart] = useState(8 * 60);
   // Day-first scheduling: a date handed in from the schedule starts as
@@ -118,6 +122,16 @@ function NewJobForm() {
       })
       .catch(() => {});
   }, []);
+
+  // A fresh job starts with the last title this person typed (it counts as
+  // typed, so picking services doesn't rename it); from a request, the
+  // request's own title wins.
+  useEffect(() => {
+    if (requestId || !recentTitles?.[0]) return;
+    setForm((f) => (f.title ? f : { ...f, title: recentTitles[0] }));
+    setTitleTouched(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recentTitles]);
 
   // Converting a request: carry its title and details into the job instead of
   // making the user retype what the client already wrote
@@ -201,6 +215,7 @@ function NewJobForm() {
       ...form,
       // Optional: blank → named after the services (or a generic label) server-side
       title: form.title.trim() || undefined,
+      rememberTitle: titleTyped && Boolean(form.title.trim()),
       outsourced,
       outsourcedTo: outsourced ? outsourcedTo.trim() || undefined : undefined,
       // date-only scheduling anchors at noon (same convention as ScheduleJob)
@@ -243,6 +258,7 @@ function NewJobForm() {
       });
     }
 
+    refreshRecentTitles();
     router.push(`/app/jobs/${data.id}`);
   }
 
@@ -278,8 +294,11 @@ function NewJobForm() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="mb-1 flex items-center gap-1.5 text-sm font-medium text-gray-700">
               Job title <span className="text-xs font-normal text-gray-400">(optional)</span>
+              <InfoTip label="Who sees the job title?">
+                Your client sees this. It's in their visit reminders and on their client portal. Leave it blank and the job is named after the services you pick. WorkBench remembers what you type here for next time.
+              </InfoTip>
             </label>
             <input
               type="text"
@@ -287,10 +306,13 @@ function NewJobForm() {
               onChange={(e) => {
                 set("title", e.target.value);
                 setTitleTouched(e.target.value.trim().length > 0);
+                setTitleTyped(true);
               }}
+              list="recent-job-titles"
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               placeholder="Defaults to the service picked below"
             />
+            <RecentTitleOptions id="recent-job-titles" titles={recentTitles} />
             {/* Estimates and meetings aren't billable work: steer them to the
                 record that ends with an optional quote instead of an invoice */}
             {looksLikeAppointment(form.title) && (

@@ -56,7 +56,7 @@ export default function SaveContactCard({ contactId, phone }: { contactId: strin
       </p>
       <div className="mt-3 grid grid-cols-2 gap-2">
         <input value={first} onChange={(e) => setFirst(e.target.value)} placeholder="First name" required className={input} />
-        <input value={last} onChange={(e) => setLast(e.target.value)} placeholder="Last name" required className={input} />
+        <input value={last} onChange={(e) => setLast(e.target.value)} placeholder="Last name (optional)" className={input} />
         <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Company (optional)" className={`${input} col-span-2`} />
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
