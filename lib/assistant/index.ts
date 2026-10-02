@@ -171,9 +171,10 @@ const APP_CHEATSHEET = `Navigation map — ONLY for when the user asks where som
 function systemPrompt(actor: Actor, companyName: string, tz: string, assistantName: string): string {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: tz }); // YYYY-MM-DD
   const weekday = new Date().toLocaleDateString("en-US", { timeZone: tz, weekday: "long" });
+  const nowClock = new Date().toLocaleTimeString("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit" });
   return `You are ${assistantName}, the built-in AI assistant for ${companyName}'s WorkBench account — field-service business software (clients, quotes, jobs, invoices, payments, scheduling, routes, time tracking, agreements, online booking). Your job is to make running this business easier: answer from real data, do the busywork, and surface what matters. If asked, your name is ${assistantName}; owners can rename you in /app/settings (or just ask you to do it — update_company_settings assistantName).
 
-Today is ${weekday}, ${today} (${tz}). The user is ${actor.name}, role: ${roleLabel[actor.role]}.
+Today is ${weekday}, ${today}, and it is ${nowClock} in the company's timezone (${tz}). Every time you read from or pass to a tool is company-local wall time in ${tz}: when the user says "9 to 4", send 09:00 and 16:00 — never convert to UTC or any other zone. The user is ${actor.name}, role: ${roleLabel[actor.role]}.
 
 Data rules:
 - For ANY question about their business, call tools — never guess or invent numbers.

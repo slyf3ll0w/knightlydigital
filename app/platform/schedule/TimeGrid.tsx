@@ -316,6 +316,15 @@ export default function TimeGrid({
                         ? resizing.endMinute
                         : endMin;
                       const canDrag = j.kind !== "block" || Boolean(j.block?.canEdit);
+                      const isResizing = resizing?.source.type === "item" && resizing.source.item.id === j.id;
+                      const boxPx = Math.max(22, ((liveEnd - startMin) / 60) * HOUR_PX - 2);
+                      // Two text-xs lines need ~36px; anything shorter (a 30-minute
+                      // visit is 22px) folds into one line so nothing gets clipped.
+                      const compact = boxPx < 36;
+                      const headline = j.kind === "block" ? j.title || "Blocked off" : j.contactName;
+                      const detail = isResizing
+                        ? `${fmtMinute(liveEnd)} · ${durationLabel(liveEnd - startMin)}`
+                        : j.kind === "block" ? (j.contactName === "Everyone" ? "Whole team" : j.contactName) : j.title;
                       return (
                         <div
                           key={j.id}
@@ -324,30 +333,44 @@ export default function TimeGrid({
                             ? drag.handleProps({ type: "item", item: j, mode: "move", grabOffsetMin: 0, fromUserId: col.userId })
                             : {})}
                           onClick={() => onOpen(j)}
-                          className={`absolute cursor-grab select-none overflow-hidden rounded-lg border-l-2 px-1.5 py-0.5 text-xs font-medium shadow-sm active:cursor-grabbing ${itemTone(j)} ${
+                          className={`absolute cursor-grab select-none overflow-hidden rounded-lg border-l-2 px-1.5 text-xs font-medium shadow-sm ${compact ? "flex items-center" : "py-0.5"} active:cursor-grabbing ${itemTone(j)} ${
                             movingId === j.id && !resizing ? "opacity-40" : ""
                           } ${resizing?.source.type === "item" && resizing.source.item.id === j.id ? "ring-2 ring-[color:var(--ds-primary)]" : ""}`}
                           style={{
                             top: (startMin / 60) * HOUR_PX + 1,
-                            height: Math.max(22, ((liveEnd - startMin) / 60) * HOUR_PX - 2),
+                            height: boxPx,
                             left: `calc(${(c / cols) * 100}% + 2px)`,
                             width: `calc(${(1 / cols) * 100}% - 4px)`,
                           }}
                           title={`${j.contactName} — ${j.title}${j.conflictNote ? `\n⚠ Overlaps: ${j.conflictNote}` : ""}${j.needsCrew ? "\n⚠ Nobody assigned" : ""}`}
                         >
-                          <span className="block truncate font-semibold">
-                            <TypeGlyph apptType={j.apptType} recurring={j.recurring} />{" "}
-                            {j.conflictNote && <AlertTriangleIcon size={11} className="inline shrink-0 text-[color:var(--ds-warn)]" />}{" "}
-                            {j.needsCrew && <UserXIcon size={11} className="inline shrink-0 text-[color:var(--ds-warn)]" aria-label="Nobody assigned" />}{" "}
-                            {j.kind === "block" ? j.title || "Blocked off" : j.contactName}
-                          </span>
-                          <span className="block truncate">
-                            {fmtTime(new Date(j.scheduledAt!))}
-                            {resizing?.source.type === "item" && resizing.source.item.id === j.id
-                              ? ` – ${fmtMinute(liveEnd)} · ${durationLabel(liveEnd - startMin)}`
-                              : ` · ${j.kind === "block" ? (j.contactName === "Everyone" ? "Whole team" : j.contactName) : j.title}`}
-                          </span>
-                          {j.tentative && (
+                          {compact ? (
+                            <span className="block min-w-0 truncate leading-4">
+                              <TypeGlyph apptType={j.apptType} recurring={j.recurring} />{" "}
+                              {j.conflictNote && <AlertTriangleIcon size={11} className="inline shrink-0 text-[color:var(--ds-warn)]" />}{" "}
+                              {j.needsCrew && <UserXIcon size={11} className="inline shrink-0 text-[color:var(--ds-warn)]" aria-label="Nobody assigned" />}{" "}
+                              <span className="font-semibold">{headline}</span>
+                              <span className="opacity-80">
+                                {" · "}
+                                {fmtTime(new Date(j.scheduledAt!))}
+                                {isResizing ? ` – ${detail}` : detail ? ` · ${detail}` : ""}
+                              </span>
+                            </span>
+                          ) : (
+                            <>
+                              <span className="block truncate font-semibold">
+                                <TypeGlyph apptType={j.apptType} recurring={j.recurring} />{" "}
+                                {j.conflictNote && <AlertTriangleIcon size={11} className="inline shrink-0 text-[color:var(--ds-warn)]" />}{" "}
+                                {j.needsCrew && <UserXIcon size={11} className="inline shrink-0 text-[color:var(--ds-warn)]" aria-label="Nobody assigned" />}{" "}
+                                {headline}
+                              </span>
+                              <span className="block truncate">
+                                {fmtTime(new Date(j.scheduledAt!))}
+                                {isResizing ? ` – ${detail}` : ` · ${detail}`}
+                              </span>
+                            </>
+                          )}
+                          {j.tentative && !compact && (
                             <span className="mt-0.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide opacity-90">
                               Awaiting approval
                               {onAccept && j.requestId && liveEnd - startMin >= 45 && (

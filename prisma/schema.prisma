@@ -367,6 +367,9 @@ model User {
   // null = works the company's business hours. Feeds Find a Time, online
   // booking availability, and the route optimizer's default day start.
   workingHours     Json?
+  // Appointment purposes / job titles this person typed, newest first:
+  // { appointment: string[], job: string[] } (lib/recent-titles.ts)
+  recentTitles     Json?
   // Online scheduling extras (Team page): a personal video-meeting room
   // pasted into video-call confirmations, and where this member starts the
   // day (geocoded like Company.address) so the first drive of the day is
@@ -868,7 +871,11 @@ model Contact {
   companyId            String
   company              Company        @relation(fields: [companyId], references: [id])
   firstName            String
-  lastName             String
+  lastName             String // "" when the team only knows a first name
+  // The team member who typed this contact in by hand (New Lead / New
+  // Client / save from a call). Null = it came in on its own (forms, calls,
+  // webhooks, imports); only those raise a "New lead" in the bell.
+  createdById          String?
   companyName          String? // the client's business name (CRM imports usually have one)
   email                String?
   phone                String?

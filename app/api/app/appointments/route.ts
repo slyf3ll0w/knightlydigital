@@ -6,6 +6,7 @@ import { autoAdvance } from "@/lib/pipeline";
 import { fireAutomations } from "@/lib/automations-server";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { rememberTitle } from "@/lib/recent-titles";
 
 const validTypes = ["PHONE_CALL", "VIDEO_CALL", "IN_PERSON"];
 
@@ -122,6 +123,9 @@ export async function POST(req: NextRequest) {
     },
     });
   });
+
+  // A purpose the user typed starts their next appointment form
+  if (body.rememberTitle === true) await rememberTitle(actor.id, "appointment", title).catch(() => {});
 
   // Pipeline board: booking an estimate/sales call advances the lead's card
   await autoAdvance(prisma, companyId, contactId, "APPOINTMENT_SCHEDULED");

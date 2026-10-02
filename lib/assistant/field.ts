@@ -3,6 +3,7 @@ import { type Actor, isManager, jobScope } from "../permissions";
 import { parseRouteDate, resolveRouteDay, resolveDriveLegs, type RouteDrive } from "../route-plan";
 import { suggestTimes } from "../find-a-time";
 import { featureAllowedFor } from "../plan-gate";
+import { wallTimeToUtc } from "../booking-engine";
 import { type Tool, str, num, day, clientName, companyTz, fmtWhen, stage } from "./core";
 
 /**
@@ -217,10 +218,9 @@ export const fieldTools: Tool[] = [
         if (!s) return null;
         const m = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})$/.exec(s);
         if (m) {
-          // wall time in the company tz → UTC via the schedule helper's approach
-          const probe = new Date(`${m[1]}T${m[2]}:${m[3]}:00Z`);
-          const offset = probe.getTime() - new Date(probe.toLocaleString("en-US", { timeZone: tz })).getTime();
-          return new Date(probe.getTime() + offset);
+          // wall time in the company tz → UTC (never the server's own zone)
+          const [y, mo, d] = m[1].split("-").map(Number);
+          return wallTimeToUtc(tz, y, mo, d, Number(m[2]) * 60 + Number(m[3]));
         }
         const d = new Date(s);
         return Number.isNaN(d.getTime()) ? null : d;
@@ -319,10 +319,12 @@ export const fieldTools: Tool[] = [
       const endTime = str(args.endTime, 5);
       const allDay = !/^\d{2}:\d{2}$/.test(startTime);
       const ymd = (x: Date) => x.toISOString().slice(0, 10);
+      // Company wall time → UTC. The old probe-and-reparse trick read the
+      // locale string back in the SERVER's zone, so on a host not running in
+      // UTC "9:00" was stored as 9:00 UTC and showed up as 4 AM in Chicago.
       const wall = (dateStr: string, hhmm: string) => {
-        const probe = new Date(`${dateStr}T${hhmm}:00Z`);
-        const offset = probe.getTime() - new Date(probe.toLocaleString("en-US", { timeZone: tz })).getTime();
-        return new Date(probe.getTime() + offset);
+        const [y, mo, dd] = dateStr.split("-").map(Number);
+        return wallTimeToUtc(tz, y, mo, dd, Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5)));
       };
       let startAt: Date | undefined; let endAt: Date | undefined;
       if (d) {

@@ -4,6 +4,7 @@ import { AlertTriangle as AlertTriangleIcon, UserX as UserXIcon } from "lucide-r
 import {
   DAY_NAMES,
   durationLabel,
+  fmtShortTime,
   fmtTime,
   itemDuration,
   itemTone,
@@ -24,7 +25,27 @@ import type { useCalendarDrag } from "./useCalendarDrag";
  * Under the day number a thin capacity bar shows how full the day is
  * against the crew's open hours, so a dispatcher can see which days have
  * room before dropping anything.
+ *
+ * Chips grow with the length of the visit: anything two hours or longer
+ * (and all-day blocks) gets a taller chip with its time range on top, so a
+ * 9–4 block reads as most of the day instead of a quick 9 AM meeting.
  */
+function chipHeight(it: ScheduleJobDTO): number | null {
+  if (it.kind === "block" && it.scheduledAnytime) return 60;
+  if (it.scheduledAnytime) return null;
+  const min = itemDuration(it);
+  if (min < 120) return null;
+  // 2h → 32px, then ~5px per extra hour, capped at a full day's 60px
+  return Math.min(60, Math.round(32 + ((min - 120) / 60) * 5));
+}
+
+function chipRange(it: ScheduleJobDTO): string {
+  if (it.scheduledAnytime) return "All day";
+  const start = new Date(it.scheduledAt!);
+  const end = new Date(start.getTime() + itemDuration(it) * 60000);
+  return `${fmtShortTime(start)} – ${fmtShortTime(end)}`;
+}
+
 export default function MonthGrid({
   anchor,
   today,
@@ -120,7 +141,10 @@ export default function MonthGrid({
           )}
         </div>
         <div className="space-y-0.5">
-          {dayItems.slice(0, 3).map((it) => (
+          {dayItems.slice(0, 3).map((it) => {
+            const tall = chipHeight(it);
+            const label = it.kind === "block" ? it.title || "Blocked off" : `${it.contactName} — ${it.title}`;
+            return (
             <div
               key={it.id}
               data-item
@@ -128,20 +152,36 @@ export default function MonthGrid({
                 ? {}
                 : drag.handleProps({ type: "item", item: it, mode: "move", grabOffsetMin: 0 }))}
               onClick={() => onOpen(it)}
-              className={`flex cursor-grab select-none items-center gap-1 truncate rounded-lg border-l-2 px-1.5 py-0.5 text-xs font-medium active:cursor-grabbing ${itemTone(it)} ${
-                movingId === it.id ? "opacity-40" : ""
-              }`}
-              title={`${it.contactName} — ${it.title}${it.conflictNote ? `\n⚠ Overlaps: ${it.conflictNote}` : ""}${it.needsCrew ? "\n⚠ Nobody assigned" : ""}`}
+              className={`flex cursor-grab select-none gap-1 truncate rounded-lg border-l-2 px-1.5 py-0.5 text-xs font-medium active:cursor-grabbing ${
+                tall ? "flex-col justify-start" : "items-center"
+              } ${itemTone(it)} ${movingId === it.id ? "opacity-40" : ""}`}
+              style={tall ? { height: tall, gap: 0 } : undefined}
+              title={`${chipRange(it)} · ${it.contactName} — ${it.title}${it.conflictNote ? `\n⚠ Overlaps: ${it.conflictNote}` : ""}${it.needsCrew ? "\n⚠ Nobody assigned" : ""}`}
             >
-              <TypeGlyph apptType={it.apptType} recurring={it.recurring} />
-              {it.conflictNote && <AlertTriangleIcon size={11} className="shrink-0 text-[color:var(--ds-warn)]" />}
-              {it.needsCrew && <UserXIcon size={11} className="shrink-0 text-[color:var(--ds-warn)]" aria-label="Nobody assigned" />}
-              <span className="truncate">
-                {it.scheduledAnytime ? "" : `${fmtTime(new Date(it.scheduledAt!))} `}
-                {it.kind === "block" ? it.title || "Blocked off" : `${it.contactName} — ${it.title}`}
-              </span>
+              {tall ? (
+                <>
+                  <span className="flex min-w-0 items-center gap-1 text-[11px] opacity-80">
+                    <TypeGlyph apptType={it.apptType} recurring={it.recurring} />
+                    {it.conflictNote && <AlertTriangleIcon size={11} className="shrink-0 text-[color:var(--ds-warn)]" />}
+                    {it.needsCrew && <UserXIcon size={11} className="shrink-0 text-[color:var(--ds-warn)]" aria-label="Nobody assigned" />}
+                    <span className="truncate">{chipRange(it)}</span>
+                  </span>
+                  <span className="block truncate font-semibold">{label}</span>
+                </>
+              ) : (
+                <>
+                  <TypeGlyph apptType={it.apptType} recurring={it.recurring} />
+                  {it.conflictNote && <AlertTriangleIcon size={11} className="shrink-0 text-[color:var(--ds-warn)]" />}
+                  {it.needsCrew && <UserXIcon size={11} className="shrink-0 text-[color:var(--ds-warn)]" aria-label="Nobody assigned" />}
+                  <span className="truncate">
+                    {it.scheduledAnytime ? "" : `${fmtTime(new Date(it.scheduledAt!))} `}
+                    {label}
+                  </span>
+                </>
+              )}
             </div>
-          ))}
+            );
+          })}
           {dayItems.length > 3 && (
             <button
               onClick={() => onGoDay(cellDate)}

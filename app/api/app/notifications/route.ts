@@ -49,13 +49,24 @@ export async function GET() {
           },
         })
       : Promise.resolve([]),
+    // New leads: only ones that came in on their own (not typed in by the
+    // team) and are still untouched in the board's first column — moving the
+    // card, or the lead converting, takes it out of the bell at once.
     sell
-      ? prisma.contact.findMany({
+      ? prisma.pipelineStage
+          .findFirst({
+            where: { companyId: actor.companyId, isConverted: false },
+            orderBy: { sortOrder: "asc" },
+            select: { id: true },
+          })
+          .then((first) => prisma.contact.findMany({
           where: {
             companyId: actor.companyId,
             ...contactScope(actor),
             status: "LEAD",
+            createdById: null,
             createdAt: { gte: since },
+            ...(first ? { pipelineStageId: first.id } : { pipelineStageId: null }),
           },
           orderBy: { createdAt: "desc" },
           take: 5,
@@ -67,7 +78,7 @@ export async function GET() {
             leadSource: true,
             createdAt: true,
           },
-        })
+        }))
       : Promise.resolve([]),
     // Self-scheduled bookings awaiting approval — the schedule renders these
     // dashed; they're the most actionable thing in the feed.

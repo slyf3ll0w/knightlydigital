@@ -12,6 +12,7 @@ import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { clientWindowPatch } from "@/lib/client-window";
 import { composeAddress } from "@/lib/geocoding";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
+import { rememberTitle } from "@/lib/recent-titles";
 import {
   cleanOutsourcedTo,
   crewMissing,
@@ -243,6 +244,9 @@ export async function POST(req: NextRequest) {
       reportError("[jobs] checklist sync failed for", job.id, e)
     );
   }
+
+  // A title the user typed starts their next New Job form
+  if (body.rememberTitle === true) await rememberTitle(actor.id, "job", body.title).catch(() => {});
 
   // Non-blocking double-booking heads-up — the same check every other
   // schedule write runs; creation was the one path with none at all.

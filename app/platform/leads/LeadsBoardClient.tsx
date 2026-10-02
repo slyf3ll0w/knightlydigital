@@ -789,7 +789,7 @@ function QuickAdd({
     const isEmail = contact.includes("@");
     const { ok, data } = await postJson<{ id: string }>("/api/app/contacts", {
       firstName: parts[0],
-      lastName: parts.slice(1).join(" ") || "—",
+      lastName: parts.slice(1).join(" "),
       email: isEmail ? contact.trim() : undefined,
       phone: !isEmail && contact.trim() ? contact.trim() : undefined,
     });

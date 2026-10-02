@@ -173,6 +173,44 @@ type NavItem = {
 const NAV_COUNTS_MIN_GAP_MS = 45_000;
 let lastNavCountsAt = 0;
 
+/**
+ * Any change the user makes (moving a lead card, accepting a request, paying
+ * an invoice) is a successful non-GET call to /api/app/*. Watching for those
+ * recounts the badges right away instead of on the next 20 s tick, so a badge
+ * or "New lead" clears the moment it's dealt with. Installed once per page
+ * load; a burst of saves collapses into one recount.
+ */
+const NAV_RECOUNT_SKIP = /^\/api\/app\/(nav-counts|notifications|presence|assistant|voice|softphone|telemetry)/;
+let navFetchHooked = false;
+function hookNavRecountOnSave() {
+  if (navFetchHooked || typeof window === "undefined") return;
+  navFetchHooked = true;
+  const original = window.fetch;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  window.fetch = function (input: RequestInfo | URL, init?: RequestInit) {
+    const pending = original.call(window, input, init);
+    try {
+      const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
+      if (method !== "GET" && method !== "HEAD") {
+        const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        const url = new URL(raw, window.location.href);
+        if (url.origin === window.location.origin && url.pathname.startsWith("/api/app/") && !NAV_RECOUNT_SKIP.test(url.pathname)) {
+          pending
+            .then((r) => {
+              if (!r.ok) return;
+              if (timer) clearTimeout(timer);
+              timer = setTimeout(() => window.dispatchEvent(new CustomEvent("wb:nav-counts")), 400);
+            })
+            .catch(() => {});
+        }
+      }
+    } catch {
+      // never let the watcher break a request
+    }
+    return pending;
+  } as typeof window.fetch;
+}
+
 const isManagerRole = (r: string) => r === "OWNER" || r === "ADMIN";
 const sellRoles = (r: string) => isManagerRole(r) || r === "USER" || r === "SALES";
 // = lib/permissions canSeeMoney: SALES only with the company toggle on.
@@ -1930,6 +1968,10 @@ export default function AppShell({
       window.removeEventListener("wb:nav-counts", onCounts);
     };
   }, [pathname, isAuthPage]);
+
+  useEffect(() => {
+    if (!isAuthPage) hookNavRecountOnSave();
+  }, [isAuthPage]);
 
   // The Atlas drawer and the notifications sheet are big client bundles that
   // most opens never touch — code-split them (next/dynamic) and don't even

@@ -225,14 +225,14 @@ export const clientTools: Tool[] = [
           companyName: { type: "string" }, email: { type: "string" },
           phone: { type: "string" }, address: { type: "string" }, notes: { type: "string" },
         },
-        required: ["firstName", "lastName"],
+        required: ["firstName"],
       },
     },
     allowed: (a) => canSell(a.role),
     run: async (_actor, args, ctx) => {
       const firstName = str(args.firstName, 60);
       const lastName = str(args.lastName, 60);
-      if (!firstName || !lastName) return { error: "firstName and lastName are required" };
+      if (!firstName) return { error: "firstName is required (lastName is optional)" };
       const lead = str(args.kind, 12).toLowerCase() === "lead";
       const payload = {
         firstName, lastName,
