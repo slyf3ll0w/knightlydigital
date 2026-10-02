@@ -93,7 +93,7 @@ test.describe("platform console", () => {
     const name = `E2E Lead ${Date.now()}`;
 
     await page.goto(`${state.baseUrl}/superadmin/leads`);
-    await expect(page.getByRole("heading", { name: /^Leads/, level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^Leads/, level: 1 })).toBeVisible();
 
     const made = await api.post(`${state.baseUrl}/api/superadmin/leads`, { data: { name, businessName: "E2E Lawn Co" } });
     expect(made.ok()).toBeTruthy();

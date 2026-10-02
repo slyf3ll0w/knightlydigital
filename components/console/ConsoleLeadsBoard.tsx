@@ -265,8 +265,14 @@ export default function ConsoleLeadsBoard({
               style={{ backgroundColor: stageTint(stage.color, 0.06), borderColor: stageTint(stage.color, 0.28) }}
             >
               <div className="flex items-center justify-between px-1 pb-2 pt-0.5">
-                <span className="stamp ink-themed" style={themedInkVars(stage.color)}>
-                  {stage.isWon && <Trophy size={11} className="shrink-0" aria-hidden />}
+                {/* Ink title + a colored mark: a picked color (amber, yellow) is often
+                    too light to be the text itself on the light theme. */}
+                <span className="stamp text-[color:var(--ds-ink)]">
+                  {stage.isWon ? (
+                    <Trophy size={11} className="ink-themed shrink-0" style={themedInkVars(stage.color)} aria-hidden />
+                  ) : (
+                    <span className="bg-themed h-2 w-2 shrink-0 rounded-full" style={themedBgVars(stage.color)} aria-hidden />
+                  )}
                   {stage.name}
                   <span className="font-semibold normal-case tracking-normal text-[color:var(--ds-muted)]">{column.length}</span>
                 </span>
