@@ -779,6 +779,19 @@ function QuickAdd({
 }) {
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
+  // "More details" opens the rest of a lead's basics without leaving the board
+  const [more, setMore] = useState(false);
+  const [extra, setExtra] = useState({
+    companyName: "",
+    email: "",
+    address: "",
+    city: "",
+    state: "",
+    zip: "",
+    leadSource: "",
+    notes: "",
+  });
+  const setX = (k: keyof typeof extra, v: string) => setExtra((x) => ({ ...x, [k]: v }));
   const [saving, setSaving] = useState(false);
 
   async function submit(e: React.FormEvent) {
@@ -786,12 +799,26 @@ function QuickAdd({
     const parts = name.trim().split(/\s+/);
     if (parts.length === 0 || !parts[0]) return;
     setSaving(true);
-    const isEmail = contact.includes("@");
+    // Collapsed: one box takes a phone OR an email. Expanded: the box is the
+    // phone and email gets its own field.
+    const isEmail = !more && contact.includes("@");
+    const t = (v: string) => v.trim() || undefined;
     const { ok, data } = await postJson<{ id: string }>("/api/app/contacts", {
       firstName: parts[0],
       lastName: parts.slice(1).join(" "),
-      email: isEmail ? contact.trim() : undefined,
+      email: more ? t(extra.email) : isEmail ? contact.trim() : undefined,
       phone: !isEmail && contact.trim() ? contact.trim() : undefined,
+      ...(more
+        ? {
+            companyName: t(extra.companyName),
+            address: t(extra.address),
+            city: t(extra.city),
+            state: t(extra.state.toUpperCase()),
+            zip: t(extra.zip),
+            leadSource: t(extra.leadSource),
+            notes: t(extra.notes),
+          }
+        : {}),
     });
     if (!ok || !data) {
       setSaving(false);
@@ -806,21 +833,46 @@ function QuickAdd({
     onDone();
   }
 
+  const box =
+    "w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary-soft)]";
+
   return (
     <form onSubmit={submit} className="ds-card p-3 space-y-2">
-      <input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Name"
-        autoFocus
-        className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary-soft)]"
-      />
+      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" autoFocus className={box} />
       <input
         value={contact}
         onChange={(e) => setContact(e.target.value)}
-        placeholder="Phone or email (optional)"
-        className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary-soft)]"
+        placeholder={more ? "Phone (optional)" : "Phone or email (optional)"}
+        type={more ? "tel" : "text"}
+        className={box}
       />
+      {more ? (
+        <>
+          <input value={extra.email} onChange={(e) => setX("email", e.target.value)} placeholder="Email (optional)" type="email" className={box} />
+          <input value={extra.companyName} onChange={(e) => setX("companyName", e.target.value)} placeholder="Company (optional)" className={box} />
+          <input value={extra.address} onChange={(e) => setX("address", e.target.value)} placeholder="Street address" autoComplete="off" className={box} />
+          <div className="grid grid-cols-[1fr_3.5rem_4.5rem] gap-1.5">
+            <input value={extra.city} onChange={(e) => setX("city", e.target.value)} placeholder="City" className={box} />
+            <input value={extra.state} onChange={(e) => setX("state", e.target.value.slice(0, 2))} placeholder="ST" aria-label="State" className={box} />
+            <input value={extra.zip} onChange={(e) => setX("zip", e.target.value.slice(0, 10))} placeholder="ZIP" inputMode="numeric" className={box} />
+          </div>
+          <input value={extra.leadSource} onChange={(e) => setX("leadSource", e.target.value)} placeholder="Lead source (Referral, Google…)" className={box} />
+          <textarea
+            value={extra.notes}
+            onChange={(e) => setX("notes", e.target.value)}
+            placeholder="Notes: what they need, best time to call…"
+            rows={3}
+            className={`${box} resize-y`}
+          />
+          <Link href="/app/contacts/new?type=lead" className="ds-link block text-xs">
+            Open the full lead form
+          </Link>
+        </>
+      ) : (
+        <button type="button" onClick={() => setMore(true)} className="ds-link text-xs">
+          + More details
+        </button>
+      )}
       <div className="flex gap-2">
         <button
           type="submit"
