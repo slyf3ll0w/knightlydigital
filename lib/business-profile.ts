@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { slugWhere } from "@/lib/company-slug";
 import { listPublicBookingTypes, menuTypes } from "@/lib/booking-runtime";
 
 /**
@@ -28,12 +29,12 @@ export type BusinessProfile = {
 };
 
 export async function loadBusinessProfile(slug: string): Promise<BusinessProfile | null> {
-  const company = await prisma.company.findUnique({
-    where: { slug },
+  const company = await prisma.company.findFirst({
+    where: slugWhere(slug),
     select: { id: true, name: true, slug: true, phone: true, email: true, address: true, city: true, state: true, zip: true, website: true, about: true, industry: true, logoUrl: true },
   });
   if (!company) return null;
-  const listed = await listPublicBookingTypes(slug, { skipGate: true }).catch(() => null);
+  const listed = await listPublicBookingTypes(company.slug, { skipGate: true }).catch(() => null);
   const menu = listed ? menuTypes(listed.types) : [];
   const names = new Set<string>();
   for (const t of menu) {

@@ -5,6 +5,7 @@ import { composeAddress, geocodeAddress, geocodingEnabled } from "@/lib/geocodin
 import { driveTimeMatrix } from "@/lib/routing";
 import { resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import { resolvePublicCompany } from "@/lib/public-company";
+import { companyBySlug } from "@/lib/company-slug";
 import { defaultButtonLabel, effectiveIntake, sanitizeIntake, type BookingIntake } from "@/lib/booking-intake";
 import {
   checkSlot,
@@ -162,7 +163,7 @@ export type ResolveOpts = {
 };
 
 async function resolveCompanyFor(companySlug: string, opts: ResolveOpts) {
-  if (opts.skipGate) return prisma.company.findUnique({ where: { slug: companySlug } });
+  if (opts.skipGate) return companyBySlug(companySlug);
   return resolvePublicCompany(companySlug);
 }
 

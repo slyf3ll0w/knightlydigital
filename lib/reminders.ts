@@ -26,9 +26,10 @@ import {
   appointmentReminderEmail,
   quoteFollowUpEmail,
 } from "@/lib/email";
-import { sendSms, smsEnabled, canText, appointmentReminderText } from "@/lib/sms";
+import { sendSms, smsEnabled, canText, appointmentReminderText, type MeetingKind } from "@/lib/sms";
 import { notifyUser, notifyUsers } from "@/lib/push";
-import { arrivalSlotLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
+import { arrivalSlotLabel, arrivalTimeLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
+import { HOUR_STAGE_MS, inSmsQuietHours, reminderStage } from "@/lib/reminder-stage";
 import { pastDueFilter } from "@/lib/due-dates";
 import { invoiceBalance } from "@/lib/payments";
 import { fireAutomations } from "@/lib/automations-server";
@@ -342,20 +343,133 @@ export async function runQuoteFollowUps(
 }
 
 /**
- * Client appointment reminders: the day before (fires in the 2–26h window)
- * and again about an hour out (needs the cron to run hourly to actually catch
- * it; on a daily cron only the day reminder lands). Covers every confirmed
+ * Client appointment reminders: about a day ahead and again about an hour
+ * out (lib/reminder-stage.ts has the rule — a booking only gets a stage it
+ * existed for, so a same-day booking isn't "reminded" minutes after its
+ * confirmation). The sweep runs every few minutes from instrumentation.ts
+ * with the hourly cron as the backstop, so the hour stage lands ~60–70 min
+ * out whatever minute the appointment starts. Covers every confirmed
  * appointment with a reachable client — online-booked and manually created —
  * unless the appointment opted out (Appointment.remindClient=false). Each
  * stage fires once (reminderDaySentAt / reminderHourSentAt), claimed
  * atomically before sending; stages are only claimed when at least one
  * channel can actually send, so an unconfigured Resend/Telnyx doesn't burn
- * the stage.
+ * the stage. Copy follows the appointment TYPE: a phone call says the
+ * business will call (and at which number), a video call carries the join
+ * link, only an in-person visit says anyone will arrive.
  */
 export interface AppointmentReminderSummary {
   checked: number;
   sent: number;
   errors: number;
+}
+
+const reminderCompanySelect = {
+  name: true,
+  email: true,
+  timezone: true,
+  arrivalWindowMinutes: true,
+  brandColor: true,
+  documentColor: true,
+  brandColorSecondary: true,
+  logoUrl: true,
+  finixMerchantId: true,
+  finixOnboardingState: true,
+} as const;
+
+const reminderContactSelect = {
+  firstName: true,
+  email: true,
+  phone: true,
+  smsOptOut: true,
+  smsDisabled: true,
+} as const;
+
+/**
+ * One reminder (email + text, either counts) for an appointment or a job
+ * visit whose stage was already claimed. Shared by both sweeps and the
+ * automation action's copy — the wording lives in lib/sms.ts / lib/email.ts.
+ */
+async function sendClientReminder(input: {
+  companyId: string;
+  contactId: string;
+  company: {
+    name: string;
+    email: string | null;
+    timezone: string;
+    brandColor: string | null;
+    documentColor: string | null;
+    brandColorSecondary: string | null;
+    logoUrl: string | null;
+    finixMerchantId: string | null;
+    finixOnboardingState: string | null;
+  };
+  contact: { firstName: string; email: string | null; phone: string | null; smsOptOut: boolean; smsDisabled: boolean };
+  serviceName: string;
+  kind: MeetingKind;
+  scheduledAt: Date;
+  windowMinutes: number;
+  address: string | null;
+  meetingLink: string | null;
+  stage: "day" | "hour";
+  canEmail: boolean;
+  canSms: boolean;
+}): Promise<boolean> {
+  const tz = input.company.timezone;
+  const windowLabel = arrivalSlotLabel(tz, input.scheduledAt, input.windowMinutes);
+  const timeLabel = arrivalTimeLabel(tz, input.scheduledAt, input.windowMinutes);
+  const inPerson = input.kind === "IN_PERSON" || input.kind === "VISIT";
+  const address = inPerson ? input.address : null;
+  const phone = input.kind === "PHONE_CALL" ? input.contact.phone : null;
+  const meetingLink = input.kind === "VIDEO_CALL" ? input.meetingLink : null;
+
+  let emailOk = false;
+  if (input.canEmail && input.contact.email) {
+    const { subject, html } = appointmentReminderEmail({
+      brand: input.company,
+      companyName: input.company.name,
+      companyEmail: input.company.email,
+      contactFirstName: input.contact.firstName,
+      serviceName: input.serviceName,
+      windowLabel,
+      address,
+      stage: input.stage,
+      kind: input.kind,
+      phone,
+      meetingLink,
+    });
+    emailOk = await sendEmail({
+      companyId: input.companyId,
+      to: input.contact.email,
+      subject,
+      html,
+      replyTo: input.company.email || undefined,
+      fromName: input.company.name,
+    });
+  }
+
+  // Text rides alongside the email (either channel counts as reminded).
+  let smsOk = false;
+  if (input.canSms && input.contact.phone) {
+    smsOk = await sendSms({
+      companyId: input.companyId,
+      contactId: input.contactId,
+      to: input.contact.phone,
+      text: appointmentReminderText({
+        companyName: input.company.name,
+        firstName: input.contact.firstName,
+        serviceName: input.serviceName,
+        kind: input.kind,
+        windowLabel,
+        timeLabel,
+        address,
+        phone,
+        meetingLink,
+        stage: input.stage,
+      }),
+    });
+  }
+  return emailOk || smsOk;
 }
 
 export async function runAppointmentReminders(
@@ -374,24 +488,9 @@ export async function runAppointmentReminders(
       OR: [{ reminderDaySentAt: null }, { reminderHourSentAt: null }],
     },
     include: {
-      contact: { select: { firstName: true, email: true, phone: true, smsOptOut: true, smsDisabled: true } },
-      company: {
-        select: {
-          name: true,
-          email: true,
-          timezone: true,
-          arrivalWindowMinutes: true,
-          brandColor: true,
-          documentColor: true,
-          brandColorSecondary: true,
-          logoUrl: true,
-          finixMerchantId: true,
-          finixOnboardingState: true,
-        },
-      },
+      contact: { select: reminderContactSelect },
+      company: { select: reminderCompanySelect },
     },
-    // Soonest first: the ~1-hour stage is the time-critical one
-    orderBy: { scheduledAt: "asc" },
     take: 1000,
   });
 
@@ -399,37 +498,27 @@ export async function runAppointmentReminders(
 
   for (const appt of appointments) {
     try {
-      const msUntil = appt.scheduledAt.getTime() - now.getTime();
-      const stage: "day" | "hour" | null =
-        msUntil <= 75 * 60000 && !appt.reminderHourSentAt
-          ? "hour"
-          : msUntil > 2 * HOUR && !appt.reminderDaySentAt
-            ? "day"
-            : null;
+      const stage = reminderStage({
+        now,
+        scheduledAt: appt.scheduledAt,
+        createdAt: appt.createdAt,
+        daySentAt: appt.reminderDaySentAt,
+        hourSentAt: appt.reminderHourSentAt,
+      });
       if (!stage) continue;
 
       // SMS quiet hours: never text outside 8 AM–9 PM company-local. Email is
       // fine anytime.
-      const localHour = Number(
-        new Intl.DateTimeFormat("en-US", {
-          timeZone: appt.company.timezone,
-          hour: "2-digit",
-          hourCycle: "h23",
-        }).format(now)
-      );
-      const smsQuiet = localHour < 8 || localHour >= 21;
-
       const canEmail = emailEnabled() && Boolean(appt.contact.email);
-      const canSms =
-        smsEnabled() && canText(appt.contact) && !smsQuiet;
+      const canSms = smsEnabled() && canText(appt.contact) && !inSmsQuietHours(now, appt.company.timezone);
       // Nothing can actually go out right now (unconfigured providers, or a
       // phone-only client inside quiet hours) — leave the stage unclaimed so a
-      // later cron run still in the window picks it up.
+      // later run still in the window picks it up.
       if (!canEmail && !canSms) continue;
 
       // Claim before sending (compare-and-set on the stage column) so
-      // overlapping cron runs can't both remind the client. A claim whose
-      // sends then fail is left in place (logged, never retried) — a missed
+      // overlapping runs can't both remind the client. A claim whose sends
+      // then fail is left in place (logged, never retried) — a missed
       // reminder beats double-texting.
       const claimed = await prisma.appointment.updateMany({
         where: {
@@ -447,73 +536,34 @@ export async function runAppointmentReminders(
 
       // In-person visits promise an arrival window (per-appointment override,
       // company default fallback); phone/video calls happen at the exact time.
-      const windowLabel = arrivalSlotLabel(
-        appt.company.timezone,
-        appt.scheduledAt,
-        appt.type === "IN_PERSON"
-          ? resolveArrivalWindowMinutes(appt.arrivalWindowMinutes, appt.company.arrivalWindowMinutes)
-          : 0
-      );
+      const ok = await sendClientReminder({
+        companyId: appt.companyId,
+        contactId: appt.contactId,
+        company: appt.company,
+        contact: appt.contact,
+        serviceName: appt.title,
+        kind: appt.type as MeetingKind,
+        scheduledAt: appt.scheduledAt,
+        windowMinutes:
+          appt.type === "IN_PERSON"
+            ? resolveArrivalWindowMinutes(appt.arrivalWindowMinutes, appt.company.arrivalWindowMinutes)
+            : 0,
+        address: appt.address,
+        meetingLink: appt.meetingLink,
+        stage,
+        canEmail,
+        canSms,
+      });
 
-      let emailOk = false;
-      if (canEmail && appt.contact.email) {
-        const { subject, html } = appointmentReminderEmail({
-          brand: appt.company,
-          companyName: appt.company.name,
-          companyEmail: appt.company.email,
-          contactFirstName: appt.contact.firstName,
-          serviceName: appt.title,
-          windowLabel,
-          address: appt.address,
-          stage,
-        });
-        emailOk = await sendEmail({
-          companyId: appt.companyId,
-          to: appt.contact.email,
-          subject,
-          html,
-          replyTo: appt.company.email || undefined,
-          fromName: appt.company.name,
-        });
-      }
-
-      // Text rides alongside the email (either channel counts as reminded).
-      let smsOk = false;
-      if (canSms && appt.contact.phone) {
-        smsOk = await sendSms({
-          companyId: appt.companyId,
-          contactId: appt.contactId,
-          to: appt.contact.phone,
-          text: appointmentReminderText({
-            companyName: appt.company.name,
-            firstName: appt.contact.firstName,
-            serviceName: appt.title,
-            windowLabel,
-            address: appt.address,
-            stage,
-          }),
-        });
-      }
-
-      const ok = emailOk || smsOk;
       if (ok) {
         summary.sent++;
-        // The email reminds the client; the push reminds whoever's going
-        if (stage === "hour" && appt.assignedToId) {
-          await notifyUser(appt.assignedToId, {
-            title: "Upcoming appointment",
-            body: `${appt.title} — ${windowLabel}`,
-            url: "/app/schedule",
-            tag: `appt-${appt.id}`,
-          });
-        }
       } else {
         summary.errors++;
-        reportError("[reminders] send failed after claim for appointment", appt.id, stage);
+        console.error("[reminders] send failed after claim for appointment", appt.id, stage);
       }
     } catch (err) {
       summary.errors++;
-      reportError("[reminders] failed for appointment", appt.id, err);
+      console.error("[reminders] failed for appointment", appt.id, err);
     }
   }
 
@@ -521,7 +571,7 @@ export async function runAppointmentReminders(
 }
 
 /**
- * Client JOB-visit reminders — the same day-before + ~1-hour machinery as
+ * Client JOB-visit reminders — the same day-ahead + ~1-hour machinery as
  * appointments, for scheduled jobs. What the client is told is the ARRIVAL
  * WINDOW (lib/arrival-window.ts: per-job override falling back to the company
  * default; 0 = the exact start time), never the dispatch-exact minute.
@@ -543,24 +593,9 @@ export async function runVisitReminders(
       OR: [{ reminderDaySentAt: null }, { reminderHourSentAt: null }],
     },
     include: {
-      contact: { select: { firstName: true, email: true, phone: true, smsOptOut: true, smsDisabled: true } },
-      assignments: { select: { userId: true } },
-      company: {
-        select: {
-          name: true,
-          email: true,
-          timezone: true,
-          arrivalWindowMinutes: true,
-          brandColor: true,
-          documentColor: true,
-          brandColorSecondary: true,
-          logoUrl: true,
-          finixMerchantId: true,
-          finixOnboardingState: true,
-        },
-      },
+      contact: { select: reminderContactSelect },
+      company: { select: reminderCompanySelect },
     },
-    orderBy: { scheduledAt: "asc" },
     take: 1000,
   });
 
@@ -569,28 +604,17 @@ export async function runVisitReminders(
   for (const job of jobs) {
     try {
       const scheduledAt = job.scheduledAt!;
-      const msUntil = scheduledAt.getTime() - now.getTime();
-      const stage: "day" | "hour" | null =
-        msUntil <= 75 * 60000 && !job.reminderHourSentAt
-          ? "hour"
-          : msUntil > 2 * HOUR && !job.reminderDaySentAt
-            ? "day"
-            : null;
+      const stage = reminderStage({
+        now,
+        scheduledAt,
+        createdAt: job.createdAt,
+        daySentAt: job.reminderDaySentAt,
+        hourSentAt: job.reminderHourSentAt,
+      });
       if (!stage) continue;
 
-      // SMS quiet hours: never text outside 8 AM–9 PM company-local
-      const localHour = Number(
-        new Intl.DateTimeFormat("en-US", {
-          timeZone: job.company.timezone,
-          hour: "2-digit",
-          hourCycle: "h23",
-        }).format(now)
-      );
-      const smsQuiet = localHour < 8 || localHour >= 21;
-
       const canEmail = emailEnabled() && Boolean(job.contact.email);
-      const canSms =
-        smsEnabled() && canText(job.contact) && !smsQuiet;
+      const canSms = smsEnabled() && canText(job.contact) && !inSmsQuietHours(now, job.company.timezone);
       if (!canEmail && !canSms) continue;
 
       // Claim before sending — same compare-and-set as appointments
@@ -606,63 +630,33 @@ export async function runVisitReminders(
       });
       if (claimed.count === 0) continue;
 
-      const windowLabel = arrivalSlotLabel(
-        job.company.timezone,
+      const ok = await sendClientReminder({
+        companyId: job.companyId,
+        contactId: job.contactId,
+        company: job.company,
+        contact: job.contact,
+        serviceName: job.title,
+        kind: "VISIT",
         scheduledAt,
-        resolveArrivalWindowMinutes(job.arrivalWindowMinutes, job.company.arrivalWindowMinutes)
-      );
+        windowMinutes: resolveArrivalWindowMinutes(job.arrivalWindowMinutes, job.company.arrivalWindowMinutes),
+        address: job.address,
+        meetingLink: null,
+        stage,
+        canEmail,
+        canSms,
+      });
 
-      let emailOk = false;
-      if (canEmail && job.contact.email) {
-        const { subject, html } = appointmentReminderEmail({
-          brand: job.company,
-          companyName: job.company.name,
-          companyEmail: job.company.email,
-          contactFirstName: job.contact.firstName,
-          serviceName: job.title,
-          windowLabel,
-          address: job.address,
-          stage,
-        });
-        emailOk = await sendEmail({
-          companyId: job.companyId,
-          to: job.contact.email,
-          subject,
-          html,
-          replyTo: job.company.email || undefined,
-          fromName: job.company.name,
-        });
-      }
-
-      let smsOk = false;
-      if (canSms && job.contact.phone) {
-        smsOk = await sendSms({
-          companyId: job.companyId,
-          contactId: job.contactId,
-          to: job.contact.phone,
-          text: appointmentReminderText({
-            companyName: job.company.name,
-            firstName: job.contact.firstName,
-            serviceName: job.title,
-            windowLabel,
-            address: job.address,
-            stage,
-          }),
-        });
-      }
-
-      const ok = emailOk || smsOk;
       if (ok) {
         summary.sent++;
         // (Crew heads-up moved to runTechHeadsUp — it has its own stamp so
         // techs hear about remindClient=false jobs too, with action buttons.)
       } else {
         summary.errors++;
-        reportError("[reminders] send failed after claim for job visit", job.id, stage);
+        console.error("[reminders] send failed after claim for job visit", job.id, stage);
       }
     } catch (err) {
       summary.errors++;
-      reportError("[reminders] failed for job visit", job.id, err);
+      console.error("[reminders] failed for job visit", job.id, err);
     }
   }
 
@@ -683,7 +677,7 @@ export async function runTechHeadsUp(now: Date = new Date()): Promise<Appointmen
     where: {
       status: "ACTIVE",
       scheduledAnytime: false,
-      scheduledAt: { gt: now, lte: new Date(now.getTime() + 65 * 60000) },
+      scheduledAt: { gt: now, lte: new Date(now.getTime() + HOUR_STAGE_MS) },
       techHeadsUpSentAt: null,
       assignments: { some: {} },
       company: { is: { suspendedAt: null } },
@@ -745,6 +739,71 @@ export async function runTechHeadsUp(now: Date = new Date()): Promise<Appointmen
     } catch (err) {
       summary.errors++;
       reportError("[reminders] tech heads-up failed for job", job.id, err);
+    }
+  }
+
+  return summary;
+}
+
+/**
+ * Assignee heads-up push ~1 hour before an appointment — the appointment
+ * counterpart of runTechHeadsUp, with its own stamp
+ * (Appointment.techHeadsUpSentAt) so the person taking the call or visit
+ * hears about it even when the client can't be reminded (opted out, no
+ * phone/email, remindClient off).
+ */
+export async function runAppointmentTechHeadsUp(now: Date = new Date()): Promise<AppointmentReminderSummary> {
+  const appointments = await prisma.appointment.findMany({
+    where: {
+      status: "SCHEDULED",
+      scheduledAnytime: false,
+      scheduledAt: { gt: now, lte: new Date(now.getTime() + HOUR_STAGE_MS) },
+      techHeadsUpSentAt: null,
+      assignedToId: { not: null },
+      company: { is: { suspendedAt: null } },
+    },
+    include: {
+      contact: { select: { firstName: true, lastName: true, phone: true } },
+      company: { select: { timezone: true, arrivalWindowMinutes: true } },
+    },
+    orderBy: { scheduledAt: "asc" },
+    take: 1000,
+  });
+
+  const summary: AppointmentReminderSummary = { checked: appointments.length, sent: 0, errors: 0 };
+
+  for (const appt of appointments) {
+    try {
+      const claimed = await prisma.appointment.updateMany({
+        where: { id: appt.id, techHeadsUpSentAt: null },
+        data: { techHeadsUpSentAt: now },
+      });
+      if (claimed.count === 0 || !appt.assignedToId) continue;
+
+      const windowLabel = arrivalTimeLabel(
+        appt.company.timezone,
+        appt.scheduledAt,
+        appt.type === "IN_PERSON"
+          ? resolveArrivalWindowMinutes(appt.arrivalWindowMinutes, appt.company.arrivalWindowMinutes)
+          : 0
+      );
+      const who = `${appt.contact.firstName} ${appt.contact.lastName}`.trim();
+      const how =
+        appt.type === "PHONE_CALL"
+          ? `call ${who}${appt.contact.phone ? ` at ${appt.contact.phone}` : ""}`
+          : appt.type === "VIDEO_CALL"
+            ? `video call with ${who}`
+            : [who, appt.address].filter(Boolean).join(" · ");
+      await notifyUser(appt.assignedToId, {
+        title: `Up next at ${windowLabel}`,
+        body: `${appt.title} — ${how}`,
+        url: `/app/appointments/${appt.id}`,
+        tag: `appt-${appt.id}`,
+      });
+      summary.sent++;
+    } catch (err) {
+      summary.errors++;
+      reportError("[reminders] appointment heads-up failed", appt.id, err);
     }
   }
 

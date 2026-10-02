@@ -1,6 +1,7 @@
 import { brandAccent, readableAccent } from "@/lib/branding";
 import { FONT_SIZE_ZOOM, GOOGLE_FONT_RE, googleFontHref, sanitizeBookingPage } from "@/lib/booking-page";
 import { resolvePublicCompany } from "@/lib/public-company";
+import { companyBySlug } from "@/lib/company-slug";
 import { prisma } from "@/lib/db";
 
 /**
@@ -60,7 +61,7 @@ export async function resolveScheduleAppearance(
   overrides: AppearanceOverrides = {},
   opts: { skipGate?: boolean } = {}
 ) {
-  const company = opts.skipGate ? await prisma.company.findUnique({ where: { slug: companySlug } }) : await resolvePublicCompany(companySlug);
+  const company = opts.skipGate ? await companyBySlug(companySlug) : await resolvePublicCompany(companySlug);
   if (!company) return null;
   return { company, appearance: appearanceFor(company, overrides) };
 }

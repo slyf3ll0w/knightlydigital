@@ -11,8 +11,21 @@ datasource db {
 
 model Company {
   id                        String      @id @default(cuid())
+  // The PUBLIC name — what clients see on every surface (texts, emails,
+  // PDFs, booking page, portal, caller ID, voicemail). A solo operator can
+  // put their own name here; legalName (below) carries the entity.
   name                      String
+  // Legal entity name, when it differs from the public name: used for the
+  // texting (10DLC) registration and payments paperwork, and shown to
+  // clients ONLY when showLegalNameOnDocs is on. Null = same as name.
+  legalName                 String?
+  showLegalNameOnDocs       Boolean     @default(false)
   slug                      String      @unique
+  // Earlier web addresses (Settings → Business info → Web address): every
+  // public slug route still resolves them and redirects to the current slug,
+  // so shared booking/portal links and the URLs on the texting registration
+  // keep working after a rename.
+  previousSlugs             String[]    @default([])
   phone                     String?
   email                     String?
   address                   String?
@@ -1820,6 +1833,9 @@ model Appointment {
   remindClient         Boolean           @default(true)
   reminderDaySentAt    DateTime?
   reminderHourSentAt   DateTime?
+  // Push to the assignee ~1 h ahead (lib/reminders.ts runAppointmentTechHeadsUp);
+  // its own stamp so it fires even when the client can't be reminded.
+  techHeadsUpSentAt    DateTime?
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
 

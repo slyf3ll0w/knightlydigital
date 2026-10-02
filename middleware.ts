@@ -374,6 +374,9 @@ export async function middleware(req: NextRequest) {
     // layouts can't see the URL, so it rides on a header.
     const requestHeaders = new Headers(req.headers);
     requestHeaders.set("x-wb-path", path);
+  // The slug-addressed public layouts redirect an old web address to the
+  // current one (components/SlugRedirect.tsx) and need the query to survive.
+  if (req.nextUrl.search) requestHeaders.set("x-wb-query", req.nextUrl.search.slice(1));
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
@@ -413,6 +416,9 @@ export const config = {
     "/crm",
     "/app/:path*",
     "/superadmin/:path*",
+    "/book/:path*",
+    "/portal/:path*",
+    "/embed/:path*",
     "/api/auth/callback/credentials",
     "/api/auth/callback/google-native",
     "/api/auth/callback/apple-native",

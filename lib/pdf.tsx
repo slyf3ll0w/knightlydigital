@@ -88,6 +88,8 @@ export type LogoSrc = { data: Buffer; format: "png" | "jpg" } | null;
 
 type CompanyForPdf = {
   name: string;
+  legalName?: string | null;
+  showLegalNameOnDocs?: boolean;
   phone: string | null;
   email: string | null;
   address: string | null;
@@ -117,7 +119,7 @@ type ContactForPdf = {
 } | null;
 
 const companySelect = {
-  name: true, phone: true, email: true, address: true, city: true, state: true, zip: true,
+  name: true, legalName: true, showLegalNameOnDocs: true, phone: true, email: true, address: true, city: true, state: true, zip: true,
   logoData: true, logoMime: true, logoUrl: true,
   brandColor: true, brandColorSecondary: true, documentColor: true,
   timezone: true,
@@ -262,6 +264,15 @@ function TotalRow({ label, value, negative }: { label: string; value: string; ne
   );
 }
 
+/**
+ * The name in a document footer: the public name, plus the legal entity when
+ * the company asked for it (Settings → Business info → show legal name).
+ */
+function footerName(company: CompanyForPdf): string {
+  const legal = company.legalName?.trim();
+  return company.showLegalNameOnDocs && legal && legal !== company.name ? `${company.name}  ·  ${legal}` : company.name;
+}
+
 function Footer({ text }: { text: string }) {
   return (
     <View style={styles.footer} fixed>
@@ -404,7 +415,7 @@ export function buildQuoteDocument(quote: QuoteForPdf, logo: LogoSrc) {
           </View>
         ) : null}
         {quote.disclaimer ? <Text style={styles.disclaimer}>{quote.disclaimer}</Text> : null}
-        <Footer text={`Quote #${quote.quoteNumber}  ·  ${quote.company.name}`} />
+        <Footer text={`Quote #${quote.quoteNumber}  ·  ${footerName(quote.company)}`} />
       </Page>
     </Document>
   );
@@ -552,7 +563,7 @@ export function buildInvoiceDocument(invoice: InvoiceForPdf, logo: LogoSrc) {
             <Text style={styles.bodyText}>{invoice.notes}</Text>
           </View>
         ) : null}
-        <Footer text={`Invoice #${invoice.invoiceNumber}  ·  ${invoice.company.name}`} />
+        <Footer text={`Invoice #${invoice.invoiceNumber}  ·  ${footerName(invoice.company)}`} />
       </Page>
     </Document>
   );
@@ -668,7 +679,7 @@ export async function statementPdf(
             {table(recentPaid, false)}
           </>
         ) : null}
-        <Footer text={`Statement  ·  ${company.name}`} />
+        <Footer text={`Statement  ·  ${footerName(company)}`} />
       </Page>
     </Document>
   );

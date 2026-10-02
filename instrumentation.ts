@@ -25,6 +25,43 @@ export async function register() {
     };
     const timer = setInterval(tick, 5 * 60_000);
     timer.unref?.();
+
+    // Client reminders + crew heads-ups every 5 minutes. The hourly cron
+    // alone put the "about an hour ahead" reminder anywhere from 5 to 75
+    // minutes out depending on the appointment's minute (a 10:30 call was
+    // reminded at 10:00); the ticker lands it 60–70 min out. Every sweep
+    // claims its rows with compare-and-set, so the hourly cron pass is a
+    // safe backstop. Production only unless REMINDER_TICKER=1 — a dev
+    // server must never text real clients. REMINDER_TICKER=0 turns it off.
+    const tickerOn =
+      process.env.REMINDER_TICKER === "1" ||
+      (process.env.REMINDER_TICKER !== "0" && process.env.NODE_ENV === "production");
+    if (tickerOn) {
+      const { runAppointmentReminders, runVisitReminders, runTechHeadsUp, runAppointmentTechHeadsUp } =
+        await import("@/lib/reminders");
+      const { REMINDER_TICK_MS } = await import("@/lib/reminder-stage");
+      let remindersBusy = false;
+      const remindersTick = async () => {
+        if (remindersBusy) return;
+        remindersBusy = true;
+        const now = new Date();
+        for (const [name, run] of [
+          ["appointmentReminders", runAppointmentReminders],
+          ["visitReminders", runVisitReminders],
+          ["techHeadsUp", runTechHeadsUp],
+          ["appointmentHeadsUp", runAppointmentTechHeadsUp],
+        ] as const) {
+          try {
+            await run(now);
+          } catch (err) {
+            console.error(`[reminders] ticker ${name} failed`, err);
+          }
+        }
+        remindersBusy = false;
+      };
+      const remindersTimer = setInterval(remindersTick, REMINDER_TICK_MS);
+      remindersTimer.unref?.();
+    }
   }
 
   Sentry.init({

@@ -40,6 +40,7 @@ export default async function PublicContractPage({
       signedAt={contract.signedAt?.toISOString() ?? null}
       contactName={`${contract.contact.firstName} ${contract.contact.lastName}`.trim()}
       companyName={contract.company.name}
+      legalName={contract.company.showLegalNameOnDocs ? contract.company.legalName : null}
       companyLogoUrl={contract.company.logoUrl}
       brandColor={contract.company.brandColorSecondary ?? contract.company.brandColor}
       />

@@ -1807,6 +1807,9 @@ export function appointmentReminderEmail({
   windowLabel,
   address,
   stage,
+  kind = "VISIT",
+  phone = null,
+  meetingLink = null,
 }: {
   brand: EmailBrand;
   companyName: string;
@@ -1816,25 +1819,44 @@ export function appointmentReminderEmail({
   windowLabel: string;
   address?: string | null;
   stage: "day" | "hour";
+  /** How you meet: calls say "we'll call you", video carries the link, only a visit "arrives". Default VISIT. */
+  kind?: "PHONE_CALL" | "VIDEO_CALL" | "IN_PERSON" | "VISIT";
+  /** PHONE_CALL: the number the business will call. */
+  phone?: string | null;
+  /** VIDEO_CALL: the join link. */
+  meetingLink?: string | null;
 }): { subject: string; html: string } {
+  const noun = kind === "PHONE_CALL" ? "call" : kind === "VIDEO_CALL" ? "video call" : "visit";
+  const what = new RegExp(`\\b${noun}\\b`, "i").test(serviceName) ? serviceName : `${serviceName} ${noun}`;
+  const strong = `<strong>${esc(what)}</strong>`;
   const lead =
     stage === "day"
-      ? `A quick reminder about your upcoming <strong>${esc(serviceName)}</strong> appointment with ${esc(companyName)}.`
-      : `${esc(companyName)} will arrive soon for your <strong>${esc(serviceName)}</strong> appointment.`;
+      ? `A quick reminder about your upcoming ${strong} with ${esc(companyName)}.`
+      : kind === "PHONE_CALL"
+        ? `${esc(companyName)} will call you soon for your ${strong}.`
+        : kind === "VIDEO_CALL"
+          ? `Your ${strong} with ${esc(companyName)} starts soon.`
+          : `${esc(companyName)} will arrive soon for your ${strong}.`;
+  const extras: string[] = [];
+  if (kind === "PHONE_CALL" && phone) extras.push(`${fieldLabel("We'll call you at", 12)}<p style="margin:0;color:#111827;font-size:14px;">${esc(phone)}</p>`);
+  if (kind === "VIDEO_CALL" && meetingLink)
+    extras.push(
+      `${fieldLabel("Join link", 12)}<p style="margin:0;font-size:14px;"><a href="${esc(meetingLink)}" style="color:#0369A1;word-break:break-all;">${esc(meetingLink)}</a></p>`
+    );
   const html = clientShell({
     brand,
     companyName,
     context: "Appointment reminder",
     inner: `<p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
       <p style="margin:0;color:#374151;font-size:14px;">${lead}</p>
-      ${windowBlock(windowLabel, address)}
-      ${companyEmail ? `<p style="margin:16px 0 0;color:#6b7280;font-size:13px;">Need to reschedule? Reply to this email.</p>` : ""}`,
+      ${windowBlock(windowLabel, kind === "IN_PERSON" || kind === "VISIT" ? address : null, kind === "IN_PERSON" || kind === "VISIT" ? "Arrival window" : "When")}
+      ${extras.join("")}
+      ${companyEmail ? `<p style="margin:16px 0 0;color:#6b7280;font-size:13px;">Need a different time? Reply to this email.</p>` : ""}`,
   });
+  const soon =
+    kind === "PHONE_CALL" ? "We'll call you soon" : kind === "VIDEO_CALL" ? "Starting soon" : "We're on our way soon";
   return {
-    subject:
-      stage === "day"
-        ? `Reminder: ${serviceName} — ${windowLabel}`
-        : `We're on our way soon: ${serviceName} — ${windowLabel}`,
+    subject: stage === "day" ? `Reminder: ${what} — ${windowLabel}` : `${soon}: ${what} — ${windowLabel}`,
     html,
   };
 }

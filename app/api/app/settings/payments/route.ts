@@ -85,6 +85,7 @@ export async function POST(req: Request) {
     where: { id: actor.companyId },
     select: {
       name: true,
+      legalName: true,
       email: true,
       phone: true,
       finixOnboardingFormId: true,
@@ -131,7 +132,8 @@ export async function POST(req: Request) {
     }
 
     const form = await createOnboardingForm({
-      businessName: company.name,
+      // Underwriting wants the legal entity; the public name may be a DBA or the owner's own name
+      businessName: company.legalName?.trim() || company.name,
       email: company.email,
       phone: company.phone,
       ...linkParams,

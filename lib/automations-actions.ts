@@ -4,7 +4,7 @@ import { lookup } from "dns/promises";
 import { prisma } from "./db";
 import { notifyUsers, companyManagerIds } from "./push";
 import { sendEmail, emailEnabled, companyEmailBlocked, clientMessageEmail, quoteLinkEmail, invoiceLinkEmail, paymentReminderEmail, appointmentReminderEmail } from "./email";
-import { sendSms, canText, companyCanSendSms, invoiceLinkText, appointmentReminderText } from "./sms";
+import { sendSms, canText, companyCanSendSms, invoiceLinkText, appointmentReminderText, type MeetingKind } from "./sms";
 import { marketingPhrase, brandedText } from "./sms-consent";
 import { sendReviewRequest } from "./payments";
 import { canChargeOnline } from "./payments-gate";
@@ -13,7 +13,7 @@ import { recordLeadWin, recordLeadLoss } from "./pipeline";
 import { getActiveFieldDefs, sanitizeCustomFields } from "./contact-fields";
 import { nextInvoiceNumber, nextQuoteNumber, withDocNumberRetry } from "./doc-numbers";
 import { dueDateFromTerms } from "./due-dates";
-import { arrivalSlotLabel, resolveArrivalWindowMinutes } from "./arrival-window";
+import { arrivalSlotLabel, arrivalTimeLabel, resolveArrivalWindowMinutes } from "./arrival-window";
 import { zonedMidnight, zonedParts } from "./timezone";
 import { isPrivateIp } from "./website-check";
 import { isQuickBooksConfigured, pushInvoice, pushEstimate, pushPayment } from "./quickbooks";
@@ -261,7 +261,12 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
       const stage: "day" | "hour" = a.scheduledAt.getTime() - now.getTime() <= 2 * HOUR ? "hour" : "day";
       const windowMinutes = a.type === "IN_PERSON" ? resolveArrivalWindowMinutes(a.arrivalWindowMinutes, company.arrivalWindowMinutes) : 0;
       const windowLabel = arrivalSlotLabel(tz, a.scheduledAt, windowMinutes);
-      const args = { companyName: company.name, firstName: contact.firstName, serviceName: a.title, windowLabel, address: a.type === "IN_PERSON" ? a.address : null, stage };
+      const timeLabel = arrivalTimeLabel(tz, a.scheduledAt, windowMinutes);
+      // Copy follows the appointment type: calls say "we'll call you", video carries the link, only a visit arrives
+      const args = {
+        companyName: company.name, firstName: contact.firstName, serviceName: a.title, kind: a.type as MeetingKind, windowLabel, timeLabel,
+        address: a.type === "IN_PERSON" ? a.address : null, phone: a.type === "PHONE_CALL" ? contact.phone : null, meetingLink: a.type === "VIDEO_CALL" ? a.meetingLink : null, stage,
+      };
       if (contact.phone && canText(contact) && (await companyCanSendSms(companyId))) {
         const ok = await sendSms({ companyId, contactId: contact.id, to: contact.phone, text: appointmentReminderText(args) });
         if (ok) return `reminder texted (${stage})`;
@@ -269,7 +274,7 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
       if (!contact.email) return "skipped: client can't be texted and has no email";
       if (!emailEnabled()) return "skipped: email not configured";
       if (await companyEmailBlocked(companyId)) return "skipped: company email blocked";
-      const { subject, html } = appointmentReminderEmail({ brand, companyName: company.name, companyEmail: company.email, contactFirstName: contact.firstName, serviceName: a.title, windowLabel, address: args.address, stage });
+      const { subject, html } = appointmentReminderEmail({ brand, companyName: company.name, companyEmail: company.email, contactFirstName: contact.firstName, serviceName: a.title, windowLabel, address: args.address, stage, kind: args.kind, phone: args.phone, meetingLink: args.meetingLink });
       const sent = await sendEmail({ companyId, to: contact.email, subject, html, replyTo: company.email || undefined, fromName: company.name });
       return sent ? `reminder emailed (${stage})` : "failed: email send failed";
     }

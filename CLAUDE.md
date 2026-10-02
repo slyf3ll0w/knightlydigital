@@ -314,6 +314,19 @@ shared WorkBench toll-free sender could never clear — Telnyx rejected it
 the number provisions; texting waits for the campaign (3–7 business days). The
 free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
 
+- **Names (2026-10-02)**: `Company.name` is the PUBLIC name — what clients see on
+  every surface (texts, emails, PDFs, booking page, portal, caller ID,
+  voicemail, STOP/HELP replies). A solo operator can put their own name there.
+  `Company.legalName` (optional) is the entity on paper: the texting
+  registration prefills its legal name from it (`lineSummary` defaults) and
+  Finix onboarding sends it as `business_name`; clients see it only when
+  `showLegalNameOnDocs` is on (PDF footers, agreement page). Renaming in
+  Settings refreshes the line's keyword replies (`refreshKeywordReplies`) and
+  the caller-ID listing when it was still the default. The web address
+  (`Company.slug`) is editable too: old slugs go to `previousSlugs`, every
+  resolver matches them (`lib/company-slug.ts` `slugWhere`/`companyBySlug`)
+  and the /book, /portal, /embed layouts redirect (`components/SlugRedirect.tsx`,
+  path from middleware's `x-wb-path`/`x-wb-query`).
 - **Data**: `Company.lineNumber` (E.164, `@unique` — a `pending:<companyId>`
   claim token sits there while an order is in flight, so a double-click can't
   buy two numbers), `lineNumberId` (Telnyx id), `lineForwardTo`,
@@ -1010,8 +1023,14 @@ removed in favor of this.)
 (1) due subscription cycles, (2) visit-series job generation, (3) escalating payment
 reminders for unpaid/overdue invoices (due date, then 3/7/14 days; one email per stage
 via `PaymentReminder`, stops when paid), (4) quote follow-ups (3/7 days after send via
-`QuoteReminder`), (5) appointment reminders (day-before AND ~1 hour out — **the 1-hour
-stage only fires if this cron runs hourly**; on a daily cron it never lands), plus QBO
+`QuoteReminder`), (5) appointment + job-visit reminders (~1 day and ~1 hour out —
+`lib/reminder-stage.ts`: a stage only fires for a booking that existed when its
+window opened, so a same-day booking is not "reminded" minutes after its
+confirmation; `instrumentation.ts` runs these sweeps every 5 min in production
+so the hour stage lands 60–70 min out whatever the appointment's minute, and
+the hourly cron pass is the backstop; copy follows the appointment type —
+calls say "we'll call you", video carries the link, only visits "arrive";
+`scripts/test-reminder-copy.ts`), plus QBO
 nightly sync, location-ping pruning, and storage rollups — see `lib/reminders.ts` /
 `lib/subscriptions.ts`. It's authed by `Authorization: Bearer ${CRON_SECRET}`. Wire it
 up one of two ways:

@@ -203,26 +203,105 @@ async function logSmsSend({
 
 const OPT_OUT = "Reply STOP to opt out.";
 
-/** Appointment reminder: the day before, and again about an hour out. */
-export function appointmentReminderText({
-  companyName,
-  firstName,
-  serviceName,
-  windowLabel,
-  address,
-  stage,
-}: {
+/**
+ * How the client and the business meet. Appointments carry their own type;
+ * a job visit is always in person ("VISIT").
+ */
+export type MeetingKind = "PHONE_CALL" | "VIDEO_CALL" | "IN_PERSON" | "VISIT";
+
+/** "call" / "video call" / "visit" — the noun after the service name. */
+export function meetingNoun(kind: MeetingKind): string {
+  return kind === "PHONE_CALL" ? "call" : kind === "VIDEO_CALL" ? "video call" : "visit";
+}
+
+/** "Estimate call", "Estimate video call", "Estimate visit" (no doubled word). */
+export function meetingLabel(serviceName: string, kind: MeetingKind): string {
+  const noun = meetingNoun(kind);
+  const s = serviceName.trim();
+  return new RegExp(`\\b${noun}\\b`, "i").test(s) ? s : `${s} ${noun}`;
+}
+
+export type MeetingTextArgs = {
   companyName: string;
   firstName: string;
   serviceName: string;
+  kind: MeetingKind;
+  /** Day stage / confirmations: "Tue, Oct 7, 3:00 PM" or "…, 3:00 PM – 5:00 PM". */
   windowLabel: string;
+  /** Hour stage: the time alone — "3:00 PM" or "3:00 PM – 5:00 PM". */
+  timeLabel?: string;
   address?: string | null;
-  stage: "day" | "hour";
-}): string {
+  /** PHONE_CALL: the number the business will call. */
+  phone?: string | null;
+  /** VIDEO_CALL: the join link. */
+  meetingLink?: string | null;
+};
+
+const RESCHEDULE_HINT = "Need a different time? Just reply.";
+
+/**
+ * Appointment / visit reminder: about a day ahead, and again about an hour
+ * out. Calls say the business will CALL; video calls carry the link; only an
+ * in-person visit says anyone will arrive (and promises the arrival window,
+ * never the dispatch minute).
+ */
+export function appointmentReminderText(args: MeetingTextArgs & { stage: "day" | "hour" }): string {
+  const { companyName, firstName, serviceName, kind, windowLabel, address, phone, meetingLink, stage } = args;
+  const time = args.timeLabel ?? windowLabel;
+  const what = meetingLabel(serviceName, kind);
   const where = address ? ` at ${address}` : "";
-  return stage === "day"
-    ? `Hi ${firstName}, a reminder from ${companyName}: ${serviceName}, ${windowLabel}${where}. ${OPT_OUT}`
-    : `Hi ${firstName}, ${companyName} will arrive soon for ${serviceName} (${windowLabel}). ${OPT_OUT}`;
+  const callAt = phone ? ` We'll call you at ${phone}.` : " We'll call you.";
+  const join = meetingLink ? ` Join: ${meetingLink}` : "";
+
+  if (stage === "day") {
+    if (kind === "PHONE_CALL")
+      return `Hi ${firstName}, reminder from ${companyName}: your ${what} is ${windowLabel}.${callAt} ${RESCHEDULE_HINT} ${OPT_OUT}`;
+    if (kind === "VIDEO_CALL")
+      return `Hi ${firstName}, reminder from ${companyName}: your ${what} is ${windowLabel}.${join} ${RESCHEDULE_HINT} ${OPT_OUT}`;
+    return `Hi ${firstName}, reminder from ${companyName}: your ${what} is ${windowLabel}${where}. ${RESCHEDULE_HINT} ${OPT_OUT}`;
+  }
+  if (kind === "PHONE_CALL")
+    return `Hi ${firstName}, ${companyName} will call you${phone ? ` at ${phone}` : ""} for your ${what} at ${time} today. ${OPT_OUT}`;
+  if (kind === "VIDEO_CALL")
+    return `Hi ${firstName}, your ${what} with ${companyName} starts at ${time} today.${join} ${OPT_OUT}`;
+  const arrive = /–/.test(time) ? `between ${time.replace(" – ", " and ")}` : `at ${time}`;
+  return `Hi ${firstName}, ${companyName} will arrive for your ${what} ${arrive} today${where}. ${OPT_OUT}`;
+}
+
+/**
+ * Online-booking confirmations — the text counterpart of the booking emails
+ * (lib/booking-submit.ts notifyBooking, lib/booking-checkout.ts). The filed
+ * campaign promises "your appointment is confirmed" texts; this is that text.
+ */
+export function bookingConfirmationText(
+  args: MeetingTextArgs & {
+    event: "confirmed" | "received" | "rescheduled" | "cancelled";
+    /** Self-serve reschedule/cancel page, when the booking type allows it. */
+    manageUrl?: string | null;
+    /** Cancelled: where to book again. */
+    rebookUrl?: string | null;
+  }
+): string {
+  const { companyName, firstName, serviceName, kind, windowLabel, address, phone, meetingLink, event } = args;
+  const what = meetingLabel(serviceName, kind);
+  const where = address ? ` at ${address}` : "";
+  const how =
+    kind === "PHONE_CALL" ? ` We'll call you${phone ? ` at ${phone}` : ""}.` : kind === "VIDEO_CALL" && meetingLink ? ` Join: ${meetingLink}` : "";
+  const manage = args.manageUrl ? ` Reschedule or cancel: ${args.manageUrl}` : "";
+  switch (event) {
+    case "received":
+      return `Hi ${firstName}, ${companyName} got your request for ${aOrAn(what)} on ${windowLabel}${where}. We'll confirm shortly. ${OPT_OUT}`;
+    case "rescheduled":
+      return `Hi ${firstName}, your ${what} with ${companyName} has moved to ${windowLabel}${where}.${how}${manage} ${OPT_OUT}`;
+    case "cancelled":
+      return `Hi ${firstName}, your ${what} with ${companyName} on ${windowLabel} has been cancelled.${args.rebookUrl ? ` Book again: ${args.rebookUrl}` : ""} ${OPT_OUT}`;
+    default:
+      return `Hi ${firstName}, your ${what} with ${companyName} is booked for ${windowLabel}${where}.${how}${manage} ${OPT_OUT}`;
+  }
+}
+
+function aOrAn(noun: string): string {
+  return `${/^[aeiou]/i.test(noun) ? "an" : "a"} ${noun}`;
 }
 
 /** Invoice pay link — texted alongside the email when an invoice is sent. */

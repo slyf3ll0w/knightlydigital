@@ -55,6 +55,7 @@ import { confirmSheet } from "@/components/ConfirmSheet";
 import PageTitle from "@/components/PageTitle";
 import SectionHeader from "@/components/SectionHeader";
 import { Chip, InfoTip } from "@/components/ds";
+import { slugify } from "@/lib/slugify";
 import SmsNotificationsCard from "./SmsNotificationsCard";
 import BusinessLineCard from "./BusinessLineCard";
 import type { LineSummary } from "@/lib/business-line-shared";
@@ -66,7 +67,7 @@ import {
 } from "@/lib/section-colors";
 
 type Company = {
-  id: string; name: string; slug: string; phone: string | null;
+  id: string; name: string; legalName: string | null; showLegalNameOnDocs: boolean; slug: string; phone: string | null;
   email: string | null; address: string | null; city: string | null;
   state: string | null; zip: string | null; website: string | null;
   about: string | null;
@@ -974,6 +975,9 @@ export default function SettingsClient({
     timezone: company.timezone ?? "America/Chicago",
     assistantName: company.assistantName ?? "",
     schedulingIntervalMinutes: String(company.schedulingIntervalMinutes ?? 30),
+    legalName: company.legalName ?? "",
+    showLegalNameOnDocs: company.showLegalNameOnDocs,
+    slug: company.slug,
   });
   // Auto-save bookkeeping: savedRef is the last snapshot the server confirmed
   // (diffed against form so only changed fields go over the wire — the PATCH
@@ -1019,6 +1023,11 @@ export default function SettingsClient({
   const nameError = form.name.trim() ? "" : "Business name can't be empty.";
   const surchargeError =
     form.surchargeEnabled && !surchargeRateOk ? "Enter a rate between 0% and 10%." : "";
+  // Web address: lower-case letters, numbers and dashes, 3+ characters. The
+  // server also refuses reserved words and addresses another company holds.
+  const slugClean = slugify(form.slug);
+  const slugError =
+    form.slug === company.slug ? "" : slugClean.length < 3 ? "Use at least 3 letters or numbers." : slugClean !== form.slug ? `Lower-case letters, numbers and dashes only — try "${slugClean}".` : "";
 
   // The diff between what's typed and what the server last confirmed —
   // only these keys go over the wire (the PATCH route is partial-safe).
@@ -1028,6 +1037,7 @@ export default function SettingsClient({
       if (f[key] === savedRef.current[key]) continue;
       if (key === "name" && !f.name.trim()) continue;
       if (key === "surchargeRate" && !surchargeRateOk) continue;
+      if (key === "slug" && slugError) continue;
       (changed as Record<string, unknown>)[key] = f[key];
     }
     return changed;
@@ -1400,6 +1410,42 @@ export default function SettingsClient({
             {nameError && (
               <p className="text-xs text-[color:var(--ds-bad)] mt-1">{nameError} Your last saved name stays until you enter one.</p>
             )}
+          </div>
+          <div>
+            <FieldLabel info="The business name above is what clients see everywhere: texts, emails, quotes and invoices, your booking page and portal, caller ID and voicemail. If you trade under a different name — or under your own name — put the registered entity here. It is used for texting registration and payments paperwork, and clients never see it unless you turn on the switch below. Leave it blank when it is the same.">
+              Legal business name
+            </FieldLabel>
+            <Input type="text" value={form.legalName} onChange={(e) => set("legalName", e.target.value)}
+              placeholder={form.name.trim() || "Same as the business name"}
+              maxLength={120}
+              className="w-full focus:ring-2" />
+            {form.legalName.trim() && form.legalName.trim() !== form.name.trim() && (
+              <label className="mt-2 flex items-center gap-3 cursor-pointer">
+                <div
+                  onClick={() => set("showLegalNameOnDocs", !form.showLegalNameOnDocs)}
+                  className={`relative w-10 h-6 rounded-full transition-colors cursor-pointer ${
+                    form.showLegalNameOnDocs ? "bg-[color:var(--ds-primary)]" : "bg-gray-300"
+                  }`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${form.showLegalNameOnDocs ? "translate-x-5" : "translate-x-1"}`} />
+                </div>
+                <span className="text-sm text-gray-700">Show the legal name on quotes, invoices and agreements</span>
+                <InfoTip>Adds the legal name in small print under your business name on PDF footers and the agreement signing page. Off, clients only ever see the business name.</InfoTip>
+              </label>
+            )}
+          </div>
+          <div>
+            <FieldLabel info="The last part of your booking page and client portal links. Change it and every old link keeps working — it forwards to the new address — so nothing you have shared or printed breaks.">
+              Web address
+            </FieldLabel>
+            <div className={`flex items-center rounded-lg border bg-white text-sm focus-within:ring-2 ${slugError ? "border-[color:var(--ds-bad)]" : "border-gray-300"}`}>
+              <span className="pl-3 pr-1 text-gray-400 whitespace-nowrap">workbenchfsm.com/book/</span>
+              <input type="text" value={form.slug} onChange={(e) => set("slug", e.target.value.toLowerCase())}
+                autoCapitalize="none" autoCorrect="off" spellCheck={false} maxLength={60}
+                aria-invalid={Boolean(slugError)}
+                className="min-w-0 flex-1 bg-transparent py-2 pr-3 outline-none" />
+            </div>
+            {slugError && <p className="text-xs text-[color:var(--ds-bad)] mt-1">{slugError}</p>}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>

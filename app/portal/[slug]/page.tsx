@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { slugWhere } from "@/lib/company-slug";
 import { brandHeader, shade, textOn } from "@/lib/branding";
 import { hubBrandVars } from "@/lib/hub-brand";
 import { companyMeta } from "@/lib/client-meta";
@@ -14,8 +15,8 @@ import PortalLoginForm from "./PortalLoginForm";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const company = await prisma.company.findUnique({
-    where: { slug },
+  const company = await prisma.company.findFirst({
+    where: slugWhere(slug),
     select: { name: true, logoUrl: true },
   });
   return companyMeta(company, "Client Portal");
@@ -27,8 +28,8 @@ export default async function PortalLoginPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const company = await prisma.company.findUnique({
-    where: { slug },
+  const company = await prisma.company.findFirst({
+    where: slugWhere(slug),
     select: { name: true, logoUrl: true, brandColor: true, documentColor: true, brandColorSecondary: true },
   });
   if (!company) notFound();

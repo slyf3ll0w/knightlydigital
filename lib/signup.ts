@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { RESERVED_SLUGS, slugWhere, slugify } from "@/lib/company-slug";
 import { pricebookForIndustry } from "@/lib/pricebooks";
 
 /**
@@ -24,18 +25,14 @@ export type SignupOwner =
   | { account: { id: string; email: string }; ownerName: string }
   | { newLogin: { email: string; hash: string; name: string } };
 
-export function slugify(name: string) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60);
-}
+export { slugify };
 
+// A new company's address must not collide with anyone's current OR earlier
+// slug (lib/company-slug.ts) — old addresses still resolve and redirect.
 async function uniqueSlug(base: string) {
   let slug = base;
   let i = 1;
-  while (await prisma.company.findUnique({ where: { slug } })) {
+  while (RESERVED_SLUGS.has(slug) || (await prisma.company.findFirst({ where: slugWhere(slug), select: { id: true } }))) {
     slug = `${base}-${i++}`;
   }
   return slug;

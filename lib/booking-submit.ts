@@ -11,6 +11,7 @@ import {
   bookingTeamNoticeEmail,
   type BookingExtras,
 } from "@/lib/email";
+import { sendSms, smsEnabled, canText, bookingConfirmationText, type MeetingKind } from "@/lib/sms";
 import { companyNotifyAddress } from "@/lib/notify";
 import { companyManagerIds, notifyUsers } from "@/lib/push";
 import { defaultLeadAssignee } from "@/lib/permissions";
@@ -347,6 +348,41 @@ export async function notifyBooking(input: BookingNoticeInput): Promise<void> {
     reportError("[booking] team email failed:", err);
   }
 
+  const manageUrl = manageUrlFor(company, appointment.manageToken);
+  const kind: MeetingKind = type.kind === "PHONE_CALL" || type.kind === "VIDEO_CALL" ? type.kind : "IN_PERSON";
+
+  // Text confirmation — the filed texting campaign promises "your appointment
+  // is confirmed" texts, and a phone-only booker otherwise heard nothing.
+  // Consent is re-read here: the booking form may have just created the
+  // contact with the SMS box unchecked (smsDisabled), or a STOP may be on file.
+  if (contact.phone && smsEnabled()) {
+    try {
+      const consent = await prisma.contact.findUnique({ where: { id: contact.id }, select: { phone: true, smsOptOut: true, smsDisabled: true } });
+      if (consent && canText(consent)) {
+        await sendSms({
+          companyId: company.id,
+          contactId: contact.id,
+          to: contact.phone,
+          text: bookingConfirmationText({
+            companyName: company.name,
+            firstName: contact.firstName,
+            serviceName: type.name,
+            kind,
+            windowLabel: label,
+            address: kind === "IN_PERSON" ? appointment.address : null,
+            phone: kind === "PHONE_CALL" ? contact.phone : null,
+            meetingLink: kind === "VIDEO_CALL" ? appointment.meetingLink : null,
+            event: event === "booked" ? (approval ? "received" : "confirmed") : event,
+            manageUrl,
+            rebookUrl: event === "cancelled" ? `${APP_URL}/book/${company.slug}/${type.slug}` : null,
+          }),
+        });
+      }
+    } catch (err) {
+      reportError("[booking] client text failed:", err);
+    }
+  }
+
   if (!contact.email) return;
   try {
     const extras: BookingExtras = {
@@ -354,7 +390,7 @@ export async function notifyBooking(input: BookingNoticeInput): Promise<void> {
       meetingLink: type.kind === "VIDEO_CALL" ? appointment.meetingLink : null,
       phone: type.kind === "PHONE_CALL" ? contact.phone : null,
       withName: assignee?.name ?? null,
-      manageUrl: manageUrlFor(company, appointment.manageToken),
+      manageUrl,
       paidNote: input.paidNote ?? null,
     };
     const base = {

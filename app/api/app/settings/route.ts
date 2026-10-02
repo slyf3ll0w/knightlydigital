@@ -1,5 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/db";
+import { reportError } from "@/lib/report-error";
+import { checkSlugChange } from "@/lib/company-slug";
+import { refreshKeywordReplies, setCallerIdName } from "@/lib/business-line";
+import { defaultCallerIdName, isRealLineNumber } from "@/lib/business-line-shared";
 import { GOOGLE_FONT_RE } from "@/lib/booking-page";
 import { sanitizeBookingPage } from "@/lib/booking-page";
 import { sanitizeBusinessHours, sanitizeServiceZips } from "@/lib/business-hours";
@@ -84,10 +88,32 @@ export async function PATCH(req: NextRequest) {
     await prisma.company.update({ where: { id: companyId }, data: { smsAcknowledgedAt: null } });
   }
 
+  // Web address (slug): validated against reserved words and every company's
+  // current + earlier addresses; the old one is kept so shared links and the
+  // URLs on the texting registration keep resolving (lib/company-slug.ts).
+  const before = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { name: true, slug: true, previousSlugs: true, lineNumber: true, lineMessagingProfileId: true, lineCallerIdName: true },
+  });
+  if (!before) return NextResponse.json({ error: "Company not found." }, { status: 404 });
+  let slugData: { slug: string; previousSlugs: string[] } | undefined;
+  if (body.slug !== undefined && String(body.slug).trim() !== before.slug) {
+    const check = await checkSlugChange(companyId, body.slug);
+    if (!check.ok) return NextResponse.json({ error: check.error, field: "slug" }, { status: 400 });
+    slugData = {
+      slug: check.slug,
+      previousSlugs: [...new Set([...before.previousSlugs, before.slug])].filter((s) => s !== check.slug).slice(-20),
+    };
+  }
+
   await prisma.company.update({
     where: { id: companyId },
     data: {
       name: body.name !== undefined ? String(body.name).trim() : undefined,
+      // The entity on paper; null = same as the public name
+      legalName: body.legalName !== undefined ? String(body.legalName ?? "").trim().slice(0, 120) || null : undefined,
+      showLegalNameOnDocs: typeof body.showLegalNameOnDocs === "boolean" ? body.showLegalNameOnDocs : undefined,
+      ...(slugData ?? {}),
       phone: opt(body.phone),
       email: opt(body.email),
       address: opt(body.address),
@@ -229,5 +255,27 @@ export async function PATCH(req: NextRequest) {
     void geocodeCompany(companyId);
   }
 
-  return NextResponse.json({ success: true });
+  // Public name changed → the line follows it. The STOP / START / HELP
+  // auto-replies on the business number carry the name (lib/business-line.ts
+  // campaignCopy), and so does the outbound caller-ID listing when it was
+  // never customised. Best effort, after the response: a Telnyx hiccup must
+  // not fail a settings save.
+  const newName = body.name !== undefined ? String(body.name).trim() : before.name;
+  if (newName && newName !== before.name && isRealLineNumber(before.lineNumber)) {
+    after(async () => {
+      if (before.lineMessagingProfileId) {
+        await refreshKeywordReplies(companyId).catch((err) =>
+          reportError(`[settings] STOP/HELP replies not refreshed after rename (${companyId}):`, err)
+        );
+      }
+      const wasDefault = !before.lineCallerIdName || before.lineCallerIdName === defaultCallerIdName(before.name);
+      if (wasDefault) {
+        await setCallerIdName(companyId, defaultCallerIdName(newName)).catch((err) =>
+          reportError(`[settings] caller ID not updated after rename (${companyId}):`, err)
+        );
+      }
+    });
+  }
+
+  return NextResponse.json({ success: true, ...(slugData ? { slug: slugData.slug } : {}) });
 }

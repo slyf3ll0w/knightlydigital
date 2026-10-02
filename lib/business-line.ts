@@ -2302,6 +2302,7 @@ export async function lineSummary(
     select: {
       name: true,
       slug: true,
+      legalName: true,
       phone: true,
       email: true,
       address: true,
@@ -2382,7 +2383,8 @@ export async function lineSummary(
     defaults: {
       areaCode: normalizeAreaCode(c.phone) ?? "",
       forwardTo: c.phone ?? "",
-      legalName: c.name,
+      // The entity on paper (Settings → Business info → Legal name); the public name is the DBA
+      legalName: c.legalName?.trim() || c.name,
       displayName: c.name,
       street: c.address ?? "",
       city: c.city ?? "",

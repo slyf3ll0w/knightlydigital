@@ -19,6 +19,7 @@ export default function ContractSignPage({
   signedAt,
   contactName,
   companyName,
+  legalName = null,
   companyLogoUrl,
   brandColor,
 }: {
@@ -31,6 +32,8 @@ export default function ContractSignPage({
   signedAt: string | null;
   contactName: string;
   companyName: string;
+  /** The legal entity, shown under the name only when the company turned that on. */
+  legalName?: string | null;
   companyLogoUrl: string | null;
   brandColor: string | null;
 }) {
@@ -70,6 +73,9 @@ export default function ContractSignPage({
             />
           )}
           <h1 className="text-xl font-bold text-gray-900">{companyName}</h1>
+          {legalName && legalName.trim() && legalName.trim() !== companyName && (
+            <p className="text-xs text-gray-400 mt-0.5">{legalName.trim()}</p>
+          )}
           <p className="text-sm text-gray-500 mt-1">Service agreement for {contactName}</p>
         </div>
 

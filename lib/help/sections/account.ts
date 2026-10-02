@@ -48,6 +48,41 @@ export const settingsSection: HelpSection = {
       ],
     },
     {
+      slug: "business-name-and-web-address",
+      title: "Your business name, legal name and web address",
+      summary: "What clients see you as, the entity on paper, and the address in your links.",
+      keywords: ["business name", "legal name", "DBA", "doing business as", "trade name", "own name", "sole proprietor", "web address", "slug", "booking link", "portal link", "rename"],
+      where: { label: "Business info", href: "/app/settings?s=company" },
+      roles: "Owners and admins",
+      blocks: [
+        {
+          type: "p",
+          text: "**Business name** is what clients see everywhere: texts and emails, quotes and invoices, your booking page and client portal, the caller ID on your business line and its voicemail greeting. Put the name your clients know you by here. If you work under your own name, use your own name.",
+        },
+        {
+          type: "p",
+          text: "**Legal business name** is the entity on paper, when it differs — an LLC that trades under a brand, or under the owner's name. It goes on your texting registration and payments paperwork, and clients never see it unless you turn on **Show the legal name on quotes, invoices and agreements**, which adds it in small print under your business name. Leave it blank when both names are the same.",
+        },
+        {
+          type: "steps",
+          items: [
+            "Go to **Settings → Business info**.",
+            "Type the name clients should see under **Business name**, and the registered entity under **Legal business name** (or leave it blank).",
+            "Optional: switch on **Show the legal name on quotes, invoices and agreements**.",
+            "Optional: change **Web address**, the last part of your booking and portal links. Old links keep working — they forward to the new address.",
+          ],
+        },
+        {
+          type: "list",
+          items: [
+            "Renaming the business updates your business line too: the STOP and HELP auto-replies, and the caller ID name when you never customised it. Check both in **Settings → Phone & texting**.",
+            "If your texting registration was already approved under the old name, nothing changes for your clients' texts — the brand on file stays as filed. Only a future re-file uses the legal name here, with the business name as the trading name.",
+            "The web address allows lower-case letters, numbers and dashes, at least 3 characters, and it has to be free.",
+          ],
+        },
+      ],
+    },
+    {
       slug: "notifications",
       title: "Turn on notifications",
       summary: "Get pushes for new leads, bookings, payments, messages and calls on each device.",

@@ -18,6 +18,7 @@ import { enterPipeline, autoAdvance, recordLeadWin, firePipelineMoves, type Pipe
 import { nextQuoteNumber, withDocNumberRetry } from "@/lib/doc-numbers";
 import { acquireChargeLock, calculateSurcharge, findUnrecordedTransferForInvoice, getProcessor, recordPayment, releaseChargeLock, type ChargeResult } from "@/lib/payments";
 import { sendEmail, bookingConfirmedEmail, bookingTeamNoticeEmail } from "@/lib/email";
+import { sendSms, smsEnabled, canText, bookingConfirmationText } from "@/lib/sms";
 import { companyNotifyAddress } from "@/lib/notify";
 import { companyManagerIds, notifyUsers } from "@/lib/push";
 import { icsAttachment } from "@/lib/ics";
@@ -355,6 +356,29 @@ export async function createServiceBooking(params: {
     }
   } catch (err) {
     reportError("[booking] team email failed:", err);
+  }
+  // Text confirmation for the booked visit (arrival window, never the exact
+  // minute). The contact row is fresh from the transaction, so its consent
+  // flags are current — a booker who left the SMS box unchecked is skipped.
+  if (result.contact.phone && smsEnabled() && canText(result.contact)) {
+    try {
+      await sendSms({
+        companyId: company.id,
+        contactId: result.contact.id,
+        to: result.contact.phone,
+        text: bookingConfirmationText({
+          companyName: company.name,
+          firstName: result.contact.firstName,
+          serviceName: title,
+          kind: "VISIT",
+          windowLabel: label,
+          address: customer.address,
+          event: "confirmed",
+        }),
+      });
+    } catch (err) {
+      reportError("[booking] client text failed:", err);
+    }
   }
   if (result.contact.email) {
     try {

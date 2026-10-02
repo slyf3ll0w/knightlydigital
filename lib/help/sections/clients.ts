@@ -195,6 +195,10 @@ export const leadsSection: HelpSection = {
           text: "Customers can book from 4 hours out to 30 days ahead by default. Change that under **Scheduling rules**.",
         },
         {
+          type: "p",
+          text: "When someone books, they get a confirmation email with a calendar file, and a confirmation text as well once texting is on (if they ticked the text-message box, or are already a client who takes texts). Reschedules and cancellations send the same way, and reminders follow before the appointment.",
+        },
+        {
           type: "faq",
           items: [
             {

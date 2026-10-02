@@ -13,6 +13,7 @@ import {
   runQuoteFollowUps,
   runVisitReminders,
   runTechHeadsUp,
+  runAppointmentTechHeadsUp,
 } from "@/lib/reminders";
 import { runAutoChargeRetries, runCardExpiryNudges } from "@/lib/auto-charge";
 import { runQuickBooksNightlySync } from "@/lib/quickbooks";
@@ -138,9 +139,10 @@ export async function POST(req: NextRequest) {
     // Crew heads-up push ~1 hour before each visit, with On My Way / Directions
     // action buttons — needs the hourly cron to land, like the 1-hour stages
     await step("techHeadsUp", () => runTechHeadsUp(now));
-    // Online-booking appointment reminders (1 day / 1 hour before). The 1-hour
-    // stage only lands if this cron runs hourly — daily runs still cover the
-    // day-before stage.
+    await step("appointmentHeadsUp", () => runAppointmentTechHeadsUp(now));
+    // Appointment reminders (~1 day / ~1 hour before). instrumentation.ts runs
+    // the same sweeps every 5 min so the hour stage lands on time; this hourly
+    // pass is the backstop when that process is restarting.
     await step("appointmentReminders", () => runAppointmentReminders(now));
     // "Hold for approval" bookings nobody answered: auto-decline 2 h before
     // the slot (frees it, tells the client), and a morning nudge while any wait

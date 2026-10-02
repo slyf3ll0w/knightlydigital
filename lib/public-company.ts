@@ -1,12 +1,13 @@
-import { prisma } from "@/lib/db";
+import { companyBySlug } from "@/lib/company-slug";
 
 /**
  * The public-company gate every customer-facing booking surface shares:
  * suspended companies and pre-approval (payments gate) companies vanish
- * from /book, /embed, the slot APIs and every submit POST.
+ * from /book, /embed, the slot APIs and every submit POST. An earlier web
+ * address (Company.previousSlugs) resolves too — see lib/company-slug.ts.
  */
 export async function resolvePublicCompany(companySlug: string) {
-  const company = await prisma.company.findUnique({ where: { slug: companySlug } });
+  const company = await companyBySlug(companySlug);
   if (!company) return null;
   if (company.suspendedAt) return null;
   const { paymentsGateStatus } = await import("@/lib/payments-gate");

@@ -64,7 +64,7 @@ const JOB_SELECT = {
 } as const;
 const APPOINTMENT_SELECT = {
   id: true, appointmentNumber: true, title: true, type: true, status: true, scheduledAt: true, scheduledEnd: true, scheduledAnytime: true, address: true,
-  arrivalWindowMinutes: true, tentative: true, assignedToId: true, contactId: true,
+  arrivalWindowMinutes: true, tentative: true, assignedToId: true, contactId: true, meetingLink: true, createdAt: true,
 } as const;
 
 export type QuoteRow = {
@@ -83,6 +83,7 @@ export type JobRow = {
 export type AppointmentRow = {
   id: string; appointmentNumber: number | null; title: string; type: string; status: string; scheduledAt: Date; scheduledEnd: Date | null; scheduledAnytime: boolean; address: string | null;
   arrivalWindowMinutes: number | null; tentative: boolean; assignedToId: string | null; contactId: string;
+  meetingLink: string | null; createdAt: Date;
 };
 
 export type Loaded = {

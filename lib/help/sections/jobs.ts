@@ -241,6 +241,10 @@ export const scheduleSection: HelpSection = {
           type: "p",
           text: "Other buttons: `Reschedule`, `Mark No-show`, `Cancel Appointment` and `Reopen`.",
         },
+        {
+          type: "p",
+          text: "**Client reminders** go out by themselves: about a day ahead (only for appointments booked at least a day ahead) and about an hour ahead, by email and — once texting is on — by text. The wording follows the type: a phone call says you will call them at their number, a video call includes the join link, and an in-person visit gives the arrival window. Untick **Remind client** on an appointment to keep it quiet. Whoever it is assigned to gets a push about an hour ahead either way.",
+        },
       ],
     },
     {

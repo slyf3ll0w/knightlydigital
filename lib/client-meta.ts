@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
+import { slugWhere } from "@/lib/company-slug";
 
 /**
  * Client-facing pages (booking forms, hub, quotes, invoices, contracts)
@@ -19,8 +20,8 @@ export function companyMeta(
 
 /** Company lookup for generateMetadata on slug-based public pages. */
 export async function companyMetaBySlug(slug: string, suffix?: string): Promise<Metadata> {
-  const company = await prisma.company.findUnique({
-    where: { slug },
+  const company = await prisma.company.findFirst({
+    where: slugWhere(slug),
     select: { name: true, logoUrl: true },
   });
   return companyMeta(company, suffix);
