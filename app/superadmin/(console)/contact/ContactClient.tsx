@@ -72,7 +72,7 @@ export default function ContactClient({ submissions }: { submissions: Submission
       <PageHeader
         eyebrow={`${inbox.length} ${inbox.length === 1 ? "message" : "messages"}`}
         title="Contact form"
-        info="Messages sent from the Contact us form on workbenchfsm.com. Each one is also emailed to the applications inbox. Marking one as spam moves it to the Spam tab; nothing is sent to the person."
+        info="Messages sent from the Contact us form on workbenchfsm.com. Each one is also emailed to the applications inbox. Each one also becomes a card in the first column of Leads. Marking one as spam moves it to the Spam tab and takes its card off Leads; nothing is sent to the person."
         actions={
           <nav className="flex gap-1" aria-label="View">
             {(

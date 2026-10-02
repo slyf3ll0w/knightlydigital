@@ -23,19 +23,27 @@ function devicesOf(u: CompanyUser) {
 }
 
 /** Everyone on the account: who they are, when they were last in, how they get in. */
-export default function TeamTab({ company }: { company: CompanyCore }) {
+export default function TeamTab({ company, elsewhere }: { company: CompanyCore; elsewhere: Map<string, string> }) {
   const now = new Date();
   const users = [...company.users].sort((a, b) => {
     if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
     return (b.lastSeenAt?.getTime() ?? 0) - (a.lastSeenAt?.getTime() ?? 0);
   });
-  const online = users.filter((u) => presenceOf(u.lastSeenAt, company.timezone, now) === "online").length;
+  const stateOf = (u: CompanyUser) => presenceOf(u.lastSeenAt, company.timezone, now, elsewhere.has(u.id));
+  // "Online now", or when the person is in the app at another company on the
+  // same login, where they are instead.
+  const seenWords = (u: CompanyUser) => {
+    const other = elsewhere.get(u.id);
+    if (other) return `in ${other} now`;
+    return stateOf(u) === "online" ? "Online now" : relativeSeen(u.lastSeenAt, now);
+  };
+  const online = users.filter((u) => stateOf(u) === "online").length;
 
   return (
     <>
       <SectionTitle
         className="mt-8"
-        info="Last seen comes from any page or API call while signed in (stamped at most once a minute). Sign-ins count fresh logins only, not token refreshes. Devices are where the person was last seen plus where push notifications are turned on. Softphone shows a browser dialer that is registered right now."
+        info="Online means the app is open and in front of them (a heartbeat every 45 s while the page is visible; a background tab or phone app does not count). Someone with one login at several companies is online only at the one they are using. Sign-ins count fresh logins only, not token refreshes. Devices are where the person was last seen plus where push notifications are turned on. Softphone shows a browser dialer that is registered right now."
       >
         Team <span className="ds-small ml-1 font-normal">{online > 0 ? `${online} online` : `${users.length}`}</span>
       </SectionTitle>
@@ -43,7 +51,7 @@ export default function TeamTab({ company }: { company: CompanyCore }) {
       {/* Phones */}
       <Card className="ds-divide overflow-hidden lg:hidden">
         {users.map((u) => {
-          const state = presenceOf(u.lastSeenAt, company.timezone, now);
+          const state = stateOf(u);
           return (
             <ListRow
               key={u.id}
@@ -53,7 +61,7 @@ export default function TeamTab({ company }: { company: CompanyCore }) {
                   {u.name} <span className="ds-small font-normal">· {roleLabel[u.role] ?? u.role}</span>
                 </>
               }
-              sub={`${u.email} · ${state === "online" ? "online now" : `seen ${relativeSeen(u.lastSeenAt, now)}`}${u.isActive ? "" : " · deactivated"}`}
+              sub={`${u.email} · ${elsewhere.has(u.id) ? seenWords(u) : state === "online" ? "online now" : `seen ${relativeSeen(u.lastSeenAt, now)}`}${u.isActive ? "" : " · deactivated"}`}
               trail={<DeviceIcons devices={devicesOf(u)} />}
             />
           );
@@ -79,7 +87,7 @@ export default function TeamTab({ company }: { company: CompanyCore }) {
           </thead>
           <tbody className="ds-divide">
             {users.map((u) => {
-              const state = presenceOf(u.lastSeenAt, company.timezone, now);
+              const state = stateOf(u);
               const softphoneOn = Boolean(u.softphoneSeenAt && now.getTime() - u.softphoneSeenAt.getTime() < SOFTPHONE_PRESENCE_MS);
               return (
                 <tr key={u.id} className={`transition-colors hover:bg-[color:var(--ds-surface-2)] ${u.isActive ? "" : "opacity-60"}`}>
@@ -102,7 +110,7 @@ export default function TeamTab({ company }: { company: CompanyCore }) {
                     <span className="inline-flex items-center gap-2 whitespace-nowrap">
                       <PresenceDot state={state} />
                       <span className={state === "online" ? "font-medium text-[color:var(--ds-good)]" : "text-[color:var(--ds-ink-2)]"}>
-                        {state === "online" ? "Online now" : relativeSeen(u.lastSeenAt, now)}
+                        {seenWords(u)}
                       </span>
                     </span>
                   </td>

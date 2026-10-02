@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { usageDay } from "@/lib/usage";
 import { storageCostCentsPerMonth, usageCostCents } from "@/lib/platform-costs";
-import { latest, presenceOf, relativeSeen, type PresenceState } from "@/lib/presence";
+import { bestPresence, latest, loadElsewhere, presenceOf, relativeSeen, viaLabel, type PresenceState } from "@/lib/presence";
 import { ATLAS_ACCESS_SELECT, atlasAccess } from "@/lib/assistant-access";
 import { PLANS, normalizeGrants } from "@/lib/plans";
 import { mapboxMonthUsage } from "@/lib/mapbox-budget";
@@ -60,6 +60,19 @@ export type AccountRow = {
   referralSource: string | null;
 };
 
+/** One person in the app right now, for the home page's Online now list. */
+export type OnlinePerson = {
+  userId: string;
+  name: string;
+  email: string;
+  role: string;
+  companyId: string;
+  companyName: string;
+  isTest: boolean;
+  via: string | null;
+  seenAt: string;
+};
+
 export type Attention = { key: string; label: string; detail: string; tone: Tone; href: string };
 export type GrowthWeek = { label: string; created: number; total: number };
 
@@ -69,6 +82,7 @@ export type AccountsData = {
   stats: { live: number; online: number; active7d: number; newThisMonth: number; pending: number; openFeedback: number };
   attention: Attention[];
   growth: GrowthWeek[];
+  online: OnlinePerson[];
 };
 
 const DAY = 86_400_000;
@@ -105,7 +119,16 @@ export async function loadAccounts(days: number): Promise<AccountsData> {
           messagingRegistration: { select: { status: true } },
           users: {
             where: { isActive: true },
-            select: { lastSeenAt: true, lastSeenVia: true, pushSubscriptions: { select: { platform: true } } },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              accountId: true,
+              lastSeenAt: true,
+              lastSeenVia: true,
+              pushSubscriptions: { select: { platform: true } },
+            },
           },
           _count: { select: { contacts: true } },
         },
@@ -152,12 +175,32 @@ export async function loadAccounts(days: number): Promise<AccountsData> {
   const usageBy = new Map(usage.map((u) => [u.companyId, u._sum]));
   const storageBy = new Map(storage.map((s) => [s.companyId, Number(s.storageBytes ?? 0)]));
 
+  // A person on one login at several companies is online at the one they
+  // used last, never at all of them (lib/presence.ts loadElsewhere).
+  const elsewhere = await loadElsewhere(companies.flatMap((c) => c.users), now);
+  const onlinePeople: OnlinePerson[] = [];
+
   const attention: Attention[] = [];
   const rows: AccountRow[] = companies.map((c) => {
     const status = accountStatus(c);
     const lastSeenAt = latest(c.users.map((u) => u.lastSeenAt));
-    const presence = presenceOf(lastSeenAt, c.timezone, now);
-    const online = c.users.filter((u) => presenceOf(u.lastSeenAt, c.timezone, now) === "online").length;
+    const states = c.users.map((u) => presenceOf(u.lastSeenAt, c.timezone, now, elsewhere.has(u.id)));
+    const presence = bestPresence(states);
+    const online = states.filter((st) => st === "online").length;
+    c.users.forEach((u, i) => {
+      if (states[i] !== "online") return;
+      onlinePeople.push({
+        userId: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        companyId: c.id,
+        companyName: c.name,
+        isTest: c.isTest,
+        via: viaLabel(u.lastSeenVia),
+        seenAt: u.lastSeenAt!.toISOString(),
+      });
+    });
 
     const u = usageBy.get(c.id);
     const ai = u
@@ -282,5 +325,6 @@ export async function loadAccounts(days: number): Promise<AccountsData> {
     });
   }
 
-  return { days, rows, stats, attention, growth };
+  onlinePeople.sort((a, b) => Number(a.isTest) - Number(b.isTest) || b.seenAt.localeCompare(a.seenAt));
+  return { days, rows, stats, attention, growth, online: onlinePeople };
 }

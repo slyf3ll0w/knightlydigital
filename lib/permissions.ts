@@ -1,10 +1,8 @@
 import { cache } from "react";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
-import { touchPresence } from "@/lib/presence";
 
 /**
  * Per-request memo of the NextAuth session. The platform layout, the page,
@@ -96,15 +94,6 @@ const loadActor = cache(async (): Promise<LoadedActor> => {
   const raw = { name: user.name, role: user.role, tourCompletedAt: user.tourCompletedAt };
   if (!user.isActive || !user.companyId) {
     return { actor: null, suspended: false, stale: false, user: raw };
-  }
-  // Presence for the platform console: this is the one place every signed-in
-  // page and API request passes through, so a throttled stamp here is the
-  // whole "last seen" system (lib/presence.ts). Never on the request path —
-  // fire-and-forget, and a missing request context just skips it.
-  try {
-    touchPresence(user.id, (await headers()).get("user-agent"));
-  } catch {
-    /* no request scope (static render) — nothing to stamp */
   }
   return {
     actor: {

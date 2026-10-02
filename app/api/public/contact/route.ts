@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { verifyCaptcha } from "@/lib/captcha";
 import { clientIp, limit } from "@/lib/rate-limit";
 import { newContactSubmissionEmail, sendEmail } from "@/lib/email";
+import { boardContactSubmissions } from "@/lib/console-leads";
 
 // Same inbox as new applications and feedback (a person reads every one).
 const CONTACT_INBOX = process.env.APPLICATION_INBOX ?? "info@streamflaire.com";
@@ -54,6 +55,8 @@ export async function POST(req: NextRequest) {
   });
 
   after(async () => {
+    // A card on the console lead board (/superadmin/leads), in the first column.
+    await boardContactSubmissions().catch((err) => reportError("[contact] lead board", err));
     try {
       const mail = newContactSubmissionEmail({ name, email, phone, businessName, message });
       await sendEmail({ to: CONTACT_INBOX, replyTo: email, ...mail });

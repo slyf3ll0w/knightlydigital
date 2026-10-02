@@ -12,6 +12,7 @@ import {
   LogOut,
   Mail,
   MessageSquare,
+  SquareKanban,
   TrendingUp,
   type LucideIcon,
 } from "lucide-react";
@@ -28,7 +29,7 @@ import ConsoleSearch from "./ConsoleSearch";
  * column (design rule 8 — simpler, not smaller).
  */
 
-export type ConsoleCounts = { pending: number; feedback: number; contact: number };
+export type ConsoleCounts = { pending: number; feedback: number; contact: number; leads: number };
 
 type Item = { href: string; label: string; icon: LucideIcon; badge?: keyof ConsoleCounts };
 const GROUPS: { key: string; label: string; items: Item[] }[] = [
@@ -37,6 +38,7 @@ const GROUPS: { key: string; label: string; items: Item[] }[] = [
     label: "Accounts",
     items: [
       { href: "/superadmin", label: "Accounts", icon: Building2 },
+      { href: "/superadmin/leads", label: "Leads", icon: SquareKanban, badge: "leads" },
       { href: "/superadmin/signups", label: "Sign-ups", icon: Inbox, badge: "pending" },
       { href: "/superadmin/contact", label: "Contact form", icon: Mail, badge: "contact" },
     ],

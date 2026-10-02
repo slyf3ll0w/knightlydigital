@@ -3,13 +3,18 @@ import { prisma } from "@/lib/db";
 /**
  * Who is using WorkBench right now, for the platform console.
  *
- * There is no session table (NextAuth runs on JWTs) and no client heartbeat.
- * Instead, `loadActor` (lib/permissions.ts) — the one gate every signed-in
- * page and API request already passes through — calls `touchPresence`, which
- * stamps User.lastSeenAt at most once a minute per user, fire-and-forget.
- * The app polls nav counts every 45 s and notifications every 20 s while a
- * tab or the phone app is open, so a person "in the app" is stamped
- * continuously and "online" can simply mean seen in the last few minutes.
+ * There is no session table (NextAuth runs on JWTs). Since 2026-10-02 the
+ * stamp comes from an explicit heartbeat: components/PresenceBeacon.tsx
+ * (platform layout) posts /api/app/presence every 45 s while the page is
+ * VISIBLE, and once more the moment it comes back to the front. Hidden tabs
+ * and a phone app in the background send nothing, so a forgotten tab no
+ * longer keeps someone "online" (the old stamp rode every request through
+ * loadActor, and the shell's counts poll keeps running while hidden).
+ *
+ * Presence is per membership (User row), and a person with one login at
+ * several companies is online at ONE of them: the membership they used most
+ * recently (`loadElsewhere`). Switching companies stamps the new membership
+ * on its first request, so the old company drops them at once.
  *
  * Which device: the native shell appends `StreamflaireHubShell` to its user
  * agent (capacitor.config.ts), so iOS / Android / web is a UA sniff — no
@@ -19,9 +24,14 @@ import { prisma } from "@/lib/db";
 /** Seen within this window = the green dot. */
 export const ONLINE_WINDOW_MS = 3 * 60 * 1000;
 /** Minimum gap between two stamps for the same user (per server process). */
-const TOUCH_INTERVAL_MS = 60 * 1000;
+const TOUCH_INTERVAL_MS = 30 * 1000;
 
 export type SeenVia = "web" | "ios" | "android";
+
+/** "iPhone app" / "Android app" / "Web" for a stored lastSeenVia. */
+export function viaLabel(via: string | null | undefined): string | null {
+  return via === "ios" ? "iPhone app" : via === "android" ? "Android app" : via === "web" ? "Web" : null;
+}
 
 /** ios / android for the store apps, web for everything else. */
 export function viaFromUserAgent(ua: string | null | undefined): SeenVia {
@@ -72,9 +82,18 @@ function dayIn(tz: string, at: Date): string {
   }
 }
 
-export function presenceOf(lastSeenAt: Date | null | undefined, tz: string, now: Date = new Date()): PresenceState {
+/**
+ * `elsewhere` = this person has since been using another company on the same
+ * login (see loadElsewhere): never the green dot here, even inside the window.
+ */
+export function presenceOf(
+  lastSeenAt: Date | null | undefined,
+  tz: string,
+  now: Date = new Date(),
+  elsewhere = false
+): PresenceState {
   if (!lastSeenAt) return "never";
-  if (now.getTime() - lastSeenAt.getTime() <= ONLINE_WINDOW_MS) return "online";
+  if (!elsewhere && now.getTime() - lastSeenAt.getTime() <= ONLINE_WINDOW_MS) return "online";
   if (dayIn(tz, lastSeenAt) === dayIn(tz, now)) return "today";
   return "away";
 }
@@ -98,5 +117,46 @@ export function relativeSeen(at: Date | null | undefined, now: Date = new Date()
 export function latest(dates: (Date | null | undefined)[]): Date | null {
   let out: Date | null = null;
   for (const d of dates) if (d && (!out || d > out)) out = d;
+  return out;
+}
+
+const RANK: Record<PresenceState, number> = { online: 3, today: 2, away: 1, never: 0 };
+
+/** A company's state is its most present member's. */
+export function bestPresence(states: PresenceState[]): PresenceState {
+  let out: PresenceState = "never";
+  for (const st of states) if (RANK[st] > RANK[out]) out = st;
+  return out;
+}
+
+/**
+ * Of these memberships, the ones whose person is now on ANOTHER company:
+ * same Account, and a sibling membership was stamped more recently. Maps the
+ * membership id to the name of the company they are on now. Only rows inside
+ * the online window can be affected, so this reads just the handful of
+ * recently-seen siblings.
+ */
+export async function loadElsewhere(
+  users: { id: string; accountId: string | null; lastSeenAt: Date | null }[],
+  now: Date = new Date()
+): Promise<Map<string, string>> {
+  const since = new Date(now.getTime() - ONLINE_WINDOW_MS);
+  const recent = users.filter((u) => u.accountId && u.lastSeenAt && u.lastSeenAt >= since);
+  const out = new Map<string, string>();
+  if (recent.length === 0) return out;
+  const siblings = await prisma.user.findMany({
+    where: { accountId: { in: [...new Set(recent.map((u) => u.accountId!))] }, lastSeenAt: { gte: since } },
+    select: { id: true, accountId: true, lastSeenAt: true, company: { select: { name: true } } },
+  });
+  const newest = new Map<string, { id: string; at: number; company: string }>();
+  for (const s of siblings) {
+    const at = s.lastSeenAt!.getTime();
+    const cur = newest.get(s.accountId!);
+    if (!cur || at > cur.at) newest.set(s.accountId!, { id: s.id, at, company: s.company?.name ?? "another company" });
+  }
+  for (const u of recent) {
+    const top = newest.get(u.accountId!);
+    if (top && top.id !== u.id) out.set(u.id, top.company);
+  }
   return out;
 }

@@ -69,6 +69,7 @@ export const COMPANY_SELECT = {
       bookable: true,
       softphoneEnabled: true,
       softphoneSeenAt: true,
+      accountId: true,
       lastSeenAt: true,
       lastSeenVia: true,
       lastSignInAt: true,

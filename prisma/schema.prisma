@@ -673,9 +673,51 @@ model ContactSubmission {
   ip           String?
   spam         Boolean   @default(false)
   readAt       DateTime?
+  // Put on the console's lead board (ConsoleLead). Stamped once, so deleting
+  // the card never brings it back; "Not spam" clears it to board it again.
+  boardedAt    DateTime?
   createdAt    DateTime  @default(now())
 
   @@index([spam, createdAt])
+}
+
+// ─── Platform console lead board (/superadmin/leads) ────────────────────────
+// WorkBench's own sales pipeline: people who might become accounts. Cards
+// come from the website's Contact us form (lib/console-leads.ts boards every
+// non-spam ContactSubmission) and manual adds. Columns are editable like a
+// tenant's Leads board; the one isWon column is pinned last and can't be
+// deleted. Lost cards leave the board (status LOST) and can be reopened.
+model ConsoleLeadStage {
+  id        String        @id @default(cuid())
+  name      String
+  color     String?
+  sortOrder Int           @default(0)
+  isWon     Boolean       @default(false)
+  createdAt DateTime      @default(now())
+  leads     ConsoleLead[]
+}
+
+model ConsoleLead {
+  id                  String           @id @default(cuid())
+  name                String
+  email               String?
+  phone               String?
+  businessName        String?
+  message             String?          @db.Text // the contact-form message it came from
+  notes               String?          @db.Text
+  source              String           @default("manual") // contact_form | manual
+  contactSubmissionId String?          @unique
+  stageId             String
+  stage               ConsoleLeadStage @relation(fields: [stageId], references: [id])
+  stageChangedAt      DateTime         @default(now())
+  status              String           @default("OPEN") // OPEN | WON | LOST
+  wonAt               DateTime?
+  lostAt              DateTime?
+  lostReason          String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  @@index([status, stageId])
 }
 
 // Product-wide (not company-scoped): the public "what's coming / what shipped"

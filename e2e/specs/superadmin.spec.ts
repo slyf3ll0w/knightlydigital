@@ -72,6 +72,7 @@ test.describe("platform console", () => {
       ["/superadmin/profitability", "Profitability"],
       ["/superadmin/feedback", "Feedback"],
       ["/superadmin/contact", "Contact form"],
+      ["/superadmin/leads", "Leads"],
       ["/superadmin/library", "Library"],
     ] as const) {
       await page.goto(`${state.baseUrl}${path}`);
@@ -83,6 +84,38 @@ test.describe("platform console", () => {
     await expect(page).toHaveURL(/\/superadmin\/signups/);
 
     expect(errors, `page errors: ${errors.join(" | ")}`).toEqual([]);
+    await page.context().close();
+  });
+
+  test("lead board: add a lead, move it, lose it, delete it", async ({ browser }) => {
+    const page = await consolePage(browser, "light", 1440);
+    const api = page.context().request;
+    const name = `E2E Lead ${Date.now()}`;
+
+    await page.goto(`${state.baseUrl}/superadmin/leads`);
+    await expect(page.getByRole("heading", { name: /^Leads/, level: 1 })).toBeVisible();
+
+    const made = await api.post(`${state.baseUrl}/api/superadmin/leads`, { data: { name, businessName: "E2E Lawn Co" } });
+    expect(made.ok()).toBeTruthy();
+    const { id } = (await made.json()) as { id: string };
+
+    await page.reload();
+    const card = page.getByText(name, { exact: true });
+    await expect(card).toBeVisible();
+    await card.click();
+    await expect(page.getByRole("button", { name: "Won" })).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    // Lost takes it off the board; the Lost list keeps it.
+    const lost = await api.patch(`${state.baseUrl}/api/superadmin/leads/${id}`, { data: { action: "lost", reason: "e2e" } });
+    expect(lost.ok()).toBeTruthy();
+    await page.reload();
+    await expect(page.getByText(name, { exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: /^Lost/ }).click();
+    await expect(page.getByText(name)).toBeVisible();
+
+    const gone = await api.delete(`${state.baseUrl}/api/superadmin/leads/${id}`);
+    expect(gone.ok()).toBeTruthy();
     await page.context().close();
   });
 
@@ -112,6 +145,7 @@ test.describe("platform console", () => {
           "/superadmin/profitability",
           "/superadmin/feedback",
           "/superadmin/contact",
+          "/superadmin/leads",
           "/superadmin/library",
         ];
         const failures: string[] = [];

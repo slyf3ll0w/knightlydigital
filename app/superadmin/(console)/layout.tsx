@@ -10,13 +10,17 @@ import ConfirmSheetHost from "@/components/ConfirmSheet";
  */
 export default async function SuperadminLayout({ children }: { children: React.ReactNode }) {
   const user = await requireSuperadminPage();
-  const [pending, feedback, contact] = await Promise.all([
+  const [pending, feedback, contact, leads] = await Promise.all([
     prisma.accessApplication.count({ where: { status: "PENDING" } }),
     prisma.feedbackTicket.count({ where: { status: "OPEN" } }),
     prisma.contactSubmission.count({ where: { spam: false, readAt: null } }),
+    // Lead board: cards waiting in the first column (lib/console-leads.ts).
+    prisma.consoleLeadStage
+      .findFirst({ where: { isWon: false }, orderBy: { sortOrder: "asc" }, select: { id: true } })
+      .then((s) => (s ? prisma.consoleLead.count({ where: { stageId: s.id, status: "OPEN" } }) : 0)),
   ]);
   return (
-    <ConsoleShell user={{ name: user.name, email: user.email }} counts={{ pending, feedback, contact }}>
+    <ConsoleShell user={{ name: user.name, email: user.email }} counts={{ pending, feedback, contact, leads }}>
       {children}
       <ConfirmSheetHost />
     </ConsoleShell>

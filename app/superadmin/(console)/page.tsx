@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { AlertTriangle, ChevronRight } from "lucide-react";
-import { Card, DsPage, PageHeader, SectionTitle, Stat } from "@/components/ds";
+import { Card, Chip, DsPage, ListRow, PageHeader, SectionTitle, Stat } from "@/components/ds";
+import PresenceDot from "@/components/console/PresenceDot";
+import { roleLabel } from "@/lib/permissions";
 import AccountsClient from "@/components/console/AccountsClient";
 import { loadAccounts, type GrowthWeek } from "@/lib/console-accounts";
 
@@ -18,7 +20,7 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
   const params = await searchParams;
   const days = RANGES.includes(Number(params.days) as (typeof RANGES)[number]) ? Number(params.days) : 30;
   const data = await loadAccounts(days);
-  const { stats, attention, growth, rows } = data;
+  const { stats, attention, growth, rows, online } = data;
   const rise = (i: number) => ({ "--ds-i": i }) as React.CSSProperties;
 
   return (
@@ -52,12 +54,39 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <Stat className="ds-rise" style={rise(1)} label="Live accounts" value={stats.live} foot="not suspended" />
-        <Stat className="ds-rise" style={rise(2)} label="Online now" value={stats.online} foot="people in the app" tone={stats.online > 0 ? "good" : undefined} />
+        <Stat className="ds-rise" style={rise(2)} label="Online now" value={stats.online} foot="people in the app" tone={stats.online > 0 ? "good" : undefined} href={online.length > 0 ? "#online" : undefined} />
         <Stat className="ds-rise" style={rise(3)} label="Active this week" value={stats.active7d} foot="accounts seen in 7 days" />
         <Stat className="ds-rise" style={rise(4)} label="New this month" value={stats.newThisMonth} foot="accounts opened" />
         <Stat className="ds-rise" style={rise(5)} label="Pending sign-ups" value={stats.pending} foot="waiting on you" href="/superadmin/signups" tone={stats.pending > 0 ? "bad" : undefined} />
         <Stat className="ds-rise" style={rise(6)} label="Open feedback" value={stats.openFeedback} foot="tickets" href="/superadmin/feedback" />
       </div>
+
+      {online.length > 0 && (
+        <div id="online" className="scroll-mt-20">
+          <SectionTitle
+            className="mt-8"
+            info="People with the app open and in front of them in the last 3 minutes. A background tab or a phone app in the pocket does not count, and someone with one login at several companies shows only at the company they are using."
+          >
+            Online now <span className="ds-small ml-1 font-normal">{online.length}</span>
+          </SectionTitle>
+          <Card className="ds-divide ds-rise overflow-hidden" style={rise(7)}>
+            {online.map((p) => (
+              <ListRow
+                key={p.userId}
+                href={`/superadmin/company/${p.companyId}?tab=team`}
+                lead={<PresenceDot state="online" />}
+                title={
+                  <>
+                    {p.name} <span className="ds-small font-normal">· {roleLabel[p.role] ?? p.role}</span>
+                  </>
+                }
+                sub={[p.companyName, p.via, p.email].filter(Boolean).join(" · ")}
+                trail={p.isTest ? <Chip tone="neutral">Test</Chip> : undefined}
+              />
+            ))}
+          </Card>
+        </div>
+      )}
 
       {attention.length > 0 && (
         <>

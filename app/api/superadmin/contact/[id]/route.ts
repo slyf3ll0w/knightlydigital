@@ -15,10 +15,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const row = await prisma.contactSubmission.findUnique({ where: { id }, select: { id: true, name: true } });
   if (!row) return NextResponse.json({ error: "Message not found." }, { status: 404 });
 
-  await prisma.contactSubmission.update({
-    where: { id },
-    data: { spam: body.spam, readAt: new Date() },
-  });
+  // Spam takes its card off the console lead board; "Not spam" boards it
+  // again on the next board load (lib/console-leads.ts).
+  await prisma.$transaction([
+    prisma.contactSubmission.update({
+      where: { id },
+      data: { spam: body.spam, readAt: new Date(), ...(body.spam ? {} : { boardedAt: null }) },
+    }),
+    ...(body.spam ? [prisma.consoleLead.deleteMany({ where: { contactSubmissionId: id } })] : []),
+  ]);
   logConsoleAction(admin, body.spam ? "contact-spam" : "contact-not-spam", { detail: row.name });
   return NextResponse.json({ ok: true });
 }

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { Chip, DsPage, PageHeader } from "@/components/ds";
 import { accountStatus } from "@/lib/console-accounts";
-import { latest, presenceOf, relativeSeen } from "@/lib/presence";
+import { bestPresence, latest, loadElsewhere, presenceOf, relativeSeen } from "@/lib/presence";
 import { monthYear } from "@/lib/console-format";
 import { PLANS, normalizeGrants } from "@/lib/plans";
 import { atlasAccess } from "@/lib/assistant-access";
@@ -40,8 +40,11 @@ export default async function CompanyPage({
   const status = accountStatus(company);
   const active = company.users.filter((u) => u.isActive);
   const lastSeenAt = latest(active.map((u) => u.lastSeenAt));
-  const presence = presenceOf(lastSeenAt, company.timezone, now);
-  const online = active.filter((u) => presenceOf(u.lastSeenAt, company.timezone, now) === "online").length;
+  // One login at several companies is online only at the one in use (lib/presence.ts).
+  const elsewhere = await loadElsewhere(active, now);
+  const states = active.map((u) => presenceOf(u.lastSeenAt, company.timezone, now, elsewhere.has(u.id)));
+  const presence = bestPresence(states);
+  const online = states.filter((st) => st === "online").length;
   const owner = active.find((u) => u.role === "OWNER") ?? active[0];
   const place = [company.city, company.state].filter(Boolean).join(", ");
   const atlas = atlasAccess(company, now);
@@ -144,7 +147,7 @@ export default async function CompanyPage({
       </nav>
 
       {tab === "overview" && <OverviewTab company={company} />}
-      {tab === "team" && <TeamTab company={company} />}
+      {tab === "team" && <TeamTab company={company} elsewhere={elsewhere} />}
       {tab === "money" && <MoneyTab company={company} rangeKey={sp.range} />}
       {tab === "usage" && <UsageTab company={company} />}
       {tab === "controls" && <ControlsTab company={company} />}

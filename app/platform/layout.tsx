@@ -16,6 +16,7 @@ import NativeShell from "@/components/NativeShell";
 import AppLock from "@/components/AppLock";
 import OfflineSupport from "@/components/OfflineSupport";
 import ForegroundRefresh from "@/components/ForegroundRefresh";
+import PresenceBeacon from "@/components/PresenceBeacon";
 import TeamLocationReporter from "@/components/TeamLocationReporter";
 import ArrivalNudge from "@/components/ArrivalNudge";
 import Softphone from "@/components/Softphone";
@@ -155,6 +156,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <AppLock offerSetup />
       <OfflineSupport />
       <ForegroundRefresh />
+      <PresenceBeacon />
       <TeamLocationReporter />
       <ArrivalNudge />
       {(softphone || ringsForSibling) && <Softphone />}
