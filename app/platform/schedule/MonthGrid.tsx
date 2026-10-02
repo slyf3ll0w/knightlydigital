@@ -55,6 +55,8 @@ export default function MonthGrid({
   onGoDay,
   capacityByDow,
   onCellClick,
+  onItemMenu,
+  onCellMenu,
 }: {
   anchor: Date;
   today: Date;
@@ -66,6 +68,10 @@ export default function MonthGrid({
   capacityByDow: number[];
   /** A click on a cell's empty space (armed palette card → place it here). */
   onCellClick?: (date: Date) => void;
+  /** Right-click on a chip → the quick menu (ScheduleClient owns it). */
+  onItemMenu?: (item: ScheduleJobDTO, e: React.MouseEvent) => void;
+  /** Right-click on a day cell's empty space → new job / appointment / block that day. */
+  onCellMenu?: (date: Date, e: React.MouseEvent) => void;
 }) {
   const y = anchor.getFullYear();
   const m = anchor.getMonth();
@@ -115,6 +121,12 @@ export default function MonthGrid({
           if ((e.target as HTMLElement).closest("[data-item],button")) return;
           onCellClick(cellDate);
         }}
+        onContextMenu={(e) => {
+          if (!onCellMenu) return;
+          if ((e.target as HTMLElement).closest("[data-item]")) return;
+          e.preventDefault();
+          onCellMenu(cellDate, e);
+        }}
         className={`min-h-[80px] border-b border-r border-gray-100 p-1.5 transition-colors lg:min-h-[104px] ${
           onCellClick ? "cursor-pointer" : ""
         } ${
@@ -152,6 +164,12 @@ export default function MonthGrid({
                 ? {}
                 : drag.handleProps({ type: "item", item: it, mode: "move", grabOffsetMin: 0 }))}
               onClick={() => onOpen(it)}
+              onContextMenu={(e) => {
+                if (!onItemMenu) return;
+                e.preventDefault();
+                e.stopPropagation();
+                onItemMenu(it, e);
+              }}
               className={`flex cursor-grab select-none gap-1 truncate rounded-lg border-l-2 px-1.5 py-0.5 text-xs font-medium active:cursor-grabbing ${
                 tall ? "flex-col justify-start" : "items-center"
               } ${itemTone(it)} ${movingId === it.id ? "opacity-40" : ""}`}

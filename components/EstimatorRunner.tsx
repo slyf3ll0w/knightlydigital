@@ -342,6 +342,12 @@ export function EstimatorRunnerPanel({
           id="estimator-run-form"
           onSubmit={(e) => {
             e.preventDefault();
+            // React bubbles submit through the component tree even across a
+            // portal: opened from the quote editor, this form sits inside the
+            // quote's <form>, and without this every "See the breakdown" (or
+            // Enter in a field) also saved the half-written quote and
+            // navigated away mid-run (David 2026-10-02: "breaks the app").
+            e.stopPropagation();
             void run();
           }}
           className="space-y-6"
@@ -597,7 +603,7 @@ export function EstimatorRunnerPanel({
       </div>
       {/* body scrolls; the footer stays put */}
       <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">{body}</div>
-      {footer && <div className="border-t border-gray-100 bg-white px-5 py-3">{footer}</div>}
+      {footer && <div className="border-t border-gray-100 bg-white px-5 py-3 max-lg:pb-[calc(0.75rem+env(safe-area-inset-bottom))]">{footer}</div>}
     </div>
   );
 }
@@ -631,7 +637,7 @@ export default function EstimatorRunner({
     if (open) setSession((s) => s + 1);
   }, [open]);
   return (
-    <Modal open={open} onClose={onClose} portal={portal} cardClassName="card-ledger w-full max-w-xl p-0 max-h-[88vh] overflow-hidden">
+    <Modal open={open} onClose={onClose} portal={portal} cardClassName="modal-card-panel card-ledger w-full max-w-xl p-0 max-h-[88vh] overflow-hidden">
       <EstimatorRunnerPanel key={session} estimators={estimators} onClose={onClose} onApply={onApply} applyLabel={applyLabel} allowQuote={allowQuote} showSamples={showSamples} />
     </Modal>
   );

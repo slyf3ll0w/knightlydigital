@@ -1,16 +1,25 @@
 import { prisma } from "@/lib/db";
-import { requirePageActor, canSeeMoney, contactScope, jobScope } from "@/lib/permissions";
+import { requirePageActor, canSeeMoney, contactScope, jobScope, appointmentScope } from "@/lib/permissions";
 import InvoiceEditor from "./InvoiceEditor";
 
 export default async function NewInvoicePage({
   searchParams,
 }: {
-  searchParams: Promise<{ jobId?: string; contactId?: string }>;
+  searchParams: Promise<{ jobId?: string; contactId?: string; appointmentId?: string }>;
 }) {
   const actor = await requirePageActor(canSeeMoney);
   const companyId = actor.companyId;
 
-  const { jobId, contactId } = await searchParams;
+  const { jobId, contactId, appointmentId } = await searchParams;
+
+  // Straight from an appointment (work done on the spot — no quote, no job):
+  // the client and a subject come from it, the lines are typed here.
+  const appointment = appointmentId
+    ? await prisma.appointment.findFirst({
+        where: { id: appointmentId, companyId, ...appointmentScope(actor) },
+        select: { id: true, title: true, contactId: true, scheduledAt: true },
+      })
+    : null;
 
   const [contacts, workItems, company, job] = await Promise.all([
     prisma.contact.findMany({
@@ -58,7 +67,12 @@ export default async function NewInvoicePage({
       contacts={contacts}
       workItems={JSON.parse(JSON.stringify(workItems))}
       prefillJob={job ? JSON.parse(JSON.stringify(job)) : null}
-      prefilledContactId={contactId ?? ""}
+      prefillAppointment={
+        appointment
+          ? { id: appointment.id, title: appointment.title, contactId: appointment.contactId, scheduledAt: appointment.scheduledAt.toISOString() }
+          : null
+      }
+      prefilledContactId={contactId ?? appointment?.contactId ?? ""}
       defaultTaxRatePercent={defaultTaxRatePercent}
     />
   );

@@ -108,7 +108,7 @@ export default function PlaceSheet({
   const [titleTyped, setTitleTyped] = useState(false);
   const recentApptTitles = useRecentTitles("appointment");
   const recentJobTitles = useRecentTitles("job");
-  const [apptType, setApptType] = useState<"PHONE_CALL" | "VIDEO_CALL" | "IN_PERSON">("PHONE_CALL");
+  const [apptType, setApptType] = useState<"PHONE_CALL" | "VIDEO_CALL" | "IN_PERSON">("IN_PERSON");
   const [address, setAddress] = useState("");
   const [contact, setContact] = useState<ContactHit | null>(null);
   const [contactQ, setContactQ] = useState("");
@@ -143,9 +143,11 @@ export default function PlaceSheet({
     if (ent.type === "contact") {
       const lead = ent.lead && canCreateAppointment;
       setKind(lead ? "appointment" : canCreateJob ? "job" : "appointment");
-      setTitle(lead ? "Phone call" : "");
-      setApptType(lead ? "PHONE_CALL" : "IN_PERSON");
-      setDuration(intent.durationMin ?? (lead ? 30 : 60));
+      // In-person is the default everywhere (David 2026-10-02) — a lead's
+      // first appointment is usually the site visit for the estimate.
+      setTitle("");
+      setApptType("IN_PERSON");
+      setDuration(intent.durationMin ?? 60);
       setAddress(ent.address ?? "");
       setContact({ id: ent.id, name: ent.name, address: ent.address, phone: ent.phone, lead: ent.lead, sub: ent.sub });
       setAssignees(crew.length ? crew : lead ? [meId] : solo);
@@ -182,9 +184,9 @@ export default function PlaceSheet({
     } else {
       // Painted a range on the grid first — who comes next
       setKind(ent.kind);
-      setTitle(ent.kind === "appointment" ? "Phone call" : "");
-      setApptType(ent.kind === "appointment" ? "PHONE_CALL" : "IN_PERSON");
-      setDuration(intent.durationMin ?? (ent.kind === "appointment" ? 30 : 60));
+      setTitle("");
+      setApptType("IN_PERSON");
+      setDuration(intent.durationMin ?? 60);
       setAddress("");
       setContact(null);
       setContactQ(" ");
@@ -582,9 +584,9 @@ export default function PlaceSheet({
             <div className="grid grid-cols-3 gap-1 rounded-[10px] bg-gray-100 p-1">
               {(
                 [
+                  ["IN_PERSON", "In person", MapPin],
                   ["PHONE_CALL", "Phone", Phone],
                   ["VIDEO_CALL", "Video", Video],
-                  ["IN_PERSON", "In person", MapPin],
                 ] as const
               ).map(([v, label, Icon]) => (
                 <button

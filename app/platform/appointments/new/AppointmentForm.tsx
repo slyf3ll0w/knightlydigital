@@ -41,10 +41,12 @@ type ContactOption = {
   }[];
 };
 
+// In-person first and default — most appointments in the trades are a visit
+// (David 2026-10-02).
 const TYPES = [
+  { value: "IN_PERSON", label: "In-person", hint: "Meet at the client's address", icon: MapPin },
   { value: "PHONE_CALL", label: "Phone Call", hint: "Call the client at their number", icon: Phone },
   { value: "VIDEO_CALL", label: "Video Call", hint: "Zoom, Meet, Teams — paste a link", icon: Video },
-  { value: "IN_PERSON", label: "In-person", hint: "Meet at the client's address", icon: MapPin },
 ] as const;
 
 
@@ -89,7 +91,7 @@ export default function AppointmentForm({
     // only when the list first arrives
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recentTitles]);
-  const [type, setType] = useState<string>("PHONE_CALL");
+  const [type, setType] = useState<string>("IN_PERSON");
   const [start, setStart] = useState(prefilledDate ? `${prefilledDate}T09:00` : "");
   const [end, setEnd] = useState("");
   const [anytime, setAnytime] = useState(false);

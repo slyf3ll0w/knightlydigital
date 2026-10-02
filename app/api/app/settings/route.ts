@@ -116,6 +116,7 @@ export async function PATCH(req: NextRequest) {
       ...(slugData ?? {}),
       phone: opt(body.phone),
       email: opt(body.email),
+      notifyEmail: opt(body.notifyEmail),
       address: opt(body.address),
       city: opt(body.city),
       state: opt(body.state),

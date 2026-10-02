@@ -69,6 +69,12 @@ export function MicWarning({ className = "" }: { className?: string }) {
 export function MicRow({ className = "" }: { className?: string }) {
   const s = useSoftphone();
   const muted = s.call?.muted ?? false;
+  // The iPhone app's native engine (CallKit + the Telnyx iOS SDK) owns the
+  // microphone and reports no input level, so the meter would sit flat at
+  // zero for the whole call — no meter beats a dead one (David 2026-10-02:
+  // "the microphone input bar is not showing anything"). `speaker` is only
+  // ever non-null on that engine. A native level event is a store-build item.
+  if (s.speaker !== null) return null;
   return (
     <div className={`min-w-0 ${className}`}>
       <div className="flex min-w-0 items-center gap-2 text-[11px] text-gray-500">

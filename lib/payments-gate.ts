@@ -1,5 +1,5 @@
 import { getProcessor } from "@/lib/payments";
-import { finixConfigured } from "@/lib/finix";
+import { finixConfigured, finixEnvironment } from "@/lib/finix";
 
 /**
  * The payment-verification gate: WorkBench is monetized by processing fees, so
@@ -44,8 +44,15 @@ export function paymentsGateEnabled(): boolean {
 export function onlinePaymentsHeld(company: {
   paymentsWaived: boolean;
   finixOnboardingState: string | null;
+  /** Superadmin "Test" flag (Company.isTest). */
+  isTest?: boolean;
 }): boolean {
   if (company.finixOnboardingState === "APPROVED") return false;
+  // A company the superadmin marked Test may open the SANDBOX Finix form while
+  // onboarding is closed for everyone else — that's how a $1.02 decline or a
+  // refund gets exercised on prod without reopening the gate (David
+  // 2026-10-02). Never in live mode: a test account must not reach real KYC.
+  if (company.isTest && finixEnvironment() === "sandbox") return false;
   return !paymentsOnboardingOpen() || company.paymentsWaived;
 }
 

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CalendarDays, Check, FileText, Loader2, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
+import { CalendarDays, Check, FileText, Loader2, MoreHorizontal, Pencil, Receipt, Trash2, X } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO, appointmentTypeLabel } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
@@ -18,7 +18,7 @@ import MenuPopover from "@/components/MenuPopover";
  * meeting link, notes, assignee for managers), and delete (managers).
  */
 
-const APPT_TYPES = ["PHONE_CALL", "VIDEO_CALL", "IN_PERSON"] as const;
+const APPT_TYPES = ["IN_PERSON", "PHONE_CALL", "VIDEO_CALL"] as const;
 
 type Details = {
   title: string;
@@ -43,6 +43,7 @@ export default function AppointmentActions({
   contactName = "",
   requestId,
   canDelete,
+  canInvoice = false,
   scheduledAt,
   scheduledEnd,
   scheduledAnytime,
@@ -57,6 +58,8 @@ export default function AppointmentActions({
   contactName?: string;
   requestId: string | null;
   canDelete: boolean;
+  /** Money roles only: the straight-to-invoice path (work done on the spot). */
+  canInvoice?: boolean;
   scheduledAt: string;
   scheduledEnd: string | null;
   scheduledAnytime: boolean;
@@ -185,13 +188,22 @@ export default function AppointmentActions({
   }
 
   const quoteHref = `/app/quotes/new?contactId=${contactId}${requestId ? `&requestId=${requestId}` : ""}`;
+  // Straight to an invoice — the work ended up happening right there, so no
+  // quote and no job in between (David 2026-10-02). The invoice route marks
+  // the appointment complete itself.
+  const invoiceHref = `/app/invoices/new?appointmentId=${appointmentId}&contactId=${contactId}`;
+  const [wrapUp, setWrapUp] = useState(false);
 
-  // Wrapping up: an appointment is a conversation, not billable work — it
-  // never turns into an invoice. The optional next step is a quote; if the
-  // client approves it on the spot, the quote is what becomes the job.
+  // Wrapping up: the usual next step is a quote (if the client approves it on
+  // the spot, the quote is what becomes the job). When the work was done
+  // during the visit, money roles can bill it directly instead.
   async function complete() {
     const ok = await patch({ status: "COMPLETED" });
     if (!ok) return;
+    if (canInvoice) {
+      setWrapUp(true);
+      return;
+    }
     const writeQuote = await confirmSheet({
       title: "Appointment complete",
       message: `Want to write a quote${contactName ? ` for ${contactName}` : ""}? If they approve it on the spot, it becomes a job. You can also do this later from this page.`,
@@ -209,6 +221,37 @@ export default function AppointmentActions({
 
   return (
     <div className="flex flex-col items-end gap-2">
+      {/* Wrap-up after Complete: quote, invoice on the spot, or nothing yet */}
+      <Modal open={wrapUp} onClose={() => setWrapUp(false)} size="sm">
+        <div className="space-y-3 text-left">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Appointment complete</h2>
+            <p className="mt-0.5 text-sm text-gray-500">
+              What&apos;s next{contactName ? ` for ${contactName}` : ""}? A quote becomes a job when they approve it.
+              If the work already happened, bill it now — no quote or job needed.
+            </p>
+          </div>
+          <div className="grid gap-2">
+            <Link href={quoteHref} className="btn-primary btn-lg" onClick={() => setWrapUp(false)}>
+              <FileText size={15} /> Create Quote
+            </Link>
+            <Link
+              href={invoiceHref}
+              onClick={() => setWrapUp(false)}
+              className="flex items-center gap-2 rounded-[10px] btn-tool-line bg-[color:var(--ds-secondary-soft)] px-4 py-2.5 text-sm font-semibold text-[color:var(--ds-secondary)] hover:bg-[color-mix(in_srgb,var(--ds-secondary)_18%,transparent)]"
+            >
+              <Receipt size={15} /> Create Invoice
+            </Link>
+            <button
+              type="button"
+              onClick={() => setWrapUp(false)}
+              className="flex items-center gap-2 rounded-[10px] btn-tool-line bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              Not now
+            </button>
+          </div>
+        </div>
+      </Modal>
       <div className="flex items-center gap-2">
         {status === "SCHEDULED" && (
           <button onClick={complete} disabled={busy} className={primaryCls}>
@@ -231,6 +274,16 @@ export default function AppointmentActions({
           </button>
           {menuOpen && (
             <MenuPopover open={menuOpen} onClose={() => setMenuOpen(false)} title="Appointment">
+              {canInvoice && status !== "CANCELLED" && (
+                <Link
+                  href={invoiceHref}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex w-full items-center gap-2 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <Receipt size={13} className="text-gray-400" />
+                  Create Invoice
+                </Link>
+              )}
               <button
                 onClick={openEdit}
                 className="flex w-full items-center gap-2 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"

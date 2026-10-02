@@ -64,6 +64,7 @@ const NotificationsSheet = dynamic(() => import("@/components/NotificationsSheet
 const AssistantDrawer = dynamic(() => import("@/components/AssistantDrawer"), { ssr: false });
 import LiveToasts, { type LiveToast } from "@/components/LiveToasts";
 import BuildProgressBar from "@/components/BuildProgressBar";
+import FormErrorFocus from "@/components/FormErrorFocus";
 import type { AtlasAccess, AtlasPricing } from "@/lib/assistant-access";
 import { resolveAccent, shade, textOn } from "@/lib/branding";
 import { dsBrandVars } from "@/lib/ds-theme";
@@ -1864,7 +1865,11 @@ export default function AppShell({
       fetch("/api/app/notifications")
         .then((r) => (r.ok ? r.json() : null))
         .then((d: { items?: (LiveToast & { at: string })[] } | null) => {
-          if (cancelled || !d?.items) return;
+          // Not gated on `cancelled`: a navigation mid-fetch re-runs this
+          // effect, but prevCountsRef has already moved on — dropping the
+          // answer here lost the card for good (desktop users click around
+          // more, so it hit them most).
+          if (!d?.items) return;
           const cutoff = since - 15_000;
           const wanted = new Set<string>([...(next.requests > prev.requests ? ["request"] : []), ...(next.leads > prev.leads ? ["lead"] : []), ...(next.messages > prev.messages ? ["message"] : [])]);
           // Already shown as a push card, or the page we're on (the thread shows the message itself)
@@ -2027,12 +2032,51 @@ export default function AppShell({
     });
   };
 
+  // Design system (2026-09-26): the company PRIMARY drives the app accent;
+  // the secondary is only a sparing highlight (see lib/ds-theme.ts).
+  const rawBrand = brandColor || brandColorSecondary || null;
+  const lightAccent = rawBrand ? surfaceAccent(rawBrand) : null;
+  const darkAccent = rawBrand ? darkSurfaceAccent(rawBrand) : null;
+  const darkTab = rawBrand ? darkTabAccent(rawBrand) : null;
+  const mobileAccentVars =
+    rawBrand && lightAccent && darkAccent
+      ? ({
+          "--mobile-accent-light": lightAccent,
+          "--mobile-on-accent-light": textOn(lightAccent),
+          "--mobile-accent-soft-light": `${lightAccent}1A`,
+          "--mobile-accent-dark": darkTab ?? darkAccent,
+          "--mobile-on-accent-dark": textOn(darkTab ?? darkAccent),
+          "--mobile-accent-soft-dark": `${darkTab ?? darkAccent}24`,
+          // Solid primary buttons app-wide (the green→accent bridge in
+          // globals.css): 500/600/700 slots as bright/base/pressed.
+          "--wb-accent-bright-light": tint(lightAccent, 0.14),
+          "--wb-accent-light": lightAccent,
+          "--wb-accent-strong-light": shade(lightAccent, 0.14),
+          "--wb-on-accent-light": textOn(lightAccent),
+          "--wb-accent-bright-dark": tint(darkAccent, 0.14),
+          "--wb-accent-dark": darkAccent,
+          "--wb-accent-strong-dark": shade(darkAccent, 0.14),
+          "--wb-on-accent-dark": textOn(darkAccent),
+          // Accent as ink (links/icons/tints). Dark ink runs brighter, like
+          // the default #0B57D8 → #3B82F6 step.
+          "--wb-ink-light": lightAccent,
+          "--wb-ink-strong-light": shade(lightAccent, 0.14),
+          "--wb-ink-dark": tint(darkAccent, 0.2),
+          "--wb-ink-strong-dark": tint(darkAccent, 0.38),
+        } as React.CSSProperties)
+      : undefined;
+
   // Portals (modals, sheets, the call card) render into <body>, outside this
   // root — so the body wears the design system and brand tokens too while
-  // the app is mounted.
-  const dsVarsKey = JSON.stringify(
-    dsBrandVars(brandColor, brandColorSecondary, brandFont && GOOGLE_FONT_RE.test(brandFont) ? brandFont : null)
-  );
+  // the app is mounted. The --wb-* accent halves ride along: the call card
+  // mounts beside this root (app/platform/layout.tsx) with its own `app-ui`,
+  // whose redeclarations read `--wb-ink-light` & co. from an ANCESTOR — with
+  // nothing on the body they fell back to WorkBench blue (David 2026-10-02:
+  // "the icons are blue though and not styled right to the company").
+  const dsVarsKey = JSON.stringify({
+    ...dsBrandVars(brandColor, brandColorSecondary, brandFont && GOOGLE_FONT_RE.test(brandFont) ? brandFont : null),
+    ...((mobileAccentVars ?? {}) as Record<string, string>),
+  });
   useEffect(() => {
     const body = document.body;
     const vars = JSON.parse(dsVarsKey) as Record<string, string>;
@@ -2223,39 +2267,8 @@ export default function AppShell({
   // Tenant brand color → per-theme mobile accent tokens (globals.css holds
   // the WorkBench-blue defaults; CSS resolves light vs dark, so the
   // active tab / create button read on BOTH bars).
-  // Design system (2026-09-26): the company PRIMARY drives the app accent;
-  // the secondary is only a sparing highlight (see lib/ds-theme.ts).
-  const rawBrand = brandColor || brandColorSecondary || null;
-  const lightAccent = rawBrand ? surfaceAccent(rawBrand) : null;
-  const darkAccent = rawBrand ? darkSurfaceAccent(rawBrand) : null;
-  const darkTab = rawBrand ? darkTabAccent(rawBrand) : null;
-  const mobileAccentVars =
-    rawBrand && lightAccent && darkAccent
-      ? ({
-          "--mobile-accent-light": lightAccent,
-          "--mobile-on-accent-light": textOn(lightAccent),
-          "--mobile-accent-soft-light": `${lightAccent}1A`,
-          "--mobile-accent-dark": darkTab ?? darkAccent,
-          "--mobile-on-accent-dark": textOn(darkTab ?? darkAccent),
-          "--mobile-accent-soft-dark": `${darkTab ?? darkAccent}24`,
-          // Solid primary buttons app-wide (the green→accent bridge in
-          // globals.css): 500/600/700 slots as bright/base/pressed.
-          "--wb-accent-bright-light": tint(lightAccent, 0.14),
-          "--wb-accent-light": lightAccent,
-          "--wb-accent-strong-light": shade(lightAccent, 0.14),
-          "--wb-on-accent-light": textOn(lightAccent),
-          "--wb-accent-bright-dark": tint(darkAccent, 0.14),
-          "--wb-accent-dark": darkAccent,
-          "--wb-accent-strong-dark": shade(darkAccent, 0.14),
-          "--wb-on-accent-dark": textOn(darkAccent),
-          // Accent as ink (links/icons/tints). Dark ink runs brighter, like
-          // the default #0B57D8 → #3B82F6 step.
-          "--wb-ink-light": lightAccent,
-          "--wb-ink-strong-light": shade(lightAccent, 0.14),
-          "--wb-ink-dark": tint(darkAccent, 0.2),
-          "--wb-ink-strong-dark": tint(darkAccent, 0.38),
-        } as React.CSSProperties)
-      : undefined;
+  // (mobileAccentVars is computed above the body-vars effect — the call card
+  // needs the same accent halves on <body>.)
 
   // PRIMARY brand color = structural ink (surfaces/frame/tool hardware),
   // mirroring the client-facing split where primary drives headers and
@@ -2621,6 +2634,9 @@ export default function AppShell({
 
       {/* Live notification cards (new request / lead / message / chat) — glass banners, no reload needed */}
       <LiveToasts items={toasts} onDismiss={(id) => setToasts((t) => t.filter((x) => x.id !== id))} />
+
+      {/* A rejected save scrolls its red banner into view (components/FormErrorFocus.tsx) */}
+      <FormErrorFocus />
 
       {/* An estimate tool building on the server — follows the owner around the app */}
       <BuildProgressBar />
