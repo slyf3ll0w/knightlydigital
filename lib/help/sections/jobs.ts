@@ -239,6 +239,10 @@ export const scheduleSection: HelpSection = {
         },
         {
           type: "p",
+          text: "**Purpose** is optional. Your client sees it in their reminder texts and emails and on their client portal. Leave it blank and it says \"Estimate\". WorkBench remembers what you type: the next appointment starts with your last purpose, and tapping the box lists your recent ones. Job titles work the same way.",
+        },
+        {
+          type: "p",
           text: "Other buttons: `Reschedule`, `Mark No-show`, `Cancel Appointment` and `Reopen`.",
         },
       ],
