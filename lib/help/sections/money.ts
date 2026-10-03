@@ -21,7 +21,7 @@ export const invoicesSection: HelpSection = {
             "From a finished job, press `Create Invoice`. Or go to **Invoices** and press `New`.",
             "Check the customer, the **Due date**, the line items, tax and any discount. Add a **Client message** if you want.",
             "Save it. It starts as a **Draft**.",
-            "Press `Send to Client`. The pay link goes by email, and by text from your business line once texting is on (Settings → Phone & texting → `Turn on text notifications`). A client with only a phone number gets the text alone. The invoice moves to **Awaiting Payment**.",
+            "Press `Send to Client`. The pay link goes by email, and by text from your business line once texting is on (Settings → Phone & texting → `Turn on text notifications`). When both are possible you pick **Email**, **Text** or both; a client with only a phone number gets the text alone. The invoice moves to **Awaiting Payment**.",
           ],
         },
         {
@@ -37,7 +37,11 @@ export const invoicesSection: HelpSection = {
           items: [
             {
               q: "Send to Client failed.",
-              a: "Client emails switch on once your business is approved for payments. Until then, use `Copy payment link` and send it yourself. If the button says `Mark as Sent`, the client has no email on file.",
+              a: "Client emails switch on once your business is approved for payments. Until then, use `Copy payment link` and send it yourself. If the button says `Mark as Sent`, the client has no email on file and no phone that can be texted.",
+            },
+            {
+              q: "I left an invoice and it asked \"Send this invoice first?\"",
+              a: "The invoice is still a Draft nobody has sent. `Stay` keeps you on it; `Leave without sending` lets you go and the draft waits until you send it or press `Mark as Sent`.",
             },
             {
               q: "I can't edit a paid invoice.",
@@ -299,7 +303,7 @@ export const agreementsSection: HelpSection = {
           items: [
             "Make a template under **Settings → Agreement templates**. Use `{{client_name}}`, `{{company_name}}` and `{{date}}` and they fill in for each client. (Atlas can write one for you: \"write a lawn care service agreement.\")",
             "Go to **Agreements** and press `New Agreement`. Pick the client and a template, or start from a blank contract.",
-            "Press `Email for Signature`, or `Copy Signing Link` to send it yourself.",
+            "Press `Send for Signature` (`Email for Signature` until texting is on) — by email, by text from your business line, or both — or `Copy Signing Link` to send it yourself.",
             "The client types their name and ticks the consent box. The status goes **Awaiting Signature** → **Signed**.",
           ],
         },

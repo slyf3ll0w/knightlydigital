@@ -31,7 +31,7 @@ export const clientsSection: HelpSection = {
         },
         {
           type: "p",
-          text: "From a client's page, the create menu starts anything for them: a request, appointment, quote, agreement, job, invoice or payment. You'll also find their pipeline card, client portal link, saved cards and custom fields there.",
+          text: "From a client's page, the create menu starts anything for them: a request, appointment, quote, agreement, job, invoice or payment. On your phone the `+` button offers client, lead, request, appointment, quote, job, call, message and invoice; estimate tools, agreements and payments are desk work and live on the desktop menu. You'll also find their pipeline card, client portal link, saved cards and custom fields there.",
         },
         {
           type: "tip",

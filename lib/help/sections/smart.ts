@@ -161,7 +161,7 @@ export const atlasSection: HelpSection = {
           items: [
             `Every account gets **${ATLAS_FREE} Atlas tokens free each month**, refilled on the 1st.`,
             `**Atlas Full** is **${ATLAS_FULL} tokens a month**. It comes with the **${PRO}** plan (${PRO_PRICE}) and **${MAX}**, or costs ${ATLAS_FULL_PRICE} on its own. Its tokens refill on your billing day.`,
-            "Each reply shows how many tokens it used.",
+            "Each reply shows how many tokens it used, and the meter above the message box shows what's left. On a phone a small pill at the top of the drawer shows the same number.",
             "Call notes, building estimate tools and drafting automation text also use tokens.",
             "When they're gone, Atlas says so and opens again when the meter refills. Everything else in WorkBench keeps working.",
             "Using Atlas every day? Atlas Full is the way to stop running out. Call or email us to switch it on.",

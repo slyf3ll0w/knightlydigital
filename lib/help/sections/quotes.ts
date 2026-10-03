@@ -22,7 +22,7 @@ export const quotesSection: HelpSection = {
             "Give it a **title**, then add line items. Pick services from your price book, or type a description, quantity and unit price and press `Add line item`.",
             "Optional: set tax, a discount (% or $), a deposit, a **Client message**, **Terms**, and a **Valid until** date. **Internal notes** are never shown to the client.",
             "Press `Save Quote`. It saves as a **Draft**.",
-            "Press `Email to Client`. The client gets a link to view, sign and approve it. The status moves to **Awaiting Response**.",
+            "Press `Send to Client` (it reads `Email to Client` until texting is on). The client gets a link to view, sign and approve it; when they have both an email and a phone that takes texts, you pick **Email**, **Text** or both first — the text goes from your business line. The status moves to **Awaiting Response**.",
           ],
         },
         {
@@ -50,12 +50,16 @@ export const quotesSection: HelpSection = {
           type: "faq",
           items: [
             {
-              q: "I pressed Email to Client and got \"Email isn't set up on this server yet.\"",
+              q: "I pressed Send to Client and got \"Email isn't set up on this server yet.\"",
               a: "Emails to clients switch on once your business is approved for payments (see [Activate your account](/help/activate-payments)). Until then, use `Copy client link` and send the link yourself.",
             },
             {
-              q: "The button says Mark as Sent instead of Email to Client.",
-              a: "The client has no email address on file. Add one on their client page, or copy the link and send it another way.",
+              q: "The button says Mark as Sent instead of Send to Client.",
+              a: "The client has no email address on file and no phone that can be texted. Add one on their client page, or copy the link and send it another way.",
+            },
+            {
+              q: "I left a quote and it asked \"Send this quote first?\"",
+              a: "The quote is still a Draft nobody has sent. `Stay` keeps you on it; `Leave without sending` lets you go and the draft waits. Send it, or press `Mark as Sent` if you delivered it another way, and the question stops.",
             },
             {
               q: "I can't edit my quote.",
@@ -118,7 +122,7 @@ export const quotesSection: HelpSection = {
             },
             {
               q: "The deposit invoice email didn't go out.",
-              a: "The client's activity shows a note when that happens. Open the deposit invoice and press `Email to Client`, or copy its payment link.",
+              a: "The client's activity shows a note when that happens. Open the deposit invoice and press `Send to Client`, or copy its payment link.",
             },
           ],
         },

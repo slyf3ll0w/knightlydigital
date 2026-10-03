@@ -86,7 +86,7 @@ export const settingsSection: HelpSection = {
       slug: "notifications",
       title: "Turn on notifications",
       summary: "Get pushes for new leads, bookings, payments, messages and calls on each device.",
-      keywords: ["notifications", "push", "alerts", "bell", "not getting notifications", "add to home screen", "email me too", "notification emails", "stop emails"],
+      keywords: ["notifications", "push", "alerts", "bell", "not getting notifications", "add to home screen", "email me too", "notification emails", "stop emails", "email these notifications", "notification card", "quote approved"],
       where: { label: "My Profile", href: "/app/settings/profile" },
       blocks: [
         {
@@ -99,7 +99,11 @@ export const settingsSection: HelpSection = {
         },
         {
           type: "p",
-          text: "You'll be told about new requests and leads, bookings, chat messages, payments (and failed ones), when a client views a quote, invoice or agreement, your next job (with On My Way and Directions buttons), and missed calls and voicemails on your business line.",
+          text: "You'll be told about new requests and leads, bookings, chat messages, payments (and failed ones), when a client views a quote, invoice or agreement, when a client approves a quote, your next job (with On My Way and Directions buttons), and missed calls and voicemails on your business line.",
+        },
+        {
+          type: "p",
+          text: "With WorkBench open in a browser, the same notification arrives as a card at the top of the page the moment it is sent — on every open tab, not only the one in front. A card leaves on its own after a few seconds once you have seen it, and after 45 seconds at most. Nothing is lost when it goes: every notification is kept in the **bell** for 30 days.",
         },
         {
           type: "h",
@@ -107,7 +111,7 @@ export const settingsSection: HelpSection = {
         },
         {
           type: "p",
-          text: "New requests, client messages and bookings also go to your company's notification inbox by email. Once a device of yours has notifications on, that email is skipped so you don't hear the same thing twice. **My Profile → Email me too** changes this: `Only when push is off` (the default), `Always`, or `Never`.",
+          text: "New requests, client messages and bookings also go to your company's notification inbox by email. Once a device of yours has notifications on, that email is skipped so you don't hear the same thing twice. **My Profile → Email me too** changes this for you: `Only when push is off` (the default), `Always`, or `Never`. To stop these emails for the whole company — a team that reads them on their phones — switch off **Email these notifications** under **Settings → Business info → Notifications inbox**; pushes and the bell carry on.",
         },
         {
           type: "faq",
