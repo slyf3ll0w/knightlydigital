@@ -19,9 +19,11 @@ import { signOut } from "next-auth/react";
  * soon after the other device goes idle (or the other person is bounced).
  * The touch trigger is what makes a takeover feel immediate on the OTHER
  * device: a phone left face-up on the desk learns on its next tick, but the
- * moment someone picks it up and taps, it asks and is walled (David's first
- * test, 2026-10-02: he walked back to the phone inside the old 45 s tick and
- * could use both for a while).
+ * moment someone picks it up and taps, it asks and is walled.
+ *
+ * The button arms late on purpose (ARM_MS): David's second test showed the
+ * wall rendering under a finger mid-tap and that same tap landing on "Use it
+ * here", so the phone took the lock straight back without him meaning to.
  */
 const BEAT_MS = 20_000;
 const BUSY_BEAT_MS = 10_000;
@@ -29,11 +31,14 @@ const BUSY_BEAT_MS = 10_000;
 const FLOOR_MS = 10_000;
 /** A touch or key re-checks sooner, but not on every tap. */
 const TOUCH_FLOOR_MS = 4_000;
+/** "Use it here" ignores the tap that was already in flight when the wall appeared. */
+const ARM_MS = 900;
 
 type Busy = { device: string };
 
 export default function PresenceBeacon() {
   const [busy, setBusy] = useState<Busy | null>(null);
+  const [armed, setArmed] = useState(false);
   const [taking, setTaking] = useState(false);
   const last = useRef(0);
   const inFlight = useRef(false);
@@ -53,7 +58,7 @@ export default function PresenceBeacon() {
       });
       if (!res.ok) return;
       const data = (await res.json().catch(() => null)) as { ok?: boolean; busy?: boolean; device?: string } | null;
-      if (data?.busy) setBusy({ device: data.device || "another device" });
+      if (data?.busy) setBusy((cur) => (cur && cur.device === data.device ? cur : { device: data.device || "another device" }));
       else if (data?.ok) setBusy(null);
     } catch {
       // offline / aborted — the next beat tries again
@@ -85,6 +90,16 @@ export default function PresenceBeacon() {
     return () => clearInterval(timer);
   }, [beat, busy]);
 
+  // Arm the button only once the wall has been on screen for a moment.
+  useEffect(() => {
+    if (!busy) {
+      setArmed(false);
+      return;
+    }
+    const t = setTimeout(() => setArmed(true), ARM_MS);
+    return () => clearTimeout(t);
+  }, [busy]);
+
   const takeOver = useCallback(async () => {
     setTaking(true);
     await beat(true);
@@ -112,10 +127,19 @@ export default function PresenceBeacon() {
           WorkBench works on one device at a time per login. If that&apos;s you, take it back here. If it&apos;s someone
           else, they need their own login from the Team page.
         </p>
-        <button type="button" onClick={() => void takeOver()} disabled={taking} className="btn-primary btn-lg mx-auto mt-6">
+        <button
+          type="button"
+          onClick={() => void takeOver()}
+          disabled={!armed || taking}
+          className="btn-primary btn-lg mx-auto mt-6 transition-opacity"
+          style={{ opacity: armed ? undefined : 0.5 }}
+        >
           {taking ? <Loader2 size={14} className="animate-spin" /> : <MonitorSmartphone size={14} />}
           Use it here
         </button>
+        <p className="mt-3 text-xs text-gray-500 [[data-mode=dark]_&]:text-gray-400">
+          Several devices on one login is included with Pro.
+        </p>
         <button
           type="button"
           onClick={() => void signOut({ callbackUrl: "/app/login" })}

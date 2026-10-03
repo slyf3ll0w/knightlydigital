@@ -46,6 +46,8 @@ tap).
 - `ONE_ACTIVE_DEVICE=0` on Railway turns the rule off (beats become plain
   presence stamps again). No deploy needed.
 - `ONE_ACTIVE_DEVICE_EXEMPT=a@b.com,c@d.com` exempts specific logins.
+- **Pro and Max companies are exempt** (`exemptPlan`: the unlimited-seat
+  plans — David 2026-10-02: no boot on Pro). Core and Voice get the wall.
 - Always exempt: `SUPERADMIN` rows (they never hold a tenant session anyway)
   and the e2e harness owners `e2e-*@workbenchfsm.com` (Playwright gives
   every test a fresh cookie jar; the suite would wall itself).
@@ -72,6 +74,18 @@ after 4 s of quiet, so picking the other device up and tapping is what
 walls it. Presence writes are still throttled server-side (30 s), so the
 database cost is unchanged; only the tiny read per beat is more frequent.
 
+## Round 3 (2026-10-03, after David's second test)
+
+The production HTTP log + User rows told the story: PC pressed Use it here
+at 04:07:30; the phone's next beat (04:07:34) was answered busy and the wall
+rendered, and ONE second later the phone sent a takeover. David was tapping
+the phone when the wall appeared, and the tap landed on the big Use it here
+button that had just rendered under his finger. The phone took the lock back
+without him meaning to, so both devices worked until the PC's next beat
+(04:08:04) walled the PC. Fixes: the Use it here button is disabled for the
+first 900 ms after the wall appears (a tap-through can't take over), and
+Pro / Max companies are exempt from the rule altogether.
+
 ## Test recipes (David's device pass)
 
 1. **Phone then desktop (one person).** Open the app on the iPhone, then
@@ -86,14 +100,16 @@ database cost is unchanged; only the tiny read per beat is more frequent.
    **Use it here** on one, then on the other: each press walls the other
    side on its next tap (or within 20 s untouched). Neither side can work for long while the other is
    active — that is the point.
-4. **Same browser, two tabs.** Two tabs of the same browser never wall each
+4. **Pro is exempt.** Grant a company Pro (superadmin → Plans) and repeat
+   recipe 3: no wall on either device.
+5. **Same browser, two tabs.** Two tabs of the same browser never wall each
    other (same cookie = same device).
-5. **Sign out from the wall.** Press **Sign out** on a walled device →
+6. **Sign out from the wall.** Press **Sign out** on a walled device →
    /app/login. Signing back in on that device while the other is still
    active walls it again.
-6. **Kill switch.** Set `ONE_ACTIVE_DEVICE=0` on Railway staging → redeploy
+7. **Kill switch.** Set `ONE_ACTIVE_DEVICE=0` on Railway staging → redeploy
    → recipe 3 shows no wall. Remove the variable to restore.
-7. **Dark mode.** The wall follows the app's dark mode (white / navy).
-8. **Team page still right.** While one device is walled, the Team page
+8. **Dark mode.** The wall follows the app's dark mode (white / navy).
+9. **Team page still right.** While one device is walled, the Team page
    shows the person Online now from the holding device only.
-9. **e2e unaffected.** The staging E2E run stays green (owners exempt).
+10. **e2e unaffected.** The staging E2E run stays green (owners exempt).

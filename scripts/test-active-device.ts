@@ -9,6 +9,7 @@ import {
   deviceLabel,
   deviceRuleEnabled,
   exemptEmail,
+  exemptPlan,
   isDeviceId,
   HOLD_REFRESH_MS,
   HOLD_WINDOW_MS,
@@ -94,6 +95,16 @@ const B = "22222222-2222-4222-8222-222222222222";
   assert.equal(exemptEmail(null, {}), false);
   assert.equal(exemptEmail("demo@shop.com", { ONE_ACTIVE_DEVICE_EXEMPT: "Demo@shop.com, other@x.com" }), true);
   assert.equal(exemptEmail("other@shop.com", { ONE_ACTIVE_DEVICE_EXEMPT: "demo@shop.com" }), false);
+}
+
+{
+  // Pro / Max never see the wall; Core and Voice do
+  assert.equal(exemptPlan({ planGrants: ["SHOP"] }), true);
+  assert.equal(exemptPlan({ planGrants: ["DISPATCH", "SHOP", "JOBSITE"] }), true); // Max = every add-on
+  assert.equal(exemptPlan({ planGrants: [] }), false);
+  assert.equal(exemptPlan({ planGrants: ["DISPATCH"], addonActiveAt: new Date() }), false);
+  assert.equal(exemptPlan({ planGrants: ["JOBSITE"] }), false);
+  assert.equal(exemptPlan(null), false);
 }
 
 {

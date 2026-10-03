@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { ONLINE_WINDOW_MS } from "@/lib/presence";
 import { isAndroidShellUserAgent, isIosShellUserAgent } from "@/lib/sign-in-options";
+import { hasUnlimitedSeats, type PlanHolder } from "@/lib/plans";
 
 /**
  * One active device per login (David, 2026-10-02).
@@ -29,8 +30,10 @@ import { isAndroidShellUserAgent, isIosShellUserAgent } from "@/lib/sign-in-opti
  * never be lost to it.
  *
  * Off switch: ONE_ACTIVE_DEVICE=0 on Railway makes every beat a plain
- * presence stamp again. Exempt regardless: superadmin rows (they never hold
- * a tenant session anyway) and the e2e harness owners — Playwright gives
+ * presence stamp again. Exempt regardless: companies on Pro or Max (the
+ * plans with unlimited seats — David, 2026-10-02: no boot there, it is part
+ * of what the plan buys), superadmin rows (they never hold a tenant session
+ * anyway) and the e2e harness owners — Playwright gives
  * every test a fresh cookie jar, so the suite would lock itself out.
  */
 
@@ -64,6 +67,11 @@ export function exemptEmail(email: string | null | undefined, env: Record<string
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
   return extra.includes(e);
+}
+
+/** Pro (unlimited seats; Max carries the same grant) never sees the wall — several devices on one login is part of the plan. */
+export function exemptPlan(company: PlanHolder | null | undefined): boolean {
+  return Boolean(company && hasUnlimitedSeats(company));
 }
 
 export type DeviceHold = {
@@ -147,9 +155,16 @@ export async function claimDevice(
 ): Promise<DeviceDecision> {
   const row = await prisma.user.findUnique({
     where: { id: userId },
-    select: { email: true, role: true, activeDeviceId: true, activeDeviceAt: true, activeDeviceLabel: true },
+    select: {
+      email: true,
+      role: true,
+      activeDeviceId: true,
+      activeDeviceAt: true,
+      activeDeviceLabel: true,
+      company: { select: { planGrants: true, addonActiveAt: true } },
+    },
   });
-  if (!row || row.role === "SUPERADMIN" || exemptEmail(row.email)) return { kind: "claim" };
+  if (!row || row.role === "SUPERADMIN" || exemptEmail(row.email) || exemptPlan(row.company)) return { kind: "claim" };
 
   const data = { activeDeviceId: deviceId, activeDeviceAt: now, activeDeviceLabel: deviceLabel(ua) };
   if (takeover) {

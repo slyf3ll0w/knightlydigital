@@ -193,8 +193,9 @@ another device while the holder is active (3 min window, visible pages
 only; beats every 20 s and on the first touch after 4 s quiet) is answered `busy` — `components/PresenceBeacon.tsx` then walls the
 app ("in use on <device>", **Use it here** = `{ takeover: true }`, Sign
 out). API routes are not gated. `ONE_ACTIVE_DEVICE=0` turns it off,
-`ONE_ACTIVE_DEVICE_EXEMPT` lists exempt emails; superadmins and the e2e
-owners (`e2e-*@workbenchfsm.com`) are always exempt. The seat limit itself
+`ONE_ACTIVE_DEVICE_EXEMPT` lists exempt emails; Pro / Max companies
+(`exemptPlan`, the unlimited-seat plans), superadmins and the e2e owners
+(`e2e-*@workbenchfsm.com`) are always exempt. The seat limit itself
 is not enforced yet. Plan + recipes: `docs/plans/one-active-device-2026-10-02.md`;
 test `scripts/test-active-device.ts`.
 
