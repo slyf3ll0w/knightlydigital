@@ -9,6 +9,8 @@ import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import ViewedFact from "@/components/ViewedFact";
 import ContractActions from "./ContractActions";
+import { canText, companyCanSendSms } from "@/lib/sms";
+import { fmtPhone } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Agreement" };
 
@@ -36,6 +38,8 @@ export default async function ContractDetailPage({
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "";
   const signUrl = `${baseUrl}/contract/${contract.publicToken}`;
+  // Send for Signature can text the link from the business line
+  const canTextClient = Boolean(contract.contact.phone) && canText(contract.contact) && (await companyCanSendSms(actor.companyId));
 
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
@@ -62,6 +66,8 @@ export default async function ContractDetailPage({
           title={contract.title}
           body={contract.body}
           contactEmail={contract.contact.email}
+          contactPhone={contract.contact.phone ? fmtPhone(contract.contact.phone) : ""}
+          canTextClient={canTextClient}
         />
       </div>
 

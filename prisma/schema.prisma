@@ -36,6 +36,10 @@ model Company {
   // with a personal address show clients a work one and still get alerts
   // where they want them (lib/notify.ts companyNotifyAddress).
   notifyEmail               String?
+  // Settings → Business Info: the company's own notification EMAILS off
+  // (push and the bell carry on) — for a team that reads them on their
+  // phones (David 2026-10-03). lib/notify.ts companyNotifyAddress → null.
+  notifyEmailOff            Boolean  @default(false)
   address                   String?
   city                      String?
   state                     String?

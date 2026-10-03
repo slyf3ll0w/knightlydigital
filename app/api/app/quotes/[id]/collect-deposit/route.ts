@@ -7,6 +7,8 @@ import { sendEmail, invoiceLinkEmail } from "@/lib/email";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { logActivity } from "@/lib/activity";
+import { sendSms, canText, companyCanSendSms, invoiceLinkText } from "@/lib/sms";
+import { readSendChannels } from "@/lib/send-channels";
 
 /**
  * POST — manually issue (or re-send) the deposit invoice for a quote. The
@@ -15,7 +17,7 @@ import { logActivity } from "@/lib/activity";
  * (optionally) re-emails the pay link.
  */
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const actor = await getActor();
@@ -59,16 +61,36 @@ export async function POST(
   // Email the client the pay link (whether freshly created or re-sent). A
   // failed send is reported, not swallowed: the button's whole promise is
   // "the client has the link".
+  // The sender picks the channels (components/SendChoice.tsx); no body = both.
+  const channels = await readSendChannels(req, { email: true, text: true });
+  const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
+  const payUrl = `${baseUrl}/pay/${deposit.invoice.publicToken}`;
+  const payable = canChargeOnline(quote.company);
+  let texted = false;
+  if (channels.text && quote.contact.phone && canText(quote.contact) && (await companyCanSendSms(companyId))) {
+    texted = await sendSms({
+      companyId,
+      contactId: quote.contactId,
+      to: quote.contact.phone,
+      text: invoiceLinkText({
+        companyName: quote.company.name,
+        firstName: quote.contact.firstName,
+        invoiceNumber: deposit.invoice.invoiceNumber,
+        total: deposit.amount,
+        payUrl,
+        payable,
+      }),
+    });
+  }
   let emailed: boolean | null = null;
-  if (quote.contact.email) {
-    const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
+  if (channels.email && quote.contact.email) {
     const { subject, html } = invoiceLinkEmail({
       brand: quote.company,
       companyName: quote.company.name,
       invoiceNumber: deposit.invoice.invoiceNumber,
       total: deposit.amount,
-      payUrl: `${baseUrl}/pay/${deposit.invoice.publicToken}`,
-      payable: canChargeOnline(quote.company),
+      payUrl,
+      payable,
       serviceNames: [`Deposit for Quote #${quote.quoteNumber}`],
     });
     emailed = await sendEmail({
@@ -99,6 +121,7 @@ export async function POST(
       amount: deposit.amount,
       created: deposit.created,
       emailed,
+      texted,
     },
     { status: deposit.created ? 201 : 200 }
   );

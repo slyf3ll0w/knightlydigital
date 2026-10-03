@@ -103,6 +103,8 @@ const OUTBOUND_INVITE_WAIT_MS = 25_000;
 const RECONNECT_FALLBACK_MS = 15_000;
 /** After the grant route says "too many", stay quiet this long. */
 const RATE_LIMITED_WAIT_MS = 3 * 60_000;
+/** While an outbound call is ringing, how often the row is asked whether the customer picked up. */
+const OUTBOUND_POLL_MS = 1_000;
 const TERMINAL = new Set(["COMPLETED", "MISSED", "VOICEMAIL", "NO_ANSWER", "FAILED"]);
 
 const fmtNumber = (e164: string | null | undefined): string => {
@@ -434,6 +436,10 @@ export default function Softphone() {
     let fallback: ReturnType<typeof setTimeout> | null = null;
     let inviteWatch: ReturnType<typeof setTimeout> | null = null;
     let attempt = 0;
+    /** When the current registration attempt (ours, or the SDK's own reconnect) began; null once ready. */
+    let connectingSince: number | null = null;
+    /** A dial while a registration is this fresh waits for it instead of restarting it. */
+    const CONNECT_PATIENCE_MS = 12_000;
 
     /* ── Microphone: which one, and whether it is actually sending (lib/softphone-mic.ts) ── */
     const readMicChoice = (): string | null => {
@@ -842,6 +848,7 @@ export default function Softphone() {
     async function connect() {
       if (unmounted) return;
       const myGen = ++gen;
+      connectingSince = Date.now();
       setSoftphoneState({ status: "connecting" });
       let grant: { token?: string; off?: string; error?: string };
       let status = 0;
@@ -863,7 +870,10 @@ export default function Softphone() {
       }
       const { TelnyxRTC } = await import("@telnyx/webrtc");
       if (unmounted || myGen !== gen) return;
-      const c = new TelnyxRTC({ login_token: grant.token });
+      // ICE candidates are gathered at login rather than when the INVITE for a
+      // call lands: the browser's answer (and so the customer's ring, which
+      // waits on it) no longer pays for STUN at the start of every call.
+      const c = new TelnyxRTC({ login_token: grant.token, prefetchIceCandidates: true });
       c.remoteElement = REMOTE_AUDIO_ID;
       const live = () => !unmounted && myGen === gen && client === c;
       c.on("telnyx.ready", () => {
@@ -871,7 +881,16 @@ export default function Softphone() {
         console.info("[softphone] registered");
         attempt = 0;
         clearFallback();
-        setSoftphoneState({ status: "ready", error: null, reason: null });
+        // Presence BEFORE "ready". The Call button reads ready as "the server
+        // will dial this tab", and the server refuses a dial from a softphone
+        // it hasn't heard from (409 → the cell, or a retry): the first beat
+        // used to race the first tap. A slow beat doesn't hold the line
+        // hostage — 1.5 s and we go ready anyway.
+        void Promise.race([beat(true), new Promise((r) => setTimeout(r, 1_500))]).then(() => {
+          if (!live()) return;
+          connectingSince = null;
+          setSoftphoneState({ status: "ready", error: null, reason: null });
+        });
         void checkMic().then(() => {
           // Ask for the microphone the first time calls are on for this
           // browser, not in the middle of answering one. Once per device: the
@@ -894,6 +913,7 @@ export default function Softphone() {
         console.info("[softphone] socket closed", ev?.code ?? "", ev?.reason ?? "", "— SDK reconnecting");
         stopHeartbeat();
         void beat(false);
+        connectingSince = Date.now();
         setSoftphoneState({ status: "connecting" });
         // The SDK reconnects on its own first; only if it hasn't come back do we start over with a fresh token.
         if (!fallback) {
@@ -1022,6 +1042,15 @@ export default function Softphone() {
         // fresh grant right now — the dialer would otherwise ring the cell
         // while the backoff timer ran out.
         if (s.status === "off" && (s.reason === "other_tab" || s.reason === "native" || s.reason === "unsupported")) return;
+        // A registration already under way (page just loaded, or the SDK is
+        // re-dialing a dropped socket) is left to finish: restarting it threw
+        // away the grant + socket mid-flight, so a Call pressed during the
+        // first seconds after load took two tries (David 2026-10-03). Only a
+        // stalled one, or a retry sitting on its backoff timer, starts over.
+        if (s.status === "connecting" && connectingSince && Date.now() - connectingSince < CONNECT_PATIENCE_MS && !retry) {
+          console.info("[softphone] reconnect requested from the dialer — registration already in progress, waiting for it");
+          return;
+        }
         console.info("[softphone] reconnect requested from the dialer");
         attempt = 0;
         restart(0);
@@ -1085,15 +1114,29 @@ export default function Softphone() {
         if (!(await stageMic())) {
           throw new Error("Microphone access is needed to call from the browser — allow it and try again, or use Call from line to ring your cell.");
         }
-        const res = await fetch("/api/app/line/call", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contactId: target.contactId ?? null, to: target.to ?? null, via: "app" }),
-        }).catch((err) => {
+        const post = () =>
+          fetch("/api/app/line/call", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ contactId: target.contactId ?? null, to: target.to ?? null, via: "app" }),
+          });
+        let res = await post().catch((err) => {
           dropStaged();
           throw err;
         });
-        const data = (await res.json().catch(() => ({}))) as { error?: string; callId?: string; customerNumber?: string };
+        let data = (await res.json().catch(() => ({}))) as { error?: string; callId?: string; customerNumber?: string };
+        if (res.status === 409 && /softphone isn't connected/i.test(data.error ?? "")) {
+          // The server hasn't heard this tab's heartbeat yet (a laptop that
+          // just woke, a beat lost to a flaky network): say hello and dial once
+          // more before giving up on the browser.
+          console.info("[softphone] server had no presence for this tab — re-announcing and dialing again");
+          await beat(true);
+          res = await post().catch((err) => {
+            dropStaged();
+            throw err;
+          });
+          data = (await res.json().catch(() => ({}))) as typeof data;
+        }
         if (!res.ok || !data.callId) {
           dropStaged();
           throw new Error(data.error || "Couldn't place the call.");
@@ -1287,7 +1330,11 @@ export default function Softphone() {
         /* next tick */
       }
     };
-    const t = setInterval(tick, 2000);
+    // Every second, from the first: the customer's "hello" is audible the
+    // moment Telnyx bridges, and a 2 s interval with no first tick had the
+    // card still saying "Calling…" through it (David 2026-10-03).
+    void tick();
+    const t = setInterval(tick, OUTBOUND_POLL_MS);
     return () => {
       stop = true;
       clearInterval(t);

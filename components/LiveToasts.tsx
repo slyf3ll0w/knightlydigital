@@ -37,6 +37,14 @@ const ICON: Record<LiveToast["kind"], typeof Inbox> = {
 };
 
 const AUTO_DISMISS_MS = 8000;
+/**
+ * Hard ceiling, looking or not (David 2026-10-03: "disappear after a little
+ * while if it is not dismissed or interacted with"). What the card announced
+ * is kept by the bell — every push is recorded as a notice (lib/push.ts) and
+ * the live records (requests, leads, messages) are in the feed anyway — so
+ * nothing is lost when it goes.
+ */
+const MAX_LIFE_MS = 45_000;
 
 function Card({ t, onDismiss }: { t: LiveToast; onDismiss: () => void }) {
   const router = useRouter();
@@ -58,11 +66,13 @@ function Card({ t, onDismiss }: { t: LiveToast; onDismiss: () => void }) {
       }
     };
     sync();
+    const ceiling = setTimeout(onDismiss, MAX_LIFE_MS);
     window.addEventListener("focus", sync);
     window.addEventListener("blur", sync);
     document.addEventListener("visibilitychange", sync);
     return () => {
       if (timer) clearTimeout(timer);
+      clearTimeout(ceiling);
       window.removeEventListener("focus", sync);
       window.removeEventListener("blur", sync);
       document.removeEventListener("visibilitychange", sync);

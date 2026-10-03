@@ -198,12 +198,19 @@ export function softphoneElsewhere(s: SoftphoneState): boolean {
 }
 
 /**
+ * How long a dial waits for the softphone to register before the cell flow
+ * takes the call: a fresh grant (one or two Telnyx round trips on the
+ * server), the SDK chunk and the socket login on a slow link.
+ */
+export const SOFTPHONE_WAIT_MS = 12_000;
+
+/**
  * Wait for the softphone to come back after a reconnect() or takeOver() —
  * up to `maxMs`. Resolves true the moment it is registered, false when the
  * time runs out or the line went off for good (the caller then rings the
  * cell instead, and says so).
  */
-export function waitForSoftphone(maxMs = 8_000): Promise<boolean> {
+export function waitForSoftphone(maxMs = SOFTPHONE_WAIT_MS): Promise<boolean> {
   const until = Date.now() + maxMs;
   return new Promise((resolve) => {
     const tick = () => {

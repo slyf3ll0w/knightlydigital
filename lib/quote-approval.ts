@@ -15,6 +15,7 @@ import { sendEmail, invoiceLinkEmail } from "@/lib/email";
 import { recordLeadWin } from "@/lib/pipeline";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { logActivity } from "@/lib/activity";
+import { notifyUsers, companyManagerIds } from "@/lib/push";
 
 /** Quote statuses from which approval is a meaningful transition. */
 export const APPROVABLE_STATUSES = ["AWAITING_RESPONSE", "CHANGES_REQUESTED"] as const;
@@ -101,6 +102,25 @@ export async function finishQuoteApproval(
         detail: `Deposit pay link for Quote #${quote.quoteNumber} could not be emailed — send it from the invoice.`,
       });
     }
+  }
+
+  // The team hears about it (David 2026-10-03: there was no notification at
+  // all) — owners/admins plus the rep on the client. Push → the OS or an
+  // in-app card on an open tab, and the bell keeps it (notifyUsers records
+  // a notice). The client's own approval is `actor`-less; a staff approval
+  // from the quote page skips the push — they are looking at it.
+  if (!actor) {
+    const audience = new Set(await companyManagerIds(quote.companyId));
+    const rep = await prisma.contact.findUnique({ where: { id: quote.contactId }, select: { assignedToId: true } });
+    if (rep?.assignedToId) audience.add(rep.assignedToId);
+    const client = quote.contact.companyName?.trim() || `${quote.contact.firstName} ${quote.contact.lastName}`.trim() || "Your client";
+    const total = Number(quote.total).toLocaleString("en-US", { style: "currency", currency: "USD" });
+    void notifyUsers([...audience], {
+      title: `${client} approved Quote #${quote.quoteNumber}`,
+      body: deposit && deposit.outstanding > 0 ? `${total} · deposit invoice sent` : total,
+      url: `/app/quotes/${quote.id}`,
+      tag: `quote-approved-${quote.id}`,
+    });
   }
 
   fireAutomations(quote.companyId, "quote.approved", quote.id);

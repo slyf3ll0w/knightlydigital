@@ -22,6 +22,19 @@ function who(c: ContactBits): string {
   return `${c.firstName} ${c.lastName}`.trim();
 }
 
+/** The bell icon for a recorded push, from where its tap lands. */
+function kindForUrl(url: string): "request" | "lead" | "booking" | "payment" | "invoice" | "quote" | "message" | "call" | "automation" {
+  if (url.startsWith("/app/leads")) return "lead";
+  if (url.startsWith("/app/requests")) return "request";
+  if (url.startsWith("/app/quotes")) return "quote";
+  if (url.startsWith("/app/invoices")) return "invoice";
+  if (url.startsWith("/app/payments")) return "payment";
+  if (url.startsWith("/app/schedule") || url.startsWith("/app/appointments") || url.startsWith("/app/jobs")) return "booking";
+  if (url.startsWith("/app/calls")) return "call";
+  if (url.startsWith("/app/messages") || url.startsWith("/app/chat")) return "message";
+  return "automation";
+}
+
 function money(n: unknown): string {
   return `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -152,21 +165,12 @@ export async function GET() {
     prisma.automationNotice.findMany({
       where: { companyId: actor.companyId, userId: actor.id, createdAt: { gte: since } },
       orderBy: { createdAt: "desc" },
-      take: 10,
-      select: { id: true, title: true, body: true, url: true, createdAt: true },
+      take: 15,
+      select: { id: true, title: true, body: true, url: true, createdAt: true, automationId: true },
     }),
   ]);
 
-  const items = [
-    // What automations told this person — the full text, not the push's excerpt
-    ...notices.map((n) => ({
-      id: `auto-${n.id}`,
-      kind: "automation" as const,
-      title: n.title,
-      sub: n.body ?? "",
-      at: n.createdAt.toISOString(),
-      href: n.url.startsWith("/app/") ? n.url : "/app/automations",
-    })),
+  const live = [
     ...requests.map((r) => ({
       id: `req-${r.id}`,
       kind: "request" as const,
@@ -215,9 +219,25 @@ export async function GET() {
       at: m.createdAt.toISOString(),
       href: `/app/messages/thread/${m.contactId}`,
     })),
-  ]
-    .sort((a, b) => b.at.localeCompare(a.at))
-    .slice(0, 20);
+  ];
+  // Every push is recorded as a notice (lib/push.ts notifyUsers), so the bell
+  // keeps what a card said after it is gone. A notice about something the
+  // feed already shows live (the request, the lead, the message) is dropped
+  // — the record is the better row — and the kind follows the link so the
+  // icon matches the record it points at.
+  const liveHrefs = new Set(live.map((i) => i.href));
+  const notes = notices
+    .filter((n) => n.automationId || !liveHrefs.has(n.url))
+    .map((n) => ({
+      id: `auto-${n.id}`,
+      kind: n.automationId ? ("automation" as const) : kindForUrl(n.url),
+      title: n.title,
+      sub: n.body ?? "",
+      at: n.createdAt.toISOString(),
+      href: n.url.startsWith("/app/") ? n.url : "/app/automations",
+    }));
+
+  const items = [...notes, ...live].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 20);
 
   return NextResponse.json({ items });
 }

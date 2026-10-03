@@ -9,6 +9,7 @@ import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import { Chip, InfoTip } from "@/components/ds";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import { type PickerWorkItem } from "@/components/WorkItemPicker";
 import ContactPicker from "@/components/ContactPicker";
 import LineItemsEditor, {
@@ -196,6 +197,10 @@ export default function QuoteEditor({
           ? total
           : 0;
 
+  // Anything typed since the page opened: leaving asks first (David 2026-10-03).
+  const [dirty, setDirty] = useState(false);
+  useUnsavedWarning(dirty && !loading);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!contactId) {
@@ -261,6 +266,7 @@ export default function QuoteEditor({
       return;
     }
 
+    setDirty(false);
     router.push(`/app/quotes/${editing ? existingQuote!.id : data!.id}`);
   }
 
@@ -276,6 +282,7 @@ export default function QuoteEditor({
 
       <form
         onSubmit={handleSubmit}
+        onChange={() => setDirty(true)}
         // Native validation blocks submit with only a browser tooltip — mirror
         // it in the visible error banner so a failed save is never silent.
         onInvalidCapture={() =>

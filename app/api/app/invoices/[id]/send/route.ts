@@ -8,6 +8,7 @@ import { sendSms, canText, companyCanSendSms, invoiceLinkText } from "@/lib/sms"
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { dueDateFromTerms } from "@/lib/due-dates";
 import { fireAutomations } from "@/lib/automations-server";
+import { readSendChannels } from "@/lib/send-channels";
 
 /**
  * POST — email the client their invoice pay link and mark the invoice sent.
@@ -15,7 +16,7 @@ import { fireAutomations } from "@/lib/automations-server";
  * (same lifecycle as Mark as Sent).
  */
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const actor = await getActor();
@@ -52,9 +53,12 @@ export async function POST(
   // texting is on. Either alone is enough (2026-09-28: a client with a phone
   // and no email could not be sent an invoice at all, and the text only ever
   // rode along silently behind "Email to Client").
+  // The sender picks the channels (components/SendChoice.tsx); no body = both.
+  const channels = await readSendChannels(req, { email: true, text: true });
   const contact = invoice.contact;
-  const textable = Boolean(contact?.phone) && canText(contact!) && (await companyCanSendSms(invoice.companyId));
-  if (!contact || (!contact.email && !textable)) {
+  const textable = channels.text && Boolean(contact?.phone) && canText(contact!) && (await companyCanSendSms(invoice.companyId));
+  const emailable = channels.email && Boolean(contact?.email);
+  if (!contact || (!emailable && !textable)) {
     return NextResponse.json(
       { error: "This client has no email or textable phone on file — add one, or share the invoice with Copy payment link." },
       { status: 400 }
@@ -74,7 +78,7 @@ export async function POST(
     payable,
   });
 
-  const emailed = contact.email
+  const emailed = emailable && contact.email
     ? await sendEmail({
         companyId: invoice.companyId,
         to: contact.email,

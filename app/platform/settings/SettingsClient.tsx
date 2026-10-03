@@ -68,7 +68,7 @@ import {
 
 type Company = {
   id: string; name: string; legalName: string | null; showLegalNameOnDocs: boolean; slug: string; phone: string | null;
-  email: string | null; notifyEmail?: string | null; address: string | null; city: string | null;
+  email: string | null; notifyEmail?: string | null; notifyEmailOff?: boolean; address: string | null; city: string | null;
   state: string | null; zip: string | null; website: string | null;
   about: string | null;
   logoUrl: string | null; brandColor: string | null; brandColorSecondary: string | null;
@@ -942,6 +942,7 @@ export default function SettingsClient({
     phone: company.phone ?? "",
     email: company.email ?? "",
     notifyEmail: company.notifyEmail ?? "",
+    notifyEmailOff: company.notifyEmailOff ?? false,
     address: company.address ?? "",
     city: company.city ?? "",
     state: company.state ?? "",
@@ -1476,6 +1477,18 @@ export default function SettingsClient({
               Where new requests, bookings, and client messages are emailed to you. Leave blank to use the
               business email.
             </p>
+            <label className="mt-3 flex items-center gap-3 cursor-pointer">
+              <div
+                onClick={() => set("notifyEmailOff", !form.notifyEmailOff)}
+                className={`relative w-10 h-6 rounded-full transition-colors cursor-pointer ${
+                  !form.notifyEmailOff ? "bg-[color:var(--ds-primary)]" : "bg-gray-300"
+                }`}
+              >
+                <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${!form.notifyEmailOff ? "translate-x-5" : "translate-x-1"}`} />
+              </div>
+              <span className="text-sm text-gray-700">Email these notifications</span>
+              <InfoTip>Off, nothing about new requests, bookings or client messages is emailed — the phone and desktop notifications and the bell still carry them. For a team that already gets them on their phones.</InfoTip>
+            </label>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Street address</label>

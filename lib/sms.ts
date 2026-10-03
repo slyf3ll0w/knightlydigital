@@ -335,3 +335,38 @@ export function invoiceLinkText({
 }): string {
   return `Hi ${firstName}, ${companyName} sent you invoice #${invoiceNumber} for $${total.toFixed(2)}. ${payable ? "View & pay" : "View"}: ${payUrl} ${OPT_OUT}`;
 }
+
+/**
+ * Quote link — texted when the sender ticks Text on Send to Client (David
+ * 2026-10-03). Plain and transactional: the client asked for this quote.
+ */
+export function quoteLinkText({
+  companyName,
+  firstName,
+  quoteNumber,
+  total,
+  viewUrl,
+}: {
+  companyName: string;
+  firstName: string;
+  quoteNumber: number;
+  total: number;
+  viewUrl: string;
+}): string {
+  return `Hi ${firstName}, your quote #${quoteNumber} from ${companyName} ($${total.toFixed(2)}) is ready to review and approve: ${viewUrl} ${OPT_OUT}`;
+}
+
+/** Agreement signing link — texted alongside (or instead of) the email. */
+export function agreementLinkText({
+  companyName,
+  firstName,
+  title,
+  signUrl,
+}: {
+  companyName: string;
+  firstName: string;
+  title: string;
+  signUrl: string;
+}): string {
+  return `Hi ${firstName}, ${companyName} sent you an agreement to sign: ${title}. Review and sign: ${signUrl} ${OPT_OUT}`;
+}

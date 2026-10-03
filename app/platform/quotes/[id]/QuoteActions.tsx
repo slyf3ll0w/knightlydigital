@@ -28,6 +28,8 @@ import { showApproveRitual } from "@/lib/approve-ritual";
 import Modal from "@/components/Modal";
 import MenuPopover from "@/components/MenuPopover";
 import InfoTip from "@/components/ds/InfoTip";
+import { useSendChoice, sentSummary } from "@/components/SendChoice";
+import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 
 type AgreementState = {
   signed: boolean;
@@ -43,6 +45,8 @@ export default function QuoteActions({
   wasSent = false,
   contactId = "",
   contactEmail = "",
+  contactPhone = "",
+  canTextClient = false,
   agreement = null,
   hasDeposit = false,
   depositInvoiced = false,
@@ -55,6 +59,10 @@ export default function QuoteActions({
   wasSent?: boolean;
   contactId?: string;
   contactEmail?: string;
+  /** Formatted phone — the text recipient when the business line can send. */
+  contactPhone?: string;
+  /** The business line is registered and the client takes texts (lib/sms.ts). */
+  canTextClient?: boolean;
   agreement?: AgreementState;
   hasDeposit?: boolean;
   depositInvoiced?: boolean;
@@ -70,6 +78,17 @@ export default function QuoteActions({
   const [templateId, setTemplateId] = useState(agreement?.templates[0]?.id ?? "");
   const [agreementError, setAgreementError] = useState("");
   const ref = useRef<HTMLDivElement>(null);
+  const { choose, chooser } = useSendChoice();
+  const reachable = Boolean(contactEmail || canTextClient);
+  // A draft nobody has sent yet: leaving the page asks first (David
+  // 2026-10-03). In-app navigation only — no native prompt on a refresh.
+  useUnsavedWarning(status === "DRAFT" && reachable, {
+    title: "Send this quote first?",
+    message: "The client hasn't been sent this quote yet.",
+    confirmLabel: "Leave without sending",
+    cancelLabel: "Stay",
+    beforeUnload: false,
+  });
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -124,19 +143,33 @@ export default function QuoteActions({
   // Email the client their approval link (marks the quote sent on success)
   async function emailToClient() {
     setOpen(false);
+    // Email by default; Text is there to tick when the line can send.
+    const channels = await choose({
+      email: contactEmail || null,
+      phone: contactPhone || null,
+      canText: canTextClient,
+      what: "Send the quote",
+      defaults: { email: Boolean(contactEmail), text: !contactEmail },
+    });
+    if (!channels) return;
     setBusy(true);
     try {
-      const res = await fetch(`/api/app/quotes/${quoteId}/send`, { method: "POST" });
+      const res = await fetch(`/api/app/quotes/${quoteId}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(channels),
+      });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         alertSheet({ message: data?.error ?? "Couldn't send the quote." });
         return;
       }
-      setSentTo(data?.to ?? contactEmail);
+      const line = sentSummary(data, { email: contactEmail, phone: contactPhone });
+      setSentTo(line);
       hapticImpact("LIGHT");
       // Body-attached on purpose — the refresh below swaps the action
       // buttons and would kill any overlay held in this component's state
-      showSendRitual(`Emailed to ${data?.to ?? contactEmail}`);
+      showSendRitual(line);
     } finally {
       setBusy(false);
       router.refresh();
@@ -272,7 +305,7 @@ export default function QuoteActions({
         // animation's transform doesn't fight -translate-x-1/2
         <span className="fixed left-1/2 -translate-x-1/2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] lg:bottom-8 z-40 max-w-[calc(100vw-2rem)]">
           <span className="msg-enter block truncate rounded-full bg-gray-900/95 px-4 py-2 text-xs font-medium text-white shadow-lg">
-            Emailed to {sentTo}
+            {sentTo}
           </span>
         </span>
       )}
@@ -280,19 +313,21 @@ export default function QuoteActions({
       {/* Primary action follows the lifecycle (Jobber behavior). With a client
           email on file, actually SEND the quote — "Mark as Sent" alone made
           owners think the app had emailed something when it hadn't. */}
+      {chooser}
       {status === "DRAFT" &&
-        (contactEmail ? (
+        (reachable ? (
           <button
             onClick={emailToClient}
+            disabled={busy}
             className="btn-primary"
           >
             <Send size={13} />
-            Email to Client
+            {canTextClient ? "Send to Client" : "Email to Client"}
           </button>
         ) : (
           <button
             onClick={() => setStatus("AWAITING_RESPONSE")}
-            title="No client email on file — this only marks the quote as sent"
+            title="No client email or textable phone on file — this only marks the quote as sent"
             className="btn-primary"
           >
             <Send size={13} />
@@ -404,22 +439,22 @@ export default function QuoteActions({
               <CopyPlus size={14} className="text-gray-400" />
               Duplicate Quote
             </button>
-            {contactEmail && status === "DRAFT" && (
+            {reachable && status === "DRAFT" && (
               <button
                 onClick={() => setStatus("AWAITING_RESPONSE")}
                 className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
                 <CheckCircle size={14} className="text-gray-400" />
-                Mark as Sent (no email)
+                Mark as Sent (don&apos;t send)
               </button>
             )}
-            {contactEmail && (status === "AWAITING_RESPONSE" || status === "CHANGES_REQUESTED") && (
+            {reachable && (status === "AWAITING_RESPONSE" || status === "CHANGES_REQUESTED") && (
               <button
                 onClick={emailToClient}
                 className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
                 <Send size={14} className="text-gray-400" />
-                Email to client again
+                {canTextClient ? "Send to client again" : "Email to client again"}
               </button>
             )}
             <div className="my-1 border-t border-gray-100" />

@@ -44,6 +44,8 @@ export default function AppointmentActions({
   requestId,
   canDelete,
   canInvoice = false,
+  hasQuote = false,
+  hasInvoice = false,
   scheduledAt,
   scheduledEnd,
   scheduledAnytime,
@@ -60,6 +62,10 @@ export default function AppointmentActions({
   canDelete: boolean;
   /** Money roles only: the straight-to-invoice path (work done on the spot). */
   canInvoice?: boolean;
+  /** A quote already came out of this appointment (its request) — no second Create Quote. */
+  hasQuote?: boolean;
+  /** An invoice was already billed from it — no second Create Invoice. */
+  hasInvoice?: boolean;
   scheduledAt: string;
   scheduledEnd: string | null;
   scheduledAnytime: boolean;
@@ -259,10 +265,23 @@ export default function AppointmentActions({
             Complete Appointment
           </button>
         )}
-        {status === "COMPLETED" && (
+        {/* After Complete, both doors stay open until one is used (David
+            2026-10-03: backing out of the new invoice left only Create
+            Quote). The quote is the docked pill on phones; the invoice sits
+            in the header row for money roles. */}
+        {status === "COMPLETED" && !hasQuote && (
           <Link href={quoteHref} className={primaryCls}>
             <FileText size={14} />
             Create Quote
+          </Link>
+        )}
+        {status === "COMPLETED" && canInvoice && !hasInvoice && (
+          <Link
+            href={invoiceHref}
+            className="flex items-center gap-1.5 rounded-[10px] btn-tool-line bg-[color:var(--ds-secondary-soft)] px-3 py-2 text-sm font-semibold text-[color:var(--ds-secondary)] hover:bg-[color-mix(in_srgb,var(--ds-secondary)_18%,transparent)]"
+          >
+            <Receipt size={14} />
+            Create Invoice
           </Link>
         )}
         <div className="relative">
@@ -274,7 +293,7 @@ export default function AppointmentActions({
           </button>
           {menuOpen && (
             <MenuPopover open={menuOpen} onClose={() => setMenuOpen(false)} title="Appointment">
-              {canInvoice && status !== "CANCELLED" && (
+              {canInvoice && status !== "CANCELLED" && !hasInvoice && (
                 <Link
                   href={invoiceHref}
                   onClick={() => setMenuOpen(false)}

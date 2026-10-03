@@ -109,7 +109,7 @@ async function safeWebhookHost(url: string): Promise<string | null> {
 async function notify(automation: AutomationRow, userIds: string[], title: string, body: string | undefined, link: string): Promise<void> {
   const t = title.slice(0, 120);
   const b = body?.slice(0, 500) || undefined;
-  await notifyUsers(userIds, { title: t, body: b, url: link, tag: `automation-${automation.id}-${link}` });
+  await notifyUsers(userIds, { title: t, body: b, url: link, tag: `automation-${automation.id}-${link}` }, { record: false });
   if (userIds.length === 0) return;
   await prisma.automationNotice
     .createMany({ data: userIds.map((userId) => ({ companyId: automation.companyId, userId, automationId: automation.id, title: t, body: b ?? null, url: link })) })

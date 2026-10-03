@@ -1,6 +1,8 @@
 import { MessageSquare } from "lucide-react";
 import { prisma } from "@/lib/db";
-import { requirePageActor, canSell } from "@/lib/permissions";
+import { requirePageActor, canSell, isManager } from "@/lib/permissions";
+import { hasPlan } from "@/lib/plans";
+import VoicePlanNote from "@/components/VoicePlanNote";
 import PageTitle from "@/components/PageTitle";
 import { loadInbox } from "@/lib/inbox";
 import NewMessageButton from "./NewMessageButton";
@@ -20,10 +22,14 @@ export default async function MessagesInboxPage() {
     loadInbox(actor),
     // Dates render in the company's zone — the server clock is UTC. The line
     // decides whether New message may start a thread with a typed number.
-    prisma.company.findUnique({ where: { id: actor.companyId }, select: { timezone: true, lineNumber: true } }),
+    prisma.company.findUnique({
+      where: { id: actor.companyId },
+      select: { timezone: true, lineNumber: true, planGrants: true, addonActiveAt: true },
+    }),
   ]);
   const tz = company?.timezone ?? "America/Chicago";
   const hasLine = Boolean(company?.lineNumber && !company.lineNumber.startsWith("pending:"));
+  const onVoicePlan = company ? hasPlan(company, "DISPATCH") : false;
 
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
@@ -33,6 +39,7 @@ export default async function MessagesInboxPage() {
         </PageTitle>
         <NewMessageButton hasLine={hasLine} />
       </div>
+      {!onVoicePlan && <VoicePlanNote what="texts" manager={isManager(actor.role)} />}
       <InboxList initial={rows} tz={tz} />
     </div>
   );

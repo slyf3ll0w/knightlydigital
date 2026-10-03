@@ -11,6 +11,8 @@ import { FilterRow, FilterChip, SegmentedRow, Segment } from "@/components/Filte
 import { markCallsSeen, resolveCallContacts, type ResolvedCallContact } from "@/lib/voice";
 import { loadCallEvents, type CallEvent } from "@/lib/call-events";
 import { fmtDayShort } from "@/lib/format";
+import { hasPlan } from "@/lib/plans";
+import VoicePlanNote from "@/components/VoicePlanNote";
 
 /**
  * Calls on the business line (lib/voice.ts), laid out like a softphone:
@@ -74,7 +76,15 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
   const [company, rows] = await Promise.all([
     prisma.company.findUnique({
       where: { id: actor.companyId },
-      select: { lineNumber: true, lineForwardTo: true, lineVoiceAppAt: true, timezone: true, messagingRegistration: { select: { status: true } } },
+      select: {
+        lineNumber: true,
+        lineForwardTo: true,
+        lineVoiceAppAt: true,
+        timezone: true,
+        planGrants: true,
+        addonActiveAt: true,
+        messagingRegistration: { select: { status: true } },
+      },
     }),
     prisma.call.findMany({
       where: { companyId: actor.companyId, ...scope, ...(contactId ? { contactId } : {}) },
@@ -133,6 +143,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
   const smsReady = hasLine && company?.messagingRegistration?.status === "ACTIVE";
   const filteredContact = contactId ? calls.find((c) => c.contact?.id === contactId)?.contact : null;
   const manager = isManager(actor.role);
+  const onVoicePlan = company ? hasPlan(company, "DISPATCH") : false;
 
   const visible = calls.filter((c) =>
     filter === "missed" ? isMissed(c) : filter === "voicemail" ? c.status === "VOICEMAIL" : filter === "out" ? c.direction === "OUTBOUND" : true
@@ -275,6 +286,8 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
           </Link>
         )}
       </div>
+
+      {!onVoicePlan && <VoicePlanNote what="calls" manager={manager} />}
 
       <div className="mt-3 lg:mt-6 lg:grid lg:grid-cols-[312px_minmax(0,1fr)] lg:items-start lg:gap-6">
         {phone && <LinePanel {...phone} stats={stats} className="hidden lg:sticky lg:top-6 lg:block" />}

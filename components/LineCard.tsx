@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Grid3x3, Mic, Settings2 } from "lucide-react";
 import { fmtPhone } from "@/lib/format";
@@ -185,6 +186,15 @@ export function LineSub({ lineNumber, forwardTo }: { lineNumber: string; forward
 export function KeypadFab() {
   const s = useSoftphone();
   const [open, setOpen] = useState(false);
+  // The phone Create sheet's Call tile lands here with ?keypad=1: open the
+  // pad at once and drop the flag, so a refresh or Back doesn't reopen it.
+  const params = useSearchParams();
+  const wantsKeypad = params.get("keypad") === "1";
+  useEffect(() => {
+    if (!wantsKeypad) return;
+    setOpen(true);
+    window.history.replaceState(window.history.state, "", "/app/calls");
+  }, [wantsKeypad]);
   const inApp = s.status === "ready";
   if (s.status === "ready" && s.call) return null;
   return (

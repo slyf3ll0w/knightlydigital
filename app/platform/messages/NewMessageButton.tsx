@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, MessageSquarePlus, Search, X } from "lucide-react";
 import Modal from "@/components/Modal";
 import BottomSheet from "@/components/BottomSheet";
@@ -50,6 +50,16 @@ export default function NewMessageButton({
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
   const [starting, setStarting] = useState(false);
+  // The phone Create sheet's Message tile lands here with ?new=1: open the
+  // picker at once and drop the flag, so a refresh or Back doesn't reopen it.
+  const params = useSearchParams();
+  const wantsNew = params.get("new") === "1";
+  useEffect(() => {
+    if (!wantsNew) return;
+    openPicker();
+    window.history.replaceState(window.history.state, "", "/app/messages");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wantsNew]);
 
   // A typed number that nobody in the book has yet: 10 digits (or 11 with a
   // leading 1) and no phone match → offer to start a thread with it.

@@ -29,6 +29,8 @@ import { showSendRitual } from "@/lib/send-ritual";
 import { fmtPhone } from "@/lib/format";
 import { FINIX_JS_SRC, type FinixConfig, type FinixForm } from "@/lib/finix-js";
 import MenuPopover from "@/components/MenuPopover";
+import { useSendChoice, sentSummary } from "@/components/SendChoice";
+import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 
 type SavedCardOption = { id: string; label: string; isDefault: boolean };
 
@@ -77,6 +79,16 @@ export default function InvoiceActions({
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [sentTo, setSentTo] = useState("");
+  const { choose, chooser } = useSendChoice();
+  // A draft nobody has sent yet: leaving the page asks first (David
+  // 2026-10-03). In-app navigation only — no native prompt on a refresh.
+  useUnsavedWarning(status === "DRAFT" && Boolean(contactEmail || canTextClient), {
+    title: "Send this invoice first?",
+    message: "The client hasn't been sent this invoice yet.",
+    confirmLabel: "Leave without sending",
+    cancelLabel: "Stay",
+    beforeUnload: false,
+  });
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [deleteError, setDeleteError] = useState("");
@@ -304,19 +316,26 @@ export default function InvoiceActions({
 
   // "Emailed to a@b.com", "Texted to (469) 860-5060", or both
   function sentLine(data: { emailed?: boolean; texted?: boolean; to?: string | null; phone?: string | null } | null): string {
-    const parts: string[] = [];
-    if (data?.emailed ?? true) parts.push(`Emailed to ${data?.to ?? contactEmail}`);
-    if (data?.texted) parts.push(`Texted to ${data?.phone ? fmtPhone(data.phone) : contactPhone}`);
-    return parts.join(" · ") || "Sent";
+    return sentSummary(
+      data ? { ...data, phone: data.phone ? fmtPhone(data.phone) : null } : null,
+      { email: contactEmail, phone: contactPhone }
+    );
   }
 
   // Send the client their pay link — email, a text from the business line,
-  // or both (DRAFT invoices move to Awaiting Payment)
+  // or both: the sender picks when both are possible (DRAFT invoices move to
+  // Awaiting Payment)
   async function emailToClient() {
     setOpen(false);
+    const channels = await choose({ email: contactEmail || null, phone: contactPhone || null, canText: canTextClient, what: "Send the invoice" });
+    if (!channels) return;
     setBusy(true);
     try {
-      const res = await fetch(`/api/app/invoices/${invoiceId}/send`, { method: "POST" });
+      const res = await fetch(`/api/app/invoices/${invoiceId}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(channels),
+      });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         alertSheet({ message: data?.error ?? "Couldn't send the invoice." });
@@ -385,10 +404,12 @@ export default function InvoiceActions({
         </span>
       )}
 
+      {chooser}
       {status === "DRAFT" &&
         (contactEmail || canTextClient ? (
           <button
             onClick={emailToClient}
+            disabled={busy}
             className="btn-primary"
             title={
               contactEmail && canTextClient

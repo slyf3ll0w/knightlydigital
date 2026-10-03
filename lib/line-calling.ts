@@ -34,6 +34,7 @@ import {
   waitForSoftphone,
   type PlaceCallTarget,
   type SoftphoneState,
+  SOFTPHONE_WAIT_MS,
 } from "@/lib/softphone-client";
 
 /* ── The flag ─────────────────────────────────────────────────────────── */
@@ -77,11 +78,12 @@ export async function placeLineCall(target: PlaceCallTarget): Promise<LineCallRe
   let viaApp = softphoneIdle(sp);
   if (!viaApp && (softphoneRecoverable(sp) || softphoneElsewhere(sp))) {
     // Registered a moment ago and lost it, or another tab holds the line:
-    // bring it here first (up to 8 s), so the call goes out from this
-    // browser rather than surprising the caller with their cell.
+    // bring it here first (up to 12 s — a fresh grant, the SDK chunk and
+    // the socket on a slow link), so the call goes out from this browser
+    // rather than surprising the caller with their cell.
     if (softphoneElsewhere(sp)) softphone.takeOver();
     else softphone.reconnect();
-    viaApp = (await waitForSoftphone(8_000)) && softphoneIdle(getSoftphoneState());
+    viaApp = (await waitForSoftphone(SOFTPHONE_WAIT_MS)) && softphoneIdle(getSoftphoneState());
     if (!viaApp && softphoneElsewhere(getSoftphoneState())) {
       throw new Error("Your other WorkBench tab kept the line — it may be on a call. Call from that tab, or close it and try again.");
     }

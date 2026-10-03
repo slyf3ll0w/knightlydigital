@@ -12,6 +12,7 @@ import {
   softphoneRecoverable,
   useSoftphone,
   waitForSoftphone,
+  SOFTPHONE_WAIT_MS,
 } from "@/lib/softphone-client";
 import { DIAL_MAX, dialDisplaySize, fmtDialing, normalizeDialed } from "@/lib/dial-format";
 import { hapticImpact } from "@/lib/haptics";
@@ -190,14 +191,14 @@ export default function DialPad({
         // The browser was registered a moment ago and lost it (a socket
         // drop, an expired grant), or another tab of this browser holds the
         // line: get it here before the call goes out, rather than surprising
-        // the caller with their cell ringing. Eight seconds is plenty for a
-        // fresh token + registration; past that the cell flow takes over
+        // the caller with their cell ringing. Twelve seconds covers a fresh
+        // token + the SDK chunk + registration on a slow link; past that the cell flow takes over
         // (reconnect) — or, for another tab, nothing does: that tab is on a
         // call, and the line under the number says so.
         setReconnecting(true);
         if (softphoneElsewhere(sp)) softphone.takeOver();
         else softphone.reconnect();
-        inApp = (await waitForSoftphone(8_000)) && softphoneIdle(getSoftphoneState());
+        inApp = (await waitForSoftphone(SOFTPHONE_WAIT_MS)) && softphoneIdle(getSoftphoneState());
         setReconnecting(false);
         if (!inApp && softphoneElsewhere(getSoftphoneState())) {
           throw new Error("Your other WorkBench tab kept the line — it may be on a call. Dial from that tab, or close it and try again.");

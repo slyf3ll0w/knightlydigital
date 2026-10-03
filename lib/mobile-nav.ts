@@ -116,6 +116,9 @@ const PARENTS: [prefix: string, to: string][] = [
   ["/app/team-map", "/app/business"],
 ];
 
+/** The section list pages themselves — "‹ Jobs" is right when that is where back lands. */
+const LABEL_ROOTS = new Set(LABELS.map(([prefix]) => prefix));
+
 const matches = (pathname: string, prefix: string) =>
   pathname === prefix || pathname.startsWith(prefix + "/");
 
@@ -161,16 +164,19 @@ export function mobileBackFor(
 ): { label: string; to: string } | null {
   if (!pathname.startsWith("/app/")) return null;
   if (TAB_ROOTS.has(pathname) || STANDALONE.has(pathname)) return null;
-  // Arriving by POPPING out of a child (job detail → Jobs) isn't "coming
-  // from" somewhere — that's the page you just left behind, not a way back.
-  const cameFrom =
-    previous && previous !== pathname && previous.startsWith("/app/") &&
-    !previous.startsWith(pathname + "/")
-      ? previous
-      : null;
+  // `previous` is the real page under this one (AppShell keeps a stack and
+  // pops it on the way back), so it is always where the control goes.
+  const cameFrom = previous && previous !== pathname && previous.startsWith("/app/") ? previous : null;
   if (cameFrom) {
     const label = mobileLabelFor(cameFrom);
-    if (label) return { label, to: cameFrom };
+    if (label) {
+      // Labels are section names. Inside one section (a job's edit page
+      // under the job, one client under another) the section's own name
+      // would read as the page you are ON, so say "Back" — unless the page
+      // under this one IS the section's list, which the name describes.
+      const sameSection = label === mobileLabelFor(pathname) && !LABEL_ROOTS.has(cameFrom);
+      return { label: sameSection ? "Back" : label, to: cameFrom };
+    }
   }
   return ROOTS.has(pathname) ? null : fallbackFor(pathname);
 }

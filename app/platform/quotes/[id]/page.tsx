@@ -17,6 +17,8 @@ import Celebration from "@/components/Celebration";
 import { shouldCelebrate } from "@/lib/celebrations";
 import { activityFor } from "@/lib/activity";
 import ActivityTrail from "@/components/ActivityTrail";
+import { canText, companyCanSendSms } from "@/lib/sms";
+import { fmtPhone } from "@/lib/format";
 
 export default async function QuoteDetailPage({
   params,
@@ -71,6 +73,9 @@ export default async function QuoteDetailPage({
 
   const baseUrl = process.env.NEXTAUTH_URL ?? "";
   const publicUrl = `${baseUrl}/quote/${quote.publicToken}`;
+  // Send to Client can text the link from the business line
+  const canTextClient = Boolean(quote.contact.phone) && canText(quote.contact) && (await companyCanSendSms(quote.companyId));
+  const contactPhone = quote.contact.phone ? fmtPhone(quote.contact.phone) : "";
   const deposit = quoteDepositAmount(quote);
   const depositInvoice = quote.invoices[0] ?? null;
 
@@ -112,6 +117,8 @@ export default async function QuoteDetailPage({
           wasSent={!!quote.sentAt}
           contactId={quote.contactId}
           contactEmail={quote.contact.email ?? ""}
+          contactPhone={contactPhone}
+          canTextClient={canTextClient}
           agreement={
             needsAgreement
               ? { signed: agreementSigned, sent: agreementSent, templates: contractTemplates }
@@ -129,7 +136,13 @@ export default async function QuoteDetailPage({
         seeMoney &&
         !depositInvoice &&
         (quote.status === "APPROVED" || quote.status === "CONVERTED") && (
-          <CollectDepositNudge quoteId={quote.id} amount={deposit} />
+          <CollectDepositNudge
+            quoteId={quote.id}
+            amount={deposit}
+            contactEmail={quote.contact.email ?? ""}
+            contactPhone={contactPhone}
+            canTextClient={canTextClient}
+          />
         )}
 
       {/* Header facts (Jobber-style definition list with backlinks) —

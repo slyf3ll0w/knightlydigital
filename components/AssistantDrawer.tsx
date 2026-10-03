@@ -711,6 +711,22 @@ export default function AssistantDrawer({
         {/* No header bar — the empty state introduces Atlas, so the chrome is
             just two floating controls. White circles with a border so they
             stay visible over any message content. */}
+        {/* Phones: the token meter also rides up here as a pill, so it is
+            seen the moment the drawer opens — not only down in the composer
+            behind the keyboard (David 2026-10-03). Desktop keeps the
+            composer's meter alone. */}
+        {(liveAccess.level === "free" || liveAccess.level === "plan") && (
+          <div className="absolute left-3 z-10 sm:hidden" style={{ top: "calc(env(safe-area-inset-top) + 12px)" }}>
+            <span
+              className={`flex h-9 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 text-[12px] font-semibold shadow-sm ${
+                liveAccess.meter.remaining <= liveAccess.meter.included * 0.1 ? "text-amber-600" : "text-gray-600"
+              }`}
+            >
+              <Coins size={13} />
+              {fmtTokens(liveAccess.meter.remaining)} tokens left
+            </span>
+          </div>
+        )}
         <div
           className="absolute right-3 z-10 flex items-center gap-2"
           style={{ top: "calc(env(safe-area-inset-top) + 12px)" }}

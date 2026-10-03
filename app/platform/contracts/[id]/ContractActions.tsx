@@ -7,6 +7,7 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import Modal from "@/components/Modal";
 import { InfoTip } from "@/components/ds";
+import { useSendChoice, sentSummary } from "@/components/SendChoice";
 
 /** Contract controls: copy the signing link, email it (again), edit while
  *  unsigned, void/reopen, delete. */
@@ -18,6 +19,8 @@ export default function ContractActions({
   title,
   body,
   contactEmail,
+  contactPhone = "",
+  canTextClient = false,
 }: {
   contractId: string;
   status: string;
@@ -25,8 +28,11 @@ export default function ContractActions({
   canDelete: boolean;
   title: string;
   body: string;
-  /** Client's email on file — the resend button needs one. */
+  /** Client's email on file — the send button needs this or a textable phone. */
   contactEmail: string | null;
+  /** Formatted phone — the text recipient when the business line can send. */
+  contactPhone?: string;
+  canTextClient?: boolean;
 }) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
@@ -35,6 +41,8 @@ export default function ContractActions({
   const [sentTo, setSentTo] = useState("");
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ title, body });
+  const { choose, chooser } = useSendChoice();
+  const reachable = Boolean(contactEmail || canTextClient);
 
   // Sent confirmation auto-dismisses — floats as a pill like quotes/invoices
   useEffect(() => {
@@ -46,11 +54,13 @@ export default function ContractActions({
   /** Email the signing link (again) — same email the create route sends;
    *  also refreshes the 30-day link expiry. */
   async function emailLink() {
+    const channels = await choose({ email: contactEmail, phone: contactPhone || null, canText: canTextClient, what: "Send the agreement" });
+    if (!channels) return;
     setBusy(true);
     setError("");
-    const { ok, data } = await postJson<{ to?: string }>(
+    const { ok, data } = await postJson<{ emailed?: boolean; texted?: boolean; to?: string | null; phone?: string | null }>(
       `/api/app/contracts/${contractId}/send`,
-      undefined,
+      channels,
       "POST"
     );
     setBusy(false);
@@ -58,7 +68,7 @@ export default function ContractActions({
       setError(data?.error ?? GENERIC_ERROR);
       return;
     }
-    setSentTo(data?.to ?? contactEmail ?? "the client");
+    setSentTo(sentSummary(data, { email: contactEmail, phone: contactPhone }));
     router.refresh();
   }
 
@@ -148,19 +158,20 @@ export default function ContractActions({
             {copied ? "Copied!" : "Copy Signing Link"}
           </button>
         )}
+        {chooser}
         {unsigned && (
           <button
             onClick={emailLink}
-            disabled={busy || !contactEmail}
+            disabled={busy || !reachable}
             title={
-              contactEmail
-                ? `Email the signing link to ${contactEmail}`
-                : "No client email on file — add one on the client page, or copy the signing link"
+              reachable
+                ? `Send the signing link to ${[contactEmail, canTextClient ? contactPhone : ""].filter(Boolean).join(" / ")}`
+                : "No client email or textable phone on file — add one on the client page, or copy the signing link"
             }
             className="flex items-center gap-1.5 px-3 py-2 btn-tool-line bg-white rounded-[10px] text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
             <Send size={13} />
-            {status === "DRAFT" ? "Email for Signature" : "Email Signing Link Again"}
+            {status === "DRAFT" ? (canTextClient ? "Send for Signature" : "Email for Signature") : canTextClient ? "Send Signing Link Again" : "Email Signing Link Again"}
           </button>
         )}
         <a

@@ -5,6 +5,8 @@ import { getActor, canSell, viaContactScope } from "@/lib/permissions";
 import { sendEmail, contractSignEmail } from "@/lib/email";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { fireAutomations } from "@/lib/automations-server";
+import { sendSms, canText, companyCanSendSms, agreementLinkText } from "@/lib/sms";
+import { readSendChannels } from "@/lib/send-channels";
 
 /**
  * POST — email the client their signing link again (the same email the
@@ -13,7 +15,7 @@ import { fireAutomations } from "@/lib/automations-server";
  * link. A DRAFT becomes SENT; signed and void agreements have nothing to send.
  */
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const actor = await getActor();
@@ -34,7 +36,7 @@ export async function POST(
   const { id } = await params;
   const contract = await prisma.contract.findFirst({
     where: { id, companyId, ...viaContactScope(actor) },
-    include: { contact: { select: { email: true, firstName: true } } },
+    include: { contact: true },
   });
   if (!contract) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -44,9 +46,14 @@ export async function POST(
       { status: 400 }
     );
   }
-  if (!contract.contact.email) {
+  // The sender picks the channels (components/SendChoice.tsx); no body = both.
+  const channels = await readSendChannels(req, { email: true, text: true });
+  const contact = contract.contact;
+  const textable = channels.text && Boolean(contact.phone) && canText(contact) && (await companyCanSendSms(companyId));
+  const emailable = channels.email && Boolean(contact.email);
+  if (!emailable && !textable) {
     return NextResponse.json(
-      { error: "This client has no email on file — add one, or share the signing link instead." },
+      { error: "This client has no email or textable phone on file — add one, or share the signing link instead." },
       { status: 400 }
     );
   }
@@ -63,16 +70,37 @@ export async function POST(
     title: contract.title,
     signUrl: `${baseUrl}/contract/${contract.publicToken}`,
   });
-  const emailed = await sendEmail({
-    companyId,
-    to: contract.contact.email,
-    subject,
-    html,
-    fromName: company?.name,
-  });
-  if (!emailed) {
+  const emailed =
+    emailable && contact.email
+      ? await sendEmail({
+          companyId,
+          to: contact.email,
+          subject,
+          html,
+          fromName: company?.name,
+        })
+      : false;
+  let texted = false;
+  if (textable && contact.phone) {
+    texted = await sendSms({
+      companyId,
+      contactId: contract.contactId,
+      to: contact.phone,
+      text: agreementLinkText({
+        companyName: company?.name ?? "",
+        firstName: contact.firstName,
+        title: contract.title,
+        signUrl: `${baseUrl}/contract/${contract.publicToken}`,
+      }),
+    });
+  }
+  if (!emailed && !texted) {
     return NextResponse.json(
-      { error: "Email isn't set up on this server yet — share the signing link instead." },
+      {
+        error: emailable
+          ? "Email isn't set up on this server yet — share the signing link instead."
+          : "The text didn't go out — check Text Notifications in Settings → Phone & texting, or share the signing link instead.",
+      },
       { status: 424 }
     );
   }
@@ -83,5 +111,5 @@ export async function POST(
   });
   fireAutomations(contract.companyId, "contract.sent", contract.id);
 
-  return NextResponse.json({ emailed: true, to: contract.contact.email });
+  return NextResponse.json({ emailed, texted, to: emailed ? contact.email : null, phone: texted ? contact.phone : null });
 }

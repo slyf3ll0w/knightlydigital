@@ -8,6 +8,8 @@ import { autoSendQuoteAgreements } from "@/lib/agreements";
 import { autoAdvance } from "@/lib/pipeline";
 import { fireAutomations } from "@/lib/automations-server";
 import { inPreview, previewBlockedError } from "@/lib/preview";
+import { sendSms, canText, companyCanSendSms, quoteLinkText } from "@/lib/sms";
+import { readSendChannels } from "@/lib/send-channels";
 
 /**
  * POST — email the client their quote link and mark the quote sent.
@@ -16,7 +18,7 @@ import { inPreview, previewBlockedError } from "@/lib/preview";
  * Awaiting Response (same lifecycle as Mark as Sent).
  */
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const actor = await getActor();
@@ -52,9 +54,16 @@ export async function POST(
       { status: 400 }
     );
   }
-  if (!quote.contact.email) {
+  // Email by default; a text from the business line only when the sender
+  // ticks it (components/SendChoice.tsx) — quote texts stayed off by default
+  // after the 2026-09-24 campaign review read them as marketing.
+  const channels = await readSendChannels(req, { email: true, text: false });
+  const contact = quote.contact;
+  const textable = channels.text && Boolean(contact.phone) && canText(contact) && (await companyCanSendSms(quote.companyId));
+  const emailable = channels.email && Boolean(contact.email);
+  if (!emailable && !textable) {
     return NextResponse.json(
-      { error: "This client has no email on file — add one, or share the quote with Copy client link." },
+      { error: "This client has no email or textable phone on file — add one, or share the quote with Copy client link." },
       { status: 400 }
     );
   }
@@ -78,26 +87,42 @@ export async function POST(
       deposit > 0 ? `A deposit of ${money(deposit)} is due when you approve.` : undefined,
   });
 
-  const emailed = await sendEmail({
-    companyId: quote.companyId,
-    to: quote.contact.email,
-    subject,
-    html,
-    replyTo: quote.company.email || undefined,
-    fromName: quote.company.name,
-  });
-  if (!emailed) {
+  const emailed =
+    emailable && contact.email
+      ? await sendEmail({
+          companyId: quote.companyId,
+          to: contact.email,
+          subject,
+          html,
+          replyTo: quote.company.email || undefined,
+          fromName: quote.company.name,
+        })
+      : false;
+  let texted = false;
+  if (textable && contact.phone) {
+    texted = await sendSms({
+      companyId: quote.companyId,
+      contactId: quote.contactId,
+      to: contact.phone,
+      text: quoteLinkText({
+        companyName: quote.company.name,
+        firstName: contact.firstName,
+        quoteNumber: quote.quoteNumber,
+        total: Number(quote.total),
+        viewUrl: `${baseUrl}/quote/${quote.publicToken}`,
+      }),
+    });
+  }
+  if (!emailed && !texted) {
     return NextResponse.json(
-      { error: "Email isn't set up on this server yet — share the quote with Copy client link instead." },
+      {
+        error: emailable
+          ? "Email isn't set up on this server yet — share the quote with Copy client link instead."
+          : "The text didn't go out — check Text Notifications in Settings → Phone & texting, or share the quote with Copy client link.",
+      },
       { status: 424 }
     );
   }
-
-  // Quotes go by email only. Carriers read a texted quote as marketing, and a
-  // business line's 10DLC campaign is registered for appointment, invoice and
-  // customer-care texts — a quote text would be traffic outside what was
-  // filed (Telnyx TELNYX_FAILED, Lessly Holdings 2026-09-24).
-  const texted = false;
 
   const justSent = !quote.sentAt;
   await prisma.quote.update({
@@ -120,5 +145,5 @@ export async function POST(
   await autoAdvance(prisma, companyId, quote.contactId, "QUOTE_SENT");
   if (justSent) fireAutomations(companyId, "quote.sent", quote.id);
 
-  return NextResponse.json({ emailed: true, texted, to: quote.contact.email });
+  return NextResponse.json({ emailed, texted, to: emailed ? contact.email : null, phone: texted ? contact.phone : null });
 }

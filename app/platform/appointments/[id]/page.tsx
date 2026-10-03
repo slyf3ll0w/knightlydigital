@@ -162,6 +162,8 @@ export default async function AppointmentDetailPage({
           requestId={appt.requestId}
           canDelete={isManager(actor.role)}
           canInvoice={canSeeMoney(actor)}
+          hasQuote={(appt.request?.quotes.length ?? 0) > 0}
+          hasInvoice={appt.invoices.length > 0}
           scheduledAt={appt.scheduledAt.toISOString()}
           scheduledEnd={appt.scheduledEnd?.toISOString() ?? null}
           scheduledAnytime={appt.scheduledAnytime}

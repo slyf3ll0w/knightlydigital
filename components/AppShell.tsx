@@ -364,6 +364,26 @@ const createItems: NavItem[] = [
   { href: "/app/payments/new", label: "Payment", icon: DollarSign, show: moneyRoles },
 ];
 
+// Phone-only Create tiles (David 2026-10-03): a call from the business line
+// (the Calls page with its keypad open) and a new message (the inbox with the
+// New message picker open). Both pages say what the Voice plan adds.
+const phoneCreateItems: NavItem[] = [
+  { href: "/app/calls?keypad=1", label: "Call", icon: PhoneCall, show: sellRoles },
+  { href: "/app/messages?new=1", label: "Message", icon: MessageSquare, show: sellRoles },
+];
+// Where each tile sits on the phone sheet: who → when → what → reach them → bill.
+const PHONE_CREATE_ORDER = [
+  "/app/contacts/new",
+  "/app/contacts/new?type=lead",
+  "/app/requests/new",
+  "/app/appointments/new",
+  "/app/quotes/new",
+  "/app/jobs/new",
+  "/app/calls?keypad=1",
+  "/app/messages?new=1",
+  "/app/invoices/new",
+];
+
 
 // The same color language on navigation: More-sheet icon tiles and the
 // desktop sidebar's hover/active states. Home + Settings stay neutral (and
@@ -447,6 +467,8 @@ const CREATE_TONES: Record<string, "a" | "b" | "c" | "d" | "e"> = {
   "/app/estimates?run=1": "b",
   "/app/contracts/new": "b",
   "/app/jobs/new": "c",
+  "/app/calls?keypad=1": "e",
+  "/app/messages?new=1": "e",
   "/app/invoices/new": "d",
   "/app/payments/new": "d",
 };
@@ -465,15 +487,23 @@ const CREATE_TONES: Record<string, "a" | "b" | "c" | "d" | "e"> = {
 // pathname it rendered. Module-level (like the template's push/pop tracker)
 // so it survives a shell remount, and guarded on equality so React's double
 // render in dev doesn't shift the pair.
-let lastPath: string | null = null;
-let priorPath: string | null = null;
+// A stack, not a pair (2026-10-03): the pair named the page you had just
+// popped OUT of as the way back (job → invoice → back to the job read
+// "‹ Invoices"), and the tap then went somewhere else entirely
+// (router.back). Now a return to the entry below the top is a pop, anything
+// else a push, so the label and the destination are the same thing — and a
+// deep link with no in-app history pushes the fallback instead of leaving
+// the app through the browser's own history.
+const navStack: string[] = [];
 
 function trackPath(pathname: string): string | null {
-  if (lastPath !== pathname) {
-    priorPath = lastPath;
-    lastPath = pathname;
+  const top = navStack[navStack.length - 1];
+  if (top !== pathname) {
+    if (navStack.length >= 2 && navStack[navStack.length - 2] === pathname) navStack.pop();
+    else navStack.push(pathname);
+    if (navStack.length > 40) navStack.splice(0, navStack.length - 40);
   }
-  return priorPath;
+  return navStack.length >= 2 ? navStack[navStack.length - 2] : null;
 }
 
 // The More sheet remembers the last four pages opened from it (per device).
@@ -2022,13 +2052,17 @@ export default function AppShell({
     return pathname.startsWith(href);
   }
 
-  const mobileBack = mobileBackFor(pathname, trackPath(pathname));
+  const previousPath = trackPath(pathname);
+  const mobileBack = mobileBackFor(pathname, previousPath);
   const goBack = () => {
     if (!mobileBack) return;
     void confirmLeave().then((ok) => {
       if (!ok) return;
-      if (window.history.length > 1) router.back();
-      else router.push(mobileBack.to);
+      // Always a push to the page the label names — never router.back():
+      // the browser's history and the in-app stack drift apart (a link to
+      // the page you came from reads as a pop here, not there), and a tap
+      // must land where the pill says.
+      router.push(mobileBack.to);
     });
   };
 
@@ -2745,10 +2779,20 @@ function MobileTabBar({
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
   // Payments are recorded from the invoice on phones (David, 2026-09-26) — no
-  // stand-alone Payment tile here; the desktop Create menu keeps it.
-  const creates = forRole(createItems, role, salesMoney).filter(
-    (i) => i.href !== "/app/payments/new" && (!previewMode || i.href !== "/app/invoices/new")
-  );
+  // stand-alone Payment tile here; the desktop Create menu keeps it. Estimate
+  // tools and agreements are desk work too (David 2026-10-03): off the phone
+  // sheet, which instead offers the two things a phone is for — a call from
+  // the line (the Calls keypad) and a message (the inbox's New message).
+  const creates = forRole([...createItems, ...phoneCreateItems], role, salesMoney)
+    .filter(
+      (i) =>
+        i.href !== "/app/payments/new" &&
+        i.href !== "/app/estimates?run=1" &&
+        i.href !== "/app/contracts/new" &&
+        (!previewMode || i.href !== "/app/invoices/new")
+    )
+    .sort((a, b) => PHONE_CREATE_ORDER.indexOf(a.href) - PHONE_CREATE_ORDER.indexOf(b.href));
+  const { sheetRef, dragY, dragging, dragHandlers } = useSheetDrag(sheetOpen, () => setSheetOpen(false));
 
   useEffect(() => {
     setSheetOpen(false);
@@ -2802,7 +2846,12 @@ function MobileTabBar({
       />
       {creates.length > 0 && (
         <div
-          className={`sheet-material fixed inset-x-0 bottom-0 z-50 lg:hidden rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${
+          ref={sheetRef}
+          {...dragHandlers}
+          style={sheetOpen && dragY > 0 ? { transform: `translateY(${dragY}px)` } : undefined}
+          className={`sheet-material fixed inset-x-0 bottom-0 z-50 lg:hidden rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] ${
+            dragging ? "" : "transition-transform duration-300"
+          } [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${
             /* open = NO transform: iOS kills backdrop-filter on transformed elements */
             sheetOpen ? "" : "translate-y-full pointer-events-none"
           }`}
@@ -2929,6 +2978,64 @@ function MobileTabBar({
 }
 
 /**
+ * Swipe down to close a phone bottom sheet (More since 2026-10-01, Create
+ * since 2026-10-03). A downward drag on the sheet — on the handle, or on
+ * its list while that is scrolled to the top — carries the sheet with the
+ * finger; let go past ~a quarter of its height (or with a flick) and it
+ * closes, otherwise it springs back. `scrollRef` is optional: a sheet with
+ * no scrolling list takes the pull from anywhere on it.
+ */
+function useSheetDrag(open: boolean, onClose: () => void) {
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ y0: number; t0: number; live: boolean } | null>(null);
+  const [dragY, setDragY] = useState(0);
+  useEffect(() => {
+    if (!open) setDragY(0);
+  }, [open]);
+  const onTouchStart = (e: React.TouchEvent) => {
+    drag.current = { y0: e.touches[0].clientY, t0: Date.now(), live: false };
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    const d = drag.current;
+    if (!d) return;
+    const dy = e.touches[0].clientY - d.y0;
+    const scrolled = (scrollRef.current?.scrollTop ?? 0) > 0;
+    if (!d.live) {
+      // Only claim a downward pull that starts with the list at its top
+      if (dy <= 6 || scrolled) {
+        if (dy < -6 || scrolled) drag.current = null;
+        return;
+      }
+      d.live = true;
+      d.y0 = e.touches[0].clientY;
+      d.t0 = Date.now();
+    }
+    setDragY(Math.max(0, e.touches[0].clientY - d.y0));
+  };
+  const onTouchEnd = () => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d?.live) return;
+    const h = sheetRef.current?.offsetHeight ?? 600;
+    const speed = dragY / Math.max(1, Date.now() - d.t0);
+    if (dragY > h * 0.25 || (dragY > 40 && speed > 0.6)) {
+      hapticImpact("LIGHT");
+      onClose();
+    } else {
+      setDragY(0);
+    }
+  };
+  return {
+    sheetRef,
+    scrollRef,
+    dragY,
+    dragging: Boolean(drag.current?.live),
+    dragHandlers: { onTouchStart, onTouchMove, onTouchEnd, onTouchCancel: onTouchEnd },
+  };
+}
+
+/**
  * Mobile "More" sheet — everything that used to hide in the black sidebar
  * drawer, laid out as grouped native list rows (the Amex/iOS-settings
  * pattern): profile card up top, sectioned rows with icon tiles and inline
@@ -3033,49 +3140,7 @@ function MoreSheet({
 
   const sheetCreates = forRole(createItems, role, salesMoney);
 
-  // Swipe down to close (2026-10-01). A downward drag on the handle, or on
-  // the list while it is scrolled to the top, carries the sheet with the
-  // finger; let go past ~a quarter of its height (or with a flick) and it
-  // closes, otherwise it springs back.
-  const sheetRef = useRef<HTMLDivElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ y0: number; t0: number; live: boolean } | null>(null);
-  const [dragY, setDragY] = useState(0);
-  useEffect(() => {
-    if (!open) setDragY(0);
-  }, [open]);
-  const onDragStart = (e: React.TouchEvent) => {
-    drag.current = { y0: e.touches[0].clientY, t0: Date.now(), live: false };
-  };
-  const onDragMove = (e: React.TouchEvent) => {
-    const d = drag.current;
-    if (!d) return;
-    const dy = e.touches[0].clientY - d.y0;
-    if (!d.live) {
-      // Only claim a downward pull that starts with the list at its top
-      if (dy <= 6 || (scrollRef.current?.scrollTop ?? 0) > 0) {
-        if (dy < -6 || (scrollRef.current?.scrollTop ?? 0) > 0) drag.current = null;
-        return;
-      }
-      d.live = true;
-      d.y0 = e.touches[0].clientY;
-      d.t0 = Date.now();
-    }
-    setDragY(Math.max(0, e.touches[0].clientY - d.y0));
-  };
-  const onDragEnd = () => {
-    const d = drag.current;
-    drag.current = null;
-    if (!d?.live) return;
-    const h = sheetRef.current?.offsetHeight ?? 600;
-    const speed = dragY / Math.max(1, Date.now() - d.t0);
-    if (dragY > h * 0.25 || (dragY > 40 && speed > 0.6)) {
-      hapticImpact("LIGHT");
-      onClose();
-    } else {
-      setDragY(0);
-    }
-  };
+  const { sheetRef, scrollRef, dragY, dragging, dragHandlers } = useSheetDrag(open, onClose);
 
   const tile = ({ href, label, icon: Icon }: NavItem) => {
     const badge = badgeFor(href);
@@ -3122,13 +3187,10 @@ function MoreSheet({
       />
       <div
         ref={sheetRef}
-        onTouchStart={onDragStart}
-        onTouchMove={onDragMove}
-        onTouchEnd={onDragEnd}
-        onTouchCancel={onDragEnd}
+        {...dragHandlers}
         style={open && dragY > 0 ? { transform: `translateY(${dragY}px)` } : undefined}
         className={`sheet-material fixed inset-x-0 bottom-0 z-50 lg:hidden flex max-h-[88dvh] flex-col rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] ${
-          drag.current?.live ? "" : "transition-transform duration-300"
+          dragging ? "" : "transition-transform duration-300"
         } [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${
           open ? "" : "translate-y-full pointer-events-none"
         }`}

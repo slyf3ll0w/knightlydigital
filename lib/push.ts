@@ -161,14 +161,42 @@ export interface PushPayload {
  * while signed into company A would dead-end on a scoped 404. Multi-company
  * people also get the company name prefixed so they know who's talking.
  */
-export async function notifyUsers(userIds: string[], payload: PushPayload): Promise<void> {
-  if ((!configured && !fcmAccount) || userIds.length === 0) return;
+export async function notifyUsers(
+  userIds: string[],
+  payload: PushPayload,
+  opts: {
+    /**
+     * Keep a notice row per person (AutomationNotice, automationId null) so
+     * the bell shows what the push said — a card that timed out or a phone
+     * that was off is not the end of it (David 2026-10-03). Off for callers
+     * that write their own row (automations) or for pure attention pings.
+     */
+    record?: boolean;
+  } = {}
+): Promise<void> {
+  if (userIds.length === 0) return;
   try {
     const targets = await prisma.user.findMany({
       where: { id: { in: userIds } },
-      select: { id: true, accountId: true, company: { select: { name: true } } },
+      select: { id: true, accountId: true, companyId: true, company: { select: { name: true } } },
     });
     if (targets.length === 0) return;
+    if (opts.record !== false && payload.url && payload.url.startsWith("/app")) {
+      await prisma.automationNotice
+        .createMany({
+          data: targets
+            .filter((t) => t.companyId)
+            .map((t) => ({
+              companyId: t.companyId as string,
+              userId: t.id,
+              title: payload.title.slice(0, 120),
+              body: payload.body?.slice(0, 500) || null,
+              url: payload.url as string,
+            })),
+        })
+        .catch((err) => reportError("[push] notice write failed:", err));
+    }
+    if (!configured && !fcmAccount) return;
 
     const accountIds = [
       ...new Set(targets.map((t) => t.accountId).filter((a): a is string => Boolean(a))),

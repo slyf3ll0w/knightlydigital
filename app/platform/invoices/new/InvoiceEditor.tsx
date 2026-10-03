@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import { type PickerWorkItem } from "@/components/WorkItemPicker";
 import ContactPicker from "@/components/ContactPicker";
 import LineItemsEditor, {
@@ -183,6 +184,10 @@ export default function InvoiceEditor({
   const grossTotal = subtotal - discount + tax;
   const total = Math.max(0, grossTotal - Math.min(depositApplied, grossTotal));
 
+  // Anything typed since the page opened: leaving asks first (David 2026-10-03).
+  const [dirty, setDirty] = useState(false);
+  useUnsavedWarning(dirty && !loading);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!editInvoice && !contactId) { setError("Please select a customer."); return; }
@@ -215,6 +220,7 @@ export default function InvoiceEditor({
       const { ok, data } = await postJson(`/api/app/invoices/${editInvoice.id}`, payload, "PATCH");
       setLoading(false);
       if (!ok) { setError(data?.error ?? GENERIC_ERROR); return; }
+      setDirty(false);
       router.push(`/app/invoices/${editInvoice.id}`);
       router.refresh();
       return;
@@ -229,6 +235,7 @@ export default function InvoiceEditor({
 
     setLoading(false);
     if (!ok || !data?.id) { setError(data?.error ?? GENERIC_ERROR); return; }
+    setDirty(false);
     router.push(`/app/invoices/${data.id}`);
   }
 
@@ -253,6 +260,7 @@ export default function InvoiceEditor({
 
       <form
         onSubmit={handleSubmit}
+        onChange={() => setDirty(true)}
         // Surface native validation failures in the visible banner — a browser
         // tooltip alone reads as "the Save button does nothing".
         onInvalidCapture={() =>

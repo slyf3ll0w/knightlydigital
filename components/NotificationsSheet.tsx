@@ -6,9 +6,11 @@ import {
   Bell,
   CalendarClock,
   DollarSign,
+  FileText,
   Inbox,
   Loader2,
   MessageSquare,
+  PhoneCall,
   Receipt,
   SquareKanban,
   Zap,
@@ -25,7 +27,7 @@ import { hapticImpact } from "@/lib/haptics";
 
 type Item = {
   id: string;
-  kind: "request" | "lead" | "booking" | "payment" | "invoice" | "message" | "automation";
+  kind: "request" | "lead" | "booking" | "payment" | "invoice" | "quote" | "message" | "call" | "automation";
   title: string;
   sub: string;
   at: string;
@@ -42,7 +44,9 @@ const KIND_META: Record<Item["kind"], { icon: typeof Inbox; primary: boolean }> 
   booking: { icon: CalendarClock, primary: false },
   payment: { icon: DollarSign, primary: true },
   invoice: { icon: Receipt, primary: true },
+  quote: { icon: FileText, primary: false },
   message: { icon: MessageSquare, primary: false },
+  call: { icon: PhoneCall, primary: false },
   automation: { icon: Zap, primary: true },
 };
 

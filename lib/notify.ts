@@ -23,10 +23,12 @@ export async function companyNotifyAddress(
   // email for the company's OWN alerts (David 2026-10-02: a personal login
   // for WorkBench, a work address for clients). Looked up here rather than
   // threaded through the eight callers.
-  const override = await prisma.company
-    .findUnique({ where: { id: companyId }, select: { notifyEmail: true } })
-    .then((c) => c?.notifyEmail?.trim() || null)
+  const prefs = await prisma.company
+    .findUnique({ where: { id: companyId }, select: { notifyEmail: true, notifyEmailOff: true } })
     .catch(() => null);
+  // The company switched its notification emails off (push + the bell only).
+  if (prefs?.notifyEmailOff) return null;
+  const override = prefs?.notifyEmail?.trim() || null;
   const address = override || companyEmail || (await oldestOwnerEmail(companyId));
   if (!address) return null;
   return (await emailWanted(companyId, address)) ? address : null;

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DollarSign, Loader2 } from "lucide-react";
 import { money } from "@/lib/statuses";
+import { useSendChoice } from "@/components/SendChoice";
 
 /**
  * Jobber-style nudge: the client approved a quote that carries a required
@@ -13,19 +14,32 @@ import { money } from "@/lib/statuses";
 export default function CollectDepositNudge({
   quoteId,
   amount,
+  contactEmail = "",
+  contactPhone = "",
+  canTextClient = false,
 }: {
   quoteId: string;
   amount: number;
+  contactEmail?: string;
+  contactPhone?: string;
+  canTextClient?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const { choose, chooser } = useSendChoice();
 
   async function collect() {
+    const channels = await choose({ email: contactEmail || null, phone: contactPhone || null, canText: canTextClient, what: "Send the deposit invoice" });
+    if (!channels) return;
     setBusy(true);
     setError("");
     try {
-      const res = await fetch(`/api/app/quotes/${quoteId}/collect-deposit`, { method: "POST" });
+      const res = await fetch(`/api/app/quotes/${quoteId}/collect-deposit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(channels),
+      });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         setError(data?.error ?? "Couldn't create the deposit invoice.");
@@ -47,6 +61,7 @@ export default function CollectDepositNudge({
         This quote was approved with a {money(amount)} required deposit — collect it before the
         work starts.
       </p>
+      {chooser}
       <div className="flex items-center gap-3">
         {error && <span className="text-xs text-[color:var(--ds-bad)]">{error}</span>}
         <button

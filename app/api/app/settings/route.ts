@@ -117,6 +117,7 @@ export async function PATCH(req: NextRequest) {
       phone: opt(body.phone),
       email: opt(body.email),
       notifyEmail: opt(body.notifyEmail),
+      notifyEmailOff: typeof body.notifyEmailOff === "boolean" ? body.notifyEmailOff : undefined,
       address: opt(body.address),
       city: opt(body.city),
       state: opt(body.state),

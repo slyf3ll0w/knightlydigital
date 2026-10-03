@@ -14,16 +14,28 @@ import { registerLeaveGuard } from "@/lib/nav-guard";
  * click is always stopped up front and the navigation replayed if they
  * confirm.
  */
-export function useUnsavedWarning(dirty: boolean) {
+export type UnsavedWarningOptions = {
+  title?: string;
+  message?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  destructive?: boolean;
+  /** Also the browser's own prompt on refresh / tab close (default on). Off for "you haven't sent this yet"-style nudges. */
+  beforeUnload?: boolean;
+};
+
+export function useUnsavedWarning(dirty: boolean, options: UnsavedWarningOptions = {}) {
   const router = useRouter();
+  const { title, message, confirmLabel, cancelLabel, destructive, beforeUnload } = options;
   useEffect(() => {
     if (!dirty) return;
     const ask = () =>
       confirmSheet({
-        title: "Leave without saving?",
-        message: "You have unsaved changes — they'll be lost.",
-        confirmLabel: "Discard Changes",
-        destructive: true,
+        title: title ?? "Leave without saving?",
+        message: message ?? "You have unsaved changes — they'll be lost.",
+        confirmLabel: confirmLabel ?? "Discard Changes",
+        cancelLabel,
+        destructive: destructive ?? true,
       });
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
@@ -47,7 +59,7 @@ export function useUnsavedWarning(dirty: boolean) {
         }
       });
     };
-    window.addEventListener("beforeunload", onBeforeUnload);
+    if (beforeUnload !== false) window.addEventListener("beforeunload", onBeforeUnload);
     document.addEventListener("click", onClickCapture, true);
     const unregister = registerLeaveGuard(ask);
     return () => {
@@ -55,5 +67,5 @@ export function useUnsavedWarning(dirty: boolean) {
       document.removeEventListener("click", onClickCapture, true);
       unregister();
     };
-  }, [dirty, router]);
+  }, [dirty, router, title, message, confirmLabel, cancelLabel, destructive, beforeUnload]);
 }

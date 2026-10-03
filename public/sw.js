@@ -16,7 +16,7 @@
  * Bump VERSION to drop every cache wholesale on the next deploy.
  */
 
-const VERSION = "v5";
+const VERSION = "v6";
 const STATIC_CACHE = `sfh-static-${VERSION}`;
 const PAGES_CACHE = `sfh-pages-${VERSION}`;
 const MEDIA_CACHE = `sfh-media-${VERSION}`;
@@ -316,21 +316,19 @@ self.addEventListener("push", (event) => {
   const url = data.url || "/app/dashboard";
   event.waitUntil(
     (async () => {
-      // An /app tab that is open AND in front shows this itself — the in-app
-      // card (AppShell listens for "wb:push"), or nothing at all when it is
-      // already on the page the push points at, where the thread shows the
-      // message. An OS notification on top of that was a double ping
-      // (2026-09-28). Hub (client) pushes and unfocused tabs are unchanged.
+      // Every open /app tab gets the in-app card at once (AppShell listens
+      // for "wb:push") — the desk's card used to wait for the 20 s count
+      // poll whenever the browser wasn't the front window, which is most of
+      // the time a phone is in hand (David 2026-10-03: "as quickly as I get
+      // the push"). A tab that is in front shows the card INSTEAD of an OS
+      // notification (the double ping, 2026-09-28); otherwise the OS
+      // notification goes out as well. Hub (client) pushes are unchanged.
       if (url.startsWith("/app")) {
         try {
           const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-          const front = windows.find(
-            (c) => c.visibilityState === "visible" && c.focused && new URL(c.url).pathname.startsWith("/app")
-          );
-          if (front) {
-            front.postMessage({ type: "wb:push", title, body: data.body || "", url, tag: data.tag || null });
-            return;
-          }
+          const appTabs = windows.filter((c) => new URL(c.url).pathname.startsWith("/app"));
+          for (const tab of appTabs) tab.postMessage({ type: "wb:push", title, body: data.body || "", url, tag: data.tag || null });
+          if (appTabs.some((c) => c.visibilityState === "visible" && c.focused)) return;
         } catch {
           /* fall through to the OS notification */
         }

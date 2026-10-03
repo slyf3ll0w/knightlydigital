@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
       if (firstView) fireAutomations(quote.companyId, "quote.viewed", quote.id);
       push = {
         title: `${clientName(quote.contact)} viewed Quote #${quote.quoteNumber}`,
-        body: "Opened just now — a good time to follow up.",
+        body: "Opened just now.",
         url: `/app/quotes/${quote.id}`,
         tag: `doc-view-quote-${quote.id}`,
       };
