@@ -1,13 +1,15 @@
-import { fmtPhone, fmtTime } from "@/lib/format";
+import { fmtDateTime, fmtPhone, fmtTime } from "@/lib/format";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import SectionHeader from "@/components/SectionHeader";
-import { CalendarDays, ExternalLink, Mail, MapPin, Phone, User, Video } from "lucide-react";
+import { BellRing, CalendarDays, ExternalLink, Mail, MapPin, Phone, User, Video } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, canSeeMoney, isManager, appointmentScope } from "@/lib/permissions";
 import { appointmentTypeLabel } from "@/lib/statuses";
 import { resolveSlotInterval } from "@/lib/scheduling";
 import { earliestOpenMinutes, sanitizeBusinessHours } from "@/lib/business-hours";
+import { canText } from "@/lib/sms-consent";
+import { reminderOutlook } from "@/lib/reminder-stage";
 import StatusChip from "@/components/StatusChip";
 import { Chip } from "@/components/ds";
 import BackLink from "@/components/BackLink";
@@ -17,6 +19,48 @@ import CallLink from "@/components/CallLink";
 import AppointmentActions from "./AppointmentActions";
 
 const typeIcons = { PHONE_CALL: Phone, VIDEO_CALL: Video, IN_PERSON: MapPin } as const;
+
+/**
+ * What the client has been (or will be) told automatically — so a reminder
+ * that never arrived explains itself here instead of looking like a dropped
+ * send. The rule is lib/reminder-stage.ts; the sweep is lib/reminders.ts.
+ */
+function clientReminderStatus(appt: {
+  status: string;
+  tentative: boolean;
+  scheduledAnytime: boolean;
+  remindClient: boolean;
+  scheduledAt: Date;
+  createdAt: Date;
+  reminderDaySentAt: Date | null;
+  reminderHourSentAt: Date | null;
+  contact: { firstName: string; email: string | null; phone: string | null; smsOptOut: boolean; smsDisabled: boolean };
+}, tz: string): string {
+  const first = appt.contact.firstName;
+  if (!appt.remindClient) return "Automatic client reminders are off for this appointment.";
+  const textable = canText(appt.contact);
+  const emailable = Boolean(appt.contact.email);
+  if (!textable && !emailable) {
+    return appt.contact.phone
+      ? `No client reminders: texts are off for ${first} and there's no email on file.`
+      : `No client reminders: ${first} has no phone or email on file.`;
+  }
+  const via = textable && emailable ? "text and email" : textable ? "text" : "email";
+  const sent: string[] = [];
+  if (appt.reminderDaySentAt) sent.push(`day-before sent ${fmtDateTime(appt.reminderDaySentAt, tz)}`);
+  if (appt.reminderHourSentAt) sent.push(`hour-before sent ${fmtDateTime(appt.reminderHourSentAt, tz)}`);
+  if (appt.reminderHourSentAt) return `Client reminders by ${via}: ${sent.join(" · ")}.`;
+
+  if (appt.scheduledAnytime) return "Anytime appointments don't get automatic reminders — there's no time to be an hour ahead of.";
+  if (appt.status !== "SCHEDULED") return sent.length ? `Client reminders by ${via}: ${sent.join(" · ")}.` : "No automatic client reminders went out.";
+  if (appt.tentative) return "Client reminders start once the booking is confirmed.";
+  const outlook = reminderOutlook({ now: new Date(), scheduledAt: appt.scheduledAt, createdAt: appt.createdAt });
+  if (outlook === "past") return sent.length ? `Client reminders by ${via}: ${sent.join(" · ")}.` : "No automatic client reminders went out.";
+  if (outlook === "too-close")
+    return "Booked less than 20 minutes before its start — too close for an automatic reminder.";
+  const coming = sent.length ? `${sent[0]} · hour-before goes out about an hour ahead` : `${first} gets a reminder about an hour ahead${appt.scheduledAt.getTime() - appt.createdAt.getTime() > 86400000 ? ", and the day before" : ""}`;
+  return `Client reminders by ${via}: ${coming}.`;
+}
 
 export default async function AppointmentDetailPage({
   params,
@@ -196,6 +240,10 @@ export default async function AppointmentDetailPage({
             <p className="text-sm text-gray-800">{appt.assignedTo.name}</p>
           </div>
         )}
+        <div className="flex items-start gap-3">
+          <BellRing size={15} className="text-gray-400 mt-0.5 shrink-0" />
+          <p className="text-sm text-gray-600">{clientReminderStatus(appt, tz)}</p>
+        </div>
         {appt.request && (
           <div className="pt-2 border-t border-gray-100 text-sm">
             <span className="text-xs font-medium text-gray-500 block mb-0.5">From request</span>

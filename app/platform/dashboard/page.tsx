@@ -452,6 +452,19 @@ export default async function DashboardPage() {
     clockedHero ?? todayItems.find((i) => i.sort === 0 || i.sort >= nowT) ?? null;
   const laterToday = todayItems.filter((i) => i !== upNext);
 
+  // The Today count names what the day actually holds — "2 appointments",
+  // "3 jobs", or both spelled out — never a generic "stop": a sales call or
+  // an estimate visit isn't a stop on a route.
+  const todayAppts = todayItems.filter((i) => i.apptType).length;
+  const todayJobs = todayItems.length - todayAppts;
+  const todayCountLabel = [
+    todayJobs > 0 ? `${todayJobs} ${plural(todayJobs, "job", "jobs")}` : null,
+    todayAppts > 0 ? `${todayAppts} ${plural(todayAppts, "appointment", "appointments")}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const onlyKind = upNext?.apptType ? "appointment" : "job";
+
   // Hero action-row context (see UpNextActions): the source records behind the
   // picked item, my clock state on it, and the rendered On-My-Way template.
   const upNextJob = upNext?.id.startsWith("j-")
@@ -679,7 +692,7 @@ export default async function DashboardPage() {
     </>
   );
   const pageInfo =
-    "Your day at a glance: the next stop, money in and owed, what's waiting on you, and who's on the clock. Everything follows your company's time zone.";
+    "Your day at a glance: what's next, money in and owed, what's waiting on you, and who's on the clock. Everything follows your company's time zone.";
 
   return (
     <DsPage>
@@ -731,7 +744,7 @@ export default async function DashboardPage() {
           <SectionTitle action={<ActionLink href="/app/schedule">Schedule</ActionLink>}>
             Today
             {todayItems.length > 0 && (
-              <span className="ds-small ml-1 font-normal">· {todayItems.length} {todayItems.length === 1 ? "stop" : "stops"}</span>
+              <span className="ds-small ml-1 font-normal">· {todayCountLabel}</span>
             )}
           </SectionTitle>
           {todayItems.length === 0 ? (
@@ -740,7 +753,7 @@ export default async function DashboardPage() {
             </Card>
           ) : laterToday.length === 0 ? (
             <Card className="px-5 py-4">
-              <p className="ds-body">That&apos;s your only stop. Nothing after it.</p>
+              <p className="ds-body">That&apos;s your only {onlyKind} today. Nothing after it.</p>
             </Card>
           ) : (
             <Card className="ds-divide overflow-hidden">{laterToday.map((item) => todayRow(item, true))}</Card>
@@ -810,7 +823,7 @@ export default async function DashboardPage() {
               <SectionTitle action={<ActionLink href="/app/schedule">Open schedule</ActionLink>}>
                 Today
                 {todayItems.length > 0 && (
-                  <span className="ds-small ml-1 font-normal">· {todayItems.length} {todayItems.length === 1 ? "stop" : "stops"}</span>
+                  <span className="ds-small ml-1 font-normal">· {todayCountLabel}</span>
                 )}
               </SectionTitle>
               {todayItems.length === 0 ? (

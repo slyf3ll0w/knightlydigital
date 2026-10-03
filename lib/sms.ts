@@ -58,7 +58,15 @@ async function underDailyCap(companyId: string): Promise<boolean> {
 // Null = nothing goes out for that tenant, whatever the contact row says.
 // Fails closed — the attestation and the registration are what make the
 // send legitimate.
-async function companySender(companyId: string): Promise<{ from: string; profileId: string | null } | null> {
+async function companySender(
+  companyId: string,
+  /** Log why a send was refused — only the send path; the UI hint asks constantly. */
+  log = false
+): Promise<{ from: string; profileId: string | null } | null> {
+  const refuse = (why: string) => {
+    if (log) console.warn(`[sms] refused for company ${companyId}: ${why}`);
+    return null;
+  };
   try {
     const row = await prisma.company.findUnique({
       where: { id: companyId },
@@ -69,11 +77,15 @@ async function companySender(companyId: string): Promise<{ from: string; profile
         messagingRegistration: { select: { status: true } },
       },
     });
-    if (!row?.smsAcknowledgedAt) return null;
+    // A refused send is logged (send path only): a reminder or confirmation
+    // that silently never went out is otherwise indistinguishable from one
+    // that was never due.
+    if (!row?.smsAcknowledgedAt) return refuse("text notifications not switched on in Settings");
     const number = row.lineNumber;
-    if (!number || number.startsWith("pending:")) return null;
+    if (!number || number.startsWith("pending:")) return refuse("no business line number yet");
     const registered = row.messagingRegistration?.status === "ACTIVE";
-    if (!registered && process.env.TELNYX_ALLOW_UNREGISTERED !== "1") return null;
+    if (!registered && process.env.TELNYX_ALLOW_UNREGISTERED !== "1")
+      return refuse(`line registration is ${row.messagingRegistration?.status ?? "missing"}, not ACTIVE`);
     return { from: number, profileId: row.lineMessagingProfileId };
   } catch {
     return null;
@@ -132,7 +144,7 @@ export async function sendSms({
   if (!text && media.length === 0) return false;
   // Every text belongs to a business; there is no platform sender any more.
   if (!companyId) return false;
-  const sender = await companySender(companyId);
+  const sender = await companySender(companyId, true);
   if (!sender) return false;
   const { from } = sender;
   if (!(await underDailyCap(companyId))) return false;

@@ -344,9 +344,10 @@ export async function runQuoteFollowUps(
 
 /**
  * Client appointment reminders: about a day ahead and again about an hour
- * out (lib/reminder-stage.ts has the rule — a booking only gets a stage it
- * existed for, so a same-day booking isn't "reminded" minutes after its
- * confirmation). The sweep runs every few minutes from instrumentation.ts
+ * out (lib/reminder-stage.ts has the rule — the day stage only for a booking
+ * that existed a day ahead, the hour stage once the booking is 20 min old,
+ * so nobody is "reminded" minutes after the booking itself). The sweep runs
+ * every few minutes from instrumentation.ts
  * with the hourly cron as the backstop, so the hour stage lands ~60–70 min
  * out whatever minute the appointment starts. Covers every confirmed
  * appointment with a reachable client — online-booked and manually created —
@@ -468,6 +469,15 @@ async function sendClientReminder(input: {
         stage: input.stage,
       }),
     });
+  }
+  // A channel that was eligible but didn't go out is otherwise invisible: the
+  // stage is already claimed and the other channel may have carried it. Say
+  // so, so "the text never came" has a trail (lib/sms.ts warns the gate).
+  if (input.canSms && input.contact.phone && !smsOk) {
+    console.warn(`[reminders] ${input.stage} reminder text did not send (contact ${input.contactId}, company ${input.companyId})`);
+  }
+  if (input.canEmail && input.contact.email && !emailOk) {
+    console.warn(`[reminders] ${input.stage} reminder email did not send (contact ${input.contactId}, company ${input.companyId})`);
   }
   return emailOk || smsOk;
 }

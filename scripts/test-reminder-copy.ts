@@ -1,7 +1,7 @@
 // Unit checks for lib/reminder-stage.ts + the client text templates in
 // lib/sms.ts — run: npx tsx scripts/test-reminder-copy.ts
 import assert from "node:assert/strict";
-import { reminderStage, HOUR_STAGE_MS, inSmsQuietHours } from "../lib/reminder-stage";
+import { reminderStage, reminderOutlook, HOUR_STAGE_MS, MIN_BOOKING_AGE_MS, inSmsQuietHours } from "../lib/reminder-stage";
 import { appointmentReminderText, bookingConfirmationText, meetingLabel } from "../lib/sms";
 import { swapSlugInPath, RESERVED_SLUGS } from "../lib/company-slug";
 import { slugify } from "../lib/slugify";
@@ -34,10 +34,25 @@ const at = (iso: string) => new Date(iso);
   const sameDay = { ...base, createdAt: at("2026-10-07T09:00:00Z") };
   assert.equal(reminderStage({ now: at("2026-10-07T09:05:00Z"), ...sameDay }), null, "just booked, 6 h out: no day reminder");
   assert.equal(reminderStage({ now: at("2026-10-07T13:55:00Z"), ...sameDay }), "hour", "…but the hour reminder still comes");
-  // Booked 40 minutes ahead: the confirmation IS the reminder.
-  const rush = { ...base, createdAt: at("2026-10-07T14:20:00Z") };
-  assert.equal(reminderStage({ now: at("2026-10-07T14:25:00Z"), ...rush }), null, "booked under 70 min ahead: no hour reminder");
+  // Booked 70 minutes ahead (staff, on the phone with the client): the hour
+  // reminder waits until the booking is 20 min old, then goes.
+  const rush = { ...base, createdAt: at("2026-10-07T13:50:00Z") };
+  assert.equal(reminderStage({ now: at("2026-10-07T13:55:00Z"), ...rush }), null, "booked 5 min ago: not yet (would read as nagging)");
+  assert.equal(reminderStage({ now: at("2026-10-07T14:10:00Z"), ...rush }), "hour", "booked 20 min ago, 50 min out: hour reminder");
+  assert.equal(reminderOutlook({ now: at("2026-10-07T13:55:00Z"), ...rush }), "pending", "outlook: a reminder is still coming");
+  // Booked 45 minutes ahead: still reminded, ~25 min out.
+  const same = { ...base, createdAt: at("2026-10-07T14:15:00Z") };
+  assert.equal(reminderStage({ now: at("2026-10-07T14:20:00Z"), ...same }), null, "45 min ahead, 5 min old: not yet");
+  assert.equal(reminderStage({ now: at("2026-10-07T14:35:00Z"), ...same }), "hour", "45 min ahead, 20 min old: reminded");
+  // Booked 15 minutes ahead: it starts before it is old enough — the call
+  // that booked it IS the reminder.
+  const now15 = { ...base, createdAt: at("2026-10-07T14:45:00Z") };
+  assert.equal(reminderStage({ now: at("2026-10-07T14:50:00Z"), ...now15 }), null, "15 min ahead: never");
+  assert.equal(reminderStage({ now: at("2026-10-07T14:59:00Z"), ...now15 }), null, "15 min ahead, 1 min out: still never");
+  assert.equal(reminderOutlook({ now: at("2026-10-07T14:50:00Z"), ...now15 }), "too-close", "outlook: booked too close to remind");
+  assert.equal(reminderOutlook({ now: at("2026-10-07T15:01:00Z"), ...now15 }), "past", "outlook: started");
   assert.ok(HOUR_STAGE_MS === 70 * MIN);
+  assert.ok(MIN_BOOKING_AGE_MS === 20 * MIN);
   assert.ok(H > 0);
 }
 {
