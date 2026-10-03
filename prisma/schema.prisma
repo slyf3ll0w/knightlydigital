@@ -27,7 +27,15 @@ model Company {
   // keep working after a rename.
   previousSlugs             String[]    @default([])
   phone                     String?
+  // The business email: shown to clients on quotes, invoices and the booking
+  // page, and the Reply-To of every client email. Signup seeds it with the
+  // owner's login; Settings → Business Info edits it.
   email                     String?
+  // Optional separate inbox for the company's own notifications (new requests,
+  // bookings, client messages). Null = `email`. Lets an owner who signed up
+  // with a personal address show clients a work one and still get alerts
+  // where they want them (lib/notify.ts companyNotifyAddress).
+  notifyEmail               String?
   address                   String?
   city                      String?
   state                     String?
@@ -671,6 +679,20 @@ enum RoadmapCategory {
   FEATURE
   BUG
   QOL // quality of life
+}
+
+// Online history for the platform console's "People online" graph
+// (lib/presence-history.ts): one row per person per 5-minute slot they had
+// the app open in front of them, written by the presence heartbeat
+// (touchPresence). No relations on purpose — a deleted user's old slots
+// still count in the past. Pruned after 90 days by the same heartbeat.
+model PresenceSample {
+  userId    String
+  at        DateTime
+  companyId String
+
+  @@id([userId, at])
+  @@index([at])
 }
 
 // The marketing site's "Contact us" form (components/wb/WBContactForm.tsx →
@@ -1843,6 +1865,8 @@ model Appointment {
   // Push to the assignee ~1 h ahead (lib/reminders.ts runAppointmentTechHeadsUp);
   // its own stamp so it fires even when the client can't be reminded.
   techHeadsUpSentAt    DateTime?
+  // Invoices written straight from this appointment (Invoice.appointmentId)
+  invoices             Invoice[]
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
 
@@ -2317,6 +2341,10 @@ model Invoice {
   // final invoice can find and net any paid deposits.
   quoteId             String?
   quote               Quote?        @relation(fields: [quoteId], references: [id])
+  // Billed straight from an appointment (the work happened on the spot — no
+  // quote, no job). Nullable, additive; the appointment page lists these.
+  appointmentId       String?
+  appointment         Appointment?  @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
   kind                InvoiceKind   @default(STANDARD)
   invoiceNumber       Int
   subject             String?
@@ -2372,6 +2400,7 @@ model Invoice {
   @@unique([companyId, invoiceNumber])
   @@index([companyId])
   @@index([companyId, status])
+  @@index([appointmentId])
   // Past-due checks (nav-counts on every navigation, invoices list) filter
   // companyId + status + dueDate
   @@index([companyId, status, dueDate])

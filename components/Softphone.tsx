@@ -294,6 +294,13 @@ class LevelMeter {
     const analyser = this.analyser;
     const buf = new Uint8Array(analyser.fftSize);
     this.timer = setInterval(() => {
+      // iOS Safari / a WebView can leave a context created outside a user
+      // gesture "suspended" — the analyser then reads flat 128s forever. Keep
+      // nudging it; resume() succeeds once any gesture has unlocked audio.
+      if (this.ctx && this.ctx.state !== "running") {
+        void this.ctx.resume().catch(() => {});
+        return;
+      }
       analyser.getByteTimeDomainData(buf);
       const level = levelFromSamples(buf);
       if (level > this.peak) this.peak = level;
@@ -1371,6 +1378,9 @@ function CallCard({ call }: { call: SoftphoneCall }) {
         : fmtElapsed(call.startedAt, now);
   const round = "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-50";
   const quiet = "bg-[color:var(--ds-ink)]/8 text-[color:var(--ds-ink)] hover:bg-[color:var(--ds-ink)]/14";
+  // Company accent, straight from the design-system tokens the body carries
+  // (not the green→accent bridge, which needs the --wb-* halves in scope).
+  const BRAND_DISC = "bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]";
   const warm = "bg-amber-500/20 text-amber-700 dark:text-amber-300";
 
   if (!open) {
@@ -1384,13 +1394,13 @@ function CallCard({ call }: { call: SoftphoneCall }) {
           title="Show the call controls"
           aria-label={`On a call with ${call.label} — show controls`}
         >
-          <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${held ? "bg-amber-500/20 text-amber-600 dark:text-amber-300" : "bg-green-500/15 text-green-600 dark:text-green-400"}`}>
+          <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${held ? "bg-amber-500/20 text-amber-600 dark:text-amber-300" : BRAND_DISC}`}>
             {call.muted ? <MicOff size={12} /> : <Phone size={12} />}
           </span>
           <span className="truncate">{call.label}</span>
           <span className="shrink-0 tabular-nums font-medium text-[color:var(--ds-muted)]">{held ? "on hold" : fmtElapsed(call.startedAt, now)}</span>
           {speaker && (
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-500/20 text-green-600 dark:text-green-400" title="Speaker on" aria-label="Speaker on">
+            <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${BRAND_DISC}`} title="Speaker on" aria-label="Speaker on">
               <Volume2 size={11} />
             </span>
           )}
@@ -1404,12 +1414,12 @@ function CallCard({ call }: { call: SoftphoneCall }) {
       role="dialog"
       aria-live="polite"
       aria-label={ringing ? `Incoming call from ${call.label}` : `Call with ${call.label}`}
-      className={`${GLASS} fixed inset-x-3 z-[70] rounded-2xl lg:inset-x-0 lg:mx-auto lg:w-[460px] ${DOCK_TOP} ${ringing ? "ring-4 ring-green-500/20" : ""}`}
+      className={`${GLASS} fixed inset-x-3 z-[70] rounded-2xl lg:inset-x-0 lg:mx-auto lg:w-[460px] ${DOCK_TOP} ${ringing ? "ring-4 ring-[color:var(--ds-primary-soft)]" : ""}`}
     >
       <div className="flex items-center gap-3 px-3.5 pt-3 pb-2.5">
         <span
           className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-            ringing ? "animate-pulse bg-green-500/15 text-green-600 dark:text-green-400" : held ? "bg-amber-500/20 text-amber-600 dark:text-amber-300" : "bg-green-500/15 text-green-600 dark:text-green-400"
+            ringing ? `animate-pulse ${BRAND_DISC}` : held ? "bg-amber-500/20 text-amber-600 dark:text-amber-300" : BRAND_DISC
           }`}
         >
           {ringing ? <PhoneIncoming size={18} /> : <Phone size={18} />}
@@ -1501,7 +1511,7 @@ function CallCard({ call }: { call: SoftphoneCall }) {
                 onClick={() => softphone.toggleSpeaker()}
                 disabled={dialing}
                 className={`relative flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold transition-colors disabled:opacity-50 ${
-                  speaker ? "bg-green-500/20 text-green-700 dark:text-green-300" : quiet
+                  speaker ? BRAND_DISC : quiet
                 }`}
                 title={speaker ? "Speaker is on — switch to the earpiece" : "Speaker is off — switch to speakerphone"}
                 aria-label={speaker ? "Speaker on" : "Speaker off"}
@@ -1509,7 +1519,7 @@ function CallCard({ call }: { call: SoftphoneCall }) {
               >
                 <Volume2 size={18} />
                 <span>{speaker ? "On" : "Speaker"}</span>
-                {speaker && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-green-500 ring-2 ring-white/80 dark:ring-black/40" aria-hidden />}
+                {speaker && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[color:var(--ds-primary)] ring-2 ring-white/80 dark:ring-black/40" aria-hidden />}
               </button>
             )}
             <button

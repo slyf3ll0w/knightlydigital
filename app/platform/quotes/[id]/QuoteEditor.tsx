@@ -367,11 +367,16 @@ export default function QuoteEditor({
             showOptional
           />
           {estimators.length > 0 && (
+            // Portaled: rendered in place it nested its own <form> inside this
+            // one (invalid HTML, and the quote form received its submits) and
+            // sat inside .ds-card + the pull-to-refresh <main>, which restyled
+            // and dragged the phone sheet.
             <EstimatorRunner
               estimators={estimators}
               open={estimatorOpen}
               onClose={() => setEstimatorOpen(false)}
               onApply={applyEstimate}
+              portal
             />
           )}
 

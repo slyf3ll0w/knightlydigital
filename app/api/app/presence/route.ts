@@ -11,6 +11,6 @@ import { touchPresence } from "@/lib/presence";
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  touchPresence(actor.id, req.headers.get("user-agent"));
+  touchPresence(actor.id, actor.companyId, req.headers.get("user-agent"));
   return new NextResponse(null, { status: 204 });
 }

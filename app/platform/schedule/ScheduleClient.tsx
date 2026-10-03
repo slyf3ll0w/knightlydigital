@@ -4,22 +4,33 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
+  ArrowRightLeft,
+  Briefcase,
   CalendarClock,
   CalendarDays,
   CalendarOff,
+  Check,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   CloudRain,
   Columns3,
+  ExternalLink,
   Loader2,
+  MessageSquare,
   Navigation as NavigationIcon,
+  Pencil,
   Phone as PhoneIcon,
   Plus,
+  RotateCcw,
   Route as RouteIcon,
   Trash2,
   UserPlus,
+  UserX,
   X,
 } from "lucide-react";
+import { QuickMenu, type QuickAction, type MenuAnchor } from "@/components/QuickMenu";
+import { confirmSheet } from "@/components/ConfirmSheet";
 import PageTitle from "@/components/PageTitle";
 import { FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -632,6 +643,142 @@ export default function ScheduleClient({
     }
     router.push(it.kind === "appointment" ? `/app/appointments/${it.id}` : `/app/jobs/${it.id}`);
   };
+
+  // ── Right-click quick menu (desktop grids) ───────────────────────────────
+  // One QuickMenu for the whole calendar (David 2026-10-02: "right-click the
+  // calendar to do some actions"). Items offer the record's own actions —
+  // the same routes the detail pages and the ledger row menus call — and
+  // empty space offers "new … here". Phones keep swipe + press-and-hold
+  // drag; the grids this hangs off are desktop-only (`hidden lg:block`).
+  const [ctxMenu, setCtxMenu] = useState<{ anchor: MenuAnchor; title?: string; actions: QuickAction[] } | null>(null);
+  const openCtxMenu = (e: React.MouseEvent, title: string | undefined, actions: QuickAction[]) => {
+    e.preventDefault();
+    drag.cancel();
+    if (actions.length === 0) return;
+    setCtxMenu({ anchor: { x: e.clientX, y: e.clientY }, title, actions });
+  };
+  const afterAction = async (res: { ok: boolean; data: { error?: string } | null }, done?: string, sub?: string) => {
+    if (!res.ok) {
+      setError(res.data?.error ?? GENERIC_ERROR);
+      return false;
+    }
+    if (done) showToast({ text: done, sub });
+    startTransition(() => router.refresh());
+    return true;
+  };
+  const mapsHref = (address: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+
+  function itemMenuActions(it: ScheduleJobDTO): QuickAction[] {
+    const out: QuickAction[] = [];
+    if (it.kind === "block") {
+      const b = it.block;
+      if (!b) return out;
+      out.push({ key: "edit", label: b.canEdit ? "Edit blocked time" : "View blocked time", icon: Pencil, onSelect: () => openBlockEdit(b) });
+      if (b.canEdit && b.source !== "GOOGLE")
+        out.push({
+          key: "delete",
+          label: "Remove blocked time",
+          icon: Trash2,
+          destructive: true,
+          onSelect: async () => {
+            if (!(await confirmSheet({ title: "Remove this blocked time?", message: "The calendar opens back up for that range.", confirmLabel: "Remove", destructive: true }))) return;
+            await afterAction(await postJson(`/api/app/time-blocks/${b.id}`, undefined, "DELETE"), "Blocked time removed");
+          },
+        });
+      return out;
+    }
+    const isAppt = it.kind === "appointment";
+    const href = isAppt ? `/app/appointments/${it.id}` : `/app/jobs/${it.id}`;
+    out.push({ key: "open", label: "Open", icon: ExternalLink, href });
+    if (isAppt) {
+      if (it.tentative && it.requestId && canCreateAppointment) out.push({ key: "accept", label: "Accept booking", icon: Check, onSelect: () => void acceptTentative(it) });
+      const patch = (status: string, done: string) => async () => {
+        await afterAction(await postJson(`/api/app/appointments/${it.id}`, { status }, "PATCH"), done, it.title);
+      };
+      if (it.status === "SCHEDULED") {
+        out.push({ key: "complete", label: "Complete appointment", icon: CheckCircle2, onSelect: patch("COMPLETED", `Completed ${it.contactName}'s appointment`) });
+        out.push({ key: "noshow", label: "Mark no-show", icon: UserX, onSelect: patch("NO_SHOW", "Marked as a no-show") });
+      } else {
+        out.push({ key: "reopen", label: "Reopen", icon: RotateCcw, onSelect: patch("SCHEDULED", "Appointment reopened") });
+      }
+    } else {
+      out.push({ key: "edit", label: "Edit job", icon: Pencil, href: `/app/jobs/${it.id}/edit` });
+      if (it.status === "ACTIVE")
+        out.push({
+          key: "complete",
+          label: "Complete job",
+          icon: CheckCircle2,
+          onSelect: async () => {
+            const when = it.scheduledAt ? new Date(it.scheduledAt) : null;
+            if (when && when.getTime() > Date.now() && !(await confirmSheet({ message: `This job is scheduled for ${when.toLocaleDateString(undefined, { month: "short", day: "numeric" })} — complete it anyway?`, confirmLabel: "Complete Anyway" }))) return;
+            await afterAction(await postJson(`/api/app/jobs/${it.id}/status`, { status: "REQUIRES_INVOICING" }, "PATCH"), `Completed ${it.title}`, it.contactName);
+          },
+        });
+      if (canDispatch && it.scheduledAt && it.contactId)
+        out.push({
+          key: "reschedule",
+          label: "Reschedule…",
+          icon: CalendarClock,
+          onSelect: () => {
+            const d = new Date(it.scheduledAt!);
+            setPlaceIntent({ entity: { type: "job", job: it }, date: toParam(d), minute: it.scheduledAnytime ? null : d.getHours() * 60 + d.getMinutes(), userId: it.assigneeIds?.[0] ?? (team || undefined) });
+          },
+        });
+    }
+    if (it.address) out.push({ key: "directions", label: "Directions", icon: NavigationIcon, hint: it.address, href: mapsHref(it.address) });
+    if (it.phone) {
+      const phone = it.phone;
+      out.push(
+        lineCalling
+          ? { key: "call", label: "Call", icon: PhoneIcon, hint: phone, onSelect: () => callFromLine({ contactId: it.contactId ?? undefined, to: phone, label: it.contactName }) }
+          : { key: "call", label: "Call", icon: PhoneIcon, hint: phone, href: telHref(phone) }
+      );
+    }
+    if (it.contactId) out.push({ key: "text", label: "Text client", icon: MessageSquare, href: `/app/messages/thread/${it.contactId}` });
+    if (isAppt) {
+      if (it.status === "SCHEDULED")
+        out.push({
+          key: "cancel",
+          label: "Cancel appointment",
+          icon: X,
+          destructive: true,
+          onSelect: async () => {
+            if (!(await confirmSheet({ title: "Cancel this appointment?", message: `${it.contactName} won't be reminded of it. You can reopen it later from its page.`, confirmLabel: "Cancel Appointment", destructive: true }))) return;
+            await afterAction(await postJson(`/api/app/appointments/${it.id}`, { status: "CANCELLED" }, "PATCH"), "Appointment cancelled", it.title);
+          },
+        });
+    }
+    return out;
+  }
+
+  function emptyMenuActions(date: Date, minute: number | null, userId: string | null | undefined): QuickAction[] {
+    const out: QuickAction[] = [];
+    const who = userId ?? (team || undefined);
+    const startMin = minute ?? 9 * 60;
+    if (canCreateJob)
+      out.push({ key: "job", label: "New job here", icon: Briefcase, onSelect: () => setPlaceIntent({ entity: { type: "pick", kind: "job" }, date: toParam(date), minute, userId: who, durationMin: 60 }) });
+    if (canCreateAppointment)
+      out.push({ key: "appt", label: "New appointment here", icon: CalendarClock, onSelect: () => setPlaceIntent({ entity: { type: "pick", kind: "appointment" }, date: toParam(date), minute, userId: who, durationMin: 60 }) });
+    out.push({
+      key: "block",
+      label: "Block off this time",
+      icon: CalendarOff,
+      onSelect: () => openBlockCreate({ date, startMin, endMin: Math.min(startMin + 60, 24 * 60), who: userId === undefined ? team || meId : userId }),
+    });
+    out.push({ key: "palette", label: "Schedule someone here…", icon: UserPlus, hint: "Opens the palette — drag a client or request in", onSelect: () => setPaletteOpen(true) });
+    if (view === "month") out.push({ key: "day", label: "Go to this day", icon: CalendarDays, onSelect: () => go({ view: "day", date }) });
+    if (view === "day" && canDispatch)
+      out.push({
+        key: "shift",
+        label: "Move this whole day…",
+        icon: ArrowRightLeft,
+        onSelect: () => {
+          setShiftErr("");
+          setShiftSheet({ toDate: toParam(nextBusinessDay(anchor)), includeAppointments: true, notify: true });
+        },
+      });
+    return out;
+  }
 
   async function acceptTentative(it: ScheduleJobDTO) {
     if (!it.requestId) return;
@@ -1574,6 +1721,8 @@ export default function ScheduleClient({
                 onGoDay={(d) => go({ view: "day", date: d })}
                 capacityByDow={capacityForMonth}
                 onCellClick={armed ? (d) => placeArmed(d, null) : undefined}
+                onItemMenu={(it, e) => openCtxMenu(e, it.kind === "block" ? "Blocked time" : `${it.contactName} — ${it.title}`, itemMenuActions(it))}
+                onCellMenu={(d, e) => openCtxMenu(e, dayLabelFor(d), emptyMenuActions(d, null, undefined))}
               />
             ) : (
               <TimeGrid
@@ -1590,9 +1739,14 @@ export default function ScheduleClient({
                 emptyHint={showBoard ? "Nothing yet — drop work here" : undefined}
                 onEmptyClick={armed ? (d, minute, userId) => placeArmed(d, minute, userId) : undefined}
                 onAccept={canCreateAppointment ? acceptTentative : undefined}
+                onItemMenu={(it, e) => openCtxMenu(e, it.kind === "block" ? "Blocked time" : `${it.contactName} — ${it.title}`, itemMenuActions(it))}
+                onEmptyMenu={(d, minute, userId, e) =>
+                  openCtxMenu(e, `${dayLabelFor(d)}${minute === null ? " · Anytime" : ` · ${fmtMinute(minute)}`}`, emptyMenuActions(d, minute, userId))
+                }
               />
             )}
           </div>
+          <QuickMenu open={Boolean(ctxMenu)} anchor={ctxMenu?.anchor ?? null} title={ctxMenu?.title} actions={ctxMenu?.actions ?? []} onClose={() => setCtxMenu(null)} />
 
           <div className="mt-4 hidden flex-wrap items-center gap-3 lg:flex">
             {[

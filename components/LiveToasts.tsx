@@ -41,15 +41,40 @@ const AUTO_DISMISS_MS = 8000;
 function Card({ t, onDismiss }: { t: LiveToast; onDismiss: () => void }) {
   const router = useRouter();
   const touch = useRef<{ y: number } | null>(null);
+  // The card leaves on its own only while someone could be looking at it.
+  // On a desktop the browser is often behind another window when the poll
+  // lands — the old unconditional 8 s timer let the card expire unseen, so
+  // the bell updated but "I never got an in-app notification card on
+  // desktop" (David 2026-10-02). Hidden or unfocused: the clock pauses.
   useEffect(() => {
-    const timer = setTimeout(onDismiss, AUTO_DISMISS_MS);
-    return () => clearTimeout(timer);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const looking = () => document.visibilityState === "visible" && document.hasFocus();
+    const sync = () => {
+      if (looking()) {
+        if (!timer) timer = setTimeout(onDismiss, AUTO_DISMISS_MS);
+      } else if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    };
+    sync();
+    window.addEventListener("focus", sync);
+    window.addEventListener("blur", sync);
+    document.addEventListener("visibilitychange", sync);
+    return () => {
+      if (timer) clearTimeout(timer);
+      window.removeEventListener("focus", sync);
+      window.removeEventListener("blur", sync);
+      document.removeEventListener("visibilitychange", sync);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const Icon = ICON[t.kind] ?? Inbox;
   return (
+    // Same material and edge as the bell's dropdown (NotificationsSheet):
+    // sheet-material + shadow-xl + a hairline ring.
     <div
-      className="toast-enter sheet-material pointer-events-auto flex items-center gap-3 rounded-2xl border border-white/60 px-3.5 py-3 shadow-[0_10px_30px_rgba(15,23,42,0.18)] dark:border-white/10"
+      className="toast-enter sheet-material pointer-events-auto flex items-center gap-3 rounded-2xl px-3.5 py-3 shadow-xl ring-1 ring-black/5 dark:ring-white/10"
       onTouchStart={(e) => {
         touch.current = { y: e.touches[0].clientY };
       }}

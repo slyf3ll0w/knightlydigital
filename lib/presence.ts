@@ -40,6 +40,38 @@ export function viaFromUserAgent(ua: string | null | undefined): SeenVia {
 }
 
 const lastTouch = new Map<string, number>();
+/** The 5-minute slot each user last got a PresenceSample for (per process). */
+const lastSlot = new Map<string, number>();
+let lastPrune = 0;
+
+/** History slot size for the console online graph (lib/presence-history.ts). */
+const SAMPLE_SLOT_MS = 5 * 60 * 1000;
+const SAMPLE_KEEP_MS = 90 * 24 * 60 * 60 * 1000;
+
+/**
+ * One PresenceSample row per person per 5-minute slot they were in the app:
+ * the history behind the console's "People online" graph. Insert-or-ignore,
+ * so two processes (or a restart) never double count. Prunes rows past 90
+ * days at most once an hour from here, since the cron service is not to be
+ * relied on.
+ */
+function recordSample(userId: string, companyId: string, now: number): void {
+  const slot = Math.floor(now / SAMPLE_SLOT_MS) * SAMPLE_SLOT_MS;
+  if (lastSlot.get(userId) === slot) return;
+  lastSlot.set(userId, slot);
+  if (lastSlot.size > 5000) {
+    for (const [id, at] of lastSlot) if (at < slot) lastSlot.delete(id);
+  }
+  prisma.presenceSample
+    .createMany({ data: [{ userId, companyId, at: new Date(slot) }], skipDuplicates: true })
+    .catch(() => {
+      lastSlot.delete(userId);
+    });
+  if (now - lastPrune > 60 * 60 * 1000) {
+    lastPrune = now;
+    prisma.presenceSample.deleteMany({ where: { at: { lt: new Date(now - SAMPLE_KEEP_MS) } } }).catch(() => {});
+  }
+}
 
 /**
  * Stamp lastSeenAt / lastSeenVia for this user, throttled to one write a
@@ -47,8 +79,9 @@ const lastTouch = new Map<string, number>();
  * request. The throttle map is per process — Railway runs one container, and
  * a second one would merely double the (tiny) write rate.
  */
-export function touchPresence(userId: string, ua: string | null | undefined): void {
+export function touchPresence(userId: string, companyId: string, ua: string | null | undefined): void {
   const now = Date.now();
+  recordSample(userId, companyId, now);
   if (now - (lastTouch.get(userId) ?? 0) < TOUCH_INTERVAL_MS) return;
   lastTouch.set(userId, now);
   if (lastTouch.size > 5000) {

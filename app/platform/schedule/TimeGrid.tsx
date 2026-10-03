@@ -58,6 +58,8 @@ export default function TimeGrid({
   emptyHint,
   onEmptyClick,
   onAccept,
+  onItemMenu,
+  onEmptyMenu,
 }: {
   columns: GridColumn[];
   itemsFor: (col: GridColumn) => ScheduleJobDTO[];
@@ -74,7 +76,25 @@ export default function TimeGrid({
   onEmptyClick?: (date: Date, minute: number, userId: string | null | undefined) => void;
   /** Inline Accept on a self-booked appointment awaiting approval. */
   onAccept?: (item: ScheduleJobDTO) => void;
+  /** Right-click on an event → the quick menu (ScheduleClient owns it). */
+  onItemMenu?: (item: ScheduleJobDTO, e: React.MouseEvent) => void;
+  /** Right-click on empty space → new job / appointment / block here. `minute` null = the Anytime row. */
+  onEmptyMenu?: (date: Date, minute: number | null, userId: string | null | undefined, e: React.MouseEvent) => void;
 }) {
+  // Right-click never starts a drag (useCalendarDrag ignores button 2), so
+  // the only job here is to keep the browser's own menu away.
+  const emptyMenu = (col: GridColumn, minute: number | null) => (e: React.MouseEvent) => {
+    if (!onEmptyMenu) return;
+    if ((e.target as HTMLElement).closest("[data-item]")) return;
+    e.preventDefault();
+    onEmptyMenu(col.date, minute, col.userId, e);
+  };
+  const itemMenu = (it: ScheduleJobDTO) => (e: React.MouseEvent) => {
+    if (!onItemMenu) return;
+    e.preventDefault();
+    e.stopPropagation();
+    onItemMenu(it, e);
+  };
   const nowMin = today.getHours() * 60 + today.getMinutes();
   // Column count is dynamic (dispatch = one per tech), so the template is an
   // inline style — Tailwind can't generate a class from a runtime number
@@ -137,6 +157,7 @@ export default function TimeGrid({
                   data-drop="anytime"
                   data-date={toParam(col.date)}
                   {...(col.userId !== undefined ? { "data-user": col.userId ?? "" } : {})}
+                  onContextMenu={emptyMenu(col, null)}
                   className={`min-h-[34px] space-y-0.5 border-l border-gray-100 p-1 transition-colors ${
                     hot ? "bg-[color:var(--ds-primary-soft)] ring-2 ring-inset ring-[color:var(--ds-primary)]" : ""
                   }`}
@@ -149,6 +170,7 @@ export default function TimeGrid({
                         ? {}
                         : drag.handleProps({ type: "item", item: it, mode: "move", grabOffsetMin: 0, fromUserId: col.userId }))}
                       onClick={() => onOpen(it)}
+                      onContextMenu={itemMenu(it)}
                       className={`cursor-grab select-none truncate rounded-lg border-l-2 px-1.5 py-0.5 text-xs font-medium active:cursor-grabbing ${itemTone(it)} ${
                         movingId === it.id ? "opacity-40" : ""
                       }`}
@@ -229,6 +251,14 @@ export default function TimeGrid({
                       const rect = e.currentTarget.getBoundingClientRect();
                       const minute = Math.max(0, Math.round((((e.clientY - rect.top) / HOUR_PX) * 60) / 15) * 15);
                       onEmptyClick(col.date, minute, col.userId);
+                    }}
+                    onContextMenu={(e) => {
+                      if (!onEmptyMenu) return;
+                      if ((e.target as HTMLElement).closest("[data-item]")) return;
+                      e.preventDefault();
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const minute = Math.max(0, Math.round((((e.clientY - rect.top) / HOUR_PX) * 60) / 15) * 15);
+                      onEmptyMenu(col.date, minute, col.userId, e);
                     }}
                     className={`relative border-l border-gray-100 ${col.isToday ? "cal-today" : ""}`}
                     style={{ height: 24 * HOUR_PX }}
@@ -333,6 +363,7 @@ export default function TimeGrid({
                             ? drag.handleProps({ type: "item", item: j, mode: "move", grabOffsetMin: 0, fromUserId: col.userId })
                             : {})}
                           onClick={() => onOpen(j)}
+                          onContextMenu={itemMenu(j)}
                           className={`absolute cursor-grab select-none overflow-hidden rounded-lg border-l-2 px-1.5 text-xs font-medium shadow-sm ${compact ? "flex items-center" : "py-0.5"} active:cursor-grabbing ${itemTone(j)} ${
                             movingId === j.id && !resizing ? "opacity-40" : ""
                           } ${resizing?.source.type === "item" && resizing.source.item.id === j.id ? "ring-2 ring-[color:var(--ds-primary)]" : ""}`}
