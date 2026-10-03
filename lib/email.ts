@@ -329,6 +329,12 @@ function htmlToText(html: string): string {
  *  before claiming — a claim whose send is blocked is a reminder lost forever. */
 export async function companyEmailBlocked(companyId: string): Promise<boolean> {
   if (process.env.PAYMENT_PROCESSOR !== "finix") return false;
+  // Payments onboarding closed (lib/payments-gate.ts, 2026-09-30): accounts are
+  // fully usable and only *charging* is held — a company that signed up
+  // without an invite still has to be able to email a quote. The approval
+  // hold on email applies only while the underwriting gate is open. (Env read
+  // inlined: this module must stay import-cycle-free.)
+  if (process.env.PAYMENTS_ONBOARDING_OPEN !== "1") return false;
   try {
     const c = await prisma.company.findUnique({
       where: { id: companyId },

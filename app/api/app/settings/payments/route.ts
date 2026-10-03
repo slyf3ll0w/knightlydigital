@@ -43,7 +43,7 @@ export async function GET() {
 
   const held = await prisma.company.findUnique({
     where: { id: actor.companyId },
-    select: { paymentsWaived: true, finixOnboardingState: true, finixOnboardingFormId: true },
+    select: { paymentsWaived: true, finixOnboardingState: true, finixOnboardingFormId: true, isTest: true },
   });
   if (held && onlinePaymentsHeld(held)) {
     // A form already with the underwriter can still come back approved —
@@ -91,6 +91,7 @@ export async function POST(req: Request) {
       finixOnboardingFormId: true,
       finixOnboardingState: true,
       paymentsWaived: true,
+      isTest: true,
     },
   });
   if (!company) return NextResponse.json({ error: "Company not found." }, { status: 404 });

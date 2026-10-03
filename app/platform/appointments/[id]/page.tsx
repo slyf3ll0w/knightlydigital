@@ -4,7 +4,7 @@ import Link from "next/link";
 import SectionHeader from "@/components/SectionHeader";
 import { CalendarDays, ExternalLink, Mail, MapPin, Phone, User, Video } from "lucide-react";
 import { prisma } from "@/lib/db";
-import { requirePageActor, canSell, isManager, appointmentScope } from "@/lib/permissions";
+import { requirePageActor, canSell, canSeeMoney, isManager, appointmentScope } from "@/lib/permissions";
 import { appointmentTypeLabel } from "@/lib/statuses";
 import { resolveSlotInterval } from "@/lib/scheduling";
 import { earliestOpenMinutes, sanitizeBusinessHours } from "@/lib/business-hours";
@@ -43,6 +43,11 @@ export default async function AppointmentDetailPage({
           },
         },
         assignedTo: { select: { name: true } },
+        // Billed straight from this appointment (no quote / job in between)
+        invoices: {
+          select: { id: true, invoiceNumber: true, status: true },
+          orderBy: { createdAt: "desc" },
+        },
       },
     }),
     // Managers and USER (dispatchers) may reassign — same rule as the PATCH
@@ -112,6 +117,7 @@ export default async function AppointmentDetailPage({
           contactName={`${appt.contact.firstName} ${appt.contact.lastName}`.trim()}
           requestId={appt.requestId}
           canDelete={isManager(actor.role)}
+          canInvoice={canSeeMoney(actor)}
           scheduledAt={appt.scheduledAt.toISOString()}
           scheduledEnd={appt.scheduledEnd?.toISOString() ?? null}
           scheduledAnytime={appt.scheduledAnytime}
@@ -216,6 +222,21 @@ export default async function AppointmentDetailPage({
                 </div>
               </div>
             )}
+          </div>
+        )}
+        {appt.invoices.length > 0 && (
+          <div className="pt-2 border-t border-gray-100 text-sm">
+            <span className="text-xs font-medium text-gray-500 block mb-0.5">Invoiced as</span>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              {appt.invoices.map((inv) => (
+                <span key={inv.id} className="flex items-center gap-1.5">
+                  <Link prefetch={false} href={`/app/invoices/${inv.id}`} className="text-[color:var(--ds-primary)] hover:underline">
+                    Invoice #{inv.invoiceNumber}
+                  </Link>
+                  <StatusChip kind="invoice" status={inv.status} />
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </div>

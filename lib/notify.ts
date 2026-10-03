@@ -19,7 +19,15 @@ export async function companyNotifyAddress(
   companyId: string,
   companyEmail: string | null | undefined
 ): Promise<string | null> {
-  const address = companyEmail || (await oldestOwnerEmail(companyId));
+  // Settings → Business Info → "Notifications inbox" overrides the business
+  // email for the company's OWN alerts (David 2026-10-02: a personal login
+  // for WorkBench, a work address for clients). Looked up here rather than
+  // threaded through the eight callers.
+  const override = await prisma.company
+    .findUnique({ where: { id: companyId }, select: { notifyEmail: true } })
+    .then((c) => c?.notifyEmail?.trim() || null)
+    .catch(() => null);
+  const address = override || companyEmail || (await oldestOwnerEmail(companyId));
   if (!address) return null;
   return (await emailWanted(companyId, address)) ? address : null;
 }

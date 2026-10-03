@@ -161,6 +161,21 @@
      readers hear it (none of the 61 inline recipes had one). */
   .form-error {
     @apply rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700;
+    /* components/FormErrorFocus.tsx scrolls a fresh banner into view — keep
+       it clear of the sticky header / the sheet's grabber when it lands. */
+    scroll-margin-top: 5rem;
+    scroll-margin-bottom: 7rem;
+  }
+  .form-error-pulse {
+    animation: formErrorPulse 0.9s ease-out 1;
+  }
+  @keyframes formErrorPulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45);
+    }
+    100% {
+      box-shadow: 0 0 0 10px rgba(220, 38, 38, 0);
+    }
   }
 
   /* ── Meta text — small secondary copy that still passes AA on white.
@@ -624,6 +639,23 @@ html[data-mode="dark"] .app-ui .menu-sheet > div + :is(button, a) {
     border-radius: 20px 20px 0 0;
     padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));
     animation: sheetUp 0.34s cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+  /* A dialog that is its own header / scrolling body / docked footer panel
+     (EstimatorRunner): the card must not scroll or pad on top of it, or the
+     footer rides off the bottom with a blank band under it. The panel's
+     footer carries the safe-area inset instead. */
+  .app-ui .modal-pop > .modal-card.modal-card-panel {
+    overflow: hidden;
+    padding-bottom: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .app-ui .modal-pop > .modal-card.modal-card-panel::before {
+    margin: 8px auto 2px;
+    flex: none;
+  }
+  .app-ui .modal-pop > .modal-card.modal-card-panel > * {
+    min-height: 0;
   }
   .app-ui .modal-pop > .modal-card::before {
     content: "";

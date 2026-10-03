@@ -63,10 +63,13 @@ type PrefillJob = {
   } | null;
 };
 
+type PrefillAppointment = { id: string; title: string; contactId: string; scheduledAt: string };
+
 export default function InvoiceEditor({
   contacts,
   workItems = [],
   prefillJob,
+  prefillAppointment = null,
   prefilledContactId = "",
   editInvoice = null,
   defaultTaxRatePercent = "",
@@ -74,6 +77,8 @@ export default function InvoiceEditor({
   contacts: Contact[];
   workItems?: PickerWorkItem[];
   prefillJob: PrefillJob | null;
+  /** Billing an appointment directly — the work happened on the spot. */
+  prefillAppointment?: PrefillAppointment | null;
   prefilledContactId?: string;
   editInvoice?: EditInvoice | null;
   defaultTaxRatePercent?: string;
@@ -114,9 +119,9 @@ export default function InvoiceEditor({
         recurringInterval: li.recurringInterval ?? null,
       })) ?? [newEditorLine()];
 
-  const [contactId, setContactId] = useState(prefillJob?.contactId ?? prefilledContactId);
+  const [contactId, setContactId] = useState(prefillJob?.contactId ?? prefillAppointment?.contactId ?? prefilledContactId);
   const [jobId] = useState(prefillJob?.id ?? "");
-  const [subject, setSubject] = useState(editInvoice?.subject ?? prefillJob?.title ?? "");
+  const [subject, setSubject] = useState(editInvoice?.subject ?? prefillJob?.title ?? prefillAppointment?.title ?? "");
   const [notes, setNotes] = useState(editInvoice?.notes ?? "");
   const [clientMessage, setClientMessage] = useState(editInvoice?.clientMessage ?? "");
   // Tax carries over from the job's quote — otherwise a quoted 8.25% job
@@ -218,6 +223,7 @@ export default function InvoiceEditor({
     const { ok, data } = await postJson<{ id: string }>("/api/app/invoices", {
       contactId,
       jobId: jobId || null,
+      appointmentId: prefillAppointment?.id ?? null,
       ...payload,
     });
 
@@ -236,6 +242,12 @@ export default function InvoiceEditor({
       {prefillJob && (
         <div className="mb-4 rounded-[var(--ds-r)] bg-[color:var(--ds-primary-soft)] px-4 py-3 text-sm text-[color:var(--ds-ink)]">
           Creating invoice for job: <strong>{prefillJob.title}</strong>
+        </div>
+      )}
+      {!prefillJob && prefillAppointment && (
+        <div className="mb-4 rounded-[var(--ds-r)] bg-[color:var(--ds-primary-soft)] px-4 py-3 text-sm text-[color:var(--ds-ink)]">
+          Invoicing the appointment <strong>{prefillAppointment.title}</strong> — add what you did below. Saving
+          marks the appointment complete; no quote or job is created.
         </div>
       )}
 

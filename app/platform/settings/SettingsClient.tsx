@@ -68,7 +68,7 @@ import {
 
 type Company = {
   id: string; name: string; legalName: string | null; showLegalNameOnDocs: boolean; slug: string; phone: string | null;
-  email: string | null; address: string | null; city: string | null;
+  email: string | null; notifyEmail?: string | null; address: string | null; city: string | null;
   state: string | null; zip: string | null; website: string | null;
   about: string | null;
   logoUrl: string | null; brandColor: string | null; brandColorSecondary: string | null;
@@ -941,6 +941,7 @@ export default function SettingsClient({
     name: company.name,
     phone: company.phone ?? "",
     email: company.email ?? "",
+    notifyEmail: company.notifyEmail ?? "",
     address: company.address ?? "",
     city: company.city ?? "",
     state: company.state ?? "",
@@ -1454,10 +1455,27 @@ export default function SettingsClient({
                 className="w-full focus:ring-2" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Business email</label>
               <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)}
                 className="w-full focus:ring-2" />
+              <p className="mt-1 text-xs text-gray-500">
+                Clients see this on quotes, invoices, and your booking page, and their replies to the emails
+                we send for you land here. It started as the email you signed up with — change it if that
+                one&apos;s personal.
+              </p>
             </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Notifications inbox <span className="font-normal text-gray-400">(optional)</span>
+            </label>
+            <Input type="email" value={form.notifyEmail} onChange={(e) => set("notifyEmail", e.target.value)}
+              placeholder={form.email || "Same as the business email"}
+              className="w-full focus:ring-2" />
+            <p className="mt-1 text-xs text-gray-500">
+              Where new requests, bookings, and client messages are emailed to you. Leave blank to use the
+              business email.
+            </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Street address</label>

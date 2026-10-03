@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { getActor, canSeeMoney, contactScope, jobScope } from "@/lib/permissions";
+import { getActor, canSeeMoney, contactScope, jobScope, appointmentScope } from "@/lib/permissions";
 import { recordLeadWin, firePipelineMoves, type PipelineMove } from "@/lib/pipeline";
 import { fireAutomations } from "@/lib/automations-server";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
@@ -23,6 +23,9 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const { contactId, jobId, subject, lineItems, taxRate, notes, clientMessage, dueDate } = body;
+  // Billed straight from an appointment (the work happened on the spot) —
+  // the invoice remembers which one, and the appointment is marked complete.
+  const appointmentId: string | null = typeof body.appointmentId === "string" && body.appointmentId ? body.appointmentId : null;
 
   if (!lineItems?.length) {
     return NextResponse.json({ error: "At least one line item is required." }, { status: 400 });
@@ -77,6 +80,16 @@ export async function POST(req: NextRequest) {
   if (jobId && !scopedJob) return NextResponse.json({ error: "Job not found." }, { status: 404 });
   if (jobId && contactId && scopedJob && scopedJob.contactId !== contactId) {
     return NextResponse.json({ error: "That client doesn't match the job." }, { status: 400 });
+  }
+  const scopedAppt = appointmentId
+    ? await prisma.appointment.findFirst({
+        where: { id: appointmentId, companyId, ...appointmentScope(actor) },
+        select: { contactId: true, status: true },
+      })
+    : null;
+  if (appointmentId && !scopedAppt) return NextResponse.json({ error: "Appointment not found." }, { status: 404 });
+  if (scopedAppt && contactId && scopedAppt.contactId !== contactId) {
+    return NextResponse.json({ error: "That client doesn't match the appointment." }, { status: 400 });
   }
   const contact = contactId
     ? await prisma.contact.findFirst({
@@ -204,6 +217,7 @@ export async function POST(req: NextRequest) {
         companyId,
         contactId: contactId || null,
         jobId: jobId || null,
+        appointmentId,
         publicToken: randomBytes(24).toString("hex"),
         invoiceNumber,
         subject: subject || null,
@@ -259,6 +273,15 @@ export async function POST(req: NextRequest) {
         });
         archivedJob = true;
       }
+    }
+
+    // Invoicing an appointment means the work happened there and then — the
+    // appointment is done (same stamp the Complete button sets).
+    if (appointmentId && scopedAppt?.status === "SCHEDULED") {
+      await tx.appointment.update({
+        where: { id: appointmentId },
+        data: { status: "COMPLETED", completedAt: new Date() },
+      });
     }
 
     // Billing a lead closes them: active client, off the pipeline board
