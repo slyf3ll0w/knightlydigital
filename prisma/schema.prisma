@@ -432,6 +432,13 @@ model User {
   // token refresh or a company switch).
   lastSignInAt     DateTime?
   signInCount      Int       @default(0)
+  // One active device per login (lib/active-device.ts): the device whose
+  // presence beat last held the lock, when, and a readable label for the
+  // other device's "in use on …" screen. A beat from a different device
+  // inside the online window is turned away until it takes over.
+  activeDeviceId    String?
+  activeDeviceAt    DateTime?
+  activeDeviceLabel String?
   // Team-side notification emails (new request, client message, booking…)
   // when this person also gets the push (lib/notify.ts). null = automatic:
   // no email while a device of theirs has push on; true = always email too;
