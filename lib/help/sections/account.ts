@@ -226,7 +226,7 @@ export const mobileSection: HelpSection = {
       slug: "mobile-apps",
       title: "Get the iPhone and Android apps",
       summary: "Download WorkBench FSM and sign in with the same account.",
-      keywords: ["iphone", "ios", "android", "app store", "google play", "download", "mobile app", "face id", "app lock"],
+      keywords: ["iphone", "ios", "android", "app store", "google play", "download", "mobile app", "face id", "app lock", "in use on another device", "use it here"],
       blocks: [
         {
           type: "list",
@@ -243,6 +243,10 @@ export const mobileSection: HelpSection = {
         {
           type: "tip",
           text: "On iPhone, the app can ring for business-line calls even when it's closed. Allow the microphone when asked.",
+        },
+        {
+          type: "p",
+          text: "A login works on one device at a time. If your computer still has WorkBench open when you open the phone app, the phone shows **This login is in use on …** — press `Use it here` and carry on; the computer shows the same screen the next time you touch it. See [Add team members](/help/add-team-members).",
         },
       ],
     },

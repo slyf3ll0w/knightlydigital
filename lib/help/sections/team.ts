@@ -11,7 +11,7 @@ export const teamSection: HelpSection = {
       slug: "add-team-members",
       title: "Add team members",
       summary: "Add someone, pick their role, and share their sign-in yourself.",
-      keywords: ["invite", "add user", "online", "last seen", "active", "employee", "crew", "technician", "new member", "password", "deactivate", "seat"],
+      keywords: ["invite", "add user", "online", "last seen", "active", "employee", "crew", "technician", "new member", "password", "deactivate", "seat", "one device", "in use on another device", "shared login", "use it here"],
       where: { label: "Team & roles", href: "/app/settings/team" },
       roles: "Owners and admins",
       blocks: [
@@ -47,6 +47,14 @@ export const teamSection: HelpSection = {
         {
           type: "p",
           text: "Under each person's email you'll see a green dot and **Online now** when they have WorkBench open in front of them, or **Last seen** with how long ago (a hollow dot means earlier today). A tab in the background or the phone app in a pocket doesn't count as online. **Never signed in** means they haven't used their login yet.",
+        },
+        {
+          type: "h",
+          text: "One device at a time",
+        },
+        {
+          type: "p",
+          text: `A login works on **one device at a time**. Open WorkBench on a second device while the first is in use and you'll see **This login is in use on …** with a \`Use it here\` button, which moves the login over; the first device shows the same screen the next time someone touches it. A device that has been idle for a few minutes lets go on its own, so moving from your phone to your computer takes at most one tap. Everyone on the crew should have their own login — it's also what puts timesheets, calls and notifications on the right person. **${PRO}** and **${MAX}** lift this: one login can be used on several devices at once.`,
         },
         {
           type: "tip",
