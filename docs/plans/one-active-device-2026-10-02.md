@@ -21,8 +21,9 @@ may stay signed in; the rule is about who is looking at the app right now.
   (httpOnly, 400 days), set by `POST /api/app/presence` on its first beat.
 - The User row remembers the holder: `activeDeviceId`, `activeDeviceAt`,
   `activeDeviceLabel` ("the iPhone app", "Chrome on Windows", …).
-- The presence beat (every 45 s while the page is visible, plus on
-  focus/visibility) is the check. The holder keeps the lock; any device
+- The presence beat (every 20 s while the page is visible, plus on
+  focus/visibility and on the first touch or key after 4 s of quiet) is
+  the check. The holder keeps the lock; any device
   may take it once the holder has been quiet for the online window
   (3 min — a backgrounded tab or pocketed phone sends no beats, so it
   lets go on its own).
@@ -30,8 +31,8 @@ may stay signed in; the rule is about who is looking at the app right now.
   app is covered by a full-screen wall: **"This login is in use on
   &lt;device&gt;"**, one sentence, **Use it here** and **Sign out**. "Use it
   here" beats again with `takeover: true` and claims the lock outright;
-  the old device learns on its next beat (≤ 45 s) and gets the same wall.
-  While covered, a device beats every 15 s so the wall lifts soon after
+  the old device learns on its next beat (≤ 20 s) or the moment someone
+  taps it, and gets the same wall. While covered, a device beats every 10 s so the wall lifts soon after
   the other side goes idle.
 - The wall is a front door, not a security boundary: API routes are not
   gated, so a queued offline write or an in-flight save is never lost.
@@ -62,19 +63,28 @@ tap).
   `db:predeploy`, no backfill).
 - `scripts/test-active-device.ts` — unit test (in `npm run test:unit`).
 
+## Round 2 (2026-10-02, after David's first test)
+
+He moved the login to the PC, walked back to the phone inside the old 45 s
+tick and could use both until it fired. Fixes: beat every 20 s (was 45),
+10 s while walled (was 15), and a beat on the first pointerdown / keydown
+after 4 s of quiet, so picking the other device up and tapping is what
+walls it. Presence writes are still throttled server-side (30 s), so the
+database cost is unchanged; only the tiny read per beat is more frequent.
+
 ## Test recipes (David's device pass)
 
 1. **Phone then desktop (one person).** Open the app on the iPhone, then
    open workbenchfsm.com on the PC within a minute. The PC shows "This
    login is in use on the iPhone app". Tap **Use it here** → the PC works.
-   Within 45 s the iPhone shows "in use on Chrome on Windows" (or Edge).
+   Pick up the phone and tap anything: it shows "in use on Chrome on Windows" (or Edge).
 2. **Idle hand-off.** Put the phone app in the background (or switch tabs
    on the PC) and wait 3 min. Open the app on the other device: no wall at
    all, it simply takes over.
 3. **Two people at once.** Sign in as the same user in a second browser
    (Edge vs Chrome, or a private window) and keep both visible. Press
    **Use it here** on one, then on the other: each press walls the other
-   side within 45 s. Neither side can work for long while the other is
+   side on its next tap (or within 20 s untouched). Neither side can work for long while the other is
    active — that is the point.
 4. **Same browser, two tabs.** Two tabs of the same browser never wall each
    other (same cookie = same device).

@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
  *
  * There is no session table (NextAuth runs on JWTs). Since 2026-10-02 the
  * stamp comes from an explicit heartbeat: components/PresenceBeacon.tsx
- * (platform layout) posts /api/app/presence every 45 s while the page is
+ * (platform layout) posts /api/app/presence every 20 s while the page is
  * VISIBLE, and once more the moment it comes back to the front. Hidden tabs
  * and a phone app in the background send nothing, so a forgotten tab no
  * longer keeps someone "online" (the old stamp rode every request through

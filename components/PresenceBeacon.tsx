@@ -6,19 +6,29 @@ import { signOut } from "next-auth/react";
 
 /**
  * Tells the server "someone is looking at the app" (POST /api/app/presence)
- * every 45 s while this page is VISIBLE, and right away when it comes back to
- * the front. A hidden tab or a phone app in the background sends nothing, so
- * the platform console's green dot (lib/presence.ts, 3 min window) means the
- * app is actually open in front of someone. Mounted once in the platform
- * layout (signed-in branch).
+ * every 20 s while this page is VISIBLE, right away when it comes back to
+ * the front, and on the first touch / key after a few seconds of quiet. A
+ * hidden tab or a phone app in the background sends nothing, so the platform
+ * console's green dot (lib/presence.ts, 3 min window) means the app is
+ * actually open in front of someone. Mounted once in the platform layout
+ * (signed-in branch).
  *
  * The same beat enforces one active device per login (lib/active-device.ts).
  * When the server answers `busy`, this covers the app with "in use on …" and
- * a "Use it here" button; while covered it beats every 15 s so the wall lifts
+ * a "Use it here" button; while covered it beats every 10 s so the wall lifts
  * soon after the other device goes idle (or the other person is bounced).
+ * The touch trigger is what makes a takeover feel immediate on the OTHER
+ * device: a phone left face-up on the desk learns on its next tick, but the
+ * moment someone picks it up and taps, it asks and is walled (David's first
+ * test, 2026-10-02: he walked back to the phone inside the old 45 s tick and
+ * could use both for a while).
  */
-const BEAT_MS = 45_000;
-const BUSY_BEAT_MS = 15_000;
+const BEAT_MS = 20_000;
+const BUSY_BEAT_MS = 10_000;
+/** Timer / focus beats never land closer together than this. */
+const FLOOR_MS = 10_000;
+/** A touch or key re-checks sooner, but not on every tap. */
+const TOUCH_FLOOR_MS = 4_000;
 
 type Busy = { device: string };
 
@@ -26,12 +36,14 @@ export default function PresenceBeacon() {
   const [busy, setBusy] = useState<Busy | null>(null);
   const [taking, setTaking] = useState(false);
   const last = useRef(0);
+  const inFlight = useRef(false);
 
-  const beat = useCallback(async (takeover = false) => {
+  const beat = useCallback(async (takeover = false, floorMs = FLOOR_MS) => {
     if (document.visibilityState !== "visible" || !navigator.onLine) return;
     const now = Date.now();
-    if (!takeover && now - last.current < 10_000) return;
+    if (!takeover && (now - last.current < floorMs || inFlight.current)) return;
     last.current = now;
+    inFlight.current = true;
     try {
       const res = await fetch("/api/app/presence", {
         method: "POST",
@@ -45,17 +57,26 @@ export default function PresenceBeacon() {
       else if (data?.ok) setBusy(null);
     } catch {
       // offline / aborted — the next beat tries again
+    } finally {
+      inFlight.current = false;
     }
   }, []);
 
   useEffect(() => {
     void beat();
     const onWake = () => void beat();
+    const onTouch = () => void beat(false, TOUCH_FLOOR_MS);
     document.addEventListener("visibilitychange", onWake);
     window.addEventListener("focus", onWake);
+    window.addEventListener("pageshow", onWake);
+    window.addEventListener("pointerdown", onTouch, { passive: true, capture: true });
+    window.addEventListener("keydown", onTouch, { passive: true, capture: true });
     return () => {
       document.removeEventListener("visibilitychange", onWake);
       window.removeEventListener("focus", onWake);
+      window.removeEventListener("pageshow", onWake);
+      window.removeEventListener("pointerdown", onTouch, { capture: true });
+      window.removeEventListener("keydown", onTouch, { capture: true });
     };
   }, [beat]);
 

@@ -20,7 +20,7 @@ import { isAndroidShellUserAgent, isIosShellUserAgent } from "@/lib/sign-in-opti
  *     away: the route answers `busy` and components/PresenceBeacon.tsx covers
  *     the app with "in use on <label>" and a "Use it here" button, which
  *     beats again with `takeover: true` and claims the lock outright. The
- *     old device learns on its next beat (≤ 45 s) and gets the same screen.
+ *     old device learns on its next beat (≤ 20 s, or its next touch) and gets the same screen.
  *
  * One person moving phone → desktop → phone never notices (the previous
  * device is idle or takes one tap). Two people at once bounce each other
