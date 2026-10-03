@@ -673,6 +673,20 @@ enum RoadmapCategory {
   QOL // quality of life
 }
 
+// Online history for the platform console's "People online" graph
+// (lib/presence-history.ts): one row per person per 5-minute slot they had
+// the app open in front of them, written by the presence heartbeat
+// (touchPresence). No relations on purpose — a deleted user's old slots
+// still count in the past. Pruned after 90 days by the same heartbeat.
+model PresenceSample {
+  userId    String
+  at        DateTime
+  companyId String
+
+  @@id([userId, at])
+  @@index([at])
+}
+
 // The marketing site's "Contact us" form (components/wb/WBContactForm.tsx →
 // /api/public/contact). Platform-level, not company-scoped: these are people
 // asking about WorkBench itself. Listed at /superadmin/contact; readAt is

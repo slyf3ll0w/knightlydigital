@@ -4,7 +4,9 @@ import { Card, Chip, DsPage, ListRow, PageHeader, SectionTitle, Stat } from "@/c
 import PresenceDot from "@/components/console/PresenceDot";
 import { roleLabel } from "@/lib/permissions";
 import AccountsClient from "@/components/console/AccountsClient";
+import OnlineChart from "@/components/console/OnlineChart";
 import { loadAccounts, type GrowthWeek } from "@/lib/console-accounts";
+import { loadOnlineHistory } from "@/lib/presence-history";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +21,13 @@ const RANGES = [7, 30, 90] as const;
 export default async function AccountsPage({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
   const params = await searchParams;
   const days = RANGES.includes(Number(params.days) as (typeof RANGES)[number]) ? Number(params.days) : 30;
-  const data = await loadAccounts(days);
+  const [data, history] = await Promise.all([loadAccounts(days), loadOnlineHistory()]);
   const { stats, attention, growth, rows, online } = data;
   const rise = (i: number) => ({ "--ds-i": i }) as React.CSSProperties;
+  // Everyone in the app counts here, test accounts included (David
+  // 2026-10-02: his own test login showed "0 online"); the foot says how
+  // many of them are test logins.
+  const onlineTest = online.filter((p) => p.isTest).length;
 
   return (
     <DsPage>
@@ -32,7 +38,7 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
           <>
             Every business on WorkBench, with who is in the app right now, when each one was last seen, how many
             clients they have added and what they have done in the last {days} days. Test accounts are listed
-            separately and never counted. Money is on Profitability.
+            separately and left out of the account counts (people online include them, marked Test). Money is on Profitability.
           </>
         }
         actions={
@@ -54,7 +60,7 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <Stat className="ds-rise" style={rise(1)} label="Live accounts" value={stats.live} foot="not suspended" />
-        <Stat className="ds-rise" style={rise(2)} label="Online now" value={stats.online} foot="people in the app" tone={stats.online > 0 ? "good" : undefined} href={online.length > 0 ? "#online" : undefined} />
+        <Stat className="ds-rise" style={rise(2)} label="Online now" value={online.length} foot={onlineTest > 0 ? `incl. ${onlineTest} on test accounts` : "people in the app"} tone={online.length > 0 ? "good" : undefined} href={online.length > 0 ? "#online" : undefined} />
         <Stat className="ds-rise" style={rise(3)} label="Active this week" value={stats.active7d} foot="accounts seen in 7 days" />
         <Stat className="ds-rise" style={rise(4)} label="New this month" value={stats.newThisMonth} foot="accounts opened" />
         <Stat className="ds-rise" style={rise(5)} label="Pending sign-ups" value={stats.pending} foot="waiting on you" href="/superadmin/signups" tone={stats.pending > 0 ? "bad" : undefined} />
@@ -87,6 +93,14 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
           </Card>
         </div>
       )}
+
+      <SectionTitle
+        className="mt-8"
+        info="How many people had the app open and in front of them, over the last day (every 15 minutes), week (by hour) or month (by day). A background tab or a phone app in the pocket does not count. History starts with this update."
+      >
+        People online
+      </SectionTitle>
+      <OnlineChart series={history} />
 
       {attention.length > 0 && (
         <>

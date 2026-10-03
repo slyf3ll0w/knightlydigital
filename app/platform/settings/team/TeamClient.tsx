@@ -9,6 +9,8 @@ import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import { Chip, InfoTip } from "@/components/ds";
 import Avatar from "@/components/Avatar";
+import PresenceDot from "@/components/console/PresenceDot";
+import type { PresenceState } from "@/lib/presence";
 import BusinessHoursEditor from "@/components/BusinessHoursEditor";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { alertSheet } from "@/components/ConfirmSheet";
@@ -35,6 +37,8 @@ type Member = {
   startAddress: string | null;
   hourlyCost: number | null;
   createdAt: string;
+  /** Online now / last seen, worked out on the server (lib/presence.ts). */
+  seen: { state: PresenceState; label: string };
 };
 
 const roleLabel: Record<string, string> = {
@@ -289,6 +293,14 @@ export default function TeamClient({
                     {m.email}
                     {m.phone ? ` · ${m.phone}` : ""}
                   </p>
+                  {m.isActive && (
+                    <p
+                      className={`mt-0.5 flex items-center gap-1.5 text-xs ${m.seen.state === "online" ? "font-medium text-[color:var(--ds-good)]" : "text-gray-500"}`}
+                    >
+                      <PresenceDot state={m.seen.state} />
+                      {m.seen.label}
+                    </p>
+                  )}
                 </div>
               </div>
 
