@@ -7,6 +7,7 @@ import { inPreview } from "@/lib/preview";
 import { bookingTypeInclude, eligibleMembers } from "@/lib/booking-runtime";
 import { sanitizeIntake } from "@/lib/booking-intake";
 import { sanitizeBookingPage } from "@/lib/booking-page";
+import { businessDetailsForced } from "@/lib/business-profile";
 import { brandAccent } from "@/lib/branding";
 import BookingHome from "./BookingHome";
 
@@ -23,6 +24,8 @@ export default async function OnlineBookingPage() {
         brandColor: true,
         brandColorSecondary: true,
         bookingPage: true,
+        website: true,
+        messagingRegistration: { select: { status: true } },
         hubBookingTypeId: true,
         businessHours: true,
         serviceZips: true,
@@ -51,6 +54,7 @@ export default async function OnlineBookingPage() {
       baseUrl={baseUrl}
       previewMode={await inPreview(companyId)}
       look={sanitizeBookingPage(company.bookingPage)}
+      detailsForced={businessDetailsForced(company.messagingRegistration?.status, company.website)}
       brandAccent={brandAccent(company)}
       rules={{
         hours: sanitizeBusinessHours(company.businessHours),

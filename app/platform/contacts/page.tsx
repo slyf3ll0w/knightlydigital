@@ -24,6 +24,8 @@ const statusFilters = [
   { value: "", label: "Clients" },
   { value: "CONTACTS", label: "Contacts" },
   { value: "ARCHIVED", label: "Archived" },
+  // Leads marked lost on the board (also listed under the board's Lost button)
+  { value: "LOST", label: "Lost leads" },
 ];
 
 const PAGE_SIZE = 100;
@@ -43,8 +45,8 @@ export default async function ContactsPage({
   const { q, status, assignee, page: pageParam, sort: sortRaw } = await searchParams;
   const sort = pickSort(sortRaw, CLIENT_SORTS);
   const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
-  const validStatus = ["ARCHIVED", "CONTACTS"].includes(status ?? "")
-    ? (status as "ARCHIVED" | "CONTACTS")
+  const validStatus = ["ARCHIVED", "CONTACTS", "LOST"].includes(status ?? "")
+    ? (status as "ARCHIVED" | "CONTACTS" | "LOST")
     : undefined;
   const contactsTab = validStatus === "CONTACTS";
 
@@ -69,7 +71,9 @@ export default async function ContactsPage({
       ? { kind: "CONTACT" as const, status: { not: "ARCHIVED" as const } }
       : validStatus === "ARCHIVED"
         ? { status: "ARCHIVED" as const }
-        : q
+        : validStatus === "LOST"
+          ? { lostAt: { not: null }, pipelineStageId: null }
+          : q
           ? {}
           : { status: "ACTIVE" as const, kind: "CLIENT" as const }),
     ...(search ?? {}),

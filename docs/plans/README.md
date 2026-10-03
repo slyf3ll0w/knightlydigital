@@ -44,4 +44,5 @@ documents (`roadmap.md`, `ideas.md`, `native-release-queue.md`) never "finish".
 - `jobber-parity-plan-2026-07.md` — gap analysis vs Jobber (2026-07-02); research in `docs/jobber-research/`.
 
 ## Parked
+- `per-person-booking-idea.md` — Calendly-style personal booking pages per team member (filter on the existing member pools; ~a day). Parked 2026-10-02 until there is demand; David's open decisions listed in the doc.
 - `ecommerce-embed-idea.md` — embeddable storefront; not scheduled.

@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Check, ChevronDown, ChevronRight, ChevronUp, Copy, ExternalLink, Globe, Link2, Loader2, MoreHorizontal, Plus, Power, Trash2, X } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
 import SectionHeader from "@/components/SectionHeader";
-import { Chip } from "@/components/ds";
+import { Chip, InfoTip } from "@/components/ds";
 import BackLink from "@/components/BackLink";
 import Modal from "@/components/Modal";
 import { confirmSheet } from "@/components/ConfirmSheet";
@@ -138,6 +138,7 @@ export default function BookingHome({
   baseUrl,
   previewMode,
   look: initialLook,
+  detailsForced = false,
   brandAccent,
   rules: initialRules,
   items,
@@ -147,6 +148,8 @@ export default function BookingHome({
   baseUrl: string;
   previewMode: boolean;
   look: BookingPageLook;
+  /** Business details are forced onto the page while a texting registration is under review (lib/business-profile.ts) */
+  detailsForced?: boolean;
   brandAccent: string;
   rules: RulesProps;
   items: ItemRow[];
@@ -420,6 +423,28 @@ export default function BookingHome({
                   <div>
                     <label className={smallLabel}>Line under it</label>
                     <input value={look.description} onChange={(e) => setLook({ ...look, description: e.target.value })} placeholder="Pick what you'd like to book" className={inputCls} />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={detailsForced || look.showBusinessDetails === true}
+                        disabled={detailsForced}
+                        onChange={(e) => setLook({ ...look, showBusinessDetails: e.target.checked ? true : undefined })}
+                        className="mt-0.5 h-4 w-4 rounded border-gray-300"
+                      />
+                      <span className="text-sm text-gray-700">
+                        Show business details at the bottom of the page
+                        <InfoTip>
+                          Your short description, address, phone and email from Settings → Business info, in small print under the booking items. Off, the page ends with just the Privacy and Text terms links.
+                        </InfoTip>
+                        {detailsForced && (
+                          <span className="mt-1 block text-xs text-gray-500">
+                            On while your texting registration is under review: carriers read this page as your website. It turns itself off when texting is approved. Giving a website of your own on the registration form skips this.
+                          </span>
+                        )}
+                      </span>
+                    </label>
                   </div>
                 </div>
                 <p className="text-xs text-gray-500">Transparent has no background of its own — it sits directly on your website. The picture above updates when you save.</p>

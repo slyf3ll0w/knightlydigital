@@ -5,20 +5,23 @@ import { fmtPhone } from "@/lib/format";
 /**
  * Bottom of the hosted booking pages. Two sizes:
  *
- * - "full" — the business's home page (/book/<slug> and /book/<slug>/about).
- *   That page is the website on its texting registration, and carriers
- *   reject a brand whose home page lacks an About, address, phone and email
- *   (Telnyx TELNYX_FAILED, Lessly Holdings 2026-09-24).
- * - "slim" — every form and legal page: one quiet line with the name and the
- *   About / Privacy / Text terms links. The consent checkbox already links
- *   privacy + terms, which is all a form needs; a description block under
- *   every form read as clutter (David, 2026-09-25).
+ * - "full" — the business's home page (/book/<slug>) and /book/<slug>/about.
+ *   Carries the business details (one-line description, address, phone,
+ *   email, website) when the company turned that on in Settings → Booking &
+ *   forms → Look, or while a texting registration is under review and the
+ *   company gave no website of its own: that page is then the website on
+ *   the filing, and carriers reject a brand whose site lacks an About,
+ *   address, phone and email (Telnyx TELNYX_FAILED, Lessly Holdings
+ *   2026-09-24). The /about page always shows them. Otherwise the home page
+ *   gets the same quiet legal line as everything else — David found the
+ *   boxed "About" block and its link an eyesore (2026-10-02).
+ * - "slim" — every form and legal page: just Privacy · Text terms. The
+ *   consent checkbox already links both, which is all a form needs.
  */
-export default async function BusinessFooter({ slug, dark = false, variant = "slim" }: { slug: string; dark?: boolean; variant?: "full" | "slim" }) {
+export default async function BusinessFooter({ slug, dark = false, variant = "slim" }: { slug: string; dark?: boolean; variant?: "full" | "slim" | "about" }) {
   const p = await loadBusinessProfile(slug);
   if (!p) return null;
   const muted = dark ? "text-gray-400" : "text-gray-500";
-  const strong = dark ? "text-gray-100" : "text-gray-900";
   const rule = dark ? "border-white/10" : "border-gray-200";
   const link = "underline-offset-2 hover:underline";
 
@@ -34,44 +37,45 @@ export default async function BusinessFooter({ slug, dark = false, variant = "sl
     </>
   );
 
-  if (variant === "slim") {
-    return (
-      <footer className={`mt-8 text-center text-[12px] ${muted}`}>
-        <span className={`font-medium ${dark ? "text-gray-300" : "text-gray-600"}`}>{p.name}</span>
-        <span aria-hidden> · </span>
-        <Link href={`/book/${slug}/about`} className={link}>
-          About
-        </Link>
-        <span aria-hidden> · </span>
-        {legal}
-      </footer>
-    );
+  const showDetails = variant === "about" || (variant === "full" && p.showDetails);
+  if (!showDetails) {
+    return <footer className={`mt-8 text-center text-[12px] ${muted}`}>{legal}</footer>;
   }
 
   const address = profileAddress(p);
+  const contact = [
+    address,
+    p.phone ? (
+      <a key="tel" href={`tel:${p.phone}`} className={link}>
+        {fmtPhone(p.phone)}
+      </a>
+    ) : null,
+    p.email ? (
+      <a key="mail" href={`mailto:${p.email}`} className={link}>
+        {p.email}
+      </a>
+    ) : null,
+    p.website ? (
+      <a key="web" href={p.website} target="_blank" rel="noreferrer" className={link}>
+        {p.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+      </a>
+    ) : null,
+  ].filter(Boolean);
+
   return (
-    <footer className={`mt-10 rounded-lg border p-5 text-[13px] leading-relaxed ${rule} ${dark ? "bg-white/5" : "bg-white"} ${muted}`}>
-      <p className={`text-sm font-semibold ${strong}`}>About {p.name}</p>
-      <p className="mt-1.5">{aboutLine(p)}</p>
-      <address className={`mt-4 grid gap-0.5 border-t pt-4 not-italic ${rule}`}>
-        {address && <span>{address}</span>}
-        {p.phone && (
-          <a href={`tel:${p.phone}`} className={link}>
-            {fmtPhone(p.phone)}
-          </a>
-        )}
-        {p.email && (
-          <a href={`mailto:${p.email}`} className={link}>
-            {p.email}
-          </a>
-        )}
-        {p.website && (
-          <a href={p.website} target="_blank" rel="noreferrer" className={link}>
-            {p.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}
-          </a>
-        )}
-      </address>
-      <p className="mt-4 text-[12px]">{legal}</p>
+    <footer className={`mt-10 border-t pt-5 text-center text-[13px] leading-relaxed ${rule} ${muted}`}>
+      <p>{aboutLine(p)}</p>
+      {contact.length > 0 && (
+        <address className="mt-2 not-italic">
+          {contact.map((c, i) => (
+            <span key={i}>
+              {i > 0 && <span aria-hidden> · </span>}
+              {c}
+            </span>
+          ))}
+        </address>
+      )}
+      <p className="mt-3 text-[12px]">{legal}</p>
     </footer>
   );
 }

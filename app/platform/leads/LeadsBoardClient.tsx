@@ -16,6 +16,7 @@ import {
   UserRound,
   X,
   RotateCcw,
+  Archive,
   SquareKanban,
   Pencil,
   ExternalLink,
@@ -58,6 +59,17 @@ export type BoardCard = {
   /** Lowercased address, notes and custom field values, joined server-side so
    *  the board can search them without shipping the raw Json down. */
   searchBlob: string;
+};
+
+/** A lead marked lost: off the board, listed under the header's Lost button. */
+export type LostLead = {
+  id: string;
+  name: string;
+  companyName: string | null;
+  lostAt: string;
+  lostReason: string | null;
+  /** They had worked with the company before — restoring keeps them an active client */
+  repeat: boolean;
 };
 
 type UndoPayload = {
@@ -104,15 +116,35 @@ export default function LeadsBoardClient({
   team,
   manager,
   convertedOverflow = 0,
+  lost = [],
 }: {
   stages: BoardStage[];
   cards: BoardCard[];
   team: { id: string; name: string }[];
   manager: boolean;
   convertedOverflow?: number;
+  lost?: LostLead[];
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
+  const [showLost, setShowLost] = useState(false);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+
+  // Lost → back onto the board's first stage (the same "reopen" the undo toast uses)
+  async function restoreLost(lead: LostLead) {
+    const stageId = stages.find((s) => !s.isConverted)?.id;
+    if (!stageId || restoringId) return;
+    setRestoringId(lead.id);
+    const { ok, data } = await postJson(`/api/app/contacts/${lead.id}/stage`, { action: "reopen", stageId }, "PATCH");
+    setRestoringId(null);
+    if (!ok) {
+      showToast({ message: (data as { error?: string } | null)?.error ?? GENERIC_ERROR, tone: "red" });
+      return;
+    }
+    hapticImpact("LIGHT");
+    showToast({ message: `${lead.name} is back on the board`, tone: "gray" });
+    startTransition(() => router.refresh());
+  }
   // "Call" dials from the business line when the company has one (lib/line-calling.ts).
   const lineCalling = useLineCalling();
 
@@ -347,6 +379,17 @@ export default function LeadsBoardClient({
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowLost(true)}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Leads marked lost"
+          >
+            <Archive size={15} />
+            <span>
+              Lost{lost.length > 0 && <span className="ml-1 text-gray-400 numeral-ledger">{lost.length}</span>}
+            </span>
+          </button>
           {manager && (
             <Link
               href="/app/settings/pipeline"
@@ -681,6 +724,51 @@ export default function LeadsBoardClient({
       )}
 
       {/* Lost reason */}
+      {/* Lost leads — off the board, restorable to the first stage */}
+      <Modal open={showLost} onClose={() => setShowLost(false)} size="md">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-gray-900">Lost leads</h2>
+          <button type="button" onClick={() => setShowLost(false)} className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700" aria-label="Close">
+            <X size={16} />
+          </button>
+        </div>
+        {lost.length === 0 ? (
+          <p className="py-8 text-center text-sm text-gray-500">Nothing lost yet. Drop a card on Lost, or use its menu, and it lands here.</p>
+        ) : (
+          <div className="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto -mx-1 px-1">
+            {lost.map((l) => (
+              <div key={l.id} className="flex items-center gap-3 py-2.5">
+                <Link href={`/app/contacts/${l.id}`} className="min-w-0 flex-1 group">
+                  <span className="block truncate text-sm font-medium text-gray-900 group-hover:underline">
+                    {l.name}
+                    {l.companyName && <span className="font-normal text-gray-500"> · {l.companyName}</span>}
+                    {l.repeat && <span className="ml-1.5 text-xs font-normal text-gray-400">client</span>}
+                  </span>
+                  <span className="block truncate text-xs text-gray-500">
+                    {new Date(l.lostAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    {l.lostReason ? ` · ${l.lostReason}` : ""}
+                  </span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => restoreLost(l)}
+                  disabled={restoringId === l.id}
+                  className="shrink-0 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <span className="flex items-center gap-1">
+                    <RotateCcw size={12} />
+                    Restore
+                  </span>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="mt-3 text-xs text-gray-400">
+          Restore puts them back in the first stage. Lost leads also sit under Contacts → Lost leads.
+        </p>
+      </Modal>
+
       <Modal
         open={Boolean(lostCard)}
         onClose={() => setLostCard(null)}

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { slugWhere } from "@/lib/company-slug";
+import { sanitizeBookingPage } from "@/lib/booking-page";
 import { listPublicBookingTypes, menuTypes } from "@/lib/booking-runtime";
 
 /**
@@ -26,12 +27,32 @@ export type BusinessProfile = {
   industry: string | null;
   logoUrl: string | null;
   services: string[];
+  /** Business details block on the booking page: on by the owner's switch, or forced (below). */
+  showDetails: boolean;
+  /** True while a texting registration is under review and the company gave no website of its own. */
+  detailsForced: boolean;
 };
+
+/**
+ * Must the booking page carry the business details right now? Only while a
+ * texting registration is in progress (anything but ACTIVE — pending, in
+ * review, rejected and awaiting a re-file) AND the company has no website of
+ * its own, because then /book/<slug> is the website on the filing and the
+ * reviewer wants the description, address, phone and email on it. Pure.
+ */
+export function businessDetailsForced(registrationStatus: string | null | undefined, website: string | null | undefined): boolean {
+  if (!registrationStatus || registrationStatus === "ACTIVE") return false;
+  return !website?.trim();
+}
 
 export async function loadBusinessProfile(slug: string): Promise<BusinessProfile | null> {
   const company = await prisma.company.findFirst({
     where: slugWhere(slug),
-    select: { id: true, name: true, slug: true, phone: true, email: true, address: true, city: true, state: true, zip: true, website: true, about: true, industry: true, logoUrl: true },
+    select: {
+      id: true, name: true, slug: true, phone: true, email: true, address: true, city: true, state: true, zip: true, website: true, about: true, industry: true, logoUrl: true,
+      bookingPage: true,
+      messagingRegistration: { select: { status: true } },
+    },
   });
   if (!company) return null;
   const listed = await listPublicBookingTypes(company.slug, { skipGate: true }).catch(() => null);
@@ -41,7 +62,10 @@ export async function loadBusinessProfile(slug: string): Promise<BusinessProfile
     if (t.services.length) for (const s of t.services) names.add(s.name.trim());
     else names.add(t.name.trim());
   }
-  return { ...company, services: [...names].filter(Boolean).slice(0, 12) };
+  const { bookingPage, messagingRegistration, ...rest } = company;
+  const detailsForced = businessDetailsForced(messagingRegistration?.status, company.website);
+  const showDetails = detailsForced || sanitizeBookingPage(bookingPage).showBusinessDetails === true;
+  return { ...rest, services: [...names].filter(Boolean).slice(0, 12), showDetails, detailsForced };
 }
 
 export async function loadBusinessProfileById(companyId: string): Promise<BusinessProfile | null> {

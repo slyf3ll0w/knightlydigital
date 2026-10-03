@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import type { QuoteStatus, RequestStatus } from "@prisma/client";
 import { requirePageActor, canSell, contactScope, seesAllLeads, isManager } from "@/lib/permissions";
 import { ensureStages } from "@/lib/pipeline";
-import LeadsBoardClient, { type BoardCard, type BoardStage } from "./LeadsBoardClient";
+import LeadsBoardClient, { type BoardCard, type BoardStage, type LostLead } from "./LeadsBoardClient";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
  */
 // The Converted section shows only recent wins — older ones live in Clients
 const CONVERTED_SHOWN = 25;
+const LOST_SHOWN = 200;
 
 export default async function LeadsPage() {
   const actor = await requirePageActor((a) => canSell(a.role));
@@ -30,7 +31,7 @@ export default async function LeadsPage() {
   const hideConverted = company?.hideConvertedLeads ?? false;
   const workingStageIds = stages.filter((s) => !s.isConverted).map((s) => s.id);
 
-  const [contacts, convertedContacts, convertedTotal, team] = await Promise.all([
+  const [contacts, convertedContacts, convertedTotal, team, lostRows] = await Promise.all([
     prisma.contact.findMany({
       where: { companyId, pipelineStageId: { in: workingStageIds }, ...contactScope(actor) },
       orderBy: [{ pipelineOrder: "asc" }, { stageChangedAt: "desc" }],
@@ -56,7 +57,23 @@ export default async function LeadsPage() {
           select: { id: true, name: true },
         })
       : Promise.resolve([]),
+    // Lost leads: off the board (lostAt set), newest first. Marked lost on
+    // the board, archived if they were a lead; a repeat client stays ACTIVE.
+    prisma.contact.findMany({
+      where: { companyId, lostAt: { not: null }, pipelineStageId: null, ...contactScope(actor) },
+      orderBy: { lostAt: "desc" },
+      take: LOST_SHOWN,
+      select: { id: true, firstName: true, lastName: true, companyName: true, lostAt: true, lostReason: true, status: true, timesWon: true },
+    }),
   ]);
+  const lost: LostLead[] = lostRows.map((c) => ({
+    id: c.id,
+    name: `${c.firstName} ${c.lastName}`.trim(),
+    companyName: c.companyName,
+    lostAt: c.lostAt!.toISOString(),
+    lostReason: c.lostReason,
+    repeat: c.status === "ACTIVE" || c.timesWon > 0,
+  }));
 
   const boardStages: BoardStage[] = stages
     .filter((s) => !(s.isConverted && hideConverted))
@@ -80,6 +97,7 @@ export default async function LeadsPage() {
       team={team}
       manager={isManager(actor.role)}
       convertedOverflow={Math.max(0, convertedTotal - convertedContacts.length)}
+      lost={lost}
     />
   );
 }

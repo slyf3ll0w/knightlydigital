@@ -167,6 +167,10 @@ export const leadsSection: HelpSection = {
           text: "Drag a card to another stage, or drop it on **Won — now a client** or **Lost**. On a phone, use the card's menu: `Move to`, `Mark won`, `Mark lost` (with an optional reason). Lost archives a new lead. For a returning client it just takes them off the board, and they come back with a **Repeat** badge the next time they send a request.",
         },
         {
+          type: "p",
+          text: "Lost leads are not gone. Press `Lost` at the top of the board to see them with the date and reason, open one, or press `Restore` to put it back in the first stage. They are also under **Contacts → Lost leads**.",
+        },
+        {
           type: "h",
           text: "Change the stages",
         },
@@ -201,6 +205,10 @@ export const leadsSection: HelpSection = {
         {
           type: "p",
           text: "Customers can book from 4 hours out to 30 days ahead by default. Change that under **Scheduling rules**.",
+        },
+        {
+          type: "p",
+          text: "The page ends with your Privacy and Text terms links. Under **Look**, **Show business details at the bottom of the page** adds your short description, address, phone and email in small print. While a texting registration is under review and you gave no website of your own, that switch is on by itself, because carriers read the page as your website; it turns off again when texting is approved.",
         },
         {
           type: "p",

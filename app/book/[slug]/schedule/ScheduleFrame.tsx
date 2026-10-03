@@ -23,8 +23,8 @@ export default function ScheduleFrame({
   title?: string;
   subtitle?: string | null;
   wide?: boolean;
-  /** "full" on the business's home page (its About + contact block), "slim" on forms and legal pages. */
-  footer?: "full" | "slim";
+  /** "full" on the business's home page (details block when on), "about" on /about (always), "slim" on forms and legal pages. */
+  footer?: "full" | "slim" | "about";
   children: React.ReactNode;
 }) {
   const { dark, fontName, fontHref, zoom } = appearance;

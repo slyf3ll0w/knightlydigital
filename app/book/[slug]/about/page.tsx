@@ -20,7 +20,7 @@ export default async function BusinessAboutPage({ params }: { params: Promise<{ 
   if (!shell) notFound();
   const { accent } = shell.appearance;
   return (
-    <ScheduleFrame company={shell.company} appearance={shell.appearance} footer="full">
+    <ScheduleFrame company={shell.company} appearance={shell.appearance} footer="about">
       <div className="text-center">
         <Link
           href={`/book/${slug}`}

@@ -1501,7 +1501,7 @@ export default function SettingsClient({
             </Select>
           </div>
           <div>
-            <FieldLabel info="Shown on your public booking page, and used to describe your business when you register your number for texting.">
+            <FieldLabel info="Used to describe your business when you register your number for texting. While that registration is under review, this description plus your address, phone and email appear at the bottom of your public booking page, because carriers read it as your website — unless you give a website of your own on the registration form. They come off the page by themselves once texting is approved. You can also show them any time from Settings → Booking & forms → Look.">
               About your business
             </FieldLabel>
             <textarea value={form.about} onChange={(e) => set("about", e.target.value)}

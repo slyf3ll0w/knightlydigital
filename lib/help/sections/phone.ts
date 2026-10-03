@@ -266,8 +266,12 @@ export const textingSection: HelpSection = {
             "**Registered business (has an EIN):** your legal name, EIN and address **exactly** as on your IRS letter (CP575 or 147C), including \"LLC\" or \"Inc.\"",
             "**A contact email at your own domain with a person's name** (like jane@yourbusiness.com). Gmail, Outlook and group inboxes like info@ or contact@ are refused by the carriers.",
             "**Sole proprietor (no EIN):** any email works. A PIN is texted to your mobile, and you have 24 hours to enter it.",
-            "Your business phone, email, address and at least one service filled in, because carriers look at your public business page.",
+            "Your business phone, email, address, a short description and at least one service filled in, because carriers look at your public business page.",
           ],
+        },
+        {
+          type: "tip",
+          text: "Heads-up: until the review is complete, your description, address, phone and email show at the bottom of your public booking page, because carriers read it as your website. They come off by themselves when texting is approved. If you give your own website on the form, they never go on the page — but your site must show all of those itself.",
         },
         {
           type: "steps",

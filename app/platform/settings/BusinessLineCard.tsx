@@ -972,7 +972,7 @@ function RegistrationForm({
                 <a href={d.businessPage} target="_blank" rel="noreferrer" className="underline">
                   {d.businessPage.replace(/^https?:\/\//, "")}
                 </a>
-                , which shows your address, phone, email, services and privacy policy. Your own site must show all of those too.
+                . Until the review is complete that page shows your business description, address, phone and email at the bottom (reviewers read it as your website); they come off by themselves once texting is approved. Give your own site here and they never go on the page — but your site must show all of those itself.
               </>
             )
           }

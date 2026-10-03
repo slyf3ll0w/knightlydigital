@@ -21,6 +21,14 @@ export type BookingPageLook = {
   title: string;
   /** Line under the heading; "" = a default */
   description: string;
+  /**
+   * Business details (description, address, phone, email) at the bottom of
+   * the page. Off by default; forced on while a texting registration is
+   * under review and the company gave no website of its own, because the
+   * carrier reviewer reads this page as the business website
+   * (lib/business-profile.ts businessDetailsForced).
+   */
+  showBusinessDetails?: boolean;
 };
 
 export const DEFAULT_BOOKING_PAGE: BookingPageLook = {
@@ -53,6 +61,7 @@ export function sanitizeBookingPage(raw: unknown): BookingPageLook {
     accent: HEX_RE.test(accent) ? accent : undefined,
     title: str(r.title, 100),
     description: str(r.description, 300),
+    showBusinessDetails: r.showBusinessDetails === true ? true : undefined,
   };
 }
 

@@ -289,7 +289,7 @@ export const REGISTRATION_CHECKLIST: Record<BrandEntityType, ChecklistItem[]> = 
     },
     {
       title: "Your business details in Settings → Business Info",
-      detail: "Business name, street address, phone and email. Your WorkBench business page (workbenchfsm.com/book/your-name) shows them along with your services and your own privacy policy and text terms.",
+      detail: "Business name, street address, phone, email and a short description. Until the review is complete they appear at the bottom of your WorkBench business page (workbenchfsm.com/book/your-name), along with your services and your own privacy policy and text terms; they come off the page by themselves once texting is approved. Give your own website on the form and they never go on the page.",
       why: "That page is the website on your registration unless you give your own. Reviewers reject a brand whose site lacks an address, phone, email or a description of what you do, or whose name differs from the registration.",
     },
     {
@@ -311,7 +311,7 @@ export const REGISTRATION_CHECKLIST: Record<BrandEntityType, ChecklistItem[]> = 
     },
     {
       title: "Your business details in Settings → Business Info",
-      detail: "Business name, street address, phone and email. Your WorkBench business page (workbenchfsm.com/book/your-name) shows them along with your services and your own privacy policy and text terms.",
+      detail: "Business name, street address, phone, email and a short description. Until the review is complete they appear at the bottom of your WorkBench business page (workbenchfsm.com/book/your-name), along with your services and your own privacy policy and text terms; they come off the page by themselves once texting is approved. Give your own website on the form and they never go on the page.",
       why: "That page is the website on your registration unless you give your own. Reviewers reject a brand whose site lacks an address, phone, email or a description of what you do, or whose name differs from the registration.",
     },
     {
