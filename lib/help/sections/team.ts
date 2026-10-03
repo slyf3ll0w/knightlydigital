@@ -11,7 +11,7 @@ export const teamSection: HelpSection = {
       slug: "add-team-members",
       title: "Add team members",
       summary: "Add someone, pick their role, and share their sign-in yourself.",
-      keywords: ["invite", "add user", "employee", "crew", "technician", "new member", "password", "deactivate", "seat"],
+      keywords: ["invite", "add user", "online", "last seen", "active", "employee", "crew", "technician", "new member", "password", "deactivate", "seat"],
       where: { label: "Team & roles", href: "/app/settings/team" },
       roles: "Owners and admins",
       blocks: [
@@ -39,6 +39,14 @@ export const teamSection: HelpSection = {
             "**Working hours**, used for online booking and Find a Time.",
             "`Reset password`, `Deactivate` and `Reactivate`. Deactivating keeps their history.",
           ],
+        },
+        {
+          type: "h",
+          text: "Who's online",
+        },
+        {
+          type: "p",
+          text: "Under each person's email you'll see a green dot and **Online now** when they have WorkBench open in front of them, or **Last seen** with how long ago (a hollow dot means earlier today). A tab in the background or the phone app in a pocket doesn't count as online. **Never signed in** means they haven't used their login yet.",
         },
         {
           type: "tip",
