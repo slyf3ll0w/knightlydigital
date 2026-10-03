@@ -185,6 +185,19 @@ NextAuth v4 with Credentials provider. JWT sessions.
 - No company → redirected to `/app/register`
 - Middleware in `middleware.ts` protects `/app/*` and `/superadmin/*`
 
+**One active device per login (2026-10-02, `lib/active-device.ts`).** No
+session table, so the rule rides the presence beat: every browser / app
+install carries a `wb_device` cookie (set by `POST /api/app/presence`), the
+User row remembers the holder (`activeDeviceId/At/Label`), and a beat from
+another device while the holder is active (3 min window, visible pages
+only) is answered `busy` — `components/PresenceBeacon.tsx` then walls the
+app ("in use on <device>", **Use it here** = `{ takeover: true }`, Sign
+out). API routes are not gated. `ONE_ACTIVE_DEVICE=0` turns it off,
+`ONE_ACTIVE_DEVICE_EXEMPT` lists exempt emails; superadmins and the e2e
+owners (`e2e-*@workbenchfsm.com`) are always exempt. The seat limit itself
+is not enforced yet. Plan + recipes: `docs/plans/one-active-device-2026-10-02.md`;
+test `scripts/test-active-device.ts`.
+
 **Ways in (all four end in `lib/signup.ts` `createCompanySignup`):**
 
 | Door | Form | Notes |

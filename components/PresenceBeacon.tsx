@@ -77,7 +77,7 @@ export default function PresenceBeacon() {
       aria-modal="true"
       aria-labelledby="one-device-title"
       data-testid="one-device-wall"
-      className="fixed inset-0 z-[600] flex items-center justify-center bg-white [[data-mode=dark]_&]:bg-[#0B1120] px-6"
+      className="fixed inset-0 z-[450] flex items-center justify-center bg-white [[data-mode=dark]_&]:bg-[#0B1120] px-6"
       style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div className="w-full max-w-sm text-center">
