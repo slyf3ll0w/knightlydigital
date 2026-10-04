@@ -9,7 +9,7 @@ import { appointmentTypeLabel } from "@/lib/statuses";
 import { resolveSlotInterval } from "@/lib/scheduling";
 import { earliestOpenMinutes, sanitizeBusinessHours } from "@/lib/business-hours";
 import { canText } from "@/lib/sms-consent";
-import { reminderOutlook } from "@/lib/reminder-stage";
+import { HOUR_STAGE_MS, MIN_BOOKING_AGE_MS, inSmsQuietHours, reminderOutlook } from "@/lib/reminder-stage";
 import StatusChip from "@/components/StatusChip";
 import { Chip } from "@/components/ds";
 import BackLink from "@/components/BackLink";
@@ -63,7 +63,19 @@ function clientReminderStatus(appt: {
   const coming = sent.length
     ? `${sent.join(" · ")} · hour-before goes out about an hour ahead`
     : `${first} gets a reminder about an hour ahead${appt.scheduledAt.getTime() - appt.createdAt.getTime() > 86400000 ? ", and the day before" : ""}`;
-  return `Client reminders by ${via}: ${coming}.`;
+  // Texts pause 9 PM–8 AM company-local (lib/reminder-stage.ts inSmsQuietHours).
+  // When the hour-before moment lands inside that, say so here — otherwise a
+  // late-evening booking looks like a dropped text.
+  const hourMoment = new Date(
+    Math.max(appt.scheduledAt.getTime() - HOUR_STAGE_MS, appt.createdAt.getTime() + MIN_BOOKING_AGE_MS)
+  );
+  const quiet = textable && inSmsQuietHours(hourMoment, tz);
+  const quietNote = !quiet
+    ? ""
+    : emailable
+      ? " Texts pause 9 PM–8 AM, so the hour-before reminder goes by email."
+      : " Texts pause 9 PM–8 AM, and there's no email on file, so the hour-before text can't go out.";
+  return `Client reminders by ${via}: ${coming}.${quietNote}`;
 }
 
 export default async function AppointmentDetailPage({
