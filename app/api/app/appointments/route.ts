@@ -7,6 +7,7 @@ import { fireAutomations } from "@/lib/automations-server";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { rememberTitle } from "@/lib/recent-titles";
+import { sendAppointmentConfirmation } from "@/lib/appointment-confirm";
 
 const validTypes = ["PHONE_CALL", "VIDEO_CALL", "IN_PERSON"];
 
@@ -131,6 +132,12 @@ export async function POST(req: NextRequest) {
   await autoAdvance(prisma, companyId, contactId, "APPOINTMENT_SCHEDULED");
   fireAutomations(companyId, "appointment.scheduled", appointment.id);
 
+  // "Your appointment is booked" text + email when the form asked for it —
+  // opt-in per appointment (an internal meeting, a client who already knows)
+  // and awaited so the response can say what went out.
+  const confirmation =
+    body.sendConfirmation === true ? await sendAppointmentConfirmation(appointment.id, companyId) : null;
+
   // Non-blocking double-booking heads-up — the same check every other
   // schedule write runs; jobs POST got it, this path never did.
   let conflicts: string[] = [];
@@ -145,5 +152,5 @@ export async function POST(req: NextRequest) {
     }).catch(() => []);
   }
 
-  return NextResponse.json({ ...appointment, conflicts }, { status: 201 });
+  return NextResponse.json({ ...appointment, conflicts, confirmation }, { status: 201 });
 }

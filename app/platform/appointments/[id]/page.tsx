@@ -34,6 +34,7 @@ function clientReminderStatus(appt: {
   createdAt: Date;
   reminderDaySentAt: Date | null;
   reminderHourSentAt: Date | null;
+  confirmationSentAt: Date | null;
   contact: { firstName: string; email: string | null; phone: string | null; smsOptOut: boolean; smsDisabled: boolean };
 }, tz: string): string {
   const first = appt.contact.firstName;
@@ -47,6 +48,7 @@ function clientReminderStatus(appt: {
   }
   const via = textable && emailable ? "text and email" : textable ? "text" : "email";
   const sent: string[] = [];
+  if (appt.confirmationSentAt) sent.push(`confirmation sent ${fmtDateTime(appt.confirmationSentAt, tz)}`);
   if (appt.reminderDaySentAt) sent.push(`day-before sent ${fmtDateTime(appt.reminderDaySentAt, tz)}`);
   if (appt.reminderHourSentAt) sent.push(`hour-before sent ${fmtDateTime(appt.reminderHourSentAt, tz)}`);
   if (appt.reminderHourSentAt) return `Client reminders by ${via}: ${sent.join(" · ")}.`;
@@ -58,7 +60,9 @@ function clientReminderStatus(appt: {
   if (outlook === "past") return sent.length ? `Client reminders by ${via}: ${sent.join(" · ")}.` : "No automatic client reminders went out.";
   if (outlook === "too-close")
     return "Booked less than 20 minutes before its start — too close for an automatic reminder.";
-  const coming = sent.length ? `${sent[0]} · hour-before goes out about an hour ahead` : `${first} gets a reminder about an hour ahead${appt.scheduledAt.getTime() - appt.createdAt.getTime() > 86400000 ? ", and the day before" : ""}`;
+  const coming = sent.length
+    ? `${sent.join(" · ")} · hour-before goes out about an hour ahead`
+    : `${first} gets a reminder about an hour ahead${appt.scheduledAt.getTime() - appt.createdAt.getTime() > 86400000 ? ", and the day before" : ""}`;
   return `Client reminders by ${via}: ${coming}.`;
 }
 

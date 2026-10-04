@@ -102,6 +102,7 @@ export default function AppointmentForm({
   const [assignedToId, setAssignedToId] = useState(actorId);
   const [notes, setNotes] = useState("");
   const [remindClient, setRemindClient] = useState(true);
+  const [sendConfirmation, setSendConfirmation] = useState(true);
   const [window_, setWindow] = useState(""); // "" = company default
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -140,7 +141,11 @@ export default function AppointmentForm({
     }
 
     setLoading(true);
-    const { ok, data } = await postJson<{ id: string; conflicts?: string[] }>("/api/app/appointments", {
+    const { ok, data } = await postJson<{
+      id: string;
+      conflicts?: string[];
+      confirmation?: { text: boolean; email: boolean } | null;
+    }>("/api/app/appointments", {
       contactId,
       requestId: requestId || null,
       title,
@@ -155,6 +160,7 @@ export default function AppointmentForm({
       assignedToId,
       notes,
       remindClient,
+      sendConfirmation,
       arrivalWindowMinutes:
         type === "IN_PERSON" && window_ !== "" ? Number(window_) : null,
     });
@@ -169,6 +175,15 @@ export default function AppointmentForm({
       await alertSheet({
         title: "Booked, with a heads-up",
         message: `This time overlaps:\n${data.conflicts.join("\n")}`,
+      });
+    }
+    // Asked for a confirmation and nothing could go out (no phone or email,
+    // texts off for this client, texting not live on the line yet) — say so
+    // here, not silently; the appointment page explains the why.
+    if (sendConfirmation && data.confirmation && !data.confirmation.text && !data.confirmation.email) {
+      await alertSheet({
+        title: "Booked — no confirmation went out",
+        message: "The client has no reachable phone or email, or texting isn't live on your line yet. Automatic reminders still apply.",
       });
     }
 
@@ -409,6 +424,20 @@ export default function AppointmentForm({
               className={inputCls}
             />
           </div>
+          <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={sendConfirmation}
+              onChange={(e) => setSendConfirmation(e.target.checked)}
+              className="mt-0.5 accent-[color:var(--ds-primary)]"
+            />
+            <span>
+              Send the client a confirmation now
+              <span className="block text-xs text-gray-500">
+                A &ldquo;you&apos;re booked&rdquo; text and email with the details, as soon as you save
+              </span>
+            </span>
+          </label>
           <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer select-none">
             <input
               type="checkbox"

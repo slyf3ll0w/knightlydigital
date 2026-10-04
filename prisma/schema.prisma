@@ -1876,6 +1876,10 @@ model Appointment {
   // Push to the assignee ~1 h ahead (lib/reminders.ts runAppointmentTechHeadsUp);
   // its own stamp so it fires even when the client can't be reminded.
   techHeadsUpSentAt    DateTime?
+  // "Your appointment is booked" text/email sent when staff created it with
+  // the confirmation box ticked (lib/appointment-confirm.ts). Online bookings
+  // confirm through lib/booking-submit.ts and leave this null.
+  confirmationSentAt   DateTime?
   // Invoices written straight from this appointment (Invoice.appointmentId)
   invoices             Invoice[]
   createdAt            DateTime          @default(now())

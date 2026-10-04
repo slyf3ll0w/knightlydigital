@@ -109,6 +109,8 @@ export default function PlaceSheet({
   const recentApptTitles = useRecentTitles("appointment");
   const recentJobTitles = useRecentTitles("job");
   const [apptType, setApptType] = useState<"PHONE_CALL" | "VIDEO_CALL" | "IN_PERSON">("IN_PERSON");
+  // "You're booked" text + email the moment it saves (lib/appointment-confirm.ts)
+  const [sendConfirmation, setSendConfirmation] = useState(true);
   const [address, setAddress] = useState("");
   const [contact, setContact] = useState<ContactHit | null>(null);
   const [contactQ, setContactQ] = useState("");
@@ -401,6 +403,7 @@ export default function PlaceSheet({
           scheduledAnytime: false,
           address: apptType === "IN_PERSON" ? address.trim() : undefined,
           assignedToId: assignees[0] ?? meId,
+          sendConfirmation,
         });
         if (!ok || !data?.id) return setErr(data?.error ?? GENERIC_ERROR);
         if (titleTyped) refreshRecentTitles();
@@ -630,6 +633,17 @@ export default function PlaceSheet({
             <label className="flex items-center gap-2 text-sm text-gray-700">
               <input type="checkbox" checked={anytime} onChange={(ev) => setAnytime(ev.target.checked)} className="rounded text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]" />
               Anytime that day (no set time)
+            </label>
+          )}
+          {kind === "appointment" && !existingJob && (
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={sendConfirmation}
+                onChange={(ev) => setSendConfirmation(ev.target.checked)}
+                className="rounded text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
+              />
+              Text and email the client a confirmation
             </label>
           )}
           {!anytime && (
