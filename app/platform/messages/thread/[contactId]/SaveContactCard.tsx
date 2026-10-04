@@ -6,12 +6,25 @@ import { Loader2, UserPlus } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 /**
- * Sits above a thread that was started with a typed-in number (a PLACEHOLDER
- * contact named after the number). Names the person and files them as a
- * lead (onto the Leads board), a client, or a business contact — one PATCH
- * to /api/app/contacts/[id] that clears the placeholder flag. Gone once saved.
+ * Sits above a thread whose number nobody has named yet — one the team
+ * started by typing a number, or a text that came in from an unknown number
+ * (the webhook files those as placeholder contacts named after the number).
+ * Names the person and files them as a lead (onto the Leads board — in
+ * Contacted when the team has already replied), a client, or a business
+ * contact — one PATCH to /api/app/contacts/[id] that clears the placeholder
+ * flag. Gone once saved. Only the first name is required, like a phone's
+ * own "Create contact".
  */
-export default function SaveContactCard({ contactId, phone }: { contactId: string; phone: string }) {
+export default function SaveContactCard({
+  contactId,
+  phone,
+  textedFirst = false,
+}: {
+  contactId: string;
+  phone: string;
+  /** The other side wrote first (an inbound text from an unknown number). */
+  textedFirst?: boolean;
+}) {
   const router = useRouter();
   const [first, setFirst] = useState("");
   const [last, setLast] = useState("");
@@ -22,7 +35,7 @@ export default function SaveContactCard({ contactId, phone }: { contactId: strin
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (busy) return;
+    if (busy || !first.trim()) return;
     setBusy(true);
     setError("");
     const { ok, data } = await postJson(
@@ -49,20 +62,33 @@ export default function SaveContactCard({ contactId, phone }: { contactId: strin
     "w-full rounded-[10px] border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]";
 
   return (
-    <form onSubmit={save} className="ds-card mb-4 p-4 sm:p-5">
+    <form onSubmit={save} className="ds-card mb-4 p-4 sm:p-5" data-testid="save-contact-card">
       <p className="flex items-center gap-2 text-sm font-semibold text-gray-900">
         <UserPlus size={15} className="text-[color:var(--ds-primary)]" />
-        Who is {phone}?
+        {textedFirst ? `${phone} texted you — who is this?` : `Who is ${phone}?`}
       </p>
       <div className="mt-3 grid grid-cols-2 gap-2">
-        <input value={first} onChange={(e) => setFirst(e.target.value)} placeholder="First name" required className={input} />
-        <input value={last} onChange={(e) => setLast(e.target.value)} placeholder="Last name (optional)" className={input} />
-        <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Company (optional)" className={`${input} col-span-2`} />
+        <input
+          value={first}
+          onChange={(e) => setFirst(e.target.value)}
+          placeholder="First name"
+          required
+          autoComplete="off"
+          className={input}
+        />
+        <input value={last} onChange={(e) => setLast(e.target.value)} placeholder="Last name (optional)" autoComplete="off" className={input} />
+        <input
+          value={company}
+          onChange={(e) => setCompany(e.target.value)}
+          placeholder="Company (optional)"
+          autoComplete="off"
+          className={`${input} col-span-2`}
+        />
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {(
           [
-            ["lead", "Lead", "Goes on your Leads board"],
+            ["lead", "Lead", "Goes on your Leads board — in Contacted once you've replied"],
             ["client", "Client", "Existing business — skips the board"],
             ["contact", "Contact", "A business connection, not a client"],
           ] as const
@@ -72,6 +98,7 @@ export default function SaveContactCard({ contactId, phone }: { contactId: strin
             type="button"
             onClick={() => setAs(value)}
             title={hint}
+            aria-pressed={as === value}
             className={`rounded-[10px] border px-3.5 py-1.5 text-sm font-medium transition-colors ${
               as === value
                 ? "border-[color:var(--ds-primary)] ring-2 ring-[color:var(--ds-primary-soft)] text-gray-900"
@@ -81,7 +108,7 @@ export default function SaveContactCard({ contactId, phone }: { contactId: strin
             {label}
           </button>
         ))}
-        <button type="submit" disabled={busy || !first.trim() || !last.trim()} className="btn-primary ml-auto h-9">
+        <button type="submit" disabled={busy || !first.trim()} className="btn-primary ml-auto h-9">
           {busy ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
           Save
         </button>

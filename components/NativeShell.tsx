@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { resolvePushOpen } from "@/lib/push-open";
 
 /**
  * Native-shell integration for the Capacitor mobile app. The webview loads the
@@ -42,7 +44,18 @@ function shouldOpenExternally(url: URL): boolean {
   );
 }
 
-export default function NativeShell() {
+/**
+ * `userId` = the signed-in membership (platform layout, signed-in branch).
+ * A notification tap for that membership stays inside the running app; one
+ * from another company on the account goes through /app/open to switch.
+ */
+export default function NativeShell({ userId }: { userId?: string | null } = {}) {
+  const router = useRouter();
+  const routerRef = useRef(router);
+  routerRef.current = router;
+  const userIdRef = useRef(userId);
+  userIdRef.current = userId;
+
   useEffect(() => {
     const cap = getCapacitor();
     if (!cap?.Plugins) return;
@@ -152,14 +165,24 @@ export default function NativeShell() {
     );
 
     // Tapping a notification opens the path the server put in data.url
-    // (mirrors sw.js notificationclick on the web).
+    // (mirrors sw.js notificationclick on the web). The path is wrapped as
+    // /app/open?u=<membership>&to=<page>; for the signed-in membership the
+    // app navigates ITSELF (router.push) — a full load of /app/open and then
+    // of the page was two cold requests a just-resumed phone tends to drop,
+    // which is how a message tap landed on the offline page (2026-10-03).
+    // Only a tap from another company on the account takes the /app/open
+    // switch. Tapped on the page it points at: refresh it.
     let tapHandle: Handle | undefined;
     listen(
       PushNotifications,
       "pushNotificationActionPerformed",
       (action: { notification?: { data?: { url?: string } } }) => {
-        const url = action?.notification?.data?.url;
-        if (url && (url === "/app" || url.startsWith("/app/"))) window.location.assign(url);
+        const open = resolvePushOpen(action?.notification?.data?.url, userIdRef.current);
+        if (open.kind === "push") {
+          const [path] = open.to.split("?");
+          if (window.location.pathname === path) routerRef.current.refresh();
+          else routerRef.current.push(open.to);
+        } else if (open.kind === "assign") window.location.assign(open.url);
       },
       (h) => (tapHandle = h)
     );

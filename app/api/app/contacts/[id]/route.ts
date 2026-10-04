@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
-import { enterPipeline } from "@/lib/pipeline";
+import { enterPipeline, autoAdvance } from "@/lib/pipeline";
 import { fireAutomations } from "@/lib/automations-server";
 import { linkCallsToContact } from "@/lib/voice";
 import { pauseSubscriptionsForContact } from "@/lib/subscriptions";
@@ -180,8 +180,26 @@ export async function PATCH(
   else if (statusChange && previousStatus === "ARCHIVED") fireAutomations(actor.companyId, "client.reactivated", id);
   for (const fieldId of changedFieldIds) fireAutomations(actor.companyId, "client.field_changed", id, { fieldId });
 
-  if (statusChange === "LEAD" && kind !== "CONTACT") {
+  // Saved as a lead from a message thread (the Save card) or a status change
+  // to LEAD: onto the board. The save case can't rely on statusChange — a
+  // text from an unknown number used to be filed as a LEAD already, so the
+  // status is unchanged and the card would never have appeared.
+  if ((statusChange === "LEAD" || (saving && (status ?? previousStatus) === "LEAD")) && kind !== "CONTACT") {
     await enterPipeline(prisma, actor.companyId, id);
+    if (saving) {
+      // The appropriate column, not just the first: a thread the team has
+      // already answered counts as contact made (the same trigger a team
+      // text fires in the Messages POST route — which had nothing to move
+      // while the number was still a placeholder).
+      const replied = await prisma.portalMessage.count({
+        where: { contactId: id, companyId: actor.companyId, direction: "OUTBOUND" },
+      });
+      if (replied > 0) {
+        await autoAdvance(prisma, actor.companyId, id, "CONTACT_MADE").catch((err) =>
+          reportError("[contacts] CONTACT_MADE advance on save failed", id, err)
+        );
+      }
+    }
   }
   // A number was set or changed: unmatched calls from it now show this person's name.
   if (body.phone !== undefined) await linkCallsToContact(actor.companyId, id, opt(body.phone)).catch(() => 0);

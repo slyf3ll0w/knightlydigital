@@ -16,7 +16,7 @@
  * Bump VERSION to drop every cache wholesale on the next deploy.
  */
 
-const VERSION = "v6";
+const VERSION = "v7";
 const STATIC_CACHE = `sfh-static-${VERSION}`;
 const PAGES_CACHE = `sfh-pages-${VERSION}`;
 const MEDIA_CACHE = `sfh-media-${VERSION}`;
@@ -123,19 +123,47 @@ function isAuthPath(pathname) {
 // ── Fetch strategies ─────────────────────────────────────────────────────────
 
 /**
- * One navigation fetch, tried twice. iOS drops the FIRST request a resumed
- * app makes ("the network connection was lost") — a notification tap wakes
- * the shell and navigates in the same instant, and that single failure used
- * to land on offline.html. A short pause and a second try almost always
- * lands; only then do we fall back to the snapshot.
+ * One navigation fetch, tried up to three times. iOS drops the FIRST request
+ * a resumed app makes ("the network connection was lost") — a notification
+ * tap wakes the shell and navigates in the same instant, and that single
+ * failure used to land on offline.html. Two were not always enough on a
+ * phone whose radio is still waking (David 2026-10-03: the offline page on
+ * a message tap), so: now, after 0.7 s, after another 1.5 s. Only then do we
+ * fall back to the snapshot.
  */
+const NAVIGATION_RETRY_MS = [700, 1500];
+
 async function fetchNavigation(request) {
-  try {
-    return await fetch(request);
-  } catch {
-    await new Promise((r) => setTimeout(r, 700));
-    return fetch(request);
+  let lastError;
+  for (let attempt = 0; attempt <= NAVIGATION_RETRY_MS.length; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, NAVIGATION_RETRY_MS[attempt - 1]));
+    try {
+      return await fetch(request);
+    } catch (err) {
+      lastError = err;
+    }
   }
+  throw lastError;
+}
+
+/**
+ * The page shown while a notification tap's landing page can't be fetched
+ * yet: WorkBench-styled (the old inline page was bare), and it keeps trying
+ * on its own — meta refresh after 1 s, then the script retries at 3 s and
+ * 7 s if the first one also failed to land. Self-contained: nothing fetched.
+ */
+function openingPage(dest) {
+  const safe = String(dest).replace(/[^A-Za-z0-9\/?&=%._~:@+-]/g, "");
+  return (
+    `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
+    `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` +
+    `<meta name="theme-color" content="#FFFFFF">` +
+    `<meta http-equiv="refresh" content="1;url=${safe}"><title>Opening · WorkBench</title>` +
+    `<style>html,body{height:100%;margin:0}body{background:#F5F7FA;color:#0A1328;font-family:Lexend,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;padding:24px;padding-top:calc(24px + env(safe-area-inset-top))}` +
+    `.w{text-align:center}.s{width:28px;height:28px;margin:0 auto 14px;border-radius:50%;border:3px solid #E7EBF1;border-top-color:#0A1328;animation:r .8s linear infinite}@keyframes r{to{transform:rotate(360deg)}}p{margin:0;font-size:.95rem;font-weight:600}</style></head>` +
+    `<body><div class="w"><div class="s"></div><p>Opening…</p></div>` +
+    `<script>var d=${JSON.stringify(safe)};var n=0;function go(){location.replace(d)}setTimeout(go,3000);setTimeout(go,7000);addEventListener("online",go)</script></body></html>`
+  );
 }
 
 async function handleNavigation(event, request) {
@@ -159,16 +187,15 @@ async function handleNavigation(event, request) {
   } catch {
     // The notification-tap landing page only exists to redirect; a cached
     // copy of it is pointless and offline.html is a dead end, so hand the
-    // browser a plain redirect to the destination instead.
+    // browser a self-retrying page that lands on the destination instead.
     try {
       const u = new URL(request.url);
       if (u.pathname === "/app/open") {
         const to = u.searchParams.get("to") || "";
         const dest = (to.startsWith("/app/") ? to : "/app/dashboard").replace(/["<>]/g, "");
-        return new Response(
-          `<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="1;url=${dest}"><title>Opening…</title><p style="font-family:system-ui;padding:24px;color:#555">Opening…</p>`,
-          { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } }
-        );
+        return new Response(openingPage(dest), {
+          headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
+        });
       }
     } catch {}
     const exact = await safeMatch(request, { ignoreVary: true });
@@ -347,6 +374,18 @@ self.addEventListener("push", (event) => {
   );
 });
 
+/** The page a tap lands on: /app/open?to=<path> unwrapped, anything else as-is (pathname only). */
+function destinationOf(url) {
+  try {
+    const u = new URL(url, self.location.origin);
+    if (u.pathname !== "/app/open") return u.pathname;
+    const to = u.searchParams.get("to") || "";
+    return new URL(to.startsWith("/app/") ? to : "/app/dashboard", self.location.origin).pathname;
+  } catch {
+    return "";
+  }
+}
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const d = event.notification.data || {};
@@ -366,14 +405,44 @@ self.addEventListener("notificationclick", (event) => {
     (async () => {
       const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       for (const client of windows) {
-        if (new URL(client.url).pathname.startsWith(section)) {
-          try {
-            await client.focus();
-            if ("navigate" in client) await client.navigate(url);
+        let path = "";
+        try {
+          path = new URL(client.url).pathname;
+        } catch {
+          continue;
+        }
+        if (!path.startsWith(section)) continue;
+        try {
+          await client.focus();
+          // A signed-in /app tab navigates ITSELF (AppShell listens for
+          // "wb:open" and router.pushes the destination, switching company
+          // first only when the push came from another membership). A full
+          // client.navigate() here was a cold load through /app/open plus a
+          // second one into the page — the two requests a just-resumed phone
+          // drops, which is how a message tap ended on the offline page
+          // (David 2026-10-03). Tabs on the login/register pages have no
+          // AppShell, so they still get the plain navigation.
+          if (section === "/app" && !isAuthPath(path)) {
+            client.postMessage({ type: "wb:open", url });
+            // Belt and braces: a tab without AppShell (suspended, get-started)
+            // ignores the message — if it hasn't moved in 1.5 s and isn't
+            // already on the destination, navigate it the old way.
+            await new Promise((r) => setTimeout(r, 1500));
+            const still = (await self.clients.matchAll({ type: "window", includeUncontrolled: true })).find(
+              (c) => c.id === client.id
+            );
+            if (!still) return;
+            const before = new URL(client.url);
+            const now = new URL(still.url);
+            const moved = now.pathname + now.search !== before.pathname + before.search;
+            if (moved || now.pathname === destinationOf(url)) return;
+            if ("navigate" in still) await still.navigate(url);
             return;
-          } catch {
-            /* fall through to opening a new window */
           }
+          if ("navigate" in client) await client.navigate(url);
+          return;
+        } catch {
+          /* fall through to opening a new window */
         }
       }
       await self.clients.openWindow(url);

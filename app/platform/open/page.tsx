@@ -1,54 +1,36 @@
-"use client";
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/permissions";
+import { safeAppPath } from "@/lib/push-open";
+import OpenSwitch from "./OpenSwitch";
 
-import { useEffect, useRef } from "react";
-import { useSession } from "next-auth/react";
-import { Loader2 } from "lucide-react";
-import { clearOfflineCaches } from "@/lib/company-switch";
+export const dynamic = "force-dynamic";
 
 /**
  * Notification-tap landing shim: /app/open?u=<membership user id>&to=<path>.
  *
  * Push notifications can arrive from ANY company on the account (lib/push.ts
  * fans out account-wide), but the tapped deep link is scoped to the company
- * that sent it. This page switches the session to that membership when needed
- * — the JWT update trigger verifies the row really belongs to this account,
- * so a forged ?u= silently no-ops — then follows the link. Already on the
- * right company (or it's your only one): straight redirect.
+ * that sent it. When the tap is for the membership already signed in (or
+ * names none), the server answers with a redirect straight to the page — no
+ * client round trip, no spinner, one navigation. Only a tap from another
+ * membership renders OpenSwitch, which switches the session and then follows
+ * the link. (A running app tab never loads this page at all any more: the
+ * service worker / native shell hand the tap to AppShell, lib/push-open.ts.)
  */
-export default function OpenPage() {
-  const { data: session, status, update } = useSession();
-  const ran = useRef(false);
+export default async function OpenPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ to?: string | string[]; u?: string | string[] }>;
+}) {
+  const params = await searchParams;
+  const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
+  // In-app paths only — this must never become an open redirect.
+  const dest = safeAppPath(first(params.to));
+  const target = first(params.u);
 
-  useEffect(() => {
-    if (status === "loading" || ran.current) return;
-    ran.current = true;
-    (async () => {
-      const params = new URLSearchParams(window.location.search);
-      const to = params.get("to") ?? "";
-      const target = params.get("u");
-      // In-app paths only — this must never become an open redirect.
-      const dest = to.startsWith("/app/") ? to : "/app/dashboard";
+  const session = await getSession();
+  if (!session?.user?.id) redirect("/app/login");
+  if (!target || target === session.user.id) redirect(dest);
 
-      if (!session?.user?.id) {
-        window.location.replace(`/app/login`);
-        return;
-      }
-      if (target && target !== session.user.id) {
-        try {
-          await update({ switchToUserId: target });
-          await clearOfflineCaches();
-        } catch {
-          // Switch is best effort — worst case the destination page 404s
-          // inside the current company instead of stranding the tap.
-        }
-      }
-      window.location.replace(dest);
-    })();
-  }, [status, session, update]);
-
-  return (
-    <div className="flex min-h-[60dvh] items-center justify-center">
-      <Loader2 size={22} className="animate-spin text-gray-400" />
-    </div>
-  );
+  return <OpenSwitch target={target} dest={dest} />;
 }

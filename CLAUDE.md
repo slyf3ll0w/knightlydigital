@@ -368,7 +368,11 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
   the account's verified test numbers.
 - **Inbound** (`/api/public/webhooks/telnyx`): the `to` number resolves the
   company FIRST, the contact match is scoped to it, and an unknown texter
-  becomes a contact ("Unknown caller · (214) 555-0100") so nothing is lost.
+  becomes a `placeholder` contact named after the number (same shape as a
+  typed-in number from Messages) so nothing is lost; the thread's Save card
+  files them as lead (board; Contacted if the team already replied) /
+  client / contact. A text that matches no line and no contact is dropped
+  with a `reportError`.
 - **UI**: Settings → Phone & texting `BusinessLineCard.tsx` (get a number →
   forwarding → registration form → status chip / rejection + resubmit / OTP
   entry for sole props); routes `/api/app/line` (GET, PATCH forwardTo),

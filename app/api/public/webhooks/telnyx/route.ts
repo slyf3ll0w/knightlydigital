@@ -30,10 +30,11 @@ import { fetchInboundMedia, mediaPreview, storeMessageMedia } from "@/lib/messag
  * line (Company.lineNumber, lib/business-line.ts), so the company is known
  * before any contact lookup and the contact match is scoped to it — a
  * client of two WorkBench businesses never has a reply land at the wrong
- * one. A text from a number the company has no contact for creates one
- * ("Unknown caller · (214) 555-0100") so the message isn't lost. Texts to a
- * number no company owns (the legacy WorkBench toll-free) fall back to the
- * old cross-tenant best guess via the SmsSend log.
+ * one. A text from a number the company has no contact for creates a
+ * placeholder contact named after the number ("(214) 555-0100", hidden until
+ * the thread's Save card files them as a lead / client / contact) so the
+ * message isn't lost. Texts to a number no company owns (the legacy WorkBench
+ * toll-free) fall back to the old cross-tenant best guess via the SmsSend log.
  *
  * Signature check (Ed25519 over `${timestamp}|${rawBody}`) requires
  * TELNYX_PUBLIC_KEY. Without it we fail closed and process nothing —
@@ -161,24 +162,45 @@ async function landInboundSms(
       select: { id: true, companyId: true },
       take: 25,
     });
-    if (candidates.length === 0 && !companyId) return;
+    if (candidates.length === 0 && !companyId) {
+      // Nowhere to land it: the number texted isn't any company's line and
+      // nobody has this sender on file. Visible in Sentry rather than silent —
+      // a line whose Company.lineNumber drifted from Telnyx's E.164 would
+      // otherwise lose every text from a new customer without a trace.
+      reportError("[telnyx] inbound text dropped: no company for line and no contact for sender", {
+        from: prettyDigits(digits),
+        hasText: Boolean(text),
+        media: media.length,
+      });
+      return;
+    }
 
     let contactId: string;
     if (candidates.length === 0 && companyId) {
+      // A number the business has never heard from: a PLACEHOLDER contact
+      // named after the number, exactly like a thread the team starts with a
+      // typed-in number (/api/app/messages/new-number). Hidden from the
+      // client list, the Leads board and pickers until the thread's Save
+      // card names them as a lead, a client or a business contact — the
+      // phone's own "unknown number → Create contact" flow (David
+      // 2026-10-03). lead.created fires at that save, not here: an
+      // automation greeting "Unknown caller" by name was never right.
       const created = await prisma.contact.create({
         data: {
           companyId,
-          firstName: "Unknown caller",
-          lastName: prettyDigits(digits),
+          firstName: prettyDigits(digits),
+          lastName: "",
           phone: fromE164,
           phoneDigits: digits,
+          status: "ACTIVE", // never a lead until saved as one
+          kind: "CONTACT",
+          placeholder: true,
           smsConsentSource: "inbound_text",
           smsConsentNote: "Texted the business line first",
         },
         select: { id: true },
       });
       contactId = created.id;
-      fireAutomations(companyId, "lead.created", created.id);
     } else {
       contactId = candidates[0].id;
     }

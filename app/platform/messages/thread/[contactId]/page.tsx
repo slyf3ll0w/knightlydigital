@@ -85,21 +85,31 @@ export default async function MessageThreadPage({
   }
 
   const name = `${contact.firstName} ${contact.lastName}`.trim();
+  // Nobody has named this number yet: a thread the team started by typing a
+  // number (placeholder), or a text that came in from an unknown number —
+  // including the rows the webhook used to create as "Unknown caller · (…)"
+  // before 2026-10-03. Either way the Save card sits above the thread.
+  const unnamed = contact.placeholder || (contact.firstName === "Unknown caller" && !contact.email);
+  const theyTextedFirst = unnamed && messages.some((m) => m.direction === "INBOUND");
 
   return (
     <div className="mx-auto flex h-full w-full max-w-3xl flex-col lg:p-6">
       <TeamThread
         contactId={contact.id}
-        contactName={name}
-        contactFirstName={contact.placeholder ? "them" : contact.firstName}
+        contactName={unnamed && contact.phone ? fmtPhone(contact.phone) : name}
+        contactFirstName={unnamed ? "them" : contact.firstName}
         companyName={contact.companyName}
         phone={contact.phone}
         tz={contact.company.timezone ?? "America/Chicago"}
         channel={channel}
-        // A thread started with a typed-in number: name them before (or after) the first text
+        // An unnamed number: file them as a lead / client / contact (the phone's "Create contact")
         banner={
-          contact.placeholder ? (
-            <SaveContactCard contactId={contact.id} phone={contact.phone ? fmtPhone(contact.phone) : name} />
+          unnamed ? (
+            <SaveContactCard
+              contactId={contact.id}
+              phone={contact.phone ? fmtPhone(contact.phone) : name}
+              textedFirst={theyTextedFirst}
+            />
           ) : null
         }
         initialMessages={messages.map((m) => ({

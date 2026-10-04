@@ -152,7 +152,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <>
-      <NativeShell />
+      <NativeShell userId={session.user.id} />
       <AppLock offerSetup />
       <OfflineSupport />
       <ForegroundRefresh />

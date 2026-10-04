@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { appSignOut } from "@/lib/sign-out";
+import { resolvePushOpen } from "@/lib/push-open";
 import {
   Home,
   Briefcase,
@@ -1732,6 +1733,8 @@ export default function AppShell({
   const pushedRef = useRef<Map<string, number>>(new Map());
   const pathRef = useRef(pathname);
   pathRef.current = pathname;
+  const userIdRef = useRef(userId);
+  userIdRef.current = userId;
   useEffect(() => {
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
     const kindFor = (href: string): LiveToast["kind"] =>
@@ -1748,6 +1751,19 @@ export default function AppShell({
                 : "message";
     const onMessage = (e: MessageEvent) => {
       const d = e.data as { type?: string; title?: string; body?: string; url?: string; tag?: string | null } | null;
+      // A notification was tapped (public/sw.js notificationclick): this
+      // tab navigates itself instead of being cold-loaded through /app/open.
+      // Same membership → router.push straight to the page; another
+      // membership on the account → the /app/open switch, full load.
+      if (d && d.type === "wb:open" && d.url) {
+        const open = resolvePushOpen(d.url, userIdRef.current);
+        if (open.kind === "push") {
+          const [path] = open.to.split("?");
+          if (pathRef.current === path) router.refresh();
+          else router.push(open.to);
+        } else if (open.kind === "assign") window.location.assign(open.url);
+        return;
+      }
       if (!d || d.type !== "wb:push" || !d.url) return;
       const href = d.url;
       pushedRef.current.set(href, Date.now());

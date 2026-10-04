@@ -60,6 +60,11 @@ test.describe("contacts & CRM", () => {
       expect(row.placeholder).toBe(false);
       expect(row.status).toBe("LEAD");
       expect(row.firstName).toBe(runTag);
+      // On the board (the save itself puts them there — the status was ACTIVE → LEAD
+      // here, but an inbound unknown number saved as a lead relies on the save, not
+      // a status change). Only when the company's board has been opened once.
+      const stages = await db().pipelineStage.count({ where: { companyId: row.companyId, isConverted: false } });
+      if (stages > 0) expect(row.pipelineStageId).not.toBeNull();
     } finally {
       await deleteContact(api, id);
     }
