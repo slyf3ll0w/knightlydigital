@@ -247,7 +247,15 @@ export const scheduleSection: HelpSection = {
         },
         {
           type: "p",
-          text: "**Client reminders** go out by themselves: about a day ahead (only for appointments booked at least a day ahead) and about an hour ahead, by email and — once texting is on — by text. The wording follows the type: a phone call says you will call them at their number, a video call includes the join link, and an in-person visit gives the arrival window. Untick **Remind client** on an appointment to keep it quiet. Whoever it is assigned to gets a push about an hour ahead either way.",
+          text: "**Client reminders** go out by themselves: about a day ahead (only for appointments booked at least a day ahead) and about an hour ahead, by email and — once texting is on — by text. The wording follows the type: a phone call says you will call them at their number, a video call includes the join link, and an in-person visit gives the arrival window. Untick **Remind client** on an appointment to keep it quiet. Whoever it is assigned to gets a push about an hour ahead either way. The appointment page shows what was sent and when.",
+        },
+        {
+          type: "p",
+          text: "**Confirmations.** When you book an appointment yourself, leave **Send the client a confirmation now** ticked and they get a \"you're booked\" text and email with the details and a calendar file the moment you save. Untick it for internal meetings or a client who already knows.",
+        },
+        {
+          type: "p",
+          text: "**Quiet hours.** Automatic reminder texts never go out between 9 PM and 8 AM in your time zone; a reminder that lands then goes by email instead. This only applies to the automatic reminders. Anything you send yourself — an invoice, a quote, a text from a client's thread, a confirmation — goes out right away, whatever the hour.",
         },
       ],
     },
