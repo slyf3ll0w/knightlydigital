@@ -70,6 +70,34 @@ test.describe("contacts & CRM", () => {
     }
   });
 
+  test("an unsaved number can be added to an existing client (thread moves, number becomes theirs)", async () => {
+    const res = await api.raw("POST", "/api/app/messages/new-number", { phone: "(214) 555-0198" });
+    if (res.status === 409) {
+      expect((await res.json()).error).toMatch(/business line/);
+      return;
+    }
+    expect(res.status).toBe(201);
+    const { contactId: unsaved } = (await res.json()) as { contactId: string };
+    const client = await createContact(api, "CRM-MergeTarget");
+    try {
+      // A saved contact is never merged this way; the target must be saved
+      await api.json("POST", `/api/app/contacts/${client.id}/merge`, { into: unsaved }, 400);
+      // Merge the unsaved number into the client
+      const merged = (await api.post(`/api/app/contacts/${unsaved}/merge`, { into: client.id })) as { contactId: string };
+      expect(merged.contactId).toBe(client.id);
+      const row = await db().contact.findUniqueOrThrow({ where: { id: client.id } });
+      expect(row.phoneDigits).toBe("2145550198");
+      expect(row.placeholder).toBe(false);
+      expect(await db().contact.findUnique({ where: { id: unsaved } })).toBeNull();
+      // The same number texting again (or typed again) now lands on the client
+      const again = await api.post("/api/app/messages/new-number", { phone: "2145550198" }, 200);
+      expect(again.contactId).toBe(client.id);
+    } finally {
+      await deleteContact(api, client.id);
+      await db().contact.deleteMany({ where: { id: unsaved } });
+    }
+  });
+
   test("a business contact is never a lead and becomes a client with their first job", async () => {
     // kind CONTACT wins over a LEAD status: ACTIVE, off the Leads board
     const created = await api.post("/api/app/contacts", {

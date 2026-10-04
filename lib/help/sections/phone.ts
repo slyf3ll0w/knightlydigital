@@ -382,6 +382,14 @@ export const textingSection: HelpSection = {
           ],
         },
         {
+          type: "h",
+          text: "A text from a number you don't know",
+        },
+        {
+          type: "p",
+          text: "It lands in Messages under the number itself, like an unknown caller on your phone. It is not in Clients or on the Leads board yet. Open the thread and the card at the top asks who it is: type a first name and press `Save` as a **Lead** (onto the Leads board — in **Contacted** if you have already replied, otherwise **New**), a **Client**, or a business **Contact**. Or press `Add to existing`, pick someone you already have, and the conversation moves to them and this becomes their number on file (the button says which number it replaces). The same card appears when you start a thread by typing a number.",
+        },
+        {
           type: "tip",
           text: "Texting a lead from Messages moves them to **Contacted** on the Leads board.",
         },

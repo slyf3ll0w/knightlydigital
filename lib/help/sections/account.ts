@@ -106,6 +106,10 @@ export const settingsSection: HelpSection = {
           text: "With WorkBench open in a browser, the same notification arrives as a card at the top of the page the moment it is sent — on every open tab, not only the one in front. A card leaves on its own after a few seconds once you have seen it, and after 45 seconds at most. Nothing is lost when it goes: every notification is kept in the **bell** for 30 days.",
         },
         {
+          type: "p",
+          text: "Tapping a notification opens the page it is about — a new text opens that conversation — inside the app you already have open, without reloading it. If your phone has just woken up and has no signal yet, you may briefly see an **Opening…** card; it goes through on its own once the connection is back.",
+        },
+        {
           type: "h",
           text: "Emails too, or push only",
         },

@@ -99,6 +99,23 @@ the "clunky" part — a flash of the wrong page, then the thread.
 13. **Old rows.** Any earlier thread whose name is "Unknown caller · (…)"
     now shows the same Save card; saving as lead puts them on the board.
 
+### Add to existing (round 2, same day)
+`POST /api/app/contacts/[id]/merge { into }` folds an unsaved number into a
+saved client: the thread (with photos), calls, text log and anything else on
+the number move to them, the client's phone becomes this number, the unsaved
+row is deleted, and the page shows the client's thread. A saved contact is
+never merged this way (400). If the client was a lead in New and the team had
+already replied, they move to Contacted.
+
+14. **Add to existing.** On an unknown number's thread press `Add to
+    existing`, search a client you already have, tap them → the button reads
+    "Add to Maria · replaces (469) …" when they had a different number →
+    press it. You land on Maria's thread holding the texts; the old
+    number-named thread is gone from the inbox; Maria's profile shows the
+    new number. Text from that number again → it lands on Maria.
+15. **Client with no number.** Same, with a client who had no phone → button
+    reads just "Add to Maria"; afterwards their profile has the number.
+
 ## 3. What could stop an unknown number's text (audit, code side)
 
 Nothing refuses unknown senders on purpose. The conditions that would lose a
@@ -136,8 +153,13 @@ text, all unchanged by this batch except the first:
 `app/platform/messages/thread/[contactId]/page.tsx` + `SaveContactCard.tsx`,
 `app/api/app/contacts/[id]/route.ts`, `e2e/specs/contacts-crm.spec.ts`.
 
+## Help Center
+Revised (David 2026-10-03): `messages-inbox` (phone.ts) gained "A text from a
+number you don't know" (Save card, Lead/Client/Contact, Add to existing);
+the Notifications guide (account.ts) says a tap opens the page inside the
+open app, with the Opening… card on a cold radio.
+
 ## Not done
-- "Add to existing contact" (merge an unknown number's thread into a saved
-  client) — a phone offers it; here you would edit the client's phone and
-  the next text matches. Build if asked.
+- Merging two SAVED clients (profile conflicts) — out of scope; the merge
+  route refuses it.
 - Native apps: the shell code is served live, so no store build is needed.
