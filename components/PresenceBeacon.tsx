@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, MonitorSmartphone } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { SIGN_OUT_FAILED, useAppSignOut } from "@/lib/sign-out";
 
 /**
  * Tells the server "someone is looking at the app" (POST /api/app/presence)
@@ -40,6 +40,7 @@ export default function PresenceBeacon() {
   const [busy, setBusy] = useState<Busy | null>(null);
   const [armed, setArmed] = useState(false);
   const [taking, setTaking] = useState(false);
+  const signOut = useAppSignOut();
   const last = useRef(0);
   const inFlight = useRef(false);
 
@@ -142,11 +143,17 @@ export default function PresenceBeacon() {
         </p>
         <button
           type="button"
-          onClick={() => void signOut({ callbackUrl: "/app/login" })}
-          className="mt-4 text-sm text-gray-500 underline-offset-2 hover:underline [[data-mode=dark]_&]:text-gray-400"
+          onClick={() => void signOut.signOut()}
+          disabled={signOut.signingOut}
+          className="mt-4 text-sm text-gray-500 underline-offset-2 hover:underline disabled:opacity-60 [[data-mode=dark]_&]:text-gray-400"
         >
-          Sign out
+          {signOut.signingOut ? "Signing out…" : "Sign out"}
         </button>
+        {signOut.failed && (
+          <p role="alert" className="mt-2 text-xs text-red-600">
+            {SIGN_OUT_FAILED}
+          </p>
+        )}
       </div>
     </div>
   );

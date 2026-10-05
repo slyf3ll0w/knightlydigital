@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { appSignOut } from "@/lib/sign-out";
 import {
   AlertTriangle,
   ArrowRight,
@@ -315,7 +315,7 @@ export default function ActivateClient({
         Signed in as <span className="font-semibold text-gray-500">{email}</span>
         {" · "}
         <button
-          onClick={() => signOut({ callbackUrl: "/app/login" })}
+          onClick={() => void appSignOut("/app/login")}
           className="font-semibold text-gray-400 underline-offset-2 hover:text-gray-600 hover:underline"
         >
           Not you? Sign out

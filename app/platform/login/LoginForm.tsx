@@ -154,7 +154,7 @@ export default function LoginForm({ social }: { social: SocialSignIn }) {
                 ,{" "}
                 <button
                   type="button"
-                  onClick={() => signOut({ redirect: false })}
+                  onClick={() => void signOut({ redirect: false }).catch(() => {})}
                   className="font-semibold text-[color:var(--ds-warn)] underline hover:no-underline"
                 >
                   sign out

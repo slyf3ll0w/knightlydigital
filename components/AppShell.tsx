@@ -4,7 +4,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { appSignOut } from "@/lib/sign-out";
+import { SIGN_OUT_FAILED, useAppSignOut } from "@/lib/sign-out";
 import { resolvePushOpen } from "@/lib/push-open";
 import {
   Home,
@@ -630,6 +630,7 @@ function UserMenu({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const { memberships, switching, switchTo } = useMemberships(open);
+  const signOut = useAppSignOut();
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -681,12 +682,23 @@ function UserMenu({
             </kbd>
           </button>
           <button
-            onClick={() => void appSignOut("/app/login")}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            type="button"
+            onClick={() => void signOut.signOut()}
+            disabled={signOut.signingOut}
+            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
           >
-            <LogOut size={14} className="text-gray-400" />
+            {signOut.signingOut ? (
+              <Loader2 size={14} className="animate-spin text-gray-400" />
+            ) : (
+              <LogOut size={14} className="text-gray-400" />
+            )}
             Sign out
           </button>
+          {signOut.failed && (
+            <p role="alert" className="px-3.5 pb-1.5 text-[11px] leading-snug text-red-600">
+              {SIGN_OUT_FAILED}
+            </p>
+          )}
           <p className="flex items-center gap-1.5 border-t border-gray-100 mt-1 px-3.5 pt-2 pb-1 text-[10px] text-gray-400">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/workbench-icon.png" alt="" className="h-2.5 w-auto shrink-0 opacity-60" />
@@ -3091,6 +3103,7 @@ function MoreSheet({
   openAssistant: () => void;
 }) {
   const manager = isManagerRole(role);
+  const signOut = useAppSignOut();
 
   const badgeFor = (href: string): { count: number; urgent: boolean } | null => {
     if (href === "/app/requests" && counts.requests > 0)
@@ -3330,13 +3343,19 @@ function MoreSheet({
               </Link>
               <button
                 type="button"
-                onClick={() => void appSignOut("/app/login")}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[13.5px] font-semibold text-red-600 active:bg-red-50"
+                onClick={() => void signOut.signOut()}
+                disabled={signOut.signingOut}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[13.5px] font-semibold text-red-600 active:bg-red-50 disabled:opacity-60"
               >
-                <LogOut size={16} strokeWidth={2} />
+                {signOut.signingOut ? <Loader2 size={16} className="animate-spin" /> : <LogOut size={16} strokeWidth={2} />}
                 Sign out
               </button>
             </div>
+          )}
+          {!needle && signOut.failed && (
+            <p role="alert" className="mt-2 px-1 text-center text-xs leading-snug text-red-600">
+              {SIGN_OUT_FAILED}
+            </p>
           )}
 
           <p className="pt-3 text-center text-[11px] text-gray-400">Powered by WorkBench</p>

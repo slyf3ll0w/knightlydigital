@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
+import { appSignOut } from "@/lib/sign-out";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import TurnstileWidget, { TurnstileHandle, captchaEnabled } from "@/components/TurnstileWidget";
@@ -312,7 +313,7 @@ export default function RegisterPage() {
                 Not {session?.user?.email}?{" "}
                 <button
                   type="button"
-                  onClick={() => signOut({ callbackUrl: "/app/login" })}
+                  onClick={() => void appSignOut("/app/login")}
                   className="font-semibold text-[color:var(--ds-primary)] hover:underline"
                 >
                   Sign out

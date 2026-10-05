@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
+import { appSignOut } from "@/lib/sign-out";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import TurnstileWidget, { type TurnstileHandle, captchaEnabled } from "@/components/TurnstileWidget";
 import SocialSignInButtons, { OrDivider, useSocialSignInOffered } from "@/components/SocialSignInButtons";
@@ -153,7 +154,7 @@ export default function InviteSignupForm({
           </a>
           <button
             type="button"
-            onClick={() => signOut({ callbackUrl: returnUrl })}
+            onClick={() => void appSignOut(returnUrl)}
             className="text-sm font-semibold text-gray-500 hover:text-gray-800"
           >
             Not you? Sign out
