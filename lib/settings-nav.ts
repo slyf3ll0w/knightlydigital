@@ -92,7 +92,7 @@ export type SettingsLink = {
   /** lib/section-colors SECTION_HUES key */
   hueKey: "services" | "contracts" | "clients" | "leads" | "forms" | "team" | "business" | "payments";
   /** lucide-react icon name */
-  icon: "Package" | "FileSignature" | "Tags" | "Filter" | "Globe" | "Users" | "Upload" | "UserRound" | "RefreshCw" | "Sparkles";
+  icon: "Package" | "FileSignature" | "Tags" | "Filter" | "Globe" | "Users" | "Upload" | "UserRound" | "RefreshCw" | "Sparkles" | "MonitorSmartphone";
 };
 
 export type SettingsLinkGroup = { key: string; label: string; links: readonly SettingsLink[] };

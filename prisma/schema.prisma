@@ -316,8 +316,75 @@ model Company {
   portalMessages        PortalMessage[]
   messagingRegistration MessagingRegistration?
   calls                 Call[]
+  // Studio-built website (docs/plans/client-websites-2026-10-05.md)
+  site                  Website?
+  websitePhotos         WebsitePhoto[]
 
   @@index([slug])
+}
+
+// ─── Client websites (studio-built, docs/plans/client-websites-2026-10-05.md) ──
+
+enum WebsiteStatus {
+  NOT_STARTED // the owner opened Settings → Website but hasn't sent the brief
+  BRIEF_SUBMITTED // "Send to the studio" — the queue for David
+  IN_STUDIO // being built
+  REVIEW // preview link shared with the owner
+  LIVE // on their domain
+}
+
+// One per company: the brand brief the owner fills in, where the site is,
+// and the studio's own notes. The site itself lives in the separate
+// workbench-sites repo (one static Astro project per client) and reads
+// everything it needs from GET /api/public/site/[slug]. Relevant writes
+// (hours, services, booking items, flagged photos, this row) schedule a
+// rebuild through lib/website.ts scheduleSiteRebuild.
+model Website {
+  id               String        @id @default(cuid())
+  companyId        String        @unique
+  company          Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  status           WebsiteStatus @default(NOT_STARTED)
+  // The brand brief (lib/website.ts sanitizeBrief): tagline, story, years,
+  // licenses, service areas, what sets them apart, sites they like, tone,
+  // FAQ, social links, show-prices switch. Owner-editable in Settings.
+  brief            Json?
+  briefSubmittedAt DateTime?
+  // Studio-side (superadmin): where the site lives
+  domain           String? // the client's domain, e.g. harlowair.com (no scheme)
+  pagesProject     String? // Cloudflare Pages project name (wb-<slug>)
+  previewUrl       String? // <project>.pages.dev or a preview branch URL
+  direction        String? // the direction the owner picked ("A — Shop ledger")
+  notes            String? // studio notes, never shown to the owner
+  liveAt           DateTime?
+  // Rebuild bookkeeping (lib/website.ts): when a dispatch was last sent and why
+  rebuildQueuedAt  DateTime?
+  rebuildSentAt    DateTime?
+  rebuildReason    String?
+  rebuildError     String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([status])
+}
+
+// Photos the owner uploads FOR the site (truck, team, shop front): not tied
+// to a job. Same storage convention as JobPhoto (R2 key when configured,
+// bytes column otherwise); served publicly through /api/public/site-photos.
+model WebsitePhoto {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  kind       String   @default("other") // truck | team | shop | work | other
+  alt        String? // the image's alt text on the site (SEO + accessibility)
+  caption    String?
+  sort       Int      @default(0)
+  data       Bytes?
+  storageKey String?
+  sizeBytes  Int?
+  mimeType   String?
+  createdAt  DateTime @default(now())
+
+  @@index([companyId, sort])
 }
 
 // ─── Users ───────────────────────────────────────────────────────────────────
@@ -2201,8 +2268,15 @@ model JobPhoto {
   sizeBytes  Int?
   mimeType   String?
   createdAt  DateTime  @default(now())
+  // "Use on website" (job page): the photo joins the company's public site
+  // data (GET /api/public/site/[slug]) and is served without auth through
+  // /api/public/site-photos/[id]. The owner confirms the client's property
+  // may be shown when flagging it. `alt` is the image's alt text there.
+  siteUse    Boolean   @default(false)
+  alt        String?
 
   @@index([jobId])
+  @@index([siteUse])
 }
 
 // ─── Quotes ───────────────────────────────────────────────────────────────────

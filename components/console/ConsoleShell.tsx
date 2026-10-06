@@ -8,6 +8,7 @@ import {
   Building2,
   Inbox,
   Library,
+  MonitorSmartphone,
   Loader2,
   LogOut,
   Mail,
@@ -50,6 +51,7 @@ const GROUPS: { key: string; label: string; items: Item[] }[] = [
     items: [
       { href: "/superadmin/feedback", label: "Feedback", icon: MessageSquare, badge: "feedback" },
       { href: "/superadmin/library", label: "Library", icon: Library },
+      { href: "/superadmin/websites", label: "Websites", icon: MonitorSmartphone },
     ],
   },
 ];

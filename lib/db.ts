@@ -101,4 +101,40 @@ if (!globalForTrigger.calendarSyncTriggerInstalled) {
     }
     return result;
   });
+  // Client websites: a write the public site renders (hours, services,
+  // booking items, the brief, site photos) schedules a debounced rebuild of
+  // that company's static site (lib/website.ts). JobPhoto flags go through
+  // their own route (no companyId on the row). No-op for companies without
+  // a site in a rebuildable state, and without SITES_DISPATCH_TOKEN.
+  prisma.$use(async (params, next) => {
+    const result = await next(params);
+    if (!params.model || !WRITE_ACTIONS.has(params.action)) return result;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const args = (params.args ?? {}) as any;
+    let touches = false;
+    if (params.model === "Company") {
+      const { companyWriteTouchesSite } = await import("@/lib/website");
+      touches = companyWriteTouchesSite(args.data) || companyWriteTouchesSite(args.update);
+    } else {
+      const { SITE_MODELS } = await import("@/lib/website");
+      touches = SITE_MODELS.has(params.model);
+    }
+    if (!touches) return result;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const row = result as any;
+    const companyId: string | null =
+      params.model === "Company"
+        ? (typeof row?.id === "string" && row.id) || (typeof args.where?.id === "string" && args.where.id) || null
+        : (typeof row?.companyId === "string" && row.companyId) ||
+          (typeof args.where?.companyId === "string" && args.where.companyId) ||
+          (typeof args.data?.companyId === "string" && args.data.companyId) ||
+          (typeof args.create?.companyId === "string" && args.create.companyId) ||
+          null;
+    if (companyId) {
+      import("@/lib/website")
+        .then((m) => m.scheduleSiteRebuild(companyId, `${params.model}.${params.action}`))
+        .catch((err) => reportError("[website] trigger failed", err));
+    }
+    return result;
+  });
 }

@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, ImagePlus, Loader2, Trash2 } from "lucide-react";
+import { Camera, Globe, ImagePlus, Loader2, Trash2 } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { resizePhotoFile } from "@/lib/resize-image";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { getCapacitor, nativePlatform } from "@/components/NativeShell";
 import { postJson } from "@/lib/safe-fetch";
 
-type Photo ={ id: string; url: string; caption: string | null; type: string };
+type Photo = { id: string; url: string; caption: string | null; type: string; siteUse?: boolean; alt?: string | null };
 
 const TYPE_LABEL: Record<string, string> = {
   BEFORE: "Before",
@@ -22,7 +22,7 @@ const TYPE_LABEL: Record<string, string> = {
  * Mobile-first — `capture`-friendly file input so a tech can shoot straight
  * from the job site; images are downscaled client-side before upload.
  */
-export default function PhotoUpload({ jobId, photos }: { jobId: string; photos: Photo[] }) {
+export default function PhotoUpload({ jobId, photos, canSite = false }: { jobId: string; photos: Photo[]; canSite?: boolean }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [photoType, setPhotoType] = useState<"BEFORE" | "AFTER" | "GENERAL">("GENERAL");
@@ -119,6 +119,33 @@ export default function PhotoUpload({ jobId, photos }: { jobId: string; photos: 
     }
   }
 
+  // "Use on website" (owners/admins): the photo becomes public site data.
+  // Turning it on asks once, because it is the client's property on show.
+  async function toggleSite(photo: Photo) {
+    const on = !photo.siteUse;
+    if (
+      on &&
+      !(await confirmSheet({
+        title: "Put this photo on your website?",
+        message: "It will be public on your site. Only use photos the client is fine with showing.",
+        confirmLabel: "Use on website",
+      }))
+    )
+      return;
+    setBusy(true);
+    setError("");
+    try {
+      const { ok, data } = await postJson(`/api/app/jobs/${jobId}/photos/${photo.id}`, { siteUse: on }, "PATCH");
+      if (!ok) {
+        setError(data?.error ?? "Couldn't update that photo.");
+        return;
+      }
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div>
       {photos.length === 0 ? (
@@ -139,6 +166,18 @@ export default function PhotoUpload({ jobId, photos }: { jobId: string; photos: 
                 <span className="absolute bottom-1 left-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-lg bg-black/60 text-white">
                   {TYPE_LABEL[photo.type]}
                 </span>
+              )}
+              {canSite && (
+                <button
+                  type="button"
+                  onClick={() => void toggleSite(photo)}
+                  disabled={busy}
+                  className={`absolute bottom-1 right-1 p-1 rounded-full text-white transition-opacity ${photo.siteUse ? "bg-[color:var(--ds-primary)] opacity-100" : "bg-black/50 opacity-0 group-hover:opacity-100 focus:opacity-100"}`}
+                  aria-label={photo.siteUse ? "Remove from website" : "Use on website"}
+                  title={photo.siteUse ? "On your website — tap to remove" : "Use on website"}
+                >
+                  <Globe size={12} />
+                </button>
               )}
               <button
                 type="button"

@@ -25,6 +25,7 @@ import {
   DollarSign,
   Search,
   Globe,
+  MonitorSmartphone,
   UserPlus,
   Tag,
   FileSignature,
@@ -265,6 +266,7 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
       // Same labels as the Settings index — one name per page everywhere.
       { href: "/app/settings/products", label: "Services", icon: Tag, show: isManagerRole },
       { href: "/app/settings/booking", label: "Booking & forms", icon: Globe, show: isManagerRole },
+      { href: "/app/settings/website", label: "Website", icon: MonitorSmartphone, show: isManagerRole },
       { href: "/app/settings/team", label: "Team & roles", icon: UserPlus, show: isManagerRole },
     ],
   },
@@ -321,6 +323,7 @@ const railGroups: { key: string; label: string; items: NavItem[] }[] = [
       // Same labels as the Settings index — one name per page everywhere.
       { href: "/app/settings/products", label: "Services", icon: Tag, show: isManagerRole },
       { href: "/app/settings/booking", label: "Booking & forms", icon: Globe, show: isManagerRole },
+      { href: "/app/settings/website", label: "Website", icon: MonitorSmartphone, show: isManagerRole },
       { href: "/app/settings/team", label: "Team & roles", icon: UserPlus, show: isManagerRole },
     ],
   },

@@ -20,6 +20,7 @@ import {
   FileSignature,
   Filter,
   Globe,
+  MonitorSmartphone,
   Phone,
   PhoneCall,
   RefreshCw,
@@ -257,6 +258,7 @@ const LINK_ICONS: Record<SettingsLink["icon"], LucideIcon> = {
   UserRound,
   RefreshCw,
   Sparkles,
+  MonitorSmartphone,
 };
 
 /** Desktop rail entry for a standalone page. */
