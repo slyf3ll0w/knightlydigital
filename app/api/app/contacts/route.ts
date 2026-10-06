@@ -33,6 +33,7 @@ export async function GET() {
       companyName: true,
       phone: true,
       kind: true,
+      status: true, // the Call / Message pickers say "Lead"
       address: true,
       city: true,
       state: true,

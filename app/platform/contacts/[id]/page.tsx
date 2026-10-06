@@ -8,6 +8,7 @@ import { Phone, Mail, MapPin, ChevronRight, Pencil, Eye, MessageCircle } from "l
 import { money, shortDate, clientMessageStatus, type StatusKind } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
 import BackLink from "@/components/BackLink";
+import BackParent from "@/components/BackParent";
 import PageTitle from "@/components/PageTitle";
 import ContactStatus from "@/components/ContactStatus";
 import CallTextButtons from "@/components/CallTextButtons";
@@ -254,11 +255,16 @@ export default async function ContactDetailPage({
       ? "Texting registration is still with the carriers — reminders switch to text once it clears"
       : "Turn on text notifications in Settings → Phone & texting to start texting clients";
 
+  const backTo =
+    contact.kind === "CONTACT" ? "/app/contacts?status=CONTACTS" : contact.status === "LEAD" ? "/app/leads" : "/app/contacts";
+
   return (
     <div className="p-4 lg:p-8 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
-        <BackLink href={contact.kind === "CONTACT" ? "/app/contacts?status=CONTACTS" : "/app/contacts"} />
+        {/* A lead's list is the Leads board, not Clients (David 2026-10-06) */}
+        <BackLink href={backTo} />
+        {contact.status === "LEAD" && <BackParent to="/app/leads" />}
         <ContactStatus status={contact.status} kind={contact.kind} />
         {isRepeat && contact.pipelineStageId && (
           <span className="ds-chip ds-chip-primary" title="Has worked with you before">

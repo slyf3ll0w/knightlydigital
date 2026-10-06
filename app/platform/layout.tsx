@@ -76,6 +76,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             accessPendingAt: true,
             addonActiveAt: true,
             lineVoiceAppAt: true,
+            lineNumber: true,
           },
         })
       : null,
@@ -184,6 +185,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         atlasPricing={ATLAS_PRICING}
         assistantName={company?.assistantName}
         userId={session.user.id}
+        hasLine={Boolean(company?.lineNumber && !company.lineNumber.startsWith("pending:"))}
       >
         {updateRequested ? (
           <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">

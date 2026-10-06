@@ -55,6 +55,8 @@ import PullToRefresh from "@/components/PullToRefresh";
 import ConfirmSheetHost from "@/components/ConfirmSheet";
 import { HomeFill, ScheduleFill, ChatFill, MoreFill } from "@/components/TabIcons";
 import { mobileBackFor } from "@/lib/mobile-nav";
+import ReachPicker from "@/components/ReachPicker";
+import { useBackParent } from "@/components/BackParent";
 import { confirmLeave } from "@/lib/nav-guard";
 import { SETTINGS_SECTIONS, settingsHref } from "@/lib/settings-nav";
 import { AtlasMark } from "@/components/AtlasIcon";
@@ -381,6 +383,12 @@ const phoneCreateItems: NavItem[] = [
   { href: "/app/calls?keypad=1", label: "Call", icon: PhoneCall, show: sellRoles },
   { href: "/app/messages?new=1", label: "Message", icon: MessageSquare, show: sellRoles },
 ];
+// These two open a who-to picker (components/ReachPicker.tsx) in place;
+// the hrefs only order and tone them (and still work as old links).
+const PICKER_TILES: Record<string, "call" | "message"> = {
+  "/app/calls?keypad=1": "call",
+  "/app/messages?new=1": "message",
+};
 // Where each tile sits on the phone sheet: who → when → what → reach them → bill.
 const PHONE_CREATE_ORDER = [
   "/app/contacts/new",
@@ -1602,6 +1610,8 @@ interface AppShellProps {
   /** Pre-approval preview: Atlas is hidden entirely (every turn costs money);
    *  the layout banner tells users AI unlocks at approval. */
   previewMode?: boolean;
+  /** The company has a business line — the phone Message picker can text a typed-in number. */
+  hasLine?: boolean;
 }
 
 export default function AppShell({
@@ -1627,6 +1637,7 @@ export default function AppShell({
   assistantName,
   userId,
   previewMode = false,
+  hasLine = false,
 }: AppShellProps) {
   const assistantAvailable = aiEnabled && !previewMode && atlas.level !== "off";
   const atlasLocked = atlas.level === "locked";
@@ -2041,10 +2052,13 @@ export default function AppShell({
     // of after the next navigation past the 45 s throttle. A detail object
     // patches those counts in place; no detail forces a full recount.
     const onCounts = (e: Event) => {
-      const detail = (e as CustomEvent<Partial<typeof counts> | undefined>).detail;
-      if (detail && typeof detail === "object") {
+      const raw = (e as CustomEvent<(Partial<typeof counts> & { messagesRead?: number }) | undefined>).detail;
+      if (raw && typeof raw === "object") {
         countsSeqRef.current += 1;
         setCounts((prev) => {
+          // { messagesRead: n } = a thread just opened n unread client messages
+          const { messagesRead, ...detail } = raw;
+          if (messagesRead) detail.messages = Math.max(0, prev.messages - messagesRead);
           const next = { ...prev, ...detail };
           if (prevCountsRef.current) prevCountsRef.current = { ...prevCountsRef.current, ...detail };
           syncAppBadge(next.requests + next.chat + next.messages);
@@ -2112,7 +2126,8 @@ export default function AppShell({
   }
 
   const previousPath = trackPath(pathname);
-  const mobileBack = mobileBackFor(pathname, previousPath);
+  const declaredParent = useBackParent(pathname);
+  const mobileBack = mobileBackFor(pathname, previousPath, declaredParent);
   const goBack = () => {
     if (!mobileBack) return;
     void confirmLeave().then((ok) => {
@@ -2742,6 +2757,8 @@ export default function AppShell({
         isActive={isActive}
         pastDue={counts.pastDue}
         chatUnread={counts.chat}
+        messagesUnread={counts.messages}
+        hasLine={hasLine}
         openMore={() => setMoreOpen(true)}
         previewMode={previewMode}
       />
@@ -2826,6 +2843,8 @@ function MobileTabBar({
   isActive,
   pastDue,
   chatUnread,
+  messagesUnread,
+  hasLine,
   openMore,
   previewMode,
 }: {
@@ -2834,11 +2853,17 @@ function MobileTabBar({
   isActive: (href: string) => boolean;
   pastDue: number;
   chatUnread: number;
+  /** Client messages nobody has opened — on the Create button and its Message tile. */
+  messagesUnread: number;
+  hasLine: boolean;
   openMore: () => void;
   previewMode?: boolean;
 }) {
   const pathname = usePathname();
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Call / Message tiles open a who-to picker over the page (David
+  // 2026-10-06) instead of dropping you on the Calls page or the inbox.
+  const [picker, setPicker] = useState<"call" | "message" | null>(null);
   // Payments are recorded from the invoice on phones (David, 2026-09-26) — no
   // stand-alone Payment tile here; the desktop Create menu keeps it. Estimate
   // tools and agreements are desk work too (David 2026-10-03): off the phone
@@ -2939,25 +2964,44 @@ function MobileTabBar({
               const rowFromBottom = rows - 1 - Math.floor(i / 3);
               const colFromCenter = Math.abs((i % 3) - 1);
               const delay = 60 + rowFromBottom * 60 + colFromCenter * 35;
-              return (
-                <Link prefetch={false}
-                  key={href}
-                  href={href}
-                  onClick={() => setSheetOpen(false)}
-                  style={sheetOpen ? { animationDelay: `${delay}ms` } : undefined}
-                  className={`col-span-2 ${placement} flex flex-col items-center gap-2 rounded-2xl px-1 py-3.5 transition-transform active:scale-95 ${
-                    sheetOpen ? "anim-tile-pop" : ""
-                  }`}
-                >
+              const pick = PICKER_TILES[href];
+              const unread = href === "/app/messages?new=1" ? messagesUnread : 0;
+              const tileClass = `col-span-2 ${placement} flex flex-col items-center gap-2 rounded-2xl px-1 py-3.5 transition-transform active:scale-95 ${
+                sheetOpen ? "anim-tile-pop" : ""
+              }`;
+              const body = (
+                <>
                   {/* Brand tile (round 4): the same iOS-style icon as the More
                       sheet, toned by where the thing lands — clients primary,
                       selling secondary, jobs slate, money slate-2 */}
-                  <span className={`ds-tile ds-tile-${CREATE_TONES[href] ?? "a"} shrink-0`}>
+                  <span className={`ds-tile ds-tile-${CREATE_TONES[href] ?? "a"} relative shrink-0`}>
                     <Icon size={21} strokeWidth={2} />
+                    {unread > 0 && <UnreadBubble count={unread} />}
                   </span>
                   <span className="font-display text-[11px] font-semibold text-gray-800">
                     {label}
                   </span>
+                </>
+              );
+              const style = sheetOpen ? { animationDelay: `${delay}ms` } : undefined;
+              return pick ? (
+                <button
+                  key={href}
+                  type="button"
+                  onClick={() => {
+                    hapticImpact("LIGHT");
+                    setSheetOpen(false);
+                    setPicker(pick);
+                  }}
+                  aria-label={unread > 0 ? `${label} (${unread} unread)` : label}
+                  style={style}
+                  className={tileClass}
+                >
+                  {body}
+                </button>
+              ) : (
+                <Link prefetch={false} key={href} href={href} onClick={() => setSheetOpen(false)} style={style} className={tileClass}>
+                  {body}
                 </Link>
               );
             })}
@@ -3018,10 +3062,12 @@ function MobileTabBar({
                 return !v;
               });
             }}
-            aria-label="Create"
+            aria-label={messagesUnread > 0 ? `Create (${messagesUnread} unread messages)` : "Create"}
             data-tour="create"
-            className="glass-tinted glass-hit flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-full"
+            className="glass-tinted glass-hit relative flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-full"
           >
+            {/* Unread client messages ride the + (the Message tile is inside) */}
+            {messagesUnread > 0 && !sheetOpen && <UnreadBubble count={messagesUnread} />}
             <span className="glass-press flex">
               <Plus
                 size={26}
@@ -3034,7 +3080,23 @@ function MobileTabBar({
           </button>
         )}
       </nav>
+      <ReachPicker
+        open={picker !== null}
+        onClose={() => setPicker(null)}
+        mode={picker ?? "message"}
+        sheet
+        hasLine={hasLine}
+      />
     </>
+  );
+}
+
+/** The red count on an icon's corner (iOS app-badge style). */
+function UnreadBubble({ count }: { count: number }) {
+  return (
+    <span className="pointer-events-none absolute -right-1.5 -top-1.5 z-10 flex h-[19px] min-w-[19px] items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold leading-none text-white ring-2 ring-[color:var(--fab-ring)] tabular-nums">
+      {count > 99 ? "99+" : count}
+    </span>
   );
 }
 
@@ -3123,7 +3185,7 @@ function MoreSheet({
   onClose: () => void;
   role: string;
   salesMoney: boolean;
-  counts: { requests: number; pastDue: number; chat: number; tasks: number };
+  counts: { requests: number; pastDue: number; chat: number; messages: number; tasks: number };
   teamCount: number;
   userName?: string | null;
   userEmail?: string | null;
@@ -3144,6 +3206,7 @@ function MoreSheet({
     if (href === "/app/invoices" && counts.pastDue > 0)
       return { count: counts.pastDue, urgent: true };
     if (href === "/app/chat" && counts.chat > 0) return { count: counts.chat, urgent: true };
+    if (href === "/app/messages" && counts.messages > 0) return { count: counts.messages, urgent: true };
     if (href === "/app/tasks" && counts.tasks > 0) return { count: counts.tasks, urgent: false };
     return null;
   };

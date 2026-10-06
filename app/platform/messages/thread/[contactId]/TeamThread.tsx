@@ -96,6 +96,7 @@ function Linkified({ text }: { text: string }) {
 
 export default function TeamThread({
   contactId,
+  justRead = 0,
   contactName,
   contactFirstName,
   companyName,
@@ -106,6 +107,8 @@ export default function TeamThread({
   tz,
 }: {
   contactId: string;
+  /** Client messages this page load just marked read — taken off the nav badges at once. */
+  justRead?: number;
   /** Full display name (the header). */
   contactName: string;
   /** What the copy calls them ("them" for a not-yet-saved number). */
@@ -161,9 +164,18 @@ export default function TeamThread({
   }
 
   // The server page marks this thread's inbound messages read as it renders
-  // — recount the nav badges on mount so the Messages dot clears right away.
+  // — take them off the nav badges now, then recount for the truth. Deferred
+  // a tick: this effect runs BEFORE AppShell's (children first), and on a
+  // navigation AppShell has just dropped its listener to re-add it, so an
+  // event sent here synchronously was lost and the count stayed up until
+  // the next 20 s poll (David 2026-10-06).
   useEffect(() => {
-    window.dispatchEvent(new CustomEvent("wb:nav-counts"));
+    const t = window.setTimeout(() => {
+      if (justRead > 0) window.dispatchEvent(new CustomEvent("wb:nav-counts", { detail: { messagesRead: justRead } }));
+      window.dispatchEvent(new CustomEvent("wb:nav-counts"));
+    }, 0);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contactId]);
 
   // Keep the view pinned to the newest message unless the user scrolled up.

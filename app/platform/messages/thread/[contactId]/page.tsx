@@ -77,7 +77,8 @@ export default async function MessageThreadPage({
 
   // Opening the thread is the read receipt — but only write when something
   // is actually unread (the page re-renders on every refresh).
-  if (messages.some((m) => m.direction === "INBOUND" && !m.readByTeamAt)) {
+  const justRead = messages.filter((m) => m.direction === "INBOUND" && !m.readByTeamAt).length;
+  if (justRead > 0) {
     await prisma.portalMessage.updateMany({
       where: { contactId: contact.id, direction: "INBOUND", readByTeamAt: null },
       data: { readByTeamAt: new Date() },
@@ -96,6 +97,7 @@ export default async function MessageThreadPage({
     <div className="mx-auto flex h-full w-full max-w-3xl flex-col lg:p-6">
       <TeamThread
         contactId={contact.id}
+        justRead={justRead}
         contactName={unnamed && contact.phone ? fmtPhone(contact.phone) : name}
         contactFirstName={unnamed ? "them" : contact.firstName}
         companyName={contact.companyName}

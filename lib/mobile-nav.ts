@@ -161,7 +161,9 @@ function fallbackFor(pathname: string): { label: string; to: string } | null {
  */
 export function mobileBackFor(
   pathname: string,
-  previous?: string | null
+  previous?: string | null,
+  /** The page's own parent (components/BackParent.tsx) — beats the route's when there's no history. */
+  declaredParent?: string | null
 ): { label: string; to: string } | null {
   if (!pathname.startsWith("/app/")) return null;
   if (TAB_ROOTS.has(pathname) || STANDALONE.has(pathname)) return null;
@@ -179,5 +181,7 @@ export function mobileBackFor(
       return { label: sameSection ? "Back" : label, to: cameFrom };
     }
   }
-  return ROOTS.has(pathname) ? null : fallbackFor(pathname);
+  if (ROOTS.has(pathname)) return null;
+  if (declaredParent) return { label: mobileLabelFor(declaredParent) ?? "Back", to: declaredParent };
+  return fallbackFor(pathname);
 }
