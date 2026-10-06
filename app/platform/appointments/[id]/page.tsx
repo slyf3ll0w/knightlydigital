@@ -103,6 +103,7 @@ export default async function AppointmentDetailPage({
           },
         },
         assignedTo: { select: { name: true } },
+        extraAssignees: { select: { userId: true, user: { select: { name: true } } } },
         // Billed straight from this appointment (no quote / job in between)
         invoices: {
           select: { id: true, invoiceNumber: true, status: true },
@@ -189,7 +190,10 @@ export default async function AppointmentDetailPage({
             address: appt.address ?? "",
             meetingLink: appt.meetingLink ?? "",
             notes: appt.notes ?? "",
-            assignedToId: appt.assignedToId ?? "",
+            assigneeIds: [
+              ...(appt.assignedToId ? [appt.assignedToId] : []),
+              ...appt.extraAssignees.map((e) => e.userId),
+            ],
           }}
           users={teamUsers}
           intervalMinutes={resolveSlotInterval({
@@ -252,10 +256,12 @@ export default async function AppointmentDetailPage({
             <p className="text-sm text-gray-800">{appt.contact.email}</p>
           </div>
         )}
-        {appt.assignedTo && (
+        {(appt.assignedTo || appt.extraAssignees.length > 0) && (
           <div className="flex items-start gap-3">
             <User size={15} className="text-gray-400 mt-0.5 shrink-0" />
-            <p className="text-sm text-gray-800">{appt.assignedTo.name}</p>
+            <p className="text-sm text-gray-800">
+              {[appt.assignedTo?.name, ...appt.extraAssignees.map((e) => e.user.name)].filter(Boolean).join(", ")}
+            </p>
           </div>
         )}
         <div className="flex items-start gap-3">

@@ -126,3 +126,29 @@ export function addMinutesToLocalDateTime(value: string, minutes: number): strin
   const dt = new Date(y, mo - 1, d, h, mi + minutes, 0, 0);
   return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
 }
+
+/**
+ * The end time after the START moved (David 2026-10-06): keep the length it
+ * had — a 1-hour visit moved to 1:00 ends at 2:00, on the new day too. With
+ * no usable previous length (end blank, or not after the old start) it falls
+ * back to `defaultMinutes`. Values are `YYYY-MM-DDTHH:mm` local strings.
+ */
+export function endFollowingStart(
+  prevStart: string,
+  prevEnd: string,
+  nextStart: string,
+  defaultMinutes: number
+): string {
+  if (!nextStart || nextStart.length < 16) return prevEnd;
+  const minutesOf = (v: string) => {
+    const { date, time } = splitLocalDateTime(v);
+    if (!date || !time) return null;
+    const [y, mo, d] = date.split("-").map(Number);
+    const [h, mi] = time.split(":").map(Number);
+    return new Date(y, mo - 1, d, h, mi).getTime() / 60_000;
+  };
+  const a = prevStart && prevStart.length >= 16 ? minutesOf(prevStart) : null;
+  const b = prevEnd && prevEnd.length >= 16 ? minutesOf(prevEnd) : null;
+  const length = a != null && b != null && b > a ? Math.round(b - a) : defaultMinutes;
+  return addMinutesToLocalDateTime(nextStart, length);
+}

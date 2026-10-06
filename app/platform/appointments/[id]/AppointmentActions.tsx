@@ -7,8 +7,10 @@ import { CalendarDays, Check, FileText, Loader2, MoreHorizontal, Pencil, Receipt
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO, appointmentTypeLabel } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
-import { addMinutesToLocalDateTime } from "@/lib/scheduling";
-import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
+import { endFollowingStart } from "@/lib/scheduling";
+import { confirmSheet } from "@/components/ConfirmSheet";
+import PeoplePicker from "@/components/PeoplePicker";
+import ScheduleHeadsUp, { useScheduleCheck } from "@/components/ScheduleHeadsUp";
 import Modal from "@/components/Modal";
 import MenuPopover from "@/components/MenuPopover";
 
@@ -26,7 +28,8 @@ type Details = {
   address: string;
   meetingLink: string;
   notes: string;
-  assignedToId: string;
+  /** Everyone on it, lead first (lib/appointment-people.ts). */
+  assigneeIds: string[];
 };
 
 function toLocalInput(d: string | null): string {
@@ -85,6 +88,41 @@ export default function AppointmentActions({
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Details>(details);
 
+  // Live heads-up (overlaps + drive time) while picking a new time, and in
+  // the edit dialog while changing who is on it or where it is
+  const rescheduleCheck = useScheduleCheck(
+    rescheduling && !anytime
+      ? {
+          start,
+          end,
+          userIds: details.assigneeIds,
+          onSite: details.type === "IN_PERSON",
+          address: details.address,
+          contactId,
+          excludeAppointmentId: appointmentId,
+        }
+      : null
+  );
+  const savedStart = toLocalInput(scheduledAt);
+  const editCheck = useScheduleCheck(
+    // only once something that matters changed — opening Edit to fix a typo
+    // shouldn't raise a warning about the time it already had
+    editing &&
+      !scheduledAnytime &&
+      status === "SCHEDULED" &&
+      (form.assigneeIds.join() !== details.assigneeIds.join() || form.type !== details.type || form.address !== details.address)
+      ? {
+          start: savedStart,
+          end: toLocalInput(scheduledEnd) || endFollowingStart("", "", savedStart, 60),
+          userIds: form.assigneeIds,
+          onSite: form.type === "IN_PERSON",
+          address: form.address,
+          contactId,
+          excludeAppointmentId: appointmentId,
+        }
+      : null
+  );
+
   function openEdit() {
     setForm(details);
     setError("");
@@ -119,7 +157,7 @@ export default function AppointmentActions({
       address: form.address,
       meetingLink: form.meetingLink,
       notes: form.notes,
-      ...(users.length > 0 && { assignedToId: form.assignedToId || null }),
+      ...(users.length > 0 && { assigneeIds: form.assigneeIds }),
     });
     if (ok) setEditing(false);
   }
@@ -138,14 +176,8 @@ export default function AppointmentActions({
       return false;
     }
     setMenuOpen(false);
-    // The server computes double-booking on schedule changes — show it
-    // instead of discarding it (saved either way; it's a heads-up)
-    if (data?.conflicts?.length) {
-      await alertSheet({
-        title: "Saved, with a heads-up",
-        message: `This time overlaps:\n${data.conflicts.join("\n")}`,
-      });
-    }
+    // Overlaps and drive time were shown live under the fields before the
+    // save (ScheduleHeadsUp) — no second pop-up after it.
     router.refresh();
     return true;
   }
@@ -381,11 +413,10 @@ export default function AppointmentActions({
                   inputCls="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                   ariaLabel="Start"
                   onChange={(next) => {
+                    // The end keeps the length it had (David 2026-10-06):
+                    // a 1-hour visit moved to 1:00 now ends at 2:00
+                    setEnd(endFollowingStart(start, end, next, 30));
                     setStart(next);
-                    // Default the end 30 minutes out while it hasn't been set.
-                    if (next && next.length >= 16 && !end) {
-                      setEnd(addMinutesToLocalDateTime(next, 30));
-                    }
                   }}
                 />
               </div>
@@ -423,6 +454,7 @@ export default function AppointmentActions({
           </button>
         </div>
       )}
+      {rescheduling && !anytime && <ScheduleHeadsUp result={rescheduleCheck} />}
 
       {error && <p className="text-xs text-red-600">{error}</p>}
 
@@ -461,26 +493,19 @@ export default function AppointmentActions({
                   ))}
                 </select>
               </div>
-              {users.length > 0 && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-0.5">
-                    Assigned to
-                  </label>
-                  <select
-                    value={form.assignedToId}
-                    onChange={(e) => setForm((f) => ({ ...f, assignedToId: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-                  >
-                    <option value="">Unassigned</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
             </div>
+            {users.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Team members</label>
+                <PeoplePicker
+                  users={users}
+                  value={form.assigneeIds}
+                  allowNone
+                  onChange={(ids) => setForm((f) => ({ ...f, assigneeIds: ids }))}
+                />
+              </div>
+            )}
+            <ScheduleHeadsUp result={editCheck} />
 
             {form.type === "IN_PERSON" && (
               <div>

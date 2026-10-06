@@ -237,7 +237,8 @@ export async function loadPoolWithBusy(
     db.appointment.findMany({
       where: {
         companyId,
-        OR: [{ assignedToId: null }, { assignedToId: { in: ids } }],
+        // nobody yet, or any of these people — lead or extra (lib/appointment-people.ts)
+        OR: [{ assignedToId: null }, { assignedToId: { in: ids } }, { extraAssignees: { some: { userId: { in: ids } } } }],
         status: "SCHEDULED",
         scheduledAnytime: false,
         ...(opts.excludeAppointmentId ? { id: { not: opts.excludeAppointmentId } } : {}),
@@ -245,6 +246,7 @@ export async function loadPoolWithBusy(
       },
       select: {
         assignedToId: true,
+        extraAssignees: { select: { userId: true } },
         scheduledAt: true,
         scheduledEnd: true,
         type: true,
@@ -300,7 +302,10 @@ export async function loadPoolWithBusy(
   const endOf = (s: Date, e: Date | null) => e ?? new Date(s.getTime() + HOUR);
 
   for (const a of appointments) {
-    push(a.assignedToId, {
+    // Busy for everyone on it: the lead (or the whole pool when nobody is),
+    // then each extra person
+    const extras = a.extraAssignees.map((e) => e.userId).filter((u) => u !== a.assignedToId);
+    for (const who of [a.assignedToId, ...extras]) push(who, {
       start: a.scheduledAt,
       end: endOf(a.scheduledAt, a.scheduledEnd),
       bookingTypeId: a.bookingTypeId,

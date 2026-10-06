@@ -10,7 +10,6 @@ import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import { Suspense } from "react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
-import { alertSheet } from "@/components/ConfirmSheet";
 import { localInputToISO } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
 import ContactPicker from "@/components/ContactPicker";
@@ -21,10 +20,11 @@ import LineItemsEditor, {
   payloadRecurringInterval,
 } from "@/components/LineItemsEditor";
 import {
-  addMinutesToLocalDateTime,
   DEFAULT_SLOT_INTERVAL_MINUTES,
   DEFAULT_JOB_DURATION_MINUTES,
+  endFollowingStart,
 } from "@/lib/scheduling";
+import ScheduleHeadsUp, { useScheduleCheck } from "@/components/ScheduleHeadsUp";
 import { ARRIVAL_WINDOW_CHOICES, arrivalWindowChoiceLabel } from "@/lib/arrival-window";
 import { looksLikeAppointment } from "@/lib/appointment-hint";
 import { titleFromServices } from "@/lib/service-title";
@@ -189,6 +189,22 @@ function NewJobForm() {
       ]
     : [];
 
+  // Live heads-up: anyone on it already booked then, or unable to drive
+  // there / on to their next stop in time (David 2026-10-06)
+  const check = useScheduleCheck(
+    anytime || outsourced
+      ? null
+      : {
+          start: form.scheduledAt,
+          end: form.scheduledEnd,
+          userIds: assigneeIds,
+          onSite: true,
+          address: form.address || null,
+          propertyId: form.propertyId || null,
+          contactId: form.contactId || null,
+        }
+  );
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.contactId) {
@@ -250,13 +266,8 @@ function NewJobForm() {
       return;
     }
 
-    // The job saved either way — double-booking is a heads-up, not a block
-    if (data.conflicts?.length) {
-      await alertSheet({
-        title: "Scheduled, with a heads-up",
-        message: `This time overlaps:\n${data.conflicts.join("\n")}`,
-      });
-    }
+    // Overlaps and drive time were shown live under the time fields
+    // (ScheduleHeadsUp) — no second pop-up after the save.
 
     refreshRecentTitles();
     router.push(`/app/jobs/${data.id}`);
@@ -433,13 +444,14 @@ function NewJobForm() {
                   inputCls="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                   ariaLabel="Start"
                   onChange={(next) => {
+                    // The end keeps the length already picked (an hour to
+                    // start with): move a 1-hour visit to 1:00 and it ends
+                    // at 2:00 (David 2026-10-06)
+                    set(
+                      "scheduledEnd",
+                      endFollowingStart(form.scheduledAt, form.scheduledEnd, next, DEFAULT_JOB_DURATION_MINUTES)
+                    );
                     set("scheduledAt", next);
-                    if (!form.scheduledEnd && next.length >= 16) {
-                      set(
-                        "scheduledEnd",
-                        addMinutesToLocalDateTime(next, DEFAULT_JOB_DURATION_MINUTES)
-                      );
-                    }
                   }}
                 />
               </div>
@@ -465,6 +477,7 @@ function NewJobForm() {
             />
             Anytime (no set time)
           </label>
+          {!anytime && <ScheduleHeadsUp result={check} />}
           {!anytime && form.scheduledAt.length >= 10 && assigneeIds.length > 0 && (
             <SuggestedTimes
               date={form.scheduledAt.slice(0, 10)}

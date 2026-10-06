@@ -292,6 +292,7 @@ export default async function JobDetailPage({
             arriveBeforeMin={job.arriveBeforeMin}
             address={completeAddress(job.address, job.contact) ?? composeAddress(job.contact)}
             assigneeId={job.assignments[0]?.userId ?? actor.id}
+            crewIds={job.assignments.map((a) => a.userId)}
             intervalMinutes={resolveSlotInterval({
               companyIntervalMinutes: company?.schedulingIntervalMinutes,
             })}

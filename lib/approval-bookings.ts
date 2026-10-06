@@ -56,6 +56,7 @@ export async function expireApprovalBookings(now: Date): Promise<{ expired: numb
     },
     include: {
       request: { select: { id: true, title: true, contactId: true } },
+      extraAssignees: { select: { userId: true } },
       contact: { select: { id: true, firstName: true, email: true } },
       company: {
         select: {
@@ -119,6 +120,7 @@ export async function expireApprovalBookings(now: Date): Promise<{ expired: numb
 
       const targets = new Set(await companyManagerIds(appt.company.id));
       if (appt.assignedToId) targets.add(appt.assignedToId);
+      for (const e of appt.extraAssignees) targets.add(e.userId);
       await notifyUsers([...targets], {
         title: "Booking expired unanswered",
         body: `${appt.contact.firstName}'s ${appt.request.title} (${windowLabel}) was never accepted — the time was released and they were told.`,

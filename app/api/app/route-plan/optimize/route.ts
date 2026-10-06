@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apptForUsers, peopleOf, peopleSelect } from "@/lib/appointment-people";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { parseRouteDate, resolveRouteDay, dayStartFor, type RouteStop } from "@/lib/route-plan";
@@ -286,12 +287,12 @@ export async function POST(req: NextRequest) {
     prisma.appointment.findMany({
       where: {
         companyId: actor.companyId,
-        assignedToId: { in: scanUserIds },
+        ...apptForUsers(scanUserIds),
         status: "SCHEDULED",
         scheduledAnytime: false,
         scheduledAt: { gte: dayStart, lt: dayEnd },
       },
-      select: { id: true, title: true, scheduledAt: true, scheduledEnd: true, assignedToId: true },
+      select: { id: true, title: true, scheduledAt: true, scheduledEnd: true, ...peopleSelect },
     }),
     prisma.timeBlock.findMany({
       where: {
@@ -342,7 +343,7 @@ export async function POST(req: NextRequest) {
     );
   const fixed: Interval[] = [
     ...blocks.filter((b) => b.userId === userId || b.userId == null).map((b) => clip(b.startAt, b.endAt, 60)),
-    ...appts.filter((a) => a.assignedToId === userId).map((a) => clip(a.scheduledAt, a.scheduledEnd, 30)),
+    ...appts.filter((a) => peopleOf(a).includes(userId)).map((a) => clip(a.scheduledAt, a.scheduledEnd, 30)),
     ...otherJobs
       .filter((j) => j.scheduledAt && j.assignments.some((x) => x.userId === userId))
       .map((j) => clip(j.scheduledAt!, j.scheduledEnd, DEFAULT_JOB_DURATION_MINUTES)),
@@ -429,7 +430,7 @@ export async function POST(req: NextRequest) {
       const ae = (a.scheduledEnd ?? new Date(a.scheduledAt.getTime() + 3600_000)).getTime();
       if (ps < ae && pe > a.scheduledAt.getTime()) {
         warnings.push(
-          `"${p.title}" overlaps appointment "${a.title}" (${fmt(a.scheduledAt)})${whose(a.assignedToId)}`
+          `"${p.title}" overlaps appointment "${a.title}" (${fmt(a.scheduledAt)})${whose(peopleOf(a).find((id) => scanUserIds.includes(id)) ?? a.assignedToId)}`
         );
       }
     }

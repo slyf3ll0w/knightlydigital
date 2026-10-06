@@ -769,12 +769,14 @@ export async function runAppointmentTechHeadsUp(now: Date = new Date()): Promise
       scheduledAnytime: false,
       scheduledAt: { gt: now, lte: new Date(now.getTime() + HOUR_STAGE_MS) },
       techHeadsUpSentAt: null,
+      // the lead is always set when anyone is on it (lib/appointment-people.ts)
       assignedToId: { not: null },
       company: { is: { suspendedAt: null } },
     },
     include: {
       contact: { select: { firstName: true, lastName: true, phone: true } },
       company: { select: { timezone: true, arrivalWindowMinutes: true } },
+      extraAssignees: { select: { userId: true } },
     },
     orderBy: { scheduledAt: "asc" },
     take: 1000,
@@ -804,7 +806,8 @@ export async function runAppointmentTechHeadsUp(now: Date = new Date()): Promise
           : appt.type === "VIDEO_CALL"
             ? `video call with ${who}`
             : [who, appt.address].filter(Boolean).join(" · ");
-      await notifyUser(appt.assignedToId, {
+      // Everyone going hears it, not just the lead
+      await notifyUsers([appt.assignedToId, ...appt.extraAssignees.map((e) => e.userId)], {
         title: `Up next at ${windowLabel}`,
         body: `${appt.title} — ${how}`,
         url: `/app/appointments/${appt.id}`,

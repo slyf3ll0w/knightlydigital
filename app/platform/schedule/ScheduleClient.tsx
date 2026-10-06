@@ -339,8 +339,8 @@ export default function ScheduleClient({
       body.scheduledAnytime = next.scheduledAnytime;
     }
     if (crewChanged) {
-      if (item.kind === "job") body.assigneeIds = next.assigneeIds;
-      else body.assignedToId = next.assigneeIds[0] ?? null;
+      // Jobs and appointments both take the whole list (appointments can have several people since 2026-10-06)
+      body.assigneeIds = next.assigneeIds;
     }
     const endpoint = item.kind === "appointment" ? `/api/app/appointments/${item.id}` : `/api/app/jobs/${item.id}`;
 

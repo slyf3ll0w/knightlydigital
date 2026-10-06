@@ -40,6 +40,7 @@ export default async function AppointmentsPage() {
       include: {
         contact: { select: { firstName: true, lastName: true } },
         assignedTo: { select: { name: true } },
+        _count: { select: { extraAssignees: true } },
       },
     }),
     prisma.appointment.findMany({
@@ -56,6 +57,7 @@ export default async function AppointmentsPage() {
       include: {
         contact: { select: { firstName: true, lastName: true } },
         assignedTo: { select: { name: true } },
+        _count: { select: { extraAssignees: true } },
       },
     }),
   ]);
@@ -94,7 +96,7 @@ export default async function AppointmentsPage() {
                   {a.contact.firstName} {a.contact.lastName} · {typeLabel[a.type] ?? a.type} ·{" "}
                   {shortDate(a.scheduledAt, tz)}
                   {!a.scheduledAnytime && ` ${fmtTime(a.scheduledAt, tz)}`}
-                  {a.assignedTo?.name ? ` · ${a.assignedTo.name}` : ""}
+                  {a.assignedTo?.name ? ` · ${a.assignedTo.name}${a._count.extraAssignees ? ` +${a._count.extraAssignees}` : ""}` : ""}
                 </p>
               </div>
               <StatusChip kind="appointment" status={a.status} className="shrink-0 hidden sm:inline-flex" />

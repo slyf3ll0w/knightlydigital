@@ -155,7 +155,7 @@ export default async function DashboardPage() {
             status: "SCHEDULED",
             scheduledAt: { gte: startOfDay, lt: endOfDay },
           },
-          include: { contact: true, assignedTo: { select: { name: true } } },
+          include: { contact: true, assignedTo: { select: { name: true } }, _count: { select: { extraAssignees: true } } },
           orderBy: { scheduledAt: "asc" },
         })
       : Promise.resolve([]),
@@ -435,7 +435,10 @@ export default async function DashboardPage() {
       apptType: a.type as string | null,
       time: a.scheduledAnytime ? "Anytime" : fmtTime(new Date(a.scheduledAt)),
       primary: `${a.contact.firstName} ${a.contact.lastName} — ${a.title}`,
-      detail: [appointmentTypeLabel[a.type], a.assignedTo?.name ?? null]
+      detail: [
+        appointmentTypeLabel[a.type],
+        a.assignedTo?.name ? `${a.assignedTo.name}${a._count.extraAssignees ? ` +${a._count.extraAssignees}` : ""}` : null,
+      ]
         .filter(Boolean)
         .join(" · "),
       title: a.title,

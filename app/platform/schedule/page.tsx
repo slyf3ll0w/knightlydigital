@@ -6,6 +6,7 @@ import { DAY_KEYS, earliestOpenMinutes, sanitizeBusinessHours, timeToMinutes } f
 import { resolveSlotInterval } from "@/lib/scheduling";
 import ScheduleClient from "./ScheduleClient";
 import type { ScheduleJobDTO, WeekHours } from "./schedule-lib";
+import { apptForUser } from "@/lib/appointment-people";
 
 /**
  * Schedule — month / week / day calendar (Jobber-style, spec §6).
@@ -88,6 +89,7 @@ type ApptWithContact = {
   tentative: boolean;
   contact: { firstName: string; lastName: string; phone: string | null; address: string | null };
   assignedTo?: { name: string | null } | null;
+  extraAssignees?: { userId: string; user: { name: string | null } }[];
 };
 
 function apptToDTO(a: ApptWithContact): ScheduleJobDTO {
@@ -105,8 +107,11 @@ function apptToDTO(a: ApptWithContact): ScheduleJobDTO {
     contactId: a.contactId,
     requestId: a.requestId,
     tentative: a.tentative,
-    assignees: a.assignedTo?.name?.trim() ? [a.assignedTo.name.trim()] : [],
-    assigneeIds: a.assignedToId ? [a.assignedToId] : [],
+    // Lead first, then everyone else on it (lib/appointment-people.ts)
+    assignees: [a.assignedTo?.name, ...(a.extraAssignees ?? []).map((e) => e.user.name)]
+      .map((n) => n?.trim())
+      .filter((n): n is string => Boolean(n)),
+    assigneeIds: [...(a.assignedToId ? [a.assignedToId] : []), ...(a.extraAssignees ?? []).map((e) => e.userId)],
     phone: a.contact.phone,
     // Directions only make sense for an on-site visit
     address: a.type === "IN_PERSON" ? a.contact.address : null,
@@ -287,11 +292,12 @@ export default async function SchedulePage({
         ...appointmentScope(actor),
         status: { not: "CANCELLED" },
         scheduledAt: { gte: fetchStart, lte: fetchEnd },
-        ...(team ? { assignedToId: team } : {}),
+        ...(team ? { AND: [apptForUser(team)] } : {}),
       },
       include: {
         contact: { select: { firstName: true, lastName: true, phone: true, address: true } },
         assignedTo: { select: { name: true } },
+        extraAssignees: { select: { userId: true, user: { select: { name: true } } } },
       },
       orderBy: { scheduledAt: "asc" },
     }),

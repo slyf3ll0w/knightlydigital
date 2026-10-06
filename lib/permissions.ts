@@ -192,12 +192,17 @@ export function jobScope(actor: Actor): Record<string, unknown> {
 
 /**
  * Appointments (sales meetings/estimates): managers see all; sales/USER see
- * their leads' appointments plus any assigned directly to them. Techs none.
+ * their leads' appointments plus any they are on (lead or extra). Techs none.
  */
 export function appointmentScope(actor: Actor): Record<string, unknown> {
   if (isManager(actor.role)) return {};
   return {
-    OR: [{ contact: { assignedToId: actor.id } }, { assignedToId: actor.id }],
+    OR: [
+      { contact: { assignedToId: actor.id } },
+      { assignedToId: actor.id },
+      // a second (third…) person on it sees it too
+      { extraAssignees: { some: { userId: actor.id } } },
+    ],
   };
 }
 

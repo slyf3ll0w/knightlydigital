@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager, appointmentScope } from "@/lib/permissions";
 import { findScheduleConflicts } from "@/lib/schedule-conflicts";
 import { fireAutomations } from "@/lib/automations-server";
+import { checkPeople, peopleOf, requestedPeople, setExtraPeople } from "@/lib/appointment-people";
 
 const validTypes = ["PHONE_CALL", "VIDEO_CALL", "IN_PERSON"];
 const validStatuses = ["SCHEDULED", "COMPLETED", "CANCELLED", "NO_SHOW"];
@@ -22,6 +23,7 @@ export async function PATCH(
   const { id } = await params;
   const appt = await prisma.appointment.findFirst({
     where: { id, companyId: actor.companyId, ...appointmentScope(actor) },
+    include: { extraAssignees: { select: { userId: true } } },
   });
   if (!appt) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -103,36 +105,32 @@ export async function PATCH(
   // PATCH). Anyone else sending a DIFFERENT assignee gets told no instead of
   // a 200 that quietly kept the old tech — the appointment edit form echoes
   // the current assignee back, so an unchanged value is not a reassignment.
-  if (body.assignedToId !== undefined) {
-    const requested = body.assignedToId ? String(body.assignedToId) : null;
-    if (requested !== appt.assignedToId && !(isManager(actor.role) || actor.role === "USER")) {
+  // `assigneeIds` = everyone on it, lead first; the old single
+  // `assignedToId` (calendar drag, older clients) replaces the LEAD only and
+  // keeps the extras. Techs can't open appointments at all (pages + this
+  // route need canSell), so one on them would be invisible to them.
+  const before = peopleOf(appt);
+  let people: string[] | undefined;
+  if (Array.isArray(body.assigneeIds)) people = requestedPeople(body);
+  else if (body.assignedToId !== undefined) {
+    const lead = body.assignedToId ? String(body.assignedToId) : null;
+    people = lead ? [lead, ...before.slice(1).filter((x) => x !== lead)] : before.slice(1);
+  }
+  const peopleChanged = people !== undefined && people.join() !== before.join();
+  if (peopleChanged) {
+    if (!(isManager(actor.role) || actor.role === "USER")) {
       return NextResponse.json({ error: "Only managers and dispatchers can reassign appointments." }, { status: 403 });
     }
-  }
-  if (body.assignedToId !== undefined && (isManager(actor.role) || actor.role === "USER")) {
-    if (!body.assignedToId) {
-      data.assignedToId = null;
-    } else {
-      // Techs can't open appointments at all (pages + this route need
-      // canSell), so one assigned to them would be invisible to the person
-      // meant to show up.
-      const target = await prisma.user.findFirst({
-        where: { id: body.assignedToId, companyId: actor.companyId, isActive: true, role: { not: "TECH" } },
-        select: { id: true },
-      });
-      if (!target) {
-        return NextResponse.json(
-          { error: "Appointments can only be assigned to team members who handle sales (not techs)." },
-          { status: 400 }
-        );
-      }
-      data.assignedToId = target.id;
-    }
+    const bad = await checkPeople(actor.companyId, people!);
+    if (bad) return NextResponse.json({ error: bad }, { status: 400 });
+    data.assignedToId = people![0] ?? null;
   }
 
   if (Object.keys(data).length === 0) return NextResponse.json({ success: true });
 
   const updated = await prisma.appointment.update({ where: { id: appt.id }, data });
+  if (peopleChanged) await setExtraPeople(appt.id, people!);
+  const nowPeople = peopleChanged ? people! : before;
 
   if (updated.status !== appt.status) {
     if (updated.status === "CANCELLED") fireAutomations(actor.companyId, "appointment.cancelled", updated.id);
@@ -144,16 +142,16 @@ export async function PATCH(
   // Non-blocking double-booking heads-up when the time or assignee moved
   let conflicts: string[] = [];
   if (
-    (body.scheduledAt !== undefined || body.scheduledEnd !== undefined || body.assignedToId !== undefined) &&
+    (body.scheduledAt !== undefined || body.scheduledEnd !== undefined || peopleChanged) &&
     updated.status === "SCHEDULED" &&
     !updated.scheduledAnytime &&
-    updated.assignedToId
+    nowPeople.length > 0
   ) {
     conflicts = await findScheduleConflicts({
       companyId: actor.companyId,
       start: updated.scheduledAt,
       end: updated.scheduledEnd ?? new Date(updated.scheduledAt.getTime() + 3600_000),
-      userIds: [updated.assignedToId],
+      userIds: nowPeople,
       excludeAppointmentId: updated.id,
     }).catch(() => []);
   }

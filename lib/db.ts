@@ -39,7 +39,7 @@ globalForPrisma.prisma = prisma;
 // file stays dependency-free and the hook costs nothing until a company has
 // actually connected a Google account. Prisma 5's `$use` is deprecated in
 // favor of client extensions but still supported; swap when we upgrade.
-const SCHEDULE_MODELS = new Set(["Job", "JobAssignment", "Appointment", "TimeBlock"]);
+const SCHEDULE_MODELS = new Set(["Job", "JobAssignment", "Appointment", "AppointmentAssignee", "TimeBlock"]);
 const WRITE_ACTIONS = new Set(["create", "update", "upsert", "delete", "createMany", "updateMany", "deleteMany"]);
 
 // ─── Contact.phoneDigits ─────────────────────────────────────────────────────

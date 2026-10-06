@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { apptForUsers, peopleOf, peopleSelect } from "@/lib/appointment-people";
 
 /**
  * Internal double-booking detection. The calendar deliberately allows
@@ -89,11 +90,12 @@ export async function findScheduleConflicts(params: {
             ],
           },
           {
-            OR: [{ assignedToId: { in: userIds } }, { assignedToId: null }],
+            // Lead, extra (lib/appointment-people.ts) or nobody yet
+            OR: [...(apptForUsers(userIds).OR ?? []), { assignedToId: null }],
           },
         ],
       },
-      select: { title: true, scheduledAt: true, scheduledEnd: true, assignedToId: true },
+      select: { title: true, scheduledAt: true, scheduledEnd: true, ...peopleSelect },
       orderBy: { scheduledAt: "asc" },
       take: 50,
     }),
@@ -138,7 +140,8 @@ export async function findScheduleConflicts(params: {
   for (const a of appointments) {
     const aEnd = endOf(a.scheduledAt, a.scheduledEnd);
     if (aEnd <= start) continue;
-    const label = a.assignedToId === null ? "unassigned" : nameOf(a.assignedToId);
+    const people = peopleOf(a);
+    const label = people.length === 0 ? "unassigned" : nameOf(people.find((id) => userIds.includes(id)) ?? people[0]);
     conflicts.push(
       `Appointment "${a.title}" — ${label}, ${fmt(a.scheduledAt)}–${fmt(aEnd)}`
     );

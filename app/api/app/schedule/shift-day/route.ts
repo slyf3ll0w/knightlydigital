@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apptForUser } from "@/lib/appointment-people";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { findScheduleConflicts } from "@/lib/schedule-conflicts";
@@ -93,7 +94,7 @@ export async function POST(req: NextRequest) {
             companyId,
             status: "SCHEDULED",
             scheduledAt: { gte: dayStart, lt: dayEnd },
-            ...(userId ? { assignedToId: userId } : {}),
+            ...(userId ? apptForUser(userId) : {}),
             ...(onlyIds ? { id: { in: onlyIds } } : {}),
           },
           select: {

@@ -13,7 +13,9 @@ import { localInputToISO } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
 import ContactPicker from "@/components/ContactPicker";
 import SuggestedTimes from "@/components/SuggestedTimes";
-import { addMinutesToLocalDateTime } from "@/lib/scheduling";
+import { endFollowingStart } from "@/lib/scheduling";
+import PeoplePicker from "@/components/PeoplePicker";
+import ScheduleHeadsUp, { useScheduleCheck } from "@/components/ScheduleHeadsUp";
 import { ARRIVAL_WINDOW_CHOICES, arrivalWindowChoiceLabel } from "@/lib/arrival-window";
 import { InfoTip } from "@/components/ds";
 import { RecentTitleOptions, refreshRecentTitles, useRecentTitles } from "@/components/RecentTitles";
@@ -99,7 +101,8 @@ export default function AppointmentForm({
   const [addressTouched, setAddressTouched] = useState(false);
   const [propertyId, setPropertyId] = useState(""); // saved-extra-address link
   const [meetingLink, setMeetingLink] = useState("");
-  const [assignedToId, setAssignedToId] = useState(actorId);
+  // Everyone going, lead first (David 2026-10-06: more than one person)
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([actorId]);
   const [notes, setNotes] = useState("");
   const [remindClient, setRemindClient] = useState(true);
   const [sendConfirmation, setSendConfirmation] = useState(true);
@@ -117,13 +120,28 @@ export default function AppointmentForm({
   }
 
   function pickStart(v: string) {
+    // The end keeps the length already picked (30 minutes to start with —
+    // appointments are quick touchpoints): move a 1-hour visit to 1:00 and
+    // it ends at 2:00 (David 2026-10-06)
+    setEnd(endFollowingStart(start, end, v, 30));
     setStart(v);
-    // Default the end 30 minutes later while it hasn't been customized —
-    // appointments are quick touchpoints regardless of the job slot interval.
-    if (v && v.length >= 16 && !end) {
-      setEnd(addMinutesToLocalDateTime(v, 30));
-    }
   }
+
+  // Live heads-up: anyone going already booked then, or can't drive there
+  // (or on to their next stop) in time
+  const check = useScheduleCheck(
+    anytime
+      ? null
+      : {
+          start,
+          end,
+          userIds: assigneeIds,
+          onSite: type === "IN_PERSON",
+          address: type === "IN_PERSON" ? effectiveAddress : null,
+          propertyId: type === "IN_PERSON" ? propertyId || null : null,
+          contactId: contactId || null,
+        }
+  );
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -157,7 +175,7 @@ export default function AppointmentForm({
       address: type === "IN_PERSON" ? effectiveAddress : null,
       propertyId: type === "IN_PERSON" ? propertyId || null : null,
       meetingLink: type === "VIDEO_CALL" ? meetingLink : null,
-      assignedToId,
+      assigneeIds,
       notes,
       remindClient,
       sendConfirmation,
@@ -170,13 +188,8 @@ export default function AppointmentForm({
       return;
     }
 
-    // The appointment saved either way — double-booking is a heads-up, not a block
-    if (data.conflicts?.length) {
-      await alertSheet({
-        title: "Booked, with a heads-up",
-        message: `This time overlaps:\n${data.conflicts.join("\n")}`,
-      });
-    }
+    // Overlaps and drive time were shown live under the time fields
+    // (ScheduleHeadsUp) — no second pop-up after the save.
     // Asked for a confirmation and nothing could go out (no phone or email,
     // texts off for this client, texting not live on the line yet) — say so
     // here, not silently; the appointment page explains the why.
@@ -374,7 +387,7 @@ export default function AppointmentForm({
           {!anytime && start.length >= 10 && (
             <SuggestedTimes
               date={start.slice(0, 10)}
-              userId={assignedToId}
+              userId={assigneeIds[0]}
               address={type === "IN_PERSON" ? effectiveAddress : null}
               durationMinutes={30}
               onPick={(s, e) => {
@@ -383,6 +396,7 @@ export default function AppointmentForm({
               }}
             />
           )}
+          {!anytime && <ScheduleHeadsUp result={check} />}
           {type === "IN_PERSON" && !anytime && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -404,14 +418,11 @@ export default function AppointmentForm({
           <h2 className="text-sm font-semibold text-gray-700">Details</h2>
           {users.length > 1 && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Assigned to</label>
-              <select value={assignedToId} onChange={(e) => setAssignedToId(e.target.value)} className={inputCls}>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
-                ))}
-              </select>
+              <div className="mb-1 flex items-center gap-1 text-sm font-medium text-gray-700">
+                Team members
+                <InfoTip>Tick everyone going. It shows on each person&apos;s schedule and calendar, and blocks their online-booking times.</InfoTip>
+              </div>
+              <PeoplePicker users={users} value={assigneeIds} onChange={setAssigneeIds} />
             </div>
           )}
           <div>

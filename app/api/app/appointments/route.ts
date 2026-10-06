@@ -8,6 +8,7 @@ import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { rememberTitle } from "@/lib/recent-titles";
 import { sendAppointmentConfirmation } from "@/lib/appointment-confirm";
+import { checkPeople, requestedPeople, setExtraPeople } from "@/lib/appointment-people";
 
 const validTypes = ["PHONE_CALL", "VIDEO_CALL", "IN_PERSON"];
 
@@ -62,20 +63,16 @@ export async function POST(req: NextRequest) {
   // anyone but a TECH, who can't open appointments at all (the pages and
   // PATCH require canSell), so an appointment on them would be invisible to
   // the one person meant to show up.
-  let assignedToId = actor.id;
-  if (isManager(actor.role) && body.assignedToId) {
-    const target = await prisma.user.findFirst({
-      where: { id: body.assignedToId, companyId, isActive: true, role: { not: "TECH" } },
-      select: { id: true },
-    });
-    if (!target) {
-      return NextResponse.json(
-        { error: "Appointments can only be assigned to team members who handle sales (not techs)." },
-        { status: 400 }
-      );
-    }
-    assignedToId = target.id;
+  // Several people may go (assigneeIds, lead first — lib/appointment-people.ts);
+  // the old single assignedToId still works.
+  let people = [actor.id];
+  const asked = requestedPeople(body);
+  if (isManager(actor.role) && asked && asked.length > 0) {
+    const bad = await checkPeople(companyId, asked);
+    if (bad) return NextResponse.json({ error: bad }, { status: 400 });
+    people = asked;
   }
+  const assignedToId = people[0];
 
   const start = new Date(scheduledAt);
   const anytime = Boolean(scheduledAnytime);
@@ -125,6 +122,8 @@ export async function POST(req: NextRequest) {
     });
   });
 
+  if (people.length > 1) await setExtraPeople(appointment.id, people);
+
   // A purpose the user typed starts their next appointment form
   if (body.rememberTitle === true) await rememberTitle(actor.id, "appointment", title).catch(() => {});
 
@@ -147,7 +146,7 @@ export async function POST(req: NextRequest) {
       start,
       // No end picked = the same 1-hour default window the PATCH route uses
       end: end ?? new Date(start.getTime() + 3600_000),
-      userIds: [assignedToId],
+      userIds: people,
       excludeAppointmentId: appointment.id,
     }).catch(() => []);
   }

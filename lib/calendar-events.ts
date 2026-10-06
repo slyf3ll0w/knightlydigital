@@ -10,6 +10,7 @@
  */
 
 import type { Prisma } from "@prisma/client";
+import { apptForUser } from "@/lib/appointment-people";
 import { prisma } from "@/lib/db";
 import { soloMemberId } from "@/lib/job-crew";
 import {
@@ -118,7 +119,7 @@ export async function loadUserCalendarEvents(
     prisma.appointment.findMany({
       where: {
         companyId,
-        assignedToId: userId,
+        ...apptForUser(userId),
         status: { not: "CANCELLED" },
         scheduledAt: { gte: window.from, lte: window.to },
       },
@@ -172,7 +173,7 @@ export async function loadCalendarEventsByIds(
       : [],
     ids.APPOINTMENT.length
       ? prisma.appointment.findMany({
-          where: { id: { in: ids.APPOINTMENT }, companyId, assignedToId: userId, status: { not: "CANCELLED" } },
+          where: { id: { in: ids.APPOINTMENT }, companyId, ...apptForUser(userId), status: { not: "CANCELLED" } },
           select: appointmentSelect,
         })
       : [],

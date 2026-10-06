@@ -17,6 +17,7 @@
  */
 
 import { prisma } from "@/lib/db";
+import { peopleOf } from "@/lib/appointment-people";
 import { completeAddress, composeAddress, geocodeAddress, geocodingEnabled } from "@/lib/geocoding";
 import type { Actor } from "@/lib/permissions";
 import { appointmentScope, isManager, jobScope } from "@/lib/permissions";
@@ -232,6 +233,7 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
       include: {
         contact: { select: { firstName: true, lastName: true, city: true, state: true, zip: true } },
         property: true,
+        extraAssignees: { select: { userId: true } },
       },
       orderBy: { scheduledAt: "asc" },
       take: 100,
@@ -319,7 +321,7 @@ export async function resolveRouteDay(actor: Actor, date: Date): Promise<RouteDa
       reminded: a.reminderDaySentAt != null || a.reminderHourSentAt != null,
       windowStart: null,
       windowEnd: null,
-      assigneeIds: a.assignedToId ? [a.assignedToId] : [],
+      assigneeIds: peopleOf(a),
       lat,
       lng,
     };

@@ -1,4 +1,5 @@
 import { prisma } from "../db";
+import { apptForUser } from "@/lib/appointment-people";
 import {
   canSell,
   canSeeMoney,
@@ -335,7 +336,7 @@ export const recordsTools: Tool[] = [
           const where = {
             companyId, ...appointmentScope(actor), ...clientWhere,
             ...(st.length ? { status: { in: st as never[] } } : {}),
-            ...(assigneeId ? { assignedToId: assigneeId } : {}),
+            ...(assigneeId ? { AND: [apptForUser(assigneeId)] } : {}),
             ...(dates ? { scheduledAt: dates } : {}),
             ...(n !== null ? { appointmentNumber: n } : q ? { OR: [{ title: { contains: q, mode: "insensitive" as const } }, clientQ] } : {}),
           };

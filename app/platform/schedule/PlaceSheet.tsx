@@ -402,7 +402,7 @@ export default function PlaceSheet({
           scheduledEnd,
           scheduledAnytime: false,
           address: apptType === "IN_PERSON" ? address.trim() : undefined,
-          assignedToId: assignees[0] ?? meId,
+          assigneeIds: assignees.length ? assignees : [meId],
           sendConfirmation,
         });
         if (!ok || !data?.id) return setErr(data?.error ?? GENERIC_ERROR);

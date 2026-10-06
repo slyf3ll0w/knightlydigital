@@ -4,11 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarDays, Loader2, X } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
-import { alertSheet } from "@/components/ConfirmSheet";
 import { localInputToISO } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
 import SuggestedTimes from "@/components/SuggestedTimes";
-import { addMinutesToLocalDateTime, DEFAULT_JOB_DURATION_MINUTES } from "@/lib/scheduling";
+import { DEFAULT_JOB_DURATION_MINUTES, endFollowingStart } from "@/lib/scheduling";
+import ScheduleHeadsUp, { useScheduleCheck } from "@/components/ScheduleHeadsUp";
 import { ARRIVAL_WINDOW_CHOICES, arrivalWindowChoiceLabel } from "@/lib/arrival-window";
 import { minuteToTime, timeToMinute } from "@/lib/client-window";
 import { InfoTip } from "@/components/ds";
@@ -40,6 +40,7 @@ export default function ScheduleJob({
   arriveBeforeMin = null,
   address,
   assigneeId,
+  crewIds,
   intervalMinutes = 30,
   defaultDurationMinutes,
   dayStartMinutes,
@@ -58,6 +59,8 @@ export default function ScheduleJob({
   /** Job-site address + a tech — enables the "Find a Time" suggestion chips. */
   address?: string | null;
   assigneeId?: string;
+  /** Everyone on the job — the live overlap / drive-time heads-up checks each. */
+  crewIds?: string[];
   intervalMinutes?: number;
   /** Expected on-site time from the price book (sum of the job's line items'
       service durations). Falls back to one hour when absent. */
@@ -80,6 +83,21 @@ export default function ScheduleJob({
   // "HH:mm" or "" — when the client can take the visit
   const [after, setAfter] = useState(minuteToTime(arriveAfterMin));
   const [before, setBefore] = useState(minuteToTime(arriveBeforeMin));
+
+  // Live heads-up while picking: anyone on the job already booked then, or
+  // unable to drive there / on to their next stop in time (David 2026-10-06)
+  const check = useScheduleCheck(
+    open && !anytime
+      ? {
+          start,
+          end,
+          userIds: crewIds?.length ? crewIds : assigneeId ? [assigneeId] : [],
+          onSite: true,
+          address: address ?? null,
+          excludeJobId: jobId,
+        }
+      : null
+  );
 
   // A fresh draft every time the panel opens: Cancel used to leave abandoned
   // edits behind for the next open, and after a save + router.refresh() the
@@ -140,14 +158,7 @@ export default function ScheduleJob({
       return;
     }
     setOpen(false);
-    // The server computes double-booking on every schedule write — show it
-    // instead of throwing it away (saved either way; it's a heads-up)
-    if (data?.conflicts?.length) {
-      await alertSheet({
-        title: "Scheduled, with a heads-up",
-        message: `This time overlaps:\n${data.conflicts.join("\n")}`,
-      });
-    }
+    // Overlaps and drive time were shown live under the fields (ScheduleHeadsUp)
     router.refresh();
   }
 
@@ -203,16 +214,11 @@ export default function ScheduleJob({
               timeCls={SLOT_TIME_CLS}
               ariaLabel="Start"
               onChange={(next) => {
+                // The end keeps the job's length (price-book duration, or an
+                // hour when it had none): move a 1-hour visit to 1:00 and it
+                // ends at 2:00 (David 2026-10-06)
+                setEnd(endFollowingStart(start, end, next, defaultDurationMinutes || DEFAULT_JOB_DURATION_MINUTES));
                 setStart(next);
-                // Auto-fill the end from the price-book duration (or an hour)
-                // when it isn't set yet; the user can still adjust.
-                if (!end && next)
-                  setEnd(
-                    addMinutesToLocalDateTime(
-                      next,
-                      defaultDurationMinutes || DEFAULT_JOB_DURATION_MINUTES
-                    )
-                  );
               }}
             />
           </div>
@@ -230,6 +236,7 @@ export default function ScheduleJob({
           </div>
         </div>
       )}
+      {!anytime && <ScheduleHeadsUp result={check} />}
       {!anytime && assigneeId && start.length >= 10 && (
         <SuggestedTimes
           date={start.slice(0, 10)}
