@@ -161,7 +161,7 @@ function Row({ row }: { row: WebsiteRow }) {
             </button>
           </div>
 
-          {row.gaps.length > 0 && <p className="text-[13px] text-[color:var(--ds-warn)]">Brief still missing: {row.gaps.join(", ").toLowerCase()}.</p>}
+          {row.gaps.length > 0 && <p className="text-[13px] text-[color:var(--ds-muted)]">Left blank (fill from the trade sheet): {row.gaps.join(", ").toLowerCase()}.</p>}
 
           {showBrief && (
             <div className="rounded-[12px] border border-[color:var(--ds-line)] p-4 text-[13.5px] space-y-2">

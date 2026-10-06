@@ -20,7 +20,7 @@ const STATUS: Record<WebsiteSummary["status"], { label: string; tone: "neutral" 
   NOT_STARTED: {
     label: "Not started",
     tone: "neutral",
-    next: "Fill in the brief below, add a few real photos, and send it to the studio.",
+    next: "Fill in what you have — every field is optional — and send it to the studio. We build from your trade and what WorkBench already knows, and fill the rest.",
   },
   BRIEF_SUBMITTED: {
     label: "Sent to the studio",
@@ -107,7 +107,7 @@ export default function WebsiteSettingsClient({ initial }: { initial: WebsiteSum
     if (
       !(await confirmSheet({
         title: "Send your brief to the studio?",
-        message: "We'll read it and come back with three directions for your site. You can keep editing the brief afterwards.",
+        message: "We build from what you've given us and fill in the rest, then come back with three directions for your site. You can keep editing the brief afterwards.",
         confirmLabel: "Send to the studio",
       }))
     )
@@ -171,7 +171,7 @@ export default function WebsiteSettingsClient({ initial }: { initial: WebsiteSum
             </Chip>
           </div>
           {status === "NOT_STARTED" ? (
-            <button type="button" onClick={() => void send()} disabled={sending || gaps.length > 0} className="ds-btn ds-btn-primary ds-btn-sm disabled:opacity-50">
+            <button type="button" onClick={() => void send()} disabled={sending} className="ds-btn ds-btn-primary ds-btn-sm disabled:opacity-50">
               {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
               Send to the studio
             </button>
@@ -196,11 +196,11 @@ export default function WebsiteSettingsClient({ initial }: { initial: WebsiteSum
         )}
         {gaps.length > 0 && status === "NOT_STARTED" && (
           <div className="mt-4 rounded-[12px] border border-[color:var(--ds-line)] p-3">
-            <p className="text-xs font-semibold text-[color:var(--ds-ink-2)] mb-1.5">Before you can send it</p>
+            <p className="text-xs font-semibold text-[color:var(--ds-ink-2)] mb-1.5">Makes the site more yours (all optional)</p>
             <ul className="space-y-1 text-sm">
               {initial.companyGaps.map((g) => (
                 <li key={g.key} className="flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--ds-warn)]" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--ds-faint)]" />
                   <Link href="/app/settings?s=company" className="ds-link hover:underline">
                     {g.label}
                   </Link>
@@ -209,7 +209,7 @@ export default function WebsiteSettingsClient({ initial }: { initial: WebsiteSum
               ))}
               {initial.gaps.map((g) => (
                 <li key={g.key} className="flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--ds-warn)]" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--ds-faint)]" />
                   {g.label}
                 </li>
               ))}

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
-import { sanitizeBrief, briefGaps } from "@/lib/website-brief";
+import { sanitizeBrief } from "@/lib/website-brief";
 import { appBaseUrl, loadWebsiteSummary, scheduleSiteRebuild } from "@/lib/website";
 import { alertOperator } from "@/lib/ops-alert";
 
@@ -39,22 +39,18 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
   if (body.action !== "submit") return NextResponse.json({ error: "Unknown action." }, { status: 400 });
 
+  // Nothing is required: the owner sends what they have and the studio fills
+  // the rest from the trade and what WorkBench already knows (David 2026-10-06).
   const summary = await loadWebsiteSummary(actor.companyId);
-  const gaps = [...summary.companyGaps, ...briefGaps(summary.brief, summary.photos.length)];
-  if (gaps.length) {
-    return NextResponse.json(
-      { error: `Before sending, add: ${gaps.map((g) => g.label.toLowerCase()).join(", ")}.`, gaps },
-      { status: 400 }
-    );
-  }
   if (summary.status !== "NOT_STARTED") {
     return NextResponse.json({ error: "Your brief is already with the studio." }, { status: 409 });
   }
 
   const now = new Date();
-  const site = await prisma.website.update({
+  const site = await prisma.website.upsert({
     where: { companyId: actor.companyId },
-    data: { status: "BRIEF_SUBMITTED", briefSubmittedAt: now },
+    create: { companyId: actor.companyId, status: "BRIEF_SUBMITTED", briefSubmittedAt: now },
+    update: { status: "BRIEF_SUBMITTED", briefSubmittedAt: now },
     select: { company: { select: { name: true, slug: true } } },
   });
   // The studio queue: one email per company per day

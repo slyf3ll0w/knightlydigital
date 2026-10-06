@@ -185,8 +185,10 @@ export function sanitizeBrief(raw: unknown): WebsiteBrief {
 export type BriefGap = { key: string; label: string };
 
 /**
- * What the studio still needs before it can start — shown on the Settings
- * page as a checklist and in the console queue. The company facts (phone,
+ * What would make the site more the owner's — shown on the Settings page as
+ * an optional checklist and in the console queue. Never a gate: the owner
+ * sends whatever they have (David 2026-10-06) and the studio fills blanks
+ * from the trade sheet and the company record, inventing no facts. The company facts (phone,
  * address, services, logo) come from the company record, so they're checked
  * by the caller and passed in as `companyGaps`.
  */
