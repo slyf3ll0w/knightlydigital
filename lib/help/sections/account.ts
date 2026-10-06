@@ -141,64 +141,6 @@ export const settingsSection: HelpSection = {
       ],
     },
     {
-      slug: "custom-website",
-      title: "Get a custom website",
-      summary: "A site built for your business by the WorkBench studio — your look, your words, your photos — that keeps itself up to date from WorkBench.",
-      keywords: ["website", "web site", "custom site", "domain", "SEO", "google", "studio", "brief", "photos on website", "use on website", "homepage", "landing page"],
-      where: { label: "Website", href: "/app/settings/website" },
-      roles: "Owners and admins",
-      blocks: [
-        {
-          type: "p",
-          text: "Most contractor sites come from a template and look like every other one in town. Yours is designed by the WorkBench studio from a brief **you** write, with your real photos, in your own words. It reads your hours, services, phone number and booking forms straight from WorkBench, so when you change them here the site changes too.",
-        },
-        {
-          type: "steps",
-          items: [
-            "Go to **Settings → Website** and fill in the brief: your story, where you work, what sets you apart, how the site should feel, and the questions customers ask.",
-            "Add real photos: your truck, your crew, your shop. On any job, tap the globe on a photo to **Use on website** — only do that when the client is fine with their property being shown.",
-            "Write a few words for each photo (what it shows). Search engines and screen readers read that text.",
-            "Check the list at the top of the page — it names anything still missing, including Business info such as your phone, address and logo.",
-            "Tap `Send to the studio`. The status at the top tells you where things are: Sent, In the studio, Ready for your review, Live.",
-          ],
-          note: "The brief, not a template, is what makes the site yours",
-        },
-        {
-          type: "h",
-          text: "What happens next",
-        },
-        {
-          type: "list",
-          items: [
-            "We study your trade and your area, and come back with three directions that look genuinely different, not three colors of the same layout. You pick one.",
-            "We build the site, then share a preview link here for you to open on your phone and computer. Tell us what to change.",
-            "When it goes live on your domain, the address shows on this page and in Business info. Point your domain at it (we send the exact record to add), or we can set up a new one.",
-          ],
-        },
-        {
-          type: "h",
-          text: "Keeping it current",
-        },
-        {
-          type: "p",
-          text: "You never edit the site itself. Change your hours, services, phone or business details in WorkBench as usual, or flag more job photos, and the site rebuilds on its own within a few minutes. A projects page grows from the photos you flag, which is what keeps a site fresh in search results.",
-        },
-        {
-          type: "tip",
-          text: "Your Google Business Profile link helps: the site then matches your listing exactly (name, address, phone), which is what local search rewards. The site never invents reviews, license numbers or years in business — only what you put in the brief or on your company record.",
-        },
-        {
-          type: "faq",
-          items: [
-            { q: "Can I keep editing the brief after I send it?", a: "Yes. The build reads the latest brief and photos, so edits and new photos make it into the site." },
-            { q: "I have no photos yet.", a: "Send the brief anyway and say so. The site is then designed around type and your colors, and photos can join later. Please don't use stock photos — they are the fastest way to look like a template." },
-            { q: "Do I need my own domain?", a: "It's best for search and for trust. If you don't have one we help you pick and register it; until then the site lives on a preview address." },
-            { q: "Can I take a job photo off the site?", a: "Tap the globe on the photo again, or remove it on the Website page. It comes off at the next rebuild, usually within minutes." },
-          ],
-        },
-      ],
-    },
-    {
       slug: "switch-companies",
       title: "Use more than one company",
       summary: "Belong to several businesses with one login and switch between them.",
