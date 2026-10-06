@@ -104,7 +104,7 @@ export const startSection: HelpSection = {
         },
         {
           type: "p",
-          text: "The tab bar has Home and Schedule. Everything else is in **More**, grouped as Clients, Sales, Field work, Money and Business. Press and hold any item for quick actions like `New …`. The `+` button opens the Create sheet — client, lead, request, appointment, quote, job, task, call, message, invoice — and the More and Create sheets both close with a swipe down. The pill at the top-left names the page you came from, and tapping it goes exactly there; inside one section it just says Back.",
+          text: "The tab bar has Home and Schedule. Everything else is in **More**, grouped as Clients, Sales, Field work, Money and Business. Press and hold any item for quick actions like `New …`. The `+` button opens the Create sheet — client, lead, request, appointment, quote, job, task, call, message, invoice — and the More and Create sheets both close with a swipe down. **Call** and **Message** open a search box right there: type a name and tap it to call or message them. A red number on the `+` button (and on the Message tile and the Messages tile in More) is how many client messages are waiting; it goes down as soon as you open each conversation. The pill at the top-left names the page you came from, and tapping it goes exactly there; inside one section it just says Back.",
         },
         {
           type: "h",

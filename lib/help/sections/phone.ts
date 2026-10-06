@@ -122,7 +122,7 @@ export const phoneSection: HelpSection = {
         },
         {
           type: "p",
-          text: `Filter by **All**, **Missed**, **Voicemail** and **Outgoing**. Missed calls and new voicemails are bold with a red dot, and voicemails play right in the list. Each row shows how long the call lasted. On a phone, the Create sheet's **Call** tile opens this page with the keypad up. Not on the **${VOICE}** yet? The page says so in one line — the Call buttons still ring from your own phone, but those calls aren't logged here.`,
+          text: `Filter by **All**, **Missed**, **Voicemail** and **Outgoing**. Missed calls and new voicemails are bold with a red dot, and voicemails play right in the list. Each row shows how long the call lasted. On a phone, the Create sheet's **Call** tile opens a search box instead: type a name and tap it to call them, type a full number to call that, or press **Keypad** to dial by hand. Not on the **${VOICE}** yet? The page says so in one line — the Call buttons still ring from your own phone, but those calls aren't logged here.`,
         },
         {
           type: "faq",
@@ -368,7 +368,7 @@ export const textingSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Open **Messages** and press `New message`, then search for the client. Or press `Message` on a client's page, or the **Message** tile on your phone's Create sheet.",
+            "Open **Messages** and press `New message`, then search for the client. Or press `Message` on a client's page, or the **Message** tile on your phone's Create sheet (it opens the same search box).",
             "Type and send.",
           ],
         },
@@ -378,6 +378,7 @@ export const textingSection: HelpSection = {
             "**With texting on**, your message is a text from your business number and their reply lands in the same thread.",
             `**Without texting**, it goes to their client portal plus an email. A company not on the **${VOICE}** sees a one-line note about that at the top of the inbox.`,
             "Clients can also write to you from the Messages tab in their portal.",
+            "Unread messages show as a red number on Messages (in the sidebar, or in **More** on a phone) and on the phone's `+` button. Opening a conversation takes its messages off the count.",
             "The separate `Text` button on jobs and client pages opens your own phone's messaging app instead. It's free and sends from your personal number.",
           ],
         },
