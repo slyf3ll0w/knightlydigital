@@ -28,11 +28,11 @@ const salesNoMoney: Actor = { ...base, role: "SALES", salesSeePayments: false };
 
 const names = (a: Actor) => toolsForActor(a).map((t) => t.decl.name).sort();
 
-// 1. owner sees everything (v8: 100 tools — records, client extras, field ops, money extras, queue_next_step, estimate tools, automations, part prices)
+// 1. owner sees everything (v8: 102 tools — records, client extras, field ops, money extras, queue_next_step, estimate tools, automations, part prices)
 assert.deepEqual(
   names(owner),
   [
-    "add_client_note", "add_job_note", "add_team_member", "assign_client",
+    "add_client_note", "add_job_note", "add_sticky_note", "add_team_member", "assign_client",
     "business_summary", "cancel_appointment", "charge_saved_card", "clock",
     "close_lead", "collect_deposit", "convert_quote", "create_agreement_template",
     "create_client", "create_invoice", "create_job", "create_quote",
@@ -68,7 +68,7 @@ console.log(`ok 1: owner sees all ${names(owner).length} tools`);
 assert.deepEqual(
   names(tech),
   [
-    "add_job_note", "clock", "export_data", "find_a_time", "get_document",
+    "add_job_note", "add_sticky_note", "clock", "export_data", "find_a_time", "get_document",
     "get_job_checklist", "get_route_plan", "get_schedule", "help_search", "list_pipeline",
     "manage_time_block", "optimize_route", "post_team_message", "query_records",
     "queue_next_step", "record_job_signoff", "report", "request_review", "send_on_my_way",
