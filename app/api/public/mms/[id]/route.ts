@@ -15,6 +15,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     where: { id },
     select: { message: { select: { direction: true } } },
   });
-  if (!row || row.message.direction !== "OUTBOUND") return new Response(null, { status: 404 });
+  if (!row?.message || row.message.direction !== "OUTBOUND") return new Response(null, { status: 404 });
   return mediaResponse(id, "public");
 }

@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import type { Actor } from "@/lib/permissions";
+import { MEDIA_SELECT, mediaPreview, threadMedia, type MediaRow } from "@/lib/message-media";
 
 /**
  * Team chat (channels rework).
@@ -24,6 +25,7 @@ export const MESSAGE_SELECT = {
   userId: true,
   user: { select: { name: true } },
   reactions: { select: { emoji: true, userId: true } },
+  media: { select: MEDIA_SELECT, orderBy: { createdAt: "asc" } },
 } as const;
 
 type MessageRow = {
@@ -35,6 +37,7 @@ type MessageRow = {
   userId: string;
   user: { name: string };
   reactions: { emoji: string; userId: string }[];
+  media: MediaRow[];
 };
 
 export function serializeMessage(m: MessageRow) {
@@ -49,6 +52,8 @@ export function serializeMessage(m: MessageRow) {
     userId: m.userId,
     userName: m.user.name,
     reactions: m.deletedAt ? [] : m.reactions,
+    // Photos ride the same door and week-long expiry as texting (lib/message-media.ts)
+    media: m.deletedAt ? [] : threadMedia(m.media, "team"),
   };
 }
 
@@ -218,17 +223,30 @@ async function lastMessageByChannel(
   const out = new Map<string, ChannelSummary["lastMessage"]>();
   if (channelIds.length === 0) return out;
   const rows = await prisma.$queryRaw<
-    { channelId: string; body: string; deletedAt: Date | null; createdAt: Date; userName: string }[]
+    {
+      channelId: string;
+      body: string;
+      deletedAt: Date | null;
+      createdAt: Date;
+      userName: string;
+      mediaCount: number;
+      mediaType: string | null;
+    }[]
   >`
     SELECT DISTINCT ON (m."channelId")
-      m."channelId", m.body, m."deletedAt", m."createdAt", u.name AS "userName"
+      m."channelId", m.body, m."deletedAt", m."createdAt", u.name AS "userName",
+      (SELECT COUNT(*)::int FROM "PortalMessageMedia" pm WHERE pm."teamMessageId" = m.id) AS "mediaCount",
+      (SELECT pm."contentType" FROM "PortalMessageMedia" pm WHERE pm."teamMessageId" = m.id
+        ORDER BY pm."createdAt" LIMIT 1) AS "mediaType"
     FROM "TeamMessage" m
     JOIN "User" u ON u.id = m."userId"
     WHERE m."channelId" IN (${Prisma.join(channelIds)})
     ORDER BY m."channelId", m."createdAt" DESC`;
   for (const r of rows) {
     out.set(r.channelId, {
-      body: r.deletedAt ? "" : r.body.slice(0, 120),
+      body: r.deletedAt
+        ? ""
+        : mediaPreview(r.body, Array.from({ length: r.mediaCount }, () => ({ contentType: r.mediaType ?? "" }))).slice(0, 120),
       userName: r.userName,
       at: r.createdAt.toISOString(),
       deleted: !!r.deletedAt,

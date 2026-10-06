@@ -11,6 +11,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     where: { id },
     select: { message: { select: { contact: { select: { hubToken: true } } } } },
   });
-  if (!row || row.message.contact.hubToken !== token) return new Response(null, { status: 404 });
+  if (!row?.message || row.message.contact.hubToken !== token) return new Response(null, { status: 404 });
   return mediaResponse(id, "private", { download: req.nextUrl.searchParams.get("download") === "1" });
 }
