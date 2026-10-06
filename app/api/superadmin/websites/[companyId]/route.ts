@@ -44,7 +44,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ co
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
 
   if (body.action === "rebuild") {
-    await prisma.website.upsert({ where: { companyId }, create: { companyId }, update: {} });
+    const row = await prisma.website.upsert({ where: { companyId }, create: { companyId }, update: {}, select: { pagesProject: true } });
+    if (!row.pagesProject) {
+      return NextResponse.json({ error: "No site has been built for this company yet. The studio builds the first version from the brief; set the worker name on the row once it exists." }, { status: 409 });
+    }
     const r = await rebuildNow(companyId, `console: ${admin.email}`, { force: true });
     logConsoleAction(admin, "website-rebuild", { company, detail: r.ok ? (r.sent ? "sent" : "queued (no token)") : r.error });
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: 424 });

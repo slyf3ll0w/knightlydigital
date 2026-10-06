@@ -245,9 +245,13 @@ function Row({ row }: { row: WebsiteRow }) {
             >
               Save
             </Button>
-            <Button size="sm" variant="outline" icon={busy === "rebuild" ? Loader2 : Hammer} onClick={() => void call({ action: "rebuild" }, "rebuild")}>
-              Rebuild now
-            </Button>
+            {row.pagesProject ? (
+              <Button size="sm" variant="outline" icon={busy === "rebuild" ? Loader2 : Hammer} onClick={() => void call({ action: "rebuild" }, "rebuild")}>
+                Rebuild now
+              </Button>
+            ) : (
+              <span className="ds-small">No site yet — the studio builds the first version from the brief, then Rebuild now redeploys it.</span>
+            )}
             <span className="ds-small">
               {row.rebuildError
                 ? `Last rebuild: ${row.rebuildError}`
