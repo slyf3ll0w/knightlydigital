@@ -463,3 +463,11 @@ the action calls the helper), deposit / agreement sends (not in scope).
   prefilled with "Name · number" (`StickyEditor` `prefill` + `portal`; the
   editor wraps itself in `.ds` so the paper tokens exist outside the page
   tree).
+
+### Sticky notes v3 — 2026-10-06 (David: "get rid of the pin, make it look
+like it does on mobile without the bulletin board look")
+
+- Pins, the wooden frame and the cork grain are gone. The desktop band is a
+  plain transparent surface (`.ds-corkboard` keeps its name, nothing else);
+  notes look exactly like the phone row — paper + adhesive strip — and keep
+  free placement by drag. VETO recorded: no skeuomorphic board.

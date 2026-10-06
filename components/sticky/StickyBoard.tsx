@@ -6,7 +6,7 @@ import StickyPaper from "./StickyPaper";
 import { hapticImpact } from "@/lib/haptics";
 import type { StickyNoteDTO } from "@/lib/sticky-shared";
 
-const BOARD_H = 240;
+const BOARD_H = 204;
 const NOTE = 168;
 const DRAG_THRESHOLD = 4;
 const COLLAPSE_KEY = "wb-sticky-collapsed";
@@ -158,10 +158,9 @@ export default function StickyBoard({
         )}
       </div>
       {showBoard && (
-        <div className="ds-corkframe">
         <div ref={boardRef} className="ds-corkboard w-full" style={{ height: BOARD_H }}>
           {notes.length === 0 && (
-            <button type="button" onClick={onNew} className="ds-sticky ds-sticky-ghost ds-sticky-pinned ds-sticky-placed" style={{ left: 16, top: 36 }}>
+            <button type="button" onClick={onNew} className="ds-sticky ds-sticky-ghost ds-sticky-placed" style={{ left: 16, top: 36 }}>
               <Plus size={22} aria-hidden />
               <span className="mt-1">Stick a note</span>
             </button>
@@ -172,7 +171,6 @@ export default function StickyBoard({
               <StickyPaper
                 key={n.id}
                 note={n}
-                pinned
                 className={`ds-sticky-placed ${dragging === n.id ? "ds-sticky-dragging" : ""}`}
                 style={{ left: p.x, top: p.y, zIndex: dragging === n.id ? 1000 : n.z }}
                 onPointerDown={(e) => onPointerDown(e, n)}
@@ -185,7 +183,6 @@ export default function StickyBoard({
               />
             );
           })}
-        </div>
         </div>
       )}
     </section>
