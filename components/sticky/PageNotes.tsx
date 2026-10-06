@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { ChevronDown, ChevronUp, Eye, EyeOff, Loader2, Plus, StickyNote } from "lucide-react";
 import { QuickMenu, type MenuAnchor, type QuickAction } from "@/components/QuickMenu";
@@ -48,6 +49,11 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
   const [live, setLive] = useState<Record<string, { x: number; y: number; w: number; h: number }>>({});
   const [front, setFront] = useState<string | null>(null);
   const drag = useRef<Drag | null>(null);
+  // Phone: with nothing stuck here the strip lives at the bottom of the page
+  const [bottomEl, setBottomEl] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setBottomEl((mainRef.current?.querySelector("#wb-page-notes-bottom") as HTMLElement | null) ?? null);
+  }, [mainRef, page]);
 
   useEffect(() => {
     try {
@@ -204,13 +210,17 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
       return;
     }
     hapticNotify("SUCCESS");
+    const wasAtBottom = notes.length === 0;
     upsert(res.data.note);
     setDraft(emptyDraft());
     setComposerOpen(false);
+    // The strip moves from the bottom to the top with its first note — follow it
+    if (wasAtBottom) mainRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   if (!active) return null;
   const count = notes.length;
+  const stripAtBottom = count === 0 && !hidden && bottomEl !== null;
 
   return (
     <>
@@ -251,8 +261,10 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
         </div>
       )}
 
-      {/* ── Phone: the page strip ── */}
-      <div className="px-4 pt-3 lg:hidden" data-notes-skip>
+      {/* ── Phone: the page strip (at the top with notes, at the bottom without) ── */}
+      {(() => {
+        const strip = (
+      <div className={`${stripAtBottom ? "px-4 pb-3 pt-6" : "px-4 pt-3"} lg:hidden`} data-notes-skip>
         <div className={`ds-notes-strip ${stripOpen ? "ds-notes-strip-open" : ""}`}>
           <div className="flex items-center gap-2">
             <button
@@ -266,7 +278,7 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
             >
               <StickyNote size={15} className="shrink-0 text-[color:var(--ds-primary)]" aria-hidden />
               <span className="truncate">
-                {hidden ? "Notes hidden" : count === 0 ? "Notes on this page" : `${count} ${count === 1 ? "note" : "notes"} on this page`}
+                {hidden ? "Notes hidden" : count === 0 ? "Stick a note on this page" : `${count} ${count === 1 ? "note" : "notes"} on this page`}
               </span>
               {stripOpen ? <ChevronUp size={14} aria-hidden /> : <ChevronDown size={14} aria-hidden />}
             </button>
@@ -332,6 +344,9 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
           )}
         </div>
       </div>
+        );
+        return stripAtBottom && bottomEl ? createPortal(strip, bottomEl) : strip;
+      })()}
 
       <QuickMenu open={menu.open} anchor={menu.anchor} title="Sticky notes" actions={menuActions} onClose={() => setMenu((m) => ({ ...m, open: false }))} />
       <StickyEditor

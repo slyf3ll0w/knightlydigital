@@ -2701,6 +2701,9 @@ export default function AppShell({
           >
             {children}
           </AssistantProvider>
+          {/* Phone: a page with no notes shows the "Stick a note" strip down
+              here instead of at the top (David 2026-10-06); PageNotes portals into it */}
+          <div id="wb-page-notes-bottom" className="lg:hidden" />
         </main>
         <SwipeBack
           enabled={mobileBack !== null}
