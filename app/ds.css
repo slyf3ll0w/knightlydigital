@@ -649,3 +649,66 @@ html[data-mode="dark"] .ds { --cork: #2A2620; }
 @media (prefers-reduced-motion: reduce) {
   .ds .ds-sticky { transition: none; }
 }
+
+/* ── Bulletin board v2 (David 2026-10-06: "needs to look more like a
+   bulletin board") — a wooden frame, real cork grain (SVG noise), push-pins
+   on the notes instead of the adhesive strip. */
+.ds {
+  --cork: #C9A77A;
+  --cork-dark: #A9865A;
+  --wood: #8B5E3C;
+  --wood-light: #B47C50;
+  --wood-dark: #5E3A22;
+}
+html[data-mode="dark"] .ds { --cork: #7A5E3E; --cork-dark: #5C4530; --wood: #4A2E1B; --wood-light: #6A4529; --wood-dark: #2E1B0F; }
+
+.ds .ds-corkframe {
+  padding: 12px; border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.18), rgba(0,0,0,0.12)),
+    repeating-linear-gradient(90deg, var(--wood) 0 7px, var(--wood-light) 7px 9px, var(--wood) 9px 23px, var(--wood-dark) 23px 25px);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.12), 0 14px 28px -16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+.ds .ds-corkboard {
+  border-radius: 4px;
+  background-color: var(--cork);
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.30  0 0 0 0 0.19  0 0 0 0 0.08  0 0 0 0.55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/></svg>"),
+    radial-gradient(rgba(0,0,0,0.10) 1px, transparent 1.6px),
+    radial-gradient(rgba(255,255,255,0.22) 1px, transparent 1.4px);
+  background-size: 240px 240px, 7px 7px, 11px 11px;
+  background-position: 0 0, 0 0, 3px 5px;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.18), inset 0 6px 18px rgba(0,0,0,0.22), inset 0 -2px 6px rgba(255,255,255,0.08);
+}
+/* corner screws on the frame */
+.ds .ds-corkframe { position: relative; }
+.ds .ds-corkframe::before, .ds .ds-corkframe::after {
+  content: ""; position: absolute; width: 6px; height: 6px; border-radius: 999px;
+  background: radial-gradient(circle at 35% 35%, #E9D9C4, #6B4A2E 70%); box-shadow: 0 1px 1px rgba(0,0,0,0.5);
+}
+.ds .ds-corkframe::before { left: 4px; top: 4px; }
+.ds .ds-corkframe::after { right: 4px; bottom: 4px; }
+
+/* notes on the board: no strip, a push-pin, a deeper shadow */
+.ds .ds-sticky-pinned { border-radius: 1px; box-shadow: 0 2px 3px rgba(0,0,0,0.18), 0 12px 20px -10px rgba(0,0,0,0.55); }
+.ds .ds-sticky-pinned::before {
+  content: ""; left: 50%; top: -7px; transform: translateX(-50%);
+  width: 16px; height: 16px; border-radius: 999px; opacity: 1;
+  background: radial-gradient(circle at 35% 30%, #FFFFFF 0, var(--pin, #E5484D) 28%, color-mix(in srgb, var(--pin, #E5484D) 60%, #000) 100%);
+  box-shadow: 0 2px 2px rgba(0,0,0,0.35), 0 6px 8px -4px rgba(0,0,0,0.45);
+}
+.ds .ds-sticky-pinned.ds-sticky-yellow { --pin: #E5484D; }
+.ds .ds-sticky-pinned.ds-sticky-pink   { --pin: #2F6FED; }
+.ds .ds-sticky-pinned.ds-sticky-blue   { --pin: #E5484D; }
+.ds .ds-sticky-pinned.ds-sticky-green  { --pin: #F5A524; }
+.ds .ds-sticky-pinned.ds-sticky-orange { --pin: #1F9D55; }
+.ds .ds-sticky-dragging.ds-sticky-pinned { box-shadow: 0 8px 12px rgba(0,0,0,0.22), 0 30px 40px -16px rgba(0,0,0,0.6); }
+.ds .ds-sticky-ghost.ds-sticky-pinned { border-color: rgba(255,255,255,0.7); color: rgba(255,255,255,0.85); box-shadow: none; }
+.ds .ds-sticky-ghost.ds-sticky-pinned:hover { border-color: #fff; color: #fff; }
+
+/* the editor's ink is the paper's ink, full stop (it rendered grey: a global
+   field rule won on the typed text) */
+.ds .ds-sticky-input, .app-ui .ds .ds-sticky-input, html[data-mode="dark"] .app-ui .ds-sticky-input {
+  color: var(--sticky-ink) !important; -webkit-text-fill-color: var(--sticky-ink); caret-color: var(--sticky-ink); opacity: 1;
+}
+.ds .ds-sticky-input::placeholder { color: var(--sticky-ink-2); -webkit-text-fill-color: var(--sticky-ink-2); opacity: 1; }

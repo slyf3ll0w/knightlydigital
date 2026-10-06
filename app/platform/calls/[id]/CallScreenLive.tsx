@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Grid3x3, Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneMissed, PhoneOff, PhoneOutgoing, Play, Voicemail, Volume2, type LucideIcon } from "lucide-react";
+import { Grid3x3, Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneMissed, PhoneOff, PhoneOutgoing, Play, StickyNote, Voicemail, Volume2, type LucideIcon } from "lucide-react";
+import StickyEditor from "@/components/sticky/StickyEditor";
 import { fmtElapsed, softphone, useSoftphone } from "@/lib/softphone-client";
 import DialPad from "@/components/DialPad";
 import Monogram from "@/components/Monogram";
@@ -123,6 +124,7 @@ export default function CallScreenLive({
   const live = sp.call && sp.call.callId === callId ? sp.call : null;
   const [row, setRow] = useState({ status, answeredAt });
   const [pad, setPad] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
   const wasLive = useRef(false);
   /** The browser call on this screen just ended; the row still says RINGING/IN_PROGRESS until its webhook lands. */
   const [ended, setEnded] = useState(false);
@@ -299,6 +301,7 @@ export default function CallScreenLive({
               <Control icon={Volume2} label="Speaker" on={!!sp.speaker} disabled={dialing} onClick={() => softphone.toggleSpeaker()} />
             )}
             <Control icon={Grid3x3} label="Keypad" on={pad} disabled={dialing} onClick={() => setPad((v) => !v)} title="Keypad — touch-tones for phone menus" />
+            <Control icon={StickyNote} label="Note" on={noteOpen} onClick={() => setNoteOpen(true)} title="Stick a note on Home while you talk" />
           </div>
           <div className="mt-5 flex justify-center">
             <Control icon={PhoneOff} label={dialing ? "Cancel" : "Hang up"} tone="red" size="lg" onClick={() => softphone.hangup()} />
@@ -317,6 +320,17 @@ export default function CallScreenLive({
         </div>
       )}
 
+      <StickyEditor
+        open={noteOpen}
+        note={null}
+        prefill={`${label}${number ? ` · ${number}` : ""}`}
+        portal
+        meId=""
+        canPin
+        onClose={() => setNoteOpen(false)}
+        onSaved={() => undefined}
+        onDeleted={() => undefined}
+      />
       {terminal && row.status === "VOICEMAIL" && (voicemailRecordingId || voicemailSec !== null) && (
         <div className="mx-auto mt-2 max-w-md text-left">
           <VoicemailPlayer callId={callId} seconds={voicemailSec} />

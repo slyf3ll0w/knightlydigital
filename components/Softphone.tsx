@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronUp, Maximize2, Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneOff, Play, Volume2, X } from "lucide-react";
+import { ChevronUp, Maximize2, Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneOff, Play, StickyNote, Volume2, X } from "lucide-react";
+import StickyEditor from "@/components/sticky/StickyEditor";
 import { getCapacitor, nativePlatform } from "@/components/NativeShell";
 import { useSession } from "next-auth/react";
 import { nativeVoip } from "@/lib/native-voip";
@@ -1381,6 +1382,8 @@ const BANNER_OPEN_MS = 6_000;
 
 function CallCard({ call }: { call: SoftphoneCall }) {
   const speaker = useSoftphone().speaker;
+  // A sticky note on Home, jotted while on the line
+  const [noteOpen, setNoteOpen] = useState(false);
   const now = useNow(call.state === "active" || call.state === "held");
   const pathname = usePathname();
   const ringing = call.state === "ringing";
@@ -1542,6 +1545,15 @@ function CallCard({ call }: { call: SoftphoneCall }) {
             </button>
             <button
               type="button"
+              onClick={() => setNoteOpen(true)}
+              className={`${round} ${quiet}`}
+              title="Stick a note on Home"
+              aria-label="Stick a note"
+            >
+              <StickyNote size={18} />
+            </button>
+            <button
+              type="button"
               onClick={() => softphone.toggleHold()}
               disabled={dialing}
               className={`${round} ${held ? warm : quiet}`}
@@ -1584,6 +1596,17 @@ function CallCard({ call }: { call: SoftphoneCall }) {
           </div>
         </>
       )}
+      <StickyEditor
+        open={noteOpen}
+        note={null}
+        prefill={`${call.label}${call.number ? ` · ${call.number}` : ""}`}
+        portal
+        meId=""
+        canPin
+        onClose={() => setNoteOpen(false)}
+        onSaved={() => undefined}
+        onDeleted={() => undefined}
+      />
     </div>
   );
 }

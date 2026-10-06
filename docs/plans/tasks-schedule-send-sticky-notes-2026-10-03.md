@@ -444,3 +444,22 @@ the action calls the helper), deposit / agreement sends (not in scope).
 - **Also in this round:** a task notification / row tap now opens a read-only
   `TaskDetail` sheet (Mark done, Edit one step away) instead of the editor
   (David 2026-10-06).
+
+### Sticky notes v2 — 2026-10-06 (David's review)
+
+- **Bulletin board look:** wooden frame (`.ds-corkframe`, repeating wood
+  grain + corner screws) around real cork (`.ds-corkboard`: SVG fractal-noise
+  grain + speckle, inset depth). Board notes carry a **push-pin**
+  (`.ds-sticky-pinned`, pin color per paper) instead of the adhesive strip,
+  with a deeper shadow. Phone row keeps the strip.
+- **Empty desktop board stays folded:** only the "Notes · + New note" strip
+  shows until the first note (or the chevron / New note opens it).
+- **Editor ink = paper ink:** `.ds-sticky-input` now forces the sticky ink
+  (`!important` + `-webkit-text-fill-color`); a global field rule had been
+  greying typed text.
+- **Note from a call:** a `Note` control on the live call screen
+  (`CallScreenLive`, next to Keypad) and a sticky button on the floating
+  softphone card (`Softphone` CallCard, next to Mute) open the editor
+  prefilled with "Name · number" (`StickyEditor` `prefill` + `portal`; the
+  editor wraps itself in `.ds` so the paper tokens exist outside the page
+  tree).

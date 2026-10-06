@@ -18,6 +18,8 @@ import type { TaskDTO } from "@/lib/tasks-shared";
 export default function StickyEditor({
   open,
   note,
+  prefill,
+  portal = false,
   meId,
   canPin,
   onClose,
@@ -27,6 +29,10 @@ export default function StickyEditor({
   open: boolean;
   /** null = a new note */
   note: StickyNoteDTO | null;
+  /** Starting text for a new note (a call: "Maria Rivera · (469) 555-0100") */
+  prefill?: string;
+  /** Render into document.body — for hosts outside the page tree (the softphone card) */
+  portal?: boolean;
   meId: string;
   /** The team board is available to this viewer (plan gate is dark until PLAN_GATING=1). */
   canPin: boolean;
@@ -46,10 +52,10 @@ export default function StickyEditor({
     if (!open) return;
     setError(null);
     setBusy(null);
-    setBody(note?.body ?? "");
+    setBody(note?.body ?? (prefill ? `${prefill.trim()}\n` : ""));
     setColor(note?.color ?? "YELLOW");
     setShared(note?.shared ?? false);
-  }, [open, note]);
+  }, [open, note, prefill]);
 
   async function save() {
     if (busy || readOnly) return;
@@ -135,8 +141,9 @@ export default function StickyEditor({
   }
 
   return (
-    <Modal open={open} onClose={onClose} size="sm" dismissible={busy === null}>
-      <div className="space-y-3">
+    <Modal open={open} onClose={onClose} size="sm" dismissible={busy === null} portal={portal}>
+      {/* `ds` here so the paper tokens exist even when the host sits outside the page tree */}
+      <div className="ds space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="ds-h2">{isNew ? "New note" : readOnly ? `${note?.authorName}'s note` : "Note"}</h3>
           <button

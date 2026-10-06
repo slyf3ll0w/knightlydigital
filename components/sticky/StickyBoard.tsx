@@ -32,6 +32,9 @@ export default function StickyBoard({
 }) {
   const boardRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
+  // An empty board stays folded to its strip (David 2026-10-06) until the
+  // first note or an explicit New note
+  const [openEmpty, setOpenEmpty] = useState(false);
   const [width, setWidth] = useState(0);
   const [dragging, setDragging] = useState<string | null>(null);
   // Live positions while dragging (px), keyed by note id
@@ -52,7 +55,12 @@ export default function StickyBoard({
     return () => ro.disconnect();
   }, [collapsed]);
 
+  const showBoard = !collapsed && (notes.length > 0 || openEmpty);
   const toggle = () => {
+    if (notes.length === 0) {
+      setOpenEmpty((v) => !v);
+      return;
+    }
     setCollapsed((c) => {
       try {
         localStorage.setItem(COLLAPSE_KEY, c ? "0" : "1");
@@ -133,13 +141,13 @@ export default function StickyBoard({
         <button
           type="button"
           onClick={toggle}
-          aria-expanded={!collapsed}
+          aria-expanded={showBoard}
           className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[color:var(--ds-ink-2)] hover:text-[color:var(--ds-ink)]"
         >
-          {collapsed ? <ChevronDown size={15} aria-hidden /> : <ChevronUp size={15} aria-hidden />}
+          {showBoard ? <ChevronUp size={15} aria-hidden /> : <ChevronDown size={15} aria-hidden />}
           Notes{notes.length > 0 ? ` (${notes.length})` : ""}
         </button>
-        {!collapsed && (
+        {(showBoard || notes.length === 0) && (
           <button
             type="button"
             onClick={onNew}
@@ -149,10 +157,11 @@ export default function StickyBoard({
           </button>
         )}
       </div>
-      {!collapsed && (
+      {showBoard && (
+        <div className="ds-corkframe">
         <div ref={boardRef} className="ds-corkboard w-full" style={{ height: BOARD_H }}>
           {notes.length === 0 && (
-            <button type="button" onClick={onNew} className="ds-sticky ds-sticky-ghost ds-sticky-placed" style={{ left: 16, top: 36 }}>
+            <button type="button" onClick={onNew} className="ds-sticky ds-sticky-ghost ds-sticky-pinned ds-sticky-placed" style={{ left: 16, top: 36 }}>
               <Plus size={22} aria-hidden />
               <span className="mt-1">Stick a note</span>
             </button>
@@ -163,6 +172,7 @@ export default function StickyBoard({
               <StickyPaper
                 key={n.id}
                 note={n}
+                pinned
                 className={`ds-sticky-placed ${dragging === n.id ? "ds-sticky-dragging" : ""}`}
                 style={{ left: p.x, top: p.y, zIndex: dragging === n.id ? 1000 : n.z }}
                 onPointerDown={(e) => onPointerDown(e, n)}
@@ -175,6 +185,7 @@ export default function StickyBoard({
               />
             );
           })}
+        </div>
         </div>
       )}
     </section>

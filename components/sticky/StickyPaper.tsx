@@ -11,6 +11,7 @@ import { splitLinks, type StickyNoteDTO } from "@/lib/sticky-shared";
 export default function StickyPaper({
   note,
   small = false,
+  pinned = false,
   className = "",
   style,
   onOpen,
@@ -18,6 +19,8 @@ export default function StickyPaper({
 }: {
   note: StickyNoteDTO;
   small?: boolean;
+  /** On the corkboard: a push-pin instead of the adhesive strip */
+  pinned?: boolean;
   className?: string;
   style?: React.CSSProperties;
   onOpen?: () => void;
@@ -35,7 +38,7 @@ export default function StickyPaper({
           onOpen?.();
         }
       }}
-      className={`ds-sticky ${colorClass} ${small ? "ds-sticky-sm" : ""} ${className}`}
+      className={`ds-sticky ${colorClass} ${small ? "ds-sticky-sm" : ""} ${pinned ? "ds-sticky-pinned" : ""} ${className}`}
       style={{ "--tilt": `${note.rotation}deg`, ...style } as React.CSSProperties}
       {...rest}
     >
