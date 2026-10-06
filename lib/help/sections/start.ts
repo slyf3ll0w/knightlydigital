@@ -96,7 +96,7 @@ export const startSection: HelpSection = {
         },
         {
           type: "p",
-          text: "The sidebar has Home, Schedule, Clients, Quotes, Jobs and Invoices at the top, then groups: **Work** (Leads, Requests, Estimates, Messages, Calls, Appointments, Routes, Agreements, Timesheets), **Money** (Payments, Recurring) and **Business** (Overview, Automations, Services, Booking & forms, Team & roles). You only see what your role can open.",
+          text: "The sidebar has Home, Schedule, Clients, Quotes, Jobs and Invoices at the top, then groups: **Work** (Leads, Requests, Estimates, Messages, Calls, Appointments, Routes, Tasks, Agreements, Timesheets), **Money** (Payments, Recurring) and **Business** (Overview, Automations, Services, Booking & forms, Team & roles). You only see what your role can open.",
         },
         {
           type: "h",
@@ -104,7 +104,7 @@ export const startSection: HelpSection = {
         },
         {
           type: "p",
-          text: "The tab bar has Home and Schedule. Everything else is in **More**, grouped as Clients, Sales, Field work, Money and Business. Press and hold any item for quick actions like `New …`. The `+` button opens the Create sheet — client, lead, request, appointment, quote, job, call, message, invoice — and the More and Create sheets both close with a swipe down. The pill at the top-left names the page you came from, and tapping it goes exactly there; inside one section it just says Back.",
+          text: "The tab bar has Home and Schedule. Everything else is in **More**, grouped as Clients, Sales, Field work, Money and Business. Press and hold any item for quick actions like `New …`. The `+` button opens the Create sheet — client, lead, request, appointment, quote, job, task, call, message, invoice — and the More and Create sheets both close with a swipe down. The pill at the top-left names the page you came from, and tapping it goes exactly there; inside one section it just says Back.",
         },
         {
           type: "h",
@@ -115,8 +115,8 @@ export const startSection: HelpSection = {
           items: [
             "`⌘ K` / `Ctrl K` opens the command palette: search anything and jump to it.",
             "`?` shows every shortcut.",
-            "`g` then a letter goes somewhere: `g` `s` Schedule, `g` `c` Clients, `g` `q` Quotes, `g` `j` Jobs, `g` `i` Invoices, `g` `l` Leads.",
-            "`n` then a letter creates something: `n` `c` client, `n` `q` quote, `n` `j` job, `n` `i` invoice, `n` `a` appointment.",
+            "`g` then a letter goes somewhere: `g` `s` Schedule, `g` `c` Clients, `g` `q` Quotes, `g` `j` Jobs, `g` `i` Invoices, `g` `l` Leads, `g` `k` Tasks.",
+            "`n` then a letter creates something: `n` `c` client, `n` `q` quote, `n` `j` job, `n` `i` invoice, `n` `a` appointment, `n` `t` task.",
             "On the Schedule: `T` jumps to today, `←` `→` step through days, `N` starts a new job.",
           ],
         },
@@ -126,6 +126,75 @@ export const startSection: HelpSection = {
             {
               q: "A link sent me back to the Dashboard.",
               a: "That page isn't open to your role. For example, techs don't see Quotes or Invoices, and Sales doesn't see Timesheets. Ask an owner or admin to change your role if you need it.",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "tasks-and-reminders",
+      title: "Tasks & reminders",
+      summary: "Personal to-dos with a due time and a reminder, and (for owners and admins) tasks handed to the team.",
+      keywords: ["task", "to-do", "todo", "reminder", "remind me", "assign", "follow up", "call back", "overdue", "checklist"],
+      where: { label: "Tasks", href: "/app/tasks" },
+      blocks: [
+        {
+          type: "p",
+          text: "A task is a note to yourself with a date: \"call Mrs. Patel back Tuesday\", \"order the filter\", \"pick up the permit\". It isn't a job and it isn't the job checklist (that stays on the job as the close-out list). Tasks live under **Tasks**, and the ones due today or overdue also show on **Home**.",
+        },
+        {
+          type: "steps",
+          items: [
+            "Open **Tasks** and press `New task` (or `+` → `Task` on your phone, or `n` `t` on a keyboard).",
+            "Type what needs doing. Add notes if there's more to say.",
+            "Pick a **Due** date, and a time or leave it on **Anytime**.",
+            "Choose a **Reminder**: at the due time, 15 minutes, 1 hour or 1 day before, or pick your own time. A task with no date can still take a custom reminder.",
+            "Tick **High priority** if it has to happen. Press `Add task`.",
+          ],
+        },
+        {
+          type: "list",
+          items: [
+            "**Finish a task:** tap the circle. On your phone you can also swipe a row left for `Done` or `Delete`.",
+            "**Edit:** tap the row. Everything, including who it's for, can change.",
+            "**Groups:** Overdue, Today, Tomorrow, Later and No date. Done tasks move to the **Done** tab, where you can untick one by mistake.",
+            "**From a client or job page:** the Create menu's `Task` starts one already linked to that client or job, so the link shows on the task.",
+          ],
+        },
+        {
+          type: "h",
+          text: "Reminders",
+        },
+        {
+          type: "p",
+          text: "A reminder arrives as a push notification and as a card in the bell, with a tap that opens the task. For a task with a date but no time, \"at the due time\" means 9:00 AM that day in your company's timezone. Reminders land within about five minutes of the time you picked.",
+        },
+        {
+          type: "h",
+          text: "Tasks for your team",
+        },
+        {
+          type: "p",
+          text: "Owners and admins see a **Team** tab with everyone's open tasks and can pick who a new task is for. Picking several people makes one task each, so each person can finish theirs and each gets their own reminder. The person hears about it with a push (\"Dave gave you a task\"). Everyone else can only create tasks for themselves.",
+        },
+        {
+          type: "tip",
+          text: "Overdue tasks sit in **Needs you** on Home until they're done or moved; they don't keep buzzing your phone.",
+        },
+        {
+          type: "faq",
+          items: [
+            {
+              q: "I didn't get the reminder.",
+              a: "Reminders go to the devices where you've turned notifications on (Settings → My Profile, or the bell on your phone). If the task was already marked done before its time, no reminder is sent. The card still shows in the bell.",
+            },
+            {
+              q: "Can I give a task to someone?",
+              a: "Owners and admins can. Sales + Tech, Sales and Tech roles create tasks for themselves only.",
+            },
+            {
+              q: "Where did my finished task go?",
+              a: "To the **Done** tab, for 90 days. Tap its circle there to bring it back.",
             },
           ],
         },

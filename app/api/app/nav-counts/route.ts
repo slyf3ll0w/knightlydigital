@@ -14,7 +14,7 @@ export async function GET() {
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const scope = viaContactScope(actor);
-  const [requests, pastDue, chat, leads, messages] = await Promise.all([
+  const [requests, pastDue, chat, leads, messages, tasks] = await Promise.all([
     canSell(actor.role)
       ? prisma.request.count({
           where: { companyId: actor.companyId, status: "NEW", ...scope },
@@ -66,7 +66,13 @@ export async function GET() {
           },
         })
       : Promise.resolve(0),
+    // Tasks badge: the actor's open tasks that are due (today or earlier).
+    // Date-only tasks store local midnight, so `dueAt <= now` reads as
+    // "today or overdue" for both kinds.
+    prisma.task.count({
+      where: { companyId: actor.companyId, assigneeId: actor.id, doneAt: null, dueAt: { lte: new Date() } },
+    }),
   ]);
 
-  return NextResponse.json({ requests, pastDue, chat, leads, messages });
+  return NextResponse.json({ requests, pastDue, chat, leads, messages, tasks });
 }

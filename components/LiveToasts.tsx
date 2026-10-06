@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarClock, DollarSign, Inbox, MessageSquare, MessagesSquare, Receipt, SquareKanban, X } from "lucide-react";
+import { CalendarClock, DollarSign, Inbox, ListChecks, MessageSquare, MessagesSquare, Receipt, SquareKanban, X } from "lucide-react";
 import { hapticImpact } from "@/lib/haptics";
 
 /**
@@ -20,7 +20,7 @@ import { hapticImpact } from "@/lib/haptics";
 
 export type LiveToast = {
   id: string;
-  kind: "request" | "lead" | "booking" | "payment" | "invoice" | "message" | "chat";
+  kind: "request" | "lead" | "booking" | "payment" | "invoice" | "message" | "chat" | "task";
   title: string;
   sub: string;
   href: string;
@@ -34,6 +34,7 @@ const ICON: Record<LiveToast["kind"], typeof Inbox> = {
   invoice: Receipt,
   message: MessageSquare,
   chat: MessagesSquare,
+  task: ListChecks,
 };
 
 const AUTO_DISMISS_MS = 8000;

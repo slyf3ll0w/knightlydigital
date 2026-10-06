@@ -20,6 +20,7 @@ import {
   CalendarDays,
   Plus,
   SquareKanban,
+  ListChecks,
 } from "lucide-react";
 import { money, appointmentTypeLabel } from "@/lib/statuses";
 import { invoiceBalance } from "@/lib/payments";
@@ -30,6 +31,8 @@ import { arrivalTimeLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-win
 import { startOfDayIn, startOfMonthIn, startOfWeekIn, zonedMidnight, zonedParts } from "@/lib/timezone";
 import CountUp from "@/components/CountUp";
 import DashboardSetupCard from "./DashboardSetupCard";
+import DashboardTasks from "./DashboardTasks";
+import { dashboardTasks } from "@/lib/tasks";
 import UpNextActions from "./UpNextActions";
 import AtlasHomeButton from "@/components/AtlasHomeButton";
 import SwipeRowContact from "@/components/SwipeRowContact";
@@ -128,6 +131,7 @@ export default async function DashboardPage() {
     heroCompany,
     myOpenEntry,
     newLeads,
+    taskLists,
   ] = await Promise.all([
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEW" } }),
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEEDS_APPROVAL" } }),
@@ -225,7 +229,11 @@ export default async function DashboardPage() {
             })
           )
       : Promise.resolve(0),
+    // My open tasks: due today join Today, overdue join Needs you
+    dashboardTasks(actor, tz, now),
   ]);
+  const todayTasks = taskLists.today;
+  const overdueTasks = taskLists.overdue;
   const showSetupCard = isManager(actor.role) && setupCompany?.setupWizardAt == null;
 
   const receivableTotal = receivables.reduce((s, inv) => s + invoiceBalance(inv), 0);
@@ -281,6 +289,16 @@ export default async function DashboardPage() {
       title: plural(pastDueInvoices, "Past-due invoice", "Past-due invoices"),
       action: "Send a reminder",
       href: "/app/invoices?status=PAST_DUE",
+      urgent: true,
+    },
+    {
+      show: true,
+      count: overdueTasks.length,
+      icon: ListChecks,
+      hue: SECTION_HUES.jobs,
+      title: plural(overdueTasks.length, "Overdue task", "Overdue tasks"),
+      action: overdueTasks.length === 1 ? overdueTasks[0].title : "Finish or reschedule",
+      href: "/app/tasks",
       urgent: true,
     },
     {
@@ -460,6 +478,7 @@ export default async function DashboardPage() {
   const todayCountLabel = [
     todayJobs > 0 ? `${todayJobs} ${plural(todayJobs, "job", "jobs")}` : null,
     todayAppts > 0 ? `${todayAppts} ${plural(todayAppts, "appointment", "appointments")}` : null,
+    todayTasks.length > 0 ? `${todayTasks.length} ${plural(todayTasks.length, "task", "tasks")}` : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -631,7 +650,7 @@ export default async function DashboardPage() {
   );
 
   const needsInfo =
-    "Work waiting on you, most urgent first: past-due invoices and bookings to approve lead the list. Tap a row to jump straight to it.";
+    "Work waiting on you, most urgent first: past-due invoices, bookings to approve and overdue tasks lead the list. Tap a row to jump straight to it.";
 
   const onClockEl = isManager(actor.role) && onClock.length > 0 && (
     <section>
@@ -743,20 +762,27 @@ export default async function DashboardPage() {
         <section className="ds-rise" style={rise(3)} data-tour="today">
           <SectionTitle action={<ActionLink href="/app/schedule">Schedule</ActionLink>}>
             Today
-            {todayItems.length > 0 && (
+            {(todayItems.length > 0 || todayTasks.length > 0) && (
               <span className="ds-small ml-1 font-normal">· {todayCountLabel}</span>
             )}
           </SectionTitle>
           {todayItems.length === 0 ? (
-            <Card>
-              <Hint title="Nothing on the books today." action={{ href: "/app/jobs/new", label: "Schedule a job", icon: Plus }} />
-            </Card>
+            todayTasks.length === 0 ? (
+              <Card>
+                <Hint title="Nothing on the books today." action={{ href: "/app/jobs/new", label: "Schedule a job", icon: Plus }} />
+              </Card>
+            ) : null
           ) : laterToday.length === 0 ? (
             <Card className="px-5 py-4">
               <p className="ds-body">That&apos;s your only {onlyKind} today. Nothing after it.</p>
             </Card>
           ) : (
             <Card className="ds-divide overflow-hidden">{laterToday.map((item) => todayRow(item, true))}</Card>
+          )}
+          {todayTasks.length > 0 && (
+            <div className={todayItems.length > 0 ? "mt-3" : ""}>
+              <DashboardTasks tasks={todayTasks} phone />
+            </div>
           )}
         </section>
 
@@ -822,16 +848,23 @@ export default async function DashboardPage() {
             <section className="ds-rise" style={rise(4)} data-tour="today">
               <SectionTitle action={<ActionLink href="/app/schedule">Open schedule</ActionLink>}>
                 Today
-                {todayItems.length > 0 && (
+                {(todayItems.length > 0 || todayTasks.length > 0) && (
                   <span className="ds-small ml-1 font-normal">· {todayCountLabel}</span>
                 )}
               </SectionTitle>
               {todayItems.length === 0 ? (
-                <Card>
-                  <Hint title="Nothing on the books today." action={{ href: "/app/jobs/new", label: "Schedule a job", icon: Plus }} />
-                </Card>
+                todayTasks.length === 0 ? (
+                  <Card>
+                    <Hint title="Nothing on the books today." action={{ href: "/app/jobs/new", label: "Schedule a job", icon: Plus }} />
+                  </Card>
+                ) : null
               ) : (
                 <Card className="ds-divide overflow-hidden">{todayItems.map((item) => todayRow(item, false))}</Card>
+              )}
+              {todayTasks.length > 0 && (
+                <div className={todayItems.length > 0 ? "mt-3" : ""}>
+                  <DashboardTasks tasks={todayTasks} phone={false} />
+                </div>
               )}
             </section>
           </div>

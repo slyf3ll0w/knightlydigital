@@ -23,7 +23,7 @@ function who(c: ContactBits): string {
 }
 
 /** The bell icon for a recorded push, from where its tap lands. */
-function kindForUrl(url: string): "request" | "lead" | "booking" | "payment" | "invoice" | "quote" | "message" | "call" | "automation" {
+function kindForUrl(url: string): "request" | "lead" | "booking" | "payment" | "invoice" | "quote" | "message" | "call" | "task" | "automation" {
   if (url.startsWith("/app/leads")) return "lead";
   if (url.startsWith("/app/requests")) return "request";
   if (url.startsWith("/app/quotes")) return "quote";
@@ -31,6 +31,7 @@ function kindForUrl(url: string): "request" | "lead" | "booking" | "payment" | "
   if (url.startsWith("/app/payments")) return "payment";
   if (url.startsWith("/app/schedule") || url.startsWith("/app/appointments") || url.startsWith("/app/jobs")) return "booking";
   if (url.startsWith("/app/calls")) return "call";
+  if (url.startsWith("/app/tasks")) return "task";
   if (url.startsWith("/app/messages") || url.startsWith("/app/chat")) return "message";
   return "automation";
 }

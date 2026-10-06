@@ -29,6 +29,7 @@ import { runMessageMediaSweep } from "@/lib/message-media";
 import { runStaleCallSweep } from "@/lib/voice";
 import { runAutomationSweeps, runAutomationResumes, runScheduledAutomations } from "@/lib/automations-server";
 import { pruneBuilds } from "@/lib/estimator-build-jobs";
+import { runTaskReminders } from "@/lib/tasks";
 
 /**
  * Hourly billing cron. A scheduler (Railway cron service, or an external
@@ -144,6 +145,9 @@ export async function POST(req: NextRequest) {
     // the same sweeps every 5 min so the hour stage lands on time; this hourly
     // pass is the backstop when that process is restarting.
     await step("appointmentReminders", () => runAppointmentReminders(now));
+    // Task reminders ("remind me Friday to call Hector"): the ticker lands
+    // them within 5 min; this is the backstop, claimed per row like the rest
+    await step("taskReminders", () => runTaskReminders(now));
     // "Hold for approval" bookings nobody answered: auto-decline 2 h before
     // the slot (frees it, tells the client), and a morning nudge while any wait
     await step("approvalBookings", () => expireApprovalBookings(now));

@@ -8,6 +8,7 @@ import {
   DollarSign,
   FileText,
   Inbox,
+  ListChecks,
   Loader2,
   MessageSquare,
   PhoneCall,
@@ -27,7 +28,7 @@ import { hapticImpact } from "@/lib/haptics";
 
 type Item = {
   id: string;
-  kind: "request" | "lead" | "booking" | "payment" | "invoice" | "quote" | "message" | "call" | "automation";
+  kind: "request" | "lead" | "booking" | "payment" | "invoice" | "quote" | "message" | "call" | "task" | "automation";
   title: string;
   sub: string;
   at: string;
@@ -47,6 +48,7 @@ const KIND_META: Record<Item["kind"], { icon: typeof Inbox; primary: boolean }> 
   quote: { icon: FileText, primary: false },
   message: { icon: MessageSquare, primary: false },
   call: { icon: PhoneCall, primary: false },
+  task: { icon: ListChecks, primary: false },
   automation: { icon: Zap, primary: true },
 };
 

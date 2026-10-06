@@ -85,6 +85,7 @@ const LABELS: [prefix: string, label: string][] = [
   ["/app/leads", "Leads"],
   ["/app/quotes", "Quotes"],
   ["/app/jobs", "Jobs"],
+  ["/app/tasks", "Tasks"],
   ["/app/invoices", "Invoices"],
   ["/app/payments", "Payments"],
   ["/app/subscriptions", "Recurring"],

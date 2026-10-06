@@ -45,6 +45,7 @@ import {
   PhoneCall,
   Calculator,
   Zap,
+  ListChecks,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
@@ -244,6 +245,7 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
       { href: "/app/estimates", label: "Estimates", icon: Calculator, show: sellRoles },
       { href: "/app/contracts", label: "Agreements", icon: FileSignature, show: sellRoles },
       { href: "/app/jobs", label: "Jobs", icon: Briefcase },
+      { href: "/app/tasks", label: "Tasks", icon: ListChecks },
       // Managers reach timesheets through the Business hub; techs/USER need
       // a direct path to their own hours.
       { href: "/app/timesheets", label: "Timesheets", icon: Timer, show: (r) => !isManagerRole(r) && r !== "SALES" },
@@ -294,6 +296,7 @@ const railGroups: { key: string; label: string; items: NavItem[] }[] = [
       { href: "/app/calls", label: "Calls", icon: PhoneCall, show: sellRoles },
       { href: "/app/appointments", label: "Appointments", icon: CalendarClock, show: sellRoles },
       { href: "/app/schedule/map", label: "Routes", icon: RouteGlyph },
+      { href: "/app/tasks", label: "Tasks", icon: ListChecks },
       { href: "/app/contracts", label: "Agreements", icon: FileSignature, show: sellRoles },
       // Managers reach timesheets through the Business hub; techs/USER need
       // a direct path to their own hours.
@@ -343,6 +346,7 @@ const railAnims: Record<string, string> = {
   "/app/schedule/map": "shuffle",
   "/app/contracts": "sheet",
   "/app/timesheets": "tick",
+  "/app/tasks": "tick",
   "/app/payments": "spring",
   "/app/subscriptions": "cycle",
   "/app/business": "grow",
@@ -361,6 +365,8 @@ const createItems: NavItem[] = [
   { href: "/app/estimates?run=1", label: "Estimate", icon: Calculator, show: sellRoles },
   { href: "/app/contracts/new", label: "Agreement", icon: FileSignature, show: sellRoles },
   { href: "/app/jobs/new", label: "Job", icon: Briefcase, show: (r) => isManagerRole(r) || r === "USER" },
+  // Tasks has no /new page: the list opens its editor sheet from ?new=1
+  { href: "/app/tasks?new=1", label: "Task", icon: ListChecks },
   { href: "/app/invoices/new", label: "Invoice", icon: Receipt, show: moneyRoles },
   { href: "/app/payments/new", label: "Payment", icon: DollarSign, show: moneyRoles },
 ];
@@ -380,6 +386,7 @@ const PHONE_CREATE_ORDER = [
   "/app/appointments/new",
   "/app/quotes/new",
   "/app/jobs/new",
+  "/app/tasks?new=1",
   "/app/calls?keypad=1",
   "/app/messages?new=1",
   "/app/invoices/new",
@@ -400,6 +407,7 @@ const sectionTints: Record<string, string> = {
   "/app/estimates": SECTION_HUES.quotes,
   "/app/contracts": SECTION_HUES.contracts,
   "/app/jobs": SECTION_HUES.jobs,
+  "/app/tasks": SECTION_HUES.jobs,
   "/app/invoices": SECTION_HUES.invoices,
   "/app/payments": SECTION_HUES.payments,
   "/app/subscriptions": SECTION_HUES.subscriptions,
@@ -423,6 +431,7 @@ const NAV_CREATE: Record<string, { href: string; label: string }> = {
   "/app/schedule": { href: "/app/jobs/new", label: "New job" },
   "/app/schedule/map": { href: "/app/jobs/new", label: "New job" },
   "/app/jobs": { href: "/app/jobs/new", label: "New job" },
+  "/app/tasks": { href: "/app/tasks?new=1", label: "New task" },
   "/app/quotes": { href: "/app/quotes/new", label: "New quote" },
   "/app/estimates": { href: "/app/estimates?run=1", label: "New estimate" },
   "/app/contracts": { href: "/app/contracts/new", label: "New agreement" },
@@ -468,6 +477,7 @@ const CREATE_TONES: Record<string, "a" | "b" | "c" | "d" | "e"> = {
   "/app/estimates?run=1": "b",
   "/app/contracts/new": "b",
   "/app/jobs/new": "c",
+  "/app/tasks?new=1": "c",
   "/app/calls?keypad=1": "e",
   "/app/messages?new=1": "e",
   "/app/invoices/new": "d",
@@ -517,7 +527,7 @@ const MORE_RECENT_KEY = "wb-more-recent";
 const MORE_GROUPS: { label: string; tone: "a" | "b" | "c" | "d" | "e"; hrefs: string[] }[] = [
   { label: "Clients", tone: "a", hrefs: ["/app/contacts", "/app/leads", "/app/requests", "/app/messages", "/app/calls"] },
   { label: "Sales", tone: "b", hrefs: ["/app/quotes", "/app/estimates", "/app/contracts", "/app/appointments"] },
-  { label: "Field work", tone: "c", hrefs: ["/app/schedule/map", "/app/jobs", "/app/timesheets", "/app/chat"] },
+  { label: "Field work", tone: "c", hrefs: ["/app/schedule/map", "/app/jobs", "/app/tasks", "/app/timesheets", "/app/chat"] },
   { label: "Money", tone: "d", hrefs: ["/app/invoices", "/app/payments", "/app/subscriptions"] },
   { label: "Business", tone: "e", hrefs: ["/app/business", "/app/automations", "/app/settings/products", "/app/settings/booking", "/app/settings/team"] },
 ];
@@ -937,13 +947,19 @@ const CONTACT_PREFILL = new Set([
   "/app/appointments/new",
   "/app/requests/new",
   "/app/payments/new",
+  "/app/tasks?new=1",
 ]);
+
+// Append a query pair to an href that may already carry one (/app/tasks?new=1)
+const withParam = (href: string, pair: string) => `${href}${href.includes("?") ? "&" : "?"}${pair}`;
 
 function withCreateContext(href: string, pathname: string): string {
   let m = /^\/app\/(?:contacts|messages\/thread)\/([a-z0-9]+)/i.exec(pathname);
-  if (m && m[1] !== "new" && CONTACT_PREFILL.has(href)) return `${href}?contactId=${m[1]}`;
+  if (m && m[1] !== "new" && CONTACT_PREFILL.has(href)) return withParam(href, `contactId=${m[1]}`);
   m = /^\/app\/jobs\/([a-z0-9]+)/i.exec(pathname);
-  if (m && m[1] !== "new" && href === "/app/invoices/new") return `${href}?jobId=${m[1]}`;
+  if (m && m[1] !== "new" && (href === "/app/invoices/new" || href === "/app/tasks?new=1")) {
+    return withParam(href, `jobId=${m[1]}`);
+  }
   return href;
 }
 
@@ -1334,6 +1350,7 @@ const goShortcuts: SeqShortcut[] = [
   { key: "p", href: "/app/payments", label: "Payments", show: moneyRoles },
   { key: "b", href: "/app/business", label: "Business", show: isManagerRole },
   { key: "t", href: "/app/chat", label: "Team Chat" },
+  { key: "k", href: "/app/tasks", label: "Tasks" },
   { key: "e", href: "/app/settings", label: "Settings", show: isManagerRole },
 ];
 
@@ -1346,6 +1363,7 @@ const newShortcuts: SeqShortcut[] = [
   { key: "e", href: "/app/estimates?run=1", label: "New estimate", show: sellRoles },
   { key: "g", href: "/app/contracts/new", label: "New agreement", show: sellRoles },
   { key: "j", href: "/app/jobs/new", label: "New job", show: (r) => isManagerRole(r) || r === "USER" },
+  { key: "t", href: "/app/tasks?new=1", label: "New task" },
   { key: "i", href: "/app/invoices/new", label: "New invoice", show: moneyRoles },
   { key: "p", href: "/app/payments/new", label: "New payment", show: moneyRoles },
 ];
@@ -1731,7 +1749,7 @@ export default function AppShell({
   useEffect(() => {
     if (assistantOpen) setTeaserVisible(false);
   }, [assistantOpen]);
-  const [counts, setCounts] = useState({ requests: 0, pastDue: 0, chat: 0, leads: 0, messages: 0 });
+  const [counts, setCounts] = useState({ requests: 0, pastDue: 0, chat: 0, leads: 0, messages: 0, tasks: 0 });
   // Live notification cards (components/LiveToasts.tsx): when a count grows
   // between two polls, the newest matching feed items become cards.
   const [toasts, setToasts] = useState<LiveToast[]>([]);
@@ -1760,7 +1778,9 @@ export default function AppShell({
               ? "payment"
               : href.startsWith("/app/schedule") || href.startsWith("/app/appointments")
                 ? "booking"
-                : "message";
+                : href.startsWith("/app/tasks")
+                  ? "task"
+                  : "message";
     const onMessage = (e: MessageEvent) => {
       const d = e.data as { type?: string; title?: string; body?: string; url?: string; tag?: string | null } | null;
       // A notification was tapped (public/sw.js notificationclick): this
@@ -1962,6 +1982,7 @@ export default function AppShell({
               chat: d.chat ?? 0,
               leads: d.leads ?? 0,
               messages: d.messages ?? 0,
+              tasks: d.tasks ?? 0,
             };
             const prev = prevCountsRef.current;
             const since = lastPollAtRef.current;
@@ -2165,7 +2186,9 @@ export default function AppShell({
             ? counts.leads
             : href === "/app/messages"
               ? counts.messages
-              : 0;
+              : href === "/app/tasks"
+                ? counts.tasks
+                : 0;
 
   // Rail v2 row: full-bleed (no rounded chip), neutral ink icon, ONE accent
   // (the sliding indicator paints it — rows carry no per-section hue), and
@@ -3090,7 +3113,7 @@ function MoreSheet({
   onClose: () => void;
   role: string;
   salesMoney: boolean;
-  counts: { requests: number; pastDue: number; chat: number };
+  counts: { requests: number; pastDue: number; chat: number; tasks: number };
   teamCount: number;
   userName?: string | null;
   userEmail?: string | null;
@@ -3111,6 +3134,7 @@ function MoreSheet({
     if (href === "/app/invoices" && counts.pastDue > 0)
       return { count: counts.pastDue, urgent: true };
     if (href === "/app/chat" && counts.chat > 0) return { count: counts.chat, urgent: true };
+    if (href === "/app/tasks" && counts.tasks > 0) return { count: counts.tasks, urgent: false };
     return null;
   };
 

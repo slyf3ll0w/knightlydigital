@@ -39,6 +39,7 @@ export async function register() {
     if (tickerOn) {
       const { runAppointmentReminders, runVisitReminders, runTechHeadsUp, runAppointmentTechHeadsUp } =
         await import("@/lib/reminders");
+      const { runTaskReminders } = await import("@/lib/tasks");
       const { REMINDER_TICK_MS } = await import("@/lib/reminder-stage");
       let remindersBusy = false;
       const remindersTick = async () => {
@@ -50,6 +51,8 @@ export async function register() {
           ["visitReminders", runVisitReminders],
           ["techHeadsUp", runTechHeadsUp],
           ["appointmentHeadsUp", runAppointmentTechHeadsUp],
+          // Personal task reminders (push + bell at the chosen time)
+          ["taskReminders", runTaskReminders],
         ] as const) {
           try {
             await run(now);
