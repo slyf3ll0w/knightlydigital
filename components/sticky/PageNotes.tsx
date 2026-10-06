@@ -100,10 +100,18 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
   useEffect(() => {
     const main = mainRef.current;
     if (!main || !active) return;
+    // Listen on the DOCUMENT, not on <main>: React delivers onContextMenu
+    // handlers (lead cards, rows, nav items — everything with its own menu)
+    // from its root container, which is an ancestor of <main>, so a listener
+    // on <main> would run first and see defaultPrevented === false. At the
+    // document the native event arrives after React has had its turn.
     const onContext = (e: MouseEvent) => {
       if (window.innerWidth < 1024) return;
-      if (e.defaultPrevented) return; // a row / nav item already took it
-      if (isInteractiveTarget(e.target as Element | null)) return;
+      const target = e.target as Element | null;
+      if (!target || !main.contains(target)) return;
+      if (e.defaultPrevented) return; // something with its own menu took it
+      if (isInteractiveTarget(target)) return;
+      if (target.closest('[role="menu"], [role="menuitem"], .lead-card, [draggable="true"], [data-row-actions]')) return;
       const sel = window.getSelection();
       if (sel && sel.toString().trim()) return;
       const rect = main.getBoundingClientRect();
@@ -111,8 +119,8 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
       e.preventDefault();
       setMenu({ open: true, anchor: { x: e.clientX, y: e.clientY }, at });
     };
-    main.addEventListener("contextmenu", onContext);
-    return () => main.removeEventListener("contextmenu", onContext);
+    document.addEventListener("contextmenu", onContext);
+    return () => document.removeEventListener("contextmenu", onContext);
   }, [mainRef, active]);
 
   const upsert = (n: StickyNoteDTO) =>
