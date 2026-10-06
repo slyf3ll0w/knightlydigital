@@ -68,6 +68,7 @@ import TourGuide from "@/components/TourGuide";
 const NotificationsSheet = dynamic(() => import("@/components/NotificationsSheet"), { ssr: false });
 const AssistantDrawer = dynamic(() => import("@/components/AssistantDrawer"), { ssr: false });
 import LiveToasts, { type LiveToast } from "@/components/LiveToasts";
+import PageNotes from "@/components/sticky/PageNotes";
 import BuildProgressBar from "@/components/BuildProgressBar";
 import FormErrorFocus from "@/components/FormErrorFocus";
 import type { AtlasAccess, AtlasPricing } from "@/lib/assistant-access";
@@ -2684,6 +2685,9 @@ export default function AppShell({
           ref={mainRef}
           className="app-main relative flex-1 overflow-y-auto pb-[calc(5.75rem+env(safe-area-inset-bottom))] lg:pb-0"
         >
+          {/* Sticky notes on any page: the desktop layer (right-click empty
+              space) and the phone "Notes on this page" strip (David 2026-10-06) */}
+          <PageNotes mainRef={mainRef} meId={userId ?? ""} canPin />
           {/* Pages that want their own way into Atlas (the phone home row)
               read this instead of re-deriving the meter state. */}
           <AssistantProvider

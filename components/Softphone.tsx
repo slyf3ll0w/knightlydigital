@@ -1599,12 +1599,13 @@ function CallCard({ call }: { call: SoftphoneCall }) {
       <StickyEditor
         open={noteOpen}
         note={null}
+        page={call.callId ? `/app/calls/${call.callId}` : "/app/dashboard"}
         prefill={`${call.label}${call.number ? ` · ${call.number}` : ""}`}
         portal
         meId=""
         canPin
         onClose={() => setNoteOpen(false)}
-        onSaved={() => undefined}
+        onSaved={() => window.dispatchEvent(new Event("wb:notes-changed"))}
         onDeleted={() => undefined}
       />
     </div>

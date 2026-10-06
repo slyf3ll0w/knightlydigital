@@ -3554,6 +3554,19 @@ model StickyNote {
   // Stable slight tilt (-3..3 degrees) so the board doesn't jump on reload
   rotation   Float       @default(0)
   shared     Boolean     @default(false)
+  // Which page it's stuck to ("/app/jobs/abc", "/app/quotes"; null = the
+  // old dashboard board, read as "/app/dashboard") and where on that page
+  // (px from the top-left of the scrolling content). The author's spot;
+  // a teammate's own drag of a team note lands in StickyNotePlacement.
+  page       String?
+  x          Float?
+  y          Float?
+  // Custom size (px); the editor offers S/M/L, desktop drags the corner
+  width      Int         @default(168)
+  height     Int         @default(168)
+  // Optional expiry: hidden from the moment it passes, archived by the
+  // hourly cron (archiveExpiredNotes)
+  expiresAt  DateTime?
   archivedAt DateTime?
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
@@ -3562,6 +3575,7 @@ model StickyNote {
 
   @@index([companyId, shared, archivedAt])
   @@index([userId, archivedAt])
+  @@index([companyId, page, archivedAt])
 }
 
 // Where a note sits on EACH viewer's desktop board (0–1 of the board's width

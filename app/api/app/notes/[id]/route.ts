@@ -2,12 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, type Actor } from "@/lib/permissions";
 import { checkFeature } from "@/lib/plan-gate";
-import { canEditNote, capReached, noteInclude, serializeNote, validateBody, validateColor, type StickyColor } from "@/lib/sticky-notes";
+import { companyTz } from "@/lib/tasks";
+import {
+  canEditNote,
+  capReached,
+  clampSize,
+  noteInclude,
+  parseExpiry,
+  serializeNote,
+  validateBody,
+  validateColor,
+  validatePos,
+  type StickyColor,
+} from "@/lib/sticky-notes";
 
 /**
- * PATCH { body?, color?, shared? } / DELETE (soft: archivedAt). The author
- * may edit their own note; a team note can also be edited or taken down by
- * an owner / admin.
+ * PATCH { body?, color?, shared?, width?, height?, x?, y?, expiry?,
+ * expiryDate? } / DELETE (soft: archivedAt). The author may edit their own
+ * note; a team note can also be edited or taken down by an owner / admin.
  */
 async function findEditable(actor: Actor, id: string) {
   const note = await prisma.stickyNote.findFirst({
@@ -25,8 +37,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const note = await findEditable(actor, id);
   if (!note) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const body = ((await req.json().catch(() => null)) ?? {}) as Record<string, unknown>;
+  const tz = await companyTz(actor.companyId);
 
-  const data: { body?: string; color?: StickyColor; shared?: boolean } = {};
+  const data: {
+    body?: string;
+    color?: StickyColor;
+    shared?: boolean;
+    width?: number;
+    height?: number;
+    x?: number;
+    y?: number;
+    expiresAt?: Date | null;
+  } = {};
   if (body.body !== undefined) {
     const text = validateBody(body.body);
     if ("error" in text) return NextResponse.json({ error: text.error }, { status: 400 });
@@ -48,10 +70,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (full) return NextResponse.json({ error: full }, { status: 400 });
     data.shared = body.shared;
   }
+  if (body.width !== undefined) data.width = clampSize(body.width, note.width);
+  if (body.height !== undefined) data.height = clampSize(body.height, note.height);
+  if (body.x !== undefined || body.y !== undefined) {
+    const x = validatePos(body.x);
+    const y = validatePos(body.y);
+    if (x === null || y === null) return NextResponse.json({ error: "x and y must be numbers." }, { status: 400 });
+    data.x = x;
+    data.y = y;
+  }
+  const expiry = parseExpiry(body.expiry, body.expiryDate, tz);
+  if (expiry && "error" in expiry) return NextResponse.json({ error: expiry.error }, { status: 400 });
+  if (expiry) data.expiresAt = expiry.expiresAt;
 
   const updated = await prisma.stickyNote.update({ where: { id: note.id }, data, include: noteInclude });
   const placement = await prisma.stickyNotePlacement.findUnique({ where: { noteId_userId: { noteId: note.id, userId: actor.id } } });
-  return NextResponse.json({ note: serializeNote(updated, actor, placement) });
+  return NextResponse.json({ note: serializeNote(updated, actor, placement, tz) });
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

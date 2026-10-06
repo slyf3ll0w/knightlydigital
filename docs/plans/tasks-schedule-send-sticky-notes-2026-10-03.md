@@ -471,3 +471,30 @@ like it does on mobile without the bulletin board look")
   plain transparent surface (`.ds-corkboard` keeps its name, nothing else);
   notes look exactly like the phone row — paper + adhesive strip — and keep
   free placement by drag. VETO recorded: no skeuomorphic board.
+
+### Sticky notes v4 — 2026-10-06 (David's "STINKY idea": notes on any page)
+
+- **No dashboard section.** A note sticks to a PAGE (`StickyNote.page` =
+  pathname, `x/y` px from the scrolling content's top-left, `width/height`,
+  `expiresAt`). Pre-v4 notes (page null) read as `/app/dashboard`.
+- **Desktop:** `components/sticky/PageNotes.tsx`, mounted once inside the
+  shell's `<main>`: right-click on empty space (nothing interactive under
+  the pointer — `isInteractiveTarget` — and no text selected; rows and nav
+  items keep their own menus because they `preventDefault` first) opens a
+  QuickMenu: **Stick a note here** / **Hide sticky notes** ↔ **Show sticky
+  notes (n here)** (per device, localStorage `wb-notes-hidden`). Notes
+  render in an absolute layer at their spot, drag to move, drag the corner
+  grip to resize (120–480 px). The author's drag moves the note; a
+  teammate's drag of a team note moves only their copy (`PUT …/place`).
+- **Phone:** a slim **Notes on this page** strip at the top of every page's
+  content (count, chevron, `+`); expanded = the swipe row + an inline
+  composer (`StickyForm` compact: paper textarea, colors, S/M/L, expiry,
+  team toggle, Stick it). "Hide sticky notes everywhere" lives there too.
+- **Expiry:** end of today / tomorrow / in a week / a day you pick (company
+  zone, `parseExpiry`, unit-tested incl. DST); reads hide expired notes,
+  the hourly cron archives them (`expiredNotes`).
+- **Sizing:** S/M/L chips everywhere; free corner drag on desktop.
+- **Shared form:** `StickyForm` feeds both `StickyEditor` (Modal) and the
+  phone composer. Call-screen notes stick to `/app/calls/<id>`.
+- Atlas `add_sticky_note` gained `page` + `expiry`. Help guide rewritten.
+  Removed: `StickyBoard`, `DashboardStickies`.

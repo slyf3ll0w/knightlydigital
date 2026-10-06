@@ -203,34 +203,34 @@ export const startSection: HelpSection = {
     {
       slug: "sticky-notes",
       title: "Sticky notes on Home",
-      summary: "Square paper notes on your dashboard: a scribble, a number, a reminder to yourself, or one pinned for the whole team.",
-      keywords: ["sticky", "note", "post-it", "corkboard", "team board", "pin", "dashboard", "home"],
+      summary: "Square paper notes you can stick on any page: a scribble, a number, a reminder to yourself, or one the whole team sees.",
+      keywords: ["sticky", "note", "post-it", "right click", "team", "hide notes", "expire", "resize", "any page"],
       where: { label: "Home", href: "/app/dashboard" },
       blocks: [
         {
           type: "p",
-          text: "Notes are for the things that aren't tasks yet: a supplier's number, \"the Smith job needs a 40 ft ladder\", a scribble from a call. On a computer they sit on a corkboard across the top of **Home** and you can slide them wherever you like; on your phone they're a row you swipe through under the day's summary.",
+          text: "Notes are for the things that aren't tasks yet: a supplier's number, \"the Smith job needs a 40 ft ladder\", a scribble from a call. A note sticks to the page you put it on — a job, a client, a quote, Home — right where you stuck it, and you can slide it around or drag its corner to resize it.",
         },
         {
           type: "steps",
           items: [
-            "On Home, press `New note` (or the faint `Stick a note` square, or `+` at the end of the row on your phone).",
+            "On a computer, right-click an empty spot on any page (not on a button or a row) and choose `Stick a note here`. On your phone, open **Notes on this page** at the top of the screen and press `+`.",
             "Write on it. Up to 400 characters, no formatting; web addresses become links.",
-            "Pick a paper color if you like. Press `Stick it`.",
+            "Pick a paper color and a size (S, M, L), and if it should come down by itself: end of today, tomorrow, in a week, or a day you pick. Press `Stick it`.",
           ],
         },
         {
           type: "list",
           items: [
-            "**Edit or take down:** tap the note. `Take down` removes it.",
-            "**Team board:** tick **Pin to the team board** and everyone in the company sees the note on their Home, with your initials in the corner. Each person slides it around their own board. Only you (or an owner or admin) can edit or take it down.",
+            "**Edit or take down:** tap the note. `Take down` removes it; an expiring note comes down on its own.",
+            "**Team notes:** tick **Show it to the whole team** and everyone in the company sees the note on that page, with your initials in the corner. Each person can slide it around on their own screen. Only you (or an owner or admin) can edit or take it down.",
             "**Make a task:** turns the note into a task on your list (the first line becomes the title) and keeps the note.",
-            "**Tidy:** on a computer the `Notes` heading collapses the board; your choice is remembered on that device.",
+            "**Hide them:** right-click an empty spot and choose `Hide sticky notes` (or `Hide sticky notes everywhere` in the phone strip). `Show sticky notes` brings them back. It's per device.",
           ],
         },
         {
           type: "tip",
-          text: "Ask Atlas: \"stick a note that the Patel job needs a permit\" puts one on your board after you confirm.",
+          text: "Ask Atlas: \"stick a note on the Patel job that it needs a permit\" puts one on that job's page after you confirm.",
         },
         {
           type: "faq",
@@ -240,8 +240,12 @@ export const startSection: HelpSection = {
               a: "Each person can have 30 notes up, and the team board holds 30. Take one down first.",
             },
             {
-              q: "A teammate's note moved on my board.",
-              a: "Positions are per person; only you move your board. If a note changed, the author edited it.",
+              q: "A teammate's note moved on my screen.",
+              a: "Positions are per person; only you move what you see. If a note changed, the author edited it.",
+            },
+            {
+              q: "Right-click doesn't offer a note.",
+              a: "It only works on empty space: not on a button, a link, a row, a field, or while text is selected. Try the blank area beside a card.",
             },
           ],
         },

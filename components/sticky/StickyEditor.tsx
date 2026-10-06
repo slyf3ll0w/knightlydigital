@@ -1,23 +1,41 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ListChecks, Loader2, Trash2, Users, X } from "lucide-react";
+import { ListChecks, Loader2, Trash2, X } from "lucide-react";
 import Modal from "@/components/Modal";
-import { Button, InfoTip } from "@/components/ds";
+import { Button } from "@/components/ds";
 import { alertSheet, confirmSheet } from "@/components/ConfirmSheet";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
-import { STICKY_BODY_MAX, STICKY_COLORS, type StickyColor, type StickyNoteDTO } from "@/lib/sticky-shared";
+import { STICKY_SIZES, type StickyNoteDTO } from "@/lib/sticky-shared";
 import type { TaskDTO } from "@/lib/tasks-shared";
+import StickyForm, { emptyDraft, sizeKeyFor, type StickyDraft } from "./StickyForm";
+
+/** What a create / edit sends (shared with the phone composer). */
+export function draftPayload(d: StickyDraft) {
+  const px = STICKY_SIZES.find((s) => s.key === d.size)?.px ?? 168;
+  return {
+    body: d.body.trim(),
+    color: d.color,
+    shared: d.shared,
+    width: px,
+    height: px,
+    expiry: d.expiry,
+    expiryDate: d.expiry === "custom" ? d.expiryDate : undefined,
+  };
+}
 
 /**
- * The sticky editor: the note itself as the text box (same paper, same
- * hand), five color dots, "Pin to team board", "Make a task", Delete.
- * Bottom sheet on phones, glass card on desktop (Modal does both).
+ * The sticky editor: a bottom sheet on phones, a glass card on desktop
+ * (Modal does both). New notes land on `page` at `at` (the right-click
+ * spot; null = the page strip picks a slot). "Make a task" copies the
+ * first line into a Task and keeps the note.
  */
 export default function StickyEditor({
   open,
   note,
+  page,
+  at,
   prefill,
   portal = false,
   meId,
@@ -29,6 +47,9 @@ export default function StickyEditor({
   open: boolean;
   /** null = a new note */
   note: StickyNoteDTO | null;
+  /** The page a NEW note sticks to */
+  page: string;
+  at?: { x: number; y: number } | null;
   /** Starting text for a new note (a call: "Maria Rivera · (469) 555-0100") */
   prefill?: string;
   /** Render into document.body — for hosts outside the page tree (the softphone card) */
@@ -41,9 +62,7 @@ export default function StickyEditor({
   onDeleted: (id: string) => void;
 }) {
   const isNew = !note;
-  const [body, setBody] = useState("");
-  const [color, setColor] = useState<StickyColor>("YELLOW");
-  const [shared, setShared] = useState(false);
+  const [draft, setDraft] = useState<StickyDraft>(emptyDraft());
   const [busy, setBusy] = useState<"save" | "task" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const readOnly = Boolean(note && !note.canEdit);
@@ -52,27 +71,42 @@ export default function StickyEditor({
     if (!open) return;
     setError(null);
     setBusy(null);
-    setBody(note?.body ?? (prefill ? `${prefill.trim()}\n` : ""));
-    setColor(note?.color ?? "YELLOW");
-    setShared(note?.shared ?? false);
+    setDraft(
+      note
+        ? {
+            body: note.body,
+            color: note.color,
+            size: sizeKeyFor(Math.max(note.width, note.height)),
+            shared: note.shared,
+            expiry: note.expiresAt ? "custom" : "none",
+            expiryDate: note.expiryDate,
+          }
+        : emptyDraft(prefill)
+    );
   }, [open, note, prefill]);
 
   async function save() {
     if (busy || readOnly) return;
-    const text = body.trim();
-    if (!text) {
+    if (!draft.body.trim()) {
       setError("Write something on the note.");
       return;
     }
     setBusy("save");
     setError(null);
+    const payload = draftPayload(draft);
     const res = isNew
-      ? await postJson<{ note: StickyNoteDTO }>("/api/app/notes", { body: text, color, shared })
-      : await postJson<{ note: StickyNoteDTO }>(`/api/app/notes/${note!.id}`, {
-          body: text,
-          color,
-          ...(note!.authorId === meId && shared !== note!.shared ? { shared } : {}),
-        }, "PATCH");
+      ? await postJson<{ note: StickyNoteDTO }>("/api/app/notes", { ...payload, page, x: at?.x, y: at?.y })
+      : await postJson<{ note: StickyNoteDTO }>(
+          `/api/app/notes/${note!.id}`,
+          {
+            ...payload,
+            // Size chips only change the note when the user picked a different one;
+            // a corner-dragged custom size is kept otherwise
+            ...(sizeKeyFor(Math.max(note!.width, note!.height)) === draft.size ? { width: undefined, height: undefined } : {}),
+            ...(note!.authorId === meId ? {} : { shared: undefined }),
+          },
+          "PATCH"
+        );
     setBusy(null);
     if (!res.ok || !res.data?.note) {
       setError(res.data?.error ?? GENERIC_ERROR);
@@ -86,16 +120,14 @@ export default function StickyEditor({
 
   async function makeTask() {
     if (busy) return;
-    // A new note is saved first so the task has something to come from
     let id = note?.id ?? null;
     if (!id) {
-      const text = body.trim();
-      if (!text) {
+      if (!draft.body.trim()) {
         setError("Write something on the note.");
         return;
       }
       setBusy("task");
-      const created = await postJson<{ note: StickyNoteDTO }>("/api/app/notes", { body: text, color, shared });
+      const created = await postJson<{ note: StickyNoteDTO }>("/api/app/notes", { ...draftPayload(draft), page, x: at?.x, y: at?.y });
       if (!created.ok || !created.data?.note) {
         setBusy(null);
         setError(created.data?.error ?? GENERIC_ERROR);
@@ -114,17 +146,14 @@ export default function StickyEditor({
     }
     hapticNotify("SUCCESS");
     onClose();
-    await alertSheet({
-      title: "Task added",
-      message: `"${res.data.task.title}" is on your list under Tasks. The note stays here.`,
-    });
+    await alertSheet({ title: "Task added", message: `"${res.data.task.title}" is on your list under Tasks. The note stays here.` });
   }
 
   async function remove() {
     if (!note || busy) return;
     const ok = await confirmSheet({
       title: "Take this note down?",
-      message: note.shared ? "It comes off the team board for everyone." : "It's gone for good.",
+      message: note.shared ? "It comes off this page for everyone." : "It's gone for good.",
       confirmLabel: "Take it down",
       destructive: true,
     });
@@ -156,53 +185,12 @@ export default function StickyEditor({
           </button>
         </div>
 
-        <div className={`ds-sticky-${color.toLowerCase()}`}>
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value.slice(0, STICKY_BODY_MAX))}
-            readOnly={readOnly}
-            maxLength={STICKY_BODY_MAX}
-            placeholder="Call the supplier Monday…"
-            aria-label="Note"
-            autoFocus={!readOnly}
-            className="ds-sticky-input"
-          />
-        </div>
-
-        {!readOnly && (
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2" role="radiogroup" aria-label="Paper color">
-              {STICKY_COLORS.map((c) => (
-                <button
-                  key={c.key}
-                  type="button"
-                  role="radio"
-                  aria-checked={color === c.key}
-                  aria-pressed={color === c.key}
-                  aria-label={c.label}
-                  title={c.label}
-                  onClick={() => setColor(c.key)}
-                  className={`ds-sticky-dot ds-sticky-${c.key.toLowerCase()}`}
-                />
-              ))}
-            </div>
-            <span className="ds-small">{body.length}/{STICKY_BODY_MAX}</span>
-          </div>
-        )}
-
-        {!readOnly && canPin && (!note || note.authorId === meId) && (
-          <label className="flex cursor-pointer items-center gap-2.5 text-sm text-[color:var(--ds-ink)]">
-            <input
-              type="checkbox"
-              checked={shared}
-              onChange={(e) => setShared(e.target.checked)}
-              className="h-4 w-4 rounded accent-[color:var(--ds-primary)]"
-            />
-            <Users size={14} className="text-[color:var(--ds-muted)]" aria-hidden />
-            Pin to the team board
-            <InfoTip>Everyone in the company sees it on their Home. Each person can slide it around their own board.</InfoTip>
-          </label>
-        )}
+        <StickyForm
+          draft={draft}
+          onChange={setDraft}
+          canPin={canPin && (!note || note.authorId === meId)}
+          readOnly={readOnly}
+        />
 
         {error && (
           <p className="text-[13px] text-[color:var(--ds-bad)]" role="alert">

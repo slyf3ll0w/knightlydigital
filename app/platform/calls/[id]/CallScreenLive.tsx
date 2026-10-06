@@ -323,12 +323,13 @@ export default function CallScreenLive({
       <StickyEditor
         open={noteOpen}
         note={null}
+        page={`/app/calls/${callId}`}
         prefill={`${label}${number ? ` · ${number}` : ""}`}
         portal
         meId=""
         canPin
         onClose={() => setNoteOpen(false)}
-        onSaved={() => undefined}
+        onSaved={() => window.dispatchEvent(new Event("wb:notes-changed"))}
         onDeleted={() => undefined}
       />
       {terminal && row.status === "VOICEMAIL" && (voicemailRecordingId || voicemailSec !== null) && (

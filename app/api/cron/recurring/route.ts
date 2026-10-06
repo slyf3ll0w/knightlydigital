@@ -31,6 +31,7 @@ import { runAutomationSweeps, runAutomationResumes, runScheduledAutomations } fr
 import { pruneBuilds } from "@/lib/estimator-build-jobs";
 import { runTaskReminders } from "@/lib/tasks";
 import { runScheduledSends } from "@/lib/send-document";
+import { archiveExpiredNotes } from "@/lib/sticky-notes";
 
 /**
  * Hourly billing cron. A scheduler (Railway cron service, or an external
@@ -152,6 +153,8 @@ export async function POST(req: NextRequest) {
     // Send later (quotes / invoices): backstop for the 5-minute ticker, same
     // compare-and-set claim so a document never goes out twice
     await step("scheduledSends", () => runScheduledSends(now));
+    // Sticky notes past their expiry come down (reads already hide them)
+    await step("expiredNotes", () => archiveExpiredNotes(now));
     // "Hold for approval" bookings nobody answered: auto-decline 2 h before
     // the slot (frees it, tells the client), and a morning nudge while any wait
     await step("approvalBookings", () => expireApprovalBookings(now));
