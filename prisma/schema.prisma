@@ -297,6 +297,7 @@ model Company {
   automationJobs        AutomationJob[]
   automationNotices     AutomationNotice[]
   tasks                 Task[]
+  stickyNotes           StickyNote[]
   contractTemplates     ContractTemplate[]
   contracts             Contract[]
   expenses              Expense[]
@@ -557,6 +558,8 @@ model User {
   callLegs             CallLeg[]
   tasks                Task[]                    @relation("TaskAssignee")
   createdTasks         Task[]                    @relation("TaskCreator")
+  stickyNotes          StickyNote[]
+  stickyPlacements     StickyNotePlacement[]
 
   // Same address may exist at several companies (one row per membership),
   // but only once within a company.
@@ -3524,4 +3527,54 @@ model Task {
   @@index([companyId, dueAt])
   @@index([contactId])
   @@index([jobId])
+}
+
+// ─── Sticky notes (dashboard) ────────────────────────────────────────────────
+// Square paper notes on Home (docs/plans/tasks-schedule-send-sticky-notes-
+// 2026-10-03.md § 3). Personal by default; `shared` pins a note to the team
+// board so everyone in the company sees it. Not a task (no due date, no done
+// state) — "Make a task" copies the body into a Task and keeps the note.
+
+enum StickyColor {
+  YELLOW
+  PINK
+  BLUE
+  GREEN
+  ORANGE
+}
+
+model StickyNote {
+  id         String      @id @default(cuid())
+  companyId  String
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId     String // author
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  body       String      @db.Text
+  color      StickyColor @default(YELLOW)
+  // Stable slight tilt (-3..3 degrees) so the board doesn't jump on reload
+  rotation   Float       @default(0)
+  shared     Boolean     @default(false)
+  archivedAt DateTime?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  placements StickyNotePlacement[]
+
+  @@index([companyId, shared, archivedAt])
+  @@index([userId, archivedAt])
+}
+
+// Where a note sits on EACH viewer's desktop board (0–1 of the board's width
+// and height; z = stacking). Team notes are draggable by every viewer without
+// moving anyone else's.
+model StickyNotePlacement {
+  noteId String
+  note   StickyNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  userId String
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  x      Float
+  y      Float
+  z      Int        @default(0)
+
+  @@id([noteId, userId])
 }

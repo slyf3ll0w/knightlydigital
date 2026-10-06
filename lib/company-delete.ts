@@ -24,6 +24,7 @@ export async function deleteCompanyCascade(companyId: string): Promise<void> {
     async (tx) => {
       const where = { companyId };
       await tx.task.deleteMany({ where }); // references contacts/jobs/quotes/invoices/calls/users
+      await tx.stickyNote.deleteMany({ where }); // cascades placements
       await tx.payment.deleteMany({ where });
       await tx.invoice.deleteMany({ where }); // cascades line items + reminders
       await tx.contract.deleteMany({ where });

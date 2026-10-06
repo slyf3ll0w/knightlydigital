@@ -201,6 +201,53 @@ export const startSection: HelpSection = {
       ],
     },
     {
+      slug: "sticky-notes",
+      title: "Sticky notes on Home",
+      summary: "Square paper notes on your dashboard: a scribble, a number, a reminder to yourself, or one pinned for the whole team.",
+      keywords: ["sticky", "note", "post-it", "corkboard", "team board", "pin", "dashboard", "home"],
+      where: { label: "Home", href: "/app/dashboard" },
+      blocks: [
+        {
+          type: "p",
+          text: "Notes are for the things that aren't tasks yet: a supplier's number, \"the Smith job needs a 40 ft ladder\", a scribble from a call. On a computer they sit on a corkboard across the top of **Home** and you can slide them wherever you like; on your phone they're a row you swipe through under the day's summary.",
+        },
+        {
+          type: "steps",
+          items: [
+            "On Home, press `New note` (or the faint `Stick a note` square, or `+` at the end of the row on your phone).",
+            "Write on it. Up to 400 characters, no formatting; web addresses become links.",
+            "Pick a paper color if you like. Press `Stick it`.",
+          ],
+        },
+        {
+          type: "list",
+          items: [
+            "**Edit or take down:** tap the note. `Take down` removes it.",
+            "**Team board:** tick **Pin to the team board** and everyone in the company sees the note on their Home, with your initials in the corner. Each person slides it around their own board. Only you (or an owner or admin) can edit or take it down.",
+            "**Make a task:** turns the note into a task on your list (the first line becomes the title) and keeps the note.",
+            "**Tidy:** on a computer the `Notes` heading collapses the board; your choice is remembered on that device.",
+          ],
+        },
+        {
+          type: "tip",
+          text: "Ask Atlas: \"stick a note that the Patel job needs a permit\" puts one on your board after you confirm.",
+        },
+        {
+          type: "faq",
+          items: [
+            {
+              q: "I can't add another note.",
+              a: "Each person can have 30 notes up, and the team board holds 30. Take one down first.",
+            },
+            {
+              q: "A teammate's note moved on my board.",
+              a: "Positions are per person; only you move your board. If a note changed, the author edited it.",
+            },
+          ],
+        },
+      ],
+    },
+    {
       slug: "roles-and-permissions",
       title: "Roles: who can see and do what",
       summary: "Owner, Admin, Sales + Tech, Sales and Tech, and what each one can open.",

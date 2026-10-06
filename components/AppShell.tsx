@@ -1753,6 +1753,8 @@ export default function AppShell({
     if (assistantOpen) setTeaserVisible(false);
   }, [assistantOpen]);
   const [counts, setCounts] = useState({ requests: 0, pastDue: 0, chat: 0, leads: 0, messages: 0, tasks: 0 });
+  // Sticky notes: Home's board refetches when the team's newest note moves
+  const notesVersionRef = useRef<string | null | undefined>(undefined);
   // Live notification cards (components/LiveToasts.tsx): when a count grows
   // between two polls, the newest matching feed items become cards.
   const [toasts, setToasts] = useState<LiveToast[]>([]);
@@ -1987,6 +1989,11 @@ export default function AppShell({
               messages: d.messages ?? 0,
               tasks: d.tasks ?? 0,
             };
+            const notesNow = (d.notesVersion as string | null | undefined) ?? null;
+            if (notesVersionRef.current !== undefined && notesVersionRef.current !== notesNow) {
+              window.dispatchEvent(new Event("wb:notes-changed"));
+            }
+            notesVersionRef.current = notesNow;
             const prev = prevCountsRef.current;
             const since = lastPollAtRef.current;
             prevCountsRef.current = next;

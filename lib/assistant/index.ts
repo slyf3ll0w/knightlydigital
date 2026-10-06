@@ -24,6 +24,7 @@ import { estimatorTools } from "./estimators";
 import { automationTools } from "./automations";
 import { partsTools } from "./parts";
 import { helpTools } from "./help";
+import { noteTools } from "./notes";
 
 export type { Proposal, BatchItem, Tool, ToolCtx } from "./core";
 
@@ -137,6 +138,7 @@ const tools: Tool[] = [
   ...automationTools,
   ...partsTools,
   ...helpTools,
+  ...noteTools,
   ...deleteTools,
 ];
 

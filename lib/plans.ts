@@ -204,10 +204,15 @@ export function normalizeGrants(grants: readonly string[]): PlanId[] {
 // ── Feature gates ──
 
 /** The Pro features that carry a gate in code. Each one names its own copy. */
-export type GatedFeature = "routes";
+export type GatedFeature = "routes" | "task_assign" | "team_notes";
 
 const FEATURE_LABEL: Record<GatedFeature, string> = {
   routes: "Route Manager",
+  // Tasks & sticky notes (docs/plans/tasks-schedule-send-sticky-notes-2026-10-03.md):
+  // personal tasks and notes are free; handing tasks to employees and the
+  // team sticky board sit with the other team tools.
+  task_assign: "Giving tasks to your team",
+  team_notes: "The team notes board",
 };
 
 export function featureLabel(feature: GatedFeature): string {
@@ -228,6 +233,8 @@ export function featureAllowed(company: PlanHolder, feature: GatedFeature, live:
   if (!live) return true;
   switch (feature) {
     case "routes":
+    case "task_assign":
+    case "team_notes":
       return hasPlan(company, "SHOP");
   }
 }

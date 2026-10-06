@@ -8,6 +8,7 @@ import { FilterChip, FilterRow, Segment, SegmentedRow } from "@/components/Filte
 import SwipeRow from "@/components/SwipeRow";
 import TaskCheck from "@/components/tasks/TaskCheck";
 import TaskEditor, { type TeamMember } from "@/components/tasks/TaskEditor";
+import TaskDetail from "@/components/tasks/TaskDetail";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { postJson } from "@/lib/safe-fetch";
 import { hapticImpact } from "@/lib/haptics";
@@ -51,6 +52,10 @@ export default function TasksClient({
   const router = useRouter();
   const [tasks, setTasks] = useState<TaskDTO[]>(initial);
   const [editor, setEditor] = useState<{ open: boolean; task: TaskDTO | null }>({ open: false, task: null });
+  // A row tap or a notification lands on the details (tick it off, read the
+  // notes); Edit is one step further. The editor opens straight away only
+  // for a new task.
+  const [detail, setDetail] = useState<{ open: boolean; task: TaskDTO | null }>({ open: false, task: null });
   // The prefill from ?new=1 is captured once: the URL is cleaned right after,
   // and the editor must not reset mid-typing when the prop goes null.
   const [editorPrefill] = useState(prefill);
@@ -77,7 +82,7 @@ export default function TasksClient({
     if (!openTaskId) return;
     const hit = initial.find((t) => t.id === openTaskId);
     if (hit) {
-      setEditor({ open: true, task: hit });
+      setDetail({ open: true, task: hit });
       cleanUrl();
       return;
     }
@@ -86,7 +91,7 @@ export default function TasksClient({
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { task?: TaskDTO } | null) => {
         if (cancelled) return;
-        if (d?.task) setEditor({ open: true, task: d.task });
+        if (d?.task) setDetail({ open: true, task: d.task });
         cleanUrl();
       })
       .catch(() => cleanUrl());
@@ -103,6 +108,10 @@ export default function TasksClient({
   };
   const openTask = (t: TaskDTO) => {
     hapticImpact("LIGHT");
+    setDetail({ open: true, task: t });
+  };
+  const editTask = (t: TaskDTO) => {
+    setDetail((d) => ({ ...d, open: false }));
     setEditor({ open: true, task: t });
   };
 
@@ -110,6 +119,7 @@ export default function TasksClient({
   // views; the Done view keeps it (and lets you untick it).
   const onChanged = (next: TaskDTO) => {
     setTasks((cur) => cur.map((t) => (t.id === next.id ? next : t)));
+    setDetail((d) => (d.task?.id === next.id ? { ...d, task: next } : d));
     const leaving = view === "done" ? !next.doneAt : Boolean(next.doneAt);
     const prior = lingering.current.get(next.id);
     if (prior) clearTimeout(prior);
@@ -128,6 +138,7 @@ export default function TasksClient({
   };
 
   const onSaved = (saved: TaskDTO[]) => {
+    setDetail((d) => (d.task ? { ...d, task: saved.find((t) => t.id === d.task!.id) ?? d.task } : d));
     setTasks((cur) => {
       const byId = new Map(cur.map((t) => [t.id, t]));
       for (const t of saved) {
@@ -142,6 +153,7 @@ export default function TasksClient({
   };
 
   const onDeleted = (id: string) => {
+    setDetail((d) => (d.task?.id === id ? { open: false, task: null } : d));
     setTasks((cur) => cur.filter((t) => t.id !== id));
     router.refresh();
   };
@@ -325,6 +337,14 @@ export default function TasksClient({
         </div>
       )}
 
+      <TaskDetail
+        open={detail.open}
+        task={detail.task}
+        meId={meId}
+        onClose={() => setDetail((d) => ({ ...d, open: false }))}
+        onEdit={editTask}
+        onChanged={onChanged}
+      />
       <TaskEditor
         open={editor.open}
         onClose={() => setEditor((e) => ({ ...e, open: false }))}

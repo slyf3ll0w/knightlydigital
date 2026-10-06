@@ -410,3 +410,37 @@ schedule send / sticky notes untouched.
 
 Not done: Automations "send later" (the existing delay step covers it once
 the action calls the helper), deposit / agreement sends (not in scope).
+
+### Sticky notes — BUILT 2026-10-06 (same branch)
+
+- **Data:** `StickyNote` (+ `StickyColor` enum) and `StickyNotePlacement`
+  (per-viewer x/y/z, 0–1 of the board). Additive. Company cascade deletes
+  notes before users.
+- **Server:** `lib/sticky-notes.ts` (listNotes = own live + team shared with
+  the viewer's placement, notesVersion for the 20-s poll, caps 30/30,
+  canEditNote = author, or a manager for team notes); client-safe
+  `lib/sticky-shared.ts` (taskTitleFromBody, monogram, randomRotation,
+  splitLinks; unit test `scripts/test-sticky-notes.ts`).
+- **API:** `GET/POST /api/app/notes`, `PATCH/DELETE /api/app/notes/[id]`
+  (DELETE = archivedAt; only the author pins/unpins), `PUT …/place`,
+  `POST …/task` (Make a task: first line = title, body = notes, note kept).
+- **Live updates:** `/api/app/nav-counts` returns `notesVersion`; AppShell
+  dispatches `wb:notes-changed` when it moves; `DashboardStickies` refetches
+  on that event and on visibilitychange. No websockets.
+- **UI:** `components/sticky/StickyPaper` (CSS paper: five fixed pastels that
+  stay paper in dark mode, strip, curled corner, Caveat 500 for bodies only
+  — the one handwriting face, loaded by `DashboardStickies` via a
+  `<link precedence>`), `StickyBoard` (desktop corkboard band, 240 px, free
+  placement with pointer-event drag + 4 px threshold, last touched on top,
+  collapses to "Notes (n)" remembered in localStorage), `StickyRow` (phone
+  swipe row under the hero, "+" sticky at the end), `StickyEditor` (Modal:
+  the note itself is the text box, color dots, Pin to team board, Make a
+  task, Take down). Styles in `app/ds.css` "Sticky notes".
+- **Atlas:** `add_sticky_note` (`lib/assistant/notes.ts`, staged).
+- **Gating (dark until PLAN_GATING=1):** `GatedFeature` keys `task_assign`
+  (tasks POST when assigning others) and `team_notes` (pinning), both SHOP
+  like routes — the plan doc's "Pro".
+- **Help:** new guide `sticky-notes` under Getting started.
+- **Also in this round:** a task notification / row tap now opens a read-only
+  `TaskDetail` sheet (Mark done, Edit one step away) instead of the editor
+  (David 2026-10-06).

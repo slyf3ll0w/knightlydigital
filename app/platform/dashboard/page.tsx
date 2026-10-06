@@ -32,7 +32,10 @@ import { startOfDayIn, startOfMonthIn, startOfWeekIn, zonedMidnight, zonedParts 
 import CountUp from "@/components/CountUp";
 import DashboardSetupCard from "./DashboardSetupCard";
 import DashboardTasks from "./DashboardTasks";
+import DashboardStickies from "./DashboardStickies";
 import { dashboardTasks } from "@/lib/tasks";
+import { listNotes } from "@/lib/sticky-notes";
+import { featureAllowedFor } from "@/lib/plan-gate";
 import UpNextActions from "./UpNextActions";
 import AtlasHomeButton from "@/components/AtlasHomeButton";
 import SwipeRowContact from "@/components/SwipeRowContact";
@@ -132,6 +135,8 @@ export default async function DashboardPage() {
     myOpenEntry,
     newLeads,
     taskLists,
+    stickyNotes,
+    canPinNotes,
   ] = await Promise.all([
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEW" } }),
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEEDS_APPROVAL" } }),
@@ -231,6 +236,9 @@ export default async function DashboardPage() {
       : Promise.resolve(0),
     // My open tasks: due today join Today, overdue join Needs you
     dashboardTasks(actor, tz, now),
+    // Sticky notes: mine + the team board
+    listNotes(actor),
+    featureAllowedFor(companyId, "team_notes"),
   ]);
   const todayTasks = taskLists.today;
   const overdueTasks = taskLists.overdue;
@@ -734,6 +742,7 @@ export default async function DashboardPage() {
       {/* ─────────────── Phone ─────────────── */}
       <div className="mt-6 flex flex-col gap-7 lg:hidden">
         {heroEl}
+        <DashboardStickies initial={stickyNotes} meId={actor.id} canPin={canPinNotes} phone />
 
         {seePerformance && (
           <Card className="ds-rise grid grid-cols-3" style={rise(2)}>
@@ -800,6 +809,9 @@ export default async function DashboardPage() {
 
       {/* ─────────────── Desktop ─────────────── */}
       <div className="hidden lg:block">
+        <div className="mt-6">
+          <DashboardStickies initial={stickyNotes} meId={actor.id} canPin={canPinNotes} phone={false} />
+        </div>
         {showSetupCard && (
           <div className="mt-6">
             <DashboardSetupCard />

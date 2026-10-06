@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell, canSeeMoney, contactScope, viaContactScope } from "@/lib/permissions";
 import { totalUnread } from "@/lib/chat";
 import { pastDueFilter } from "@/lib/due-dates";
+import { notesVersion } from "@/lib/sticky-notes";
 
 /**
  * Sidebar badge counts: new requests + past-due invoices, role-scoped the
@@ -14,7 +15,7 @@ export async function GET() {
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const scope = viaContactScope(actor);
-  const [requests, pastDue, chat, leads, messages, tasks] = await Promise.all([
+  const [requests, pastDue, chat, leads, messages, tasks, notes] = await Promise.all([
     canSell(actor.role)
       ? prisma.request.count({
           where: { companyId: actor.companyId, status: "NEW", ...scope },
@@ -72,7 +73,10 @@ export async function GET() {
     prisma.task.count({
       where: { companyId: actor.companyId, assigneeId: actor.id, doneAt: null, dueAt: { lte: new Date() } },
     }),
+    // Sticky notes: the newest touch among the notes this viewer can see —
+    // Home refetches its board when this moves (team notes, no websockets)
+    notesVersion(actor),
   ]);
 
-  return NextResponse.json({ requests, pastDue, chat, leads, messages, tasks });
+  return NextResponse.json({ requests, pastDue, chat, leads, messages, tasks, notesVersion: notes });
 }

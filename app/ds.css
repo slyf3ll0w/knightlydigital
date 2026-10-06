@@ -544,3 +544,108 @@ html[data-mode="dark"] .ds { --rail-news: var(--ds-secondary); }
   .ds .ds-task-check[data-done="true"] { animation: none; }
   .ds .ds-task-check:active { transform: none; }
 }
+
+/* ── Sticky notes (Home) ─────────────────────────────────────────────────
+   Paper is "material": five fixed pastel papers that stay paper in dark mode
+   (the board behind them darkens). Ink is always dark on paper. The body is
+   the ONE handwriting face in the app (Caveat), loaded by DashboardStickies
+   for note bodies only — a documented exception like .ds-num. */
+.ds {
+  --sticky-ink: #1F2433;
+  --sticky-ink-2: rgba(31, 36, 51, 0.62);
+  --sticky-yellow: #FFF3A3; --sticky-yellow-strip: #F4E27A;
+  --sticky-pink:   #FFD4E4; --sticky-pink-strip:   #F7B9D0;
+  --sticky-blue:   #CFE7FF; --sticky-blue-strip:   #B4D4F5;
+  --sticky-green:  #D6F5D0; --sticky-green-strip:  #B9E6B2;
+  --sticky-orange: #FFDFBF; --sticky-orange-strip: #F7C99A;
+  --cork: #F1E9DC;
+}
+html[data-mode="dark"] .ds { --cork: #2A2620; }
+
+.ds .ds-corkboard {
+  position: relative; border-radius: 18px;
+  background-color: var(--cork);
+  background-image:
+    radial-gradient(rgba(0,0,0,0.045) 1px, transparent 1.2px),
+    radial-gradient(rgba(255,255,255,0.35) 1px, transparent 1.2px);
+  background-size: 9px 9px, 13px 13px;
+  background-position: 0 0, 4px 6px;
+  box-shadow: inset 0 0 0 1px var(--ds-line), inset 0 2px 10px rgba(0,0,0,0.06);
+  overflow: hidden;
+}
+
+.ds .ds-sticky {
+  position: relative; display: flex; flex-direction: column;
+  width: 168px; height: 168px; padding: 22px 14px 14px;
+  color: var(--sticky-ink);
+  background: var(--paper, var(--sticky-yellow));
+  box-shadow: 0 1px 2px rgba(0,0,0,0.10), 0 10px 18px -10px rgba(0,0,0,0.35);
+  transform: rotate(var(--tilt, 0deg));
+  border-radius: 2px 2px 8px 2px;
+  user-select: none; -webkit-user-select: none;
+  text-align: left; cursor: pointer;
+  transition: box-shadow 160ms var(--ds-ease);
+}
+.ds .ds-sticky:hover { box-shadow: 0 2px 4px rgba(0,0,0,0.12), 0 16px 24px -12px rgba(0,0,0,0.4); }
+/* the adhesive strip */
+.ds .ds-sticky::before {
+  content: ""; position: absolute; left: 50%; top: 0; transform: translateX(-50%);
+  width: 56%; height: 14px; background: var(--strip, var(--sticky-yellow-strip)); opacity: 0.9;
+}
+/* the curled corner */
+.ds .ds-sticky::after {
+  content: ""; position: absolute; right: 0; bottom: 0; width: 22px; height: 22px;
+  background: linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.10) 50%, rgba(0,0,0,0.04) 70%, rgba(255,255,255,0.55) 100%);
+  border-top-left-radius: 6px;
+}
+.ds .ds-sticky-yellow { --paper: var(--sticky-yellow); --strip: var(--sticky-yellow-strip); }
+.ds .ds-sticky-pink   { --paper: var(--sticky-pink);   --strip: var(--sticky-pink-strip); }
+.ds .ds-sticky-blue   { --paper: var(--sticky-blue);   --strip: var(--sticky-blue-strip); }
+.ds .ds-sticky-green  { --paper: var(--sticky-green);  --strip: var(--sticky-green-strip); }
+.ds .ds-sticky-orange { --paper: var(--sticky-orange); --strip: var(--sticky-orange-strip); }
+.ds .ds-sticky-body {
+  font-family: "Caveat", "Lexend", sans-serif; font-weight: 500;
+  font-size: 19px; line-height: 1.18; letter-spacing: 0.005em;
+  flex: 1; min-height: 0; overflow: hidden; white-space: pre-wrap; word-break: break-word;
+  color: var(--sticky-ink);
+  -webkit-mask-image: linear-gradient(180deg, #000 78%, transparent 100%); mask-image: linear-gradient(180deg, #000 78%, transparent 100%);
+}
+.ds .ds-sticky-body a { color: var(--sticky-ink); text-decoration: underline; text-decoration-color: var(--sticky-ink-2); }
+.ds .ds-sticky-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  margin-top: 6px; font-size: 11px; color: var(--sticky-ink-2);
+}
+.ds .ds-sticky-mono {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: 0.02em;
+  background: rgba(31,36,51,0.12); color: var(--sticky-ink);
+}
+.ds .ds-sticky-ghost {
+  background: transparent; box-shadow: none; color: var(--ds-muted);
+  border: 1.5px dashed var(--ds-line-strong); border-radius: 4px;
+  align-items: center; justify-content: center; font-size: 13px; font-weight: 600;
+}
+.ds .ds-sticky-ghost::before, .ds .ds-sticky-ghost::after { display: none; }
+.ds .ds-sticky-ghost:hover { color: var(--ds-primary); border-color: var(--ds-primary); box-shadow: none; }
+/* on the board: absolutely placed, draggable */
+.ds .ds-sticky-placed { position: absolute; touch-action: none; }
+.ds .ds-sticky-dragging { cursor: grabbing; box-shadow: 0 6px 10px rgba(0,0,0,0.14), 0 26px 34px -14px rgba(0,0,0,0.5); transition: none; }
+/* phone row: a little smaller */
+.ds .ds-sticky-sm { width: 150px; height: 150px; padding: 20px 12px 12px; }
+.ds .ds-sticky-sm .ds-sticky-body { font-size: 17.5px; }
+/* editor textarea in the same hand */
+.ds .ds-sticky-input {
+  font-family: "Caveat", "Lexend", sans-serif; font-weight: 500; font-size: 22px; line-height: 1.2;
+  color: var(--sticky-ink); background: var(--paper, var(--sticky-yellow));
+  border: 0; border-radius: 4px; padding: 22px 16px 16px; width: 100%; min-height: 170px; resize: vertical;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
+}
+.ds .ds-sticky-input:focus { outline: 2px solid var(--ds-primary); outline-offset: 2px; }
+.ds .ds-sticky-dot {
+  width: 26px; height: 26px; border-radius: 999px; background: var(--paper);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.12);
+}
+.ds .ds-sticky-dot[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--ds-surface), 0 0 0 4px var(--ds-primary); }
+@media (prefers-reduced-motion: reduce) {
+  .ds .ds-sticky { transition: none; }
+}
