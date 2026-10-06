@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { MESSAGE_SELECT, serializeMessage } from "@/lib/chat";
+import { deleteMessageMedia } from "@/lib/message-media";
 
 /** Edit (PATCH) or delete (DELETE) your own chat message. */
 
@@ -38,11 +39,11 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const message = await prisma.teamMessage.findFirst({
     where: { id, companyId: actor.companyId, userId: actor.id, deletedAt: null },
-    select: { id: true },
+    select: { id: true, media: { select: { id: true } } },
   });
   if (!message) return NextResponse.json({ error: "Message not found." }, { status: 404 });
 
-  // Soft delete: wipe the text, drop reactions, leave a tombstone in the thread
+  // Soft delete: wipe the text, drop reactions and photos, leave a tombstone in the thread
   await prisma.$transaction([
     prisma.teamMessage.update({
       where: { id: message.id },
@@ -50,5 +51,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     }),
     prisma.teamMessageReaction.deleteMany({ where: { messageId: message.id } }),
   ]);
+  await deleteMessageMedia(message.media.map((m) => m.id)).catch(() => {});
   return NextResponse.json({ success: true });
 }

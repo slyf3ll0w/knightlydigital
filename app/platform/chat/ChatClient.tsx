@@ -6,6 +6,7 @@ import {
   Check,
   ChevronRight,
   Copy,
+  ImagePlus,
   Loader2,
   MoreVertical,
   Pencil,
@@ -25,6 +26,10 @@ import { hapticImpact } from "@/lib/haptics";
 import { useMeasuredHeight } from "@/lib/use-measured-height";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import MenuPopover from "@/components/MenuPopover";
+import MessageMedia, { type ThreadMedia } from "@/components/MessageMedia";
+import FileDropOverlay from "@/components/FileDropOverlay";
+import { resizeForMms } from "@/lib/resize-image";
+import { useFileDrop } from "@/lib/use-file-drop";
 
 // Mirrors TAPBACKS in lib/chat.ts (server module)
 const TAPBACKS = ["👍", "❤️", "😂", "😮", "😢", "🎉"];
@@ -40,9 +45,13 @@ type Message = {
   userId: string;
   userName: string;
   reactions: Reaction[];
+  /** Photos / clips (lib/message-media.ts) — kept a week, then the bubble says expired. */
+  media?: ThreadMedia[];
   // Client-only: optimistic sends waiting on / rejected by the server
   pending?: boolean;
   failed?: boolean;
+  /** Client-only: the file behind a pending photo bubble, for the retry. */
+  pendingFile?: File;
 };
 
 type Member = { id: string; name: string; role: string; phone: string | null };
@@ -62,6 +71,8 @@ type Channel = {
 const POLL_MS = 8000;
 const TYPING_PING_MS = 2500;
 const LONG_PRESS_MS = 350;
+// Mirrors CHAT_MAX_BYTES in lib/message-media.ts (server module)
+const CHAT_MAX_BYTES = 25_000_000;
 
 // Group-chat sender name colors, hashed per user — design-system tokens only (no raw hues)
 const NAME_COLORS = ["var(--ds-primary)", "var(--ds-secondary-strong)", "var(--ds-ink-2)", "var(--ds-muted)"];
@@ -184,6 +195,8 @@ export default function ChatClient({
   const [picked, setPicked] = useState<string[]>([]);
   const [groupName, setGroupName] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [attaching, setAttaching] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   // iOS keyboard: the layout viewport doesn't shrink, only the visual one —
   // size the conversation overlay to the visual viewport so the composer AND
   // the latest messages stay above the keyboard.
@@ -403,8 +416,104 @@ export default function ChatClient({
     void postMessage(text);
   }
 
+  // A photo (or clip) with optional words: the bubble shows the picture at
+  // once from the file itself, the upload settles behind it. Pictures are
+  // downsized on the device first (no carrier cap here, so more detail than
+  // a text keeps).
+  async function postMedia(file: File, body: string) {
+    const channelId = activeRef.current;
+    let upload: Blob = file;
+    let name = file.name;
+    if (file.type.startsWith("image/") && file.type !== "image/gif") {
+      try {
+        const r = await resizeForMms(file, 3_000_000);
+        upload = r.blob;
+        name = r.filename;
+      } catch {
+        /* send as-is */
+      }
+    }
+    if (upload.size > CHAT_MAX_BYTES) {
+      setError("That file is too big — keep it under 25 MB.");
+      return;
+    }
+    const temp: Message = {
+      id: `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      body,
+      createdAt: new Date().toISOString(),
+      editedAt: null,
+      deletedAt: null,
+      userId: meId,
+      userName: memberById.get(meId)?.name ?? "You",
+      reactions: [],
+      media: [{ id: "pending", type: upload.type || file.type, url: URL.createObjectURL(upload) }],
+      pending: true,
+      pendingFile: file,
+    };
+    stickToBottomRef.current = true;
+    setMessages((prev) => [...prev, temp]);
+    try {
+      const fd = new FormData();
+      fd.append("file", upload, name);
+      fd.append("channel", channelId);
+      if (body) fd.append("body", body);
+      const res = await fetch("/api/app/chat/media", { method: "POST", body: fd });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.id) throw new Error(data?.error ?? "");
+      if (activeRef.current !== channelId) return; // switched threads mid-send
+      seenRef.current.add(data.id);
+      setMessages((prev) =>
+        prev.some((m) => m.id === data.id)
+          ? prev.filter((m) => m.id !== temp.id)
+          : prev.map((m) => (m.id === temp.id ? data : m))
+      );
+    } catch (err) {
+      if (activeRef.current !== channelId) return;
+      if (err instanceof Error && err.message) setError(err.message);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === temp.id ? { ...m, pending: false, failed: true } : m))
+      );
+    }
+  }
+
+  // Picked or dropped files: one message each, in order; the draft rides
+  // along as the first one's caption.
+  async function sendFiles(files: File[]) {
+    if (files.length === 0 || attaching) return;
+    const sendable = files.filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
+    if (sendable.length === 0) {
+      setError("Only photos and videos can be sent in chat.");
+      return;
+    }
+    setError("");
+    setAttaching(true);
+    hapticImpact("LIGHT");
+    const body = draft.trim();
+    setDraft("");
+    requestAnimationFrame(autoGrow);
+    try {
+      for (const [i, file] of sendable.slice(0, 10).entries()) await postMedia(file, i === 0 ? body : "");
+      if (sendable.length < files.length) setError("Only photos and videos can be sent in chat — the other files were skipped.");
+    } finally {
+      setAttaching(false);
+    }
+  }
+
+  function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    void sendFiles(files);
+  }
+
+  const drop = useFileDrop((files) => void sendFiles(files), !attaching);
+
   function retrySend(m: Message) {
+    setError("");
     setMessages((prev) => prev.filter((x) => x.id !== m.id));
+    if (m.pendingFile) {
+      void postMedia(m.pendingFile, m.body);
+      return;
+    }
     void postMessage(m.body);
   }
 
@@ -634,7 +743,8 @@ export default function ChatClient({
   );
 
   const conversation = (
-    <div className="relative flex h-full min-h-0 flex-col bg-white lg:rounded-[8px] lg:border lg:border-gray-200 lg:shadow-sm">
+    <div {...drop.handlers} className="relative flex h-full min-h-0 flex-col bg-white lg:rounded-[8px] lg:border lg:border-gray-200 lg:shadow-sm">
+      <FileDropOverlay show={drop.over} hint={`Sends to ${active?.name ?? "this chat"} · photos stay in the chat for a week`} />
       {/* Header */}
       <div className="chat-head glass-bar flex shrink-0 items-center gap-2.5 border-b border-gray-100 px-3 py-2.5 lg:px-4">
         <button
@@ -799,10 +909,10 @@ export default function ChatClient({
                             : `bg-gray-100 text-gray-900 ${firstOfRun ? "rounded-2xl rounded-bl-md" : lastOfRun ? "rounded-2xl rounded-tl-md" : "rounded-2xl rounded-l-md"}`
                         }`}
                       >
-                        <Linkified text={m.body} />
+                        {m.media && m.media.length > 0 && <MessageMedia media={m.media} className={m.body ? "mb-1.5" : ""} />}
+                        {m.body && <Linkified text={m.body} />}
                         <span className={`ml-2 inline-block translate-y-px text-[10px] ${mine ? "text-white/60" : "text-gray-400"}`}>
-                          {m.editedAt ? "edited · " : ""}
-                          {timeLabel(m.createdAt)}
+                          {m.pending ? "Sending…" : `${m.editedAt ? "edited · " : ""}${timeLabel(m.createdAt)}`}
                         </span>
                       </div>
                     )}
@@ -848,6 +958,7 @@ export default function ChatClient({
                         </button>
                         {mine && (
                           <>
+                            {m.body && (
                             <button
                               type="button"
                               onClick={() => {
@@ -860,6 +971,7 @@ export default function ChatClient({
                             >
                               <Pencil size={12} />
                             </button>
+                            )}
                             <button type="button" onClick={() => deleteMessage(m.id)} className="rounded-full p-1 text-gray-400 hover:bg-[color:var(--ds-bad-soft)] hover:text-[color:var(--ds-bad)]" aria-label="Delete">
                               <Trash2 size={12} />
                             </button>
@@ -919,6 +1031,25 @@ export default function ChatClient({
       >
         {error && <p className="mb-1.5 text-xs text-[color:var(--ds-bad)]">{error}</p>}
         <div className="flex items-end gap-2 glass-control max-lg:rounded-[27px] max-lg:p-1.5 max-lg:pl-1">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*,video/*"
+            multiple
+            className="hidden"
+            onChange={onPickFiles}
+            tabIndex={-1}
+          />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={attaching}
+            aria-label="Send a photo"
+            title="Send a photo or video — photos stay in the chat for a week"
+            className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full text-[color:var(--ds-primary)] transition-colors hover:bg-[color:var(--ds-primary-soft)] active:bg-[color:var(--ds-primary-soft)] disabled:opacity-40"
+          >
+            {attaching ? <Loader2 size={20} className="animate-spin" /> : <ImagePlus size={20} />}
+          </button>
           <textarea
             ref={inputRef}
             value={draft}
@@ -1016,21 +1147,24 @@ export default function ChatClient({
               ))}
             </div>
             <div
-              className="sheet-material mt-2 w-52 overflow-hidden rounded-2xl border border-gray-200 shadow-xl"
+              className="sheet-material mt-2 w-52 divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 shadow-xl"
               style={{ animation: "tile-in 220ms cubic-bezier(0.22,1,0.36,1) both", animationDelay: "40ms", marginLeft: pressed.mine ? "auto" : undefined }}
             >
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard?.writeText(pressed.msg.body).catch(() => {});
-                  setPressed(null);
-                }}
-                className="flex w-full items-center justify-between px-4 py-3 text-[15px] text-gray-800 active:bg-gray-50"
-              >
-                Copy <Copy size={16} className="text-gray-400" />
-              </button>
+              {pressed.msg.body && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(pressed.msg.body).catch(() => {});
+                    setPressed(null);
+                  }}
+                  className="flex w-full items-center justify-between px-4 py-3 text-[15px] text-gray-800 active:bg-gray-50"
+                >
+                  Copy <Copy size={16} className="text-gray-400" />
+                </button>
+              )}
               {pressed.mine && (
                 <>
+                  {pressed.msg.body && (
                   <button
                     type="button"
                     onClick={() => {
@@ -1038,14 +1172,15 @@ export default function ChatClient({
                       setEditDraft(pressed.msg.body);
                       setPressed(null);
                     }}
-                    className="flex w-full items-center justify-between border-t border-gray-100 px-4 py-3 text-[15px] text-gray-800 active:bg-gray-50"
+                    className="flex w-full items-center justify-between px-4 py-3 text-[15px] text-gray-800 active:bg-gray-50"
                   >
                     Edit <Pencil size={15} className="text-gray-400" />
                   </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => deleteMessage(pressed.msg.id)}
-                    className="flex w-full items-center justify-between border-t border-gray-100 px-4 py-3 text-[15px] text-[color:var(--ds-bad)] active:bg-[color:var(--ds-bad-soft)]"
+                    className="flex w-full items-center justify-between px-4 py-3 text-[15px] text-[color:var(--ds-bad)] active:bg-[color:var(--ds-bad-soft)]"
                   >
                     Delete <Trash2 size={15} />
                   </button>

@@ -1,7 +1,7 @@
 /**
  * Pictures and clips on thread messages (PortalMessageMedia): MMS in both
- * directions on the business line, and photos the team attaches on a
- * portal-only thread. Bytes follow the JobPhoto pattern — R2 when object
+ * directions on the business line, photos the team attaches on a
+ * portal-only thread, and photos posted in team chat (teamMessageId). Bytes follow the JobPhoto pattern — R2 when object
  * storage is configured, else the `data` column — and every reader goes
  * through mediaResponse(), which redirects to a short-lived signed R2 URL or
  * streams the bytes.
@@ -43,6 +43,10 @@ export const MMS_TYPES = new Set([
 export const MMS_MAX_BYTES = 1_000_000;
 /** Inbound: what we keep of what Telnyx fetched for us. */
 export const INBOUND_MAX_BYTES = 5_000_000;
+/** Team chat: no carrier in the way, so pictures keep more detail and clips can run longer. */
+export const CHAT_MAX_BYTES = 25_000_000;
+/** What team chat takes: pictures and clips, like a text (no audio or contact cards from the composer). */
+export const CHAT_TYPES = new Set([...MMS_TYPES].filter((t) => t.startsWith("image/") || t.startsWith("video/")));
 
 export type MediaRow = { id: string; contentType: string; sizeBytes: number; expiredAt?: Date | null };
 
@@ -118,16 +122,20 @@ export function mediaPreview(body: string, media: Array<{ contentType: string }>
   return `${icon} ${media.length} ${noun === "photo" ? "photos" : noun === "video" ? "videos" : "attachments"}`;
 }
 
-/** Store one attachment under a message; returns the row. R2 when configured, else Postgres bytes. */
+/** Store one attachment under a client-thread message (messageId) or a team chat message (teamMessageId); returns the row. R2 when configured, else Postgres bytes. */
 export async function storeMessageMedia(args: {
   companyId: string;
-  messageId: string;
+  messageId?: string;
+  teamMessageId?: string;
   bytes: Buffer;
   contentType: string;
 }): Promise<MediaRow> {
+  const ownerId = args.messageId ?? args.teamMessageId;
+  if (!ownerId) throw new Error("storeMessageMedia needs a message");
   const row = await prisma.portalMessageMedia.create({
     data: {
-      messageId: args.messageId,
+      messageId: args.messageId ?? null,
+      teamMessageId: args.teamMessageId ?? null,
       companyId: args.companyId,
       contentType: args.contentType,
       sizeBytes: args.bytes.byteLength,
@@ -136,7 +144,7 @@ export async function storeMessageMedia(args: {
     select: { id: true, contentType: true, sizeBytes: true },
   });
   if (isBlobStorageConfigured()) {
-    const key = messageMediaKey(args.companyId, args.messageId, row.id, args.contentType);
+    const key = messageMediaKey(args.companyId, ownerId, row.id, args.contentType);
     try {
       await putObject(key, args.bytes, args.contentType);
       await prisma.portalMessageMedia.update({ where: { id: row.id }, data: { storageKey: key } });

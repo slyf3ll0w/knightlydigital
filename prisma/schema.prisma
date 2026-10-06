@@ -717,6 +717,7 @@ model TeamMessage {
   createdAt   DateTime     @default(now())
 
   reactions TeamMessageReaction[]
+  media     PortalMessageMedia[]
 
   @@index([channelId, createdAt])
   @@index([companyId, recipientId, createdAt])
@@ -1395,20 +1396,25 @@ model PortalMessage {
 // from /api/public/mms/[id] (the cuid is the only key, like Telnyx's own
 // media links).
 model PortalMessageMedia {
-  id          String        @id @default(cuid())
-  messageId   String
-  message     PortalMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  companyId   String
-  contentType String
-  sizeBytes   Int
-  data        Bytes?
-  storageKey  String?
+  id            String         @id @default(cuid())
+  // Exactly one of messageId / teamMessageId: a client thread message, or a
+  // team chat message (same storage, same door, same expiry).
+  messageId     String?
+  message       PortalMessage? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  teamMessageId String?
+  teamMessage   TeamMessage?   @relation(fields: [teamMessageId], references: [id], onDelete: Cascade)
+  companyId     String
+  contentType   String
+  sizeBytes     Int
+  data          Bytes?
+  storageKey    String?
   // Retention: the bytes are dropped after MESSAGE_MEDIA_DAYS (lib/message-media.ts
   // runMessageMediaSweep); the row stays so the bubble can say the photo expired.
-  expiredAt   DateTime?
-  createdAt   DateTime      @default(now())
+  expiredAt     DateTime?
+  createdAt     DateTime       @default(now())
 
   @@index([messageId])
+  @@index([teamMessageId])
   @@index([expiredAt, createdAt])
 }
 
@@ -1900,25 +1906,25 @@ enum AppointmentStatus {
 // discovery meeting. Sits between Request and Quote in the lifecycle and
 // shows on the schedule next to jobs. Replaces Request.assessmentAt.
 model Appointment {
-  id                   String            @id @default(cuid())
+  id                   String                @id @default(cuid())
   companyId            String
-  company              Company           @relation(fields: [companyId], references: [id])
+  company              Company               @relation(fields: [companyId], references: [id])
   contactId            String
-  contact              Contact           @relation(fields: [contactId], references: [id])
+  contact              Contact               @relation(fields: [contactId], references: [id])
   requestId            String?
-  request              Request?          @relation(fields: [requestId], references: [id])
+  request              Request?              @relation(fields: [requestId], references: [id])
   assignedToId         String?
-  assignedTo           User?             @relation("AppointmentAssignee", fields: [assignedToId], references: [id])
+  assignedTo           User?                 @relation("AppointmentAssignee", fields: [assignedToId], references: [id])
   // Per-company appointment number (nullable — backfilled on boot, see
   // scripts/backfill-doc-numbers.mjs; new creates assign max+1).
   appointmentNumber    Int?
   title                String // "Estimate", "Sales call", ...
   type                 AppointmentType
-  status               AppointmentStatus @default(SCHEDULED)
+  status               AppointmentStatus     @default(SCHEDULED)
   scheduledAt          DateTime
   scheduledEnd         DateTime?
   // Date-only scheduling: anchored at noon, shown in the calendar's "Anytime" row
-  scheduledAnytime     Boolean           @default(false)
+  scheduledAnytime     Boolean               @default(false)
   // Per-appointment arrival-window override (lib/arrival-window.ts): null =
   // company default, 0 = exact time. Only meaningful for IN_PERSON — calls
   // always promise the exact time.
@@ -1926,18 +1932,18 @@ model Appointment {
   // Self-scheduled online booking awaiting owner approval. Renders dashed on
   // the schedule; blocks the slot until accepted (clears this) or declined
   // (cancels the appointment). Internal creates are never tentative.
-  tentative            Boolean           @default(false)
+  tentative            Boolean               @default(false)
   // Online scheduling: which booking type this came through, when the
   // customer booked it, and the signed token behind their reschedule/cancel
   // links (null = internal create / self-serve off for that type).
   bookingTypeId        String?
-  bookingType          BookingType?      @relation(fields: [bookingTypeId], references: [id], onDelete: SetNull)
+  bookingType          BookingType?          @relation(fields: [bookingTypeId], references: [id], onDelete: SetNull)
   bookedOnlineAt       DateTime?
-  manageToken          String?           @unique
+  manageToken          String?               @unique
   address              String? // required for IN_PERSON (API-enforced)
   // Saved service address this appointment is at (see Job.propertyId)
   propertyId           String?
-  property             ContactAddress?   @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  property             ContactAddress?       @relation(fields: [propertyId], references: [id], onDelete: SetNull)
   meetingLink          String? // optional pasted URL for VIDEO_CALL
   notes                String?
   completedAt          DateTime?
@@ -1945,7 +1951,7 @@ model Appointment {
   // PaymentReminder rows track dunning stages. Covers online-booked AND
   // manually created appointments; remindClient=false opts one appointment out
   // (internal meetings, clients who asked not to be messaged).
-  remindClient         Boolean           @default(true)
+  remindClient         Boolean               @default(true)
   reminderDaySentAt    DateTime?
   reminderHourSentAt   DateTime?
   // Push to the assignee ~1 h ahead (lib/reminders.ts runAppointmentTechHeadsUp);
@@ -1961,8 +1967,8 @@ model Appointment {
   // with two people). assignedToId stays the lead person; lib/appointment-people.ts
   // reads and writes the pair together.
   extraAssignees       AppointmentAssignee[]
-  createdAt            DateTime          @default(now())
-  updatedAt            DateTime          @updatedAt
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 
   @@unique([companyId, appointmentNumber])
   @@index([companyId, scheduledAt])

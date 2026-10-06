@@ -9,6 +9,8 @@ import CallLink from "@/components/CallLink";
 import { hapticImpact } from "@/lib/haptics";
 import { useMeasuredHeight } from "@/lib/use-measured-height";
 import { resizeForMms } from "@/lib/resize-image";
+import { useFileDrop } from "@/lib/use-file-drop";
+import FileDropOverlay from "@/components/FileDropOverlay";
 import MessageMedia, { type ThreadMedia } from "@/components/MessageMedia";
 
 /**
@@ -398,10 +400,15 @@ export default function TeamThread({
     }
   }
 
-  async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
+  // Picked or dropped files: one message each, in order; the draft rides
+  // along as the first one's caption.
+  async function sendFiles(files: File[]) {
+    if (files.length === 0 || attaching) return;
+    const sendable = files.filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
+    if (sendable.length === 0) {
+      setError("Only photos and short videos can be texted.");
+      return;
+    }
     setError("");
     setAttaching(true);
     hapticImpact("LIGHT");
@@ -409,11 +416,21 @@ export default function TeamThread({
     setDraft("");
     requestAnimationFrame(autoGrow);
     try {
-      await postMedia(file, body);
+      for (const [i, file] of sendable.slice(0, 10).entries()) await postMedia(file, i === 0 ? body : "");
+      if (sendable.length < files.length) setError("Only photos and short videos can be texted — the other files were skipped.");
     } finally {
       setAttaching(false);
     }
   }
+
+  async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    await sendFiles([file]);
+  }
+
+  const drop = useFileDrop((files) => void sendFiles(files), channel?.kind !== "none" && !attaching);
 
   function retrySend(m: ThreadMessage) {
     setError("");
@@ -463,7 +480,11 @@ export default function TeamThread({
       }`}
       style={vvBox ? { top: vvBox.top, height: vvBox.height } : undefined}
     >
-      <div className="relative flex h-full min-h-0 flex-col bg-white lg:rounded-[8px] lg:border lg:border-gray-200 lg:shadow-sm">
+      <div {...drop.handlers} className="relative flex h-full min-h-0 flex-col bg-white lg:rounded-[8px] lg:border lg:border-gray-200 lg:shadow-sm">
+        <FileDropOverlay
+          show={drop.over}
+          hint={`${channel?.kind === "sms" ? `Texts it to ${contactFirstName} from your business line` : `Lands in ${contactFirstName}'s client portal`} · photos stay in the thread for a week`}
+        />
         {/* Header — floats over the thread on phones (.chat-head) */}
         <div className="chat-head glass-bar flex shrink-0 items-center gap-2.5 border-b border-gray-100 px-3 py-2.5 lg:px-4">
           <Link
