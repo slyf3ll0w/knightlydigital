@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { CLEAR } from "@/lib/send-document";
 import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import { invoiceBalance } from "@/lib/payments";
@@ -59,6 +60,8 @@ export async function PATCH(
     where: { id },
     data: {
       status,
+      // Leaving Draft by hand (Mark as Sent, Archive) drops a pending Send later
+      ...(status !== "DRAFT" ? CLEAR : {}),
       ...(status === "AWAITING_PAYMENT" && !invoice.issuedAt && { issuedAt: new Date() }),
       // Marking sent is issuing too: without a due date the invoice can never
       // go PAST_DUE and payment reminders skip it.

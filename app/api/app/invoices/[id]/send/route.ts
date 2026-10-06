@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { canChargeOnline } from "@/lib/payments-gate";
-import { prisma } from "@/lib/db";
 import { limit } from "@/lib/rate-limit";
 import { getActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
-import { sendEmail, invoiceLinkEmail } from "@/lib/email";
-import { sendSms, canText, companyCanSendSms, invoiceLinkText } from "@/lib/sms";
 import { inPreview, previewBlockedError } from "@/lib/preview";
-import { dueDateFromTerms } from "@/lib/due-dates";
-import { fireAutomations } from "@/lib/automations-server";
 import { readSendChannels } from "@/lib/send-channels";
+import { sendInvoice, SEND_DEFAULTS } from "@/lib/send-document";
 
 /**
- * POST — email the client their invoice pay link and mark the invoice sent.
- * One click from the invoice page; DRAFT invoices move to Awaiting Payment
- * (same lifecycle as Mark as Sent).
+ * POST — email / text the client their invoice pay link and mark the invoice
+ * sent. One click from the invoice page; DRAFT invoices move to Awaiting
+ * Payment (same lifecycle as Mark as Sent). The send itself lives in
+ * lib/send-document.ts so Send later does exactly the same thing.
  */
 export async function POST(
   req: NextRequest,
@@ -33,105 +29,13 @@ export async function POST(
   if (await inPreview(actor.companyId))
     return NextResponse.json(previewBlockedError("Emailing invoices to clients"), { status: 403 });
   if (!canSeeMoney(actor)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const companyId = actor.companyId;
 
   const { id } = await params;
-  const invoice = await prisma.invoice.findFirst({
-    where: { id, companyId, ...viaContactScope(actor) },
-    include: {
-      contact: true,
-      company: true,
-      lineItems: { orderBy: { sortOrder: "asc" } },
-    },
-  });
-  if (!invoice) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
-
-  if (invoice.status === "PAID") {
-    return NextResponse.json({ error: "This invoice is already paid." }, { status: 400 });
-  }
   // Two ways to reach them: email, and a text from the business line once
-  // texting is on. Either alone is enough (2026-09-28: a client with a phone
-  // and no email could not be sent an invoice at all, and the text only ever
-  // rode along silently behind "Email to Client").
-  // The sender picks the channels (components/SendChoice.tsx); no body = both.
-  const channels = await readSendChannels(req, { email: true, text: true });
-  const contact = invoice.contact;
-  const textable = channels.text && Boolean(contact?.phone) && canText(contact!) && (await companyCanSendSms(invoice.companyId));
-  const emailable = channels.email && Boolean(contact?.email);
-  if (!contact || (!emailable && !textable)) {
-    return NextResponse.json(
-      { error: "This client has no email or textable phone on file — add one, or share the invoice with Copy payment link." },
-      { status: 400 }
-    );
-  }
-
-  const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
-  // No online payments for this company → the link views, it doesn't pay.
-  const payable = canChargeOnline(invoice.company);
-  const { subject, html } = invoiceLinkEmail({
-    brand: invoice.company,
-    companyName: invoice.company.name,
-    invoiceNumber: invoice.invoiceNumber,
-    total: Number(invoice.total),
-    payUrl: `${baseUrl}/pay/${invoice.publicToken}`,
-    serviceNames: invoice.lineItems.map((li) => li.name || li.description || "Service"),
-    payable,
-  });
-
-  const emailed = emailable && contact.email
-    ? await sendEmail({
-        companyId: invoice.companyId,
-        to: contact.email,
-        subject,
-        html,
-        replyTo: invoice.company.email || undefined,
-        fromName: invoice.company.name,
-      })
-    : false;
-
-  let texted = false;
-  if (textable && contact.phone) {
-    texted = await sendSms({
-      companyId: invoice.companyId,
-      contactId: invoice.contactId,
-      to: contact.phone,
-      text: invoiceLinkText({
-        companyName: invoice.company.name,
-        firstName: contact.firstName,
-        invoiceNumber: invoice.invoiceNumber,
-        total: Number(invoice.total),
-        payUrl: `${baseUrl}/pay/${invoice.publicToken}`,
-        payable,
-      }),
-    });
-  }
-  if (!emailed && !texted) {
-    return NextResponse.json(
-      {
-        error: contact.email
-          ? "Email isn't set up on this server yet — share the invoice with Copy payment link instead."
-          : "The text didn't go out — check Text Notifications in Settings → Phone & texting, or share the invoice with Copy payment link.",
-      },
-      { status: 424 }
-    );
-  }
-
-  // Sending IS issuing: stamp the dates a drafted engine invoice (or any
-  // draft) never got, so A/R aging, the PAST_DUE flip, and payment reminders
-  // can see it. Dates already set are left alone.
-  const now = new Date();
-  const patch = {
-    ...(invoice.status === "DRAFT" ? { status: "AWAITING_PAYMENT" as const } : {}),
-    ...(invoice.issuedAt ? {} : { issuedAt: now }),
-    ...(invoice.dueDate
-      ? {}
-      : { dueDate: dueDateFromTerms(now, contact.paymentTermsDays) }),
-  };
-  if (Object.keys(patch).length > 0) {
-    await prisma.invoice.update({ where: { id: invoice.id }, data: patch });
-  }
-  // First send only (a re-send of an issued invoice is a reminder, not a send)
-  if (invoice.status === "DRAFT") fireAutomations(invoice.companyId, "invoice.sent", invoice.id);
-
-  return NextResponse.json({ emailed, texted, to: contact.email, phone: texted ? contact.phone : null });
+  // texting is on. Either alone is enough. The sender picks the channels
+  // (components/SendChoice.tsx); no body = both.
+  const channels = await readSendChannels(req, SEND_DEFAULTS.invoice);
+  const result = await sendInvoice({ id, companyId: actor.companyId, scope: viaContactScope(actor), channels });
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  return NextResponse.json({ emailed: result.emailed, texted: result.texted, to: result.to, phone: result.phone });
 }

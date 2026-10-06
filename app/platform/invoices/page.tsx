@@ -20,6 +20,8 @@ import type { InvoiceStatus } from "@prisma/client";
 const statusFilters = [
   { value: "", label: "All", mobile: "All" },
   { value: "DRAFT", label: "Draft", mobile: "Draft" },
+  // Presentation filter: drafts parked with Send later (not an InvoiceStatus)
+  { value: "SCHEDULED", label: "Scheduled", mobile: "Scheduled" },
   { value: "AWAITING_PAYMENT", label: "Awaiting Payment", mobile: "Awaiting" },
   { value: "PAST_DUE", label: "Past Due", mobile: "Past due" },
   { value: "PAID", label: "Paid", mobile: "Paid" },
@@ -44,6 +46,7 @@ export default async function InvoicesPage({
   const { status, q, page: pageParam, sort: sortRaw } = await searchParams;
   const sort = pickSort(sortRaw, INVOICE_SORTS);
   const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
+  const scheduledOnly = status === "SCHEDULED";
   const validStatus = ["DRAFT", "AWAITING_PAYMENT", "PAST_DUE", "PAID", "ARCHIVED"].includes(
     status ?? ""
   )
@@ -83,11 +86,13 @@ export default async function InvoicesPage({
   const listWhere = {
     companyId,
     ...scope,
-    ...(validStatus
-      ? { status: validStatus }
-      : query
-        ? {}
-        : { status: { not: "ARCHIVED" as InvoiceStatus } }),
+    ...(scheduledOnly
+      ? { status: "DRAFT" as InvoiceStatus, scheduledSendAt: { not: null } }
+      : validStatus
+        ? { status: validStatus }
+        : query
+          ? {}
+          : { status: { not: "ARCHIVED" as InvoiceStatus } }),
     ...search,
   };
   const [invoices, listCount, pastDue, awaiting, draft] = await Promise.all([
@@ -193,7 +198,7 @@ export default async function InvoicesPage({
 
       <FilterBar
         options={statusFilters}
-        value={validStatus ?? ""}
+        value={scheduledOnly ? "SCHEDULED" : (validStatus ?? "")}
         href={(v) => listHref("/app/invoices", { q: query, sort: sortRaw }, { status: v })}
         sort={{
           options: INVOICE_SORTS,
@@ -267,7 +272,7 @@ export default async function InvoicesPage({
                             {balance > 0 && inv.dueDate ? ` · Due ${shortDate(inv.dueDate, tz)}` : ""}
                             {inv.subject ? ` · ${inv.subject}` : ""}
                           </p>
-                          <StatusChip kind="invoice" status={inv.status} className="shrink-0" />
+                          <StatusChip kind="invoice" status={inv.status === "DRAFT" && inv.scheduledSendAt ? "SCHEDULED" : inv.status} className="shrink-0" />
                         </div>
                       </div>
                     </div>
@@ -282,7 +287,7 @@ export default async function InvoicesPage({
                       {shortDate(inv.dueDate, tz)}
                     </span>
                     <span className="hidden lg:block">
-                      <StatusChip kind="invoice" status={inv.status} />
+                      <StatusChip kind="invoice" status={inv.status === "DRAFT" && inv.scheduledSendAt ? "SCHEDULED" : inv.status} />
                     </span>
                     <span className="ds-num hidden lg:block text-sm text-gray-600 lg:text-right">
                       {money(inv.total)}

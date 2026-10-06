@@ -18,6 +18,8 @@ import type { QuoteStatus } from "@prisma/client";
 const statusFilters = [
   { value: "", label: "All", mobile: "All quotes" },
   { value: "DRAFT", label: "Draft", mobile: "Draft" },
+  // Presentation filter: drafts parked with Send later (not a QuoteStatus)
+  { value: "SCHEDULED", label: "Scheduled", mobile: "Scheduled" },
   { value: "AWAITING_RESPONSE", label: "Awaiting Response", mobile: "Awaiting response" },
   { value: "APPROVED", label: "Approved", mobile: "Approved" },
   { value: "CHANGES_REQUESTED", label: "Changes Requested", mobile: "Changes requested" },
@@ -44,7 +46,9 @@ export default async function QuotesPage({
 
   const { status, q, page: pageParam, sort: sortRaw } = await searchParams;
   const sort = pickSort(sortRaw, QUOTE_SORTS);
-  const validStatus = validValues.includes(status ?? "") ? (status as QuoteStatus) : undefined;
+  const scheduledOnly = status === "SCHEDULED";
+  const validStatus =
+    !scheduledOnly && validValues.includes(status ?? "") ? (status as QuoteStatus) : undefined;
   const query = q?.trim() || undefined;
   const page = Math.max(1, parseInt(pageParam ?? "1", 10) || 1);
   const search = query
@@ -65,7 +69,16 @@ export default async function QuotesPage({
         ],
       }
     : {};
-  const listWhere = { companyId, ...scope, ...(validStatus ? { status: validStatus } : {}), ...search };
+  const listWhere = {
+    companyId,
+    ...scope,
+    ...(scheduledOnly
+      ? { status: "DRAFT" as QuoteStatus, scheduledSendAt: { not: null } }
+      : validStatus
+        ? { status: validStatus }
+        : {}),
+    ...search,
+  };
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000);
 
@@ -160,7 +173,7 @@ export default async function QuotesPage({
 
       <FilterBar
         options={statusFilters}
-        value={validStatus ?? ""}
+        value={scheduledOnly ? "SCHEDULED" : (validStatus ?? "")}
         href={(v) => listHref("/app/quotes", { q: query, sort: sortRaw }, { status: v })}
         sort={{
           options: QUOTE_SORTS,
@@ -224,7 +237,7 @@ export default async function QuotesPage({
                           #{q.quoteNumber}
                           {q.title ? ` · ${q.title}` : ""}
                         </p>
-                        <StatusChip kind="quote" status={q.status} className="shrink-0" />
+                        <StatusChip kind="quote" status={q.status === "DRAFT" && q.scheduledSendAt ? "SCHEDULED" : q.status} className="shrink-0" />
                       </div>
                     </div>
                   </div>
@@ -237,7 +250,7 @@ export default async function QuotesPage({
                   <span className="hidden lg:block text-sm text-gray-500">#{q.quoteNumber}</span>
                   <span className="hidden lg:block text-sm text-gray-500">{shortDate(q.createdAt, tz)}</span>
                   <span className="hidden lg:block">
-                    <StatusChip kind="quote" status={q.status} />
+                    <StatusChip kind="quote" status={q.status === "DRAFT" && q.scheduledSendAt ? "SCHEDULED" : q.status} />
                   </span>
                   <span className="ds-num hidden lg:block text-sm font-semibold text-gray-900 lg:text-right">
                     {money(q.total)}

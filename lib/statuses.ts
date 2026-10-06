@@ -29,6 +29,8 @@ export const requestStatusLabel: Record<string, string> = {
 
 export const quoteStatusLabel: Record<string, string> = {
   DRAFT: "Draft",
+  // Presentation only (DRAFT + scheduledSendAt) — not a QuoteStatus value
+  SCHEDULED: "Scheduled",
   AWAITING_RESPONSE: "Awaiting Response",
   APPROVED: "Approved",
   CHANGES_REQUESTED: "Changes Requested",
@@ -46,6 +48,8 @@ export const jobStatusLabel: Record<string, string> = {
 
 export const invoiceStatusLabel: Record<string, string> = {
   DRAFT: "Draft",
+  // Presentation only (DRAFT + scheduledSendAt) — not an InvoiceStatus value
+  SCHEDULED: "Scheduled",
   AWAITING_PAYMENT: "Awaiting Payment",
   PAID: "Paid",
   PAST_DUE: "Past Due",
@@ -115,6 +119,7 @@ export const statusTones: Record<StatusKind, Record<string, StatusTone>> = {
   request: { NEW: "amber", NEEDS_APPROVAL: "red", CONVERTED: "green", ARCHIVED: "gray" },
   quote: {
     DRAFT: "gray",
+    SCHEDULED: "blue",
     AWAITING_RESPONSE: "amber",
     APPROVED: "green",
     CHANGES_REQUESTED: "red",
@@ -122,7 +127,7 @@ export const statusTones: Record<StatusKind, Record<string, StatusTone>> = {
     ARCHIVED: "gray",
   },
   job: { ACTIVE: "green", REQUIRES_INVOICING: "amber", ARCHIVED: "gray" },
-  invoice: { DRAFT: "gray", AWAITING_PAYMENT: "amber", PAID: "green", PAST_DUE: "red", ARCHIVED: "gray" },
+  invoice: { DRAFT: "gray", SCHEDULED: "blue", AWAITING_PAYMENT: "amber", PAID: "green", PAST_DUE: "red", ARCHIVED: "gray" },
   contact: { LEAD: "amber", ACTIVE: "green", ARCHIVED: "gray" },
   // blue = upcoming commitment (distinct from job-status greens/ambers)
   appointment: { SCHEDULED: "blue", COMPLETED: "green", CANCELLED: "gray", NO_SHOW: "red" },

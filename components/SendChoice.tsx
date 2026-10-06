@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import { Mail, MessageSquare, Send } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { CalendarClock, Mail, MessageSquare, Send } from "lucide-react";
 import Modal from "@/components/Modal";
 import { InfoTip } from "@/components/ds";
+import { inputCls } from "@/components/Input";
 import { hapticImpact } from "@/lib/haptics";
+import { slotTimeOptions } from "@/lib/scheduling";
 import type { SendChannels } from "@/lib/send-channels";
 
 /**
@@ -16,6 +18,12 @@ import type { SendChannels } from "@/lib/send-channels";
  *
  * Text is offered only when the business line can send — the page computes
  * `canText` from the line's registration and the client's consent.
+ *
+ * Send later (quotes and invoices, 2026-10-05): with `allowLater` the sheet
+ * always opens and carries a third choice, a date + time in the company's
+ * timezone (default tomorrow 9:00 AM, 15-minute slots). The result then
+ * carries `later: { date, time }` and the caller parks the document instead
+ * of sending it.
  */
 export type SendChoiceOptions = {
   email: string | null;
@@ -26,28 +34,51 @@ export type SendChoiceOptions = {
   what: string;
   /** Pre-ticked channels; default both. */
   defaults?: Partial<SendChannels>;
+  /** Offer "Send later" (quotes and invoices). */
+  allowLater?: boolean;
 };
 
-type Pending = { opts: SendChoiceOptions; resolve: (c: SendChannels | null) => void };
+export type SendChoiceResult = SendChannels & {
+  /** Set when the sender picked a time: company-zone wall clock. */
+  later?: { date: string; time: string };
+};
+
+type Pending = { opts: SendChoiceOptions; resolve: (c: SendChoiceResult | null) => void };
+
+function tomorrowISO(): string {
+  const d = new Date(Date.now() + 86_400_000);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 
 export function useSendChoice() {
   const [pending, setPending] = useState<Pending | null>(null);
   const [pick, setPick] = useState<SendChannels>({ email: true, text: true });
+  const [later, setLater] = useState(false);
+  const [laterDate, setLaterDate] = useState("");
+  const [laterTime, setLaterTime] = useState("09:00");
   const resolved = useRef(false);
+  const times = useMemo(() => slotTimeOptions(15, 7 * 60), []);
 
-  const choose = useCallback((opts: SendChoiceOptions): Promise<SendChannels | null> => {
+  const choose = useCallback((opts: SendChoiceOptions): Promise<SendChoiceResult | null> => {
     const canEmail = Boolean(opts.email);
     const canText = Boolean(opts.canText && opts.phone);
-    // One way to reach them: no question to ask.
-    if (!(canEmail && canText)) return Promise.resolve({ email: canEmail, text: canText });
+    // One way to reach them and no Send later on offer: no question to ask.
+    if (!(canEmail && canText) && !opts.allowLater) return Promise.resolve({ email: canEmail, text: canText });
     return new Promise((resolve) => {
       resolved.current = false;
-      setPick({ email: opts.defaults?.email ?? true, text: opts.defaults?.text ?? true });
+      setPick({
+        email: canEmail && (opts.defaults?.email ?? true),
+        text: canText && (opts.defaults?.text ?? true),
+      });
+      setLater(false);
+      setLaterDate(tomorrowISO());
+      setLaterTime("09:00");
       setPending({ opts, resolve });
     });
   }, []);
 
-  const finish = (c: SendChannels | null) => {
+  const finish = (c: SendChoiceResult | null) => {
     if (!pending || resolved.current) return;
     resolved.current = true;
     pending.resolve(c);
@@ -73,36 +104,90 @@ export function useSendChoice() {
     </label>
   );
 
+  const canEmail = Boolean(pending?.opts.email);
+  const canTextNow = Boolean(pending?.opts.canText && pending?.opts.phone);
+  const nothingPicked = !pick.email && !pick.text;
+  const laterReady = later ? Boolean(laterDate && laterTime) : true;
+
   const chooser = (
     <Modal open={Boolean(pending)} onClose={() => finish(null)} size="sm" portal>
       {pending && (
         <div className="space-y-3 text-left">
           <h2 className="text-base font-semibold text-gray-900">{pending.opts.what}</h2>
           <div className="grid gap-2">
-            {row("email", Mail, "Email", pending.opts.email ?? "")}
-            {row(
-              "text",
-              MessageSquare,
-              "Text",
-              pending.opts.phone ?? "",
-              "Goes out from your business line, with the same link. The client can reply by text and it lands in Messages."
+            {canEmail && row("email", Mail, "Email", pending.opts.email ?? "")}
+            {canTextNow &&
+              row(
+                "text",
+                MessageSquare,
+                "Text",
+                pending.opts.phone ?? "",
+                "Goes out from your business line, with the same link. The client can reply by text and it lands in Messages."
+              )}
+            {!canEmail && !canTextNow && (
+              <p className="text-sm text-gray-600">No email or textable phone on file yet — add one before the send time.</p>
             )}
           </div>
+
+          {pending.opts.allowLater && (
+            <div className="rounded-[12px] border border-gray-200 bg-white px-3.5 py-3">
+              <label className="flex cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={later}
+                  onChange={(e) => setLater(e.target.checked)}
+                  className="h-4 w-4 accent-[color:var(--ds-primary)]"
+                />
+                <CalendarClock size={16} className="shrink-0 text-gray-500" />
+                <span className="flex items-center gap-1 text-sm font-semibold text-gray-900">
+                  Send later
+                  <InfoTip>
+                    Picks a date and time in your company&apos;s timezone. Until then it stays a draft you can still edit;
+                    whatever is on it at that moment is what goes out. You&apos;ll get a notification when it&apos;s sent.
+                  </InfoTip>
+                </span>
+              </label>
+              {later && (
+                <div className="mt-2.5 grid grid-cols-[1fr_auto] gap-2">
+                  <input
+                    type="date"
+                    value={laterDate}
+                    onChange={(e) => setLaterDate(e.target.value)}
+                    aria-label="Send date"
+                    className={inputCls}
+                  />
+                  <select
+                    value={laterTime}
+                    onChange={(e) => setLaterTime(e.target.value)}
+                    aria-label="Send time"
+                    className={`${inputCls} min-w-[118px]`}
+                  >
+                    {times.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex items-center justify-end gap-2 pt-1">
             <button type="button" onClick={() => finish(null)} className="btn-tool-line rounded-[10px] bg-white px-3.5 py-2 text-sm font-medium text-gray-700">
               Cancel
             </button>
             <button
               type="button"
-              disabled={!pick.email && !pick.text}
+              disabled={nothingPicked || !laterReady}
               onClick={() => {
                 hapticImpact("LIGHT");
-                finish(pick);
+                finish(later ? { ...pick, later: { date: laterDate, time: laterTime } } : pick);
               }}
               className="btn-primary disabled:opacity-50"
             >
-              <Send size={13} />
-              Send
+              {later ? <CalendarClock size={13} /> : <Send size={13} />}
+              {later ? "Schedule" : "Send"}
             </button>
           </div>
         </div>

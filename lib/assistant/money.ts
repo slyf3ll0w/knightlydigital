@@ -343,12 +343,14 @@ export const moneyTools: Tool[] = [
     decl: {
       name: "email_document",
       description:
-        "Stage REALLY emailing a quote or invoice to the client — the quote's approval link or the invoice's pay link. (Unlike marking sent via update_quote/update_invoice, confirming this card sends an actual email.) Client must have an email on file. Quotes must be DRAFT/AWAITING_RESPONSE/CHANGES_REQUESTED; invoices anything but PAID. Confirmation card required.",
+        "Stage REALLY emailing a quote or invoice to the client — the quote's approval link or the invoice's pay link. (Unlike marking sent via update_quote/update_invoice, confirming this card sends an actual email.) Client must have an email on file. Quotes must be DRAFT/AWAITING_RESPONSE/CHANGES_REQUESTED; invoices anything but PAID. Give send_date + send_time to send LATER instead (the document stays a draft until then and goes out by itself). Confirmation card required.",
       parameters: {
         type: "object",
         properties: {
           kind: { type: "string", enum: ["quote", "invoice"] },
           number: { type: "number" },
+          send_date: { type: "string", description: "Optional: YYYY-MM-DD in the company's timezone — schedules the send for later instead of now" },
+          send_time: { type: "string", description: "Optional with send_date: HH:mm (24h) in the company's timezone" },
         },
         required: ["kind", "number"],
       },
@@ -357,6 +359,12 @@ export const moneyTools: Tool[] = [
     run: async (actor, args, ctx) => {
       const n = num(args.number);
       if (!n) return { error: "number is required" };
+      // Send later: a date + time (company zone) parks the draft for the sweep
+      const later =
+        typeof args.send_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(args.send_date)
+          ? { date: args.send_date, time: typeof args.send_time === "string" && /^\d{2}:\d{2}$/.test(args.send_time) ? args.send_time : "09:00" }
+          : null;
+      const whenLine = later ? `Goes out by itself on ${later.date} at ${later.time} (company time); until then it stays a draft.` : null;
       if (args.kind === "quote") {
         if (!canSell(actor.role)) return { error: "This user's role can't send quotes." };
         const q = await prisma.quote.findFirst({
@@ -373,14 +381,14 @@ export const moneyTools: Tool[] = [
         if (!q.contact.email) return { error: "This client has no email on file — add one first (update_client)." };
         return stage(ctx, {
           kind: "email_document",
-          title: `Email quote #${n} (${money(q.total)}) to ${clientName(q.contact)}`,
+          title: `${later ? "Schedule" : "Email"} quote #${n} (${money(q.total)}) to ${clientName(q.contact)}`,
           lines: [
-            `Sends the approval link to ${q.contact.email} immediately on confirm.`,
-            ...(q.status === "DRAFT" ? ["Also marks the quote sent (Awaiting Response)."] : []),
+            whenLine ?? `Sends the approval link to ${q.contact.email} immediately on confirm.`,
+            ...(q.status === "DRAFT" ? [later ? "Marks the quote sent (Awaiting Response) when it goes out." : "Also marks the quote sent (Awaiting Response)."] : []),
           ],
-          endpoint: `/api/app/quotes/${q.id}/send`,
+          endpoint: later ? `/api/app/quotes/${q.id}/schedule-send` : `/api/app/quotes/${q.id}/send`,
           method: "POST",
-          payload: {},
+          payload: later ?? {},
         });
       }
       if (!canSeeMoney(actor)) return { error: "This user's role can't send invoices." };
@@ -396,14 +404,14 @@ export const moneyTools: Tool[] = [
       if (!i.contact?.email) return { error: "This client has no email on file — add one first (update_client)." };
       return stage(ctx, {
         kind: "email_document",
-        title: `Email invoice #${n} (${money(i.total)}) to ${clientName(i.contact)}`,
+        title: `${later ? "Schedule" : "Email"} invoice #${n} (${money(i.total)}) to ${clientName(i.contact)}`,
         lines: [
-          `Sends the pay link to ${i.contact.email} immediately on confirm.`,
-          ...(i.status === "DRAFT" ? ["Also marks the invoice sent (Awaiting Payment)."] : []),
+          whenLine ?? `Sends the pay link to ${i.contact.email} immediately on confirm.`,
+          ...(i.status === "DRAFT" ? [later ? "Marks the invoice sent (Awaiting Payment) when it goes out." : "Also marks the invoice sent (Awaiting Payment)."] : []),
         ],
-        endpoint: `/api/app/invoices/${i.id}/send`,
+        endpoint: later ? `/api/app/invoices/${i.id}/schedule-send` : `/api/app/invoices/${i.id}/send`,
         method: "POST",
-        payload: {},
+        payload: later ?? {},
       });
     },
   },

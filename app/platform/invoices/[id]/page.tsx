@@ -6,6 +6,8 @@ import { ArrowRight } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import { money, shortDate } from "@/lib/statuses";
 import StatusChip from "@/components/StatusChip";
+import ScheduledSendLine from "@/components/ScheduledSendLine";
+import { channelsFromJson, scheduledLine, SEND_DEFAULTS } from "@/lib/send-document";
 import { Chip } from "@/components/ds";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
@@ -122,7 +124,7 @@ export default async function InvoiceDetailPage({
       />
       <div className="flex items-center gap-3 mb-4">
         <BackLink href="/app/invoices" />
-        <StatusChip kind="invoice" status={invoice.status} />
+        <StatusChip kind="invoice" status={invoice.status === "DRAFT" && invoice.scheduledSendAt ? "SCHEDULED" : invoice.status} />
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
@@ -154,6 +156,7 @@ export default async function InvoiceDetailPage({
           contactId={invoice.contact?.id ?? ""}
           finix={finixCfg}
           balance={balance}
+          scheduled={Boolean(invoice.scheduledSendAt)}
           reopenStatus={
             totalPaid > 0 && totalPaid >= Number(invoice.total) - 0.005
               ? "PAID"
@@ -164,6 +167,17 @@ export default async function InvoiceDetailPage({
         />
         </div>
       </div>
+
+      {invoice.status === "DRAFT" && invoice.scheduledSendAt && (
+        <ScheduledSendLine
+          kind="invoice"
+          id={invoice.id}
+          label={scheduledLine(tz, invoice.scheduledSendAt) ?? ""}
+          channels={channelsFromJson(invoice.scheduledSendChannels, SEND_DEFAULTS.invoice)}
+          email={invoice.contact?.email ?? null}
+          phone={invoice.contact?.phone ? fmtPhone(invoice.contact.phone) : null}
+        />
+      )}
 
       {/* Close-job nudge */}
       {showCloseJobNudge && (

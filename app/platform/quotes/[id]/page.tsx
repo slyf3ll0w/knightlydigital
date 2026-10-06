@@ -6,6 +6,8 @@ import SectionHeader from "@/components/SectionHeader";
 import { money, shortDate, quoteDepositAmount } from "@/lib/statuses";
 import { quoteExpired } from "@/lib/quote-expiry";
 import StatusChip from "@/components/StatusChip";
+import ScheduledSendLine from "@/components/ScheduledSendLine";
+import { channelsFromJson, scheduledLine, SEND_DEFAULTS } from "@/lib/send-document";
 import { Chip } from "@/components/ds";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
@@ -94,7 +96,7 @@ export default async function QuoteDetailPage({
       />
       <div className="flex items-center gap-3 mb-4">
         <BackLink href="/app/quotes" />
-        <StatusChip kind="quote" status={quote.status} />
+        <StatusChip kind="quote" status={quote.status === "DRAFT" && quote.scheduledSendAt ? "SCHEDULED" : quote.status} />
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
@@ -127,9 +129,21 @@ export default async function QuoteDetailPage({
           hasDeposit={deposit > 0}
           depositInvoiced={!!depositInvoice}
           canDelete={isManager(actor.role)}
+          scheduled={Boolean(quote.scheduledSendAt)}
         />
         </div>
       </div>
+
+      {quote.status === "DRAFT" && quote.scheduledSendAt && (
+        <ScheduledSendLine
+          kind="quote"
+          id={quote.id}
+          label={scheduledLine(tz, quote.scheduledSendAt) ?? ""}
+          channels={channelsFromJson(quote.scheduledSendChannels, SEND_DEFAULTS.quote)}
+          email={quote.contact.email}
+          phone={contactPhone || null}
+        />
+      )}
 
       {/* Approved with an uncollected deposit → make collecting it the obvious next step */}
       {deposit > 0 &&

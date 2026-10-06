@@ -2298,53 +2298,62 @@ enum DepositType {
 }
 
 model Quote {
-  id            String          @id @default(cuid())
-  companyId     String
-  company       Company         @relation(fields: [companyId], references: [id])
-  contactId     String
-  contact       Contact         @relation(fields: [contactId], references: [id])
-  requestId     String?
-  request       Request?        @relation(fields: [requestId], references: [id])
-  jobId         String?         @unique // set when this quote is converted into a job
-  job           Job?            @relation(fields: [jobId], references: [id])
+  id                    String          @id @default(cuid())
+  companyId             String
+  company               Company         @relation(fields: [companyId], references: [id])
+  contactId             String
+  contact               Contact         @relation(fields: [contactId], references: [id])
+  requestId             String?
+  request               Request?        @relation(fields: [requestId], references: [id])
+  jobId                 String?         @unique // set when this quote is converted into a job
+  job                   Job?            @relation(fields: [jobId], references: [id])
   // The estimate tool this quote started from — an in-app run's "Create
   // quote", or a website estimate form. The tool's page lists them under
   // Leads (docs/plans/ai-estimators-2026-09-19.md, Batch 13).
-  estimatorId   String?
-  estimator     Estimator?      @relation(fields: [estimatorId], references: [id], onDelete: SetNull)
+  estimatorId           String?
+  estimator             Estimator?      @relation(fields: [estimatorId], references: [id], onDelete: SetNull)
   // Saved service address this quote is for — carried onto the job at
   // convert time so multi-property clients keep the right property
-  propertyId    String?
-  property      ContactAddress? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
-  quoteNumber   Int
-  title         String?
+  propertyId            String?
+  property              ContactAddress? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  quoteNumber           Int
+  title                 String?
   // Discount applies to the subtotal before tax; carries to the invoice
-  discountType  DepositType     @default(NONE)
-  discountValue Decimal?        @db.Decimal(10, 2)
-  discount      Decimal?        @db.Decimal(10, 2) // computed amount
-  status        QuoteStatus     @default(DRAFT)
-  subtotal      Decimal         @db.Decimal(10, 2)
-  taxRate       Decimal?        @db.Decimal(5, 4)
-  tax           Decimal?        @db.Decimal(10, 2)
-  total         Decimal         @db.Decimal(10, 2)
-  depositType   DepositType     @default(NONE)
-  depositValue  Decimal?        @db.Decimal(10, 2) // percent (0-100) or fixed dollars
-  clientMessage String?
-  disclaimer    String?
-  notes         String?
-  validUntil    DateTime?
-  sentAt        DateTime?
+  discountType          DepositType     @default(NONE)
+  discountValue         Decimal?        @db.Decimal(10, 2)
+  discount              Decimal?        @db.Decimal(10, 2) // computed amount
+  status                QuoteStatus     @default(DRAFT)
+  subtotal              Decimal         @db.Decimal(10, 2)
+  taxRate               Decimal?        @db.Decimal(5, 4)
+  tax                   Decimal?        @db.Decimal(10, 2)
+  total                 Decimal         @db.Decimal(10, 2)
+  depositType           DepositType     @default(NONE)
+  depositValue          Decimal?        @db.Decimal(10, 2) // percent (0-100) or fixed dollars
+  clientMessage         String?
+  disclaimer            String?
+  notes                 String?
+  validUntil            DateTime?
+  sentAt                DateTime?
+  // Send later (lib/send-document.ts runScheduledSends): the document stays
+  // a draft you can still edit; the sweep sends what's on it at this instant
+  // by these channels ({ email, text }) and clears the three fields. The
+  // claim is compare-and-set on scheduledSendAt so the 5-minute ticker and
+  // the hourly cron never send twice. No status enum value: "Scheduled" is
+  // a presentation of DRAFT + scheduledSendAt.
+  scheduledSendAt       DateTime?
+  scheduledSendById     String?
+  scheduledSendChannels Json?
   // Client opened the public /quote page (beacon-stamped, own-company previews
   // excluded — see /api/public/viewed). First view pushes the team.
-  firstViewedAt DateTime?
-  lastViewedAt  DateTime?
-  viewCount     Int             @default(0)
-  approvedAt    DateTime?
-  signatureName String?
-  changeRequest String?
-  publicToken   String          @unique @default(cuid())
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  firstViewedAt         DateTime?
+  lastViewedAt          DateTime?
+  viewCount             Int             @default(0)
+  approvedAt            DateTime?
+  signatureName         String?
+  changeRequest         String?
+  publicToken           String          @unique @default(cuid())
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
 
   lineItems QuoteLineItem[]
   contracts Contract[]
@@ -2357,6 +2366,7 @@ model Quote {
   @@index([companyId])
   @@index([companyId, status])
   @@index([contactId])
+  @@index([scheduledSendAt])
 }
 
 // A quote as the client last saw it, captured right before an after-send edit
@@ -2422,69 +2432,73 @@ enum InvoiceKind {
 }
 
 model Invoice {
-  id                  String        @id @default(cuid())
-  companyId           String
-  company             Company       @relation(fields: [companyId], references: [id])
-  contactId           String?
-  contact             Contact?      @relation(fields: [contactId], references: [id])
-  jobId               String?       @unique
-  job                 Job?          @relation(fields: [jobId], references: [id])
+  id                    String        @id @default(cuid())
+  companyId             String
+  company               Company       @relation(fields: [companyId], references: [id])
+  contactId             String?
+  contact               Contact?      @relation(fields: [contactId], references: [id])
+  jobId                 String?       @unique
+  job                   Job?          @relation(fields: [jobId], references: [id])
   // Set when this invoice was auto-generated by a recurring subscription cycle
-  subscriptionId      String?
-  subscription        Subscription? @relation(fields: [subscriptionId], references: [id])
+  subscriptionId        String?
+  subscription          Subscription? @relation(fields: [subscriptionId], references: [id])
   // Deposit invoices link back to the quote they collect against, so the quote's
   // final invoice can find and net any paid deposits.
-  quoteId             String?
-  quote               Quote?        @relation(fields: [quoteId], references: [id])
+  quoteId               String?
+  quote                 Quote?        @relation(fields: [quoteId], references: [id])
   // Billed straight from an appointment (the work happened on the spot — no
   // quote, no job). Nullable, additive; the appointment page lists these.
-  appointmentId       String?
-  appointment         Appointment?  @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
-  kind                InvoiceKind   @default(STANDARD)
-  invoiceNumber       Int
-  subject             String?
-  status              InvoiceStatus @default(DRAFT)
-  subtotal            Decimal       @db.Decimal(10, 2)
+  appointmentId         String?
+  appointment           Appointment?  @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  kind                  InvoiceKind   @default(STANDARD)
+  invoiceNumber         Int
+  subject               String?
+  status                InvoiceStatus @default(DRAFT)
+  subtotal              Decimal       @db.Decimal(10, 2)
   // Discount applies to the subtotal before tax
-  discountType        DepositType   @default(NONE)
-  discountValue       Decimal?      @db.Decimal(10, 2)
-  discount            Decimal?      @db.Decimal(10, 2) // computed amount
-  taxRate             Decimal?      @db.Decimal(5, 4)
-  tax                 Decimal?      @db.Decimal(10, 2)
-  surcharge           Decimal?      @db.Decimal(10, 2)
+  discountType          DepositType   @default(NONE)
+  discountValue         Decimal?      @db.Decimal(10, 2)
+  discount              Decimal?      @db.Decimal(10, 2) // computed amount
+  taxRate               Decimal?      @db.Decimal(5, 4)
+  tax                   Decimal?      @db.Decimal(10, 2)
+  surcharge             Decimal?      @db.Decimal(10, 2)
   // Deposit already paid on the originating quote, credited off this (final)
   // invoice. `total` is stored net of this; kept for the "Deposit applied" row.
-  depositApplied      Decimal?      @db.Decimal(10, 2)
-  total               Decimal       @db.Decimal(10, 2)
-  notes               String?
+  depositApplied        Decimal?      @db.Decimal(10, 2)
+  total                 Decimal       @db.Decimal(10, 2)
+  notes                 String?
   // Client-facing message at the top of the pay page / PDF (parity with
   // Quote.clientMessage; `notes` stays internal-facing on the editor).
-  clientMessage       String?
-  issuedAt            DateTime?
-  dueDate             DateTime?
-  paidAt              DateTime?
+  clientMessage         String?
+  issuedAt              DateTime?
+  dueDate               DateTime?
+  paidAt                DateTime?
+  // Send later — same contract as Quote.scheduledSendAt
+  scheduledSendAt       DateTime?
+  scheduledSendById     String?
+  scheduledSendChannels Json?
   // DEPRECATED — replaced by the per-user CelebrationSeen table; nothing reads
   // this anymore. Kept only so db push stays additive; drop in a later cleanup.
-  paidCelebratedAt    DateTime?
+  paidCelebratedAt      DateTime?
   // Client opened the public /pay page (beacon-stamped — see /api/public/viewed)
-  firstViewedAt       DateTime?
-  lastViewedAt        DateTime?
-  viewCount           Int           @default(0)
-  publicToken         String        @unique @default(cuid())
+  firstViewedAt         DateTime?
+  lastViewedAt          DateTime?
+  viewCount             Int           @default(0)
+  publicToken           String        @unique @default(cuid())
   // ── Autopay retry state (recurring engine — lib/auto-charge.ts) ────────────
   // Failed card-on-file attempts on this engine-generated invoice; the cron
   // retries at autoChargeNextAt (null = nothing scheduled). Gave-up = hard
   // decline or retries exhausted; cleared when the client saves a new card.
-  autoChargeAttempts  Int           @default(0)
-  autoChargeNextAt    DateTime?
-  autoChargeLastError String?
-  autoChargeGaveUpAt  DateTime?
+  autoChargeAttempts    Int           @default(0)
+  autoChargeNextAt      DateTime?
+  autoChargeLastError   String?
+  autoChargeGaveUpAt    DateTime?
   // Short-lived charge mutex (lib/payments.ts acquireChargeLock): only one
   // charge attempt — staff, /pay, or autopay — may be in flight per invoice.
   // A stale stamp (crashed charge) expires by lease, never needs cleanup.
-  chargeLockedAt      DateTime?
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  chargeLockedAt        DateTime?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
   lineItems        InvoiceLineItem[]
   payments         Payment[]
@@ -2502,6 +2516,7 @@ model Invoice {
   @@index([companyId, status, dueDate])
   @@index([quoteId])
   @@index([status, autoChargeNextAt])
+  @@index([scheduledSendAt])
 }
 
 // ─── Celebrations ─────────────────────────────────────────────────────────────

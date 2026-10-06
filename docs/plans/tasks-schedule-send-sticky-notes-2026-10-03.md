@@ -377,3 +377,36 @@ What landed:
 Not in this round (phase 2): Tasks mini-list on contact / job / call pages,
 calendar `kind:"task"`, Atlas tools, Automations action. Status chip /
 schedule send / sticky notes untouched.
+
+### Schedule send — BUILT 2026-10-05 (same branch)
+
+- **Data:** `scheduledSendAt / scheduledSendById / scheduledSendChannels` on
+  Quote and Invoice (+ index). No status enum change: **Scheduled** is a
+  presentation key (`SCHEDULED`, blue) in `lib/statuses.ts` that callers pass
+  when `status === "DRAFT" && scheduledSendAt`.
+- **Shared send:** `lib/send-document.ts` `sendQuote` / `sendInvoice` hold the
+  bodies of the two send routes (routes keep auth, rate limit, preview, role,
+  channel parsing). Every send clears a pending schedule (`CLEAR`), and so do
+  the status PATCHes that leave Draft (Mark as Sent, Archive).
+- **Sweep:** `runScheduledSends` in the 5-minute ticker + hourly cron
+  (`scheduledSends`); claim = compare-and-set on `scheduledSendAt` cleared in
+  the same write; bell + push to the scheduler on success ("Quote #1042 sent
+  to Maria") or failure ("Couldn't send quote #1042: …", draft kept).
+- **API:** `POST/DELETE /api/app/{quotes,invoices}/[id]/schedule-send`
+  ({ date, time } company-zone wall clock via `parseDue`, or { at }); answers
+  `{ scheduledSendAt, label, channels, warnings }` with warnings `past`,
+  `expires_first`, `unreachable` (`lib/send-later-shared.ts` has the copy).
+  Unit test `scripts/test-send-later.ts`.
+- **UI:** `useSendChoice` takes `allowLater` — the sheet always opens, with a
+  **Send later** row (date + 15-min slots, default tomorrow 9:00) and the
+  button reads **Schedule**. Quote / Invoice action bars schedule instead of
+  sending and skip the leave-page nag while scheduled.
+  `components/ScheduledSendLine.tsx` under the header: "Scheduled for … by
+  email · Send now · Cancel". Lists get a **Scheduled** filter (DRAFT +
+  scheduledSendAt) and the chip reads Scheduled.
+- **Atlas:** `email_document` gained `send_date` + `send_time` → stages the
+  schedule-send endpoint.
+- **Help:** Send later paragraph in the quote and invoice send guides.
+
+Not done: Automations "send later" (the existing delay step covers it once
+the action calls the helper), deposit / agreement sends (not in scope).

@@ -28,7 +28,8 @@ import { showApproveRitual } from "@/lib/approve-ritual";
 import Modal from "@/components/Modal";
 import MenuPopover from "@/components/MenuPopover";
 import InfoTip from "@/components/ds/InfoTip";
-import { useSendChoice, sentSummary } from "@/components/SendChoice";
+import { useSendChoice, sentSummary, type SendChoiceResult } from "@/components/SendChoice";
+import { SCHEDULE_WARNING_TEXT, type ScheduleWarning } from "@/lib/send-later-shared";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 
 type AgreementState = {
@@ -51,6 +52,7 @@ export default function QuoteActions({
   hasDeposit = false,
   depositInvoiced = false,
   canDelete = false,
+  scheduled = false,
 }: {
   quoteId: string;
   status: string;
@@ -68,6 +70,8 @@ export default function QuoteActions({
   depositInvoiced?: boolean;
   /** The DELETE route is managers-only — don't offer what would 403 */
   canDelete?: boolean;
+  /** A Send later is pending — no "send this first?" nag on leaving */
+  scheduled?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -82,7 +86,7 @@ export default function QuoteActions({
   const reachable = Boolean(contactEmail || canTextClient);
   // A draft nobody has sent yet: leaving the page asks first (David
   // 2026-10-03). In-app navigation only — no native prompt on a refresh.
-  useUnsavedWarning(status === "DRAFT" && reachable, {
+  useUnsavedWarning(status === "DRAFT" && reachable && !scheduled, {
     title: "Send this quote first?",
     message: "The client hasn't been sent this quote yet.",
     confirmLabel: "Leave without sending",
@@ -140,6 +144,33 @@ export default function QuoteActions({
     }
   }
 
+  // Send later: park the draft to go out at the chosen time by the chosen
+  // channels (lib/send-document.ts runScheduledSends does the real send)
+  async function scheduleLater(c: SendChoiceResult) {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/app/quotes/${quoteId}/schedule-send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: c.later?.date, time: c.later?.time, email: c.email, text: c.text }),
+      });
+      const data = (await res.json().catch(() => null)) as { error?: string; label?: string; warnings?: ScheduleWarning[] } | null;
+      if (!res.ok) {
+        alertSheet({ message: data?.error ?? "Couldn't schedule the send." });
+        return;
+      }
+      hapticImpact("LIGHT");
+      const warn = (data?.warnings ?? []).map((w) => SCHEDULE_WARNING_TEXT[w]).join(" ");
+      await alertSheet({
+        title: `Scheduled for ${data?.label ?? "later"}`,
+        message: warn || "It stays a draft you can edit until then. You'll get a notification when it goes out.",
+      });
+    } finally {
+      setBusy(false);
+      router.refresh();
+    }
+  }
+
   // Email the client their approval link (marks the quote sent on success)
   async function emailToClient() {
     setOpen(false);
@@ -150,8 +181,13 @@ export default function QuoteActions({
       canText: canTextClient,
       what: "Send the quote",
       defaults: { email: Boolean(contactEmail), text: !contactEmail },
+      allowLater: status === "DRAFT",
     });
     if (!channels) return;
+    if (channels.later) {
+      await scheduleLater(channels);
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch(`/api/app/quotes/${quoteId}/send`, {

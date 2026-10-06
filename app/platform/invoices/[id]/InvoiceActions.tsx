@@ -29,7 +29,8 @@ import { showSendRitual } from "@/lib/send-ritual";
 import { fmtPhone } from "@/lib/format";
 import { FINIX_JS_SRC, type FinixConfig, type FinixForm } from "@/lib/finix-js";
 import MenuPopover from "@/components/MenuPopover";
-import { useSendChoice, sentSummary } from "@/components/SendChoice";
+import { useSendChoice, sentSummary, type SendChoiceResult } from "@/components/SendChoice";
+import { SCHEDULE_WARNING_TEXT, type ScheduleWarning } from "@/lib/send-later-shared";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 
 type SavedCardOption = { id: string; label: string; isDefault: boolean };
@@ -50,6 +51,7 @@ export default function InvoiceActions({
   reopenStatus = "DRAFT",
   contactId = "",
   finix = null,
+  scheduled = false,
 }: {
   invoiceId: string;
   status: string;
@@ -73,6 +75,8 @@ export default function InvoiceActions({
   contactId?: string;
   /** finix.js config when the company can tokenize cards staff-side. */
   finix?: FinixConfig;
+  /** A Send later is pending — no "send this first?" nag on leaving */
+  scheduled?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -82,7 +86,7 @@ export default function InvoiceActions({
   const { choose, chooser } = useSendChoice();
   // A draft nobody has sent yet: leaving the page asks first (David
   // 2026-10-03). In-app navigation only — no native prompt on a refresh.
-  useUnsavedWarning(status === "DRAFT" && Boolean(contactEmail || canTextClient), {
+  useUnsavedWarning(status === "DRAFT" && Boolean(contactEmail || canTextClient) && !scheduled, {
     title: "Send this invoice first?",
     message: "The client hasn't been sent this invoice yet.",
     confirmLabel: "Leave without sending",
@@ -325,10 +329,47 @@ export default function InvoiceActions({
   // Send the client their pay link — email, a text from the business line,
   // or both: the sender picks when both are possible (DRAFT invoices move to
   // Awaiting Payment)
+  // Send later: park the draft to go out at the chosen time by the chosen
+  // channels (lib/send-document.ts runScheduledSends does the real send)
+  async function scheduleLater(c: SendChoiceResult) {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/app/invoices/${invoiceId}/schedule-send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: c.later?.date, time: c.later?.time, email: c.email, text: c.text }),
+      });
+      const data = (await res.json().catch(() => null)) as { error?: string; label?: string; warnings?: ScheduleWarning[] } | null;
+      if (!res.ok) {
+        alertSheet({ message: data?.error ?? "Couldn't schedule the send." });
+        return;
+      }
+      hapticImpact("LIGHT");
+      const warn = (data?.warnings ?? []).map((w) => SCHEDULE_WARNING_TEXT[w]).join(" ");
+      await alertSheet({
+        title: `Scheduled for ${data?.label ?? "later"}`,
+        message: warn || "It stays a draft you can edit until then. You'll get a notification when it goes out.",
+      });
+    } finally {
+      setBusy(false);
+      router.refresh();
+    }
+  }
+
   async function emailToClient() {
     setOpen(false);
-    const channels = await choose({ email: contactEmail || null, phone: contactPhone || null, canText: canTextClient, what: "Send the invoice" });
+    const channels = await choose({
+      email: contactEmail || null,
+      phone: contactPhone || null,
+      canText: canTextClient,
+      what: "Send the invoice",
+      allowLater: status === "DRAFT",
+    });
     if (!channels) return;
+    if (channels.later) {
+      await scheduleLater(channels);
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch(`/api/app/invoices/${invoiceId}/send`, {

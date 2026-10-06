@@ -21,7 +21,7 @@ export const invoicesSection: HelpSection = {
             "From a finished job, press `Create Invoice`. Or go to **Invoices** and press `New`.",
             "Check the customer, the **Due date**, the line items, tax and any discount. Add a **Client message** if you want.",
             "Save it. It starts as a **Draft**.",
-            "Press `Send to Client`. The pay link goes by email, and by text from your business line once texting is on (Settings → Phone & texting → `Turn on text notifications`). When both are possible you pick **Email**, **Text** or both; a client with only a phone number gets the text alone. The invoice moves to **Awaiting Payment**.",
+            "Press `Send to Client`. The pay link goes by email, and by text from your business line once texting is on (Settings → Phone & texting → `Turn on text notifications`). When both are possible you pick **Email**, **Text** or both; a client with only a phone number gets the text alone. The invoice moves to **Awaiting Payment**. Not ready to send yet? Tick **Send later** in that sheet and pick a day and time: the invoice stays a draft you can keep editing (its chip reads **Scheduled**), goes out by itself at that time — the due date counts from then — and you get a notification either way. Until then the invoice page shows `Send now` and `Cancel`.",
           ],
         },
         {

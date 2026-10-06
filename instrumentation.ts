@@ -40,6 +40,7 @@ export async function register() {
       const { runAppointmentReminders, runVisitReminders, runTechHeadsUp, runAppointmentTechHeadsUp } =
         await import("@/lib/reminders");
       const { runTaskReminders } = await import("@/lib/tasks");
+      const { runScheduledSends } = await import("@/lib/send-document");
       const { REMINDER_TICK_MS } = await import("@/lib/reminder-stage");
       let remindersBusy = false;
       const remindersTick = async () => {
@@ -53,6 +54,8 @@ export async function register() {
           ["appointmentHeadsUp", runAppointmentTechHeadsUp],
           // Personal task reminders (push + bell at the chosen time)
           ["taskReminders", runTaskReminders],
+          // Send later: quotes / invoices parked to go out at a chosen time
+          ["scheduledSends", runScheduledSends],
         ] as const) {
           try {
             await run(now);

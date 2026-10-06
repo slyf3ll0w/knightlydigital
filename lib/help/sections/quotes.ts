@@ -22,7 +22,7 @@ export const quotesSection: HelpSection = {
             "Give it a **title**, then add line items. Pick services from your price book, or type a description, quantity and unit price and press `Add line item`.",
             "Optional: set tax, a discount (% or $), a deposit, a **Client message**, **Terms**, and a **Valid until** date. **Internal notes** are never shown to the client.",
             "Press `Save Quote`. It saves as a **Draft**.",
-            "Press `Send to Client` (it reads `Email to Client` until texting is on). The client gets a link to view, sign and approve it; when they have both an email and a phone that takes texts, you pick **Email**, **Text** or both first — the text goes from your business line. The status moves to **Awaiting Response**.",
+            "Press `Send to Client` (it reads `Email to Client` until texting is on). The client gets a link to view, sign and approve it; when they have both an email and a phone that takes texts, you pick **Email**, **Text** or both first — the text goes from your business line. The status moves to **Awaiting Response**. Not ready to send yet? Tick **Send later** in that sheet and pick a day and time: the quote stays a draft you can keep editing (its chip reads **Scheduled**), goes out by itself at that time, and you get a notification either way. Until then the quote page shows `Send now` and `Cancel`.",
           ],
         },
         {

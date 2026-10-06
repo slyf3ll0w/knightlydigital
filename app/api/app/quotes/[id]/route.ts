@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { CLEAR } from "@/lib/send-document";
 import { fireAutomations } from "@/lib/automations-server";
 import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -277,6 +278,8 @@ export async function PATCH(
     where: { id },
     data: {
       ...(body.status && { status: body.status }),
+      // Leaving Draft by hand (Mark as Sent, Archive) drops a pending Send later
+      ...(body.status && body.status !== "DRAFT" && CLEAR),
       ...(justSent && { sentAt: new Date() }),
       ...(approving && { approvedAt: new Date() }),
       ...(body.notes !== undefined && { notes: body.notes }),
