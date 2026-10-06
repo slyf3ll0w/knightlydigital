@@ -361,7 +361,7 @@ export const textingSection: HelpSection = {
       slug: "messages-inbox",
       title: "Message clients from the inbox",
       summary: "One conversation per client: texts, portal messages and replies in one place.",
-      keywords: ["messages", "inbox", "conversation", "thread", "reply", "portal message", "new message", "text a client"],
+      keywords: ["messages", "inbox", "conversation", "thread", "reply", "portal message", "new message", "text a client", "photo", "picture", "mms", "video", "drag and drop"],
       where: { label: "Messages", href: "/app/messages" },
       roles: "Everyone except Tech",
       blocks: [
@@ -380,6 +380,20 @@ export const textingSection: HelpSection = {
             "Clients can also write to you from the Messages tab in their portal.",
             "Unread messages show as a red number on Messages (in the sidebar, or in **More** on a phone) and on the phone's `+` button. Opening a conversation takes its messages off the count.",
             "The separate `Text` button on jobs and client pages opens your own phone's messaging app instead. It's free and sends from your personal number.",
+          ],
+        },
+        {
+          type: "h",
+          text: "Photos and videos",
+        },
+        {
+          type: "list",
+          items: [
+            "Press the photo button beside the message box to send a photo or short video. Anything you've typed goes with it.",
+            "On a computer you can also drag files onto the conversation and drop them. Each file is sent as its own message, up to 10 at a time. Only photos and videos can be sent.",
+            "**With texting on**, it goes out as a picture text from your business number. Phone carriers limit those to about 1 MB, so photos are shrunk on your device first and videos have to be short. **Without texting**, it lands in their client portal.",
+            "Photos and videos they text you show up in the thread too.",
+            "Photos and videos stay in the thread for a week. After that the message shows that the photo has expired, so save anything you want to keep.",
           ],
         },
         {
