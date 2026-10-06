@@ -24,7 +24,7 @@ export default function WBScreenshotFrame({
         <div className="rounded-[3rem] bg-gray-900 p-[10px] shadow-[0_24px_60px_rgba(10,20,40,0.28)]">
           <div
             className="relative w-[248px] overflow-hidden rounded-[2.4rem] bg-white sm:w-[280px]"
-            style={{ aspectRatio: "331 / 720" }}
+            style={{ aspectRatio: "640 / 1385" }}
           >
             <Image src={src} alt={alt} fill sizes="280px" className="object-cover" priority={priority} />
           </div>

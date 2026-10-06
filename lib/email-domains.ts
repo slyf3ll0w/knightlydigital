@@ -1,6 +1,6 @@
 /**
  * Per-company custom sending domains via the Resend Domains API — the rails
- * for "emails come from quotes@summitplumbing.com instead of the platform
+ * for "emails come from quotes@yourbusiness.com instead of the platform
  * address". Double-gated:
  *
  * - RESEND_API_KEY   — no key, no Resend at all (same gate as lib/email.ts).

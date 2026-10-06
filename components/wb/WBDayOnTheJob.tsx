@@ -51,7 +51,7 @@ function OnMyWayCard() {
         Text to Maria Lopez
       </p>
       <p className="mt-2 rounded-2xl rounded-br-md bg-[#0B57D8] px-3 py-2 text-[12.5px] leading-snug text-white">
-        Hi Maria, Jake from Summit Plumbing is on the way. See you around 9:45.
+        Hi Maria, Jake from Brightwire Electric is on the way. See you around 9:45.
       </p>
       <p className="mt-2.5 flex items-center gap-1.5 text-[12px] font-semibold text-gray-700">
         <MapPin className="h-3.5 w-3.5 text-[#F86A0A]" strokeWidth={2.4} />

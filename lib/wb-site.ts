@@ -38,6 +38,7 @@ export const WB_EMAIL = "contact@workbenchfsm.com";
 export const WB_EMAIL_HREF = `mailto:${WB_EMAIL}`;
 
 export const APP_STORE_URL = "https://apps.apple.com/app/workbench-fsm/id6789991103";
+export const WB_FACEBOOK_URL = "https://www.facebook.com/WorkBenchFSM";
 export const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.streamflaire.hub";
 
 /**

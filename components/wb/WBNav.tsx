@@ -45,12 +45,12 @@ export default function WBNav() {
         <div className="wb-navpill mx-auto flex h-14 max-w-5xl items-center rounded-full pl-4 pr-2 sm:pl-5">
           <Link href={WB_HOME} className="flex shrink-0 items-center" aria-label="WorkBench FSM home">
             <Image
-              src="/workbench-logo.png"
+              src="/workbench-wordmark.png"
               alt="WorkBench FSM"
-              width={1714}
-              height={285}
+              width={1054}
+              height={199}
               priority
-              className="h-[22px] w-auto sm:h-6"
+              className="h-[26px] w-auto sm:h-7"
             />
           </Link>
 

@@ -257,7 +257,7 @@ export default function WBHomePage() {
             {/* the same screenshot, magnified on one job */}
             <WBZoom
               src="/screens/mobile-01.png"
-              region={{ x: 18, y: 540, w: 604, h: 142 }}
+              region={{ x: 18, y: 922, w: 604, h: 124 }}
               width={290}
               className="wb-float absolute bottom-[196px] left-[178px] hidden sm:block xl:left-[196px] xl:bottom-[214px]"
             />

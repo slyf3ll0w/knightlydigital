@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { WB_HOME } from "./WBNav";
-import { APP_STORE_URL, WB_EMAIL, WB_EMAIL_HREF, WB_PHONE } from "@/lib/wb-site";
+import { APP_STORE_URL, WB_EMAIL, WB_EMAIL_HREF, WB_FACEBOOK_URL, WB_PHONE } from "@/lib/wb-site";
 
 const columns: {
   heading: string;
@@ -43,6 +43,7 @@ const columns: {
       { label: "Log in", href: "/app/login" },
       { label: "Help Center", href: "/help" },
       { label: "Contact", href: "/contact" },
+      { label: "Facebook", href: WB_FACEBOOK_URL, external: true },
       { label: "Streamflaire", href: "https://streamflaire.com", external: true },
       { label: "Privacy", href: "/privacy" },
       { label: "Terms of Service", href: "/terms" },
@@ -58,11 +59,11 @@ export default function WBFooter() {
       <div className="mx-auto grid max-w-6xl gap-12 px-5 py-16 sm:px-8 lg:grid-cols-[minmax(240px,1.2fr)_repeat(4,minmax(0,1fr))] lg:gap-10">
         <div className="max-w-xs">
           <Image
-            src="/workbench-logo.png"
+            src="/workbench-wordmark.png"
             alt="WorkBench FSM"
-            width={1714}
-            height={285}
-            className="h-6 w-auto"
+            width={1054}
+            height={199}
+            className="h-7 w-auto"
           />
           <p className="mt-5 text-[14px] leading-relaxed text-gray-500">
             WorkBench FSM: field service management software for home-service
@@ -74,6 +75,18 @@ export default function WBFooter() {
             </a>
             <a href={WB_EMAIL_HREF} className="block hover:text-[#0B57D8]">
               {WB_EMAIL}
+            </a>
+            <a
+              href={WB_FACEBOOK_URL}
+              target="_blank"
+              rel="noopener"
+              aria-label="WorkBench FSM on Facebook"
+              className="inline-flex items-center gap-2 hover:text-[#0B57D8]"
+            >
+              <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] fill-[#1877F2]" aria-hidden>
+                <path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.69.24 2.69.24v2.97h-1.52c-1.49 0-1.96.93-1.96 1.89v2.25h3.33l-.53 3.49h-2.8V24C19.61 23.1 24 18.1 24 12.07z" />
+              </svg>
+              Facebook
             </a>
           </div>
           <a

@@ -586,7 +586,7 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
                   type="text"
                   value={domainInput}
                   onChange={(e) => setDomainInput(e.target.value)}
-                  placeholder="summitplumbing.com"
+                  placeholder="yourbusiness.com"
                   className="w-full focus:ring-2"
                 />
               </div>
