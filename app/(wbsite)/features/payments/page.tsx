@@ -9,7 +9,7 @@ import { pickFeatures } from "@/lib/wb-features";
 export const metadata: Metadata = {
   title: "Payments",
   description:
-    "Card and ACH built into every invoice, quote, and booking at one flat rate: 2.9% + 30¢ per card transaction, 0.75% ACH. No monthly fees, saved cards with autopay, automatic reminders, and same-day-ish payouts.",
+    "Card and ACH built into every invoice, quote, and booking at one flat rate: 2.9% + 30¢ per card transaction, 0.75% + 30¢ ACH. No monthly fees, saved cards with autopay, automatic reminders, and same-day-ish payouts.",
 };
 
 const features = pickFeatures("paid", [
@@ -26,7 +26,7 @@ const faq = [
     q: "What does payment processing actually cost?",
     a: (
       <p>
-        One flat rate: 2.9% + 30¢ per successful card transaction and 0.75%
+        One flat rate: 2.9% + 30¢ per successful card transaction and 0.75% + 30¢
         per ACH bank transfer. No monthly fees, no minimum volume, and
         nothing charged on a failed or declined payment. This is also how
         WorkBench funds the free software — see the{" "}

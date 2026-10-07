@@ -151,7 +151,7 @@ export default function WBPricing() {
             ))}
           </div>
           <p className="mt-8 border-t border-gray-100 pt-5 text-[13px] leading-relaxed text-gray-500">
-            Funded by built-in payment processing: 2.9% + 30¢ per card transaction, 0.75% per ACH
+            Funded by built-in payment processing: 2.9% + 30¢ per card transaction, 0.75% + 30¢ per ACH
             bank transfer. No monthly fees, no minimums, no charge on failed payments. Cash and
             check invoices are free too.
           </p>

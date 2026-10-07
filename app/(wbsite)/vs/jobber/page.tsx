@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 const rows: CompareRow[] = [
   {
     label: "Pricing model",
-    workbench: "Free core software with full access for 2 users, not a trial. Optional flat-priced add-ons per company, from $25 a month: Voice (a business phone line), Pro (unlimited users and the ops tools, $89), and Gallery (job photos, coming soon). WorkBench also earns a flat 2.9% + 30¢ (card) or 0.75% (ACH) when a client pays through it — nothing charged if you never process a payment.",
+    workbench: "Free core software with full access for 2 users, not a trial. Optional flat-priced add-ons per company, from $25 a month: Voice (a business phone line), Pro (unlimited users and the ops tools, $89), and Gallery (job photos, coming soon). WorkBench also earns a flat 2.9% + 30¢ (card) or 0.75% + 30¢ (ACH) when a client pays through it — nothing charged if you never process a payment.",
     competitor: "A monthly subscription with multiple pricing tiers, typically priced per user. Check jobber.com for current plans.",
   },
   {

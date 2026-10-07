@@ -50,7 +50,7 @@ const tabs = [
     body: "Card and ACH are built in at one flat rate. Deposits, partial payments, autopay for recurring plans, and reminders that go out on their own.",
     points: [
       "Invoices from the driveway, paid from a link",
-      "2.9% + 30¢ per card, 0.75% per ACH transfer",
+      "2.9% + 30¢ per card, 0.75% + 30¢ per ACH transfer",
       "Recurring billing and one-click refunds",
     ],
     href: "/features/payments",

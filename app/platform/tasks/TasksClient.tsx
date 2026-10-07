@@ -58,9 +58,9 @@ export default function TasksClient({
   // notes); Edit is one step further. The editor opens straight away only
   // for a new task.
   const [detail, setDetail] = useState<{ open: boolean; task: TaskDTO | null }>({ open: false, task: null });
-  // The prefill from ?new=1 is captured once: the URL is cleaned right after,
-  // and the editor must not reset mid-typing when the prop goes null.
-  const [editorPrefill] = useState(prefill);
+  // The prefill from ?new=1 is held here: the URL is cleaned right after, and
+  // the editor must not reset mid-typing when the prop goes null.
+  const [editorPrefill, setEditorPrefill] = useState(prefill);
   const lingering = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
   // A server refresh (after a save) re-sends the list — take it.
@@ -73,15 +73,20 @@ export default function TasksClient({
     } catch {}
   }, [view]);
 
-  // Doors: ?new=1 (Create tile, quick menu, "Add task" from a record) and
-  // ?task=<id> (a reminder push / bell card).
+  // Door: ?new=1 (Create tile, quick menu, "Add task" from a record, the
+  // empty list's "Add a task"). Watched, not mount-only: a door used while
+  // already on this page is a soft navigation that re-renders the server page
+  // with a fresh prefill but keeps this component mounted.
   useEffect(() => {
-    if (prefill) {
-      setEditor({ open: true, task: null });
-      cleanUrl();
-      return;
-    }
-    if (!openTaskId) return;
+    if (!prefill) return;
+    setEditorPrefill(prefill);
+    setEditor({ open: true, task: null });
+    cleanUrl();
+  }, [prefill, cleanUrl]);
+
+  // Door: ?task=<id> (a reminder push / bell card).
+  useEffect(() => {
+    if (prefill || !openTaskId) return;
     const hit = initial.find((t) => t.id === openTaskId);
     if (hit) {
       setDetail({ open: true, task: hit });
@@ -106,6 +111,8 @@ export default function TasksClient({
 
   const openNew = () => {
     hapticImpact("LIGHT");
+    // A plain new task: drop links left over from an earlier ?new=1 door
+    setEditorPrefill(null);
     setEditor({ open: true, task: null });
   };
   const openTask = (t: TaskDTO) => {

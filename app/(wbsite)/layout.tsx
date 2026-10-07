@@ -41,7 +41,7 @@ const softwareAppJsonLd = {
       name: FREE_PLAN_NAME,
       price: "0",
       priceCurrency: "USD",
-      description: `The core software (booking, scheduling, quotes, invoicing, payments, client portal, team chat) is free with full access for ${INCLUDED_SEATS} users, not a trial, funded by payment processing: 2.9% + 30¢ per card transaction, 0.75% per ACH transfer — no monthly fees or minimums. Extra users are ${formatCents(EXTRA_SEAT_CENTS)} per user per month. Atlas, the AI assistant, is metered separately: every account gets 10,000 Atlas tokens free each month.`,
+      description: `The core software (booking, scheduling, quotes, invoicing, payments, client portal, team chat) is free with full access for ${INCLUDED_SEATS} users, not a trial, funded by payment processing: 2.9% + 30¢ per card transaction, 0.75% + 30¢ per ACH transfer — no monthly fees or minimums. Extra users are ${formatCents(EXTRA_SEAT_CENTS)} per user per month. Atlas, the AI assistant, is metered separately: every account gets 10,000 Atlas tokens free each month.`,
     },
     {
       "@type": "Offer",

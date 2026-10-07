@@ -69,7 +69,7 @@ const rateRows = [
   { label: "Users", value: `${INCLUDED_SEATS} included, ${formatCents(EXTRA_SEAT_CENTS)} each after` },
   { label: "Monthly fee", value: `$0 on ${FREE_PLAN_NAME}` },
   { label: "Card payments", value: "2.9% + 30¢" },
-  { label: "ACH bank transfers", value: "0.75%" },
+  { label: "ACH bank transfers", value: "0.75% + 30¢" },
   { label: "Atlas tokens", value: "10,000 free a month" },
   { label: "Add-ons", value: `From ${formatCents(PLANS.DISPATCH.monthlyCents)} a month` },
 ];
@@ -99,7 +99,7 @@ const faqItems = [
     q: "What does payment processing cost?",
     a: (
       <p>
-        One flat rate: 2.9% + 30¢ per successful card transaction and 0.75% per
+        One flat rate: 2.9% + 30¢ per successful card transaction and 0.75% + 30¢ per
         ACH bank transfer. There are no monthly processing fees, no minimums, and
         no charge on failed payments.
       </p>
@@ -344,7 +344,7 @@ export default function WBHomePage() {
         <div className="mx-auto grid max-w-6xl divide-y divide-gray-200 px-5 sm:px-8 md:grid-cols-3 md:divide-x md:divide-y-0">
           {[
             { title: `Free for your first ${INCLUDED_SEATS} users`, body: `The ${FREE_PLAN_NAME} plan is full access, not a trial. Extra users are ${formatCents(EXTRA_SEAT_CENTS)} a month each.` },
-            { title: "One flat payment rate", body: "2.9% + 30¢ per card transaction, 0.75% per ACH transfer. Nothing monthly." },
+            { title: "One flat payment rate", body: "2.9% + 30¢ per card transaction, 0.75% + 30¢ per ACH transfer. Nothing monthly." },
             { title: "iPhone and Android apps", body: "Push notifications, an offline schedule, and invoices sent from the driveway." },
           ].map((f) => (
             <div key={f.title} className="py-6 md:px-8 md:first:pl-0 md:last:pr-0">

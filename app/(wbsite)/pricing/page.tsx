@@ -72,7 +72,7 @@ const pricingFaq = [
     q: "Are there any monthly fees or minimums on payments?",
     a: (
       <p>
-        No. You pay 2.9% + 30¢ per successful card transaction and 0.75% per ACH bank
+        No. You pay 2.9% + 30¢ per successful card transaction and 0.75% + 30¢ per ACH bank
         transfer, and that&apos;s the whole list. No monthly fee, no minimum volume, no charge
         on failed or declined payments.
       </p>
@@ -203,7 +203,7 @@ export default function WBPricingPage() {
                 </span>{" "}
                 and{" "}
                 <span className="font-bold text-gray-900">
-                  0.75% per ACH bank transfer
+                  0.75% + 30¢ per ACH bank transfer
                 </span>
                 . When your clients pay you through WorkBench, a small slice
                 of that processing fee is what funds the software.
@@ -220,7 +220,7 @@ export default function WBPricingPage() {
                 {
                   icon: CreditCard,
                   title: "One flat rate",
-                  body: "2.9% + 30¢ per successful card transaction, 0.75% for ACH bank transfers. No monthly fees, no minimums, no charge on failed payments.",
+                  body: "2.9% + 30¢ per successful card transaction, 0.75% + 30¢ for ACH bank transfers. No monthly fees, no minimums, no charge on failed payments.",
                 },
                 {
                   icon: HandCoins,

@@ -159,7 +159,7 @@ export const sections: FeatureSection[] = [
       {
         icon: CreditCard,
         title: "Card & ACH built in",
-        body: "Every invoice, quote, and booking can take card or bank payments at one flat rate — 2.9% + 30¢ per card transaction, 0.75% ACH. No monthly fees, no minimums.",
+        body: "Every invoice, quote, and booking can take card or bank payments at one flat rate — 2.9% + 30¢ per card transaction, 0.75% + 30¢ ACH. No monthly fees, no minimums.",
       },
       {
         icon: ClipboardCheck,

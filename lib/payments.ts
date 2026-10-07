@@ -850,7 +850,7 @@ export function processingFees() {
     cardBps: Number(process.env.WORKBENCH_CARD_FEE_BPS ?? 290),
     cardFixedCents: Number(process.env.WORKBENCH_CARD_FEE_FIXED_CENTS ?? 30),
     achBps: Number(process.env.WORKBENCH_ACH_FEE_BPS ?? 75),
-    achFixedCents: Number(process.env.WORKBENCH_ACH_FEE_FIXED_CENTS ?? 0),
+    achFixedCents: Number(process.env.WORKBENCH_ACH_FEE_FIXED_CENTS ?? 30),
   };
 }
 
@@ -862,7 +862,7 @@ export function estimateFeeCents(amountCents: number, method: "CARD" | "ACH"): n
     : Math.round((amountCents * f.cardBps) / 10000) + f.cardFixedCents;
 }
 
-/** Human label like "2.9% + 30¢" / "0.75%" for a bps + fixed-cents pair. */
+/** Human label like "2.9% + 30¢" / "0.75% + 30¢" for a bps + fixed-cents pair. */
 export function feeRateLabel(bps: number, fixedCents: number): string {
   const pct = `${(bps / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })}%`;
   return fixedCents > 0 ? `${pct} + ${fixedCents}¢` : pct;

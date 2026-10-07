@@ -774,7 +774,7 @@ How the Finix flow hangs together:
   row deleted, owners notified. Manual payments have nothing to reverse —
   edit/delete the record instead. (scripts/backfill-refunds.mjs backfilled
   Refund rows from the legacy "Refunded $X (id)" details notes.)
-- **Fees:** our take (card 2.9% + 30¢, ACH 0.75%; `WORKBENCH_*_FEE_*` env
+- **Fees:** our take (card 2.9% + 30¢, ACH 0.75% + 30¢; `WORKBENCH_*_FEE_*` env
   overrides in `processingFees()`) is deducted at settlement by a Finix **fee
   profile** — configured in the Finix dashboard, NOT the API (`POST
   /fee_profiles` is certification-gated: "forbidden by Fee Profile Settings").

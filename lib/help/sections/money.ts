@@ -123,7 +123,7 @@ export const paymentsSection: HelpSection = {
         {
           type: "list",
           items: [
-            "Card payments cost **2.9% + 30¢**. Bank payments cost **0.75%**. There are no monthly fees. Fees come out when the money settles, and the amounts shown in the app are estimates until then.",
+            "Card payments cost **2.9% + 30¢**. Bank payments cost **0.75% + 30¢**. There are no monthly fees. Fees come out when the money settles, and the amounts shown in the app are estimates until then.",
             "Bank (ACH) payments show as **Processing** for a few business days. They can still bounce during that time, and if one does it's taken back off the invoice.",
             "Clients can also save cards and pick a default for autopay in their client portal.",
           ],
