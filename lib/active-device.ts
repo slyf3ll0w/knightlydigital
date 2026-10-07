@@ -141,6 +141,18 @@ export function deviceLabel(ua: string | null | undefined): string {
 }
 
 /**
+ * Let go of the lock on sign-out, if this device holds it. Without this the
+ * holder's fresh stamp walled the next device for the whole hold window
+ * after nobody was signed in there any more (audit 2026-10-06, D1).
+ */
+export async function releaseDevice(userId: string, deviceId: string): Promise<void> {
+  await prisma.user.updateMany({
+    where: { id: userId, activeDeviceId: deviceId },
+    data: { activeDeviceId: null, activeDeviceAt: null, activeDeviceLabel: null },
+  });
+}
+
+/**
  * Apply one beat: read the hold, decide, and write when the decision says
  * so. The claim is a conditional update (still unheld, still ours, or
  * still stale) so two devices beating in the same instant can't both win —

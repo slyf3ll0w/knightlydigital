@@ -475,3 +475,18 @@ export function companyWriteTouchesSite(data: unknown): boolean {
   for (const k of Object.keys(data as Record<string, unknown>)) if (SITE_COMPANY_FIELDS.has(k)) return true;
   return false;
 }
+
+/**
+ * Does a Website update change what the site shows? (pure; lib/db.ts)
+ * `rebuildNow` itself writes the row (rebuildQueuedAt / SentAt / Reason /
+ * Error) — bookkeeping about the build, not site content. Treating those
+ * writes as a change made every build schedule the next one 15 s later,
+ * forever (audit 2026-10-06, F1). A write with no data (a delete) or with
+ * any other field still counts.
+ */
+export function websiteWriteTouchesSite(data: unknown): boolean {
+  if (!data || typeof data !== "object") return true;
+  const keys = Object.keys(data as Record<string, unknown>);
+  if (keys.length === 0) return true;
+  return keys.some((k) => !k.startsWith("rebuild"));
+}

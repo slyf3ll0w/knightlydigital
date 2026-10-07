@@ -12,8 +12,10 @@ import { autoAdvance } from "@/lib/pipeline";
  * from an unknown number) or a legacy "Unknown caller" row — into a client
  * the business already has. Everything that hung off the number moves to
  * that client (the message thread with its photos, calls, text log, anything
- * else), the client's phone becomes this number (they are texting from it;
- * the card shows what it replaces), and the unsaved row is deleted. Future
+ * else, including tasks, addresses, people and cards that would otherwise
+ * cascade away with the row), the client's phone becomes this number (they
+ * are texting from it; the card shows what it replaces and a note on the
+ * client keeps the old number), and the unsaved row is deleted. Future
  * texts from the number land on the client straight away, since the inbound
  * webhook matches by phone digits.
  *
@@ -91,6 +93,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       await tx.subscription.updateMany({ where: from, data: to });
       await tx.reviewRequest.updateMany({ where: from, data: to });
       await tx.bookingRequest.updateMany({ where: from, data: to });
+      // The rows that CASCADE on contact delete — moving them is what keeps
+      // the delete below from taking them along (audit 2026-10-06: a task
+      // made from the thread vanished with the placeholder).
+      await tx.task.updateMany({ where: from, data: to });
+      await tx.contactAddress.updateMany({ where: from, data: to });
+      await tx.contactPerson.updateMany({ where: from, data: to });
+      await tx.contactPushSubscription.updateMany({ where: from, data: to });
+      await tx.savedCard.updateMany({ where: from, data: to });
+
+      // The number on file is replaced, not lost: it stays in the client's
+      // notes so a landlord merged with a tenant's cell keeps both.
+      if (replacedPhone) {
+        await tx.contactNote.create({
+          data: {
+            contactId: target.id,
+            userId: actor.id,
+            body: `Phone changed from ${replacedPhone} to ${source.phone} when a texted number was added to this client.`,
+          },
+        });
+      }
 
       await tx.contact.update({
         where: { id: target.id },
@@ -105,17 +127,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         },
       });
 
-      // Remaining relations (saved cards, addresses, push subscriptions…) an
-      // unsaved number never has — but if one does, don't lose the merge:
-      // leave the row behind, unreachable, instead of failing.
-      try {
-        await tx.contact.delete({ where: { id: source.id } });
-      } catch {
-        await tx.contact.update({
-          where: { id: source.id },
-          data: { phone: null, phoneDigits: null, placeholder: true, status: "ARCHIVED" },
-        });
-      }
+      // Everything that referenced the number now points at the client;
+      // whatever is left on the row cascades with it. (No try/catch here: a
+      // failed statement aborts a Postgres transaction, so a fallback update
+      // inside the same tx could never have run.)
+      await tx.contact.delete({ where: { id: source.id } });
     });
   } catch (err) {
     reportError("[contacts] merge into existing failed", id, into, err);

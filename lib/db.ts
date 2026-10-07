@@ -115,6 +115,10 @@ if (!globalForTrigger.calendarSyncTriggerInstalled) {
     if (params.model === "Company") {
       const { companyWriteTouchesSite } = await import("@/lib/website");
       touches = companyWriteTouchesSite(args.data) || companyWriteTouchesSite(args.update);
+    } else if (params.model === "Website") {
+      // rebuildNow's own bookkeeping write must not schedule the next build
+      const { websiteWriteTouchesSite } = await import("@/lib/website");
+      touches = websiteWriteTouchesSite(args.data) || (args.update !== undefined && websiteWriteTouchesSite(args.update));
     } else {
       const { SITE_MODELS } = await import("@/lib/website");
       touches = SITE_MODELS.has(params.model);

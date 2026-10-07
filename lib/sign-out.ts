@@ -58,6 +58,16 @@ export function useAppSignOut(callbackUrl = "/app/login") {
 }
 
 async function run(callbackUrl: string): Promise<boolean> {
+  // Let go of the one-device lock first (lib/active-device.ts): the next
+  // device would otherwise be told "in use on …" for the whole hold window
+  // after nobody is signed in here. Best effort; the window expires anyway.
+  await fetch("/api/app/presence", {
+    method: "POST",
+    keepalive: true,
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ release: true }),
+  }).catch(() => {});
+
   const token = rememberedVoipToken();
   if (token) {
     await fetch("/api/app/push", {

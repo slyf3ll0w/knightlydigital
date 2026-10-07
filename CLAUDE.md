@@ -192,7 +192,13 @@ User row remembers the holder (`activeDeviceId/At/Label`), and a beat from
 another device while the holder is active (3 min window, visible pages
 only; beats every 20 s and on the first touch after 4 s quiet) is answered `busy` — `components/PresenceBeacon.tsx` then walls the
 app ("in use on <device>", **Use it here** = `{ takeover: true }`, Sign
-out). API routes are not gated. `ONE_ACTIVE_DEVICE=0` turns it off,
+out). **Calls win (2026-10-06):** a device that answers or places a call
+on the business line sends a takeover beat itself (even from a
+backgrounded page — CallKit answers), so the phone that picks up boots the
+desktop rather than being walled mid-call, and the wall is never drawn over
+a device with a call ringing or in progress. Sign-out sends `{ release:
+true }` so the next device isn't walled for the hold window. API routes
+are not gated. `ONE_ACTIVE_DEVICE=0` turns it off,
 `ONE_ACTIVE_DEVICE_EXEMPT` lists exempt emails; Pro / Max companies
 (`exemptPlan`, the unlimited-seat plans), superadmins and the e2e owners
 (`e2e-*@workbenchfsm.com`) are always exempt. The seat limit itself

@@ -3528,10 +3528,12 @@ model Task {
   priority     TaskPriority @default(NORMAL)
   doneAt       DateTime?
   doneById     String?
-  // Optional links. A deleted contact takes its tasks with it; a deleted
-  // job / quote / invoice / call just drops the link.
+  // Optional links. A deleted contact / job / quote / invoice / call just
+  // drops the link — the task is the person's own to-do, not the record's
+  // (audit 2026-10-06: a Cascade here silently deleted tasks on client delete
+  // and on "Add to existing").
   contactId    String?
-  contact      Contact?     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  contact      Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
   jobId        String?
   job          Job?         @relation(fields: [jobId], references: [id], onDelete: SetNull)
   quoteId      String?

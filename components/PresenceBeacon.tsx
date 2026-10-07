@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, MonitorSmartphone } from "lucide-react";
 import { SIGN_OUT_FAILED, useAppSignOut } from "@/lib/sign-out";
+import { useSoftphone } from "@/lib/softphone-client";
 
 /**
  * Tells the server "someone is looking at the app" (POST /api/app/presence)
@@ -24,6 +25,13 @@ import { SIGN_OUT_FAILED, useAppSignOut } from "@/lib/sign-out";
  * The button arms late on purpose (ARM_MS): David's second test showed the
  * wall rendering under a finger mid-tap and that same tap landing on "Use it
  * here", so the phone took the lock straight back without him meaning to.
+ *
+ * Calls win (David, 2026-10-06). A device that answers or places a call on
+ * the business line is where the person is, so it takes the login over on
+ * its own (a takeover beat, sent even from a backgrounded page — the iPhone
+ * answers through CallKit), and the other device is walled instead. The
+ * wall is never drawn over a device with a call ringing or in progress, so
+ * Answer / Mute / Hang up stay reachable; it appears once the call ends.
  */
 const BEAT_MS = 20_000;
 const BUSY_BEAT_MS = 10_000;
@@ -43,9 +51,12 @@ export default function PresenceBeacon() {
   const signOut = useAppSignOut();
   const last = useRef(0);
   const inFlight = useRef(false);
+  const softphone = useSoftphone();
+  const onCall = softphone.call !== null;
+  const claimedForCall = useRef(false);
 
-  const beat = useCallback(async (takeover = false, floorMs = FLOOR_MS) => {
-    if (document.visibilityState !== "visible" || !navigator.onLine) return;
+  const beat = useCallback(async (takeover = false, floorMs = FLOOR_MS, evenHidden = false) => {
+    if ((!evenHidden && document.visibilityState !== "visible") || !navigator.onLine) return;
     const now = Date.now();
     if (!takeover && (now - last.current < floorMs || inFlight.current)) return;
     last.current = now;
@@ -91,6 +102,18 @@ export default function PresenceBeacon() {
     return () => clearInterval(timer);
   }, [beat, busy]);
 
+  // A call answered or placed here takes the login (once per call).
+  useEffect(() => {
+    const call = softphone.call;
+    if (!call) {
+      claimedForCall.current = false;
+      return;
+    }
+    if (claimedForCall.current || call.state === "ringing") return;
+    claimedForCall.current = true;
+    void beat(true, FLOOR_MS, true);
+  }, [softphone.call, beat]);
+
   // Arm the button only once the wall has been on screen for a moment.
   useEffect(() => {
     if (!busy) {
@@ -107,7 +130,8 @@ export default function PresenceBeacon() {
     setTaking(false);
   }, [beat]);
 
-  if (!busy) return null;
+  // Never over a ringing or live call: Answer / Hang up must stay reachable.
+  if (!busy || onCall) return null;
   return (
     <div
       role="dialog"

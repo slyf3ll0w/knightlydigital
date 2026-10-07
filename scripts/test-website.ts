@@ -5,7 +5,17 @@
  */
 import assert from "node:assert/strict";
 import { sanitizeBrief, briefGaps, publicBrief, safeUrl, emptyBrief } from "../lib/website-brief";
-import { companyWriteTouchesSite, SITE_MODELS } from "../lib/website";
+import { companyWriteTouchesSite, websiteWriteTouchesSite, SITE_MODELS } from "../lib/website";
+
+// ── websiteWriteTouchesSite (the rebuild loop, audit 2026-10-06) ─────────────
+{
+  assert.equal(websiteWriteTouchesSite({ rebuildQueuedAt: new Date(), rebuildReason: "x", rebuildError: null }), false, "rebuild bookkeeping is not a site change");
+  assert.equal(websiteWriteTouchesSite({ rebuildQueuedAt: new Date(), rebuildSentAt: new Date() }), false);
+  assert.equal(websiteWriteTouchesSite({ status: "LIVE" }), true, "a status change is");
+  assert.equal(websiteWriteTouchesSite({ rebuildQueuedAt: new Date(), direction: "warm" }), true, "mixed write counts");
+  assert.equal(websiteWriteTouchesSite(undefined), true, "no data (delete) counts");
+  assert.equal(websiteWriteTouchesSite({}), true);
+}
 
 // ── sanitizeBrief ────────────────────────────────────────────────────────────
 {
