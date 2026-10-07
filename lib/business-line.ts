@@ -1622,7 +1622,10 @@ export function platformTollFreeInput(number: string, form: RegistrationForm): T
       "Streamflaire Group LLC is the sender and only user of this number: its own customer support line for its WorkBench software, " +
       "not a number provided to a customer; no third party sends from it. Two-party support conversations only; no marketing. " +
       "The opt-in checkbox is not pre-selected: the screenshot shows the form as it loads (box unchecked) and the applicant must tick it. " +
-      "STOP/HELP handled at the Telnyx edge and mirrored in the application.",
+      "STOP/HELP handled at the Telnyx edge and mirrored in the application." +
+      // 2026-10-05 the reviewer returned "https://workbenchfsm.com/ not live" although the site answers
+      // 200 from everywhere we can reach it — say so, and where the legal entity is named.
+      " The website https://workbenchfsm.com/ is live (HTTP 200, no login) and names Streamflaire Group LLC in its footer and at /privacy, /terms and /sms-terms.",
     privacyPolicyURL: "https://workbenchfsm.com/privacy",
     termsAndConditionURL: "https://workbenchfsm.com/sms-terms",
     webhookUrl: tollFreeWebhookUrl(),

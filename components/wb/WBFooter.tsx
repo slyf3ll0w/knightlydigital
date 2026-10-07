@@ -136,9 +136,9 @@ export default function WBFooter() {
       <div className="border-t border-gray-100">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-5 py-5 sm:px-8">
           <p className="text-[13px] text-gray-400">
-            © 2026 WorkBench FSM, by{" "}
+            © 2026 WorkBench FSM, a product of{" "}
             <a href="https://streamflaire.com" target="_blank" rel="noopener" className="hover:text-gray-600">
-              Streamflaire
+              Streamflaire Group LLC
             </a>
           </p>
           <p className="text-[13px] text-gray-400">Allen, Texas</p>
