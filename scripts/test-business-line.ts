@@ -462,7 +462,7 @@ console.log("test-business-line (toll-free): all assertions passed");
 
 // ── Number rights after cancellation ─────────────────────────────────────────
 
-import { lineReleasePlan } from "../lib/business-line";
+import { lineMoveCheck, lineReleasePlan } from "../lib/business-line";
 
 const now = new Date("2026-09-19T12:00:00Z");
 const later = new Date(now.getTime() + 31 * 86_400_000);
@@ -638,4 +638,16 @@ console.log("test-business-line (number rights): all assertions passed");
   assert.ok(isFreeMailDomain("me@GMAIL.com"));
   assert.ok(!isFreeMailDomain("david@lesslyholdings.com"));
   console.log("test-business-line (failure text + free mail): all assertions passed");
+}
+
+{
+  const a = { id: "a", name: "Streamflaire", lineNumber: "+18334950229", messagingRegistration: { id: "r" } };
+  const b = { id: "b", name: "WorkBench", lineNumber: null, messagingRegistration: null };
+  assert.equal(lineMoveCheck(a, b), null);
+  assert.match(lineMoveCheck(a, a) ?? "", /same company/);
+  assert.match(lineMoveCheck(b, a) ?? "", /no number/);
+  assert.match(lineMoveCheck(a, { ...b, lineNumber: "+12145550100" }) ?? "", /already has a number/);
+  assert.match(lineMoveCheck(a, { ...b, lineNumber: "pending:b" }) ?? "", /in flight/);
+  assert.match(lineMoveCheck(a, { ...b, messagingRegistration: { id: "x" } }) ?? "", /registration on file/);
+  console.log("test-business-line (line move): all assertions passed");
 }

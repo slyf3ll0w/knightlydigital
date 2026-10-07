@@ -400,6 +400,10 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
 - **Attach an existing number**: superadmin **line-attach** (`LineControl`)
   hands a company a number the Telnyx account already owns (Streamflaire’s
   own +1 833-495-0229, ported numbers) instead of buying one.
+- **Move a number** (superadmin **line-move** → `moveLine`, 2026-10-07): re-homes
+  a number and its registration (any state) on another company, DB only —
+  nothing changes at Telnyx; the target is comped the add-on if it has none.
+  Never Release + Attach for this: Release surrenders the number.
 - **Entitlement**: the Voice plan (id DISPATCH; `hasAddon`, lib/addon.ts — the Livery
   subscription; `hasPlan(company, "DISPATCH")` in lib/plans.ts also honours
   a superadmin whitelist grant). Comp a company with the superadmin

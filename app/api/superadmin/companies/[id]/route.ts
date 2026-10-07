@@ -5,7 +5,7 @@ import { getSuperadmin } from "@/lib/superadmin";
 import { logConsoleAction } from "@/lib/console-audit";
 import { limit } from "@/lib/rate-limit";
 import { companyHasProtectedUser, deleteCompanyCascade } from "@/lib/company-delete";
-import { LineError, appealCampaignRegistration, approveRegistration, attachExistingNumber, keepLine, refreshKeywordReplies, releaseLine } from "@/lib/business-line";
+import { LineError, appealCampaignRegistration, approveRegistration, attachExistingNumber, keepLine, moveLine, refreshKeywordReplies, releaseLine } from "@/lib/business-line";
 import { VoiceError, ensureVoiceRouting } from "@/lib/voice";
 import { PLAN_IDS, isPlanId, normalizeGrants } from "@/lib/plans";
 import type { Prisma } from "@prisma/client";
@@ -53,6 +53,7 @@ const ACTIONS = new Set([
   "line-file",
   "line-appeal",
   "line-keywords",
+  "line-move",
   "addon-grant",
   "addon-revoke",
   "plan-grant",
@@ -317,6 +318,20 @@ export async function PATCH(
       if (err instanceof LineError) return NextResponse.json({ error: err.message }, { status: err.status });
       const detail = err instanceof Error ? err.message : String(err);
       return NextResponse.json({ error: `Telnyx refused: ${detail}` }, { status: 424 });
+    }
+  }
+
+  // Move the number (and the registration) to another company, nothing
+  // changes at Telnyx — the way to re-home a line without surrendering it.
+  if (action === "line-move") {
+    try {
+      const out = await moveLine(id, typeof body.target === "string" ? body.target : "");
+      console.warn(`[superadmin] ${out.number} MOVED from "${company.name}" (${id}) to "${out.to.name}" (${out.to.id}) by ${admin.email}`);
+      audit(`${out.number} → ${out.to.name} (${out.to.id})`);
+      return NextResponse.json({ success: true, ...out });
+    } catch (err) {
+      if (err instanceof LineError) return NextResponse.json({ error: err.message }, { status: err.status });
+      throw err;
     }
   }
 

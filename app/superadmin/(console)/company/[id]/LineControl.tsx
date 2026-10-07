@@ -12,7 +12,8 @@ import { confirmSheet } from "@/components/ConfirmSheet";
  * the thing to read before answering "why aren't my texts going out" — and
  * whether voice runs through Call Control (lib/voice.ts) or plain
  * forwarding. Actions: attach an owned number, move it onto the voice app,
- * call off a scheduled release, or Release it for good.
+ * call off a scheduled release, move it to another company (nothing changes
+ * at Telnyx), or Release it for good.
  */
 export function LineControl({
   companyId,
@@ -56,6 +57,7 @@ export function LineControl({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attach, setAttach] = useState("");
+  const [moveTo, setMoveTo] = useState("");
 
   async function send(payload: Record<string, unknown>) {
     setBusy(true);
@@ -77,6 +79,18 @@ export function LineControl({
     } finally {
       setBusy(false);
     }
+  }
+
+  async function move() {
+    const target = moveTo.trim();
+    if (!number || !target) return;
+    const ok = await confirmSheet({
+      title: `Move ${number} to "${target}"?`,
+      message:
+        "The number, its call routing and the texting registration move with it; nothing changes at Telnyx. Call and message history stays here.",
+      confirmLabel: "Move number",
+    });
+    if (ok) await send({ action: "line-move", target });
   }
 
   async function release() {
@@ -263,6 +277,19 @@ export function LineControl({
               </>
             )}
           </dl>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Input
+              value={moveTo}
+              onChange={(e) => setMoveTo(e.target.value)}
+              placeholder="company slug or id"
+              aria-label="Company to move the number to"
+              className="ds-num w-56"
+            />
+            <Button variant="outline" size="sm" onClick={move} disabled={busy || !moveTo.trim()}>
+              Move number there
+            </Button>
+            <span className="ds-small">Registration moves with it; nothing changes at Telnyx.</span>
+          </div>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <Button variant="outline" size="sm" onClick={release} disabled={busy} className="!text-[color:var(--ds-bad)]">
               Release number

@@ -2297,6 +2297,112 @@ export async function releaseLine(companyId: string): Promise<void> {
   console.warn(`[line] released ${company.lineNumber ?? "(no number)"} for "${company.name}" (${companyId})`);
 }
 
+/* ───────────────────────── Move a line to another company ───────────────────────── */
+
+export type LineMoveCompany = {
+  id: string;
+  name: string;
+  lineNumber: string | null;
+  messagingRegistration: { id: string } | null;
+};
+
+/** Why the number can't move from `from` to `to`, or null when it can. Pure — scripts/test-business-line.ts. */
+export function lineMoveCheck(from: LineMoveCompany, to: LineMoveCompany): string | null {
+  if (from.id === to.id) return "That is the same company.";
+  if (!isRealLineNumber(from.lineNumber)) return `"${from.name}" has no number to move.`;
+  if (isRealLineNumber(to.lineNumber)) return `"${to.name}" already has a number (${to.lineNumber}) — release it first.`;
+  if (to.lineNumber) return `"${to.name}" has a number order in flight — try again in a minute.`;
+  if (to.messagingRegistration) return `"${to.name}" still has a texting registration on file — clear it first.`;
+  return null;
+}
+
+/**
+ * Superadmin: move a number — and everything the app keeps about it — from
+ * one company to another. Nothing changes at Telnyx: the number, its voice
+ * routing, keyword profile, forwarding, greeting, caller-ID name and the
+ * texting registration (10DLC chain or toll-free verification, whatever
+ * state it is in) simply belong to the target from now on. Inbound calls,
+ * texts and the site contact form route by number, so they follow it. Call
+ * and message history stays where it happened. The softphone connection
+ * stays with the source (its credentials belong to the source's users); the
+ * target gets its own on first use. The target is comped the add-on when it
+ * has none — otherwise the release sweep would schedule the number's release
+ * 30 days out. Never Release + Attach for this: Release gives the number back
+ * to Telnyx.
+ */
+export async function moveLine(fromCompanyId: string, target: string): Promise<{ number: string; to: { id: string; name: string } }> {
+  const ref = target.trim();
+  if (!ref) throw new LineError("Name the company to move the number to (its slug or id).");
+  const [from, to] = await Promise.all([
+    prisma.company.findUnique({
+      where: { id: fromCompanyId },
+      select: {
+        id: true,
+        name: true,
+        lineNumber: true,
+        lineNumberId: true,
+        lineType: true,
+        lineForwardTo: true,
+        lineProvisionedAt: true,
+        lineVoiceAppAt: true,
+        lineVoicemailGreeting: true,
+        lineCallerIdName: true,
+        lineMessagingProfileId: true,
+        addonActiveAt: true,
+        smsAcknowledgedAt: true,
+        messagingRegistration: { select: { id: true } },
+      },
+    }),
+    prisma.company.findFirst({
+      where: { OR: [{ id: ref }, { slug: ref }] },
+      select: { id: true, name: true, lineNumber: true, addonActiveAt: true, smsAcknowledgedAt: true, messagingRegistration: { select: { id: true } } },
+    }),
+  ]);
+  if (!from) throw new LineError("Company not found.", 404);
+  if (!to) throw new LineError(`No company with the slug or id "${ref}".`, 404);
+  const why = lineMoveCheck(from, to);
+  if (why) throw new LineError(why, 409);
+  const number = from.lineNumber as string;
+  // Sequential inside one transaction: the source lets go of the (unique) number before the target takes it.
+  await prisma.$transaction([
+    prisma.company.update({
+      where: { id: from.id },
+      data: {
+        lineNumber: null,
+        lineNumberId: null,
+        lineType: null,
+        lineForwardTo: null,
+        lineProvisionedAt: null,
+        lineVoiceAppAt: null,
+        lineVoicemailGreeting: null,
+        lineCallerIdName: null,
+        lineMessagingProfileId: null,
+        lineReleaseAt: null,
+      },
+    }),
+    prisma.company.update({
+      where: { id: to.id },
+      data: {
+        lineNumber: number,
+        lineNumberId: from.lineNumberId,
+        lineType: from.lineType,
+        lineForwardTo: from.lineForwardTo,
+        lineProvisionedAt: from.lineProvisionedAt,
+        lineVoiceAppAt: from.lineVoiceAppAt,
+        lineVoicemailGreeting: from.lineVoicemailGreeting,
+        lineCallerIdName: from.lineCallerIdName,
+        lineMessagingProfileId: from.lineMessagingProfileId,
+        lineReleaseAt: null,
+        addonActiveAt: to.addonActiveAt ?? from.addonActiveAt ?? new Date(),
+        smsAcknowledgedAt: to.smsAcknowledgedAt ?? from.smsAcknowledgedAt,
+      },
+    }),
+    prisma.messagingRegistration.updateMany({ where: { companyId: from.id }, data: { companyId: to.id } }),
+  ]);
+  console.warn(`[line] moved ${number} from "${from.name}" (${from.id}) to "${to.name}" (${to.id})`);
+  return { number, to: { id: to.id, name: to.name } };
+}
+
 /* ───────────────────────── Read model for the UI ───────────────────────── */
 
 export async function lineSummary(
