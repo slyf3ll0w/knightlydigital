@@ -20,6 +20,11 @@ Sentry.init({
     // Benign browser noise that would eat the error quota
     "ResizeObserver loop limit exceeded",
     "ResizeObserver loop completed with undelivered notifications",
+    // Thrown by Microsoft's Office / Outlook browser extension (Safe Links)
+    // from a script it injects into every page — nothing in this bundle
+    // calls it, and it fires on client portal links opened from Outlook
+    // (Sentry 8e8b1407, 2026-10-07).
+    /Object Not Found Matching Id:\d+, MethodName:/,
   ],
 });
 

@@ -46,7 +46,15 @@ const STATUS: Record<Status, { label: string; tone: "neutral" | "primary" | "sec
 
 const ORDER: Status[] = ["BRIEF_SUBMITTED", "IN_STUDIO", "REVIEW", "LIVE", "NOT_STARTED"];
 
-export default function WebsitesClient({ rows, dispatchConfigured }: { rows: WebsiteRow[]; dispatchConfigured: boolean }) {
+export default function WebsitesClient({
+  rows,
+  dispatchConfigured,
+  tokenRejected,
+}: {
+  rows: WebsiteRow[];
+  dispatchConfigured: boolean;
+  tokenRejected: boolean;
+}) {
   const queue = rows.filter((r) => r.status !== "NOT_STARTED" && r.status !== "LIVE").length;
   const sorted = [...rows].sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status));
   return (
@@ -59,6 +67,12 @@ export default function WebsitesClient({ rows, dispatchConfigured }: { rows: Web
       {!dispatchConfigured && (
         <p className="mt-4 text-[13px] text-[color:var(--ds-warn)]">
           SITES_DISPATCH_TOKEN is not set on this environment: rebuilds are recorded but not sent.
+        </p>
+      )}
+      {tokenRejected && (
+        <p className="mt-4 text-[13px] text-[color:var(--ds-warn)]">
+          GitHub is rejecting SITES_DISPATCH_TOKEN: rebuilds are recorded but not sent. Mint a new fine-grained token with Contents
+          read/write on workbench-sites, set it on Railway, then Rebuild now.
         </p>
       )}
       <div className="mt-6 space-y-3">

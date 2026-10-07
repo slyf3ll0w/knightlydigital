@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requireSuperadminPage } from "@/lib/superadmin";
 import { sanitizeBrief, briefGaps } from "@/lib/website-brief";
-import { appBaseUrl, dispatchConfigured } from "@/lib/website";
+import { appBaseUrl, dispatchConfigured, isTokenRejectedError } from "@/lib/website";
 import WebsitesClient, { type WebsiteRow } from "./WebsitesClient";
 
 export const dynamic = "force-dynamic";
@@ -79,5 +79,9 @@ export default async function ConsoleWebsitesPage() {
     };
   });
 
-  return <WebsitesClient rows={data} dispatchConfigured={dispatchConfigured()} />;
+  // The token is set but GitHub refused it on the last dispatch of some
+  // row: rebuilds are being recorded and dropped until it is re-minted.
+  const tokenRejected = dispatchConfigured() && rows.some((r) => isTokenRejectedError(r.rebuildError));
+
+  return <WebsitesClient rows={data} dispatchConfigured={dispatchConfigured()} tokenRejected={tokenRejected} />;
 }

@@ -377,6 +377,19 @@ export function dispatchConfigured(): boolean {
   return Boolean(process.env.SITES_DISPATCH_TOKEN);
 }
 
+/**
+ * GitHub answers these when SITES_DISPATCH_TOKEN is dead or cannot see the
+ * repo: 401 (bad credentials), 403 (no `contents: write`), 404 (a
+ * fine-grained token that was not granted the repo at all).
+ */
+const TOKEN_REJECTED_STATUSES = new Set([401, 403, 404]);
+export const TOKEN_REJECTED_PREFIX = "GitHub rejected SITES_DISPATCH_TOKEN";
+
+/** Is this row's last rebuild error the token being refused? (console banner) */
+export function isTokenRejectedError(rebuildError: string | null | undefined): boolean {
+  return Boolean(rebuildError && rebuildError.startsWith(TOKEN_REJECTED_PREFIX));
+}
+
 function dispatchUrl(): string {
   return process.env.SITES_DISPATCH_URL ?? "https://api.github.com/repos/slyf3ll0w/workbench-sites/dispatches";
 }
@@ -439,12 +452,23 @@ export async function rebuildNow(companyId: string, reason: string, opts: { forc
     });
     if (!res.ok && res.status !== 204) {
       const text = (await res.text().catch(() => "")).slice(0, 300);
-      const error = `GitHub answered ${res.status}${text ? `: ${text}` : ""}`;
+      const tokenRejected = TOKEN_REJECTED_STATUSES.has(res.status);
+      const error = tokenRejected
+        ? `${TOKEN_REJECTED_PREFIX} (${res.status}${text ? `: ${text}` : ""}). Re-mint the token on Railway.`
+        : `GitHub answered ${res.status}${text ? `: ${text}` : ""}`;
       await prisma.website.update({
         where: { id: site.id },
         data: { rebuildQueuedAt: now, rebuildReason: reason, rebuildError: error },
       });
-      reportError("[website] dispatch refused", { companyId, status: res.status, text });
+      if (tokenRejected) {
+        // A dead or under-scoped token is configuration, not a code path
+        // that broke: the row and the console banner carry it, and paging
+        // Sentry on every edit until it is re-minted only buries real
+        // issues (Sentry eccdb5ad, 2026-10-06).
+        console.warn("[website] dispatch token rejected", { companyId, status: res.status, text });
+      } else {
+        reportError("[website] dispatch refused", { companyId, status: res.status, text });
+      }
       return { ok: false, error };
     }
     await prisma.website.update({
