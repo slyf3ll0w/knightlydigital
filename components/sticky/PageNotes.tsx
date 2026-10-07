@@ -11,6 +11,7 @@ import StickyEditor, { draftPayload } from "./StickyEditor";
 import StickyForm, { emptyDraft, type StickyDraft } from "./StickyForm";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
+import { usePageSettled } from "./usePageSettled";
 import { STICKY_MAX, STICKY_MIN, isInteractiveTarget, normalizePage, type StickyNoteDTO } from "@/lib/sticky-shared";
 
 const DRAG_THRESHOLD = 4;
@@ -37,6 +38,10 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
   const active = page.startsWith("/app/") && !NO_NOTES_PAGES.some((p) => page === p || page.startsWith(p + "/"));
 
   const [notes, setNotes] = useState<StickyNoteDTO[]>([]);
+  // The page whose notes are in `notes` (null until the first fetch answers)
+  const [loadedPage, setLoadedPage] = useState<string | null>(null);
+  // Notes wait for the page to draw, then slap on (David 2026-10-07)
+  const settled = usePageSettled(mainRef, page, active);
   const [hidden, setHidden] = useState(false);
   const [menu, setMenu] = useState<{ open: boolean; anchor: MenuAnchor | null; at: { x: number; y: number } | null }>({ open: false, anchor: null, at: null });
   const [editor, setEditor] = useState<{ open: boolean; note: StickyNoteDTO | null; at: { x: number; y: number } | null }>({ open: false, note: null, at: null });
@@ -71,14 +76,17 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
     if (!active) return;
     try {
       const r = await fetch(`/api/app/notes?page=${encodeURIComponent(page)}`);
-      if (!r.ok) return;
-      const d = (await r.json()) as { notes?: StickyNoteDTO[]; page?: string };
-      if (d.notes && d.page === page) setNotes(d.notes);
+      if (r.ok) {
+        const d = (await r.json()) as { notes?: StickyNoteDTO[]; page?: string };
+        if (d.notes && d.page === page) setNotes(d.notes);
+      }
     } catch {}
+    setLoadedPage(page);
   }, [active, page]);
 
   useEffect(() => {
     setNotes([]);
+    setLoadedPage(null);
     setStripOpen(false);
     setComposerOpen(false);
     void refetch();
@@ -227,6 +235,7 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
   }
 
   if (!active) return null;
+  const ready = settled && loadedPage === page;
   const count = notes.length;
   const stripAtBottom = count === 0 && !hidden && bottomEl !== null;
 
@@ -236,7 +245,7 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
       <link rel="stylesheet" precedence="default" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&display=swap" />
 
       {/* ── Desktop layer: notes at their spot on this page ── */}
-      {!hidden && count > 0 && (
+      {ready && !hidden && count > 0 && (
         <div className="pointer-events-none absolute left-0 top-0 z-[25] hidden h-0 w-full lg:block" aria-label="Sticky notes on this page">
           {notes.map((n, i) => {
             const p = posOf(n, i);
@@ -244,8 +253,8 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
               <StickyPaper
                 key={n.id}
                 note={{ ...n, width: p.w, height: p.h }}
-                className={`ds-sticky-placed pointer-events-auto ${drag.current?.id === n.id && live[n.id] ? "ds-sticky-dragging" : ""}`}
-                style={{ left: p.x, top: p.y, zIndex: front === n.id ? 50 : 10 + (count - i) }}
+                className={`ds-sticky-placed ds-sticky-in pointer-events-auto ${drag.current?.id === n.id && live[n.id] ? "ds-sticky-dragging" : ""}`}
+                style={{ left: p.x, top: p.y, zIndex: front === n.id ? 50 : 10 + (count - i), "--i": i } as React.CSSProperties}
                 onPointerDown={(e) => onPointerDown(e, n, i, "move")}
                 onPointerMove={onPointerMove}
                 onPointerUp={(e) => void onPointerUp(e, n)}
@@ -270,10 +279,10 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
       )}
 
       {/* ── Phone: the page strip (at the top with notes, at the bottom without) ── */}
-      {(() => {
+      {ready && (() => {
         const strip = (
       <div className={`${stripAtBottom ? "px-4 pb-3 pt-6" : "px-4 pt-3"} lg:hidden`} data-notes-skip>
-        <div className={`ds-notes-strip ${stripOpen ? "ds-notes-strip-open" : ""}`}>
+        <div className={`ds-notes-strip ds-notes-strip-in ${stripOpen ? "ds-notes-strip-open" : ""}`}>
           <div className="flex items-center gap-2">
             <button
               type="button"

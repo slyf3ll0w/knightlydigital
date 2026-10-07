@@ -662,3 +662,29 @@ html[data-mode="dark"] .ds { --rail-news: var(--ds-secondary); }
 .ds .ds-notes-strip-open { padding-bottom: 6px; }
 .ds .ds-notes-composer { margin: 4px 0 10px; padding: 10px; border-radius: 14px; background: var(--ds-surface); box-shadow: inset 0 0 0 1px var(--ds-line); }
 .ds .ds-sticky-input-compact { min-height: 110px; font-size: 20px; padding: 18px 14px 12px; }
+/* Landing: notes wait for the page to draw (usePageSettled), then slap on one
+   after another, swinging from the adhesive strip like they were just pressed
+   up (David 2026-10-07). `backwards` fill only, so once it ends the note is
+   back on its plain rotate(--tilt) and drag/resize are untouched. */
+@keyframes ds-sticky-slap {
+  0%   { opacity: 0; transform: translateY(var(--drop, -22px)) rotate(calc(var(--tilt, 0deg) - 10deg)) scale(1.14);
+         box-shadow: 0 10px 14px rgba(0,0,0,0.10), 0 34px 40px -16px rgba(0,0,0,0.45); }
+  45%  { opacity: 1; transform: translateY(1px) rotate(calc(var(--tilt, 0deg) + 2deg)) scale(0.985); }
+  70%  { transform: translateY(-1px) rotate(calc(var(--tilt, 0deg) - 0.8deg)) scale(1.004); }
+  100% { transform: rotate(var(--tilt, 0deg)); }
+}
+.ds .ds-sticky-in {
+  transform-origin: 50% 0;
+  animation: ds-sticky-slap 600ms cubic-bezier(0.22, 0.9, 0.3, 1) backwards;
+  animation-delay: calc(min(var(--i, 0), 8) * 80ms);
+}
+/* the phone row scrolls sideways (so it clips vertically): a shorter drop */
+.ds .ds-sticky-sm.ds-sticky-in { --drop: -8px; }
+@keyframes ds-notes-strip-in {
+  from { opacity: 0; transform: translateY(-6px); }
+}
+.ds .ds-notes-strip-in { animation: ds-notes-strip-in 320ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+@media (prefers-reduced-motion: reduce) {
+  .ds .ds-sticky-in, .ds .ds-notes-strip-in { animation: none; }
+}
+

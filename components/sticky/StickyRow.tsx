@@ -21,12 +21,13 @@ export default function StickyRow({
   return (
     <section aria-label="Sticky notes" className="-mx-4">
       <div className="no-scrollbar flex items-start gap-3 overflow-x-auto px-4 py-3">
-        {notes.map((n) => (
+        {notes.map((n, i) => (
           <StickyPaper
             key={n.id}
             note={n}
             small
-            className="shrink-0"
+            className="ds-sticky-in shrink-0"
+            style={{ "--i": i } as React.CSSProperties}
             onOpen={() => {
               hapticImpact("LIGHT");
               onOpen(n);
