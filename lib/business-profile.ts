@@ -39,11 +39,28 @@ export type BusinessProfile = {
  * review, rejected and awaiting a re-file) AND the company has no website of
  * its own, because then /book/<slug> is the website on the filing and the
  * reviewer wants the description, address, phone and email on it. Pure.
+ *
+ * "Its own" = Company.website, or the website typed on the registration
+ * form (MessagingRegistration.website) when that isn't the WorkBench
+ * business page itself — the filing pins /book/<slug> there when the owner
+ * left it blank (lib/business-line.ts pinIdentity), and that page is the
+ * one that needs the details.
  */
-export function businessDetailsForced(registrationStatus: string | null | undefined, website: string | null | undefined): boolean {
+export function businessDetailsForced(
+  registrationStatus: string | null | undefined,
+  website: string | null | undefined,
+  registrationWebsite?: string | null
+): boolean {
   if (!registrationStatus || registrationStatus === "ACTIVE") return false;
-  return !website?.trim();
+  if (website?.trim()) return false;
+  return !registrationWebsite?.trim() || isOwnBusinessPage(registrationWebsite);
 }
+
+/** A WorkBench-hosted business page (/book/<slug>) rather than the business's own site. Pure. */
+export function isOwnBusinessPage(url: string | null | undefined): boolean {
+  return OWN_PAGE_RE.test(url?.trim() ?? "");
+}
+const OWN_PAGE_RE = new RegExp("^https?://[^/]+/book/", "i");
 
 export async function loadBusinessProfile(slug: string): Promise<BusinessProfile | null> {
   const company = await prisma.company.findFirst({
@@ -51,7 +68,7 @@ export async function loadBusinessProfile(slug: string): Promise<BusinessProfile
     select: {
       id: true, name: true, slug: true, phone: true, email: true, address: true, city: true, state: true, zip: true, website: true, about: true, industry: true, logoUrl: true,
       bookingPage: true,
-      messagingRegistration: { select: { status: true } },
+      messagingRegistration: { select: { status: true, website: true } },
     },
   });
   if (!company) return null;
@@ -63,7 +80,7 @@ export async function loadBusinessProfile(slug: string): Promise<BusinessProfile
     else names.add(t.name.trim());
   }
   const { bookingPage, messagingRegistration, ...rest } = company;
-  const detailsForced = businessDetailsForced(messagingRegistration?.status, company.website);
+  const detailsForced = businessDetailsForced(messagingRegistration?.status, company.website, messagingRegistration?.website);
   const showDetails = detailsForced || sanitizeBookingPage(bookingPage).showBusinessDetails === true;
   return { ...rest, services: [...names].filter(Boolean).slice(0, 12), showDetails, detailsForced };
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
+import { checkFeature } from "@/lib/plan-gate";
 import {
   companyTz,
   finishReminder,
@@ -49,6 +50,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!isManager(actor.role)) {
       return NextResponse.json({ error: "Only owners and admins can give tasks to others." }, { status: 403 });
     }
+    // Same gate as creating a task for someone else (POST /api/app/tasks) —
+    // "create for me, then reassign" must not slip past it. Dark until
+    // PLAN_GATING=1 (lib/plan-gate.ts).
+    const gate = await checkFeature(actor.companyId, "task_assign");
+    if (!gate.ok) return gate.response;
     const target = await prisma.user.findFirst({
       where: { id: body.assigneeId, companyId: actor.companyId, isActive: true },
       select: { id: true },
@@ -64,9 +70,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   // A reminder whose moment changed should fire again; one already sent for
-  // an unchanged time stays sent.
+  // an unchanged time stays sent. Handing the task to someone else also
+  // re-arms a reminder that is still ahead, so the new person hears it too.
+  const nextRemindAt = data.remindAt !== undefined ? data.remindAt : existing.remindAt;
   const remindReset =
-    data.remindAt !== undefined && (data.remindAt?.getTime() ?? null) !== (existing.remindAt?.getTime() ?? null)
+    (data.remindAt !== undefined && (data.remindAt?.getTime() ?? null) !== (existing.remindAt?.getTime() ?? null)) ||
+    (assigneeId && nextRemindAt && nextRemindAt.getTime() > Date.now())
       ? { remindSentAt: null }
       : {};
 

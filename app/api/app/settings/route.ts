@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse, after } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { reportError } from "@/lib/report-error";
-import { checkSlugChange } from "@/lib/company-slug";
+import { checkSlugChange, trimSlugHistory } from "@/lib/company-slug";
 import { refreshKeywordReplies, setCallerIdName } from "@/lib/business-line";
 import { defaultCallerIdName, isRealLineNumber } from "@/lib/business-line-shared";
 import { GOOGLE_FONT_RE } from "@/lib/booking-page";
@@ -102,149 +103,162 @@ export async function PATCH(req: NextRequest) {
     if (!check.ok) return NextResponse.json({ error: check.error, field: "slug" }, { status: 400 });
     slugData = {
       slug: check.slug,
-      previousSlugs: [...new Set([...before.previousSlugs, before.slug])].filter((s) => s !== check.slug).slice(-20),
+      previousSlugs: trimSlugHistory([...new Set([...before.previousSlugs, before.slug])].filter((s) => s !== check.slug)),
     };
   }
 
-  await prisma.company.update({
-    where: { id: companyId },
-    data: {
-      name: body.name !== undefined ? String(body.name).trim() : undefined,
-      // The entity on paper; null = same as the public name
-      legalName: body.legalName !== undefined ? String(body.legalName ?? "").trim().slice(0, 120) || null : undefined,
-      showLegalNameOnDocs: typeof body.showLegalNameOnDocs === "boolean" ? body.showLegalNameOnDocs : undefined,
-      ...(slugData ?? {}),
-      phone: opt(body.phone),
-      email: opt(body.email),
-      notifyEmail: opt(body.notifyEmail),
-      notifyEmailOff: typeof body.notifyEmailOff === "boolean" ? body.notifyEmailOff : undefined,
-      address: opt(body.address),
-      city: opt(body.city),
-      state: opt(body.state),
-      zip: opt(body.zip),
-      website: opt(body.website),
-      about: body.about !== undefined ? String(body.about ?? "").trim().slice(0, 500) || null : undefined,
-      assistantName:
-        body.assistantName !== undefined
-          ? String(body.assistantName).trim().slice(0, 40) || null
+  try {
+    await updateCompany();
+  } catch (err) {
+    // Two companies renaming to the same address in the same instant: the
+    // @unique on slug catches what checkSlugChange's read missed.
+    if (slugData && err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return NextResponse.json({ error: "That address is already in use. Try another.", field: "slug" }, { status: 400 });
+    }
+    throw err;
+  }
+
+  async function updateCompany() {
+    await prisma.company.update({
+      where: { id: companyId },
+      data: {
+        name: body.name !== undefined ? String(body.name).trim() : undefined,
+        // The entity on paper; null = same as the public name
+        legalName: body.legalName !== undefined ? String(body.legalName ?? "").trim().slice(0, 120) || null : undefined,
+        showLegalNameOnDocs: typeof body.showLegalNameOnDocs === "boolean" ? body.showLegalNameOnDocs : undefined,
+        ...(slugData ?? {}),
+        phone: opt(body.phone),
+        email: opt(body.email),
+        notifyEmail: opt(body.notifyEmail),
+        notifyEmailOff: typeof body.notifyEmailOff === "boolean" ? body.notifyEmailOff : undefined,
+        address: opt(body.address),
+        city: opt(body.city),
+        state: opt(body.state),
+        zip: opt(body.zip),
+        website: opt(body.website),
+        about: body.about !== undefined ? String(body.about ?? "").trim().slice(0, 500) || null : undefined,
+        assistantName:
+          body.assistantName !== undefined
+            ? String(body.assistantName).trim().slice(0, 40) || null
+            : undefined,
+        industry: body.industry !== undefined ? body.industry || null : undefined,
+        logoUrl: body.logoUrl !== undefined ? body.logoUrl || null : undefined,
+        logoWallpaper: typeof body.logoWallpaper === "boolean" ? body.logoWallpaper : undefined,
+        wallpaper: isWallpaper(body.wallpaper) ? body.wallpaper : undefined,
+        sidebarTheme: ["black", "white", "gray"].includes(body.sidebarTheme)
+          ? body.sidebarTheme
           : undefined,
-      industry: body.industry !== undefined ? body.industry || null : undefined,
-      logoUrl: body.logoUrl !== undefined ? body.logoUrl || null : undefined,
-      logoWallpaper: typeof body.logoWallpaper === "boolean" ? body.logoWallpaper : undefined,
-      wallpaper: isWallpaper(body.wallpaper) ? body.wallpaper : undefined,
-      sidebarTheme: ["black", "white", "gray"].includes(body.sidebarTheme)
-        ? body.sidebarTheme
-        : undefined,
-      sidebarLogoColor:
-        body.sidebarLogoColor !== undefined
-          ? /^#[0-9a-fA-F]{6}$/.test(body.sidebarLogoColor ?? "")
-            ? body.sidebarLogoColor
-            : null
-          : undefined,
-      // Rail logo plate height in px, clamped so the plate can grow tall but
-      // never break the fixed-width rail; null/garbage = back to default (56)
-      sidebarLogoSize:
-        body.sidebarLogoSize !== undefined
-          ? (() => {
-              const n = Number(body.sidebarLogoSize);
-              return Number.isFinite(n) && n > 0
-                ? Math.min(Math.max(Math.round(n), 36), 128)
-                : null;
-            })()
-          : undefined,
-      brandColor:
-        body.brandColor !== undefined
-          ? /^#[0-9a-fA-F]{6}$/.test(body.brandColor ?? "")
-            ? body.brandColor
-            : null
-          : undefined,
-      brandColorSecondary:
-        body.brandColorSecondary !== undefined
-          ? /^#[0-9a-fA-F]{6}$/.test(body.brandColorSecondary ?? "")
-            ? body.brandColorSecondary
-            : null
-          : undefined,
-      documentColor:
-        body.documentColor !== undefined
-          ? /^#[0-9a-fA-F]{6}$/.test(body.documentColor ?? "")
-            ? body.documentColor
-            : null
-          : undefined,
-      // App font — any Google Font name, same validation as the booking forms
-      brandFont:
-        body.brandFont !== undefined
-          ? GOOGLE_FONT_RE.test(String(body.brandFont ?? "").trim())
-            ? String(body.brandFont).trim()
-            : null
-          : undefined,
-      // Advanced section-color overrides — unknown keys/bad hexes dropped;
-      // {} = back to the stock palette.
-      sectionColors:
-        body.sectionColors !== undefined
-          ? (sanitizeSectionColors(body.sectionColors) as object)
-          : undefined,
-      surchargeEnabled: body.surchargeEnabled ?? undefined,
-      surchargeRate: body.surchargeRate !== undefined ? Number(body.surchargeRate) : undefined,
-      // Default sales-tax rate as a fraction (0.0825 = 8.25%); null clears it
-      defaultTaxRate:
-        body.defaultTaxRate !== undefined
-          ? (() => {
-              const rate = Number(body.defaultTaxRate);
-              return Number.isFinite(rate) && rate > 0
-                ? Math.min(rate, 0.9999)
-                : null;
-            })()
-          : undefined,
-      ...docStarts,
-      hideConvertedLeads:
-        typeof body.hideConvertedLeads === "boolean" ? body.hideConvertedLeads : undefined,
-      ...(body.defaultDepositType !== undefined &&
-        (() => {
-          const d = sanitizeDeposit({
-            depositType: body.defaultDepositType,
-            depositValue: body.defaultDepositValue,
-          });
-          return { defaultDepositType: d.depositType, defaultDepositValue: d.depositValue };
-        })()),
-      reviewLink: opt(body.reviewLink),
-      // "On my way" text template — blank falls back to the built-in default
-      onMyWayTemplate:
-        body.onMyWayTemplate !== undefined
-          ? String(body.onMyWayTemplate).trim().slice(0, 320) || null
-          : undefined,
-      timezone: isValidTimezone(body.timezone) ? body.timezone : undefined,
-      // Online-booking scheduling settings
-      businessHours:
-        body.businessHours !== undefined
-          ? (sanitizeBusinessHours(body.businessHours) as object)
-          : undefined,
-      serviceZips: body.serviceZips !== undefined ? sanitizeServiceZips(body.serviceZips) : undefined,
-      arrivalWindowMinutes:
-        body.arrivalWindowMinutes !== undefined &&
-        Number.isInteger(Number(body.arrivalWindowMinutes)) &&
-        Number(body.arrivalWindowMinutes) >= 30 &&
-        Number(body.arrivalWindowMinutes) <= 480
-          ? Number(body.arrivalWindowMinutes)
-          : undefined,
-      // Booking drive-time limit (minutes; 0 clears it → off)
-      bookingDriveLimitMinutes:
-        body.bookingDriveLimitMinutes !== undefined &&
-        Number.isInteger(Number(body.bookingDriveLimitMinutes)) &&
-        Number(body.bookingDriveLimitMinutes) >= 0 &&
-        Number(body.bookingDriveLimitMinutes) <= 240
-          ? Number(body.bookingDriveLimitMinutes) || null
-          : undefined,
-      // Even time-slot granularity for in-app job/appointment scheduling; only
-      // an allowed choice is accepted, anything else leaves the value unchanged.
-      schedulingIntervalMinutes:
-        body.schedulingIntervalMinutes !== undefined &&
-        (SLOT_INTERVAL_CHOICES as readonly number[]).includes(Number(body.schedulingIntervalMinutes))
-          ? Number(body.schedulingIntervalMinutes)
-          : undefined,
-      bookingPage: body.bookingPage !== undefined ? sanitizeBookingPage(body.bookingPage) : undefined,
-      hubBookingTypeId: hubFormId,
-    },
-  });
+        sidebarLogoColor:
+          body.sidebarLogoColor !== undefined
+            ? /^#[0-9a-fA-F]{6}$/.test(body.sidebarLogoColor ?? "")
+              ? body.sidebarLogoColor
+              : null
+            : undefined,
+        // Rail logo plate height in px, clamped so the plate can grow tall but
+        // never break the fixed-width rail; null/garbage = back to default (56)
+        sidebarLogoSize:
+          body.sidebarLogoSize !== undefined
+            ? (() => {
+                const n = Number(body.sidebarLogoSize);
+                return Number.isFinite(n) && n > 0
+                  ? Math.min(Math.max(Math.round(n), 36), 128)
+                  : null;
+              })()
+            : undefined,
+        brandColor:
+          body.brandColor !== undefined
+            ? /^#[0-9a-fA-F]{6}$/.test(body.brandColor ?? "")
+              ? body.brandColor
+              : null
+            : undefined,
+        brandColorSecondary:
+          body.brandColorSecondary !== undefined
+            ? /^#[0-9a-fA-F]{6}$/.test(body.brandColorSecondary ?? "")
+              ? body.brandColorSecondary
+              : null
+            : undefined,
+        documentColor:
+          body.documentColor !== undefined
+            ? /^#[0-9a-fA-F]{6}$/.test(body.documentColor ?? "")
+              ? body.documentColor
+              : null
+            : undefined,
+        // App font — any Google Font name, same validation as the booking forms
+        brandFont:
+          body.brandFont !== undefined
+            ? GOOGLE_FONT_RE.test(String(body.brandFont ?? "").trim())
+              ? String(body.brandFont).trim()
+              : null
+            : undefined,
+        // Advanced section-color overrides — unknown keys/bad hexes dropped;
+        // {} = back to the stock palette.
+        sectionColors:
+          body.sectionColors !== undefined
+            ? (sanitizeSectionColors(body.sectionColors) as object)
+            : undefined,
+        surchargeEnabled: body.surchargeEnabled ?? undefined,
+        surchargeRate: body.surchargeRate !== undefined ? Number(body.surchargeRate) : undefined,
+        // Default sales-tax rate as a fraction (0.0825 = 8.25%); null clears it
+        defaultTaxRate:
+          body.defaultTaxRate !== undefined
+            ? (() => {
+                const rate = Number(body.defaultTaxRate);
+                return Number.isFinite(rate) && rate > 0
+                  ? Math.min(rate, 0.9999)
+                  : null;
+              })()
+            : undefined,
+        ...docStarts,
+        hideConvertedLeads:
+          typeof body.hideConvertedLeads === "boolean" ? body.hideConvertedLeads : undefined,
+        ...(body.defaultDepositType !== undefined &&
+          (() => {
+            const d = sanitizeDeposit({
+              depositType: body.defaultDepositType,
+              depositValue: body.defaultDepositValue,
+            });
+            return { defaultDepositType: d.depositType, defaultDepositValue: d.depositValue };
+          })()),
+        reviewLink: opt(body.reviewLink),
+        // "On my way" text template — blank falls back to the built-in default
+        onMyWayTemplate:
+          body.onMyWayTemplate !== undefined
+            ? String(body.onMyWayTemplate).trim().slice(0, 320) || null
+            : undefined,
+        timezone: isValidTimezone(body.timezone) ? body.timezone : undefined,
+        // Online-booking scheduling settings
+        businessHours:
+          body.businessHours !== undefined
+            ? (sanitizeBusinessHours(body.businessHours) as object)
+            : undefined,
+        serviceZips: body.serviceZips !== undefined ? sanitizeServiceZips(body.serviceZips) : undefined,
+        arrivalWindowMinutes:
+          body.arrivalWindowMinutes !== undefined &&
+          Number.isInteger(Number(body.arrivalWindowMinutes)) &&
+          Number(body.arrivalWindowMinutes) >= 30 &&
+          Number(body.arrivalWindowMinutes) <= 480
+            ? Number(body.arrivalWindowMinutes)
+            : undefined,
+        // Booking drive-time limit (minutes; 0 clears it → off)
+        bookingDriveLimitMinutes:
+          body.bookingDriveLimitMinutes !== undefined &&
+          Number.isInteger(Number(body.bookingDriveLimitMinutes)) &&
+          Number(body.bookingDriveLimitMinutes) >= 0 &&
+          Number(body.bookingDriveLimitMinutes) <= 240
+            ? Number(body.bookingDriveLimitMinutes) || null
+            : undefined,
+        // Even time-slot granularity for in-app job/appointment scheduling; only
+        // an allowed choice is accepted, anything else leaves the value unchanged.
+        schedulingIntervalMinutes:
+          body.schedulingIntervalMinutes !== undefined &&
+          (SLOT_INTERVAL_CHOICES as readonly number[]).includes(Number(body.schedulingIntervalMinutes))
+            ? Number(body.schedulingIntervalMinutes)
+            : undefined,
+        bookingPage: body.bookingPage !== undefined ? sanitizeBookingPage(body.bookingPage) : undefined,
+        hubBookingTypeId: hubFormId,
+      },
+    });
+  }
 
   // Shop address changed → refresh the geocoded route start point
   // (fire-and-forget; the Route Manager falls back to the first stop).

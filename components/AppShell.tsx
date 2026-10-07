@@ -1814,7 +1814,15 @@ export default function AppShell({
         return;
       }
       if (!d || d.type !== "wb:push" || !d.url) return;
-      const href = d.url;
+      // lib/push.ts wraps every pushed url as /app/open?u=…&to=<feed href>.
+      // Unwrap it once: the path compare below must see the thread, the
+      // poll's mute (pushedRef) looks up the plain feed href, and kindFor
+      // needs the real destination — or every push card is a "message"
+      // kind, pops over the thread being read, and the counts poll shows
+      // the same thing again a minute later (audit 2026-10-06 C1).
+      const open = resolvePushOpen(d.url, userIdRef.current);
+      if (open.kind === "ignore") return;
+      const href = open.kind === "push" ? open.to : d.url;
       pushedRef.current.set(href, Date.now());
       if (pathRef.current === href.split("?")[0]) return; // already looking at it
       hapticImpact("LIGHT");

@@ -22,7 +22,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const y = validatePos(body.y);
   if (x === null || y === null) return NextResponse.json({ error: "x and y must be numbers." }, { status: 400 });
   const z = typeof body.z === "number" && Number.isFinite(body.z) ? Math.max(0, Math.min(100000, Math.round(body.z))) : 0;
-  if (note.userId === actor.id || canEditNote(actor, note)) {
+  // Only the author moves the note itself. A manager may edit a team note's
+  // text, but their drag is personal like anyone else's — otherwise one
+  // owner's tidy-up would move the note on every teammate's page.
+  if (note.userId === actor.id) {
     await prisma.stickyNote.update({ where: { id: note.id }, data: { x, y } });
     // and drop any stale personal override so the author sees what they set
     await prisma.stickyNotePlacement.deleteMany({ where: { noteId: note.id, userId: actor.id } });

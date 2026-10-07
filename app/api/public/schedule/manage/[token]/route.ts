@@ -7,6 +7,7 @@ import { assignMemberForSlot, bookingTypeInclude, loadPoolWithBusy, slotsForType
 import { KIND_META } from "@/lib/booking-types";
 import { isSlotRace, notifyBooking, SlotTakenError, verifySlotPick, withinCutoff } from "@/lib/booking-submit";
 import { resolveArrivalWindowMinutes } from "@/lib/arrival-window";
+import { rescheduleReminderStamps } from "@/lib/reminder-stage";
 
 /**
  * Customer self-serve for an online booking, keyed by the unguessable
@@ -174,9 +175,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
               scheduledEnd: slot.end,
               assignedToId,
               meetingLink,
-              // A moved booking gets fresh reminders
-              reminderDaySentAt: null,
-              reminderHourSentAt: null,
+              // A moved booking gets fresh reminders — the move counts as a
+              // new booking for the stage rule, so the "rescheduled" text
+              // below is not followed by a day-before text minutes later
+              ...rescheduleReminderStamps(now, slot.start),
+              techHeadsUpSentAt: null,
             },
           });
         },

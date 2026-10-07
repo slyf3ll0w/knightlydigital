@@ -32,11 +32,20 @@ export type SendChoiceOptions = {
   canText: boolean;
   /** What is being sent — the sheet's title ("Send the quote"). */
   what: string;
-  /** Pre-ticked channels; default both. */
+  /**
+   * Pre-ticked channels; default both. A channel that CAN be used but is
+   * not ticked here is a question, so the sheet opens even when it is the
+   * only way to reach the client — a quote for a phone-only client is
+   * never texted on its own (10DLC filing: quotes go by email, 2026-10-07).
+   */
   defaults?: Partial<SendChannels>;
+  /** Replaces the Text row's InfoTip (the quote's "email first" note). */
+  textInfo?: string;
   /** Offer "Send later" (quotes and invoices). */
   allowLater?: boolean;
 };
+
+const TEXT_INFO = "Goes out from your business line, with the same link. The client can reply by text and it lands in Messages.";
 
 export type SendChoiceResult = SendChannels & {
   /** Set when the sender picked a time: company-zone wall clock. */
@@ -63,14 +72,18 @@ export function useSendChoice() {
   const choose = useCallback((opts: SendChoiceOptions): Promise<SendChoiceResult | null> => {
     const canEmail = Boolean(opts.email);
     const canText = Boolean(opts.canText && opts.phone);
-    // One way to reach them and no Send later on offer: no question to ask.
-    if (!(canEmail && canText) && !opts.allowLater) return Promise.resolve({ email: canEmail, text: canText });
+    const picked: SendChannels = {
+      email: canEmail && (opts.defaults?.email ?? true),
+      text: canText && (opts.defaults?.text ?? true),
+    };
+    // One way to reach them, already ticked, and no Send later on offer: no
+    // question to ask. A way that is open but NOT ticked (a quote's Text)
+    // is one, even on its own — nothing goes out that way unasked.
+    const oneWayAndChosen = !(canEmail && canText) && picked.email === canEmail && picked.text === canText;
+    if (oneWayAndChosen && !opts.allowLater) return Promise.resolve(picked);
     return new Promise((resolve) => {
       resolved.current = false;
-      setPick({
-        email: canEmail && (opts.defaults?.email ?? true),
-        text: canText && (opts.defaults?.text ?? true),
-      });
+      setPick(picked);
       setLater(false);
       setLaterDate(tomorrowISO());
       setLaterTime("09:00");
@@ -117,13 +130,7 @@ export function useSendChoice() {
           <div className="grid gap-2">
             {canEmail && row("email", Mail, "Email", pending.opts.email ?? "")}
             {canTextNow &&
-              row(
-                "text",
-                MessageSquare,
-                "Text",
-                pending.opts.phone ?? "",
-                "Goes out from your business line, with the same link. The client can reply by text and it lands in Messages."
-              )}
+              row("text", MessageSquare, "Text", pending.opts.phone ?? "", pending.opts.textInfo ?? TEXT_INFO)}
             {!canEmail && !canTextNow && (
               <p className="text-sm text-gray-600">No email or textable phone on file yet — add one before the send time.</p>
             )}

@@ -73,7 +73,8 @@ export async function GET(
     case "clients": {
       if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       const rows = await prisma.contact.findMany({
-        where: { companyId, ...contactScope(actor) },
+        // placeholder: unsaved numbers from Messages are not clients yet
+        where: { companyId, ...contactScope(actor), placeholder: false },
         orderBy: { createdAt: "asc" },
         take: MAX_ROWS,
       });

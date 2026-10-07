@@ -221,7 +221,7 @@ export const scheduleSection: HelpSection = {
       slug: "appointments",
       title: "Book estimates and appointments",
       summary: "Phone calls, video calls and in-person estimates, separate from jobs.",
-      keywords: ["appointment", "estimate visit", "consultation", "no-show", "video call", "phone call"],
+      keywords: ["appointment", "estimate visit", "consultation", "no-show", "video call", "phone call", "several people", "team members", "overlap", "drive time", "double-booked"],
       where: { label: "Appointments", href: "/app/appointments" },
       roles: "Owners, admins and sales roles",
       blocks: [
@@ -244,6 +244,22 @@ export const scheduleSection: HelpSection = {
         {
           type: "p",
           text: "Other buttons: `Reschedule`, `Mark No-show`, `Cancel Appointment` and `Reopen`.",
+        },
+        {
+          type: "h",
+          text: "Several people on one appointment",
+        },
+        {
+          type: "p",
+          text: "An appointment can have more than one person on it: an estimate where the owner brings a tech along, or a sales call two people sit in on. Owners, admins and Sales + Tech users pick them under **Team members** when booking or editing; a Sales user books appointments on themselves. The first person picked is the lead, and all of them get the heads-up push about an hour ahead. The appointment shows on each person's day in the Schedule and in their synced calendar, and dragging it in the Team view moves it for everyone on it.",
+        },
+        {
+          type: "h",
+          text: "Overlaps and drive time",
+        },
+        {
+          type: "p",
+          text: "While you pick a time, a line under the time fields warns when someone on the appointment already has a job, appointment or blocked-off time then, and, for in-person appointments, when they could not drive there from their previous stop in time or would be late to the next one (\"Sam drives about 25 min from Job #41, which ends at 2:00 PM, so they'd be 10 min late here\"). It is a heads-up, not a block: you can still save. The overlap lines also show after a save and when you drag an appointment on the Schedule; the drive-time line is only there while you pick a time. Drive times use the appointment's address (or the client's), so pick the client first.",
         },
         {
           type: "p",

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState, useRef, useEffect, useMemo } from "react";
+import { Fragment, useState, useRef, useEffect, useMemo, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
@@ -1035,17 +1035,24 @@ export default function SettingsClient({
 
   // The diff between what's typed and what the server last confirmed —
   // only these keys go over the wire (the PATCH route is partial-safe).
+  // The business name and the web address are NOT in it: both commit on
+  // blur / Enter instead (commitName / commitSlug below). Saved on every
+  // typing pause, each half-typed address became a real rename — reserved
+  // for this company for good and re-provisioning the business line's
+  // STOP/HELP replies and caller ID with "Les", "Lessly"… (audit
+  // 2026-10-06, E2 + E6).
   function unsavedOf(f: typeof form): Partial<typeof form> {
     const changed: Partial<typeof form> = {};
     for (const key of Object.keys(f) as (keyof typeof f)[]) {
       if (f[key] === savedRef.current[key]) continue;
-      if (key === "name" && !f.name.trim()) continue;
+      if (key === "name" || key === "slug") continue;
       if (key === "surchargeRate" && !surchargeRateOk) continue;
-      if (key === "slug" && slugError) continue;
       (changed as Record<string, unknown>)[key] = f[key];
     }
     return changed;
   }
+  const nameDirty = form.name !== savedRef.current.name && Boolean(form.name.trim());
+  const slugDirty = form.slug !== savedRef.current.slug && !slugError;
 
   // Auto-save bookkeeping (continued): pendingRef holds the diff waiting on
   // the debounce so an unmount can still flush it; saveChainRef serialises
@@ -1058,8 +1065,27 @@ export default function SettingsClient({
   // Leaving with an edit still debouncing or a save in flight: the native
   // prompt on tab close, a confirm sheet on in-app links. (Unmount also
   // flushes the pending diff with keepalive below, so nothing is lost even
-  // when they go.)
-  useUnsavedWarning(hasUnsaved || saving);
+  // when they go.) A name or address typed but not yet committed counts too.
+  useUnsavedWarning(hasUnsaved || saving || nameDirty || slugDirty);
+
+  // Blur / Enter on the two commit-on-leave fields. Serialised on the same
+  // chain as the auto-save so an older response can't overwrite a newer one.
+  function commitName() {
+    const f = formRef.current;
+    if (!f.name.trim() || f.name === savedRef.current.name) return;
+    saveChainRef.current = saveChainRef.current.then(() => save({ name: f.name }, { name: f.name } as Partial<typeof form>));
+  }
+  function commitSlug() {
+    const f = formRef.current;
+    if (f.slug === savedRef.current.slug || slugify(f.slug) !== f.slug || f.slug.length < 3) return;
+    saveChainRef.current = saveChainRef.current.then(() => save({ slug: f.slug }, { slug: f.slug } as Partial<typeof form>));
+  }
+  const commitOnEnter = (commit: () => void) => (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commit();
+    }
+  };
 
   async function save(payload: Record<string, unknown>, changed: Partial<typeof form>) {
     setSaving(true);
@@ -1150,16 +1176,21 @@ export default function SettingsClient({
 
   // Unmount inside the debounce window (they tapped a link right after
   // typing): the last edit must not die with the timer. keepalive lets the
-  // request outlive the page.
+  // request outlive the page. A typed name goes too (blur never fires on an
+  // unmounting input); a typed web address does NOT — a rename is forever,
+  // so only blur / Enter commits it.
   useEffect(
     () => () => {
       const p = pendingRef.current;
       pendingRef.current = null;
-      if (!p) return;
+      const payload: Record<string, unknown> = { ...(p?.payload ?? {}) };
+      const f = formRef.current;
+      if (f.name.trim() && f.name !== savedRef.current.name) payload.name = f.name;
+      if (Object.keys(payload).length === 0) return;
       void fetch("/api/app/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(p.payload),
+        body: JSON.stringify(payload),
         keepalive: true,
       }).catch(() => {});
     },
@@ -1408,6 +1439,7 @@ export default function SettingsClient({
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Business name *</label>
             <Input type="text" value={form.name} onChange={(e) => set("name", e.target.value)}
+              onBlur={commitName} onKeyDown={commitOnEnter(commitName)}
               required
               aria-invalid={Boolean(nameError)}
               className={`w-full focus:ring-2 ${nameError ? "border-[color:var(--ds-bad)]" : ""}`} />
@@ -1439,12 +1471,13 @@ export default function SettingsClient({
             )}
           </div>
           <div>
-            <FieldLabel info="The last part of your booking page and client portal links. Change it and every old link keeps working — it forwards to the new address — so nothing you have shared or printed breaks.">
+            <FieldLabel info="The last part of your booking page and client portal links. It saves when you leave the field or press Enter, not while you type. Change it and every old link keeps working — it forwards to the same page at the new address — so nothing you have shared or printed breaks.">
               Web address
             </FieldLabel>
             <div className={`flex items-center rounded-lg border bg-white text-sm focus-within:ring-2 ${slugError ? "border-[color:var(--ds-bad)]" : "border-gray-300"}`}>
               <span className="pl-3 pr-1 text-gray-400 whitespace-nowrap">workbenchfsm.com/book/</span>
               <input type="text" value={form.slug} onChange={(e) => set("slug", e.target.value.toLowerCase())}
+                onBlur={commitSlug} onKeyDown={commitOnEnter(commitSlug)}
                 autoCapitalize="none" autoCorrect="off" spellCheck={false} maxLength={60}
                 aria-invalid={Boolean(slugError)}
                 className="min-w-0 flex-1 bg-transparent py-2 pr-3 outline-none" />

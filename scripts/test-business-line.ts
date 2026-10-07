@@ -20,7 +20,22 @@ import {
 import { failureText } from "@/lib/telnyx";
 import { suggestionFromFeature } from "@/lib/geocoding";
 import { smsConsentLabel, marketingPhrase, brandedText } from "@/lib/sms-consent";
-import { profileGaps, aboutLine } from "@/lib/business-profile";
+import { profileGaps, aboutLine, businessDetailsForced, isOwnBusinessPage } from "@/lib/business-profile";
+
+// ── businessDetailsForced: the registration form's website counts (audit 2026-10-06, E3) ──
+{
+  assert.equal(businessDetailsForced("ACTIVE", null, null), false, "approved → never forced");
+  assert.equal(businessDetailsForced(null, null, null), false, "no registration → not forced");
+  assert.equal(businessDetailsForced("PENDING", null, null), true, "in review, no site anywhere → forced");
+  assert.equal(businessDetailsForced("PENDING", "https://summitplumbing.com", null), false, "Company.website → not forced");
+  assert.equal(businessDetailsForced("PENDING", null, "https://summitplumbing.com"), false, "site typed on the form → not forced");
+  assert.equal(businessDetailsForced("PENDING", "", "https://workbenchfsm.com/book/summit"), true, "the pinned business page is us, not them → still forced");
+  assert.equal(isOwnBusinessPage("https://workbenchfsm.com/book/summit"), true);
+  assert.equal(isOwnBusinessPage("http://localhost:3000/book/summit/privacy"), true);
+  assert.equal(isOwnBusinessPage("https://summitplumbing.com/book/"), true, "any /book/ path reads as ours");
+  assert.equal(isOwnBusinessPage("https://summitplumbing.com"), false);
+  assert.equal(isOwnBusinessPage(null), false);
+}
 import { isPrivateIp, mentionsBusiness, nameTokens, websiteUrlIssue } from "@/lib/website-check";
 import {
   deriveRegistration,

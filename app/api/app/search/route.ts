@@ -48,6 +48,9 @@ export async function GET(req: NextRequest) {
           where: {
             companyId,
             ...contactScope(actor),
+            // Unsaved numbers (a text from someone new) are threads in
+            // Messages, not clients — Help says they are "not in Clients".
+            placeholder: false,
             ...filtered([...nameOr, { email: contains }, { phone: contains }, { address: contains }]),
           },
           select: {

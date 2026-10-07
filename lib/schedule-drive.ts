@@ -70,8 +70,14 @@ export async function findDriveConflicts(params: {
       ? prisma.contact.findFirst({ where: { id: params.contactId, companyId }, select: addrSel })
       : null,
   ]);
-  const here = await pin(placeOf(params.address ?? null, property, contact), companyId);
-  if (!here) return [];
+  // The new item's pin is wanted only once someone has a neighbouring stop
+  // to drive from or to — geocoding it up front sent every partial address
+  // typed into the live form (450 ms debounce) to Mapbox and cached junk
+  // like "1234, Plano, TX" as a real hit. Resolved at most once per call.
+  const herePlace = placeOf(params.address ?? null, property, contact);
+  if ((herePlace.lat == null || herePlace.lng == null) && !herePlace.line) return [];
+  let herePromise: Promise<RoutePoint | null> | null = null;
+  const hereLazy = () => (herePromise ??= pin(herePlace, companyId));
 
   const from = new Date(start.getTime() - NEAR_MS);
   const to = new Date(end.getTime() + NEAR_MS);
@@ -153,10 +159,12 @@ export async function findDriveConflicts(params: {
     const prev = mine.filter((s) => s.end <= start).sort((a, b) => b.end.getTime() - a.end.getTime())[0];
     const next = mine.filter((s) => s.start >= end).sort((a, b) => a.start.getTime() - b.start.getTime())[0];
     if (!prev && !next) continue;
-    const [prevPin, nextPin] = await Promise.all([
+    const [prevPin, here, nextPin] = await Promise.all([
       prev ? pin(prev.place, companyId) : null,
+      hereLazy(),
       next ? pin(next.place, companyId) : null,
     ]);
+    if (!here) return [];
     const chain = [prevPin, here, nextPin].filter((p): p is RoutePoint => p != null);
     if (chain.length < 2) continue;
     const { legs, measured } = await driveChainLegs(chain, companyId);

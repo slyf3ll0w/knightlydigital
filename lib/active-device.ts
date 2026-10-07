@@ -157,13 +157,21 @@ export async function releaseDevice(userId: string, deviceId: string): Promise<v
  * so. The claim is a conditional update (still unheld, still ours, or
  * still stale) so two devices beating in the same instant can't both win —
  * the loser re-reads and is told who did. `takeover` writes unconditionally.
+ *
+ * `probe` (a walled device asking "still busy?") never writes: it answers
+ * the decision as it stands and leaves the lock alone. Without this the
+ * walled device's timer beats claimed the moment the holder went quiet, so
+ * a PC left on a monitor took the login back from the phone in the owner's
+ * pocket every few minutes (audit 2026-10-06, D2). Only a real touch on the
+ * walled device, or Use it here, may claim.
  */
 export async function claimDevice(
   userId: string,
   deviceId: string,
   ua: string | null | undefined,
   takeover: boolean,
-  now: Date = new Date()
+  now: Date = new Date(),
+  probe = false
 ): Promise<DeviceDecision> {
   const row = await prisma.user.findUnique({
     where: { id: userId },
@@ -186,6 +194,7 @@ export async function claimDevice(
 
   const decision = decideDevice(row, deviceId, now);
   if (decision.kind === "busy") return decision;
+  if (probe) return decision;
   if (decision.kind === "held" && !decision.refresh) return decision;
 
   const res = await prisma.user.updateMany({

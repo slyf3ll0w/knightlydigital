@@ -22,7 +22,7 @@ export const quotesSection: HelpSection = {
             "Give it a **title**, then add line items. Pick services from your price book, or type a description, quantity and unit price and press `Add line item`.",
             "Optional: set tax, a discount (% or $), a deposit, a **Client message**, **Terms**, and a **Valid until** date. **Internal notes** are never shown to the client.",
             "Press `Save Quote`. It saves as a **Draft**.",
-            "Press `Send to Client` (it reads `Email to Client` until texting is on). The client gets a link to view, sign and approve it; when they have both an email and a phone that takes texts, you pick **Email**, **Text** or both first — the text goes from your business line. The status moves to **Awaiting Response**. Not ready to send yet? Tick **Send later** in that sheet and pick a day and time: the quote stays a draft you can keep editing (its chip reads **Scheduled**), goes out by itself at that time, and you get a notification either way. Until then the quote page shows `Send now` and `Cancel`.",
+            "Press `Send to Client` (it reads `Email to Client` until texting is on). The client gets a link to view, sign and approve it. Quotes go by email: **Email** is ticked for you, and when the client has a phone that takes texts a **Text** row is there to tick as well — it goes from your business line, and it is never ticked for you. A client with only a phone number still gets the sheet, so a quote is never texted unless you choose it. The status moves to **Awaiting Response**. Not ready to send yet? Tick **Send later** in that sheet and pick a day and time: the quote stays a draft you can keep editing (its chip reads **Scheduled**), goes out by itself at that time, and you get a notification either way. Until then the quote page shows `Send now` and `Cancel`.",
           ],
         },
         {
@@ -43,7 +43,7 @@ export const quotesSection: HelpSection = {
             "`Copy client link` in the ⋯ menu gives you the approval link to paste anywhere.",
             "`Download PDF` saves a printable copy.",
             "`Mark as Sent (no email)` changes the status only. Use it when you handed the quote over in person.",
-            "Quotes are never texted, because carriers treat quote texts as marketing. Email or the link are the ways to send them.",
+            "Quotes are never texted on their own, because carriers treat quote texts as marketing. Email or the link are the usual ways; texting one is a box you tick yourself in the send sheet.",
           ],
         },
         {

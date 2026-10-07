@@ -174,13 +174,18 @@ export default function QuoteActions({
   // Email the client their approval link (marks the quote sent on success)
   async function emailToClient() {
     setOpen(false);
-    // Email by default; Text is there to tick when the line can send.
+    // Email by default; Text is there to tick when the line can send — but
+    // never ticked for you, and never sent on its own for a phone-only
+    // client: the texting campaign was filed as "quotes go by email"
+    // (2026-10-07). Invoices keep their both-ways default.
     const channels = await choose({
       email: contactEmail || null,
       phone: contactPhone || null,
       canText: canTextClient,
       what: "Send the quote",
-      defaults: { email: Boolean(contactEmail), text: !contactEmail },
+      defaults: { email: true, text: false },
+      textInfo:
+        "Quotes are sent by email. Texting this one is your choice and never happens on its own — carriers treat quote texts as marketing.",
       allowLater: status === "DRAFT",
     });
     if (!channels) return;

@@ -188,7 +188,9 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
     if (!l) return;
     if (d.mode === "move") {
       setNotes((cur) => cur.map((x) => (x.id === n.id ? { ...x, x: l.x, y: l.y } : x)));
-      if (n.canEdit) void postJson(`/api/app/notes/${n.id}`, { x: Math.round(l.x), y: Math.round(l.y) }, "PATCH");
+      // Only the author's drag moves the note for everyone; a manager dragging
+      // a teammate's team note moves just their own copy (a placement row).
+      if (n.authorId === meId) void postJson(`/api/app/notes/${n.id}`, { x: Math.round(l.x), y: Math.round(l.y) }, "PATCH");
       else void fetch(`/api/app/notes/${n.id}/place`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ x: Math.round(l.x), y: Math.round(l.y) }) }).catch(() => {});
     } else {
       setNotes((cur) => cur.map((x) => (x.id === n.id ? { ...x, width: Math.round(l.w), height: Math.round(l.h) } : x)));

@@ -343,13 +343,13 @@ export const moneyTools: Tool[] = [
     decl: {
       name: "email_document",
       description:
-        "Stage REALLY emailing a quote or invoice to the client — the quote's approval link or the invoice's pay link. (Unlike marking sent via update_quote/update_invoice, confirming this card sends an actual email.) Client must have an email on file. Quotes must be DRAFT/AWAITING_RESPONSE/CHANGES_REQUESTED; invoices anything but PAID. Give send_date + send_time to send LATER instead (the document stays a draft until then and goes out by itself). Confirmation card required.",
+        "Stage REALLY emailing a quote or invoice to the client — the quote's approval link or the invoice's pay link. (Unlike marking sent via update_quote/update_invoice, confirming this card sends an actual email.) Client must have an email on file. Quotes must be DRAFT/AWAITING_RESPONSE/CHANGES_REQUESTED; invoices anything but PAID. DRAFT documents only: give send_date + send_time to send LATER instead (the draft stays editable and goes out by itself at that time). A document that has already gone out can only be re-sent now — never pass send_date for it. Confirmation card required.",
       parameters: {
         type: "object",
         properties: {
           kind: { type: "string", enum: ["quote", "invoice"] },
           number: { type: "number" },
-          send_date: { type: "string", description: "Optional: YYYY-MM-DD in the company's timezone — schedules the send for later instead of now" },
+          send_date: { type: "string", description: "Optional, DRAFT documents only: YYYY-MM-DD in the company's timezone — schedules the send for later instead of now" },
           send_time: { type: "string", description: "Optional with send_date: HH:mm (24h) in the company's timezone" },
         },
         required: ["kind", "number"],
@@ -379,6 +379,10 @@ export const moneyTools: Tool[] = [
           return { error: `Quote #${n} is ${q.status} — it can't be emailed.` };
         }
         if (!q.contact.email) return { error: "This client has no email on file — add one first (update_client)." };
+        // Send later is a draft-only feature (matches the Send sheet and lib/send-document.ts)
+        if (later && q.status !== "DRAFT") {
+          return { error: `Quote #${n} has already gone out (${q.status}) — Send later is only for drafts. Leave out send_date to email it now.` };
+        }
         return stage(ctx, {
           kind: "email_document",
           title: `${later ? "Schedule" : "Email"} quote #${n} (${money(q.total)}) to ${clientName(q.contact)}`,
@@ -402,6 +406,9 @@ export const moneyTools: Tool[] = [
       if (!i) return { error: `No invoice #${n} (or not visible to this user).` };
       if (i.status === "PAID") return { error: `Invoice #${n} is already paid.` };
       if (!i.contact?.email) return { error: "This client has no email on file — add one first (update_client)." };
+      if (later && i.status !== "DRAFT") {
+        return { error: `Invoice #${n} has already gone out (${i.status}) — Send later is only for drafts. Leave out send_date to email it now.` };
+      }
       return stage(ctx, {
         kind: "email_document",
         title: `${later ? "Schedule" : "Email"} invoice #${n} (${money(i.total)}) to ${clientName(i.contact)}`,

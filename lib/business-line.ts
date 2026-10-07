@@ -114,7 +114,7 @@ import {
   setKeywordReply,
 } from "@/lib/telnyx";
 import { smsConsentLabel, businessPageUrl, businessPrivacyUrl, businessSmsTermsUrl } from "@/lib/sms-consent";
-import { loadBusinessProfileById, profileGaps, aboutLine } from "@/lib/business-profile";
+import { loadBusinessProfileById, profileGaps, aboutLine, isOwnBusinessPage } from "@/lib/business-profile";
 import { listPublicBookingTypes, menuTypes } from "@/lib/booking-runtime";
 
 export { VERTICALS, TOLL_FREE_USE_CASES, TOLL_FREE_VOLUMES };
@@ -783,7 +783,7 @@ export function profileGapMessage(gaps: string[], siteUrl: string): string {
  * blanks only, never overwriting what the owner set.
  */
 async function backfillBusinessInfo(companyId: string, form: RegistrationForm): Promise<void> {
-  const c = await prisma.company.findUnique({ where: { id: companyId }, select: { phone: true, email: true, address: true, city: true, state: true, zip: true } });
+  const c = await prisma.company.findUnique({ where: { id: companyId }, select: { phone: true, email: true, address: true, city: true, state: true, zip: true, website: true } });
   if (!c) return;
   const blank = (v: string | null) => !v?.trim();
   const data: Prisma.CompanyUpdateInput = {};
@@ -793,6 +793,12 @@ async function backfillBusinessInfo(companyId: string, form: RegistrationForm): 
   }
   if (blank(c.phone) && form.contactPhone) data.phone = form.contactPhone;
   if (blank(c.email) && form.contactEmail) data.email = form.contactEmail;
+  // A website typed on the form is the business's own site: with it on file the
+  // booking page no longer has to carry the forced details block (the copy in
+  // the registration card and the checklist promises exactly that). Never the
+  // pinned /book/<slug> page — that is us, not them.
+  const site = form.website?.trim();
+  if (blank(c.website) && site && !isOwnBusinessPage(site)) data.website = site;
   if (Object.keys(data).length) {
     await prisma.company.update({ where: { id: companyId }, data });
     console.warn(`[line] Business Info filled from the registration form for ${companyId}: ${Object.keys(data).join(", ")}`);

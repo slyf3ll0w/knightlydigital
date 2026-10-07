@@ -320,6 +320,19 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // ── Slug-addressed public pages (/book, /portal, /embed) ──────────────────
+  // Their layouts forward an EARLIER web address (Company.previousSlugs) to
+  // the current one (components/SlugRedirect.tsx) and need the full path +
+  // query to land on the same page — a reschedule link, a form, the privacy
+  // page on the texting filing — not the booking home. Layouts can't see the
+  // URL, so it rides on these headers (audit 2026-10-06, E1).
+  if (path.startsWith("/book/") || path.startsWith("/portal/") || path.startsWith("/embed/")) {
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set("x-wb-path", path);
+    if (req.nextUrl.search) requestHeaders.set("x-wb-query", req.nextUrl.search.slice(1));
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
+
   // ── Auth for the app ───────────────────────────────────────────────────────
   if (!path.startsWith("/app")) {
     return NextResponse.next();

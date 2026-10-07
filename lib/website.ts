@@ -20,10 +20,10 @@
 
 import { reportError } from "@/lib/report-error";
 import { prisma } from "@/lib/db";
-import { slugWhere } from "@/lib/company-slug";
+import { resolvePublicCompany } from "@/lib/public-company";
 import { sanitizeBusinessHours, type BusinessHours } from "@/lib/business-hours";
 import { listPublicBookingTypes, menuTypes } from "@/lib/booking-runtime";
-import { sanitizeBrief, publicBrief, briefGaps, type WebsiteBrief, type BriefGap } from "@/lib/website-brief";
+import { sanitizeBrief, publicBrief, emptyBrief, briefGaps, type WebsiteBrief, type BriefGap } from "@/lib/website-brief";
 import type { WebsiteStatus } from "@prisma/client";
 
 export const SITE_DATA_VERSION = 1;
@@ -38,6 +38,16 @@ export const WEBSITE_STATUS_LABEL: Record<WebsiteStatus, string> = {
 
 /** Statuses whose site exists somewhere a rebuild can land. */
 const REBUILDABLE: ReadonlySet<WebsiteStatus> = new Set(["IN_STUDIO", "REVIEW", "LIVE"]);
+
+/**
+ * Is there a site to feed? The public data endpoint answers 404 for every
+ * other status: until the studio has the brief, the company's email, street
+ * address, coordinates, hours, price book and booking items have no business
+ * being one unauthenticated GET away (audit 2026-10-06, F3). Pure.
+ */
+export function siteIsPublic(status: WebsiteStatus | null | undefined): boolean {
+  return Boolean(status && REBUILDABLE.has(status));
+}
 
 export function appBaseUrl(): string {
   return (process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com").replace(/\/$/, "");
@@ -123,44 +133,21 @@ function abs(path: string): string {
 }
 
 /**
- * The company's site data, or null when the slug matches nobody / the
- * company is suspended. Public: everything here is already on the booking
- * page or was put in the brief for the site.
+ * The company's site data, or null when there is nothing to serve: the slug
+ * matches nobody, the company is suspended or not yet approved (the same
+ * gate as the booking pages, lib/public-company.ts), or its website is not
+ * in the studio / in review / live. What IS served is what the site shows:
+ * the legal name only when the owner turned it on for clients, the brief
+ * only once it was sent to the studio, and job photos by their alt text —
+ * never the tech's caption.
  */
 export async function loadSiteData(slug: string): Promise<SiteData | null> {
-  const company = await prisma.company.findFirst({
-    where: slugWhere(slug),
-    select: {
-      id: true,
-      name: true,
-      legalName: true,
-      slug: true,
-      phone: true,
-      lineNumber: true,
-      email: true,
-      address: true,
-      city: true,
-      state: true,
-      zip: true,
-      lat: true,
-      lng: true,
-      website: true,
-      about: true,
-      industry: true,
-      timezone: true,
-      logoUrl: true,
-      brandColor: true,
-      brandColorSecondary: true,
-      brandFont: true,
-      reviewLink: true,
-      businessHours: true,
-      suspendedAt: true,
-    },
-  });
-  if (!company || company.suspendedAt) return null;
+  const company = await resolvePublicCompany(slug);
+  if (!company) return null;
+  const site = await prisma.website.findUnique({ where: { companyId: company.id } });
+  if (!site || !siteIsPublic(site.status)) return null;
 
-  const [site, items, uploads, jobPhotos, listed] = await Promise.all([
-    prisma.website.findUnique({ where: { companyId: company.id } }),
+  const [items, uploads, jobPhotos, listed] = await Promise.all([
     prisma.workItem.findMany({
       where: { companyId: company.id, isActive: true, type: "SERVICE" },
       orderBy: [{ name: "asc" }],
@@ -175,13 +162,16 @@ export async function loadSiteData(slug: string): Promise<SiteData | null> {
     prisma.jobPhoto.findMany({
       where: { siteUse: true, job: { companyId: company.id } },
       orderBy: { createdAt: "desc" },
-      select: { id: true, alt: true, caption: true, type: true, createdAt: true },
+      select: { id: true, alt: true, type: true, createdAt: true },
       take: 60,
     }),
+    // Gate already passed above (resolvePublicCompany)
     listPublicBookingTypes(company.slug, { skipGate: true }).catch(() => null),
   ]);
 
-  const brief = publicBrief(sanitizeBrief(site?.brief));
+  // A half-typed brief autosaves on every pause; it is nobody's business
+  // until the owner presses Send to the studio (F4).
+  const brief = site.briefSubmittedAt ? publicBrief(sanitizeBrief(site.brief)) : emptyBrief();
   const base = appBaseUrl();
   const bookingItems: SiteBookingItem[] = (listed ? menuTypes(listed.types) : []).map((t) => ({
     slug: t.slug,
@@ -204,7 +194,7 @@ export async function loadSiteData(slug: string): Promise<SiteData | null> {
     generatedAt: new Date().toISOString(),
     company: {
       name: company.name,
-      legalName: company.legalName,
+      legalName: publicLegalName(company),
       slug: company.slug,
       phone: company.phone,
       linePhone,
@@ -249,23 +239,30 @@ export async function loadSiteData(slug: string): Promise<SiteData | null> {
         source: "upload" as const,
         takenAt: p.createdAt.toISOString(),
       })),
+      // Job-photo captions are the tech's notes ("Smith, 123 Main St,
+      // before") and the owner never reviews them for the site — alt only (F5).
       ...jobPhotos.map((p) => ({
         id: p.id,
         url: abs(`/api/public/site-photos/${p.id}`),
         alt: p.alt ?? "",
-        caption: p.caption ?? "",
+        caption: "",
         kind: p.type.toLowerCase(),
         source: "job" as const,
         takenAt: p.createdAt.toISOString(),
       })),
     ],
     website: {
-      status: site?.status ?? "NOT_STARTED",
-      domain: site?.domain ?? null,
-      previewUrl: site?.previewUrl ?? null,
-      direction: site?.direction ?? null,
+      status: site.status,
+      domain: site.domain,
+      previewUrl: site.previewUrl,
+      direction: site.direction,
     },
   };
+}
+
+/** The legal name the public may see: only with the owner's "show the legal name" switch on. Pure. */
+export function publicLegalName(c: { legalName: string | null; showLegalNameOnDocs: boolean }): string | null {
+  return c.showLegalNameOnDocs ? c.legalName : null;
 }
 
 // ─── Owner-side summary (Settings → Website) ─────────────────────────────────

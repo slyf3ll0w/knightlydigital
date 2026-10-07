@@ -68,3 +68,14 @@ export async function checkSlugChange(companyId: string, raw: unknown): Promise<
   if (taken) return { ok: false, error: "That address is already in use. Try another." };
   return { ok: true, slug };
 }
+
+/**
+ * Earlier web addresses that keep resolving after a rename: at most `max`,
+ * and the ORIGINAL one (on QR codes, printed links and the texting filing)
+ * is never evicted — the oldest plus the most recent (audit 2026-10-06, E2).
+ * Pure.
+ */
+export function trimSlugHistory(history: string[], max = 20): string[] {
+  if (history.length <= max) return history;
+  return [history[0], ...history.slice(-(max - 1))];
+}

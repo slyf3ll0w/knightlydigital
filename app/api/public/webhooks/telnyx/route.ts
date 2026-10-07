@@ -8,6 +8,7 @@ import {
 } from "@/lib/portal-messages";
 import { classifySmsKeyword } from "@/lib/sms-keywords";
 import { phoneDigits } from "@/lib/phone";
+import { defaultLeadAssignee } from "@/lib/permissions";
 import { telnyxWebhookConfigured, verifyTelnyxSignature } from "@/lib/telnyx-webhook";
 import { fireAutomations } from "@/lib/automations-server";
 import { fetchInboundMedia, mediaPreview, storeMessageMedia } from "@/lib/message-media";
@@ -185,6 +186,10 @@ async function landInboundSms(
       // phone's own "unknown number → Create contact" flow (David
       // 2026-10-03). lead.created fires at that save, not here: an
       // automation greeting "Unknown caller" by name was never right.
+      // Assigned like a website lead (the preset default lead user, else
+      // the owner): the SALES/USER member the push goes to must be able to
+      // open the thread, see it in their inbox and badge, and find this row
+      // when they type the number (audit 2026-10-06 C2).
       const created = await prisma.contact.create({
         data: {
           companyId,
@@ -195,6 +200,7 @@ async function landInboundSms(
           status: "ACTIVE", // never a lead until saved as one
           kind: "CONTACT",
           placeholder: true,
+          assignedToId: await defaultLeadAssignee(companyId),
           smsConsentSource: "inbound_text",
           smsConsentNote: "Texted the business line first",
         },

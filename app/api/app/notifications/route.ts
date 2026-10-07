@@ -36,6 +36,36 @@ function kindForUrl(url: string): "request" | "lead" | "booking" | "payment" | "
   return "automation";
 }
 
+/**
+ * The record a link names, as `kind:id` — the key both halves of the feed
+ * dedupe on, so a push that lands on the invoice and the live payment row
+ * that lands on the same invoice count as one thing (2026-10-07). Lead
+ * pushes carry `?lead=<contactId>` for this; older ones without it have no
+ * entity and fall back to the exact-href rule.
+ */
+function entityOf(url: string): string | null {
+  const [path, query = ""] = url.split("?");
+  let m = path.match(/^\/app\/requests\/([^/]+)$/);
+  if (m) return `request:${m[1]}`;
+  m = path.match(/^\/app\/messages\/thread\/([^/]+)$/);
+  if (m) return `thread:${m[1]}`;
+  m = path.match(/^\/app\/appointments\/([^/]+)$/);
+  if (m) return `appointment:${m[1]}`;
+  m = path.match(/^\/app\/invoices\/([^/]+)$/);
+  if (m) return `invoice:${m[1]}`;
+  if (path === "/app/leads") {
+    const lead = new URLSearchParams(query).get("lead");
+    if (lead) return `lead:${lead}`;
+  }
+  return null;
+}
+
+/** The ids of one entity kind across a list of recorded notices. */
+function idsOf(entities: (string | null)[], kind: string): string[] {
+  const prefix = `${kind}:`;
+  return [...new Set(entities.filter((e): e is string => Boolean(e && e.startsWith(prefix))).map((e) => e.slice(prefix.length)))];
+}
+
 function money(n: unknown): string {
   return `$${Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -48,6 +78,15 @@ export async function GET() {
   const since = new Date(Date.now() - WINDOW_MS);
   const sell = canSell(actor.role);
   const seeMoney = canSeeMoney(actor);
+
+  // The board's first column — a lead still sitting there is "new"; used by
+  // the live lead rows and by the handled check on recorded lead notices.
+  const firstStage = await prisma.pipelineStage.findFirst({
+    where: { companyId: actor.companyId, isConverted: false },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true },
+  });
+  const firstStageId = firstStage?.id ?? null;
 
   const [requests, leads, bookings, payments, pastDue, clientMessages, notices] = await Promise.all([
     sell
@@ -67,20 +106,14 @@ export async function GET() {
     // team) and are still untouched in the board's first column — moving the
     // card, or the lead converting, takes it out of the bell at once.
     sell
-      ? prisma.pipelineStage
-          .findFirst({
-            where: { companyId: actor.companyId, isConverted: false },
-            orderBy: { sortOrder: "asc" },
-            select: { id: true },
-          })
-          .then((first) => prisma.contact.findMany({
+      ? prisma.contact.findMany({
           where: {
             companyId: actor.companyId,
             ...contactScope(actor),
             status: "LEAD",
             createdById: null,
             createdAt: { gte: since },
-            ...(first ? { pipelineStageId: first.id } : { pipelineStageId: null }),
+            pipelineStageId: firstStageId,
           },
           orderBy: { createdAt: "desc" },
           take: 5,
@@ -92,7 +125,7 @@ export async function GET() {
             leadSource: true,
             createdAt: true,
           },
-        }))
+        })
       : Promise.resolve([]),
     // Self-scheduled bookings awaiting approval — the schedule renders these
     // dashed; they're the most actionable thing in the feed.
@@ -104,6 +137,7 @@ export async function GET() {
           select: {
             id: true,
             title: true,
+            requestId: true,
             createdAt: true,
             contact: { select: { firstName: true, lastName: true, companyName: true } },
           },
@@ -116,6 +150,7 @@ export async function GET() {
           take: 6,
           select: {
             id: true,
+            invoiceId: true,
             amount: true,
             paidAt: true,
             contact: { select: { firstName: true, lastName: true, companyName: true } },
@@ -171,6 +206,9 @@ export async function GET() {
     }),
   ]);
 
+  // Live rows link where the matching push does (lib/payments.ts → the
+  // invoice, lib/booking-submit.ts → the request or the appointment), so the
+  // bell never shows one event as two rows with two destinations.
   const live = [
     ...requests.map((r) => ({
       id: `req-${r.id}`,
@@ -179,6 +217,7 @@ export async function GET() {
       sub: [r.title, who(r.contact)].filter(Boolean).join(" · "),
       at: r.createdAt.toISOString(),
       href: `/app/requests/${r.id}`,
+      entity: `request:${r.id}`,
     })),
     ...leads.map((l) => ({
       id: `lead-${l.id}`,
@@ -187,6 +226,7 @@ export async function GET() {
       sub: [who(l), l.leadSource?.trim()].filter(Boolean).join(" · "),
       at: l.createdAt.toISOString(),
       href: "/app/leads",
+      entity: `lead:${l.id}`,
     })),
     ...bookings.map((b) => ({
       id: `appt-${b.id}`,
@@ -194,7 +234,8 @@ export async function GET() {
       title: "Booking to approve",
       sub: [b.title, who(b.contact)].filter(Boolean).join(" · "),
       at: b.createdAt.toISOString(),
-      href: "/app/schedule",
+      href: b.requestId ? `/app/requests/${b.requestId}` : `/app/appointments/${b.id}`,
+      entity: b.requestId ? `request:${b.requestId}` : `appointment:${b.id}`,
     })),
     ...payments.map((p) => ({
       id: `pay-${p.id}`,
@@ -202,7 +243,8 @@ export async function GET() {
       title: `Payment received · ${money(p.amount)}`,
       sub: who(p.contact),
       at: p.paidAt.toISOString(),
-      href: "/app/payments",
+      href: `/app/invoices/${p.invoiceId}`,
+      entity: `invoice:${p.invoiceId}`,
     })),
     ...pastDue.map((inv) => ({
       id: `inv-${inv.id}`,
@@ -211,6 +253,7 @@ export async function GET() {
       sub: [money(inv.total), who(inv.contact)].filter(Boolean).join(" · "),
       at: (inv.dueDate ?? new Date()).toISOString(),
       href: `/app/invoices/${inv.id}`,
+      entity: `invoice:${inv.id}`,
     })),
     ...clientMessages.map((m) => ({
       id: `msg-${m.id}`,
@@ -219,6 +262,7 @@ export async function GET() {
       sub: m.body.length > 90 ? `${m.body.slice(0, 90)}…` : m.body,
       at: m.createdAt.toISOString(),
       href: `/app/messages/thread/${m.contactId}`,
+      entity: `thread:${m.contactId}`,
     })),
   ];
   // Every push is recorded as a notice (lib/push.ts notifyUsers), so the bell
@@ -227,8 +271,62 @@ export async function GET() {
   // — the record is the better row — and the kind follows the link so the
   // icon matches the record it points at.
   const liveHrefs = new Set(live.map((i) => i.href));
+  const liveEntities = new Set(live.map((i) => i.entity));
+  const pushes = notices.filter((n) => !n.automationId);
+  const entities = new Map(pushes.map((n) => [n.id, entityOf(n.url)]));
+
+  // Handled records stay hidden (2026-10-07): a push about a request, lead or
+  // client message used to come back as "new" once its live row went away
+  // (request answered, lead moved a column, text read) and sat there for 30
+  // days. The same rules the live rows use decide "handled" here, so a
+  // notice is gone for good once the thing it pointed at is dealt with.
+  // Pushes about invoices and appointments are news, not to-dos, so they
+  // stay until they age out; a link to a record that no longer exists is
+  // dropped as well.
+  const requestIds = idsOf([...entities.values()], "request");
+  const leadIds = idsOf([...entities.values()], "lead");
+  const threadIds = idsOf([...entities.values()], "thread");
+  const apptIds = idsOf([...entities.values()], "appointment");
+  const [openRequests, openLeads, unreadThreads, existingAppts] = await Promise.all([
+    requestIds.length
+      ? prisma.request.findMany({
+          where: { id: { in: requestIds }, companyId: actor.companyId, status: { in: ["NEW", "NEEDS_APPROVAL"] } },
+          select: { id: true },
+        })
+      : Promise.resolve([]),
+    leadIds.length
+      ? prisma.contact.findMany({
+          where: { id: { in: leadIds }, companyId: actor.companyId, status: "LEAD", pipelineStageId: firstStageId },
+          select: { id: true },
+        })
+      : Promise.resolve([]),
+    threadIds.length
+      ? prisma.portalMessage.findMany({
+          where: { companyId: actor.companyId, contactId: { in: threadIds }, direction: "INBOUND", readByTeamAt: null },
+          distinct: ["contactId"],
+          select: { contactId: true },
+        })
+      : Promise.resolve([]),
+    apptIds.length
+      ? prisma.appointment.findMany({ where: { id: { in: apptIds }, companyId: actor.companyId }, select: { id: true } })
+      : Promise.resolve([]),
+  ]);
+  const stillOpen = new Set<string>([
+    ...openRequests.map((r) => `request:${r.id}`),
+    ...openLeads.map((l) => `lead:${l.id}`),
+    ...unreadThreads.map((m) => `thread:${m.contactId}`),
+    ...existingAppts.map((a) => `appointment:${a.id}`),
+  ]);
+  const handled = (entity: string | null) =>
+    Boolean(entity) && !entity!.startsWith("invoice:") && !stillOpen.has(entity as string);
+
   const notes = notices
-    .filter((n) => n.automationId || !liveHrefs.has(n.url))
+    .filter((n) => {
+      if (n.automationId) return true;
+      const entity = entities.get(n.id) ?? null;
+      if (liveHrefs.has(n.url) || (entity && liveEntities.has(entity))) return false;
+      return !handled(entity);
+    })
     .map((n) => ({
       id: `auto-${n.id}`,
       kind: n.automationId ? ("automation" as const) : kindForUrl(n.url),
@@ -238,7 +336,9 @@ export async function GET() {
       href: n.url.startsWith("/app/") ? n.url : "/app/automations",
     }));
 
-  const items = [...notes, ...live].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 20);
+  const items = [...notes, ...live.map(({ entity: _entity, ...row }) => row)]
+    .sort((a, b) => b.at.localeCompare(a.at))
+    .slice(0, 20);
 
   return NextResponse.json({ items });
 }

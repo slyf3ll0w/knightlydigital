@@ -142,6 +142,33 @@ export async function sendQuote(opts: {
   return { ok: true, emailed, texted, to: emailed ? contact.email : null, phone: texted ? contact.phone : null };
 }
 
+/**
+ * The due date to write when an invoice goes out, or null to leave it alone
+ * (pure, unit-tested). Creation always stamps `dueDate` from the client's
+ * terms, so a draft parked with Send later for ten days used to go out with
+ * a due date that counted from creation — sometimes already past due, which
+ * started dunning on day one. Rule: a missing date is always filled in; for
+ * a DRAFT, a date that still equals "terms from creation" (nobody picked it)
+ * or that has already gone by is re-counted from the send; a date the sender
+ * chose by hand stays. Help promises "the due date counts from then".
+ */
+export function dueDateOnSend(input: {
+  status: string;
+  dueDate: Date | null;
+  createdAt: Date;
+  termsDays: number;
+  now: Date;
+}): Date | null {
+  const fromNow = dueDateFromTerms(input.now, input.termsDays);
+  if (!input.dueDate) return fromNow;
+  if (input.status !== "DRAFT") return null;
+  const fromCreation = dueDateFromTerms(input.createdAt, input.termsDays);
+  const untouched = input.dueDate.getTime() === fromCreation.getTime();
+  const gone = input.dueDate.getTime() <= input.now.getTime();
+  if (!untouched && !gone) return null;
+  return fromNow.getTime() === input.dueDate.getTime() ? null : fromNow;
+}
+
 export async function sendInvoice(opts: {
   id: string;
   companyId: string;
@@ -219,12 +246,20 @@ export async function sendInvoice(opts: {
 
   // Sending IS issuing: stamp the dates a drafted engine invoice (or any
   // draft) never got, so A/R aging, the PAST_DUE flip, and payment reminders
-  // can see it. Dates already set are left alone.
+  // can see it. A draft's due date that only came from the client's terms
+  // counts from the send (see dueDateOnSend); a hand-picked date is kept.
   const now = new Date();
+  const dueDate = dueDateOnSend({
+    status: invoice.status,
+    dueDate: invoice.dueDate,
+    createdAt: invoice.createdAt,
+    termsDays: contact.paymentTermsDays,
+    now,
+  });
   const patch = {
     ...(invoice.status === "DRAFT" ? { status: "AWAITING_PAYMENT" as const } : {}),
     ...(invoice.issuedAt ? {} : { issuedAt: now }),
-    ...(invoice.dueDate ? {} : { dueDate: dueDateFromTerms(now, contact.paymentTermsDays) }),
+    ...(dueDate ? { dueDate } : {}),
   };
   await prisma.invoice.update({ where: { id: invoice.id }, data: { ...patch, ...CLEAR } });
   // First send only (a re-send of an issued invoice is a reminder, not a send)
@@ -356,6 +391,8 @@ export async function runScheduledSends(now: Date = new Date()): Promise<Schedul
   ];
 
   for (const job of jobs) {
+    const label = `${job.kind === "quote" ? "Quote" : "Invoice"} #${job.number}`;
+    const url = `/app/${job.kind}s/${job.id}`;
     try {
       if (!job.at) continue;
       // Claim: only the sweep that sees the stored instant clears it
@@ -365,8 +402,6 @@ export async function runScheduledSends(now: Date = new Date()): Promise<Schedul
           : await prisma.invoice.updateMany({ where: { id: job.id, scheduledSendAt: job.at }, data: CLEAR });
       if (claimed.count === 0) continue;
 
-      const label = `${job.kind === "quote" ? "Quote" : "Invoice"} #${job.number}`;
-      const url = `/app/${job.kind}s/${job.id}`;
       const result: SendResult = (await inPreview(job.companyId))
         ? { ok: false, status: 400, error: "this is a preview account" }
         : job.kind === "quote"
@@ -398,8 +433,18 @@ export async function runScheduledSends(now: Date = new Date()): Promise<Schedul
         }
       }
     } catch (err) {
+      // The schedule was already cleared by the claim, so without this the
+      // sender would never hear that nothing went out.
       summary.errors++;
       reportError("[send-later] sweep failed for", job.kind, job.id, err);
+      if (job.byId) {
+        await notifyUser(job.byId, {
+          title: `Couldn't send ${label.toLowerCase()}`,
+          body: "Something went wrong partway through the send. Open it to check whether it went out, and send it again if not.",
+          url,
+          tag: `scheduled-send-${job.kind}-${job.id}`,
+        }).catch((e) => reportError("[send-later] failure notice failed for", job.kind, job.id, e));
+      }
     }
   }
   return summary;
@@ -423,9 +468,12 @@ function fmtScheduled(tz: string, at: Date): string {
 /**
  * Park a draft to go out later. Body: { date: "YYYY-MM-DD", time: "HH:mm" }
  * (wall clock in the company's zone) or { at: ISO }, plus optional
- * { email, text }. The document must still be sendable (same rule as the
- * Send button); an unreachable client or a time in the past is allowed but
- * answered with a warning, so the sender can decide.
+ * { email, text }. Only a DRAFT can be parked — the same rule as the Send
+ * sheet's "Send later" tick (`allowLater: status === "DRAFT"`), and every
+ * Scheduled chip / line / filter keys on DRAFT, so a schedule on anything
+ * else would go out invisibly with no way to cancel it. An unreachable
+ * client or a time in the past is allowed but answered with a warning, so
+ * the sender can decide.
  */
 export async function scheduleDocumentSend(opts: {
   kind: DocumentKind;
@@ -464,6 +512,9 @@ export async function scheduleDocumentSend(opts: {
     if (!QUOTE_SENDABLE.includes(q.status)) {
       return { status: 400, json: { error: "This quote already has a client response — nothing to send." } };
     }
+    if (q.status !== "DRAFT") {
+      return { status: 400, json: { error: "Send later is for drafts. This quote has already gone out — use Send to resend it now." } };
+    }
     const emailable = channels.email && Boolean(q.contact.email);
     const textable = channels.text && Boolean(q.contact.phone) && canText(q.contact) && (await companyCanSendSms(opts.companyId));
     const warnings = scheduleSendWarnings({ at, now, validUntil: q.validUntil, emailable, textable });
@@ -480,6 +531,9 @@ export async function scheduleDocumentSend(opts: {
   });
   if (!inv) return { status: 404, json: { error: "Invoice not found." } };
   if (inv.status === "PAID") return { status: 400, json: { error: "This invoice is already paid." } };
+  if (inv.status !== "DRAFT") {
+    return { status: 400, json: { error: "Send later is for drafts. This invoice has already gone out — use Send to resend it now." } };
+  }
   const emailable = channels.email && Boolean(inv.contact?.email);
   const textable =
     channels.text && Boolean(inv.contact?.phone) && Boolean(inv.contact && canText(inv.contact)) && (await companyCanSendSms(opts.companyId));

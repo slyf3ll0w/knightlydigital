@@ -42,6 +42,7 @@ export const clientTools: Tool[] = [
         where: {
           companyId: actor.companyId,
           ...contactScope(actor),
+          placeholder: false, // unsaved numbers live in Messages only, not the roster
           AND: words.map((w) => ({
             OR: [
               { firstName: { contains: w, mode: "insensitive" as const } },
@@ -63,7 +64,7 @@ export const clientTools: Tool[] = [
       if (rows.length > 0) return { clients: rows.map(shape) };
       // no match → hand back the recent roster so the model can self-correct
       const recent = await prisma.contact.findMany({
-        where: { companyId: actor.companyId, ...contactScope(actor) },
+        where: { companyId: actor.companyId, ...contactScope(actor), placeholder: false },
         take: 20, orderBy: { updatedAt: "desc" }, select,
       });
       return {
@@ -87,7 +88,7 @@ export const clientTools: Tool[] = [
     run: async (actor, args) => {
       const valid = ["LEAD", "ACTIVE", "ARCHIVED"];
       const status = valid.includes(str(args.status, 12)) ? (str(args.status, 12) as never) : undefined;
-      const where = { companyId: actor.companyId, ...contactScope(actor), status };
+      const where = { companyId: actor.companyId, ...contactScope(actor), placeholder: false, status };
       const [rows, total] = await Promise.all([
         prisma.contact.findMany({
           where, take: 60, orderBy: { updatedAt: "desc" },

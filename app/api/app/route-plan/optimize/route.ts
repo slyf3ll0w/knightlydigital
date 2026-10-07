@@ -5,6 +5,7 @@ import { getActor, isManager } from "@/lib/permissions";
 import { parseRouteDate, resolveRouteDay, dayStartFor, type RouteStop } from "@/lib/route-plan";
 import { driveMatrix, kmToMiles, roundGapMinutes, routeMinutes, solveStopOrder } from "@/lib/routing";
 import { notifyClientOfMove } from "@/lib/schedule-notify";
+import { rescheduleReminderStamps } from "@/lib/reminder-stage";
 import { DEFAULT_JOB_DURATION_MINUTES } from "@/lib/scheduling";
 import {
   DAY_KEYS,
@@ -517,8 +518,8 @@ export async function POST(req: NextRequest) {
           scheduledAt: new Date(p.proposedStart),
           scheduledEnd: new Date(p.proposedEnd),
           scheduledAnytime: false,
-          reminderDaySentAt: null,
-          reminderHourSentAt: null,
+          ...rescheduleReminderStamps(now, new Date(p.proposedStart)),
+          techHeadsUpSentAt: null,
         };
         return p.kind === "appointment"
           ? prisma.appointment.update({ where: { id: p.id }, data })

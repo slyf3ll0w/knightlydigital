@@ -5,7 +5,23 @@
  */
 import assert from "node:assert/strict";
 import { sanitizeBrief, briefGaps, publicBrief, safeUrl, emptyBrief } from "../lib/website-brief";
-import { companyWriteTouchesSite, websiteWriteTouchesSite, SITE_MODELS } from "../lib/website";
+import { companyWriteTouchesSite, websiteWriteTouchesSite, siteIsPublic, publicLegalName, SITE_MODELS } from "../lib/website";
+
+// ── Public site-data gates (audit 2026-10-06, E4 / F3) ───────────────────────
+{
+  assert.equal(siteIsPublic("IN_STUDIO"), true);
+  assert.equal(siteIsPublic("REVIEW"), true);
+  assert.equal(siteIsPublic("LIVE"), true);
+  assert.equal(siteIsPublic("NOT_STARTED"), false, "no site yet → 404");
+  assert.equal(siteIsPublic("BRIEF_SUBMITTED"), false, "brief sent but nothing built → 404");
+  assert.equal(siteIsPublic(null), false, "no Website row → 404");
+  assert.equal(siteIsPublic(undefined), false);
+}
+{
+  assert.equal(publicLegalName({ legalName: "Lessly Holdings LLC", showLegalNameOnDocs: false }), null, "switch off → never public");
+  assert.equal(publicLegalName({ legalName: "Lessly Holdings LLC", showLegalNameOnDocs: true }), "Lessly Holdings LLC");
+  assert.equal(publicLegalName({ legalName: null, showLegalNameOnDocs: true }), null);
+}
 
 // ── websiteWriteTouchesSite (the rebuild loop, audit 2026-10-06) ─────────────
 {

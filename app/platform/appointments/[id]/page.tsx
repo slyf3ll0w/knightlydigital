@@ -9,7 +9,7 @@ import { appointmentTypeLabel } from "@/lib/statuses";
 import { resolveSlotInterval } from "@/lib/scheduling";
 import { earliestOpenMinutes, sanitizeBusinessHours } from "@/lib/business-hours";
 import { canText } from "@/lib/sms-consent";
-import { HOUR_STAGE_MS, MIN_BOOKING_AGE_MS, inSmsQuietHours, reminderOutlook } from "@/lib/reminder-stage";
+import { HOUR_STAGE_MS, MIN_BOOKING_AGE_MS, bookingAnchor, inSmsQuietHours, reminderOutlook } from "@/lib/reminder-stage";
 import StatusChip from "@/components/StatusChip";
 import { Chip } from "@/components/ds";
 import BackLink from "@/components/BackLink";
@@ -56,18 +56,20 @@ function clientReminderStatus(appt: {
   if (appt.scheduledAnytime) return "Anytime appointments don't get automatic reminders — there's no time to be an hour ahead of.";
   if (appt.status !== "SCHEDULED") return sent.length ? `Client reminders by ${via}: ${sent.join(" · ")}.` : "No automatic client reminders went out.";
   if (appt.tentative) return "Client reminders start once the booking is confirmed.";
-  const outlook = reminderOutlook({ now: new Date(), scheduledAt: appt.scheduledAt, createdAt: appt.createdAt });
+  // A reschedule counts as the booking time (lib/reminder-stage.ts header)
+  const bookedAt = bookingAnchor(appt.createdAt, appt.reminderDaySentAt);
+  const outlook = reminderOutlook({ now: new Date(), scheduledAt: appt.scheduledAt, createdAt: appt.createdAt, daySentAt: appt.reminderDaySentAt });
   if (outlook === "past") return sent.length ? `Client reminders by ${via}: ${sent.join(" · ")}.` : "No automatic client reminders went out.";
   if (outlook === "too-close")
     return "Booked less than 20 minutes before its start — too close for an automatic reminder.";
   const coming = sent.length
     ? `${sent.join(" · ")} · hour-before goes out about an hour ahead`
-    : `${first} gets a reminder about an hour ahead${appt.scheduledAt.getTime() - appt.createdAt.getTime() > 86400000 ? ", and the day before" : ""}`;
+    : `${first} gets a reminder about an hour ahead${appt.scheduledAt.getTime() - bookedAt.getTime() > 86400000 ? ", and the day before" : ""}`;
   // Texts pause 9 PM–8 AM company-local (lib/reminder-stage.ts inSmsQuietHours).
   // When the hour-before moment lands inside that, say so here — otherwise a
   // late-evening booking looks like a dropped text.
   const hourMoment = new Date(
-    Math.max(appt.scheduledAt.getTime() - HOUR_STAGE_MS, appt.createdAt.getTime() + MIN_BOOKING_AGE_MS)
+    Math.max(appt.scheduledAt.getTime() - HOUR_STAGE_MS, bookedAt.getTime() + MIN_BOOKING_AGE_MS)
   );
   const quiet = textable && inSmsQuietHours(hourMoment, tz);
   const quietNote = !quiet
@@ -128,6 +130,14 @@ export default async function AppointmentDetailPage({
   ]);
   if (!appt) notFound();
 
+  // Quotes have no appointment link (Invoice.appointmentId exists, Quote has
+  // none), so "a quote came out of this appointment" = any quote for this
+  // client written since the appointment was booked — that is what hides
+  // Create Quote once it has been used (the request's own quotes count too).
+  const quotesSinceBooked = await prisma.quote.count({
+    where: { companyId: actor.companyId, contactId: appt.contactId, createdAt: { gte: appt.createdAt } },
+  });
+
   const TypeIcon = typeIcons[appt.type];
   // Read in the company's zone — the server clock is UTC
   const tz = company?.timezone ?? "America/Chicago";
@@ -179,7 +189,7 @@ export default async function AppointmentDetailPage({
           requestId={appt.requestId}
           canDelete={isManager(actor.role)}
           canInvoice={canSeeMoney(actor)}
-          hasQuote={(appt.request?.quotes.length ?? 0) > 0}
+          hasQuote={(appt.request?.quotes.length ?? 0) > 0 || quotesSinceBooked > 0}
           hasInvoice={appt.invoices.length > 0}
           scheduledAt={appt.scheduledAt.toISOString()}
           scheduledEnd={appt.scheduledEnd?.toISOString() ?? null}

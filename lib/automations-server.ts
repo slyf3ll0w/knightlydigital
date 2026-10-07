@@ -576,7 +576,7 @@ async function previewCandidates(companyId: string, spec: AutomationSpec, entity
       const calls = await prisma.call.findMany({ where: { ...w, contactId: { not: null } }, select: { contactId: true }, distinct: ["contactId"], take });
       return calls.flatMap((c) => (c.contactId ? [{ id: c.contactId }] : []));
     }
-    case "client.created": return ids(await prisma.contact.findMany({ where: { ...w, status: "ACTIVE" }, select: { id: true }, take }));
+    case "client.created": return ids(await prisma.contact.findMany({ where: { ...w, status: "ACTIVE", placeholder: false }, select: { id: true }, take }));
     case "client.archived": return ids(await prisma.contact.findMany({ where: { companyId, status: "ARCHIVED", updatedAt: { gte: since } }, select: { id: true }, take }));
     case "client.reactivated": return ids(await prisma.contact.findMany({ where: { companyId, status: "ACTIVE", updatedAt: { gte: since }, createdAt: { lt: since } }, select: { id: true }, take }));
     case "client.note_added": return ids(await prisma.contact.findMany({ where: { companyId, contactNotes: { some: { createdAt: { gte: since } } } }, select: { id: true }, take }));

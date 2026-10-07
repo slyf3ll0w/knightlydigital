@@ -73,6 +73,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.width !== undefined) data.width = clampSize(body.width, note.width);
   if (body.height !== undefined) data.height = clampSize(body.height, note.height);
   if (body.x !== undefined || body.y !== undefined) {
+    // Only the author moves the note for everyone; a teammate's drag goes to PUT /place
+    if (note.userId !== actor.id) {
+      return NextResponse.json({ error: "Only the author can move this note for everyone." }, { status: 403 });
+    }
     const x = validatePos(body.x);
     const y = validatePos(body.y);
     if (x === null || y === null) return NextResponse.json({ error: "x and y must be numbers." }, { status: 400 });

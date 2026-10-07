@@ -1,9 +1,9 @@
 // Unit checks for lib/reminder-stage.ts + the client text templates in
 // lib/sms.ts — run: npx tsx scripts/test-reminder-copy.ts
 import assert from "node:assert/strict";
-import { reminderStage, reminderOutlook, HOUR_STAGE_MS, MIN_BOOKING_AGE_MS, inSmsQuietHours } from "../lib/reminder-stage";
+import { reminderStage, reminderOutlook, rescheduleReminderStamps, bookingAnchor, HOUR_STAGE_MS, MIN_BOOKING_AGE_MS, inSmsQuietHours } from "../lib/reminder-stage";
 import { appointmentReminderText, bookingConfirmationText, meetingLabel } from "../lib/sms";
-import { swapSlugInPath, RESERVED_SLUGS } from "../lib/company-slug";
+import { swapSlugInPath, trimSlugHistory, RESERVED_SLUGS } from "../lib/company-slug";
 import { slugify } from "../lib/slugify";
 
 const MIN = 60_000;
@@ -54,6 +54,37 @@ const at = (iso: string) => new Date(iso);
   assert.ok(HOUR_STAGE_MS === 70 * MIN);
   assert.ok(MIN_BOOKING_AGE_MS === 20 * MIN);
   assert.ok(H > 0);
+}
+{
+  // Reschedule: an appointment booked last week, moved at 10:00 to 4 PM the
+  // same day. The move stamps the day stage (no "day before" text at 10:05)
+  // and anchors the hour stage's age floor, like a fresh booking would.
+  const movedAt = at("2026-10-06T15:00:00Z");
+  const stamps = rescheduleReminderStamps(movedAt, at("2026-10-06T21:00:00Z"));
+  assert.deepEqual(stamps, { reminderDaySentAt: movedAt, reminderHourSentAt: null }, "inside a day: day stamped, hour re-armed");
+  const moved = { scheduledAt: at("2026-10-06T21:00:00Z"), createdAt: at("2026-09-29T12:00:00Z"), ...stamps };
+  assert.equal(bookingAnchor(moved.createdAt, moved.reminderDaySentAt).getTime(), movedAt.getTime(), "anchor = the move");
+  assert.equal(reminderStage({ now: at("2026-10-06T15:05:00Z"), daySentAt: stamps.reminderDaySentAt, hourSentAt: null, scheduledAt: moved.scheduledAt, createdAt: moved.createdAt }), null, "5 min after the move, 6 h out: no day reminder");
+  assert.equal(reminderStage({ now: at("2026-10-06T19:55:00Z"), daySentAt: stamps.reminderDaySentAt, hourSentAt: null, scheduledAt: moved.scheduledAt, createdAt: moved.createdAt }), "hour", "65 min out: the hour reminder still comes");
+  // Moved to 45 minutes out: reminded 20 min after the move, not at once.
+  const rush = rescheduleReminderStamps(movedAt, at("2026-10-06T15:45:00Z"));
+  const rushAppt = { scheduledAt: at("2026-10-06T15:45:00Z"), createdAt: at("2026-09-29T12:00:00Z"), daySentAt: rush.reminderDaySentAt, hourSentAt: null };
+  assert.equal(reminderStage({ now: at("2026-10-06T15:05:00Z"), ...rushAppt }), null, "moved 5 min ago: not yet");
+  assert.equal(reminderStage({ now: at("2026-10-06T15:20:00Z"), ...rushAppt }), "hour", "moved 20 min ago, 25 min out: hour reminder");
+  assert.equal(reminderOutlook({ now: at("2026-10-06T15:05:00Z"), ...rushAppt }), "pending", "outlook: still coming");
+  // Moved to 10 minutes out: starts before it is old enough — the call that
+  // moved it is the reminder.
+  const close = rescheduleReminderStamps(movedAt, at("2026-10-06T15:10:00Z"));
+  assert.equal(reminderOutlook({ now: at("2026-10-06T15:02:00Z"), scheduledAt: at("2026-10-06T15:10:00Z"), createdAt: at("2026-09-29T12:00:00Z"), daySentAt: close.reminderDaySentAt }), "too-close", "outlook: moved too close");
+  // Moved to next week: both stamps clear, the day stage fires at 24 h out as usual.
+  const far = rescheduleReminderStamps(movedAt, at("2026-10-13T15:00:00Z"));
+  assert.deepEqual(far, { reminderDaySentAt: null, reminderHourSentAt: null }, "beyond a day: both clear");
+  assert.equal(reminderStage({ now: at("2026-10-12T15:00:00Z"), scheduledAt: at("2026-10-13T15:00:00Z"), createdAt: at("2026-09-29T12:00:00Z"), ...far, daySentAt: far.reminderDaySentAt, hourSentAt: null }), "day", "24 h out: day stage");
+  // A real day send (24 h out) never delays the hour stage.
+  const sent = { scheduledAt: at("2026-10-07T15:00:00Z"), createdAt: at("2026-10-01T12:00:00Z"), daySentAt: at("2026-10-06T15:00:00Z"), hourSentAt: null };
+  assert.equal(reminderStage({ now: at("2026-10-07T13:50:00Z"), ...sent }), "hour", "day sent yesterday: hour stage on time");
+  // Unscheduling a job clears both.
+  assert.deepEqual(rescheduleReminderStamps(movedAt, null), { reminderDaySentAt: null, reminderHourSentAt: null }, "no start: both clear");
 }
 {
   assert.equal(inSmsQuietHours(at("2026-10-07T12:30:00Z"), "America/Chicago"), true, "7:30 AM Chicago is quiet");
@@ -111,6 +142,18 @@ const at = (iso: string) => new Date(iso);
   assert.equal(swapSlugInPath("/portal/lessly-holdings", "lessly-holdings", "david-lessly"), "/portal/david-lessly");
   assert.equal(swapSlugInPath("/book/lessly-holdings-2/x", "lessly-holdings", "david-lessly"), "/book/lessly-holdings-2/x", "whole segment only");
   assert.ok(RESERVED_SLUGS.has("app") && RESERVED_SLUGS.has("help"));
+}
+
+// ── trimSlugHistory: the original address is never evicted (audit 2026-10-06, E2) ──
+{
+  const few = ["a", "b", "c"];
+  assert.deepEqual(trimSlugHistory(few), few, "under the cap → untouched");
+  const many = Array.from({ length: 25 }, (_, i) => `slug-${i}`);
+  const kept = trimSlugHistory(many);
+  assert.equal(kept.length, 20);
+  assert.equal(kept[0], "slug-0", "the first (original) slug stays");
+  assert.deepEqual(kept.slice(1), many.slice(-19), "then the 19 most recent");
+  assert.deepEqual(trimSlugHistory(many, 3), ["slug-0", "slug-23", "slug-24"]);
 }
 
 console.log("test-reminder-copy: all checks passed");

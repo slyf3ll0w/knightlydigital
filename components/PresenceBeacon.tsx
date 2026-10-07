@@ -18,9 +18,14 @@ import { useSoftphone } from "@/lib/softphone-client";
  * When the server answers `busy`, this covers the app with "in use on …" and
  * a "Use it here" button; while covered it beats every 10 s so the wall lifts
  * soon after the other device goes idle (or the other person is bounced).
- * The touch trigger is what makes a takeover feel immediate on the OTHER
- * device: a phone left face-up on the desk learns on its next tick, but the
- * moment someone picks it up and taps, it asks and is walled.
+ * Those beats are PROBES (`{ probe: true }`): they ask, they never claim.
+ * Once walled, this device only takes the lock back on a real touch or key
+ * here (or Use it here) — otherwise a PC left on a monitor stole the login
+ * from the phone in the owner's pocket every time it slept (audit
+ * 2026-10-06, D2). The touch trigger is also what makes a takeover feel
+ * immediate on the OTHER device: a phone left face-up on the desk learns on
+ * its next tick, but the moment someone picks it up and taps, it asks and
+ * is walled.
  *
  * The button arms late on purpose (ARM_MS): David's second test showed the
  * wall rendering under a finger mid-tap and that same tap landing on "Use it
@@ -54,24 +59,32 @@ export default function PresenceBeacon() {
   const softphone = useSoftphone();
   const onCall = softphone.call !== null;
   const claimedForCall = useRef(false);
+  // Set when a beat is turned away; cleared by a touch / key here or a
+  // takeover. While set, timer and wake beats only probe — they never claim.
+  const walled = useRef(false);
 
-  const beat = useCallback(async (takeover = false, floorMs = FLOOR_MS, evenHidden = false) => {
+  const beat = useCallback(async (takeover = false, floorMs = FLOOR_MS, evenHidden = false, touch = false) => {
+    // A real touch re-arms claiming even when this particular beat is floored.
+    if (touch || takeover) walled.current = false;
     if ((!evenHidden && document.visibilityState !== "visible") || !navigator.onLine) return;
     const now = Date.now();
     if (!takeover && (now - last.current < floorMs || inFlight.current)) return;
     last.current = now;
     inFlight.current = true;
+    const probe = !takeover && walled.current;
     try {
       const res = await fetch("/api/app/presence", {
         method: "POST",
         keepalive: true,
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(takeover ? { takeover: true } : {}),
+        body: JSON.stringify(takeover ? { takeover: true } : probe ? { probe: true } : {}),
       });
       if (!res.ok) return;
       const data = (await res.json().catch(() => null)) as { ok?: boolean; busy?: boolean; device?: string } | null;
-      if (data?.busy) setBusy((cur) => (cur && cur.device === data.device ? cur : { device: data.device || "another device" }));
-      else if (data?.ok) setBusy(null);
+      if (data?.busy) {
+        walled.current = true;
+        setBusy((cur) => (cur && cur.device === data.device ? cur : { device: data.device || "another device" }));
+      } else if (data?.ok) setBusy(null);
     } catch {
       // offline / aborted — the next beat tries again
     } finally {
@@ -82,7 +95,7 @@ export default function PresenceBeacon() {
   useEffect(() => {
     void beat();
     const onWake = () => void beat();
-    const onTouch = () => void beat(false, TOUCH_FLOOR_MS);
+    const onTouch = () => void beat(false, TOUCH_FLOOR_MS, false, true);
     document.addEventListener("visibilitychange", onWake);
     window.addEventListener("focus", onWake);
     window.addEventListener("pageshow", onWake);

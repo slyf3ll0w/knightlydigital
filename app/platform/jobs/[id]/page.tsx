@@ -564,11 +564,14 @@ export default async function JobDetailPage({
           >
             <PhotoUpload
               jobId={job.id}
+              canSite={isManager(actor.role)}
               photos={job.photos.map((p) => ({
                 id: p.id,
                 url: p.url,
                 caption: p.caption,
                 type: p.type,
+                siteUse: p.siteUse,
+                alt: p.alt,
               }))}
             />
           </Fold>

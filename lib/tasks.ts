@@ -349,8 +349,13 @@ export async function runTaskReminders(now: Date = new Date()): Promise<TaskRemi
 
 // ── Lists ───────────────────────────────────────────────────────────────────
 
-export function parseTaskView(raw: unknown, manager: boolean): TaskView {
-  if (raw === "team" && manager) return "team";
+/**
+ * `teamView` = the viewer may see everyone's open tasks: an owner/admin on a
+ * plan with the task_assign feature (callers resolve `featureAllowedFor`
+ * first — the Team tab and the assignee picker hide on the same flag).
+ */
+export function parseTaskView(raw: unknown, teamView: boolean): TaskView {
+  if (raw === "team" && teamView) return "team";
   if (raw === "done") return "done";
   return "mine";
 }

@@ -9,6 +9,7 @@ import { syncJobChecklist } from "@/lib/job-checklist";
 import { cleanOutsourcedTo, crewMissing, NEEDS_CREW_CODE, NEEDS_CREW_ERROR, resolveCrew } from "@/lib/job-crew";
 import { fireAutomations } from "@/lib/automations-server";
 import { clientWindowPatch } from "@/lib/client-window";
+import { rescheduleReminderStamps } from "@/lib/reminder-stage";
 
 export async function PATCH(
   req: NextRequest,
@@ -59,6 +60,9 @@ export async function PATCH(
       ? await resolveCrew(prisma, actor.companyId, [], {})
       : currentCrew;
   const crewChanged = JSON.stringify([...nextCrew].sort()) !== JSON.stringify([...currentCrew].sort());
+  const now = new Date();
+  const startMoved =
+    body.scheduledAt !== undefined && (nextScheduledAt?.getTime() ?? null) !== (job.scheduledAt?.getTime() ?? null);
   // Gate on scheduling / an explicit crew change only: flipping "outsourced"
   // OFF may leave the crew empty for a moment (the Team card is about to be
   // ticked) — refusing that would trap the job in the outsourced state.
@@ -115,12 +119,17 @@ export async function PATCH(
       }),
     }),
     ...(body.scheduledAt !== undefined && {
-      scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null,
-      // A moved visit reminds again at its new time (stamps are per-schedule)
-      reminderDaySentAt: null,
-      reminderHourSentAt: null,
+      scheduledAt: nextScheduledAt,
+      // A moved visit reminds again at its new time (stamps are per-schedule);
+      // the move counts as a fresh booking for the stage rule — lib/reminder-stage.ts
+      ...rescheduleReminderStamps(now, nextScheduledAt),
       // A human rescheduled it — the generated-visit conflict badge is done
       conflictNote: null,
+    }),
+    // The crew's ~1-hour heads-up push fires once per stamp: a new time or a
+    // new crew (still ahead of us) gets a fresh one
+    ...((startMoved || crewChanged) && nextScheduledAt && nextScheduledAt.getTime() > now.getTime() && {
+      techHeadsUpSentAt: null,
     }),
     ...(body.scheduledEnd !== undefined && { scheduledEnd: body.scheduledEnd ? new Date(body.scheduledEnd) : null }),
     ...(body.scheduledAnytime !== undefined && { scheduledAnytime: Boolean(body.scheduledAnytime) }),

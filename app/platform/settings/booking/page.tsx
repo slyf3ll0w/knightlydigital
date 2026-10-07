@@ -25,7 +25,7 @@ export default async function OnlineBookingPage() {
         brandColorSecondary: true,
         bookingPage: true,
         website: true,
-        messagingRegistration: { select: { status: true } },
+        messagingRegistration: { select: { status: true, website: true } },
         hubBookingTypeId: true,
         businessHours: true,
         serviceZips: true,
@@ -54,7 +54,7 @@ export default async function OnlineBookingPage() {
       baseUrl={baseUrl}
       previewMode={await inPreview(companyId)}
       look={sanitizeBookingPage(company.bookingPage)}
-      detailsForced={businessDetailsForced(company.messagingRegistration?.status, company.website)}
+      detailsForced={businessDetailsForced(company.messagingRegistration?.status, company.website, company.messagingRegistration?.website)}
       brandAccent={brandAccent(company)}
       rules={{
         hours: sanitizeBusinessHours(company.businessHours),

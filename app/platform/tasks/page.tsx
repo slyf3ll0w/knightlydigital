@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
+import { featureAllowedFor } from "@/lib/plan-gate";
 import { companyTz, listTasks, parseTaskView } from "@/lib/tasks";
 import type { TaskLink, TaskPrefill } from "@/lib/tasks-shared";
 import TasksClient from "./TasksClient";
@@ -68,7 +69,9 @@ async function resolvePrefill(sp: Params, companyId: string): Promise<TaskPrefil
 export default async function TasksPage({ searchParams }: { searchParams: Promise<Params> }) {
   const actor = await requirePageActor();
   const sp = await searchParams;
-  const manager = isManager(actor.role);
+  // Team view + handing tasks out are one Pro feature (task_assign); the gate
+  // is dark until PLAN_GATING=1. `manager` alone drives nothing below.
+  const manager = isManager(actor.role) && (await featureAllowedFor(actor.companyId, "task_assign"));
   const view = parseTaskView(sp.view, manager);
   const tz = await companyTz(actor.companyId);
 

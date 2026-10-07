@@ -400,7 +400,7 @@ export default function PlaceSheet({
           type: apptType,
           scheduledAt,
           scheduledEnd,
-          scheduledAnytime: false,
+          scheduledAnytime: anytime,
           address: apptType === "IN_PERSON" ? address.trim() : undefined,
           assigneeIds: assignees.length ? assignees : [meId],
           sendConfirmation,
@@ -629,12 +629,10 @@ export default function PlaceSheet({
               </div>
             )}
           </div>
-          {kind === "job" && (
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input type="checkbox" checked={anytime} onChange={(ev) => setAnytime(ev.target.checked)} className="rounded text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]" />
-              Anytime that day (no set time)
-            </label>
-          )}
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input type="checkbox" checked={anytime} onChange={(ev) => setAnytime(ev.target.checked)} className="rounded text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]" />
+            Anytime that day (no set time)
+          </label>
           {kind === "appointment" && !existingJob && (
             <label className="flex items-center gap-2 text-sm text-gray-700">
               <input

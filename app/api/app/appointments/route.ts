@@ -67,7 +67,9 @@ export async function POST(req: NextRequest) {
   // the old single assignedToId still works.
   let people = [actor.id];
   const asked = requestedPeople(body);
-  if (isManager(actor.role) && asked && asked.length > 0) {
+  // Dispatchers (USER) see the same Team members picker and may reassign in
+  // PATCH, so their choice counts here too.
+  if ((isManager(actor.role) || actor.role === "USER") && asked && asked.length > 0) {
     const bad = await checkPeople(companyId, asked);
     if (bad) return NextResponse.json({ error: bad }, { status: 400 });
     people = asked;

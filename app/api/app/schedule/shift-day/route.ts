@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { findScheduleConflicts } from "@/lib/schedule-conflicts";
 import { notifyClientOfMove } from "@/lib/schedule-notify";
+import { rescheduleReminderStamps } from "@/lib/reminder-stage";
 import { wallTimeToUtc } from "@/lib/booking-engine";
 
 /**
@@ -153,8 +154,7 @@ export async function POST(req: NextRequest) {
         data: {
           scheduledAt: start,
           scheduledEnd: end,
-          reminderDaySentAt: null,
-          reminderHourSentAt: null,
+          ...rescheduleReminderStamps(now, start),
           techHeadsUpSentAt: null,
           conflictNote: null,
         },
@@ -166,7 +166,7 @@ export async function POST(req: NextRequest) {
       const end = a.scheduledEnd ? new Date(start.getTime() + (a.scheduledEnd.getTime() - a.scheduledAt.getTime())) : null;
       await tx.appointment.update({
         where: { id: a.id },
-        data: { scheduledAt: start, scheduledEnd: end, reminderDaySentAt: null, reminderHourSentAt: null },
+        data: { scheduledAt: start, scheduledEnd: end, ...rescheduleReminderStamps(now, start), techHeadsUpSentAt: null },
       });
       moved.push({ kind: "appointment", id: a.id, previousStart: a.scheduledAt.toISOString(), previousAnytime: a.scheduledAnytime });
     }

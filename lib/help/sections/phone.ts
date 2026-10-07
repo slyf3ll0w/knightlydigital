@@ -351,7 +351,7 @@ export const textingSection: HelpSection = {
             "\"Cancel Friday's visit\" is a normal message that lands in your inbox, not an opt-out.",
             "Which texts go out on their own: a confirmation when someone books online, a reminder about a day ahead (for bookings made at least a day ahead) and another about an hour ahead, schedule changes, the invoice pay link when you press `Send to Client`, on-my-way, and any `Text client` step in an automation. Those name your business once and say how to stop. Your own replies in Messages are texts too, sent exactly as you typed them.",
             "Reminders match the appointment type: a phone call says you will call and at which number, a video call carries the join link, and only an in-person visit says you will arrive — with the arrival window, never the exact minute.",
-            "Quotes are never texted, because carriers treat them as marketing. They go by email.",
+            "Quotes are never texted on their own, because carriers treat them as marketing. They go by email; a quote is texted only when you tick **Text** yourself in the send sheet.",
             "There's a limit of 500 texts a day per company.",
           ],
         },

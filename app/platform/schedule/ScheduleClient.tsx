@@ -558,16 +558,13 @@ export default function ScheduleClient({
     if (!anytime) end = new Date(start.getTime() + itemDuration(item) * 60000);
 
     // Crew: a drop into a tech's column swaps that tech in for the one it
-    // came from (undefined = the column has no crew meaning)
+    // came from and keeps everyone else, for jobs and appointments alike
+    // (undefined = the column has no crew meaning)
     let assigneeIds = item.assigneeIds ?? [];
     if (target.type !== "day" && target.userId !== undefined) {
       const from = source.fromUserId;
       const rest = assigneeIds.filter((id) => id !== from);
-      if (item.kind === "appointment") {
-        if (target.userId) assigneeIds = [target.userId];
-      } else {
-        assigneeIds = target.userId === null ? rest : [...rest.filter((id) => id !== target.userId), target.userId];
-      }
+      assigneeIds = target.userId === null ? rest : [...rest.filter((id) => id !== target.userId), target.userId];
     }
 
     // Shift-drag copies a job instead of moving it

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
-import { checkFeature } from "@/lib/plan-gate";
+import { checkFeature, featureAllowedFor } from "@/lib/plan-gate";
 import {
   companyTz,
   finishReminder,
@@ -22,7 +22,9 @@ import {
 export async function GET(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const view = parseTaskView(req.nextUrl.searchParams.get("view"), isManager(actor.role));
+  // The team view is part of the task_assign Pro feature (dark until PLAN_GATING=1)
+  const teamView = isManager(actor.role) && (await featureAllowedFor(actor.companyId, "task_assign"));
+  const view = parseTaskView(req.nextUrl.searchParams.get("view"), teamView);
   const tz = await companyTz(actor.companyId);
   return NextResponse.json({ tasks: await listTasks(actor, view, tz), tz });
 }

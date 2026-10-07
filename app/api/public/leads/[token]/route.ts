@@ -159,7 +159,9 @@ export async function POST(
   await notifyUsers(await requestNotifyUserIds(company.id), {
     title: `New ${source} lead: ${firstName} ${lastName}`.slice(0, 80),
     body: result.request.title,
-    url: `/app/leads`,
+    // `?lead=` names the card so the bell can retire this notice once the
+    // lead leaves the first column (app/api/app/notifications/route.ts).
+    url: `/app/leads?lead=${result.contact.id}`,
     tag: `request-${result.request.id}`,
   });
 

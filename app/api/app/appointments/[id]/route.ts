@@ -4,6 +4,7 @@ import { getActor, canSell, isManager, appointmentScope } from "@/lib/permission
 import { findScheduleConflicts } from "@/lib/schedule-conflicts";
 import { fireAutomations } from "@/lib/automations-server";
 import { checkPeople, peopleOf, requestedPeople, setExtraPeople } from "@/lib/appointment-people";
+import { rescheduleReminderStamps } from "@/lib/reminder-stage";
 
 const validTypes = ["PHONE_CALL", "VIDEO_CALL", "IN_PERSON"];
 const validStatuses = ["SCHEDULED", "COMPLETED", "CANCELLED", "NO_SHOW"];
@@ -29,6 +30,7 @@ export async function PATCH(
 
   const body = await req.json();
   const data: Record<string, unknown> = {};
+  const now = new Date();
 
   if (body.status !== undefined) {
     if (!validStatuses.includes(body.status)) {
@@ -66,9 +68,11 @@ export async function PATCH(
     data.scheduledAt = start;
     if (start.getTime() !== appt.scheduledAt.getTime()) {
       // A moved appointment reminds again at its new time — stale stamps
-      // would otherwise silently swallow the reminder for the new slot
-      data.reminderDaySentAt = null;
-      data.reminderHourSentAt = null;
+      // would otherwise silently swallow the reminder for the new slot. The
+      // move counts as a fresh booking for the stage rule (no day-before
+      // text minutes after moving it to later today; the hour text waits
+      // the usual 20 minutes) — lib/reminder-stage.ts.
+      Object.assign(data, rescheduleReminderStamps(now, start));
     }
   }
   if (body.scheduledEnd !== undefined) {
@@ -125,6 +129,12 @@ export async function PATCH(
     if (bad) return NextResponse.json({ error: bad }, { status: 400 });
     data.assignedToId = people![0] ?? null;
   }
+
+  // The assignees' ~1-hour heads-up push fires once per stamp; a new time or
+  // new people (still ahead of us) deserve a fresh one — a push for the old
+  // slot must not swallow the one for the new.
+  const startMoved = data.scheduledAt !== undefined && (data.scheduledAt as Date).getTime() !== appt.scheduledAt.getTime();
+  if ((startMoved || peopleChanged) && nextStart.getTime() > now.getTime()) data.techHeadsUpSentAt = null;
 
   if (Object.keys(data).length === 0) return NextResponse.json({ success: true });
 
