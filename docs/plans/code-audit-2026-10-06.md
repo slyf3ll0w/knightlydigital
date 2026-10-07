@@ -33,7 +33,36 @@ lines before it went in. Nothing has been fixed yet.
   it**); D1 FIXED (sign-out POSTs `{ release: true }`); D3 FIXED and
   extended per David: a device that answers or places a call sends a
   takeover beat (even hidden), and the wall is never drawn over a device
-  with a call ringing or live. Everything else below is still open.
+  with a call ringing or live.
+- **2026-10-07, batch 2 (Tier 2, commit 1dcb3e6d):** every remaining Tier 2 item is
+  FIXED. A1 (`dueDateOnSend` recounts a terms-derived or past due date at send
+  time), A2 (only the author's drag moves a team note; others get a placement),
+  A3 (`scheduleDocumentSend` + Atlas refuse non-DRAFT), A4 (thrown send →
+  "Couldn't send" card), A5 (help), A6/G17 (`task_assign` gate on PATCH +
+  reminder re-arm), G18 (Team view/tab behind the same gate). B1 (Team-view
+  drag keeps the other people), B2 (USER picker honoured on create), B3
+  (month-cell appointment saves Anytime), B4+E5 (`rescheduleReminderStamps` +
+  `bookingAnchor` in lib/reminder-stage.ts — a move is a new booking for the
+  age/lead rules; applied in appointment/job PATCH, manage link, shift-day,
+  optimize), B5 (`techHeadsUpSentAt` cleared on move/people change), B6 (lazy
+  geocode). C1 (`resolvePushOpen` before the path compare / card key), C2
+  (webhook placeholders get the default lead assignee; new-number dedupes
+  company-wide, assigns an unassigned match, 409 on someone else's), C4
+  (`placeholder: false` in Atlas, CSV, ⌘K, automation samples). D2 (walled
+  devices send `{ probe: true }`; `claimDevice` never writes on a probe).
+  E1 (`x-wb-path`/`x-wb-query` for /book, /portal, /embed), E2+E6 (name and
+  web address commit on blur/Enter only; `trimSlugHistory` keeps the original
+  slug; P2002 → "already in use"), E3 (`businessDetailsForced` sees the
+  registration website; backfill copies it to Company.website when blank),
+  E4+F3+F4+F5 (`loadSiteData` via `resolvePublicCompany`, 404 unless
+  IN_STUDIO/REVIEW/LIVE, legal name behind its switch, brief empty until
+  submitted, job photos export alt only), F2 (globe renders), F11 (quotes are
+  never texted by default; phone-only clients still get the chooser with Text
+  unticked — product call, David to confirm), F12+F13 (bell dedupes on the
+  entity behind the link; handled requests/leads/read threads stay hidden),
+  F14 (`hasQuote` also counts the contact's quotes since booking), G13 (help:
+  several people + overlap/drive heads-up). G14 stays HELD. Tier 3 is still
+  open.
 
 ## Fix first (ranked)
 
