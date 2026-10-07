@@ -5,7 +5,7 @@ import { Bell, Flag, Link2, Loader2, Trash2, X } from "lucide-react";
 import Modal from "@/components/Modal";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { inputCls } from "@/components/Input";
-import { Button } from "@/components/ds";
+import { Button, InfoTip } from "@/components/ds";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { formatSlotLabel, slotTimeOptions } from "@/lib/scheduling";
 import { hapticNotify } from "@/lib/haptics";
@@ -344,7 +344,10 @@ export default function TaskEditor({
 
         {canAssign && team.length > 1 && (
           <div>
-            <p className={labelCls}>{isNew ? "For" : "Assigned to"}</p>
+            <p className={`${labelCls} flex items-center gap-1`}>
+              <span>{isNew ? "For" : "Assigned to"}</span>
+              {isNew && <InfoTip>Pick more than one person and each gets their own copy.</InfoTip>}
+            </p>
             <div className="flex flex-wrap gap-1.5">
               {team.map((u) => {
                 const on = assignees.includes(u.id);
@@ -365,9 +368,6 @@ export default function TaskEditor({
                 );
               })}
             </div>
-            {isNew && assignees.length > 1 && (
-              <p className="ds-small mt-1.5">Each person gets their own copy.</p>
-            )}
           </div>
         )}
 

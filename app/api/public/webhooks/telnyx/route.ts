@@ -8,6 +8,7 @@ import {
 } from "@/lib/portal-messages";
 import { classifySmsKeyword } from "@/lib/sms-keywords";
 import { phoneDigits } from "@/lib/phone";
+import { linkCallsToContact } from "@/lib/voice";
 import { defaultLeadAssignee } from "@/lib/permissions";
 import { telnyxWebhookConfigured, verifyTelnyxSignature } from "@/lib/telnyx-webhook";
 import { fireAutomations } from "@/lib/automations-server";
@@ -207,6 +208,10 @@ async function landInboundSms(
         select: { id: true },
       });
       contactId = created.id;
+      // Calls from this number that never matched anyone are theirs now — the
+      // call log shows the thread's name instead of a bare number (audit
+      // 2026-10-06 C7; the typed-number path does the same).
+      await linkCallsToContact(companyId, contactId, fromE164).catch(() => 0);
     } else {
       contactId = candidates[0].id;
     }

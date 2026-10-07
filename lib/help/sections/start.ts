@@ -1,4 +1,5 @@
 import type { HelpSection } from "../types";
+import { proTip } from "../plan-copy";
 
 export const startSection: HelpSection = {
   id: "getting-started",
@@ -134,7 +135,7 @@ export const startSection: HelpSection = {
     {
       slug: "tasks-and-reminders",
       title: "Tasks & reminders",
-      summary: "Personal to-dos with a due time and a reminder, and (for owners and admins) tasks handed to the team.",
+      summary: "Personal tasks with a due time and a reminder, and (for owners and admins) tasks handed to the team.",
       keywords: ["task", "to-do", "todo", "reminder", "remind me", "assign", "follow up", "call back", "overdue", "checklist"],
       where: { label: "Tasks", href: "/app/tasks" },
       blocks: [
@@ -167,7 +168,7 @@ export const startSection: HelpSection = {
         },
         {
           type: "p",
-          text: "A reminder arrives as a push notification and as a card in the bell, with a tap that opens the task. For a task with a date but no time, \"at the due time\" means 9:00 AM that day in your company's timezone. Reminders land within about five minutes of the time you picked.",
+          text: "A reminder arrives as a push notification and as a card in the bell, with a tap that opens the task. If none of your devices has notifications on, it comes to your login email instead (your **Email alerts** choice in Settings → My Profile wins either way). For a task with a date but no time, \"at the due time\" means 9:00 AM that day in your company's timezone. Reminders land within about five minutes of the time you picked.",
         },
         {
           type: "h",
@@ -177,24 +178,25 @@ export const startSection: HelpSection = {
           type: "p",
           text: "Owners and admins see a **Team** tab with everyone's open tasks and can pick who a new task is for. Picking several people makes one task each, so each person can finish theirs and each gets their own reminder. The person hears about it with a push (\"Dave gave you a task\"). Everyone else can only create tasks for themselves.",
         },
+        proTip("Giving tasks to your team"),
         {
           type: "tip",
-          text: "Overdue tasks sit in **Needs you** on Home until they're done or moved; they don't keep buzzing your phone.",
+          text: "Overdue tasks sit in **Needs you** on Home until they're done or moved; they don't keep buzzing your phone. A reminder set for a time that has already passed doesn't fire at all.",
         },
         {
           type: "faq",
           items: [
             {
               q: "I didn't get the reminder.",
-              a: "Reminders go to the devices where you've turned notifications on (Settings → My Profile, or the bell on your phone). If the task was already marked done before its time, no reminder is sent. The card still shows in the bell.",
+              a: "Reminders go to the devices where you've turned notifications on (Settings → My Profile, or the bell on your phone); with no such device they're emailed to your login address, unless you or your company turned notification emails off. If the task was already marked done before its time, no reminder is sent. The card still shows in the bell.",
             },
             {
               q: "Can I give a task to someone?",
-              a: "Owners and admins can. Sales + Tech, Sales and Tech roles create tasks for themselves only.",
+              a: "Owners and admins can, on the Pro plan. Sales + Tech, Sales and Tech roles create tasks for themselves only.",
             },
             {
               q: "Where did my finished task go?",
-              a: "To the **Done** tab, for 90 days. Tap its circle there to bring it back.",
+              a: "To the **Done** tab, for 90 days — your own finished tasks. Owners and admins can switch Done to `Team` to see everyone's. Tap its circle there to bring it back.",
             },
           ],
         },
@@ -202,10 +204,10 @@ export const startSection: HelpSection = {
     },
     {
       slug: "sticky-notes",
-      title: "Sticky notes on Home",
+      title: "Sticky notes",
       summary: "Square paper notes you can stick on any page: a scribble, a number, a reminder to yourself, or one the whole team sees.",
-      keywords: ["sticky", "note", "post-it", "right click", "team", "hide notes", "expire", "resize", "any page"],
-      where: { label: "Home", href: "/app/dashboard" },
+      keywords: ["sticky", "note", "post-it", "right click", "team", "hide notes", "expire", "resize", "any page", "home"],
+      where: { label: "Any page (Home to start)", href: "/app/dashboard" },
       blocks: [
         {
           type: "p",
@@ -228,6 +230,7 @@ export const startSection: HelpSection = {
             "**Hide them:** right-click an empty spot and choose `Hide sticky notes` (or `Hide sticky notes everywhere` in the phone strip). `Show sticky notes` brings them back. It's per device.",
           ],
         },
+        proTip("Team sticky notes"),
         {
           type: "tip",
           text: "Ask Atlas: \"stick a note on the Patel job that it needs a permit\" puts one on that job's page after you confirm.",
@@ -237,7 +240,7 @@ export const startSection: HelpSection = {
           items: [
             {
               q: "I can't add another note.",
-              a: "Each person can have 30 notes up, and the team board holds 30. Take one down first.",
+              a: "Each person can have 30 notes up, and the team can have 30 shared notes up. Take one down first.",
             },
             {
               q: "A teammate's note moved on my screen.",

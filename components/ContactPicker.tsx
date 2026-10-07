@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Search } from "lucide-react";
 import { hapticImpact } from "@/lib/haptics";
 import BottomSheet from "@/components/BottomSheet";
@@ -13,6 +13,12 @@ export type PickerContact = {
 
 const fullName = (c: PickerContact) =>
   `${c.firstName} ${c.lastName}`.trim() || "Unnamed";
+
+// By the name shown, case-insensitively. The feeds order by last name, and a
+// lead saved with only a first name has lastName "" — which sorts to the top
+// of every dropdown (code audit 2026-10-06 B9).
+const byDisplayName = (a: PickerContact, b: PickerContact) =>
+  fullName(a).localeCompare(fullName(b), undefined, { sensitivity: "base" });
 
 /**
  * Searchable client selector — replaces the giant native <select> that became
@@ -45,10 +51,11 @@ export default function ContactPicker({
   const ref = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
+  const sorted = useMemo(() => [...contacts].sort(byDisplayName), [contacts]);
   const q = query.trim().toLowerCase();
   const matches = q
-    ? contacts.filter((c) => fullName(c).toLowerCase().includes(q))
-    : contacts;
+    ? sorted.filter((c) => fullName(c).toLowerCase().includes(q))
+    : sorted;
 
   useEffect(() => {
     function onClick(e: MouseEvent) {

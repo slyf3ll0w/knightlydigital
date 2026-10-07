@@ -43,7 +43,7 @@ export default function TeamTab({ company, elsewhere }: { company: CompanyCore; 
     <>
       <SectionTitle
         className="mt-8"
-        info="Online means the app is open and in front of them (a heartbeat every 45 s while the page is visible; a background tab or phone app does not count). Someone with one login at several companies is online only at the one they are using. Sign-ins count fresh logins only, not token refreshes. Devices are where the person was last seen plus where push notifications are turned on. Softphone shows a browser dialer that is registered right now."
+        info="Online means the app is open and in front of them (a beat every 20 s while the page is visible; a background tab or phone app does not count). Someone with one login at several companies is online only at the one they are using. Sign-ins count fresh logins only, not token refreshes. Devices are where the person was last seen plus where push notifications are turned on. Softphone shows a browser dialer that is registered right now."
       >
         Team <span className="ds-small ml-1 font-normal">{online > 0 ? `${online} online` : `${users.length}`}</span>
       </SectionTitle>

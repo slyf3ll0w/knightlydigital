@@ -53,6 +53,7 @@ export default function QuoteActions({
   depositInvoiced = false,
   canDelete = false,
   scheduled = false,
+  tz,
 }: {
   quoteId: string;
   status: string;
@@ -72,6 +73,8 @@ export default function QuoteActions({
   canDelete?: boolean;
   /** A Send later is pending — no "send this first?" nag on leaving */
   scheduled?: boolean;
+  /** Company timezone — Send later's default "tomorrow" is the company's day */
+  tz?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -187,6 +190,7 @@ export default function QuoteActions({
       textInfo:
         "Quotes are sent by email. Texting this one is your choice and never happens on its own — carriers treat quote texts as marketing.",
       allowLater: status === "DRAFT",
+      timeZone: tz,
     });
     if (!channels) return;
     if (channels.later) {

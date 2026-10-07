@@ -34,7 +34,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   return new NextResponse(Buffer.from(photo.data), {
     headers: {
       "Content-Type": photo.mimeType,
-      "Cache-Control": "public, max-age=31536000, immutable",
+      // Short on purpose: un-flagging a job photo must make it private again
+      // soon, and a year of `immutable` would keep serving it from caches
+      // (audit 2026-10-06, F6). Same window as the R2 redirect above.
+      "Cache-Control": "public, max-age=300",
       "X-Content-Type-Options": "nosniff",
     },
   });

@@ -63,6 +63,34 @@ lines before it went in. Nothing has been fixed yet.
   F14 (`hasQuote` also counts the contact's quotes since booking), G13 (help:
   several people + overlap/drive heads-up). G14 stays HELD. Tier 3 is still
   open.
+- **2026-10-07, David's product calls for Tier 3:** F11 quotes-never-texted-by-default
+  CONFIRMED ("as long as the quotes can be texted that is fine"). A14 → scope the
+  Done tab to the manager's own tasks + a Team chip. F15 → leave (client
+  approvals only). G11 → leave (confirmations send immediately). G12 → ADD the
+  email fallback for task reminders, same rule as other reminders. E7 + G14
+  stay held.
+- **2026-10-07, batch 3 (Tier 3, same branch):** FIXED — A7, A8 (`reminderSentStamp`),
+  A9 (schedule cleared on PAID/approval, `scheduledFailureBody`), A10
+  (`tomorrowISO` in company zone, lib/send-later-shared.ts), A11 (`doneLabel`), A12
+  (`expectScheduled` → 409), A13 (`quoteExpired` on scheduled sends), A14 (Done =
+  own tasks; Mine | Team under Done for managers, view `team_done`), B7
+  (`smsQuietHoursEnd`, 8 AM copy; confirmation line with reminders off), B8
+  (PlaceSheet heads-up + no-confirmation notice), B9 (ContactPicker sorts by
+  display name; contacts feed firstName-first — Contacts page list untouched), B10
+  (schedule/check needs canSell; ScheduleJob skips it for techs), C5, C6 (media
+  door thread/channel-scoped), C7, C8, D4 (relabelled "Daily automations"), D5,
+  D6, D7 (serializable seed), D8 ("Away"), E8, F6 (300 s), F7 (Website in
+  settings-nav + More sheet), F8 (pagehide flush, live gaps), F9, F10, F16
+  (`useHistoryTwin`; pill pops when the target is the entry underneath), G1 (3 of
+  4 — PageNotes empty state is a real empty state), G2 (Mark Lost dark button
+  kept), G3 (name → FieldLabel; web-address input kept bare inside its prefix
+  wrapper), G6, G7, G8 (lib/website-shared.ts), G12 (task reminder email via
+  `reminderEmailWanted` + `taskReminderEmail`), G15, G21 (a)(b), G23 (StickyNote
+  index — needs the usual `db:push`, predeploy does it). C10 NOT taken: the
+  agent's "shared inbox always emails" would undo David's 2026-10-01 rule, so
+  the owner's push still quiets the company inbox; only the hint is now
+  owner-only (`EmailAlertsCard isOwner`). G21(c) operator-email escaping still
+  open. Held by David: E7, F15, G11, G14.
 
 ## Fix first (ranked)
 

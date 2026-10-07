@@ -11,34 +11,31 @@ import { Input, Textarea, Select, inputCls } from "@/components/Input";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { resizePhotoFile } from "@/lib/resize-image";
-import { TONE_WORDS, SOCIAL_KEYS, type WebsiteBrief } from "@/lib/website-brief";
+import { TONE_WORDS, SOCIAL_KEYS, briefGaps, type WebsiteBrief } from "@/lib/website-brief";
+import { WEBSITE_STATUS_LABEL } from "@/lib/website-shared";
 import type { WebsiteSummary } from "@/lib/website";
 
 type Photo = WebsiteSummary["photos"][number];
 
-const STATUS: Record<WebsiteSummary["status"], { label: string; tone: "neutral" | "primary" | "secondary" | "good" | "warn"; next: string }> = {
+// Labels come from lib/website-shared.ts — one set of words for the owner.
+const STATUS: Record<WebsiteSummary["status"], { tone: "neutral" | "primary" | "secondary" | "good" | "warn"; next: string }> = {
   NOT_STARTED: {
-    label: "Not started",
     tone: "neutral",
     next: "Fill in what you have — every field is optional — and send it to the studio. We build from your trade and what WorkBench already knows, and fill the rest.",
   },
   BRIEF_SUBMITTED: {
-    label: "Sent to the studio",
     tone: "primary",
     next: "We read the brief, study your trade and your area, and come back with three directions to pick from.",
   },
   IN_STUDIO: {
-    label: "In the studio",
     tone: "primary",
     next: "Your site is being built. You can keep editing the brief and adding photos — the build reads them.",
   },
   REVIEW: {
-    label: "Ready for your review",
     tone: "secondary",
     next: "Open the preview on your phone and your computer, and send us anything you want changed.",
   },
   LIVE: {
-    label: "Live",
     tone: "good",
     next: "Hours, services, phone and flagged photos update the site on their own. Edit them here as usual.",
   },
@@ -76,13 +73,19 @@ export default function WebsiteSettingsClient({ initial }: { initial: WebsiteSum
   const [sending, setSending] = useState(false);
   const dirty = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The brief an autosave is still waiting to send, or null once it has gone
+  // out. Leaving the page (Back, a tab close, the phone app going away)
+  // flushes it instead of dropping it (audit 2026-10-06, F8).
+  const pending = useRef<WebsiteBrief | null>(null);
 
   // Autosave: 900 ms after the last keystroke, one PATCH with the whole brief.
   useEffect(() => {
     if (!dirty.current) return;
     if (timer.current) clearTimeout(timer.current);
+    pending.current = brief;
     setSaveState("saving");
     timer.current = setTimeout(async () => {
+      pending.current = null;
       const { ok, data } = await postJson<{ brief: WebsiteBrief }>("/api/app/website", { brief }, "PATCH");
       if (!ok) {
         setSaveState("error");
@@ -95,6 +98,33 @@ export default function WebsiteSettingsClient({ initial }: { initial: WebsiteSum
       if (timer.current) clearTimeout(timer.current);
     };
   }, [brief]);
+
+  // Flush: send whatever is still waiting, fire-and-forget. `keepalive` lets
+  // the request outlive the page; the body is a small JSON brief, well under
+  // the 64 KB keepalive budget.
+  useEffect(() => {
+    const flush = () => {
+      const b = pending.current;
+      if (!b) return;
+      pending.current = null;
+      if (timer.current) clearTimeout(timer.current);
+      try {
+        void fetch("/api/app/website", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ brief: b }),
+          keepalive: true,
+        });
+      } catch {
+        /* nothing left to do on the way out */
+      }
+    };
+    window.addEventListener("pagehide", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, []);
 
   function set<K extends keyof WebsiteBrief>(key: K, value: WebsiteBrief[K]) {
     dirty.current = true;
@@ -115,7 +145,10 @@ export default function WebsiteSettingsClient({ initial }: { initial: WebsiteSum
     setSending(true);
     try {
       // Flush any pending autosave first so the studio reads what's on screen
-      if (dirty.current) await postJson("/api/app/website", { brief }, "PATCH");
+      if (dirty.current) {
+        pending.current = null;
+        await postJson("/api/app/website", { brief }, "PATCH");
+      }
       const { ok, data } = await postJson<{ status: WebsiteSummary["status"]; briefSubmittedAt: string }>("/api/app/website", { action: "submit" });
       if (!ok || !data) {
         setError(data?.error ?? GENERIC_ERROR);
@@ -130,7 +163,11 @@ export default function WebsiteSettingsClient({ initial }: { initial: WebsiteSum
   }
 
   const st = STATUS[status];
-  const gaps = [...initial.companyGaps, ...initial.gaps];
+  // From the live brief and photo list, so a row ticks off as you fill it in
+  // (audit 2026-10-06, F8). Company facts are edited elsewhere, so those
+  // stay as loaded.
+  const briefGapList = briefGaps(brief, photos.length);
+  const gaps = [...initial.companyGaps, ...briefGapList];
 
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
@@ -167,7 +204,7 @@ export default function WebsiteSettingsClient({ initial }: { initial: WebsiteSum
           <div className="flex items-center gap-2">
             <h2 className="ds-h2">Your site</h2>
             <Chip tone={st.tone} icon={Globe}>
-              {st.label}
+              {WEBSITE_STATUS_LABEL[status]}
             </Chip>
           </div>
           {status === "NOT_STARTED" ? (
@@ -207,7 +244,7 @@ export default function WebsiteSettingsClient({ initial }: { initial: WebsiteSum
                   <span className="text-xs text-[color:var(--ds-muted)]">Business info</span>
                 </li>
               ))}
-              {initial.gaps.map((g) => (
+              {briefGapList.map((g) => (
                 <li key={g.key} className="flex items-center gap-2">
                   <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--ds-faint)]" />
                   {g.label}

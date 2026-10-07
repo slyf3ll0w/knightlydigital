@@ -2,17 +2,17 @@ import { type Tool, str, stage } from "./core";
 import { STICKY_BODY_MAX, STICKY_COLORS } from "../sticky-shared";
 
 /**
- * Sticky notes on Home. Cheap and fun: "stick a note that the Smith job
- * needs a 40 ft ladder". Staged like every other write so the user
- * confirms the card; the note lands on their own board unless they ask
- * for the team board.
+ * Sticky notes on any page. Cheap and fun: "stick a note on the Smith job
+ * that it needs a 40 ft ladder". Staged like every other write so the user
+ * confirms the card; the note sticks to the page named (Home when none is)
+ * and is the user's own unless they ask for a team note everyone sees.
  */
 export const noteTools: Tool[] = [
   {
     decl: {
       name: "add_sticky_note",
       description:
-        "Stage a sticky note (a square paper note: a scribble, a number, a reminder to self — NOT a task). It sticks to Home unless `page` names another in-app page path (e.g. /app/jobs/<id>). Optional color (yellow default), team=true so everyone sees it, and expiry (today / tomorrow / week). Confirmation card required.",
+        "Stage a sticky note (a square paper note: a scribble, a number, a reminder to self — NOT a task). It sticks to the page you name in `page` (an in-app path such as /app/jobs/<id> or /app/contacts/<id>); Home when no page is given. Optional color (yellow default), team=true so everyone sees it, and expiry (today / tomorrow / week). Confirmation card required.",
       parameters: {
         type: "object",
         properties: {

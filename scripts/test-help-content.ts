@@ -85,12 +85,26 @@ const expect: [string, string][] = [
   ["how do I get more atlas tokens", "atlas-tokens"],
   ["how much is the pro plan", "plans-and-pricing"],
   ["how many users are included", "add-team-members"],
+  ["sticky note on a job page", "sticky-notes"],
+  ["remind me to call a client back", "tasks-and-reminders"],
 ];
 for (const [q, slug] of expect) {
   const top = searchHelp(q, 3).map((h) => h.article.slug);
   check(top.includes(slug), `search "${q}" → [${top.join(", ")}], expected ${slug} in the top 3`);
 }
 check(searchHelp("the").length === 0, "stop-word-only search should return nothing");
+
+// Sticky notes live on every page since v4 — the guide must not say "on Home" (audit 2026-10-06 A7),
+// and nothing calls tasks "to-dos" (G6).
+const sticky = findHelpArticle("sticky-notes");
+check(sticky !== null && !/on Home/i.test(sticky.article.title), "sticky-notes title must not say 'on Home'");
+for (const s of HELP_SECTIONS) {
+  for (const a of s.articles) {
+    for (const text of [a.title, a.summary, ...a.blocks.flatMap(strings)]) {
+      check(!/\bto-dos?\b/i.test(text), `${a.slug}: say "tasks", not "to-dos" ("${text.slice(0, 60)}")`);
+    }
+  }
+}
 
 check(findHelpArticle("activate-payments") !== null, "findHelpArticle");
 check(articleMarkdown(findHelpArticle("refund-a-payment")!.article).includes("## Refund a payment"), "articleMarkdown heading");

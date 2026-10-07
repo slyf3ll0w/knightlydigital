@@ -10,8 +10,12 @@ import {
   parseDue,
   dueFields,
   dueLabel,
+  doneLabel,
   compareTasks,
+  parseTaskView,
   reminderBase,
+  reminderEmailWanted,
+  reminderSentStamp,
 } from "../lib/tasks";
 
 const tz = "America/Denver";
@@ -104,6 +108,50 @@ function due(date: string, time: string | null) {
   assert.equal(dueLabel(due("2026-10-01", null).dueAt, true, tz, now), "Overdue · Thu, Oct 1");
   assert.equal(dueLabel(due("2027-01-04", null).dueAt, true, tz, now), "Mon, Jan 4, 2027");
   assert.equal(dueLabel(null, true, tz, now), null);
+
+  // Done tab (audit 2026-10-06 A11): the company's calendar day, not the browser's / server's
+  assert.equal(doneLabel(new Date("2026-10-07T18:00:00Z"), tz, now), "today");
+  // 05:30Z Oct 7 is Oct 8 nowhere… but it is 23:30 Oct 6 in Denver → yesterday, though UTC says today
+  assert.equal(doneLabel(new Date("2026-10-07T05:30:00Z"), tz, now), "yesterday");
+  assert.equal(doneLabel(new Date("2026-10-01T15:00:00Z"), tz, now), "Oct 1");
+  assert.equal(doneLabel(new Date("2025-12-20T15:00:00Z"), tz, now), "Dec 20, 2025");
+  assert.equal(doneLabel(null, tz, now), null);
+}
+
+// ── A reminder already in the past is stamped sent, not fired (audit A8) ────
+{
+  // 10 AM, task due tomorrow 9 AM with "1 day before" → remindAt = today 9 AM, already gone
+  const stale = computeRemindAt({ dueAt: due("2026-10-08", "09:00").dueAt, allDay: false, choice: "1d", tz });
+  assert.equal(stale?.toISOString(), "2026-10-07T15:00:00.000Z");
+  assert.equal(reminderSentStamp(stale, now), now);
+  // Exactly now counts as passed; anything ahead stays armed
+  assert.equal(reminderSentStamp(new Date(now), now), now);
+  assert.equal(reminderSentStamp(new Date(now.getTime() + 60_000), now), null);
+  assert.equal(reminderSentStamp(computeRemindAt({ dueAt: due("2026-10-09", "10:00").dueAt, allDay: false, choice: "1h", tz }), now), null);
+  assert.equal(reminderSentStamp(null, now), null);
+  assert.equal(reminderSentStamp(undefined, now), null);
+}
+
+// ── Email fallback for reminders (audit G12): the team-email rule ───────────
+{
+  // Automatic: email only while no device has push on
+  assert.equal(reminderEmailWanted({ emailAlerts: null, pushOn: false, companyEmailOff: false }), true);
+  assert.equal(reminderEmailWanted({ emailAlerts: null, pushOn: true, companyEmailOff: false }), false);
+  // An explicit My Profile choice wins over push
+  assert.equal(reminderEmailWanted({ emailAlerts: true, pushOn: true, companyEmailOff: false }), true);
+  assert.equal(reminderEmailWanted({ emailAlerts: false, pushOn: false, companyEmailOff: false }), false);
+  // The company's "notification emails off" silences every case
+  assert.equal(reminderEmailWanted({ emailAlerts: true, pushOn: false, companyEmailOff: true }), false);
+  assert.equal(reminderEmailWanted({ emailAlerts: null, pushOn: false, companyEmailOff: true }), false);
+}
+
+// ── Views (audit A14): Done is mine; Team done rides the team flag ──────────
+{
+  assert.equal(parseTaskView("done", true), "done");
+  assert.equal(parseTaskView("team_done", true), "team_done");
+  assert.equal(parseTaskView("team_done", false), "done");
+  assert.equal(parseTaskView("team", false), "mine");
+  assert.equal(parseTaskView(undefined, true), "mine");
 }
 
 // ── Sort inside a group ─────────────────────────────────────────────────────

@@ -44,11 +44,18 @@ export default async function TeamPage() {
   const now = new Date();
   const elsewhere = await loadElsewhere(users, now);
   const seenOf = (u: (typeof users)[number]) => {
-    const state = presenceOf(u.lastSeenAt, company?.timezone ?? "America/Chicago", now, elsewhere.has(u.id));
-    return {
-      state,
-      label: state === "online" ? "Online now" : state === "never" ? "Never signed in" : `Last seen ${relativeSeen(u.lastSeenAt, now)}`,
-    };
+    const away = elsewhere.has(u.id);
+    const state = presenceOf(u.lastSeenAt, company?.timezone ?? "America/Chicago", now, away);
+    // A fresh stamp from the other company would read "Last seen just now"
+    // next to a hollow dot — so say "Away" instead (audit 2026-10-06, D8).
+    const label = away
+      ? "Away"
+      : state === "online"
+        ? "Online now"
+        : state === "never"
+          ? "Never signed in"
+          : `Last seen ${relativeSeen(u.lastSeenAt, now)}`;
+    return { state, label };
   };
   const seen = new Map(users.map((u) => [u.id, seenOf(u)]));
 

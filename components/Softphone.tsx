@@ -1170,11 +1170,23 @@ export default function Softphone() {
             // 2026-10-01: "at first it told me that it couldn't connect").
             console.info("[softphone] outbound INVITE never arrived; cancelling, ringing the cell instead", placedId);
             dropStaged();
-            void hangupServerSide(placedId);
             const t = outboundTarget.current;
+            const cancelled = hangupServerSide(placedId);
             setSoftphoneState({ call: null, error: t ? null : "The call never reached this browser — reconnecting. Try again in a moment." });
             restart(0);
-            if (t) void callViaCell(t, "The browser lost the line.");
+            // The cell rings only once the cancel has landed and no leg
+            // reached this browser meanwhile — a late INVITE that beat the
+            // DELETE would otherwise ring the browser AND the cell for the
+            // same person (audit 2026-10-06 C8).
+            if (t) {
+              void cancelled.then(() => {
+                if (callRef.current) {
+                  console.info("[softphone] a leg arrived while cancelling; not ringing the cell", placedId);
+                  return;
+                }
+                void callViaCell(t, "The browser lost the line.");
+              });
+            }
           }
         }, OUTBOUND_INVITE_WAIT_MS);
       },

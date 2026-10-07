@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
-import { requirePageActor, isManager } from "@/lib/permissions";
+import { requirePageActor, isManager, contactScope, jobScope, viaContactScope, type Actor } from "@/lib/permissions";
 import { featureAllowedFor } from "@/lib/plan-gate";
 import { companyTz, listTasks, parseTaskView } from "@/lib/tasks";
 import type { TaskLink, TaskPrefill } from "@/lib/tasks-shared";
@@ -23,19 +23,26 @@ type Params = {
 /**
  * Links a "New task" door can arrive with (a contact page's Add task, a call
  * card's "call them back"), resolved to labels here so the editor can show
- * what it's attached to. Anything not in this company is dropped silently.
+ * what it's attached to. Anything the actor may not see (same scopes as the
+ * POST route's link check) is dropped silently.
  */
-async function resolvePrefill(sp: Params, companyId: string): Promise<TaskPrefill | null> {
+async function resolvePrefill(sp: Params, actor: Actor): Promise<TaskPrefill | null> {
   if (sp.new !== "1") return null;
+  const companyId = actor.companyId;
   const links: TaskLink[] = [];
   const [contact, job, quote, invoice, call] = await Promise.all([
     sp.contactId
-      ? prisma.contact.findFirst({ where: { id: sp.contactId, companyId }, select: { id: true, firstName: true, lastName: true } })
+      ? prisma.contact.findFirst({
+          where: { id: sp.contactId, companyId, ...contactScope(actor) },
+          select: { id: true, firstName: true, lastName: true },
+        })
       : null,
-    sp.jobId ? prisma.job.findFirst({ where: { id: sp.jobId, companyId }, select: { id: true, title: true } }) : null,
-    sp.quoteId ? prisma.quote.findFirst({ where: { id: sp.quoteId, companyId }, select: { id: true, quoteNumber: true } }) : null,
+    sp.jobId ? prisma.job.findFirst({ where: { id: sp.jobId, companyId, ...jobScope(actor) }, select: { id: true, title: true } }) : null,
+    sp.quoteId
+      ? prisma.quote.findFirst({ where: { id: sp.quoteId, companyId, ...viaContactScope(actor) }, select: { id: true, quoteNumber: true } })
+      : null,
     sp.invoiceId
-      ? prisma.invoice.findFirst({ where: { id: sp.invoiceId, companyId }, select: { id: true, invoiceNumber: true } })
+      ? prisma.invoice.findFirst({ where: { id: sp.invoiceId, companyId, ...viaContactScope(actor) }, select: { id: true, invoiceNumber: true } })
       : null,
     sp.callId
       ? prisma.call.findFirst({ where: { id: sp.callId, companyId }, select: { id: true, customerNumber: true, direction: true } })
@@ -84,7 +91,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
           orderBy: { name: "asc" },
         })
       : Promise.resolve([] as { id: string; name: string }[]),
-    resolvePrefill(sp, actor.companyId),
+    resolvePrefill(sp, actor),
     // Tab counts: my open tasks + (managers) everyone's open tasks
     Promise.all([
       prisma.task.count({ where: { companyId: actor.companyId, assigneeId: actor.id, doneAt: null } }),

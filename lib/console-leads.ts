@@ -45,20 +45,43 @@ export type ConsoleLeadCard = {
   createdAt: string;
 };
 
-/** Seed the default columns on first use; always make sure a Won column exists. */
+/**
+ * Seed the default columns on first use; always make sure a Won column exists.
+ * The seed runs in a serializable transaction that re-reads the table first,
+ * so the very first contact-form boarding racing the first board load can't
+ * each seed a set of columns (audit 2026-10-06, D7). The loser's transaction
+ * is rolled back by Postgres; one retry then sees the winner's rows.
+ */
 export async function ensureConsoleStages(): Promise<ConsoleStage[]> {
   let stages = await prisma.consoleLeadStage.findMany({ orderBy: { sortOrder: "asc" } });
-  if (stages.length === 0) {
-    await prisma.consoleLeadStage.createMany({
-      data: [
-        ...DEFAULT_STAGES.map((s, i) => ({ ...s, sortOrder: i })),
-        { ...WON_STAGE, sortOrder: 9999, isWon: true },
-      ],
-    });
-    stages = await prisma.consoleLeadStage.findMany({ orderBy: { sortOrder: "asc" } });
-  } else if (!stages.some((s) => s.isWon)) {
-    await prisma.consoleLeadStage.create({ data: { ...WON_STAGE, sortOrder: 9999, isWon: true } });
-    stages = await prisma.consoleLeadStage.findMany({ orderBy: { sortOrder: "asc" } });
+  if (stages.length === 0 || !stages.some((s) => s.isWon)) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        stages = await prisma.$transaction(
+          async (tx) => {
+            const current = await tx.consoleLeadStage.findMany({ orderBy: { sortOrder: "asc" } });
+            if (current.length === 0) {
+              await tx.consoleLeadStage.createMany({
+                data: [
+                  ...DEFAULT_STAGES.map((s, i) => ({ ...s, sortOrder: i })),
+                  { ...WON_STAGE, sortOrder: 9999, isWon: true },
+                ],
+              });
+            } else if (!current.some((s) => s.isWon)) {
+              await tx.consoleLeadStage.create({ data: { ...WON_STAGE, sortOrder: 9999, isWon: true } });
+            } else {
+              return current;
+            }
+            return tx.consoleLeadStage.findMany({ orderBy: { sortOrder: "asc" } });
+          },
+          { isolationLevel: "Serializable" }
+        );
+        break;
+      } catch (err) {
+        // A serialization failure means the other side seeded first — read theirs.
+        if (attempt === 1) throw err;
+      }
+    }
   }
   // Won is always last, whatever its sortOrder says.
   return [...stages.filter((s) => !s.isWon), ...stages.filter((s) => s.isWon)].map((s) => ({

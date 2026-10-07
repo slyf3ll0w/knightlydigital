@@ -1762,6 +1762,38 @@ export function bookingDeclinedEmail({
 }
 
 /**
+ * Task reminder to the assignee — the email twin of the "Reminder: …" push,
+ * sent only when push can't reach them (lib/tasks.ts reminderEmailWanted).
+ */
+export function taskReminderEmail({
+  companyName,
+  title,
+  dueText,
+  highPriority,
+  notes,
+  taskUrl,
+}: {
+  companyName: string;
+  title: string;
+  /** "Due Today · 3:00 PM" or null for a task with no date. */
+  dueText: string | null;
+  highPriority: boolean;
+  notes?: string | null;
+  /** In-app path (/app/tasks?task=…); made absolute here. */
+  taskUrl: string;
+}): { subject: string; html: string } {
+  const html = wbShell({
+    label: highPriority ? "Task reminder · high priority" : "Task reminder",
+    inner: `<p style="margin:0 0 12px;color:#111827;font-size:15px;"><strong>${esc(title)}</strong></p>
+      ${dueText ? `<p style="margin:0;color:#374151;font-size:14px;">${esc(dueText)}</p>` : ""}
+      ${notes ? `<p style="margin:12px 0 0;color:#6b7280;font-size:13px;white-space:pre-wrap;">${esc(notes)}</p>` : ""}
+      ${wbBtn(absUrl(taskUrl), "Open the task")}`,
+    footNote: `Sent to you at ${esc(companyName)} because none of your devices has WorkBench notifications on — change that under Settings → My Profile.`,
+  });
+  return { subject: `${highPriority ? "Reminder (high priority)" : "Reminder"}: ${title}${dueText ? ` — ${dueText}` : ""} · ${companyName}`, html };
+}
+
+/**
  * To the company inbox when a customer books, moves or cancels online —
  * the team-side twin of the client emails above.
  */

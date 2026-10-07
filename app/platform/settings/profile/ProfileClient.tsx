@@ -38,6 +38,7 @@ export default function ProfileClient({
   softphoneEnabled = null,
   emailAlerts = null,
   pushOn = false,
+  isOwner = false,
 }: {
   userId: string;
   hasAvatar: boolean;
@@ -61,6 +62,8 @@ export default function ProfileClient({
   emailAlerts?: boolean | null;
   /** Whether any of this person's devices has push on (decides what automatic means today). */
   pushOn?: boolean;
+  /** OWNER: their email setting also covers the company inbox (lib/notify.ts), so the card says so. */
+  isOwner?: boolean;
 }) {
   const router = useRouter();
   const [name, setName] = useState(initialName);
@@ -415,7 +418,7 @@ export default function ProfileClient({
 
       <PushToggleCard />
 
-      <EmailAlertsCard initial={emailAlerts} pushOn={pushOn} />
+      <EmailAlertsCard initial={emailAlerts} pushOn={pushOn} isOwner={isOwner} />
 
       {softphoneEnabled !== null && <SoftphoneToggleCard initial={softphoneEnabled} />}
 

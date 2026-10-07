@@ -529,6 +529,37 @@ function trackPath(pathname: string): string | null {
   return navStack.length >= 2 ? navStack[navStack.length - 2] : null;
 }
 
+// The browser-history twin of navStack (audit 2026-10-06, F16). The in-app
+// stack and window.history drift (a link to the page you came from is a pop
+// here, a push there), so the Back pill used to be a push every time — and
+// then the system/browser Back bounced you to the page you had just left.
+// This remembers the pathname rendered just before the current one and
+// whether getting here added EXACTLY one history entry (a plain push). Only
+// then is that pathname known to sit directly under this one in the browser's
+// history, and `goBack` can pop to it. A deep link, a replace, a popstate, a
+// double push (query/hash changes, a detour outside /app) or a capped history
+// leaves this null and the pill pushes as before.
+let historyPrevPath: string | null = null;
+let historyLength = 0;
+let backPopTarget: string | null = null;
+
+function useHistoryTwin(pathname: string) {
+  useEffect(() => {
+    // Equality guard: dev double-invoke and shell remounts must not shift it.
+    if (historyPrevPath === pathname) return;
+    const from = historyPrevPath;
+    historyPrevPath = pathname;
+    // Next commits its pushState in a sibling effect of this same render, so
+    // history.length is read a tick later.
+    const t = setTimeout(() => {
+      const len = window.history.length;
+      backPopTarget = from !== null && len === historyLength + 1 ? from : null;
+      historyLength = len;
+    }, 0);
+    return () => clearTimeout(t);
+  }, [pathname]);
+}
+
 // The More sheet remembers the last four pages opened from it (per device).
 const MORE_RECENT_KEY = "wb-more-recent";
 
@@ -541,7 +572,7 @@ const MORE_GROUPS: { label: string; tone: "a" | "b" | "c" | "d" | "e"; hrefs: st
   { label: "Sales", tone: "b", hrefs: ["/app/quotes", "/app/estimates", "/app/contracts", "/app/appointments"] },
   { label: "Field work", tone: "c", hrefs: ["/app/schedule/map", "/app/jobs", "/app/tasks", "/app/timesheets", "/app/chat"] },
   { label: "Money", tone: "d", hrefs: ["/app/invoices", "/app/payments", "/app/subscriptions"] },
-  { label: "Business", tone: "e", hrefs: ["/app/business", "/app/automations", "/app/settings/products", "/app/settings/booking", "/app/settings/team"] },
+  { label: "Business", tone: "e", hrefs: ["/app/business", "/app/automations", "/app/settings/products", "/app/settings/booking", "/app/settings/website", "/app/settings/team"] },
 ];
 
 const forRole = (items: NavItem[], role: string, salesMoney: boolean) =>
@@ -2135,17 +2166,21 @@ export default function AppShell({
   }
 
   const previousPath = trackPath(pathname);
+  useHistoryTwin(pathname);
   const declaredParent = useBackParent(pathname);
   const mobileBack = mobileBackFor(pathname, previousPath, declaredParent);
   const goBack = () => {
     if (!mobileBack) return;
     void confirmLeave().then((ok) => {
       if (!ok) return;
-      // Always a push to the page the label names — never router.back():
-      // the browser's history and the in-app stack drift apart (a link to
-      // the page you came from reads as a pop here, not there), and a tap
-      // must land where the pill says.
-      router.push(mobileBack.to);
+      // A tap must land where the pill says. When that page is known to be
+      // the entry directly under this one in the browser's history, pop to
+      // it so a system/browser Back afterwards keeps going backwards instead
+      // of returning here (F16). Otherwise push — the browser's history and
+      // the in-app stack drift apart (a link to the page you came from reads
+      // as a pop here, not there), and a deep link has nothing under it.
+      if (backPopTarget !== null && backPopTarget === mobileBack.to) router.back();
+      else router.push(mobileBack.to);
     });
   };
 

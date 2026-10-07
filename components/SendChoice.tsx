@@ -8,6 +8,7 @@ import { inputCls } from "@/components/Input";
 import { hapticImpact } from "@/lib/haptics";
 import { slotTimeOptions } from "@/lib/scheduling";
 import type { SendChannels } from "@/lib/send-channels";
+import { tomorrowISO } from "@/lib/send-later-shared";
 
 /**
  * "Send to client" — by email, by text from the business line, or both
@@ -43,6 +44,13 @@ export type SendChoiceOptions = {
   textInfo?: string;
   /** Offer "Send later" (quotes and invoices). */
   allowLater?: boolean;
+  /**
+   * The company's IANA zone: "tomorrow" for the Send later default is the
+   * company's tomorrow, which the server parses the date in — not the
+   * browser's, which can be a day ahead for someone travelling. Browser
+   * zone when omitted.
+   */
+  timeZone?: string;
 };
 
 const TEXT_INFO = "Goes out from your business line, with the same link. The client can reply by text and it lands in Messages.";
@@ -53,12 +61,6 @@ export type SendChoiceResult = SendChannels & {
 };
 
 type Pending = { opts: SendChoiceOptions; resolve: (c: SendChoiceResult | null) => void };
-
-function tomorrowISO(): string {
-  const d = new Date(Date.now() + 86_400_000);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
 
 export function useSendChoice() {
   const [pending, setPending] = useState<Pending | null>(null);
@@ -85,7 +87,7 @@ export function useSendChoice() {
       resolved.current = false;
       setPick(picked);
       setLater(false);
-      setLaterDate(tomorrowISO());
+      setLaterDate(tomorrowISO(opts.timeZone));
       setLaterTime("09:00");
       setPending({ opts, resolve });
     });
@@ -99,20 +101,20 @@ export function useSendChoice() {
   };
 
   const row = (key: keyof SendChannels, Icon: typeof Mail, label: string, to: string, info?: string) => (
-    <label className="flex cursor-pointer items-center gap-3 rounded-[12px] border border-gray-200 bg-white px-3.5 py-3">
+    <label className="flex cursor-pointer items-center gap-3 rounded-[12px] border border-[color:var(--ds-line)] bg-[color:var(--ds-surface)] px-3.5 py-3">
       <input
         type="checkbox"
         checked={pick[key]}
         onChange={(e) => setPick((p) => ({ ...p, [key]: e.target.checked }))}
         className="h-4 w-4 accent-[color:var(--ds-primary)]"
       />
-      <Icon size={16} className="shrink-0 text-gray-500" />
+      <Icon size={16} className="shrink-0 text-[color:var(--ds-muted)]" />
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1 text-sm font-semibold text-gray-900">
+        <span className="flex items-center gap-1 text-sm font-semibold text-[color:var(--ds-ink)]">
           {label}
           {info && <InfoTip>{info}</InfoTip>}
         </span>
-        <span className="block truncate text-xs text-gray-500">{to}</span>
+        <span className="block truncate text-xs text-[color:var(--ds-muted)]">{to}</span>
       </span>
     </label>
   );
@@ -126,18 +128,18 @@ export function useSendChoice() {
     <Modal open={Boolean(pending)} onClose={() => finish(null)} size="sm" portal>
       {pending && (
         <div className="space-y-3 text-left">
-          <h2 className="text-base font-semibold text-gray-900">{pending.opts.what}</h2>
+          <h2 className="text-base font-semibold text-[color:var(--ds-ink)]">{pending.opts.what}</h2>
           <div className="grid gap-2">
             {canEmail && row("email", Mail, "Email", pending.opts.email ?? "")}
             {canTextNow &&
               row("text", MessageSquare, "Text", pending.opts.phone ?? "", pending.opts.textInfo ?? TEXT_INFO)}
             {!canEmail && !canTextNow && (
-              <p className="text-sm text-gray-600">No email or textable phone on file yet — add one before the send time.</p>
+              <p className="text-sm text-[color:var(--ds-muted)]">No email or textable phone on file yet — add one before the send time.</p>
             )}
           </div>
 
           {pending.opts.allowLater && (
-            <div className="rounded-[12px] border border-gray-200 bg-white px-3.5 py-3">
+            <div className="rounded-[12px] border border-[color:var(--ds-line)] bg-[color:var(--ds-surface)] px-3.5 py-3">
               <label className="flex cursor-pointer items-center gap-3">
                 <input
                   type="checkbox"
@@ -145,8 +147,8 @@ export function useSendChoice() {
                   onChange={(e) => setLater(e.target.checked)}
                   className="h-4 w-4 accent-[color:var(--ds-primary)]"
                 />
-                <CalendarClock size={16} className="shrink-0 text-gray-500" />
-                <span className="flex items-center gap-1 text-sm font-semibold text-gray-900">
+                <CalendarClock size={16} className="shrink-0 text-[color:var(--ds-muted)]" />
+                <span className="flex items-center gap-1 text-sm font-semibold text-[color:var(--ds-ink)]">
                   Send later
                   <InfoTip>
                     Picks a date and time in your company&apos;s timezone. Until then it stays a draft you can still edit;
@@ -181,7 +183,7 @@ export function useSendChoice() {
           )}
 
           <div className="flex items-center justify-end gap-2 pt-1">
-            <button type="button" onClick={() => finish(null)} className="btn-tool-line rounded-[10px] bg-white px-3.5 py-2 text-sm font-medium text-gray-700">
+            <button type="button" onClick={() => finish(null)} className="btn-tool-line rounded-[10px] bg-white px-3.5 py-2 text-sm font-medium text-[color:var(--ds-ink-2)]">
               Cancel
             </button>
             <button

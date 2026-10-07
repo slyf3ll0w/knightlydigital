@@ -13,6 +13,7 @@ import { notifyUser } from "@/lib/push";
 import { reportError } from "@/lib/report-error";
 import type { SendChannels } from "@/lib/send-channels";
 import { parseDue } from "@/lib/tasks";
+import { quoteExpired } from "@/lib/quote-expiry";
 
 /**
  * The one way a quote or an invoice goes out to a client — used by the Send
@@ -29,7 +30,10 @@ export type DocumentKind = "quote" | "invoice";
 
 export type SendResult =
   | { ok: true; emailed: boolean; texted: boolean; to: string | null; phone: string | null }
-  | { ok: false; status: 400 | 404 | 424; error: string };
+  | { ok: false; status: 400 | 404 | 409 | 424; error: string };
+
+/** Send now pressed after the sweep already claimed the row (expectScheduled). */
+const JUST_WENT_OUT = "It just went out — the scheduled send got there first. Refresh the page to see it.";
 
 const QUOTE_SENDABLE = ["DRAFT", "AWAITING_RESPONSE", "CHANGES_REQUESTED"];
 
@@ -46,14 +50,26 @@ export async function sendQuote(opts: {
   /** Extra row filter (the route's viaContactScope); the sweep passes none. */
   scope?: Record<string, unknown>;
   channels: SendChannels;
+  /** The Send-later sweep: a quote whose valid-until day has ended is not sent. */
+  scheduled?: boolean;
+  /** "Send now" on a scheduled draft: refuse (409) when the schedule is already gone — the sweep beat the click. */
+  expectScheduled?: boolean;
 }): Promise<SendResult> {
   const quote = await prisma.quote.findFirst({
     where: { id: opts.id, companyId: opts.companyId, ...(opts.scope ?? {}) },
     include: { contact: true, company: true, lineItems: { orderBy: { sortOrder: "asc" } } },
   });
   if (!quote) return { ok: false, status: 404, error: "Quote not found." };
+  if (opts.expectScheduled && !quote.scheduledSendAt) return { ok: false, status: 409, error: JUST_WENT_OUT };
   if (!QUOTE_SENDABLE.includes(quote.status)) {
     return { ok: false, status: 400, error: "This quote already has a client response — nothing to send." };
+  }
+  if (opts.scheduled && quoteExpired(quote.validUntil, quote.company.timezone)) {
+    return {
+      ok: false,
+      status: 400,
+      error: "This quote expired before it could go out — move its valid-until date and send it again.",
+    };
   }
   const contact = quote.contact;
   const textable =
@@ -174,12 +190,15 @@ export async function sendInvoice(opts: {
   companyId: string;
   scope?: Record<string, unknown>;
   channels: SendChannels;
+  /** "Send now" on a scheduled draft: refuse (409) when the schedule is already gone — the sweep beat the click. */
+  expectScheduled?: boolean;
 }): Promise<SendResult> {
   const invoice = await prisma.invoice.findFirst({
     where: { id: opts.id, companyId: opts.companyId, ...(opts.scope ?? {}) },
     include: { contact: true, company: true, lineItems: { orderBy: { sortOrder: "asc" } } },
   });
   if (!invoice) return { ok: false, status: 404, error: "Invoice not found." };
+  if (opts.expectScheduled && !invoice.scheduledSendAt) return { ok: false, status: 409, error: JUST_WENT_OUT };
   if (invoice.status === "PAID") return { ok: false, status: 400, error: "This invoice is already paid." };
 
   const contact = invoice.contact;
@@ -315,6 +334,16 @@ export interface ScheduledSendSummary {
   errors: number;
 }
 
+/**
+ * The "Couldn't send" card's body (pure, unit-tested). "It's still a draft —
+ * open it to fix and send" is only true while the document IS still a draft;
+ * a scheduled invoice that got paid first, or a quote the client approved
+ * first, fails with its own reason and must not be called a draft.
+ */
+export function scheduledFailureBody(error: string, statusNow: string | null | undefined): string {
+  return statusNow === "DRAFT" ? `${error} It's still a draft — open it to fix and send.` : error;
+}
+
 
 /**
  * Send-later sweep: every quote / invoice whose scheduled instant has
@@ -403,9 +432,9 @@ export async function runScheduledSends(now: Date = new Date()): Promise<Schedul
       if (claimed.count === 0) continue;
 
       const result: SendResult = (await inPreview(job.companyId))
-        ? { ok: false, status: 400, error: "this is a preview account" }
+        ? { ok: false, status: 400, error: "This is a preview account; nothing goes out to clients." }
         : job.kind === "quote"
-          ? await sendQuote({ id: job.id, companyId: job.companyId, channels: job.channels })
+          ? await sendQuote({ id: job.id, companyId: job.companyId, channels: job.channels, scheduled: true })
           : await sendInvoice({ id: job.id, companyId: job.companyId, channels: job.channels });
 
       if (result.ok) {
@@ -424,9 +453,13 @@ export async function runScheduledSends(now: Date = new Date()): Promise<Schedul
       } else {
         summary.failed++;
         if (job.byId) {
+          const row =
+            job.kind === "quote"
+              ? await prisma.quote.findUnique({ where: { id: job.id }, select: { status: true } })
+              : await prisma.invoice.findUnique({ where: { id: job.id }, select: { status: true } });
           await notifyUser(job.byId, {
             title: `Couldn't send ${label.toLowerCase()}`,
-            body: `${result.error} It's still a draft — open it to fix and send.`,
+            body: scheduledFailureBody(result.error, row?.status),
             url,
             tag: `scheduled-send-${job.kind}-${job.id}`,
           });

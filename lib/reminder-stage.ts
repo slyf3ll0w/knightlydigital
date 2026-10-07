@@ -39,6 +39,8 @@
  * hour stage any time before the start.
  */
 
+import { zonedParts } from "@/lib/timezone";
+
 export const HOUR_STAGE_MS = 70 * 60_000;
 export const DAY_STAGE_MS = 24 * 3_600_000;
 /** Day stage is not worth sending inside this — the hour stage covers it. */
@@ -123,4 +125,27 @@ export function inSmsQuietHours(now: Date, timeZone: string): boolean {
     new Intl.DateTimeFormat("en-US", { timeZone, hour: "2-digit", hourCycle: "h23" }).format(now)
   );
   return localHour < 8 || localHour >= 21;
+}
+
+/**
+ * When the quiet-hours stretch `at` falls in ends: 8:00 AM company-local,
+ * that morning (an early-hours `at`) or the next (an evening one). The sweep
+ * leaves a stage unclaimed while texts are paused and sends on its first
+ * tick after this, so a text-only hour reminder for a start later than this
+ * still goes out — just at 8 AM. Only meaningful when inSmsQuietHours(at).
+ */
+export function smsQuietHoursEnd(at: Date, timeZone: string): Date {
+  const p = zonedParts(timeZone, at);
+  const day = p.hour >= 21 ? p.d + 1 : p.d; // Date.UTC carries a month overflow
+  // Local wall clock read as UTC, then corrected by the zone's offset at that
+  // moment; a second pass settles a DST switch that morning.
+  const want = Date.UTC(p.y, p.m - 1, day, 8, 0, 0);
+  let guess = want;
+  for (let i = 0; i < 2; i++) {
+    const q = zonedParts(timeZone, new Date(guess));
+    const seen = Date.UTC(q.y, q.m - 1, q.d, q.hour, q.minute, 0);
+    if (seen === want) break;
+    guess += want - seen;
+  }
+  return new Date(guess);
 }

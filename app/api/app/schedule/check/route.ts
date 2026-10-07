@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getActor } from "@/lib/permissions";
+import { canSell, getActor } from "@/lib/permissions";
 import { findScheduleConflicts } from "@/lib/schedule-conflicts";
 import { findDriveConflicts } from "@/lib/schedule-drive";
 
@@ -17,6 +17,11 @@ import { findDriveConflicts } from "@/lib/schedule-drive";
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // The labels name other people's jobs, appointments and blocks — which
+  // jobScope hides from techs. Only the scheduling side (owners, admins,
+  // dispatchers, sales — canSell covers managers) may ask; the forms that
+  // call this are theirs, and ScheduleJob skips the hook for anyone else.
+  if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const body = await req.json().catch(() => ({}));
 
   const start = new Date(body.start);

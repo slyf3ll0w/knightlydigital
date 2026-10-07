@@ -229,6 +229,7 @@ function Row({ row }: { row: WebsiteRow }) {
             <Button
               size="sm"
               icon={busy === "save" ? Loader2 : Save}
+              disabled={Boolean(busy)}
               onClick={() =>
                 void call(
                   {
@@ -246,7 +247,7 @@ function Row({ row }: { row: WebsiteRow }) {
               Save
             </Button>
             {row.pagesProject ? (
-              <Button size="sm" variant="outline" icon={busy === "rebuild" ? Loader2 : Hammer} onClick={() => void call({ action: "rebuild" }, "rebuild")}>
+              <Button size="sm" variant="outline" icon={busy === "rebuild" ? Loader2 : Hammer} disabled={Boolean(busy)} onClick={() => void call({ action: "rebuild" }, "rebuild")}>
                 Rebuild now
               </Button>
             ) : (

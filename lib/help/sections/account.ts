@@ -61,7 +61,7 @@ export const settingsSection: HelpSection = {
         },
         {
           type: "p",
-          text: "**Legal business name** is the entity on paper, when it differs — an LLC that trades under a brand, or under the owner's name. It goes on your texting registration and payments paperwork, and clients never see it unless you turn on **Show the legal name on quotes, invoices and agreements**, which adds it in small print under your business name. Leave it blank when both names are the same.",
+          text: "**Legal business name** is the entity on paper, when it differs — an LLC that trades under a brand, or under the owner's name. It goes on your texting registration and payments paperwork, and clients never see it unless you turn on **Show the legal name on quotes, invoices and agreements**, which adds it in the footer of PDFs and on the agreement page. Leave it blank when both names are the same.",
         },
         {
           type: "steps",

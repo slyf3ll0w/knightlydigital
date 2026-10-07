@@ -298,6 +298,7 @@ export default async function JobDetailPage({
             })}
             defaultDurationMinutes={bookDurationMinutes || undefined}
             dayStartMinutes={earliestOpenMinutes(sanitizeBusinessHours(company?.businessHours))}
+            headsUp={canSell(actor.role)}
           />
         </div>
         {job.completionSignedAt && (

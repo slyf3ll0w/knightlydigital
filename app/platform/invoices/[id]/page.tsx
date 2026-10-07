@@ -157,6 +157,7 @@ export default async function InvoiceDetailPage({
           finix={finixCfg}
           balance={balance}
           scheduled={Boolean(invoice.scheduledSendAt)}
+          tz={tz}
           reopenStatus={
             totalPaid > 0 && totalPaid >= Number(invoice.total) - 0.005
               ? "PAID"

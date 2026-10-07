@@ -9,7 +9,7 @@ import { appointmentTypeLabel } from "@/lib/statuses";
 import { resolveSlotInterval } from "@/lib/scheduling";
 import { earliestOpenMinutes, sanitizeBusinessHours } from "@/lib/business-hours";
 import { canText } from "@/lib/sms-consent";
-import { HOUR_STAGE_MS, MIN_BOOKING_AGE_MS, bookingAnchor, inSmsQuietHours, reminderOutlook } from "@/lib/reminder-stage";
+import { HOUR_STAGE_MS, MIN_BOOKING_AGE_MS, bookingAnchor, inSmsQuietHours, reminderOutlook, smsQuietHoursEnd } from "@/lib/reminder-stage";
 import StatusChip from "@/components/StatusChip";
 import { Chip } from "@/components/ds";
 import BackLink from "@/components/BackLink";
@@ -38,7 +38,13 @@ function clientReminderStatus(appt: {
   contact: { firstName: string; email: string | null; phone: string | null; smsOptOut: boolean; smsDisabled: boolean };
 }, tz: string): string {
   const first = appt.contact.firstName;
-  if (!appt.remindClient) return "Automatic client reminders are off for this appointment.";
+  // The "you're booked" text/email is separate from the reminders — show it
+  // even when reminders are off, or a sent confirmation looks like it never went
+  if (!appt.remindClient) {
+    return appt.confirmationSentAt
+      ? `Confirmation sent ${fmtDateTime(appt.confirmationSentAt, tz)}. Automatic client reminders are off for this appointment.`
+      : "Automatic client reminders are off for this appointment.";
+  }
   const textable = canText(appt.contact);
   const emailable = Boolean(appt.contact.email);
   if (!textable && !emailable) {
@@ -67,7 +73,10 @@ function clientReminderStatus(appt: {
     : `${first} gets a reminder about an hour ahead${appt.scheduledAt.getTime() - bookedAt.getTime() > 86400000 ? ", and the day before" : ""}`;
   // Texts pause 9 PM–8 AM company-local (lib/reminder-stage.ts inSmsQuietHours).
   // When the hour-before moment lands inside that, say so here — otherwise a
-  // late-evening booking looks like a dropped text.
+  // late-evening booking looks like a dropped text. The sweep leaves the
+  // stage unclaimed while texts are paused and sends on its first tick after
+  // 8 AM if the appointment hasn't started yet (lib/reminders.ts), so an
+  // 8:30 AM appointment IS texted — at 8 AM; only a start before 8 misses out.
   const hourMoment = new Date(
     Math.max(appt.scheduledAt.getTime() - HOUR_STAGE_MS, bookedAt.getTime() + MIN_BOOKING_AGE_MS)
   );
@@ -76,7 +85,9 @@ function clientReminderStatus(appt: {
     ? ""
     : emailable
       ? " Texts pause 9 PM–8 AM, so the hour-before reminder goes by email."
-      : " Texts pause 9 PM–8 AM, and there's no email on file, so the hour-before text can't go out.";
+      : appt.scheduledAt.getTime() > smsQuietHoursEnd(hourMoment, tz).getTime()
+        ? " Texts pause 9 PM–8 AM, so the hour-before text goes out at 8 AM instead."
+        : " Texts pause 9 PM–8 AM, and there's no email on file, so the hour-before text can't go out.";
   return `Client reminders by ${via}: ${coming}.${quietNote}`;
 }
 

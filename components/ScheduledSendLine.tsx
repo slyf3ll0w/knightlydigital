@@ -39,13 +39,16 @@ export default function ScheduledSendLine({
   async function sendNow() {
     if (busy) return;
     setBusy("send");
+    // expectScheduled: the route answers 409 when the sweep already claimed
+    // the row seconds ago, so the client isn't sent the same thing twice
     const res = await postJson<{ emailed?: boolean; texted?: boolean; to?: string | null; phone?: string | null }>(
       `${base}/send`,
-      channels
+      { ...channels, expectScheduled: true }
     );
     setBusy(null);
     if (!res.ok) {
       await alertSheet({ message: res.data?.error ?? `Couldn't send the ${kind}.` });
+      if (res.status === 409) router.refresh();
       return;
     }
     hapticImpact("LIGHT");

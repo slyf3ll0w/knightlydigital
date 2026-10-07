@@ -1,7 +1,7 @@
 // Unit checks for lib/reminder-stage.ts + the client text templates in
 // lib/sms.ts — run: npx tsx scripts/test-reminder-copy.ts
 import assert from "node:assert/strict";
-import { reminderStage, reminderOutlook, rescheduleReminderStamps, bookingAnchor, HOUR_STAGE_MS, MIN_BOOKING_AGE_MS, inSmsQuietHours } from "../lib/reminder-stage";
+import { reminderStage, reminderOutlook, rescheduleReminderStamps, bookingAnchor, HOUR_STAGE_MS, MIN_BOOKING_AGE_MS, inSmsQuietHours, smsQuietHoursEnd } from "../lib/reminder-stage";
 import { appointmentReminderText, bookingConfirmationText, meetingLabel } from "../lib/sms";
 import { swapSlugInPath, trimSlugHistory, RESERVED_SLUGS } from "../lib/company-slug";
 import { slugify } from "../lib/slugify";
@@ -90,6 +90,17 @@ const at = (iso: string) => new Date(iso);
   assert.equal(inSmsQuietHours(at("2026-10-07T12:30:00Z"), "America/Chicago"), true, "7:30 AM Chicago is quiet");
   assert.equal(inSmsQuietHours(at("2026-10-07T13:00:00Z"), "America/Chicago"), false, "8:00 AM Chicago sends");
   assert.equal(inSmsQuietHours(at("2026-10-08T02:00:00Z"), "America/Chicago"), true, "9:00 PM Chicago is quiet");
+  // The appointment page's "goes out at 8 AM instead" line (B7): where the
+  // paused stretch ends — 8 AM that morning for an early hour-before moment,
+  // 8 AM tomorrow for an evening one, DST morning included.
+  assert.equal(smsQuietHoursEnd(at("2026-10-07T12:20:00Z"), "America/Chicago").toISOString(), "2026-10-07T13:00:00.000Z", "7:20 AM → 8 AM today");
+  assert.equal(smsQuietHoursEnd(at("2026-10-08T02:30:00Z"), "America/Chicago").toISOString(), "2026-10-08T13:00:00.000Z", "9:30 PM → 8 AM tomorrow");
+  assert.equal(smsQuietHoursEnd(at("2026-11-01T05:00:00Z"), "America/Chicago").toISOString(), "2026-11-01T14:00:00.000Z", "DST ends that morning: 8 AM is CST");
+  assert.equal(smsQuietHoursEnd(at("2026-11-01T03:30:00Z"), "America/Chicago").toISOString(), "2026-11-01T14:00:00.000Z", "10:30 PM Oct 31 → 8 AM Nov 1 (month overflow)");
+  // An 8:30 AM phone-only appointment: hour moment 7:20 is quiet, start is
+  // past 8 AM → texted at 8; a 7:30 AM one is not.
+  assert.ok(at("2026-10-07T13:30:00Z") > smsQuietHoursEnd(at("2026-10-07T12:20:00Z"), "America/Chicago"), "8:30 AM start gets its text at 8");
+  assert.ok(!(at("2026-10-07T12:30:00Z") > smsQuietHoursEnd(at("2026-10-07T11:20:00Z"), "America/Chicago")), "7:30 AM start can't");
 }
 
 // ── Copy ───────────────────────────────────────────────────────────────────

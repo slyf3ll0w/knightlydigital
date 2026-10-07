@@ -25,7 +25,7 @@ import { queueQuickBooksPaymentSync } from "@/lib/quickbooks";
 import { sendEmail, reviewRequestEmail, paymentReceiptEmail } from "@/lib/email";
 import { isPastDue, dueDateFromTerms } from "@/lib/due-dates";
 import { paymentMethodLabel } from "@/lib/statuses";
-import type { PaymentMethod, Prisma } from "@prisma/client";
+import { Prisma, type PaymentMethod } from "@prisma/client";
 import { isTransientProcessorStatus } from "@/lib/autopay-rules";
 import { anchoredNextRunDate } from "@/lib/billing-cursor";
 
@@ -462,12 +462,15 @@ export async function recordPayment(params: RecordPaymentParams) {
               : { dueDate: dueDateFromTerms(issuedNow, invoice.contact?.paymentTermsDays ?? 0) }),
           }
         : {};
+    // Leaving DRAFT (or getting paid) ends any pending Send later — same
+    // CLEAR as lib/send-document.ts, inlined (importing it here would cycle)
+    const clearSendLater = { scheduledSendAt: null, scheduledSendById: null, scheduledSendChannels: Prisma.DbNull };
     await tx.invoice.update({
       where: { id: invoice.id },
       data: fullyPaid
-        ? { status: "PAID", paidAt: params.paidAt ?? new Date(), ...issueStamp }
+        ? { status: "PAID", paidAt: params.paidAt ?? new Date(), ...issueStamp, ...clearSendLater }
         : invoice.status === "DRAFT"
-          ? { status: "AWAITING_PAYMENT", ...issueStamp }
+          ? { status: "AWAITING_PAYMENT", ...issueStamp, ...clearSendLater }
           : {},
     });
 
@@ -653,7 +656,14 @@ export async function recomputeInvoiceStatus(
     );
     await tx.invoice.update({
       where: { id: invoiceId },
-      data: { status: "PAID", paidAt: lastPaidAt ?? new Date() },
+      data: {
+        status: "PAID",
+        paidAt: lastPaidAt ?? new Date(),
+        // Paid → nothing left to send later (mirrors lib/send-document.ts CLEAR)
+        scheduledSendAt: null,
+        scheduledSendById: null,
+        scheduledSendChannels: Prisma.DbNull,
+      },
     });
   } else if (invoice.status === "PAID") {
     await tx.invoice.update({

@@ -101,6 +101,17 @@ export async function PATCH(
   if (saving && !String(body.firstName ?? "").trim()) {
     return NextResponse.json({ error: "Add their first name to save them." }, { status: 400 });
   }
+  // The row being saved: its stored number links the earlier calls below
+  // (the Save card sends no phone), and an unassigned row becomes the
+  // saver's (audit 2026-10-06 C5/C7).
+  let savedRow: { phone: string | null; assignedToId: string | null } | null = null;
+  if (saving) {
+    savedRow = await prisma.contact.findFirst({
+      where: { id, companyId: actor.companyId, ...contactScope(actor) },
+      select: { phone: true, assignedToId: true },
+    });
+    if (!savedRow) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   const opt = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
 
@@ -157,7 +168,14 @@ export async function PATCH(
       ...(status !== undefined && { status }),
       ...(paymentTermsDays !== undefined && { paymentTermsDays }),
       ...(kind !== undefined && { kind }),
-      ...(saving && { placeholder: false }),
+      // Saved by the team: the bell's "New lead" keys on createdById null
+      // (leads that came in on their own — contacts/route.ts POST), so the
+      // team's own save never raises it; an unassigned row is the saver's.
+      ...(saving && {
+        placeholder: false,
+        createdById: actor.id,
+        ...(savedRow && !savedRow.assignedToId ? { assignedToId: actor.id } : {}),
+      }),
       // Leaving LEAD takes the card off the board (becoming LEAD re-enters below)
       ...(statusChange === "ACTIVE" || statusChange === "ARCHIVED"
         ? { pipelineStageId: null, stageChangedAt: null }
@@ -202,7 +220,10 @@ export async function PATCH(
     }
   }
   // A number was set or changed: unmatched calls from it now show this person's name.
+  // The Save card sends no phone: the texted number's earlier (nameless)
+  // calls are linked from the stored one (audit 2026-10-06 C7).
   if (body.phone !== undefined) await linkCallsToContact(actor.companyId, id, opt(body.phone)).catch(() => 0);
+  else if (saving && savedRow?.phone) await linkCallsToContact(actor.companyId, id, savedRow.phone).catch(() => 0);
 
   // Archiving closes the client out: their recurring series pause and their
   // untouched future visits leave the calendar, so nothing keeps billing,

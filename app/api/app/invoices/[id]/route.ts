@@ -9,6 +9,7 @@ import { paidDepositTotal } from "@/lib/deposits";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { isPastDue } from "@/lib/due-dates";
 import { queueQuickBooksInvoiceUnwind } from "@/lib/quickbooks";
+import { CLEAR } from "@/lib/send-document";
 
 /**
  * PATCH — full-document invoice edit (subject, line items, discount, tax,
@@ -161,6 +162,9 @@ export async function PATCH(
         dueDate: due,
         status,
         paidAt: status === "PAID" ? (lastPaidAt ?? new Date()) : null,
+        // An edit that leaves it fully covered ends any pending Send later —
+        // nothing to send, and the sweep would only fail with a stale card
+        ...(status === "PAID" ? CLEAR : {}),
         lineItems: {
           create: lineItems.map((li, i) => ({
             name: li.name ?? "",

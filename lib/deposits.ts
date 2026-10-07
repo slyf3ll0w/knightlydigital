@@ -10,7 +10,7 @@
  */
 
 import { randomBytes } from "crypto";
-import type { DepositType, Prisma, PrismaClient } from "@prisma/client";
+import { Prisma, type DepositType, type PrismaClient } from "@prisma/client";
 import { quoteDepositAmount } from "@/lib/statuses";
 import { dueDateFromTerms, isPastDue } from "@/lib/due-dates";
 import { nextInvoiceNumber } from "@/lib/doc-numbers";
@@ -304,7 +304,14 @@ export async function recomputeDepositApplied(tx: Tx, quoteId: string): Promise<
       depositApplied: applied > 0 ? applied : null,
       total: netTotal,
       ...(fullyPaid && final.status !== "PAID"
-        ? { status: "PAID", paidAt: new Date() }
+        ? {
+            status: "PAID",
+            paidAt: new Date(),
+            // Paid → nothing left to send later (mirrors lib/send-document.ts CLEAR, inlined — same cycle rule as above)
+            scheduledSendAt: null,
+            scheduledSendById: null,
+            scheduledSendChannels: Prisma.DbNull,
+          }
         : {}),
       ...(!fullyPaid && final.status === "PAID"
         ? {

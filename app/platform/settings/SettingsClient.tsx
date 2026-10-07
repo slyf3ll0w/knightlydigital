@@ -1437,7 +1437,7 @@ export default function SettingsClient({
         <div className="ds-card p-5 space-y-4">
           <SectionHeader title="Business Info" />
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Business name *</label>
+            <FieldLabel>Business name *</FieldLabel>
             <Input type="text" value={form.name} onChange={(e) => set("name", e.target.value)}
               onBlur={commitName} onKeyDown={commitOnEnter(commitName)}
               required
@@ -1466,7 +1466,7 @@ export default function SettingsClient({
                   <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${form.showLegalNameOnDocs ? "translate-x-5" : "translate-x-1"}`} />
                 </div>
                 <span className="text-sm text-gray-700">Show the legal name on quotes, invoices and agreements</span>
-                <InfoTip>Adds the legal name in small print under your business name on PDF footers and the agreement signing page. Off, clients only ever see the business name.</InfoTip>
+                <InfoTip>Adds the legal name in the footer of PDFs and on the agreement page. Off, clients only ever see the business name.</InfoTip>
               </label>
             )}
           </div>
@@ -1474,8 +1474,8 @@ export default function SettingsClient({
             <FieldLabel info="The last part of your booking page and client portal links. It saves when you leave the field or press Enter, not while you type. Change it and every old link keeps working — it forwards to the same page at the new address — so nothing you have shared or printed breaks.">
               Web address
             </FieldLabel>
-            <div className={`flex items-center rounded-lg border bg-white text-sm focus-within:ring-2 ${slugError ? "border-[color:var(--ds-bad)]" : "border-gray-300"}`}>
-              <span className="pl-3 pr-1 text-gray-400 whitespace-nowrap">workbenchfsm.com/book/</span>
+            <div className={`flex items-center rounded-lg border bg-[color:var(--ds-surface)] text-sm text-[color:var(--ds-ink)] focus-within:ring-2 ${slugError ? "border-[color:var(--ds-bad)]" : "border-[color:var(--ds-line-strong)]"}`}>
+              <span className="pl-3 pr-1 text-[color:var(--ds-faint)] whitespace-nowrap">workbenchfsm.com/book/</span>
               <input type="text" value={form.slug} onChange={(e) => set("slug", e.target.value.toLowerCase())}
                 onBlur={commitSlug} onKeyDown={commitOnEnter(commitSlug)}
                 autoCapitalize="none" autoCorrect="off" spellCheck={false} maxLength={60}
@@ -1502,16 +1502,12 @@ export default function SettingsClient({
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <FieldLabel info="Where new requests, bookings, and client messages are emailed to you. Leave blank to use the business email.">
               Notifications inbox <span className="font-normal text-gray-400">(optional)</span>
-            </label>
+            </FieldLabel>
             <Input type="email" value={form.notifyEmail} onChange={(e) => set("notifyEmail", e.target.value)}
               placeholder={form.email || "Same as the business email"}
               className="w-full focus:ring-2" />
-            <p className="mt-1 text-xs text-gray-500">
-              Where new requests, bookings, and client messages are emailed to you. Leave blank to use the
-              business email.
-            </p>
             <label className="mt-3 flex items-center gap-3 cursor-pointer">
               <div
                 onClick={() => set("notifyEmailOff", !form.notifyEmailOff)}

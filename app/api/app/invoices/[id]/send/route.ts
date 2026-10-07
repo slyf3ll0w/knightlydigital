@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { limit } from "@/lib/rate-limit";
 import { getActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import { inPreview, previewBlockedError } from "@/lib/preview";
-import { readSendChannels } from "@/lib/send-channels";
+import { readSendRequest } from "@/lib/send-channels";
 import { sendInvoice, SEND_DEFAULTS } from "@/lib/send-document";
 
 /**
@@ -34,8 +34,10 @@ export async function POST(
   // Two ways to reach them: email, and a text from the business line once
   // texting is on. Either alone is enough. The sender picks the channels
   // (components/SendChoice.tsx); no body = both.
-  const channels = await readSendChannels(req, SEND_DEFAULTS.invoice);
-  const result = await sendInvoice({ id, companyId: actor.companyId, scope: viaContactScope(actor), channels });
+  // `expectScheduled` comes from the "Send now" link under a scheduled draft:
+  // 409 when the sweep already took it, so the client isn't emailed twice.
+  const { channels, expectScheduled } = await readSendRequest(req, SEND_DEFAULTS.invoice);
+  const result = await sendInvoice({ id, companyId: actor.companyId, scope: viaContactScope(actor), channels, expectScheduled });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({ emailed: result.emailed, texted: result.texted, to: result.to, phone: result.phone });
 }

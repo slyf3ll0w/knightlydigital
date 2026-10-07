@@ -91,6 +91,7 @@ export default async function ProfilePage() {
       softphoneEnabled={softphoneRelevant ? (user?.softphoneEnabled ?? true) : null}
       emailAlerts={user?.emailAlerts ?? null}
       pushOn={pushOn}
+      isOwner={actor.role === "OWNER"}
     />
   );
 }

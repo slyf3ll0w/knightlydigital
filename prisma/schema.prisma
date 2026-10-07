@@ -494,10 +494,11 @@ model User {
   // Last heartbeat from a registered softphone; online = within the last
   // ~75 s (SOFTPHONE_PRESENCE_MS). Cleared when the tab closes cleanly.
   softphoneSeenAt    DateTime?
-  // Presence for the platform console (lib/presence.ts): loadActor stamps
-  // this at most once a minute on any signed-in page or API request, and
-  // the app polls every 20–45 s while it is open, so "online" = seen within
-  // the last few minutes. lastSeenVia = "web" | "ios" | "android" from the
+  // Presence for the platform console (lib/presence.ts): stamped by
+  // POST /api/app/presence (components/PresenceBeacon.tsx), a beat every
+  // 20 s while the page is visible — a hidden tab or backgrounded phone app
+  // sends none — so "online" = seen within the last few minutes.
+  // lastSeenVia = "web" | "ios" | "android" from the
   // user agent (the native shell tags itself in capacitor.config.ts).
   lastSeenAt         DateTime?
   lastSeenVia        String?
@@ -3601,6 +3602,8 @@ model StickyNote {
   @@index([companyId, shared, archivedAt])
   @@index([userId, archivedAt])
   @@index([companyId, page, archivedAt])
+  // The hourly expiry sweep (archiveExpiredNotes) — like Task's [remindAt, remindSentAt]
+  @@index([expiresAt, archivedAt])
 }
 
 // Where a note sits on EACH viewer's desktop board (0–1 of the board's width

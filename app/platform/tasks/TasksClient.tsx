@@ -50,6 +50,8 @@ export default function TasksClient({
   prefill: TaskPrefill | null;
 }) {
   const router = useRouter();
+  // Done tab: my finished tasks, or (managers) the whole team's
+  const doneView = view === "done" || view === "team_done";
   const [tasks, setTasks] = useState<TaskDTO[]>(initial);
   const [editor, setEditor] = useState<{ open: boolean; task: TaskDTO | null }>({ open: false, task: null });
   // A row tap or a notification lands on the details (tick it off, read the
@@ -143,7 +145,7 @@ export default function TasksClient({
       const byId = new Map(cur.map((t) => [t.id, t]));
       for (const t of saved) {
         const belongs =
-          view === "done" ? Boolean(t.doneAt) : view === "team" ? !t.doneAt : !t.doneAt && t.assigneeId === meId;
+          doneView ? Boolean(t.doneAt) : view === "team" ? !t.doneAt : !t.doneAt && t.assigneeId === meId;
         if (belongs) byId.set(t.id, t);
         else byId.delete(t.id);
       }
@@ -178,7 +180,7 @@ export default function TasksClient({
 
   // ── Grouping ──────────────────────────────────────────────────────────
   const groups = useMemo(() => {
-    if (view === "done") return tasks.length ? [{ key: "done" as const, label: "Done", rows: tasks }] : [];
+    if (doneView) return tasks.length ? [{ key: "done" as const, label: "Done", rows: tasks }] : [];
     const by = new Map<TaskBucket, TaskDTO[]>();
     for (const t of tasks) {
       const list = by.get(t.bucket) ?? [];
@@ -186,7 +188,7 @@ export default function TasksClient({
       by.set(t.bucket, list);
     }
     return TASK_BUCKET_ORDER.filter((k) => by.has(k)).map((k) => ({ key: k, label: TASK_BUCKET_LABELS[k], rows: by.get(k)! }));
-  }, [tasks, view]);
+  }, [tasks, view, doneView]);
 
   const tabs: { key: TaskView; label: string; count?: number }[] = [
     { key: "mine", label: "My tasks", count: counts.mine },
@@ -194,17 +196,26 @@ export default function TasksClient({
     { key: "done", label: "Done" },
   ];
   const hrefFor = (k: TaskView) => (k === "mine" ? "/app/tasks" : `/app/tasks?view=${k}`);
+  const tabActive = (k: TaskView) => (k === "done" ? doneView : view === k);
+  // Under Done, managers pick whose finished tasks: their own or the team's
+  // (same flag as the Team tab, so it hides when that does)
+  const doneScopes: { key: TaskView; label: string }[] = [
+    { key: "done", label: "Mine" },
+    { key: "team_done", label: "Team" },
+  ];
 
   const pageInfo =
-    "Your own to-dos, with a due time and a reminder if you want one. " +
+    "Your own tasks, with a due time and a reminder if you want one. " +
     (canAssign
-      ? "Owners and admins can hand a task to anyone on the team and see everyone's open tasks under Team. "
+      ? "Owners and admins can hand a task to anyone on the team and see everyone's open tasks under Team (and their finished ones under Done → Team). "
       : "") +
-    "Reminders arrive as a push and in the bell; due-today and overdue tasks also show on Home.";
+    "Reminders arrive as a push and in the bell — or by email when none of your devices has notifications on; due-today and overdue tasks also show on Home.";
 
   const empty = (
     <Card>
-      {view === "done" ? (
+      {view === "team_done" ? (
+        <Hint title="Nobody has finished a task yet." />
+      ) : view === "done" ? (
         <Hint title="Nothing finished yet." />
       ) : view === "team" ? (
         <Hint title="Nobody has an open task." action={{ href: "/app/tasks?new=1", label: "Give someone a task", icon: Plus }} />
@@ -217,9 +228,9 @@ export default function TasksClient({
   const subFor = (t: TaskDTO) =>
     [
       t.dueLabel,
-      view === "done" && t.doneAt ? `Done ${doneDay(t.doneAt)}` : null,
+      view === "done" && t.doneLabel ? `Done ${t.doneLabel}` : null,
       ...t.links.map((l) => l.label),
-      view === "team" || (view === "done" && t.assigneeId !== meId) ? t.assigneeName : null,
+      view === "team" || (doneView && t.assigneeId !== meId) ? t.assigneeName : null,
     ]
       .filter(Boolean)
       .join(" · ");
@@ -298,23 +309,42 @@ export default function TasksClient({
       <div className="glass-bar sticky top-0 z-20 -mx-4 mt-4 border-b px-4 py-2 lg:hidden">
         <SegmentedRow>
           {tabs.map((t) => (
-            <Segment key={t.key} active={view === t.key} href={hrefFor(t.key)}>
+            <Segment key={t.key} active={tabActive(t.key)} href={hrefFor(t.key)}>
               {t.label}
               {t.count ? <span className="ml-0.5 text-[11px] opacity-80">{t.count}</span> : null}
             </Segment>
           ))}
         </SegmentedRow>
+        {doneView && canAssign && (
+          <SegmentedRow className="mt-2">
+            {doneScopes.map((s) => (
+              <Segment key={s.key} active={view === s.key} href={hrefFor(s.key)}>
+                {s.label}
+              </Segment>
+            ))}
+          </SegmentedRow>
+        )}
       </div>
       <div className="mt-6 hidden lg:block">
         <FilterRow>
           {tabs.map((t) => (
-            <FilterChip key={t.key} hue="var(--ds-primary)" active={view === t.key} href={hrefFor(t.key)}>
+            <FilterChip key={t.key} hue="var(--ds-primary)" active={tabActive(t.key)} href={hrefFor(t.key)}>
               {t.key === "team" && <Users size={14} aria-hidden />}
               {t.label}
               {t.count ? <span className="numeral-ledger text-xs opacity-70">{t.count}</span> : null}
             </FilterChip>
           ))}
         </FilterRow>
+        {doneView && canAssign && (
+          <FilterRow>
+            {doneScopes.map((s) => (
+              <FilterChip key={s.key} hue="var(--ds-primary)" active={view === s.key} href={hrefFor(s.key)}>
+                {s.key === "team_done" && <Users size={14} aria-hidden />}
+                {s.label}
+              </FilterChip>
+            ))}
+          </FilterRow>
+        )}
       </div>
 
       {groups.length === 0 ? (
@@ -358,13 +388,4 @@ export default function TasksClient({
       />
     </DsPage>
   );
-}
-
-function doneDay(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  const same = (a: Date, b: Date) => a.toDateString() === b.toDateString();
-  if (same(d, now)) return "today";
-  if (same(d, new Date(now.getTime() - 86_400_000))) return "yesterday";
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }

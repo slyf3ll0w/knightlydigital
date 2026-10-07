@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/db";
 import { notifyUser } from "@/lib/push";
 import { reportError } from "@/lib/report-error";
+import { emailEnabled, sendEmail, taskReminderEmail } from "@/lib/email";
+import { hasPushDevice, inboxEmailWanted } from "@/lib/notify";
 import { zonedMidnight, zonedParts } from "@/lib/timezone";
 import type { Actor } from "@/lib/permissions";
-import { isManager } from "@/lib/permissions";
+import { contactScope, isManager, jobScope, viaContactScope } from "@/lib/permissions";
 import {
   REMINDER_CHOICES,
   TASK_NOTES_MAX,
@@ -180,6 +182,32 @@ export function remindLabel(remindAt: Date | null, tz: string, now: Date): strin
   return `Reminder ${fmtDay(remindAt, tz, now)} · ${fmtTime(remindAt, tz)}`;
 }
 
+/** The Done tab's "today" / "yesterday" / "Oct 3", by the company's calendar day like every other label. */
+export function doneLabel(doneAt: Date | null, tz: string, now: Date): string | null {
+  if (!doneAt) return null;
+  const p = zonedParts(tz, now);
+  const d = zonedParts(tz, doneAt);
+  if (d.y === p.y && d.m === p.m && d.d === p.d) return "today";
+  const y = zonedParts(tz, zonedMidnight(tz, p.y, p.m, p.d - 1));
+  if (d.y === y.y && d.m === y.m && d.d === y.d) return "yesterday";
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    month: "short",
+    day: "numeric",
+    ...(d.y === p.y ? {} : { year: "numeric" }),
+  }).format(doneAt);
+}
+
+/**
+ * The remindSentAt to store with a new or changed reminder. A reminder whose
+ * moment has already gone by (10 AM, due tomorrow 9 AM, "1 day before") is
+ * stamped sent on the spot so the sweep doesn't fire a stale "Reminder:" push
+ * minutes later; a reminder still ahead is armed (null).
+ */
+export function reminderSentStamp(remindAt: Date | null | undefined, now: Date): Date | null {
+  return remindAt && remindAt.getTime() <= now.getTime() ? now : null;
+}
+
 // ── Rows in / out ───────────────────────────────────────────────────────────
 
 export const taskInclude = {
@@ -250,6 +278,7 @@ export function serializeTask(row: TaskRow, tz: string, now: Date = new Date()):
     bucket: taskBucket(row.dueAt, row.allDay, now, tz),
     dueLabel: dueLabel(row.dueAt, row.allDay, tz, now),
     remindLabel: remindLabel(row.remindAt, tz, now),
+    doneLabel: doneLabel(row.doneAt, tz, now),
     updatedAt: row.updatedAt.toISOString(),
   };
 }
@@ -302,12 +331,27 @@ export interface TaskReminderSummary {
 }
 
 /**
+ * Should a task reminder also go out by email? The same rule as every
+ * team-side notification email (lib/notify.ts inboxEmailWanted, the
+ * assignee being the login the inbox belongs to): their My Profile choice
+ * when they made one, else only while no device of theirs has push on; and
+ * never when the company switched its notification emails off. Pure —
+ * scripts/test-tasks.ts.
+ */
+export function reminderEmailWanted(input: { emailAlerts: boolean | null; pushOn: boolean; companyEmailOff: boolean }): boolean {
+  if (input.companyEmailOff) return false;
+  return inboxEmailWanted({ login: true, emailAlerts: input.emailAlerts, pushOn: input.pushOn });
+}
+
+/**
  * Reminder sweep: every open task whose remindAt has passed and hasn't been
  * sent. Runs from the 5-minute ticker (instrumentation.ts) and the hourly
  * cron; each row is claimed with compare-and-set so the two never double up.
- * Push + bell card (notifyUsers records the AutomationNotice row); email only
- * when the person has no push device (lib/notify.ts handles that inside the
- * push layer's callers — tasks keep to push + bell, per the plan).
+ * Push + bell card (notifyUsers records the AutomationNotice row), and an
+ * email to the assignee when push can't reach them (reminderEmailWanted —
+ * the rule every other team-side notification email follows; audit
+ * 2026-10-06 G12). The claim stays the single idempotency point: a failed
+ * email is logged, never retried.
  */
 export async function runTaskReminders(now: Date = new Date()): Promise<TaskReminderSummary> {
   const due = await prisma.task.findMany({
@@ -318,7 +362,10 @@ export async function runTaskReminders(now: Date = new Date()): Promise<TaskRemi
       company: { is: { suspendedAt: null } },
       assignee: { is: { isActive: true } },
     },
-    include: { company: { select: { timezone: true } } },
+    include: {
+      company: { select: { timezone: true, name: true, notifyEmailOff: true } },
+      assignee: { select: { id: true, email: true, emailAlerts: true, accountId: true } },
+    },
     orderBy: { remindAt: "asc" },
     take: 500,
   });
@@ -332,13 +379,33 @@ export async function runTaskReminders(now: Date = new Date()): Promise<TaskRemi
       if (claimed.count === 0) continue;
       const tz = task.company.timezone;
       const when = dueLabel(task.dueAt, task.allDay, tz, now);
+      const title = task.priority === "HIGH" ? `Reminder (high priority): ${task.title}` : `Reminder: ${task.title}`;
+      const dueText = when ? `Due ${when.replace(/^Overdue · /, "")}` : null;
       await notifyUser(task.assigneeId, {
-        title: task.priority === "HIGH" ? `Reminder (high priority): ${task.title}` : `Reminder: ${task.title}`,
-        body: when ? `Due ${when.replace(/^Overdue · /, "")}` : undefined,
+        title,
+        body: dueText ?? undefined,
         url: `/app/tasks?task=${task.id}`,
         tag: `task-${task.id}`,
       });
       summary.sent++;
+
+      // Email when push can't reach them (same rule as the other team emails)
+      const who = task.assignee;
+      if (emailEnabled() && who.email) {
+        const pushOn = who.emailAlerts === null ? await hasPushDevice(who.id, who.accountId) : false;
+        if (reminderEmailWanted({ emailAlerts: who.emailAlerts, pushOn, companyEmailOff: task.company.notifyEmailOff })) {
+          const { subject, html } = taskReminderEmail({
+            companyName: task.company.name,
+            title: task.title,
+            dueText,
+            highPriority: task.priority === "HIGH",
+            notes: task.notes,
+            taskUrl: `/app/tasks?task=${task.id}`,
+          });
+          const ok = await sendEmail({ companyId: task.companyId, to: who.email, subject, html });
+          if (!ok) console.warn(`[tasks] reminder email did not send (task ${task.id}, user ${who.id})`);
+        }
+      }
     } catch (err) {
       summary.errors++;
       reportError("[tasks] reminder failed", task.id, err);
@@ -356,25 +423,35 @@ export async function runTaskReminders(now: Date = new Date()): Promise<TaskRemi
  */
 export function parseTaskView(raw: unknown, teamView: boolean): TaskView {
   if (raw === "team" && teamView) return "team";
+  if (raw === "team_done") return teamView ? "team_done" : "done";
   if (raw === "done") return "done";
   return "mine";
 }
 
-/** The page's and the GET route's one query. Done = the last 90 days, newest first. */
+/**
+ * The page's and the GET route's one query. Done = the last 90 days, newest
+ * first — the viewer's OWN finished tasks for everyone, managers included
+ * (audit 2026-10-06 A14); `team_done` is the whole company's, behind the
+ * same team flag as the Team tab.
+ */
 export async function listTasks(actor: Actor, view: TaskView, tz: string, now: Date = new Date()): Promise<TaskDTO[]> {
+  const doneSince = { gte: new Date(now.getTime() - 90 * DAY_MS) };
   const where =
     view === "team"
       ? { companyId: actor.companyId, doneAt: null }
-      : view === "done"
-        ? { companyId: actor.companyId, ...taskScope(actor), doneAt: { gte: new Date(now.getTime() - 90 * DAY_MS) } }
-        : { companyId: actor.companyId, assigneeId: actor.id, doneAt: null };
+      : view === "team_done"
+        ? { companyId: actor.companyId, doneAt: doneSince }
+        : view === "done"
+          ? { companyId: actor.companyId, assigneeId: actor.id, doneAt: doneSince }
+          : { companyId: actor.companyId, assigneeId: actor.id, doneAt: null };
+  const doneView = view === "done" || view === "team_done";
   const rows = await prisma.task.findMany({
     where,
     include: taskInclude,
-    orderBy: view === "done" ? { doneAt: "desc" } : { createdAt: "desc" },
+    orderBy: doneView ? { doneAt: "desc" } : { createdAt: "desc" },
     take: 500,
   });
-  const sorted = view === "done" ? rows : rows.sort(compareTasks);
+  const sorted = doneView ? rows : rows.sort(compareTasks);
   return sorted.map((r) => serializeTask(r, tz, now));
 }
 
@@ -418,17 +495,20 @@ type PendingReminder = { choice: ReminderChoice; customAt: Date | null };
 
 /**
  * Turn a request body into column values. Only keys present in the body are
- * returned, so PATCH can send a partial. Links are checked against the
- * company; an unknown id answers with an error rather than a silent null.
- * A reminder choice sent without due fields is returned as `pending` and
- * resolved by finishReminder against the stored due.
+ * returned, so PATCH can send a partial. Links are checked against what the
+ * actor may see (contactScope / jobScope / viaContactScope, the same rules as
+ * the record pages — a tech can't attach, and so read, a client that isn't
+ * on one of their jobs); an unknown id answers with an error rather than a
+ * silent null. A reminder choice sent without due fields is returned as
+ * `pending` and resolved by finishReminder against the stored due.
  */
 export async function validateTaskInput(
   body: Record<string, unknown>,
-  companyId: string,
+  actor: Actor,
   tz: string,
   opts: { requireTitle: boolean }
 ): Promise<{ data: TaskInput; pending: PendingReminder | null } | { error: string }> {
+  const companyId = actor.companyId;
   const data: TaskInput = {};
   let pending: PendingReminder | null = null;
 
@@ -486,10 +566,16 @@ export async function validateTaskInput(
     data[key] = v;
   }
   const checks: Promise<boolean>[] = [];
-  if (data.contactId) checks.push(prisma.contact.findFirst({ where: { id: data.contactId, companyId }, select: { id: true } }).then(Boolean));
-  if (data.jobId) checks.push(prisma.job.findFirst({ where: { id: data.jobId, companyId }, select: { id: true } }).then(Boolean));
-  if (data.quoteId) checks.push(prisma.quote.findFirst({ where: { id: data.quoteId, companyId }, select: { id: true } }).then(Boolean));
-  if (data.invoiceId) checks.push(prisma.invoice.findFirst({ where: { id: data.invoiceId, companyId }, select: { id: true } }).then(Boolean));
+  if (data.contactId) {
+    checks.push(prisma.contact.findFirst({ where: { id: data.contactId, companyId, ...contactScope(actor) }, select: { id: true } }).then(Boolean));
+  }
+  if (data.jobId) checks.push(prisma.job.findFirst({ where: { id: data.jobId, companyId, ...jobScope(actor) }, select: { id: true } }).then(Boolean));
+  if (data.quoteId) {
+    checks.push(prisma.quote.findFirst({ where: { id: data.quoteId, companyId, ...viaContactScope(actor) }, select: { id: true } }).then(Boolean));
+  }
+  if (data.invoiceId) {
+    checks.push(prisma.invoice.findFirst({ where: { id: data.invoiceId, companyId, ...viaContactScope(actor) }, select: { id: true } }).then(Boolean));
+  }
   if (data.callId) checks.push(prisma.call.findFirst({ where: { id: data.callId, companyId }, select: { id: true } }).then(Boolean));
   if (checks.length && !(await Promise.all(checks)).every(Boolean)) {
     return { error: "One of the linked records is not in this account." };

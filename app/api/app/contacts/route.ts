@@ -23,7 +23,10 @@ export async function GET() {
       status: { in: ["LEAD", "ACTIVE"] },
       placeholder: false, // an unsaved texted number is not someone to book a job for
     },
-    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    // First name first: a lead saved with only a first name has lastName ""
+    // which sorts ahead of everyone (ContactPicker re-sorts by display name;
+    // this keeps the raw feed sane for the save-contact card too)
+    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
     select: {
       id: true,
       firstName: true,

@@ -7,6 +7,8 @@ import { Loader2, MapPin, Phone, Search, Video } from "lucide-react";
 import Modal from "@/components/Modal";
 import SuggestedTimes from "@/components/SuggestedTimes";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { alertSheet } from "@/components/ConfirmSheet";
+import ScheduleHeadsUp, { useScheduleCheck } from "@/components/ScheduleHeadsUp";
 import { slotTimeOptions } from "@/lib/scheduling";
 import { looksLikeAppointment } from "@/lib/appointment-hint";
 import ServiceChips, { type ServiceLite } from "@/components/ServiceChips";
@@ -45,6 +47,14 @@ function toISO(date: string, hhmm: string): string {
   const [h, m] = hhmm.split(":").map(Number);
   d.setHours(h || 0, m || 0, 0, 0);
   return d.toISOString();
+}
+
+/** `YYYY-MM-DDTHH:mm` local, `plusMin` after the picked start — what useScheduleCheck takes. */
+function toLocalInput(date: string, hhmm: string, plusMin = 0): string {
+  const d = parseParam(date);
+  const [h, m] = hhmm.split(":").map(Number);
+  d.setHours(h || 0, (m || 0) + plusMin, 0, 0);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 /**
@@ -288,6 +298,25 @@ export default function PlaceSheet({
     return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
   }, [startTime, duration]);
 
+  // Live heads-up, same as the New Appointment / New Job forms: anyone picked
+  // already booked then, or (on-site work) unable to drive there or on to
+  // their next stop in time. Shows nothing while it's all clear; never blocks.
+  const onSite = kind === "job" || apptType === "IN_PERSON";
+  const checkPeople = outsourced && kind === "job" ? [] : assignees.length ? assignees : kind === "appointment" ? [meId] : [];
+  const check = useScheduleCheck(
+    intent && !anytime && /^\d{4}-\d{2}-\d{2}$/.test(date) && startTime
+      ? {
+          start: toLocalInput(date, startTime),
+          end: toLocalInput(date, startTime, duration),
+          userIds: checkPeople,
+          onSite,
+          address: onSite ? address.trim() || contact?.address || null : null,
+          contactId: contact?.id || null,
+          excludeJobId: existingJob?.id,
+        }
+      : null
+  );
+
   async function submit() {
     if (!intent) return;
     setErr("");
@@ -392,7 +421,11 @@ export default function PlaceSheet({
         if (titleTyped) refreshRecentTitles();
         onDone({ kind: "job", id: data.id, label: data.title || finalTitle, conflicts: data.conflicts ?? [], contactName });
       } else {
-        const { ok, data } = await postJson<{ id: string; conflicts?: string[] }>("/api/app/appointments", {
+        const { ok, data } = await postJson<{
+          id: string;
+          conflicts?: string[];
+          confirmation?: { text: boolean; email: boolean } | null;
+        }>("/api/app/appointments", {
           contactId,
           requestId,
           title: finalTitle,
@@ -406,6 +439,16 @@ export default function PlaceSheet({
           sendConfirmation,
         });
         if (!ok || !data?.id) return setErr(data?.error ?? GENERIC_ERROR);
+        // Asked for a confirmation and nothing could go out (no phone or
+        // email, texts off for this client, texting not live on the line yet)
+        // — say so, as the New Appointment form does; the appointment page
+        // explains the why.
+        if (sendConfirmation && data.confirmation && !data.confirmation.text && !data.confirmation.email) {
+          await alertSheet({
+            title: "Booked — no confirmation went out",
+            message: "The client has no reachable phone or email, or texting isn't live on your line yet. Automatic reminders still apply.",
+          });
+        }
         if (titleTyped) refreshRecentTitles();
         onDone({ kind: "appointment", id: data.id, label: finalTitle, conflicts: data.conflicts ?? [], contactName });
       }
@@ -678,6 +721,7 @@ export default function PlaceSheet({
               onPick={(startLocal) => setStartTime(startLocal.slice(11, 16))}
             />
           )}
+          {!anytime && <ScheduleHeadsUp result={check} />}
 
           {/* Where */}
           {(kind === "job" || apptType === "IN_PERSON") && (

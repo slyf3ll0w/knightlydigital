@@ -29,7 +29,8 @@ export const REMINDER_CHOICES: { key: ReminderChoice; label: string; minutes: nu
   { key: "custom", label: "Pick a time…", minutes: null },
 ];
 
-export type TaskView = "mine" | "team" | "done";
+/** mine / team = open tasks; done = my finished tasks; team_done = everyone's finished (managers, same gate as team). */
+export type TaskView = "mine" | "team" | "done" | "team_done";
 
 export type TaskLink = {
   kind: "contact" | "job" | "quote" | "invoice" | "call";
@@ -68,6 +69,8 @@ export type TaskDTO = {
   bucket: TaskBucket;
   dueLabel: string | null;
   remindLabel: string | null;
+  /** "today" / "yesterday" / "Oct 3" in the company's zone (Done tab). */
+  doneLabel: string | null;
   updatedAt: string;
 };
 

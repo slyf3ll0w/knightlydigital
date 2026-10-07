@@ -8,6 +8,7 @@ import {
   listTasks,
   notifyTaskAssigned,
   parseTaskView,
+  reminderSentStamp,
   serializeTask,
   taskInclude,
   validateTaskInput,
@@ -36,9 +37,11 @@ export async function POST(req: NextRequest) {
   if (!body) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   const tz = await companyTz(actor.companyId);
 
-  const validated = await validateTaskInput(body, actor.companyId, tz, { requireTitle: true });
+  const validated = await validateTaskInput(body, actor, tz, { requireTitle: true });
   if ("error" in validated) return NextResponse.json({ error: validated.error }, { status: 400 });
   const data = finishReminder(validated.data, validated.pending, { dueAt: null, allDay: true }, tz);
+  // A reminder already in the past is stamped sent, not fired as stale
+  const remindSentAt = reminderSentStamp(data.remindAt, new Date());
 
   // Assignees: self unless a manager names others
   let assigneeIds = [actor.id];
@@ -78,6 +81,7 @@ export async function POST(req: NextRequest) {
           dueAt: data.dueAt ?? null,
           allDay: data.allDay ?? true,
           remindAt: data.remindAt ?? null,
+          remindSentAt,
           priority: data.priority ?? "NORMAL",
           contactId: data.contactId ?? null,
           jobId: data.jobId ?? null,

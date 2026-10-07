@@ -16,6 +16,7 @@ import { recordLeadWin } from "@/lib/pipeline";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { logActivity } from "@/lib/activity";
 import { notifyUsers, companyManagerIds } from "@/lib/push";
+import { CLEAR } from "@/lib/send-document";
 
 /** Quote statuses from which approval is a meaningful transition. */
 export const APPROVABLE_STATUSES = ["AWAITING_RESPONSE", "CHANGES_REQUESTED"] as const;
@@ -36,6 +37,11 @@ export async function finishQuoteApproval(
     include: { contact: true, company: true },
   });
   if (!quote) return { deposit: null, emailed: null };
+
+  // An approval ends any pending Send later (a draft parked for Friday that
+  // the client signed off on Thursday from a copied link): nothing to send,
+  // and the sweep would only fail with a "still a draft" card.
+  if (quote.scheduledSendAt) await prisma.quote.update({ where: { id: quote.id }, data: CLEAR });
 
   // Deposit invoice (idempotent; re-priced if one was minted earlier).
   // Retried from out here because it derives an invoice number.

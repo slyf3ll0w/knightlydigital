@@ -130,6 +130,7 @@ export default async function QuoteDetailPage({
           depositInvoiced={!!depositInvoice}
           canDelete={isManager(actor.role)}
           scheduled={Boolean(quote.scheduledSendAt)}
+          tz={tz}
         />
         </div>
       </div>

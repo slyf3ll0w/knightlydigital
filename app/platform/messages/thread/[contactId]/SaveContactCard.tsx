@@ -133,17 +133,17 @@ export default function SaveContactCard({
   }
 
   const input =
-    "w-full rounded-[10px] border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]";
+    "w-full rounded-[10px] border border-[color:var(--ds-line-strong)] bg-[color:var(--ds-surface)] px-3 py-2 text-sm text-[color:var(--ds-ink)] placeholder:text-[color:var(--ds-faint)] focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]";
   const chip = (on: boolean) =>
     `rounded-[10px] border px-3.5 py-1.5 text-sm font-medium transition-colors ${
       on
-        ? "border-[color:var(--ds-primary)] ring-2 ring-[color:var(--ds-primary-soft)] text-gray-900"
-        : "border-gray-300 text-gray-600 hover:bg-gray-50"
+        ? "border-[color:var(--ds-primary)] ring-2 ring-[color:var(--ds-primary-soft)] text-[color:var(--ds-ink)]"
+        : "border-[color:var(--ds-line-strong)] text-[color:var(--ds-muted)] hover:bg-[color:var(--ds-surface-2)]"
     }`;
 
   return (
     <form onSubmit={save} className="ds-card mb-4 p-4 sm:p-5" data-testid="save-contact-card">
-      <p className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+      <p className="flex items-center gap-2 text-sm font-semibold text-[color:var(--ds-ink)]">
         <UserPlus size={15} className="text-[color:var(--ds-primary)]" />
         {textedFirst ? `${phone} texted you — who is this?` : `Who is ${phone}?`}
       </p>
@@ -174,8 +174,8 @@ export default function SaveContactCard({
 
       {as === "existing" ? (
         <div className="mt-3">
-          <label className="flex items-center gap-2 rounded-[10px] border border-gray-300 bg-white px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-[color:var(--ds-primary)]">
-            <Search size={14} className="shrink-0 text-gray-400" />
+          <label className="flex items-center gap-2 rounded-[10px] border border-[color:var(--ds-line-strong)] bg-[color:var(--ds-surface)] px-3 py-2 text-sm focus-within:ring-2 focus-within:ring-[color:var(--ds-primary)]">
+            <Search size={14} className="shrink-0 text-[color:var(--ds-faint)]" />
             <input
               type="search"
               value={query}
@@ -185,16 +185,16 @@ export default function SaveContactCard({
               }}
               placeholder="Search name, company or phone…"
               autoComplete="off"
-              className="w-full bg-transparent text-gray-900 outline-none placeholder:text-gray-400"
+              className="w-full bg-transparent text-[color:var(--ds-ink)] outline-none placeholder:text-[color:var(--ds-faint)]"
             />
           </label>
-          <ul className="mt-2 divide-y divide-gray-100 overflow-hidden rounded-[10px] border border-gray-200" data-testid="save-contact-existing">
+          <ul className="mt-2 divide-y divide-[color:var(--ds-line)] overflow-hidden rounded-[10px] border border-[color:var(--ds-line)]" data-testid="save-contact-existing">
             {contacts === null && !error && (
-              <li className="flex items-center gap-2 px-3 py-2.5 text-sm text-gray-500">
+              <li className="flex items-center gap-2 px-3 py-2.5 text-sm text-[color:var(--ds-muted)]">
                 <Loader2 size={14} className="animate-spin" /> Loading…
               </li>
             )}
-            {contacts !== null && matches.length === 0 && <li className="px-3 py-2.5 text-sm text-gray-500">No one matches.</li>}
+            {contacts !== null && matches.length === 0 && <li className="px-3 py-2.5 text-sm text-[color:var(--ds-muted)]">No one matches.</li>}
             {matches.map((c) => {
               const on = picked?.id === c.id;
               return (
@@ -203,11 +203,11 @@ export default function SaveContactCard({
                     type="button"
                     onClick={() => setPicked(on ? null : c)}
                     aria-pressed={on}
-                    className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors ${on ? "bg-[color:var(--ds-primary-soft)]" : "hover:bg-gray-50"}`}
+                    className={`flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors ${on ? "bg-[color:var(--ds-primary-soft)]" : "hover:bg-[color:var(--ds-surface-2)]"}`}
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-medium text-gray-900">{fullName(c)}</span>
-                      <span className="block truncate text-xs text-gray-500">
+                      <span className="block truncate font-medium text-[color:var(--ds-ink)]">{fullName(c)}</span>
+                      <span className="block truncate text-xs text-[color:var(--ds-muted)]">
                         {[c.companyName, c.phone ? prettyPhone(c.phone) : null].filter(Boolean).join(" · ") || (c.kind === "CONTACT" ? "Contact" : "Client")}
                       </span>
                     </span>

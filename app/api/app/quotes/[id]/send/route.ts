@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { limit } from "@/lib/rate-limit";
 import { getActor, canSell, viaContactScope } from "@/lib/permissions";
 import { inPreview, previewBlockedError } from "@/lib/preview";
-import { readSendChannels } from "@/lib/send-channels";
+import { readSendRequest } from "@/lib/send-channels";
 import { sendQuote, SEND_DEFAULTS } from "@/lib/send-document";
 
 /**
@@ -35,8 +35,10 @@ export async function POST(
   // Email by default; a text from the business line only when the sender
   // ticks it (components/SendChoice.tsx) — quote texts stayed off by default
   // after the 2026-09-24 campaign review read them as marketing.
-  const channels = await readSendChannels(req, SEND_DEFAULTS.quote);
-  const result = await sendQuote({ id, companyId: actor.companyId, scope: viaContactScope(actor), channels });
+  // `expectScheduled` comes from the "Send now" link under a scheduled draft:
+  // 409 when the sweep already took it, so the client isn't emailed twice.
+  const { channels, expectScheduled } = await readSendRequest(req, SEND_DEFAULTS.quote);
+  const result = await sendQuote({ id, companyId: actor.companyId, scope: viaContactScope(actor), channels, expectScheduled });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({ emailed: result.emailed, texted: result.texted, to: result.to, phone: result.phone });
 }

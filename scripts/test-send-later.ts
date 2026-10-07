@@ -3,7 +3,16 @@
  * `npx tsx scripts/test-send-later.ts`
  */
 import assert from "node:assert/strict";
-import { scheduleSendWarnings, channelsFromJson, dueDateOnSend, SEND_DEFAULTS, SCHEDULE_WARNING_TEXT } from "../lib/send-document";
+import {
+  scheduleSendWarnings,
+  channelsFromJson,
+  dueDateOnSend,
+  scheduledFailureBody,
+  SEND_DEFAULTS,
+  SCHEDULE_WARNING_TEXT,
+} from "../lib/send-document";
+import { tomorrowISO } from "../lib/send-later-shared";
+import { sendChannelsFrom } from "../lib/send-channels";
 import { dueDateFromTerms } from "../lib/due-dates";
 
 const now = new Date("2026-10-07T20:30:00Z");
@@ -81,5 +90,28 @@ assert.deepEqual(
   dueDateOnSend({ status: "AWAITING_PAYMENT", dueDate: null, createdAt: created, termsDays: netSeven, now: sendNow }),
   dueDateFromTerms(sendNow, netSeven)
 );
+
+// Failure card body (audit 2026-10-06 A9): "still a draft" only while it IS one.
+const suffix = " It's still a draft — open it to fix and send.";
+assert.equal(scheduledFailureBody("Email isn't set up.", "DRAFT"), `Email isn't set up.${suffix}`);
+assert.equal(scheduledFailureBody("This invoice is already paid.", "PAID"), "This invoice is already paid.");
+assert.equal(scheduledFailureBody("This quote already has a client response — nothing to send.", "APPROVED"), "This quote already has a client response — nothing to send.");
+assert.equal(scheduledFailureBody("Quote not found.", undefined), "Quote not found.");
+
+// Send-later default date (A10): the company's tomorrow, not the browser's.
+// 2026-10-07 20:30Z = Oct 7 14:30 Denver = Oct 8 09:30 Auckland
+assert.equal(tomorrowISO("America/Denver", now), "2026-10-08");
+assert.equal(tomorrowISO("Pacific/Auckland", now), "2026-10-09");
+// 05:30Z Oct 8 is still Oct 7 in Los Angeles → tomorrow is the 8th, not the 9th
+assert.equal(tomorrowISO("America/Los_Angeles", new Date("2026-10-08T05:30:00Z")), "2026-10-08");
+// Month / year roll over
+assert.equal(tomorrowISO("America/Chicago", new Date("2026-12-31T20:00:00Z")), "2027-01-01");
+// An unknown zone never throws — it falls back to the browser's day
+assert.match(tomorrowISO("Nowhere/Land", now), /^\d{4}-\d{2}-\d{2}$/);
+assert.match(tomorrowISO(undefined, now), /^\d{4}-\d{2}-\d{2}$/);
+
+// The send routes' body reader ignores the Send-now flag when picking channels (A12)
+assert.deepEqual(sendChannelsFrom({ email: true, text: false, expectScheduled: true }, SEND_DEFAULTS.invoice), { email: true, text: false });
+assert.deepEqual(sendChannelsFrom(null, SEND_DEFAULTS.quote), SEND_DEFAULTS.quote);
 
 console.log("test-send-later: all assertions passed");

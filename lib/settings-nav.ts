@@ -125,6 +125,13 @@ export const SETTINGS_LINK_GROUPS: readonly SettingsLinkGroup[] = [
         icon: "Globe",
       },
       {
+        href: "/app/settings/website",
+        label: "Website",
+        sub: "A site built for your business by the studio — brief, photos, status",
+        hueKey: "business",
+        icon: "MonitorSmartphone",
+      },
+      {
         href: "/app/settings/client-fields",
         label: "Client custom fields",
         sub: "Extra fields every client record carries",

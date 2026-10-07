@@ -188,7 +188,7 @@ export default function AccountsClient({ rows, days }: { rows: AccountRow[]; day
       >
         Test accounts <span className="ds-small ml-1 font-normal">{test.length}</span>
       </SectionTitle>
-      <AccountsTable rows={test} days={days} actionsFor={actionsFor} onMenu={setMenu} empty="No test accounts. Right-click a live account to mark it as test." />
+      <AccountsTable rows={test} days={days} actionsFor={actionsFor} onMenu={setMenu} empty="No test accounts. Right-click (or press and hold) a live account to mark it as test." />
 
       <QuickMenu open={menu !== null} anchor={menu?.anchor ?? null} title={menu?.row.name} actions={menu ? actionsFor(menu.row) : []} onClose={() => setMenu(null)} />
     </div>

@@ -4,8 +4,11 @@ import { prisma } from "@/lib/db";
  * What the public /status page shows. Same signals as /api/health, read in
  * one place so the page and the probe can never disagree:
  *   - database: a timed `SELECT 1`
- *   - hourly automations: age of the last nightly reconcile (the final step
- *     of the hourly cron, so it only advances when the cron is alive)
+ *   - daily automations: age of the last nightly reconcile (the final step
+ *     of the hourly cron, self-gated to once a day, so it only advances when
+ *     the cron is alive — which is why the component is labelled daily: a
+ *     stalled cron shows here on the next missed night, not the next hour;
+ *     audit 2026-10-06, D4)
  * The page itself is served by the app, so "web app" is operational by the
  * fact that it rendered; a full outage shows as the page not loading, which
  * the copy on it says out loud.
@@ -75,8 +78,9 @@ async function checkDatabase(): Promise<ComponentStatus> {
 async function checkCron(): Promise<ComponentStatus> {
   const base = {
     key: "automations",
-    name: "Hourly automations",
-    description: "Recurring billing, autopay retries, payment and appointment reminders, automation rules, calendar and QuickBooks sync.",
+    name: "Daily automations",
+    description:
+      "The nightly run that confirms the automation schedule is alive: recurring billing, autopay retries, payment and appointment reminders, automation rules, calendar and QuickBooks sync. Checked once a day, overnight.",
   };
   try {
     const latest = await prisma.reconcileRun.findFirst({

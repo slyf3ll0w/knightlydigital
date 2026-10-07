@@ -26,7 +26,7 @@ const OPTIONS: { value: Choice; label: string; hint: string }[] = [
 const toChoice = (v: boolean | null): Choice => (v === true ? "always" : v === false ? "never" : "auto");
 const toValue = (c: Choice): boolean | null => (c === "always" ? true : c === "never" ? false : null);
 
-export default function EmailAlertsCard({ initial, pushOn }: { initial: boolean | null; pushOn: boolean }) {
+export default function EmailAlertsCard({ initial, pushOn, isOwner = false }: { initial: boolean | null; pushOn: boolean; isOwner?: boolean }) {
   const [choice, setChoice] = useState<Choice>(toChoice(initial));
   const [busy, setBusy] = useState<Choice | null>(null);
   const [error, setError] = useState("");
@@ -56,7 +56,13 @@ export default function EmailAlertsCard({ initial, pushOn }: { initial: boolean 
     <div className="ds-card p-5 mt-5">
       <SectionHeader
         title="Email me too"
-        hint="New requests, client messages and bookings reach you as a push. Whether they also land in your inbox (as the owner, this covers the company inbox from Settings too):"
+        hint={
+          // Only the owner's setting reaches the company inbox from Settings
+          // (lib/notify.ts emailWanted) — the note means nothing to anyone else.
+          isOwner
+            ? "New requests, client messages and bookings reach you as a push. Whether they also land in your inbox (as the owner, this covers the company inbox from Settings too):"
+            : "New requests, client messages and bookings reach you as a push. Whether they also land in your inbox:"
+        }
       />
       <div className="mt-3 flex flex-col gap-1.5" role="radiogroup" aria-label="Notification emails">
         {OPTIONS.map((o) => {

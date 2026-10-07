@@ -52,6 +52,7 @@ export default function InvoiceActions({
   contactId = "",
   finix = null,
   scheduled = false,
+  tz,
 }: {
   invoiceId: string;
   status: string;
@@ -77,6 +78,8 @@ export default function InvoiceActions({
   finix?: FinixConfig;
   /** A Send later is pending — no "send this first?" nag on leaving */
   scheduled?: boolean;
+  /** Company timezone — Send later's default "tomorrow" is the company's day */
+  tz?: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -364,6 +367,7 @@ export default function InvoiceActions({
       canText: canTextClient,
       what: "Send the invoice",
       allowLater: status === "DRAFT",
+      timeZone: tz,
     });
     if (!channels) return;
     if (channels.later) {

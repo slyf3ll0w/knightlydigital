@@ -28,13 +28,9 @@ import type { WebsiteStatus } from "@prisma/client";
 
 export const SITE_DATA_VERSION = 1;
 
-export const WEBSITE_STATUS_LABEL: Record<WebsiteStatus, string> = {
-  NOT_STARTED: "Not started",
-  BRIEF_SUBMITTED: "Sent to the studio",
-  IN_STUDIO: "In the studio",
-  REVIEW: "Ready for your review",
-  LIVE: "Live",
-};
+// The owner-facing status words live in lib/website-shared.ts so the client
+// component can import them without pulling Prisma in (audit 2026-10-06, G8).
+export { WEBSITE_STATUS_LABEL } from "@/lib/website-shared";
 
 /** Statuses whose site exists somewhere a rebuild can land. */
 const REBUILDABLE: ReadonlySet<WebsiteStatus> = new Set(["IN_STUDIO", "REVIEW", "LIVE"]);

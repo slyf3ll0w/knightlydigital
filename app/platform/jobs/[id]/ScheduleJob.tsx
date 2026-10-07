@@ -44,6 +44,7 @@ export default function ScheduleJob({
   intervalMinutes = 30,
   defaultDurationMinutes,
   dayStartMinutes,
+  headsUp = true,
 }: {
   jobId: string;
   scheduledAt: string | null;
@@ -67,6 +68,8 @@ export default function ScheduleJob({
   defaultDurationMinutes?: number;
   /** Business-day anchor for the time dropdowns (minutes since midnight). */
   dayStartMinutes?: number;
+  /** Ask /api/app/schedule/check while picking — false for techs, who it 403s (they'd see other people's bookings). */
+  headsUp?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -87,7 +90,7 @@ export default function ScheduleJob({
   // Live heads-up while picking: anyone on the job already booked then, or
   // unable to drive there / on to their next stop in time (David 2026-10-06)
   const check = useScheduleCheck(
-    open && !anytime
+    open && !anytime && headsUp
       ? {
           start,
           end,

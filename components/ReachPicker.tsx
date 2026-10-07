@@ -161,8 +161,8 @@ export default function ReachPicker({
       : "Search name, company or phone…";
 
   const searchBox = (
-    <div className={`flex items-center gap-2 rounded-[12px] bg-black/5 px-3 py-2 ${sheet ? "" : "border border-gray-200 bg-white"}`}>
-      <Search size={15} className="shrink-0 text-gray-400" />
+    <div className={`flex items-center gap-2 rounded-[12px] bg-black/5 px-3 py-2 ${sheet ? "" : "border border-[color:var(--ds-line)] bg-white"}`}>
+      <Search size={15} className="shrink-0 text-[color:var(--ds-faint)]" />
       <input
         type="search"
         inputMode={calling ? "text" : undefined}
@@ -171,7 +171,7 @@ export default function ReachPicker({
         placeholder={placeholder}
         autoComplete="off"
         autoFocus={!sheet}
-        className={`w-full bg-transparent outline-none placeholder:text-gray-400 ${sheet ? "text-[16px]" : "text-sm"}`}
+        className={`w-full bg-transparent outline-none placeholder:text-[color:var(--ds-faint)] ${sheet ? "text-[16px]" : "text-sm"}`}
       />
     </div>
   );
@@ -187,8 +187,8 @@ export default function ReachPicker({
         {icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[15px] font-medium text-gray-900">{label}</span>
-        <span className="block truncate text-[13px] text-gray-500">{sub}</span>
+        <span className="block truncate text-[15px] font-medium text-[color:var(--ds-ink)]">{label}</span>
+        <span className="block truncate text-[13px] text-[color:var(--ds-muted)]">{sub}</span>
       </span>
     </button>
   );
@@ -223,11 +223,11 @@ export default function ReachPicker({
               () => textNumber(typedNumber)
             ))}
       {!error && !contacts ? (
-        <p className="flex items-center justify-center gap-2 px-3 py-8 text-sm text-gray-400">
+        <p className="flex items-center justify-center gap-2 px-3 py-8 text-sm text-[color:var(--ds-faint)]">
           <Loader2 size={15} className="animate-spin" /> Loading…
         </p>
       ) : !error && contacts && matches.length === 0 && !typedNumber ? (
-        <p className="px-3 py-6 text-center text-sm text-gray-400">{emptyText}</p>
+        <p className="px-3 py-6 text-center text-sm text-[color:var(--ds-faint)]">{emptyText}</p>
       ) : (
         matches.map((c) => (
           <button
@@ -238,21 +238,21 @@ export default function ReachPicker({
           >
             <Monogram name={fullName(c)} size={36} />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[15px] font-medium text-gray-900">
+              <span className="block truncate text-[15px] font-medium text-[color:var(--ds-ink)]">
                 {fullName(c)}
                 {c.kind === "CONTACT" ? (
-                  <span className="ml-2 text-xs font-normal text-gray-500">Contact</span>
+                  <span className="ml-2 text-xs font-normal text-[color:var(--ds-muted)]">Contact</span>
                 ) : c.status === "LEAD" ? (
-                  <span className="ml-2 text-xs font-normal text-gray-500">Lead</span>
+                  <span className="ml-2 text-xs font-normal text-[color:var(--ds-muted)]">Lead</span>
                 ) : null}
               </span>
               {(c.companyName || c.phone) && (
-                <span className="block truncate text-[13px] text-gray-500">
+                <span className="block truncate text-[13px] text-[color:var(--ds-muted)]">
                   {[c.companyName, c.phone ? prettyPhone(c.phone) : null].filter(Boolean).join(" · ")}
                 </span>
               )}
             </span>
-            {calling && <PhoneCall size={16} className="shrink-0 text-gray-400" />}
+            {calling && <PhoneCall size={16} className="shrink-0 text-[color:var(--ds-faint)]" />}
           </button>
         ))
       )}
@@ -275,8 +275,8 @@ export default function ReachPicker({
       {open && (
         <>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-base font-bold text-gray-900">{title}</h2>
-            <button type="button" onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600" aria-label="Close">
+            <h2 className="text-base font-bold text-[color:var(--ds-ink)]">{title}</h2>
+            <button type="button" onClick={onClose} className="p-1 text-[color:var(--ds-faint)] hover:text-[color:var(--ds-muted)]" aria-label="Close">
               <X size={16} />
             </button>
           </div>

@@ -51,25 +51,48 @@ async function oldestOwnerEmail(companyId: string): Promise<string | null> {
  * inbox (David 2026-10-01: "still getting those notification emails
  * despite having push" — his company inbox was never his login, so the
  * 2026-09-29 rule never applied to it). That person said always/never →
- * that; otherwise (automatic) only while none of their devices has push on.
+ * that; otherwise (automatic) only while none of their devices has push on
+ * — for a shared inbox that is the oldest owner's devices, by David's
+ * 2026-10-01 call (audit 2026-10-06 C10 proposed "always send" for shared
+ * inboxes; kept as is so the owner's push keeps the company inbox quiet).
  * Nobody to ask (no owner at all) → send. Exported for the profile card's
- * "what happens now" line.
+ * "what happens now" line; the decision itself is inboxEmailWanted
+ * (scripts/test-notify.ts).
  */
 export async function emailWanted(companyId: string, address: string): Promise<boolean> {
   const member = await prisma.user.findFirst({
     where: { companyId, isActive: true, email: { equals: address, mode: "insensitive" } },
     select: { id: true, accountId: true, emailAlerts: true },
   });
-  const reader =
-    member ??
-    (await prisma.user.findFirst({
-      where: { companyId, role: "OWNER", isActive: true },
-      orderBy: { createdAt: "asc" },
-      select: { id: true, accountId: true, emailAlerts: true },
-    }));
+  if (member) {
+    return inboxEmailWanted({
+      login: true,
+      emailAlerts: member.emailAlerts,
+      pushOn: member.emailAlerts === null ? await hasPushDevice(member.id, member.accountId) : false,
+    });
+  }
+  const owner = await prisma.user.findFirst({
+    where: { companyId, role: "OWNER", isActive: true },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, accountId: true, emailAlerts: true },
+  });
+  if (!owner) return inboxEmailWanted(null);
+  return inboxEmailWanted({
+    login: false,
+    emailAlerts: owner.emailAlerts,
+    pushOn: owner.emailAlerts === null ? await hasPushDevice(owner.id, owner.accountId) : false,
+  });
+}
+
+/**
+ * The pure rule behind emailWanted: `reader` is the member whose login the
+ * inbox is (`login: true`), else the oldest owner standing in for a shared
+ * inbox (`login: false`), else null when there is nobody to ask.
+ */
+export function inboxEmailWanted(reader: { login: boolean; emailAlerts: boolean | null; pushOn: boolean } | null): boolean {
   if (!reader) return true;
   if (reader.emailAlerts !== null) return reader.emailAlerts;
-  return !(await hasPushDevice(reader.id, reader.accountId));
+  return !reader.pushOn;
 }
 
 /**

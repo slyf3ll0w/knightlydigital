@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { limit } from "@/lib/rate-limit";
 import { getActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { companyTz } from "@/lib/tasks";
@@ -13,6 +14,14 @@ import { cancelScheduledSend, scheduleDocumentSend } from "@/lib/send-document";
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // A scheduled send is a send — same per-company cap as the Send button
+  const sendRl = await limit(`send:${actor.companyId}`, 120, 60 * 60 * 1000);
+  if (!sendRl.ok) {
+    return NextResponse.json(
+      { error: "Too many sends in the last hour — try again shortly." },
+      { status: 429, headers: { "Retry-After": String(sendRl.retryAfterSeconds) } }
+    );
+  }
   if (await inPreview(actor.companyId))
     return NextResponse.json(previewBlockedError("Sending invoices to clients"), { status: 403 });
   if (!canSeeMoney(actor)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });

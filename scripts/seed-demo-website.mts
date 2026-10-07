@@ -3,12 +3,16 @@
  * snapshot, so the Settings → Website / console / site-data endpoint can be
  * tested against a real account.
  *
- *   DATABASE_URL=<staging public url> npx tsx scripts/seed-demo-website.mts <path to site.json>
+ *   DATABASE_URL=<staging public url> npx tsx scripts/seed-demo-website.mts <path to site.json> --staging
  *
  * Creates the company through createCompanySignup (same path as /apply),
  * pins the slug, fills the business facts, price book, two booking items
  * and the Website row (brief + IN_STUDIO + preview URL). Re-running updates
- * in place. Never run against production.
+ * in place. Never run against production: the script refuses unless
+ * DATABASE_URL points at a local Postgres (localhost / 127.0.0.1) or you
+ * pass `--staging` to say the URL you set is the staging one — the prod
+ * DATABASE_PUBLIC_URL in a local shell used to sail through (audit
+ * 2026-10-06, F10).
  */
 import { readFile } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
@@ -16,13 +20,32 @@ import bcrypt from "bcryptjs";
 import { prisma } from "../lib/db";
 import { createCompanySignup } from "../lib/signup";
 
-const file = process.argv[2];
+const args = process.argv.slice(2);
+const flags = new Set(args.filter((a) => a.startsWith("--")));
+const file = args.find((a) => !a.startsWith("--"));
 if (!file) {
-  console.error("usage: seed-demo-website.mts <site.json>");
+  console.error("usage: seed-demo-website.mts <site.json> [--staging]");
   process.exit(1);
 }
 if (/workbenchfsm\.com|prod/i.test(process.env.NEXTAUTH_URL ?? "")) {
   console.error("refusing: this looks like production");
+  process.exit(1);
+}
+// The DB is what the script writes to, so the guard is on DATABASE_URL, not
+// NEXTAUTH_URL alone: a local Postgres is fine; anything else needs --staging.
+const dbHost = (() => {
+  try {
+    return new URL(process.env.DATABASE_URL ?? "").hostname;
+  } catch {
+    return "";
+  }
+})();
+const localDb = dbHost === "localhost" || dbHost === "127.0.0.1" || dbHost === "::1" || dbHost === "[::1]";
+if (!localDb && !flags.has("--staging")) {
+  console.error(
+    `refusing: DATABASE_URL points at "${dbHost || "?"}", which is not a local Postgres. ` +
+      "If that is the STAGING database, re-run with --staging. Never run this against production."
+  );
   process.exit(1);
 }
 const snap = JSON.parse(await readFile(file, "utf8"));

@@ -6,6 +6,7 @@ import {
   companyTz,
   finishReminder,
   notifyTaskAssigned,
+  reminderSentStamp,
   serializeTask,
   taskInclude,
   taskScope,
@@ -40,7 +41,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!body) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   const tz = await companyTz(actor.companyId);
 
-  const validated = await validateTaskInput(body, actor.companyId, tz, { requireTitle: false });
+  const validated = await validateTaskInput(body, actor, tz, { requireTitle: false });
   if ("error" in validated) return NextResponse.json({ error: validated.error }, { status: 400 });
   const data = finishReminder(validated.data, validated.pending, existing, tz);
 
@@ -69,13 +70,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     doneFields = body.done ? { doneAt: new Date(), doneById: actor.id } : { doneAt: null, doneById: null };
   }
 
-  // A reminder whose moment changed should fire again; one already sent for
-  // an unchanged time stays sent. Handing the task to someone else also
-  // re-arms a reminder that is still ahead, so the new person hears it too.
+  // A reminder whose moment changed should fire again — unless the new moment
+  // has already gone by, which is stamped sent rather than fired as stale
+  // (reminderSentStamp); one already sent for an unchanged time stays sent.
+  // Handing the task to someone else also re-arms a reminder that is still
+  // ahead, so the new person hears it too.
+  const now = new Date();
   const nextRemindAt = data.remindAt !== undefined ? data.remindAt : existing.remindAt;
-  const remindReset =
-    (data.remindAt !== undefined && (data.remindAt?.getTime() ?? null) !== (existing.remindAt?.getTime() ?? null)) ||
-    (assigneeId && nextRemindAt && nextRemindAt.getTime() > Date.now())
+  const remindChanged =
+    data.remindAt !== undefined && (data.remindAt?.getTime() ?? null) !== (existing.remindAt?.getTime() ?? null);
+  const remindReset = remindChanged
+    ? { remindSentAt: reminderSentStamp(nextRemindAt, now) }
+    : assigneeId && nextRemindAt && nextRemindAt.getTime() > now.getTime()
       ? { remindSentAt: null }
       : {};
 
