@@ -1619,13 +1619,13 @@ export function platformTollFreeInput(number: string, form: RegistrationForm): T
     // shot with the box ticked came back "Opt-In Checkbox is Pre-selected" (2026-10-01).
     optInImageUrls: ["https://workbenchfsm.com/sms-opt-in-workbench.png", "https://workbenchfsm.com/sms-terms-workbench.png"],
     additionalInformation:
-      "Streamflaire Group LLC is the sender and only user of this number: its own customer support line for its WorkBench software, " +
-      "not a number provided to a customer; no third party sends from it. Two-party support conversations only; no marketing. " +
-      "The opt-in checkbox is not pre-selected: the screenshot shows the form as it loads (box unchecked) and the applicant must tick it. " +
-      "STOP/HELP handled at the Telnyx edge and mirrored in the application." +
+      // Telnyx caps this at 500 characters (campaignLint-style guard in scripts/test-business-line.ts).
       // 2026-10-05 the reviewer returned "https://workbenchfsm.com/ not live" although the site answers
-      // 200 from everywhere we can reach it — say so, and where the legal entity is named.
-      " The website https://workbenchfsm.com/ is live (HTTP 200, no login) and names Streamflaire Group LLC in its footer and at /privacy, /terms and /sms-terms.",
+      // 200 from everywhere we can reach it — the last sentence says so, and where the legal entity is named.
+      "Streamflaire Group LLC is the sender and only user of this number: its own customer support line for its WorkBench software (DBA); no third party sends from it. " +
+      "Two-party support conversations only; no marketing. " +
+      "The opt-in checkbox is not pre-selected (the screenshot shows the form as it loads; the applicant ticks it). STOP/HELP handled at the Telnyx edge. " +
+      "https://workbenchfsm.com/ is live (HTTP 200, no login) and names Streamflaire Group LLC in its footer and on /privacy, /terms, /sms-terms.",
     privacyPolicyURL: "https://workbenchfsm.com/privacy",
     termsAndConditionURL: "https://workbenchfsm.com/sms-terms",
     webhookUrl: tollFreeWebhookUrl(),
