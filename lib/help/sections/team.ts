@@ -54,7 +54,7 @@ export const teamSection: HelpSection = {
         },
         {
           type: "p",
-          text: `A login works on **one device at a time**. Open WorkBench on a second device while the first is in use and you'll see **This login is in use on …** with a \`Use it here\` button, which moves the login over; the first device shows the same screen the next time someone touches it. A device that has been idle for a few minutes lets go on its own, so moving from your phone to your computer takes at most one tap. Everyone on the crew should have their own login — it's also what puts timesheets, calls and notifications on the right person. **${PRO}** and **${MAX}** lift this: one login can be used on several devices at once.`,
+          text: `A login works on **one device at a time**. Open WorkBench on a second device while the first is in use and you'll see **This login is in use on …** with a \`Use it here\` button, which moves the login over; the first device shows the same screen the next time someone touches it. A device that has been idle for a few minutes lets go on its own, and signing out lets go at once, so moving from your phone to your computer takes at most one tap. **Calls win:** answering or placing a call on the business line moves the login to that device by itself, and the screen never covers a device with a call ringing or in progress, so a call is never interrupted. Everyone on the crew should have their own login — it's also what puts timesheets, calls and notifications on the right person. **${PRO}** and **${MAX}** lift this: one login can be used on several devices at once.`,
         },
         {
           type: "tip",

@@ -254,7 +254,7 @@ export const mobileSection: HelpSection = {
         },
         {
           type: "p",
-          text: "A login works on one device at a time. If your computer still has WorkBench open when you open the phone app, the phone shows **This login is in use on …** — press `Use it here` and carry on; the computer shows the same screen the next time you touch it. See [Add team members](/help/add-team-members).",
+          text: "A login works on one device at a time. If your computer still has WorkBench open when you open the phone app, the phone shows **This login is in use on …** — press `Use it here` and carry on; the computer shows the same screen the next time you touch it. Answering a call on the phone moves the login there on its own, so a call is never cut off by this. See [Add team members](/help/add-team-members).",
         },
       ],
     },
