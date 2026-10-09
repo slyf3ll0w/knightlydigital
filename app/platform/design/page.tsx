@@ -2,6 +2,7 @@ import { CalendarDays, CheckCircle2, ChevronRight, CreditCard, MapPin, Plus, Sen
 import { requirePageActor } from "@/lib/permissions";
 import { ActionLink, Arrow, Button, Card, Chip, DsPage, Hint, InfoTip, ListRow, PageHeader, SectionTitle, Stat } from "@/components/ds";
 import { ARROW_VARIANTS } from "@/components/ds/arrows";
+import LaunchSplashPreview from "@/components/LaunchSplashPreview";
 
 /**
  * /app/design — the design-system gallery: every piece of the kit, in THIS
@@ -40,6 +41,15 @@ export default async function DesignSystemPage() {
       />
 
       <div className="mt-10 grid gap-10">
+        <section>
+          <SectionTitle info="What the phone app shows on a cold launch: a blue-and-orange splash that gathers into the mark, then lifts away. Plays here on demand; in the app it runs once per launch.">
+            Launch animation
+          </SectionTitle>
+          <Card className="flex flex-wrap items-center gap-4 p-5">
+            <LaunchSplashPreview />
+            <p className="ds-small">Full-screen, about a second and a half. Honors reduced motion.</p>
+          </Card>
+        </section>
         <section>
           <SectionTitle info="Pages never use a raw color. These tokens come from your brand colors and are adjusted just enough to stay readable in light and dark mode.">
             Color

@@ -13,6 +13,7 @@ import { paymentsGateStatus } from "@/lib/payments-gate";
 import { atlasAccess, ATLAS_ACCESS_SELECT, ATLAS_PRICING } from "@/lib/assistant-access";
 import AppShell from "@/components/AppShell";
 import NativeShell from "@/components/NativeShell";
+import LaunchSplash from "@/components/LaunchSplash";
 import AppLock from "@/components/AppLock";
 import OfflineSupport from "@/components/OfflineSupport";
 import ForegroundRefresh from "@/components/ForegroundRefresh";
@@ -46,6 +47,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     return (
       <>
         <NativeShell />
+      <LaunchSplash />
         <AppLock />
         {children}
       </>
@@ -105,6 +107,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     return (
       <>
         <NativeShell />
+      <LaunchSplash />
         <AppLock />
         {children}
       </>
@@ -154,6 +157,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <>
       <NativeShell userId={session.user.id} />
+      <LaunchSplash />
       <AppLock offerSetup />
       <OfflineSupport />
       <ForegroundRefresh />
