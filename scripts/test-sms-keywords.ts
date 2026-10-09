@@ -6,7 +6,7 @@
  */
 import assert from "node:assert/strict";
 import { classifySmsKeyword } from "../lib/sms-keywords";
-import { phoneDigits } from "../lib/phone";
+import { inboundSenderDigits, phoneDigits } from "../lib/phone";
 
 // Whole-body keywords opt out / back in
 for (const t of ["STOP", "stop", " Stop ", "stop.", "STOP!", "stopall", "Unsubscribe"]) {
@@ -54,3 +54,15 @@ assert.equal(phoneDigits(null), null);
 assert.equal(phoneDigits(undefined), null);
 
 console.log("sms-keywords: all tests passed");
+
+// Inbound sender keys: real numbers normalize, short codes keep their digits,
+// alphanumeric sender ids are unkeyable. A Google verification code from 22000
+// must land in the inbox, not vanish because 22000 is "not a phone number".
+assert.equal(inboundSenderDigits("+12145550100"), "2145550100");
+assert.equal(inboundSenderDigits("22000"), "22000");
+assert.equal(inboundSenderDigits("+22000"), "22000");
+assert.equal(inboundSenderDigits("611"), "611");
+assert.equal(inboundSenderDigits("GOOGLE"), null);
+assert.equal(inboundSenderDigits(""), null);
+assert.equal(inboundSenderDigits(null), null);
+assert.equal(phoneDigits("22000"), null, "phoneDigits stays strict for contact matching");

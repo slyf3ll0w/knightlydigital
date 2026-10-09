@@ -23,3 +23,16 @@ export function phoneDigits(phone: string | null | undefined): string | null {
   if (digits.length === 11 && digits[0] === "1") return digits.slice(1);
   return digits.length >= 7 ? digits : null;
 }
+
+/**
+ * Sender key for an inbound text. A real number goes through phoneDigits; a
+ * US short code (3-6 digits: Google's 22000, bank alerts, carrier notices)
+ * keeps its bare digits so the text still lands in the inbox instead of being
+ * dropped as "not a phone number". Alphanumeric sender ids come back null.
+ */
+export function inboundSenderDigits(from: string | null | undefined): string | null {
+  const real = phoneDigits(from);
+  if (real) return real;
+  const digits = (from ?? "").replace(/\D/g, "");
+  return digits.length >= 3 && digits.length <= 6 ? digits : null;
+}

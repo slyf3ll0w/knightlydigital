@@ -7,7 +7,7 @@ import {
   portalThreadContactInclude,
 } from "@/lib/portal-messages";
 import { classifySmsKeyword } from "@/lib/sms-keywords";
-import { phoneDigits } from "@/lib/phone";
+import { inboundSenderDigits } from "@/lib/phone";
 import { linkCallsToContact } from "@/lib/voice";
 import { defaultLeadAssignee } from "@/lib/permissions";
 import { telnyxWebhookConfigured, verifyTelnyxSignature } from "@/lib/telnyx-webhook";
@@ -77,9 +77,14 @@ export async function POST(req: NextRequest) {
     const to = event.data.payload?.to?.[0]?.phone_number ?? "";
     const text = (event.data.payload?.text ?? "").trim();
     const media = (event.data.payload?.media ?? []).filter((m): m is { url: string; content_type?: string | null } => typeof m?.url === "string");
-    const digits = phoneDigits(from);
+    const digits = inboundSenderDigits(from);
     const keyword = classifySmsKeyword(text);
     const company = to ? await companyByLine(to) : null;
+    if (!digits) {
+      // Nothing to key a contact on (alphanumeric sender id) — say so in the
+      // logs rather than vanishing the text silently.
+      console.warn(`[telnyx] inbound text from unkeyable sender "${from}" to ${to} dropped`);
+    }
     if (digits && (keyword === "STOP" || keyword === "START") && media.length === 0) {
       await setOptOut(digits, keyword === "STOP", company?.id ?? null);
     } else if (digits && (text || media.length) && (keyword !== "HELP" || media.length)) {
