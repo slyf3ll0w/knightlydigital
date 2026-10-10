@@ -416,6 +416,21 @@ save/fill inside the shell (`get_login_creds` relation) — Android's
 equivalent of the iOS Associated Domains step, no store rebuild required
 since the intent filter already shipped in versionCode 3.
 
+## Gotchas on the Mac side
+
+- **Distribute fails with "No Account for Team 7SLBAFUG62" / "No signing
+  certificate iOS Distribution found"** (2026-10-10, 1.4). Xcode had no
+  Apple ID signed in (its Accounts list empties after some Xcode updates or
+  when the session expires) and the keychain held only the *Development*
+  certificate. Fix: Xcode → Settings → Accounts → `+` → Apple ID → sign in
+  with the Apple ID that owns team 7SLBAFUG62. Then Distribute again:
+  with "Automatically manage signing" on the App target, Xcode creates the
+  Apple Distribution certificate on the spot. If it says the team already
+  has the maximum number of distribution certificates, select the team in
+  Accounts → `Manage Certificates…` → `+` → Apple Distribution, or revoke
+  the stale one in the developer portal first — revoking a distribution
+  cert does not affect the app already in the store.
+
 ## Gotchas learned on the Windows side
 
 - `npx cap add ios` ran fine on Windows; only dependency install remains for Mac.
