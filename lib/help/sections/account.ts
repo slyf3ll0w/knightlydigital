@@ -259,6 +259,69 @@ export const mobileSection: HelpSection = {
       ],
     },
     {
+      slug: "siri",
+      title: "Hands-free with Siri (iPhone)",
+      summary: "Clock in, get directions, complete a job, and call or text your next client without touching your phone.",
+      keywords: ["siri", "hey siri", "voice", "hands free", "shortcuts", "shortcuts app", "clock in by voice", "directions", "apple maps", "spotlight", "complete job", "on my way"],
+      blocks: [
+        {
+          type: "p",
+          text: "With the iPhone app installed and signed in, Siri can run WorkBench for you while you drive or work. Say **\"Hey Siri\"** and one of the phrases below, ending with **with WorkBench** or **in WorkBench**. Nothing to set up: the phrases are ready the moment the app is installed, and they appear in the Shortcuts app and Spotlight too.",
+        },
+        {
+          type: "list",
+          note: "Try these first",
+          items: [
+            "**\"Clock me in with WorkBench\"** / **\"Clock me out with WorkBench\"** — clocks in to your next job, or out of the one you're on. Siri says the job's name back.",
+            "**\"Next job in WorkBench\"** — opens your next job in the app.",
+            "**\"Directions to my next job in WorkBench\"** — opens Apple Maps to the job's address (or the client's).",
+            "**\"What's my day look like in WorkBench\"** — reads today's schedule.",
+            "**\"What's my next job in WorkBench\"** — the job, the client, and when.",
+            "**\"What's my time on this job in WorkBench\"** — how long you've been clocked in.",
+            "**\"Complete my job in WorkBench\"** — marks the job you're on complete, the same as the `Complete Job` button. If checklist tasks are still open, Siri tells you.",
+            "**\"Call my next client with WorkBench\"** / **\"Text my next client with WorkBench\"** — reaches the client of your next job. For a text, Siri asks what to say.",
+            "**\"Call Maria Lopez with WorkBench\"** / **\"Text Maria Lopez with WorkBench\"** — any client by name. Siri asks who if it didn't catch the name.",
+            "**\"Tell my next client I'm on my way with WorkBench\"** — sends your **On my way** text and notes it on the job.",
+            "**\"Call back my last missed call with WorkBench\"** — returns the last missed call on your business line.",
+            "**\"Add a note in WorkBench\"** — Siri asks for the note and adds it to the job you're clocked into.",
+          ],
+        },
+        {
+          type: "h",
+          text: "Calls and texts",
+        },
+        {
+          type: "p",
+          text: "Siri does what the app's own Call and Text buttons do. With a business line, a call rings **your cell first**; answer, press 1, and the customer is dialed from your business number. A text goes out from the line and lands in the client's thread on the **Messages** page. Without a line, Siri asks to open WorkBench, then opens your phone's dialer or Messages app with the number and the text filled in, so the call or text comes from your own number.",
+        },
+        {
+          type: "faq",
+          items: [
+            {
+              q: "Siri says \"Open WorkBench and sign in first.\"",
+              a: "The app is signed out, or your login moved to another device. Open the app, sign in, and try again.",
+            },
+            {
+              q: "Siri says I have no job to clock into.",
+              a: "Your next job is the one you're clocked into, else the next job scheduled from today onward that's assigned to you (or to no one). Give the job a date or assign yourself to it. Sales accounts have no jobs to clock into.",
+            },
+            {
+              q: "Siri opens the app instead of doing it quietly.",
+              a: "Only Next job, Directions, and calls or texts from a phone without a business line bring the app forward. Everything else answers without opening it.",
+            },
+            {
+              q: "The phrases don't work at all.",
+              a: "Siri shortcuts need iOS 16.4 or later and the WorkBench FSM app from the App Store, not the website added to your Home Screen. Check Settings → Siri & Search → WorkBench and make sure the app is allowed.",
+            },
+          ],
+        },
+        {
+          type: "tip",
+          text: "Siri may ask \"Clock in with WorkBench?\" the first time you use a phrase. Say yes once and it stops asking.",
+        },
+      ],
+    },
+    {
       slug: "offline-mode",
       title: "Working without signal",
       summary: "What you can see and do offline, and how changes sync.",
