@@ -66,6 +66,30 @@ Project exists: **streamflaire-hub**.
    the Apple dev portal → upload to Firebase → Cloud Messaging → Apple app
    config. Until then iOS push will not deliver (Android is unaffected).
 
+## RELEASE 1.4 — iOS only, 2026-10-10 (icon + launch screen; Siri expansion if queued)
+
+What's waiting is in `native-release-queue.md` § NEXT BUILD. Short version,
+because nothing native is new except pixels and config:
+
+1. `git pull` → `npm install` → `npx cap sync ios`. Same 12 plugins as 1.3;
+   no new plugin this round (contacts sync was archived). Commit whatever
+   sync rewrites under `ios/App/CapApp-SPM/`.
+2. `npx cap open ios`. Nothing to add in Signing & Capabilities — same
+   team, same capabilities as 1.3. Versions are already 1.4 / build 13 in
+   the pbxproj.
+3. Look once at `Assets.xcassets/AppIcon.appiconset` (one 1024 PNG, solid
+   blue to the edges — no checker, no white) and
+   `Base.lproj/LaunchScreen.storyboard` (blue background, scaleAspectFill).
+   Splash.imageset is six solid-blue PNGs; that is intended.
+4. If `Intents.swift` changed for this release, it still has to satisfy the
+   10-shortcut cap in `AppShortcutsProvider` and every phrase must contain
+   `(.applicationName)` — see step 3 of RELEASE 1.3 for the usual fix-ups.
+5. Build to the iPhone → phone checklist in the queue doc (icon, cold
+   launch, airplane mode, dark mode; Siri phrases if they changed).
+6. Archive → Distribute → App Store Connect → submit 1.4. What's New:
+   "New app icon and a smoother launch." Nothing new to declare on the
+   privacy form.
+
 ## RELEASE 1.3 — iOS, 2026-09-23 (do this batch; the 1.2 section below is history — 1.2 shipped 2026-08-06)
 
 What's in it and why each piece needs the build: `native-release-queue.md`

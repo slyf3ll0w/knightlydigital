@@ -12,13 +12,18 @@ waiting* — not how to build.
 > **2026-09-24:** day-of checklist for this Play release (with what is
 > deliberately left for versionCode 5) is `android-1.3-release-2026-09-25.md`.
 
-## NEXT BUILD — launch screen + icon (iOS 1.4 / build 13, Android versionCode 6) — tree ready 2026-10-10
+## NEXT BUILD — launch screen + icon (iOS 1.4 / build 13) — tree ready 2026-10-10
+
+> **2026-10-10, David:** this round is **iOS only**. The Android half
+> (icon, solid splash, versionCode 6) is committed and harmless; it ships
+> whenever the next Play build is cut. Phone-contacts sync is **archived**
+> (see the bottom of this file), not riding along.
 
 Everything below is committed; nothing has been archived or uploaded yet.
-Build it per the runbook (`npx cap sync ios` / `android`, then archive +
-upload). Versions are already bumped in the tree: pbxproj
-`MARKETING_VERSION 1.4` / `CURRENT_PROJECT_VERSION 13`, build.gradle
-`versionName "1.4"` / `versionCode 6`.
+Build it per the runbook (`npx cap sync ios`, then archive + upload in
+Xcode). Versions are already bumped in the tree: pbxproj
+`MARKETING_VERSION 1.4` / `CURRENT_PROJECT_VERSION 13` (build.gradle is
+also at `versionName "1.4"` / `versionCode 6` for whenever Android goes).
 
 **Why a build:** David's three asks of 2026-10-09 — the iOS icon had a
 white border and was not filled in, a checkered pattern showed on launch,
@@ -50,11 +55,10 @@ corners showed as a border.
    `windowSplashScreenAnimatedIcon`, so Android shows the same solid blue
    instead of the launcher icon in a circle.
 
-**Could ride along (not in the tree):** phone-contacts sync
-(`@capacitor-community/contacts` — verify Capacitor 8 support; needs
-`NSContactsUsageDescription`, Android READ/WRITE_CONTACTS, and the
-"Contacts" data type on both stores' privacy forms). Decide before cutting
-the build: adding it later means another review cycle.
+**Could ride along:** more Siri App Intents (`ios/App/App/Intents.swift`
+is Swift in the shell, so new actions always need a build; their web routes
+can ship any time). Decided 2026-10-10 — see § Siri expansion below if it
+was added.
 
 **After it's live — verify on the phone:** home-screen icon is a full blue
 squircle with no border; force-quit and relaunch → solid blue, then the
@@ -293,6 +297,12 @@ reason it can't ride a web deploy** — that one line is what stops the queue
 filling up with things that could have shipped on a Tuesday. Clear items as
 they ship and record the version they went out in.
 
-Ideas deliberately *not* queued (no one is waiting on them): an Android
+Ideas deliberately *not* queued (no one is waiting on them): **phone
+contacts export/import** (archived 2026-10-10 by David — when it comes
+back: `@capacitor-community/contacts`, verify Capacitor 8 support,
+`NSContactsUsageDescription`, Android READ/WRITE_CONTACTS, "Contacts" data
+type on both stores' privacy forms; UI = "Save to phone" on the contact
+card and "Import from phone" → the existing `/api/app/contacts/import`
+route; vCard download as the web fallback); an Android
 home-screen widget; a Settings help card documenting the Shortcuts recipe for
 users who won't wait for the Siri build (that one is web — ship it any time).
