@@ -5,6 +5,7 @@ import { resolveNextJob } from "@/lib/next-job";
 import { DEFAULT_ON_MY_WAY_TEMPLATE, fillEta, renderMessageTemplate } from "@/lib/messaging";
 import { notifyClientOfReply, portalThreadContactInclude } from "@/lib/portal-messages";
 import { fireAutomations } from "@/lib/automations-server";
+import { companyCanSendSms } from "@/lib/sms";
 
 /**
  * POST — "tell my next client I'm on my way", hands-free. The app's own
@@ -14,6 +15,12 @@ import { fireAutomations } from "@/lib/automations-server";
  * Messages page), and the job is stamped and noted exactly as the button
  * does (app/api/app/jobs/[id]/on-my-way). No drive-time ETA — Siri's
  * request carries no position — so the {{eta}} phrase is dropped.
+ *
+ * A company with no business line (or one not yet registered for texting)
+ * can't send from the thread, so the reply is `{ handoff: true, phone,
+ * body }` instead: the intent brings the app forward and opens the phone's
+ * Messages app with the text filled in — exactly what the app's own button
+ * does — and the job is stamped the same way.
  */
 export const dynamic = "force-dynamic";
 
@@ -44,20 +51,36 @@ export async function POST() {
     null
   ).trim();
 
-  const message = await prisma.portalMessage.create({
-    data: { companyId: actor.companyId, contactId: contact.id, direction: "OUTBOUND", senderId: actor.id, body, via: "portal" },
-    select: { id: true },
-  });
-  await notifyClientOfReply(contact, message.id, body);
+  const fromLine = await companyCanSendSms(actor.companyId);
+  if (fromLine) {
+    const message = await prisma.portalMessage.create({
+      data: { companyId: actor.companyId, contactId: contact.id, direction: "OUTBOUND", senderId: actor.id, body, via: "portal" },
+      select: { id: true },
+    });
+    await notifyClientOfReply(contact, message.id, body);
+  } else if (!contact.phone) {
+    return NextResponse.json({ error: `${contact.firstName} has no phone number.` }, { status: 400 });
+  }
 
   const sentAt = new Date();
   await Promise.all([
     prisma.job.update({ where: { id: job.id }, data: { onMyWaySentAt: sentAt } }),
     prisma.jobNote.create({
-      data: { jobId: job.id, userId: actor.id, body: `Sent ${contact.firstName} an "on my way" text (via Siri).` },
+      data: {
+        jobId: job.id,
+        userId: actor.id,
+        body: fromLine
+          ? `Sent ${contact.firstName} an "on my way" text (via Siri).`
+          : `Sent ${contact.firstName} an "on my way" text (via Siri, from your phone).`,
+      },
     }),
   ]);
   fireAutomations(actor.companyId, "job.on_my_way", job.id);
 
-  return NextResponse.json({ success: true, job: { id: job.id, title: job.title }, client: contact.firstName });
+  return NextResponse.json({
+    success: true,
+    job: { id: job.id, title: job.title },
+    client: contact.firstName,
+    ...(fromLine ? {} : { handoff: true, phone: contact.phone, body }),
+  });
 }

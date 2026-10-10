@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getActor } from "@/lib/permissions";
-import { companyTimezone, todaysJobs } from "@/lib/next-job";
+import { companyTimezone, timeLabel, todaysJobs } from "@/lib/next-job";
 
 /**
  * GET — "what's my day look like", already in words: Siri reads `summary`
@@ -9,15 +9,6 @@ import { companyTimezone, todaysJobs } from "@/lib/next-job";
  * "anytime").
  */
 export const dynamic = "force-dynamic";
-
-function timeLabel(d: Date, tz: string): string {
-  const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit", hour12: true }).formatToParts(d);
-  const h = parts.find((p) => p.type === "hour")?.value ?? "";
-  const m = parts.find((p) => p.type === "minute")?.value ?? "00";
-  const ap = (parts.find((p) => p.type === "dayPeriod")?.value ?? "").toLowerCase();
-  if (h === "12" && m === "00" && ap === "pm") return "anytime";
-  return m === "00" ? `${h} ${ap}` : `${h}:${m} ${ap}`;
-}
 
 export async function GET() {
   const actor = await getActor();

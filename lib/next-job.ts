@@ -15,7 +15,13 @@ export type NextJob = {
   clockedIn: boolean;
   contactId: string;
   contactFirstName: string;
+  /** The client's number — Siri hands a call or text to the phone itself when the company has no business line. */
+  contactPhone: string | null;
   scheduledAt: Date | null;
+  /** Job address, else the client's — where "directions to my next job" goes. */
+  address: string | null;
+  /** When the open time entry started; only set while clockedIn. */
+  onClockSince: Date | null;
 };
 
 const jobSelect = {
@@ -23,19 +29,60 @@ const jobSelect = {
   title: true,
   contactId: true,
   scheduledAt: true,
-  contact: { select: { firstName: true } },
+  address: true,
+  contact: { select: { firstName: true, phone: true, address: true } },
 } as const;
 
-type JobRow = { id: string; title: string; contactId: string; scheduledAt: Date | null; contact: { firstName: string } };
+type JobRow = {
+  id: string;
+  title: string;
+  contactId: string;
+  scheduledAt: Date | null;
+  address: string | null;
+  contact: { firstName: string; phone: string | null; address: string | null };
+};
 
-const shape = (j: JobRow, clockedIn: boolean): NextJob => ({
+const shape = (j: JobRow, onClockSince: Date | null): NextJob => ({
   id: j.id,
   title: j.title,
-  clockedIn,
+  clockedIn: onClockSince !== null,
   contactId: j.contactId,
   contactFirstName: j.contact.firstName,
+  contactPhone: j.contact.phone,
   scheduledAt: j.scheduledAt,
+  address: j.address ?? j.contact.address ?? null,
+  onClockSince,
 });
+
+/** "2:30 pm" / "9 am" in the company's zone; a date-only job sits at noon and reads as "anytime". */
+export function timeLabel(d: Date, tz: string): string {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit", hour12: true }).formatToParts(d);
+  const h = parts.find((p) => p.type === "hour")?.value ?? "";
+  const m = parts.find((p) => p.type === "minute")?.value ?? "00";
+  const ap = (parts.find((p) => p.type === "dayPeriod")?.value ?? "").toLowerCase();
+  if (h === "12" && m === "00" && ap === "pm") return "anytime";
+  return m === "00" ? `${h} ${ap}` : `${h}:${m} ${ap}`;
+}
+
+/**
+ * When a job is, in words Siri can read: "today at 2:30 pm", "anytime
+ * today", "tomorrow at 9 am", "Thursday at 1 pm", "October 24th at 10 am".
+ */
+export function spokenWhen(scheduledAt: Date | null, tz: string, now: Date = new Date()): string {
+  if (!scheduledAt) return "not scheduled yet";
+  const dayStart = startOfDayIn(tz, now).getTime();
+  const day = 24 * 60 * 60 * 1000;
+  const t = scheduledAt.getTime();
+  const time = timeLabel(scheduledAt, tz);
+  const at = (dayWord: string) => (time === "anytime" ? `anytime ${dayWord}` : `${dayWord} at ${time}`);
+  if (t >= dayStart && t < dayStart + day) return at("today");
+  if (t >= dayStart + day && t < dayStart + 2 * day) return at("tomorrow");
+  if (t >= dayStart && t < dayStart + 7 * day) {
+    return at(new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "long" }).format(scheduledAt));
+  }
+  const date = new Intl.DateTimeFormat("en-US", { timeZone: tz, month: "long", day: "numeric" }).format(scheduledAt);
+  return at(date);
+}
 
 export async function companyTimezone(companyId: string): Promise<string> {
   const company = await prisma.company.findUnique({ where: { id: companyId }, select: { timezone: true } });
@@ -68,7 +115,7 @@ export async function resolveNextJob(actor: Pick<Actor, "id" | "companyId" | "ro
   const [openEntry, next] = await Promise.all([
     prisma.timeEntry.findFirst({
       where: { userId: actor.id, endedAt: null },
-      select: { job: { select: jobSelect } },
+      select: { startedAt: true, job: { select: jobSelect } },
     }),
     prisma.job.findFirst({
       where: {
@@ -85,7 +132,7 @@ export async function resolveNextJob(actor: Pick<Actor, "id" | "companyId" | "ro
   ]);
 
   // Mid-job beats up-next: "next job" while on a clock means "my job"
-  if (openEntry?.job) return shape(openEntry.job, true);
-  if (next) return shape(next, false);
+  if (openEntry?.job) return shape(openEntry.job, openEntry.startedAt);
+  if (next) return shape(next, null);
   return null;
 }

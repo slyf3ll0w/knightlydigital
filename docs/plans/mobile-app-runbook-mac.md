@@ -81,14 +81,18 @@ because nothing native is new except pixels and config:
    blue to the edges — no checker, no white) and
    `Base.lproj/LaunchScreen.storyboard` (blue background, scaleAspectFill).
    Splash.imageset is six solid-blue PNGs; that is intended.
-4. If `Intents.swift` changed for this release, it still has to satisfy the
-   10-shortcut cap in `AppShortcutsProvider` and every phrase must contain
-   `(.applicationName)` — see step 3 of RELEASE 1.3 for the usual fix-ups.
+4. `Intents.swift` DID change for this release (ten shortcuts now, the
+   cap; App Enums pick within a shortcut; `ForegroundContinuableIntent`
+   needs iOS 16.4, every type is `@available(iOS 16.4, *)`). It was
+   typechecked against the iOS 26.5 SDK with `swiftc -typecheck` on
+   2026-10-10, so Xcode should accept it as is — if not, see step 3 of
+   RELEASE 1.3 for the usual fix-ups.
 5. Build to the iPhone → phone checklist in the queue doc (icon, cold
    launch, airplane mode, dark mode; Siri phrases if they changed).
 6. Archive → Distribute → App Store Connect → submit 1.4. What's New:
-   "New app icon and a smoother launch." Nothing new to declare on the
-   privacy form.
+   "New app icon, a smoother launch, and more Siri: directions to your
+   next job, complete a job, call or text your next client, and ask what's
+   next." Nothing new to declare on the privacy form.
 
 ## RELEASE 1.3 — iOS, 2026-09-23 (do this batch; the 1.2 section below is history — 1.2 shipped 2026-08-06)
 

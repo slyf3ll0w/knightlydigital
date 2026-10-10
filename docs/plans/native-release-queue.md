@@ -55,16 +55,37 @@ corners showed as a border.
    `windowSplashScreenAnimatedIcon`, so Android shows the same solid blue
    instead of the launcher icon in a circle.
 
-**Could ride along:** more Siri App Intents (`ios/App/App/Intents.swift`
-is Swift in the shell, so new actions always need a build; their web routes
-can ship any time). Decided 2026-10-10 — see § Siri expansion below if it
-was added.
+4. **Siri expansion** (`ios/App/App/Intents.swift`, 2026-10-10). Apple
+   caps an app at ten spoken shortcuts and 1.3 had nine, so related actions
+   now share one shortcut and the spoken word picks (App Enums). New:
+   **"Directions to my next job"** (Apple Maps to the job/client address),
+   **"What's my next job"** and **"What's my time on this job"** (spoken,
+   no app), **"Complete my job"** (the job I'm on → Requires Invoicing via
+   the same status route as the button, checklist gate included),
+   **"Call / Text my next client"**. Changed: "Clock me in/out" is one
+   shortcut; "What's my next job in WorkBench" now *answers* instead of
+   opening the job ("Next job in WorkBench" / "Open my next job" still
+   open it). **Calls and texts now match the app's own buttons**
+   (`/api/app/siri/line`): a company with a business line calls/texts from
+   it; one without gets the phone's dialer or Messages app with the number
+   and text filled in (`ForegroundContinuableIntent`, which is why the
+   Siri floor moved from iOS 16.0 to 16.4). "On my way" without a line
+   hands the template text to Messages the same way. Web routes
+   (`/api/app/siri/line`, `next-job` now returning `when`, `onClock`,
+   `address`, `contactPhone`; `on-my-way` handoff reply) ship with the web
+   deploy — the old 1.3 intents keep working against them.
 
 **After it's live — verify on the phone:** home-screen icon is a full blue
 squircle with no border; force-quit and relaunch → solid blue, then the
 animation, with no white flash, no checker, no second splash; airplane mode
 → the offline page still appears (splash released); dark mode launch is
-also blue.
+also blue. Siri: "Clock me in with WorkBench" / "Clock me out with
+WorkBench"; "Directions to my next job in WorkBench" opens Maps; "What's my
+next job in WorkBench" answers in words; "Complete my job in WorkBench";
+"Text my next client with WorkBench" → Siri asks what to say, then sends
+from the line (or, for a company with no line, brings the app forward and
+opens Messages with the text filled in); "Call my next client with
+WorkBench"; the Shortcuts app lists ten WorkBench shortcuts.
 
 ---
 
