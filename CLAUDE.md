@@ -1178,6 +1178,11 @@ native project (`android/**`, `ios/**`, `capacitor.config.ts`, or adding a
 Capacitor plugin) needs a store build. Park anything that does in
 `docs/plans/native-release-queue.md` rather than cutting a build for one item;
 build mechanics are in `docs/plans/mobile-app-runbook-mac.md`.
+Launch: the native splash is a solid brand-blue frame (#0065FC) and the
+animation is a web overlay (`components/LaunchSplash.tsx`, shell UA only,
+once per cold launch) that releases the splash as soon as it paints; the mark
+geometry it draws lives in `lib/brand-mark.ts`, which the icon/splash sources
+in `assets/` also derive from (David's official icon PNG + solid-blue splashes).
 
 ## Business details to update (marketing site)
 

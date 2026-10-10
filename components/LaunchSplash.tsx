@@ -24,16 +24,17 @@ import { LaunchSplashArt } from "@/components/LaunchSplashArt";
  */
 const GATE_SCRIPT = `(function(){try{
 var el=document.getElementById("wb-launch");if(!el)return;
+function unveil(){requestAnimationFrame(function(){requestAnimationFrame(function(){
+try{var C=window.Capacitor,S=C&&C.Plugins&&C.Plugins.SplashScreen;if(S&&S.hide){S.hide({fadeOutDuration:0}).catch(function(){})}}catch(e){}
+})})}
 var ss=null;try{ss=window.sessionStorage}catch(e){}
-if(ss&&ss.getItem("wb-launched"))return;
+if(ss&&ss.getItem("wb-launched")){unveil();return}
 try{ss&&ss.setItem("wb-launched","1")}catch(e){}
 el.dataset.play="1";
 function done(){el.dataset.play="done"}
 el.addEventListener("animationend",function(e){if(e.target===el)done()});
 setTimeout(done,3000);
-requestAnimationFrame(function(){requestAnimationFrame(function(){
-try{var C=window.Capacitor,S=C&&C.Plugins&&C.Plugins.SplashScreen;if(S&&S.hide){S.hide({fadeOutDuration:0}).catch(function(){})}}catch(e){}
-})});
+unveil();
 }catch(e){}})();`;
 
 export default async function LaunchSplash() {

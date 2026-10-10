@@ -22,7 +22,9 @@ const config: CapacitorConfig = {
   },
   // Lets the server/web code recognize the native shell by user agent
   appendUserAgent: 'StreamflaireHubShell',
-  backgroundColor: '#FFFFFF',
+  // Brand blue (the icon's #0065FC): anything the webview shows before the
+  // page paints is the same blue as the launch screen and the animation.
+  backgroundColor: '#0065FC',
   ios: {
     // WKWebView only enables service workers (offline snapshot cache, sw.js)
     // under App-Bound Domains: this flag + WKAppBoundDomains in Info.plist.
@@ -36,12 +38,20 @@ const config: CapacitorConfig = {
       resize: 'native',
       resizeOnFullScreen: true,
     },
+    // The launch screen is a solid brand-blue frame (assets/splash*.png) —
+    // identical to the first frame of the web launch animation
+    // (components/LaunchSplash.tsx), which calls SplashScreen.hide() the
+    // moment it has painted, so the handoff is invisible. launchShowDuration
+    // is only the safety net: if the page never paints (offline → error.html
+    // also calls hide), the splash drops on its own after 6 s. No fade: a
+    // cross-fade between two identical blues would only show as a flicker.
     SplashScreen: {
-      backgroundColor: '#FFFFFF',
-      launchShowDuration: 900,
+      backgroundColor: '#0065FC',
+      launchShowDuration: 6000,
       launchAutoHide: true,
-      iosContentMode: 'scaleAspectFit',
-      androidScale: 'CENTER_CROP',
+      launchFadeOutDuration: 0,
+      androidScaleType: 'CENTER_CROP',
+      showSpinner: false,
     },
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert'],

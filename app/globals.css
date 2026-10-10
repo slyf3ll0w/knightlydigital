@@ -2797,7 +2797,9 @@ html[data-mode="dark"] .app-ui .wb-map-skeleton {
 /* ── Launch animation (components/LaunchSplash.tsx) — native shell only.
    A blue-and-orange splash gathers into the WorkBench mark, then the
    overlay lifts away. Timeline ≈ 1.65 s: blobs 0–0.7, W 0.25–0.8,
-   bench 0.4–0.85, legs 0.5–0.9, wordmark 0.8–1.1, out 1.3–1.65. The root
+   bench 0.4–0.85, legs 0.5–0.9, wordmark 0.8–1.1, out 1.3–1.65. Frame 0 is
+   solid #0065fc on purpose: it is the native launch screen's colour, so the
+   handoff from the static splash is invisible. The root
    element's own animation is the exit — its animationend is what the
    gate script waits for, so keep `wbLaunchOut` on the root. ── */
 .wb-launch {
@@ -2896,6 +2898,9 @@ html[data-mode="dark"] .app-ui .wb-map-skeleton {
 @keyframes wbLaunchBlobOrange {
   0% {
     transform: translate(42%, 46%) scale(1.4);
+    opacity: 0;
+  }
+  18% {
     opacity: 1;
   }
   55% {
@@ -2910,6 +2915,9 @@ html[data-mode="dark"] .app-ui .wb-map-skeleton {
 @keyframes wbLaunchBlobBlue {
   0% {
     transform: translate(-44%, -42%) scale(1.4);
+    opacity: 0;
+  }
+  18% {
     opacity: 1;
   }
   55% {

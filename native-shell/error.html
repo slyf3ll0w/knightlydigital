@@ -68,6 +68,12 @@
       <div class="status" id="status"></div>
     </div>
     <script>
+      // The native launch screen waits for the page to paint (capacitor.config
+      // SplashScreen); this page IS the paint when the site is unreachable.
+      try {
+        var cap = window.Capacitor, splash = cap && cap.Plugins && cap.Plugins.SplashScreen;
+        if (splash && splash.hide) splash.hide({ fadeOutDuration: 0 }).catch(function () {});
+      } catch (e) {}
       var btn = document.getElementById('retry');
       var status = document.getElementById('status');
       function retry() {

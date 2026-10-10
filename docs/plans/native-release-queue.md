@@ -12,6 +12,58 @@ waiting* — not how to build.
 > **2026-09-24:** day-of checklist for this Play release (with what is
 > deliberately left for versionCode 5) is `android-1.3-release-2026-09-25.md`.
 
+## NEXT BUILD — launch screen + icon (iOS 1.4 / build 13, Android versionCode 6) — tree ready 2026-10-10
+
+Everything below is committed; nothing has been archived or uploaded yet.
+Build it per the runbook (`npx cap sync ios` / `android`, then archive +
+upload). Versions are already bumped in the tree: pbxproj
+`MARKETING_VERSION 1.4` / `CURRENT_PROJECT_VERSION 13`, build.gradle
+`versionName "1.4"` / `versionCode 6`.
+
+**Why a build:** David's three asks of 2026-10-09 — the iOS icon had a
+white border and was not filled in, a checkered pattern showed on launch,
+and he wants the launch to be only the animation. Root cause of the first
+two: the old `assets/icon-only.png` and `assets/splash.png` were AI
+renders of an icon with a fake transparency checkerboard painted INTO the
+pixels (RGB, no alpha); iOS masked that into its squircle and the painted
+corners showed as a border.
+
+**What this build carries:**
+
+1. **Icon** — `assets/icon-only.png` is now David's official icon
+   (`Workbench OFFICIAL App Icon.png`, blue #0065FC) extended to a
+   full-bleed 1024 square; Android adaptive layers are the same artwork in
+   the safe zone over solid blue. Regenerated with
+   `npx @capacitor/assets@3 generate --ios --android` (both platforms).
+2. **Launch screen = the animation's first frame.** iOS cannot skip its
+   launch screen, so it is made invisible: `assets/splash*.png` are solid
+   #0065FC, `LaunchScreen.storyboard` is blue + scaleAspectFill (no white
+   letterbox), `capacitor.config.ts` sets the webview `backgroundColor` and
+   the SplashScreen plugin to the same blue with no fade, and the web
+   animation (`components/LaunchSplash.tsx`, live on prod since
+   2026-10-09) starts from a solid-blue frame and calls
+   `SplashScreen.hide()` the moment it paints. `launchShowDuration: 6000`
+   is only the safety net (offline → `native-shell/error.html` also hides
+   it; `NativeShell.tsx` hides it as a backstop on every page).
+3. **Android 12+ system splash** — `styles.xml` sets
+   `windowSplashScreenBackground` #0065FC and a transparent
+   `windowSplashScreenAnimatedIcon`, so Android shows the same solid blue
+   instead of the launcher icon in a circle.
+
+**Could ride along (not in the tree):** phone-contacts sync
+(`@capacitor-community/contacts` — verify Capacitor 8 support; needs
+`NSContactsUsageDescription`, Android READ/WRITE_CONTACTS, and the
+"Contacts" data type on both stores' privacy forms). Decide before cutting
+the build: adding it later means another review cycle.
+
+**After it's live — verify on the phone:** home-screen icon is a full blue
+squircle with no border; force-quit and relaunch → solid blue, then the
+animation, with no white flash, no checker, no second splash; airplane mode
+→ the offline page still appears (splash released); dark mode launch is
+also blue.
+
+---
+
 ## Picking this up cold — 2026-09-25
 
 **Google Play 1.3 (versionCode 5) went LIVE on 2026-09-25** — submitted and

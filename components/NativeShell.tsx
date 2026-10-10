@@ -60,8 +60,14 @@ export default function NativeShell({ userId }: { userId?: string | null } = {})
     const cap = getCapacitor();
     if (!cap?.Plugins) return;
 
-    const { StatusBar, App: CapApp, Browser, PushNotifications, Keyboard, AppShortcuts } =
+    const { StatusBar, App: CapApp, Browser, PushNotifications, Keyboard, AppShortcuts, SplashScreen } =
       cap.Plugins;
+
+    // Backstop for the launch screen: LaunchSplash's inline script releases
+    // it as soon as the page paints, but if that script never ran (a page
+    // outside the platform layout, a hydration-only render) the native splash
+    // must still come down. Repeated hide() calls are harmless.
+    SplashScreen?.hide?.({ fadeOutDuration: 0 })?.catch?.(() => {});
 
     // Kill the "< > Done" browser accessory bar above the iOS keyboard —
     // the loudest "this is a website" tell. No-ops in shells built before

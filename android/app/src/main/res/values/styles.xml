@@ -18,5 +18,9 @@
 
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <!-- Android 12+ system splash: solid brand blue with no launcher icon,
+             the same frame as the Capacitor splash and the web launch animation -->
+        <item name="windowSplashScreenBackground">#0065FC</item>
+        <item name="windowSplashScreenAnimatedIcon">@android:color/transparent</item>
     </style>
 </resources>
