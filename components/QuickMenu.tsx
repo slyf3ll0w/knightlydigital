@@ -39,6 +39,8 @@ export type MenuAnchor = { x: number; y: number; alignRight?: boolean };
 
 const LONG_PRESS_MS = 380;
 const MOVE_CANCEL_PX = 10;
+/** How long after a hold ends the row's own click is still treated as its echo. */
+const SWALLOW_MS = 500;
 
 export function QuickMenu({ open, anchor, title, actions, onClose }: { open: boolean; anchor: MenuAnchor | null; title?: string; actions: QuickAction[]; onClose: () => void }) {
   const [busy, setBusy] = useState<string | null>(null);
@@ -219,7 +221,15 @@ export default function RowActions({ actions, title, children, className = "" }:
   const [open, setOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const start = useRef<{ x: number; y: number } | null>(null);
-  const swallow = useRef(false);
+  // A press-and-hold that opened the sheet must not ALSO open the row (the
+  // browser may fire the row's click right after the finger lifts). `held`
+  // remembers the hold; at touchend it arms a short swallow window for the
+  // row's own click only. It used to be a one-shot flag with no expiry and
+  // no target check — phones fire no click after a long press, so the flag
+  // was still armed when the first tap landed in the sheet (Delete, or the
+  // backdrop) and ate it: the tap did nothing, the sheet stayed open.
+  const held = useRef(false);
+  const swallowUntil = useRef(0);
   const enabled = actions.some((a) => !a.heading);
 
   const openAt = useCallback((a: MenuAnchor) => {
@@ -252,10 +262,11 @@ export default function RowActions({ actions, title, children, className = "" }:
         const t = e.touches[0];
         if (!t) return;
         start.current = { x: t.clientX, y: t.clientY };
+        held.current = false;
         clearTimer();
         timer.current = setTimeout(() => {
           timer.current = null;
-          swallow.current = true;
+          held.current = true;
           hapticImpact("MEDIUM");
           openAt({ x: t.clientX, y: t.clientY });
         }, LONG_PRESS_MS);
@@ -265,11 +276,25 @@ export default function RowActions({ actions, title, children, className = "" }:
         if (!start.current || !timer.current || !t) return;
         if (Math.hypot(t.clientX - start.current.x, t.clientY - start.current.y) > MOVE_CANCEL_PX) clearTimer();
       }}
-      onTouchEnd={clearTimer}
-      onTouchCancel={clearTimer}
+      onTouchEnd={() => {
+        clearTimer();
+        if (held.current) {
+          held.current = false;
+          swallowUntil.current = Date.now() + SWALLOW_MS;
+        }
+      }}
+      onTouchCancel={() => {
+        clearTimer();
+        held.current = false;
+      }}
       onClickCapture={(e) => {
-        if (!swallow.current) return;
-        swallow.current = false;
+        if (!swallowUntil.current) return;
+        const fresh = Date.now() < swallowUntil.current;
+        swallowUntil.current = 0;
+        // The sheet is portaled out of this element: its taps bubble through
+        // React's tree but are never DOM descendants — only the row's own
+        // click is swallowed, and only right after the hold.
+        if (!fresh || !(e.currentTarget as HTMLElement).contains(e.target as Node)) return;
         e.preventDefault();
         e.stopPropagation();
       }}

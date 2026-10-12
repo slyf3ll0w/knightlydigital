@@ -133,7 +133,10 @@ export default function ConfirmSheetHost() {
   const accent = opts.destructive ? "#FF3B30" : "var(--mobile-accent, #0B57D8)";
 
   return (
-    <div className="fixed inset-0 z-[70]" role="alertdialog" aria-modal="true">
+    // Above the phone bottom sheets (z-70): a quick-action sheet keeps its
+    // backdrop for its 300ms exit, and a confirm asked from it must not sit
+    // under that for the first taps.
+    <div className="fixed inset-0 z-[80]" role="alertdialog" aria-modal="true">
       <div
         className={`absolute inset-0 bg-black/40 transition-opacity duration-300 ${
           open ? "opacity-100" : "opacity-0"
