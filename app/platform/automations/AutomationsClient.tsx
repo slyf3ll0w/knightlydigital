@@ -14,6 +14,7 @@ import { useAssistant } from "@/components/AssistantContext";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
+import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import { ENTITY_PATH, describeAutomation } from "@/lib/automations";
 import AutomationBuildPanel from "./AutomationBuildPanel";
 import { ago, runDot, type Draft, type Row, type Run } from "./types";
@@ -52,6 +53,11 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
   const [detail, setDetail] = useState<Row | null>(null);
   const [creating, setCreating] = useState(false);
   const [pendingDraft, setPendingDraft] = useState<Draft | null>(null);
+  // An Atlas draft waiting on "Turn it on" / "Save changes" is unsaved work
+  useUnsavedWarning(pendingDraft !== null, {
+    title: "Leave without saving?",
+    message: `The automation ${atlas.name} drafted hasn't been saved yet — it will be lost.`,
+  });
 
   const nameOf = useMemo(() => new Map(rows.map((a) => [a.id, a.name])), [rows]);
   const shown = rows.filter((r) => (filter === "all" ? true : filter === "live" ? r.isActive : !r.isActive));

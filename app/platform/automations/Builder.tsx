@@ -8,6 +8,7 @@ import { useAssistant } from "@/components/AssistantContext";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { hapticNotify } from "@/lib/haptics";
+import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import {
   ACTIONS,
   AUTOMATION_LIMITS,
@@ -93,6 +94,9 @@ export default function Builder({ initial, initialRuns, atlasFirst = false }: { 
   const [isActive, setIsActive] = useState(initial?.isActive ?? true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(!initial);
+  // A new rule starts dirty (so Save is live), but an untouched blank page
+  // has nothing to lose — only warn on leaving once something was changed
+  const [edited, setEdited] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
   const [triggerOpen, setTriggerOpen] = useState(false);
@@ -117,7 +121,13 @@ export default function Builder({ initial, initialRuns, atlasFirst = false }: { 
   const update = useCallback((patch: Partial<State> | ((s: State) => State)) => {
     setSt((s) => (typeof patch === "function" ? patch(s) : { ...s, ...patch }));
     setDirty(true);
+    setEdited(true);
   }, []);
+
+  useUnsavedWarning(dirty && edited, {
+    title: initial ? "Leave without saving?" : "Leave without turning it on?",
+    message: initial ? "Your changes to this automation will be lost." : "This automation hasn't been saved yet — it will be lost.",
+  });
 
   function flash(msg: string) {
     setToast(msg);
@@ -197,6 +207,7 @@ export default function Builder({ initial, initialRuns, atlasFirst = false }: { 
     const before = st.steps.map((s) => JSON.stringify(s));
     setSt(next);
     setDirty(true);
+    setEdited(true);
     const idx = next.steps.map((s, i) => (before[i] === JSON.stringify(s) ? -1 : i)).filter((i) => i >= 0);
     markChanged(idx.length ? idx : next.steps.map((_, i) => i));
     flash(`${atlas.name} updated ${idx.length || next.steps.length} step${(idx.length || next.steps.length) === 1 ? "" : "s"} — check them, then save.`);
