@@ -129,7 +129,7 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
           className="btn-primary"
         >
           <Plus size={15} />
-          Add Field
+          Add field
         </button>
       </div>
 
@@ -192,7 +192,7 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
               className="btn-primary"
             >
               {busy && <Loader2 size={13} className="animate-spin" />}
-              Add Field
+              Add field
             </button>
             <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
               Cancel

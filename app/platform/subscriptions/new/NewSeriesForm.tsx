@@ -9,6 +9,7 @@ import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import { InfoTip } from "@/components/ds";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import ContactPicker from "@/components/ContactPicker";
 import ServiceChips, { type ServiceLite } from "@/components/ServiceChips";
 import { titleFromServices } from "@/lib/service-title";
@@ -85,6 +86,10 @@ export default function NewSeriesForm({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Anything touched since the page opened: leaving asks first
+  const [dirty, setDirty] = useState(false);
+  const touch = () => setDirty(true);
+  useUnsavedWarning(dirty && !loading);
   const [contactId, setContactId] = useState(prefilledContactId);
   const [propertyId, setPropertyId] = useState("");
   const [name, setName] = useState("");
@@ -110,6 +115,7 @@ export default function NewSeriesForm({
   function pickService(w: ServiceLite) {
     const next = service?.id === w.id ? null : w;
     setService(next);
+    touch();
     if (!nameTouched) setName(next ? next.name : "");
     if (next) {
       if (next.durationMinutes && next.durationMinutes > 0) setVisitDuration(String(next.durationMinutes));
@@ -159,6 +165,8 @@ export default function NewSeriesForm({
       setError(data?.error ?? GENERIC_ERROR);
       return;
     }
+    // Saved — the leave guard must not fire on the redirect
+    setDirty(false);
     router.push("/app/subscriptions");
   }
 
@@ -169,7 +177,7 @@ export default function NewSeriesForm({
         <PageTitle>New recurring plan</PageTitle>
       </div>
 
-      <form onSubmit={submit} className="space-y-5">
+      <form onSubmit={submit} onChange={touch} className="space-y-5">
         {error && (
           <div role="alert" className="form-error">
             {error}
@@ -186,13 +194,15 @@ export default function NewSeriesForm({
               onChange={(id) => {
                 setContactId(id);
                 setPropertyId("");
+                touch();
               }}
             />
           </div>
           <ServiceChips items={services} selectedIds={service ? [service.id] : []} onToggle={pickService} />
           <div>
-            <label className="block text-xs text-gray-500 mb-1">
+            <label className="mb-1 flex items-center gap-1 text-xs text-gray-500">
               Plan name{services.length > 0 ? " (optional)" : " *"}
+              <InfoTip label="Where does the plan name show?">Each visit lands on the schedule as a job with this title.</InfoTip>
             </label>
             <input
               value={name}
@@ -204,7 +214,6 @@ export default function NewSeriesForm({
               maxLength={150}
               className={inputCls}
             />
-            <p className="text-xs text-gray-500 mt-1">Each visit lands on the schedule as a job with this title.</p>
           </div>
           <div>
             <label className="block text-xs text-gray-500 mb-1">Notes for the crew (optional)</label>
@@ -408,11 +417,11 @@ export default function NewSeriesForm({
                     onChange={(e) => setAutoBillJobs(e.target.checked)}
                     className="mt-0.5 h-4 w-4 accent-[color:var(--ds-primary)]"
                   />
-                  <span className="text-sm text-gray-700">
+                  <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
                     Bill each job automatically the moment it&apos;s completed
-                    <span className="block text-xs text-gray-500">
+                    <InfoTip label="And when it's off?">
                       Off = completed work waits in the Ready-to-bill queue until you bill it.
-                    </span>
+                    </InfoTip>
                   </span>
                 </label>
               )}

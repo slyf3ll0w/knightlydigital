@@ -162,6 +162,7 @@ export default function BookingHome({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const sharedRef = useRef(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [open, setOpen] = useState<"look" | "rules" | "embed" | "hub" | null>(null);
   const [tick, setTick] = useState(0); // bumps the thumbnail after item changes
@@ -262,6 +263,12 @@ export default function BookingHome({
   async function copy(text: string, key: string) {
     try {
       await navigator.clipboard.writeText(text);
+      // The Get started checklist's "Share your booking page" ticks on the
+      // first copy of any booking link or the embed snippet (lib/get-started.ts)
+      if (!sharedRef.current) {
+        sharedRef.current = true;
+        void postJson("/api/app/setup/flag", { key: "bookingLinkShared" });
+      }
       setCopied(key);
       setTimeout(() => setCopied((c) => (c === key ? null : c)), 2000);
     } catch {

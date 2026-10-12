@@ -135,7 +135,7 @@ export const leadsSection: HelpSection = {
         },
         {
           type: "p",
-          text: "Press `New Lead` to add one yourself. Only a first name is needed; the last name is optional. Press `+ More details` to add their email, company, address, lead source and notes too. Leads in **New** are counted on the Leads badge and under **Needs you** on Home.",
+          text: "Press `New lead` to add one yourself. Only a first name is needed; the last name is optional. Press `+ More details` to add their email, company, address, lead source and notes too. Leads in **New** are counted on the Leads badge and under **Needs you** on Home.",
         },
         {
           type: "p",
@@ -247,8 +247,8 @@ export const leadsSection: HelpSection = {
         {
           type: "list",
           items: [
-            "Use `Convert to Quote` or `Convert to Job` to start the work.",
-            "A held booking shows a banner saying the time is held on your schedule. Press `Accept and Schedule` to confirm it, or `Decline` to free the slot. Either way the customer is emailed.",
+            "Use `Convert to quote` or `Convert to job` to start the work.",
+            "A held booking shows a banner saying the time is held on your schedule. Press `Accept and schedule` to confirm it, or `Decline` to free the slot. Either way the customer is emailed.",
             "`Archive` requests that don't need anything.",
           ],
         },

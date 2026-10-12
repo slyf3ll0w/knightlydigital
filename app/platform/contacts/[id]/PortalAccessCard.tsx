@@ -38,7 +38,7 @@ export default function PortalAccessCard({
       title: "Reset the portal link?",
       message:
         "Every link this client has today stops working immediately. You'll need to send them the new one.",
-      confirmLabel: "Reset Link",
+      confirmLabel: "Reset link",
       destructive: true,
     });
     if (!ok) return;

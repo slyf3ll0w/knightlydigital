@@ -722,7 +722,7 @@ export async function runTechHeadsUp(now: Date = new Date()): Promise<Appointmen
 
       const actions = [
         ...(job.contact.phone
-          ? [{ action: "omw", title: "On My Way", url: `/app/jobs/${job.id}?omw=1` }]
+          ? [{ action: "omw", title: "On my way", url: `/app/jobs/${job.id}?omw=1` }]
           : []),
         ...(address
           ? [

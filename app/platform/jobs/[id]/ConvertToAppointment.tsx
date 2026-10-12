@@ -21,7 +21,7 @@ export async function convertJobToAppointment(
       title: "Make this an appointment?",
       message:
         "The client, time, address, crew lead, and notes carry over. It stops being a job: no invoice, no time clock — it ends with an optional quote instead.",
-      confirmLabel: "Make It an Appointment",
+      confirmLabel: "Make it an appointment",
     }))
   )
     return false;

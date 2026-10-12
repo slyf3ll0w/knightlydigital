@@ -500,7 +500,7 @@ export function newRequestEmail({
       ${contactPhone ? `<p style="margin:0 0 2px;color:#374151;font-size:14px;">${esc(contactPhone)}</p>` : ""}
       ${contactEmail ? `<p style="margin:0 0 2px;color:#374151;font-size:14px;">${esc(contactEmail)}</p>` : ""}
       ${detailRows ? `${fieldLabel("Details")}${detailRows}` : ""}
-      ${wbBtn(`${APP_URL}/app/requests/${requestId}`, "View Request")}`,
+      ${wbBtn(`${APP_URL}/app/requests/${requestId}`, "View request")}`,
   });
 
   return { subject: `New request: ${title}`, html };
@@ -535,7 +535,7 @@ export function contractSignedNotifyEmail({
         <strong>${esc(signerName)}</strong> signed
         <strong>${esc(title)}</strong> on ${when}.
       </p>
-      ${wbBtn(`${APP_URL}/app/contracts/${contractId}`, "View Contract")}`,
+      ${wbBtn(`${APP_URL}/app/contracts/${contractId}`, "View contract")}`,
   });
   return { subject: `Contract signed: ${title}`, html };
 }
@@ -564,7 +564,7 @@ export function passwordResetEmail({
         button below to choose a new one. This link expires in 1 hour and can be
         used once.
       </p>
-      ${wbBtn(resetUrl, "Reset Your Password")}
+      ${wbBtn(resetUrl, "Reset your password")}
       <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
         If you didn't request this, you can safely ignore this email — your
         password won't change until you open the link and set a new one.
@@ -576,7 +576,7 @@ export function passwordResetEmail({
         Click the button below to set one — after that you can log in with
         either. This link expires in 1 hour and can be used once.
       </p>
-      ${wbBtn(resetUrl, "Set a Password")}
+      ${wbBtn(resetUrl, "Set a password")}
       <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
         If you didn't request this, you can safely ignore this email — nothing
         changes until you open the link. Signing in with Google keeps working
@@ -745,7 +745,7 @@ export function emailChangeVerifyEmail({
         <strong>${esc(newEmail)}</strong>. Confirm below and this becomes the
         address you sign in with. The link expires in 1 hour and works once.
       </p>
-      ${wbBtn(verifyUrl, "Confirm This Email")}
+      ${wbBtn(verifyUrl, "Confirm this email")}
       <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
         If this wasn't you, ignore this email — nothing changes until the link
         is opened, and the old address keeps working.
@@ -923,7 +923,7 @@ export function inviteCodeEmail({
         create your account — it's single-use and tied to your business.
       </p>
       ${wbCodeBox(code, 20, 2)}
-      ${wbBtn(signupUrl, "Create Your Account")}
+      ${wbBtn(signupUrl, "Create your account")}
       <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
         The button pre-fills your code. If you weren't expecting this email,
         you can ignore it.
@@ -1019,7 +1019,7 @@ export function reviewRequestEmail({
       <p style="margin:0;color:#374151;font-size:14px;">
         If you have a minute, a quick Google review helps our small business more than you know.
       </p>
-      ${accentBtn(reviewLink, "Leave a Review", brand)}`,
+      ${accentBtn(reviewLink, "Leave a review", brand)}`,
   });
   return { subject: `How did we do? — ${companyName}`, html };
 }
@@ -1048,7 +1048,7 @@ export function contractSignEmail({
         ${esc(companyName)} sent you an agreement to review and sign:
         <strong>${esc(title)}</strong>.
       </p>
-      ${accentBtn(signUrl, "Review &amp; Sign", brand)}`,
+      ${accentBtn(signUrl, "Review &amp; sign", brand)}`,
   });
   return { subject: `${companyName} sent you an agreement to sign: ${title}`, html };
 }
@@ -1079,7 +1079,7 @@ export function hubAccessEmail({
         Here's your personal link to the ${esc(companyName)} client portal — view your
         quotes and invoices, check scheduled visits, and send us new requests.
       </p>
-      ${accentBtn(hubUrl, "Open Your Client Portal", brand)}
+      ${accentBtn(hubUrl, "Open your client portal", brand)}
       <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
         This link is unique to you — keep it handy, or request a fresh one
         anytime from the portal sign-in page.
@@ -1161,7 +1161,7 @@ export function portalMessageEmail({
       <div style="margin:0 0 4px;padding:12px 14px;background:#f9fafb;border-left:3px solid #d1d5db;border-radius:0 8px 8px 0;">
         <p style="margin:0;color:#111827;font-size:14px;line-height:1.6;">${toHtml(messageBody)}</p>
       </div>
-      ${accentBtn(messagesUrl, "Reply in Your Portal", brand)}
+      ${accentBtn(messagesUrl, "Reply in your portal", brand)}
       <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
         Your conversation history lives in your client portal — the button
         above takes you straight to it.
@@ -1198,7 +1198,7 @@ export function portalMessageTeamEmail({
       <div style="margin:0 0 4px;padding:12px 14px;background:#f9fafb;border-left:3px solid #d1d5db;border-radius:0 8px 8px 0;">
         <p style="margin:0;color:#111827;font-size:14px;line-height:1.6;">${toHtml(messageBody)}</p>
       </div>
-      ${wbBtn(`${APP_URL}/app/messages/thread/${contactId}`, "Open Conversation")}`,
+      ${wbBtn(`${APP_URL}/app/messages/thread/${contactId}`, "Open conversation")}`,
   });
   return { subject: `New message from ${contactName}`, html };
 }
@@ -1285,7 +1285,7 @@ export function invoiceLinkEmail({
       </p>
       ${itemsBlock(serviceNames)}
       ${totalsLedger(brand, "Total", total)}
-      ${accentBtn(payUrl, payable ? "View &amp; Pay Invoice" : "View Invoice", brand)}
+      ${accentBtn(payUrl, payable ? "View &amp; pay invoice" : "View invoice", brand)}
       <p style="margin:12px 0 0;color:#6b7280;font-size:12px;">
         Prefer a copy for your records? <a href="${payUrl}/pdf" style="color:#6b7280;">Download the PDF</a>.
       </p>`,
@@ -1330,7 +1330,7 @@ export function autopayFailedEmail({
         just means the card expired or was replaced.
       </p>
       ${totalsLedger(brand, "Amount due", total)}
-      ${accentBtn(updateCardUrl, "Update Card on File", brand)}
+      ${accentBtn(updateCardUrl, "Update card on file", brand)}
       <p style="margin:16px 0 0;color:#374151;font-size:14px;">
         We'll automatically try again once your card is updated. Prefer to pay this
         one directly? <a href="${payUrl}" style="color:#374151;">Pay the invoice online</a>.
@@ -1370,7 +1370,7 @@ export function cardExpiringEmail({
         (${esc(cardLabel)}) ${expired ? "has expired" : "expires soon"}. Updating it
         now keeps your service billing running without interruption.
       </p>
-      ${accentBtn(updateCardUrl, "Update Card on File", brand)}`,
+      ${accentBtn(updateCardUrl, "Update card on file", brand)}`,
   });
   return {
     subject: expired
@@ -1420,7 +1420,7 @@ export function quoteFollowUpEmail({
       <p style="margin:0;color:#111827;font-size:15px;">${opener}</p>
       ${totalsLedger(brand, "Quote total", total)}
       ${expiryNote}
-      ${accentBtn(viewUrl, "Review &amp; Approve Quote", brand)}
+      ${accentBtn(viewUrl, "Review &amp; approve quote", brand)}
       <p style="margin:12px 0 0;color:#6b7280;font-size:12px;">
         Questions or changes? Just reply to this email.
       </p>`,
@@ -1538,7 +1538,7 @@ export function quoteLinkEmail({
       ${itemsBlock(serviceNames)}
       ${totalsLedger(brand, "Total", total)}
       ${deposit}
-      ${accentBtn(viewUrl, "View &amp; Approve Quote", brand)}
+      ${accentBtn(viewUrl, "View &amp; approve quote", brand)}
       <p style="margin:12px 0 0;color:#6b7280;font-size:12px;">
         Prefer a copy for your records? <a href="${viewUrl}/pdf" style="color:#6b7280;">Download the PDF</a>.
       </p>`,
@@ -1963,7 +1963,7 @@ export function paymentReminderEmail({
     inner: `
       <p style="margin:0;color:#111827;font-size:15px;">${esc(copy.lead)}</p>
       ${totalsLedger(brand, "Balance due", balance)}
-      ${accentBtn(payUrl, payable ? "View &amp; Pay Invoice" : "View Invoice", brand)}
+      ${accentBtn(payUrl, payable ? "View &amp; pay invoice" : "View invoice", brand)}
       ${companyEmail ? `<p style="margin:20px 0 0;color:#6b7280;font-size:13px;">Already paid or have a question? Reply to this email or reach ${esc(companyName)} at ${esc(companyEmail)}.</p>` : ""}`,
   });
   return { subject: copy.subject, html };

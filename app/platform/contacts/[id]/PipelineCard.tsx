@@ -75,7 +75,7 @@ export default function PipelineCard({
               await confirmSheet({
                 title: `Mark ${contactName} as won?`,
                 message: "They become an active client.",
-                confirmLabel: "Mark as Won",
+                confirmLabel: "Mark as won",
               })
             )
               send({ action: "won" });
@@ -91,7 +91,7 @@ export default function PipelineCard({
             const reason = await promptSheet({
               title: isLead ? `Mark ${contactName} as lost?` : `Take ${contactName} off the board?`,
               message: isLead ? "The lead is archived." : "They stay an active client.",
-              confirmLabel: isLead ? "Mark as Lost" : "Remove from Board",
+              confirmLabel: isLead ? "Mark as lost" : "Remove from board",
               placeholder: "Reason (optional)",
             });
             if (reason !== null) send({ action: "lost", reason: reason || undefined });

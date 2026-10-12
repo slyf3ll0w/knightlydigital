@@ -348,7 +348,7 @@ export default function SubscriptionsClient({
                 className="btn-primary"
               >
                 {billingReady && <Loader2 size={13} className="animate-spin" />}
-                Bill Ready Work
+                Bill ready work
               </button>
             )}
           </div>
@@ -736,8 +736,8 @@ export default function SubscriptionsClient({
                               await confirmSheet({
                                 title: "Cancel this subscription?",
                                 message: "It will stop billing.",
-                                confirmLabel: "Cancel Subscription",
-                                cancelLabel: "Keep It",
+                                confirmLabel: "Cancel subscription",
+                                cancelLabel: "Keep it",
                                 destructive: true,
                               })
                             )
@@ -848,8 +848,8 @@ export default function SubscriptionsClient({
                               await confirmSheet({
                                 title: "Cancel this subscription?",
                                 message: "It will stop billing.",
-                                confirmLabel: "Cancel Subscription",
-                                cancelLabel: "Keep It",
+                                confirmLabel: "Cancel subscription",
+                                cancelLabel: "Keep it",
                                 destructive: true,
                               })
                             )

@@ -86,7 +86,7 @@ export default async function ContractsPage({
             className="btn-primary h-10 shrink-0 justify-center sm:px-4"
           >
             <Plus size={15} />
-            <span className="hidden sm:inline">New Template</span>
+            <span className="hidden sm:inline">New template</span>
           </Link>
         </div>
         {viewSwitch}
@@ -155,7 +155,7 @@ export default async function ContractsPage({
         <div className="hidden lg:flex items-center gap-2">
           <Link href="/app/contracts/new" className="btn-primary">
             <Plus size={15} />
-            New Agreement
+            New agreement
           </Link>
         </div>
       </div>
@@ -191,7 +191,7 @@ export default async function ContractsPage({
                 : "Send one to a client for an e-signature, or attach a template to a price-book service and it goes out with the quote."
             }
             actionHref="/app/contracts/new"
-            actionLabel="Send an Agreement"
+            actionLabel="Send an agreement"
           />
         ) : (
           <>

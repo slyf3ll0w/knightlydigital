@@ -10,6 +10,8 @@ import { INDUSTRIES } from "@/lib/pricebooks";
 import { saveCredential } from "@/lib/save-credential";
 import { switchToMembership } from "@/lib/company-switch";
 import { browserTimezone } from "@/lib/timezone";
+import { CORE_FREE_LINE, CORE_SEATS_LINE } from "@/lib/help/plan-copy";
+import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 /**
  * Single-page signup: just the account essentials plus industry, which seeds
@@ -77,18 +79,19 @@ export default function RegisterPage() {
         ? `Other: ${otherIndustry.trim().slice(0, 70)}`
         : form.industry;
 
-    const res = await fetch("/api/app/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    // postJson never throws: a dropped connection or an HTML error page used
+    // to leave the button spinning forever here (audit 2026-10-12).
+    const { ok, data } = await postJson<{ userId?: string }>("/api/app/register", {
+      ...form,
+      industry,
+      captchaToken,
       // The browser's zone becomes the company's — reminders, booking slots
       // and arrival windows all run on it (editable in Settings)
-      body: JSON.stringify({ ...form, industry, captchaToken, timezone: browserTimezone() }),
+      timezone: browserTimezone(),
     });
 
-    const data = await res.json();
-
-    if (!res.ok) {
-      setError(data.error ?? "Something went wrong.");
+    if (!ok) {
+      setError(data?.error ?? GENERIC_ERROR);
       // Turnstile tokens are single-use; the failed attempt consumed this one
       captchaRef.current?.reset();
       setLoading(false);
@@ -98,7 +101,7 @@ export default function RegisterPage() {
     if (attachMode) {
       // Already signed in — re-point the session at the new company's
       // membership and land on its (empty) dashboard.
-      await switchToMembership(update, data.userId);
+      await switchToMembership(update, data?.userId ?? "");
       return;
     }
 
@@ -158,7 +161,7 @@ export default function RegisterPage() {
                   </>
                 )
               ) : (
-                "Free forever — we make money when you get paid, not before."
+                CORE_FREE_LINE
               )}
             </p>
 
@@ -329,7 +332,7 @@ export default function RegisterPage() {
                   </Link>
                 </p>
                 <p className="text-xs text-gray-500 text-center mt-2">
-                  No credit card required. Free forever.
+                  {CORE_SEATS_LINE}
                 </p>
               </>
             )}

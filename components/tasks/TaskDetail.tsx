@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Bell, Check, Flag, Link2, Loader2, Pencil, RotateCcw, User, X } from "lucide-react";
+import { Bell, Check, Flag, Link2, Pencil, RotateCcw, User, X } from "lucide-react";
 import Modal from "@/components/Modal";
 import { Button } from "@/components/ds";
 import { postJson } from "@/lib/safe-fetch";
@@ -123,7 +123,7 @@ export default function TaskDetail({
             <Button variant="ghost" icon={Pencil} onClick={() => onEdit(task)} disabled={busy}>
               Edit
             </Button>
-            <Button onClick={() => void toggleDone()} disabled={busy} icon={busy ? Loader2 : done ? RotateCcw : Check} size="lg">
+            <Button onClick={() => void toggleDone()} loading={busy} icon={done ? RotateCcw : Check} size="lg">
               {done ? "Mark not done" : "Mark done"}
             </Button>
           </div>

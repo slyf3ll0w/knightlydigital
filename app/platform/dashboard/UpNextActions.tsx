@@ -201,7 +201,7 @@ export default function UpNextActions({
         ? [
             {
               key: "omw",
-              label: omwSent ? "On My Way ✓" : "On My Way",
+              label: omwSent ? "On my way ✓" : "On my way",
               icon: Navigation,
               onClick: onMyWay,
               spinning: busy === "omw",
@@ -215,7 +215,7 @@ export default function UpNextActions({
         ? [
             {
               key: "in",
-              label: busy === "clock" ? "Clocking…" : "Clock In",
+              label: busy === "clock" ? "Clocking…" : "Clock in",
               icon: Play,
               onClick: () => punch("in"),
               spinning: busy === "clock",

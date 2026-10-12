@@ -39,7 +39,7 @@ export default function AskForReview({
         await confirmSheet({
           title: "Add your Google review link first",
           message: "It's what the text points your client to. Add it in Settings now?",
-          confirmLabel: "Open Settings",
+          confirmLabel: "Open settings",
         })
       ) {
         router.push("/app/settings");
@@ -77,7 +77,7 @@ export default function AskForReview({
       className="ds-btn ds-btn-outline"
     >
       <Star size={13} className={sent ? "text-[color:var(--ds-good)]" : undefined} />
-      Ask for Review{sent ? " ✓" : ""}
+      Ask for review{sent ? " ✓" : ""}
     </button>
   );
 }

@@ -13,7 +13,7 @@ import {
   XCircle,
   type LucideIcon,
 } from "lucide-react";
-import { postJson } from "@/lib/safe-fetch";
+import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import PageTitle from "@/components/PageTitle";
 import { Chip } from "@/components/ds";
 
@@ -88,7 +88,7 @@ export default function SupportClient({
     });
     setBusy(false);
     if (!ok || !data) {
-      setError(data?.error || "Something went wrong — please try again.");
+      setError(data?.error || GENERIC_ERROR);
       return;
     }
     setTickets((all) => [

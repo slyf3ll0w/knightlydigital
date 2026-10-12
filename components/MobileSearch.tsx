@@ -30,6 +30,7 @@ export default function MobileSearch({
         name="q"
         defaultValue={defaultValue ?? ""}
         placeholder={placeholder}
+        aria-label={placeholder}
         className="w-full rounded-[12px] border border-transparent bg-gray-100 py-2.5 pl-10 pr-4 text-[16px] text-gray-900 placeholder:text-gray-400 focus:border-gray-300 focus:bg-white focus:outline-none transition-colors"
       />
       {params &&

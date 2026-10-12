@@ -52,7 +52,7 @@ export const settingsSection: HelpSection = {
       title: "Your business name, legal name and web address",
       summary: "What clients see you as, the entity on paper, and the address in your links.",
       keywords: ["business name", "legal name", "DBA", "doing business as", "trade name", "own name", "sole proprietor", "web address", "slug", "booking link", "portal link", "rename"],
-      where: { label: "Business info", href: "/app/settings?s=company" },
+      where: { label: "Business Info", href: "/app/settings?s=company" },
       roles: "Owners and admins",
       blocks: [
         {
@@ -66,7 +66,7 @@ export const settingsSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Go to **Settings → Business info**.",
+            "Go to **Settings → Company → Business Info**.",
             "Type the name clients should see under **Business name**, and the registered entity under **Legal business name** (or leave it blank).",
             "Optional: switch on **Show the legal name on quotes, invoices and agreements**.",
             "Optional: change **Web address**, the last part of your booking and portal links. Old links keep working — they forward to the new address.",
@@ -115,7 +115,7 @@ export const settingsSection: HelpSection = {
         },
         {
           type: "p",
-          text: "New requests, client messages and bookings also go to your company's notification inbox by email. Once a device of yours has notifications on, that email is skipped so you don't hear the same thing twice. **My Profile → Email me too** changes this for you: `Only when push is off` (the default), `Always`, or `Never`. To stop these emails for the whole company — a team that reads them on their phones — switch off **Email these notifications** under **Settings → Business info → Notifications inbox**; pushes and the bell carry on.",
+          text: "New requests, client messages and bookings also go to your company's notification inbox by email. Once a device of yours has notifications on, that email is skipped so you don't hear the same thing twice. **My Profile → Email me too** changes this for you: `Only when push is off` (the default), `Always`, or `Never`. To stop these emails for the whole company — a team that reads them on their phones — switch off **Email these notifications** under **Settings → Company → Business Info → Notifications inbox**; pushes and the bell carry on.",
         },
         {
           type: "faq",
@@ -210,7 +210,7 @@ export const settingsSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Open **Help & Feedback** from the menu (on this page, use the buttons at the bottom).",
+            "Open **Help Center** from the menu and use the buttons at the bottom of it (on this page they're right below). Or open **Help & Feedback** directly.",
             "Choose `Report a bug` or `Suggest a feature`.",
             "Say what happened and what you expected, and where it happened if you can. Then send it.",
           ],
@@ -278,7 +278,7 @@ export const mobileSection: HelpSection = {
             "**\"What's my day look like in WorkBench\"** — reads today's schedule.",
             "**\"What's my next job in WorkBench\"** — the job, the client, and when.",
             "**\"What's my time on this job in WorkBench\"** — how long you've been clocked in.",
-            "**\"Complete my job in WorkBench\"** — marks the job you're on complete, the same as the `Complete Job` button. If checklist tasks are still open, Siri tells you.",
+            "**\"Complete my job in WorkBench\"** — marks the job you're on complete, the same as the `Complete job` button. If checklist tasks are still open, Siri tells you.",
             "**\"Call my next client with WorkBench\"** / **\"Text my next client with WorkBench\"** — reaches the client of your next job. For a text, Siri asks what to say.",
             "**\"Call Maria Lopez with WorkBench\"** / **\"Text Maria Lopez with WorkBench\"** — any client by name. Siri asks who if it didn't catch the name.",
             "**\"Tell my next client I'm on my way with WorkBench\"** — sends your **On my way** text and notes it on the job.",

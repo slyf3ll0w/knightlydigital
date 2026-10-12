@@ -333,7 +333,7 @@ export default async function PaymentsDashboardPage({
             className="btn-primary"
           >
             <Plus size={15} />
-            Collect Payment
+            Collect payment
           </Link>
         </div>
       </div>

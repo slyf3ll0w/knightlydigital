@@ -207,7 +207,7 @@ export default function ToolClient({
 
   const go = useCallback(async (s: Section, tab?: AdvancedTab) => {
     if (s !== sectionRef.current && dirtyRef.current) {
-      const ok = await confirmSheet({ title: "Leave without saving?", message: "You have unsaved changes — they'll be lost.", confirmLabel: "Discard Changes", destructive: true });
+      const ok = await confirmSheet({ title: "Leave without saving?", message: "You have unsaved changes — they'll be lost.", confirmLabel: "Discard changes", destructive: true });
       if (!ok) return;
       setPanelDirty(false);
     }
@@ -271,7 +271,7 @@ export default function ToolClient({
       !(await confirmSheet({
         title: `Delete “${tool.name}”?`,
         message: "Quotes already made with it are untouched. The tool and its history are gone for good.",
-        confirmLabel: "Delete Tool",
+        confirmLabel: "Delete tool",
         destructive: true,
       }))
     )

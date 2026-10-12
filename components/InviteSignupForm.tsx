@@ -1,5 +1,6 @@
 "use client";
 
+import { GENERIC_ERROR } from "@/lib/safe-fetch";
 import { useEffect, useRef, useState } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { appSignOut } from "@/lib/sign-out";
@@ -8,6 +9,8 @@ import TurnstileWidget, { type TurnstileHandle, captchaEnabled } from "@/compone
 import SocialSignInButtons, { OrDivider, useSocialSignInOffered } from "@/components/SocialSignInButtons";
 import { NO_SOCIAL_SIGN_IN, type SocialSignIn } from "@/lib/sign-in-options";
 import { saveCredential } from "@/lib/save-credential";
+import { browserTimezone } from "@/lib/timezone";
+import IndustrySelect, { industryValue } from "@/components/IndustrySelect";
 
 /**
  * The invite-code signup at the unlisted /invite page. Same endpoint as the
@@ -35,6 +38,7 @@ export default function InviteSignupForm({
   // the code just opens the business on it. Same shape as ApplyForm.
   const attachMode = signedIn && !session?.user?.companyId;
   const [loading, setLoading] = useState(false);
+  const [otherIndustry, setOtherIndustry] = useState("");
   const [error, setError] = useState("");
   // Gates the button AND its "or" rule: on the native path the answer only
   // arrives after mount (older shells ship no plugin).
@@ -80,11 +84,19 @@ export default function InviteSignupForm({
       const res = await fetch("/api/public/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, captchaToken }),
+        // The browser's zone becomes the company's (editable in Settings) —
+        // the other doors already send it; this one left every invitee on
+        // the schema default (audit 2026-10-12).
+        body: JSON.stringify({
+          ...form,
+          industry: industryValue(form.industry, otherIndustry),
+          captchaToken,
+          timezone: browserTimezone(),
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Something went wrong. Please try again.");
+        setError(data.error ?? GENERIC_ERROR);
         // Turnstile tokens are single-use; the failed attempt consumed this one
         captchaRef.current?.reset();
         setLoading(false);
@@ -109,7 +121,7 @@ export default function InviteSignupForm({
       await saveCredential(form.email, form.password);
       window.location.href = "/app";
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(GENERIC_ERROR);
       captchaRef.current?.reset();
       setLoading(false);
     }
@@ -288,20 +300,14 @@ export default function InviteSignupForm({
             placeholder="(214) 555-0100"
           />
         </div>
-        <div>
-          <label className={labelClass}>
-            What kind of work do you do?{" "}
-            <span className="font-normal text-gray-400">(optional — seeds your starter price list)</span>
-          </label>
-          <input
-            type="text"
-            maxLength={80}
-            value={form.industry}
-            onChange={(e) => set("industry", e.target.value)}
-            className={inputClass}
-            placeholder="e.g. HVAC, lawn care, plumbing"
-          />
-        </div>
+        <IndustrySelect
+          value={form.industry}
+          other={otherIndustry}
+          onChange={(v) => set("industry", v)}
+          onOtherChange={setOtherIndustry}
+          inputClass={inputClass}
+          labelClass={labelClass}
+        />
       </div>
 
       <div className="mt-6">

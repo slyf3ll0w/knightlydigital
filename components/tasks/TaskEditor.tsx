@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Bell, Flag, Link2, Loader2, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Bell, Flag, Link2, Trash2, X } from "lucide-react";
 import Modal from "@/components/Modal";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { inputCls } from "@/components/Input";
@@ -66,38 +66,70 @@ export default function TaskEditor({
   const [showNotes, setShowNotes] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // What the sheet opened with: closing with anything else typed asks first
+  const baseline = useRef("");
+  const draftKey = JSON.stringify({ title, notes, dueDate, dueTime, reminder, remindDate, remindTime, high, assignees, links });
+  const dirty = draftKey !== baseline.current;
 
   // (Re)load the form whenever the sheet opens for a different task
   useEffect(() => {
     if (!open) return;
     setError(null);
     setBusy(false);
-    if (task) {
-      setTitle(task.title);
-      setNotes(task.notes ?? "");
-      setDueDate(task.dueDate);
-      setDueTime(task.dueTime);
-      setReminder(task.reminder);
-      setRemindDate(task.remindDate);
-      setRemindTime(task.remindTime);
-      setHigh(task.priority === "HIGH");
-      setAssignees([task.assigneeId]);
-      setLinks(task.links);
-      setShowNotes(Boolean(task.notes));
-    } else {
-      setTitle(prefill?.title ?? "");
-      setNotes("");
-      setDueDate("");
-      setDueTime("");
-      setReminder("none");
-      setRemindDate("");
-      setRemindTime("");
-      setHigh(false);
-      setAssignees([meId]);
-      setLinks(prefill?.links ?? []);
-      setShowNotes(false);
-    }
+    const init = task
+      ? {
+          title: task.title,
+          notes: task.notes ?? "",
+          dueDate: task.dueDate,
+          dueTime: task.dueTime,
+          reminder: task.reminder,
+          remindDate: task.remindDate,
+          remindTime: task.remindTime,
+          high: task.priority === "HIGH",
+          assignees: [task.assigneeId],
+          links: task.links,
+        }
+      : {
+          title: prefill?.title ?? "",
+          notes: "",
+          dueDate: "",
+          dueTime: "",
+          reminder: "none" as ReminderChoice,
+          remindDate: "",
+          remindTime: "",
+          high: false,
+          assignees: [meId],
+          links: prefill?.links ?? [],
+        };
+    setTitle(init.title);
+    setNotes(init.notes);
+    setDueDate(init.dueDate);
+    setDueTime(init.dueTime);
+    setReminder(init.reminder);
+    setRemindDate(init.remindDate);
+    setRemindTime(init.remindTime);
+    setHigh(init.high);
+    setAssignees(init.assignees);
+    setLinks(init.links);
+    setShowNotes(Boolean(init.notes));
+    baseline.current = JSON.stringify(init);
   }, [open, task, prefill, meId]);
+
+  /** Backdrop, Escape, X and Cancel: a half-written task asks before it goes. */
+  async function requestClose() {
+    if (busy) return;
+    if (
+      dirty &&
+      !(await confirmSheet({
+        title: "Discard this task?",
+        message: "What you typed will be lost.",
+        confirmLabel: "Discard",
+        destructive: true,
+      }))
+    )
+      return;
+    onClose();
+  }
 
   const slots = useMemo(() => slotTimeOptions(15, 7 * 60), []);
   // A stored off-grid time (a reminder set by Atlas, or a legacy row) stays
@@ -194,7 +226,7 @@ export default function TaskEditor({
   const labelCls = "mb-1 block text-xs font-medium text-[color:var(--ds-ink-2)]";
 
   return (
-    <Modal open={open} onClose={onClose} size="md" dismissible={!busy}>
+    <Modal open={open} onClose={() => void requestClose()} size="md" dismissible={!busy}>
       <form
         className="space-y-4"
         onSubmit={(e) => {
@@ -206,7 +238,7 @@ export default function TaskEditor({
           <h3 className="ds-h2">{isNew ? "New task" : "Edit task"}</h3>
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => void requestClose()}
             aria-label="Close"
             className="flex h-8 w-8 items-center justify-center rounded-full text-[color:var(--ds-muted)] hover:bg-[color:var(--ds-surface-2)]"
           >
@@ -414,10 +446,10 @@ export default function TaskEditor({
             <span />
           )}
           <div className="flex items-center gap-2">
-            <Button variant="ghost" onClick={onClose} disabled={busy}>
+            <Button variant="ghost" onClick={() => void requestClose()} disabled={busy}>
               Cancel
             </Button>
-            <Button type="submit" disabled={busy} icon={busy ? Loader2 : undefined}>
+            <Button type="submit" loading={busy}>
               {isNew ? (assignees.length > 1 ? `Add ${assignees.length} tasks` : "Add task") : "Save"}
             </Button>
           </div>

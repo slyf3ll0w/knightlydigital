@@ -12,7 +12,7 @@ export function confirmCancelBuild(): Promise<boolean> {
   return confirmSheet({
     title: "Cancel this build?",
     message: "Atlas stops right away and nothing is saved. The tokens for the steps already finished are spent.",
-    confirmLabel: "Cancel Build",
+    confirmLabel: "Cancel build",
     destructive: true,
   });
 }

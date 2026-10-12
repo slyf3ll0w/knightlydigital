@@ -8,6 +8,7 @@ import { Loader2, MapPin, Phone, Video } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import { alertSheet } from "@/components/ConfirmSheet";
 import { localInputToISO } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
@@ -109,6 +110,12 @@ export default function AppointmentForm({
   const [window_, setWindow] = useState(""); // "" = company default
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Anything touched since the page opened: leaving asks first. The
+  // remembered purpose lands through an effect, not an event, so it never
+  // counts.
+  const [dirty, setDirty] = useState(false);
+  const touch = () => setDirty(true);
+  useUnsavedWarning(dirty && !loading);
 
   const selectedContact = contacts.find((c) => c.id === contactId);
   const effectiveAddress = addressTouched ? address : address || contactAddress(selectedContact);
@@ -117,6 +124,7 @@ export default function AppointmentForm({
     setContactId(id);
     if (!addressTouched) setAddress("");
     setPropertyId("");
+    touch();
   }
 
   function pickStart(v: string) {
@@ -125,6 +133,7 @@ export default function AppointmentForm({
     // it ends at 2:00 (David 2026-10-06)
     setEnd(endFollowingStart(start, end, v, 30));
     setStart(v);
+    touch();
   }
 
   // Live heads-up: anyone going already booked then, or can't drive there
@@ -201,6 +210,8 @@ export default function AppointmentForm({
     }
 
     refreshRecentTitles();
+    // Saved — the leave guard must not fire on the redirect
+    setDirty(false);
     router.push(`/app/appointments/${data.id}`);
   }
 
@@ -211,7 +222,7 @@ export default function AppointmentForm({
         <PageTitle>New Appointment</PageTitle>
       </div>
 
-      <form onSubmit={submit} className="space-y-5">
+      <form onSubmit={submit} onChange={touch} className="space-y-5">
         {error && (
           <p role="alert" className="form-error">
             {error}
@@ -261,7 +272,10 @@ export default function AppointmentForm({
                 <button
                   key={t.value}
                   type="button"
-                  onClick={() => setType(t.value)}
+                  onClick={() => {
+                    setType(t.value);
+                    touch();
+                  }}
                   className={`rounded-lg border p-3 text-left transition-colors ${
                     active
                       ? "border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)] ring-1 ring-[color:var(--ds-primary)]"
@@ -299,7 +313,7 @@ export default function AppointmentForm({
                   }}
                   className={`${inputCls} mb-2 text-gray-600`}
                 >
-                  <option value="">Pick a saved address...</option>
+                  <option value="">Pick a saved address…</option>
                   {contactAddress(selectedContact) && (
                     <option value="primary">Primary: {contactAddress(selectedContact)}</option>
                   )}
@@ -370,7 +384,10 @@ export default function AppointmentForm({
                   dayStartMinutes={dayStartMinutes}
                   inputCls={inputCls}
                   ariaLabel="End"
-                  onChange={setEnd}
+                  onChange={(v) => {
+                    setEnd(v);
+                    touch();
+                  }}
                 />
               </div>
             )}
@@ -393,6 +410,7 @@ export default function AppointmentForm({
               onPick={(s, e) => {
                 setStart(s);
                 setEnd(e);
+                touch();
               }}
             />
           )}
@@ -422,7 +440,14 @@ export default function AppointmentForm({
                 Team members
                 <InfoTip>Tick everyone going. It shows on each person&apos;s schedule and calendar, and blocks their online-booking times.</InfoTip>
               </div>
-              <PeoplePicker users={users} value={assigneeIds} onChange={setAssigneeIds} />
+              <PeoplePicker
+                users={users}
+                value={assigneeIds}
+                onChange={(ids) => {
+                  setAssigneeIds(ids);
+                  touch();
+                }}
+              />
             </div>
           )}
           <div>
@@ -431,7 +456,7 @@ export default function AppointmentForm({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
-              placeholder="Anything to prepare, questions to ask..."
+              placeholder="Anything to prepare, questions to ask…"
               className={inputCls}
             />
           </div>
@@ -442,11 +467,11 @@ export default function AppointmentForm({
               onChange={(e) => setSendConfirmation(e.target.checked)}
               className="mt-0.5 accent-[color:var(--ds-primary)]"
             />
-            <span>
+            <span className="inline-flex items-center gap-1.5">
               Send the client a confirmation now
-              <span className="block text-xs text-gray-500">
-                A &ldquo;you&apos;re booked&rdquo; text and email with the details, as soon as you save
-              </span>
+              <InfoTip label="What goes out?">
+                A &ldquo;you&apos;re booked&rdquo; text and email with the details, as soon as you save.
+              </InfoTip>
             </span>
           </label>
           <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer select-none">
@@ -456,11 +481,9 @@ export default function AppointmentForm({
               onChange={(e) => setRemindClient(e.target.checked)}
               className="mt-0.5 accent-[color:var(--ds-primary)]"
             />
-            <span>
+            <span className="inline-flex items-center gap-1.5">
               Send the client automatic reminders
-              <span className="block text-xs text-gray-500">
-                Email/text the day before and about an hour out
-              </span>
+              <InfoTip label="When do reminders go out?">Email/text the day before and about an hour out.</InfoTip>
             </span>
           </label>
         </div>
@@ -472,7 +495,7 @@ export default function AppointmentForm({
             className="btn-primary btn-lg"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
-            Book Appointment
+            Book appointment
           </button>
           <Link
             href="/app/schedule"

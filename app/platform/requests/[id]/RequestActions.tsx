@@ -94,7 +94,7 @@ export default function RequestActions({
         title: "Permanently delete this request?",
         message:
           "If it's the only thing on a lead's record (spam), the lead is deleted with it. This can't be undone.",
-        confirmLabel: "Delete Request",
+        confirmLabel: "Delete request",
         destructive: true,
       }))
     )
@@ -123,7 +123,7 @@ export default function RequestActions({
           }
           className="btn-primary"
         >
-          Convert to Quote
+          Convert to quote
         </button>
       )}
       <div className="relative">
@@ -140,7 +140,7 @@ export default function RequestActions({
               className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
             >
               <Pencil size={14} className="text-gray-400" />
-              Edit Request
+              Edit request
             </button>
             {/* A booking awaiting approval is accepted or declined first —
                 converting around it would strand the tentative appointment */}
@@ -154,7 +154,7 @@ export default function RequestActions({
                   className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   <FileText size={14} className="text-gray-400" />
-                  {quote ? "New Quote" : "Convert to Quote"}
+                  {quote ? "New quote" : "Convert to quote"}
                 </button>
                 <button
                   onClick={() =>
@@ -163,7 +163,7 @@ export default function RequestActions({
                   className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   <Briefcase size={14} className="text-gray-400" />
-                  Convert to Job
+                  Convert to job
                 </button>
               </>
             )}
@@ -182,7 +182,7 @@ export default function RequestActions({
                 className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
                 <Archive size={14} className="text-gray-400" />
-                Restore to New
+                Restore to new
               </button>
             )}
             {canDelete && (
@@ -208,6 +208,12 @@ export default function RequestActions({
           <div className="space-y-3 text-left">
             <h2 className="text-base font-semibold text-gray-900">Edit Request</h2>
 
+            {error && (
+              <p role="alert" className="form-error">
+                {error}
+              </p>
+            )}
+
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-0.5">Title</label>
               <input
@@ -227,11 +233,9 @@ export default function RequestActions({
                 onChange={(e) => setForm((f) => ({ ...f, details: e.target.value }))}
                 rows={6}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
-                placeholder="What the client is asking for..."
+                placeholder="What the client is asking for…"
               />
             </div>
-
-            {error && <p className="text-xs text-red-600">{error}</p>}
 
             <div className="flex items-center justify-end gap-2 pt-1">
               <button
@@ -247,7 +251,7 @@ export default function RequestActions({
                 className="btn-primary"
               >
                 {busy && <Loader2 size={13} className="animate-spin" />}
-                Save Changes
+                Save changes
               </button>
             </div>
           </div>

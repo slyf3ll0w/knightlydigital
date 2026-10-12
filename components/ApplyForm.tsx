@@ -1,5 +1,6 @@
 "use client";
 
+import { GENERIC_ERROR } from "@/lib/safe-fetch";
 import { useEffect, useRef, useState } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { appSignOut } from "@/lib/sign-out";
@@ -9,6 +10,8 @@ import SocialSignInButtons, { OrDivider, useSocialSignInOffered } from "@/compon
 import { NO_SOCIAL_SIGN_IN, type SocialSignIn } from "@/lib/sign-in-options";
 import { saveCredential } from "@/lib/save-credential";
 import { browserTimezone } from "@/lib/timezone";
+import { CORE_FREE_LINE } from "@/lib/help/plan-copy";
+import IndustrySelect, { industryValue } from "@/components/IndustrySelect";
 
 const TEAM_SIZES = ["Just me", "2–5", "6–15", "16+"];
 const PAYMENTS_TODAY = [
@@ -76,6 +79,7 @@ export default function ApplyForm({
   const attachMode = signedIn && !session?.user?.companyId;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [otherIndustry, setOtherIndustry] = useState("");
   // Gates the button AND its "or" rule: on the native path the answer only
   // arrives after mount (older shells ship no plugin).
   const socialOffered = useSocialSignInOffered(social);
@@ -179,6 +183,7 @@ export default function ApplyForm({
         // The browser's zone becomes the company's (editable in Settings)
         body: JSON.stringify({
           ...form,
+          industry: industryValue(form.industry, otherIndustry),
           inviteCode: inviteCode.trim() || undefined,
           captchaToken,
           timezone: browserTimezone(),
@@ -187,7 +192,7 @@ export default function ApplyForm({
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Something went wrong. Please try again.");
+        setError(data.error ?? GENERIC_ERROR);
         // Turnstile tokens are single-use; the failed attempt consumed this one
         captchaRef.current?.reset();
         setLoading(false);
@@ -217,7 +222,7 @@ export default function ApplyForm({
       await saveCredential(form.email, form.password);
       window.location.href = landing;
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(GENERIC_ERROR);
       captchaRef.current?.reset();
       setLoading(false);
     }
@@ -496,18 +501,14 @@ export default function ApplyForm({
             </label>
         </div>
         {/* Industry seeds the starter price book, so it's asked either way. */}
-        <div>
-          <label className={labelClass}>What kind of work do you do?</label>
-          <input
-            type="text"
-            required
-            maxLength={80}
-            value={form.industry}
-            onChange={(e) => set("industry", e.target.value)}
-            className={inputClass}
-            placeholder="e.g. HVAC, lawn care, plumbing"
-          />
-        </div>
+        <IndustrySelect
+          value={form.industry}
+          other={otherIndustry}
+          onChange={(v) => set("industry", v)}
+          onOtherChange={setOtherIndustry}
+          inputClass={inputClass}
+          labelClass={labelClass}
+        />
         {/* ── Screening questions — they feed the review and underwriting,
             and a code decides both, so they fold away when one checks out. */}
         {!waived && (
@@ -681,14 +682,14 @@ export default function ApplyForm({
       <p className="mt-4 text-[13px] text-gray-400">
         {waived ? (
           <>
-            Free forever — we make money when you get paid, not before.{" "}
+            {CORE_FREE_LINE}{" "}
             {verifyPayments
               ? "Taking card payments online stays switched off on a code account until the business is verified."
               : "Online card and bank payments are coming soon."}
           </>
         ) : (
           <>
-            Free forever — we make money when you get paid, not before. A person
+            {CORE_FREE_LINE} A person
             reads every application; until yours is approved your account is
             provisional, and it closes if we can&apos;t approve it.
           </>

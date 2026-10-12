@@ -1,5 +1,6 @@
 "use client";
 
+import { NETWORK_ERROR } from "@/lib/safe-fetch";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2, RefreshCw, Unplug, AlertTriangle } from "lucide-react";
@@ -69,7 +70,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
         setLoadError(data?.error ?? "Couldn't load the QuickBooks connection status.");
       }
     } catch {
-      setLoadError("Couldn't reach the server. Check your connection and try again.");
+      setLoadError(NETWORK_ERROR);
     } finally {
       setLoading(false);
     }
@@ -116,7 +117,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
         );
       }
     } catch {
-      setSyncError("Couldn't reach the server. Check your connection and try again.");
+      setSyncError(NETWORK_ERROR);
     }
     setSyncing(false);
     loadStatus();
@@ -144,7 +145,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
         return;
       }
     } catch {
-      setSyncError("Couldn't reach the server. Check your connection and try again.");
+      setSyncError(NETWORK_ERROR);
       return;
     } finally {
       setDisconnecting(false);
@@ -209,7 +210,7 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
           <div>
             <SectionHeader
               title="Connect Your QuickBooks"
-              hint="One-way sync, from the Hub into QuickBooks — nothing in QuickBooks is changed unless it came from here:"
+              hint="One-way sync, from WorkBench into QuickBooks — nothing in QuickBooks is changed unless it came from here:"
             />
             <ul className="text-sm text-gray-600 mt-2 space-y-1 list-disc pl-5">
               <li>Clients become QuickBooks customers (matched by name, no duplicates)</li>

@@ -6,7 +6,7 @@ import { getActor, isManager, jobScope } from "@/lib/permissions";
 import { findScheduleConflicts } from "@/lib/schedule-conflicts";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { syncJobChecklist } from "@/lib/job-checklist";
-import { cleanOutsourcedTo, crewMissing, NEEDS_CREW_CODE, NEEDS_CREW_ERROR, resolveCrew } from "@/lib/job-crew";
+import { cleanOutsourcedTo, crewMissing, deriveJobTitle, NEEDS_CREW_CODE, NEEDS_CREW_ERROR, resolveCrew } from "@/lib/job-crew";
 import { fireAutomations } from "@/lib/automations-server";
 import { clientWindowPatch } from "@/lib/client-window";
 import { rescheduleReminderStamps } from "@/lib/reminder-stage";
@@ -34,9 +34,25 @@ export async function PATCH(
       outsourced: true,
       outsourcedTo: true,
       assignments: { select: { userId: true } },
+      lineItems: { select: { name: true } },
+      request: { select: { title: true } },
     },
   });
   if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // The title is optional on edit too: a blank one never saves as "" — it is
+  // re-derived the way POST names a new job (the services on it, then the
+  // request it came from, then the generic label — lib/job-crew.ts).
+  const nextTitle =
+    fullEdit && body.title !== undefined
+      ? deriveJobTitle({
+          title: body.title,
+          lineItemNames: Array.isArray(body.lineItems)
+            ? (body.lineItems as { name?: string }[]).map((li) => li.name)
+            : job.lineItems.map((li) => li.name),
+          requestTitle: job.request?.title ?? null,
+        })
+      : null;
 
   // Crew + outsourced: work out where the job ENDS UP before writing anything.
   // A scheduled job with nobody on it (and not outsourced) is rejected when
@@ -104,7 +120,7 @@ export async function PATCH(
   // of that be skipped with one API call.
   const data = {
     ...(fullEdit && {
-      ...(body.title && { title: body.title }),
+      ...(nextTitle !== null && { title: nextTitle }),
       ...(body.description !== undefined && { description: body.description }),
       ...(body.address !== undefined && { address: body.address }),
       ...(body.leadSource !== undefined && { leadSource: body.leadSource || null }),

@@ -96,6 +96,10 @@ export default function QuoteAcceptPage({
   // Signed off (converted = approved-then-scheduled) — the paper still shows,
   // stamped, with actions gone; the client keeps a viewable copy.
   const approved = quote.status === "APPROVED" || quote.status === "CONVERTED";
+  // Withdrawn by the business: the paper still shows (they may need the
+  // numbers) but it is stamped and says so — it used to render as a bare
+  // priced document with nothing to do and no hint why (audit 2026-10-12).
+  const withdrawn = quote.status === "ARCHIVED";
   const expired = expiredProp ?? Boolean(quote.validUntil && new Date(quote.validUntil) < new Date());
   const accent = brandAccent(quote.company);
 
@@ -263,9 +267,9 @@ export default function QuoteAcceptPage({
 
           <div className="flex items-start justify-between gap-4">
             <PreparedFor contact={quote.contact} />
-            {approved && (
+            {(approved || withdrawn) && (
               <div className="mt-6 shrink-0 pr-1 sm:pr-4">
-                <PaperStamp kind="quote" text="Approved" />
+                <PaperStamp kind="quote" text={approved ? "Approved" : "Withdrawn"} />
               </div>
             )}
           </div>
@@ -400,6 +404,19 @@ export default function QuoteAcceptPage({
             </div>
           )}
 
+          {withdrawn && (
+            <div className="mt-8 border-t-2 border-gray-900 pt-5">
+              <h2 className="text-sm font-semibold text-gray-700 mb-2">This quote is no longer available</h2>
+              <p className="text-sm leading-relaxed text-gray-600">
+                {quote.company.name} has withdrawn it, so it can&apos;t be approved here. If you
+                still want the work, contact them
+                {quote.company.phone ? ` at ${quote.company.phone}` : ""}
+                {quote.company.email ? `${quote.company.phone ? " or" : " at"} ${quote.company.email}` : ""}{" "}
+                for an updated quote.
+              </p>
+            </div>
+          )}
+
           {/* Sign-off — the bottom of the same sheet, like the signature
               line on a paper proposal */}
           {(error || (reviewable && !preview) || (expired && reviewable)) && (
@@ -462,7 +479,7 @@ export default function QuoteAcceptPage({
                 ) : (
                   <CheckCircle size={14} />
                 )}
-                Approve Quote
+                Approve quote
               </button>
               <button
                 onClick={() => setShowChanges(true)}
@@ -470,7 +487,7 @@ export default function QuoteAcceptPage({
                 className="flex items-center gap-1.5 px-5 py-3 border border-gray-300 text-sm font-medium text-gray-600 rounded hover:bg-gray-50 transition-colors"
               >
                 <MessageSquare size={13} />
-                Request Changes
+                Request changes
               </button>
             </div>
                 </>
@@ -495,7 +512,7 @@ export default function QuoteAcceptPage({
                       className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-semibold text-sm rounded transition-colors disabled:opacity-50"
                     >
                       {loading && <Loader2 size={13} className="animate-spin" />}
-                      Send Request
+                      Send request
                     </button>
                     <button
                       onClick={() => setShowChanges(false)}

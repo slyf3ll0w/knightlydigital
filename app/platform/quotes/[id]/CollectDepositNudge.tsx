@@ -70,7 +70,7 @@ export default function CollectDepositNudge({
           className="btn-primary"
         >
           {busy ? <Loader2 size={13} className="animate-spin" /> : <DollarSign size={13} />}
-          Collect Deposit
+          Collect deposit
         </button>
       </div>
     </div>

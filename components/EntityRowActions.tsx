@@ -2,10 +2,11 @@
 
 import { useMemo, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, ArchiveRestore, CheckCircle2, Copy, ExternalLink, FileText, Globe, Mail, Pencil, Phone, Play, Power, Receipt, RotateCcw, Send, Sparkles, Trash2, Wallet, Briefcase } from "lucide-react";
+import { Archive, ArchiveRestore, CalendarX2, CheckCircle2, Copy, ExternalLink, FileText, Globe, Link2, Mail, Pencil, Phone, Play, Power, Receipt, RotateCcw, Send, Sparkles, SquareArrowOutUpRight, Trash2, UserX, Wallet, Briefcase } from "lucide-react";
 import RowActions, { type QuickAction } from "@/components/QuickMenu";
 import { alertSheet, confirmSheet } from "@/components/ConfirmSheet";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { toast } from "@/lib/toast";
 import { callFromLine, useLineCalling } from "@/lib/line-calling";
 
 /**
@@ -30,6 +31,7 @@ export type RowMeta =
   | { kind: "invoice"; id: string; number: string | number; status: "DRAFT" | "AWAITING_PAYMENT" | "PAID" | "PAST_DUE" | "ARCHIVED"; hasPayments: boolean; hasEmail: boolean; canDelete: boolean }
   | { kind: "quote"; id: string; number: string | number; status: "DRAFT" | "AWAITING_RESPONSE" | "APPROVED" | "CHANGES_REQUESTED" | "CONVERTED" | "ARCHIVED"; hasEmail: boolean; canDelete: boolean }
   | { kind: "request"; id: string; title: string; status: "NEW" | "NEEDS_APPROVAL" | "CONVERTED" | "ARCHIVED"; contactId: string; canDelete: boolean }
+  | { kind: "appointment"; id: string; title: string; status: "SCHEDULED" | "COMPLETED" | "CANCELLED" | "NO_SHOW"; contactId: string; canDelete: boolean }
   | { kind: "tool"; id: string; name: string; isActive: boolean; isPublic: boolean; manager: boolean };
 
 function fail(data: { error?: string } | null) {
@@ -66,7 +68,7 @@ export function useEntityActions(meta: RowMeta, opts: { onRun?: (id: string) => 
             icon: CheckCircle2,
             onSelect: async () => {
               const when = meta.scheduledAt ? new Date(meta.scheduledAt) : null;
-              if (when && when.getTime() > Date.now() && !(await confirmSheet({ message: `This job is scheduled for ${when.toLocaleDateString(undefined, { month: "short", day: "numeric" })} — complete it anyway?`, confirmLabel: "Complete Anyway" }))) return;
+              if (when && when.getTime() > Date.now() && !(await confirmSheet({ message: `This job is scheduled for ${when.toLocaleDateString(undefined, { month: "short", day: "numeric" })} — complete it anyway?`, confirmLabel: "Complete anyway" }))) return;
               await call(`${base}/status`, { status: meta.hasInvoice ? "ARCHIVED" : "REQUIRES_INVOICING" }, "PATCH");
             },
           });
@@ -89,7 +91,7 @@ export function useEntityActions(meta: RowMeta, opts: { onRun?: (id: string) => 
             icon: Trash2,
             destructive: true,
             onSelect: async () => {
-              if (!(await confirmSheet({ title: "Permanently delete this job?", message: ["Its notes, photos, and line items are deleted with it.", meta.hasInvoice ? "The invoice created from it stays, but loses its job link." : "", "This cannot be undone."].filter(Boolean).join(" "), confirmLabel: "Delete Job", destructive: true }))) return;
+              if (!(await confirmSheet({ title: "Permanently delete this job?", message: ["Its notes, photos, and line items are deleted with it.", meta.hasInvoice ? "The invoice created from it stays, but loses its job link." : "", "This cannot be undone."].filter(Boolean).join(" "), confirmLabel: "Delete job", destructive: true }))) return;
               await call(base, undefined, "DELETE");
             },
           });
@@ -116,7 +118,7 @@ export function useEntityActions(meta: RowMeta, opts: { onRun?: (id: string) => 
             label: "Archive",
             icon: Archive,
             onSelect: async () => {
-              if (!(await confirmSheet({ title: "Archive this client?", message: "They'll be hidden from your client list, but all their quotes, jobs, and invoices stay.", confirmLabel: "Archive Client", destructive: true }))) return;
+              if (!(await confirmSheet({ title: "Archive this client?", message: "They'll be hidden from your client list, but all their quotes, jobs, and invoices stay.", confirmLabel: "Archive client", destructive: true }))) return;
               await call(base, { status: "ARCHIVED" }, "PATCH");
             },
           });
@@ -127,7 +129,7 @@ export function useEntityActions(meta: RowMeta, opts: { onRun?: (id: string) => 
             icon: Trash2,
             destructive: true,
             onSelect: async () => {
-              if (!(await confirmSheet({ title: "Permanently delete this client?", message: "Their requests are deleted with them. This can't be undone.", confirmLabel: "Delete Client", destructive: true }))) return;
+              if (!(await confirmSheet({ title: "Permanently delete this client?", message: "Their requests are deleted with them. This can't be undone.", confirmLabel: "Delete client", destructive: true }))) return;
               await call(base, undefined, "DELETE");
             },
           });
@@ -147,7 +149,7 @@ export function useEntityActions(meta: RowMeta, opts: { onRun?: (id: string) => 
             hint: meta.hasEmail ? undefined : "no email on file",
             onSelect: async () => {
               const d = await call(`${base}/send`);
-              if (d) await alertSheet({ title: "Sent", message: `Invoice #${meta.number} is on its way.` });
+              if (d) toast(`Invoice #${meta.number} is on its way.`, { title: "Sent" });
             },
           });
         if (meta.status === "DRAFT") out.push({ key: "sent", label: "Mark as sent (no email)", icon: Send, onSelect: () => void call(`${base}/status`, { status: "AWAITING_PAYMENT" }, "PATCH") });
@@ -168,7 +170,7 @@ export function useEntityActions(meta: RowMeta, opts: { onRun?: (id: string) => 
             label: "Archive",
             icon: Archive,
             onSelect: async () => {
-              if (!(await confirmSheet({ title: "Archive this invoice?", message: "It moves out of your invoice list and stops payment reminders. Payments already recorded stay. You can reopen it anytime.", confirmLabel: "Archive Invoice" }))) return;
+              if (!(await confirmSheet({ title: "Archive this invoice?", message: "It moves out of your invoice list and stops payment reminders. Payments already recorded stay. You can reopen it anytime.", confirmLabel: "Archive invoice" }))) return;
               await call(`${base}/status`, { status: "ARCHIVED" }, "PATCH");
             },
           });
@@ -183,7 +185,7 @@ export function useEntityActions(meta: RowMeta, opts: { onRun?: (id: string) => 
                 await alertSheet({ title: "This invoice has payments", message: "Open the invoice to delete it — that asks you to confirm the payments go with it." });
                 return;
               }
-              if (!(await confirmSheet({ title: "Permanently delete this invoice?", message: "This can't be undone.", confirmLabel: "Delete Invoice", destructive: true }))) return;
+              if (!(await confirmSheet({ title: "Permanently delete this invoice?", message: "This can't be undone.", confirmLabel: "Delete invoice", destructive: true }))) return;
               await call(base, undefined, "DELETE");
             },
           });
@@ -203,7 +205,7 @@ export function useEntityActions(meta: RowMeta, opts: { onRun?: (id: string) => 
             hint: meta.hasEmail ? undefined : "no email on file",
             onSelect: async () => {
               const d = await call(`${base}/send`);
-              if (d) await alertSheet({ title: "Sent", message: `Quote #${meta.number} is on its way.` });
+              if (d) toast(`Quote #${meta.number} is on its way.`, { title: "Sent" });
             },
           });
         if (meta.status === "DRAFT") out.push({ key: "sent", label: "Mark as sent (no email)", icon: Send, onSelect: () => void call(base, { status: "AWAITING_RESPONSE" }, "PATCH") });
@@ -236,7 +238,7 @@ export function useEntityActions(meta: RowMeta, opts: { onRun?: (id: string) => 
             icon: Trash2,
             destructive: true,
             onSelect: async () => {
-              if (!(await confirmSheet({ title: "Delete this quote?", message: meta.status === "CONVERTED" ? "The job it was converted into stays. This cannot be undone." : "This cannot be undone.", confirmLabel: "Delete Quote", destructive: true }))) return;
+              if (!(await confirmSheet({ title: "Delete this quote?", message: meta.status === "CONVERTED" ? "The job it was converted into stays. This cannot be undone." : "This cannot be undone.", confirmLabel: "Delete quote", destructive: true }))) return;
               await call(base, undefined, "DELETE");
             },
           });
@@ -258,7 +260,57 @@ export function useEntityActions(meta: RowMeta, opts: { onRun?: (id: string) => 
             icon: Trash2,
             destructive: true,
             onSelect: async () => {
-              if (!(await confirmSheet({ title: "Permanently delete this request?", message: "If it's the only thing on a lead's record (spam), the lead is deleted with it. This can't be undone.", confirmLabel: "Delete Request", destructive: true }))) return;
+              if (!(await confirmSheet({ title: "Permanently delete this request?", message: "If it's the only thing on a lead's record (spam), the lead is deleted with it. This can't be undone.", confirmLabel: "Delete request", destructive: true }))) return;
+              await call(base, undefined, "DELETE");
+            },
+          });
+        break;
+      }
+      case "appointment": {
+        // Same verbs as the appointment page's header + "…" menu
+        // (app/platform/appointments/[id]/AppointmentActions.tsx), plus the
+        // plain link helpers the list asked for (2026-10-12).
+        const base = `/api/app/appointments/${meta.id}`;
+        const path = `/app/appointments/${meta.id}`;
+        out.push({ key: "open", label: "Open", icon: ExternalLink, href: path });
+        out.push({ key: "open-tab", label: "Open in new tab", icon: SquareArrowOutUpRight, onSelect: () => void window.open(path, "_blank", "noopener") });
+        out.push({
+          key: "copy-link",
+          label: "Copy link",
+          icon: Link2,
+          onSelect: async () => {
+            try {
+              await navigator.clipboard.writeText(`${window.location.origin}${path}`);
+            } catch {
+              await alertSheet({ title: "Couldn't copy", message: `Copy it from the address bar: ${window.location.origin}${path}` });
+            }
+          },
+        });
+        if (meta.status === "SCHEDULED") {
+          out.push({ key: "complete", label: "Complete appointment", icon: CheckCircle2, onSelect: () => void call(base, { status: "COMPLETED" }, "PATCH") });
+          out.push({ key: "no-show", label: "Mark no-show", icon: UserX, onSelect: () => void call(base, { status: "NO_SHOW" }, "PATCH") });
+          out.push({
+            key: "cancel",
+            label: "Cancel appointment",
+            icon: CalendarX2,
+            destructive: true,
+            onSelect: async () => {
+              if (!(await confirmSheet({ title: "Cancel this appointment?", message: "It comes off the schedule. You can reopen it from its page.", confirmLabel: "Cancel appointment", cancelLabel: "Keep it", destructive: true }))) return;
+              await call(base, { status: "CANCELLED" }, "PATCH");
+            },
+          });
+        } else {
+          out.push({ key: "reopen", label: "Reopen", icon: RotateCcw, onSelect: () => void call(base, { status: "SCHEDULED" }, "PATCH") });
+        }
+        out.push({ key: "quote", label: "Create quote", icon: FileText, href: `/app/quotes/new?contactId=${meta.contactId}` });
+        if (meta.canDelete)
+          out.push({
+            key: "delete",
+            label: "Delete",
+            icon: Trash2,
+            destructive: true,
+            onSelect: async () => {
+              if (!(await confirmSheet({ title: "Delete this appointment?", message: "This can't be undone.", confirmLabel: "Delete appointment", destructive: true }))) return;
               await call(base, undefined, "DELETE");
             },
           });
@@ -279,7 +331,7 @@ export function useEntityActions(meta: RowMeta, opts: { onRun?: (id: string) => 
             icon: Trash2,
             destructive: true,
             onSelect: async () => {
-              if (!(await confirmSheet({ title: `Delete “${meta.name}”?`, message: "Quotes already made with it are untouched. The tool and its history are gone for good.", confirmLabel: "Delete Tool", destructive: true }))) return;
+              if (!(await confirmSheet({ title: `Delete “${meta.name}”?`, message: "Quotes already made with it are untouched. The tool and its history are gone for good.", confirmLabel: "Delete tool", destructive: true }))) return;
               await call(base, undefined, "DELETE");
             },
           });
@@ -294,7 +346,7 @@ export function useEntityActions(meta: RowMeta, opts: { onRun?: (id: string) => 
 
 export default function EntityRowActions({ meta, children, className, onRun }: { meta: RowMeta; children: ReactNode; className?: string; onRun?: (id: string) => void }) {
   const actions = useEntityActions(meta, { onRun });
-  const title = meta.kind === "job" || meta.kind === "request" ? meta.title : meta.kind === "client" || meta.kind === "tool" ? meta.name : `#${meta.number}`;
+  const title = meta.kind === "job" || meta.kind === "request" || meta.kind === "appointment" ? meta.title : meta.kind === "client" || meta.kind === "tool" ? meta.name : `#${meta.number}`;
   return (
     <RowActions actions={actions} title={title} className={className}>
       {children}

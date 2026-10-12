@@ -116,7 +116,7 @@ export default function TemplatesPanel({ templates }: { templates: Template[] })
         title: "Archive this template?",
         message:
           "It stops showing up when you create an agreement. Agreements already sent are untouched, and you can restore it any time.",
-        confirmLabel: "Archive Template",
+        confirmLabel: "Archive template",
         destructive: true,
       }))
     )
@@ -165,7 +165,7 @@ export default function TemplatesPanel({ templates }: { templates: Template[] })
           >
             <button onClick={startNew} className="btn-primary mt-5 inline-flex">
               <Plus size={15} />
-              New Template
+              New template
             </button>
           </EmptyState>
         ) : (
@@ -255,7 +255,7 @@ export default function TemplatesPanel({ templates }: { templates: Template[] })
                 className="btn-primary h-11 justify-center lg:h-10"
               >
                 {busy && <Loader2 size={14} className="animate-spin" />}
-                Save Template
+                Save template
               </button>
               {/* Cancel sinks to the bottom of the phone stack so the
                   destructive action isn't the last thing under your thumb */}

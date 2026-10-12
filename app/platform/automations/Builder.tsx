@@ -261,7 +261,7 @@ export default function Builder({ initial, initialRuns, atlasFirst = false }: { 
 
   async function remove() {
     if (!initial) return;
-    const ok = await confirmSheet({ title: `Delete "${initial.name}"?`, message: "It stops immediately and its run history goes with it. Anything it already did stays.", confirmLabel: "Delete Automation", destructive: true });
+    const ok = await confirmSheet({ title: `Delete "${initial.name}"?`, message: "It stops immediately and its run history goes with it. Anything it already did stays.", confirmLabel: "Delete automation", destructive: true });
     if (!ok) return;
     const res = await postJson(`/api/app/automations/${initial.id}`, undefined, "DELETE");
     if (!res.ok) return setError(res.data?.error ?? GENERIC_ERROR);

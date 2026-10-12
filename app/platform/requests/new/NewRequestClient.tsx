@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import ContactPicker from "@/components/ContactPicker";
 import ServiceChips, { type ServiceLite } from "@/components/ServiceChips";
 import { titleFromServices } from "@/lib/service-title";
@@ -20,6 +21,10 @@ function NewRequestForm() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Anything touched since the page opened: leaving asks first
+  const [dirty, setDirty] = useState(false);
+  const touch = () => setDirty(true);
+  useUnsavedWarning(dirty && !loading);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [form, setForm] = useState({
     contactId: prefilledContactId,
@@ -34,6 +39,7 @@ function NewRequestForm() {
     const next = services.some((s) => s.id === w.id) ? services.filter((s) => s.id !== w.id) : [...services, w];
     setServices(next);
     if (!titleTouched) set("title", titleFromServices(next.map((s) => s.name)));
+    touch();
   }
 
   useEffect(() => {
@@ -70,6 +76,8 @@ function NewRequestForm() {
       return;
     }
 
+    // Saved — the leave guard must not fire on the redirect
+    setDirty(false);
     router.push(`/app/requests/${data.id}`);
   }
 
@@ -80,7 +88,7 @@ function NewRequestForm() {
         <PageTitle>New Request</PageTitle>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} onChange={touch} className="space-y-5">
         {error && (
           <div role="alert" className="form-error">
             {error}
@@ -95,7 +103,10 @@ function NewRequestForm() {
             <ContactPicker
               contacts={contacts}
               value={form.contactId}
-              onChange={(id) => set("contactId", id)}
+              onChange={(id) => {
+                set("contactId", id);
+                touch();
+              }}
             />
             <Link
               href="/app/contacts/new"
@@ -129,7 +140,7 @@ function NewRequestForm() {
               onChange={(e) => set("details", e.target.value)}
               rows={4}
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
-              placeholder="Please provide as much information as you can..."
+              placeholder="Please provide as much information as you can…"
             />
           </div>
         </div>
@@ -141,7 +152,7 @@ function NewRequestForm() {
             className="btn-primary btn-lg"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
-            Save Request
+            Save request
           </button>
           <Link
             href="/app/requests"

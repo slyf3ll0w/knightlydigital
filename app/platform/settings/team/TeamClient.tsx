@@ -13,11 +13,13 @@ import PresenceDot from "@/components/console/PresenceDot";
 import type { PresenceState } from "@/lib/presence";
 import BusinessHoursEditor from "@/components/BusinessHoursEditor";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { SEATS_SENTENCE } from "@/lib/help/plan-copy";
 import { alertSheet } from "@/components/ConfirmSheet";
 import type { BusinessHours } from "@/lib/business-hours";
 
 /**
- * Team management — add members (free, no seat limits), change roles,
+ * Team management — add members (seats priced per lib/plans.ts, not enforced
+ * yet), change roles,
  * deactivate, reset passwords; plus the company's lead-routing and
  * sales-payments policies.
  */
@@ -165,14 +167,14 @@ export default function TeamClient({
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6">
         <div className="flex min-w-0 items-start gap-3">
           <BackLink href="/app/settings" className="mt-1.5" />
-          <PageTitle info="Add as many team members as you need — free, no per-user charges.">Team</PageTitle>
+          <PageTitle info={SEATS_SENTENCE}>Team</PageTitle>
         </div>
         <button
           onClick={() => setShowAdd((v) => !v)}
           className="btn-primary"
         >
           <Plus size={15} />
-          Add Team Member
+          Add team member
         </button>
       </div>
 
@@ -240,7 +242,7 @@ export default function TeamClient({
               <p className="text-xs text-gray-500 mt-1">{roleDescriptions[form.role]}</p>
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs text-gray-500 mb-1">Starting password</label>
+              <label className="block text-xs text-gray-500 mb-1">Starting password *</label>
               <input
                 type="text"
                 value={form.password}
@@ -262,7 +264,7 @@ export default function TeamClient({
               className="btn-primary"
             >
               {busy && <Loader2 size={13} className="animate-spin" />}
-              Add Member
+              Add member
             </button>
             <button
               onClick={() => setShowAdd(false)}
@@ -305,15 +307,13 @@ export default function TeamClient({
               </div>
 
               {m.isActive && (canManage(m) || m.id === actorId) && (
-                <label
-                  className="flex items-center gap-1 text-xs text-gray-600"
-                  title="Internal labor cost per hour — logged time drives labor costing on job profit. Never shown to techs."
-                >
+                <label className="flex items-center gap-1 text-xs text-gray-600">
                   <span className="text-gray-400">$</span>
                   <input
                     type="number"
                     min="0"
                     step="0.50"
+                    aria-label="Labor cost per hour"
                     value={rates[m.id] ?? ""}
                     placeholder="0"
                     disabled={busy}
@@ -327,14 +327,14 @@ export default function TeamClient({
                     className="w-16 px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                   />
                   <span className="text-gray-400">/hr</span>
+                  <InfoTip label="Labor cost">
+                    Internal labor cost per hour — logged time drives labor costing on job profit. Never shown to techs.
+                  </InfoTip>
                 </label>
               )}
 
               {m.isActive && (canManage(m) || m.id === actorId) && (
-                <label
-                  className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer"
-                  title="This person's open time shows in the online booking slot picker"
-                >
+                <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={m.bookable}
@@ -343,11 +343,16 @@ export default function TeamClient({
                     className="accent-[color:var(--ds-primary)]"
                   />
                   Bookable online
+                  <InfoTip label="Bookable online">
+                    This person&apos;s open time shows in the online booking slot picker.
+                  </InfoTip>
                 </label>
               )}
 
               {m.isActive && (canManage(m) || m.id === actorId) && (
+                <span className="flex items-center gap-0.5">
                 <button
+                  aria-label={m.workingHours ? "Edit custom working hours" : "Working hours"}
                   onClick={() => {
                     if (hoursFor === m.id) {
                       setHoursFor(null);
@@ -362,14 +367,15 @@ export default function TeamClient({
                   className={`p-1.5 rounded-full hover:bg-gray-100 active:bg-gray-100 ${
                     m.workingHours ? "text-[color:var(--ds-primary)]" : "text-gray-400 hover:text-gray-700"
                   }`}
-                  title={
-                    m.workingHours
-                      ? "Custom working hours set — click to edit"
-                      : "Working hours (company default)"
-                  }
                 >
                   <CalendarClock size={14} />
                 </button>
+                <InfoTip label="Working hours">
+                  {m.workingHours
+                    ? "Custom working hours are set for this person — tap the calendar to edit them."
+                    : "Tap the calendar to give this person their own working hours. Until then they work the company's business hours."}
+                </InfoTip>
+                </span>
               )}
 
               {canManage(m) ? (
@@ -478,7 +484,7 @@ export default function TeamClient({
                     disabled={busy}
                     className="btn-primary btn-sm"
                   >
-                    Save Hours
+                    Save hours
                   </button>
                   <button
                     onClick={() => setHoursFor(null)}
@@ -510,7 +516,7 @@ export default function TeamClient({
                   disabled={busy || resetPassword.length < 8}
                   className="btn-primary btn-sm"
                 >
-                  Set Password
+                  Set password
                 </button>
                 <button
                   onClick={() => setResetFor(null)}

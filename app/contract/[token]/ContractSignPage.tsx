@@ -38,6 +38,7 @@ export default function ContractSignPage({
   brandColor: string | null;
 }) {
   const accent = brandColor ?? "#F86808";
+  const voided = status === "VOID";
   const [name, setName] = useState("");
   const [agree, setAgree] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -83,12 +84,27 @@ export default function ContractSignPage({
           <div className="px-6 py-5 border-b border-gray-100">
             <h2 className="text-lg font-bold text-gray-900">{title}</h2>
           </div>
-          <div className="px-6 py-5">
-            <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{body}</p>
-          </div>
+          {!voided && (
+            <div className="px-6 py-5">
+              <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{body}</p>
+            </div>
+          )}
 
           <div className="px-6 py-5 border-t border-gray-100 bg-gray-50">
-            {isSigned ? (
+            {voided ? (
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-200">
+                  <Clock size={20} className="text-gray-500" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">This agreement has been withdrawn</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {companyName} cancelled it, so there is nothing to sign here. If you were
+                    expecting an agreement, please contact them and they can send a new one.
+                  </p>
+                </div>
+              </div>
+            ) : isSigned ? (
               <div className="flex items-start gap-3">
                 <span
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
@@ -161,7 +177,7 @@ export default function ContractSignPage({
                   style={{ backgroundColor: accent, color: textOn(accent) }}
                 >
                   {busy && <Loader2 size={14} className="animate-spin" />}
-                  Sign Agreement
+                  Sign agreement
                 </button>
               </div>
             )}

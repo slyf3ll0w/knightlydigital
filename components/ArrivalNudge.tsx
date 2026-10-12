@@ -172,7 +172,7 @@ export default function ArrivalNudge() {
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-3 text-sm font-semibold text-white active:bg-green-700 disabled:opacity-60"
             >
               {busy ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} fill="currentColor" />}
-              Clock In
+              Clock in
             </button>
           </div>
         </div>

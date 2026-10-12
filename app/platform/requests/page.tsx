@@ -96,7 +96,7 @@ export default async function RequestsPage({
           className="btn-primary hidden lg:flex"
         >
           <Plus size={15} />
-          New Request
+          New request
         </Link>
       </div>
 
@@ -165,7 +165,7 @@ export default async function RequestsPage({
                 : "New work starts here — requests arrive from your booking page and contact forms, or log them yourself."
             }
             actionHref="/app/requests/new"
-            actionLabel="Create a Request"
+            actionLabel="Create a request"
           />
         ) : (
           <div className="divide-y divide-gray-100">

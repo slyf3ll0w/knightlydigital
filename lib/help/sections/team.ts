@@ -18,7 +18,7 @@ export const teamSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Go to **Settings → Team & roles** and press `Add Member`.",
+            "Go to **Settings → Team & roles** and press `Add member`.",
             "Enter their name, email and phone, pick a **role** (see [Roles](/help/roles-and-permissions)), and set a **starting password** (8+ characters).",
             "Save, then **send them their email and password yourself**. They sign in at workbenchfsm.com or in the app.",
           ],
@@ -79,7 +79,7 @@ export const teamSection: HelpSection = {
         {
           type: "list",
           items: [
-            "`Clock In` from the job page or the **Up next** card on Home, and `Clock Out` when you're done. Completing the job clocks you out too.",
+            "`Clock in` from the job page or the **Up next** card on Home, and `Clock out` when you're done. Completing the job clocks you out too.",
             "Clocking in somewhere new closes your last entry automatically.",
             "If location is allowed, one GPS stamp is saved with each punch. It isn't continuous tracking.",
             "No signal? The punch is saved on your phone and syncs when you're back online.",
@@ -121,7 +121,7 @@ export const teamSection: HelpSection = {
       blocks: [
         {
           type: "p",
-          text: "Every company has an **Everyone** channel. Press `New chat` for a direct message or a named group, and use `Add people` or `Leave Group` inside it. You can edit and delete your own messages.",
+          text: "Every company has an **Everyone** channel. Press `New chat` for a direct message or a named group, and use `Add people` or `Leave group` inside it. You can edit and delete your own messages.",
         },
         {
           type: "h",
@@ -130,7 +130,7 @@ export const teamSection: HelpSection = {
         {
           type: "list",
           items: [
-            "Press the photo button beside the message box and pick one or more photos or videos. Anything you've typed goes with the first one as its caption.",
+            "Press `Send a photo` (the picture button beside the message box) and pick one or more photos or videos. Anything you've typed goes with the first one as its caption.",
             "On a computer you can also drag files onto the conversation and drop them. Each file is sent as its own message, up to 10 at a time. Only photos and videos can be sent.",
             "Files can be up to 25 MB. Photos are resized on your device before they're sent.",
             "Tap a photo to open it full size, or use its save button to keep a copy.",
@@ -177,13 +177,13 @@ export const portalSection: HelpSection = {
             "See their open balance, next visit and anything waiting on them on **Home**.",
             "Approve quotes, pay invoices, and save cards (and pick one for autopay).",
             "Sign agreements.",
-            "Ask to reschedule a visit, and send a **New Request** for more work.",
+            "Ask to reschedule a visit, and send a **New request** for more work.",
             "Message you on the **Messages** tab. Replies show up in your [inbox](/help/messages-inbox).",
           ],
         },
         {
           type: "p",
-          text: "Clients can always get a fresh link from your portal login page by entering their email. `Reset Link` turns off old links if one was shared by mistake.",
+          text: "Clients can always get a fresh link from your portal login page by entering their email. `Reset link` turns off old links if one was shared by mistake.",
         },
         {
           type: "tip",
@@ -233,7 +233,7 @@ export const reportsSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Open **Overview → Expenses** and press `Log Expense`.",
+            "Open **Overview → Expenses** and press `Log expense`.",
             "Enter a description, category, amount and date.",
             "Tick **Repeat this every month** for rent, insurance or software, and it's logged automatically on that day each month. Stop it any time with `Stop repeating`.",
           ],

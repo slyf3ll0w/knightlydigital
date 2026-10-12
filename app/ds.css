@@ -255,6 +255,9 @@ a.ds-row:active { background: var(--ds-line); }
 }
 
 /* ── motion ───────────────────────────────────────────────────────────── */
+@keyframes ds-spin { to { transform: rotate(360deg); } }
+.ds-spin { animation: ds-spin 0.9s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .ds-spin { animation-duration: 1.8s; } }
 @keyframes ds-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes ds-pop { from { opacity: 0; transform: translateY(4px) scale(0.97); } to { opacity: 1; transform: none; } }
 .ds-rise { animation: ds-rise var(--ds-dur-slow) var(--ds-ease) both; animation-delay: calc(var(--ds-i, 0) * 60ms); }

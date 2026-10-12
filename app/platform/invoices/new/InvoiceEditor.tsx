@@ -301,7 +301,7 @@ export default function InvoiceEditor({
                     setContactId(id);
                     if (!dueDateTouched) setDueDate(defaultDueFor(id));
                   }}
-                  placeholder="Select a customer..."
+                  placeholder="Select a customer…"
                   title="Select a customer"
                 />
               )}
@@ -416,7 +416,7 @@ export default function InvoiceEditor({
           <button type="submit" disabled={loading}
             className="btn-primary btn-lg">
             {loading && <Loader2 size={14} className="animate-spin" />}
-            {editInvoice ? "Save Changes" : "Save Invoice"}
+            {editInvoice ? "Save changes" : "Save invoice"}
           </button>
           <Link href={backHref}
             className="ds-btn ds-btn-outline">

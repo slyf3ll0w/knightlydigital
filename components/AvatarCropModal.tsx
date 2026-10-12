@@ -200,7 +200,7 @@ export default function AvatarCropModal({
             className="btn-primary"
           >
             {working && <Loader2 size={14} className="animate-spin" />}
-            Save Photo
+            Save photo
           </button>
         </div>
     </Modal>

@@ -33,7 +33,7 @@ export function useUnsavedWarning(dirty: boolean, options: UnsavedWarningOptions
       confirmSheet({
         title: title ?? "Leave without saving?",
         message: message ?? "You have unsaved changes — they'll be lost.",
-        confirmLabel: confirmLabel ?? "Discard Changes",
+        confirmLabel: confirmLabel ?? "Discard changes",
         cancelLabel,
         destructive: destructive ?? true,
       });

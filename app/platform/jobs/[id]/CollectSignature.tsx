@@ -66,7 +66,7 @@ export default function CollectSignature({ jobId }: { jobId: string }) {
         className="ds-btn ds-btn-outline"
       >
         <PenLine size={13} />
-        Collect Signature
+        Collect signature
       </button>
 
       <Modal

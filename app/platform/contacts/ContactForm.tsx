@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
@@ -8,6 +8,7 @@ import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import SectionHeader from "@/components/SectionHeader";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 
 type FieldDef = {
   id: string;
@@ -90,6 +91,13 @@ export default function ContactForm({
     initial?.customFields ?? {}
   );
 
+  // Leaving with edits asks first: the form as it opened vs. as it is now,
+  // off once the save went through (the redirect must not be stopped).
+  const snapshot = JSON.stringify({ form, customFields });
+  const initialSnapshot = useRef(snapshot);
+  const [saved, setSaved] = useState(false);
+  useUnsavedWarning(!saved && !loading && snapshot !== initialSnapshot.current);
+
   useEffect(() => {
     fetch("/api/app/contact-fields")
       .then((r) => (r.ok ? r.json() : []))
@@ -149,6 +157,7 @@ export default function ContactForm({
         setError(data?.error ?? GENERIC_ERROR);
         return;
       }
+      setSaved(true);
       router.push(`/app/contacts/${data.id}`);
     } else {
       payload.status = form.status;
@@ -159,6 +168,7 @@ export default function ContactForm({
         setError(data?.error ?? GENERIC_ERROR);
         return;
       }
+      setSaved(true);
       router.push(`/app/contacts/${contactId}`);
       router.refresh();
     }
@@ -365,7 +375,7 @@ export default function ContactForm({
                 type="text"
                 value={form.leadSource}
                 onChange={(e) => set("leadSource", e.target.value)}
-                placeholder="Referral, Google, yard sign..."
+                placeholder="Referral, Google, yard sign…"
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               />
             </div>
@@ -477,7 +487,7 @@ export default function ContactForm({
             onChange={(e) => set("notes", e.target.value)}
             rows={3}
             className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
-            placeholder="Any notes about this customer..."
+            placeholder="Any notes about this customer…"
           />
         </div>
 
@@ -490,11 +500,11 @@ export default function ContactForm({
             {loading && <Loader2 size={14} className="animate-spin" />}
             {mode === "create"
               ? form.kind === "CONTACT"
-                ? "Save Contact"
+                ? "Save contact"
                 : form.status === "LEAD"
-                  ? "Save Lead"
-                  : "Save Client"
-              : "Save Changes"}
+                  ? "Save lead"
+                  : "Save client"
+              : "Save changes"}
           </button>
           <Link
             href={backHref}

@@ -17,7 +17,7 @@ export default function SmsNotificationsCard({
   hasLine = false,
 }: {
   initialOnAt: string | null;
-  /** The company has a business line — texts send from it (copy changes; the switch is the same). */
+  /** The company has a business line (a number) — texts send from it. Without one the switch is disabled: sendSms refuses anyway. */
   hasLine?: boolean;
 }) {
   const [onAt, setOnAt] = useState<string | null>(initialOnAt);
@@ -53,8 +53,7 @@ export default function SmsNotificationsCard({
         hint={
           <>
             Appointment reminders, schedule changes, and quote and invoice links go to your clients
-            by text from {hasLine ? "your business line" : "your business line (set one up above)"}, in
-            your business&apos;s name. Every client with a phone number gets them unless you switch
+            by text from your business line, in your business&apos;s name. Every client with a phone number gets them unless you switch
             that client off or they reply STOP.
           </>
         }
@@ -84,10 +83,15 @@ export default function SmsNotificationsCard({
               Text terms
             </a>
           </p>
+          {!hasLine && (
+            <p className="text-xs font-medium text-[color:var(--ds-ink-2)]">
+              Needs a registered business line first — get one in the Phone &amp; texting card above.
+            </p>
+          )}
           <button
             type="button"
             onClick={() => toggle(true)}
-            disabled={busy}
+            disabled={busy || !hasLine}
             className="ds-btn ds-btn-primary disabled:opacity-50"
           >
             {busy && <Loader2 size={14} className="animate-spin" />}

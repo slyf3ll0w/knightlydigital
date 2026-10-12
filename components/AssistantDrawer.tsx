@@ -1,5 +1,6 @@
 "use client";
 
+import { GENERIC_ERROR } from "@/lib/safe-fetch";
 import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -530,7 +531,7 @@ export default function AssistantDrawer({
         if (data?.access) setLiveAccess(data.access);
         else if (data?.atlasLocked)
           setLiveAccess({ level: "locked", reason: "free-spent", resetsAt: new Date().toISOString() });
-        setError(data?.error ?? "Something went wrong — please try again.");
+        setError(data?.error ?? GENERIC_ERROR);
       } else {
         if (data.access) setLiveAccess(data.access);
         // metered accounts (free tier + plan) see what each reply cost; the
@@ -933,7 +934,7 @@ export default function AssistantDrawer({
               {/* The compass hunts for a heading while Atlas works — his own
                   mark doing the thinking, not a generic spinner */}
               <AtlasIcon size={15} thinking className="text-green-600" />
-              <span className="atlas-shimmer text-xs text-gray-500">Looking that up...</span>
+              <span className="atlas-shimmer text-xs text-gray-500">Looking that up…</span>
             </div>
           )}
           {error && (

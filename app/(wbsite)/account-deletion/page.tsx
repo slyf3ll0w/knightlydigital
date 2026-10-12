@@ -53,7 +53,7 @@ export default function AccountDeletionPage() {
                     Business owners can permanently delete their account and all company
                     data at any time: sign in, open{" "}
                     <span className="font-semibold text-gray-900">
-                      Settings → Danger Zone → Delete account
+                      Settings → Danger Zone → Delete company…
                     </span>
                     , and confirm. This removes your company, team member accounts,
                     clients, quotes, jobs, invoices, messages, and photos.

@@ -1,5 +1,6 @@
 "use client";
 
+import { GENERIC_ERROR } from "@/lib/safe-fetch";
 import { useState } from "react";
 import { Check, Loader2 } from "lucide-react";
 import SectionHeader from "@/components/SectionHeader";
@@ -43,10 +44,10 @@ export default function EmailAlertsCard({ initial, pushOn, isOwner = false }: { 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ emailAlerts: toValue(next) }),
       });
-      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error || "Couldn't save.");
+      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error || GENERIC_ERROR);
       setChoice(next);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't save.");
+      setError(err instanceof Error ? err.message : GENERIC_ERROR);
     } finally {
       setBusy(null);
     }

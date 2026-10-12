@@ -68,6 +68,7 @@ import TourGuide from "@/components/TourGuide";
 const NotificationsSheet = dynamic(() => import("@/components/NotificationsSheet"), { ssr: false });
 const AssistantDrawer = dynamic(() => import("@/components/AssistantDrawer"), { ssr: false });
 import LiveToasts, { type LiveToast } from "@/components/LiveToasts";
+import { kindForUrl } from "@/lib/toast";
 import PageNotes from "@/components/sticky/PageNotes";
 import BuildProgressBar from "@/components/BuildProgressBar";
 import FormErrorFocus from "@/components/FormErrorFocus";
@@ -615,6 +616,16 @@ function CreateMenu({
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
+  // Escape closes, like every other dialog (Modal / BottomSheet)
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
@@ -693,6 +704,16 @@ function UserMenu({
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
+  // Escape closes, like every other dialog (Modal / BottomSheet)
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
@@ -718,7 +739,7 @@ function UserMenu({
             className="flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
             <LifeBuoy size={14} className="text-gray-400" />
-            Help &amp; Feedback
+            Help Center
           </Link>
           <button
             type="button"
@@ -949,6 +970,15 @@ function MembershipRows({
 /** Phone bottom sheet for the switcher — same material as the More sheet. */
 function CompanySwitcherSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { memberships, switching, switchTo } = useMemberships(open);
+  // Escape closes, like every other sheet (BottomSheet / Modal)
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
   return (
     <>
       <div
@@ -1024,6 +1054,8 @@ const HIT_ICONS: Record<string, typeof Home> = {
   Jobs: Briefcase,
   Quotes: FileText,
   Invoices: Receipt,
+  Requests: Inbox,
+  Appointments: CalendarClock,
 };
 
 function CommandPalette({
@@ -1815,20 +1847,9 @@ export default function AppShell({
   userIdRef.current = userId;
   useEffect(() => {
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
-    const kindFor = (href: string): LiveToast["kind"] =>
-      href.startsWith("/app/chat")
-        ? "chat"
-        : href.startsWith("/app/leads")
-          ? "lead"
-          : href.startsWith("/app/requests")
-            ? "request"
-            : href.startsWith("/app/payments") || href.startsWith("/app/invoices")
-              ? "payment"
-              : href.startsWith("/app/schedule") || href.startsWith("/app/appointments")
-                ? "booking"
-                : href.startsWith("/app/tasks")
-                  ? "task"
-                  : "message";
+    // The card's icon follows the push's destination — the same mapping the
+    // bell uses (lib/toast.ts kindForUrl), so a push and its feed row match.
+    const kindFor = (href: string): LiveToast["kind"] => kindForUrl(href);
     const onMessage = (e: MessageEvent) => {
       const d = e.data as { type?: string; title?: string; body?: string; url?: string; tag?: string | null } | null;
       // A notification was tapped (public/sw.js notificationclick): this
@@ -2806,6 +2827,8 @@ export default function AppShell({
         salesMoney={salesMoney}
         isActive={isActive}
         pastDue={counts.pastDue}
+        requests={counts.requests}
+        tasks={counts.tasks}
         chatUnread={counts.chat}
         messagesUnread={counts.messages}
         hasLine={hasLine}
@@ -2892,6 +2915,8 @@ function MobileTabBar({
   salesMoney,
   isActive,
   pastDue,
+  requests,
+  tasks,
   chatUnread,
   messagesUnread,
   hasLine,
@@ -2902,6 +2927,9 @@ function MobileTabBar({
   salesMoney: boolean;
   isActive: (href: string) => boolean;
   pastDue: number;
+  /** New requests and open tasks — badged on their More-sheet tiles, so the More tab's dot covers them too. */
+  requests: number;
+  tasks: number;
   chatUnread: number;
   /** Client messages nobody has opened — on the Create button and its Message tile. */
   messagesUnread: number;
@@ -2933,6 +2961,13 @@ function MobileTabBar({
   useEffect(() => {
     setSheetOpen(false);
   }, [pathname]);
+
+  // The More tab's dot stands in for every badge inside the sheet that
+  // nothing else on the bar shows: requests, past-due invoices and tasks.
+  // Team chat rides the Chat tab; client messages ride the Create button —
+  // unless this role has no Message tile there, then they count here too.
+  const messagesOnCreate = creates.some((c) => c.href === "/app/messages?new=1");
+  const moreDot = requests + pastDue + tasks + (messagesOnCreate ? 0 : messagesUnread) > 0;
 
   // Each tab is a pill inside the glass capsule; the selected one carries a
   // faint accent wash (.tab-on-pill) — the iOS 26 selection capsule.
@@ -3097,7 +3132,7 @@ function MobileTabBar({
           >
             <span className="relative">
               <MoreFill size={24} />
-              {pastDue > 0 && (
+              {moreDot && (
                 <span className="absolute -right-1 -top-0.5 h-2.5 w-2.5 rounded-full bg-[color:var(--ds-secondary)] ring-2 ring-[color:var(--fab-ring)]" />
               )}
             </span>
@@ -3292,7 +3327,7 @@ function MoreSheet({
   ];
   const accountItems: NavItem[] = [
     ...(manager ? [{ href: "/app/settings", label: "Settings", icon: Settings }] : []),
-    { href: "/app/help", label: "Help & Feedback", icon: LifeBuoy },
+    { href: "/app/help", label: "Help Center", icon: LifeBuoy },
   ];
   // Home + Schedule live on the tab bar; everything else is bucketed by MORE_GROUPS
   const pool = [...navGroups.slice(1).flatMap((g) => forRole(g.items, role, salesMoney)), ...teamItems];
@@ -3486,7 +3521,7 @@ function MoreSheet({
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[13.5px] font-semibold text-gray-700 active:bg-gray-100"
               >
                 <LifeBuoy size={16} strokeWidth={2} />
-                Help & Feedback
+                Help Center
               </Link>
               <button
                 type="button"

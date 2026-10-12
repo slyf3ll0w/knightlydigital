@@ -1,5 +1,6 @@
 "use client";
 
+import { GENERIC_ERROR } from "@/lib/safe-fetch";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, Phone, RefreshCw } from "lucide-react";
@@ -61,7 +62,7 @@ async function post<T>(url: string, body?: unknown, method = "POST"): Promise<T>
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = (await res.json().catch(() => ({}))) as T & { error?: string };
-  if (!res.ok) throw new Error(data.error || "Something went wrong. Please try again.");
+  if (!res.ok) throw new Error(data.error || GENERIC_ERROR);
   return data;
 }
 
@@ -132,11 +133,18 @@ function GetNumber({
   if (!line.entitled) {
     return (
       <div className="rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-600">
-        A business line is part of{" "}
-        <Link href="/app/settings/addon" className="font-medium text-gray-900 underline">
-          the Voice plan
-        </Link>
-        . Until then, the free Call and Text buttons keep working from your own phone.
+        {line.addonEnabled ? (
+          <>
+            A business line is part of{" "}
+            <Link href="/app/settings/addon" className="font-medium text-gray-900 underline">
+              the Voice plan
+            </Link>
+            .
+          </>
+        ) : (
+          <>A business line is part of the Voice plan — ask us to turn it on for your account.</>
+        )}{" "}
+        Until then, the free Call and Text buttons keep working from your own phone.
       </div>
     );
   }
@@ -226,9 +234,13 @@ function ReleaseNotice({ line }: { line: LineSummary }) {
       </p>
       <p className="text-xs text-[color:var(--ds-ink-2)]">
         Calls keep forwarding until then. The number is yours to keep: {" "}
-        <Link href="/app/settings/addon" className="font-medium underline">
-          resubscribe
-        </Link>{" "}
+        {line.addonEnabled ? (
+          <Link href="/app/settings/addon" className="font-medium underline">
+            resubscribe
+          </Link>
+        ) : (
+          <>ask us to turn the Voice plan back on</>
+        )}{" "}
         and it stays here, or{" "}
         <a href={`mailto:contact@workbenchfsm.com?subject=${subject}&body=${body}`} className="font-medium underline">
           ask us to port it

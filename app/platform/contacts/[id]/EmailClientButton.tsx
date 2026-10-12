@@ -1,5 +1,6 @@
 "use client";
 
+import { NETWORK_ERROR } from "@/lib/safe-fetch";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mail, Loader2, X } from "lucide-react";
@@ -60,7 +61,7 @@ export default function EmailClientButton({
       setBody("");
       router.refresh();
     } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
+      setError(NETWORK_ERROR);
     } finally {
       setBusy(false);
     }

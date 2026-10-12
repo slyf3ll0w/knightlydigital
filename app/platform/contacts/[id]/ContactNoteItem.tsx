@@ -47,7 +47,7 @@ export default function ContactNoteItem({
     if (
       !(await confirmSheet({
         message: "Delete this note?",
-        confirmLabel: "Delete Note",
+        confirmLabel: "Delete note",
         destructive: true,
       }))
     )

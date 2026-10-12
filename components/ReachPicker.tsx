@@ -1,5 +1,6 @@
 "use client";
 
+import { NETWORK_ERROR } from "@/lib/safe-fetch";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Grid3x3, Loader2, MessageSquarePlus, PhoneCall, Search, X } from "lucide-react";
@@ -138,7 +139,7 @@ export default function ReachPicker({
       onClose();
       router.push(`/app/messages/thread/${data.contactId}`);
     } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
+      setError(NETWORK_ERROR);
     } finally {
       setStarting(false);
     }

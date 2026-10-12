@@ -82,7 +82,7 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
       !(await confirmSheet({
         title: `Delete "${a.name}"?`,
         message: "It stops immediately and its run history goes with it. Anything it already did (emails, notes, moves) stays.",
-        confirmLabel: "Delete Automation",
+        confirmLabel: "Delete automation",
         destructive: true,
       }))
     )

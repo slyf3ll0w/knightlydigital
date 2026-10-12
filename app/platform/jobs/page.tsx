@@ -130,7 +130,7 @@ export default async function JobsPage({
               className="btn-primary"
             >
               <Plus size={15} />
-              New Job
+              New job
             </Link>
           )}
         </div>
@@ -169,7 +169,7 @@ export default async function JobsPage({
                 : "Track work from first visit to final payment — create your first job to get going."
             }
             actionHref="/app/jobs/new"
-            actionLabel="Create a Job"
+            actionLabel="Create a job"
           />
         ) : (
           <>

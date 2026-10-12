@@ -110,7 +110,7 @@ export default function AddressesCard({
     if (
       !(await confirmSheet({
         message: "Remove this address?",
-        confirmLabel: "Remove Address",
+        confirmLabel: "Remove address",
         destructive: true,
       }))
     )

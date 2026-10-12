@@ -1,5 +1,6 @@
 "use client";
 
+import { GENERIC_ERROR, NETWORK_ERROR } from "@/lib/safe-fetch";
 import { useState } from "react";
 import Link from "next/link";
 import { Loader2, MailCheck } from "lucide-react";
@@ -24,9 +25,9 @@ export default function ForgotPasswordPage() {
       if (res.ok) setSent(true);
       else if (res.status === 429)
         setError("Too many requests. Please wait a bit and try again.");
-      else setError("Something went wrong. Please try again.");
+      else setError(GENERIC_ERROR);
     } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
+      setError(NETWORK_ERROR);
     }
     setLoading(false);
   }

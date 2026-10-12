@@ -187,7 +187,7 @@ export default function AppointmentActions({
       !(await confirmSheet({
         title: "Delete this appointment?",
         message: "This can't be undone.",
-        confirmLabel: "Delete Appointment",
+        confirmLabel: "Delete appointment",
         destructive: true,
       }))
     )
@@ -245,7 +245,7 @@ export default function AppointmentActions({
     const writeQuote = await confirmSheet({
       title: "Appointment complete",
       message: `Want to write a quote${contactName ? ` for ${contactName}` : ""}? If they approve it on the spot, it becomes a job. You can also do this later from this page.`,
-      confirmLabel: "Create Quote",
+      confirmLabel: "Create quote",
       cancelLabel: "Not now",
     });
     if (writeQuote) router.push(quoteHref);
@@ -271,14 +271,14 @@ export default function AppointmentActions({
           </div>
           <div className="grid gap-2">
             <Link href={quoteHref} className="btn-primary btn-lg" onClick={() => setWrapUp(false)}>
-              <FileText size={15} /> Create Quote
+              <FileText size={15} /> Create quote
             </Link>
             <Link
               href={invoiceHref}
               onClick={() => setWrapUp(false)}
               className="flex items-center gap-2 rounded-[10px] btn-tool-line bg-[color:var(--ds-secondary-soft)] px-4 py-2.5 text-sm font-semibold text-[color:var(--ds-secondary)] hover:bg-[color-mix(in_srgb,var(--ds-secondary)_18%,transparent)]"
             >
-              <Receipt size={15} /> Create Invoice
+              <Receipt size={15} /> Create invoice
             </Link>
             <button
               type="button"
@@ -294,7 +294,7 @@ export default function AppointmentActions({
         {status === "SCHEDULED" && (
           <button onClick={complete} disabled={busy} className={primaryCls}>
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-            Complete Appointment
+            Complete appointment
           </button>
         )}
         {/* After Complete, both doors stay open until one is used (David
@@ -304,7 +304,7 @@ export default function AppointmentActions({
         {status === "COMPLETED" && !hasQuote && (
           <Link href={quoteHref} className={primaryCls}>
             <FileText size={14} />
-            Create Quote
+            Create quote
           </Link>
         )}
         {status === "COMPLETED" && canInvoice && !hasInvoice && (
@@ -313,7 +313,7 @@ export default function AppointmentActions({
             className="flex items-center gap-1.5 rounded-[10px] btn-tool-line bg-[color:var(--ds-secondary-soft)] px-3 py-2 text-sm font-semibold text-[color:var(--ds-secondary)] hover:bg-[color-mix(in_srgb,var(--ds-secondary)_18%,transparent)]"
           >
             <Receipt size={14} />
-            Create Invoice
+            Create invoice
           </Link>
         )}
         <div className="relative">
@@ -332,7 +332,7 @@ export default function AppointmentActions({
                   className="flex w-full items-center gap-2 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   <Receipt size={13} className="text-gray-400" />
-                  Create Invoice
+                  Create invoice
                 </Link>
               )}
               <button
@@ -340,7 +340,7 @@ export default function AppointmentActions({
                 className="flex w-full items-center gap-2 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
                 <Pencil size={13} className="text-gray-400" />
-                Edit Details
+                Edit details
               </button>
               <button
                 onClick={openReschedule}
@@ -356,14 +356,14 @@ export default function AppointmentActions({
                     className="flex w-full items-center gap-2 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
                   >
                     <X size={13} className="text-gray-400" />
-                    Mark No-show
+                    Mark no-show
                   </button>
                   <button
                     onClick={() => patch({ status: "CANCELLED" })}
                     className="flex w-full items-center gap-2 px-3.5 py-2 text-sm text-red-600 hover:bg-red-50"
                   >
                     <X size={13} />
-                    Cancel Appointment
+                    Cancel appointment
                   </button>
                 </>
               )}
@@ -456,7 +456,11 @@ export default function AppointmentActions({
       )}
       {rescheduling && !anytime && <ScheduleHeadsUp result={rescheduleCheck} />}
 
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && !editing && (
+        <p role="alert" className="form-error">
+          {error}
+        </p>
+      )}
 
       <Modal
         open={editing}
@@ -467,6 +471,12 @@ export default function AppointmentActions({
         {editing && (
           <div className="space-y-3 text-left">
             <h2 className="text-base font-semibold text-gray-900">Edit Appointment</h2>
+
+            {error && (
+              <p role="alert" className="form-error">
+                {error}
+              </p>
+            )}
 
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-0.5">Title</label>
@@ -544,8 +554,6 @@ export default function AppointmentActions({
               />
             </div>
 
-            {error && <p className="text-xs text-red-600">{error}</p>}
-
             <div className="flex items-center justify-end gap-2 pt-1">
               <button
                 onClick={() => setEditing(false)}
@@ -560,7 +568,7 @@ export default function AppointmentActions({
                 className="btn-primary"
               >
                 {busy && <Loader2 size={13} className="animate-spin" />}
-                Save Changes
+                Save changes
               </button>
             </div>
           </div>

@@ -36,7 +36,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   {
     key: "phone",
     label: "Phone & texting",
-    sub: "Business line, text notifications, On My Way texts",
+    sub: "Business line, text notifications, On my way texts",
     icon: "Phone",
   },
   {

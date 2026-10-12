@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getActor } from "@/lib/permissions";
 import { touchPresence } from "@/lib/presence";
+import { stampMobileAppSeen } from "@/lib/get-started";
+import { isAndroidShellUserAgent, isIosShellUserAgent } from "@/lib/sign-in-options";
 import { DEVICE_COOKIE, claimDevice, deviceCookieOptions, deviceRuleEnabled, isDeviceId, releaseDevice } from "@/lib/active-device";
 
 /**
@@ -28,6 +30,11 @@ export async function POST(req: NextRequest) {
   const ua = req.headers.get("user-agent");
   const cookie = req.cookies.get(DEVICE_COOKIE)?.value;
   const deviceId = isDeviceId(cookie) ? cookie : randomUUID();
+  // First beat from a fresh native install: the company has the app now
+  // (the Get started checklist's "Install the app" item, lib/get-started.ts)
+  if (!isDeviceId(cookie) && (isIosShellUserAgent(ua) || isAndroidShellUserAgent(ua))) {
+    void stampMobileAppSeen(actor.companyId).catch(() => {});
+  }
 
   let takeover = false;
   let release = false;

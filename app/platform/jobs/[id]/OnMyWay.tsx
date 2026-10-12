@@ -108,7 +108,7 @@ export default function OnMyWay({
       ) : (
         <Navigation size={13} className={sent ? "text-[color:var(--ds-good)]" : undefined} />
       )}
-      On My Way{sent ? " ✓" : ""}
+      On my way{sent ? " ✓" : ""}
     </button>
   );
 }

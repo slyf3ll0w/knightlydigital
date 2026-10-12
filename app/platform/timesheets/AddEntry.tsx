@@ -1,5 +1,6 @@
 "use client";
 
+import { GENERIC_ERROR } from "@/lib/safe-fetch";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
@@ -46,7 +47,7 @@ export default function AddEntry({
     const data = res ? await res.json().catch(() => ({})) : {};
     setBusy(false);
     if (!res?.ok) {
-      setError(data.error ?? "Couldn't save — try again.");
+      setError(data.error ?? GENERIC_ERROR);
       return;
     }
     setOpen(false);

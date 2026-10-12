@@ -19,7 +19,7 @@ export const jobsSection: HelpSection = {
           type: "steps",
           items: [
             "Press `New` on the Jobs page (or convert an approved quote, or use the client page's create menu).",
-            "Pick the client and the service address.",
+            "Pick the client and the service address. Not in the list yet? `New client` at the bottom of the picker (or `Add \"<name>\" as a new client` once you've typed a name) opens a small sheet — first name, last name, phone, email — and `Add client` puts them straight on it.",
             "Add the services. A title is optional: WorkBench names the job after its services (\"Mow + Edge\") if you leave it blank.",
             "Set a date and time, or choose **Anytime**. Add an **Arrival window** if you promise one (like 8–10 am).",
             "Choose who's doing it under **Assign to**, or tick **Outsourced to a subcontractor**.",
@@ -59,9 +59,9 @@ export const jobsSection: HelpSection = {
         {
           type: "list",
           items: [
-            "`On My Way` texts the client that you're heading over.",
+            "`On my way` texts the client that you're heading over.",
             "`Directions` opens your maps app.",
-            "`Clock In` starts your time on the job. While you're clocked in, the card shows your timer plus `Photos` and `Checklist`.",
+            "`Clock in` starts your time on the job. While you're clocked in, the card shows your timer plus `Photos` and `Checklist`.",
           ],
         },
         {
@@ -75,7 +75,7 @@ export const jobsSection: HelpSection = {
             "**Checklist**: tick items off, or skip one with a reason.",
             "**Notes & Activity**: notes for the team and a history of everything that happened.",
             "`Collect signature` for the client's sign-off on the finished work.",
-            "`Ask for review` sends your Google review link. Add the link in Settings → Branding first.",
+            "`Ask for review` sends your Google review link. Add the link under Settings → Branding & client experience → Review Requests first.",
           ],
         },
         {
@@ -91,7 +91,7 @@ export const jobsSection: HelpSection = {
     {
       slug: "complete-and-invoice-a-job",
       title: "Complete a job and invoice it",
-      summary: "Complete Job moves it to Requires Invoicing; Create Invoice bills it.",
+      summary: "Complete job moves it to Requires Invoicing; Create invoice bills it.",
       keywords: ["complete", "finish", "requires invoicing", "closed", "reopen", "close without invoicing", "job status"],
       where: { label: "Jobs", href: "/app/jobs" },
       blocks: [
@@ -102,17 +102,17 @@ export const jobsSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "When the work is done, press `Complete Job`. Anyone still clocked in is clocked out.",
+            "When the work is done, press `Complete job`. Anyone still clocked in is clocked out.",
             "The job moves to **Requires Invoicing** and shows up under **Needs you** on the dashboard.",
-            "Press `Create Invoice`. The invoice copies the job's lines. Send it (see [Send an invoice](/help/send-an-invoice)).",
+            "Press `Create invoice`. The invoice copies the job's lines. Send it (see [Send an invoice](/help/send-an-invoice)).",
             "Once it's invoiced, the job is **Closed**.",
           ],
         },
         {
           type: "list",
           items: [
-            "No invoice needed (warranty work, a freebie)? Use `Close Job without invoicing` in the ⋯ menu.",
-            "Something came up? `Reopen Job` puts it back to Active.",
+            "No invoice needed (warranty work, a freebie)? Use `Close job without invoicing` on the job page (or `Close without invoicing` in the row's ⋯ menu).",
+            "Something came up? `Reopen job` puts it back to Active.",
             "Jobs billed by a recurring plan don't show the manual invoice buttons. The plan bills them.",
           ],
         },
@@ -146,7 +146,7 @@ export const jobsSection: HelpSection = {
           type: "list",
           items: [
             "**Monthly plan — auto-charge**: a flat price charged to the client's saved card every month, 3 months, 6 months or year. The first charge happens when the plan starts.",
-            "**Bill for completed work**: a price per visit. Finished visits wait in **Ready to bill** until you press `Bill Ready Work`, or tick \"Bill each job automatically the moment it's completed.\"",
+            "**Bill for completed work**: a price per visit. Finished visits wait in **Ready to bill** until you press `Bill ready work`, or tick \"Bill each job automatically the moment it's completed.\"",
             "**No automatic billing**: the visits schedule themselves and you bill however you like.",
           ],
         },
@@ -198,7 +198,7 @@ export const scheduleSection: HelpSection = {
             "Switch between **Month**, **Week** and **Day**. In Day view, **By tech** shows one column per person, like a dispatch board. Phones open on Day.",
             "**Drag** a visit to move it, drag its bottom edge to change its length, or drag across empty space to create something. Hold `Shift` while dragging to copy. Everything snaps to 15 minutes.",
             "After every move you get an **Undo**, plus `Text client` / `Email client` to tell them about the change.",
-            "`Block Time` marks time off or shop days so nobody books over them. `Move the day` shifts a whole day's work.",
+            "`Block time` marks time off or shop days so nobody books over them. `Move the day` shifts a whole day's work.",
             "Chips flag anything that needs a look: **Awaiting approval**, **Double-booked**, **Unassigned**, **Subcontractor**.",
           ],
         },
@@ -232,9 +232,9 @@ export const scheduleSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Press `New Appointment` on the Schedule or the Appointments page.",
+            "Press `New appointment` on the Schedule or the Appointments page.",
             "Pick the client, the type, the time and who's going.",
-            "Afterwards, press `Complete Appointment`. WorkBench offers `Create Quote` right away.",
+            "Afterwards, press `Complete appointment`. WorkBench offers `Create quote` right away.",
           ],
         },
         {
@@ -243,7 +243,15 @@ export const scheduleSection: HelpSection = {
         },
         {
           type: "p",
-          text: "Other buttons: `Reschedule`, `Mark No-show`, `Cancel Appointment` and `Reopen`.",
+          text: "Other buttons: `Reschedule`, `Mark no-show`, `Cancel appointment` and `Reopen`.",
+        },
+        {
+          type: "h",
+          text: "The Appointments list",
+        },
+        {
+          type: "p",
+          text: "The Appointments page has a search box (client, purpose, address) and a filter: **Upcoming** (the default, soonest first), **Past**, **Cancelled** and **All**. Owners and admins also get **Mine** to see only the appointments they're on. The list shows 100 at a time, with pages below it. Right-click a row (press and hold on your phone) for `Open`, `Open in new tab`, `Copy link`, `Complete appointment`, `Mark no-show`, `Cancel appointment`, `Reopen`, `Create quote` and `Delete`.",
         },
         {
           type: "h",

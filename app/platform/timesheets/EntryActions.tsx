@@ -6,7 +6,7 @@ import { Pencil, Trash2, X } from "lucide-react";
 import { localInputToISO } from "@/lib/statuses";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import Modal from "@/components/Modal";
-import { postJson } from "@/lib/safe-fetch";
+import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 
 /** ISO → datetime-local value in the browser's timezone. */
 function toLocalInput(iso: string | null): string {
@@ -45,7 +45,7 @@ export default function EntryActions({
     const data = res ? await res.json().catch(() => ({})) : {};
     setBusy(false);
     if (!res?.ok) {
-      setError(data.error ?? "Couldn't save — try again.");
+      setError(data.error ?? GENERIC_ERROR);
       return;
     }
     setEditing(false);
@@ -57,7 +57,7 @@ export default function EntryActions({
     if (
       !(await confirmSheet({
         message: "Delete this time entry?",
-        confirmLabel: "Delete Entry",
+        confirmLabel: "Delete entry",
         destructive: true,
       }))
     )

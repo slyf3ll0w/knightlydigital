@@ -96,7 +96,7 @@ export default function PhotoUpload({ jobId, photos, canSite = false }: { jobId:
     if (
       !(await confirmSheet({
         message: "Remove this photo from the job?",
-        confirmLabel: "Remove Photo",
+        confirmLabel: "Remove photo",
         destructive: true,
       }))
     )

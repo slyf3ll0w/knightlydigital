@@ -294,7 +294,7 @@ export default function QuoteActions({
       !(await confirmSheet({
         title: "Delete this quote?",
         message: warning,
-        confirmLabel: "Delete Quote",
+        confirmLabel: "Delete quote",
         destructive: true,
       }))
     )
@@ -367,7 +367,7 @@ export default function QuoteActions({
             className="btn-primary"
           >
             <Send size={13} />
-            {canTextClient ? "Send to Client" : "Email to Client"}
+            {canTextClient ? "Send to client" : "Email to client"}
           </button>
         ) : (
           <button
@@ -376,7 +376,7 @@ export default function QuoteActions({
             className="btn-primary"
           >
             <Send size={13} />
-            Mark as Sent
+            Mark as sent
           </button>
         ))}
       {(status === "AWAITING_RESPONSE" || status === "CHANGES_REQUESTED") && (
@@ -385,7 +385,7 @@ export default function QuoteActions({
           className="btn-primary"
         >
           <CheckCircle size={13} />
-          Mark Approved
+          Mark approved
         </button>
       )}
       {/* Approved quotes convert — unless an agreement-requiring service is
@@ -402,7 +402,7 @@ export default function QuoteActions({
             className="btn-primary"
           >
             <FileSignature size={13} />
-            Send Agreement
+            Send agreement
           </button>
         )
       ) : (
@@ -414,7 +414,7 @@ export default function QuoteActions({
             className="btn-primary"
           >
             <Briefcase size={13} />
-            Convert to Job
+            Convert to job
           </button>
         )
       )}
@@ -426,7 +426,7 @@ export default function QuoteActions({
           className="ds-btn ds-btn-outline"
         >
           <RotateCcw size={13} />
-          Reopen Quote
+          Reopen quote
         </button>
       )}
 
@@ -458,7 +458,7 @@ export default function QuoteActions({
               className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
             >
               <Eye size={14} className="text-gray-400" />
-              Preview as Client
+              Preview as client
             </a>
             <button
               onClick={copyLink}
@@ -482,7 +482,7 @@ export default function QuoteActions({
               className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
             >
               <CopyPlus size={14} className="text-gray-400" />
-              Duplicate Quote
+              Duplicate quote
             </button>
             {reachable && status === "DRAFT" && (
               <button
@@ -490,7 +490,7 @@ export default function QuoteActions({
                 className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
                 <CheckCircle size={14} className="text-gray-400" />
-                Mark as Sent (don&apos;t send)
+                Mark as sent (no email)
               </button>
             )}
             {reachable && (status === "AWAITING_RESPONSE" || status === "CHANGES_REQUESTED") && (
@@ -519,7 +519,7 @@ export default function QuoteActions({
                 className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
               >
                 <Briefcase size={14} className="text-gray-400" />
-                Convert to Job
+                Convert to job
               </button>
             )}
             {hasDeposit && status !== "ARCHIVED" && (
@@ -558,7 +558,7 @@ export default function QuoteActions({
                 className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
                 <Pencil size={14} className="text-gray-400" />
-                Edit Quote
+                Edit quote
               </Link>
             )}
             {canDelete && (
@@ -630,7 +630,7 @@ export default function QuoteActions({
                   className="btn-primary"
                 >
                   {busy ? <Loader2 size={13} className="animate-spin" /> : <FileSignature size={13} />}
-                  Send Agreement
+                  Send agreement
                 </button>
               )}
             </div>

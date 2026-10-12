@@ -4,13 +4,17 @@
  * change updates every guide. Keep plan wording here, not in the guides.
  */
 import {
+  DISPATCH_MINUTES_INCLUDED,
+  DISPATCH_OVERAGE_CENTS,
   DISPATCH_SETUP_CENTS,
+  DISPATCH_TEXTS_INCLUDED,
   EXTRA_SEAT_CENTS,
   FREE_PLAN_NAME,
   FULL_SHOP,
   INCLUDED_SEATS,
   PLANS,
   formatCents,
+  formatUnitCents,
 } from "../plans";
 import { ATLAS_FREE_TOKENS, ATLAS_PLAN_PRICE_CENTS, ATLAS_PLAN_TOKENS } from "../atlas-pricing";
 import type { HelpBlock } from "./types";
@@ -27,9 +31,23 @@ export const MAX_PRICE = `${formatCents(FULL_SHOP.monthlyCents)}/month`;
 export const GALLERY = PLANS.JOBSITE.name;
 export const GALLERY_PRICE = `${formatCents(PLANS.JOBSITE.monthlyCents)}/month`;
 export const VOICE_SETUP = formatCents(DISPATCH_SETUP_CENTS);
+/** "$25" — the monthly price alone (VOICE_PRICE carries "/month"). */
+export const VOICE_MONTHLY = formatCents(PLANS.DISPATCH.monthlyCents);
+export const VOICE_TEXTS = n(DISPATCH_TEXTS_INCLUDED);
+export const VOICE_MINUTES = n(DISPATCH_MINUTES_INCLUDED);
+/** "3¢" — per text or minute past the allowance. */
+export const VOICE_OVERAGE = formatUnitCents(DISPATCH_OVERAGE_CENTS);
 
 export const SEATS_INCLUDED = INCLUDED_SEATS;
 export const EXTRA_SEAT = `${formatCents(EXTRA_SEAT_CENTS)}/month`;
+
+/**
+ * In-app one-liners about seats and the free core (Team page, signup doors,
+ * the Voice page). Built here so they can never contradict the pricing page.
+ */
+export const SEATS_SENTENCE = `${CORE} includes ${SEATS_INCLUDED} people. Each extra person is ${EXTRA_SEAT}; ${PRO} and ${MAX} have no per-person charge.`;
+export const CORE_FREE_LINE = `${CORE} is free for up to ${SEATS_INCLUDED} people — no card needed.`;
+export const CORE_SEATS_LINE = `${CORE} is free for ${SEATS_INCLUDED} people; each extra person is ${EXTRA_SEAT}.`;
 
 export const ATLAS_FREE = n(ATLAS_FREE_TOKENS);
 export const ATLAS_FULL = n(ATLAS_PLAN_TOKENS);

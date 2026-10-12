@@ -87,7 +87,7 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
   {
     heading: "10. Data retention and deletion",
     paragraphs: [
-      "We keep your information for as long as your account is active. Business owners can permanently delete their account and company data at any time from Settings inside the app (Danger Zone → Delete account). Team members can ask the business owner, or contact us, to remove their account. Some records may persist briefly in encrypted backups before being cycled out, and we may retain limited transaction records where the law or our payment partner requires it.",
+      "We keep your information for as long as your account is active. Business owners can permanently delete their account and company data at any time from Settings inside the app (Danger Zone → Delete company…). Team members can ask the business owner, or contact us, to remove their account. Some records may persist briefly in encrypted backups before being cycled out, and we may retain limited transaction records where the law or our payment partner requires it.",
     ],
   },
   {

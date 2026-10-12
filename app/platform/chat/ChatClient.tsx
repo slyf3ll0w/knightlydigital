@@ -562,7 +562,7 @@ export default function ChatClient({
       !(await confirmSheet({
         title: "Delete this message?",
         message: "Everyone will see it was deleted.",
-        confirmLabel: "Delete Message",
+        confirmLabel: "Delete message",
         destructive: true,
       }))
     )
@@ -663,7 +663,7 @@ export default function ChatClient({
     if (
       !(await confirmSheet({
         message: `Leave "${active.name}"?`,
-        confirmLabel: "Leave Group",
+        confirmLabel: "Leave group",
         destructive: true,
       }))
     )

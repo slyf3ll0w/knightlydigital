@@ -30,7 +30,7 @@ export default function BookingApprovalBanner({
       !(await confirmSheet({
         title: "Decline this booking?",
         message: "The request is archived and the reserved time is freed.",
-        confirmLabel: "Decline Booking",
+        confirmLabel: "Decline booking",
         destructive: true,
       }))
     ) {
@@ -83,7 +83,7 @@ export default function BookingApprovalBanner({
             className="btn-primary"
           >
             {busy === "accept" && <Loader2 size={13} className="animate-spin" />}
-            Accept and Schedule
+            Accept and schedule
           </button>
           <button
             onClick={() => act("decline")}

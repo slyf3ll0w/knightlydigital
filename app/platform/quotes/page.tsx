@@ -157,7 +157,7 @@ export default async function QuotesPage({
             className="ds-btn ds-btn-primary ds-btn-sm"
           >
             <Plus size={15} />
-            New Quote
+            New quote
           </Link>
         </div>
       </div>
@@ -194,7 +194,7 @@ export default async function QuotesPage({
                 : "Win the work before it starts — send your first quote and clients can approve it online."
             }
             actionHref="/app/quotes/new"
-            actionLabel="Create a Quote"
+            actionLabel="Create a quote"
           />
         ) : (
           <>

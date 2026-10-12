@@ -868,7 +868,7 @@ Two things every job-creating path used to leave to whoever was typing:
   title → `"Service visit"`. The place sheet shows price-book **service
   chips** (one tap names, prices, and times the job); New Job auto-names
   from the line items until a title is typed. Atlas `create_job` no longer
-  requires one. Job *edit* still requires a title (a job always has one).
+  requires one. A blank title on edit re-derives the name the same way (2026-10-12).
 - Tests: `npx tsx scripts/test-job-crew.ts`.
 - **Service chips** (`components/ServiceChips.tsx`, `lib/service-title.ts`
   `titleFromServices`): the shared tap-to-pick price-book row. Used by the

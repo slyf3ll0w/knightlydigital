@@ -259,7 +259,7 @@ export default async function HubHomePage({
           href={`${base}/requests/new`}
           className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors"
         >
-          {hubForm?.buttonLabel ?? "New Request"}
+          {hubForm?.buttonLabel ?? "New request"}
         </Link>
       </div>
 

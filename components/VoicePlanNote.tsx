@@ -8,9 +8,19 @@ import { PLANS } from "@/lib/plans";
  * (David 2026-10-03: "make sure that both pages explain that they will need
  * the Voice plan to use fully"). One quiet line — what still works today,
  * and that the rest comes with the plan — with the detail in an InfoTip and,
- * for managers, the way to the plan page.
+ * for managers, the way to the plan page — only when that page exists for
+ * the company (Company.addonEnabled, the superadmin visibility switch).
  */
-export default function VoicePlanNote({ what, manager }: { what: "calls" | "texts"; manager: boolean }) {
+export default function VoicePlanNote({
+  what,
+  manager,
+  planPage,
+}: {
+  what: "calls" | "texts";
+  manager: boolean;
+  /** Company.addonEnabled — /app/settings/addon shows the pitch for this company. */
+  planPage: boolean;
+}) {
   const voice = PLANS.DISPATCH;
   const line =
     what === "calls"
@@ -26,7 +36,7 @@ export default function VoicePlanNote({ what, manager }: { what: "calls" | "text
       <p className="min-w-0 flex-1">
         {line} <InfoTip label={`What the ${voice.name} plan adds`}>{detail}</InfoTip>
       </p>
-      {manager && (
+      {manager && planPage && (
         <Link href="/app/settings/addon" className="shrink-0 text-[13px] font-semibold text-[color:var(--ds-primary)]">
           See the plan
         </Link>

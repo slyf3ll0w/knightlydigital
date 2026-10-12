@@ -8,7 +8,7 @@ export type ConfirmSheetOptions = {
   title?: string;
   /** The consequence sentence — what happens if they confirm. */
   message: string;
-  /** Verb-specific commit button ("Delete Quote"), never a bare "Confirm". */
+  /** Verb-specific commit button ("Delete quote"), never a bare "Confirm". */
   confirmLabel?: string;
   cancelLabel?: string;
   /** Red commit button + warning haptic. */

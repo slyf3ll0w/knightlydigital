@@ -25,7 +25,9 @@ export default async function PublicContractPage({
     where: { publicToken: token },
     include: { contact: true, company: true },
   });
-  if (!contract || contract.status === "VOID") notFound();
+  // A voided agreement keeps its page: the client is told it was withdrawn
+  // instead of meeting a bare 404 (audit 2026-10-12). The body is not shown.
+  if (!contract) notFound();
 
   return (
     <>
@@ -33,7 +35,7 @@ export default async function PublicContractPage({
       <ContractSignPage
       token={token}
       title={contract.title}
-      body={contract.body}
+      body={contract.status === "VOID" ? "" : contract.body}
       status={contract.status}
       expired={isContractLinkExpired(contract)}
       signatureName={contract.signatureName}

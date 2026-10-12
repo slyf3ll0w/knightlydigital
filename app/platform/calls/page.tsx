@@ -83,6 +83,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
         timezone: true,
         planGrants: true,
         addonActiveAt: true,
+        addonEnabled: true,
         messagingRegistration: { select: { status: true } },
       },
     }),
@@ -288,7 +289,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
         )}
       </div>
 
-      {!onVoicePlan && <VoicePlanNote what="calls" manager={manager} />}
+      {!onVoicePlan && <VoicePlanNote what="calls" manager={manager} planPage={Boolean(company?.addonEnabled)} />}
 
       <div className="mt-3 lg:mt-6 lg:grid lg:grid-cols-[312px_minmax(0,1fr)] lg:items-start lg:gap-6">
         {phone && <LinePanel {...phone} stats={stats} className="hidden lg:sticky lg:top-6 lg:block" />}

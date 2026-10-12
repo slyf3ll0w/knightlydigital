@@ -503,7 +503,7 @@ export default function QuoteEditor({
             onChange={(e) => setClientMessage(e.target.value)}
             rows={3}
             className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
-            placeholder="A message the client sees at the top of the quote..."
+            placeholder="A message the client sees at the top of the quote…"
           />
         </div>
 
@@ -516,22 +516,24 @@ export default function QuoteEditor({
             onChange={(e) => setDisclaimer(e.target.value)}
             rows={4}
             className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
-            placeholder="Terms and conditions the client agrees to when approving..."
+            placeholder="Terms and conditions the client agrees to when approving…"
           />
         </div>
 
         <div className="ds-card p-5 grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Valid until</label>
+            <label className="mb-1 flex items-center gap-1.5 text-sm font-medium text-gray-700">
+              Valid until
+              <InfoTip label="What happens after this date?">
+                After this date the client can no longer approve online. Leave blank for no expiry.
+              </InfoTip>
+            </label>
             <input
               type="date"
               value={validUntil}
               onChange={(e) => setValidUntil(e.target.value)}
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
             />
-            <p className="mt-1 text-xs text-gray-500">
-              After this date the client can no longer approve online. Leave blank for no expiry.
-            </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Internal notes</label>
@@ -540,7 +542,7 @@ export default function QuoteEditor({
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
-              placeholder="Only your team sees these..."
+              placeholder="Only your team sees these…"
             />
           </div>
         </div>
@@ -552,7 +554,7 @@ export default function QuoteEditor({
             className="btn-primary btn-lg"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
-            {editing ? "Save Changes" : "Save Quote"}
+            {editing ? "Save changes" : "Save quote"}
           </button>
           <Link
             href="/app/quotes"

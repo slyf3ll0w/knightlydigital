@@ -82,7 +82,7 @@ export default function ContactActionsMenu({
         title: "Archive this client?",
         message:
           "They'll be hidden from your client list, but all their quotes, jobs, and invoices stay.",
-        confirmLabel: "Archive Client",
+        confirmLabel: "Archive client",
         destructive: true,
       }))
     ) {
@@ -123,7 +123,7 @@ export default function ContactActionsMenu({
         await confirmSheet({
           title: "Permanently delete this client?",
           message: "Their requests are deleted with them. This can't be undone.",
-          confirmLabel: "Delete Client",
+          confirmLabel: "Delete client",
           destructive: true,
         })
       ) {
@@ -255,7 +255,7 @@ export default function ContactActionsMenu({
                 className="btn-danger"
               >
                 {busy ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                Delete Everything
+                Delete everything
               </button>
             </div>
           </>

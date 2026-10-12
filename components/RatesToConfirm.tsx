@@ -56,7 +56,7 @@ export async function confirmGuessedRates(placeholders: string[]): Promise<boole
   return confirmSheet({
     title: "Publish with guessed rates?",
     message: `Atlas used typical numbers where you didn't give a rate — visitors would be quoted those prices as yours:\n${shown}${more}\n\nSet your own under Advanced → Pricing first, or publish anyway and fix them soon.`,
-    confirmLabel: "Publish Anyway",
+    confirmLabel: "Publish anyway",
     destructive: true,
   });
 }

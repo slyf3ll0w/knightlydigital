@@ -1,5 +1,6 @@
 "use client";
 
+import { GENERIC_ERROR } from "@/lib/safe-fetch";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, RotateCcw, Loader2 } from "lucide-react";
@@ -71,7 +72,7 @@ export default function JobChecklist({
         return;
       }
       if (!res.ok) {
-        setError(res.data?.error ?? "Something went wrong. Please try again.");
+        setError(res.data?.error ?? GENERIC_ERROR);
         return;
       }
       setSkippingId(null);

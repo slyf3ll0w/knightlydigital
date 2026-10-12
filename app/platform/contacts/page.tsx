@@ -137,7 +137,7 @@ export default async function ContactsPage({
             className="btn-primary hidden lg:flex h-10"
           >
             <Plus size={15} />
-            {contactsTab ? "New Contact" : "New Client"}
+            {contactsTab ? "New contact" : "New client"}
           </Link>
         </div>
       </div>
@@ -191,7 +191,7 @@ export default async function ContactsPage({
                   : "Your client list powers everything — quotes, jobs, and invoices all start here."
             }
             actionHref={contactsTab ? "/app/contacts/new?type=contact" : "/app/contacts/new"}
-            actionLabel={contactsTab ? "Add a Contact" : "Add Your First Client"}
+            actionLabel={contactsTab ? "Add a contact" : "Add your first client"}
           />
         ) : (
           <>

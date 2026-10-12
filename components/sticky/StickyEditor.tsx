@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ListChecks, Loader2, Trash2, X } from "lucide-react";
 import Modal from "@/components/Modal";
 import { Button } from "@/components/ds";
 import { alertSheet, confirmSheet } from "@/components/ConfirmSheet";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { toast } from "@/lib/toast";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import { STICKY_SIZES, type StickyNoteDTO } from "@/lib/sticky-shared";
 import type { TaskDTO } from "@/lib/tasks-shared";
@@ -66,24 +67,43 @@ export default function StickyEditor({
   const [busy, setBusy] = useState<"save" | "task" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const readOnly = Boolean(note && !note.canEdit);
+  // What the sheet opened with: closing with anything else written asks first
+  const baseline = useRef("");
+  const dirty = !readOnly && JSON.stringify(draft) !== baseline.current;
 
   useEffect(() => {
     if (!open) return;
     setError(null);
     setBusy(null);
-    setDraft(
-      note
-        ? {
-            body: note.body,
-            color: note.color,
-            size: sizeKeyFor(Math.max(note.width, note.height)),
-            shared: note.shared,
-            expiry: note.expiresAt ? "custom" : "none",
-            expiryDate: note.expiryDate,
-          }
-        : emptyDraft(prefill)
-    );
+    const init: StickyDraft = note
+      ? {
+          body: note.body,
+          color: note.color,
+          size: sizeKeyFor(Math.max(note.width, note.height)),
+          shared: note.shared,
+          expiry: note.expiresAt ? "custom" : "none",
+          expiryDate: note.expiryDate,
+        }
+      : emptyDraft(prefill);
+    setDraft(init);
+    baseline.current = JSON.stringify(init);
   }, [open, note, prefill]);
+
+  /** Backdrop, Escape and X: a half-written note asks before it goes. */
+  async function requestClose() {
+    if (busy !== null) return;
+    if (
+      dirty &&
+      !(await confirmSheet({
+        title: "Discard this note?",
+        message: "What you typed will be lost.",
+        confirmLabel: "Discard",
+        destructive: true,
+      }))
+    )
+      return;
+    onClose();
+  }
 
   async function save() {
     if (busy || readOnly) return;
@@ -146,7 +166,7 @@ export default function StickyEditor({
     }
     hapticNotify("SUCCESS");
     onClose();
-    await alertSheet({ title: "Task added", message: `"${res.data.task.title}" is on your list under Tasks. The note stays here.` });
+    toast(`"${res.data.task.title}" is on your list under Tasks. The note stays here.`, { title: "Task added", href: "/app/tasks" });
   }
 
   async function remove() {
@@ -170,14 +190,14 @@ export default function StickyEditor({
   }
 
   return (
-    <Modal open={open} onClose={onClose} size="sm" dismissible={busy === null} portal={portal}>
+    <Modal open={open} onClose={() => void requestClose()} size="sm" dismissible={busy === null} portal={portal}>
       {/* `ds` here so the paper tokens exist even when the host sits outside the page tree */}
       <div className="ds space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="ds-h2">{isNew ? "New note" : readOnly ? `${note?.authorName}'s note` : "Note"}</h3>
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => void requestClose()}
             aria-label="Close"
             className="flex h-8 w-8 items-center justify-center rounded-full text-[color:var(--ds-muted)] hover:bg-[color:var(--ds-surface-2)]"
           >
@@ -222,7 +242,7 @@ export default function StickyEditor({
             </button>
           </div>
           {!readOnly && (
-            <Button onClick={() => void save()} disabled={busy !== null} icon={busy === "save" ? Loader2 : undefined}>
+            <Button onClick={() => void save()} disabled={busy !== null} loading={busy === "save"}>
               {isNew ? "Stick it" : "Save"}
             </Button>
           )}

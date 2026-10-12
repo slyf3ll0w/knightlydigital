@@ -101,7 +101,7 @@ export function EstimateForm({ dark = false }: Props) {
       <textarea
         value={projectDetails}
         onChange={(e) => setProjectDetails(e.target.value)}
-        placeholder="Tell us about your project or what you're looking for..."
+        placeholder="Tell us about your project or what you're looking for…"
         rows={3}
         className="px-4 py-3 text-sm outline-none resize-none"
         style={{
@@ -120,7 +120,7 @@ export function EstimateForm({ dark = false }: Props) {
           fontFamily: 'Lexend, system-ui, sans-serif',
         }}
       >
-        {submitting ? 'Sending...' : 'Get a Free Estimate →'}
+        {submitting ? 'Sending…' : 'Get a Free Estimate →'}
       </button>
 
       <p className="text-xs text-center" style={{ color: '#9CA3AF' }}>

@@ -152,7 +152,7 @@ export default function NativeShell({ userId }: { userId?: string | null } = {})
     // added. iOS requires description alongside iosIcon (SF Symbol names);
     // Android falls back to its default shortcut icon.
     const SHORTCUTS: { id: string; title: string; description: string; iosIcon: string; url: string }[] = [
-      { id: "new-job", title: "New Job", description: "Create a job", iosIcon: "plus.circle.fill", url: "/app/jobs/new" },
+      { id: "new-job", title: "New job", description: "Create a job", iosIcon: "plus.circle.fill", url: "/app/jobs/new" },
       { id: "schedule", title: "Schedule", description: "Today's schedule", iosIcon: "calendar", url: "/app/schedule" },
       { id: "chat", title: "Team Chat", description: "Open team chat", iosIcon: "bubble.left.and.bubble.right.fill", url: "/app/chat" },
     ];

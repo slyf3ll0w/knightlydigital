@@ -95,7 +95,7 @@ export default async function HubRequestsPage({
           className="flex items-center gap-1.5 px-3.5 py-2 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-xs font-semibold rounded-[10px] btn-tool transition-colors"
         >
           <Plus size={13} />
-          New Request
+          New request
         </Link>
       </div>
       {requests.length === 0 ? (

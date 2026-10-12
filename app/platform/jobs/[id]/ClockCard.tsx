@@ -135,7 +135,7 @@ export default function ClockCard({
             className="ds-btn ds-btn-lg w-full justify-center bg-[color:var(--ds-ink)] text-[color:var(--ds-surface)] hover:opacity-90 disabled:opacity-50"
           >
             <Square size={14} fill="currentColor" />
-            Clock Out
+            Clock out
           </button>
         </>
       ) : (
@@ -152,7 +152,7 @@ export default function ClockCard({
             className="btn-primary btn-lg w-full justify-center"
           >
             <Play size={14} fill="currentColor" />
-            Clock In
+            Clock in
           </button>
         </>
       )}

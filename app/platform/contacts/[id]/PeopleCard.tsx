@@ -102,7 +102,7 @@ export default function PeopleCard({
     if (
       !(await confirmSheet({
         message: `Remove ${fullName(p) || "this contact"} from this client?`,
-        confirmLabel: "Remove Contact",
+        confirmLabel: "Remove contact",
         destructive: true,
       }))
     )

@@ -175,14 +175,14 @@ export default async function InvoicesPage({
             className="ds-btn ds-btn-outline ds-btn-sm"
           >
             <DollarSign size={14} />
-            Collect Payment
+            Collect payment
           </Link>
           <Link
             href="/app/invoices/new"
             className="ds-btn ds-btn-primary ds-btn-sm"
           >
             <Plus size={15} />
-            New Invoice
+            New invoice
           </Link>
         </div>
       </div>
@@ -219,7 +219,7 @@ export default async function InvoicesPage({
                 : "Get paid for finished work — send your first invoice with a pay-online link."
             }
             actionHref="/app/invoices/new"
-            actionLabel="Create an Invoice"
+            actionLabel="Create an invoice"
           />
         ) : (
           <>

@@ -707,7 +707,7 @@ export default function ScheduleClient({
           icon: CheckCircle2,
           onSelect: async () => {
             const when = it.scheduledAt ? new Date(it.scheduledAt) : null;
-            if (when && when.getTime() > Date.now() && !(await confirmSheet({ message: `This job is scheduled for ${when.toLocaleDateString(undefined, { month: "short", day: "numeric" })} — complete it anyway?`, confirmLabel: "Complete Anyway" }))) return;
+            if (when && when.getTime() > Date.now() && !(await confirmSheet({ message: `This job is scheduled for ${when.toLocaleDateString(undefined, { month: "short", day: "numeric" })} — complete it anyway?`, confirmLabel: "Complete anyway" }))) return;
             await afterAction(await postJson(`/api/app/jobs/${it.id}/status`, { status: "REQUIRES_INVOICING" }, "PATCH"), `Completed ${it.title}`, it.contactName);
           },
         });
@@ -740,7 +740,7 @@ export default function ScheduleClient({
           icon: X,
           destructive: true,
           onSelect: async () => {
-            if (!(await confirmSheet({ title: "Cancel this appointment?", message: `${it.contactName} won't be reminded of it. You can reopen it later from its page.`, confirmLabel: "Cancel Appointment", destructive: true }))) return;
+            if (!(await confirmSheet({ title: "Cancel this appointment?", message: `${it.contactName} won't be reminded of it. You can reopen it later from its page.`, confirmLabel: "Cancel appointment", destructive: true }))) return;
             await afterAction(await postJson(`/api/app/appointments/${it.id}`, { status: "CANCELLED" }, "PATCH"), "Appointment cancelled", it.title);
           },
         });
@@ -1519,11 +1519,11 @@ export default function ScheduleClient({
           <button
             onClick={() => openBlockCreate()}
             aria-label="Block off time"
-            title="Block Time"
+            title="Block time"
             className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] btn-tool-line bg-white text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 md:w-auto md:px-4"
           >
             <CalendarOff size={16} />
-            <span className="hidden md:inline">Block Time</span>
+            <span className="hidden md:inline">Block time</span>
           </button>
           {view === "day" && canDispatch && (
             <button
@@ -1543,11 +1543,11 @@ export default function ScheduleClient({
             <Link
               href="/app/appointments/new"
               aria-label="New appointment"
-              title="New Appointment"
+              title="New appointment"
               className="hidden h-10 items-center justify-center gap-1.5 rounded-[10px] btn-tool-line bg-[color:var(--ds-secondary-soft)] px-4 text-sm font-semibold text-[color:var(--ds-secondary)] transition-colors hover:bg-[color-mix(in_srgb,var(--ds-secondary)_18%,transparent)] md:flex"
             >
               <CalendarClock size={16} />
-              New Appointment
+              New appointment
             </Link>
           )}
           {canCreateJob && (
@@ -1556,7 +1556,7 @@ export default function ScheduleClient({
               className="btn-primary hidden lg:flex h-10"
             >
               <Plus size={15} />
-              New Job
+              New job
             </Link>
           )}
         </div>
@@ -2057,7 +2057,7 @@ export default function ScheduleClient({
               {blockSheet.canEdit && (
                 <button onClick={saveBlock} disabled={blockBusy} className="btn-primary">
                   {blockBusy && <Loader2 size={14} className="animate-spin" />}
-                  {blockSheet.id === null ? "Block Time" : "Save"}
+                  {blockSheet.id === null ? "Block time" : "Save"}
                 </button>
               )}
               <button onClick={() => setBlockSheet(null)} disabled={blockBusy} className="rounded-[10px] btn-tool-line bg-white px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50">

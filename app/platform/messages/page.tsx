@@ -24,7 +24,7 @@ export default async function MessagesInboxPage() {
     // decides whether New message may start a thread with a typed number.
     prisma.company.findUnique({
       where: { id: actor.companyId },
-      select: { timezone: true, lineNumber: true, planGrants: true, addonActiveAt: true },
+      select: { timezone: true, lineNumber: true, planGrants: true, addonActiveAt: true, addonEnabled: true },
     }),
   ]);
   const tz = company?.timezone ?? "America/Chicago";
@@ -39,7 +39,7 @@ export default async function MessagesInboxPage() {
         </PageTitle>
         <NewMessageButton hasLine={hasLine} />
       </div>
-      {!onVoicePlan && <VoicePlanNote what="texts" manager={isManager(actor.role)} />}
+      {!onVoicePlan && <VoicePlanNote what="texts" manager={isManager(actor.role)} planPage={Boolean(company?.addonEnabled)} />}
       <InboxList initial={rows} tz={tz} />
     </div>
   );

@@ -43,7 +43,7 @@ export const startSection: HelpSection = {
           items: [
             {
               q: "Why can't my clients see a Pay button?",
-              a: "Online payments turn on when your business is approved. Until then the pay page says your business isn't taking online payments yet. You can still record cash, check and other payments with `Collect Payment`.",
+              a: "Online payments turn on when your business is approved. Until then the pay page says your business isn't taking online payments yet. You can still record cash, check and other payments with `Collect payment`.",
             },
             {
               q: "Emails to clients fail with \"Email isn't set up on this server yet.\"",
@@ -60,23 +60,28 @@ export const startSection: HelpSection = {
     {
       slug: "first-week-setup",
       title: "Set up WorkBench in your first week",
-      summary: "The short list that gets you from a new account to sending your first quote.",
-      keywords: ["setup", "onboarding", "checklist", "new account", "getting started", "first steps"],
-      where: { label: "Settings", href: "/app/settings" },
+      summary: "The Get started checklist on Home walks you from a new account to your first quote and job.",
+      keywords: ["setup", "onboarding", "checklist", "get started", "new account", "getting started", "first steps", "business hours"],
+      where: { label: "Home", href: "/app/dashboard" },
       roles: "Owners and admins",
       blocks: [
+        {
+          type: "p",
+          text: "A new account opens with a **Get started** checklist at the top of **Home**. Each step links to the right page and ticks itself off as you go: nothing to mark done by hand. `Hide` takes it off Home; **Settings → Company → `Show on Home`** brings it back. Once the core steps are done it leaves on its own.",
+        },
         {
           type: "steps",
           note: "Go top to bottom",
           items: [
             "**Verify your business** so you can take payments. See [Activate your account](/help/activate-payments).",
-            "**Company info and timezone**: Settings → Company. The timezone decides what \"today\" means on your schedule and dashboard.",
-            "**Branding**: add your logo and colors in Settings → Branding. Clients see them on quotes, invoices and the client portal.",
-            "**Price book**: add your services and products in Settings → Services, so quotes and invoices fill themselves in.",
-            "**Bring in your clients** with a CSV. See [Import your clients](/help/import-clients).",
-            "**Add your team** and pick each person's role. See [Add team members](/help/add-team-members).",
-            "**Booking page**: share your link or put the form on your website. See [Take bookings online](/help/online-booking).",
-            "Send your first quote. See [Create and send a quote](/help/create-and-send-a-quote).",
+            "**Add your services** (or **Review your prices** if your price book came pre-loaded): Settings → Services, so quotes, jobs and invoices fill themselves in.",
+            "**Fill in your business details**: phone, address, logo and brand color under Settings → Company. They go on your booking page and every document. The timezone there decides what \"today\" means on your schedule.",
+            "**Set your business hours**: they live in Settings → Booking & forms. Booking and scheduling use them to know when you're open.",
+            "**Add your first client**: type one in, or bring your list over with a CSV. See [Import your clients](/help/import-clients).",
+            "**Send your first quote**. See [Create and send a quote](/help/create-and-send-a-quote).",
+            "**Schedule your first job**: it lands on your calendar and your phone.",
+            "**Share your booking page**: copy the link for your website, Google profile or texts. See [Take bookings online](/help/online-booking).",
+            "Optional: **Add your team** (see [Add team members](/help/add-team-members)) and **Install the app on your phone** (see [Get the app](/help/mobile-apps)).",
           ],
         },
         {
@@ -114,7 +119,7 @@ export const startSection: HelpSection = {
         {
           type: "list",
           items: [
-            "`⌘ K` / `Ctrl K` opens the command palette: search anything and jump to it.",
+            "`⌘K` / `Ctrl+K` opens the command palette: search anything and jump to it.",
             "`?` shows every shortcut.",
             "`g` then a letter goes somewhere: `g` `s` Schedule, `g` `c` Clients, `g` `q` Quotes, `g` `j` Jobs, `g` `i` Invoices, `g` `l` Leads, `g` `k` Tasks.",
             "`n` then a letter creates something: `n` `c` client, `n` `q` quote, `n` `j` job, `n` `i` invoice, `n` `a` appointment, `n` `t` task.",
@@ -168,7 +173,7 @@ export const startSection: HelpSection = {
         },
         {
           type: "p",
-          text: "A reminder arrives as a push notification and as a card in the bell, with a tap that opens the task. If none of your devices has notifications on, it comes to your login email instead (your **Email alerts** choice in Settings → My Profile wins either way). For a task with a date but no time, \"at the due time\" means 9:00 AM that day in your company's timezone. Reminders land within about five minutes of the time you picked.",
+          text: "A reminder arrives as a push notification and as a card in the bell, with a tap that opens the task. If none of your devices has notifications on, it comes to your login email instead (your **Email me too** choice in Settings → My Profile wins either way). For a task with a date but no time, \"at the due time\" means 9:00 AM that day in your company's timezone. Reminders land within about five minutes of the time you picked.",
         },
         {
           type: "h",
@@ -226,7 +231,7 @@ export const startSection: HelpSection = {
           items: [
             "**Edit or take down:** tap the note. `Take down` removes it; an expiring note comes down on its own.",
             "**Team notes:** tick **Show it to the whole team** and everyone in the company sees the note on that page, with your initials in the corner. Each person can slide it around on their own screen. Only you (or an owner or admin) can edit or take it down.",
-            "**Make a task:** turns the note into a task on your list (the first line becomes the title) and keeps the note.",
+            "**Make a task:** press `Make a task` on the note and it turns into a task on your list (the first line becomes the title); the note stays.",
             "**Hide them:** right-click an empty spot and choose `Hide sticky notes` (or `Hide sticky notes everywhere` in the phone strip). `Show sticky notes` brings them back. It's per device.",
           ],
         },

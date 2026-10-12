@@ -107,7 +107,7 @@ export default function RoadmapClient({
     if (
       !(await confirmSheet({
         message: `Delete "${item.title}" from the board?`,
-        confirmLabel: "Delete Item",
+        confirmLabel: "Delete item",
         destructive: true,
       }))
     )

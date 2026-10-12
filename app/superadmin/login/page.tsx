@@ -1,5 +1,6 @@
 "use client";
 
+import { GENERIC_ERROR } from "@/lib/safe-fetch";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Loader2, Eye, EyeOff, ShieldCheck } from "lucide-react";
@@ -41,7 +42,7 @@ export default function SuperadminLoginPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error ?? "Something went wrong. Please try again.");
+        setError(data.error ?? GENERIC_ERROR);
         captchaRef.current?.reset();
         return false;
       }

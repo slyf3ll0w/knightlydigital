@@ -418,7 +418,7 @@ export default function ImportClient({
         title: "Undo this import?",
         message:
           "Every client it created is removed — anyone who already has work attached is kept.",
-        confirmLabel: "Remove Clients",
+        confirmLabel: "Remove clients",
         destructive: true,
       }))
     )
@@ -758,7 +758,7 @@ export default function ImportClient({
               href="/app/contacts"
               className="btn-primary btn-lg"
             >
-              View Clients
+              View clients
             </Link>
             {summary.created > 0 && !undone && (
               <button

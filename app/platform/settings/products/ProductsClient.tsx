@@ -209,7 +209,7 @@ export default function ProductsClient({
       !(await confirmSheet({
         message:
           "Remove this item from your price book? If it appears on past quotes or invoices it's archived (history stays intact) — otherwise it's deleted.",
-        confirmLabel: "Remove Item",
+        confirmLabel: "Remove item",
         destructive: true,
       }))
     )
@@ -531,7 +531,7 @@ export default function ProductsClient({
           className="btn-primary"
         >
           {loading && <Loader2 size={13} className="animate-spin" />}
-          {editingId === "new" ? "Add Item" : "Save Changes"}
+          {editingId === "new" ? "Add item" : "Save changes"}
         </button>
         <button
           onClick={() => setEditingId(null)}
@@ -579,7 +579,7 @@ export default function ProductsClient({
             className="btn-primary"
           >
             <Plus size={15} />
-            Add Item
+            Add item
           </button>
         )}
       </div>

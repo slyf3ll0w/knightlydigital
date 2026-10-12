@@ -179,7 +179,7 @@ export default function PipelineSettingsClient({
       !(await confirmSheet({
         title: `Delete the "${stage.name}" stage?`,
         message: "Any leads in it move to your first stage.",
-        confirmLabel: "Delete Stage",
+        confirmLabel: "Delete stage",
         destructive: true,
       }))
     )
@@ -508,7 +508,7 @@ export default function PipelineSettingsClient({
                     await confirmSheet({
                       title: "Turn off lead intake?",
                       message: "The URL stops accepting leads.",
-                      confirmLabel: "Turn Off",
+                      confirmLabel: "Turn off",
                       destructive: true,
                     })
                   )

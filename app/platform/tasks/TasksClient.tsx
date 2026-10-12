@@ -2,15 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Check, ChevronRight, Flag, Plus, Trash2, Users } from "lucide-react";
+import { Bell, Check, ChevronRight, Flag, Pencil, Plus, RotateCcw, Trash2, Users } from "lucide-react";
 import { Button, Card, DsPage, Hint, PageHeader } from "@/components/ds";
 import { FilterChip, FilterRow, Segment, SegmentedRow } from "@/components/FilterChips";
 import SwipeRow from "@/components/SwipeRow";
+import RowActions from "@/components/QuickMenu";
 import TaskCheck from "@/components/tasks/TaskCheck";
 import TaskEditor, { type TeamMember } from "@/components/tasks/TaskEditor";
 import TaskDetail from "@/components/tasks/TaskDetail";
-import { confirmSheet } from "@/components/ConfirmSheet";
-import { postJson } from "@/lib/safe-fetch";
+import { alertSheet, confirmSheet } from "@/components/ConfirmSheet";
+import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { hapticImpact } from "@/lib/haptics";
 import {
   TASK_BUCKET_LABELS,
@@ -167,22 +168,42 @@ export default function TasksClient({
     router.refresh();
   };
 
+  // One row action at a time: a double swipe (or a right-click on top of a
+  // swipe) must not post twice. A refusal is said out loud, never swallowed.
+  const acting = useRef(false);
+  const fail = (data: { error?: string } | null | undefined) =>
+    alertSheet({ title: "That didn't go through", message: data?.error ?? GENERIC_ERROR });
+
   const remove = async (t: TaskDTO) => {
+    if (acting.current) return;
     const ok = await confirmSheet({
       title: "Delete this task?",
       message: `"${t.title}" will be removed for good.`,
       confirmLabel: "Delete task",
       destructive: true,
     });
-    if (!ok) return;
+    if (!ok || acting.current) return;
+    acting.current = true;
     const res = await postJson(`/api/app/tasks/${t.id}`, undefined, "DELETE");
-    if (res.ok) onDeleted(t.id);
+    acting.current = false;
+    if (!res.ok) {
+      await fail(res.data);
+      return;
+    }
+    onDeleted(t.id);
   };
 
   const quickDone = async (t: TaskDTO) => {
+    if (acting.current) return;
+    acting.current = true;
     hapticImpact("MEDIUM");
     const res = await postJson<{ task: TaskDTO }>(`/api/app/tasks/${t.id}/done`, { done: !t.doneAt });
-    if (res.ok && res.data?.task) onChanged(res.data.task);
+    acting.current = false;
+    if (!res.ok || !res.data?.task) {
+      await fail(res.data);
+      return;
+    }
+    onChanged(res.data.task);
   };
 
   // ── Grouping ──────────────────────────────────────────────────────────
@@ -254,17 +275,33 @@ export default function TasksClient({
     </span>
   );
 
+  // Right-click (desktop) opens the same short menu the sibling lists have
   const desktopRow = (t: TaskDTO) => (
-    <div key={t.id} className="ds-row items-center">
-      <TaskCheck task={t} onChange={onChanged} />
-      <button type="button" onClick={() => openTask(t)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-        <span className="min-w-0 flex-1">
-          {titleEl(t)}
-          {subFor(t) && <span className="ds-small mt-0.5 block truncate">{subFor(t)}</span>}
-        </span>
-        <ChevronRight size={16} className="shrink-0 text-[color:var(--ds-faint)]" aria-hidden />
-      </button>
-    </div>
+    <RowActions
+      key={t.id}
+      title={t.title}
+      actions={[
+        {
+          key: "done",
+          label: t.doneAt ? "Mark not done" : "Mark done",
+          icon: t.doneAt ? RotateCcw : Check,
+          onSelect: () => quickDone(t),
+        },
+        { key: "edit", label: "Edit", icon: Pencil, onSelect: () => editTask(t) },
+        { key: "delete", label: "Delete", icon: Trash2, destructive: true, onSelect: () => remove(t) },
+      ]}
+    >
+      <div className="ds-row items-center">
+        <TaskCheck task={t} onChange={onChanged} />
+        <button type="button" onClick={() => openTask(t)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+          <span className="min-w-0 flex-1">
+            {titleEl(t)}
+            {subFor(t) && <span className="ds-small mt-0.5 block truncate">{subFor(t)}</span>}
+          </span>
+          <ChevronRight size={16} className="shrink-0 text-[color:var(--ds-faint)]" aria-hidden />
+        </button>
+      </div>
+    </RowActions>
   );
 
   const phoneRow = (t: TaskDTO) => (

@@ -108,6 +108,8 @@ export type RegistrationForm = {
 export type LineSummary = {
   enabled: boolean;
   entitled: boolean;
+  /** Company.addonEnabled — the superadmin visibility switch. Without it the Voice plan page (/app/settings/addon) shows no pitch, so links to it are hidden. */
+  addonEnabled: boolean;
   number: string | null;
   /** Which registration path the number takes; null until a number exists. */
   type: LineType | null;

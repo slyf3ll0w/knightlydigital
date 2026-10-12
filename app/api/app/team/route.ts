@@ -38,7 +38,9 @@ export async function GET() {
 }
 
 /**
- * POST — add a team member. Free, no seat limits.
+ * POST — add a team member. Seats are priced per lib/plans.ts (Core includes
+ * INCLUDED_SEATS people, EXTRA_SEAT_CENTS a month each past that; Pro and Max
+ * are unlimited) — the limit is not enforced here yet, so nothing is refused.
  *
  * An email that already has a WorkBench login gets ATTACHED, not rejected:
  * the account gains a membership at this company and keeps its existing

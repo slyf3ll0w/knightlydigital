@@ -7,7 +7,7 @@ import { Loader2, MapPin, Phone, Search, Video } from "lucide-react";
 import Modal from "@/components/Modal";
 import SuggestedTimes from "@/components/SuggestedTimes";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
-import { alertSheet } from "@/components/ConfirmSheet";
+import { alertSheet, confirmSheet } from "@/components/ConfirmSheet";
 import ScheduleHeadsUp, { useScheduleCheck } from "@/components/ScheduleHeadsUp";
 import { slotTimeOptions } from "@/lib/scheduling";
 import { looksLikeAppointment } from "@/lib/appointment-hint";
@@ -128,13 +128,34 @@ export default function PlaceSheet({
   const [newContact, setNewContact] = useState({ firstName: "", lastName: "", phone: "", email: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // Anything changed since the sheet seeded itself: closing asks first
+  // (what the drop decided — date, time, tech — never counts; the learned
+  // duration hint lands through an effect and doesn't either).
+  const [dirty, setDirty] = useState(false);
+  const touch = () => setDirty(true);
   const seq = useRef(0);
+
+  /** Backdrop, Escape and Cancel: a half-filled sheet asks before it goes. */
+  async function requestClose() {
+    if (busy) return;
+    if (dirty) {
+      const ok = await confirmSheet({
+        title: existingJob ? "Discard these changes?" : kind === "job" ? "Discard this job?" : "Discard this appointment?",
+        message: "What you typed will be lost.",
+        confirmLabel: "Discard",
+        destructive: true,
+      });
+      if (!ok) return;
+    }
+    onClose();
+  }
 
   // Seed the form from the intent every time a new one arrives
   useEffect(() => {
     if (!intent) return;
     const ent = intent.entity;
     setErr("");
+    setDirty(false);
     setDate(intent.date);
     setAnytime(intent.minute === null && ent.type !== "contact");
     const min = intent.minute ?? 9 * 60;
@@ -229,6 +250,7 @@ export default function PlaceSheet({
   function toggleService(w: ServiceChip) {
     const next = services.some((s) => s.id === w.id) ? services.filter((s) => s.id !== w.id) : [...services, w];
     setServices(next);
+    touch();
     if (!titleTouched) setTitle(titleFromServices(next.map((s) => s.name)));
     const minutes = next.reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0);
     if (!durationTouched && minutes > 0) setDuration(minutes);
@@ -471,9 +493,9 @@ export default function PlaceSheet({
         : "";
 
   return (
-    <Modal open={Boolean(intent)} onClose={() => !busy && onClose()}>
+    <Modal open={Boolean(intent)} onClose={() => void requestClose()}>
       {intent && (
-        <div className="space-y-3 text-left">
+        <div className="space-y-3 text-left" onChange={touch}>
           <div>
             <div className="flex items-baseline justify-between gap-3">
               <h2 className="text-base font-semibold text-gray-900">{heading}</h2>
@@ -497,6 +519,7 @@ export default function PlaceSheet({
                   type="button"
                   onClick={() => {
                     setKind(k);
+                    touch();
                     if (k === "appointment" && !durationTouched) setDuration(apptType === "IN_PERSON" ? 60 : 30);
                     if (k === "job" && !durationTouched) setDuration(hint?.minutes ?? 60);
                   }}
@@ -548,6 +571,7 @@ export default function PlaceSheet({
                               onClick={() => {
                                 setContact(h);
                                 setContactQ("");
+                                touch();
                                 if (!address) setAddress(h.address ?? "");
                               }}
                               className="flex w-full items-center justify-between px-3 py-1.5 text-left text-sm hover:bg-gray-50"
@@ -609,6 +633,7 @@ export default function PlaceSheet({
                     type="button"
                     onClick={() => {
                       setKind("appointment");
+                      touch();
                       if (!durationTouched) setDuration(apptType === "IN_PERSON" ? 60 : 30);
                     }}
                     className="font-semibold underline"
@@ -640,6 +665,7 @@ export default function PlaceSheet({
                   type="button"
                   onClick={() => {
                     setApptType(v);
+                    touch();
                     if (!durationTouched) setDuration(v === "IN_PERSON" ? 60 : 30);
                   }}
                   className={`flex items-center justify-center gap-1 rounded-[8px] py-1.5 text-xs font-semibold transition-colors ${
@@ -718,7 +744,10 @@ export default function PlaceSheet({
               address={kind === "appointment" && apptType !== "IN_PERSON" ? null : address || contact?.address || null}
               durationMinutes={duration}
               excludeId={existingJob?.id}
-              onPick={(startLocal) => setStartTime(startLocal.slice(11, 16))}
+              onPick={(startLocal) => {
+                setStartTime(startLocal.slice(11, 16));
+                touch();
+              }}
             />
           )}
           {!anytime && <ScheduleHeadsUp result={check} />}
@@ -792,7 +821,7 @@ export default function PlaceSheet({
               {busy && <Loader2 size={14} className="animate-spin" />}
               {existingJob ? "Schedule" : kind === "job" ? "Create & schedule" : "Book it"}
             </button>
-            <button onClick={onClose} disabled={busy} className="rounded-[10px] btn-tool-line bg-white px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50">
+            <button onClick={() => void requestClose()} disabled={busy} className="rounded-[10px] btn-tool-line bg-white px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50">
               Cancel
             </button>
           </div>

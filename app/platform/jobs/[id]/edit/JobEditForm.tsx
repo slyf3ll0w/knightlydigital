@@ -1,13 +1,15 @@
 "use client";
 
 import { money } from "@/lib/statuses";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
+import { InfoTip } from "@/components/ds";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import { type PickerWorkItem } from "@/components/WorkItemPicker";
 import LineItemsEditor, {
   type EditorLineItem,
@@ -94,18 +96,22 @@ export default function JobEditForm({
     return sum + qty * price;
   }, 0);
 
+  // Leaving with edits asks first: the form as it opened vs. as it is now,
+  // off once the save went through (the redirect must not be stopped).
+  const snapshot = JSON.stringify({ title, description, address, propertyId, leadSource, lineItems });
+  const initialSnapshot = useRef(snapshot);
+  const [saved, setSaved] = useState(false);
+  useUnsavedWarning(!saved && !loading && snapshot !== initialSnapshot.current);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim()) {
-      setError("The job needs a title.");
-      return;
-    }
     setError("");
     setLoading(true);
 
     const { ok, data } = await postJson(
       `/api/app/jobs/${job.id}`,
       {
+        // Optional: blank → named after the services (or a generic label) server-side
         title: title.trim(),
         description,
         address,
@@ -135,6 +141,7 @@ export default function JobEditForm({
       return;
     }
 
+    setSaved(true);
     router.push(`/app/jobs/${job.id}`);
     router.refresh();
   }
@@ -164,13 +171,18 @@ export default function JobEditForm({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Job title *</label>
+            <label className="mb-1 flex items-center gap-1.5 text-sm font-medium text-gray-700">
+              Job title <span className="text-xs font-normal text-gray-400">(optional)</span>
+              <InfoTip label="Who sees the job title?">
+                Your client sees this. It's in their visit reminders and on their client portal. Leave it blank and the job is named after the services you pick. WorkBench remembers what you type here for next time.
+              </InfoTip>
+            </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              required
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+              placeholder="Defaults to the services below"
             />
           </div>
 
@@ -181,7 +193,7 @@ export default function JobEditForm({
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
-              placeholder="Details about the job, scope, special instructions..."
+              placeholder="Details about the job, scope, special instructions…"
             />
           </div>
 
@@ -199,7 +211,7 @@ export default function JobEditForm({
                 }}
                 className="w-full mb-2 px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               >
-                <option value="">Pick a saved address...</option>
+                <option value="">Pick a saved address…</option>
                 {addressChoices.map((a) => (
                   <option key={a.key} value={a.key}>
                     {a.label}: {a.line}
@@ -271,7 +283,7 @@ export default function JobEditForm({
             className="btn-primary btn-lg"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
-            Save Changes
+            Save changes
           </button>
           <Link
             prefetch={false} href={`/app/jobs/${job.id}`}

@@ -8,7 +8,7 @@
  * Opt a page in by rendering its content inside <DsPage>.
  */
 import Link from "next/link";
-import type { LucideIcon } from "lucide-react";
+import { Loader2, type LucideIcon } from "lucide-react";
 import Arrow from "./Arrow";
 import InfoTip from "./InfoTip";
 
@@ -171,7 +171,9 @@ export function Button({
   variant = "primary",
   size,
   icon: Icon,
+  loading = false,
   className = "",
+  disabled,
   ...rest
 }: {
   children: React.ReactNode;
@@ -179,12 +181,23 @@ export function Button({
   variant?: "primary" | "soft" | "outline" | "ghost";
   size?: "sm" | "lg";
   icon?: LucideIcon;
+  /**
+   * Busy state: the icon slot becomes a spinning loader, the button is
+   * disabled and announced busy. The label stays as is — "Save" keeps
+   * reading "Save" so the button never changes width mid-press.
+   */
+  loading?: boolean;
   className?: string;
 } & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "className" | "children">) {
   const cls = `ds-btn ds-btn-${variant} ${size ? `ds-btn-${size}` : ""} ${className}`;
+  const iconSize = size === "sm" ? 15 : 17;
   const inner = (
     <>
-      {Icon && <Icon size={size === "sm" ? 15 : 17} strokeWidth={2.2} aria-hidden />}
+      {loading ? (
+        <Loader2 size={iconSize} strokeWidth={2.2} className="ds-spin" aria-hidden />
+      ) : (
+        Icon && <Icon size={iconSize} strokeWidth={2.2} aria-hidden />
+      )}
       {children}
     </>
   );
@@ -193,7 +206,7 @@ export function Button({
       {inner}
     </Link>
   ) : (
-    <button type="button" className={cls} {...rest}>
+    <button type="button" className={cls} disabled={disabled || loading} aria-busy={loading || undefined} {...rest}>
       {inner}
     </button>
   );

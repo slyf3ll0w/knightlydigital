@@ -111,7 +111,7 @@ export default function LibraryClient({ manager, defaultIndustry, embedded = fal
       !(await confirmSheet({
         title: `Add “${row.name}” to your tools?`,
         message: "You get your own copy. Every rate lands under Rates to confirm so you can set your numbers before anyone quotes with it.",
-        confirmLabel: "Add Tool",
+        confirmLabel: "Add tool",
       }))
     )
       return;

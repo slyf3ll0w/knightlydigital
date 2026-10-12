@@ -48,7 +48,7 @@ export default function NoteForm({ jobId }: { jobId: string }) {
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={2}
-          placeholder="Add a note..."
+          placeholder="Add a note…"
           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
         />
         <button

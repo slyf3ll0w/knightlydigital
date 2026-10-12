@@ -97,6 +97,11 @@ export default function Modal({
       className={`modal-pop fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 ${
         phase === "closing" ? "modal-closing" : ""
       }`}
+      // No page scroll under a finger on the scrim (BottomSheet / ConfirmSheet
+      // do the same); content inside the card still scrolls — touch-action is
+      // resolved up to the nearest scroll container, which the card's own
+      // scrolling area is.
+      style={{ touchAction: "none" }}
       onClick={(e) => {
         if (portal) {
           e.preventDefault();
@@ -107,7 +112,9 @@ export default function Modal({
       role="dialog"
       aria-modal="true"
     >
-      <div className={`modal-card ${card}`} onClick={(e) => e.stopPropagation()}>
+      {/* A wheel at the end of the card's scroll stays in the card instead of
+          scrolling the page behind the scrim. */}
+      <div className={`modal-card ${card}`} style={{ overscrollBehavior: "contain" }} onClick={(e) => e.stopPropagation()}>
         {phase === "closing" ? lastChildren.current : children}
       </div>
     </div>

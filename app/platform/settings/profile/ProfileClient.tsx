@@ -340,7 +340,7 @@ export default function ProfileClient({
           className="btn-primary"
         >
           {busy ? <Loader2 size={13} className="animate-spin" /> : saved === "signature" && <Check size={13} />}
-          Save Signature
+          Save signature
         </button>
       </div>
 
@@ -397,7 +397,7 @@ export default function ProfileClient({
               ) : (
                 saved === "email" && <Check size={13} />
               )}
-              Send Confirmation Link
+              Send confirmation link
             </button>
           </>
         )}

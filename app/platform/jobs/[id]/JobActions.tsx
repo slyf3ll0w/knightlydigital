@@ -98,7 +98,7 @@ export default function JobActions({
       if (
         !(await confirmSheet({
           message: `This job is scheduled for ${when} — complete it anyway?`,
-          confirmLabel: "Complete Anyway",
+          confirmLabel: "Complete anyway",
         }))
       )
         return;
@@ -152,7 +152,7 @@ export default function JobActions({
       !(await confirmSheet({
         title: "Permanently delete this job?",
         message: warning,
-        confirmLabel: "Delete Job",
+        confirmLabel: "Delete job",
         destructive: true,
       }))
     )
@@ -187,7 +187,7 @@ export default function JobActions({
           className="btn-primary glass-tinted max-lg:fixed max-lg:inset-x-0 max-lg:mx-auto max-lg:w-max max-lg:bottom-[calc(5.5rem+env(safe-area-inset-bottom))] max-lg:z-30 max-lg:rounded-full max-lg:px-6 max-lg:py-3 max-lg:text-[15px]"
         >
           <CheckCircle size={13} />
-          Complete Job
+          Complete job
         </button>
       )}
       {status === "REQUIRES_INVOICING" && !planBilled && canInvoice && (
@@ -196,7 +196,7 @@ export default function JobActions({
           className="btn-primary glass-tinted max-lg:fixed max-lg:inset-x-0 max-lg:mx-auto max-lg:w-max max-lg:bottom-[calc(5.5rem+env(safe-area-inset-bottom))] max-lg:z-30 max-lg:rounded-full max-lg:px-6 max-lg:py-3 max-lg:text-[15px]"
         >
           <Receipt size={13} />
-          Create Invoice
+          Create invoice
         </button>
       )}
       {status === "ARCHIVED" && (
@@ -205,7 +205,7 @@ export default function JobActions({
           className="ds-btn ds-btn-outline"
         >
           <RotateCcw size={13} />
-          Reopen Job
+          Reopen job
         </button>
       )}
 
@@ -225,7 +225,7 @@ export default function JobActions({
                   className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   <Pencil size={14} className="text-gray-400" />
-                  Edit Job
+                  Edit job
                 </button>
               )}
               {status !== "ARCHIVED" && !hasInvoice && !planBilled && canInvoice && (
@@ -234,7 +234,7 @@ export default function JobActions({
                   className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   <Receipt size={14} className="text-gray-400" />
-                  Create Invoice
+                  Create invoice
                 </button>
               )}
               {canEdit && (
@@ -243,7 +243,7 @@ export default function JobActions({
                   className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   <CopyPlus size={14} className="text-gray-400" />
-                  Duplicate Job
+                  Duplicate job
                 </button>
               )}
               {canConvertToAppointment && status === "ACTIVE" && (
@@ -252,7 +252,7 @@ export default function JobActions({
                   className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   <CalendarClock size={14} className="text-gray-400" />
-                  Make It an Appointment
+                  Make it an appointment
                 </button>
               )}
               {status !== "ARCHIVED" && (hasInvoice || planBilled || canCloseUnbilled) && (
@@ -261,7 +261,7 @@ export default function JobActions({
                   className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   <Archive size={14} className="text-gray-400" />
-                  Close Job{!hasInvoice ? " without invoicing" : ""}
+                  Close job{!hasInvoice ? " without invoicing" : ""}
                 </button>
               )}
               {canDelete && (
@@ -272,7 +272,7 @@ export default function JobActions({
                     className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)]"
                   >
                     <Trash2 size={14} />
-                    Delete Job
+                    Delete job
                   </button>
                 </>
               )}

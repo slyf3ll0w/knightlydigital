@@ -404,7 +404,7 @@ export default function LeadsBoardClient({
             className="btn-primary"
           >
             <Plus size={15} />
-            New Lead
+            New lead
           </button>
         </div>
       </div>
@@ -468,7 +468,7 @@ export default function LeadsBoardClient({
               className="btn-primary mt-5 inline-flex"
             >
               <Plus size={15} />
-              Add a Lead
+              Add a lead
             </button>
           )}
           </EmptyState>
@@ -807,7 +807,7 @@ export default function LeadsBoardClient({
                 }}
                 className="rounded-[10px] px-4 py-2 bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold"
               >
-                Mark Lost
+                Mark lost
               </button>
             </div>
           </>

@@ -51,7 +51,7 @@ const STEPS: { key: StepKey; label: string; changeLabel: string }[] = [
   { key: "draft", label: "Questions & pricing", changeLabel: "Working out the change" },
   { key: "check", label: "Checking the rules", changeLabel: "Checking the rules" },
   { key: "test", label: "Pricing sample jobs", changeLabel: "Pricing sample jobs" },
-  { key: "save", label: "Saving", changeLabel: "Saving" },
+  { key: "save", label: "Saving…", changeLabel: "Saving…" },
 ];
 
 const EXAMPLES = [

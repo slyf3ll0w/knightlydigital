@@ -10,6 +10,7 @@ import { money } from "@/lib/statuses";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import PageTitle from "@/components/PageTitle";
+import { InfoTip } from "@/components/ds";
 
 /** Business expense log (owners/admins): record transactions by date and
  *  export any period as CSV for the bookkeeper. */
@@ -182,7 +183,7 @@ export default function ExpensesClient({
     if (
       !(await confirmSheet({
         message: "Stop this monthly expense? Entries already logged stay in the list.",
-        confirmLabel: "Stop Repeating",
+        confirmLabel: "Stop repeating",
         destructive: true,
       }))
     )
@@ -198,7 +199,7 @@ export default function ExpensesClient({
     if (
       !(await confirmSheet({
         message: "Delete this expense?",
-        confirmLabel: "Delete Expense",
+        confirmLabel: "Delete expense",
         destructive: true,
       }))
     )
@@ -238,7 +239,7 @@ export default function ExpensesClient({
           className="btn-primary shrink-0"
         >
           <Plus size={15} />
-          <span className="hidden sm:inline">Log Expense</span>
+          <span className="hidden sm:inline">Log expense</span>
           <span className="sm:hidden">Log</span>
         </button>
       </div>
@@ -316,7 +317,7 @@ export default function ExpensesClient({
               className="btn-primary"
             >
               {busy && <Loader2 size={13} className="animate-spin" />}
-              Save Expense
+              Save expense
             </button>
             <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">
               Cancel
@@ -448,7 +449,10 @@ export default function ExpensesClient({
       {/* Export */}
       <div className="ds-card p-4 mb-5 flex flex-wrap items-end gap-3">
         <div>
-          <label className="block text-xs text-gray-500 mb-1">From</label>
+          <label className="mb-1 flex items-center gap-1 text-xs text-gray-500">
+            From
+            <InfoTip label="Which expenses are exported?">Leave the dates empty to export everything.</InfoTip>
+          </label>
           <input type="date" value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} className={inputCls} />
         </div>
         <div>
@@ -462,7 +466,6 @@ export default function ExpensesClient({
           <Download size={14} />
           Export CSV
         </button>
-        <p className="text-xs text-gray-500">Leave dates empty to export everything.</p>
       </div>
 
       <div className="ds-card divide-y divide-[color:var(--ds-line)]">

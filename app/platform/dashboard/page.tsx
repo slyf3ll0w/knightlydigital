@@ -30,7 +30,8 @@ import { renderMessageTemplate, DEFAULT_ON_MY_WAY_TEMPLATE } from "@/lib/messagi
 import { arrivalTimeLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import { startOfDayIn, startOfMonthIn, startOfWeekIn, zonedMidnight, zonedParts } from "@/lib/timezone";
 import CountUp from "@/components/CountUp";
-import DashboardSetupCard from "./DashboardSetupCard";
+import GetStartedCard from "./GetStartedCard";
+import { loadGetStarted } from "@/lib/get-started";
 import DashboardTasks from "./DashboardTasks";
 import { dashboardTasks } from "@/lib/tasks";
 import UpNextActions from "./UpNextActions";
@@ -125,7 +126,7 @@ export default async function DashboardPage() {
     receivables,
     upcomingJobsWeek,
     monthPayments,
-    setupCompany,
+    getStarted,
     onClock,
     readyToBill,
     heroCompany,
@@ -178,7 +179,7 @@ export default async function DashboardPage() {
         })
       : Promise.resolve([]),
     isManager(actor.role)
-      ? prisma.company.findUnique({ where: { id: companyId }, select: { setupWizardAt: true } })
+      ? loadGetStarted(companyId)
       : Promise.resolve(null),
     // Who's clocked in right now (owners/admins) — open time entries
     isManager(actor.role)
@@ -234,7 +235,8 @@ export default async function DashboardPage() {
   ]);
   const todayTasks = taskLists.today;
   const overdueTasks = taskLists.overdue;
-  const showSetupCard = isManager(actor.role) && setupCompany?.setupWizardAt == null;
+  // The Get started checklist: managers only, gone once hidden or complete
+  const showSetupCard = getStarted != null && !getStarted.complete;
 
   const receivableTotal = receivables.reduce((s, inv) => s + invoiceBalance(inv), 0);
   const receivableClients = new Set(receivables.map((i) => i.contactId).filter(Boolean)).size;
@@ -736,6 +738,9 @@ export default async function DashboardPage() {
 
       {/* ─────────────── Phone ─────────────── */}
       <div className="mt-6 flex flex-col gap-7 lg:hidden">
+        {/* The Get started checklist comes first on phones: it used to be the
+            last thing on the page, under three $0 stats (audit 2026-10-12) */}
+        {showSetupCard && getStarted && <GetStartedCard data={getStarted} />}
         {heroEl}
 
         {seePerformance && (
@@ -796,16 +801,15 @@ export default async function DashboardPage() {
 
         {onClockEl}
 
-        {showSetupCard && <DashboardSetupCard />}
         <PushNudge />
         {footer}
       </div>
 
       {/* ─────────────── Desktop ─────────────── */}
       <div className="hidden lg:block">
-        {showSetupCard && (
+        {showSetupCard && getStarted && (
           <div className="mt-6">
-            <DashboardSetupCard />
+            <GetStartedCard data={getStarted} />
           </div>
         )}
         <PushNudge className="mt-6" />

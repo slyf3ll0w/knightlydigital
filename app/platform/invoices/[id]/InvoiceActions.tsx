@@ -239,7 +239,7 @@ export default function InvoiceActions({
       title: "Archive this invoice?",
       message:
         "It moves out of your invoice list and stops payment reminders. Payments already recorded stay. You can reopen it anytime.",
-      confirmLabel: "Archive Invoice",
+      confirmLabel: "Archive invoice",
     });
     if (ok) await setStatus("ARCHIVED");
   }
@@ -423,7 +423,7 @@ export default function InvoiceActions({
         await confirmSheet({
           title: "Permanently delete this invoice?",
           message: "This can't be undone.",
-          confirmLabel: "Delete Invoice",
+          confirmLabel: "Delete invoice",
           destructive: true,
         })
       )
@@ -465,7 +465,7 @@ export default function InvoiceActions({
             }
           >
             <Send size={13} />
-            Send to Client
+            Send to client
           </button>
         ) : (
           <button
@@ -474,7 +474,7 @@ export default function InvoiceActions({
             className="btn-primary"
           >
             <Send size={13} />
-            Mark as Sent
+            Mark as sent
           </button>
         ))}
       {(status === "AWAITING_PAYMENT" || status === "PAST_DUE") &&
@@ -484,7 +484,7 @@ export default function InvoiceActions({
             className="btn-primary"
           >
             <CreditCard size={13} />
-            Charge Card
+            Charge card
           </button>
         ) : (
           <button
@@ -492,7 +492,7 @@ export default function InvoiceActions({
             className="btn-primary"
           >
             <DollarSign size={13} />
-            Collect Payment
+            Collect payment
           </button>
         ))}
       {status === "PAID" && (
@@ -520,7 +520,7 @@ export default function InvoiceActions({
                 className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
                 <Pencil size={14} className="text-gray-400" />
-                Edit Invoice
+                Edit invoice
               </button>
             )}
             <a
@@ -530,7 +530,7 @@ export default function InvoiceActions({
               className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
             >
               <Eye size={14} className="text-gray-400" />
-              Preview as Client
+              Preview as client
             </a>
             <button
               onClick={copyLink}
@@ -565,7 +565,7 @@ export default function InvoiceActions({
               className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
             >
               <CopyPlus size={14} className="text-gray-400" />
-              Duplicate Invoice
+              Duplicate invoice
             </button>
             {(contactEmail || canTextClient) && status === "DRAFT" && (
               <button
@@ -573,7 +573,7 @@ export default function InvoiceActions({
                 className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
                 <Send size={14} className="text-gray-400" />
-                Mark as Sent (don&apos;t send)
+                Mark as sent (no email)
               </button>
             )}
             {(contactEmail || canTextClient) && (status === "AWAITING_PAYMENT" || status === "PAST_DUE") && (
@@ -593,7 +593,7 @@ export default function InvoiceActions({
                   className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   <DollarSign size={14} className="text-gray-400" />
-                  {canChargeCard ? "Collect other payment" : "Collect Payment"}
+                  {canChargeCard ? "Collect other payment" : "Collect payment"}
                 </button>
               </>
             )}
@@ -604,7 +604,7 @@ export default function InvoiceActions({
                 className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
                 <RotateCcw size={14} className="text-gray-400" />
-                Reopen Invoice
+                Reopen invoice
               </button>
             ) : (
               <button
@@ -621,7 +621,7 @@ export default function InvoiceActions({
                 className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-[color:var(--ds-bad)] hover:bg-[color:var(--ds-bad-soft)]"
               >
                 <Trash2 size={14} />
-                Delete Invoice
+                Delete invoice
               </button>
             )}
           </MenuPopover>
@@ -684,7 +684,7 @@ export default function InvoiceActions({
                 className="btn-danger"
               >
                 {busy ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                Delete Invoice
+                Delete invoice
               </button>
             </div>
           </>

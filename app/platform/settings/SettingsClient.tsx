@@ -1,5 +1,6 @@
 "use client";
 
+import { NETWORK_ERROR } from "@/lib/safe-fetch";
 import { Fragment, useState, useRef, useEffect, useMemo, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -59,6 +60,7 @@ import { Chip, InfoTip } from "@/components/ds";
 import { slugify } from "@/lib/slugify";
 import SmsNotificationsCard from "./SmsNotificationsCard";
 import BusinessLineCard from "./BusinessLineCard";
+import GetStartedRow from "./GetStartedRow";
 import type { LineSummary } from "@/lib/business-line-shared";
 import {
   SECTION_HUE_DEFAULTS,
@@ -354,7 +356,7 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
       }
       window.open(data.url, "_blank", "noopener");
     } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
+      setError(NETWORK_ERROR);
     } finally {
       setBusy(false);
     }
@@ -502,7 +504,7 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
       }
       setState(data);
     } catch {
-      setError("Couldn't reach the server. Check your connection and try again.");
+      setError(NETWORK_ERROR);
     } finally {
       setBusy(false);
     }
@@ -531,7 +533,7 @@ function EmailDomainCard({ isOwner }: { isOwner: boolean }) {
       !(await confirmSheet({
         title: "Remove this sending domain?",
         message: "Emails go back to the WorkBench address immediately.",
-        confirmLabel: "Remove Domain",
+        confirmLabel: "Remove domain",
         destructive: true,
       }))
     )
@@ -824,8 +826,9 @@ function DangerZone({ companyName, signInMethods }: { companyName: string; signI
             Danger Zone
           </h2>
           <p className="mt-0.5 text-xs text-[color:var(--ds-ink-2)]">
-            Permanently delete this account — every client, job, quote, invoice, payment record,
-            and team member. There is no undo and no recovery.
+            Permanently delete this company — every client, job, quote, invoice, payment record,
+            and team member. There is no undo and no recovery. Your own sign-in stays, and you can
+            use it to start another company.
           </p>
         </div>
         {!open && (
@@ -834,7 +837,7 @@ function DangerZone({ companyName, signInMethods }: { companyName: string; signI
             onClick={() => setOpen(true)}
             className="shrink-0 rounded-[10px] border border-[color:var(--ds-bad)] bg-[color:var(--ds-surface)] px-3 py-1.5 text-xs font-semibold text-[color:var(--ds-bad)]"
           >
-            Delete account…
+            Delete company…
           </button>
         )}
       </div>
@@ -1105,7 +1108,7 @@ export default function SettingsClient({
         setSaveError(data?.error ?? "Couldn't save your changes. Please try again.");
       }
     } catch {
-      setSaveError("Couldn't reach the server. Check your connection and try again.");
+      setSaveError(NETWORK_ERROR);
     }
     setSaving(false);
     if (!ok) return;
@@ -1430,6 +1433,7 @@ export default function SettingsClient({
         </div>
       )}
       {show("company") && <PortalLinkCard slug={company.slug} />}
+      {show("company") && <GetStartedRow />}
 
       <div className="space-y-6">
         {/* Business info */}
@@ -1659,7 +1663,7 @@ export default function SettingsClient({
                 className="flex items-center gap-1.5 px-4 py-2 btn-tool-line bg-[color:var(--ds-surface)] text-sm font-medium text-[color:var(--ds-ink)] rounded-[10px] transition-colors disabled:opacity-50"
               >
                 {logoBusy ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
-                {form.logoUrl ? "Replace Logo" : "Upload Logo"}
+                {form.logoUrl ? "Replace logo" : "Upload logo"}
               </button>
               <span className="text-xs text-gray-500">…or drag &amp; drop an image here</span>
               {form.logoUrl && (
@@ -1946,10 +1950,10 @@ export default function SettingsClient({
                     color: textOn(form.brandColorSecondary || form.brandColor || "#F86808"),
                   }}
                 >
-                  Approve Quote
+                  Approve quote
                 </span>
                 <span className="rounded-full border border-[#D1D5DB] px-4 py-2 text-xs font-semibold text-[#374151]"> {/* theme-ok: client-page mock */}
-                  Ask a Question
+                  Ask a question
                 </span>
               </div>
             </div>
@@ -2134,7 +2138,7 @@ export default function SettingsClient({
           <SettingsLinkRow
             href="/app/automations"
             label="Automations"
-            sub="“When this happens, do that” rules — build them as cards or ask Atlas; run free, pause any time"
+            sub="“When this happens, do that” rules — build them as cards or ask Atlas; pause any time"
             icon={Zap}
           />
         </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { GENERIC_ERROR } from "@/lib/safe-fetch";
 import { useState } from "react";
 import { Headphones, Loader2, PhoneOff } from "lucide-react";
 import SectionHeader from "@/components/SectionHeader";
@@ -24,7 +25,7 @@ export default function SoftphoneToggleCard({ initial }: { initial: boolean }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ softphoneEnabled: !on }),
       });
-      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error || "Couldn't save.");
+      if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error || GENERIC_ERROR);
       setOn(!on);
       // Turning it on: ask for the microphone now, while the person is
       // looking at this card, so the first call is not the first prompt.
@@ -38,7 +39,7 @@ export default function SoftphoneToggleCard({ initial }: { initial: boolean }) {
       }
       // The softphone in this tab registers on the next page load; say so.
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't save.");
+      setError(err instanceof Error ? err.message : GENERIC_ERROR);
     } finally {
       setBusy(false);
     }

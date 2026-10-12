@@ -50,7 +50,7 @@ test.describe("quick-action menus", () => {
     const dialog = page.locator('[role="alertdialog"]');
     await expect(dialog).toContainText("Permanently delete this job?");
     const gone = page.waitForResponse((r) => r.request().method() === "DELETE" && r.url().endsWith(`/api/app/jobs/${job.id}`));
-    await dialog.locator("button:visible", { hasText: "Delete Job" }).click();
+    await dialog.locator("button:visible", { hasText: "Delete job" }).click();
     expect((await gone).status()).toBe(200);
     await expect(page.locator(`a[href="/app/jobs/${job.id}"]`)).toHaveCount(0);
     expect(await db().job.findUnique({ where: { id: job.id } })).toBeNull();
@@ -90,7 +90,7 @@ test.describe("quick-action menus", () => {
     const dialog = page.locator('[role="alertdialog"]');
     await expect(dialog).toContainText("Permanently delete this job?");
     const gone = page.waitForResponse((r) => r.request().method() === "DELETE" && r.url().endsWith(`/api/app/jobs/${job.id}`));
-    await dialog.locator("button:visible", { hasText: "Delete Job" }).tap();
+    await dialog.locator("button:visible", { hasText: "Delete job" }).tap();
     expect((await gone).status()).toBe(200);
     expect(await db().job.findUnique({ where: { id: job.id } })).toBeNull();
     await context.close();

@@ -11,12 +11,15 @@ import {
   ListChecks,
   Loader2,
   MessageSquare,
+  MessagesSquare,
   PhoneCall,
   Receipt,
   SquareKanban,
+  X,
   Zap,
 } from "lucide-react";
 import { hapticImpact } from "@/lib/haptics";
+import type { FeedKind } from "@/lib/toast";
 
 /**
  * Recent-activity bottom sheet behind the mobile header bell. Reads the
@@ -28,7 +31,7 @@ import { hapticImpact } from "@/lib/haptics";
 
 type Item = {
   id: string;
-  kind: "request" | "lead" | "booking" | "payment" | "invoice" | "quote" | "message" | "call" | "task" | "automation";
+  kind: FeedKind;
   title: string;
   sub: string;
   at: string;
@@ -47,6 +50,7 @@ const KIND_META: Record<Item["kind"], { icon: typeof Inbox; primary: boolean }> 
   invoice: { icon: Receipt, primary: true },
   quote: { icon: FileText, primary: false },
   message: { icon: MessageSquare, primary: false },
+  chat: { icon: MessagesSquare, primary: false },
   call: { icon: PhoneCall, primary: false },
   task: { icon: ListChecks, primary: false },
   automation: { icon: Zap, primary: true },
@@ -106,7 +110,7 @@ function NotifRow({
   const Icon = meta.icon;
 
   return (
-    <div className={`relative overflow-hidden ${last ? "" : "border-b border-gray-100"}`}>
+    <div className={`group relative overflow-hidden ${last ? "" : "border-b border-gray-100"}`}>
       {/* The reveal under the sliding row — reads as "swipe to clear" */}
       <span
         aria-hidden
@@ -187,8 +191,22 @@ function NotifRow({
             <span className={`block text-[12.5px] text-gray-500 ${item.kind === "automation" ? "whitespace-pre-line" : "truncate"}`}>{item.sub}</span>
           )}
         </span>
-        <span className="shrink-0 text-[11.5px] tabular-nums text-gray-400">{ago(item.at)}</span>
+        <span className="shrink-0 text-[11.5px] tabular-nums text-gray-400 transition-opacity lg:group-hover:opacity-0 lg:group-focus-within:opacity-0">{ago(item.at)}</span>
       </Link>
+      {/* Desk: rows can't be swiped, so a × shows on hover (and keyboard
+          focus) in the time label's place — same dismiss as the swipe. */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onDismiss();
+        }}
+        aria-label="Clear notification"
+        className="absolute right-3 top-1/2 hidden h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 focus-visible:opacity-100 group-hover:opacity-100 lg:flex"
+      >
+        <X size={14} />
+      </button>
     </div>
   );
 }
@@ -205,6 +223,10 @@ export default function NotificationsSheet({
   onClearAll?: () => void;
 }) {
   const [items, setItems] = useState<Item[] | null>(null);
+  // A failed fetch is said so, never shown as "all caught up" — the dot
+  // stayed lit with nothing behind it and no way to tell why.
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const storageKey = `wb-notifs-dismissed:${userId ?? "shared"}`;
 
   // Refetch on every open — events arrive constantly and the sheet is cheap
@@ -212,8 +234,9 @@ export default function NotificationsSheet({
     if (!open) return;
     let cancelled = false;
     setItems(null);
+    setError(false);
     fetch("/api/app/notifications")
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((d) => {
         if (cancelled) return;
         const all = (d?.items as Item[]) ?? [];
@@ -227,12 +250,22 @@ export default function NotificationsSheet({
         );
       })
       .catch(() => {
-        if (!cancelled) setItems([]);
+        if (!cancelled) setError(true);
       });
     return () => {
       cancelled = true;
     };
-  }, [open, storageKey]);
+  }, [open, storageKey, attempt]);
+
+  // Escape closes the sheet / the desktop dropdown, like every other dialog
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
   function dismissOne(id: string) {
     const d = loadDismissed(storageKey);
@@ -280,10 +313,28 @@ export default function NotificationsSheet({
           )}
         </div>
         <div className="overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-          {items === null && (
+          {items === null && !error && (
             <div className="flex items-center justify-center gap-2.5 py-10 text-sm text-gray-400">
               <Loader2 size={16} className="animate-spin" />
               Checking what&apos;s new…
+            </div>
+          )}
+          {error && (
+            <div className="flex flex-col items-center gap-2.5 py-10 text-center">
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+                <Bell size={20} />
+              </span>
+              <p className="text-sm font-medium text-gray-600">Couldn&apos;t load your notifications.</p>
+              <button
+                type="button"
+                onClick={() => {
+                  hapticImpact("LIGHT");
+                  setAttempt((n) => n + 1);
+                }}
+                className="rounded-full bg-gray-100 px-3.5 py-1.5 text-[13px] font-semibold text-gray-700 active:bg-gray-200"
+              >
+                Try again
+              </button>
             </div>
           )}
           {items?.length === 0 && (
@@ -293,7 +344,7 @@ export default function NotificationsSheet({
               </span>
               <p className="text-sm font-medium text-gray-600">You&apos;re all caught up</p>
               <p className="text-xs text-gray-500">
-                New requests, bookings and payments show up here.
+                Requests, bookings, payments, messages and tasks show up here.
               </p>
             </div>
           )}
@@ -311,7 +362,8 @@ export default function NotificationsSheet({
             </div>
           )}
           {items && items.length > 0 && (
-            <p className="pt-2.5 text-center text-[11px] text-gray-400">
+            // Phones only — a desk clears with the × that shows on hover
+            <p className="pt-2.5 text-center text-[11px] text-gray-400 lg:hidden">
               Swipe a notification right to clear it
             </p>
           )}

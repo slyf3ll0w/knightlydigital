@@ -1,5 +1,6 @@
 "use client";
 
+import { GENERIC_ERROR } from "@/lib/safe-fetch";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -221,14 +222,14 @@ export default function PublicEstimateForm({
       });
       const data = (await res.json().catch(() => null)) as (Calc & { error?: string; errors?: string[] }) | null;
       if (!res.ok || !data || !("estimate" in data)) {
-        setError(data?.errors?.join(" · ") ?? data?.error ?? "Something went wrong. Please try again.");
+        setError(data?.errors?.join(" · ") ?? data?.error ?? GENERIC_ERROR);
         return;
       }
       setEstimate(data.estimate);
       if (then === "done") setFinalEstimate(data.estimate);
       setStep(then);
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(GENERIC_ERROR);
     } finally {
       setLoading(false);
     }
@@ -317,14 +318,14 @@ export default function PublicEstimateForm({
       });
       const data = (await res.json().catch(() => null)) as { success?: boolean; estimate?: PublicEstimate; error?: string; outOfArea?: boolean; message?: string } | null;
       if (!res.ok) {
-        setError(data?.error ?? "Something went wrong. Please try again.");
+        setError(data?.error ?? GENERIC_ERROR);
         return;
       }
       if (data?.outOfArea) setOutOfArea(data.message ?? "That address is outside the area we serve right now.");
       setFinalEstimate(data?.estimate ?? estimate);
       setStep("done");
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(GENERIC_ERROR);
     } finally {
       setLoading(false);
     }

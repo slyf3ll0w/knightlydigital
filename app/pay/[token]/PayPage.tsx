@@ -145,6 +145,11 @@ export default function PayPage({
   // "done" is the just-paid confirmation moment. Revisiting a settled
   // invoice's link falls through to the document itself, stamped PAID.
   const isPaid = invoice.status === "PAID";
+  // Archived = withdrawn by the business. The server already refused the
+  // charge, but the page used to show the whole card form first, so the
+  // customer typed their card and only then learned it was dead (audit
+  // 2026-10-12). No form, no stub — a notice in the stub's place.
+  const isArchived = invoice.status === "ARCHIVED";
 
   if (done) {
     return (
@@ -458,7 +463,20 @@ export default function PayPage({
           {/* No online payments for this company (not approved to charge, or
               let in on an invite code with payments held back) — the sheet
               stays a document: how to settle up, and no pay button at all. */}
-          {!isPaid && !finix && (
+          {isArchived && (
+            <div className="mt-8 border-t-2 border-gray-900 pt-5">
+              <h2 className="text-sm font-semibold text-gray-700 mb-2">This invoice is no longer active</h2>
+              <p className="text-sm leading-relaxed text-gray-600">
+                {invoice.company.name} has withdrawn it, so there is nothing to pay here. If you were
+                expecting to pay, please contact them
+                {invoice.company.phone ? ` at ${invoice.company.phone}` : ""}
+                {invoice.company.email ? `${invoice.company.phone ? " or" : " at"} ${invoice.company.email}` : ""}
+                .
+              </p>
+            </div>
+          )}
+
+          {!isPaid && !isArchived && !finix && (
             <div className="mt-8 border-t-2 border-gray-900 pt-5">
               <h2 className="text-sm font-semibold text-gray-700 mb-2">How to pay</h2>
               <p className="text-sm leading-relaxed text-gray-600">
@@ -488,7 +506,7 @@ export default function PayPage({
           {/* Payment — the bottom of the same sheet, like the remittance stub
               on a paper invoice. A settled invoice has no stub — the stamp
               says everything. */}
-          {!isPaid && finix && (
+          {!isPaid && !isArchived && finix && (
           <div className="mt-8 border-t-2 border-gray-900 pt-5">
           {/* Amount — full balance by default, or a partial payment */}
           <h2 className="text-sm font-semibold text-gray-700 mb-3">Payment amount</h2>

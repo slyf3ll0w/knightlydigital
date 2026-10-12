@@ -69,7 +69,7 @@ const allSteps: Step[] = [
   {
     key: null,
     title: "You're all set",
-    body: "Stuck on something? Help & Feedback has step-by-step guides. You can replay this tour anytime from My Profile.",
+    body: "Stuck on something? The Help Center has step-by-step guides. You can replay this tour anytime from My Profile.",
   },
 ];
 

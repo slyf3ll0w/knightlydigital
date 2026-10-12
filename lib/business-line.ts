@@ -2496,6 +2496,7 @@ export async function lineSummary(
       state: true,
       zip: true,
       website: true,
+      addonEnabled: true,
       addonActiveAt: true,
       lineNumber: true,
       lineType: true,
@@ -2518,6 +2519,7 @@ export async function lineSummary(
   return {
     enabled: lineEnabled(),
     entitled: hasAddon(c),
+    addonEnabled: c.addonEnabled,
     number,
     type: number ? (lineKind(c) === "TOLL_FREE" ? "toll_free" : "local") : null,
     forwardTo: c.lineForwardTo,

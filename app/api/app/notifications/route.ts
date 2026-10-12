@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, canSeeMoney, contactScope, viaContactScope } from "@/lib/permissions";
 import { pastDueFilter } from "@/lib/due-dates";
+import { kindForUrl } from "@/lib/toast";
 
 /**
  * Recent-activity feed for the mobile header bell: the same events the push
@@ -22,19 +23,8 @@ function who(c: ContactBits): string {
   return `${c.firstName} ${c.lastName}`.trim();
 }
 
-/** The bell icon for a recorded push, from where its tap lands. */
-function kindForUrl(url: string): "request" | "lead" | "booking" | "payment" | "invoice" | "quote" | "message" | "call" | "task" | "automation" {
-  if (url.startsWith("/app/leads")) return "lead";
-  if (url.startsWith("/app/requests")) return "request";
-  if (url.startsWith("/app/quotes")) return "quote";
-  if (url.startsWith("/app/invoices")) return "invoice";
-  if (url.startsWith("/app/payments")) return "payment";
-  if (url.startsWith("/app/schedule") || url.startsWith("/app/appointments") || url.startsWith("/app/jobs")) return "booking";
-  if (url.startsWith("/app/calls")) return "call";
-  if (url.startsWith("/app/tasks")) return "task";
-  if (url.startsWith("/app/messages") || url.startsWith("/app/chat")) return "message";
-  return "automation";
-}
+// The bell icon for a recorded push comes from where its tap lands —
+// `kindForUrl` in lib/toast.ts, shared with the live cards in AppShell.
 
 /**
  * The record a link names, as `kind:id` — the key both halves of the feed

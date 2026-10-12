@@ -234,7 +234,7 @@ export default function WorkItemPicker({
               type="search"
               value={sheetQuery}
               onChange={(e) => setSheetQuery(e.target.value)}
-              placeholder="Search your price book..."
+              placeholder="Search your price book…"
               autoComplete="off"
               className="w-full bg-transparent text-[16px] outline-none placeholder:text-gray-400"
             />

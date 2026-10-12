@@ -102,7 +102,7 @@ export default function PaymentRow({
       !(await confirmSheet({
         title: `Delete this ${money(payment.amount)} payment record?`,
         message: "The invoice balance and status update to match. This can't be undone.",
-        confirmLabel: "Delete Payment",
+        confirmLabel: "Delete payment",
         destructive: true,
       }))
     ) {
@@ -174,7 +174,7 @@ export default function PaymentRow({
               type="text"
               value={form.referenceNumber}
               onChange={(e) => setForm((f) => ({ ...f, referenceNumber: e.target.value }))}
-              placeholder="Check #, confirmation..."
+              placeholder="Check #, confirmation…"
               className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
             />
           </div>

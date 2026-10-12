@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Search } from "lucide-react";
+import { Check, ChevronDown, Plus, Search } from "lucide-react";
 import { hapticImpact } from "@/lib/haptics";
 import BottomSheet from "@/components/BottomSheet";
+import QuickContactSheet from "@/components/QuickContactSheet";
 
 export type PickerContact = {
   id: string;
@@ -30,10 +31,12 @@ export default function ContactPicker({
   contacts,
   value,
   onChange,
-  placeholder = "Select a client...",
+  placeholder = "Select a client…",
   title = "Select a client",
   disabled = false,
   className = "",
+  allowCreate = true,
+  onCreated,
 }: {
   contacts: PickerContact[];
   value: string;
@@ -42,8 +45,24 @@ export default function ContactPicker({
   title?: string;
   disabled?: boolean;
   className?: string;
+  /**
+   * "New client" at the foot of the list (and in the empty state) opens a
+   * four-field sheet that creates the person and selects them — the form
+   * never has to be abandoned to add someone (audit 2026-10-12).
+   */
+  allowCreate?: boolean;
+  /** Told about a client created from the sheet (to merge into a parent list). */
+  onCreated?: (c: PickerContact) => void;
 }) {
-  const selected = contacts.find((c) => c.id === value) ?? null;
+  // People created from the sheet, so they are pickable even when the
+  // parent never re-fetches its list.
+  const [extra, setExtra] = useState<PickerContact[]>([]);
+  const [createOpen, setCreateOpen] = useState(false);
+  const all = useMemo(() => {
+    const seen = new Set(contacts.map((c) => c.id));
+    return [...contacts, ...extra.filter((c) => !seen.has(c.id))];
+  }, [contacts, extra]);
+  const selected = all.find((c) => c.id === value) ?? null;
   const [open, setOpen] = useState(false); // desktop panel
   const [sheetOpen, setSheetOpen] = useState(false); // phone sheet
   const [query, setQuery] = useState("");
@@ -51,7 +70,7 @@ export default function ContactPicker({
   const ref = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const sorted = useMemo(() => [...contacts].sort(byDisplayName), [contacts]);
+  const sorted = useMemo(() => [...all].sort(byDisplayName), [all]);
   const q = query.trim().toLowerCase();
   const matches = q
     ? sorted.filter((c) => fullName(c).toLowerCase().includes(q))
@@ -86,6 +105,20 @@ export default function ContactPicker({
     setOpen(false);
     setSheetOpen(false);
   }
+
+  function startCreate() {
+    setOpen(false);
+    setSheetOpen(false);
+    setCreateOpen(true);
+  }
+
+  function created(c: PickerContact) {
+    setExtra((x) => [...x, c]);
+    onCreated?.(c);
+    onChange(c.id);
+  }
+
+  const createLabel = q ? `Add "${query.trim()}" as a new client` : "New client";
 
   function onSearchKeyDown(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown") {
@@ -130,7 +163,7 @@ export default function ContactPicker({
                 setHighlight(0);
               }}
               onKeyDown={onSearchKeyDown}
-              placeholder="Search clients..."
+              placeholder="Search clients…"
               autoComplete="off"
               className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
             />
@@ -155,9 +188,24 @@ export default function ContactPicker({
               </button>
             ))}
             {matches.length === 0 && (
-              <p className="px-3 py-4 text-center text-sm text-gray-400">No matching clients.</p>
+              <p className="px-3 py-4 text-center text-sm text-gray-400">
+                {all.length === 0 ? "No clients yet." : "No matching clients."}
+              </p>
             )}
           </div>
+          {allowCreate && (
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                startCreate();
+              }}
+              className="flex w-full items-center gap-2 border-t border-gray-100 px-3 py-2.5 text-left text-sm font-medium text-[color:var(--ds-primary,#0B57D8)]"
+            >
+              <Plus size={14} aria-hidden />
+              <span className="truncate">{createLabel}</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -170,7 +218,7 @@ export default function ContactPicker({
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search clients..."
+              placeholder="Search clients…"
               autoComplete="off"
               className="w-full bg-transparent text-[16px] outline-none placeholder:text-gray-400"
             />
@@ -198,10 +246,36 @@ export default function ContactPicker({
             </button>
           ))}
           {matches.length === 0 && (
-            <p className="px-3 py-6 text-center text-sm text-gray-400">No matching clients.</p>
+            <p className="px-3 py-6 text-center text-sm text-gray-400">
+              {all.length === 0 ? "No clients yet." : "No matching clients."}
+            </p>
           )}
         </div>
+        {allowCreate && (
+          <div className="px-4 pb-3 pt-1">
+            <button
+              type="button"
+              onClick={() => {
+                hapticImpact("LIGHT");
+                startCreate();
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-[12px] px-3 py-3 text-[15px] font-semibold"
+              style={{ background: "var(--mobile-accent, #0B57D8)", color: "#fff" }}
+            >
+              <Plus size={16} aria-hidden />
+              <span className="truncate">{createLabel}</span>
+            </button>
+          </div>
+        )}
       </BottomSheet>
+      {allowCreate && (
+        <QuickContactSheet
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          onCreated={created}
+          initialName={query}
+        />
+      )}
     </div>
   );
 }

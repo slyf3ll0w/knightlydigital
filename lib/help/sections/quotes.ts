@@ -18,11 +18,11 @@ export const quotesSection: HelpSection = {
           type: "steps",
           items: [
             "Go to **Quotes** and press `New`.",
-            "Pick the **client** and the property address (it starts on their primary address).",
+            "Pick the **client** and the property address (it starts on their primary address). Not in the list yet? `New client` at the bottom of the picker (or `Add \"<name>\" as a new client` once you've typed a name) opens a small sheet — first name, last name, phone, email — and `Add client` puts them straight on it.",
             "Give it a **title**, then add line items. Pick services from your price book, or type a description, quantity and unit price and press `Add line item`.",
             "Optional: set tax, a discount (% or $), a deposit, a **Client message**, **Terms**, and a **Valid until** date. **Internal notes** are never shown to the client.",
-            "Press `Save Quote`. It saves as a **Draft**.",
-            "Press `Send to Client` (it reads `Email to Client` until texting is on). The client gets a link to view, sign and approve it. Quotes go by email: **Email** is ticked for you, and when the client has a phone that takes texts a **Text** row is there to tick as well — it goes from your business line, and it is never ticked for you. A client with only a phone number still gets the sheet, so a quote is never texted unless you choose it. The status moves to **Awaiting Response**. Not ready to send yet? Tick **Send later** in that sheet and pick a day and time: the quote stays a draft you can keep editing (its chip reads **Scheduled**), goes out by itself at that time, and you get a notification either way. Until then the quote page shows `Send now` and `Cancel`.",
+            "Press `Save quote`. It saves as a **Draft**.",
+            "Press `Send to client` (it reads `Email to client` until texting is on). The client gets a link to view, sign and approve it. Quotes go by email: **Email** is ticked for you, and when the client has a phone that takes texts a **Text** row is there to tick as well — it goes from your business line, and it is never ticked for you. A client with only a phone number still gets the sheet, so a quote is never texted unless you choose it. The status moves to **Awaiting Response**. Not ready to send yet? Tick **Send later** in that sheet and pick a day and time: the quote stays a draft you can keep editing (its chip reads **Scheduled**), goes out by itself at that time, and you get a notification either way. Until then the quote page shows `Send now` and `Cancel`.",
           ],
         },
         {
@@ -42,7 +42,7 @@ export const quotesSection: HelpSection = {
           items: [
             "`Copy client link` in the ⋯ menu gives you the approval link to paste anywhere.",
             "`Download PDF` saves a printable copy.",
-            "`Mark as Sent (no email)` changes the status only. Use it when you handed the quote over in person.",
+            "`Mark as sent (no email)` changes the status only. Use it when you handed the quote over in person.",
             "Quotes are never texted on their own, because carriers treat quote texts as marketing. Email or the link are the usual ways; texting one is a box you tick yourself in the send sheet.",
           ],
         },
@@ -50,20 +50,20 @@ export const quotesSection: HelpSection = {
           type: "faq",
           items: [
             {
-              q: "I pressed Send to Client and got \"Email isn't set up on this server yet.\"",
+              q: "I pressed Send to client and got \"Email isn't set up on this server yet.\"",
               a: "Emails to clients switch on once your business is approved for payments (see [Activate your account](/help/activate-payments)). Until then, use `Copy client link` and send the link yourself.",
             },
             {
-              q: "The button says Mark as Sent instead of Send to Client.",
+              q: "The button says Mark as sent instead of Send to client.",
               a: "The client has no email address on file and no phone that can be texted. Add one on their client page, or copy the link and send it another way.",
             },
             {
               q: "I left a quote and it asked \"Send this quote first?\"",
-              a: "The quote is still a Draft nobody has sent. `Stay` keeps you on it; `Leave without sending` lets you go and the draft waits. Send it, or press `Mark as Sent` if you delivered it another way, and the question stops.",
+              a: "The quote is still a Draft nobody has sent. `Stay` keeps you on it; `Leave without sending` lets you go and the draft waits. Send it, or press `Mark as sent` if you delivered it another way, and the question stops.",
             },
             {
               q: "I can't edit my quote.",
-              a: "Quotes can be edited while they're Draft, Awaiting Response or Changes Requested. Once approved or converted they're locked, so the client's signature always matches what they signed. Use `Duplicate Quote` to start a new version.",
+              a: "Quotes can be edited while they're Draft, Awaiting Response or Changes Requested. Once approved or converted they're locked, so the client's signature always matches what they signed. Use `Duplicate quote` to start a new version.",
             },
           ],
         },
@@ -83,7 +83,7 @@ export const quotesSection: HelpSection = {
         {
           type: "list",
           items: [
-            "**Approve** it by typing their full name under **Sign by typing your full name** and pressing `Approve Quote`.",
+            "**Approve** it by typing their full name under **Sign by typing your full name** and pressing `Approve quote`.",
             "**Request changes** with a note. The quote moves to **Changes Requested** and you're notified. Edit it and send it again.",
             "Untick any optional items before approving.",
           ],
@@ -103,7 +103,7 @@ export const quotesSection: HelpSection = {
         },
         {
           type: "p",
-          text: "Got a yes over the phone? Press `Mark Approved`. It does exactly what an online signature does.",
+          text: "Got a yes over the phone? Press `Mark approved`. It does exactly what an online signature does.",
         },
         {
           type: "h",
@@ -122,7 +122,7 @@ export const quotesSection: HelpSection = {
             },
             {
               q: "The deposit invoice email didn't go out.",
-              a: "The client's activity shows a note when that happens. Open the deposit invoice and press `Send to Client`, or copy its payment link.",
+              a: "The client's activity shows a note when that happens. Open the deposit invoice and press `Send to client`, or copy its payment link.",
             },
           ],
         },
@@ -131,7 +131,7 @@ export const quotesSection: HelpSection = {
     {
       slug: "convert-quote-to-job",
       title: "Turn an approved quote into a job",
-      summary: "Convert to Job copies the approved lines onto a job you can schedule and later invoice.",
+      summary: "Convert to job copies the approved lines onto a job you can schedule and later invoice.",
       keywords: ["convert", "job from quote", "agreement required", "awaiting agreement signature"],
       where: { label: "Quotes", href: "/app/quotes" },
       blocks: [
@@ -140,14 +140,14 @@ export const quotesSection: HelpSection = {
           src: "/video/tip-quote-to-job.mp4",
           poster: "/video/tip-quote-to-job-poster.jpg",
           title: "Quote to job in two taps (28 seconds, no sound)",
-          text: "On a phone: open a quote that's Awaiting Response, press Mark Approved when the client says yes, then press Convert to Job. The quote shows Converted and links to the new job.",
+          text: "On a phone: open a quote that's Awaiting Response, press Mark approved when the client says yes, then press Convert to job. The quote shows Converted and links to the new job.",
         },
         {
           type: "steps",
           items: [
             "Open the approved quote.",
-            "Press `Convert to Job`. The job gets every line the client kept (items they removed are left out).",
-            "Schedule it from the job page. When the work is done, press `Create Invoice` on the job.",
+            "Press `Convert to job`. The job gets every line the client kept (items they removed are left out).",
+            "Schedule it from the job page. When the work is done, press `Create invoice` on the job.",
           ],
         },
         {
@@ -158,16 +158,16 @@ export const quotesSection: HelpSection = {
           type: "faq",
           items: [
             {
-              q: "Convert to Job is replaced by \"Send Agreement\" or \"Awaiting agreement signature.\"",
+              q: "Convert to job is replaced by \"Send agreement\" or \"Awaiting agreement signature.\"",
               a: "One of the services on the quote needs a signed agreement first. Send it (or send it again). Once the client signs, the Convert button comes back.",
             },
             {
               q: "Can I invoice straight from a quote?",
-              a: "Not directly. Convert it to a job, then press `Create Invoice` on the job. For a deposit, use the quote's deposit settings or `Collect deposit`.",
+              a: "Not directly. Convert it to a job, then press `Create invoice` on the job. For a deposit, use the quote's deposit settings or `Collect deposit`.",
             },
             {
               q: "I archived a quote by mistake.",
-              a: "Open it and press `Reopen Quote`. It goes back to Awaiting Response if it was sent, otherwise to Draft.",
+              a: "Open it and press `Reopen quote`. It goes back to Awaiting Response if it was sent, otherwise to Draft.",
             },
           ],
         },

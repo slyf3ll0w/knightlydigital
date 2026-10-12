@@ -214,6 +214,46 @@ export const INDUSTRY_PRICEBOOKS: Record<Industry, StarterWorkItem[]> = {
 };
 
 export function pricebookForIndustry(industry: string | null | undefined): StarterWorkItem[] {
-  if (!industry) return [];
-  return INDUSTRY_PRICEBOOKS[industry as Industry] ?? [];
+  const key = matchIndustry(industry);
+  return key ? INDUSTRY_PRICEBOOKS[key] : [];
 }
+
+/**
+ * Resolve whatever a signup form sent to one of the INDUSTRIES keys. The
+ * forms now send the key itself (components/IndustrySelect), but older
+ * rows, the API (Atlas, imports) and "Other: lawn care" answers still arrive
+ * as free text — so match the key exactly, then case-insensitively, then by
+ * the words people actually type ("hvac", "landscaping", "power washing").
+ * Returns null when nothing fits, which means: seed nothing.
+ */
+export function matchIndustry(industry: string | null | undefined): Industry | null {
+  const raw = (industry ?? "").trim();
+  if (!raw) return null;
+  if ((INDUSTRIES as readonly string[]).includes(raw)) return raw as Industry;
+  const s = raw.replace(/^other:\s*/i, "").toLowerCase();
+  const exact = INDUSTRIES.find((k) => k.toLowerCase() === s);
+  if (exact) return exact;
+  for (const [key, words] of INDUSTRY_ALIASES) {
+    if (words.some((w) => s.includes(w))) return key;
+  }
+  return null;
+}
+
+const INDUSTRY_ALIASES: Array<[Industry, string[]]> = [
+  ["Pressure Washing", ["pressure", "power wash", "soft wash", "softwash"]],
+  ["Lawn Care & Landscaping", ["lawn", "landscap", "mow", "yard", "irrigation", "sprinkler", "tree"]],
+  ["Cleaning Services", ["clean", "maid", "janitor", "housekeep"]],
+  ["HVAC", ["hvac", "heating", "cooling", "air condition", "a/c", "furnace", "refrigerat"]],
+  ["Plumbing", ["plumb", "drain", "water heater", "sewer"]],
+  ["Electrical", ["electric", "wiring", "lighting"]],
+  ["Handyman", ["handyman", "handy", "remodel", "carpent", "general contract", "odd job"]],
+  ["Painting", ["paint", "drywall", "stain"]],
+  ["Pest Control", ["pest", "exterminat", "termite", "mosquito", "wildlife"]],
+  ["Roofing & Gutters", ["roof", "gutter", "siding"]],
+  ["Pool & Spa Service", ["pool", "spa", "hot tub"]],
+  ["Junk Removal", ["junk", "haul", "debris", "demolition", "dumpster"]],
+  ["Window Cleaning", ["window"]],
+  ["Appliance Repair", ["appliance", "washer", "dryer", "dishwasher"]],
+  ["Garage Door Services", ["garage"]],
+  ["PC Building & Repair", ["computer", "tech support", "laptop", "pc "]],
+];

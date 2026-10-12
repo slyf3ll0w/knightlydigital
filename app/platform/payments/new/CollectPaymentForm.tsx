@@ -268,7 +268,7 @@ export default function CollectPaymentForm({
             className="btn-primary btn-lg"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
-            Save Payment
+            Save payment
           </button>
           <Link
             href="/app/invoices"

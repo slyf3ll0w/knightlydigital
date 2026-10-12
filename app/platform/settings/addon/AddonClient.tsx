@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Loader2, Lock, Sparkles } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
+import { VOICE_MINUTES, VOICE_MONTHLY, VOICE_OVERAGE, VOICE_SETUP, VOICE_TEXTS } from "@/lib/help/plan-copy";
 
 /**
  * The Voice (business-line plan) upsell. Three states:
@@ -145,8 +146,8 @@ export default function AddonClient({
               <Sparkles size={19} />
             </span>
             <p className="text-sm leading-relaxed text-gray-600">
-              Everything in Workbench stays free. Voice adds your own business phone line
-              — cancel anytime.
+              Voice adds your own business phone line to WorkBench — a local number that
+              rings in the app, texts from it, and a call log. Cancel anytime.
             </p>
           </div>
           <ul className="mt-5 space-y-3 border-t border-gray-100 pt-5">
@@ -160,6 +161,30 @@ export default function AddonClient({
               </li>
             ))}
           </ul>
+          {/* The price, from lib/plans.ts through lib/help/plan-copy.ts — the same
+              numbers the pricing page shows, never typed here. */}
+          <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-gray-100 pt-5 sm:grid-cols-4">
+            <div>
+              <dt className="ds-label">Monthly</dt>
+              <dd className="ds-value mt-1.5">{VOICE_MONTHLY}</dd>
+              <dd className="ds-small mt-1">a month, cancel anytime</dd>
+            </div>
+            <div>
+              <dt className="ds-label">Setup</dt>
+              <dd className="ds-value mt-1.5">{VOICE_SETUP}</dd>
+              <dd className="ds-small mt-1">once, to buy the number and register it with the carriers</dd>
+            </div>
+            <div>
+              <dt className="ds-label">Included</dt>
+              <dd className="ds-value mt-1.5">{VOICE_TEXTS}</dd>
+              <dd className="ds-small mt-1">texts and {VOICE_MINUTES} minutes a month</dd>
+            </div>
+            <div>
+              <dt className="ds-label">Past the allowance</dt>
+              <dd className="ds-value mt-1.5">{VOICE_OVERAGE}</dd>
+              <dd className="ds-small mt-1">per text or minute</dd>
+            </div>
+          </dl>
           <div className="mt-6 border-t border-gray-100 pt-5">
             {!configured ? (
               <p className="text-sm text-gray-400">

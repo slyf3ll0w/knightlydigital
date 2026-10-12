@@ -10,6 +10,7 @@ import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import { Suspense } from "react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import { localInputToISO } from "@/lib/statuses";
 import SlotTimePicker from "@/components/SlotTimePicker";
 import ContactPicker from "@/components/ContactPicker";
@@ -62,6 +63,12 @@ function NewJobForm() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Anything touched since the page opened: leaving asks first. Prefills
+  // (last title, the request's details, the client's address) land through
+  // effects, not events, so they never count.
+  const [dirty, setDirty] = useState(false);
+  const touch = () => setDirty(true);
+  useUnsavedWarning(dirty && !loading);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [team, setTeam] = useState<TeamUser[]>([]);
   const [workItems, setWorkItems] = useState<PickerWorkItem[]>([]);
@@ -270,6 +277,8 @@ function NewJobForm() {
     // (ScheduleHeadsUp) — no second pop-up after the save.
 
     refreshRecentTitles();
+    // Saved — the leave guard must not fire on the redirect
+    setDirty(false);
     router.push(`/app/jobs/${data.id}`);
   }
 
@@ -280,7 +289,7 @@ function NewJobForm() {
         <PageTitle>New Job</PageTitle>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} onChange={touch} className="space-y-5">
         {error && (
           <div role="alert" className="form-error">
             {error}
@@ -295,8 +304,11 @@ function NewJobForm() {
             <ContactPicker
               contacts={contacts}
               value={form.contactId}
-              onChange={(id) => set("contactId", id)}
-              placeholder="Select a customer..."
+              onChange={(id) => {
+                set("contactId", id);
+                touch();
+              }}
+              placeholder="Select a customer…"
               title="Select a customer"
             />
             <Link href="/app/contacts/new" className="ds-link text-xs mt-1 inline-block">
@@ -350,7 +362,7 @@ function NewJobForm() {
               onChange={(e) => set("description", e.target.value)}
               rows={3}
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
-              placeholder="Details about the job, scope, special instructions..."
+              placeholder="Details about the job, scope, special instructions…"
             />
           </div>
 
@@ -396,6 +408,7 @@ function NewJobForm() {
             items={lineItems}
             onChange={(items) => {
               setLineItems(items);
+              touch();
               // Picking services names the job until a title is typed
               if (!titleTouched) set("title", titleFromServices(items.map((li) => li.name.trim()).filter(Boolean)));
             }}
@@ -452,6 +465,7 @@ function NewJobForm() {
                       endFollowingStart(form.scheduledAt, form.scheduledEnd, next, DEFAULT_JOB_DURATION_MINUTES)
                     );
                     set("scheduledAt", next);
+                    touch();
                   }}
                 />
               </div>
@@ -463,7 +477,10 @@ function NewJobForm() {
                   dayStartMinutes={dayStart}
                   inputCls="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                   ariaLabel="End"
-                  onChange={(next) => set("scheduledEnd", next)}
+                  onChange={(next) => {
+                    set("scheduledEnd", next);
+                    touch();
+                  }}
                 />
               </div>
             </div>
@@ -487,6 +504,7 @@ function NewJobForm() {
               onPick={(s, e) => {
                 set("scheduledAt", s);
                 set("scheduledEnd", e);
+                touch();
               }}
             />
           )}
@@ -582,7 +600,7 @@ function NewJobForm() {
                 }}
                 className="w-full mb-2 px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
               >
-                <option value="">Pick a saved address...</option>
+                <option value="">Pick a saved address…</option>
                 {addressChoices.map((a) => (
                   <option key={a.key} value={a.key}>
                     {a.label}: {a.line}
@@ -611,7 +629,7 @@ function NewJobForm() {
             className="btn-primary btn-lg"
           >
             {loading && <Loader2 size={14} className="animate-spin" />}
-            Create Job
+            Create job
           </button>
           <Link
             href="/app/jobs"

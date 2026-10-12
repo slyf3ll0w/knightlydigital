@@ -32,6 +32,10 @@ export const automationsSection: HelpSection = {
           ],
         },
         {
+          type: "tip",
+          text: "Leaving the builder, or the Automations list, with unsaved changes asks you first, so a stray tap doesn't lose your work.",
+        },
+        {
           type: "h",
           text: "Good ones to start with",
         },

@@ -119,7 +119,7 @@ export default function ContractActions({
       !(await confirmSheet({
         title: "Delete this contract?",
         message: "The signed record is destroyed with it. This can't be undone.",
-        confirmLabel: "Delete Contract",
+        confirmLabel: "Delete contract",
         destructive: true,
       }))
     )
@@ -155,7 +155,7 @@ export default function ContractActions({
             className="btn-primary"
           >
             {copied ? <Check size={13} /> : <Copy size={13} />}
-            {copied ? "Copied!" : "Copy Signing Link"}
+            {copied ? "Copied!" : "Copy signing link"}
           </button>
         )}
         {chooser}
@@ -171,7 +171,7 @@ export default function ContractActions({
             className="flex items-center gap-1.5 px-3 py-2 btn-tool-line bg-white rounded-[10px] text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
             <Send size={13} />
-            {status === "DRAFT" ? (canTextClient ? "Send for Signature" : "Email for Signature") : canTextClient ? "Send Signing Link Again" : "Email Signing Link Again"}
+            {status === "DRAFT" ? (canTextClient ? "Send for signature" : "Email for signature") : canTextClient ? "Send signing link again" : "Email signing link again"}
           </button>
         )}
         <a
@@ -231,7 +231,7 @@ export default function ContractActions({
         {editing && (
           <div className="space-y-3 text-left">
             <h2 className="flex items-center gap-1.5 text-base font-semibold text-[color:var(--ds-ink)]">
-              Edit Contract
+              Edit contract
               <InfoTip>
                 Editable until the client signs. If it was already sent, the signing link shows the
                 updated text.
@@ -276,7 +276,7 @@ export default function ContractActions({
                 className="btn-primary"
               >
                 {busy && <Loader2 size={13} className="animate-spin" />}
-                Save Changes
+                Save changes
               </button>
             </div>
           </div>
