@@ -102,6 +102,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
         seenAt: true,
         createdAt: true,
         endedAt: true,
+        endedBy: true,
         contact: { select: { id: true, firstName: true, lastName: true, status: true } },
         user: { select: { name: true } },
         via: true,

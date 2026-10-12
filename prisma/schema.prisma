@@ -3388,6 +3388,8 @@ model Call {
   agentCallId          String? // owner's-cell leg call_control_id
   customerLegId        String? // Telnyx call_leg_id of the customer leg (recordings filter)
   hangupCause          String?
+  // Who ended a CONNECTED call: "them" | "us" | "network" (lib/call-ending.ts); null while live, when nobody picked up, or on older rows
+  endedBy              String?
   answeredAt           DateTime? // legs bridged
   endedAt              DateTime?
   durationSec          Int? // talk time (answeredAt → endedAt)

@@ -81,6 +81,7 @@ export default async function CallScreenPage({ params }: { params: Promise<{ id:
         seenAt: true,
         createdAt: true,
         answeredAt: true,
+        endedBy: true,
         endedAt: true,
         via: true,
         notes: true,
@@ -192,6 +193,7 @@ export default async function CallScreenPage({ params }: { params: Promise<{ id:
         contactId={contact?.id ?? null}
         answeredAt={call.answeredAt?.toISOString() ?? null}
         durationSec={call.durationSec}
+        endedBy={call.endedBy}
         voicemailSec={call.voicemailSec}
         voicemailRecordingId={call.voicemailRecordingId}
         who={who}

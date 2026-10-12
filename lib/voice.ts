@@ -47,6 +47,7 @@ import { fireAutomations } from "@/lib/automations-server";
 import { alertTelnyxFunds } from "@/lib/ops-alert";
 import { hasAddon } from "@/lib/addon";
 import { defaultVoicemailGreeting, isRealLineNumber } from "@/lib/business-line-shared";
+import { callEnding } from "@/lib/call-ending";
 import { fmtPhone } from "@/lib/format";
 import { phoneDigits } from "@/lib/phone";
 import { notifyUsers } from "@/lib/push";
@@ -854,6 +855,8 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
 
   if (leg === "customer") {
     const status = statusAfterCustomerHangup(call, cause);
+    // Who hung up, for a call that was connected (the agent leg's webhook may have said already)
+    const endedBy = call.status === "IN_PROGRESS" && !call.endedBy ? callEnding("customer", call.direction, cause, p.hangup_source) : null;
     await prisma.call.update({
       where: { id: call.id },
       data: {
@@ -861,6 +864,7 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
         hangupCause: call.hangupCause ?? cause,
         endedAt: call.endedAt ?? now,
         durationSec: call.durationSec ?? talkSeconds(call.answeredAt, now),
+        ...(endedBy ? { endedBy } : {}),
       },
     });
     fireCallStatus(call, status);
@@ -924,6 +928,12 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
 
   // Agent leg: the cell, or the browser that won / placed the call
   await prisma.callLeg.updateMany({ where: { telnyxCallId: p.call_control_id, endedAt: null }, data: { endedAt: now, hangupCause: cause } }).catch(() => {});
+  if (call.status === "IN_PROGRESS" && !call.endedBy) {
+    // Bridged: the customer leg's hangup closes the row, but this leg knows
+    // which side let go — keep that if nobody has said yet.
+    const endedBy = callEnding("agent", call.direction, cause, p.hangup_source);
+    if (endedBy) await prisma.call.updateMany({ where: { id: call.id, endedBy: null }, data: { endedBy } }).catch(() => {});
+  }
   if (call.status !== "RINGING") return; // bridged: the customer leg's hangup closes the row
   if (call.direction === "INBOUND") return toVoicemail(call);
   const status = unansweredOutboundStatus(call);

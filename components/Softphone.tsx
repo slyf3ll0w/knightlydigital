@@ -627,12 +627,24 @@ export default function Softphone() {
         /* already gone */
       }
     };
-    /** Start over with a fresh token after `delay` ms (only path that mints a new grant). */
+    /**
+     * Start over with a fresh token after `delay` ms (only path that mints a
+     * new grant). Never while a call is up: tearing the client down purges
+     * its calls, and the audio runs peer-to-peer — a signaling socket that
+     * is slow to come back is no reason to hang up on a customer. The
+     * restart waits for the call to end (endCall below), then runs at once.
+     */
+    let restartAfterCall = false;
     const restart = (delay: number) => {
       if (unmounted) return;
       if (retry) clearTimeout(retry);
       retry = setTimeout(() => {
         retry = null;
+        if (callRef.current) {
+          if (!restartAfterCall) console.info("[softphone] reconnect waits — a call is up; it runs when the call ends");
+          restartAfterCall = true;
+          return;
+        }
         teardownClient();
         void connect();
       }, delay);
@@ -662,6 +674,11 @@ export default function Softphone() {
       ringer.current?.chime(endedBy.current === "local" ? "local" : "remote");
       endedBy.current = null;
       setSoftphoneState({ call: null });
+      if (restartAfterCall) {
+        // The line was down while this call was up: pick up the reconnect now.
+        restartAfterCall = false;
+        restart(250);
+      }
     };
 
     const checkMic = async () => {

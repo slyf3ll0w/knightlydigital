@@ -31,6 +31,7 @@ import {
   whisperText,
 } from "../lib/voice";
 import { defaultCallerIdName, defaultVoicemailGreeting, isRealLineNumber } from "../lib/business-line-shared";
+import { callEnding, endingLabel } from "../lib/call-ending";
 import { APP_RING_SECS, MAX_APP_LEGS, SOFTPHONE_PRESENCE_MS, canUseSoftphone, isSoftphoneOnline, ringPlan } from "../lib/softphone";
 import { sipUri } from "../lib/telnyx";
 
@@ -102,6 +103,30 @@ assert.equal(statusAfterCustomerHangup(outbound("RINGING"), "unspecified"), "FAI
 assert.equal(statusAfterCustomerHangup(outbound("RINGING"), null), "NO_ANSWER");
 assert.equal(isTerminalStatus("COMPLETED"), true);
 assert.equal(isTerminalStatus("RINGING"), false);
+
+// ── who ended a connected call (lib/call-ending.ts) ──────────────────────────
+// customer leg: the caller of an inbound call is them; of an outbound call, us
+assert.equal(callEnding("customer", "INBOUND", "normal_clearing", "caller"), "them");
+assert.equal(callEnding("customer", "INBOUND", "normal_clearing", "callee"), "us");
+assert.equal(callEnding("customer", "OUTBOUND", "normal_clearing", "caller"), "us");
+assert.equal(callEnding("customer", "OUTBOUND", "normal_clearing", "callee"), "them");
+// agent leg: we always dial our own side, so the callee is us
+assert.equal(callEnding("agent", "INBOUND", "normal_clearing", "callee"), "us");
+assert.equal(callEnding("agent", "OUTBOUND", "normal_clearing", "callee"), "us");
+assert.equal(callEnding("agent", "INBOUND", "normal_clearing", "caller"), "them");
+// nothing usable → no verdict (the row keeps a plain "Answered")
+assert.equal(callEnding("customer", "INBOUND", "normal_clearing", "unknown"), null);
+assert.equal(callEnding("customer", "INBOUND", null, undefined), null);
+assert.equal(callEnding("customer", "INBOUND", undefined, null), null);
+// anything but a clean clearing on a connected call is a drop, whoever it fell on
+assert.equal(callEnding("customer", "INBOUND", "recovery_on_timer_expire", "caller"), "network");
+assert.equal(callEnding("customer", "OUTBOUND", "media_timeout", "callee"), "network");
+assert.equal(callEnding("agent", "INBOUND", "time_limit", "callee"), "network");
+assert.equal(endingLabel("them"), "They hung up");
+assert.equal(endingLabel("us"), "You hung up");
+assert.equal(endingLabel("network"), "Call dropped");
+assert.equal(endingLabel(null), null);
+assert.equal(endingLabel("something-else"), null);
 
 // ── Leads-board trigger for a call ───────────────────────────────────────────
 assert.equal(pipelineTriggerForCall(outbound("IN_PROGRESS")), "CONTACT_MADE"); // fires at bridge

@@ -24,7 +24,7 @@ import { expireApprovalBookings } from "@/lib/approval-bookings";
 import { rollupStorageSnapshots } from "@/lib/usage";
 import { pruneLegCache } from "@/lib/routing";
 import { runNightlyReconciliation } from "@/lib/reconcile";
-import { runLineRegistrationSweep, runLineReleaseSweep } from "@/lib/business-line";
+import { runLineRegistrationSweep, runLineReleaseSweep, runTextingRouteSweep } from "@/lib/business-line";
 import { runMessageMediaSweep } from "@/lib/message-media";
 import { runStaleCallSweep } from "@/lib/voice";
 import { runAutomationSweeps, runAutomationResumes, runScheduledAutomations } from "@/lib/automations-server";
@@ -189,6 +189,9 @@ export async function POST(req: NextRequest) {
     // campaign and advance it (create campaign, bind number, mark active).
     // No-op without Telnyx keys or with nothing pending.
     await step("lineRegistrations", () => runLineRegistrationSweep());
+    // Every line can still receive texts: its number on the right messaging
+    // profile, that profile's webhook pointing here. Heals and logs drift.
+    await step("textingRoutes", () => runTextingRouteSweep());
     // Lapsed add-ons: schedule the number's release 30 days out (owner
     // notified), release once that passes, un-schedule on resubscribe.
     await step("lineReleases", () => runLineReleaseSweep(now));

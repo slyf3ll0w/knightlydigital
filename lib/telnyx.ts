@@ -232,6 +232,29 @@ export async function setNumberMessagingProfile(numberId: string, profileId: str
   });
 }
 
+export type MessagingProfileRecord = {
+  id: string;
+  name?: string;
+  enabled?: boolean;
+  webhook_url?: string | null;
+  webhook_failover_url?: string | null;
+};
+
+/** A messaging profile as Telnyx has it — where its inbound texts are being delivered. */
+export async function getMessagingProfile(profileId: string): Promise<MessagingProfileRecord | null> {
+  const out = await call<{ data?: MessagingProfileRecord }>("GET", `/messaging_profiles/${profileId}`);
+  return out?.data ?? null;
+}
+
+/** Point a messaging profile's inbound webhook back at us and make sure it is switched on. */
+export async function setMessagingProfileWebhook(profileId: string, webhookUrl: string): Promise<void> {
+  await call("PATCH", `/messaging_profiles/${profileId}`, {
+    enabled: true,
+    webhook_url: webhookUrl,
+    webhook_api_version: "2",
+  });
+}
+
 /**
  * The STOP / START / HELP replies a number sends are set per MESSAGING
  * PROFILE, and 10DLC requires them to name the brand ("[Brand]: You are

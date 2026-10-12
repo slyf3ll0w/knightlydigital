@@ -111,6 +111,8 @@ import {
   appealCampaign,
   deactivateCampaign,
   createMessagingProfile,
+  getMessagingProfile,
+  setMessagingProfileWebhook,
   setKeywordReply,
 } from "@/lib/telnyx";
 import { smsConsentLabel, businessPageUrl, businessPrivacyUrl, businessSmsTermsUrl } from "@/lib/sms-consent";
@@ -2156,6 +2158,75 @@ export async function runLineRegistrationSweep(): Promise<{ checked: number; err
     }
   }
   return { checked: pending.length, errors };
+}
+
+/**
+ * Hourly: make sure every line can still RECEIVE texts. Inbound delivery
+ * does not wait on the registration — it needs exactly two things at
+ * Telnyx: the number sitting on the profile we expect (the line's own
+ * keyword profile, else the shared one) and that profile's webhook pointing
+ * at this server. Both are set once at provision / keyword-profile time and
+ * never re-checked, so a profile edited in the portal, a number moved
+ * between companies, or a base URL change could silently stop texts from
+ * landing (David, 2026-10-12: "any reason I wouldn't be receiving texts?").
+ * Heals in place and logs each fix; never touches the SHARED profile's
+ * webhook (staging shares the Telnyx account — it would point production's
+ * texts at staging). Two free GETs per line.
+ */
+export async function runTextingRouteSweep(): Promise<{ checked: number; healed: number; errors: number }> {
+  const out = { checked: 0, healed: 0, errors: 0 };
+  if (!lineEnabled()) return out;
+  const companies = await prisma.company.findMany({
+    where: { lineNumber: { not: null } },
+    select: { id: true, name: true, lineNumber: true, lineMessagingProfileId: true },
+    take: 200,
+  });
+  const webhookUrl = `${baseUrl()}/api/public/webhooks/telnyx`;
+  for (const c of companies) {
+    if (!isRealLineNumber(c.lineNumber)) continue;
+    out.checked++;
+    try {
+      const fixes = await healTextingRoute(c, webhookUrl);
+      if (fixes.length) {
+        out.healed++;
+        console.warn(`[line] texting route healed for "${c.name}" (${c.id}, ${c.lineNumber}): ${fixes.join("; ")}`);
+      }
+    } catch (err) {
+      out.errors++;
+      reportError(`[line] texting route check failed for ${c.id} (${c.lineNumber}):`, err);
+    }
+  }
+  return out;
+}
+
+/** What `runTextingRouteSweep` fixed for one line; [] when everything was already right. */
+async function healTextingRoute(
+  c: { id: string; lineNumber: string | null; lineMessagingProfileId: string | null },
+  webhookUrl: string
+): Promise<string[]> {
+  const fixes: string[] = [];
+  const expectedProfile = c.lineMessagingProfileId ?? messagingProfileId();
+  const record = await findOwnedNumber(c.lineNumber!);
+  if (!record) {
+    // Not on the account any more (ported out, released in the portal): say so once an hour rather than guess.
+    reportError(`[line] texting route: ${c.lineNumber} is not on the Telnyx account (company ${c.id})`);
+    return fixes;
+  }
+  if (record.messaging_profile_id !== expectedProfile) {
+    await setNumberMessagingProfile(record.id, expectedProfile);
+    fixes.push(`number moved from profile ${record.messaging_profile_id ?? "none"} to ${expectedProfile}`);
+  }
+  // Only the line's OWN profile is ours to repoint.
+  if (c.lineMessagingProfileId) {
+    const profile = await getMessagingProfile(c.lineMessagingProfileId);
+    if (!profile) {
+      reportError(`[line] texting route: messaging profile ${c.lineMessagingProfileId} is gone at Telnyx (company ${c.id})`);
+    } else if (profile.webhook_url !== webhookUrl || profile.enabled === false) {
+      await setMessagingProfileWebhook(profile.id, webhookUrl);
+      fixes.push(`profile webhook ${profile.enabled === false ? "(was disabled) " : ""}${profile.webhook_url ?? "unset"} → ${webhookUrl}`);
+    }
+  }
+  return fixes;
 }
 
 /** The 10DLC status webhook doesn't need trusting: any ping just triggers a re-read of that brand/campaign. */

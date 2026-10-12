@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { fmtPhone, fmtTime } from "@/lib/format";
 import type { CallEvent, CallEventKind } from "@/lib/call-events";
+import { endingLabel } from "@/lib/call-ending";
 import VoicemailPlayer from "@/components/VoicemailPlayer";
 import CallFromLineButton from "@/components/CallFromLineButton";
 import Monogram from "@/components/Monogram";
@@ -65,6 +66,8 @@ export type CallRowData = {
   via?: string | null;
   /** Who picked up in the app (inbound only). */
   answeredBy?: { name: string } | null;
+  /** Who ended a connected call: "them" | "us" | "network" (lib/call-ending.ts); null on older rows. */
+  endedBy?: string | null;
   /** What got done on this call — quote sent, appointment booked, saved as a lead… */
   events?: CallEvent[];
 };
@@ -208,6 +211,9 @@ export default function CallRow({
   if (onPhone !== null) parts.push(onPhone);
   if (call.status === "VOICEMAIL" && call.voicemailSec !== null) parts.push(`${fmtDuration(call.voicemailSec)} message`);
   if (who) parts.push(who);
+  // Which side ended a connected call — "was that them or the line?" answered from the row.
+  const ending = call.status === "COMPLETED" ? endingLabel(call.endedBy) : null;
+  if (ending) parts.push(ending);
   const showCallBack = canCall && !live && Boolean(call.customerNumber && call.customerNumber !== "unknown");
   // Once the line can text, a known caller gets a Text button: the thread sends from the business number and replies land back in it.
   const showText = canText && !live && Boolean(call.contact);

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Grid3x3, Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneMissed, PhoneOff, PhoneOutgoing, Play, StickyNote, Voicemail, Volume2, type LucideIcon } from "lucide-react";
 import StickyEditor from "@/components/sticky/StickyEditor";
 import { fmtElapsed, softphone, useSoftphone } from "@/lib/softphone-client";
+import { endingLabel } from "@/lib/call-ending";
 import DialPad from "@/components/DialPad";
 import Monogram from "@/components/Monogram";
 import { MicRow, MicWarning } from "@/components/MicControls";
@@ -91,6 +92,7 @@ export default function CallScreenLive({
   contactId,
   answeredAt,
   durationSec,
+  endedBy,
   voicemailSec,
   voicemailRecordingId,
   who,
@@ -113,6 +115,8 @@ export default function CallScreenLive({
   contactId: string | null;
   answeredAt: string | null;
   durationSec: number | null;
+  /** Who ended a connected call: "them" | "us" | "network" (lib/call-ending.ts); null on older rows. */
+  endedBy: string | null;
   voicemailSec: number | null;
   voicemailRecordingId: string | null;
   who: string;
@@ -197,9 +201,11 @@ export default function CallScreenLive({
         line = `On the line${who ? ` · ${who}` : ""} · ${fmtElapsed(row.answeredAt ? Date.parse(row.answeredAt) : null, now)}`;
         tone = "text-[color:var(--ds-good)]";
         break;
-      case "COMPLETED":
-        line = `Answered${durationSec !== null ? ` · ${fmtSecs(durationSec)}` : ""}${who ? ` · ${who}` : ""}`;
+      case "COMPLETED": {
+        const ending = endingLabel(endedBy);
+        line = `Answered${durationSec !== null ? ` · ${fmtSecs(durationSec)}` : ""}${who ? ` · ${who}` : ""}${ending ? ` · ${ending}` : ""}`;
         break;
+      }
       case "MISSED":
         line = "Missed";
         tone = "text-[color:var(--ds-bad)]";
