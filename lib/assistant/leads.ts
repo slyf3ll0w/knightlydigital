@@ -168,7 +168,7 @@ export const leadTools: Tool[] = [
     decl: {
       name: "manage_pipeline_stage",
       description:
-        "Stage changes to the pipeline board's columns (managers): create a stage, rename/recolor one, set its auto-advance trigger (request_created / appointment_scheduled / quote_sent / quote_approved — moves a lead's card there when that happens; one stage per trigger; 'none' clears it), reorder all stages, or delete one (its leads move to the first stage). Confirmation card required.",
+        "Stage changes to the pipeline board's columns (managers): create a stage, rename/recolor one, set its auto-advance trigger (REQUEST_CREATED / CONTACT_MADE / CALL_NO_ANSWER / APPOINTMENT_SCHEDULED / QUOTE_SENT — moves a lead's card there when that happens, forward only; one stage per trigger; 'none' clears it; quote approval isn't a trigger — an approved quote always converts the lead), reorder all stages, or delete one (its leads move to the first stage). Confirmation card required.",
       parameters: {
         type: "object",
         properties: {

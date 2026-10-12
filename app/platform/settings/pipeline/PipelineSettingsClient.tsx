@@ -26,6 +26,10 @@ type Stage = {
   autoAdvanceOn: string | null;
 };
 
+// What GET /api/app/pipeline/stages returns: the orderable stages plus the
+// pinned Converted section, which this page keeps out of `stages`
+type ServerStage = Stage & { isConverted: boolean };
+
 // Quote approval isn't offered: an approved quote always converts the lead
 // Same labels as lib/pipeline.ts triggerLabel (kept local: that module
 // imports Prisma and this is a client component).
@@ -72,8 +76,34 @@ export default function PipelineSettingsClient({
 
   const refresh = () => startTransition(() => router.refresh());
 
+  // The Converted section lives outside `stages`; its color/name preview is
+  // held here so a failed save can put it back too
+  const [convertedLocal, setConvertedLocal] = useState(convertedStage);
+
+  // Pull the authoritative list. The Converted section rides along in the
+  // response but never joins the orderable rows — reordering sends every row's
+  // id, and the server refuses a list that names the pinned section.
+  async function resync() {
+    try {
+      const res = await fetch("/api/app/pipeline/stages");
+      if (!res.ok) return;
+      const all = (await res.json()) as ServerStage[];
+      setStages(
+        all
+          .filter((s) => !s.isConverted)
+          .map(({ id, name, color, autoAdvanceOn }) => ({ id, name, color, autoAdvanceOn }))
+      );
+      const conv = all.find((s) => s.isConverted);
+      if (conv) setConvertedLocal({ id: conv.id, name: conv.name, color: conv.color });
+    } catch {
+      // Offline — the rollback already restored what we had
+    }
+  }
+
   // Optimistic edits: `rollback` runs when the server says no, so the list
-  // never keeps showing a change that didn't save
+  // never keeps showing a change that didn't save. A refusal usually means
+  // this tab's list drifted from the board (another tab, Atlas), so pull the
+  // real one too — the next attempt then starts from what the server has.
   async function run(
     fn: () => Promise<{ ok: boolean; data: { error?: string } | null }>,
     rollback?: () => void
@@ -85,15 +115,12 @@ export default function PipelineSettingsClient({
     if (!ok) {
       rollback?.();
       setError(data?.error ?? GENERIC_ERROR);
+      if (data?.error) void resync();
       return false;
     }
     refresh();
     return true;
   }
-
-  // The Converted section lives outside `stages`; its color/name preview is
-  // held here so a failed save can put it back too
-  const [convertedLocal, setConvertedLocal] = useState(convertedStage);
 
   async function patchStage(id: string, patch: Partial<Stage>) {
     const before = stages;
@@ -113,7 +140,7 @@ export default function PipelineSettingsClient({
         )
       );
     }
-    await run(
+    return run(
       () => postJson(`/api/app/pipeline/stages/${id}`, patch, "PATCH"),
       () => {
         setStages(before);
@@ -168,13 +195,28 @@ export default function PipelineSettingsClient({
   async function addStage(e: React.FormEvent) {
     e.preventDefault();
     if (!newName.trim()) return;
-    const ok = await run(() => postJson("/api/app/pipeline/stages", { name: newName.trim() }));
+    // Server assigns id/sort and appends after the last orderable stage —
+    // the 201 body is the new row, so it slots onto the end of the list.
+    // (Refetching GET here used to pull the Converted section into the
+    // orderable rows, and the next reorder was refused for naming it.)
+    let created: Stage | null = null;
+    const ok = await run(async () => {
+      const r = await postJson<Stage>("/api/app/pipeline/stages", { name: newName.trim() });
+      if (r.ok && r.data?.id) {
+        const { id, name, color, autoAdvanceOn } = r.data;
+        created = { id, name, color, autoAdvanceOn: autoAdvanceOn ?? null };
+      }
+      return r;
+    });
     if (ok) {
       setNewName("");
       setAdding(false);
-      // Server assigns id/sort — pull the authoritative list
-      const res = await fetch("/api/app/pipeline/stages");
-      if (res.ok) setStages(await res.json());
+      if (created) {
+        const row: Stage = created;
+        setStages((s) => (s.some((st) => st.id === row.id) ? s : [...s, row]));
+      } else {
+        await resync();
+      }
     }
   }
 
@@ -302,10 +344,13 @@ export default function PipelineSettingsClient({
               <input
                 defaultValue={stage.name}
                 maxLength={40}
-                onBlur={(e) => {
-                  const v = e.target.value.trim();
-                  if (v && v !== stage.name) patchStage(stage.id, { name: v });
-                  else e.target.value = stage.name;
+                onBlur={async (e) => {
+                  const box = e.target;
+                  const v = box.value.trim();
+                  if (v && v !== stage.name) {
+                    // Uncontrolled box: a refused rename needs putting back by hand
+                    if (!(await patchStage(stage.id, { name: v }))) box.value = stage.name;
+                  } else box.value = stage.name;
                 }}
                 className="flex-1 min-w-[120px] px-2.5 py-1.5 text-sm font-medium border border-gray-200 lg:border-transparent lg:hover:border-gray-200 focus:border-gray-300 rounded-lg focus:outline-none"
               />
@@ -357,10 +402,14 @@ export default function PipelineSettingsClient({
               <input
                 defaultValue={convertedLocal.name}
                 maxLength={40}
-                onBlur={(e) => {
-                  const v = e.target.value.trim();
-                  if (v && v !== convertedLocal.name) patchStage(convertedLocal.id, { name: v });
-                  else e.target.value = convertedLocal.name;
+                onBlur={async (e) => {
+                  const box = e.target;
+                  const v = box.value.trim();
+                  if (v && v !== convertedLocal.name) {
+                    if (!(await patchStage(convertedLocal.id, { name: v }))) {
+                      box.value = convertedLocal.name;
+                    }
+                  } else box.value = convertedLocal.name;
                 }}
                 className="flex-1 min-w-[120px] px-2.5 py-1.5 text-sm font-medium border border-[color:var(--ds-line-strong)] lg:border-transparent lg:hover:border-gray-200 focus:border-gray-300 rounded-lg focus:outline-none bg-transparent"
               />
@@ -375,7 +424,10 @@ export default function PipelineSettingsClient({
                 onChange={async (e) => {
                   const v = e.target.checked;
                   setHidden(v);
-                  await run(() => postJson("/api/app/settings", { hideConvertedLeads: v }, "PATCH"));
+                  await run(
+                    () => postJson("/api/app/settings", { hideConvertedLeads: v }, "PATCH"),
+                    () => setHidden(!v)
+                  );
                 }}
                 className="rounded border-gray-300 text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
               />

@@ -17,26 +17,34 @@ export async function POST(req: NextRequest) {
     ? body.orderedIds.filter((v: unknown): v is string => typeof v === "string")
     : [];
 
-  // Converted is pinned last and never part of a reorder
-  const stages = await prisma.pipelineStage.findMany({
-    where: { companyId, isConverted: false },
-    select: { id: true },
+  // Converted is pinned last and never part of a reorder. A caller that lists
+  // it anyway (an older page that read the full GET) isn't wrong about the
+  // order of everything else, so it's dropped rather than refused.
+  const all = await prisma.pipelineStage.findMany({
+    where: { companyId },
+    select: { id: true, isConverted: true },
   });
-  const known = new Set(stages.map((s) => s.id));
+  const pinned = new Set(all.filter((s) => s.isConverted).map((s) => s.id));
+  const known = new Set(all.filter((s) => !s.isConverted).map((s) => s.id));
+  const ids = orderedIds.filter((id) => !pinned.has(id));
   const complete =
-    orderedIds.length === stages.length && orderedIds.every((id) => known.has(id)) &&
-    new Set(orderedIds).size === orderedIds.length;
+    ids.length === known.size &&
+    ids.every((id) => known.has(id)) &&
+    new Set(ids).size === ids.length;
   if (!complete) {
+    // The list this tab holds no longer matches the board (a stage was added
+    // or removed elsewhere) — the settings page re-pulls it on this error
     return NextResponse.json(
-      { error: "orderedIds must include every stage exactly once." },
-      { status: 400 }
+      {
+        error:
+          "The board's stages changed since this page loaded — the list has been refreshed, try the move again.",
+      },
+      { status: 409 }
     );
   }
 
   await prisma.$transaction(
-    orderedIds.map((id, i) =>
-      prisma.pipelineStage.update({ where: { id }, data: { sortOrder: i } })
-    )
+    ids.map((id, i) => prisma.pipelineStage.update({ where: { id }, data: { sortOrder: i } }))
   );
 
   return NextResponse.json({ success: true });
