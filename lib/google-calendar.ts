@@ -281,6 +281,50 @@ export class GoogleApiError extends Error {
   }
 }
 
+/**
+ * A failure that says nothing about our code or the user's grant: the socket
+ * dropped (undici's `TypeError: fetch failed`, ECONNRESET, DNS), the request
+ * timed out, or Google answered 429 / 5xx. The next poll retries by itself.
+ */
+export function isTransientGoogleError(err: unknown): boolean {
+  if (err instanceof GoogleApiError) return err.status === 429 || err.status >= 500;
+  if (!(err instanceof Error)) return false;
+  if (err.name === "TimeoutError" || err.name === "AbortError") return true;
+  if (err instanceof TypeError && /fetch failed/i.test(err.message)) return true;
+  const code = (err as { code?: unknown }).code ?? (err.cause as { code?: unknown } | undefined)?.code;
+  return typeof code === "string" && TRANSIENT_CODES.has(code);
+}
+
+const TRANSIENT_CODES = new Set([
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "ETIMEDOUT",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "EPIPE",
+  "UND_ERR_SOCKET",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_HEADERS_TIMEOUT",
+  "UND_ERR_BODY_TIMEOUT",
+]);
+
+/** How long a connection may keep failing transiently before Sentry hears about it. */
+export const TRANSIENT_GRACE_MS = 60 * 60_000;
+
+/**
+ * Does a transient failure deserve a Sentry issue? Only once the account has
+ * gone this long without a good sync — a single "fetch failed" between two
+ * successful 5-minute polls (Sentry e6c39a38, 2026-10-12) is not an incident.
+ * No successful sync on record = report (nothing says it will heal).
+ */
+export function transientNeedsReport(lastOkAt: Date | null | undefined, now: Date = new Date()): boolean {
+  if (!lastOkAt) return true;
+  return now.getTime() - lastOkAt.getTime() > TRANSIENT_GRACE_MS;
+}
+
+/** What the Calendar sync card shows for a transient failure instead of "fetch failed". */
+export const TRANSIENT_ERROR_TEXT = "Couldn't reach Google — will retry on the next sync.";
+
 export async function googleFetch<T>(token: string, path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${CALENDAR_API}${path}`, {
     ...init,
@@ -529,12 +573,27 @@ async function listMarkedEvents(token: string, calendarId: string): Promise<Map<
 export async function recordError(connectionId: string, err: unknown): Promise<void> {
   const message = err instanceof Error ? err.message : "Sync failed";
   const reconnect = err instanceof GoogleAuthError && err.reconnect;
-  reportError("[google-calendar] sync failed", connectionId, message);
+  const transient = isTransientGoogleError(err);
+  if (transient) {
+    // A dropped socket or a Google 5xx heals on the next run; page only when
+    // this account has had no good sync for an hour.
+    const row = await prisma.googleCalendarConnection
+      .findUnique({ where: { id: connectionId }, select: { lastSyncAt: true } })
+      .catch(() => null);
+    if (transientNeedsReport(row?.lastSyncAt)) reportError("[google-calendar] sync failed", connectionId, message);
+    else console.warn("[google-calendar] sync hiccup", connectionId, message);
+  } else {
+    reportError("[google-calendar] sync failed", connectionId, message);
+  }
   await prisma.googleCalendarConnection
     .update({
       where: { id: connectionId },
       data: {
-        lastSyncError: reconnect ? "Google access was revoked — reconnect to keep syncing." : message,
+        lastSyncError: reconnect
+          ? "Google access was revoked — reconnect to keep syncing."
+          : transient
+            ? TRANSIENT_ERROR_TEXT
+            : message,
         ...(reconnect ? { syncEnabled: false } : {}),
       },
     })

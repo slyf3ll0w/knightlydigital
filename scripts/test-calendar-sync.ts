@@ -17,7 +17,7 @@ import {
   toCalendarEventFromTimeBlock,
 } from "../lib/calendar-event-shape";
 import { buildIcsCalendar } from "../lib/ics";
-import { toGoogleEvent } from "../lib/google-calendar";
+import { GoogleApiError, isTransientGoogleError, toGoogleEvent, transientNeedsReport } from "../lib/google-calendar";
 import { classifyGoogleEvent } from "../lib/google-calendar-pull";
 
 const TZ = "America/Chicago";
@@ -226,6 +226,29 @@ test("Google → Workbench: all-day busy event spans local midnight to 23:59:59 
   assert.equal(b.startAt.toISOString(), "2026-09-16T05:00:00.000Z", "00:00 CDT");
   assert.equal(b.endAt.toISOString(), "2026-09-18T04:59:59.000Z", "23:59:59 CDT on the 17th");
   assert.equal(b.title, "PTO");
+});
+
+test("transient Google failures: network drops, timeouts, 429/5xx — never 4xx or our own bugs", () => {
+  const fetchFailed = new TypeError("fetch failed");
+  (fetchFailed as { cause?: unknown }).cause = Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" });
+  assert.equal(isTransientGoogleError(fetchFailed), true, "undici fetch failed");
+  assert.equal(isTransientGoogleError(Object.assign(new Error("socket hang up"), { code: "ECONNRESET" })), true);
+  assert.equal(isTransientGoogleError(Object.assign(new Error("timed out"), { name: "TimeoutError" })), true, "AbortSignal.timeout");
+  assert.equal(isTransientGoogleError(new GoogleApiError("Backend Error", 503)), true);
+  assert.equal(isTransientGoogleError(new GoogleApiError("Rate Limit Exceeded", 429)), true);
+  assert.equal(isTransientGoogleError(new GoogleApiError("Not Found", 404)), false);
+  assert.equal(isTransientGoogleError(new GoogleApiError("Invalid Credentials", 401)), false);
+  assert.equal(isTransientGoogleError(new GoogleApiError("Forbidden", 403)), false);
+  assert.equal(isTransientGoogleError(new TypeError("Cannot read properties of undefined")), false, "a real bug");
+  assert.equal(isTransientGoogleError("fetch failed"), false, "not an Error");
+});
+
+test("a transient failure pages Sentry only after an hour without a good sync", () => {
+  const now = new Date("2026-10-12T14:42:59Z");
+  assert.equal(transientNeedsReport(new Date("2026-10-12T14:37:00Z"), now), false, "last poll 5 min ago was fine");
+  assert.equal(transientNeedsReport(new Date("2026-10-12T13:50:00Z"), now), false, "53 min: still inside the grace");
+  assert.equal(transientNeedsReport(new Date("2026-10-12T13:30:00Z"), now), true, "73 min of failing: report");
+  assert.equal(transientNeedsReport(null, now), true, "never synced: report");
 });
 
 console.log(`\n${passed} passed`);

@@ -27,11 +27,14 @@ import { prisma } from "@/lib/db";
 import type { GoogleCalendarConnection } from "@prisma/client";
 import {
   GoogleApiError,
+  TRANSIENT_ERROR_TEXT,
   accessTokenFor,
   calPath,
   googleFetch,
   isGoogleCalendarConfigured,
+  isTransientGoogleError,
   recordError,
+  transientNeedsReport,
 } from "@/lib/google-calendar";
 import { addDaysToKey } from "@/lib/calendar-event-shape";
 import { wallTimeToUtc } from "@/lib/booking-engine";
@@ -214,12 +217,21 @@ async function runPull(userId: string): Promise<PullSummary> {
   } catch (err) {
     summary.errors++;
     const message = err instanceof Error ? err.message : "Pull failed";
-    reportError("[google-calendar] pull failed", connection.id, message);
     if (err instanceof GoogleApiError && err.status === 401) {
+      // recordError reports it and parks the connection
       await recordError(connection.id, err);
     } else {
+      // A dropped socket / timeout / Google 5xx heals on the next 5-minute
+      // poll. Page only when this account has had no good pull for an hour
+      // (one bare "fetch failed" paged Sentry on 2026-10-12, e6c39a38).
+      const transient = isTransientGoogleError(err);
+      if (transient && !transientNeedsReport(connection.lastPullAt, now)) {
+        console.warn("[google-calendar] pull hiccup", connection.id, message);
+      } else {
+        reportError("[google-calendar] pull failed", connection.id, message);
+      }
       await prisma.googleCalendarConnection
-        .update({ where: { id: connection.id }, data: { lastPullError: message } })
+        .update({ where: { id: connection.id }, data: { lastPullError: transient ? TRANSIENT_ERROR_TEXT : message } })
         .catch(() => {});
     }
   }
