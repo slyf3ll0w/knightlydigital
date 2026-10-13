@@ -144,9 +144,13 @@ model Company {
   // AI setup wizard: stamped when the owner applies OR dismisses it — hides
   // the dashboard card either way (the Settings entry stays available)
   setupWizardAt             DateTime?
-  // Get started checklist (lib/get-started.ts) — two signals the data model
-  // can't otherwise see: the booking link was copied once (Settings →
-  // Booking & forms), and the native app has checked in once for this company.
+  // Get started checklist (lib/get-started.ts). getStartedHiddenAt = Hide on
+  // the card (Settings → Company → Show on Home clears it); it is its own
+  // stamp so companies that predate the checklist still see it until their
+  // steps are done. The other two are signals the data model can't
+  // otherwise see: the booking link was copied once (Settings → Booking &
+  // forms), and the native app has checked in once for this company.
+  getStartedHiddenAt        DateTime?
   bookingLinkSharedAt       DateTime?
   mobileAppSeenAt           DateTime?
   // Display name for the in-app AI assistant; null = the default ("Atlas")

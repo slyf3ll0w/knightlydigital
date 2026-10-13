@@ -11,10 +11,12 @@ import { prisma } from "@/lib/db";
  * (Company.bookingLinkSharedAt, Company.mobileAppSeenAt); the rest are
  * counts.
  *
- * Hidden when Company.setupWizardAt is set (Hide on the card, or the old
- * price-book card's dismiss) and automatically once every core item is
- * done. Settings → Company → "Show the Get started checklist" clears the
- * stamp (POST /api/app/setup/restore).
+ * Shown to every company — new or long-standing — until Hide stamps
+ * Company.getStartedHiddenAt or every core item is done. The stamp is the
+ * checklist's own (not the old setupWizardAt, which every account from the
+ * wizard days carries), so an active company that never finished setting
+ * up sees the card with the steps it has done already ticked. Settings →
+ * Company → "Show on Home" clears the stamp (POST /api/app/setup/restore).
  */
 export type GetStartedItem = {
   key: string;
@@ -38,7 +40,7 @@ export async function loadGetStarted(companyId: string): Promise<GetStarted | nu
   const company = await prisma.company.findUnique({
     where: { id: companyId },
     select: {
-      setupWizardAt: true,
+      getStartedHiddenAt: true,
       phone: true,
       address: true,
       businessHours: true,
@@ -46,14 +48,27 @@ export async function loadGetStarted(companyId: string): Promise<GetStarted | nu
       mobileAppSeenAt: true,
     },
   });
-  if (!company || company.setupWizardAt) return null;
+  if (!company || company.getStartedHiddenAt) return null;
 
-  const [services, clients, quotes, jobs, people] = await Promise.all([
+  const [services, clients, quotes, jobs, people, onPhone] = await Promise.all([
     prisma.workItem.count({ where: { companyId, isActive: true } }),
     prisma.contact.count({ where: { companyId, placeholder: false } }),
     prisma.quote.count({ where: { companyId, status: { not: "DRAFT" } } }),
     prisma.job.count({ where: { companyId } }),
     prisma.user.count({ where: { companyId } }),
+    // Companies older than the mobileAppSeenAt stamp: someone has signed in
+    // from the iPhone/Android app, or turned on push there.
+    company.mobileAppSeenAt
+      ? Promise.resolve(1)
+      : prisma.user.count({
+          where: {
+            companyId,
+            OR: [
+              { lastSeenVia: { in: ["ios", "android"] } },
+              { pushSubscriptions: { some: { platform: { not: "web" } } } },
+            ],
+          },
+        }),
   ]);
 
   const items: GetStartedItem[] = [
@@ -122,7 +137,7 @@ export async function loadGetStarted(companyId: string): Promise<GetStarted | nu
       title: "Install the app on your phone",
       sub: "Calls, texts and the day's jobs in your pocket.",
       href: "/app/help/mobile-apps",
-      done: company.mobileAppSeenAt != null,
+      done: onPhone > 0,
       optional: true,
     },
   ];

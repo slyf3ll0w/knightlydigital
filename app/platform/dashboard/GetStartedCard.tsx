@@ -12,7 +12,7 @@ import type { GetStarted } from "@/lib/get-started";
  * The Get started checklist on Home — the first thing a new company sees,
  * on phones and desktops alike. Every row ticks itself from real data
  * (lib/get-started.ts); tapping a row opens the place where that step gets
- * done. Hide stamps Company.setupWizardAt so it stays gone on every device;
+ * done. Hide stamps Company.getStartedHiddenAt so it stays gone on every device;
  * Settings → Company brings it back. The card also leaves on its own once
  * every core item is done.
  */

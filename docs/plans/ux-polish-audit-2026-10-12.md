@@ -371,6 +371,15 @@ archived-invoice notice on the pay page only. Everything about online
 payments (Coming soon / Set up payments / Finix) is deferred: the processor
 is moving to Square.
 
+Follow-up (same day, branch `checklist-existing`): the card was gated on
+`Company.setupWizardAt`, which every account from the wizard days carries, so
+existing companies never saw it. It now has its own stamp
+(`Company.getStartedHiddenAt`, db:push via predeploy): every active company
+with open core steps sees the checklist with its finished steps ticked. The
+phone-app step also reads existing sign-in data (a user last seen from the
+iOS/Android app, or push enabled there) so older accounts don't get told to
+install an app they already use.
+
 Built (same day): IndustrySelect + forgiving `matchIndustry`; checklist
 (`lib/get-started.ts`, `GetStartedCard`, `bookingLinkSharedAt` +
 `mobileAppSeenAt` on Company — db:push); root `app/not-found.tsx`; withdrawn

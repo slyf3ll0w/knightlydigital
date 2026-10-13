@@ -3,9 +3,9 @@ import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 
 /**
- * POST — dismiss the dashboard "price book is ready" card. Stamps
- * setupWizardAt (the flag predates the AI setup wizard's removal and keeps
- * its name so existing rows still count as dismissed).
+ * POST — Hide on the Get started checklist. Stamps getStartedHiddenAt, the
+ * checklist's own flag (setupWizardAt is left alone: it means the old
+ * setup wizard ran and the superadmin console still reads it).
  */
 export async function POST() {
   const actor = await getActor();
@@ -14,7 +14,7 @@ export async function POST() {
 
   await prisma.company.update({
     where: { id: actor.companyId },
-    data: { setupWizardAt: new Date() },
+    data: { getStartedHiddenAt: new Date() },
   });
   return NextResponse.json({ success: true });
 }

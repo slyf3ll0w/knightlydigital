@@ -4,8 +4,8 @@ import { getActor, isManager } from "@/lib/permissions";
 
 /**
  * POST — bring the Get started checklist back to Home (Settings → Company).
- * Clears setupWizardAt, the stamp Hide (and the old price-book card's
- * dismiss) set. The card still hides itself once every core item is done.
+ * Clears getStartedHiddenAt, the stamp Hide set. The card still hides
+ * itself once every core item is done.
  */
 export async function POST() {
   const actor = await getActor();
@@ -14,7 +14,7 @@ export async function POST() {
 
   await prisma.company.update({
     where: { id: actor.companyId },
-    data: { setupWizardAt: null },
+    data: { getStartedHiddenAt: null },
   });
   return NextResponse.json({ success: true });
 }
