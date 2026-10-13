@@ -30,6 +30,7 @@ import MessageMedia, { type ThreadMedia } from "@/components/MessageMedia";
 import FileDropOverlay from "@/components/FileDropOverlay";
 import { resizeForMms } from "@/lib/resize-image";
 import { useFileDrop } from "@/lib/use-file-drop";
+import { usePasteFiles } from "@/lib/use-paste-files";
 
 // Mirrors TAPBACKS in lib/chat.ts (server module)
 const TAPBACKS = ["👍", "❤️", "😂", "😮", "😢", "🎉"];
@@ -506,6 +507,8 @@ export default function ChatClient({
   }
 
   const drop = useFileDrop((files) => void sendFiles(files), !attaching);
+  // ⌘V / Ctrl+V with a screenshot on the clipboard sends it the same way
+  usePasteFiles((files) => void sendFiles(files), !!active, "[data-paste-zone]");
 
   function retrySend(m: Message) {
     setError("");
@@ -743,7 +746,7 @@ export default function ChatClient({
   );
 
   const conversation = (
-    <div {...drop.handlers} className="relative flex h-full min-h-0 flex-col bg-white lg:rounded-[8px] lg:border lg:border-gray-200 lg:shadow-sm">
+    <div {...drop.handlers} data-paste-zone className="relative flex h-full min-h-0 flex-col bg-white lg:rounded-[8px] lg:border lg:border-gray-200 lg:shadow-sm">
       <FileDropOverlay show={drop.over} hint={`Sends to ${active?.name ?? "this chat"} · photos stay in the chat for a week`} />
       {/* Header */}
       <div className="chat-head glass-bar flex shrink-0 items-center gap-2.5 border-b border-gray-100 px-3 py-2.5 lg:px-4">
@@ -1045,7 +1048,7 @@ export default function ChatClient({
             onClick={() => fileRef.current?.click()}
             disabled={attaching}
             aria-label="Send a photo"
-            title="Send a photo or video — photos stay in the chat for a week"
+            title="Send a photo or video (or paste a screenshot with Ctrl+V) — photos stay in the chat for a week"
             className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full text-[color:var(--ds-primary)] transition-colors hover:bg-[color:var(--ds-primary-soft)] active:bg-[color:var(--ds-primary-soft)] disabled:opacity-40"
           >
             {attaching ? <Loader2 size={20} className="animate-spin" /> : <ImagePlus size={20} />}

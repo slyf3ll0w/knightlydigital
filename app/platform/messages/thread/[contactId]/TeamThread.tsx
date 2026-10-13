@@ -10,6 +10,7 @@ import { hapticImpact } from "@/lib/haptics";
 import { useMeasuredHeight } from "@/lib/use-measured-height";
 import { resizeForMms } from "@/lib/resize-image";
 import { useFileDrop } from "@/lib/use-file-drop";
+import { usePasteFiles } from "@/lib/use-paste-files";
 import FileDropOverlay from "@/components/FileDropOverlay";
 import MessageMedia, { type ThreadMedia } from "@/components/MessageMedia";
 
@@ -431,6 +432,8 @@ export default function TeamThread({
   }
 
   const drop = useFileDrop((files) => void sendFiles(files), channel?.kind !== "none" && !attaching);
+  // ⌘V / Ctrl+V with a screenshot on the clipboard sends it the same way
+  usePasteFiles((files) => void sendFiles(files), channel?.kind !== "none", "[data-paste-zone]");
 
   function retrySend(m: ThreadMessage) {
     setError("");
@@ -480,7 +483,7 @@ export default function TeamThread({
       }`}
       style={vvBox ? { top: vvBox.top, height: vvBox.height } : undefined}
     >
-      <div {...drop.handlers} className="relative flex h-full min-h-0 flex-col bg-white lg:rounded-[8px] lg:border lg:border-gray-200 lg:shadow-sm">
+      <div {...drop.handlers} data-paste-zone className="relative flex h-full min-h-0 flex-col bg-white lg:rounded-[8px] lg:border lg:border-gray-200 lg:shadow-sm">
         <FileDropOverlay
           show={drop.over}
           hint={`${channel?.kind === "sms" ? `Texts it to ${contactFirstName} from your business line` : `Lands in ${contactFirstName}'s client portal`} · photos stay in the thread for a week`}
@@ -628,7 +631,7 @@ export default function TeamThread({
               onClick={() => fileRef.current?.click()}
               disabled={channel?.kind === "none" || attaching}
               aria-label="Send a photo"
-              title={`${channel?.kind === "sms" ? "Send a photo or short video by text" : "Send a photo (lands in their client portal)"} — photos stay in the thread for a week`}
+              title={`${channel?.kind === "sms" ? "Send a photo or short video by text" : "Send a photo (lands in their client portal)"} — or paste a screenshot with Ctrl+V. Photos stay in the thread for a week`}
               className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full text-[color:var(--ds-primary)] transition-colors hover:bg-[color:var(--ds-primary-soft)] active:bg-[color:var(--ds-primary-soft)] disabled:opacity-40"
             >
               {attaching ? <Loader2 size={20} className="animate-spin" /> : <ImagePlus size={20} />}
