@@ -1,4 +1,5 @@
 import { reportError } from "@/lib/report-error";
+import { isTransientNetworkError, isTransientStatus } from "@/lib/transient-error";
 /**
  * Google Calendar push (tier 2 of calendar sync — design in
  * docs/plans/google-calendar-sync-2026-09-11.md).
@@ -287,26 +288,9 @@ export class GoogleApiError extends Error {
  * timed out, or Google answered 429 / 5xx. The next poll retries by itself.
  */
 export function isTransientGoogleError(err: unknown): boolean {
-  if (err instanceof GoogleApiError) return err.status === 429 || err.status >= 500;
-  if (!(err instanceof Error)) return false;
-  if (err.name === "TimeoutError" || err.name === "AbortError") return true;
-  if (err instanceof TypeError && /fetch failed/i.test(err.message)) return true;
-  const code = (err as { code?: unknown }).code ?? (err.cause as { code?: unknown } | undefined)?.code;
-  return typeof code === "string" && TRANSIENT_CODES.has(code);
+  if (err instanceof GoogleApiError) return isTransientStatus(err.status);
+  return isTransientNetworkError(err);
 }
-
-const TRANSIENT_CODES = new Set([
-  "ECONNRESET",
-  "ECONNREFUSED",
-  "ETIMEDOUT",
-  "ENOTFOUND",
-  "EAI_AGAIN",
-  "EPIPE",
-  "UND_ERR_SOCKET",
-  "UND_ERR_CONNECT_TIMEOUT",
-  "UND_ERR_HEADERS_TIMEOUT",
-  "UND_ERR_BODY_TIMEOUT",
-]);
 
 /** How long a connection may keep failing transiently before Sentry hears about it. */
 export const TRANSIENT_GRACE_MS = 60 * 60_000;

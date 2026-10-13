@@ -1,4 +1,5 @@
 import { reportError } from "@/lib/report-error";
+import { clearTransientMiss, transientMissSustained } from "@/lib/transient-error";
 /**
  * Business line — one local phone number per company that carries their
  * automated texts (lib/sms.ts) and a forwarded business phone line.
@@ -104,6 +105,7 @@ import {
   type TollFreeVerification,
   type TollFreeVerificationInput,
   isInsufficientFunds,
+  isTransientTelnyxError,
   failureText,
   type TelnyxBrand,
   updateBrand,
@@ -2097,7 +2099,9 @@ async function advance(
     // whatever advanced, keep the pending status, and let the caller decide.
     await prisma.messagingRegistration.update({ where: { id: reg.id }, data: patch });
     if (err instanceof LineError) throw err;
-    reportError(`[line] refresh failed for company ${reg.companyId}:`, err);
+    // A Telnyx hiccup is the sweep's to count (it pages once sustained); a verdict or a bug pages now.
+    if (isTransientTelnyxError(err)) console.warn(`[line] refresh hiccup for company ${reg.companyId}:`, err instanceof Error ? err.message : err);
+    else reportError(`[line] refresh failed for company ${reg.companyId}:`, err);
     const failure = await lineFailure("Telnyx check failed", err, `10DLC campaign step for "${reg.company.name}"`);
     // Not a verdict: the next sweep re-reads the same objects and moves on.
     failure.transient = true;
@@ -2130,8 +2134,8 @@ re-file costs the $15 review + $4.50, not another brand.</p>
 }
 
 /** Hourly: nudge every pending registration along. */
-export async function runLineRegistrationSweep(): Promise<{ checked: number; errors: number }> {
-  if (!lineEnabled()) return { checked: 0, errors: 0 };
+export async function runLineRegistrationSweep(): Promise<{ checked: number; skipped: number; errors: number }> {
+  if (!lineEnabled()) return { checked: 0, skipped: 0, errors: 0 };
   const stale = new Date(Date.now() - 50 * 60_000);
   const pending = await prisma.messagingRegistration.findMany({
     where: {
@@ -2149,15 +2153,26 @@ export async function runLineRegistrationSweep(): Promise<{ checked: number; err
     take: 100,
   });
   let errors = 0;
+  let skipped = 0;
   for (const { companyId } of pending) {
     try {
       await refreshRegistration(companyId);
+      clearTransientMiss(`registration:${companyId}`);
     } catch (err) {
+      // A Telnyx hiccup (their 5xx, a timeout) is retried next hour by
+      // design; it pages only once it has blocked the same row for
+      // TRANSIENT_MISS_LIMIT sweeps in a row.
+      const transient = (err instanceof LineError && err.transient) || isTransientTelnyxError(err);
+      if (transient && !transientMissSustained(`registration:${companyId}`, TRANSIENT_MISS_LIMIT)) {
+        skipped++;
+        console.warn(`[line] sweep: company ${companyId} — Telnyx hiccup, retrying next hour:`, err instanceof Error ? err.message : err);
+        continue;
+      }
       errors++;
       reportError(`[line] sweep: company ${companyId}`, err);
     }
   }
-  return { checked: pending.length, errors };
+  return { checked: pending.length, skipped, errors };
 }
 
 /**
@@ -2173,8 +2188,8 @@ export async function runLineRegistrationSweep(): Promise<{ checked: number; err
  * webhook (staging shares the Telnyx account — it would point production's
  * texts at staging). Two free GETs per line.
  */
-export async function runTextingRouteSweep(): Promise<{ checked: number; healed: number; errors: number }> {
-  const out = { checked: 0, healed: 0, errors: 0 };
+export async function runTextingRouteSweep(): Promise<{ checked: number; healed: number; skipped: number; errors: number }> {
+  const out = { checked: 0, healed: 0, skipped: 0, errors: 0 };
   if (!lineEnabled()) return out;
   const companies = await prisma.company.findMany({
     where: { lineNumber: { not: null } },
@@ -2185,18 +2200,51 @@ export async function runTextingRouteSweep(): Promise<{ checked: number; healed:
   for (const c of companies) {
     if (!isRealLineNumber(c.lineNumber)) continue;
     out.checked++;
+    const missKey = `texting-route:${c.id}`;
     try {
-      const fixes = await healTextingRoute(c, webhookUrl);
+      const fixes = await withTelnyxRetry(() => healTextingRoute(c, webhookUrl));
+      clearTransientMiss(missKey);
       if (fixes.length) {
         out.healed++;
         console.warn(`[line] texting route healed for "${c.name}" (${c.id}, ${c.lineNumber}): ${fixes.join("; ")}`);
       }
     } catch (err) {
+      // Telnyx down for a moment is not a broken route: the next hour
+      // re-checks (and heals) exactly the same way. It pages only once the
+      // same line has been unreachable for TRANSIENT_MISS_LIMIT hours in a
+      // row (Sentry d8c03bcb, 2026-10-13: one 503 paged for both live lines).
+      if (isTransientTelnyxError(err) && !transientMissSustained(missKey, TRANSIENT_MISS_LIMIT)) {
+        out.skipped++;
+        console.warn(`[line] texting route check skipped for ${c.id} (${c.lineNumber}) — Telnyx hiccup, retrying next hour:`, err instanceof Error ? err.message : err);
+        continue;
+      }
       out.errors++;
       reportError(`[line] texting route check failed for ${c.id} (${c.lineNumber}):`, err);
     }
   }
   return out;
+}
+
+/** Consecutive hourly misses on one row before a Telnyx hiccup is reported as sustained. */
+export const TRANSIENT_MISS_LIMIT = 3;
+
+/** How long the sweeps wait before the one in-tick retry of a transient Telnyx failure. */
+const TELNYX_RETRY_DELAY_MS = 3_000;
+
+/**
+ * Run a read-only Telnyx check once more after a short pause when the first
+ * try was a hiccup; anything else (a 4xx verdict, a bug) throws straight
+ * through. Only for idempotent work — the texting-route heal re-reads before
+ * every write, so a replay never applies a fix twice.
+ */
+export async function withTelnyxRetry<T>(fn: () => Promise<T>, delayMs: number = TELNYX_RETRY_DELAY_MS): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (!isTransientTelnyxError(err)) throw err;
+    await sleep(delayMs);
+    return fn();
+  }
 }
 
 /** What `runTextingRouteSweep` fixed for one line; [] when everything was already right. */

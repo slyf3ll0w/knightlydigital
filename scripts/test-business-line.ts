@@ -7,8 +7,9 @@
  * Needs a placeholder DATABASE_URL (the module imports Prisma, never queries).
  */
 import assert from "node:assert/strict";
-import { TelnyxError, isInsufficientFunds } from "@/lib/telnyx";
-import { needsOperatorReview } from "@/lib/business-line";
+import { TelnyxError, isInsufficientFunds, isTransientTelnyxError } from "@/lib/telnyx";
+import { needsOperatorReview, withTelnyxRetry, TRANSIENT_MISS_LIMIT } from "@/lib/business-line";
+import { clearTransientMiss, transientMissCount, transientMissSustained } from "@/lib/transient-error";
 import {
   REGISTRATION_CHECKLIST,
   einIssue,
@@ -650,4 +651,71 @@ console.log("test-business-line (number rights): all assertions passed");
   assert.match(lineMoveCheck(a, { ...b, lineNumber: "pending:b" }) ?? "", /in flight/);
   assert.match(lineMoveCheck(a, { ...b, messagingRegistration: { id: "x" } }) ?? "", /registration on file/);
   console.log("test-business-line (line move): all assertions passed");
+}
+
+// ── Telnyx hiccups: a 5xx / timeout / dropped socket is retried, not paged (Sentry d8c03bcb 2026-10-13) ──
+{
+  assert.ok(isTransientTelnyxError(new TelnyxError(503, "Unexpected error: An unexpected error occurred.")), "the 2026-10-13 503");
+  assert.ok(isTransientTelnyxError(new TelnyxError(502, "Bad gateway")));
+  assert.ok(isTransientTelnyxError(new TelnyxError(429, "Too many requests")));
+  assert.ok(isTransientTelnyxError(Object.assign(new Error("timed out"), { name: "TimeoutError" })), "AbortSignal.timeout");
+  assert.ok(isTransientTelnyxError(new TypeError("fetch failed")), "undici network drop");
+  assert.ok(isTransientTelnyxError(Object.assign(new Error("socket hang up"), { code: "ECONNRESET" })));
+  assert.ok(!isTransientTelnyxError(new TelnyxError(422, "Unprocessable entity: ein must be 9 digits")), "a 4xx is a verdict");
+  assert.ok(!isTransientTelnyxError(new TelnyxError(404, "Resource not found")));
+  assert.ok(!isTransientTelnyxError(new TelnyxError(0, "TELNYX_API_KEY is not set")), "misconfiguration is ours to fix now");
+  assert.ok(!isTransientTelnyxError(new Error("boom")), "a plain bug is not a hiccup");
+}
+
+// ── withTelnyxRetry: one more try after a hiccup, straight through otherwise ──
+void (async () => {
+  let calls = 0;
+  const flaky = async () => {
+    calls++;
+    if (calls === 1) throw new TelnyxError(503, "Unexpected error");
+    return "ok";
+  };
+  assert.equal(await withTelnyxRetry(flaky, 0), "ok");
+  assert.equal(calls, 2, "retried exactly once");
+
+  calls = 0;
+  await assert.rejects(
+    withTelnyxRetry(async () => {
+      calls++;
+      throw new TelnyxError(503, "still down");
+    }, 0),
+    (e: unknown) => e instanceof TelnyxError && e.status === 503
+  );
+  assert.equal(calls, 2, "a second hiccup is given up on — the next sweep retries");
+
+  calls = 0;
+  await assert.rejects(
+    withTelnyxRetry(async () => {
+      calls++;
+      throw new TelnyxError(422, "bad ein");
+    }, 0),
+    (e: unknown) => e instanceof TelnyxError && e.status === 422
+  );
+  assert.equal(calls, 1, "a verdict is never retried");
+  console.log("test-business-line (Telnyx retry): all assertions passed");
+})().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+
+// ── consecutive-miss counter: quiet until the Nth hour in a row, reset by a success ──
+{
+  const key = "test:line-1";
+  clearTransientMiss(key);
+  for (let i = 1; i < TRANSIENT_MISS_LIMIT; i++) {
+    assert.equal(transientMissSustained(key, TRANSIENT_MISS_LIMIT), false, `miss ${i} stays quiet`);
+  }
+  assert.equal(transientMissSustained(key, TRANSIENT_MISS_LIMIT), true, `miss ${TRANSIENT_MISS_LIMIT} pages`);
+  assert.equal(transientMissSustained(key, TRANSIENT_MISS_LIMIT), true, "and keeps paging while it lasts");
+  clearTransientMiss(key);
+  assert.equal(transientMissCount(key), 0);
+  assert.equal(transientMissSustained(key, TRANSIENT_MISS_LIMIT), false, "a good hour starts the count over");
+  assert.equal(transientMissSustained("test:line-2", TRANSIENT_MISS_LIMIT), false, "keys are independent");
+  clearTransientMiss(key);
+  clearTransientMiss("test:line-2");
 }

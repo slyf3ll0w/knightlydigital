@@ -1161,7 +1161,11 @@ endpoints, the GitHub `Uptime` workflow, and what to do when each goes red.
 Two conventions it relies on: server code calls **`reportError(...)`**
 (`lib/report-error.ts`, same arguments as `console.error`, also lands in
 Sentry — `onRequestError` only sees UNCAUGHT errors, so a caught-and-logged
-failure is otherwise invisible), and cron sweeps never take a fixed window
+failure is otherwise invisible — but a provider HICCUP is not a failure:
+`lib/transient-error.ts` classifies 5xx / 429 / timeouts / dropped sockets
+for Telnyx (`isTransientTelnyxError`) and Google (`isTransientGoogleError`),
+and a sweep warns on those, retries next tick, and pages only once the same
+row has missed `TRANSIENT_MISS_LIMIT` ticks in a row), and cron sweeps never take a fixed window
 of oldest-first rows and then skip the handled ones (filter them out in the
 query, or order newest-eligible first and page — see `freshSweepCandidates`).
 

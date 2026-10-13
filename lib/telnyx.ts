@@ -19,6 +19,7 @@
  */
 
 import { randomBytes } from "node:crypto";
+import { isTransientNetworkError, isTransientStatus } from "@/lib/transient-error";
 
 const API = "https://api.telnyx.com/v2";
 const TIMEOUT_MS = 20_000;
@@ -37,6 +38,18 @@ export class TelnyxError extends Error {
 /** Telnyx refused because the platform's prepaid balance is gone — never the tenant's fault. */
 export function isInsufficientFunds(err: unknown): boolean {
   return err instanceof TelnyxError && /insufficient (funds|balance|credit)|negative balance|out of funds/i.test(err.detail);
+}
+
+/**
+ * A Telnyx failure that says nothing about the request: their 5xx / 429, a
+ * timeout, or a dropped socket. Sweeps retry these on their own and should
+ * warn, not page, on the first miss (Sentry d8c03bcb, 2026-10-13: one Telnyx
+ * 503 — "Unexpected error: An unexpected error occurred." — paged twice).
+ * A 4xx is a verdict and never counts.
+ */
+export function isTransientTelnyxError(err: unknown): boolean {
+  if (err instanceof TelnyxError) return err.status > 0 && isTransientStatus(err.status);
+  return isTransientNetworkError(err);
 }
 
 export function telnyxConfigured(): boolean {
