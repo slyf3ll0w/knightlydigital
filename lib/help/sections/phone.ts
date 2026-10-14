@@ -389,8 +389,9 @@ export const textingSection: HelpSection = {
         {
           type: "list",
           items: [
-            "Press `Send a photo` (the picture button beside the message box) to send a photo or short video. Anything you've typed goes with it.",
-            "On a computer you can also drag files onto the conversation and drop them, or paste a screenshot or copied picture with **Ctrl+V** (**⌘V** on a Mac) — it sends straight away, with anything you've typed as its caption. Each file is sent as its own message, up to 10 at a time. Only photos and videos can be sent.",
+            "Press `Attach a photo` (the picture button beside the message box) and pick one or more photos or short videos. They wait as thumbnails above the box — nothing is sent yet.",
+            "On a computer you can also drag files onto the conversation and drop them, or paste a screenshot or copied picture with **Ctrl+V** (**⌘V** on a Mac). They land in the same spot.",
+            "Type under them if you like, then press **Send**. Each file goes out as its own message, in order, and your words go with the first one. The × on a thumbnail takes it back out. Up to 10 per send; only photos and videos can be sent.",
             "**With texting on**, it goes out as a picture text from your business number. Phone carriers limit those to about 1 MB, so photos are shrunk on your device first and videos have to be short. **Without texting**, it lands in their client portal.",
             "Photos and videos they text you show up in the thread too.",
             "Photos and videos stay in the thread for a week. After that the message shows that the photo has expired, so save anything you want to keep.",
