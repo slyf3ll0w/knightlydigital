@@ -78,7 +78,8 @@ test.describe("paste a picture into a conversation", () => {
       ).toBe(1);
 
       // Paste with nothing focused still sends (Slack-style page-level paste)
-      await page.locator("body").click({ position: { x: 5, y: 5 } });
+      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+      await expect.poll(() => page.evaluate(() => document.activeElement === document.body)).toBe(true);
       await pasteInto(page, "image");
       await expect(page.locator("[data-paste-zone] img")).toHaveCount(2, { timeout: 15_000 });
     } finally {
