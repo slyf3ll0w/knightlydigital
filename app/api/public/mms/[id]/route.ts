@@ -8,7 +8,7 @@ import { canText } from "@/lib/sms-consent";
  * pulls the body within minutes; a handset that a carrier points straight at
  * the source does so when the text lands. Nothing legitimate asks days later.
  */
-export const PUBLIC_MMS_WINDOW_MS = 48 * 3_600_000;
+const PUBLIC_MMS_WINDOW_MS = 48 * 3_600_000;
 
 /**
  * The body of an outbound MMS, for Telnyx to fetch while it sends (and for
