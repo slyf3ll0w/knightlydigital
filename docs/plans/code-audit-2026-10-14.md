@@ -346,4 +346,4 @@ Static reading only — nothing exercised on a device.
   (`BottomSheet` ignores backdrop taps for 350 ms after opening — the device check is still owed), 28
   (`/app` boundary). NOT done: 18a (browser Back / hardware back with unsaved changes — a history
   sentinel costs a double-Back after every saved form; left), 21d (in-process miss counter —
-  documented trade-off, left).
+  documented trade-off, left). Staging CI + e2e green (371768e3), **LIVE ON MAIN 371768e3 2026-10-14**.
