@@ -31,6 +31,24 @@ async function pasteInto(page: Page, kind: "image" | "text") {
   );
 }
 
+/** What's focused, what's open, and what sits on top at the viewport centre — for the CI log. */
+function pageState(page: Page) {
+  return page.evaluate(() => {
+    const tag = (el: Element | null) =>
+      el ? `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ""}.${String((el as HTMLElement).className).split(" ").slice(0, 4).join(".")}` : "none";
+    const top = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
+    const chain: string[] = [];
+    for (let el: Element | null = top; el && chain.length < 5; el = el.parentElement) chain.push(tag(el));
+    return {
+      active: tag(document.activeElement),
+      dialogs: Array.from(document.querySelectorAll("[role=dialog],[role=alertdialog],[aria-modal]")).map(tag),
+      topChain: chain,
+      attachDisabled: (document.querySelector('[aria-label="Send a photo"]') as HTMLButtonElement | null)?.disabled ?? null,
+      imgs: document.querySelectorAll("[data-paste-zone] img").length,
+    };
+  });
+}
+
 test.describe("paste a picture into a conversation", () => {
   let api: Api;
   let contactId: string;
@@ -82,7 +100,9 @@ test.describe("paste a picture into a conversation", () => {
       // Paste with nothing focused still sends (Slack-style page-level paste)
       await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
       await expect.poll(() => page.evaluate(() => document.activeElement === document.body)).toBe(true);
+      console.log("[chat-paste] before unfocused paste:", await pageState(page));
       await pasteInto(page, "image");
+      console.log("[chat-paste] after unfocused paste:", await pageState(page));
       await expect(page.locator("[data-paste-zone] img")).toHaveCount(2, { timeout: 15_000 });
     } finally {
       await context.close();
