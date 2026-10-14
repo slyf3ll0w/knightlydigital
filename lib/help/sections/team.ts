@@ -116,7 +116,7 @@ export const teamSection: HelpSection = {
       slug: "team-chat",
       title: "Team chat",
       summary: "One Everyone channel, plus direct messages and groups.",
-      keywords: ["chat", "team chat", "message team", "group", "dm", "direct message", "photo", "picture", "video", "attach", "drag and drop"],
+      keywords: ["chat", "team chat", "message team", "group", "dm", "direct message", "photo", "picture", "video", "attach", "drag and drop", "paste", "screenshot"],
       where: { label: "Team Chat", href: "/app/chat" },
       blocks: [
         {
@@ -131,7 +131,7 @@ export const teamSection: HelpSection = {
           type: "list",
           items: [
             "Press `Send a photo` (the picture button beside the message box) and pick one or more photos or videos. Anything you've typed goes with the first one as its caption.",
-            "On a computer you can also drag files onto the conversation and drop them. Each file is sent as its own message, up to 10 at a time. Only photos and videos can be sent.",
+            "On a computer you can also drag files onto the conversation and drop them, or paste a screenshot or copied picture with **Ctrl+V** (**⌘V** on a Mac) — it sends straight away, with anything you've typed as its caption. Each file is sent as its own message, up to 10 at a time. Only photos and videos can be sent.",
             "Files can be up to 25 MB. Photos are resized on your device before they're sent.",
             "Tap a photo to open it full size, or use its save button to keep a copy.",
             "Photos and videos stay in the chat for a week. After that the message shows that the photo has expired, so save anything you want to keep.",
