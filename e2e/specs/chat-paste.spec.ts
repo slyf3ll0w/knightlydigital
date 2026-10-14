@@ -54,6 +54,8 @@ test.describe("paste a picture into a conversation", () => {
     const page = await context.newPage();
     try {
       await page.goto(`${state.baseUrl}/app/messages/thread/${contactId}`);
+      // The page template re-mounts on entry, so two composers can overlap for a beat
+      await expect(page.getByPlaceholder(/^Message /)).toHaveCount(1, { timeout: 15_000 });
       const composer = page.getByPlaceholder(/^Message /);
       await expect(composer).toBeVisible();
 
