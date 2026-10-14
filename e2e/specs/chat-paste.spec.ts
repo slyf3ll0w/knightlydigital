@@ -60,9 +60,15 @@ test.describe("photos stage in the composer before they send", () => {
     const sendBtn = page.getByRole("button", { name: "Send", exact: true });
     try {
       await page.goto(`${state.baseUrl}/app/messages/thread/${contactId}`);
-      // The page template re-mounts on entry, so two composers can overlap for a beat
-      await expect(page.getByPlaceholder(/^Message /)).toHaveCount(1, { timeout: 15_000 });
-      const composer = page.getByPlaceholder(/^Message /);
+      // The page template re-mounts on entry, so two composers can overlap for
+      // a beat — and the count can read 1 between two such beats (strict-mode
+      // "resolved to 2 elements" on the very next step, 2026-10-14). Wait for
+      // it to HOLD at one.
+      const composers = page.getByPlaceholder(/^Message /);
+      await expect(composers).toHaveCount(1, { timeout: 15_000 });
+      await page.waitForTimeout(1_000);
+      await expect(composers).toHaveCount(1, { timeout: 15_000 });
+      const composer = composers.first();
       await expect(composer).toBeVisible();
 
       // Words paste as words — nothing attaches, nothing sends
