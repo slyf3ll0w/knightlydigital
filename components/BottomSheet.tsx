@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
+
+/** Backdrop taps inside this long after opening are the opening gesture's own echo, not a dismissal. */
+const BACKDROP_GRACE_MS = 350;
 
 /**
  * Generic phone bottom sheet — dimmed backdrop + glass panel sliding up on
@@ -27,9 +30,14 @@ export default function BottomSheet({
 }) {
   const [mounted, setMounted] = useState(open);
   const [shown, setShown] = useState(false);
+  // When the sheet opened: a press-and-hold opens it while the finger is
+  // still down, and the click some engines synthesise on release lands on
+  // the backdrop that now sits there — that click must not close it.
+  const openedAt = useRef(0);
 
   useEffect(() => {
     if (open) {
+      openedAt.current = Date.now();
       setMounted(true);
       // Two frames so the closed position paints before the transition starts
       const raf = requestAnimationFrame(() =>
@@ -60,7 +68,10 @@ export default function BottomSheet({
           shown ? "opacity-100" : "opacity-0"
         }`}
         style={{ touchAction: "none" }}
-        onClick={onClose}
+        onClick={() => {
+          if (Date.now() - openedAt.current < BACKDROP_GRACE_MS) return;
+          onClose();
+        }}
         aria-hidden
       />
       <div

@@ -1,5 +1,6 @@
 import { reportError } from "@/lib/report-error";
 import { clearTransientMiss, transientMissSustained } from "@/lib/transient-error";
+import { limit as rateLimit } from "@/lib/rate-limit";
 /**
  * Business line — one local phone number per company that carries their
  * automated texts (lib/sms.ts) and a forwarded business phone line.
@@ -2191,6 +2192,14 @@ export async function runLineRegistrationSweep(): Promise<{ checked: number; ski
 export async function runTextingRouteSweep(): Promise<{ checked: number; healed: number; skipped: number; errors: number }> {
   const out = { checked: 0, healed: 0, skipped: 0, errors: 0 };
   if (!lineEnabled()) return out;
+  // Staging shares the Telnyx account (TELNYX_10DLC_MOCK marks it): its copy
+  // of this sweep would move a production-owned number attached there for a
+  // test onto staging's profile — and production's sweep would move it back
+  // an hour later — or point a real profile's webhook at staging.
+  if (process.env.TELNYX_10DLC_MOCK === "1") {
+    console.info("[line] texting route sweep skipped: this environment shares the Telnyx account (TELNYX_10DLC_MOCK)");
+    return out;
+  }
   const companies = await prisma.company.findMany({
     where: { lineNumber: { not: null } },
     select: { id: true, name: true, lineNumber: true, lineMessagingProfileId: true },
@@ -2256,8 +2265,9 @@ async function healTextingRoute(
   const expectedProfile = c.lineMessagingProfileId ?? messagingProfileId();
   const record = await findOwnedNumber(c.lineNumber!);
   if (!record) {
-    // Not on the account any more (ported out, released in the portal): say so once an hour rather than guess.
-    reportError(`[line] texting route: ${c.lineNumber} is not on the Telnyx account (company ${c.id})`);
+    // Not on the account any more (ported out, released in the portal): a
+    // standing fact, not news every hour — once a day is a reminder, not noise.
+    if (await onceADay(`line-gone:${c.id}`)) reportError(`[line] texting route: ${c.lineNumber} is not on the Telnyx account (company ${c.id})`);
     return fixes;
   }
   if (record.messaging_profile_id !== expectedProfile) {
@@ -2266,15 +2276,35 @@ async function healTextingRoute(
   }
   // Only the line's OWN profile is ours to repoint.
   if (c.lineMessagingProfileId) {
-    const profile = await getMessagingProfile(c.lineMessagingProfileId);
+    let profile: Awaited<ReturnType<typeof getMessagingProfile>> | null = null;
+    try {
+      profile = await getMessagingProfile(c.lineMessagingProfileId);
+    } catch (err) {
+      // getMessagingProfile throws Telnyx's 404 rather than answering null
+      if (!(err instanceof TelnyxError && err.status === 404)) throw err;
+    }
     if (!profile) {
-      reportError(`[line] texting route: messaging profile ${c.lineMessagingProfileId} is gone at Telnyx (company ${c.id})`);
-    } else if (profile.webhook_url !== webhookUrl || profile.enabled === false) {
+      if (await onceADay(`profile-gone:${c.id}`)) reportError(`[line] texting route: messaging profile ${c.lineMessagingProfileId} is gone at Telnyx (company ${c.id})`);
+    } else if (profile.enabled === false) {
+      // Somebody switched the profile off in the portal (a pause on purpose) —
+      // the sweep points webhooks, it doesn't overrule a human.
+      console.warn(`[line] texting route: profile ${profile.id} is disabled at Telnyx (company ${c.id}) — left as is`);
+    } else if (profile.webhook_url !== webhookUrl) {
       await setMessagingProfileWebhook(profile.id, webhookUrl);
-      fixes.push(`profile webhook ${profile.enabled === false ? "(was disabled) " : ""}${profile.webhook_url ?? "unset"} → ${webhookUrl}`);
+      fixes.push(`profile webhook ${profile.webhook_url ?? "unset"} → ${webhookUrl}`);
     }
   }
   return fixes;
+}
+
+/** True once per key per day (the rate-limit store, so it holds across deploys) — for a standing fault that should not page hourly. */
+async function onceADay(key: string): Promise<boolean> {
+  try {
+    const r = await rateLimit(`ops-once:${key}`, 1, 24 * 3_600_000);
+    return r.ok;
+  } catch {
+    return true;
+  }
 }
 
 /** The 10DLC status webhook doesn't need trusting: any ping just triggers a re-read of that brand/campaign. */
@@ -2521,7 +2551,25 @@ export async function moveLine(fromCompanyId: string, target: string): Promise<{
     }),
     prisma.messagingRegistration.updateMany({ where: { companyId: from.id }, data: { companyId: to.id } }),
   ]);
-  console.warn(`[line] moved ${number} from "${from.name}" (${from.id}) to "${to.name}" (${to.id})`);
+  // STOP travels with the number, not the company: a customer who opted out
+  // of texts from this line must stay opted out when the target company
+  // texts them from it. Carried onto the target's contacts with the same
+  // number; a number the target doesn't have yet gets its opt-out from the
+  // keyword profile's own suppression at Telnyx.
+  const optedOut = await prisma.contact.findMany({
+    where: { companyId: from.id, smsOptOut: true, phoneDigits: { not: null } },
+    select: { phoneDigits: true },
+  });
+  const digits = [...new Set(optedOut.map((c) => c.phoneDigits!).filter(Boolean))];
+  let carried = 0;
+  if (digits.length) {
+    const r = await prisma.contact.updateMany({
+      where: { companyId: to.id, phoneDigits: { in: digits }, smsOptOut: false },
+      data: { smsOptOut: true, smsConsentNote: `Texted STOP to ${number} before the line moved here` },
+    });
+    carried = r.count;
+  }
+  console.warn(`[line] moved ${number} from "${from.name}" (${from.id}) to "${to.name}" (${to.id}); ${digits.length} opt-outs, ${carried} carried onto matching contacts`);
   return { number, to: { id: to.id, name: to.name } };
 }
 

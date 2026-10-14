@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, MonitorSmartphone } from "lucide-react";
-import { SIGN_OUT_FAILED, useAppSignOut } from "@/lib/sign-out";
+import { SIGN_OUT_FAILED, presenceGate, signOutInFlight, useAppSignOut } from "@/lib/sign-out";
 import { useSoftphone } from "@/lib/softphone-client";
 
 /**
@@ -69,16 +69,20 @@ export default function PresenceBeacon() {
     if ((!evenHidden && document.visibilityState !== "visible") || !navigator.onLine) return;
     const now = Date.now();
     if (!takeover && (now - last.current < floorMs || inFlight.current)) return;
+    // Signing out: the release is the only presence write that may go now.
+    if (signOutInFlight()) return;
     last.current = now;
     inFlight.current = true;
     const probe = !takeover && walled.current;
     try {
-      const res = await fetch("/api/app/presence", {
+      const req = fetch("/api/app/presence", {
         method: "POST",
         keepalive: true,
         headers: { "content-type": "application/json" },
         body: JSON.stringify(takeover ? { takeover: true } : probe ? { probe: true } : {}),
       });
+      presenceGate.pending = req;
+      const res = await req;
       if (!res.ok) return;
       const data = (await res.json().catch(() => null)) as { ok?: boolean; busy?: boolean; device?: string } | null;
       if (data?.busy) {
@@ -89,6 +93,7 @@ export default function PresenceBeacon() {
       // offline / aborted — the next beat tries again
     } finally {
       inFlight.current = false;
+      presenceGate.pending = null;
     }
   }, []);
 

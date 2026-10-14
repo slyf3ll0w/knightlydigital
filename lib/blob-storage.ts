@@ -29,6 +29,8 @@ import { AwsClient } from "aws4fetch";
  */
 
 const REGION = "auto"; // R2 ignores region but SigV4 requires one
+/** An upload that hasn't finished in this long is stuck, not slow (a 25 MB clip on a phone uplink is well inside it). */
+const PUT_TIMEOUT_MS = 60_000;
 
 export interface StoredObject {
   key: string;
@@ -92,6 +94,9 @@ export async function putObject(
     method: "PUT",
     body: bytes,
     headers: { "Content-Type": contentType, "Content-Length": String(bytes.byteLength) },
+    // A stalled upload used to hold the sender's "Sending…" bubble for as long
+    // as undici's own 5-minute cap, then the retry sent the picture twice.
+    signal: AbortSignal.timeout(PUT_TIMEOUT_MS),
   });
   if (!res.ok) {
     throw new Error(`R2 PUT ${key} failed: ${res.status} ${(await res.text()).slice(0, 300)}`);

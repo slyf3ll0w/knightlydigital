@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager, viaContactScope } from "@/lib/permissions";
 import { fireAutomations } from "@/lib/automations-server";
+import { collectContactMediaPurge } from "@/lib/message-media";
 
 /**
  * GET — one request, for prefilling convert flows (the new-job form is a
@@ -107,6 +108,9 @@ export async function DELETE(
     );
   }
 
+  // The lead's photos in storage, should the lead go with the request below
+  // (rows cascade, objects don't).
+  const purgeMedia = await collectContactMediaPurge(request.contactId);
   const leadDeleted = await prisma.$transaction(async (tx) => {
     // A tentative (unapproved) self-booking is meaningless without its
     // request — delete it with the spam so it stops blocking the slot
@@ -143,6 +147,7 @@ export async function DELETE(
     await tx.contact.delete({ where: { id: contact.id } }); // notes cascade
     return true;
   });
+  if (leadDeleted) void purgeMedia();
 
   return NextResponse.json({ success: true, leadDeleted });
 }

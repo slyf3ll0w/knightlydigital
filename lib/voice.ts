@@ -864,9 +864,11 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
         hangupCause: call.hangupCause ?? cause,
         endedAt: call.endedAt ?? now,
         durationSec: call.durationSec ?? talkSeconds(call.answeredAt, now),
-        ...(endedBy ? { endedBy } : {}),
       },
     });
+    // First verdict wins: the agent leg's webhook (or cancelCall) may have
+    // said who hung up in the milliseconds since this row was read.
+    if (endedBy) await prisma.call.updateMany({ where: { id: call.id, endedBy: null }, data: { endedBy } }).catch(() => {});
     fireCallStatus(call, status);
     await advanceLeadForCall(call, status, call.direction);
     if (call.direction === "INBOUND") {
@@ -1329,6 +1331,11 @@ export async function cancelCall(companyId: string, callId: string): Promise<{ s
   const call = await prisma.call.findFirst({ where: { id: callId, companyId } });
   if (!call) throw new VoiceError("Call not found.", 404);
   if (isTerminalStatus(call.status)) return { status: call.status };
+  // Our side is ending a connected call: say so before the legs drop, or the
+  // agent leg's hangup webhook reads the platform's own hangup as "they hung up".
+  if (call.status === "IN_PROGRESS") {
+    await prisma.call.updateMany({ where: { id: call.id, endedBy: null }, data: { endedBy: "us" } }).catch(() => {});
+  }
   if (voiceEnabled()) {
     for (const ccid of [call.agentCallId, call.telnyxCallId]) {
       if (ccid && !ccid.startsWith("pending:")) await callAction(ccid, "hangup").catch((e) => reportError("[voice] cancel hangup failed:", e));

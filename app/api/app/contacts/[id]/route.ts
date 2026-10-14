@@ -6,6 +6,7 @@ import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
 import { enterPipeline, autoAdvance } from "@/lib/pipeline";
 import { fireAutomations } from "@/lib/automations-server";
 import { linkCallsToContact } from "@/lib/voice";
+import { collectContactMediaPurge } from "@/lib/message-media";
 import { pauseSubscriptionsForContact } from "@/lib/subscriptions";
 import { queueQuickBooksInvoiceUnwind } from "@/lib/quickbooks";
 
@@ -304,6 +305,9 @@ export async function DELETE(
   // belonging to OTHER clients can reference this client's requests/jobs
   // (a request converted into someone else's quote/job) — detach those
   // first or the FK check kills the whole wipe.
+  // Their photos in storage: the rows cascade with the messages, the objects
+  // don't — collect the keys now, drop them once the delete committed.
+  const purgeMedia = await collectContactMediaPurge(id);
   try {
     await prisma.$transaction(async (tx) => {
       const [requests, jobs] = await Promise.all([
@@ -362,6 +366,7 @@ export async function DELETE(
       { status: 500 }
     );
   }
+  void purgeMedia();
 
   // Take their billing history out of QuickBooks too, invoice by invoice so
   // each one's payments come off first. The customer record itself stays: QBO

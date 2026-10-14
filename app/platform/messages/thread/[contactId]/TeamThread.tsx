@@ -13,6 +13,7 @@ import { useFileDrop } from "@/lib/use-file-drop";
 import { usePasteFiles } from "@/lib/use-paste-files";
 import FileDropOverlay from "@/components/FileDropOverlay";
 import PendingAttachments, { mergePendingFiles } from "@/components/PendingAttachments";
+import { COMPOSER_ACCEPT } from "@/lib/media-types";
 import MessageMedia, { type ThreadMedia } from "@/components/MessageMedia";
 
 /**
@@ -374,7 +375,7 @@ export default function TeamThread({
     }
     if (upload.size > 1_000_000) {
       setError(file.type.startsWith("video/") ? "Videos have to be under 1 MB to text — trim it or send a photo." : "That file is too big to text.");
-      return;
+      return "skipped";
     }
     const previewUrl = URL.createObjectURL(upload);
     const temp: ThreadMessage = {
@@ -436,7 +437,15 @@ export default function TeamThread({
     setDraft("");
     requestAnimationFrame(autoGrow);
     try {
-      for (const [i, file] of files.entries()) await postMedia(file, i === 0 ? body : "");
+      // The words ride on the first file that actually goes; a file skipped
+      // for size must not take the caption with it, and if nothing went the
+      // words come back to the box.
+      let caption = body;
+      for (const file of files) {
+        const outcome = await postMedia(file, caption);
+        if (outcome !== "skipped") caption = "";
+      }
+      if (caption) setDraft(caption);
     } finally {
       setAttaching(false);
     }
@@ -646,7 +655,7 @@ export default function TeamThread({
             <input
               ref={fileRef}
               type="file"
-              accept="image/*,video/mp4,video/quicktime,video/3gpp"
+              accept={COMPOSER_ACCEPT}
               multiple
               className="hidden"
               onChange={onPickFiles}

@@ -70,7 +70,9 @@ export async function POST(req: NextRequest) {
   }
   if (sameNumber.length > 0) {
     return NextResponse.json(
-      { error: "That number already belongs to a contact assigned to someone else — ask a manager to reassign them." },
+      // Also an unassigned saved client (a CSV import, an owner's entry): not
+      // in this person's leads either way, so the ask is the same.
+      { error: "That number belongs to a client who isn't in your leads — ask a manager to assign them to you." },
       { status: 409 }
     );
   }

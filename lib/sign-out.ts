@@ -4,6 +4,21 @@ import { useCallback, useState } from "react";
 import { signOut } from "next-auth/react";
 import { rememberVoipToken, rememberedVoipToken } from "@/lib/native-voip";
 import { attemptSignOut } from "@/lib/sign-out-core";
+import { confirmLeave, hasLeaveGuards } from "@/lib/nav-guard";
+
+/**
+ * The presence beat that may be in flight right now (components/
+ * PresenceBeacon.tsx sets it). Sign-out waits for it before letting go of the
+ * one-device lock: the capture-phase touch beat fires BEFORE the Sign out
+ * click handler, and a beat landing after the release re-stamped the device
+ * that had just signed out, walling the next one for the hold window.
+ */
+export const presenceGate: { pending: Promise<unknown> | null } = { pending: null };
+
+/** True while a sign-out is running — the beacon sends nothing then. */
+export function signOutInFlight(): boolean {
+  return inFlight !== null;
+}
 
 /** What to tell the person when the sign-out request never got through. */
 export const SIGN_OUT_FAILED = "Couldn't reach WorkBench to sign you out. Check your connection and try again.";
@@ -28,7 +43,11 @@ let inFlight: Promise<boolean> | null = null;
  * show a call nobody can answer). It has to go before the session does —
  * the DELETE needs it — so a failed sign-out puts the token back.
  */
-export function appSignOut(callbackUrl = "/app/login"): Promise<boolean> {
+export async function appSignOut(callbackUrl = "/app/login"): Promise<boolean> {
+  // Unsaved changes on the page: ask now, while the session still exists —
+  // the browser's own prompt used to appear after sign-out had already
+  // happened, and "Stay" left a dead page.
+  if (!inFlight && hasLeaveGuards() && !(await confirmLeave())) return false;
   // A second tap while the first is in flight joins it rather than starting
   // another request against a page that is about to navigate.
   if (!inFlight) {
@@ -61,6 +80,8 @@ async function run(callbackUrl: string): Promise<boolean> {
   // Let go of the one-device lock first (lib/active-device.ts): the next
   // device would otherwise be told "in use on …" for the whole hold window
   // after nobody is signed in here. Best effort; the window expires anyway.
+  // After any beat already on the wire, so the release is the last word.
+  if (presenceGate.pending) await presenceGate.pending.catch(() => {});
   await fetch("/api/app/presence", {
     method: "POST",
     keepalive: true,

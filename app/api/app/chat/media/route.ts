@@ -5,7 +5,7 @@ import { getActor } from "@/lib/permissions";
 import { limit } from "@/lib/rate-limit";
 import { notifyUsers } from "@/lib/push";
 import { resolveChannel, markChannelSeen, MESSAGE_SELECT, serializeMessage } from "@/lib/chat";
-import { CHAT_MAX_BYTES, CHAT_TYPES, mediaNoun, storeMessageMedia } from "@/lib/message-media";
+import { CHAT_MAX_BYTES, CHAT_TYPES, MediaOwnerGoneError, mediaNoun, storeMessageMedia } from "@/lib/message-media";
 
 /**
  * POST multipart — a photo (or clip) in team chat, with optional words: one
@@ -52,6 +52,10 @@ export async function POST(req: NextRequest) {
   try {
     await storeMessageMedia({ companyId: actor.companyId, teamMessageId: created.id, bytes, contentType });
   } catch (err) {
+    if (err instanceof MediaOwnerGoneError) {
+      // The chat was deleted while the photo uploaded: nothing to retry into.
+      return NextResponse.json({ error: "That chat isn't available any more." }, { status: 410 });
+    }
     reportError("[chat] media store failed:", err);
     await prisma.teamMessage.delete({ where: { id: created.id } }).catch(() => {});
     return NextResponse.json({ error: "Couldn't save the photo. Try again." }, { status: 500 });

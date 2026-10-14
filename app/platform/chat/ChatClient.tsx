@@ -29,6 +29,7 @@ import MenuPopover from "@/components/MenuPopover";
 import MessageMedia, { type ThreadMedia } from "@/components/MessageMedia";
 import FileDropOverlay from "@/components/FileDropOverlay";
 import PendingAttachments, { mergePendingFiles } from "@/components/PendingAttachments";
+import { COMPOSER_ACCEPT } from "@/lib/media-types";
 import { resizeForMms } from "@/lib/resize-image";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { usePasteFiles } from "@/lib/use-paste-files";
@@ -444,7 +445,7 @@ export default function ChatClient({
     }
     if (upload.size > CHAT_MAX_BYTES) {
       setError("That file is too big — keep it under 25 MB.");
-      return;
+      return "skipped";
     }
     const temp: Message = {
       id: `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -516,7 +517,15 @@ export default function ChatClient({
     setDraft("");
     requestAnimationFrame(autoGrow);
     try {
-      for (const [i, file] of files.entries()) await postMedia(file, i === 0 ? body : "", channelId);
+      // The words ride on the first file that actually goes; a file skipped
+      // for size must not take the caption with it, and if nothing went the
+      // words come back to the box.
+      let caption = body;
+      for (const file of files) {
+        const outcome = await postMedia(file, caption, channelId);
+        if (outcome !== "skipped") caption = "";
+      }
+      if (caption) setDraft(caption);
     } finally {
       setAttaching(false);
     }
@@ -1060,7 +1069,7 @@ export default function ChatClient({
           <input
             ref={fileRef}
             type="file"
-            accept="image/*,video/*"
+            accept={COMPOSER_ACCEPT}
             multiple
             className="hidden"
             onChange={onPickFiles}

@@ -19,26 +19,16 @@
  * Telnyx delivers it, up to INBOUND_MAX_BYTES.
  */
 
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { MMS_TYPE_LIST } from "@/lib/media-types";
 import { isBlobStorageConfigured, putObject, signedGetUrl, deleteObject } from "@/lib/blob-storage";
 import { reportError } from "@/lib/report-error";
 
 /** What a text message can carry (Telnyx: image/jpeg, image/png, image/gif, video/mp4, video/3gpp, audio, vCard). */
-export const MMS_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "video/mp4",
-  "video/3gpp",
-  "video/quicktime",
-  "audio/mpeg",
-  "audio/mp4",
-  "audio/amr",
-  "text/vcard",
-  "text/x-vcard",
-]);
+export const MMS_TYPES = new Set<string>(MMS_TYPE_LIST);
 /** Outbound: what we hand Telnyx (carriers reject bigger bodies; pictures are downsized client-side first). */
 export const MMS_MAX_BYTES = 1_000_000;
 /** Inbound: what we keep of what Telnyx fetched for us. */
@@ -122,6 +112,37 @@ export function mediaPreview(body: string, media: Array<{ contentType: string }>
   return `${icon} ${media.length} ${noun === "photo" ? "photos" : noun === "video" ? "videos" : "attachments"}`;
 }
 
+/** The message an attachment was for was deleted while its bytes were uploading (the thread, its contact or its channel went away). */
+export class MediaOwnerGoneError extends Error {
+  constructor() {
+    super("The message this was for no longer exists.");
+    this.name = "MediaOwnerGoneError";
+  }
+}
+
+/** Prisma's word for "the row this points at is gone": a foreign-key failure on create, or a vanished row on update. */
+function isOwnerGone(err: unknown): boolean {
+  return err instanceof Prisma.PrismaClientKnownRequestError && (err.code === "P2003" || err.code === "P2025");
+}
+
+/**
+ * Before a contact (and, by cascade, their messages and media rows) is
+ * deleted: the storage keys behind their pictures, so the objects can be
+ * dropped once the rows are — a cascade removes rows, never R2 objects, and
+ * a "delete my data" ask has to reach the bucket too. Call the returned
+ * function after the delete committed.
+ */
+export async function collectContactMediaPurge(contactId: string): Promise<() => Promise<void>> {
+  const rows = await prisma.portalMessageMedia.findMany({
+    where: { message: { contactId }, storageKey: { not: null } },
+    select: { storageKey: true },
+  });
+  const keys = rows.map((r) => r.storageKey!).filter(Boolean);
+  return async () => {
+    for (const key of keys) await deleteObject(key).catch((err) => reportError("[message-media] purge after contact delete failed:", key, err));
+  };
+}
+
 /** Store one attachment under a client-thread message (messageId) or a team chat message (teamMessageId); returns the row. R2 when configured, else Postgres bytes. */
 export async function storeMessageMedia(args: {
   companyId: string;
@@ -132,29 +153,45 @@ export async function storeMessageMedia(args: {
 }): Promise<MediaRow> {
   const ownerId = args.messageId ?? args.teamMessageId;
   if (!ownerId) throw new Error("storeMessageMedia needs a message");
-  const row = await prisma.portalMessageMedia.create({
-    data: {
-      messageId: args.messageId ?? null,
-      teamMessageId: args.teamMessageId ?? null,
-      companyId: args.companyId,
-      contentType: args.contentType,
-      sizeBytes: args.bytes.byteLength,
-      data: isBlobStorageConfigured() ? null : args.bytes,
-    },
-    select: { id: true, contentType: true, sizeBytes: true },
-  });
+  // The bytes land BEFORE the row exists: the message is already in every
+  // reader's poll, and a row with nothing behind it answered 404 to their
+  // <img> for the length of the upload — a broken bubble the browser never
+  // retried. The id is minted here so the object's key can carry it.
+  const id = randomUUID();
+  let storageKey: string | null = null;
+  let data: Buffer | null = args.bytes;
   if (isBlobStorageConfigured()) {
-    const key = messageMediaKey(args.companyId, ownerId, row.id, args.contentType);
+    const key = messageMediaKey(args.companyId, ownerId, id, args.contentType);
     try {
       await putObject(key, args.bytes, args.contentType);
-      await prisma.portalMessageMedia.update({ where: { id: row.id }, data: { storageKey: key } });
+      storageKey = key;
+      data = null;
     } catch (err) {
       // R2 down: keep the bytes in the row rather than lose the picture.
       reportError("[message-media] R2 put failed, keeping bytes in Postgres:", err);
-      await prisma.portalMessageMedia.update({ where: { id: row.id }, data: { data: args.bytes } });
     }
   }
-  return row;
+  try {
+    return await prisma.portalMessageMedia.create({
+      data: {
+        id,
+        messageId: args.messageId ?? null,
+        teamMessageId: args.teamMessageId ?? null,
+        companyId: args.companyId,
+        contentType: args.contentType,
+        sizeBytes: args.bytes.byteLength,
+        data,
+        storageKey,
+      },
+      select: { id: true, contentType: true, sizeBytes: true },
+    });
+  } catch (err) {
+    // The message was deleted while the bytes were uploading (the thread or
+    // its contact went away): nothing to hang the row on, so the object goes too.
+    if (storageKey) await deleteObject(storageKey).catch(() => {});
+    if (isOwnerGone(err)) throw new MediaOwnerGoneError();
+    throw err;
+  }
 }
 
 /** Pull Telnyx's copy of an inbound MMS attachment; null when it's too big, the wrong kind, or gone. */
@@ -219,7 +256,8 @@ export async function mediaResponse(
     headers: {
       "Content-Type": row.contentType,
       "Content-Length": String(bytes.byteLength),
-      "Cache-Control": cache === "public" ? "public, max-age=3600" : "private, max-age=3600",
+      // The public door is for a carrier's one fetch, not a cache's many
+      "Cache-Control": cache === "public" ? "private, max-age=600" : "private, max-age=3600",
       "X-Content-Type-Options": "nosniff",
       ...disposition,
     },

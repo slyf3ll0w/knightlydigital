@@ -55,7 +55,7 @@ export async function loadGetStarted(companyId: string): Promise<GetStarted | nu
     prisma.contact.count({ where: { companyId, placeholder: false } }),
     prisma.quote.count({ where: { companyId, status: { not: "DRAFT" } } }),
     prisma.job.count({ where: { companyId } }),
-    prisma.user.count({ where: { companyId } }),
+    prisma.user.count({ where: { companyId, isActive: true } }),
     // Companies older than the mobileAppSeenAt stamp: someone has signed in
     // from the iPhone/Android app, or turned on push there.
     company.mobileAppSeenAt
@@ -144,7 +144,12 @@ export async function loadGetStarted(companyId: string): Promise<GetStarted | nu
 
   const core = items.filter((i) => !i.optional);
   const done = core.filter((i) => i.done).length;
-  return { items, done, total: core.length, complete: done === core.length };
+  const complete = done === core.length;
+  // Finished is finished: every tick is a live count, so deleting the only
+  // client later would otherwise bring the card back to Home. The same stamp
+  // Hide writes; Settings → Company → Show on Home clears it.
+  if (complete) await prisma.company.updateMany({ where: { id: companyId, getStartedHiddenAt: null }, data: { getStartedHiddenAt: new Date() } });
+  return { items, done, total: core.length, complete };
 }
 
 /** First beat from a native-app install: the company has the app. Once. */

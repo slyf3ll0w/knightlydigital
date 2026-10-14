@@ -2,12 +2,18 @@
 
 import { useEffect, useMemo } from "react";
 import { Film, X } from "lucide-react";
+import { isComposerFile } from "@/lib/media-types";
 
 /** How many photos or clips one send can carry (each goes out as its own message). */
 export const MAX_PENDING_FILES = 10;
 
+/**
+ * The server's own list (lib/media-types.ts), not "anything image/* or
+ * video/*": a .webm screen recording or a .bmp used to stage with a
+ * thumbnail and then fail at Send with "Photos and videos can be sent".
+ */
 export function isSendableFile(f: File) {
-  return f.type.startsWith("image/") || f.type.startsWith("video/");
+  return isComposerFile(f.type);
 }
 
 /**

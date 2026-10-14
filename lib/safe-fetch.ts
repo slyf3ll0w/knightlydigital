@@ -43,7 +43,7 @@ function friendlyAuthError<T>(
 ): (T & { error?: string }) | null {
   const err = data?.error;
   if (status === 401 && (!err || err === "Unauthorized")) {
-    if (typeof window !== "undefined" && window.location.pathname.startsWith("/app")) {
+    if (typeof window !== "undefined" && /^\/app(\/|$)/.test(window.location.pathname)) {
       // Give the dialog a beat to show, then take them to sign in.
       setTimeout(() => window.location.assign("/app/login"), 1500);
     }

@@ -124,8 +124,11 @@ export async function expireApprovalBookings(now: Date): Promise<{ expired: numb
       await notifyUsers([...targets], {
         title: "Booking expired unanswered",
         body: `${appt.contact.firstName}'s ${appt.request.title} (${windowLabel}) was never accepted — the time was released and they were told.`,
-        url: `/app/requests/${appt.request.id}`,
-        tag: `request-${appt.request.id}`,
+        // The appointment, not the request: the bell hides request notices
+        // once the request is no longer open, and this one was just archived —
+        // the notice never showed. An appointment notice is news and stays.
+        url: `/app/appointments/${appt.id}`,
+        tag: `appointment-${appt.id}`,
       });
     } catch (err) {
       reportError("[approval-bookings] expire failed for appointment", appt.id, err);

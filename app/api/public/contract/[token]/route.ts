@@ -53,10 +53,18 @@ export async function POST(
     null;
 
   const signedAt = new Date();
-  await prisma.contract.update({
-    where: { id: contract.id },
+  // Claim, don't assume: a void (or another signature) landing between the
+  // read above and this write must win, not be overwritten by SIGNED.
+  const claimed = await prisma.contract.updateMany({
+    where: { id: contract.id, status: { notIn: ["SIGNED", "VOID"] } },
     data: { status: "SIGNED", signatureName, signedAt, signedFromIp: ip },
   });
+  if (claimed.count === 0) {
+    const now = await prisma.contract.findUnique({ where: { id: contract.id }, select: { status: true } });
+    return now?.status === "SIGNED"
+      ? NextResponse.json({ error: "This contract has already been signed." }, { status: 400 })
+      : NextResponse.json({ error: "This contract is no longer available." }, { status: 404 });
+  }
   fireAutomations(contract.companyId, "contract.signed", contract.id);
 
   // Copy to the signer (their record of the agreement) + heads-up to the company

@@ -46,6 +46,9 @@ export function useUnsavedWarning(dirty: boolean, options: UnsavedWarningOptions
       if (!anchor) return;
       const href = anchor.getAttribute("href") ?? "";
       if (anchor.target === "_blank" || href.startsWith("#")) return;
+      // A call, text or email link opens another app and leaves the page as
+      // it is — nothing to lose, and router.push("tel:…") would not dial.
+      if (/^(tel|sms|mailto|facetime|maps):/i.test(href)) return;
       e.preventDefault();
       e.stopPropagation();
       void ask().then((ok) => {
@@ -61,7 +64,14 @@ export function useUnsavedWarning(dirty: boolean, options: UnsavedWarningOptions
     };
     if (beforeUnload !== false) window.addEventListener("beforeunload", onBeforeUnload);
     document.addEventListener("click", onClickCapture, true);
-    const unregister = registerLeaveGuard(ask);
+    // A confirmed in-app leave (AppShell's back arrow, a phone sheet, Sign
+    // out) is the one question; the browser's own prompt must not ask it
+    // again when that leave turns out to be a full navigation.
+    const unregister = registerLeaveGuard(async () => {
+      const ok = await ask();
+      if (ok) window.removeEventListener("beforeunload", onBeforeUnload);
+      return ok;
+    });
     return () => {
       window.removeEventListener("beforeunload", onBeforeUnload);
       document.removeEventListener("click", onClickCapture, true);

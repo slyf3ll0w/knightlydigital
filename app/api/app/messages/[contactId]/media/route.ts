@@ -5,7 +5,7 @@ import { getActor, canSell, contactScope } from "@/lib/permissions";
 import { notifyClientOfReply, portalThreadContactInclude } from "@/lib/portal-messages";
 import { autoAdvance } from "@/lib/pipeline";
 import { fireAutomations } from "@/lib/automations-server";
-import { MMS_MAX_BYTES, MMS_TYPES, storeMessageMedia, threadMedia } from "@/lib/message-media";
+import { MMS_MAX_BYTES, MMS_TYPES, MediaOwnerGoneError, storeMessageMedia, threadMedia } from "@/lib/message-media";
 
 /**
  * POST multipart — a picture (or clip) from the team, with optional words:
@@ -56,6 +56,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ con
   try {
     media = await storeMessageMedia({ companyId: actor.companyId, messageId: message.id, bytes, contentType });
   } catch (err) {
+    if (err instanceof MediaOwnerGoneError) {
+      // The client (and their thread) was deleted while the photo uploaded.
+      return NextResponse.json({ error: "That conversation isn't available any more." }, { status: 410 });
+    }
     reportError("[messages] media store failed:", err);
     await prisma.portalMessage.delete({ where: { id: message.id } }).catch(() => {});
     return NextResponse.json({ error: "Couldn't save the photo. Try again." }, { status: 500 });

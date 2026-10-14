@@ -321,3 +321,29 @@ Static reading only — nothing exercised on a device.
   poll ends the card on a terminal row while the socket is down; `telnyx.ready` clears
   `restartAfterCall`), 9 (`withLineKeys` at hydration), 10 (`matchIndustry` never alias-matches
   an "Other: …" answer; test cases). Baseline after: tsc clean, unit suite green.
+  Staging CI + e2e green (f0a6f17f; the chat-paste spec now waits for the single composer to hold),
+  **LIVE ON MAIN f0a6f17f 2026-10-14**. Open from Tier 1: 5f (Siri complete-job on an
+  already-completed job — Intents.swift).
+- **2026-10-14, Help Center (branch `audit-tier2`):** Siri guide (account.ts) — texts for techs / untextable
+  clients go from the phone, "next job" = Up next, sign-in FAQ no longer blames the device wall;
+  phone.ts unknown-number guide — short-code threads are read-only.
+- **2026-10-14, Tier 2 (same branch):** 11 (`/api/public/mms/[id]`: OUTBOUND + `canText` + 48 h window,
+  `private` cache), 12 (`storeMessageMedia` puts the bytes BEFORE creating the row, id minted up front;
+  `MediaOwnerGoneError` → 410 in both upload routes — the equivalent of the unpushed media-race branch,
+  which this supersedes), 13 (`putObject` 60 s `AbortSignal.timeout`), 14 (caption rides the first file
+  that goes; the words come back to the box if none did — chat + texting), 15 (`lib/media-types.ts`: one
+  allowlist for the server, `isSendableFile` and the pickers' `accept`), 16 (expiry push links the
+  cancelled appointment, which the bell keeps), 17 (contract sign = `updateMany` claim, status not in
+  SIGNED/VOID), 18b (`appSignOut` runs `confirmLeave` first; a confirmed leave drops the beforeunload
+  prompt), 18c (tel:/sms:/mailto: links exempt from the guard), 19 (completion stamps
+  `getStartedHiddenAt`; active users only), 20 (sweep skipped where `TELNYX_10DLC_MOCK=1`), 21
+  (number/profile gone → `reportError` once a day via the rate-limit store; profile 404 caught; a
+  disabled profile is left alone), 22 (`moveLine` carries STOP onto the target's matching contacts),
+  23 (`cancelCall` stamps `endedBy: "us"` on a live call first; the customer leg uses a
+  first-verdict-wins `updateMany`), 24 (`presenceGate` — sign-out waits for an in-flight beat and the
+  beacon sends nothing while signing out), 25 (`collectContactMediaPurge` on contact force-delete and
+  request-delete-with-lead; merge moves messages, so nothing orphans there), 26 (409 wording), 27
+  (`BottomSheet` ignores backdrop taps for 350 ms after opening — the device check is still owed), 28
+  (`/app` boundary). NOT done: 18a (browser Back / hardware back with unsaved changes — a history
+  sentinel costs a double-Back after every saved form; left), 21d (in-process miss counter —
+  documented trade-off, left).
