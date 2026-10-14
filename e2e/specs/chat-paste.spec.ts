@@ -31,24 +31,6 @@ async function pasteInto(page: Page, kind: "image" | "text") {
   );
 }
 
-/** What's focused, what's open, and what sits on top at the viewport centre — for the CI log. */
-function pageState(page: Page) {
-  return page.evaluate(() => {
-    const tag = (el: Element | null) =>
-      el ? `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ""}.${String((el as HTMLElement).className).split(" ").slice(0, 4).join(".")}` : "none";
-    const top = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
-    const chain: string[] = [];
-    for (let el: Element | null = top; el && chain.length < 5; el = el.parentElement) chain.push(tag(el));
-    return {
-      active: tag(document.activeElement),
-      dialogs: Array.from(document.querySelectorAll("[role=dialog],[role=alertdialog],[aria-modal]")).map(tag),
-      topChain: chain,
-      attachDisabled: (document.querySelector('[aria-label="Send a photo"]') as HTMLButtonElement | null)?.disabled ?? null,
-      imgs: document.querySelectorAll("[data-paste-zone] img").length,
-    };
-  });
-}
-
 test.describe("paste a picture into a conversation", () => {
   let api: Api;
   let contactId: string;
@@ -83,6 +65,7 @@ test.describe("paste a picture into a conversation", () => {
       await expect(page.locator("[data-paste-zone] img")).toHaveCount(0);
 
       // A picture pastes as a photo message
+      const started = Date.now();
       await pasteInto(page, "image");
       const bubble = page.locator("[data-paste-zone] img").first();
       await expect(bubble).toBeVisible({ timeout: 15_000 });
@@ -97,12 +80,15 @@ test.describe("paste a picture into a conversation", () => {
         { timeout: 15_000 }
       ).toBe(1);
 
+      // One send at a time: the thread refuses a second file until the first
+      // upload's response is back (the R2 put rides inside that request).
+      await expect(page.getByRole("button", { name: "Send a photo" })).toBeEnabled({ timeout: 90_000 });
+      console.log(`[chat-paste] first upload settled in ${Date.now() - started} ms`);
+
       // Paste with nothing focused still sends (Slack-style page-level paste)
       await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
       await expect.poll(() => page.evaluate(() => document.activeElement === document.body)).toBe(true);
-      console.log("[chat-paste] before unfocused paste:", await pageState(page));
       await pasteInto(page, "image");
-      console.log("[chat-paste] after unfocused paste:", await pageState(page));
       await expect(page.locator("[data-paste-zone] img")).toHaveCount(2, { timeout: 15_000 });
     } finally {
       await context.close();
