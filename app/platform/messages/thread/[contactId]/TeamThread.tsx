@@ -12,6 +12,7 @@ import { resizeForMms } from "@/lib/resize-image";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { usePasteFiles } from "@/lib/use-paste-files";
 import FileDropOverlay from "@/components/FileDropOverlay";
+import PendingAttachments, { mergePendingFiles } from "@/components/PendingAttachments";
 import MessageMedia, { type ThreadMedia } from "@/components/MessageMedia";
 
 /**
@@ -131,6 +132,8 @@ export default function TeamThread({
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
   const [attaching, setAttaching] = useState(false);
+  // Picked, dropped or pasted files waiting in the composer for Send
+  const [pending, setPending] = useState<File[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const [clientTyping, setClientTyping] = useState(false);
   const [visitorOnline, setVisitorOnline] = useState<boolean | null>(null);
@@ -339,6 +342,10 @@ export default function TeamThread({
   function send(e?: React.FormEvent) {
     e?.preventDefault();
     const body = draft.trim();
+    if (pending.length > 0) {
+      void sendFiles(pending, body);
+      return;
+    }
     if (!body) return;
     setError("");
     setDraft("");
@@ -401,39 +408,49 @@ export default function TeamThread({
     }
   }
 
-  // Picked or dropped files: one message each, in order; the draft rides
-  // along as the first one's caption.
-  async function sendFiles(files: File[]) {
+  // Picked, dropped or pasted files wait in the composer (thumbnails above
+  // the box) so words can go under them; Send ships them, one message each,
+  // in order, the words riding along as the first one's caption.
+  function queueFiles(files: File[]) {
+    const { next, skipped, full } = mergePendingFiles(pending, files);
+    setError(
+      skipped
+        ? "Only photos and short videos can be sent — the other files were skipped."
+        : full
+          ? "Up to 10 photos or videos per send."
+          : ""
+    );
+    if (next === pending) return;
+    setPending(next);
+    hapticImpact("LIGHT");
+    inputRef.current?.focus();
+  }
+
+  async function sendFiles(files: File[], body: string) {
     if (files.length === 0 || attaching) return;
-    const sendable = files.filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/"));
-    if (sendable.length === 0) {
-      setError("Only photos and short videos can be texted.");
-      return;
-    }
     setError("");
     setAttaching(true);
     hapticImpact("LIGHT");
-    const body = draft.trim();
+    setPending([]);
     setDraft("");
     requestAnimationFrame(autoGrow);
     try {
-      for (const [i, file] of sendable.slice(0, 10).entries()) await postMedia(file, i === 0 ? body : "");
-      if (sendable.length < files.length) setError("Only photos and short videos can be texted — the other files were skipped.");
+      for (const [i, file] of files.entries()) await postMedia(file, i === 0 ? body : "");
     } finally {
       setAttaching(false);
     }
   }
 
-  async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+  function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!file) return;
-    await sendFiles([file]);
+    queueFiles(files);
   }
 
-  const drop = useFileDrop((files) => void sendFiles(files), channel?.kind !== "none" && !attaching);
-  // ⌘V / Ctrl+V with a screenshot on the clipboard sends it the same way
-  usePasteFiles((files) => void sendFiles(files), channel?.kind !== "none", "[data-paste-zone]");
+  const canAttach = channel?.kind !== "none";
+  const drop = useFileDrop(queueFiles, canAttach);
+  // ⌘V / Ctrl+V with a screenshot on the clipboard attaches it the same way
+  usePasteFiles(queueFiles, canAttach, "[data-paste-zone]");
 
   function retrySend(m: ThreadMessage) {
     setError("");
@@ -617,21 +634,23 @@ export default function TeamThread({
           className="chat-composer shrink-0 border-t border-gray-100 px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] lg:px-4"
         >
           {error && <p className="mb-1.5 text-xs text-[color:var(--ds-bad)]">{error}</p>}
+          <PendingAttachments files={pending} onRemove={(i) => setPending((p) => p.filter((_, j) => j !== i))} disabled={attaching} />
           <div className="glass-control flex items-end gap-2 max-lg:rounded-[27px] max-lg:p-1.5 max-lg:pl-1">
             <input
               ref={fileRef}
               type="file"
               accept="image/*,video/mp4,video/quicktime,video/3gpp"
+              multiple
               className="hidden"
-              onChange={onPickFile}
+              onChange={onPickFiles}
               tabIndex={-1}
             />
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
               disabled={channel?.kind === "none" || attaching}
-              aria-label="Send a photo"
-              title={`${channel?.kind === "sms" ? "Send a photo or short video by text" : "Send a photo (lands in their client portal)"} — or paste a screenshot with Ctrl+V. Photos stay in the thread for a week`}
+              aria-label="Attach a photo"
+              title={`${channel?.kind === "sms" ? "Attach a photo or short video to text" : "Attach a photo (lands in their client portal)"} — or paste a screenshot with Ctrl+V — then add words and send. Photos stay in the thread for a week`}
               className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full text-[color:var(--ds-primary)] transition-colors hover:bg-[color:var(--ds-primary-soft)] active:bg-[color:var(--ds-primary-soft)] disabled:opacity-40"
             >
               {attaching ? <Loader2 size={20} className="animate-spin" /> : <ImagePlus size={20} />}
@@ -662,7 +681,7 @@ export default function TeamThread({
             />
             <button
               type="submit"
-              disabled={!draft.trim()}
+              disabled={attaching || (!draft.trim() && pending.length === 0)}
               aria-label="Send"
               className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-[color:var(--ds-primary)] text-[color:var(--ds-on-primary)] transition-all hover:bg-[color:var(--ds-primary-strong)] active:scale-95 active:bg-[color:var(--ds-primary-strong)] disabled:opacity-40 max-lg:shadow-[0_1px_2px_rgba(15,23,42,0.12)]"
             >

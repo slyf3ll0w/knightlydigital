@@ -1,8 +1,10 @@
-// Paste a picture from the clipboard into a conversation (lib/use-paste-files.ts):
-// Ctrl+V with a screenshot on the clipboard sends it as a photo message, the
-// same path a dropped or picked file takes. A plain-text paste is left to the
-// composer. Covers the Messages thread on its portal channel (no business
-// line needed); the team chat shares the hook.
+// Photos in a conversation stage in the composer before they go (iMessage
+// style, components/PendingAttachments.tsx): a pasted screenshot
+// (lib/use-paste-files.ts), a dropped or picked file lands as a thumbnail
+// above the box, words go under it, and Send ships them together. A
+// plain-text paste is left to the composer. Covers the Messages thread on
+// its portal channel (no business line needed); the team chat shares the
+// same pieces.
 import { test, expect, type Page } from "@playwright/test";
 import { readState } from "../env";
 import { Api, createContact, deleteContact } from "../helpers/api";
@@ -31,7 +33,7 @@ async function pasteInto(page: Page, kind: "image" | "text") {
   );
 }
 
-test.describe("paste a picture into a conversation", () => {
+test.describe("photos stage in the composer before they send", () => {
   let api: Api;
   let contactId: string;
 
@@ -46,12 +48,16 @@ test.describe("paste a picture into a conversation", () => {
     if (contactId) await deleteContact(api, contactId);
   });
 
-  test("Ctrl+V with a screenshot sends it; pasting words just types", async ({ browser }) => {
+  test("paste attaches a thumbnail, words go under it, Send ships both", async ({ browser }) => {
     const context = await browser.newContext({ viewport: { width: 1400, height: 900 } });
     await context.addCookies([
       { name: state.cookieName, value: state.ownerA.token, url: state.baseUrl, secure: state.baseUrl.startsWith("https"), httpOnly: true },
     ]);
     const page = await context.newPage();
+    const thumbs = page.locator("[data-pending-attachments] img");
+    const sent = page.locator("[data-paste-zone] a[title='Open full size'] img");
+    const attach = page.getByRole("button", { name: "Attach a photo" });
+    const sendBtn = page.getByRole("button", { name: "Send", exact: true });
     try {
       await page.goto(`${state.baseUrl}/app/messages/thread/${contactId}`);
       // The page template re-mounts on entry, so two composers can overlap for a beat
@@ -59,37 +65,51 @@ test.describe("paste a picture into a conversation", () => {
       const composer = page.getByPlaceholder(/^Message /);
       await expect(composer).toBeVisible();
 
-      // Words paste as words — the composer keeps them, nothing is sent
+      // Words paste as words — nothing attaches, nothing sends
       await composer.focus();
       await pasteInto(page, "text");
-      await expect(page.locator("[data-paste-zone] img")).toHaveCount(0);
+      await expect(thumbs).toHaveCount(0);
+      await expect(sent).toHaveCount(0);
+      await expect(sendBtn).toBeDisabled();
 
-      // A picture pastes as a photo message
-      const started = Date.now();
+      // A picture pastes as a thumbnail in the composer, not a message yet
       await pasteInto(page, "image");
-      const bubble = page.locator("[data-paste-zone] img").first();
-      await expect(bubble).toBeVisible({ timeout: 15_000 });
-      // …and the upload lands server-side (the bubble swaps its blob: preview for the stored file)
+      await expect(thumbs).toHaveCount(1);
+      await expect(sent).toHaveCount(0);
+      await expect(sendBtn).toBeEnabled();
+
+      // Words under it + Enter → one message carrying both
+      await composer.fill("With a caption");
+      await composer.press("Enter");
+      await expect(thumbs).toHaveCount(0);
+      await expect(sent).toHaveCount(1, { timeout: 15_000 });
+      await expect(page.locator("[data-paste-zone]").getByText("With a caption")).toBeVisible();
       await expect.poll(
         async () => {
           const res = await api.raw("GET", `/api/app/messages/${contactId}`);
           const data = await res.json();
-          const msgs: Array<{ media?: unknown[] }> = data.messages ?? [];
-          return msgs.filter((m) => (m.media?.length ?? 0) > 0).length;
+          const msgs: Array<{ body: string; media?: unknown[] }> = data.messages ?? [];
+          return msgs.filter((m) => (m.media?.length ?? 0) > 0).map((m) => m.body);
         },
         { timeout: 15_000 }
-      ).toBe(1);
+      ).toEqual(["With a caption"]);
+      // One send at a time: the attach button comes back once the upload's response is in
+      await expect(attach).toBeEnabled({ timeout: 90_000 });
 
-      // One send at a time: the thread refuses a second file until the first
-      // upload's response is back (the R2 put rides inside that request).
-      await expect(page.getByRole("button", { name: "Send a photo" })).toBeEnabled({ timeout: 90_000 });
-      console.log(`[chat-paste] first upload settled in ${Date.now() - started} ms`);
-
-      // Paste with nothing focused still sends (Slack-style page-level paste)
+      // Paste with nothing focused still attaches (Slack-style page-level paste);
+      // the remove badge drops it; Send with no words ships a bare photo
       await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
       await expect.poll(() => page.evaluate(() => document.activeElement === document.body)).toBe(true);
       await pasteInto(page, "image");
-      await expect(page.locator("[data-paste-zone] img")).toHaveCount(2, { timeout: 15_000 });
+      await expect(thumbs).toHaveCount(1);
+      await page.getByRole("button", { name: /^Remove / }).click();
+      await expect(thumbs).toHaveCount(0);
+      await expect(sendBtn).toBeDisabled();
+      await pasteInto(page, "image");
+      await expect(thumbs).toHaveCount(1);
+      await sendBtn.click();
+      await expect(thumbs).toHaveCount(0);
+      await expect(sent).toHaveCount(2, { timeout: 15_000 });
     } finally {
       await context.close();
     }

@@ -11,7 +11,7 @@ export default function FileDropOverlay({ show, hint }: { show: boolean; hint: s
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]">
           <ImagePlus size={22} />
         </span>
-        <p className="text-[15px] font-semibold text-gray-900">Drop to send</p>
+        <p className="text-[15px] font-semibold text-gray-900">Drop to attach</p>
         <p className="max-w-xs text-xs text-gray-500">{hint}</p>
       </div>
     </div>
