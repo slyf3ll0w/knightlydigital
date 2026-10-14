@@ -27,6 +27,10 @@ const cases: Array<[string, string | null]> = [
   ["power washing", "Pressure Washing"],
   ["House cleaning", "Cleaning Services"],
   ["Other: mobile detailing", null],
+  // "Other" means none of the list fit — never alias-matched into a trade
+  ["Other: pool cleaning", null],
+  ["Other: gutter cleaning", null],
+  ["Other: HVAC", "HVAC"],
   ["Other", "Other"],
   ["", null],
   ["   ", null],

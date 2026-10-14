@@ -136,9 +136,12 @@ export async function PATCH(
     }),
     ...(body.scheduledAt !== undefined && {
       scheduledAt: nextScheduledAt,
-      // A moved visit reminds again at its new time (stamps are per-schedule);
-      // the move counts as a fresh booking for the stage rule — lib/reminder-stage.ts
-      ...rescheduleReminderStamps(now, nextScheduledAt),
+      // A MOVED visit reminds again at its new time (stamps are per-schedule);
+      // the move counts as a fresh booking for the stage rule
+      // (lib/reminder-stage.ts). Save with the same time keeps its stamps —
+      // the Schedule sheet sends scheduledAt on every save, and re-arming
+      // there sent the hour text twice (appointments already guard this).
+      ...(startMoved && rescheduleReminderStamps(now, nextScheduledAt)),
       // A human rescheduled it — the generated-visit conflict badge is done
       conflictNote: null,
     }),

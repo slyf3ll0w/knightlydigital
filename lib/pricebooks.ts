@@ -230,9 +230,15 @@ export function matchIndustry(industry: string | null | undefined): Industry | n
   const raw = (industry ?? "").trim();
   if (!raw) return null;
   if ((INDUSTRIES as readonly string[]).includes(raw)) return raw as Industry;
+  const other = /^other:\s*/i.test(raw);
   const s = raw.replace(/^other:\s*/i, "").toLowerCase();
   const exact = INDUSTRIES.find((k) => k.toLowerCase() === s);
   if (exact) return exact;
+  // "Other: <what they do>" means none of the listed trades fit — the
+  // signup doors promise it seeds nothing (components/IndustrySelect.tsx).
+  // Alias-matching it anyway handed "Other: pool cleaning" the Cleaning
+  // Services price book ("clean" is checked before "pool").
+  if (other) return null;
   for (const [key, words] of INDUSTRY_ALIASES) {
     if (words.some((w) => s.includes(w))) return key;
   }

@@ -510,16 +510,19 @@ export async function POST(req: NextRequest) {
   let applied = false;
   let notified = 0;
   if (body.apply === true) {
-    // Clearing reminder stamps re-arms the day-before/1-hour client reminders
-    // for the new times (both models carry the same stamp columns).
+    // A stop whose arrival changed is a reschedule: its client reminders and
+    // the crew heads-up re-arm for the new time (both models carry the same
+    // stamp columns). A stop that kept its slot keeps its stamps — re-arming
+    // those re-sent reminders and, with the sent stamps gone and back, locked
+    // every stop as "Reminded" on the next Optimize.
+    const movedIds = new Set(movedStops.map((p) => p.id));
     await prisma.$transaction(
       proposed.map((p) => {
         const data = {
           scheduledAt: new Date(p.proposedStart),
           scheduledEnd: new Date(p.proposedEnd),
           scheduledAnytime: false,
-          ...rescheduleReminderStamps(now, new Date(p.proposedStart)),
-          techHeadsUpSentAt: null,
+          ...(movedIds.has(p.id) && { ...rescheduleReminderStamps(now, new Date(p.proposedStart)), techHeadsUpSentAt: null }),
         };
         return p.kind === "appointment"
           ? prisma.appointment.update({ where: { id: p.id }, data })

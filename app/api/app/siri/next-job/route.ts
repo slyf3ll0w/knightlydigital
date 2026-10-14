@@ -26,7 +26,7 @@ export async function GET() {
     {
       job: {
         ...job,
-        when: spokenWhen(job.scheduledAt, tz, now),
+        when: spokenWhen(job.scheduledAt, tz, now, job.scheduledAnytime),
         onClock: job.onClockSince ? formatDuration(now.getTime() - job.onClockSince.getTime()) : null,
       },
     },

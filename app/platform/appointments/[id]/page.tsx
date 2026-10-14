@@ -32,6 +32,7 @@ function clientReminderStatus(appt: {
   remindClient: boolean;
   scheduledAt: Date;
   createdAt: Date;
+  rescheduledAt: Date | null;
   reminderDaySentAt: Date | null;
   reminderHourSentAt: Date | null;
   confirmationSentAt: Date | null;
@@ -63,8 +64,8 @@ function clientReminderStatus(appt: {
   if (appt.status !== "SCHEDULED") return sent.length ? `Client reminders by ${via}: ${sent.join(" · ")}.` : "No automatic client reminders went out.";
   if (appt.tentative) return "Client reminders start once the booking is confirmed.";
   // A reschedule counts as the booking time (lib/reminder-stage.ts header)
-  const bookedAt = bookingAnchor(appt.createdAt, appt.reminderDaySentAt);
-  const outlook = reminderOutlook({ now: new Date(), scheduledAt: appt.scheduledAt, createdAt: appt.createdAt, daySentAt: appt.reminderDaySentAt });
+  const bookedAt = bookingAnchor(appt.createdAt, appt.rescheduledAt);
+  const outlook = reminderOutlook({ now: new Date(), scheduledAt: appt.scheduledAt, createdAt: appt.createdAt, rescheduledAt: appt.rescheduledAt });
   if (outlook === "past") return sent.length ? `Client reminders by ${via}: ${sent.join(" · ")}.` : "No automatic client reminders went out.";
   if (outlook === "too-close")
     return "Booked less than 20 minutes before its start — too close for an automatic reminder.";

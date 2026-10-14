@@ -24,6 +24,9 @@ export async function GET() {
     select: { lineVoiceAppAt: true, addonActiveAt: true },
   });
   const call = Boolean(company && voiceConfigured() && company.lineVoiceAppAt && hasAddon(company) && canSell(actor.role));
-  const text = await companyCanSendSms(actor.companyId);
+  // Same gate as the thread route the intent then posts to (canSell): a tech
+  // used to be told `text: true`, post, get a 403, and hear "Forbidden" —
+  // false sends them to the phone's Messages app, like the app's own button.
+  const text = canSell(actor.role) && (await companyCanSendSms(actor.companyId));
   return NextResponse.json({ call, text }, { headers: { "Cache-Control": "no-store" } });
 }

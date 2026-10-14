@@ -5,7 +5,7 @@ import { companyTimezone, timeLabel, todaysJobs } from "@/lib/next-job";
 /**
  * GET — "what's my day look like", already in words: Siri reads `summary`
  * aloud. The server writes the sentence because it knows the company's
- * timezone and which jobs are date-only (they sit at noon and are read as
+ * timezone and which jobs are date-only (Job.scheduledAnytime — read as
  * "anytime").
  */
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export async function GET() {
     id: j.id,
     title: j.title,
     client: j.contact.firstName,
-    time: j.scheduledAt ? timeLabel(j.scheduledAt, tz) : "anytime",
+    time: j.scheduledAt && !j.scheduledAnytime ? timeLabel(j.scheduledAt, tz) : "anytime",
   }));
 
   let summary: string;

@@ -1964,6 +1964,10 @@ model Appointment {
   remindClient         Boolean               @default(true)
   reminderDaySentAt    DateTime?
   reminderHourSentAt   DateTime?
+  // When the start was last moved (lib/reminder-stage.ts rescheduleReminderStamps):
+  // the stage rule counts a move as a fresh booking. The sent stamps above
+  // always mean a reminder actually went out.
+  rescheduledAt        DateTime?
   // Push to the assignee ~1 h ahead (lib/reminders.ts runAppointmentTechHeadsUp);
   // its own stamp so it fires even when the client can't be reminded.
   techHeadsUpSentAt    DateTime?
@@ -2093,6 +2097,8 @@ model Job {
   remindClient            Boolean         @default(true)
   reminderDaySentAt       DateTime?
   reminderHourSentAt      DateTime?
+  // Last move of the start (same rule as Appointment.rescheduledAt)
+  rescheduledAt           DateTime?
   // Crew heads-up push ~1h before the visit (runTechHeadsUp) — independent of
   // the client reminder so techs still hear about remindClient=false jobs
   techHeadsUpSentAt       DateTime?

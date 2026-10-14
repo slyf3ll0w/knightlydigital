@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { MEDIA_SELECT, threadMedia } from "@/lib/message-media";
 import { requirePageActor, canSell, contactScope } from "@/lib/permissions";
 import { fmtPhone } from "@/lib/format";
+import { phoneDigits } from "@/lib/phone";
 import TeamThread from "./TeamThread";
 import SaveContactCard from "./SaveContactCard";
 
@@ -68,8 +69,15 @@ export default async function MessageThreadPage({
     Boolean(contact.phone) &&
     !contact.smsOptOut &&
     !contact.smsDisabled;
-  const channel =
-    textsReady && line
+  // A 5–6 digit sender (a verification code, a bank alert — lib/phone.ts
+  // inboundSenderDigits) lands in the inbox but can't be written back to:
+  // sendSms refuses a non-E.164 number, so a reply used to show as sent and
+  // go nowhere. Read-only thread, no Call, no Save card (it would file a
+  // "client" with phone 22000).
+  const shortCode = Boolean(contact.phone) && !phoneDigits(contact.phone);
+  const channel = shortCode
+    ? ({ kind: "short-code" } as const)
+    : textsReady && line
       ? ({ kind: "sms", from: fmtPhone(line) } as const)
       : contact.email || contact.phone
         ? ({ kind: "portal" } as const)
@@ -90,7 +98,7 @@ export default async function MessageThreadPage({
   // number (placeholder), or a text that came in from an unknown number —
   // including the rows the webhook used to create as "Unknown caller · (…)"
   // before 2026-10-03. Either way the Save card sits above the thread.
-  const unnamed = contact.placeholder || (contact.firstName === "Unknown caller" && !contact.email);
+  const unnamed = !shortCode && (contact.placeholder || (contact.firstName === "Unknown caller" && !contact.email));
   const theyTextedFirst = unnamed && messages.some((m) => m.direction === "INBOUND");
 
   return (
@@ -98,10 +106,10 @@ export default async function MessageThreadPage({
       <TeamThread
         contactId={contact.id}
         justRead={justRead}
-        contactName={unnamed && contact.phone ? fmtPhone(contact.phone) : name}
-        contactFirstName={unnamed ? "them" : contact.firstName}
+        contactName={shortCode ? `Short code ${contact.phone}` : unnamed && contact.phone ? fmtPhone(contact.phone) : name}
+        contactFirstName={unnamed || shortCode ? "them" : contact.firstName}
         companyName={contact.companyName}
-        phone={contact.phone}
+        phone={shortCode ? null : contact.phone}
         tz={contact.company.timezone ?? "America/Chicago"}
         channel={channel}
         // An unnamed number: file them as a lead / client / contact (the phone's "Create contact")

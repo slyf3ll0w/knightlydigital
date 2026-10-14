@@ -11,6 +11,7 @@ import { fireAutomations } from "@/lib/automations-server";
 import { activeTypers } from "@/lib/chat";
 import { visitorOnline } from "@/lib/site-chat";
 import { MEDIA_SELECT, threadMedia, type MediaRow } from "@/lib/message-media";
+import { phoneDigits } from "@/lib/phone";
 
 /**
  * Team side of a portal message thread. GET polls for new messages (and
@@ -98,6 +99,13 @@ export async function POST(
     include: portalThreadContactInclude,
   });
   if (!contact) return NextResponse.json({ error: "Client not found." }, { status: 404 });
+  // A short-code sender (5–6 digits, lib/phone.ts inboundSenderDigits) has no
+  // phone to text and no email: the row would be created, sendSms would
+  // refuse the number quietly, and the thread would show a reply that went
+  // nowhere. The thread page already greys the composer; this is the server's say.
+  if (contact.phone && !phoneDigits(contact.phone) && !contact.email) {
+    return NextResponse.json({ error: "Texts from a short code are one-way — nothing sent here would reach them." }, { status: 400 });
+  }
 
   const data = await req.json().catch(() => null);
   const body = typeof data?.body === "string" ? data.body.trim() : "";

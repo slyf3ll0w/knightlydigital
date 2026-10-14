@@ -506,7 +506,17 @@ export async function validateTaskInput(
   body: Record<string, unknown>,
   actor: Actor,
   tz: string,
-  opts: { requireTitle: boolean }
+  opts: {
+    requireTitle: boolean;
+    /**
+     * On an edit, the links the task already carries. The editor sends every
+     * link id on every save, and a link a manager attached (their client, a
+     * job the assignee isn't on) is outside the assignee's own scope — only a
+     * link that CHANGED is checked against what the actor may see, so a tech
+     * can still fix the title or due date of a task made for them.
+     */
+    existing?: { contactId: string | null; jobId: string | null; quoteId: string | null; invoiceId: string | null; callId: string | null };
+  }
 ): Promise<{ data: TaskInput; pending: PendingReminder | null } | { error: string }> {
   const companyId = actor.companyId;
   const data: TaskInput = {};
@@ -566,17 +576,19 @@ export async function validateTaskInput(
     data[key] = v;
   }
   const checks: Promise<boolean>[] = [];
-  if (data.contactId) {
-    checks.push(prisma.contact.findFirst({ where: { id: data.contactId, companyId, ...contactScope(actor) }, select: { id: true } }).then(Boolean));
+  // An unchanged link was checked when it was attached (by whoever attached it).
+  const changed = (key: (typeof linkKeys)[number]) => Boolean(data[key]) && data[key] !== opts.existing?.[key];
+  if (changed("contactId")) {
+    checks.push(prisma.contact.findFirst({ where: { id: data.contactId!, companyId, ...contactScope(actor) }, select: { id: true } }).then(Boolean));
   }
-  if (data.jobId) checks.push(prisma.job.findFirst({ where: { id: data.jobId, companyId, ...jobScope(actor) }, select: { id: true } }).then(Boolean));
-  if (data.quoteId) {
-    checks.push(prisma.quote.findFirst({ where: { id: data.quoteId, companyId, ...viaContactScope(actor) }, select: { id: true } }).then(Boolean));
+  if (changed("jobId")) checks.push(prisma.job.findFirst({ where: { id: data.jobId!, companyId, ...jobScope(actor) }, select: { id: true } }).then(Boolean));
+  if (changed("quoteId")) {
+    checks.push(prisma.quote.findFirst({ where: { id: data.quoteId!, companyId, ...viaContactScope(actor) }, select: { id: true } }).then(Boolean));
   }
-  if (data.invoiceId) {
-    checks.push(prisma.invoice.findFirst({ where: { id: data.invoiceId, companyId, ...viaContactScope(actor) }, select: { id: true } }).then(Boolean));
+  if (changed("invoiceId")) {
+    checks.push(prisma.invoice.findFirst({ where: { id: data.invoiceId!, companyId, ...viaContactScope(actor) }, select: { id: true } }).then(Boolean));
   }
-  if (data.callId) checks.push(prisma.call.findFirst({ where: { id: data.callId, companyId }, select: { id: true } }).then(Boolean));
+  if (changed("callId")) checks.push(prisma.call.findFirst({ where: { id: data.callId!, companyId }, select: { id: true } }).then(Boolean));
   if (checks.length && !(await Promise.all(checks)).every(Boolean)) {
     return { error: "One of the linked records is not in this account." };
   }

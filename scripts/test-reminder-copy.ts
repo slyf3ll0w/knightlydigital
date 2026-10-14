@@ -57,34 +57,39 @@ const at = (iso: string) => new Date(iso);
 }
 {
   // Reschedule: an appointment booked last week, moved at 10:00 to 4 PM the
-  // same day. The move stamps the day stage (no "day before" text at 10:05)
-  // and anchors the hour stage's age floor, like a fresh booking would.
+  // same day. The move is recorded (rescheduledAt) and both sent stamps
+  // clear; the stage rule then measures from the move, like a fresh booking.
   const movedAt = at("2026-10-06T15:00:00Z");
   const stamps = rescheduleReminderStamps(movedAt, at("2026-10-06T21:00:00Z"));
-  assert.deepEqual(stamps, { reminderDaySentAt: movedAt, reminderHourSentAt: null }, "inside a day: day stamped, hour re-armed");
-  const moved = { scheduledAt: at("2026-10-06T21:00:00Z"), createdAt: at("2026-09-29T12:00:00Z"), ...stamps };
-  assert.equal(bookingAnchor(moved.createdAt, moved.reminderDaySentAt).getTime(), movedAt.getTime(), "anchor = the move");
-  assert.equal(reminderStage({ now: at("2026-10-06T15:05:00Z"), daySentAt: stamps.reminderDaySentAt, hourSentAt: null, scheduledAt: moved.scheduledAt, createdAt: moved.createdAt }), null, "5 min after the move, 6 h out: no day reminder");
-  assert.equal(reminderStage({ now: at("2026-10-06T19:55:00Z"), daySentAt: stamps.reminderDaySentAt, hourSentAt: null, scheduledAt: moved.scheduledAt, createdAt: moved.createdAt }), "hour", "65 min out: the hour reminder still comes");
+  assert.deepEqual(stamps, { rescheduledAt: movedAt, reminderDaySentAt: null, reminderHourSentAt: null }, "a move: recorded, both stages re-armed, nothing marked sent");
+  const moved = { scheduledAt: at("2026-10-06T21:00:00Z"), createdAt: at("2026-09-29T12:00:00Z"), rescheduledAt: stamps.rescheduledAt, daySentAt: stamps.reminderDaySentAt, hourSentAt: stamps.reminderHourSentAt };
+  assert.equal(bookingAnchor(moved.createdAt, moved.rescheduledAt).getTime(), movedAt.getTime(), "anchor = the move");
+  assert.equal(reminderStage({ now: at("2026-10-06T15:05:00Z"), ...moved }), null, "5 min after the move, 6 h out: no day reminder");
+  assert.equal(reminderStage({ now: at("2026-10-06T19:55:00Z"), ...moved }), "hour", "65 min out: the hour reminder still comes");
   // Moved to 45 minutes out: reminded 20 min after the move, not at once.
   const rush = rescheduleReminderStamps(movedAt, at("2026-10-06T15:45:00Z"));
-  const rushAppt = { scheduledAt: at("2026-10-06T15:45:00Z"), createdAt: at("2026-09-29T12:00:00Z"), daySentAt: rush.reminderDaySentAt, hourSentAt: null };
+  const rushAppt = { scheduledAt: at("2026-10-06T15:45:00Z"), createdAt: at("2026-09-29T12:00:00Z"), rescheduledAt: rush.rescheduledAt, daySentAt: null, hourSentAt: null };
   assert.equal(reminderStage({ now: at("2026-10-06T15:05:00Z"), ...rushAppt }), null, "moved 5 min ago: not yet");
   assert.equal(reminderStage({ now: at("2026-10-06T15:20:00Z"), ...rushAppt }), "hour", "moved 20 min ago, 25 min out: hour reminder");
   assert.equal(reminderOutlook({ now: at("2026-10-06T15:05:00Z"), ...rushAppt }), "pending", "outlook: still coming");
   // Moved to 10 minutes out: starts before it is old enough — the call that
   // moved it is the reminder.
   const close = rescheduleReminderStamps(movedAt, at("2026-10-06T15:10:00Z"));
-  assert.equal(reminderOutlook({ now: at("2026-10-06T15:02:00Z"), scheduledAt: at("2026-10-06T15:10:00Z"), createdAt: at("2026-09-29T12:00:00Z"), daySentAt: close.reminderDaySentAt }), "too-close", "outlook: moved too close");
-  // Moved to next week: both stamps clear, the day stage fires at 24 h out as usual.
+  assert.equal(reminderOutlook({ now: at("2026-10-06T15:02:00Z"), scheduledAt: at("2026-10-06T15:10:00Z"), createdAt: at("2026-09-29T12:00:00Z"), rescheduledAt: close.rescheduledAt }), "too-close", "outlook: moved too close");
+  // Moved to next week: the day stage fires at 24 h out as usual (a week of lead from the move).
   const far = rescheduleReminderStamps(movedAt, at("2026-10-13T15:00:00Z"));
-  assert.deepEqual(far, { reminderDaySentAt: null, reminderHourSentAt: null }, "beyond a day: both clear");
-  assert.equal(reminderStage({ now: at("2026-10-12T15:00:00Z"), scheduledAt: at("2026-10-13T15:00:00Z"), createdAt: at("2026-09-29T12:00:00Z"), ...far, daySentAt: far.reminderDaySentAt, hourSentAt: null }), "day", "24 h out: day stage");
+  assert.equal(reminderStage({ now: at("2026-10-12T15:00:00Z"), scheduledAt: at("2026-10-13T15:00:00Z"), createdAt: at("2026-09-29T12:00:00Z"), rescheduledAt: far.rescheduledAt, daySentAt: null, hourSentAt: null }), "day", "24 h out: day stage");
+  // A move AFTER a real day send: the old send does not count for the new time (stamp cleared), and
+  // the new time, inside a day of the move, gets no day text — only the hour one.
+  const again = rescheduleReminderStamps(at("2026-10-07T09:00:00Z"), at("2026-10-07T20:00:00Z"));
+  const againAppt = { scheduledAt: at("2026-10-07T20:00:00Z"), createdAt: at("2026-10-01T12:00:00Z"), rescheduledAt: again.rescheduledAt, daySentAt: again.reminderDaySentAt, hourSentAt: again.reminderHourSentAt };
+  assert.equal(reminderStage({ now: at("2026-10-07T09:05:00Z"), ...againAppt }), null, "moved to later today: no day text");
+  assert.equal(reminderStage({ now: at("2026-10-07T18:55:00Z"), ...againAppt }), "hour", "…hour text at 65 min out");
   // A real day send (24 h out) never delays the hour stage.
   const sent = { scheduledAt: at("2026-10-07T15:00:00Z"), createdAt: at("2026-10-01T12:00:00Z"), daySentAt: at("2026-10-06T15:00:00Z"), hourSentAt: null };
   assert.equal(reminderStage({ now: at("2026-10-07T13:50:00Z"), ...sent }), "hour", "day sent yesterday: hour stage on time");
-  // Unscheduling a job clears both.
-  assert.deepEqual(rescheduleReminderStamps(movedAt, null), { reminderDaySentAt: null, reminderHourSentAt: null }, "no start: both clear");
+  // Unscheduling a job forgets the move and clears both.
+  assert.deepEqual(rescheduleReminderStamps(movedAt, null), { rescheduledAt: null, reminderDaySentAt: null, reminderHourSentAt: null }, "no start: all clear");
 }
 {
   assert.equal(inSmsQuietHours(at("2026-10-07T12:30:00Z"), "America/Chicago"), true, "7:30 AM Chicago is quiet");

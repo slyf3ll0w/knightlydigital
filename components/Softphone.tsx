@@ -106,6 +106,8 @@ const RECONNECT_FALLBACK_MS = 15_000;
 const RATE_LIMITED_WAIT_MS = 3 * 60_000;
 /** While an outbound call is ringing, how often the row is asked whether the customer picked up. */
 const OUTBOUND_POLL_MS = 1_000;
+/** How often a connected call checks its row while the socket is down (see unreachableCallId). */
+const UNREACHABLE_POLL_MS = 3_000;
 const TERMINAL = new Set(["COMPLETED", "MISSED", "VOICEMAIL", "NO_ANSWER", "FAILED"]);
 
 const fmtNumber = (e164: string | null | undefined): string => {
@@ -899,6 +901,10 @@ export default function Softphone() {
         console.info("[softphone] registered");
         attempt = 0;
         clearFallback();
+        // The SDK came back on its own: a restart queued behind the call is
+        // no longer needed (it would tear a healthy registration down at
+        // the call's end and miss the next inbound ring while re-registering).
+        restartAfterCall = false;
         // Presence BEFORE "ready". The Call button reads ready as "the server
         // will dial this tab", and the server refuses a dial from a softphone
         // it hasn't heard from (409 → the cell, or a retry): the first beat
@@ -1321,6 +1327,36 @@ export default function Softphone() {
       setSoftphoneState({ status: "off", reason: null, call: null });
     };
   }, []);
+
+  // A connected call while the signaling socket is down: the other side's
+  // hangup reaches the server (its leg is Call Control) but the SIP BYE for
+  // this browser never arrives, and the deferred reconnect (restart above)
+  // only runs once the call ends here — so the card would count on forever,
+  // and the next inbound would ring the cell. Watch the row instead and end
+  // the card when it turns over.
+  const unreachableCallId =
+    state.call && (state.call.state === "active" || state.call.state === "held") && state.status !== "ready" ? state.call.callId : null;
+  useEffect(() => {
+    if (!unreachableCallId) return;
+    let stop = false;
+    const tick = async () => {
+      try {
+        const res = await fetch(`/api/app/line/softphone/call?id=${encodeURIComponent(unreachableCallId)}`, { cache: "no-store" });
+        const j = (await res.json()) as { call?: { status: string } | null };
+        if (stop || !j.call || !TERMINAL.has(j.call.status)) return;
+        console.info("[softphone] the call ended on the server while the line was down — closing the card");
+        endedBy.current = "remote";
+        softphone.hangup();
+      } catch {
+        /* next tick */
+      }
+    };
+    const t = setInterval(tick, UNREACHABLE_POLL_MS);
+    return () => {
+      stop = true;
+      clearInterval(t);
+    };
+  }, [unreachableCallId]);
 
   // Outbound: "Calling…" until our row says the customer is on (bridged) — or that it never will be.
   const outCallId = state.call?.direction === "out" && state.call.state === "dialing" ? state.call.callId : null;

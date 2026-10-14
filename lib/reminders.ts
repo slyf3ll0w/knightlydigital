@@ -512,6 +512,7 @@ export async function runAppointmentReminders(
         now,
         scheduledAt: appt.scheduledAt,
         createdAt: appt.createdAt,
+        rescheduledAt: appt.rescheduledAt,
         daySentAt: appt.reminderDaySentAt,
         hourSentAt: appt.reminderHourSentAt,
       });
@@ -618,6 +619,7 @@ export async function runVisitReminders(
         now,
         scheduledAt,
         createdAt: job.createdAt,
+        rescheduledAt: job.rescheduledAt,
         daySentAt: job.reminderDaySentAt,
         hourSentAt: job.reminderHourSentAt,
       });

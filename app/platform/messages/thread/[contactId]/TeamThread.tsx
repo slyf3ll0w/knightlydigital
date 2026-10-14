@@ -50,7 +50,8 @@ export type ThreadMessage = {
 export type ThreadChannel =
   | { kind: "sms"; from: string } // texts go out from the business line, replies land here
   | { kind: "portal" } // client portal + email; no text (no line, not registered, no number, or opted out)
-  | { kind: "none" }; // nothing reaches them: no phone, no email
+  | { kind: "none" } // nothing reaches them: no phone, no email
+  | { kind: "short-code" }; // an automated sender (a 5–6 digit code): read-only, nothing we send can reach it
 
 const LIVE_POLL_MS = 3_000;
 const POLL_MS = 6_000;
@@ -475,7 +476,9 @@ export default function TeamThread({
         ? `Texts from ${channel.from} · replies land here`
         : channel?.kind === "none"
           ? "No phone or email on file"
-          : "Client portal + email";
+          : channel?.kind === "short-code"
+            ? "Automated sender · can't be replied to"
+            : "Client portal + email";
 
   // Outbound bubbles name the sender only when more than one team member has written here.
   const senders = new Set(messages.filter((m) => m.direction === "OUTBOUND" && m.senderName).map((m) => m.senderName));
@@ -486,7 +489,11 @@ export default function TeamThread({
       ? `Your first message texts ${contactFirstName} from ${channel.from}. Their reply lands right here.`
       : channel?.kind === "none"
         ? `${contactFirstName} has no phone or email on file — add one so a message can reach them.`
-        : `Anything you send reaches ${contactFirstName} in their client portal — plus an email so they see it fast.`;
+        : channel?.kind === "short-code"
+          ? "Texts from a short code are one-way — nothing sent here would reach them."
+          : `Anything you send reaches ${contactFirstName} in their client portal — plus an email so they see it fast.`;
+  // A short code can't take a reply: the composer stays, greyed, so the thread reads as read-only rather than broken.
+  const readOnly = channel?.kind === "none" || channel?.kind === "short-code";
 
   return (
     // Phones: a fixed full-viewport conversation above the shell (tab bar
@@ -648,7 +655,7 @@ export default function TeamThread({
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              disabled={channel?.kind === "none" || attaching}
+              disabled={readOnly || attaching}
               aria-label="Attach a photo"
               title={`${channel?.kind === "sms" ? "Attach a photo or short video to text" : "Attach a photo (lands in their client portal)"} — or paste a screenshot with Ctrl+V — then add words and send. Photos stay in the thread for a week`}
               className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full text-[color:var(--ds-primary)] transition-colors hover:bg-[color:var(--ds-primary-soft)] active:bg-[color:var(--ds-primary-soft)] disabled:opacity-40"
@@ -675,8 +682,14 @@ export default function TeamThread({
               }}
               rows={1}
               maxLength={5000}
-              disabled={channel?.kind === "none"}
-              placeholder={channel?.kind === "none" ? "Add a phone or email first" : `Message ${contactFirstName}…`}
+              disabled={readOnly}
+              placeholder={
+                channel?.kind === "none"
+                  ? "Add a phone or email first"
+                  : channel?.kind === "short-code"
+                    ? "Replies can't reach a short code"
+                    : `Message ${contactFirstName}…`
+              }
               className="max-h-[120px] min-h-[42px] flex-1 resize-none rounded-3xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-[15px] focus:border-[color:var(--ds-primary)] focus:bg-white focus:outline-none disabled:opacity-60 max-lg:px-3.5"
             />
             <button

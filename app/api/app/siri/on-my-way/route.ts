@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getActor, contactScope } from "@/lib/permissions";
+import { getActor } from "@/lib/permissions";
 import { resolveNextJob } from "@/lib/next-job";
 import { DEFAULT_ON_MY_WAY_TEMPLATE, fillEta, renderMessageTemplate } from "@/lib/messaging";
 import { notifyClientOfReply, portalThreadContactInclude } from "@/lib/portal-messages";
 import { fireAutomations } from "@/lib/automations-server";
 import { companyCanSendSms } from "@/lib/sms";
+import { canText } from "@/lib/sms-consent";
 
 /**
  * POST — "tell my next client I'm on my way", hands-free. The app's own
@@ -33,8 +34,11 @@ export async function POST() {
   if (!job) return NextResponse.json({ error: "no-job" }, { status: 404 });
 
   const [contact, company, me] = await Promise.all([
+    // The job is what grants the client here (jobScope, via resolveNextJob),
+    // exactly like the app's own on-my-way route — a tech's client is usually
+    // assigned to the office, so contactScope answered "no job" for techs.
     prisma.contact.findFirst({
-      where: { id: job.contactId, companyId: actor.companyId, ...contactScope(actor) },
+      where: { id: job.contactId, companyId: actor.companyId },
       include: portalThreadContactInclude,
     }),
     prisma.company.findUnique({ where: { id: actor.companyId }, select: { name: true, onMyWayTemplate: true } }),
@@ -51,7 +55,11 @@ export async function POST() {
     null
   ).trim();
 
-  const fromLine = await companyCanSendSms(actor.companyId);
+  // From the line only when the text can actually reach them (a STOP on
+  // record, texts off, no number): otherwise the thread row would say "sent"
+  // and Siri would say "Told Maria" while nothing went anywhere — hand off
+  // to the phone's Messages app instead, like the app's button.
+  const fromLine = canText(contact) && (await companyCanSendSms(actor.companyId));
   if (fromLine) {
     const message = await prisma.portalMessage.create({
       data: { companyId: actor.companyId, contactId: contact.id, direction: "OUTBOUND", senderId: actor.id, body, via: "portal" },

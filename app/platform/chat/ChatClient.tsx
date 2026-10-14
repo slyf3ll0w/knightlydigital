@@ -430,8 +430,7 @@ export default function ChatClient({
   // once from the file itself, the upload settles behind it. Pictures are
   // downsized on the device first (no carrier cap here, so more detail than
   // a text keeps).
-  async function postMedia(file: File, body: string) {
-    const channelId = activeRef.current;
+  async function postMedia(file: File, body: string, channelId: string) {
     let upload: Blob = file;
     let name = file.name;
     if (file.type.startsWith("image/") && file.type !== "image/gif") {
@@ -506,6 +505,10 @@ export default function ChatClient({
 
   async function sendFiles(files: File[], body: string) {
     if (files.length === 0 || attaching) return;
+    // The thread Send was pressed in, for the whole batch: switching threads
+    // while photo 1 uploads used to land photos 2+ in the thread switched TO.
+    const channelId = activeRef.current;
+    if (!channelId) return;
     setError("");
     setAttaching(true);
     hapticImpact("LIGHT");
@@ -513,7 +516,7 @@ export default function ChatClient({
     setDraft("");
     requestAnimationFrame(autoGrow);
     try {
-      for (const [i, file] of files.entries()) await postMedia(file, i === 0 ? body : "");
+      for (const [i, file] of files.entries()) await postMedia(file, i === 0 ? body : "", channelId);
     } finally {
       setAttaching(false);
     }
@@ -533,7 +536,7 @@ export default function ChatClient({
     setError("");
     setMessages((prev) => prev.filter((x) => x.id !== m.id));
     if (m.pendingFile) {
-      void postMedia(m.pendingFile, m.body);
+      if (activeRef.current) void postMedia(m.pendingFile, m.body, activeRef.current);
       return;
     }
     void postMessage(m.body);

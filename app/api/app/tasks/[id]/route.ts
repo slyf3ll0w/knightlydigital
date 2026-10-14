@@ -41,7 +41,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!body) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   const tz = await companyTz(actor.companyId);
 
-  const validated = await validateTaskInput(body, actor, tz, { requireTitle: false });
+  const validated = await validateTaskInput(body, actor, tz, { requireTitle: false, existing });
   if ("error" in validated) return NextResponse.json({ error: validated.error }, { status: 400 });
   const data = finishReminder(validated.data, validated.pending, existing, tz);
 

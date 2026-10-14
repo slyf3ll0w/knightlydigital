@@ -51,6 +51,12 @@ export default function QuickContactSheet({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    // The sheet is a portaled <form> inside the host page's own <form>
+    // (ContactPicker sits in the job / quote / invoice / request /
+    // appointment / series / agreement forms), and React carries synthetic
+    // events through portals along the component tree — without this, Enter
+    // here also submitted the host (same trap as EstimatorRunner).
+    e.stopPropagation();
     if (busy) return;
     if (!firstName.trim()) {
       setError("First name is required.");
@@ -78,7 +84,8 @@ export default function QuickContactSheet({
 
   return (
     <Modal open={open} onClose={() => !busy && onClose()} dismissible={!busy} portal>
-      <form onSubmit={submit} className="ds">
+      {/* onChange stops too: the hosts mark themselves dirty on any change, and typing here is not an edit to them */}
+      <form onSubmit={submit} onChange={(e) => e.stopPropagation()} className="ds">
         <h2 className="text-lg font-semibold text-gray-900">New client</h2>
         {error && (
           <p role="alert" className="form-error mt-3">

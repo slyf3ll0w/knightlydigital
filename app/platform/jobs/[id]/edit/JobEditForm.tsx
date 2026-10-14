@@ -15,6 +15,7 @@ import LineItemsEditor, {
   type EditorLineItem,
   emptyEditorLine,
   payloadRecurringInterval,
+  withLineKeys,
 } from "@/components/LineItemsEditor";
 
 type SavedAddress = {
@@ -77,17 +78,22 @@ export default function JobEditForm({
       line: joinLine(a),
     })),
   ];
-  const [lineItems, setLineItems] = useState<EditorLineItem[]>(
-    job.lineItems.map((li) => ({
-      ...emptyEditorLine,
-      name: li.name,
-      description: li.description,
-      quantity: String(li.quantity),
-      unitPrice: String(li.unitPrice),
-      unitCost: li.unitCost != null ? String(li.unitCost) : "",
-      workItemId: li.workItemId ?? "",
-      recurringInterval: li.recurringInterval,
-    }))
+  // Keyed from the start: LineItemsEditor hands keyless rows keys on mount,
+  // and that re-keying used to differ from the leave-guard's opening
+  // snapshot below, so an untouched edit page asked "Leave without saving?".
+  const [lineItems, setLineItems] = useState<EditorLineItem[]>(() =>
+    withLineKeys(
+      job.lineItems.map((li) => ({
+        ...emptyEditorLine,
+        name: li.name,
+        description: li.description,
+        quantity: String(li.quantity),
+        unitPrice: String(li.unitPrice),
+        unitCost: li.unitCost != null ? String(li.unitCost) : "",
+        workItemId: li.workItemId ?? "",
+        recurringInterval: li.recurringInterval,
+      }))
+    )
   );
 
   const lineTotal = lineItems.reduce((sum, li) => {
