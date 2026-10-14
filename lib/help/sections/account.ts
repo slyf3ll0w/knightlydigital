@@ -292,22 +292,22 @@ export const mobileSection: HelpSection = {
         },
         {
           type: "p",
-          text: "Siri does what the app's own Call and Text buttons do. With a business line, a call rings **your cell first**; answer, press 1, and the customer is dialed from your business number. A text goes out from the line and lands in the client's thread on the **Messages** page. Without a line, Siri asks to open WorkBench, then opens your phone's dialer or Messages app with the number and the text filled in, so the call or text comes from your own number.",
+          text: "Siri does what the app's own Call and Text buttons do. With a business line, a call rings **your cell first**; answer, press 1, and the customer is dialed from your business number. A text goes out from the line and lands in the client's thread on the **Messages** page — for owners, admins and sales roles, who can send from the line in the app too. Without a line, for a tech account, or for a client who can't be texted (no number, or they texted STOP), Siri asks to open WorkBench, then opens your phone's dialer or Messages app with the number and the text filled in, so the call or text comes from your own number.",
         },
         {
           type: "faq",
           items: [
             {
               q: "Siri says \"Open WorkBench and sign in first.\"",
-              a: "The app is signed out, or your login moved to another device. Open the app, sign in, and try again.",
+              a: "The app is signed out. Open the app, sign in, and try again.",
             },
             {
               q: "Siri says I have no job to clock into.",
-              a: "Your next job is the one you're clocked into, else the next job scheduled from today onward that's assigned to you (or to no one). Give the job a date or assign yourself to it. Sales accounts have no jobs to clock into.",
+              a: "Your next job is the one you're clocked into, else today's anytime job, else the next scheduled job whose time hasn't passed — the same stop Home shows as **Up next** — among the jobs assigned to you (or to no one). Give the job a date or assign yourself to it. Sales accounts have no jobs to clock into.",
             },
             {
               q: "Siri opens the app instead of doing it quietly.",
-              a: "Only Next job, Directions, and calls or texts from a phone without a business line bring the app forward. Everything else answers without opening it.",
+              a: "Only Next job, Directions, and calls or texts that go from your own phone (no business line, a tech account, or a client who can't be texted) bring the app forward. Everything else answers without opening it.",
             },
             {
               q: "The phrases don't work at all.",
