@@ -36,6 +36,22 @@ export type GetStarted = {
   complete: boolean;
 };
 
+/** What the checklist is judged from: the company's stamps and live counts. */
+export type GetStartedFacts = {
+  phone: string | null;
+  address: string | null;
+  businessHours: unknown;
+  bookingLinkSharedAt: Date | null;
+  mobileAppSeenAt: Date | null;
+  services: number;
+  clients: number;
+  quotes: number;
+  jobs: number;
+  people: number;
+  /** Users seen from the iPhone/Android app (0 when mobileAppSeenAt is set — that stamp wins). */
+  onPhone: number;
+};
+
 export async function loadGetStarted(companyId: string): Promise<GetStarted | null> {
   const company = await prisma.company.findUnique({
     where: { id: companyId },
@@ -71,6 +87,19 @@ export async function loadGetStarted(companyId: string): Promise<GetStarted | nu
         }),
   ]);
 
+  const result = buildGetStarted({ ...company, services, clients, quotes, jobs, people, onPhone });
+  // Finished is finished: every tick is a live count, so deleting the only
+  // client later would otherwise bring the card back to Home. The same stamp
+  // Hide writes; Settings → Company → Show on Home clears it.
+  if (result.complete) await prisma.company.updateMany({ where: { id: companyId, getStartedHiddenAt: null }, data: { getStartedHiddenAt: new Date() } });
+  return result;
+}
+
+/** The checklist from its facts — pure, so the ticking rules have a unit test (scripts/test-get-started.ts). */
+export function buildGetStarted(f: GetStartedFacts): GetStarted {
+  const { services, clients, quotes, jobs, people } = f;
+  const onPhone = f.mobileAppSeenAt ? 1 : f.onPhone;
+  const company = f;
   const items: GetStartedItem[] = [
     {
       key: "services",
@@ -144,12 +173,7 @@ export async function loadGetStarted(companyId: string): Promise<GetStarted | nu
 
   const core = items.filter((i) => !i.optional);
   const done = core.filter((i) => i.done).length;
-  const complete = done === core.length;
-  // Finished is finished: every tick is a live count, so deleting the only
-  // client later would otherwise bring the card back to Home. The same stamp
-  // Hide writes; Settings → Company → Show on Home clears it.
-  if (complete) await prisma.company.updateMany({ where: { id: companyId, getStartedHiddenAt: null }, data: { getStartedHiddenAt: new Date() } });
-  return { items, done, total: core.length, complete };
+  return { items, done, total: core.length, complete: done === core.length };
 }
 
 /** First beat from a native-app install: the company has the app. Once. */

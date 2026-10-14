@@ -15,11 +15,8 @@ export default function AppNotFound() {
           The record you were looking at no longer exists — it may have been deleted or
           moved. Nothing else was affected.
         </p>
-        <Link
-          href="/app/dashboard"
-          className="mt-6 inline-block rounded-full bg-[#0A1428] px-4 py-2 text-sm font-semibold text-white"
-        >
-          Back to the dashboard
+        <Link href="/app/dashboard" className="ds-btn ds-btn-primary mt-6">
+          Back to Home
         </Link>
       </div>
     </div>

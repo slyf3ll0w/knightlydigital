@@ -108,12 +108,6 @@ function NewRequestForm() {
                 touch();
               }}
             />
-            <Link
-              href="/app/contacts/new"
-              className="text-xs text-[color:var(--ds-primary)] hover:underline mt-1 inline-block"
-            >
-              + Add new client
-            </Link>
           </div>
 
           <ServiceChips selectedIds={services.map((s) => s.id)} onToggle={toggleService} label="What they need" />

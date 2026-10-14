@@ -42,6 +42,20 @@ export const INDUSTRIES = [
 
 export type Industry = (typeof INDUSTRIES)[number];
 
+/** "Other: <what they do>" from the free-text box, or plain "Other" when it's empty. */
+export function otherIndustry(text: string): string {
+  const o = text.trim().slice(0, 70);
+  return o ? `Other: ${o}` : "Other";
+}
+
+/**
+ * What Company.industry may hold: a list key, or "Other: <up to 70 chars>".
+ * The settings door checks this; the signup doors only ever send these.
+ */
+export function isIndustryValue(v: string): boolean {
+  return (INDUSTRIES as readonly string[]).includes(v) || /^Other: \S.{0,69}$/.test(v);
+}
+
 export const INDUSTRY_PRICEBOOKS: Record<Industry, StarterWorkItem[]> = {
   "Pressure Washing": [
     { name: "House Washing", description: "Soft wash of home exterior including gutters, soffits, and trim.", unitPrice: 250, unitCost: 60 },

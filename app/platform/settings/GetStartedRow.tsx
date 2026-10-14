@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ListChecks } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { alertSheet } from "@/components/ConfirmSheet";
+import InfoTip from "@/components/ds/InfoTip";
 
 /**
  * Settings → Company: bring the Get started checklist back to Home after
@@ -32,8 +33,12 @@ export default function GetStartedRow() {
         <ListChecks size={17} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-gray-900">Get started checklist</p>
-        <p className="text-xs text-gray-500">The setup steps on Home. It hides itself once they're all done.</p>
+        <p className="flex items-center gap-1.5 text-sm font-medium text-gray-900">
+          Get started checklist
+          <InfoTip label="What is the Get started checklist?">
+            The setup steps at the top of Home. Each one ticks itself off, and the card leaves on its own once they're all done.
+          </InfoTip>
+        </p>
       </div>
       {shown ? (
         <Link href="/app/dashboard" className="btn-tool-line shrink-0 text-sm">

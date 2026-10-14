@@ -1,6 +1,6 @@
 "use client";
 
-import { INDUSTRIES } from "@/lib/pricebooks";
+import { INDUSTRIES, otherIndustry } from "@/lib/pricebooks";
 
 /**
  * The industry question every signup door asks. A select, not a free-text
@@ -12,9 +12,7 @@ import { INDUSTRIES } from "@/lib/pricebooks";
  * the Get started checklist asks them to add their own.
  */
 export function industryValue(industry: string, other: string): string {
-  if (industry !== "Other") return industry;
-  const o = other.trim().slice(0, 70);
-  return o ? `Other: ${o}` : "Other";
+  return industry === "Other" ? otherIndustry(other) : industry;
 }
 
 export default function IndustrySelect({

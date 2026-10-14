@@ -477,6 +477,7 @@ export default function ChatClient({
           ? prev.filter((m) => m.id !== temp.id)
           : prev.map((m) => (m.id === temp.id ? data : m))
       );
+      releasePreview(temp);
     } catch (err) {
       if (activeRef.current !== channelId) return;
       if (err instanceof Error && err.message) setError(err.message);
@@ -484,6 +485,11 @@ export default function ChatClient({
         prev.map((m) => (m.id === temp.id ? { ...m, pending: false, failed: true } : m))
       );
     }
+  }
+
+  /** The optimistic bubble's blob: URL, once the server row (or a retry) replaces it. */
+  function releasePreview(m: Message) {
+    for (const x of m.media ?? []) if (x.id === "pending") URL.revokeObjectURL(x.url);
   }
 
   // Picked, dropped or pasted files wait in the composer (thumbnails above
@@ -544,6 +550,7 @@ export default function ChatClient({
   function retrySend(m: Message) {
     setError("");
     setMessages((prev) => prev.filter((x) => x.id !== m.id));
+    releasePreview(m);
     if (m.pendingFile) {
       if (activeRef.current) void postMedia(m.pendingFile, m.body, activeRef.current);
       return;
@@ -778,7 +785,7 @@ export default function ChatClient({
 
   const conversation = (
     <div {...drop.handlers} data-paste-zone className="relative flex h-full min-h-0 flex-col bg-white lg:rounded-[8px] lg:border lg:border-gray-200 lg:shadow-sm">
-      <FileDropOverlay show={drop.over} hint={`Goes to ${active?.name ?? "this chat"} once you press Send · photos stay in the chat for a week`} />
+      <FileDropOverlay show={drop.over} hint={`Goes to ${active?.name ?? "this chat"} once you press Send`} />
       {/* Header */}
       <div className="chat-head glass-bar flex shrink-0 items-center gap-2.5 border-b border-gray-100 px-3 py-2.5 lg:px-4">
         <button
@@ -1080,7 +1087,7 @@ export default function ChatClient({
             onClick={() => fileRef.current?.click()}
             disabled={attaching}
             aria-label="Attach a photo"
-            title="Attach a photo or video (or paste a screenshot with Ctrl+V), then add words and send — photos stay in the chat for a week"
+            title="Attach a photo or video"
             className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full text-[color:var(--ds-primary)] transition-colors hover:bg-[color:var(--ds-primary-soft)] active:bg-[color:var(--ds-primary-soft)] disabled:opacity-40"
           >
             {attaching ? <Loader2 size={20} className="animate-spin" /> : <ImagePlus size={20} />}

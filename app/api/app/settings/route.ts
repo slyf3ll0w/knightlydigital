@@ -10,6 +10,7 @@ import { sanitizeBookingPage } from "@/lib/booking-page";
 import { sanitizeBusinessHours, sanitizeServiceZips } from "@/lib/business-hours";
 import { sanitizeDeposit } from "@/lib/deposits";
 import { SLOT_INTERVAL_CHOICES } from "@/lib/scheduling";
+import { isIndustryValue } from "@/lib/pricebooks";
 import { getActor, isManager } from "@/lib/permissions";
 import { geocodeCompany } from "@/lib/geocoding";
 import { isValidTimezone } from "@/lib/timezone";
@@ -97,6 +98,12 @@ export async function PATCH(req: NextRequest) {
     select: { name: true, slug: true, previousSlugs: true, lineNumber: true, lineMessagingProfileId: true, lineCallerIdName: true },
   });
   if (!before) return NextResponse.json({ error: "Company not found." }, { status: 404 });
+  // A list key or "Other: <what they do>" — the price-book seeding and the
+  // texting registration read it, so free text has nowhere to go
+  const industry = body.industry !== undefined ? String(body.industry ?? "").trim() || null : null;
+  if (industry && !isIndustryValue(industry)) {
+    return NextResponse.json({ error: "Pick an industry from the list.", field: "industry" }, { status: 400 });
+  }
   let slugData: { slug: string; previousSlugs: string[] } | undefined;
   if (body.slug !== undefined && String(body.slug).trim() !== before.slug) {
     const check = await checkSlugChange(companyId, body.slug);
@@ -141,7 +148,7 @@ export async function PATCH(req: NextRequest) {
           body.assistantName !== undefined
             ? String(body.assistantName).trim().slice(0, 40) || null
             : undefined,
-        industry: body.industry !== undefined ? body.industry || null : undefined,
+        industry: body.industry !== undefined ? industry : undefined,
         logoUrl: body.logoUrl !== undefined ? body.logoUrl || null : undefined,
         logoWallpaper: typeof body.logoWallpaper === "boolean" ? body.logoWallpaper : undefined,
         wallpaper: isWallpaper(body.wallpaper) ? body.wallpaper : undefined,

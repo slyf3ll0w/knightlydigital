@@ -404,10 +404,16 @@ export default function TeamThread({
       setMessages((prev) =>
         prev.some((m) => m.id === saved.id) ? prev.filter((m) => m.id !== temp.id) : prev.map((m) => (m.id === temp.id ? saved : m))
       );
+      releasePreview(temp);
     } catch (err) {
       setError(err instanceof Error && err.message !== "Not delivered." ? err.message : "");
       setMessages((prev) => prev.map((m) => (m.id === temp.id ? { ...m, pending: false, failed: true } : m)));
     }
+  }
+
+  /** The optimistic bubble's blob: URL, once the server row (or a retry) replaces it. */
+  function releasePreview(m: ThreadMessage) {
+    for (const x of m.media ?? []) if (x.id === "pending") URL.revokeObjectURL(x.url);
   }
 
   // Picked, dropped or pasted files wait in the composer (thumbnails above
@@ -465,6 +471,7 @@ export default function TeamThread({
   function retrySend(m: ThreadMessage) {
     setError("");
     setMessages((prev) => prev.filter((x) => x.id !== m.id));
+    releasePreview(m);
     if (m.pendingFile) {
       void postMedia(m.pendingFile, m.body);
       return;
@@ -519,7 +526,7 @@ export default function TeamThread({
       <div {...drop.handlers} data-paste-zone className="relative flex h-full min-h-0 flex-col bg-white lg:rounded-[8px] lg:border lg:border-gray-200 lg:shadow-sm">
         <FileDropOverlay
           show={drop.over}
-          hint={`${channel?.kind === "sms" ? `Texts it to ${contactFirstName} from your business line` : `Lands in ${contactFirstName}'s client portal`} · photos stay in the thread for a week`}
+          hint={channel?.kind === "sms" ? `Texts it to ${contactFirstName} from your business line` : `Lands in ${contactFirstName}'s client portal`}
         />
         {/* Header — floats over the thread on phones (.chat-head) */}
         <div className="chat-head glass-bar flex shrink-0 items-center gap-2.5 border-b border-gray-100 px-3 py-2.5 lg:px-4">
@@ -666,7 +673,7 @@ export default function TeamThread({
               onClick={() => fileRef.current?.click()}
               disabled={readOnly || attaching}
               aria-label="Attach a photo"
-              title={`${channel?.kind === "sms" ? "Attach a photo or short video to text" : "Attach a photo (lands in their client portal)"} — or paste a screenshot with Ctrl+V — then add words and send. Photos stay in the thread for a week`}
+              title={channel?.kind === "sms" ? "Attach a photo or short video" : "Attach a photo"}
               className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full text-[color:var(--ds-primary)] transition-colors hover:bg-[color:var(--ds-primary-soft)] active:bg-[color:var(--ds-primary-soft)] disabled:opacity-40"
             >
               {attaching ? <Loader2 size={20} className="animate-spin" /> : <ImagePlus size={20} />}

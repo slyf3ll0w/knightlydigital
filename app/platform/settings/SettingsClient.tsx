@@ -48,7 +48,7 @@ import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import { Input, Textarea, Select } from "@/components/Input";
 import { FlashBanner, useVerifyIdentity, type SignInMethods } from "@/components/VerifyIdentity";
 import { resizeImageFile } from "@/lib/resize-image";
-import { INDUSTRIES } from "@/lib/pricebooks";
+import { INDUSTRIES, otherIndustry } from "@/lib/pricebooks";
 import { DEFAULT_ON_MY_WAY_TEMPLATE, ON_MY_WAY_PLACEHOLDERS } from "@/lib/messaging";
 import { textOn } from "@/lib/branding";
 import { GOOGLE_FONT_RE } from "@/lib/booking-page";
@@ -369,7 +369,7 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
     return (
       <div className="ds-card p-5 space-y-3">
         <SectionHeader
-          title="Online Payments"
+          title="Online payments"
           hint="Let clients pay invoices by card or bank transfer, straight from their pay link."
           action={<Chip>Coming soon</Chip>}
         />
@@ -389,7 +389,7 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
   return (
     <div className="ds-card p-5 space-y-3">
       <SectionHeader
-        title="Online Payments"
+        title="Online payments"
         hint="Let clients pay invoices by card or bank transfer, straight from their pay link."
         action={status.environment === "sandbox" ? <Chip tone="warn">Test mode</Chip> : undefined}
       />
@@ -1439,7 +1439,7 @@ export default function SettingsClient({
         {/* Business info */}
         {show("company") && (
         <div className="ds-card p-5 space-y-4">
-          <SectionHeader title="Business Info" />
+          <SectionHeader title="Business info" />
           <div>
             <FieldLabel>Business name *</FieldLabel>
             <Input type="text" value={form.name} onChange={(e) => set("name", e.target.value)}
@@ -1558,13 +1558,24 @@ export default function SettingsClient({
           <div>
             <FieldLabel info="Changing this doesn't touch your price book — edit that in Services.">Industry</FieldLabel>
             <Select value={INDUSTRIES.includes(form.industry as (typeof INDUSTRIES)[number]) ? form.industry : form.industry ? "Other" : ""}
-              onChange={(e) => set("industry", e.target.value)}
+              onChange={(e) => {
+                // Picking Other again keeps the "Other: …" already typed
+                const next = e.target.value;
+                set("industry", next === "Other" && form.industry.startsWith("Other") ? form.industry : next);
+              }}
               className="w-full focus:ring-2">
               <option value="">Not set</option>
               {INDUSTRIES.map((ind) => (
                 <option key={ind} value={ind}>{ind}</option>
               ))}
             </Select>
+            {form.industry.startsWith("Other") && (
+              <Input value={form.industry.replace(/^Other:?\s*/, "")}
+                onChange={(e) => set("industry", otherIndustry(e.target.value))}
+                maxLength={70}
+                placeholder="What kind of work? e.g. Mobile detailing"
+                className="mt-2 w-full focus:ring-2" />
+            )}
           </div>
           <div>
             <FieldLabel info="Used to describe your business when you register your number for texting. While that registration is under review, this description plus your address, phone and email appear at the bottom of your public booking page, because carriers read it as your website — unless you give a website of your own on the registration form. They come off the page by themselves once texting is approved. You can also show them any time from Settings → Booking & forms → Look.">

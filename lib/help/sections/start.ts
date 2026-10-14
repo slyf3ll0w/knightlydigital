@@ -32,7 +32,7 @@ export const startSection: HelpSection = {
         },
         {
           type: "p",
-          text: "Check where you stand in **Settings → Payments & accounting → Online Payments**. It shows **under review**, **enabled**, or a request for more information with a `Continue application` button.",
+          text: "Check where you stand in **Settings → Payments & accounting → Online payments**. It shows **under review**, **enabled**, or a request for more information with a `Continue application` button.",
         },
         {
           type: "tip",
@@ -51,7 +51,7 @@ export const startSection: HelpSection = {
             },
             {
               q: "The underwriter asked for more information.",
-              a: "Press `Continue application` in the Online Payments card, answer what they asked for, and submit again.",
+              a: "Press `Continue application` in the Online payments card, answer what they asked for, and submit again.",
             },
           ],
         },
@@ -73,7 +73,6 @@ export const startSection: HelpSection = {
           type: "steps",
           note: "Go top to bottom",
           items: [
-            "**Verify your business** so you can take payments. See [Activate your account](/help/activate-payments).",
             "**Add your services** (or **Review your prices** if your price book came pre-loaded): Settings → Services, so quotes, jobs and invoices fill themselves in.",
             "**Fill in your business details**: phone, address, logo and brand color under Settings → Company. They go on your booking page and every document. The timezone there decides what \"today\" means on your schedule.",
             "**Set your business hours**: they live in Settings → Booking & forms. Booking and scheduling use them to know when you're open.",

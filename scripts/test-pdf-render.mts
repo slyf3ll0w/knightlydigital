@@ -8,9 +8,11 @@
 import { renderToBuffer } from "@react-pdf/renderer";
 import { buildQuoteDocument, buildInvoiceDocument } from "../lib/pdf";
 import { writeFileSync, mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const outDir = process.argv[2] ?? ".";
+// Under the unit-test runner the PDFs go to the temp dir, not the repo root
+const outDir = process.argv[2] ?? join(tmpdir(), "wb-pdf-render-test");
 mkdirSync(outDir, { recursive: true });
 
 const company = {

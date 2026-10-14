@@ -233,9 +233,6 @@ export default function AppointmentForm({
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Client *</label>
             <ContactPicker contacts={contacts} value={contactId} onChange={pickContact} />
-            <Link href="/app/contacts/new" className="text-xs text-[color:var(--ds-primary)] hover:underline mt-1 inline-block">
-              + Add new client
-            </Link>
           </div>
           <div>
             <label className="mb-1 flex items-center gap-1.5 text-sm font-medium text-gray-700">

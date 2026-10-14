@@ -777,7 +777,7 @@ export function pinIdentity(form: RegistrationForm, id: Pick<CampaignIdentity, "
 export function profileGapMessage(gaps: string[], siteUrl: string): string {
   return (
     `Carrier reviewers check your business page (${siteUrl}) for your address, phone, email and services. ` +
-    `Add ${gaps.join(", ")} (Settings → Business Info, or Booking & forms for services), then register.`
+    `Add ${gaps.join(", ")} (Settings → Business info, or Booking & forms for services), then register.`
   );
 }
 

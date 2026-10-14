@@ -347,3 +347,21 @@ Static reading only — nothing exercised on a device.
   (`/app` boundary). NOT done: 18a (browser Back / hardware back with unsaved changes — a history
   sentinel costs a double-Back after every saved form; left), 21d (in-process miss counter —
   documented trade-off, left). Staging CI + e2e green (371768e3), **LIVE ON MAIN 371768e3 2026-10-14**.
+- **2026-10-14, Tier 3 (same branch):** 29 (start.ts loses the "Verify your business" step; the Siri
+  `noJob` line now reads "You have no job up next right now" for all four intents — Intents.swift,
+  ships with the next store build; the account.ts Siri copy was fixed in the Help Center pass), 30
+  (every listed heading in sentence case, and the Help Center + line copy that named "Business Info" /
+  "Online Payments" follows), 31 (copy says Help Center; the /app/support page keeps its own
+  "Help & Feedback" name — it's reached from the Help Center's footer buttons), 32 (the in-app 404
+  uses the theme button and the same "Back to Home"; the root page stays light outside the shell — one
+  look per surface), 33 (both "+ Add new client" leftovers gone; the picker's New client covers it), 34
+  (remove badge's hit area is the tile's 40 px top-right square), 35 (blob: URLs revoked when the
+  server row or a retry replaces the bubble; a paste while any aria-modal dialog is up that doesn't
+  hold the pane is left alone; `mergePendingFiles` dedupes by name+size+mtime — moved to
+  `lib/pending-files.ts`), 36 (settings PATCH refuses anything but a list key or "Other: …";
+  Settings → Company shows the Other box and keeps a typed "Other: …"), 37 (a probe answered `ok`
+  clears the wall and fires a real claim beat), 38 (the phone strip's bottom anchor is looked up again
+  once the page settles), 39 (GetStartedRow subtext → InfoTip; attach tooltips, drop-overlay hints
+  and the expired bubble trimmed to the action; the public-door IndustrySelect hint is left — site
+  style, not app), 40 (runner takes `.mts`, the PDF test writes to the temp dir; new
+  `test-get-started` (pure `buildGetStarted`), `test-toast` (`kindForUrl`), `test-pending-files`).

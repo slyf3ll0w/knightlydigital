@@ -148,7 +148,7 @@ export default function SharePanel({ toolId, toolName, companyName, companyIndus
 
         {removed && state && "status" in state && (
           <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-700">
-            Workbench removed this listing{state.removedReason ? `: ${state.removedReason}` : "."} Businesses that already added it keep their copy. Reply to us from Help &amp; Feedback if you think that&apos;s a mistake.
+            Workbench removed this listing{state.removedReason ? `: ${state.removedReason}` : "."} Businesses that already added it keep their copy. Reply to us from the Help Center if you think that&apos;s a mistake.
           </div>
         )}
 

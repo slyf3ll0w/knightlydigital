@@ -107,7 +107,7 @@ private enum SiriError: Error, CustomLocalizedStringResourceConvertible {
     var localizedStringResource: LocalizedStringResource {
         switch self {
         case .signedOut: return "Open WorkBench and sign in first."
-        case .noJob: return "You have no job to clock into right now."
+        case .noJob: return "You have no job up next right now."
         case .notOnJob: return "You're not clocked in to a job right now."
         case .noMissed: return "There's no missed call to return."
         case .refused(let why): return "\(why)"

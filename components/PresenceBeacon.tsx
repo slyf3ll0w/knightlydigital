@@ -62,6 +62,8 @@ export default function PresenceBeacon() {
   // Set when a beat is turned away; cleared by a touch / key here or a
   // takeover. While set, timer and wake beats only probe — they never claim.
   const walled = useRef(false);
+  // `beat` by reference, for the one place it calls itself (a reclaim)
+  const self = useRef<(takeover?: boolean, floorMs?: number) => Promise<void>>(async () => {});
 
   const beat = useCallback(async (takeover = false, floorMs = FLOOR_MS, evenHidden = false, touch = false) => {
     // A real touch re-arms claiming even when this particular beat is floored.
@@ -74,6 +76,7 @@ export default function PresenceBeacon() {
     last.current = now;
     inFlight.current = true;
     const probe = !takeover && walled.current;
+    let reclaim = false;
     try {
       const req = fetch("/api/app/presence", {
         method: "POST",
@@ -88,14 +91,25 @@ export default function PresenceBeacon() {
       if (data?.busy) {
         walled.current = true;
         setBusy((cur) => (cur && cur.device === data.device ? cur : { device: data.device || "another device" }));
-      } else if (data?.ok) setBusy(null);
+      } else if (data?.ok) {
+        setBusy(null);
+        // The wall came down on a probe's answer (the holder went quiet):
+        // this device is the one in use now, so claim and stamp presence
+        // rather than stay invisible until the next touch here
+        if (probe) {
+          walled.current = false;
+          reclaim = true;
+        }
+      }
     } catch {
       // offline / aborted — the next beat tries again
     } finally {
       inFlight.current = false;
       presenceGate.pending = null;
     }
+    if (reclaim) void self.current(false, 0);
   }, []);
+  self.current = beat;
 
   useEffect(() => {
     void beat();

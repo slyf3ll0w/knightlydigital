@@ -563,7 +563,7 @@ console.log("test-business-line (number rights): all assertions passed");
   assert.equal(REGISTRATION_CHECKLIST.PRIVATE_PROFIT.length, 6);
   assert.equal(REGISTRATION_CHECKLIST.SOLE_PROPRIETOR.length, 5);
   // Both lists ask for the business details the hosted business page shows (reviewers check the brand's website for them).
-  for (const list of Object.values(REGISTRATION_CHECKLIST)) assert.ok(list.some((i) => /Business Info/.test(i.title)));
+  for (const list of Object.values(REGISTRATION_CHECKLIST)) assert.ok(list.some((i) => /Business info/.test(i.title)));
   // Both lists end on the booking-form item: reviewers open that page for the consent checkbox.
   for (const list of Object.values(REGISTRATION_CHECKLIST)) assert.match(list[list.length - 1].title, /booking form/);
   console.log("test-business-line (group mailboxes): all assertions passed");

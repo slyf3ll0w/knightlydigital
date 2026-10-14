@@ -297,7 +297,7 @@ function NewJobForm() {
         )}
 
         <div className="ds-card p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700">Job Details</h2>
+          <h2 className="text-sm font-semibold text-gray-700">Job details</h2>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Customer *</label>

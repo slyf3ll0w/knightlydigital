@@ -206,7 +206,7 @@ export default function RequestActions({
       >
         {editing && (
           <div className="space-y-3 text-left">
-            <h2 className="text-base font-semibold text-gray-900">Edit Request</h2>
+            <h2 className="text-base font-semibold text-gray-900">Edit request</h2>
 
             {error && (
               <p role="alert" className="form-error">

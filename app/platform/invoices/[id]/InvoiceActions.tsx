@@ -698,7 +698,7 @@ export default function InvoiceActions({
         {pickOpen && (
           <>
             <div className="flex items-start justify-between mb-3">
-              <h2 className="text-lg font-bold text-gray-900">Charge Card</h2>
+              <h2 className="text-lg font-bold text-gray-900">Charge card</h2>
               <button
                 onClick={() => setPickOpen(false)}
                 disabled={savingCard}

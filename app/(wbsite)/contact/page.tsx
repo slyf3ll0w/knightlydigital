@@ -72,7 +72,7 @@ export default function WBContactPage() {
             <p className="mt-5 text-[13.5px] font-bold text-gray-500">Already a customer?</p>
             <p className="mt-1 text-xl font-extrabold text-gray-900">Message us from the app</p>
             <p className="mt-2 text-[14px] leading-relaxed text-gray-600">
-              Log in and open Help &amp; Feedback in the menu. It reaches the same team.
+              Log in and open Help Center from the menu, then Report a bug or Suggest a feature. It reaches the same team.
             </p>
             <Link href="/app/login" className="mt-3 inline-flex items-center gap-1.5 text-[14px] font-bold text-[#0B57D8] hover:underline">
               Log in

@@ -52,7 +52,7 @@ export const settingsSection: HelpSection = {
       title: "Your business name, legal name and web address",
       summary: "What clients see you as, the entity on paper, and the address in your links.",
       keywords: ["business name", "legal name", "DBA", "doing business as", "trade name", "own name", "sole proprietor", "web address", "slug", "booking link", "portal link", "rename"],
-      where: { label: "Business Info", href: "/app/settings?s=company" },
+      where: { label: "Business info", href: "/app/settings?s=company" },
       roles: "Owners and admins",
       blocks: [
         {
@@ -66,7 +66,7 @@ export const settingsSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Go to **Settings → Company → Business Info**.",
+            "Go to **Settings → Company → Business info**.",
             "Type the name clients should see under **Business name**, and the registered entity under **Legal business name** (or leave it blank).",
             "Optional: switch on **Show the legal name on quotes, invoices and agreements**.",
             "Optional: change **Web address**, the last part of your booking and portal links. Old links keep working — they forward to the new address.",
@@ -115,7 +115,7 @@ export const settingsSection: HelpSection = {
         },
         {
           type: "p",
-          text: "New requests, client messages and bookings also go to your company's notification inbox by email. Once a device of yours has notifications on, that email is skipped so you don't hear the same thing twice. **My Profile → Email me too** changes this for you: `Only when push is off` (the default), `Always`, or `Never`. To stop these emails for the whole company — a team that reads them on their phones — switch off **Email these notifications** under **Settings → Company → Business Info → Notifications inbox**; pushes and the bell carry on.",
+          text: "New requests, client messages and bookings also go to your company's notification inbox by email. Once a device of yours has notifications on, that email is skipped so you don't hear the same thing twice. **My Profile → Email me too** changes this for you: `Only when push is off` (the default), `Always`, or `Never`. To stop these emails for the whole company — a team that reads them on their phones — switch off **Email these notifications** under **Settings → Company → Business info → Notifications inbox**; pushes and the bell carry on.",
         },
         {
           type: "faq",

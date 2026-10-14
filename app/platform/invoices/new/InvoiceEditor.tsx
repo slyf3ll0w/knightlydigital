@@ -325,7 +325,7 @@ export default function InvoiceEditor({
             able to spill past the card edge (it was getting clipped) */}
         <div className="ds-card">
           <div className="px-5 py-4 border-b border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-700">Line Items</h2>
+            <h2 className="text-sm font-semibold text-gray-700">Line items</h2>
           </div>
           <LineItemsEditor
             items={lineItems}

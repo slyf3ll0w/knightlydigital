@@ -239,7 +239,7 @@ export default function ContactForm({
         )}
 
         <div className="ds-card p-5">
-          <SectionHeader title="Contact Info" className="mb-4" />
+          <SectionHeader title="Contact info" className="mb-4" />
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">First name *</label>
@@ -367,7 +367,7 @@ export default function ContactForm({
         </div>
 
         <div className="ds-card p-5">
-          <SectionHeader title="Client Details" className="mb-4" />
+          <SectionHeader title="Client details" className="mb-4" />
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Lead source</label>
@@ -445,7 +445,7 @@ export default function ContactForm({
 
         {fieldDefs.length > 0 && (
           <div className="ds-card p-5">
-            <SectionHeader title="Custom Fields" className="mb-4" />
+            <SectionHeader title="Custom fields" className="mb-4" />
             <div className="grid grid-cols-2 gap-4">
               {fieldDefs.map((d) => (
                 <div key={d.id}>

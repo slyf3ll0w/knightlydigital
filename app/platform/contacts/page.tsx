@@ -104,12 +104,12 @@ export default async function ContactsPage({
             <>
               <Link
                 href="/app/settings/client-fields"
-                aria-label="Custom Fields"
-                title="Custom Fields"
+                aria-label="Custom fields"
+                title="Custom fields"
                 className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] btn-tool-line bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold transition-colors sm:w-auto sm:px-4"
               >
                 <ListPlus size={15} />
-                <span className="hidden sm:inline">Custom Fields</span>
+                <span className="hidden sm:inline">Custom fields</span>
               </Link>
               <Link
                 href="/app/settings/import"

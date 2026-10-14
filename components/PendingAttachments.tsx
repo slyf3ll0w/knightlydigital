@@ -2,39 +2,17 @@
 
 import { useEffect, useMemo } from "react";
 import { Film, X } from "lucide-react";
-import { isComposerFile } from "@/lib/media-types";
 
-/** How many photos or clips one send can carry (each goes out as its own message). */
-export const MAX_PENDING_FILES = 10;
-
-/**
- * The server's own list (lib/media-types.ts), not "anything image/* or
- * video/*": a .webm screen recording or a .bmp used to stage with a
- * thumbnail and then fail at Send with "Photos and videos can be sent".
- */
-export function isSendableFile(f: File) {
-  return isComposerFile(f.type);
-}
-
-/**
- * Add picked, dropped or pasted files to the composer's queue: photos and
- * videos only, up to the cap. `skipped` = something wasn't a photo or video,
- * `full` = the cap cut the batch short.
- */
-export function mergePendingFiles(current: File[], incoming: File[], max = MAX_PENDING_FILES) {
-  const sendable = incoming.filter(isSendableFile);
-  const room = Math.max(0, max - current.length);
-  return {
-    next: room > 0 ? [...current, ...sendable.slice(0, room)] : current,
-    skipped: sendable.length < incoming.length,
-    full: sendable.length > room,
-  };
-}
+// The queue rules live in lib/pending-files.ts (pure, unit-tested); re-exported
+// here so the composers keep one import.
+export { MAX_PENDING_FILES, isSendableFile, mergePendingFiles } from "@/lib/pending-files";
 
 /**
  * The strip of thumbnails sitting in the composer before a send (iMessage
  * style): what's been picked, dropped or pasted, each with a remove badge.
- * The words typed under it go out with the first one.
+ * The words typed under it go out with the first one. The badge reads small;
+ * its hit area is the tile's whole top-right 40 px square (the phone
+ * touch-target rule).
  */
 export default function PendingAttachments({
   files,
@@ -77,9 +55,11 @@ export default function PendingAttachments({
               type="button"
               onClick={() => onRemove(i)}
               aria-label={`Remove ${f.name}`}
-              className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white shadow-sm transition-colors hover:bg-black/80 active:bg-black/80"
+              className="group/remove absolute right-0 top-0 flex h-10 w-10 items-start justify-end p-1"
             >
-              <X size={12} strokeWidth={2.5} />
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white shadow-sm transition-colors group-hover/remove:bg-black/80 group-active/remove:bg-black/80">
+                <X size={12} strokeWidth={2.5} />
+              </span>
             </button>
           )}
         </div>

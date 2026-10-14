@@ -56,9 +56,11 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
   const drag = useRef<Drag | null>(null);
   // Phone: with nothing stuck here the strip lives at the bottom of the page
   const [bottomEl, setBottomEl] = useState<HTMLElement | null>(null);
+  // Looked up again once the page has drawn: on a route with a loading.tsx
+  // the anchor isn't there yet when the pathname changes
   useEffect(() => {
     setBottomEl((mainRef.current?.querySelector("#wb-page-notes-bottom") as HTMLElement | null) ?? null);
-  }, [mainRef, page]);
+  }, [mainRef, page, settled]);
 
   useEffect(() => {
     try {

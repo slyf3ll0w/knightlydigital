@@ -1,12 +1,12 @@
 // `npm run test:unit` — runs every pure unit-test script in scripts/test-*.ts
-// in sequence and fails on the first red one. Sets a placeholder DATABASE_URL
+// (and .mts) in sequence and fails on the first red one. Sets a placeholder DATABASE_URL
 // when none is present: several tests import modules that construct the
 // Prisma client at load time, but none of them ever query it.
 import { spawnSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 
 const scripts = readdirSync("scripts")
-  .filter((f) => /^test-.*\.ts$/.test(f))
+  .filter((f) => /^test-.*\.m?ts$/.test(f))
   .sort();
 
 const env = {

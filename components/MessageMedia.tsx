@@ -21,7 +21,7 @@ export default function MessageMedia({ media, className = "" }: { media: ThreadM
       {media.map((m) =>
         m.expired ? (
           <span key={m.id} className="inline-flex items-center gap-1.5 rounded-lg bg-black/10 px-2.5 py-1.5 text-xs opacity-80">
-            <ImageOff size={13} /> {noun(m.type)} expired — photos stay in the thread for a week
+            <ImageOff size={13} /> {noun(m.type)} expired
           </span>
         ) : (
           <div key={m.id} className="group relative w-fit max-w-full">

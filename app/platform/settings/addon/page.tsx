@@ -43,7 +43,7 @@ export default async function AddonPage() {
           <p className="ds-body">
             The Voice plan isn&apos;t switched on for your account yet. Message us from{" "}
             <Link href="/app/help" className="ds-link">
-              Help &amp; Feedback
+              Help Center
             </Link>{" "}
             and we&apos;ll turn it on.
           </p>
