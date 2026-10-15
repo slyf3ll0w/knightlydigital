@@ -80,6 +80,15 @@ const THINKING_BUDGET = (() => {
   const n = Number(process.env.ATLAS_THINKING_BUDGET);
   return Number.isFinite(n) && n >= 0 ? Math.min(8192, Math.round(n)) : 1024;
 })();
+// Later rounds of the same turn mostly read tool results and either chain
+// the next obvious lookup or write the answer — the planning happened in
+// round one. A smaller budget there trims seconds off every multi-tool turn
+// without touching the first round's reasoning (ATLAS_THINKING_BUDGET_FOLLOWUP).
+const THINKING_BUDGET_FOLLOWUP = (() => {
+  const n = Number(process.env.ATLAS_THINKING_BUDGET_FOLLOWUP);
+  const v = Number.isFinite(n) && n >= 0 ? Math.round(n) : 256;
+  return Math.min(THINKING_BUDGET, v);
+})();
 
 /**
  * Follow-through for multi-step work. Writes only happen when the user
@@ -287,6 +296,9 @@ export type AssistantResult = {
   navigate?: string;
 };
 
+/** One tool round about to run — the drawer shows what Atlas is doing (lib/assistant/progress.ts). */
+export type AssistantProgress = { round: number; tools: string[] };
+
 /**
  * Run one assistant turn: history in, final text + any staged proposals out.
  * Tool calls happen server-side, bounded to MAX_TOOL_ROUNDS. Returns null
@@ -296,7 +308,11 @@ export type AssistantResult = {
 export async function runAssistant(
   actor: Actor,
   messages: ChatMessage[],
-  opts: { onFailure?: (partial: Omit<AssistantResult, "reply" | "proposals">) => void } = {}
+  opts: {
+    onFailure?: (partial: Omit<AssistantResult, "reply" | "proposals">) => void;
+    /** Fired before each tool round executes, so the caller can show progress. */
+    onProgress?: (p: AssistantProgress) => void;
+  } = {}
 ): Promise<AssistantResult | null> {
   const company = await prisma.company.findUnique({
     where: { id: actor.companyId },
@@ -336,7 +352,7 @@ export async function runAssistant(
       // needs far more than a chat reply's worth of output. A tight cap here
       // truncates the batch mid-emission and records silently drop.
       maxOutputTokens: 16384,
-      thinkingBudget: THINKING_BUDGET,
+      thinkingBudget: round === 0 ? THINKING_BUDGET : THINKING_BUDGET_FOLLOWUP,
       companyId: actor.companyId, // meter every round's tokens to the tenant
       onUsage,
       // last round: no tools, force it to answer with what it has
@@ -398,6 +414,7 @@ export async function runAssistant(
       ? "atlasNote: this was the LAST tool round of the turn. Stage/answer with what you have now and tell the user exactly what remains; they can say 'continue' to pick it up."
       : undefined;
     toolCalls += calls.length;
+    opts.onProgress?.({ round, tools: calls.map((c) => c.functionCall.name) });
     const executed: AIPart[] = await Promise.all(
       calls.map(async (call): Promise<AIPart> => {
         const tool = active.find((t) => t.decl.name === call.functionCall.name);

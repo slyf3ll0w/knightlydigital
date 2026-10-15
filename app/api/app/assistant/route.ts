@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { reportError } from "@/lib/report-error";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { aiEnabled } from "@/lib/ai";
 import { limit } from "@/lib/rate-limit";
 import { runAssistant, type ChatMessage } from "@/lib/assistant";
+import { describeToolCalls } from "@/lib/assistant/progress";
 import {
   atlasAccess,
   ATLAS_ACCESS_SELECT,
@@ -56,18 +58,30 @@ function accessAfter(before: AtlasAccess, debit: Debit | null): AtlasAccess {
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (await inPreview(actor.companyId))
-    return NextResponse.json(previewBlockedError("Atlas, your AI assistant,"), { status: 403 });
   if (!aiEnabled()) {
     return NextResponse.json({ error: "The assistant isn't available right now." }, { status: 503 });
   }
 
-  // Account-level access: the layout also gates the UI, but this is the
-  // enforcement point a direct request can't skip.
-  const company = await prisma.company.findUnique({
-    where: { id: actor.companyId },
-    select: { ...ATLAS_ACCESS_SELECT, assistantName: true },
-  });
+  // The gate checks are independent reads — one round trip, not six in a
+  // row, before the model is even asked (every one of them sat in front of
+  // the user's wait).
+  const [preview, company, burst, daily, userBurst, userDaily] = await Promise.all([
+    inPreview(actor.companyId),
+    // Account-level access: the layout also gates the UI, but this is the
+    // enforcement point a direct request can't skip.
+    prisma.company.findUnique({
+      where: { id: actor.companyId },
+      select: { ...ATLAS_ACCESS_SELECT, assistantName: true },
+    }),
+    // burst + daily caps per company — every turn is a real AI spend — plus a
+    // per-user ceiling at half the company quota so one user can't exhaust it
+    limit(`assistant:${actor.companyId}`, 20, 10 * 60 * 1000),
+    limit(`assistant-day:${actor.companyId}`, 200, 24 * 60 * 60 * 1000),
+    limit(`assistant-user:${actor.id}`, 10, 10 * 60 * 1000),
+    limit(`assistant-user-day:${actor.id}`, 100, 24 * 60 * 60 * 1000),
+  ]);
+  if (preview) return NextResponse.json(previewBlockedError("Atlas, your AI assistant,"), { status: 403 });
+
   const access = company ? atlasAccess(company) : null;
   const name = company?.assistantName || "Atlas";
   if (!access || access.level === "off") {
@@ -83,12 +97,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // burst + daily caps per company — every turn is a real AI spend — plus a
-  // per-user ceiling at half the company quota so one user can't exhaust it
-  const burst = await limit(`assistant:${actor.companyId}`, 20, 10 * 60 * 1000);
-  const daily = await limit(`assistant-day:${actor.companyId}`, 200, 24 * 60 * 60 * 1000);
-  const userBurst = await limit(`assistant-user:${actor.id}`, 10, 10 * 60 * 1000);
-  const userDaily = await limit(`assistant-user-day:${actor.id}`, 100, 24 * 60 * 60 * 1000);
   if (!burst.ok || !daily.ok || !userBurst.ok || !userDaily.ok) {
     return NextResponse.json(
       { error: "The assistant needs a breather — try again in a few minutes." },
@@ -137,33 +145,84 @@ export async function POST(req: NextRequest) {
     return { atlasTokens, debit };
   }
 
-  const result = await runAssistant(actor, messages, {
-    onFailure: (partial) => {
-      // burned tokens are still spend — meter them, then let the caller retry
-      void settle(partial.usage, { ...partial, proposals: 0, ok: false });
-    },
-  });
-  if (!result) {
-    return NextResponse.json(
-      { error: "The assistant couldn't answer that just now — please try again." },
-      { status: 424 }
-    );
+  /** The whole turn: model loop, metering, and the final payload. */
+  async function turn(onProgress?: (text: string) => void): Promise<{ status: number; body: Record<string, unknown> }> {
+    const result = await runAssistant(actor!, messages, {
+      onFailure: (partial) => {
+        // burned tokens are still spend — meter them, then let the caller retry
+        void settle(partial.usage, { ...partial, proposals: 0, ok: false });
+      },
+      onProgress: onProgress ? (p) => onProgress(describeToolCalls(p.tools)) : undefined,
+    });
+    if (!result) {
+      return {
+        status: 424,
+        body: { error: "The assistant couldn't answer that just now — please try again." },
+      };
+    }
+
+    const { atlasTokens, debit } = await settle(result.usage, {
+      rounds: result.rounds,
+      toolCalls: result.toolCalls,
+      proposals: result.proposals.length,
+      model: result.model,
+      ok: true,
+    });
+
+    return {
+      status: 200,
+      body: {
+        reply: result.reply,
+        proposals: result.proposals,
+        ...(result.nextStep ? { nextStep: result.nextStep } : {}),
+        ...(result.navigate ? { navigate: result.navigate } : {}),
+        access: accessAfter(access!, debit),
+        turnTokens: atlasTokens,
+      },
+    };
   }
 
-  const { atlasTokens, debit } = await settle(result.usage, {
-    rounds: result.rounds,
-    toolCalls: result.toolCalls,
-    proposals: result.proposals.length,
-    model: result.model,
-    ok: true,
-  });
+  // The drawer asks for NDJSON: one {type:"progress", text} line as each
+  // tool round starts, then {type:"done", ...payload} or {type:"error",
+  // status, error}. A ten-second turn that names its steps reads as work;
+  // the same wait on a blank spinner reads as a hang. Other callers (scripts,
+  // Siri) get the plain JSON they always did.
+  if (req.headers.get("accept")?.includes("application/x-ndjson")) {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        const send = (o: Record<string, unknown>) => {
+          try {
+            controller.enqueue(encoder.encode(JSON.stringify(o) + "\n"));
+          } catch {
+            /* client went away mid-turn — the turn still settles below */
+          }
+        };
+        try {
+          const out = await turn((text) => send({ type: "progress", text }));
+          send(out.status === 200 ? { type: "done", ...out.body } : { type: "error", status: out.status, ...out.body });
+        } catch (err) {
+          reportError("[assistant] stream turn failed", err);
+          send({ type: "error", status: 500, error: "The assistant couldn't answer that just now — please try again." });
+        }
+        try {
+          controller.close();
+        } catch {
+          /* already closed */
+        }
+      },
+    });
+    return new Response(stream, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/x-ndjson; charset=utf-8",
+        "Cache-Control": "no-store",
+        // Railway's proxy would otherwise hold the body until the turn ends
+        "X-Accel-Buffering": "no",
+      },
+    });
+  }
 
-  return NextResponse.json({
-    reply: result.reply,
-    proposals: result.proposals,
-    ...(result.nextStep ? { nextStep: result.nextStep } : {}),
-    ...(result.navigate ? { navigate: result.navigate } : {}),
-    access: accessAfter(access, debit),
-    turnTokens: atlasTokens,
-  });
+  const out = await turn();
+  return NextResponse.json(out.body, { status: out.status });
 }

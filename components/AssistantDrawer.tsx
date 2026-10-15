@@ -452,6 +452,9 @@ export default function AssistantDrawer({
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  // What Atlas is doing right now ("Looking up clients…") — streamed from the
+  // route as each tool round starts, so a long turn reads as work, not a hang
+  const [progress, setProgress] = useState("");
   const [error, setError] = useState("");
   // Server truth arrives as a prop; each send moves it locally so the drawer
   // reacts without waiting on a refresh.
@@ -508,26 +511,60 @@ export default function AssistantDrawer({
     const next: Msg[] = [...(opts.base ?? messages), { role: "user", content, ...(opts.auto ? { auto: true } : {}) }];
     persist(next);
     setLoading(true);
+    setProgress("");
     try {
+      type TurnData = {
+        reply?: string;
+        proposals?: Proposal[];
+        nextStep?: string;
+        navigate?: string;
+        error?: string;
+        atlasLocked?: boolean;
+        access?: AtlasDrawerAccess;
+        turnTokens?: number;
+      };
       const res = await fetch("/api/app/assistant", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        // NDJSON: progress lines while the tools run, then one final line —
+        // the route answers plain JSON to callers that don't ask for this
+        headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" },
         // strip proposals from what we send — the model only needs the text
         body: JSON.stringify({ messages: next.map((m) => ({ role: m.role, content: m.content })) }),
       });
-      const data = (await res.json().catch(() => null)) as
-        | {
-            reply?: string;
-            proposals?: Proposal[];
-            nextStep?: string;
-            navigate?: string;
-            error?: string;
-            atlasLocked?: boolean;
-            access?: AtlasDrawerAccess;
-            turnTokens?: number;
+      let data: TurnData | null = null;
+      let ok = res.ok;
+      if (res.headers.get("content-type")?.includes("application/x-ndjson") && res.body) {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffered = "";
+        const take = (line: string) => {
+          if (!line.trim()) return;
+          let evt: { type?: string; text?: string; status?: number } & TurnData;
+          try {
+            evt = JSON.parse(line);
+          } catch {
+            return;
           }
-        | null;
-      if (!res.ok || !data?.reply) {
+          if (evt.type === "progress" && evt.text) setProgress(evt.text);
+          else if (evt.type === "done") data = evt;
+          else if (evt.type === "error") {
+            ok = false;
+            data = evt;
+          }
+        };
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffered += decoder.decode(value, { stream: true });
+          const lines = buffered.split("\n");
+          buffered = lines.pop() ?? "";
+          lines.forEach(take);
+        }
+        take(buffered);
+      } else {
+        data = (await res.json().catch(() => null)) as TurnData | null;
+      }
+      if (!ok || !data?.reply) {
         if (data?.access) setLiveAccess(data.access);
         else if (data?.atlasLocked)
           setLiveAccess({ level: "locked", reason: "free-spent", resetsAt: new Date().toISOString() });
@@ -561,6 +598,7 @@ export default function AssistantDrawer({
       setError("Couldn't reach the assistant — check your connection and try again.");
     } finally {
       setLoading(false);
+      setProgress("");
     }
   }
 
@@ -934,7 +972,7 @@ export default function AssistantDrawer({
               {/* The compass hunts for a heading while Atlas works — his own
                   mark doing the thinking, not a generic spinner */}
               <AtlasIcon size={15} thinking className="text-green-600" />
-              <span className="atlas-shimmer text-xs text-gray-500">Looking that up…</span>
+              <span className="atlas-shimmer text-xs text-gray-500">{progress || "Looking that up…"}</span>
             </div>
           )}
           {error && (
