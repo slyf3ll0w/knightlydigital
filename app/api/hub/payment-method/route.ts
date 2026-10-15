@@ -4,6 +4,9 @@ import { prisma } from "@/lib/db";
 import { limit, clientIp } from "@/lib/rate-limit";
 import { getProcessor, savedCardLabel } from "@/lib/payments";
 import * as finix from "@/lib/finix";
+import { SquareError, declineMessage } from "@/lib/square";
+import { squareVaultCard } from "@/lib/square-cards";
+import { CHARGE_GATE_SELECT, canChargeOnline } from "@/lib/payments-gate";
 import { suspendedResponse } from "@/lib/suspension";
 import { addSavedCard, removeSavedCard, setDefaultSavedCard } from "@/lib/saved-cards";
 import { reviveAutopayForContact } from "@/lib/auto-charge";
@@ -32,12 +35,9 @@ async function contactByToken(token: string) {
       email: true,
       phone: true,
       finixBuyerIdentityId: true,
+      squareCustomerId: true,
       company: {
-        select: {
-          suspendedAt: true,
-          finixMerchantId: true,
-          finixOnboardingState: true,
-        },
+        select: { suspendedAt: true, ...CHARGE_GATE_SELECT },
       },
     },
   });
@@ -75,14 +75,46 @@ export async function POST(req: NextRequest) {
   }
 
   const processor = getProcessor();
-  const merchantApproved =
-    contact.company.finixMerchantId != null &&
-    contact.company.finixOnboardingState === "APPROVED";
-  if (processor.name !== "finix" || !processor.live || !merchantApproved) {
+  if (!canChargeOnline(contact.company) || (processor.name !== "finix" && processor.name !== "square")) {
     return NextResponse.json(
       { error: "Online payments aren't enabled for this business yet." },
       { status: 503 }
     );
+  }
+
+  if (processor.name === "square") {
+    try {
+      const vaulted = await squareVaultCard({
+        contact,
+        merchantId: contact.company.squareMerchantId!,
+        paymentToken,
+      });
+      const label = savedCardLabel({
+        cardBrand: vaulted.brand,
+        cardLast4: vaulted.last4,
+        cardExpMonth: vaulted.expMonth,
+        cardExpYear: vaulted.expYear,
+      });
+      const added = await addSavedCard({
+        companyId: contact.companyId,
+        contactId: contact.id,
+        instrumentRef: vaulted.instrumentRef,
+        label,
+        brand: vaulted.brand,
+        last4: vaulted.last4,
+        expMonth: vaulted.expMonth,
+        expYear: vaulted.expYear,
+      });
+      if (!added.ok) return NextResponse.json({ error: added.error }, { status: 400 });
+      await reviveAutopayForContact(contact.id).catch((e) => reportError("[hub] autopay revive failed", e));
+      return NextResponse.json({ saved: true, label, cards: await cardList(contact.id) });
+    } catch (err) {
+      if (err instanceof SquareError) {
+        return NextResponse.json({ error: declineMessage(err.code) }, { status: 402 });
+      }
+      reportError("[hub] save payment method failed", err);
+      return NextResponse.json({ error: "Couldn't save the card. Please try again." }, { status: 500 });
+    }
   }
 
   try {

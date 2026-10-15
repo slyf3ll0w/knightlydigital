@@ -96,6 +96,15 @@ model Company {
   finixIdentityId           String?
   finixMerchantId           String?     @unique
   finixOnboardingState      String?
+  // Square (the processor from 2026-10): the seller's OWN Square account,
+  // connected by OAuth from Settings → Online Payments. These three are the
+  // public-ish handles every charge gate reads (lib/payments-gate.ts
+  // canChargeOnline with PAYMENT_PROCESSOR=square); the tokens live on
+  // SquareConnection. All three clear together on disconnect / revocation.
+  squareMerchantId          String?     @unique
+  squareLocationId          String?
+  squareConnectedAt         DateTime?
+  squareConnection          SquareConnection?
   // Payment verification is mandatory: new companies are held at /app/activate
   // until Finix underwriting approves them. This flag exempts a company from
   // that gate (test accounts, comped users) — flipped only from the superadmin
@@ -1062,6 +1071,10 @@ model Contact {
   // payment (or first saved card) and reused after. NOT a chargeable token
   // (that's processorCustomerRef).
   finixBuyerIdentityId String?
+  // Square Customer id under the company's Square account — created the
+  // first time a card is saved on file (Square cards belong to a customer)
+  // and reused after. Square's counterpart of finixBuyerIdentityId.
+  squareCustomerId     String?
   // Provider SMS (Telnyx): set when the client texts STOP to our number —
   // automated texts (reminders, quote/invoice links) skip them. Telnyx also
   // blocks at their edge; this flag keeps our senders honest and visible.
@@ -3130,6 +3143,38 @@ model QuickBooksConnection {
   updatedAt             DateTime  @updatedAt
 
   syncRecords QuickBooksSyncRecord[]
+}
+
+// A company's Square OAuth grant (lib/square-connection.ts). One per company;
+// the seller connected their own Square account from Settings. Tokens are
+// AES-256-GCM at rest (lib/secret-box.ts, key off AUTH_SECRET). Square access
+// tokens live 30 days and Square asks for a refresh every 7 — the hourly
+// cron step `squareTokens` does that and pages when any token is older than
+// 8 days. The code-flow refresh token never expires; it dies only when the
+// seller revokes the app (webhook oauth.authorization.revoked → row deleted).
+model SquareConnection {
+  id                 String    @id @default(cuid())
+  companyId          String    @unique
+  company            Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  merchantId         String    @unique
+  accessTokenEnc     String
+  refreshTokenEnc    String
+  expiresAt          DateTime // access token expiry (30 days from issue)
+  // Scopes granted at authorize time — Square can't tell us later what a
+  // token carries, so we remember what we asked for.
+  scopes             String
+  businessName       String?
+  locationName       String?
+  currency           String? // location currency, "USD"
+  country            String?
+  // Last successful token issue/refresh; the sweep keys off this
+  refreshedAt        DateTime  @default(now())
+  lastRefreshError   String?
+  lastRefreshErrorAt DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([refreshedAt])
 }
 
 enum QuickBooksEntityType {

@@ -27,7 +27,9 @@ import { hapticImpact } from "@/lib/haptics";
 import ChargeOverlay, { type ChargePhase } from "@/components/ChargeOverlay";
 import { showSendRitual } from "@/lib/send-ritual";
 import { fmtPhone } from "@/lib/format";
-import { FINIX_JS_SRC, type FinixConfig, type FinixForm } from "@/lib/finix-js";
+import { FINIX_JS_SRC, type FinixForm } from "@/lib/finix-js";
+import { isTestMode, type ClientPayConfig } from "@/lib/pay-config";
+import SquareCardFields, { type SquareCardFieldsHandle } from "@/components/SquareCardFields";
 import MenuPopover from "@/components/MenuPopover";
 import { useSendChoice, sentSummary, type SendChoiceResult } from "@/components/SendChoice";
 import { SCHEDULE_WARNING_TEXT, type ScheduleWarning } from "@/lib/send-later-shared";
@@ -50,7 +52,7 @@ export default function InvoiceActions({
   balance = 0,
   reopenStatus = "DRAFT",
   contactId = "",
-  finix = null,
+  pay = null,
   scheduled = false,
   tz,
 }: {
@@ -74,8 +76,8 @@ export default function InvoiceActions({
   reopenStatus?: string;
   /** The invoice's client — needed to vault a NEW card at charge time. */
   contactId?: string;
-  /** finix.js config when the company can tokenize cards staff-side. */
-  finix?: FinixConfig;
+  /** Tokenizer config (lib/pay-config.ts) when the company can take a NEW card staff-side. */
+  pay?: ClientPayConfig;
   /** A Send later is pending — no "send this first?" nag on leaving */
   scheduled?: boolean;
   /** Company timezone — Send later's default "tomorrow" is the company's day */
@@ -114,6 +116,11 @@ export default function InvoiceActions({
   const finixFormRef = useRef<FinixForm | null>(null);
   const finixContainerRef = useRef<HTMLDivElement>(null);
   const ref = useRef<HTMLDivElement>(null);
+  // Which processor's card form the "New card…" option mounts
+  const finix = pay?.processor === "finix" ? pay : null;
+  const square = pay?.processor === "square" ? pay : null;
+  const squareRef = useRef<SquareCardFieldsHandle>(null);
+  const [squareReady, setSquareReady] = useState(false);
 
   // The chargeable options: SavedCard rows, or the legacy single-card mirror
   const cardOptions: SavedCardOption[] =
@@ -122,7 +129,7 @@ export default function InvoiceActions({
       : chargeStoredLabel
         ? [{ id: "", label: chargeStoredLabel, isDefault: true }]
         : [];
-  const canNewCard = Boolean(finix && contactId);
+  const canNewCard = Boolean(pay && contactId);
   const canChargeCard = balance > 0 && (cardOptions.length > 0 || canNewCard);
 
   useEffect(() => {
@@ -259,10 +266,21 @@ export default function InvoiceActions({
     setPickOpen(true);
   }
 
-  function chargeSelected() {
+  async function chargeSelected() {
     if (pickedId === "new") {
-      if (!finixFormRef.current) return;
       setCardError("");
+      if (square) {
+        setSavingCard(true);
+        const paymentToken = await squareRef.current?.tokenize();
+        setSavingCard(false);
+        if (!paymentToken) {
+          setCardError(squareRef.current?.lastError() || "Please check the card details and try again.");
+          return;
+        }
+        runCharge({ paymentToken, saveCard: saveNewCard }, "new card");
+        return;
+      }
+      if (!finixFormRef.current) return;
       setSavingCard(true);
       finixFormRef.current.submit(async (err, res) => {
         const paymentToken = res?.data?.id;
@@ -760,12 +778,17 @@ export default function InvoiceActions({
                     {cardError}
                   </div>
                 )}
-                <div ref={finixContainerRef} />
-                {!scriptReady && (
-                  <div className="flex items-center justify-center gap-2 py-6 text-xs text-gray-500">
-                    <Loader2 size={13} className="animate-spin" />
-                    Loading secure card form…
-                  </div>
+                {square && <SquareCardFields ref={squareRef} config={square} onReady={setSquareReady} />}
+                {finix && (
+                  <>
+                    <div ref={finixContainerRef} />
+                    {!scriptReady && (
+                      <div className="flex items-center justify-center gap-2 py-6 text-xs text-gray-500">
+                        <Loader2 size={13} className="animate-spin" />
+                        Loading secure card form…
+                      </div>
+                    )}
+                  </>
                 )}
                 <label className="mt-2 flex items-center gap-2 text-xs text-gray-600 select-none cursor-pointer w-fit">
                   <input
@@ -780,7 +803,7 @@ export default function InvoiceActions({
                   Card details go straight to the payment processor — they never touch this
                   server.
                 </p>
-                {finix?.environment === "sandbox" && (
+                {finix && isTestMode(finix) && (
                   <p className="mt-1 text-[11px] text-[color:var(--ds-warn)]">Test mode — no real cards.</p>
                 )}
               </div>
@@ -791,7 +814,7 @@ export default function InvoiceActions({
               disabled={
                 savingCard ||
                 !pickedId ||
-                (pickedId === "new" && (!scriptReady || formHasErrors))
+                (pickedId === "new" && (finix ? !scriptReady || formHasErrors : !squareReady))
               }
               className="btn-primary btn-lg w-full justify-center"
             >

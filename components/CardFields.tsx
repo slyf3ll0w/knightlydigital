@@ -2,31 +2,54 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { FINIX_JS_SRC, type FinixConfig, type FinixForm } from "@/lib/finix-js";
+import { FINIX_JS_SRC, type FinixForm } from "@/lib/finix-js";
+import type { ClientPayConfig, FinixClientConfig } from "@/lib/pay-config";
+import SquareCardFields from "@/components/SquareCardFields";
 
 /**
- * finix.js hosted card fields — the one tokenizer for public pages that take
- * a card without an invoice in hand (online booking). Loads finix.js from
- * Finix's CDN (self-hosting breaks PCI scope), mounts the hosted iframe
- * fields, and hands back a one-time token on `tokenize()`. Card data never
- * touches this page or our servers. Same options and styling as the pay
- * page's mount so the two read as one form.
+ * Hosted card fields — the one tokenizer for public pages that take a card
+ * without an invoice in hand (online booking). Picks the live processor's
+ * form from `pay` (lib/pay-config.ts): Square's Web Payments SDK card, or
+ * finix.js. Either way the processor's CDN script mounts iframe fields
+ * (never self-hosted: PCI) and hands back a one-time token on `tokenize()`.
+ * Card data never touches this page or our servers.
  */
 export type CardFieldsHandle = {
-  /** Resolve a TK… token, or null when the form has errors / isn't ready. */
+  /** Resolve a one-time token, or null when the form has errors / isn't ready. */
   tokenize: () => Promise<string | null>;
+  /** Why the last tokenize() returned null. */
+  lastError: () => string;
 };
 
-const CardFields = forwardRef<
-  CardFieldsHandle,
-  {
-    finix: NonNullable<FinixConfig>;
-    /** Called as the hosted form's validity changes. */
-    onValidity?: (valid: boolean) => void;
-    dark?: boolean;
-    accent?: string;
+type CardFieldsProps = {
+  pay: NonNullable<ClientPayConfig>;
+  /** Called as the hosted form's validity / readiness changes. */
+  onValidity?: (valid: boolean) => void;
+  dark?: boolean;
+  accent?: string;
+};
+
+const CardFields = forwardRef<CardFieldsHandle, CardFieldsProps>(function CardFields(props, ref) {
+  if (props.pay.processor === "square") {
+    return (
+      <SquareCardFields
+        ref={ref}
+        config={props.pay}
+        dark={props.dark}
+        accent={props.accent}
+        onReady={props.onValidity}
+      />
+    );
   }
->(function CardFields({ finix, onValidity, dark = false, accent = "#22C55E" }, ref) {
+  return <FinixCardFields ref={ref} {...props} finix={props.pay} />;
+});
+
+export default CardFields;
+
+const FinixCardFields = forwardRef<
+  CardFieldsHandle,
+  CardFieldsProps & { finix: FinixClientConfig }
+>(function FinixCardFields({ finix, onValidity, dark = false, accent = "#22C55E" }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<FinixForm | null>(null);
   const [scriptReady, setScriptReady] = useState(false);
@@ -93,6 +116,7 @@ const CardFields = forwardRef<
             resolve(err || !token ? null : token);
           });
         }),
+      lastError: () => "Please check your card details and try again.",
     }),
     []
   );
@@ -111,5 +135,3 @@ const CardFields = forwardRef<
     </div>
   );
 });
-
-export default CardFields;

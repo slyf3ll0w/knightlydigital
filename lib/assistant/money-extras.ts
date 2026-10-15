@@ -1,6 +1,7 @@
 import { prisma } from "../db";
 import { canSell, canSeeMoney, isManager, viaContactScope, jobScope } from "../permissions";
 import { isQuickBooksConfigured } from "../quickbooks";
+import { getProcessor } from "../payments";
 import { type Tool, str, num, day, money, clientName, companyTz, fmtWhen, stage } from "./core";
 
 /**
@@ -164,6 +165,7 @@ export const moneyExtraTools: Tool[] = [
     },
     allowed: (a) => isManager(a.role),
     run: async (actor, _args, ctx) => {
+      if (getProcessor().name === "square") return { error: "Payouts are handled by Square — the owner can see Balance and transfer timing in the Square dashboard." };
       const c = await prisma.company.findUnique({ where: { id: actor.companyId }, select: { finixOnboardingState: true } });
       if (c?.finixOnboardingState !== "APPROVED") return { error: "Payouts need an approved payments account." };
       return stage(ctx, { kind: "send_payout", title: "Send unsettled funds to the bank now", lines: ["Closes the open settlement early; funds land on the bank's normal timeline from there."], endpoint: "/api/app/payments/payout", method: "POST", payload: {}, money: true, confirmLabel: "Send payout", href: "/app/payments" });

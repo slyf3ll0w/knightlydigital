@@ -216,7 +216,7 @@ async function settleGeneratedInvoice(opts: {
         brandColorSecondary: true,
         logoUrl: true,
         finixMerchantId: true,
-        finixOnboardingState: true,
+        finixOnboardingState: true, squareMerchantId: true, squareConnectedAt: true,
       },
     });
     if (company) {

@@ -3,11 +3,11 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { Lock } from "lucide-react";
 import CardFields, { type CardFieldsHandle } from "@/components/CardFields";
-import type { FinixConfig } from "@/lib/finix-js";
+import type { ClientPayConfig } from "@/lib/pay-config";
 
 /**
- * Card entry for paid service bookings: the finix.js hosted fields the pay
- * page uses, mounted inside the booking stepper. The card is tokenized in
+ * Card entry for paid service bookings: the processor's hosted fields the
+ * pay page uses, mounted inside the booking stepper. The card is tokenized in
  * the customer's browser and charged only after the booking commits (see
  * lib/booking-checkout.ts); a decline releases the time.
  */
@@ -18,7 +18,7 @@ export type PaymentHandle = {
 const PaymentStep = forwardRef<
   PaymentHandle,
   {
-    finix: FinixConfig;
+    pay: ClientPayConfig;
     amount: number;
     mode: "NONE" | "DEPOSIT" | "FULL";
     depositAmount: number | null;
@@ -27,7 +27,7 @@ const PaymentStep = forwardRef<
     accent: string;
     onReady: (ready: boolean) => void;
   }
->(function PaymentStep({ finix, amount, mode, depositAmount, surchargeRate, dark, accent, onReady }, ref) {
+>(function PaymentStep({ pay, amount, mode, depositAmount, surchargeRate, dark, accent, onReady }, ref) {
   const cardRef = useRef<CardFieldsHandle>(null);
   const [valid, setValid] = useState(false);
   useImperativeHandle(
@@ -44,7 +44,7 @@ const PaymentStep = forwardRef<
   const due = mode === "FULL" ? amount : (depositAmount ?? 0);
   const fee = surchargeRate && surchargeRate > 0 ? Math.round(due * surchargeRate * 100) / 100 : 0;
 
-  if (!finix) {
+  if (!pay) {
     return (
       <div className={`rounded border border-dashed px-4 py-3 text-sm ${dark ? "border-white/20 text-gray-400" : "border-gray-300 text-gray-500"}`}>
         Online payment isn&apos;t available right now — you can still book and pay after the visit.
@@ -64,7 +64,7 @@ const PaymentStep = forwardRef<
       </div>
       <CardFields
         ref={cardRef}
-        finix={finix}
+        pay={pay}
         dark={dark}
         accent={accent}
         onValidity={(v) => {

@@ -19,7 +19,7 @@ export const COMPANY_SELECT = {
   suspendedReason: true,
   accessPendingAt: true,
   finixMerchantId: true,
-  finixOnboardingState: true,
+  finixOnboardingState: true, squareMerchantId: true, squareConnectedAt: true,
   finixSandboxApproved: true,
   paymentsWaived: true,
   referralSource: true,

@@ -735,6 +735,96 @@ Notification when audio is still locked. A known caller gets a Text button on th
 row once the line's registration is ACTIVE (it opens the message thread, which
 sends from the business number).
 
+## Payment processor (Square — the processor from 2026-10)
+
+`PAYMENT_PROCESSOR=square` selects `SquareProcessor` in `lib/payments.ts`.
+Unlike Finix there is **no underwriting on our side**: every company brings
+its OWN Square account and connects it by OAuth from Settings → Payments &
+accounting → Online Payments ("Connect Square", owner only). Money settles
+to the seller's bank on Square's schedule; the balance, payouts, fees and
+disputes live in their Square dashboard (`/app/payments` links there).
+Built 2026-10-15 on branch `square-payments` (worktree
+`~/knightlydigital-wt/square`); Finix stays as a selectable processor.
+
+- **Files:** `lib/square.ts` (fetch REST client: OAuth, payments, refunds,
+  customers, cards, locations, webhook signature; cents at the boundary),
+  `lib/square-connection.ts` (signed state, code exchange → `SquareConnection`
+  row + `Company.squareMerchantId/squareLocationId/squareConnectedAt`, the
+  token getter every charge uses, the refresh sweep, disconnect/revocation,
+  status/probe), `lib/square-cards.ts` (card on file = Square customer +
+  card, no charge), `lib/secret-box.ts` (AES-256-GCM at rest, keyed off
+  AUTH_SECRET + a scope label), `lib/pay-config.ts` + `lib/square-js.ts`
+  (client-safe types, CDN script, card styling) and
+  `lib/pay-client-config.ts` (`clientPayConfig` — the one builder of the
+  browser tokenizer config; `PAY_CONFIG_SELECT`).
+- **Gate (`lib/payments-gate.ts`):** `canChargeOnline(company)` is
+  processor-aware — Square = connected, Finix = APPROVED. `ChargeGateCompany`
+  REQUIRES the Square columns so no select can forget them
+  (`CHARGE_GATE_SELECT`). `processorMerchantRef` / `buyerIdentityRefOf` /
+  `buyerIdentityData` pick the right column (Square merchant id,
+  `Contact.squareCustomerId`). `onlinePaymentsHeld` is never true on Square;
+  the `/app/activate` gate stays Finix-only.
+- **OAuth:** `GET /api/app/square/connect` (owner) → Square consent →
+  `GET /api/app/square/callback` (the signed state is the identity, like
+  QuickBooks; session cross-checked when present; outcomes land on
+  `/app/settings?square=<outcome>`). `POST …/square/disconnect` revokes +
+  forgets; `POST …/square/check` = Square's ListLocations liveness probe (a
+  dead grant tears the connection down). Scopes: `SQUARE_SCOPES`
+  (MERCHANT_PROFILE_READ, PAYMENTS_WRITE/READ, CUSTOMERS_READ/WRITE;
+  `SQUARE_EXTRA_SCOPES` adds more — a scope change means every seller
+  re-authorizes). Register the redirect URL per environment in the Developer
+  Console: `${NEXTAUTH_URL}/api/app/square/callback` (override
+  `SQUARE_REDIRECT_URL`). Sandbox needs the sandbox seller's dashboard open
+  in another tab when authorizing (Square's rule).
+- **Tokens:** access 30 days, refresh token never expires (code flow).
+  `squareTokenForMerchant` refreshes lazily when >7 days old or <2 days
+  from expiry; cron step `squareTokens` (`runSquareTokenSweep`) refreshes
+  every connection older than 7 days and `reportError`s any older than 8.
+  A refresh Square rejects (revoked / invalid_grant) → `markSquareRevoked`:
+  row deleted, Company handles cleared, owners pushed.
+- **Charging:** the browser mounts Square's Web Payments SDK
+  (`components/SquareCardFields.tsx`, `SquareAchButton.tsx` — Plaid popup,
+  `bauth:` token; `components/CardFields.tsx` dispatches on
+  `pay.processor` for booking) with OUR application id + the seller's
+  location id → one-time `cnon:`/`bauth:` token → the same routes as Finix
+  (`/api/public/pay/[token]`, charge-stored, booking checkout) →
+  `createSquarePayment` under the seller's token at
+  `Company.squareLocationId`; `processorRef` = the Square payment id.
+  `ChargeParams.vault` (new): Square only keeps a card when asked — the
+  token becomes a card on file FIRST (`createSquareCard` under the
+  contact's Square customer) and the charge runs against the `ccof:` id;
+  `instrumentRef` = that card id. ACH stays PENDING for days (recorded,
+  pulled back by the webhook if returned). Idempotency keys mirror Finix's
+  (scope+amount+minute; invoice+amount+instrument+attempt for autopay),
+  hashed to ≤45 chars by `squareIdempotencyKey`; Square honours them 24 h,
+  so a retry after a timeout replays rather than double-charges (no
+  transfer search needed). Declines: `SquareError` 4xx with a code →
+  `declineMessage(code)` (client-safe wording) + `code` for
+  `classifyDecline`; 429/5xx/timeouts → `transient: true`; a dead grant →
+  `code: "not_enabled"` so autopay falls back to the pay link.
+- **Refunds:** `/api/app/payments/[id]/refund` dispatches on the
+  `processorRef` shape — `TR…` = Finix reversal, anything else with
+  `PAYMENT_PROCESSOR=square` = `refundSquarePayment` (reversalRef = Square
+  refund id). A refund Square later REJECTS/FAILS is unwound by the webhook.
+- **Webhooks:** `POST /api/public/webhooks/square` — one subscription per
+  environment, made in the Developer Console with the developer token
+  (never a seller token): events `oauth.authorization.revoked`,
+  `payment.updated`, `refund.updated`; URL `${NEXTAUTH_URL}/api/public/webhooks/square`
+  (override `SQUARE_WEBHOOK_URL` — the signature covers the exact URL);
+  key in `SQUARE_WEBHOOK_SIGNATURE_KEY` (unset = every event refused 401).
+  Signature first, then the payload is only a HINT: the payment/refund is
+  re-fetched with the seller's token before anything changes (same
+  discipline as the Finix receiver).
+- **Not on Square:** `/api/app/payments/payout` ("Send to bank now") and
+  the Atlas `send_payout` tool answer "handled by Square"; the Finix
+  settlement/dispute views on `/app/payments` only render for Finix.
+  `FinixCostSnapshot` / platform-cost estimates are untouched.
+- **Tests:** `npx tsx scripts/test-square.ts` (state, secret box, webhook
+  signature, idempotency, location pick, decline wording, the gate per
+  processor). The e2e card specs still assume Finix sandbox
+  (`e2e/global-setup.ts`); a Square sandbox seller for the e2e tenant is
+  the next step once credentials exist.
+
 ## Payment processor (Finix)
 
 Two processors implement the `PaymentProcessor` seam in `lib/payments.ts`,
@@ -800,7 +890,17 @@ AUTH_SECRET=     # generate: openssl rand -base64 32
 DATABASE_URL=    # PostgreSQL connection string from Railway
 NEXTAUTH_URL=    # deployed URL (e.g. https://jobflow.streamflaremedia.com or https://streamflaremedia.com)
 CRON_SECRET=     # shared secret for the recurring-billing cron (generate: openssl rand -base64 32)
-PAYMENT_PROCESSOR=manual  # "finix" turns on real payments (needs the FINIX_* vars below)
+PAYMENT_PROCESSOR=manual  # "square" (SQUARE_* below) or "finix" (FINIX_* below) turns on real payments
+# Square — developer.squareup.com → Developer Console → the WorkBench app.
+# Sandbox and production have DIFFERENT ids/secrets; the host, the web SDK
+# script and every token are environment-specific.
+SQUARE_ENVIRONMENT=sandbox          # "production" at launch
+SQUARE_APPLICATION_ID=              # public (the Web Payments SDK uses it client-side)
+SQUARE_APPLICATION_SECRET=          # server only — OAuth code exchange / refresh / revoke
+SQUARE_WEBHOOK_SIGNATURE_KEY=       # Developer Console → Webhooks → the subscription's signature key
+# Optional: SQUARE_REDIRECT_URL (default ${NEXTAUTH_URL}/api/app/square/callback — must match the
+# console's OAuth Redirect URL), SQUARE_WEBHOOK_URL (default ${NEXTAUTH_URL}/api/public/webhooks/square),
+# SQUARE_EXTRA_SCOPES (space/comma list added to SQUARE_SCOPES — every seller re-authorizes)
 # Finix (Streamflaire Payments) — keys from dashboard.finix.com → Developers → API Keys
 FINIX_ENVIRONMENT=sandbox   # "live" + live keys at launch (sandbox keys only work on the sandbox host)
 FINIX_API_USERNAME=

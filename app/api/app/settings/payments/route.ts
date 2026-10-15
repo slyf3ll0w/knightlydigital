@@ -12,6 +12,8 @@ import {
 } from "@/lib/finix";
 import { syncFromFinix } from "@/lib/finix-status";
 import { onlinePaymentsHeld, paymentsOnboardingOpen } from "@/lib/payments-gate";
+import { squareConfigured, squareEnvironment } from "@/lib/square";
+import { squareStatusForCompany } from "@/lib/square-connection";
 
 /**
  * Online-payments setup (Finix merchant onboarding).
@@ -36,6 +38,19 @@ export async function GET() {
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const processor = getProcessor();
+  if (processor.name === "square") {
+    // Square: no underwriting on our side — the owner connects their own
+    // Square account (lib/square-connection.ts). Hidden until the server has
+    // app credentials, then Connect / Connected + Disconnect.
+    if (!squareConfigured()) return NextResponse.json({ available: false });
+    const status = await squareStatusForCompany(actor.companyId);
+    return NextResponse.json({
+      available: true,
+      processor: "square",
+      environment: squareEnvironment(),
+      square: status,
+    });
+  }
   if (processor.name !== "finix" || !finixConfigured()) {
     // Onboarding closed: the card still says Coming soon rather than vanish.
     return NextResponse.json(paymentsOnboardingOpen() ? { available: false } : { available: true, comingSoon: true });

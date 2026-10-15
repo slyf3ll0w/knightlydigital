@@ -72,6 +72,7 @@ export default async function CompanyPage({
   );
   if (company.paymentsWaived) chips.push({ label: "Payments waived", tone: "neutral" });
   if (company.finixOnboardingState === "APPROVED") chips.push({ label: "Payments live", tone: "good" });
+  if (company.squareConnectedAt) chips.push({ label: "Square connected", tone: "good" });
   if (company.emailDomain) chips.push({ label: `Email ${company.emailDomainStatus === "verified" ? "domain verified" : "domain pending"}`, tone: company.emailDomainStatus === "verified" ? "good" : "warn" });
 
   const rise = (i: number) => ({ "--ds-i": i }) as React.CSSProperties;

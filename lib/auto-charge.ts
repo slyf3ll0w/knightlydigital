@@ -518,7 +518,14 @@ export async function runCardExpiryNudges(now: Date = new Date()): Promise<numbe
             OR: [{ interval: { not: null } }, { billPerVisit: true }],
           },
         },
-        company: { is: { suspendedAt: null, finixOnboardingState: "APPROVED" } },
+        company: {
+          is: {
+            suspendedAt: null,
+            ...(getProcessor().name === "square"
+              ? { squareConnectedAt: { not: null } }
+              : { finixOnboardingState: "APPROVED" }),
+          },
+        },
       },
     },
     select: {

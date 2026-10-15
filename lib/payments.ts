@@ -19,6 +19,7 @@ import { fireAutomations } from "./automations-server";
 import { prisma } from "@/lib/db";
 import { recomputeDepositApplied } from "@/lib/deposits";
 import * as finix from "@/lib/finix";
+import * as square from "@/lib/square";
 import { estimateProcessingCostCents } from "@/lib/platform-costs";
 import { notifyUsers } from "@/lib/push";
 import { queueQuickBooksPaymentSync } from "@/lib/quickbooks";
@@ -74,10 +75,18 @@ export interface ChargeParams {
   surcharge?: number;
   description?: string;
   metadata?: Record<string, string>;
-  /** One-time tokenized payment details from the processor's client-side form (finix.js TKxxx). */
+  /** One-time tokenized payment details from the processor's client-side form (finix.js TKxxx, Square cnon:…/bauth:…). */
   token?: string;
-  /** The company's processor merchant account (Company.finixMerchantId). */
+  /** The company's processor merchant account (Company.finixMerchantId / Company.squareMerchantId — lib/payments-gate.ts processorMerchantRef). */
   merchantRef?: string;
+  /**
+   * Keep the payment method on file as part of this charge. Finix vaults on
+   * every token exchange regardless (instrumentRef always comes back); Square
+   * only stores a card when asked — the one-time token is turned into a card
+   * on file FIRST and the charge runs against that, so without this flag
+   * Square returns no instrumentRef. Cards only.
+   */
+  vault?: boolean;
   /** finix.js fraud session id (Finix.Auth) when the client collected one. */
   fraudSessionId?: string | null;
   /** Idempotency scope override — defaults to the invoice id. */
@@ -353,9 +362,230 @@ class FinixProcessor implements PaymentProcessor {
   }
 }
 
+/**
+ * Square processor (2026-10). Every charge runs under the SELLER's OAuth
+ * token: the caller passes the company's Square merchant id as merchantRef,
+ * lib/square-connection.ts turns it into a (refreshed) access token, and the
+ * payment is created at the company's charge location. A one-time Web
+ * Payments SDK token (cnon:… card, bauth:… bank) is the source; a card on
+ * file is a Square card id (ccof:…) charged with the contact's Square
+ * customer id. Idempotency keys mirror the Finix ones (a retry of the same
+ * attempt replays, a new attempt is a new request) — Square honours them for
+ * 24 h, which also makes the transient-recovery search Finix needed
+ * unnecessary: the retry simply replays.
+ */
+class SquareProcessor implements PaymentProcessor {
+  readonly name = "square";
+  get live(): boolean {
+    return square.squareConfigured();
+  }
+
+  private async tokenForMerchant(merchantRef: string) {
+    const { squareTokenForMerchant } = await import("@/lib/square-connection");
+    return squareTokenForMerchant(merchantRef);
+  }
+
+  private async locationFor(merchantId: string): Promise<{ locationId: string | null; currency: string }> {
+    const row = await prisma.company.findFirst({
+      where: { squareMerchantId: merchantId },
+      select: { squareLocationId: true, squareConnection: { select: { currency: true } } },
+    });
+    return { locationId: row?.squareLocationId ?? null, currency: row?.squareConnection?.currency ?? "USD" };
+  }
+
+  private cardFields(p: square.SquarePayment) {
+    const c = p.card_details?.card;
+    return {
+      cardBrand: c?.card_brand ?? null,
+      cardType: c?.card_type && c.card_type !== "UNKNOWN" ? c.card_type : null,
+      cardLast4: c?.last_4 ?? null,
+      cardExpMonth: c?.exp_month ?? null,
+      cardExpYear: c?.exp_year ?? null,
+    };
+  }
+
+  private declined(err: unknown, fallback: string): ChargeResult {
+    if (err instanceof square.SquareError) {
+      if (err.authDead) {
+        return { success: false, error: "Online payments are not enabled for this business.", code: "not_enabled", transient: false };
+      }
+      if (square.isTransientSquareError(err)) {
+        return { success: false, error: "Payment failed. Please try again.", code: err.code, transient: true };
+      }
+      // 4xx with a code = Square judged the request (a decline, bad token…)
+      return { success: false, error: square.declineMessage(err.code), code: err.code, transient: false };
+    }
+    if (square.isTransientSquareError(err)) {
+      return { success: false, error: fallback, transient: true };
+    }
+    reportError("[payments] square charge failed", err);
+    return { success: false, error: fallback, transient: true };
+  }
+
+  async charge(params: ChargeParams): Promise<ChargeResult> {
+    if (!this.live) {
+      return { success: false, error: "Online payments are not enabled yet. Record this payment manually." };
+    }
+    if (!params.merchantRef) {
+      return { success: false, error: "This business hasn't connected Square yet. Please contact them to arrange payment." };
+    }
+    if (!params.token) {
+      return { success: false, error: "Missing payment details. Please re-enter your card or bank information." };
+    }
+
+    try {
+      const { token } = await this.tokenForMerchant(params.merchantRef);
+      const { locationId, currency } = await this.locationFor(params.merchantRef);
+      const cents = square.dollarsToCents(params.amount);
+      const scope = params.idempotencyScope ?? params.metadata?.invoiceId ?? "inv";
+      // One attempt per scope+amount+minute, like Finix: a double-click never
+      // double charges, a genuine retry after a decline gets a fresh id.
+      const minute = Math.floor(Date.now() / 60000);
+      const idem = `${scope}-${cents}-${minute}`;
+
+      let customerId = params.buyer?.identityRef ?? null;
+      let sourceId = params.token;
+      let vaultedCardId: string | undefined;
+      if (params.vault && params.method === "card") {
+        if (!customerId) {
+          customerId = (
+            await square.createSquareCustomer({
+              token,
+              idempotencyKey: `cust-${idem}`,
+              firstName: params.buyer?.firstName,
+              lastName: params.buyer?.lastName,
+              email: params.buyer?.email,
+              referenceId: params.metadata?.contactId ?? null,
+            })
+          ).id;
+        }
+        const card = await square.createSquareCard({
+          token,
+          idempotencyKey: `card-${idem}`,
+          sourceId: params.token,
+          customerId,
+        });
+        vaultedCardId = card.id;
+        sourceId = card.id;
+      }
+
+      const payment = await square.createSquarePayment({
+        token,
+        idempotencyKey: idem,
+        sourceId,
+        amountCents: cents,
+        currency,
+        locationId,
+        customerId: sourceId.startsWith("ccof:") || customerId ? customerId : null,
+        referenceId: params.metadata?.invoiceId ?? null,
+        note: params.description ?? null,
+        buyerEmail: params.buyer?.email ?? null,
+      });
+
+      if (payment.status === "FAILED" || payment.status === "CANCELED") {
+        return { success: false, error: square.declineMessage(null), code: payment.status };
+      }
+      return {
+        success: true,
+        transactionId: payment.id,
+        amount: params.amount,
+        // ACH stays PENDING for days; cards complete at once
+        pending: payment.status === "PENDING" || payment.status === "APPROVED",
+        buyerIdentityRef: customerId ?? undefined,
+        instrumentRef: vaultedCardId,
+        ...this.cardFields(payment),
+      };
+    } catch (err) {
+      return this.declined(err, "Payment failed. Please try again.");
+    }
+  }
+
+  async chargeStored(params: ChargeStoredParams): Promise<ChargeResult> {
+    // customerRef is the Square card on file (ccof:…). The seller token and
+    // the Square customer come from the invoice's company + contact.
+    const invoiceId = params.metadata?.invoiceId;
+    if (!invoiceId) return { success: false, error: "Missing invoice reference for stored charge." };
+
+    try {
+      const invoice = await prisma.invoice.findUnique({
+        where: { id: invoiceId },
+        select: {
+          invoiceNumber: true,
+          company: { select: { squareMerchantId: true, squareConnectedAt: true, squareLocationId: true, name: true, squareConnection: { select: { currency: true } } } },
+          contact: { select: { squareCustomerId: true, email: true } },
+        },
+      });
+      const merchantId = invoice?.company.squareMerchantId;
+      if (!this.live || !merchantId || !invoice?.company.squareConnectedAt) {
+        // Not an outage — this business simply can't take cards (Square not
+        // connected, or disconnected since the card was saved). Flagged so
+        // autopay falls back to the pay-link email instead of retrying.
+        return {
+          success: false,
+          error: "Online payments are not enabled for this business.",
+          code: "not_enabled",
+          transient: false,
+        };
+      }
+      const customerId = invoice.contact?.squareCustomerId ?? null;
+      if (!customerId) {
+        return { success: false, error: "This card on file can't be charged — ask the client to add it again.", code: "no_customer", transient: false };
+      }
+
+      const { token } = await this.tokenForMerchant(merchantId);
+      const cents = square.dollarsToCents(params.amount);
+      // Same shape as the Finix key: invoice + amount + instrument + attempt
+      // (autopay) or minute (staff) — see FinixProcessor.chargeStored.
+      const attempt = params.metadata?.attempt;
+      const instrumentKey = createHash("sha1").update(params.customerRef).digest("hex").slice(0, 10);
+      const idem = attempt
+        ? `${invoiceId}-stored-${cents}-${instrumentKey}-a${attempt}`
+        : `${invoiceId}-stored-${cents}-${Math.floor(Date.now() / 60000)}`;
+
+      const payment = await square.createSquarePayment({
+        token,
+        idempotencyKey: idem,
+        sourceId: params.customerRef,
+        amountCents: cents,
+        currency: invoice.company.squareConnection?.currency ?? "USD",
+        locationId: invoice.company.squareLocationId,
+        customerId,
+        referenceId: invoiceId,
+        note: params.description ?? `Invoice #${invoice.invoiceNumber} — ${invoice.company.name}`,
+        buyerEmail: invoice.contact?.email ?? null,
+      });
+
+      if (payment.status === "FAILED" || payment.status === "CANCELED") {
+        return { success: false, error: "The stored payment method was declined.", code: payment.status };
+      }
+      return {
+        success: true,
+        transactionId: payment.id,
+        amount: params.amount,
+        pending: payment.status === "PENDING" || payment.status === "APPROVED",
+        ...this.cardFields(payment),
+      };
+    } catch (err) {
+      return this.declined(err, "Auto-charge failed.");
+    }
+  }
+
+  async createCheckout(params: CheckoutParams): Promise<CheckoutSession> {
+    // The hosted /pay page IS the checkout — it mounts Square's card form
+    // when the company is connected.
+    const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+    return {
+      success: true,
+      url: `${baseUrl}/pay/${params.publicToken}`,
+      expiresAt: new Date(Date.now() + 30 * 86400 * 1000),
+    };
+  }
+}
+
 const processors: Record<string, PaymentProcessor> = {
   manual: new ManualProcessor(),
   finix: new FinixProcessor(),
+  square: new SquareProcessor(),
 };
 
 export function getProcessor(): PaymentProcessor {

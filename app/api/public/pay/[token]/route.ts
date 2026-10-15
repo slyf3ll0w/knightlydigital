@@ -13,6 +13,7 @@ import {
 } from "@/lib/payments";
 import { addSavedCard } from "@/lib/saved-cards";
 import { reviveAutopayForContact } from "@/lib/auto-charge";
+import { buyerIdentityData, buyerIdentityRefOf, canChargeOnline, processorMerchantRef } from "@/lib/payments-gate";
 import { recomputeDepositApplied } from "@/lib/deposits";
 import { suspendedResponse } from "@/lib/suspension";
 
@@ -101,9 +102,9 @@ export async function POST(
   }
 
   const processor = getProcessor();
-  const merchantApproved =
-    invoice.company.finixMerchantId != null &&
-    invoice.company.finixOnboardingState === "APPROVED";
+  // This company's account on the processor is ready (Finix APPROVED, or
+  // Square connected) — lib/payments-gate.ts is the one rule.
+  const merchantApproved = canChargeOnline(invoice.company);
 
   // One charge in flight per invoice: a double-submit, a second device, or a
   // staff charge racing this one would each pass their own balance check and
@@ -149,9 +150,12 @@ export async function POST(
             description: `Invoice #${invoice.invoiceNumber} — ${invoice.company.name}`,
             metadata: { invoiceId: invoice.id, companyId: invoice.companyId },
             token: typeof paymentToken === "string" ? paymentToken : undefined,
-            merchantRef: invoice.company.finixMerchantId ?? undefined,
+            merchantRef: processorMerchantRef(invoice.company),
+            // Square only vaults when asked (the token becomes a card on file
+            // before the charge); Finix vaults regardless.
+            vault: saveCard === true && method === "CARD" && Boolean(invoice.contact),
             buyer: {
-              identityRef: invoice.contact?.finixBuyerIdentityId,
+              identityRef: invoice.contact ? buyerIdentityRefOf(invoice.contact) : null,
               firstName: invoice.contact?.firstName,
               lastName: invoice.contact?.lastName,
               email: invoice.contact?.email,
@@ -174,14 +178,14 @@ export async function POST(
     if (
       result.buyerIdentityRef &&
       invoice.contact &&
-      !invoice.contact.finixBuyerIdentityId
+      !buyerIdentityRefOf(invoice.contact)
     ) {
-      await prisma.contact
-        .update({
-          where: { id: invoice.contact.id },
-          data: { finixBuyerIdentityId: result.buyerIdentityRef },
-        })
-        .catch(() => {});
+      const data = buyerIdentityData(result.buyerIdentityRef);
+      if (data) {
+        await prisma.contact
+          .update({ where: { id: invoice.contact.id }, data })
+          .catch(() => {});
+      }
     }
 
     // Client asked to keep this card on file: the charge already vaulted the

@@ -16,6 +16,13 @@ import { inPreview, previewBlockedError } from "@/lib/preview";
 import { logActivity } from "@/lib/activity";
 import { defaultSavedCard, addSavedCard } from "@/lib/saved-cards";
 import { reviveAutopayForContact } from "@/lib/auto-charge";
+import {
+  CHARGE_GATE_SELECT,
+  buyerIdentityData,
+  buyerIdentityRefOf,
+  canChargeOnline,
+  processorMerchantRef,
+} from "@/lib/payments-gate";
 
 /**
  * POST — charge the invoice's remaining balance. Two shapes:
@@ -53,11 +60,12 @@ export async function POST(
           email: true,
           phone: true,
           finixBuyerIdentityId: true,
+          squareCustomerId: true,
           processorCustomerRef: true,
           savedCardLabel: true,
         },
       },
-      company: { select: { suspendedAt: true, finixMerchantId: true, finixOnboardingState: true, name: true } },
+      company: { select: { suspendedAt: true, name: true, ...CHARGE_GATE_SELECT } },
     },
   });
   if (!invoice) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
@@ -112,7 +120,7 @@ export async function POST(
     if (balance <= 0) return NextResponse.json({ error: "Nothing left to charge." }, { status: 400 });
 
     const processor = getProcessor();
-    if (!processor.live)
+    if (!processor.live || !canChargeOnline(invoice.company))
       return NextResponse.json({ error: "Online payments are not enabled yet." }, { status: 503 });
 
     const description = `Invoice #${invoice.invoiceNumber} — ${invoice.company.name}`;
@@ -125,9 +133,10 @@ export async function POST(
           description,
           metadata,
           token: paymentToken,
-          merchantRef: invoice.company.finixMerchantId ?? undefined,
+          merchantRef: processorMerchantRef(invoice.company),
+          vault: saveNewCard,
           buyer: {
-            identityRef: invoice.contact.finixBuyerIdentityId,
+            identityRef: buyerIdentityRefOf(invoice.contact),
             firstName: invoice.contact.firstName,
             lastName: invoice.contact.lastName,
             email: invoice.contact.email,
@@ -148,13 +157,11 @@ export async function POST(
       cardLabel = savedCardLabel(result) || "new card";
       // First online charge mints the contact's buyer identity — keep it so
       // repeat charges don't create duplicate identities.
-      if (result.buyerIdentityRef && !invoice.contact.finixBuyerIdentityId) {
-        await prisma.contact
-          .update({
-            where: { id: invoice.contact.id },
-            data: { finixBuyerIdentityId: result.buyerIdentityRef },
-          })
-          .catch(() => {});
+      if (result.buyerIdentityRef && !buyerIdentityRefOf(invoice.contact)) {
+        const data = buyerIdentityData(result.buyerIdentityRef);
+        if (data) {
+          await prisma.contact.update({ where: { id: invoice.contact.id }, data }).catch(() => {});
+        }
       }
       // Keep the card ONLY when the box was ticked — same opt-in as /pay.
       // Never allowed to fail the charge that already went through.

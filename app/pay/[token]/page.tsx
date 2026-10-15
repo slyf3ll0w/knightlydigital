@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { companyMeta } from "@/lib/client-meta";
-import { getProcessor, invoiceBalance } from "@/lib/payments";
+import { invoiceBalance } from "@/lib/payments";
 import { recomputeDepositApplied } from "@/lib/deposits";
-import { finixApplicationId, finixEnvironment } from "@/lib/finix";
+import { clientPayConfig, PAY_CONFIG_SELECT } from "@/lib/pay-client-config";
 import ViewBeacon from "@/components/ViewBeacon";
 import PayPage from "./PayPage";
 
@@ -119,23 +119,16 @@ export default async function PublicPayPage({
   // PAYMENTS section, mirroring the PDF.
   const balance = invoiceBalance(invoice);
 
-  // Online charging is on only when the platform processor is Finix AND this
-  // company's merchant is approved. Checked with a separate server-only query —
-  // merchant/onboarding ids must never ride the serialized invoice into HTML.
-  // The application id IS public by design (finix.js needs it client-side).
-  let finix: { applicationId: string; environment: "sandbox" | "live" } | null = null;
-  const processor = getProcessor();
-  if (processor.name === "finix" && processor.live) {
-    const gate = await prisma.invoice.findFirst({
-      where: { publicToken: token },
-      select: {
-        company: { select: { finixMerchantId: true, finixOnboardingState: true } },
-      },
-    });
-    if (gate?.company.finixMerchantId && gate.company.finixOnboardingState === "APPROVED") {
-      finix = { applicationId: finixApplicationId(), environment: finixEnvironment() };
-    }
-  }
+  // Online charging is on only when the platform processor is live AND this
+  // company's account on it is ready (lib/payments-gate.ts). Checked with a
+  // separate server-only query — merchant/onboarding ids must never ride the
+  // serialized invoice into HTML. The tokenizer config that does go down
+  // carries public ids only (lib/pay-client-config.ts).
+  const gate = await prisma.invoice.findFirst({
+    where: { publicToken: token },
+    select: { company: { select: PAY_CONFIG_SELECT } },
+  });
+  const pay = gate ? clientPayConfig(gate.company) : null;
 
   return (
     <>
@@ -143,7 +136,7 @@ export default async function PublicPayPage({
       <PayPage
         invoice={JSON.parse(JSON.stringify(invoice))}
         balance={balance}
-        finix={finix}
+        pay={pay}
         preview={preview === "1"}
       />
     </>

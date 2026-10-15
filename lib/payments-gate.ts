@@ -14,8 +14,29 @@ import { finixConfigured, finixEnvironment } from "@/lib/finix";
  *              impossible until APPROVED, so nothing can move money early
  *  - rejected  Finix declined the business — hard gate, locked screen
  *  - approved  underwriting passed, full access
+ *
+ * **Square (PAYMENT_PROCESSOR=square, 2026-10):** there is no underwriting on
+ * our side at all — the seller brings their own Square account and connects
+ * it from Settings (lib/square-connection.ts). The gate is always `off`,
+ * nothing is "held", and `canChargeOnline` is simply "is Square connected".
  */
 export type PaymentsGateStatus = "off" | "activate" | "pending" | "rejected" | "approved";
+
+/** The Company columns every charge gate reads — spread into selects so a
+ *  caller can never forget the Square half (the type below REQUIRES them). */
+export const CHARGE_GATE_SELECT = {
+  finixMerchantId: true,
+  finixOnboardingState: true,
+  squareMerchantId: true,
+  squareConnectedAt: true,
+} as const;
+
+export type ChargeGateCompany = {
+  finixMerchantId: string | null;
+  finixOnboardingState: string | null;
+  squareMerchantId: string | null;
+  squareConnectedAt: Date | string | null;
+};
 
 /**
  * Is Finix onboarding open to new companies? Closed by default (2026-09-30,
@@ -39,7 +60,7 @@ export function paymentsGateEnabled(): boolean {
  * waiver) — sees the Settings card say Coming soon instead of opening the
  * Finix form. Client-facing surfaces key off canChargeOnline, so their pay
  * pages are view-only and invoice emails say View. Clears the moment Finix
- * approves them.
+ * approves them. Never held on Square: connecting is self-serve.
  */
 export function onlinePaymentsHeld(company: {
   paymentsWaived: boolean;
@@ -47,6 +68,7 @@ export function onlinePaymentsHeld(company: {
   /** Superadmin "Test" flag (Company.isTest). */
   isTest?: boolean;
 }): boolean {
+  if (getProcessor().name === "square") return false;
   if (company.finixOnboardingState === "APPROVED") return false;
   // A company the superadmin marked Test may open the SANDBOX Finix form while
   // onboarding is closed for everyone else — that's how a $1.02 decline or a
@@ -57,21 +79,51 @@ export function onlinePaymentsHeld(company: {
 }
 
 /**
- * Can this company take a card or bank payment right now? The one four-part
- * test every client-facing pay surface should use: platform processor is
- * Finix and live, and this company's merchant is approved.
+ * Can this company take a card or bank payment right now? The one test every
+ * client-facing pay surface should use: the platform processor is live AND
+ * this company's account on it is ready — a Finix merchant that passed
+ * underwriting, or a connected Square account.
  */
-export function canChargeOnline(company: {
-  finixMerchantId: string | null;
-  finixOnboardingState: string | null;
-}): boolean {
+export function canChargeOnline(company: ChargeGateCompany): boolean {
   const processor = getProcessor();
+  if (!processor.live) return false;
+  if (processor.name === "square") {
+    return Boolean(company.squareMerchantId) && company.squareConnectedAt != null;
+  }
   return (
     processor.name === "finix" &&
-    processor.live &&
     Boolean(company.finixMerchantId) &&
     company.finixOnboardingState === "APPROVED"
   );
+}
+
+/** The company's account id on the active processor — what a charge passes
+ *  as `merchantRef` (Finix merchant MUxxx, or the Square merchant id). */
+export function processorMerchantRef(company: ChargeGateCompany): string | undefined {
+  const processor = getProcessor();
+  if (processor.name === "square") return company.squareMerchantId ?? undefined;
+  if (processor.name === "finix") return company.finixMerchantId ?? undefined;
+  return undefined;
+}
+
+/** The contact's buyer record on the active processor (Finix identity
+ *  IDxxx / Square customer id) — what a charge passes as `buyer.identityRef`. */
+export function buyerIdentityRefOf(contact: {
+  finixBuyerIdentityId: string | null;
+  squareCustomerId: string | null;
+}): string | null {
+  const processor = getProcessor();
+  if (processor.name === "square") return contact.squareCustomerId;
+  if (processor.name === "finix") return contact.finixBuyerIdentityId;
+  return null;
+}
+
+/** The Contact column a freshly minted buyer ref belongs in. */
+export function buyerIdentityData(ref: string): { finixBuyerIdentityId: string } | { squareCustomerId: string } | null {
+  const processor = getProcessor();
+  if (processor.name === "square") return { squareCustomerId: ref };
+  if (processor.name === "finix") return { finixBuyerIdentityId: ref };
+  return null;
 }
 
 export function paymentsGateStatus(company: {

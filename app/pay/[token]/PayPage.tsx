@@ -42,7 +42,10 @@ type Invoice = {
   payments: { id: string; amount: number; surchargeAmount: number | null; method: string; paidAt: string }[];
 };
 
-import { FINIX_JS_SRC, type FinixConfig, type FinixForm } from "@/lib/finix-js";
+import { FINIX_JS_SRC, type FinixForm } from "@/lib/finix-js";
+import { isTestMode, processorLabel, type ClientPayConfig } from "@/lib/pay-config";
+import SquareCardFields, { type SquareCardFieldsHandle } from "@/components/SquareCardFields";
+import SquareAchButton from "@/components/SquareAchButton";
 
 const shortDate = (iso: string) =>
   new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
@@ -50,14 +53,21 @@ const shortDate = (iso: string) =>
 export default function PayPage({
   invoice,
   balance,
-  finix,
+  pay,
   preview = false,
 }: {
   invoice: Invoice;
   balance: number;
-  finix: FinixConfig;
+  /** The browser tokenizer config (lib/pay-config.ts); null = no online payment. */
+  pay: ClientPayConfig;
   preview?: boolean;
 }) {
+  // Which processor's form to mount — the finix.js path below is unchanged;
+  // Square mounts its own components (SquareCardFields / SquareAchButton).
+  const finix = pay?.processor === "finix" ? pay : null;
+  const square = pay?.processor === "square" ? pay : null;
+  const squareCardRef = useRef<SquareCardFieldsHandle>(null);
+  const [squareReady, setSquareReady] = useState(false);
   const [method, setMethod] = useState<"CARD" | "ACH">("CARD");
   const [saveCard, setSaveCard] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -276,6 +286,18 @@ export default function PayPage({
     setError("");
     setLoading(true);
 
+    if (square) {
+      // Card only here — Square's bank flow runs from SquareAchButton
+      const token = await squareCardRef.current?.tokenize();
+      if (!token) {
+        setLoading(false);
+        setError(squareCardRef.current?.lastError() || "Please check your card details and try again.");
+        return;
+      }
+      await submitPayment(token);
+      return;
+    }
+
     if (!finix || !formRef.current) {
       setLoading(false);
       setError("The payment form is still loading. Please try again in a moment.");
@@ -476,7 +498,7 @@ export default function PayPage({
             </div>
           )}
 
-          {!isPaid && !isArchived && !finix && (
+          {!isPaid && !isArchived && !pay && (
             <div className="mt-8 border-t-2 border-gray-900 pt-5">
               <h2 className="text-sm font-semibold text-gray-700 mb-2">How to pay</h2>
               <p className="text-sm leading-relaxed text-gray-600">
@@ -506,7 +528,7 @@ export default function PayPage({
           {/* Payment — the bottom of the same sheet, like the remittance stub
               on a paper invoice. A settled invoice has no stub — the stamp
               says everything. */}
-          {!isPaid && !isArchived && finix && (
+          {!isPaid && !isArchived && pay && (
           <div className="mt-8 border-t-2 border-gray-900 pt-5">
           {/* Amount — full balance by default, or a partial payment */}
           <h2 className="text-sm font-semibold text-gray-700 mb-3">Payment amount</h2>
@@ -602,15 +624,45 @@ export default function PayPage({
           )}
 
           <div className="mb-4">
-              {/* finix.js renders its hosted card/bank fields into this container */}
-              <div ref={containerRef} />
-              {!scriptReady && (
-                <div className="flex items-center justify-center gap-2 py-6 text-xs text-gray-400">
-                  <Loader2 size={13} className="animate-spin" />
-                  Loading secure payment form…
-                </div>
+              {square && method === "CARD" && (
+                <SquareCardFields
+                  key="square-card"
+                  ref={squareCardRef}
+                  config={square}
+                  accent={brandAccent(invoice.company)}
+                  onReady={setSquareReady}
+                />
               )}
-              {method === "CARD" && scriptReady && (
+              {square && method === "ACH" && (
+                <SquareAchButton
+                  key="square-ach"
+                  config={square}
+                  amount={chargeTotal}
+                  defaultName={invoice.contact ? `${invoice.contact.firstName} ${invoice.contact.lastName}`.trim() : ""}
+                  accent={brandAccent(invoice.company)}
+                  textColor={textOn(brandAccent(invoice.company))}
+                  disabled={loading || !amountValid}
+                  onToken={async (token) => {
+                    setError("");
+                    setLoading(true);
+                    await submitPayment(token);
+                  }}
+                  onError={(message) => setError(message)}
+                />
+              )}
+              {finix && (
+                <>
+                  {/* finix.js renders its hosted card/bank fields into this container */}
+                  <div ref={containerRef} />
+                  {!scriptReady && (
+                    <div className="flex items-center justify-center gap-2 py-6 text-xs text-gray-400">
+                      <Loader2 size={13} className="animate-spin" />
+                      Loading secure payment form…
+                    </div>
+                  )}
+                </>
+              )}
+              {method === "CARD" && (finix ? scriptReady : squareReady) && (
                 <label className="flex items-start gap-2 mt-3 text-xs text-gray-500 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -626,9 +678,12 @@ export default function PayPage({
               )}
           </div>
 
+          {/* Square's bank flow has its own button (the Plaid popup must open
+              from the click); every other case pays from here */}
+          {!(square && method === "ACH") && (
           <button
             onClick={handlePay}
-            disabled={loading || !amountValid || !scriptReady || formHasErrors}
+            disabled={loading || !amountValid || (finix ? !scriptReady || formHasErrors : !squareReady)}
             className="w-full py-3 font-semibold text-sm rounded transition-opacity hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50"
             style={{
               backgroundColor: brandAccent(invoice.company),
@@ -642,11 +697,12 @@ export default function PayPage({
             )}
             Pay ${chargeTotal.toFixed(2)}
           </button>
+          )}
 
           <div className="flex items-center justify-center gap-1 mt-3 text-xs text-gray-400">
             <Lock size={11} />
-            Payments secured by Finix
-            {finix.environment === "sandbox" && (
+            Payments secured by {processorLabel(pay)}
+            {isTestMode(pay) && (
               <span className="ml-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">Test mode</span>
             )}
           </div>

@@ -6,12 +6,15 @@ import { CreditCard, Loader2, Trash2 } from "lucide-react";
 import { confirmSheet } from "@/components/ConfirmSheet";
 
 /**
- * finix.js card tokenization form — same mount pattern as the public pay page,
- * but the token is exchanged into a vaulted instrument with NO charge. Lists
- * every saved card; the default is the one charged unless staff pick another.
+ * Card tokenization form — same mount pattern as the public pay page (Square
+ * Web Payments SDK or finix.js, whichever `pay` names), but the token is
+ * exchanged into a vaulted card with NO charge. Lists every saved card; the
+ * default is the one charged unless staff pick another.
  */
 
-import { FINIX_JS_SRC, type FinixConfig, type FinixForm } from "@/lib/finix-js";
+import { FINIX_JS_SRC, type FinixForm } from "@/lib/finix-js";
+import { isTestMode, type ClientPayConfig } from "@/lib/pay-config";
+import SquareCardFields, { type SquareCardFieldsHandle } from "@/components/SquareCardFields";
 
 type Card = { id: string; label: string; isDefault: boolean };
 
@@ -19,14 +22,18 @@ export default function SavedCardManager({
   token,
   companyName,
   cards,
-  finix,
+  pay,
 }: {
   token: string;
   companyName: string;
   cards: Card[];
-  finix: FinixConfig;
+  pay: ClientPayConfig;
 }) {
   const router = useRouter();
+  const finix = pay?.processor === "finix" ? pay : null;
+  const square = pay?.processor === "square" ? pay : null;
+  const squareRef = useRef<SquareCardFieldsHandle>(null);
+  const [squareReady, setSquareReady] = useState(false);
   const [adding, setAdding] = useState(false);
   const [scriptReady, setScriptReady] = useState(false);
   const [formHasErrors, setFormHasErrors] = useState(true);
@@ -82,9 +89,36 @@ export default function SavedCardManager({
     );
   }, [finix, adding, scriptReady]);
 
+  async function postCard(paymentToken: string) {
+    const r = await fetch("/api/hub/payment-method", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, paymentToken }),
+    });
+    const data = await r.json().catch(() => null);
+    setBusyId(null);
+    if (!r.ok) {
+      setError(data?.error ?? "Couldn't save the card. Please try again.");
+      return;
+    }
+    setAdding(false);
+    router.refresh();
+  }
+
   async function saveCard() {
-    if (!formRef.current) return;
     setError("");
+    if (square) {
+      setBusyId("add");
+      const paymentToken = await squareRef.current?.tokenize();
+      if (!paymentToken) {
+        setBusyId(null);
+        setError(squareRef.current?.lastError() || "Please check your card details and try again.");
+        return;
+      }
+      await postCard(paymentToken);
+      return;
+    }
+    if (!formRef.current) return;
     setBusyId("add");
     formRef.current.submit(async (err, res) => {
       const paymentToken = res?.data?.id;
@@ -93,19 +127,7 @@ export default function SavedCardManager({
         setError("Please check your card details and try again.");
         return;
       }
-      const r = await fetch("/api/hub/payment-method", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, paymentToken }),
-      });
-      const data = await r.json().catch(() => null);
-      setBusyId(null);
-      if (!r.ok) {
-        setError(data?.error ?? "Couldn't save the card. Please try again.");
-        return;
-      }
-      setAdding(false);
-      router.refresh();
+      await postCard(paymentToken);
     });
   }
 
@@ -140,13 +162,14 @@ export default function SavedCardManager({
     router.refresh();
   }
 
-  if (!finix) {
+  if (!pay) {
     return (
       <div className="card-ledger p-5 text-sm text-gray-500">
         Cards can&apos;t be saved here. Please arrange payment with {companyName} directly.
       </div>
     );
   }
+  const formReady = finix ? scriptReady && !formHasErrors : squareReady;
 
   return (
     <div className="space-y-4">
@@ -204,17 +227,22 @@ export default function SavedCardManager({
               {error}
             </div>
           )}
-          <div ref={containerRef} />
-          {!scriptReady && (
-            <div className="flex items-center justify-center gap-2 py-6 text-xs text-gray-500">
-              <Loader2 size={13} className="animate-spin" />
-              Loading secure card form…
-            </div>
+          {square && <SquareCardFields ref={squareRef} config={square} onReady={setSquareReady} />}
+          {finix && (
+            <>
+              <div ref={containerRef} />
+              {!scriptReady && (
+                <div className="flex items-center justify-center gap-2 py-6 text-xs text-gray-500">
+                  <Loader2 size={13} className="animate-spin" />
+                  Loading secure card form…
+                </div>
+              )}
+            </>
           )}
           <div className="flex gap-2 mt-4">
             <button
               onClick={saveCard}
-              disabled={busyId !== null || !scriptReady || formHasErrors}
+              disabled={busyId !== null || !formReady}
               className="flex-1 py-2.5 text-sm font-semibold rounded-[10px] btn-tool bg-green-500 hover:bg-green-600 active:bg-green-700 text-white disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
             >
               {busyId === "add" && <Loader2 size={13} className="animate-spin" />}
@@ -235,7 +263,7 @@ export default function SavedCardManager({
             Your card details go directly to the payment processor — {companyName} never
             sees the full number. No charge happens when you save.
           </p>
-          {finix.environment === "sandbox" && (
+          {finix && isTestMode(finix) && (
             <p className="mt-1 text-[11px] text-amber-600">Test mode — no real cards.</p>
           )}
         </div>

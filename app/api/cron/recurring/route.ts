@@ -17,6 +17,7 @@ import {
 } from "@/lib/reminders";
 import { runAutoChargeRetries, runCardExpiryNudges } from "@/lib/auto-charge";
 import { runQuickBooksNightlySync } from "@/lib/quickbooks";
+import { runSquareTokenSweep } from "@/lib/square-connection";
 import { runGoogleCalendarSweep } from "@/lib/google-calendar";
 import { runGoogleCalendarPullSweep } from "@/lib/google-calendar-pull";
 import { runRecurringExpenses } from "@/lib/expenses";
@@ -183,6 +184,9 @@ export async function POST(req: NextRequest) {
     // QuickBooks sweep: catches invoices issued/edited outside the payment
     // hook. No-op unless QBO env vars are set and companies have connected.
     await step("quickbooks", () => runQuickBooksNightlySync());
+    // Square OAuth tokens: refresh any older than 7 days (they live 30),
+    // page when one has gone 8 days without. No-op unless SQUARE_* are set.
+    await step("squareTokens", () => runSquareTokenSweep(now));
     // Google Calendar push: reconciles every connected user's schedule —
     // catches visit-series generation and anything the write trigger missed.
     // No-op unless GOOGLE_CALENDAR_* env vars are set and users have connected.

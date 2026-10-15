@@ -40,13 +40,13 @@ export type ContactRow = {
 export const COMPANY_SELECT = {
   id: true, name: true, email: true, phone: true, website: true, logoUrl: true, timezone: true, reviewLink: true,
   brandColor: true, brandColorSecondary: true, documentColor: true, arrivalWindowMinutes: true,
-  finixMerchantId: true, finixOnboardingState: true, assistantName: true,
+  finixMerchantId: true, finixOnboardingState: true, squareMerchantId: true, squareConnectedAt: true, assistantName: true,
 } as const;
 
 export type CompanyRow = {
   id: string; name: string; email: string | null; phone: string | null; website: string | null; logoUrl: string | null; timezone: string;
   reviewLink: string | null; brandColor: string | null; brandColorSecondary: string | null; documentColor: string | null;
-  arrivalWindowMinutes: number | null; finixMerchantId: string | null; finixOnboardingState: string | null; assistantName: string | null;
+  arrivalWindowMinutes: number | null; finixMerchantId: string | null; finixOnboardingState: string | null; squareMerchantId: string | null; squareConnectedAt: Date | null; assistantName: string | null;
 };
 
 const QUOTE_SELECT = {

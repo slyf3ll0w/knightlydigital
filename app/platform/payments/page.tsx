@@ -33,6 +33,8 @@ import {
   type FinixDispute,
   type FinixDisputeEvidence,
 } from "@/lib/finix";
+import { canChargeOnline } from "@/lib/payments-gate";
+import { squareEnvironment } from "@/lib/square";
 
 /**
  * Payments dashboard — the company's money view for online processing:
@@ -71,7 +73,7 @@ export default async function PaymentsDashboardPage({
     select: {
       finixIdentityId: true,
       finixMerchantId: true,
-      finixOnboardingState: true,
+      finixOnboardingState: true, squareMerchantId: true, squareConnectedAt: true,
       brandColor: true,
       timezone: true,
     },
@@ -81,11 +83,15 @@ export default async function PaymentsDashboardPage({
   const tz = company?.timezone ?? "America/Chicago";
 
   const processor = getProcessor();
+  // The Finix-only reads below (transfers, settlements, disputes, payouts)
+  // need an approved Finix merchant; a Square-connected company just lists
+  // its payments — balance and payouts live in the Square dashboard.
   const online =
     processor.name === "finix" &&
     processor.live &&
     company?.finixMerchantId != null &&
     company.finixOnboardingState === "APPROVED";
+  const squareOnline = processor.name === "square" && company != null && canChargeOnline(company);
 
   // Online payments = rows the processor created (processorRef set)
   let payments = await prisma.payment.findMany({
@@ -314,7 +320,7 @@ export default async function PaymentsDashboardPage({
       <div className="flex flex-wrap items-center justify-between gap-y-3 mb-6">
         <PageTitle section="payments" icon={DollarSign}>
           Payments
-          {online && finixEnvironment() === "sandbox" && (
+          {((online && finixEnvironment() === "sandbox") || (squareOnline && squareEnvironment() === "sandbox")) && (
             <Chip tone="warn">Test mode</Chip>
           )}
         </PageTitle>
@@ -340,7 +346,7 @@ export default async function PaymentsDashboardPage({
 
       {/* Not set up yet — the statement card's spot holds the pitch, in the
           same grammar, so this page never opens on a plain gray banner */}
-      {!online && (
+      {!online && !squareOnline && (
         <div className="ds-card mb-6 overflow-hidden">
           <div className="p-5 sm:p-6">
             <p className="text-[13px] font-medium text-[color:var(--ds-primary)]">Online payments</p>
@@ -353,13 +359,44 @@ export default async function PaymentsDashboardPage({
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--ds-line)] bg-[color:var(--ds-surface-2)] px-5 py-3 sm:px-6">
-            <p className="text-xs text-[color:var(--ds-muted)]">A short application in Settings → Payments &amp; accounting starts it.</p>
+            <p className="text-xs text-[color:var(--ds-muted)]">
+              {processor.name === "square"
+                ? "Connect your Square account in Settings → Payments & accounting."
+                : "A short application in Settings → Payments & accounting starts it."}
+            </p>
             <Link
               href="/app/settings?s=payments"
               className="btn-primary"
             >
-              Set up payments <ArrowUpRight size={14} />
+              {processor.name === "square" ? "Connect Square" : "Set up payments"} <ArrowUpRight size={14} />
             </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Square: the balance, payouts and disputes live in the seller's own
+          Square dashboard — this page is the list of what came in */}
+      {squareOnline && (
+        <div className="ds-card mb-6 overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-6">
+            <div>
+              <p className="text-[13px] font-medium text-[color:var(--ds-primary)]">Online payments</p>
+              <p className="mt-0.5 flex items-center gap-1.5 text-sm text-[color:var(--ds-ink)]">
+                Card and bank payments run through your Square account.
+                <InfoTip>
+                  Payouts, your balance, processing fees and any disputes are handled by Square —
+                  open the Square dashboard to see them. Refunds can be issued from here or there.
+                </InfoTip>
+              </p>
+            </div>
+            <a
+              href={squareEnvironment() === "sandbox" ? "https://app.squareupsandbox.com/dashboard/" : "https://app.squareup.com/dashboard/"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ds-btn ds-btn-outline ds-btn-sm"
+            >
+              Square dashboard <ArrowUpRight size={14} />
+            </a>
           </div>
         </div>
       )}

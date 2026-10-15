@@ -11,7 +11,7 @@ import { durationLabel } from "@/lib/booking-types";
 import { ADDRESS_DEFAULTS, type CustomField } from "@/lib/booking-intake";
 import type { ScheduleAppearance } from "../shell";
 import PaymentStep, { type PaymentHandle } from "./PaymentStep";
-import type { FinixConfig } from "@/lib/finix-js";
+import type { ClientPayConfig } from "@/lib/pay-config";
 import { derivedQuoteDeposit } from "@/lib/statuses";
 import { encodePrefill, type Prefill } from "@/lib/booking-prefill";
 
@@ -42,7 +42,8 @@ const ICON = { PHONE_CALL: Phone, VIDEO_CALL: Video, IN_PERSON: MapPin, SERVICE:
 
 type DepositRule = { depositType: "NONE" | "PERCENT" | "FIXED" | "FULL"; depositValue: number | null };
 export type BookingPaymentConfig = {
-  finix: FinixConfig;
+  /** The browser tokenizer config (lib/pay-config.ts); null = payments not live. */
+  pay: ClientPayConfig;
   surchargeRate: number | null;
   companyDeposit: DepositRule;
   serviceDeposits: Record<string, DepositRule>;
@@ -91,7 +92,7 @@ export default function BookingStepper({
   company: { name: string; timezone: string; phone: string | null; email: string | null; menuHref: string; offerSms?: boolean };
   appearance: ScheduleAppearance;
   embed?: boolean;
-  /** Card processing for paid service types; finix null = payments not live. */
+  /** Card processing for paid service types; pay null = payments not live. */
   payment?: BookingPaymentConfig;
   /** Absolute URL of the hosted booking page (embeds hand paid bookings off to it). */
   hostedUrl?: string;
@@ -159,8 +160,8 @@ export default function BookingStepper({
   const picked = type.services.filter((s) => services.includes(s.id));
   const total = picked.reduce((sum, s) => sum + s.price, 0);
   const allFixed = picked.length > 0 && picked.every((s) => s.priceDisplay === "FIXED");
-  const paying = type.paymentMode !== "NONE" && allFixed && Boolean(payment?.finix);
-  // finix.js won't mount inside a third-party iframe — embeds send paid
+  const paying = type.paymentMode !== "NONE" && allFixed && Boolean(payment?.pay);
+  // Hosted card fields won't mount inside a third-party iframe — embeds send paid
   // bookings to the hosted page (new tab) with everything prefilled.
   const handoff = embed && paying && Boolean(hostedUrl);
   const handoffUrl = () =>
@@ -749,7 +750,7 @@ export default function BookingStepper({
             {paying && !handoff && (
               <PaymentStep
                 ref={paymentRef}
-                finix={payment?.finix ?? null}
+                pay={payment?.pay ?? null}
                 amount={total}
                 mode={type.paymentMode}
                 depositAmount={depositAmount}

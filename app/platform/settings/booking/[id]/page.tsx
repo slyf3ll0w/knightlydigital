@@ -6,7 +6,7 @@ import { bookingTypeInclude } from "@/lib/booking-runtime";
 import { sanitizeIntake } from "@/lib/booking-intake";
 import { getActiveFieldDefs } from "@/lib/contact-fields";
 import { geocodingEnabled } from "@/lib/geocoding";
-import { getProcessor } from "@/lib/payments";
+import { canChargeOnline } from "@/lib/payments-gate";
 import { inPreview } from "@/lib/preview";
 import ItemEditor from "./ItemEditor";
 
@@ -27,7 +27,7 @@ export default async function BookingItemEditorPage({ params }: { params: Promis
         bookingDriveLimitMinutes: true,
         lat: true,
         finixMerchantId: true,
-        finixOnboardingState: true,
+        finixOnboardingState: true, squareMerchantId: true, squareConnectedAt: true,
         surchargeEnabled: true,
         hubBookingTypeId: true,
       },
@@ -56,9 +56,7 @@ export default async function BookingItemEditorPage({ params }: { params: Promis
   const proto = h.get("x-forwarded-proto") ?? "https";
   const baseUrl = host ? `${proto}://${host}` : (process.env.NEXTAUTH_URL ?? "");
 
-  const processor = getProcessor();
-  const paymentsReady =
-    processor.name === "finix" && processor.live && Boolean(company.finixMerchantId) && company.finixOnboardingState === "APPROVED";
+  const paymentsReady = canChargeOnline(company);
 
   return (
     <ItemEditor

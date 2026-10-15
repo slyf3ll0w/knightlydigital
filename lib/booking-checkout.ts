@@ -17,6 +17,7 @@ import { convertQuoteToJob } from "@/lib/quote-convert";
 import { enterPipeline, autoAdvance, recordLeadWin, firePipelineMoves, type PipelineMove } from "@/lib/pipeline";
 import { nextQuoteNumber, withDocNumberRetry } from "@/lib/doc-numbers";
 import { acquireChargeLock, calculateSurcharge, findUnrecordedTransferForInvoice, getProcessor, recordPayment, releaseChargeLock, type ChargeResult } from "@/lib/payments";
+import { buyerIdentityData, buyerIdentityRefOf, canChargeOnline, processorMerchantRef, type ChargeGateCompany } from "@/lib/payments-gate";
 import { sendEmail, bookingConfirmedEmail, bookingTeamNoticeEmail } from "@/lib/email";
 import { sendSms, smsEnabled, canText, bookingConfirmationText } from "@/lib/sms";
 import { companyNotifyAddress } from "@/lib/notify";
@@ -41,6 +42,8 @@ export type ServiceBookingCompany = BookingCompanyRow & {
   defaultDepositValue: Prisma.Decimal | number | null;
   finixMerchantId: string | null;
   finixOnboardingState: string | null;
+  squareMerchantId: string | null;
+  squareConnectedAt: Date | null;
   surchargeEnabled: boolean;
   surchargeRate: Prisma.Decimal | number | null;
 };
@@ -51,10 +54,9 @@ export type ServiceBookingResult =
   | { declined: true; error: string }
   | { error: string; status?: number };
 
-/** Can this company take a card right now (same three-part gate as the pay page)? */
-export function paymentsLive(company: { finixMerchantId: string | null; finixOnboardingState: string | null }): boolean {
-  const processor = getProcessor();
-  return processor.name === "finix" && processor.live && Boolean(company.finixMerchantId) && company.finixOnboardingState === "APPROVED";
+/** Can this company take a card right now (the pay page's gate). */
+export function paymentsLive(company: ChargeGateCompany): boolean {
+  return canChargeOnline(company);
 }
 
 export async function createServiceBooking(params: {
@@ -241,11 +243,11 @@ export async function createServiceBooking(params: {
           description: `${title} — ${company.name} (booked online)`,
           metadata: { invoiceId: inv.id, companyId: company.id, bookingTypeId: type.id },
           token: params.paymentToken ?? undefined,
-          merchantRef: company.finixMerchantId ?? undefined,
+          merchantRef: processorMerchantRef(company),
           fraudSessionId: params.fraudSessionId,
           idempotencyScope: `book-${inv.id}`,
           buyer: {
-            identityRef: result.contact.finixBuyerIdentityId,
+            identityRef: buyerIdentityRefOf(result.contact),
             firstName: result.contact.firstName,
             lastName: result.contact.lastName,
             email: result.contact.email,
@@ -270,8 +272,9 @@ export async function createServiceBooking(params: {
         await unwind(result);
         return { declined: true, error: charge.error };
       }
-      if (charge.buyerIdentityRef && !result.contact.finixBuyerIdentityId) {
-        await prisma.contact.update({ where: { id: result.contact.id }, data: { finixBuyerIdentityId: charge.buyerIdentityRef } }).catch(() => {});
+      if (charge.buyerIdentityRef && !buyerIdentityRefOf(result.contact)) {
+        const data = buyerIdentityData(charge.buyerIdentityRef);
+        if (data) await prisma.contact.update({ where: { id: result.contact.id }, data }).catch(() => {});
       }
       // The card IS charged from here on: a hiccup recording it must never
       // unwind the booking (that would leave a charge with nothing to show for

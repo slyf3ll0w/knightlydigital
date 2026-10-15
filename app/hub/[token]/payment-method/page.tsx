@@ -1,13 +1,12 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getProcessor } from "@/lib/payments";
-import { finixApplicationId, finixEnvironment } from "@/lib/finix";
+import { clientPayConfig, PAY_CONFIG_SELECT } from "@/lib/pay-client-config";
 import SavedCardManager from "./SavedCardManager";
 
 /**
  * Client hub: the cards on file. Lists every saved card (default marked),
- * with make-default/remove actions, and a finix.js tokenization form to add
- * more — no charge happens here; saving a card is how autopay and one-tap
+ * with make-default/remove actions, and the processor's tokenization form to
+ * add more — no charge happens here; saving a card is how autopay and one-tap
  * future payments work.
  */
 export default async function HubPaymentMethodPage({
@@ -29,26 +28,16 @@ export default async function HubPaymentMethodPage({
           name: true,
           brandColorSecondary: true,
           brandColor: true,
-          finixMerchantId: true,
-          finixOnboardingState: true,
+          ...PAY_CONFIG_SELECT,
         },
       },
     },
   });
   if (!contact) notFound();
 
-  // Same gate as the pay page: tokenization only works when this company's
-  // merchant is approved and the platform processor is Finix.
-  let finix: { applicationId: string; environment: "sandbox" | "live" } | null = null;
-  const processor = getProcessor();
-  if (
-    processor.name === "finix" &&
-    processor.live &&
-    contact.company.finixMerchantId &&
-    contact.company.finixOnboardingState === "APPROVED"
-  ) {
-    finix = { applicationId: finixApplicationId(), environment: finixEnvironment() };
-  }
+  // Same gate as the pay page: tokenization only works when this company can
+  // charge online (lib/payments-gate.ts canChargeOnline).
+  const pay = clientPayConfig(contact.company);
 
   return (
     <div>
@@ -64,7 +53,7 @@ export default async function HubPaymentMethodPage({
         token={token}
         companyName={contact.company.name}
         cards={contact.savedCards}
-        finix={finix}
+        pay={pay}
       />
     </div>
   );

@@ -2,17 +2,21 @@ import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
-import { recomputeInvoiceStatus, estimateFeeCents, refundSplit } from "@/lib/payments";
+import { getProcessor, recomputeInvoiceStatus, estimateFeeCents, refundSplit } from "@/lib/payments";
 import { estimateProcessingCostCents } from "@/lib/platform-costs";
 import { reverseTransfer, toCents, FinixError } from "@/lib/finix";
+import { refundSquarePayment, SquareError } from "@/lib/square";
+import { squareTokenForMerchant } from "@/lib/square-connection";
 import { queueQuickBooksPaymentRefresh } from "@/lib/quickbooks";
 import { logActivity } from "@/lib/activity";
 import { fireAutomations } from "@/lib/automations-server";
 
 /**
- * POST — refund an online (Finix) payment, full or partial. Managers only.
+ * POST — refund an online payment (Finix or Square), full or partial.
+ * Managers only.
  *
- * This actually moves money back (a Finix reversal), then applies the same
+ * This actually moves money back (a Finix reversal / a Square refund under
+ * the seller's own token), then applies the same
  * bookkeeping as a manual correction: the Payment row's amount drops by the
  * refund and the invoice status is recomputed. Manually-recorded payments
  * (cash/check/Zelle…) have no processor to reverse — correct those by editing
@@ -31,11 +35,22 @@ export async function POST(
 
   const payment = await prisma.payment.findFirst({
     where: { id, companyId: actor.companyId },
+    include: { company: { select: { squareMerchantId: true, squareConnectedAt: true } } },
   });
   if (!payment) return NextResponse.json({ error: "Payment not found." }, { status: 404 });
-  if (!payment.processorRef?.startsWith("TR")) {
+  // Which processor ran the charge: Finix transfers are TR…; anything else
+  // with a processorRef came through Square (a Square payment id).
+  const viaFinix = Boolean(payment.processorRef?.startsWith("TR"));
+  const viaSquare = Boolean(payment.processorRef) && !viaFinix && getProcessor().name === "square";
+  if (!payment.processorRef || (!viaFinix && !viaSquare)) {
     return NextResponse.json(
       { error: "This payment wasn't processed online — edit or delete the record instead." },
+      { status: 400 }
+    );
+  }
+  if (viaSquare && (!payment.company.squareMerchantId || !payment.company.squareConnectedAt)) {
+    return NextResponse.json(
+      { error: "Square isn't connected, so this payment can't be refunded from here. Reconnect Square in Settings or refund it from your Square dashboard." },
       { status: 400 }
     );
   }
@@ -74,10 +89,27 @@ export async function POST(
   }
 
   try {
-    const reversal = await reverseTransfer({
-      transferId: payment.processorRef,
-      refundCents: toCents(refundAmount),
-    });
+    let reversal: { id: string };
+    if (viaSquare) {
+      const { token } = await squareTokenForMerchant(payment.company.squareMerchantId!);
+      const refund = await refundSquarePayment({
+        token,
+        // One refund per payment+amount+minute — a double-click can't refund twice
+        idempotencyKey: `refund-${id}-${toCents(refundAmount)}-${Math.floor(Date.now() / 60000)}`,
+        paymentId: payment.processorRef,
+        amountCents: toCents(refundAmount),
+        reason: typeof body.reason === "string" ? body.reason : null,
+      });
+      if (refund.status === "REJECTED" || refund.status === "FAILED") {
+        throw new Error(`Square rejected the refund (${refund.status}).`);
+      }
+      reversal = { id: refund.id };
+    } else {
+      reversal = await reverseTransfer({
+        transferId: payment.processorRef,
+        refundCents: toCents(refundAmount),
+      });
+    }
 
     const note = `Refunded $${refundAmount.toFixed(2)} (${reversal.id})`;
 
@@ -160,7 +192,7 @@ export async function POST(
       });
     reportError("[payments] refund failed", err);
     const message =
-      err instanceof FinixError
+      err instanceof FinixError || err instanceof SquareError
         ? `Refund failed: ${err.message}`
         : "Refund failed. Please try again.";
     return NextResponse.json({ error: message }, { status: 424 });

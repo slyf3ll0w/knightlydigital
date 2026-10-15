@@ -28,8 +28,8 @@ import PeopleCard from "./PeopleCard";
 import SavedCardsCard from "./SavedCardsCard";
 import PipelineCard from "./PipelineCard";
 import { getActiveFieldDefs } from "@/lib/contact-fields";
-import { getProcessor, invoiceBalance } from "@/lib/payments";
-import { finixApplicationId, finixEnvironment } from "@/lib/finix";
+import { invoiceBalance } from "@/lib/payments";
+import { clientPayConfig } from "@/lib/pay-client-config";
 import RunAutomationMenu from "@/components/RunAutomationMenu";
 
 export default async function ContactDetailPage({
@@ -55,7 +55,7 @@ export default async function ContactDetailPage({
             website: true,
             logoUrl: true,
             finixMerchantId: true,
-            finixOnboardingState: true,
+            finixOnboardingState: true, squareMerchantId: true, squareConnectedAt: true, squareLocationId: true,
             smsAcknowledgedAt: true,
             lineNumber: true,
             lineForwardTo: true,
@@ -521,14 +521,7 @@ export default async function ContactDetailPage({
               contactId={contact.id}
               cards={contact.savedCards}
               canManage={isManager(actor.role)}
-              finix={
-                getProcessor().name === "finix" &&
-                getProcessor().live &&
-                contact.company.finixMerchantId &&
-                contact.company.finixOnboardingState === "APPROVED"
-                  ? { applicationId: finixApplicationId(), environment: finixEnvironment() }
-                  : null
-              }
+              pay={clientPayConfig(contact.company)}
             />
           )}
 

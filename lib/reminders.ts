@@ -129,7 +129,7 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
           brandColorSecondary: true,
           logoUrl: true,
           finixMerchantId: true,
-          finixOnboardingState: true,
+          finixOnboardingState: true, squareMerchantId: true, squareConnectedAt: true,
         },
       },
     },
@@ -271,7 +271,7 @@ export async function runQuoteFollowUps(
           brandColorSecondary: true,
           logoUrl: true,
           finixMerchantId: true,
-          finixOnboardingState: true,
+          finixOnboardingState: true, squareMerchantId: true, squareConnectedAt: true,
         },
       },
     },
@@ -376,7 +376,7 @@ const reminderCompanySelect = {
   brandColorSecondary: true,
   logoUrl: true,
   finixMerchantId: true,
-  finixOnboardingState: true,
+  finixOnboardingState: true, squareMerchantId: true, squareConnectedAt: true,
 } as const;
 
 const reminderContactSelect = {
@@ -404,7 +404,7 @@ async function sendClientReminder(input: {
     brandColorSecondary: string | null;
     logoUrl: string | null;
     finixMerchantId: string | null;
-    finixOnboardingState: string | null;
+    finixOnboardingState: string | null; squareMerchantId: string | null; squareConnectedAt: Date | null;
   };
   contact: { firstName: string; email: string | null; phone: string | null; smsOptOut: boolean; smsDisabled: boolean };
   serviceName: string;

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { closeSettlementForIdentity, FinixError } from "@/lib/finix";
+import { getProcessor } from "@/lib/payments";
 
 /**
  * POST — "Send to bank now": close the merchant's accruing settlement instead
@@ -15,6 +16,15 @@ export async function POST() {
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+  if (getProcessor().name === "square") {
+    // Square pays the seller out on its own schedule (instant transfers and
+    // the payout schedule live in their Square dashboard) — nothing for us
+    // to close early.
+    return NextResponse.json(
+      { error: "Payouts are handled by Square — see Balance in your Square dashboard." },
+      { status: 400 }
+    );
+  }
   const company = await prisma.company.findUnique({
     where: { id: actor.companyId },
     select: { finixIdentityId: true, finixMerchantId: true, finixOnboardingState: true },

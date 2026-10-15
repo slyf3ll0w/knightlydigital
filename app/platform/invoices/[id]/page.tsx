@@ -18,8 +18,9 @@ import { companyCanSendSms } from "@/lib/sms";
 import { fmtPhone } from "@/lib/format";
 import RunAutomationMenu from "@/components/RunAutomationMenu";
 import { getProcessor, invoiceBalance } from "@/lib/payments";
-import { finixApplicationId, finixEnvironment } from "@/lib/finix";
-import type { FinixConfig } from "@/lib/finix-js";
+import { canChargeOnline } from "@/lib/payments-gate";
+import { clientPayConfig, PAY_CONFIG_SELECT } from "@/lib/pay-client-config";
+import type { ClientPayConfig } from "@/lib/pay-config";
 import { activityFor } from "@/lib/activity";
 import ActivityTrail from "@/components/ActivityTrail";
 import PaymentRow from "./PaymentRow";
@@ -75,7 +76,7 @@ export default async function InvoiceDetailPage({
   // goes down so the action can offer a pick when there's more than one.
   let chargeStoredLabel: string | null = null;
   let savedCards: { id: string; label: string; isDefault: boolean }[] = [];
-  let finixCfg: FinixConfig = null;
+  let payCfg: ClientPayConfig = null;
   if (
     isManager(actor.role) &&
     balance > 0 &&
@@ -85,13 +86,11 @@ export default async function InvoiceDetailPage({
   ) {
     const gate = await prisma.company.findUnique({
       where: { id: companyId },
-      select: { finixMerchantId: true, finixOnboardingState: true },
+      select: PAY_CONFIG_SELECT,
     });
-    if (gate?.finixMerchantId && gate.finixOnboardingState === "APPROVED") {
+    if (gate && canChargeOnline(gate)) {
       // Staff can also tokenize a NEW card right in the charge dialog
-      if (getProcessor().name === "finix") {
-        finixCfg = { applicationId: finixApplicationId(), environment: finixEnvironment() };
-      }
+      payCfg = clientPayConfig(gate);
       savedCards = await prisma.savedCard.findMany({
         where: { contactId: invoice.contact.id },
         orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
@@ -154,7 +153,7 @@ export default async function InvoiceDetailPage({
           chargeStoredLabel={chargeStoredLabel}
           savedCards={savedCards}
           contactId={invoice.contact?.id ?? ""}
-          finix={finixCfg}
+          pay={payCfg}
           balance={balance}
           scheduled={Boolean(invoice.scheduledSendAt)}
           tz={tz}

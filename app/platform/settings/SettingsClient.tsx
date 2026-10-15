@@ -309,16 +309,43 @@ const TIMEZONES = [
  * an invite code see a Coming-soon card instead of the application — online
  * payments open up for them once we switch them on (superadmin console).
  */
+type SquareCardStatus =
+  | { connected: false }
+  | {
+      connected: true;
+      businessName: string | null;
+      locationName: string | null;
+      connectedAt: string | null;
+      stale: boolean;
+      lastRefreshError: string | null;
+    };
+
+/** What the Square callback's ?square= outcome means to the owner. */
+const SQUARE_OUTCOME: Record<string, { tone: "good" | "bad"; text: string }> = {
+  connected: { tone: "good", text: "Square is connected — clients can now pay by card or bank from their pay links." },
+  denied: { tone: "bad", text: "Square access was declined, so nothing was connected." },
+  already_connected_elsewhere: { tone: "bad", text: "That Square account is already connected to another WorkBench company." },
+  no_location: { tone: "bad", text: "That Square account has no active location that can take card payments." },
+  exchange_failed: { tone: "bad", text: "Square didn't accept the connection. Please try again." },
+  merchant_lookup_failed: { tone: "bad", text: "Connected, but Square's business details couldn't be read. Try Check connection." },
+  bad_state: { tone: "bad", text: "That connection link had expired. Start again from this card." },
+  unauthorized: { tone: "bad", text: "Only the account owner can connect Square." },
+  missing_params: { tone: "bad", text: "Square sent us back without a code. Please try again." },
+};
+
 function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
   const [status, setStatus] = useState<{
     available: boolean;
     comingSoon?: boolean;
-    environment?: "sandbox" | "live";
+    processor?: "square";
+    environment?: "sandbox" | "live" | "production";
     started?: boolean;
     state?: string | null;
+    square?: SquareCardStatus;
   } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState<{ tone: "good" | "bad"; text: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -330,6 +357,17 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
         })
         .catch(() => {});
     load();
+    // Back from Square's consent screen: say how it went, then clean the URL
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      const outcome = sp.get("square");
+      if (outcome) {
+        setNotice(SQUARE_OUTCOME[outcome] ?? { tone: "bad", text: "Square connection didn't complete. Please try again." });
+        sp.delete("square");
+        const qs = sp.toString();
+        window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`);
+      }
+    } catch {}
     // While underwriting runs (sandbox auto-approves in ~2 min), keep
     // checking so the card flips to "enabled" without a reload.
     const t = setInterval(() => {
@@ -362,8 +400,131 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
     }
   }
 
+  async function disconnectSquare() {
+    if (
+      !(await confirmSheet({
+        title: "Disconnect Square?",
+        message:
+          "Clients won't be able to pay online until you connect again, and cards on file can't be charged in the meantime. Nothing changes in your Square account.",
+        confirmLabel: "Disconnect",
+        destructive: true,
+      }))
+    )
+      return;
+    setBusy(true);
+    setError("");
+    setNotice(null);
+    try {
+      const res = await fetch("/api/app/square/disconnect", { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setError(data?.error ?? "Couldn't disconnect Square. Please try again.");
+        return;
+      }
+      setStatus((s) => (s ? { ...s, square: { connected: false } } : s));
+      setNotice({ tone: "good", text: "Square disconnected." });
+    } catch {
+      setError(NETWORK_ERROR);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function checkSquare() {
+    setBusy(true);
+    setError("");
+    setNotice(null);
+    try {
+      const res = await fetch("/api/app/square/check", { method: "POST" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        setError(data?.error ?? "Square didn't answer. Please try again.");
+        // A dead grant was torn down server-side — reflect it
+        if (/reconnect/i.test(String(data?.error ?? ""))) {
+          setStatus((s) => (s ? { ...s, square: { connected: false } } : s));
+        }
+        return;
+      }
+      setNotice({ tone: "good", text: "Square connection is healthy." });
+    } catch {
+      setError(NETWORK_ERROR);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // Pre-launch (processor not configured) — say nothing rather than tease
   if (!status || !status.available) return null;
+
+  // Square: the owner's own Square account, connected by OAuth. No
+  // underwriting on our side — Connect, or Connected + Check / Disconnect.
+  if (status.processor === "square") {
+    const sq = status.square ?? { connected: false };
+    return (
+      <div className="ds-card p-5 space-y-3">
+        <SectionHeader
+          title="Online Payments"
+          hint="Let clients pay invoices by card or bank transfer, straight from their pay link. Payments run through your own Square account."
+          action={status.environment === "sandbox" ? <Chip tone="warn">Test mode</Chip> : undefined}
+        />
+
+        {notice && (
+          <p className={`text-sm ${notice.tone === "good" ? "text-[color:var(--ds-good)]" : "text-[color:var(--ds-bad)]"}`}>
+            {notice.text}
+          </p>
+        )}
+
+        {sq.connected ? (
+          <>
+            <div className="flex items-center gap-2 text-sm text-[color:var(--ds-good)]">
+              <Check size={15} />
+              <span>
+                Connected to <span className="font-semibold">{sq.businessName ?? "your Square account"}</span>
+                {sq.locationName ? ` · ${sq.locationName}` : ""}. Payouts follow your Square payout schedule.
+              </span>
+            </div>
+            {sq.stale && (
+              <p className="flex items-start gap-1.5 text-xs text-[color:var(--ds-warn)]">
+                <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+                <span>
+                  Square hasn&apos;t renewed this connection lately
+                  {sq.lastRefreshError ? ` (${sq.lastRefreshError})` : ""}. Run Check connection; if it fails, disconnect and connect again.
+                </span>
+              </p>
+            )}
+            {error && <p className="text-xs text-[color:var(--ds-bad)]">{error}</p>}
+            <div className="flex flex-wrap items-center gap-2">
+              <button onClick={checkSquare} disabled={busy} className="btn-secondary">
+                {busy ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                Check connection
+              </button>
+              {isOwner && (
+                <button onClick={disconnectSquare} disabled={busy} className="btn-secondary text-[color:var(--ds-bad)]">
+                  Disconnect
+                </button>
+              )}
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-gray-600">
+              Connect the Square account that should receive your payments. You&apos;ll sign in to
+              Square and approve WorkBench; card and bank details are handled by Square and never
+              touch WorkBench. No Square account yet? You can create one during the connection.
+            </p>
+            {error && <p className="text-xs text-[color:var(--ds-bad)]">{error}</p>}
+            {isOwner ? (
+              <a href="/api/app/square/connect" className="btn-primary w-fit">
+                Connect Square
+              </a>
+            ) : (
+              <p className="text-xs text-gray-500">Only the account owner can connect Square.</p>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
 
   if (status.comingSoon) {
     return (

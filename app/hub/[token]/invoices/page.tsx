@@ -22,7 +22,7 @@ export default async function HubInvoicesPage({
         include: { payments: true },
         orderBy: { createdAt: "desc" },
       },
-      company: { select: { finixMerchantId: true, finixOnboardingState: true } },
+      company: { select: { finixMerchantId: true, finixOnboardingState: true, squareMerchantId: true, squareConnectedAt: true } },
     },
   });
   if (!contact) notFound();
