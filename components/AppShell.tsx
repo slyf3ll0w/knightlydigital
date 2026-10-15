@@ -53,6 +53,7 @@ import Avatar from "@/components/Avatar";
 import SwipeBack from "@/components/SwipeBack";
 import PullToRefresh from "@/components/PullToRefresh";
 import ConfirmSheetHost from "@/components/ConfirmSheet";
+import NavChooserHost from "@/components/NavChooser";
 import { HomeFill, ScheduleFill, ChatFill, MoreFill } from "@/components/TabIcons";
 import { mobileBackFor } from "@/lib/mobile-nav";
 import ReachPicker from "@/components/ReachPicker";
@@ -2798,6 +2799,9 @@ export default function AppShell({
 
       {/* Mobile confirm sheet — imperative host for confirmSheet() */}
       <ConfirmSheetHost />
+
+      {/* Directions: Apple Maps / Google Maps / Waze — imperative host for openDirections() */}
+      <NavChooserHost />
 
       {/* Phone company switcher — outside the header (its backdrop-filter
           would otherwise trap this fixed sheet) */}

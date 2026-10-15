@@ -17,6 +17,7 @@ import { reportError } from "@/lib/report-error";
 
 import { Prisma } from "@prisma/client";
 import { canChargeOnline } from "@/lib/payments-gate";
+import { directionsHref } from "@/lib/nav-apps";
 import { prisma } from "@/lib/db";
 import {
   sendEmail,
@@ -731,7 +732,10 @@ export async function runTechHeadsUp(now: Date = new Date()): Promise<Appointmen
               {
                 action: "nav",
                 title: "Directions",
-                url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`,
+                // A notification action can't ask which app — Google's
+                // directions link works everywhere and starts from where
+                // the phone is (lib/nav-apps.ts)
+                url: directionsHref({ address }) ?? "",
               },
             ]
           : []),

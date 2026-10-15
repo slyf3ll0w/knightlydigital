@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { QuickMenu, type QuickAction, type MenuAnchor } from "@/components/QuickMenu";
 import { confirmSheet } from "@/components/ConfirmSheet";
+import { openDirections } from "@/components/NavChooser";
 import PageTitle from "@/components/PageTitle";
 import { FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -663,7 +664,6 @@ export default function ScheduleClient({
     startTransition(() => router.refresh());
     return true;
   };
-  const mapsHref = (address: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 
   function itemMenuActions(it: ScheduleJobDTO): QuickAction[] {
     const out: QuickAction[] = [];
@@ -722,7 +722,10 @@ export default function ScheduleClient({
           },
         });
     }
-    if (it.address) out.push({ key: "directions", label: "Directions", icon: NavigationIcon, hint: it.address, href: mapsHref(it.address) });
+    if (it.address) {
+      const address = it.address;
+      out.push({ key: "directions", label: "Directions", icon: NavigationIcon, hint: address, onSelect: () => openDirections({ address }) });
+    }
     if (it.phone) {
       const phone = it.phone;
       out.push(
@@ -1191,8 +1194,7 @@ export default function ScheduleClient({
                   key: "nav",
                   label: "Directions",
                   icon: NavigationIcon,
-                  href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(it.address)}`,
-                  external: true,
+                  onClick: () => openDirections({ address: it.address }),
                   bg: "var(--ds-primary)",
                 },
               ]

@@ -40,7 +40,7 @@ import { Chip, InfoTip } from "@/components/ds";
 import { hapticImpact } from "@/lib/haptics";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { wallTimeToUtc } from "@/lib/booking-engine";
-import { isApplePlatform } from "@/lib/messaging";
+import { openDirections } from "@/components/NavChooser";
 import { addBasemap, initialView, reducedMotion, rememberView } from "@/lib/basemap";
 import { useMainFill } from "@/lib/use-main-fill";
 import "leaflet/dist/leaflet.css";
@@ -292,12 +292,9 @@ function miles(km: number | undefined): string | null {
   return mi < 10 ? `${mi.toFixed(1)} mi` : `${Math.round(mi)} mi`;
 }
 
-/** One stop → the phone's maps app. */
-function navigateHref(stop: { lat: number | null; lng: number | null; address: string | null }, apple: boolean): string | null {
-  const dest = stop.lat != null && stop.lng != null ? `${stop.lat},${stop.lng}` : stop.address ? stop.address : null;
-  if (!dest) return null;
-  if (apple) return `https://maps.apple.com/?daddr=${encodeURIComponent(dest)}&dirflg=d`;
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=driving`;
+/** Whether a stop has anything to navigate to (the Go button asks which app — components/NavChooser.tsx). */
+function canNavigate(stop: { lat: number | null; lng: number | null; address: string | null }): boolean {
+  return (stop.lat != null && stop.lng != null) || Boolean(stop.address);
 }
 
 /** Google's URL API takes an origin, a destination and 9 waypoints — 10 stops with the shop as origin. */
@@ -437,7 +434,6 @@ export default function RouteMapClient({
   const [trayOpen, setTrayOpen] = useState(false);
   const [addingId, setAddingId] = useState("");
   const [team_, setTeamPositions] = useState<TeamPosition[]>([]);
-  const [apple, setApple] = useState(false);
   const [copied, setCopied] = useState("");
   const [listDrag, setListDrag] = useState<ListDrag | null>(null);
   const listDragRef = useRef<ListDrag | null>(null);
@@ -465,7 +461,6 @@ export default function RouteMapClient({
   const sheetDrag = useRef<{ pointerId: number; startY: number; startH: number; moved: boolean } | null>(null);
   const [locating, setLocating] = useState(false);
 
-  useEffect(() => setApple(isApplePlatform()), []);
 
   const go = useCallback(
     (next: { date?: string; team?: string }) => {
@@ -1458,7 +1453,7 @@ export default function RouteMapClient({
                 const key = `${g.userId}:${s.id}`;
                 const leg = data?.drive?.legs[g.userId]?.[s.id];
                 const legMi = miles(data?.drive?.km?.[g.userId]?.[s.id]);
-                const nav = navigateHref(s, apple);
+                const nav = canNavigate(s);
                 const dragging = listDrag?.active && listDrag.stopId === s.id;
                 const insertBefore = listDrag?.active && listDrag.over?.group === g.userId && listDrag.over.index === i && listDrag.fromGroup === g.userId;
                 const canGrip = g.userId ? mayOptimize(g.userId) || canDispatch : canDispatch;
@@ -1567,16 +1562,17 @@ export default function RouteMapClient({
                         )}
                         <span className="no-print flex items-center justify-end gap-2">
                           {nav && (
-                            <a
-                              href={nav}
-                              target="_blank"
-                              rel="noopener"
-                              onClick={(e) => e.stopPropagation()}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDirections({ lat: s.lat, lng: s.lng, address: s.address });
+                              }}
                               className="flex items-center gap-0.5 text-[11px] font-semibold text-[color:var(--ds-primary)] hover:underline"
                             >
                               <Navigation size={10} />
                               Go
-                            </a>
+                            </button>
                           )}
                           {s.kind !== "block" && (
                             <Link

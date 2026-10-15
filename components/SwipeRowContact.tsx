@@ -3,6 +3,7 @@
 import { Navigation, Phone } from "lucide-react";
 import { telHref } from "@/lib/messaging";
 import { callFromLine, useLineCalling } from "@/lib/line-calling";
+import { openDirections } from "@/components/NavChooser";
 import SwipeRow, { type SwipeRowAction } from "./SwipeRow";
 
 /**
@@ -39,8 +40,8 @@ export default function SwipeRowContact({
             key: "nav",
             label: "Directions",
             icon: Navigation,
-            href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`,
-            external: true,
+            // Apple / Google / Waze chooser, routed from the current location
+            onClick: () => openDirections({ address }),
             bg: "var(--ds-primary, #2563EB)",
           },
         ]

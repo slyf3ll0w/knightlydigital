@@ -17,6 +17,7 @@ import { sendOrQueue } from "@/lib/outbox";
 import { hapticImpact } from "@/lib/haptics";
 import { callFromLine, useLineCalling } from "@/lib/line-calling";
 import { formatDuration } from "@/lib/time-entries";
+import { openDirections } from "@/components/NavChooser";
 
 type ClockEntry = { id: string; startedAt: string };
 
@@ -154,9 +155,9 @@ export default function UpNextActions({
     window.location.href = smsHref(phone, fillEta(omwMessage, etaMinutes), isApplePlatform());
   }
 
-  const directionsHref = address
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
-    : null;
+  // Directions asks which maps app (Apple / Google / Waze) and routes from
+  // where the truck is right now — components/NavChooser.tsx
+  const directions = address ? () => openDirections({ address }) : null;
 
   type Action = {
     key: string;
@@ -177,8 +178,8 @@ export default function UpNextActions({
       ...(phone && smsOk
         ? [{ key: "text", label: "Text", icon: MessageSquare, href: smsHref(phone) }]
         : []),
-      ...(directionsHref && apptType === "IN_PERSON"
-        ? [{ key: "nav", label: "Directions", icon: Navigation, href: directionsHref, external: true }]
+      ...(directions && apptType === "IN_PERSON"
+        ? [{ key: "nav", label: "Directions", icon: Navigation, onClick: directions }]
         : []),
     ];
   } else if (entry) {
@@ -208,8 +209,8 @@ export default function UpNextActions({
             },
           ]
         : []),
-      ...(directionsHref
-        ? [{ key: "nav", label: "Directions", icon: Navigation, href: directionsHref, external: true }]
+      ...(directions
+        ? [{ key: "nav", label: "Directions", icon: Navigation, onClick: directions }]
         : []),
       ...(canClock
         ? [

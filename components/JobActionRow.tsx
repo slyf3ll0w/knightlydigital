@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Phone, MessageSquare, MessageCircle, Navigation } from "lucide-react";
 import { smsHref, canSendSms } from "@/lib/messaging";
 import CallLink from "@/components/CallLink";
+import { openDirections } from "@/components/NavChooser";
 
 /**
  * Phone-only quick actions under a job/appointment header — the three things
@@ -44,15 +45,10 @@ export default function JobActionRow({
     ...(phone && smsOk
       ? [{ href: smsHref(phone), icon: MessageSquare, label: "Text" }]
       : []),
+    // Directions asks which maps app (Apple / Google / Waze) and routes from
+    // the truck's current location — components/NavChooser.tsx
     ...(address
-      ? [
-          {
-            href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`,
-            icon: Navigation,
-            label: "Directions",
-            external: true,
-          },
-        ]
+      ? [{ onClick: () => openDirections({ address }), icon: Navigation, label: "Directions" }]
       : []),
   ];
   if (actions.length === 0) return null;
@@ -77,6 +73,13 @@ export default function JobActionRow({
             <CallLink key={label} phone={phone!} contactId={contactId} name={name} className={cls}>
               {face}
             </CallLink>
+          );
+        }
+        if ("onClick" in rest) {
+          return (
+            <button key={label} type="button" onClick={rest.onClick} className={cls}>
+              {face}
+            </button>
           );
         }
         return (
