@@ -8,6 +8,7 @@ import { MapPin, Plus, Pencil, Trash2, Loader2, ChevronDown, ChevronRight } from
 import EmptyState from "@/components/EmptyState";
 import SectionHeader from "@/components/SectionHeader";
 import { confirmSheet } from "@/components/ConfirmSheet";
+import UseMyLocation from "@/components/UseMyLocation";
 import { postJson } from "@/lib/safe-fetch";
 
 type Addr = {
@@ -252,6 +253,10 @@ export default function AddressesCard({
             onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
             maxLength={200}
             className={inputCls}
+          />
+          <UseMyLocation
+            size="xs"
+            onFill={(a) => setForm((f) => ({ ...f, address: a.street, city: a.city, state: a.state, zip: a.postalCode }))}
           />
           <div className="grid grid-cols-[1fr_70px_90px] gap-2">
             <input

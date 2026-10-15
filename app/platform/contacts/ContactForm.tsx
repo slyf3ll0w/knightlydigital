@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import SectionHeader from "@/components/SectionHeader";
+import UseMyLocation from "@/components/UseMyLocation";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 
@@ -319,7 +320,16 @@ export default function ContactForm({
         </div>
 
         <div className="ds-card p-5">
-          <SectionHeader title="Address" className="mb-4" />
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <SectionHeader title="Address" />
+            {/* Standing at the door: fill the address from the phone's GPS */}
+            <UseMyLocation
+              onFill={(a) =>
+                setForm((f) => ({ ...f, address: a.street, city: a.city, state: a.state, zip: a.postalCode }))
+              }
+              className="text-right"
+            />
+          </div>
           <div className="space-y-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Street address</label>

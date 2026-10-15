@@ -353,3 +353,38 @@ export async function suggestAddresses(query: string, companyId: string | null):
     return [];
   }
 }
+
+/**
+ * The street address at a GPS fix — the "Use my location" button on the
+ * client, lead and property forms (components/UseMyLocation.tsx). Null when
+ * the token is missing, the month's cap is spent, or Mapbox finds no
+ * complete street address there (a field, a highway). Metered like every
+ * geocode.
+ */
+export async function reverseGeocodeAddress(lat: number, lng: number, companyId: string | null): Promise<AddressSuggestion | null> {
+  if (!geocodingEnabled() || !(await geocodeBudgetOk())) return null;
+  const params = new URLSearchParams({
+    longitude: String(lng),
+    latitude: String(lat),
+    types: "address",
+    limit: "1",
+    country: GEOCODE_COUNTRY,
+    access_token: MAPBOX_TOKEN ?? "",
+  });
+  try {
+    const res = await fetch(`https://api.mapbox.com/search/geocode/v6/reverse?${params.toString()}`, {
+      signal: AbortSignal.timeout(5_000),
+    });
+    recordGeocodeCall(companyId);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { features?: SuggestFeature[] };
+    for (const f of data.features ?? []) {
+      const s = suggestionFromFeature(f);
+      if (s) return s;
+    }
+    return null;
+  } catch (err) {
+    reportError("[geocode] reverse failed:", err);
+    return null;
+  }
+}

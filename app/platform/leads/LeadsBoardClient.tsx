@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { QuickMenu, type QuickAction } from "@/components/QuickMenu";
 import CallLink from "@/components/CallLink";
+import UseMyLocation from "@/components/UseMyLocation";
 import { callFromLine, useLineCalling } from "@/lib/line-calling";
 import Modal from "@/components/Modal";
 import PageTitle from "@/components/PageTitle";
@@ -939,6 +940,10 @@ function QuickAdd({
           <input value={extra.email} onChange={(e) => setX("email", e.target.value)} placeholder="Email (optional)" type="email" className={box} />
           <input value={extra.companyName} onChange={(e) => setX("companyName", e.target.value)} placeholder="Company (optional)" className={box} />
           <input value={extra.address} onChange={(e) => setX("address", e.target.value)} placeholder="Street address" autoComplete="off" className={box} />
+          <UseMyLocation
+            size="xs"
+            onFill={(a) => setExtra((x) => ({ ...x, address: a.street, city: a.city, state: a.state, zip: a.postalCode }))}
+          />
           <div className="grid grid-cols-[1fr_3.5rem_4.5rem] gap-1.5">
             <input value={extra.city} onChange={(e) => setX("city", e.target.value)} placeholder="City" className={box} />
             <input value={extra.state} onChange={(e) => setX("state", e.target.value.slice(0, 2))} placeholder="ST" aria-label="State" className={box} />
