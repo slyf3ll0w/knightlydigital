@@ -1,6 +1,7 @@
 "use client";
 
-import { NETWORK_ERROR } from "@/lib/safe-fetch";
+import { GENERIC_ERROR, NETWORK_ERROR } from "@/lib/safe-fetch";
+import { getCapacitor } from "@/components/NativeShell";
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2, RefreshCw, Unplug, AlertTriangle } from "lucide-react";
@@ -32,6 +33,32 @@ const CALLBACK_ERRORS: Record<string, string> = {
   exchange_failed: "QuickBooks accepted the connection but the final handshake failed. Please try again.",
 };
 
+/**
+ * Start the Intuit consent flow. On the web an ordinary redirect does it.
+ * Inside the native shell a link to the /api route is thrown to the system
+ * browser WITHOUT the session (the shell keeps only /app in its webview), so
+ * the user saw this route's "Unauthorized" JSON instead of Intuit. Fetch the
+ * consent URL with the app's cookies, then open it in the system browser via
+ * Capacitor's Browser plugin; the callback finishes there off the signed
+ * state and lands on /quickbooks-connected. Returns an error line, or null.
+ */
+async function startQuickBooksConnect(): Promise<string | null> {
+  const browser = getCapacitor()?.Plugins?.Browser;
+  if (!browser?.open) {
+    window.location.assign("/api/app/quickbooks/connect");
+    return null;
+  }
+  try {
+    const res = await fetch("/api/app/quickbooks/connect?mode=url");
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.url) return data?.error ?? GENERIC_ERROR;
+    await browser.open({ url: data.url });
+    return null;
+  } catch {
+    return "Couldn't reach QuickBooks. Check your connection and try again.";
+  }
+}
+
 function entityLabel(t: string): string {
   return t === "CUSTOMER"
     ? "Client"
@@ -55,6 +82,16 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
   const [syncMessage, setSyncMessage] = useState("");
   const [syncError, setSyncError] = useState("");
   const [disconnecting, setDisconnecting] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [connectError, setConnectError] = useState("");
+
+  async function connect() {
+    setConnectError("");
+    setConnecting(true);
+    const err = await startQuickBooksConnect();
+    if (err) setConnectError(err);
+    setConnecting(false);
+  }
   // A failed status read is NOT "not connected" — showing the Connect card on
   // a 500 would invite someone to re-link a company that's already linked.
   const [loadError, setLoadError] = useState("");
@@ -78,6 +115,26 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
 
   useEffect(() => {
     loadStatus();
+  }, [loadStatus]);
+
+  // In the shell, consent happens in a browser sheet over the app — the
+  // callback never reloads this page, so pick the connection up on the way
+  // back (and poll briefly for the first sync's numbers).
+  useEffect(() => {
+    let timers: ReturnType<typeof setTimeout>[] = [];
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      loadStatus();
+      timers.forEach(clearTimeout);
+      timers = [4000, 12000].map((ms) => setTimeout(loadStatus, ms));
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+      timers.forEach(clearTimeout);
+    };
   }, [loadStatus]);
 
   // Right after connecting, the first sync runs in the background — poll a
@@ -222,12 +279,20 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
               books — ask your accountant if they want it mapped differently.
             </p>
           </div>
-          <a
-            href="/api/app/quickbooks/connect"
-            className="inline-flex items-center gap-2 rounded-[10px] btn-tool bg-[#2CA01C] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#248217]"
+          <button
+            type="button"
+            onClick={connect}
+            disabled={connecting}
+            className="inline-flex items-center gap-2 rounded-[10px] btn-tool bg-[#2CA01C] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#248217] disabled:opacity-60"
           >
+            {connecting && <Loader2 size={15} className="animate-spin" />}
             Connect to QuickBooks
-          </a>
+          </button>
+          {connectError && (
+            <p role="alert" className="text-sm text-[color:var(--ds-bad)]">
+              {connectError}
+            </p>
+          )}
         </div>
       ) : (
         <div className="space-y-6">
@@ -276,13 +341,16 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
                     ? "QuickBooks needs to be reconnected — the authorization expired."
                     : status.lastSyncError}
                   {status.reconnectNeeded && (
-                    <a
-                      href="/api/app/quickbooks/connect"
-                      className="ml-2 font-semibold underline hover:no-underline"
+                    <button
+                      type="button"
+                      onClick={connect}
+                      disabled={connecting}
+                      className="ml-2 font-semibold underline hover:no-underline disabled:opacity-60"
                     >
-                      Reconnect
-                    </a>
+                      {connecting ? "Opening…" : "Reconnect"}
+                    </button>
                   )}
+                  {connectError && <span className="ml-2 text-[color:var(--ds-bad)]">{connectError}</span>}
                 </div>
               </div>
             )}
