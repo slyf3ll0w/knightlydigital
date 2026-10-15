@@ -4,6 +4,11 @@ import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { notifyUsers, companyManagerIds, PushPayload } from "@/lib/push";
 import { fireAutomations } from "@/lib/automations-server";
+import { CLEAR } from "@/lib/send-document";
+import { autoSendQuoteAgreements } from "@/lib/agreements";
+import { autoAdvance } from "@/lib/pipeline";
+import { logActivity } from "@/lib/activity";
+import { dueDateFromTerms } from "@/lib/due-dates";
 
 /**
  * POST — view beacon for the public client pages (/quote, /pay, /contract,
@@ -16,6 +21,13 @@ import { fireAutomations } from "@/lib/automations-server";
  * document's own company (staff previewing) are ignored here. The response
  * is always 200 {ok:true} — this endpoint must never teach a caller which
  * tokens exist.
+ *
+ * A client opening a DRAFT quote or invoice (the link was copied and sent
+ * by hand, never "Sent" in the app) is the delivery: the document moves to
+ * Awaiting Response / Awaiting Payment with the same side effects as Mark
+ * as sent — sentAt / issuedAt / due date, attached "with quote" agreements,
+ * the pipeline card, automations, the activity trail. A draft nobody has
+ * seen can't be what the client is looking at.
  */
 export async function POST(req: NextRequest) {
   let kind = "";
@@ -61,7 +73,10 @@ export async function POST(req: NextRequest) {
         select: {
           id: true,
           companyId: true,
+          contactId: true,
           quoteNumber: true,
+          status: true,
+          sentAt: true,
           firstViewedAt: true,
           contact: { select: { firstName: true, lastName: true, assignedToId: true } },
         },
@@ -78,10 +93,32 @@ export async function POST(req: NextRequest) {
       firstView = !quote.firstViewedAt;
       companyId = quote.companyId;
       assignedToId = quote.contact.assignedToId;
+      // A hand-delivered draft the client is now reading = sent. The claim
+      // (status still DRAFT) keeps a racing Mark as sent from double-firing.
+      let becameSent = false;
+      if (quote.status === "DRAFT") {
+        const claim = await prisma.quote.updateMany({
+          where: { id: quote.id, status: "DRAFT" },
+          data: { status: "AWAITING_RESPONSE", ...(quote.sentAt ? {} : { sentAt: now }), ...CLEAR },
+        });
+        becameSent = claim.count > 0;
+        if (becameSent) {
+          await autoSendQuoteAgreements(quote.id, "WITH_QUOTE");
+          fireAutomations(quote.companyId, "quote.sent", quote.id);
+          await autoAdvance(prisma, quote.companyId, quote.contactId, "QUOTE_SENT");
+          logActivity({
+            companyId: quote.companyId,
+            entityType: "quote",
+            entityId: quote.id,
+            action: "status_changed",
+            detail: "DRAFT → AWAITING_RESPONSE (the client opened the link)",
+          });
+        }
+      }
       if (firstView) fireAutomations(quote.companyId, "quote.viewed", quote.id);
       push = {
         title: `${clientName(quote.contact)} viewed Quote #${quote.quoteNumber}`,
-        body: "Opened just now.",
+        body: becameSent ? "Opened just now — the draft is now marked as sent." : "Opened just now.",
         url: `/app/quotes/${quote.id}`,
         tag: `doc-view-quote-${quote.id}`,
       };
@@ -92,8 +129,11 @@ export async function POST(req: NextRequest) {
           id: true,
           companyId: true,
           invoiceNumber: true,
+          status: true,
+          issuedAt: true,
+          dueDate: true,
           firstViewedAt: true,
-          contact: { select: { firstName: true, lastName: true, assignedToId: true } },
+          contact: { select: { firstName: true, lastName: true, assignedToId: true, paymentTermsDays: true } },
         },
       });
       if (!invoice || actor?.companyId === invoice.companyId) return ok;
@@ -108,10 +148,39 @@ export async function POST(req: NextRequest) {
       firstView = !invoice.firstViewedAt;
       companyId = invoice.companyId;
       assignedToId = invoice.contact?.assignedToId ?? null;
+      // A hand-delivered draft the client is now reading = issued (same
+      // fields Mark as sent fills: issuedAt, and a due date so reminders and
+      // Past due can find it). Claimed on status so a racing send can't
+      // double-fire.
+      let becameSent = false;
+      if (invoice.status === "DRAFT") {
+        const claim = await prisma.invoice.updateMany({
+          where: { id: invoice.id, status: "DRAFT" },
+          data: {
+            status: "AWAITING_PAYMENT",
+            ...(invoice.issuedAt ? {} : { issuedAt: now }),
+            ...(!invoice.dueDate && invoice.contact
+              ? { dueDate: dueDateFromTerms(now, invoice.contact.paymentTermsDays) }
+              : {}),
+            ...CLEAR,
+          },
+        });
+        becameSent = claim.count > 0;
+        if (becameSent) {
+          fireAutomations(invoice.companyId, "invoice.sent", invoice.id);
+          logActivity({
+            companyId: invoice.companyId,
+            entityType: "invoice",
+            entityId: invoice.id,
+            action: "status_changed",
+            detail: "DRAFT → AWAITING_PAYMENT (the client opened the link)",
+          });
+        }
+      }
       if (firstView) fireAutomations(invoice.companyId, "invoice.viewed", invoice.id);
       push = {
         title: `${clientName(invoice.contact)} viewed Invoice #${invoice.invoiceNumber}`,
-        body: "Opened just now.",
+        body: becameSent ? "Opened just now — the draft is now marked as sent." : "Opened just now.",
         url: `/app/invoices/${invoice.id}`,
         tag: `doc-view-invoice-${invoice.id}`,
       };
