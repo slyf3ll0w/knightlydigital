@@ -41,7 +41,7 @@ export const invoicesSection: HelpSection = {
             },
             {
               q: "I left an invoice and it asked \"Send this invoice first?\"",
-              a: "The invoice is still a Draft nobody has sent. `Stay` keeps you on it; `Leave without sending` lets you go and the draft waits until you send it or press `Mark as sent`.",
+              a: "The invoice is still a Draft nobody has sent. `Stay` keeps you on it; `Leave without sending` lets you go and the draft waits until you send it or press `Mark as sent`. A draft you sent by link marks itself the moment the client opens it: it moves to **Awaiting Payment** with a due date, just as if you had pressed Send.",
             },
             {
               q: "I can't edit a paid invoice.",

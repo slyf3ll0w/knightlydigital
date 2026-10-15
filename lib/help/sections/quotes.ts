@@ -43,6 +43,7 @@ export const quotesSection: HelpSection = {
             "`Copy client link` in the ⋯ menu gives you the approval link to paste anywhere.",
             "`Download PDF` saves a printable copy.",
             "`Mark as sent (no email)` changes the status only. Use it when you handed the quote over in person.",
+            "A Draft you sent by link marks itself: the moment the client opens it, the quote moves to **Awaiting Response** just as if you had pressed Send (your own preview doesn't count).",
             "Quotes are never texted on their own, because carriers treat quote texts as marketing. Email or the link are the usual ways; texting one is a box you tick yourself in the send sheet.",
           ],
         },
@@ -59,7 +60,7 @@ export const quotesSection: HelpSection = {
             },
             {
               q: "I left a quote and it asked \"Send this quote first?\"",
-              a: "The quote is still a Draft nobody has sent. `Stay` keeps you on it; `Leave without sending` lets you go and the draft waits. Send it, or press `Mark as sent` if you delivered it another way, and the question stops.",
+              a: "The quote is still a Draft nobody has sent. `Stay` keeps you on it; `Leave without sending` lets you go and the draft waits. Send it, press `Mark as sent` if you delivered it another way, or just let the client open the link you sent them, and the question stops.",
             },
             {
               q: "I can't edit my quote.",

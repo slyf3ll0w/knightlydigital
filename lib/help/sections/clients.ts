@@ -10,7 +10,7 @@ export const clientsSection: HelpSection = {
       slug: "add-a-client",
       title: "Add a client, lead or contact",
       summary: "The difference between the three, and how to add each one.",
-      keywords: ["new client", "customer", "lead", "contact", "subcontractor", "supplier", "create client"],
+      keywords: ["new client", "customer", "lead", "contact", "subcontractor", "supplier", "create client", "use my location", "address", "gps"],
       where: { label: "Clients", href: "/app/contacts" },
       blocks: [
         {
@@ -27,7 +27,7 @@ export const clientsSection: HelpSection = {
         },
         {
           type: "p",
-          text: "Add as much as you know: name, phone, email, service addresses, and extra people (a spouse or property manager). Press `Save`.",
+          text: "Add as much as you know: name, phone, email, service addresses, and extra people (a spouse or property manager). Standing at the property? `Use my location` next to **Address** fills the street, city, state and ZIP from your phone's GPS. Press `Save`.",
         },
         {
           type: "p",
@@ -135,7 +135,7 @@ export const leadsSection: HelpSection = {
         },
         {
           type: "p",
-          text: "Press `New lead` to add one yourself. Only a first name is needed; the last name is optional. Press `+ More details` to add their email, company, address, lead source and notes too. Leads in **New** are counted on the Leads badge and under **Needs you** on Home.",
+          text: "Press `New lead` to add one yourself. Only a first name is needed; the last name is optional. Press `+ More details` to add their email, company, address (`Use my location` fills it from where you're standing), lead source and notes too. Leads in **New** are counted on the Leads badge and under **Needs you** on Home.",
         },
         {
           type: "p",

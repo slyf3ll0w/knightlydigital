@@ -49,7 +49,7 @@ export const jobsSection: HelpSection = {
       slug: "on-the-job",
       title: "On the job: on my way, clock in, photos, checklist",
       summary: "Everything a tech does from the job page, from heading out to getting the client's sign-off.",
-      keywords: ["on my way", "directions", "clock in", "photos", "before after", "checklist", "signature", "sign-off", "review request", "notes"],
+      keywords: ["on my way", "directions", "apple maps", "google maps", "waze", "navigation", "clock in", "photos", "before after", "checklist", "signature", "sign-off", "review request", "notes"],
       where: { label: "Jobs", href: "/app/jobs" },
       blocks: [
         {
@@ -60,7 +60,7 @@ export const jobsSection: HelpSection = {
           type: "list",
           items: [
             "`On my way` texts the client that you're heading over.",
-            "`Directions` opens your maps app.",
+            "`Directions` asks which app you want (Apple Maps, Google Maps or Waze; Apple Maps only on an iPhone) and starts the route from where you are. The app you picked last time is listed first.",
             "`Clock in` starts your time on the job. While you're clocked in, the card shows your timer plus `Photos` and `Checklist`.",
           ],
         },

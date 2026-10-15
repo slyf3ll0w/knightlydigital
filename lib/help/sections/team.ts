@@ -250,7 +250,7 @@ export const reportsSection: HelpSection = {
       title: "Connect QuickBooks Online",
       summary: "Send clients, invoices, payments and expenses to QuickBooks automatically.",
       plan: PRO_CHIP,
-      keywords: ["quickbooks", "qbo", "accounting", "sync", "bookkeeper", "intuit", "reconnect"],
+      keywords: ["quickbooks", "qbo", "accounting", "sync", "bookkeeper", "intuit", "reconnect", "connect quickbooks", "quickbooks connected"],
       where: { label: "QuickBooks", href: "/app/settings/quickbooks" },
       roles: "Owners and admins",
       blocks: [
@@ -259,7 +259,7 @@ export const reportsSection: HelpSection = {
           type: "steps",
           items: [
             "Go to **Settings → Payments & accounting → QuickBooks Online**.",
-            "Press `Connect to QuickBooks` and sign in to your QuickBooks company.",
+            "Press `Connect to QuickBooks` and sign in to your QuickBooks company. On your phone the sign-in opens in your browser; when it says **QuickBooks connected**, close it and come back to the app.",
             "That's it. WorkBench syncs every night, and you can press `Sync now` any time.",
           ],
         },
