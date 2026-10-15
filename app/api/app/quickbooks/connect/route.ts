@@ -4,7 +4,9 @@ import { buildAuthorizeUrl, isQuickBooksConfigured } from "@/lib/quickbooks";
 
 /**
  * Starts the QuickBooks OAuth dance: browser lands here from the Settings →
- * QuickBooks "Connect" button and bounces to Intuit's consent screen.
+ * QuickBooks "Connect" button and bounces to Intuit's consent screen. The
+ * signed state carries the company AND the manager, so the callback can
+ * finish without a session (the native shell hands Intuit to Safari/Chrome).
  */
 export async function GET() {
   const actor = await getActor();
@@ -16,5 +18,5 @@ export async function GET() {
       { status: 503 }
     );
   }
-  return NextResponse.redirect(buildAuthorizeUrl(actor.companyId));
+  return NextResponse.redirect(buildAuthorizeUrl(actor.companyId, actor.id));
 }

@@ -353,6 +353,7 @@ export async function middleware(req: NextRequest) {
     "/app/reset-password": "/reset-password",
     "/app/verify-email": "/verify-email",
     "/app/calendar-connected": "/calendar-connected",
+    "/app/quickbooks-connected": "/quickbooks-connected",
   };
   if (path in movedOutOfApp) {
     const to = new URL(movedOutOfApp[path], req.url);

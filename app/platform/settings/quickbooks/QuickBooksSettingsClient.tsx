@@ -27,7 +27,7 @@ type Status = {
 const CALLBACK_ERRORS: Record<string, string> = {
   denied: "Connection was cancelled on the QuickBooks screen — nothing was linked.",
   missing_params: "QuickBooks sent back an incomplete response. Please try connecting again.",
-  unauthorized: "Your session expired during the connection. Sign in and try again.",
+  unauthorized: "Only an owner or admin can link QuickBooks. Sign in as one and try again.",
   bad_state: "The connection request expired or didn't match your account. Please try again.",
   exchange_failed: "QuickBooks accepted the connection but the final handshake failed. Please try again.",
 };

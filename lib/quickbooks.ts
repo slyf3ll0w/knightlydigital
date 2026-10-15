@@ -114,19 +114,24 @@ function decryptToken(stored: string): string {
 
 // ─── OAuth: authorize URL + signed state ─────────────────────────────────────
 
-// state = companyId.expiresAtMs.hmac — self-contained, 10-minute lifetime.
-// The callback ALSO requires a signed-in manager of the same company; the
-// HMAC just prevents a forged callback from binding tokens to someone
-// else's account.
-function stateSignature(companyId: string, expiresAt: number): string {
+// state = companyId.userId.expiresAtMs.hmac — self-contained, 10-minute
+// lifetime. The state IS the identity at the callback: from the native shell
+// Intuit's consent screen opens in the system browser, which has no
+// WorkBench session, so the callback can't require one (that requirement is
+// what turned "Connect" into "error unauthorized" on a phone). The callback
+// re-checks that the user in the state is still an active manager of that
+// company, and cross-checks any session that IS present against it.
+function stateSignature(companyId: string, userId: string, expiresAt: number): string {
   return createHmac("sha256", encryptionKey())
-    .update(`${companyId}.${expiresAt}`)
+    .update(`${companyId}.${userId}.${expiresAt}`)
     .digest("hex");
 }
 
-export function buildAuthorizeUrl(companyId: string): string {
+export type OAuthState = { companyId: string; userId: string };
+
+export function buildAuthorizeUrl(companyId: string, userId: string): string {
   const expiresAt = Date.now() + 10 * 60 * 1000;
-  const state = `${companyId}.${expiresAt}.${stateSignature(companyId, expiresAt)}`;
+  const state = `${companyId}.${userId}.${expiresAt}.${stateSignature(companyId, userId, expiresAt)}`;
   const params = new URLSearchParams({
     client_id: process.env.QBO_CLIENT_ID ?? "",
     response_type: "code",
@@ -137,13 +142,13 @@ export function buildAuthorizeUrl(companyId: string): string {
   return `${OAUTH_AUTHORIZE_URL}?${params.toString()}`;
 }
 
-export function verifyState(state: string): string | null {
+export function verifyState(state: string): OAuthState | null {
   const parts = state.split(".");
-  if (parts.length !== 3) return null;
-  const [companyId, expiresRaw, sig] = parts;
+  if (parts.length !== 4) return null;
+  const [companyId, userId, expiresRaw, sig] = parts;
   const expiresAt = Number(expiresRaw);
-  if (!companyId || !Number.isFinite(expiresAt) || Date.now() > expiresAt) return null;
-  return sig === stateSignature(companyId, expiresAt) ? companyId : null;
+  if (!companyId || !userId || !Number.isFinite(expiresAt) || Date.now() > expiresAt) return null;
+  return sig === stateSignature(companyId, userId, expiresAt) ? { companyId, userId } : null;
 }
 
 // ─── OAuth: token exchange / refresh / revoke ────────────────────────────────
