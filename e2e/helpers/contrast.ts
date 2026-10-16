@@ -85,6 +85,10 @@ export function auditPage(): { mode: string | undefined; hits: ContrastHit[] } {
     if (t.length >= 2 && n.parentElement) check(n.parentElement, t);
   }
   for (const el of Array.from(document.querySelectorAll("input:not([type=hidden]), textarea, select"))) {
+    // components/DateField.tsx: on phones the native date / time control's
+    // own text is transparent on purpose and a readable label sits over it
+    // (that label is a text node the walk above already measured).
+    if (el.classList.contains("wb-pick")) continue;
     const field = el as HTMLInputElement;
     check(el, `[field ${(field.value || field.placeholder || "").slice(0, 16)}]`);
   }
