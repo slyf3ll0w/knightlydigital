@@ -2966,12 +2966,13 @@ function MobileTabBar({
     setSheetOpen(false);
   }, [pathname]);
 
-  // The More tab's dot stands in for every badge inside the sheet that
-  // nothing else on the bar shows: requests, past-due invoices and tasks.
-  // Team chat rides the Chat tab; client messages ride the Create button —
-  // unless this role has no Message tile there, then they count here too.
-  const messagesOnCreate = creates.some((c) => c.href === "/app/messages?new=1");
-  const moreDot = requests + pastDue + tasks + (messagesOnCreate ? 0 : messagesUnread) > 0;
+  // The More tab stands in for every badge inside the sheet that nothing
+  // else on the bar shows: requests, past-due invoices and tasks get its
+  // dot; unread client messages get the red count there (David 2026-10-16
+  // — the Messages tile lives in More, while Create's Message tile starts
+  // a NEW message, so a count on the + sent people to the wrong place).
+  // Team chat rides the Chat tab.
+  const moreDot = requests + pastDue + tasks > 0;
 
   // Each tab is a pill inside the glass capsule; the selected one carries a
   // faint accent wash (.tab-on-pill) — the iOS 26 selection capsule.
@@ -3054,7 +3055,8 @@ function MobileTabBar({
               const colFromCenter = Math.abs((i % 3) - 1);
               const delay = 60 + rowFromBottom * 60 + colFromCenter * 35;
               const pick = PICKER_TILES[href];
-              const unread = href === "/app/messages?new=1" ? messagesUnread : 0;
+              // No unread count on the Message tile: it starts a new message
+              const unread = 0;
               const tileClass = `col-span-2 ${placement} flex flex-col items-center gap-2 rounded-2xl px-1 py-3.5 transition-transform active:scale-95 ${
                 sheetOpen ? "anim-tile-pop" : ""
               }`;
@@ -3136,8 +3138,13 @@ function MobileTabBar({
           >
             <span className="relative">
               <MoreFill size={24} />
-              {moreDot && (
-                <span className="absolute -right-1 -top-0.5 h-2.5 w-2.5 rounded-full bg-[color:var(--ds-secondary)] ring-2 ring-[color:var(--fab-ring)]" />
+              {/* Unread client messages: the red count (Messages lives in this sheet) */}
+              {messagesUnread > 0 ? (
+                <UnreadBubble count={messagesUnread} />
+              ) : (
+                moreDot && (
+                  <span className="absolute -right-1 -top-0.5 h-2.5 w-2.5 rounded-full bg-[color:var(--ds-secondary)] ring-2 ring-[color:var(--fab-ring)]" />
+                )
               )}
             </span>
             More
@@ -3151,12 +3158,10 @@ function MobileTabBar({
                 return !v;
               });
             }}
-            aria-label={messagesUnread > 0 ? `Create (${messagesUnread} unread messages)` : "Create"}
+            aria-label="Create"
             data-tour="create"
             className="glass-tinted glass-hit relative flex h-[58px] w-[58px] shrink-0 items-center justify-center rounded-full"
           >
-            {/* Unread client messages ride the + (the Message tile is inside) */}
-            {messagesUnread > 0 && !sheetOpen && <UnreadBubble count={messagesUnread} />}
             <span className="glass-press flex">
               <Plus
                 size={26}

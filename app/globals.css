@@ -1066,6 +1066,15 @@ html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
+/* Phones: no smooth scrolling. When the keyboard comes up the webview
+   resizes and WebKit scrolls the focused field into view; with smooth
+   scrolling that reveal becomes a slow glide that fights the keyboard
+   animation and reads as lag (David 2026-10-16, iPhone app). */
+@media (max-width: 1023px) {
+  html {
+    scroll-behavior: auto;
+  }
+}
 
 body {
   overscroll-behavior: none;
@@ -1105,6 +1114,21 @@ body {
     text-align: left;
     /* iOS collapses the control when the value is empty */
     min-height: 1.25em;
+  }
+
+  /* components/DateField.tsx: the control's own text ("10/20/2026", or
+     nothing) is hidden on phones and a readable label sits over it. The
+     control stays the tap target, so the native calendar / wheel still opens. */
+  input.wb-pick {
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    caret-color: transparent;
+  }
+  input.wb-pick::-webkit-date-and-time-value {
+    color: transparent;
+  }
+  input.wb-pick::-webkit-datetime-edit {
+    color: transparent;
   }
 }
 

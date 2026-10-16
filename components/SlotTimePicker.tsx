@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { slotTimeOptions, splitLocalDateTime, joinLocalDateTime, formatSlotLabel } from "@/lib/scheduling";
+import { DateField } from "@/components/DateField";
 
 /**
  * The even-time dropdown on its own (:00/:30/… at the company's interval),
@@ -82,8 +83,7 @@ export default function SlotTimePicker({
 
   return (
     <div className="flex gap-2">
-      <input
-        type="date"
+      <DateField
         value={date}
         aria-label={ariaLabel ? `${ariaLabel} date` : "Date"}
         onChange={(e) => onChange(joinLocalDateTime(e.target.value, time))}

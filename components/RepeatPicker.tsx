@@ -2,6 +2,7 @@
 
 import { inputCls } from "@/components/Input";
 import { DAY_SHORT } from "@/lib/time-block-recurrence";
+import { DateField } from "@/components/DateField";
 
 /**
  * The weekly repeat control shared by the Schedule's block sheet and the
@@ -51,9 +52,8 @@ export default function RepeatPicker({
           Until
         </label>
         <div className="flex items-center gap-2">
-          <input
+          <DateField
             id="repeat-until"
-            type="date"
             value={endsOn}
             min={startsOn || undefined}
             disabled={disabled}

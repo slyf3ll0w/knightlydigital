@@ -9,6 +9,7 @@ import { hapticImpact } from "@/lib/haptics";
 import { slotTimeOptions } from "@/lib/scheduling";
 import type { SendChannels } from "@/lib/send-channels";
 import { tomorrowISO } from "@/lib/send-later-shared";
+import { DateField } from "@/components/DateField";
 
 /**
  * "Send to client" — by email, by text from the business line, or both
@@ -158,8 +159,7 @@ export function useSendChoice() {
               </label>
               {later && (
                 <div className="mt-2.5 grid grid-cols-[1fr_auto] gap-2">
-                  <input
-                    type="date"
+                  <DateField
                     value={laterDate}
                     onChange={(e) => setLaterDate(e.target.value)}
                     aria-label="Send date"

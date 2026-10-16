@@ -18,6 +18,7 @@ import {
   type TaskLink,
   type TaskPrefill,
 } from "@/lib/tasks-shared";
+import { DateField } from "@/components/DateField";
 
 export type TeamMember = { id: string; name: string };
 
@@ -290,9 +291,8 @@ export default function TaskEditor({
             <label className={labelCls} htmlFor="task-due-date">
               Due
             </label>
-            <input
+            <DateField
               id="task-due-date"
-              type="date"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
               className={inputCls}
@@ -339,8 +339,7 @@ export default function TaskEditor({
           </select>
           {reminder === "custom" && (
             <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
-              <input
-                type="date"
+              <DateField
                 value={remindDate}
                 onChange={(e) => setRemindDate(e.target.value)}
                 aria-label="Reminder date"

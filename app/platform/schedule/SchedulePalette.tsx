@@ -27,6 +27,8 @@ export default function SchedulePalette({
   armed,
   onArm,
   onOpenJob,
+  onPlace,
+  placeDayLabel,
   canSell,
 }: {
   open: boolean;
@@ -36,6 +38,14 @@ export default function SchedulePalette({
   armed: PaletteEntity | null;
   onArm: (entity: PaletteEntity | null) => void;
   onOpenJob: (job: ScheduleJobDTO) => void;
+  /**
+   * Phones (David 2026-10-16): a tap opens the place sheet right away for
+   * the day being looked at — no "arm it, then tap a day" step. Desktop
+   * keeps arming (click a card, then click a spot) and dragging.
+   */
+  onPlace: (entity: PaletteEntity) => void;
+  /** The day a phone tap places on ("today", "Mon, Oct 20"). */
+  placeDayLabel: string;
   canSell: boolean;
 }) {
   const [q, setQ] = useState("");
@@ -88,6 +98,7 @@ export default function SchedulePalette({
     armed &&
     armed.type === e.type &&
     (e.type === "job" ? armed.type === "job" && armed.job.id === e.job.id : (armed as { id?: string }).id === (e as { id?: string }).id);
+  const phone = () => window.matchMedia("(max-width: 1023px)").matches;
 
   const card = (
     entity: PaletteEntity,
@@ -101,7 +112,7 @@ export default function SchedulePalette({
       key={key}
       data-item
       {...drag.handleProps({ type: "palette", entity })}
-      onClick={() => (onClick ? onClick() : onArm(isArmed(entity) ? null : entity))}
+      onClick={() => (phone() ? onPlace(entity) : onClick ? onClick() : onArm(isArmed(entity) ? null : entity))}
       className={`flex cursor-grab select-none items-center gap-2.5 rounded-[12px] border bg-[color:var(--ds-surface)] p-3 transition-colors active:cursor-grabbing active:bg-gray-50 lg:p-2.5 ${
         isArmed(entity)
           ? "border-[color:var(--ds-primary)] ring-2 ring-[color:var(--ds-primary-soft)]"
@@ -160,7 +171,7 @@ export default function SchedulePalette({
             {armed ? "Now click a day or time to place them." : "Drag onto the calendar, or click a card then pick a spot."}
           </p>
           <p className="mt-2 px-1 text-xs text-gray-500 lg:hidden">
-            {armed ? "Now tap a day to place them." : "Tap a card, then tap a day. Or press and hold to drag."}
+            Tap one to put them on {placeDayLabel}. Press and hold to drag.
           </p>
         </div>
 
@@ -179,6 +190,19 @@ export default function SchedulePalette({
                 undefined
               )}
             </ul>
+          )}
+
+          {/* Phones open this from the "N jobs waiting" count: those jobs
+              come first, not under the recent clients (David 2026-10-16) */}
+          {!searching && jobRows.length > 0 && (
+            <div className="lg:hidden">
+              {section("Unscheduled jobs", <UserPlus size={11} />, jobRows.length)}
+              <ul className="mt-1.5 space-y-2">
+                {jobRows.map((j) =>
+                  card({ type: "job", job: j }, `jp-${j.id}`, j.title, `${j.contactName}${j.jobNumber ? ` · Job #${j.jobNumber}` : ""}`)
+                )}
+              </ul>
+            </div>
           )}
 
           {contacts.length > 0 && (
@@ -207,7 +231,7 @@ export default function SchedulePalette({
           )}
 
           {(jobRows.length > 0 || !searching) && (
-            <>
+            <div className={!searching && jobRows.length > 0 ? "max-lg:hidden" : ""}>
               {section("Unscheduled jobs", <UserPlus size={11} />, jobRows.length)}
               {jobRows.length === 0 ? (
                 <p className="px-1 pt-2 text-xs text-gray-500">
@@ -232,7 +256,7 @@ export default function SchedulePalette({
                   )}
                 </ul>
               )}
-            </>
+            </div>
           )}
         </div>
       </aside>

@@ -22,6 +22,7 @@ import LineItemsEditor, {
 } from "@/components/LineItemsEditor";
 import EstimatorRunner, { takeEstimateDraft, type RunnerEstimator, type EstimatorApply } from "@/components/EstimatorRunner";
 import { Calculator } from "lucide-react";
+import { DateField } from "@/components/DateField";
 
 type Contact = {
   id: string;
@@ -553,8 +554,7 @@ export default function QuoteEditor({
                 After this date the client can no longer approve online. Leave blank for no expiry.
               </InfoTip>
             </label>
-            <input
-              type="date"
+            <DateField
               value={validUntil}
               onChange={(e) => setValidUntil(e.target.value)}
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"

@@ -19,6 +19,7 @@ import LineItemsEditor, {
   newEditorLine,
   payloadRecurringInterval,
 } from "@/components/LineItemsEditor";
+import { DateField } from "@/components/DateField";
 
 type Contact = { id: string; firstName: string; lastName: string; paymentTermsDays?: number };
 // Present when editing an existing invoice — switches submit to PATCH
@@ -433,8 +434,7 @@ export default function InvoiceEditor({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Due date</label>
-                <input
-                  type="date"
+                <DateField
                   value={dueDate}
                   onChange={(e) => {
                     setDueDate(e.target.value);

@@ -5,6 +5,8 @@ import { inputCls } from "@/components/Input";
 import Link from "next/link";
 import { Loader2, MapPin, Phone, Search, Video } from "lucide-react";
 import Modal from "@/components/Modal";
+import DayChips from "@/components/DayChips";
+import DurationChips, { durationChoiceFor } from "@/components/DurationChips";
 import SuggestedTimes from "@/components/SuggestedTimes";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { alertSheet, confirmSheet } from "@/components/ConfirmSheet";
@@ -97,6 +99,8 @@ export default function PlaceSheet({
   const [startTime, setStartTime] = useState("09:00");
   const [duration, setDuration] = useState(60);
   const [durationTouched, setDurationTouched] = useState(false);
+  // "Custom" length chip: shows the full list of lengths under the chips
+  const [customLength, setCustomLength] = useState(false);
   // The debounced duration-hint below fires 350 ms after the last keystroke
   // and closed over whatever `durationTouched` was when the title changed —
   // so typing a title, then picking a length, then the hint landing used to
@@ -161,6 +165,7 @@ export default function PlaceSheet({
     const min = intent.minute ?? 9 * 60;
     setStartTime(`${pad(Math.floor(min / 60))}:${pad(min % 60)}`);
     setDurationTouched(Boolean(intent.durationMin));
+    setCustomLength(false);
     setHint(null);
     setContactQ("");
     setContactHits([]);
@@ -679,13 +684,19 @@ export default function PlaceSheet({
             </div>
           )}
 
-          {/* When */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-0.5 block text-xs font-medium text-gray-500">Date</label>
-              <input type="date" className={inputCls} value={date} onChange={(ev) => setDate(ev.target.value)} />
-            </div>
-            {!anytime && (
+          {/* When — day chips + a start time, like New Job (2026-10-16) */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500">Day</label>
+            <DayChips
+              value={date}
+              onChange={(d) => {
+                setDate(d);
+                touch();
+              }}
+            />
+          </div>
+          {!anytime && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-[11rem_minmax(0,1fr)]">
               <div>
                 <label className="mb-0.5 block text-xs font-medium text-gray-500">Start</label>
                 <select className={`${inputCls} bg-white`} value={startTime} onChange={(ev) => setStartTime(ev.target.value)}>
@@ -696,8 +707,44 @@ export default function PlaceSheet({
                   ))}
                 </select>
               </div>
-            )}
-          </div>
+              <div className="min-w-0">
+                <label className="mb-0.5 block text-xs font-medium text-gray-500">
+                  Length <span className="font-normal text-gray-400">· ends {endLabel}</span>
+                </label>
+                <DurationChips
+                  value={customLength ? null : durationChoiceFor(duration)}
+                  onChange={(m) => {
+                    if (m === null) {
+                      setCustomLength(true);
+                    } else {
+                      setCustomLength(false);
+                      setDuration(m);
+                    }
+                    setDurationTouched(true);
+                    touch();
+                  }}
+                />
+                {(customLength || durationChoiceFor(duration) === null) && (
+                  <select
+                    className={`${inputCls} mt-2 bg-white`}
+                    aria-label="Length"
+                    value={duration}
+                    onChange={(ev) => {
+                      setDuration(Number(ev.target.value));
+                      setDurationTouched(true);
+                      touch();
+                    }}
+                  >
+                    {durationOptions.map((m) => (
+                      <option key={m} value={m}>
+                        {durationLabel(m)}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
+          )}
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" checked={anytime} onChange={(ev) => setAnytime(ev.target.checked)} className="rounded text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]" />
             Anytime that day (no set time)
@@ -713,29 +760,6 @@ export default function PlaceSheet({
               Text and email the client a confirmation
             </label>
           )}
-          {!anytime && (
-            <div>
-              <label className="mb-0.5 block text-xs font-medium text-gray-500">Length</label>
-              <div className="flex items-center gap-2">
-                <select
-                  className={`${inputCls} bg-white`}
-                  value={duration}
-                  onChange={(ev) => {
-                    setDuration(Number(ev.target.value));
-                    setDurationTouched(true);
-                  }}
-                >
-                  {durationOptions.map((m) => (
-                    <option key={m} value={m}>
-                      {durationLabel(m)}
-                    </option>
-                  ))}
-                </select>
-                <span className="shrink-0 text-xs text-gray-500">ends {endLabel}</span>
-              </div>
-            </div>
-          )}
-
           {/* Find a time — drive-aware, for the first chosen tech */}
           {!anytime && assignees[0] && date && (
             <SuggestedTimes

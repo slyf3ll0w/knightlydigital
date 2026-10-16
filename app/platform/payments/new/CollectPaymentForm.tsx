@@ -8,6 +8,7 @@ import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { money } from "@/lib/statuses";
+import { DateField } from "@/components/DateField";
 
 type OutstandingInvoice = {
   id: string;
@@ -154,8 +155,7 @@ export default function CollectPaymentForm({
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Transaction date
               </label>
-              <input
-                type="date"
+              <DateField
                 value={paidAt}
                 onChange={(e) => setPaidAt(e.target.value)}
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"

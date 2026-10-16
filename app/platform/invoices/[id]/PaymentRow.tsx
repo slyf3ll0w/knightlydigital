@@ -7,6 +7,7 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { paymentMethodLabel, money } from "@/lib/statuses";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import RefundDialog from "@/components/RefundDialog";
+import { DateField } from "@/components/DateField";
 
 const METHODS = [
   "CASH", "CHECK", "CARD", "ACH", "CASH_APP", "PAYPAL", "VENMO", "ZELLE", "OTHER",
@@ -159,8 +160,7 @@ export default function PaymentRow({
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-0.5">Date</label>
-                <input
-                  type="date"
+                <DateField
                   value={form.paidAt}
                   onChange={(e) => setForm((f) => ({ ...f, paidAt: e.target.value }))}
                   className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"

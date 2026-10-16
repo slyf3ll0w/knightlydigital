@@ -11,6 +11,7 @@ import {
   type ExpiryChoice,
   type StickyColor,
 } from "@/lib/sticky-shared";
+import { DateField } from "@/components/DateField";
 
 export type StickyDraft = {
   body: string;
@@ -135,8 +136,7 @@ export default function StickyForm({
               ))}
             </select>
             {draft.expiry === "custom" ? (
-              <input
-                type="date"
+              <DateField
                 value={draft.expiryDate}
                 onChange={(e) => set("expiryDate", e.target.value)}
                 aria-label="Day it comes down"

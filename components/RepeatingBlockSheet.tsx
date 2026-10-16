@@ -8,6 +8,7 @@ import { confirmSheet } from "@/components/ConfirmSheet";
 import { inputCls } from "@/components/Input";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import type { SeriesDTO } from "@/lib/time-block-series";
+import { DateField, TimeField } from "@/components/DateField";
 
 /**
  * The editor for one repeating block — "Lunch, every weekday, 12–1" — used
@@ -194,17 +195,17 @@ export default function RepeatingBlockSheet({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={label}>From</label>
-              <input type="time" value={form.startTime} disabled={!canEdit} onChange={(e) => set({ startTime: e.target.value })} className={field} />
+              <TimeField value={form.startTime} disabled={!canEdit} onChange={(e) => set({ startTime: e.target.value })} className={field} />
             </div>
             <div>
               <label className={label}>To</label>
-              <input type="time" value={form.endTime} disabled={!canEdit} onChange={(e) => set({ endTime: e.target.value })} className={field} />
+              <TimeField value={form.endTime} disabled={!canEdit} onChange={(e) => set({ endTime: e.target.value })} className={field} />
             </div>
           </div>
         )}
         <div>
           <label className={label}>Starting</label>
-          <input type="date" value={form.startsOn} disabled={!canEdit} onChange={(e) => set({ startsOn: e.target.value })} className={field} />
+          <DateField value={form.startsOn} disabled={!canEdit} onChange={(e) => set({ startsOn: e.target.value })} className={field} />
         </div>
         <div>
           <label className={label}>Where (optional)</label>

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import SectionHeader from "@/components/SectionHeader";
 import { localInputToISO } from "@/lib/statuses";
+import { DateTimeField } from "@/components/DateField";
 
 /** Manager-only manual time entry (paper timesheet, forgotten clock-in). */
 export default function AddEntry({
@@ -107,8 +108,7 @@ export default function AddEntry({
         </label>
         <label className="block text-xs font-medium text-gray-600">
           Start
-          <input
-            type="datetime-local"
+          <DateTimeField
             value={start}
             onChange={(e) => setStart(e.target.value)}
             className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
@@ -116,8 +116,7 @@ export default function AddEntry({
         </label>
         <label className="block text-xs font-medium text-gray-600">
           End
-          <input
-            type="datetime-local"
+          <DateTimeField
             value={end}
             onChange={(e) => setEnd(e.target.value)}
             className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"

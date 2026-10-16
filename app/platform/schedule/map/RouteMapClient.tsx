@@ -1982,6 +1982,8 @@ export default function RouteMapClient({
                     type="time"
                     value={preview.anchorTime}
                     disabled={previewBusy}
+                    // Left native on purpose: the box is a tight xs control in
+                    // the preview strip; a label overlay would not fit its padding
                     onChange={(e) =>
                       e.target.value && runOptimize(preview.userId, preview.stops.map((s) => s.id), e.target.value, preview.roundTrip, true, preview.keep)
                     }

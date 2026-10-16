@@ -5,9 +5,18 @@ import { useRouter } from "next/navigation";
 import { CalendarDays, Loader2, X } from "lucide-react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { localInputToISO } from "@/lib/statuses";
-import SlotTimePicker from "@/components/SlotTimePicker";
+import SlotTimePicker, { SlotTimeSelect } from "@/components/SlotTimePicker";
 import SuggestedTimes from "@/components/SuggestedTimes";
-import { DEFAULT_JOB_DURATION_MINUTES, endFollowingStart } from "@/lib/scheduling";
+import DayChips from "@/components/DayChips";
+import DurationChips, { durationChoiceFor } from "@/components/DurationChips";
+import { TimeField } from "@/components/DateField";
+import {
+  DEFAULT_JOB_DURATION_MINUTES,
+  addMinutesToLocalDateTime,
+  endFollowingStart,
+  joinLocalDateTime,
+  splitLocalDateTime,
+} from "@/lib/scheduling";
 import ScheduleHeadsUp, { useScheduleCheck } from "@/components/ScheduleHeadsUp";
 import { ARRIVAL_WINDOW_CHOICES, arrivalWindowChoiceLabel } from "@/lib/arrival-window";
 import { minuteToTime, timeToMinute } from "@/lib/client-window";
@@ -17,6 +26,8 @@ const SLOT_INPUT_CLS =
   "min-w-0 flex-[1.15] px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]";
 const SLOT_TIME_CLS =
   "min-w-0 flex-1 px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]";
+const FIELD_CLS =
+  "w-full px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]";
 
 function toLocalInput(d: string | null): string {
   if (!d) return "";
@@ -29,6 +40,24 @@ function toLocalDate(d: string | null): string {
   return toLocalInput(d).slice(0, 10);
 }
 
+/** Whole minutes from one local `YYYY-MM-DDTHH:mm` to another (null when either is incomplete). */
+function minutesBetween(start: string, end: string): number | null {
+  const a = splitLocalDateTime(start);
+  const b = splitLocalDateTime(end);
+  if (!a.time || !b.time) return null;
+  const toMs = (p: { date: string; time: string }) => {
+    const [y, mo, d] = p.date.split("-").map(Number);
+    const [h, mi] = p.time.split(":").map(Number);
+    return new Date(y, mo - 1, d, h, mi).getTime();
+  };
+  return Math.round((toMs(b) - toMs(a)) / 60_000);
+}
+
+/**
+ * The job page's schedule panel. Same shape as New Job since 2026-10-16: a
+ * day chip, a start time and a length (Custom shows an End picker). An
+ * existing schedule opens with its own length selected.
+ */
 export default function ScheduleJob({
   jobId,
   scheduledAt,
@@ -72,13 +101,15 @@ export default function ScheduleJob({
   headsUp?: boolean;
 }) {
   const router = useRouter();
+  const jobLength = defaultDurationMinutes || DEFAULT_JOB_DURATION_MINUTES;
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [anytime, setAnytime] = useState(scheduledAnytime);
   const [start, setStart] = useState(toLocalInput(scheduledAt));
   const [end, setEnd] = useState(toLocalInput(scheduledEnd));
-  const [day, setDay] = useState(toLocalDate(scheduledAt));
+  // How long: a chip (minutes) or Custom (null → an End picker shows)
+  const [duration, setDuration] = useState<number | null>(jobLength);
   // "" = inherit the company default; a number = this job's own window
   const [window_, setWindow] = useState(
     arrivalWindowMinutes == null ? "" : String(arrivalWindowMinutes)
@@ -86,6 +117,8 @@ export default function ScheduleJob({
   // "HH:mm" or "" — when the client can take the visit
   const [after, setAfter] = useState(minuteToTime(arriveAfterMin));
   const [before, setBefore] = useState(minuteToTime(arriveBeforeMin));
+
+  const { date: pickedDate, time: pickedTime } = splitLocalDateTime(start);
 
   // Live heads-up while picking: anyone on the job already booked then, or
   // unable to drive there / on to their next stop in time (David 2026-10-06)
@@ -106,15 +139,42 @@ export default function ScheduleJob({
   // edits behind for the next open, and after a save + router.refresh() the
   // props moved on while these stayed at their first-render values.
   function openPanel() {
+    const s = toLocalInput(scheduledAt);
+    const e = toLocalInput(scheduledEnd);
     setAnytime(scheduledAnytime);
-    setStart(toLocalInput(scheduledAt));
-    setEnd(toLocalInput(scheduledEnd));
-    setDay(toLocalDate(scheduledAt));
+    setStart(s);
+    setEnd(e);
+    // An existing schedule opens on its own length (a chip when one matches)
+    const mins = s && e ? minutesBetween(s, e) : null;
+    setDuration(mins != null && mins > 0 ? durationChoiceFor(mins) : jobLength);
     setWindow(arrivalWindowMinutes == null ? "" : String(arrivalWindowMinutes));
     setAfter(minuteToTime(arriveAfterMin));
     setBefore(minuteToTime(arriveBeforeMin));
     setError("");
     setOpen(true);
+  }
+
+  /** A new start: the end follows it by the chosen length (Custom keeps its old length). */
+  function applyStart(nextStart: string) {
+    setEnd(
+      duration != null && nextStart.length >= 16
+        ? addMinutesToLocalDateTime(nextStart, duration)
+        : endFollowingStart(start, end, nextStart, jobLength)
+    );
+    setStart(nextStart);
+  }
+
+  function applyDuration(minutes: number | null) {
+    setDuration(minutes);
+    if (minutes != null && start.length >= 16) setEnd(addMinutesToLocalDateTime(start, minutes));
+  }
+
+  function pickDay(d: string) {
+    if (anytime) {
+      setStart(d ? `${d}T12:00` : "");
+      return;
+    }
+    applyStart(joinLocalDateTime(d, pickedTime));
   }
 
   async function save() {
@@ -140,9 +200,9 @@ export default function ScheduleJob({
       ...(anytime
         ? {
             // date-only: anchor at noon so the date survives timezone shifts
-            scheduledAt: day ? localInputToISO(`${day}T12:00`) : null,
+            scheduledAt: pickedDate ? localInputToISO(`${pickedDate}T12:00`) : null,
             scheduledEnd: null,
-            scheduledAnytime: Boolean(day),
+            scheduledAnytime: Boolean(pickedDate),
           }
         : {
             scheduledAt: localInputToISO(start),
@@ -191,65 +251,62 @@ export default function ScheduleJob({
     );
   }
 
+  const timed = !anytime && Boolean(pickedDate);
+
   // A small stacked panel: fields get the full width on phones (the parent
   // fact cell goes basis-full below sm) instead of squeezing into a wrap row.
   return (
     <div className="mt-1.5 w-full max-w-lg space-y-2.5 rounded-[10px] border border-gray-200 bg-gray-50/70 p-3">
-      {anytime ? (
-        <div>
-          <label className="block text-xs text-gray-500 mb-0.5">Date</label>
-          <input
-            type="date"
-            value={day}
-            onChange={(e) => setDay(e.target.value)}
-            className="w-full sm:w-48 px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-          />
-        </div>
-      ) : (
-        <div className="grid gap-2.5 sm:grid-cols-2">
+      <div>
+        <label className="block text-xs text-gray-500 mb-1">Day</label>
+        <DayChips value={pickedDate} onChange={pickDay} />
+      </div>
+      {timed && (
+        <div className="grid gap-2.5 sm:grid-cols-[10rem_minmax(0,1fr)]">
           <div className="min-w-0">
             <label className="block text-xs text-gray-500 mb-0.5">Start</label>
-            <SlotTimePicker
-              value={start}
+            <SlotTimeSelect
+              time={pickedTime}
+              onChange={(t) => applyStart(joinLocalDateTime(pickedDate, t))}
               intervalMinutes={intervalMinutes}
               dayStartMinutes={dayStartMinutes}
-              inputCls={SLOT_INPUT_CLS}
-              timeCls={SLOT_TIME_CLS}
-              ariaLabel="Start"
-              onChange={(next) => {
-                // The end keeps the job's length (price-book duration, or an
-                // hour when it had none): move a 1-hour visit to 1:00 and it
-                // ends at 2:00 (David 2026-10-06)
-                setEnd(endFollowingStart(start, end, next, defaultDurationMinutes || DEFAULT_JOB_DURATION_MINUTES));
-                setStart(next);
-              }}
+              className={FIELD_CLS}
+              ariaLabel="Start time"
             />
           </div>
           <div className="min-w-0">
-            <label className="block text-xs text-gray-500 mb-0.5">End</label>
-            <SlotTimePicker
-              value={end}
-              intervalMinutes={intervalMinutes}
-              dayStartMinutes={dayStartMinutes}
-              inputCls={SLOT_INPUT_CLS}
-              timeCls={SLOT_TIME_CLS}
-              ariaLabel="End"
-              onChange={setEnd}
-            />
+            <label className="block text-xs text-gray-500 mb-0.5">How long</label>
+            <DurationChips value={duration} onChange={applyDuration} />
           </div>
         </div>
       )}
+      {timed && duration === null && (
+        <div className="min-w-0">
+          <label className="block text-xs text-gray-500 mb-0.5">End</label>
+          <SlotTimePicker
+            value={end}
+            intervalMinutes={intervalMinutes}
+            dayStartMinutes={dayStartMinutes}
+            inputCls={SLOT_INPUT_CLS}
+            timeCls={SLOT_TIME_CLS}
+            ariaLabel="End"
+            onChange={setEnd}
+          />
+        </div>
+      )}
       {!anytime && <ScheduleHeadsUp result={check} />}
-      {!anytime && assigneeId && start.length >= 10 && (
+      {timed && assigneeId && (
         <SuggestedTimes
-          date={start.slice(0, 10)}
+          date={pickedDate}
           userId={assigneeId}
           address={address}
-          durationMinutes={defaultDurationMinutes || DEFAULT_JOB_DURATION_MINUTES}
+          durationMinutes={duration ?? jobLength}
           excludeId={jobId}
           onPick={(s, e) => {
             setStart(s);
             setEnd(e);
+            const mins = minutesBetween(s, e);
+            if (mins != null) setDuration(durationChoiceFor(mins));
           }}
         />
       )}
@@ -278,27 +335,27 @@ export default function ScheduleJob({
         <label className="mb-0.5 flex items-center gap-1 text-xs text-gray-500">
           Client can take it
           <InfoTip>
-            When the client is available — "not before 1 PM", "before noon". Optimize waits for the window to open and warns if an order would arrive after it closes. Leave both blank for any time.
+            When the client is available — &quot;not before 1 PM&quot;, &quot;before noon&quot;. Optimize waits for the window to open and warns if an order would arrive after it closes. Leave both blank for any time.
           </InfoTip>
         </label>
         <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
           <span className="text-xs">from</span>
-          <input
-            type="time"
+          <TimeField
             value={after}
             step={900}
             onChange={(e) => setAfter(e.target.value)}
             aria-label="Client available from"
-            className="px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+            placeholder="Any"
+            className="w-32 px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
           />
           <span className="text-xs">until</span>
-          <input
-            type="time"
+          <TimeField
             value={before}
             step={900}
             onChange={(e) => setBefore(e.target.value)}
             aria-label="Client available until"
-            className="px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+            placeholder="Any"
+            className="w-32 px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
           />
           {(after || before) && (
             <button
@@ -320,8 +377,12 @@ export default function ScheduleJob({
             type="checkbox"
             checked={anytime}
             onChange={(e) => {
-              setAnytime(e.target.checked);
-              if (e.target.checked && !day && start) setDay(start.slice(0, 10));
+              const on = e.target.checked;
+              setAnytime(on);
+              // Anytime anchors at noon; a timed job starts from the bare day
+              if (on) setStart(pickedDate ? `${pickedDate}T12:00` : "");
+              else setStart(pickedDate);
+              setEnd("");
             }}
             className="h-3.5 w-3.5 rounded border-gray-300 accent-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
           />

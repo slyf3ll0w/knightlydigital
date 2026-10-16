@@ -9,6 +9,7 @@ import {
   type DayKey,
   type TimeRange,
 } from "@/lib/business-hours";
+import { TimeField } from "@/components/DateField";
 
 /**
  * The weekly hours grid — one row per day, open/closed checkbox, up to two
@@ -66,8 +67,7 @@ export default function BusinessHoursEditor({
               <div className="mt-2.5 space-y-2 lg:mt-0 lg:flex lg:flex-wrap lg:items-center lg:gap-2 lg:space-y-0">
                 {ranges.map((r, i) => (
                   <span key={i} className="flex items-center gap-1 lg:gap-1.5">
-                    <input
-                      type="time"
+                    <TimeField
                       value={r.start}
                       onChange={(e) =>
                         setDay(
@@ -78,8 +78,7 @@ export default function BusinessHoursEditor({
                       className={timeCls}
                     />
                     <span className="shrink-0 text-xs text-gray-500">to</span>
-                    <input
-                      type="time"
+                    <TimeField
                       value={r.end}
                       onChange={(e) =>
                         setDay(

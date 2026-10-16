@@ -13,6 +13,7 @@ import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import ContactPicker from "@/components/ContactPicker";
 import ServiceChips, { type ServiceLite } from "@/components/ServiceChips";
 import { titleFromServices } from "@/lib/service-title";
+import { DateField } from "@/components/DateField";
 
 /**
  * Create a recurring series directly — the "mow the lawn every 2 weeks"
@@ -257,8 +258,7 @@ export default function NewSeriesForm({
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">First visit *</label>
-              <input
-                type="date"
+              <DateField
                 value={firstVisit}
                 onChange={(e) => setFirstVisit(e.target.value)}
                 className={inputCls}

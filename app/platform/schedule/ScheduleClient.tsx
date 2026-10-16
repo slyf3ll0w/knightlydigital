@@ -77,6 +77,7 @@ import {
   type View,
   type WeekHours,
 } from "./schedule-lib";
+import { DateField, TimeField } from "@/components/DateField";
 
 export type { ScheduleJobDTO, BlockInfo } from "./schedule-lib";
 
@@ -1402,12 +1403,13 @@ export default function ScheduleClient({
                 ) : (
                   <button
                     type="button"
-                    onClick={() => armed && placeArmed(day, null)}
+                    // Jobs waiting: a tap opens the list (David 2026-10-16)
+                    onClick={() => (armed ? placeArmed(day, null) : unscheduled.length > 0 && setPaletteOpen(true))}
                     className="ds-card w-full px-4 py-7 text-center"
                   >
                     <p className="text-sm font-medium text-gray-500">{armed ? "Tap to place here" : "Nothing scheduled"}</p>
-                    <p className="mt-0.5 text-xs text-gray-500">
-                      {unscheduled.length > 0 ? `${unscheduled.length} job${unscheduled.length === 1 ? "" : "s"} waiting to be scheduled` : "Free day."}
+                    <p className={`mt-0.5 text-xs ${unscheduled.length > 0 ? "font-semibold text-[color:var(--ds-warn)]" : "text-gray-500"}`}>
+                      {unscheduled.length > 0 ? `${unscheduled.length} job${unscheduled.length === 1 ? "" : "s"} waiting to be scheduled — tap to pick one` : "Free day."}
                     </p>
                   </button>
                 )
@@ -1866,6 +1868,21 @@ export default function ScheduleClient({
             if (e && window.matchMedia("(max-width: 1023px)").matches) setPaletteOpen(false);
           }}
           onOpenJob={(j) => router.push(`/app/jobs/${j.id}`)}
+          onPlace={(ent) => {
+            // Phones: straight to the sheet for the day on screen (never a
+            // day that's gone by); jobs and requests land as Anytime, a
+            // person gets a 9:00 slot to adjust
+            setPaletteOpen(false);
+            setArmed(null);
+            const day = anchor.getTime() < today.getTime() && !sameDay(anchor, today) ? today : anchor;
+            setPlaceIntent({
+              entity: ent,
+              date: toParam(day),
+              minute: ent.type === "job" || ent.type === "request" ? null : 9 * 60,
+              userId: team || undefined,
+            });
+          }}
+          placeDayLabel={sameDay(anchor, today) || anchor.getTime() < today.getTime() ? "today" : anchor.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
           canSell={canCreateAppointment || canCreateJob}
         />
       </div>
@@ -1945,8 +1962,7 @@ export default function ScheduleClient({
             {shiftErr && <div role="alert" className="form-error">{shiftErr}</div>}
             <div>
               <label className="mb-0.5 block text-xs font-medium text-gray-500">Move to</label>
-              <input
-                type="date"
+              <DateField
                 value={shiftSheet.toDate}
                 onChange={(e) => setShiftSheet((s) => s && { ...s, toDate: e.target.value })}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
@@ -2073,8 +2089,7 @@ export default function ScheduleClient({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="mb-0.5 block text-xs font-medium text-gray-500">From</label>
-                  <input
-                    type="date"
+                  <DateField
                     value={blockSheet.form.startDate}
                     disabled={!blockSheet.canEdit}
                     onChange={(e) =>
@@ -2091,8 +2106,7 @@ export default function ScheduleClient({
                 {!blockSheet.form.repeat && (
                   <div>
                     <label className="mb-0.5 block text-xs font-medium text-gray-500">Through</label>
-                    <input
-                      type="date"
+                    <DateField
                       value={blockSheet.form.endDate}
                       disabled={!blockSheet.canEdit}
                       onChange={(e) => setBlockSheet((s) => s && { ...s, form: { ...s.form, endDate: e.target.value } })}
@@ -2105,8 +2119,7 @@ export default function ScheduleClient({
               <>
                 <div>
                   <label className="mb-0.5 block text-xs font-medium text-gray-500">Date</label>
-                  <input
-                    type="date"
+                  <DateField
                     value={blockSheet.form.startDate}
                     disabled={!blockSheet.canEdit}
                     onChange={(e) => setBlockSheet((s) => s && { ...s, form: { ...s.form, startDate: e.target.value } })}
@@ -2116,8 +2129,7 @@ export default function ScheduleClient({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="mb-0.5 block text-xs font-medium text-gray-500">From</label>
-                    <input
-                      type="time"
+                    <TimeField
                       value={blockSheet.form.startTime}
                       disabled={!blockSheet.canEdit}
                       onChange={(e) => setBlockSheet((s) => s && { ...s, form: { ...s.form, startTime: e.target.value } })}
@@ -2126,8 +2138,7 @@ export default function ScheduleClient({
                   </div>
                   <div>
                     <label className="mb-0.5 block text-xs font-medium text-gray-500">To</label>
-                    <input
-                      type="time"
+                    <TimeField
                       value={blockSheet.form.endTime}
                       disabled={!blockSheet.canEdit}
                       onChange={(e) => setBlockSheet((s) => s && { ...s, form: { ...s.form, endTime: e.target.value } })}

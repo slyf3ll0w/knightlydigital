@@ -10,6 +10,7 @@ import EmptyState from "@/components/EmptyState";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import PageTitle from "@/components/PageTitle";
 import { Chip, InfoTip } from "@/components/ds";
+import { DateField } from "@/components/DateField";
 
 type Frequency = "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "QUARTERLY" | "ANNUALLY";
 
@@ -454,8 +455,7 @@ export default function SubscriptionsClient({
                               </div>
                               <div>
                                 <label className="block text-xs text-gray-500 mb-0.5">Next billing</label>
-                                <input
-                                  type="date"
+                                <DateField
                                   value={editForm.nextRunDate}
                                   onChange={(e) => setEditForm((f) => ({ ...f, nextRunDate: e.target.value }))}
                                   className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
@@ -530,8 +530,7 @@ export default function SubscriptionsClient({
                           <>
                             <div>
                               <label className="block text-xs text-gray-500 mb-0.5">Next visit</label>
-                              <input
-                                type="date"
+                              <DateField
                                 value={editForm.nextVisitDate}
                                 onChange={(e) =>
                                   setEditForm((f) => ({ ...f, nextVisitDate: e.target.value }))

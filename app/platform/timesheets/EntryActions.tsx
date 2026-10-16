@@ -7,6 +7,7 @@ import { localInputToISO } from "@/lib/statuses";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import Modal from "@/components/Modal";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { DateTimeField } from "@/components/DateField";
 
 /** ISO → datetime-local value in the browser's timezone. */
 function toLocalInput(iso: string | null): string {
@@ -107,8 +108,7 @@ export default function EntryActions({
           </div>
           <label className="block text-xs font-medium text-gray-600">
             Start
-            <input
-              type="datetime-local"
+            <DateTimeField
               value={start}
               onChange={(e) => setStart(e.target.value)}
               className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
@@ -117,8 +117,7 @@ export default function EntryActions({
           <label className="block text-xs font-medium text-gray-600">
             End{" "}
             <span className="font-normal text-gray-400">(leave empty to keep them on the clock)</span>
-            <input
-              type="datetime-local"
+            <DateTimeField
               value={end}
               onChange={(e) => setEnd(e.target.value)}
               className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"

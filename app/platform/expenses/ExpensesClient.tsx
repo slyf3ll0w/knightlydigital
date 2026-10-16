@@ -11,6 +11,7 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import PageTitle from "@/components/PageTitle";
 import { InfoTip } from "@/components/ds";
+import { DateField } from "@/components/DateField";
 
 /** Business expense log (owners/admins): record transactions by date and
  *  export any period as CSV for the bookkeeper. */
@@ -287,8 +288,7 @@ export default function ExpensesClient({
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Transaction date *</label>
-              <input
-                type="date"
+              <DateField
                 value={incurredAt}
                 onChange={(e) => setIncurredAt(e.target.value)}
                 className={`${inputCls} w-full`}
@@ -453,11 +453,11 @@ export default function ExpensesClient({
             From
             <InfoTip label="Which expenses are exported?">Leave the dates empty to export everything.</InfoTip>
           </label>
-          <input type="date" value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} className={inputCls} />
+          <DateField value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} className={inputCls} />
         </div>
         <div>
           <label className="block text-xs text-gray-500 mb-1">To</label>
-          <input type="date" value={exportTo} onChange={(e) => setExportTo(e.target.value)} className={inputCls} />
+          <DateField value={exportTo} onChange={(e) => setExportTo(e.target.value)} className={inputCls} />
         </div>
         <button
           onClick={exportCsv}
@@ -509,8 +509,7 @@ export default function ExpensesClient({
                   </div>
                   <div>
                     <label className="block text-xs text-gray-500 mb-0.5">Date</label>
-                    <input
-                      type="date"
+                    <DateField
                       value={editForm.incurredAt}
                       onChange={(ev) => setEditForm((f) => ({ ...f, incurredAt: ev.target.value }))}
                       className={`${inputCls} w-full`}

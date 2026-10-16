@@ -13,6 +13,7 @@ import PeoplePicker from "@/components/PeoplePicker";
 import ScheduleHeadsUp, { useScheduleCheck } from "@/components/ScheduleHeadsUp";
 import Modal from "@/components/Modal";
 import MenuPopover from "@/components/MenuPopover";
+import { DateField } from "@/components/DateField";
 
 /**
  * Appointment lifecycle controls: Complete (→ Create Quote CTA), No-show,
@@ -395,8 +396,7 @@ export default function AppointmentActions({
           {anytime ? (
             <div>
               <label className="block text-xs text-gray-500 mb-0.5">Date</label>
-              <input
-                type="date"
+              <DateField
                 value={start.slice(0, 10)}
                 onChange={(e) => setStart(`${e.target.value}T12:00`)}
                 className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
