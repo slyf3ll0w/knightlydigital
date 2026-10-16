@@ -4,11 +4,60 @@ import { useMemo } from "react";
 import { slotTimeOptions, splitLocalDateTime, joinLocalDateTime, formatSlotLabel } from "@/lib/scheduling";
 
 /**
+ * The even-time dropdown on its own (:00/:30/… at the company's interval),
+ * for forms that pick the day some other way — the day chips on New Job /
+ * New Appointment (streamline batch 1, 2026-10-16). An existing odd-minute
+ * time (legacy data) stays selectable as its own "(current)" option so an
+ * edit never silently moves it.
+ */
+export function SlotTimeSelect({
+  time,
+  onChange,
+  intervalMinutes,
+  dayStartMinutes,
+  className,
+  ariaLabel = "Time",
+  disabled = false,
+}: {
+  time: string;
+  onChange: (time: string) => void;
+  intervalMinutes: number;
+  dayStartMinutes?: number;
+  className: string;
+  ariaLabel?: string;
+  disabled?: boolean;
+}) {
+  const options = useMemo(() => {
+    const base = slotTimeOptions(intervalMinutes, dayStartMinutes);
+    if (time && !base.some((o) => o.value === time)) {
+      return [{ value: time, label: `${formatSlotLabel(time)} (current)` }, ...base];
+    }
+    return base;
+  }, [intervalMinutes, dayStartMinutes, time]);
+
+  return (
+    <select
+      value={time}
+      aria-label={ariaLabel}
+      onChange={(e) => onChange(e.target.value)}
+      className={className}
+      disabled={disabled}
+    >
+      <option value="">Time…</option>
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+/**
  * Date field + even-time dropdown, replacing a free-form datetime-local so staff
  * pick clean slots (:00/:30/…) instead of fiddling odd minutes. The value stays
  * a `YYYY-MM-DDTHH:mm` local string so existing localInputToISO callers are
- * unchanged. An existing odd-minute time (legacy data) is preserved as its own
- * "(current)" option so editing a record never silently moves its time.
+ * unchanged.
  */
 export default function SlotTimePicker({
   value,
@@ -31,15 +80,6 @@ export default function SlotTimePicker({
 }) {
   const { date, time } = splitLocalDateTime(value);
 
-  const options = useMemo(() => {
-    const base = slotTimeOptions(intervalMinutes, dayStartMinutes);
-    // Keep an off-grid existing time selectable so we never lose it on edit.
-    if (time && !base.some((o) => o.value === time)) {
-      return [{ value: time, label: `${formatSlotLabel(time)} (current)` }, ...base];
-    }
-    return base;
-  }, [intervalMinutes, dayStartMinutes, time]);
-
   return (
     <div className="flex gap-2">
       <input
@@ -49,20 +89,15 @@ export default function SlotTimePicker({
         onChange={(e) => onChange(joinLocalDateTime(e.target.value, time))}
         className={inputCls}
       />
-      <select
-        value={time}
-        aria-label={ariaLabel ? `${ariaLabel} time` : "Time"}
-        onChange={(e) => onChange(joinLocalDateTime(date, e.target.value))}
+      <SlotTimeSelect
+        time={time}
+        onChange={(t) => onChange(joinLocalDateTime(date, t))}
+        intervalMinutes={intervalMinutes}
+        dayStartMinutes={dayStartMinutes}
         className={timeCls ?? inputCls}
+        ariaLabel={ariaLabel ? `${ariaLabel} time` : "Time"}
         disabled={!date}
-      >
-        <option value="">Time…</option>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+      />
     </div>
   );
 }

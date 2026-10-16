@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import SectionHeader from "@/components/SectionHeader";
@@ -8,13 +8,17 @@ import { InfoTip } from "@/components/ds";
 import { Loader2 } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
-import { Suspense } from "react";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import { localInputToISO } from "@/lib/statuses";
-import SlotTimePicker from "@/components/SlotTimePicker";
+import SlotTimePicker, { SlotTimeSelect } from "@/components/SlotTimePicker";
 import ContactPicker from "@/components/ContactPicker";
 import SuggestedTimes from "@/components/SuggestedTimes";
+import DayChips from "@/components/DayChips";
+import DurationChips, { durationChoiceFor } from "@/components/DurationChips";
+import MoreDetails from "@/components/MoreDetails";
+import { useRememberedDuration } from "@/lib/duration-pref";
+import { saveNewServices } from "@/lib/save-new-services";
 import { type PickerWorkItem } from "@/components/WorkItemPicker";
 import LineItemsEditor, {
   type EditorLineItem,
@@ -23,7 +27,10 @@ import LineItemsEditor, {
 import {
   DEFAULT_SLOT_INTERVAL_MINUTES,
   DEFAULT_JOB_DURATION_MINUTES,
+  addMinutesToLocalDateTime,
   endFollowingStart,
+  joinLocalDateTime,
+  splitLocalDateTime,
 } from "@/lib/scheduling";
 import ScheduleHeadsUp, { useScheduleCheck } from "@/components/ScheduleHeadsUp";
 import { ARRIVAL_WINDOW_CHOICES, arrivalWindowChoiceLabel } from "@/lib/arrival-window";
@@ -51,7 +58,32 @@ type Contact = {
 };
 type TeamUser = { id: string; name: string; isActive: boolean };
 
-function NewJobForm() {
+const inputCls =
+  "w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]";
+
+/** Whole minutes from one local `YYYY-MM-DDTHH:mm` to another (null when either is incomplete). */
+function minutesBetween(start: string, end: string): number | null {
+  const a = splitLocalDateTime(start);
+  const b = splitLocalDateTime(end);
+  if (!a.time || !b.time) return null;
+  const toMs = (p: { date: string; time: string }) => {
+    const [y, mo, d] = p.date.split("-").map(Number);
+    const [h, mi] = p.time.split(":").map(Number);
+    return new Date(y, mo - 1, d, h, mi).getTime();
+  };
+  return Math.round((toMs(b) - toMs(a)) / 60_000);
+}
+
+/**
+ * New Job, streamlined (David 2026-10-16: pen-and-paper people need three
+ * fields, not fifteen). On top: who, what (the services), when — a day chip,
+ * a start time and a length. Everything else (title, description, lead
+ * source, arrival window, crew, job-site address) waits behind "More
+ * details". The job is named after its services unless a title is typed,
+ * the address comes from the customer, the crew defaults to the person
+ * creating it, and the length chip remembers last time's pick.
+ */
+function NewJobForm({ actorId }: { actorId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const prefilledContactId = searchParams.get("contactId") ?? "";
@@ -64,8 +96,8 @@ function NewJobForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   // Anything touched since the page opened: leaving asks first. Prefills
-  // (last title, the request's details, the client's address) land through
-  // effects, not events, so they never count.
+  // (the request's details, the client's address) land through effects,
+  // not events, so they never count.
   const [dirty, setDirty] = useState(false);
   const touch = () => setDirty(true);
   useUnsavedWarning(dirty && !loading);
@@ -79,8 +111,6 @@ function NewJobForm() {
   const [outsourcedTo, setOutsourcedTo] = useState("");
   // Typed a title → stop auto-naming the job after its services
   const [titleTouched, setTitleTouched] = useState(false);
-  // Typed in THIS form (vs. the last title prefilled below) — what gets remembered
-  const [titleTyped, setTitleTyped] = useState(false);
   const recentTitles = useRecentTitles("job");
   const [interval, setInterval] = useState(DEFAULT_SLOT_INTERVAL_MINUTES);
   const [dayStart, setDayStart] = useState(8 * 60);
@@ -88,6 +118,9 @@ function NewJobForm() {
   // "Anytime that day" — the route plan gives it a time later
   const [anytime, setAnytime] = useState(Boolean(prefilledDate));
   const [window_, setWindow] = useState(""); // arrival window: "" = company default
+  // How long: a chip (minutes) or Custom (null → an End time shows)
+  const [duration, setDuration] = useRememberedDuration("job", DEFAULT_JOB_DURATION_MINUTES);
+  const [more, setMore] = useState(false);
   const [form, setForm] = useState({
     contactId: prefilledContactId,
     requestId,
@@ -112,8 +145,11 @@ function NewJobForm() {
       .then((users: TeamUser[]) => {
         const active = Array.isArray(users) ? users.filter((u) => u.isActive) : [];
         setTeam(active);
-        // A one-person company never picks a crew — it's them
+        // A one-person company never picks a crew — it's them. With a team,
+        // the job lands on whoever is creating it (David 2026-10-16); the
+        // crew can be changed under More details.
         if (active.length === 1) setAssigneeIds([active[0].id]);
+        else if (active.some((u) => u.id === actorId)) setAssigneeIds([actorId]);
       })
       .catch(() => {});
     // Price book for the services section
@@ -128,17 +164,7 @@ function NewJobForm() {
         if (d?.dayStartMinutes) setDayStart(d.dayStartMinutes);
       })
       .catch(() => {});
-  }, []);
-
-  // A fresh job starts with the last title this person typed (it counts as
-  // typed, so picking services doesn't rename it); from a request, the
-  // request's own title wins.
-  useEffect(() => {
-    if (requestId || !recentTitles?.[0]) return;
-    setForm((f) => (f.title ? f : { ...f, title: recentTitles[0] }));
-    setTitleTouched(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recentTitles]);
+  }, [actorId]);
 
   // Converting a request: carry its title and details into the job instead of
   // making the user retype what the client already wrote
@@ -153,6 +179,7 @@ function NewJobForm() {
           title: f.title || req.title || "",
           description: f.description || req.details || "",
         }));
+        if (req.title) setTitleTouched(true);
       })
       .catch(() => {});
   }, [requestId]);
@@ -176,6 +203,48 @@ function NewJobForm() {
 
   function set(field: string, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  const { date: pickedDate, time: pickedTime } = splitLocalDateTime(form.scheduledAt);
+
+  /** A new start: the end follows it by the chosen length (or keeps its old length on Custom). */
+  function applyStart(nextStart: string) {
+    setForm((f) => ({
+      ...f,
+      scheduledAt: nextStart,
+      scheduledEnd:
+        duration != null && nextStart.length >= 16
+          ? addMinutesToLocalDateTime(nextStart, duration)
+          : endFollowingStart(f.scheduledAt, f.scheduledEnd, nextStart, DEFAULT_JOB_DURATION_MINUTES),
+    }));
+    touch();
+  }
+
+  function applyDuration(minutes: number | null) {
+    setDuration(minutes);
+    if (minutes != null && form.scheduledAt.length >= 16) {
+      set("scheduledEnd", addMinutesToLocalDateTime(form.scheduledAt, minutes));
+    }
+    touch();
+  }
+
+  function pickDay(d: string) {
+    if (anytime) {
+      set("scheduledAt", d ? `${d}T12:00` : "");
+      touch();
+      return;
+    }
+    applyStart(joinLocalDateTime(d, pickedTime));
+  }
+
+  function toggleAnytime(on: boolean) {
+    setAnytime(on);
+    // Anytime anchors at noon; a timed job starts from a bare day until a
+    // time is picked (the old noon default read as a real 12:00 booking)
+    if (on) set("scheduledAt", pickedDate ? `${pickedDate}T12:00` : "");
+    else set("scheduledAt", pickedDate);
+    set("scheduledEnd", "");
+    touch();
   }
 
   // Saved-address quick pick — shown when the customer has more than one
@@ -222,6 +291,7 @@ function NewJobForm() {
     // it's on nobody's schedule, calendar sync, or booking availability
     if (form.scheduledAt && team.length > 0 && assigneeIds.length === 0 && !outsourced) {
       setError("Pick who's doing this job, or mark it outsourced.");
+      setMore(true);
       return;
     }
     // The picker holds a bare "YYYY-MM-DD" until a time is chosen — that's
@@ -234,11 +304,12 @@ function NewJobForm() {
     setError("");
     setLoading(true);
 
+    const typedTitle = form.title.trim();
     const { ok, data } = await postJson<{ id: string; conflicts?: string[] }>("/api/app/jobs", {
       ...form,
       // Optional: blank → named after the services (or a generic label) server-side
-      title: form.title.trim() || undefined,
-      rememberTitle: titleTyped && Boolean(form.title.trim()),
+      title: typedTitle || undefined,
+      rememberTitle: titleTouched && Boolean(typedTitle),
       outsourced,
       outsourcedTo: outsourced ? outsourcedTo.trim() || undefined : undefined,
       // date-only scheduling anchors at noon (same convention as ScheduleJob)
@@ -266,12 +337,16 @@ function NewJobForm() {
           sortOrder: i,
         })),
     });
-    setLoading(false);
 
     if (!ok || !data?.id) {
+      setLoading(false);
       setError(data?.error ?? GENERIC_ERROR);
       return;
     }
+
+    // Typed, priced services join the price book for next time
+    await saveNewServices(lineItems, workItems);
+    setLoading(false);
 
     // Overlaps and drive time were shown live under the time fields
     // (ScheduleHeadsUp) — no second pop-up after the save.
@@ -281,6 +356,8 @@ function NewJobForm() {
     setDirty(false);
     router.push(`/app/jobs/${data.id}`);
   }
+
+  const timed = !anytime && Boolean(pickedDate);
 
   return (
     <div className="p-4 lg:p-8 max-w-2xl mx-auto">
@@ -297,8 +374,6 @@ function NewJobForm() {
         )}
 
         <div className="ds-card p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700">Job details</h2>
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Customer *</label>
             <ContactPicker
@@ -311,85 +386,33 @@ function NewJobForm() {
               placeholder="Select a customer…"
               title="Select a customer"
             />
-            <Link href="/app/contacts/new" className="ds-link text-xs mt-1 inline-block">
-              + Add new customer
-            </Link>
-          </div>
-
-          <div>
-            <label className="mb-1 flex items-center gap-1.5 text-sm font-medium text-gray-700">
-              Job title <span className="text-xs font-normal text-gray-400">(optional)</span>
-              <InfoTip label="Who sees the job title?">
-                Your client sees this. It's in their visit reminders and on their client portal. Leave it blank and the job is named after the services you pick. WorkBench remembers what you type here for next time.
-              </InfoTip>
-            </label>
-            <input
-              type="text"
-              value={form.title}
-              onChange={(e) => {
-                set("title", e.target.value);
-                setTitleTouched(e.target.value.trim().length > 0);
-                setTitleTyped(true);
-              }}
-              list="recent-job-titles"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-              placeholder="Defaults to the service picked below"
-            />
-            <RecentTitleOptions id="recent-job-titles" titles={recentTitles} />
-            {/* Estimates and meetings aren't billable work: steer them to the
-                record that ends with an optional quote instead of an invoice */}
-            {looksLikeAppointment(form.title) && (
-              <p className="mt-1.5 text-xs text-[color:var(--ds-warn)]">
-                Sounds like an appointment (an estimate or a meeting) rather than billable work.
-                Appointments end with an optional quote, never an invoice.{" "}
-                <Link
-                  href={`/app/appointments/new?${new URLSearchParams({
-                    ...(form.contactId ? { contactId: form.contactId } : {}),
-                    title: form.title.trim(),
-                  }).toString()}`}
-                  className="font-semibold underline"
-                >
-                  Book it as an appointment
-                </Link>
+            {/* Where the job is, without a field: it comes from the customer */}
+            {selectedContact && !more && (
+              <p className="mt-1.5 text-xs text-gray-500">
+                {form.address ? <>Job site: {form.address}</> : "No address on file for them yet"}{" "}
+                <button type="button" onClick={() => setMore(true)} className="ds-link font-medium">
+                  Change
+                </button>
               </p>
             )}
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea
-              value={form.description}
-              onChange={(e) => set("description", e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
-              placeholder="Details about the job, scope, special instructions…"
-            />
-          </div>
-
-          <div>
-            <div className="mb-1 flex items-center gap-1 text-sm font-medium text-gray-700">
-              Lead source
-              <InfoTip>Used in Insights to show which sources bring in the most revenue.</InfoTip>
-            </div>
-            <input
-              type="text"
-              list="lead-sources"
-              value={form.leadSource}
-              onChange={(e) => set("leadSource", e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-              placeholder="Where did this job come from?"
-            />
-            <datalist id="lead-sources">
-              <option value="Google" />
-              <option value="Referral" />
-              <option value="Online booking" />
-              <option value="Facebook" />
-              <option value="Nextdoor" />
-              <option value="Yard sign" />
-              <option value="Repeat client" />
-              <option value="Door hanger" />
-            </datalist>
-          </div>
+          {/* Estimates and meetings aren't billable work: steer them to the
+              record that ends with an optional quote instead of an invoice */}
+          {looksLikeAppointment(form.title) && (
+            <p className="text-xs text-[color:var(--ds-warn)]">
+              Sounds like an appointment (an estimate or a meeting) rather than billable work.
+              Appointments end with an optional quote, never an invoice.{" "}
+              <Link
+                href={`/app/appointments/new?${new URLSearchParams({
+                  ...(form.contactId ? { contactId: form.contactId } : {}),
+                  title: form.title.trim(),
+                }).toString()}`}
+                className="font-semibold underline"
+              >
+                Book it as an appointment
+              </Link>
+            </p>
+          )}
         </div>
 
         {/* Services from the price book — the whole point of doing jobs is to
@@ -400,8 +423,8 @@ function NewJobForm() {
         <div className="ds-card">
           <div className="px-5 py-4 border-b border-gray-100">
             <SectionHeader
-              title="Product / Service"
-              hint="What this job is for — used for the invoice and the job's checklist."
+              title="What"
+              hint="The services — they price the job and name it. Typed ones are saved to your Services for next time."
             />
           </div>
           <LineItemsEditor
@@ -434,193 +457,252 @@ function NewJobForm() {
         </div>
 
         <div className="ds-card p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700">Scheduling</h2>
+          <h2 className="text-sm font-semibold text-gray-700">When</h2>
 
-          {anytime ? (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-              <input
-                type="date"
-                value={form.scheduledAt.slice(0, 10)}
-                onChange={(e) => set("scheduledAt", e.target.value ? `${e.target.value}T12:00` : "")}
-                className="w-full sm:w-56 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-              />
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-4">
+          <DayChips value={pickedDate} onChange={pickDay} ariaLabel="Day" />
+
+          {timed && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-[11rem_minmax(0,1fr)]">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Start</label>
-                <SlotTimePicker
-                  value={form.scheduledAt}
+                <SlotTimeSelect
+                  time={pickedTime}
+                  onChange={(t) => applyStart(joinLocalDateTime(pickedDate, t))}
                   intervalMinutes={interval}
                   dayStartMinutes={dayStart}
-                  inputCls="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-                  ariaLabel="Start"
-                  onChange={(next) => {
-                    // The end keeps the length already picked (an hour to
-                    // start with): move a 1-hour visit to 1:00 and it ends
-                    // at 2:00 (David 2026-10-06)
-                    set(
-                      "scheduledEnd",
-                      endFollowingStart(form.scheduledAt, form.scheduledEnd, next, DEFAULT_JOB_DURATION_MINUTES)
-                    );
-                    set("scheduledAt", next);
-                    touch();
-                  }}
+                  className={inputCls}
+                  ariaLabel="Start time"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">End</label>
-                <SlotTimePicker
-                  value={form.scheduledEnd}
-                  intervalMinutes={interval}
-                  dayStartMinutes={dayStart}
-                  inputCls="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-                  ariaLabel="End"
-                  onChange={(next) => {
-                    set("scheduledEnd", next);
-                    touch();
-                  }}
-                />
+              <div className="min-w-0">
+                <label className="block text-sm font-medium text-gray-700 mb-1">How long</label>
+                <DurationChips value={duration} onChange={applyDuration} />
               </div>
+            </div>
+          )}
+          {timed && duration === null && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">End</label>
+              <SlotTimePicker
+                value={form.scheduledEnd}
+                intervalMinutes={interval}
+                dayStartMinutes={dayStart}
+                inputCls={inputCls}
+                ariaLabel="End"
+                onChange={(next) => {
+                  set("scheduledEnd", next);
+                  touch();
+                }}
+              />
             </div>
           )}
           <label className="flex items-center gap-1.5 text-xs text-gray-600 select-none">
             <input
               type="checkbox"
               checked={anytime}
-              onChange={(e) => setAnytime(e.target.checked)}
+              onChange={(e) => toggleAnytime(e.target.checked)}
               className="h-3.5 w-3.5 rounded border-gray-300 accent-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
             />
             Anytime (no set time)
           </label>
           {!anytime && <ScheduleHeadsUp result={check} />}
-          {!anytime && form.scheduledAt.length >= 10 && assigneeIds.length > 0 && (
+          {timed && assigneeIds.length > 0 && (
             <SuggestedTimes
-              date={form.scheduledAt.slice(0, 10)}
+              date={pickedDate}
               userId={assigneeIds[0]}
               address={form.address}
-              durationMinutes={DEFAULT_JOB_DURATION_MINUTES}
+              durationMinutes={duration ?? DEFAULT_JOB_DURATION_MINUTES}
               onPick={(s, e) => {
                 set("scheduledAt", s);
                 set("scheduledEnd", e);
+                const mins = minutesBetween(s, e);
+                if (mins != null) setDuration(durationChoiceFor(mins));
                 touch();
               }}
             />
           )}
-          {!anytime && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Arrival window <span className="text-xs font-normal text-gray-400">(what the client is promised)</span>
-              </label>
-              <select
-                value={window_}
-                onChange={(e) => setWindow(e.target.value)}
-                className="w-full sm:w-64 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-              >
-                <option value="">Company default</option>
-                {ARRIVAL_WINDOW_CHOICES.map((m) => (
-                  <option key={m} value={m}>
-                    {arrivalWindowChoiceLabel(m)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+        </div>
 
-          {team.length > 0 && (
+        <MoreDetails
+          open={more}
+          onOpenChange={setMore}
+          hint="title, notes, lead source, arrival window, crew, job site"
+        >
+          <div className="ds-card p-5 space-y-4">
+            <h2 className="text-sm font-semibold text-gray-700">More details</h2>
+
+            <div>
+              <label className="mb-1 flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                Job title <span className="text-xs font-normal text-gray-400">(optional)</span>
+                <InfoTip label="Who sees the job title?">
+                  Your client sees this. It&apos;s in their visit reminders and on their client portal. Leave it blank and the job is named after the services you pick. WorkBench remembers what you type here and offers it next time.
+                </InfoTip>
+              </label>
+              <input
+                type="text"
+                value={form.title}
+                onChange={(e) => {
+                  set("title", e.target.value);
+                  setTitleTouched(e.target.value.trim().length > 0);
+                }}
+                list="recent-job-titles"
+                className={inputCls}
+                placeholder="Defaults to the services picked above"
+              />
+              <RecentTitleOptions id="recent-job-titles" titles={recentTitles} />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea
+                value={form.description}
+                onChange={(e) => set("description", e.target.value)}
+                rows={3}
+                className={`${inputCls} resize-none`}
+                placeholder="Details about the job, scope, special instructions…"
+              />
+            </div>
+
             <div>
               <div className="mb-1 flex items-center gap-1 text-sm font-medium text-gray-700">
-                Assign to
-                <InfoTip>
-                  {team.length === 1
-                    ? "It's just you, so your jobs land on your schedule and calendar sync automatically."
-                    : "Assigned techs see this job on their schedule, get it in their calendar sync, and their online-booking availability blocks off this time. A scheduled job needs someone on it unless it's outsourced."}
-                </InfoTip>
+                Lead source
+                <InfoTip>Used in Insights to show which sources bring in the most revenue.</InfoTip>
               </div>
-              <div className={`space-y-1.5 ${outsourced ? "opacity-50" : ""}`}>
-                {team.map((u) => (
-                  <label
-                    key={u.id}
-                    className="flex items-center gap-2 text-sm text-gray-700 select-none w-fit"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={!outsourced && assigneeIds.includes(u.id)}
-                      disabled={outsourced}
-                      onChange={() =>
-                        setAssigneeIds((ids) =>
-                          ids.includes(u.id) ? ids.filter((x) => x !== u.id) : [...ids, u.id]
-                        )
-                      }
-                      className="h-3.5 w-3.5 rounded border-gray-300 accent-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
-                    />
-                    {u.name}
-                  </label>
-                ))}
-              </div>
-              <label className="mt-2 flex items-center gap-2 text-sm text-gray-700 select-none w-fit">
-                <input
-                  type="checkbox"
-                  checked={outsourced}
-                  onChange={(e) => setOutsourced(e.target.checked)}
-                  className="h-3.5 w-3.5 rounded border-gray-300 accent-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
-                />
-                Outsourced to a subcontractor
-              </label>
-              {outsourced && (
-                <input
-                  type="text"
-                  value={outsourcedTo}
-                  onChange={(e) => setOutsourcedTo(e.target.value)}
-                  className="mt-2 w-full sm:w-64 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-                  placeholder="Who's doing it (optional)"
-                />
-              )}
+              <input
+                type="text"
+                list="lead-sources"
+                value={form.leadSource}
+                onChange={(e) => set("leadSource", e.target.value)}
+                className={inputCls}
+                placeholder="Where did this job come from?"
+              />
+              <datalist id="lead-sources">
+                <option value="Google" />
+                <option value="Referral" />
+                <option value="Online booking" />
+                <option value="Facebook" />
+                <option value="Nextdoor" />
+                <option value="Yard sign" />
+                <option value="Repeat client" />
+                <option value="Door hanger" />
+              </datalist>
             </div>
-          )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Job site address</label>
-            {addressChoices.length > 1 && (
-              <select
-                value=""
-                onChange={(e) => {
-                  const choice = addressChoices.find((a) => a.key === e.target.value);
-                  if (choice) {
-                    // Saved EXTRA addresses link the job to that property so
-                    // its history groups; the primary stays an unlinked string
-                    setAddressTouched(true);
-                    setForm((f) => ({
-                      ...f,
-                      address: choice.line,
-                      propertyId: choice.key === "primary" ? "" : choice.key,
-                    }));
-                  }
-                }}
-                className="w-full mb-2 px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-              >
-                <option value="">Pick a saved address…</option>
-                {addressChoices.map((a) => (
-                  <option key={a.key} value={a.key}>
-                    {a.label}: {a.line}
-                  </option>
-                ))}
-              </select>
+            {!anytime && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Arrival window <span className="text-xs font-normal text-gray-400">(what the client is promised)</span>
+                </label>
+                <select
+                  value={window_}
+                  onChange={(e) => setWindow(e.target.value)}
+                  className="w-full sm:w-64 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+                >
+                  <option value="">Company default</option>
+                  {ARRIVAL_WINDOW_CHOICES.map((m) => (
+                    <option key={m} value={m}>
+                      {arrivalWindowChoiceLabel(m)}
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
-            <input
-              type="text"
-              value={form.address}
-              onChange={(e) => {
-                // Typing a custom address breaks the saved-property link
-                setAddressTouched(true);
-                setForm((f) => ({ ...f, address: e.target.value, propertyId: "" }));
-              }}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-              placeholder="Defaults to customer address"
-            />
+
+            {team.length > 0 && (
+              <div>
+                <div className="mb-1 flex items-center gap-1 text-sm font-medium text-gray-700">
+                  Assign to
+                  <InfoTip>
+                    {team.length === 1
+                      ? "It's just you, so your jobs land on your schedule and calendar sync automatically."
+                      : "Starts on you. Assigned techs see this job on their schedule, get it in their calendar sync, and their online-booking availability blocks off this time. A scheduled job needs someone on it unless it's outsourced."}
+                  </InfoTip>
+                </div>
+                <div className={`space-y-1.5 ${outsourced ? "opacity-50" : ""}`}>
+                  {team.map((u) => (
+                    <label
+                      key={u.id}
+                      className="flex items-center gap-2 text-sm text-gray-700 select-none w-fit"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!outsourced && assigneeIds.includes(u.id)}
+                        disabled={outsourced}
+                        onChange={() =>
+                          setAssigneeIds((ids) =>
+                            ids.includes(u.id) ? ids.filter((x) => x !== u.id) : [...ids, u.id]
+                          )
+                        }
+                        className="h-3.5 w-3.5 rounded border-gray-300 accent-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
+                      />
+                      {u.name}
+                      {u.id === actorId && <span className="text-xs text-gray-400">(you)</span>}
+                    </label>
+                  ))}
+                </div>
+                <label className="mt-2 flex items-center gap-2 text-sm text-gray-700 select-none w-fit">
+                  <input
+                    type="checkbox"
+                    checked={outsourced}
+                    onChange={(e) => setOutsourced(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-gray-300 accent-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
+                  />
+                  Outsourced to a subcontractor
+                </label>
+                {outsourced && (
+                  <input
+                    type="text"
+                    value={outsourcedTo}
+                    onChange={(e) => setOutsourcedTo(e.target.value)}
+                    className="mt-2 w-full sm:w-64 px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+                    placeholder="Who's doing it (optional)"
+                  />
+                )}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Job site address</label>
+              {addressChoices.length > 1 && (
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const choice = addressChoices.find((a) => a.key === e.target.value);
+                    if (choice) {
+                      // Saved EXTRA addresses link the job to that property so
+                      // its history groups; the primary stays an unlinked string
+                      setAddressTouched(true);
+                      setForm((f) => ({
+                        ...f,
+                        address: choice.line,
+                        propertyId: choice.key === "primary" ? "" : choice.key,
+                      }));
+                    }
+                  }}
+                  className={`${inputCls} mb-2 text-gray-600`}
+                >
+                  <option value="">Pick a saved address…</option>
+                  {addressChoices.map((a) => (
+                    <option key={a.key} value={a.key}>
+                      {a.label}: {a.line}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <input
+                type="text"
+                value={form.address}
+                onChange={(e) => {
+                  // Typing a custom address breaks the saved-property link
+                  setAddressTouched(true);
+                  setForm((f) => ({ ...f, address: e.target.value, propertyId: "" }));
+                }}
+                className={inputCls}
+                placeholder="Defaults to customer address"
+              />
+            </div>
           </div>
-        </div>
+        </MoreDetails>
 
         <div className="flex items-center gap-3">
           <button
@@ -644,10 +726,10 @@ function NewJobForm() {
 }
 
 // Rendered by the server page.tsx next door, which gates the role first
-export default function NewJobClient() {
+export default function NewJobClient({ actorId }: { actorId: string }) {
   return (
     <Suspense>
-      <NewJobForm />
+      <NewJobForm actorId={actorId} />
     </Suspense>
   );
 }

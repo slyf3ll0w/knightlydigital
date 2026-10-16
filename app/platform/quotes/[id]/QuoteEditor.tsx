@@ -8,8 +8,11 @@ import { Loader2 } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import { Chip, InfoTip } from "@/components/ds";
+import MoreDetails from "@/components/MoreDetails";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
+import { saveNewServices } from "@/lib/save-new-services";
+import { titleFromServices } from "@/lib/service-title";
 import { type PickerWorkItem } from "@/components/WorkItemPicker";
 import ContactPicker from "@/components/ContactPicker";
 import LineItemsEditor, {
@@ -115,6 +118,14 @@ export default function QuoteEditor({
   const [notes, setNotes] = useState(existingQuote?.notes ?? "");
   const [validUntil, setValidUntil] = useState(existingQuote?.validUntil ?? "");
   const [estimatorOpen, setEstimatorOpen] = useState(false);
+  // The fold (2026-10-16): a new quote is client + lines + total; title,
+  // message, terms, expiry and notes wait behind "More details", and the
+  // tax / discount / deposit inputs behind "Adjust…" — unless one is already
+  // set. An edit opens everything, since it was all filled in once.
+  const [more, setMore] = useState(editing);
+  const [adjust, setAdjust] = useState(
+    editing || (existingQuote?.discountType ?? "NONE") !== "NONE" || (existingQuote?.depositType ?? "NONE") !== "NONE"
+  );
   const [lineItems, setLineItems] = useState<EditorLineItem[]>(
     existingQuote && existingQuote.lineItems.length > 0
       ? existingQuote.lineItems.map((li) => ({
@@ -156,6 +167,7 @@ export default function QuoteEditor({
     if (r.discount && r.discount > 0 && discountType === "NONE") {
       setDiscountType("FIXED");
       setDiscountValue(r.discount.toFixed(2));
+      setAdjust(true);
     }
     if (r.hours && r.hours > 0) setNotes((n) => (n ? n : `Estimated labor: ${r.hours} h${r.toolId ? " (from the estimate tool)" : ""}`));
   }
@@ -228,7 +240,8 @@ export default function QuoteEditor({
       requestId: requestId || null,
       estimatorId: estimatorId || null,
       propertyId: propertyId || null,
-      title: title || null,
+      // Blank title → named after the services ("House Wash + Gutters")
+      title: title.trim() || titleFromServices(lineItems.map((li) => li.name)) || null,
       taxRate: taxRate ? parseFloat(taxRate) / 100 : null,
       discountType,
       discountValue: discountNum || null,
@@ -259,13 +272,15 @@ export default function QuoteEditor({
       ? await postJson<{ id: string }>(`/api/app/quotes/${existingQuote!.id}`, payload, "PATCH")
       : await postJson<{ id: string }>("/api/app/quotes", payload);
 
-    setLoading(false);
-
     if (!ok || (!editing && !data?.id)) {
+      setLoading(false);
       setError(data?.error ?? GENERIC_ERROR);
       return;
     }
 
+    // Typed, priced services join the price book for next time
+    await saveNewServices(lineItems, workItems);
+    setLoading(false);
     setDirty(false);
     router.push(`/app/quotes/${editing ? existingQuote!.id : data!.id}`);
   }
@@ -336,16 +351,6 @@ export default function QuoteEditor({
               </div>
             );
           })()}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-              placeholder="e.g. Pressure Washing Services"
-            />
-          </div>
         </div>
 
         {/* Line items — no overflow-hidden: the price-book dropdown must be
@@ -390,6 +395,11 @@ export default function QuoteEditor({
           {/* Totals + deposit */}
           <div className="px-5 py-4 border-t border-gray-100 bg-gray-50 space-y-4 rounded-b-[7px] max-lg:rounded-b-[13px]">
             <div className="flex items-start justify-between gap-4 flex-wrap">
+              {!adjust ? (
+                <button type="button" onClick={() => setAdjust(true)} className="ds-link text-xs font-medium">
+                  Adjust tax, discount or deposit
+                </button>
+              ) : (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <label className="text-sm text-gray-600">Tax rate</label>
@@ -429,6 +439,7 @@ export default function QuoteEditor({
                   )}
                 </div>
               </div>
+              )}
               <div className="text-right space-y-1 text-sm">
                 <div className="flex justify-between gap-8">
                   <span className="text-gray-500">Subtotal</span>
@@ -442,7 +453,7 @@ export default function QuoteEditor({
                 )}
                 {tax > 0 && (
                   <div className="flex justify-between gap-8">
-                    <span className="text-gray-500">Tax</span>
+                    <span className="text-gray-500">Tax{taxRate ? ` (${taxRate}%)` : ""}</span>
                     <span className="font-medium">{money(tax)}</span>
                   </div>
                 )}
@@ -460,6 +471,7 @@ export default function QuoteEditor({
             </div>
 
             {/* Deposit */}
+            {adjust && (
             <div className="border-t border-gray-200 pt-3">
               <p className="mb-2 flex items-center gap-1.5 text-sm font-medium text-gray-700">
                 Required deposit
@@ -493,7 +505,20 @@ export default function QuoteEditor({
                 )}
               </div>
             </div>
+            )}
           </div>
+        </div>
+
+        <MoreDetails open={more} onOpenChange={setMore} hint="title, client message, terms, expiry, internal notes">
+        <div className="ds-card p-5">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+            placeholder="Defaults to the services"
+          />
         </div>
 
         <div className="ds-card p-5">
@@ -546,6 +571,7 @@ export default function QuoteEditor({
             />
           </div>
         </div>
+        </MoreDetails>
 
         <div className="flex items-center gap-3">
           <button

@@ -8,8 +8,11 @@ import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import SectionHeader from "@/components/SectionHeader";
 import UseMyLocation from "@/components/UseMyLocation";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
+import MoreDetails from "@/components/MoreDetails";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
+import { formatPhoneAsTyped, splitName, titleCaseName } from "@/lib/phone-input";
 
 type FieldDef = {
   id: string;
@@ -25,6 +28,9 @@ const US_STATES = [
   "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT",
   "VA","WA","WV","WI","WY",
 ];
+
+const inputCls =
+  "w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]";
 
 export type ContactFormInitial = {
   firstName: string;
@@ -51,6 +57,12 @@ export type ContactFormInitial = {
  * One client form for both create (/app/contacts/new → POST) and edit
  * (/app/contacts/[id]/edit → PATCH). Assignment shows on create only —
  * on the detail page it lives in the "Assigned to" rail card.
+ *
+ * Streamlined 2026-10-16 (David: pen-and-paper people): creating someone
+ * is one Name box, a phone that formats itself, an email and an address
+ * that autocompletes. Company, texting consent, lead source, payment
+ * terms, assignment and notes wait behind "More details". Editing keeps
+ * First / Last and shows everything, since it was all filled in once.
  */
 export default function ContactForm({
   mode,
@@ -87,14 +99,17 @@ export default function ContactForm({
     kind: initial?.kind ?? "CLIENT",
     assignedToId: "",
   });
+  // Create mode: one Name box ("Mike Jones" → first / last on save)
+  const [name, setName] = useState(`${initial?.firstName ?? ""} ${initial?.lastName ?? ""}`.trim());
   const [fieldDefs, setFieldDefs] = useState<FieldDef[]>([]);
   const [customFields, setCustomFields] = useState<Record<string, string>>(
     initial?.customFields ?? {}
   );
+  const [more, setMore] = useState(mode === "edit");
 
   // Leaving with edits asks first: the form as it opened vs. as it is now,
   // off once the save went through (the redirect must not be stopped).
-  const snapshot = JSON.stringify({ form, customFields });
+  const snapshot = JSON.stringify({ form, name, customFields });
   const initialSnapshot = useRef(snapshot);
   const [saved, setSaved] = useState(false);
   useUnsavedWarning(!saved && !loading && snapshot !== initialSnapshot.current);
@@ -116,6 +131,12 @@ export default function ContactForm({
     e.preventDefault();
     setError("");
 
+    const split = mode === "create" ? splitName(titleCaseName(name)) : null;
+    if (split && !split.firstName) {
+      setError("Name is required.");
+      return;
+    }
+
     const missing = fieldDefs.find((d) => d.required && !(customFields[d.id] ?? "").trim());
     if (missing) {
       setError(`"${missing.label}" is required.`);
@@ -125,14 +146,15 @@ export default function ContactForm({
     const terms = parseInt(form.paymentTermsDays, 10);
     if (isNaN(terms) || terms < 0 || terms > 365) {
       setError("Payment terms must be between 0 and 365 days.");
+      setMore(true);
       return;
     }
 
     setLoading(true);
 
     const payload: Record<string, unknown> = {
-      firstName: form.firstName,
-      lastName: form.lastName,
+      firstName: split ? split.firstName : form.firstName,
+      lastName: split ? split.lastName : form.lastName,
       companyName: form.companyName,
       email: form.email,
       phone: form.phone,
@@ -174,6 +196,132 @@ export default function ContactForm({
       router.refresh();
     }
   }
+
+  const detailsCard = (
+    <div className="ds-card p-5">
+      <SectionHeader title={mode === "create" ? "More details" : "Client details"} className="mb-4" />
+      <div className="grid grid-cols-2 gap-4">
+        <div className="col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Company (optional)</label>
+          <input
+            type="text"
+            value={form.companyName}
+            onChange={(e) => set("companyName", e.target.value)}
+            placeholder="If this client is a business"
+            className={inputCls}
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="flex items-start gap-2.5 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={form.smsConsent}
+              onChange={(e) => setForm((s) => ({ ...s, smsConsent: e.target.checked }))}
+              className="mt-0.5 h-4 w-4 rounded"
+            />
+            <span>
+              <span className="font-medium">Texts allowed</span>
+              <span className="block text-xs text-gray-500 mt-0.5">
+                Appointment reminders, schedule changes, and quote/invoice links go to the
+                number above by text (from WorkBench, naming you). On by default — switch it
+                off if this client asked not to be texted. A STOP reply turns it off on its own.
+              </span>
+            </span>
+          </label>
+          {form.smsConsent && (
+            <input
+              type="text"
+              value={form.smsConsentNote}
+              onChange={(e) => set("smsConsentNote", e.target.value)}
+              placeholder="Optional note — e.g. asked on the phone 9/12"
+              className={`${inputCls} mt-2`}
+            />
+          )}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Lead source</label>
+          <input
+            type="text"
+            value={form.leadSource}
+            onChange={(e) => set("leadSource", e.target.value)}
+            placeholder="Referral, Google, yard sign…"
+            className={inputCls}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Payment terms (days)</label>
+          <input
+            type="number"
+            min={0}
+            max={365}
+            value={form.paymentTermsDays}
+            onChange={(e) => set("paymentTermsDays", e.target.value)}
+            className={inputCls}
+          />
+          <p className="text-xs text-gray-500 mt-1">Invoices due Net {form.paymentTermsDays || "30"}</p>
+        </div>
+        {mode === "edit" && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+            <select
+              value={form.kind}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  kind: e.target.value,
+                  // A business connection is never a lead
+                  status: e.target.value === "CONTACT" && f.status === "LEAD" ? "ACTIVE" : f.status,
+                }))
+              }
+              className={inputCls}
+            >
+              <option value="CLIENT">Client</option>
+              <option value="CONTACT">Contact (business connection)</option>
+            </select>
+          </div>
+        )}
+        {mode === "edit" && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select
+              value={form.status}
+              onChange={(e) => set("status", e.target.value)}
+              className={inputCls}
+            >
+              {form.kind !== "CONTACT" && <option value="LEAD">Lead</option>}
+              <option value="ACTIVE">{form.kind === "CONTACT" ? "Active" : "Active client"}</option>
+              <option value="ARCHIVED">Archived</option>
+            </select>
+          </div>
+        )}
+        {mode === "create" && canAssign && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Assign to</label>
+            <select
+              value={form.assignedToId}
+              onChange={(e) => set("assignedToId", e.target.value)}
+              className={inputCls}
+            >
+              <option value="">Me</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        <div className="col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+          <textarea
+            value={form.notes}
+            onChange={(e) => set("notes", e.target.value)}
+            rows={3}
+            className={`${inputCls} resize-none`}
+            placeholder="Any notes about this customer…"
+          />
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="p-4 lg:p-8 max-w-2xl mx-auto">
@@ -242,79 +390,67 @@ export default function ContactForm({
         <div className="ds-card p-5">
           <SectionHeader title="Contact info" className="mb-4" />
           <div className="grid grid-cols-2 gap-4">
+            {mode === "create" ? (
+              <div className="col-span-2">
+                <label htmlFor="contact-name" className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                <input
+                  id="contact-name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onBlur={() => setName((n) => titleCaseName(n))}
+                  required
+                  autoComplete="off"
+                  placeholder="Mike Jones"
+                  className={inputCls}
+                />
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">First name *</label>
+                  <input
+                    type="text"
+                    value={form.firstName}
+                    onChange={(e) => set("firstName", e.target.value)}
+                    onBlur={() => set("firstName", titleCaseName(form.firstName))}
+                    required
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Last name (optional)</label>
+                  <input
+                    type="text"
+                    value={form.lastName}
+                    onChange={(e) => set("lastName", e.target.value)}
+                    onBlur={() => set("lastName", titleCaseName(form.lastName))}
+                    className={inputCls}
+                  />
+                </div>
+              </>
+            )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">First name *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
               <input
-                type="text"
-                value={form.firstName}
-                onChange={(e) => set("firstName", e.target.value)}
-                required
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Last name (optional)</label>
-              <input
-                type="text"
-                value={form.lastName}
-                onChange={(e) => set("lastName", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-              />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Company (optional)</label>
-              <input
-                type="text"
-                value={form.companyName}
-                onChange={(e) => set("companyName", e.target.value)}
-                placeholder="If this client is a business"
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+                type="tel"
+                inputMode="tel"
+                value={form.phone}
+                onChange={(e) => set("phone", formatPhoneAsTyped(e.target.value))}
+                placeholder="(214) 555-0100"
+                className={inputCls}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
               <input
                 type="email"
+                inputMode="email"
                 value={form.email}
                 onChange={(e) => set("email", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+                placeholder="name@example.com"
+                className={inputCls}
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-              <input
-                type="tel"
-                value={form.phone}
-                onChange={(e) => set("phone", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-              />
-            </div>
-            <div className="col-span-2">
-              <label className="flex items-start gap-2.5 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={form.smsConsent}
-                  onChange={(e) => setForm((s) => ({ ...s, smsConsent: e.target.checked }))}
-                  className="mt-0.5 h-4 w-4 rounded"
-                />
-                <span>
-                  <span className="font-medium">Texts allowed</span>
-                  <span className="block text-xs text-gray-500 mt-0.5">
-                    Appointment reminders, schedule changes, and quote/invoice links go to the
-                    number above by text (from WorkBench, naming you). On by default — switch it
-                    off if this client asked not to be texted. A STOP reply turns it off on its own.
-                  </span>
-                </span>
-              </label>
-              {form.smsConsent && (
-                <input
-                  type="text"
-                  value={form.smsConsentNote}
-                  onChange={(e) => set("smsConsentNote", e.target.value)}
-                  placeholder="Optional note — e.g. asked on the phone 9/12"
-                  className="mt-2 w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-                />
-              )}
             </div>
           </div>
         </div>
@@ -332,13 +468,18 @@ export default function ContactForm({
           </div>
           <div className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Street address</label>
-              <input
-                type="text"
+              <label htmlFor="contact-street" className="block text-sm font-medium text-gray-700 mb-1">Street address</label>
+              {/* Real addresses as you type: picking one fills city, state and ZIP */}
+              <AddressAutocomplete
+                id="contact-street"
+                endpoint="/api/app/geocode/suggest"
                 value={form.address}
-                onChange={(e) => set("address", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-                placeholder="123 Main St"
+                onChange={(v) => set("address", v)}
+                onPick={(a) =>
+                  setForm((f) => ({ ...f, address: a.street, city: a.city, state: a.state, zip: a.postalCode }))
+                }
+                className={inputCls}
+                placeholder="Start typing — 123 Main St"
               />
             </div>
             <div className="grid grid-cols-3 gap-3">
@@ -348,7 +489,7 @@ export default function ContactForm({
                   type="text"
                   value={form.city}
                   onChange={(e) => set("city", e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+                  className={inputCls}
                 />
               </div>
               <div>
@@ -356,7 +497,7 @@ export default function ContactForm({
                 <select
                   value={form.state}
                   onChange={(e) => set("state", e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+                  className={inputCls}
                 >
                   <option value="">—</option>
                   {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -367,92 +508,17 @@ export default function ContactForm({
               <label className="block text-sm font-medium text-gray-700 mb-1">ZIP</label>
               <input
                 type="text"
+                inputMode="numeric"
                 value={form.zip}
                 onChange={(e) => set("zip", e.target.value)}
                 maxLength={10}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+                className={inputCls}
               />
             </div>
           </div>
         </div>
 
-        <div className="ds-card p-5">
-          <SectionHeader title="Client details" className="mb-4" />
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Lead source</label>
-              <input
-                type="text"
-                value={form.leadSource}
-                onChange={(e) => set("leadSource", e.target.value)}
-                placeholder="Referral, Google, yard sign…"
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Payment terms (days)</label>
-              <input
-                type="number"
-                min={0}
-                max={365}
-                value={form.paymentTermsDays}
-                onChange={(e) => set("paymentTermsDays", e.target.value)}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-              />
-              <p className="text-xs text-gray-500 mt-1">Invoices due Net {form.paymentTermsDays || "30"}</p>
-            </div>
-            {mode === "edit" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                <select
-                  value={form.kind}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      kind: e.target.value,
-                      // A business connection is never a lead
-                      status: e.target.value === "CONTACT" && f.status === "LEAD" ? "ACTIVE" : f.status,
-                    }))
-                  }
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-                >
-                  <option value="CLIENT">Client</option>
-                  <option value="CONTACT">Contact (business connection)</option>
-                </select>
-              </div>
-            )}
-            {mode === "edit" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select
-                  value={form.status}
-                  onChange={(e) => set("status", e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-                >
-                  {form.kind !== "CONTACT" && <option value="LEAD">Lead</option>}
-                  <option value="ACTIVE">{form.kind === "CONTACT" ? "Active" : "Active client"}</option>
-                  <option value="ARCHIVED">Archived</option>
-                </select>
-              </div>
-            )}
-            {mode === "create" && canAssign && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Assign to</label>
-                <select
-                  value={form.assignedToId}
-                  onChange={(e) => set("assignedToId", e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-                >
-                  <option value="">Me</option>
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>{u.name}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-        </div>
-
+        {/* Company-defined fields stay out front: the company asked for them */}
         {fieldDefs.length > 0 && (
           <div className="ds-card p-5">
             <SectionHeader title="Custom fields" className="mb-4" />
@@ -467,7 +533,7 @@ export default function ContactForm({
                     <select
                       value={customFields[d.id] ?? ""}
                       onChange={(e) => setCustomFields({ ...customFields, [d.id]: e.target.value })}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+                      className={inputCls}
                     >
                       <option value="">—</option>
                       {d.options.map((o) => (
@@ -481,7 +547,7 @@ export default function ContactForm({
                       type={d.type === "NUMBER" ? "number" : d.type === "DATE" ? "date" : "text"}
                       value={customFields[d.id] ?? ""}
                       onChange={(e) => setCustomFields({ ...customFields, [d.id]: e.target.value })}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+                      className={inputCls}
                     />
                   )}
                 </div>
@@ -490,16 +556,17 @@ export default function ContactForm({
           </div>
         )}
 
-        <div className="ds-card p-5">
-          <SectionHeader title="Notes" className="mb-4" />
-          <textarea
-            value={form.notes}
-            onChange={(e) => set("notes", e.target.value)}
-            rows={3}
-            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
-            placeholder="Any notes about this customer…"
-          />
-        </div>
+        {mode === "create" ? (
+          <MoreDetails
+            open={more}
+            onOpenChange={setMore}
+            hint="company, texting, lead source, payment terms, notes"
+          >
+            {detailsCard}
+          </MoreDetails>
+        ) : (
+          detailsCard
+        )}
 
         <div className="flex items-center gap-3">
           <button

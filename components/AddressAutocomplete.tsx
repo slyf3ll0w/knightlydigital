@@ -18,6 +18,9 @@ export default function AddressAutocomplete({
   className,
   placeholder,
   required,
+  endpoint = "/api/app/line/address-suggest",
+  id,
+  ariaLabel,
 }: {
   value: string;
   onChange: (text: string) => void;
@@ -25,6 +28,14 @@ export default function AddressAutocomplete({
   className?: string;
   placeholder?: string;
   required?: boolean;
+  /**
+   * Where suggestions come from. The default is the texting registration's
+   * manager-only route; the client forms use /api/app/geocode/suggest, open
+   * to anyone who can add a client.
+   */
+  endpoint?: string;
+  id?: string;
+  ariaLabel?: string;
 }) {
   const [items, setItems] = useState<AddressSuggestion[]>([]);
   const [open, setOpen] = useState(false);
@@ -45,7 +56,7 @@ export default function AddressAutocomplete({
       abort.current?.abort();
       const ctrl = new AbortController();
       abort.current = ctrl;
-      fetch(`/api/app/line/address-suggest?q=${encodeURIComponent(q)}`, { signal: ctrl.signal, cache: "no-store" })
+      fetch(`${endpoint}?q=${encodeURIComponent(q)}`, { signal: ctrl.signal, cache: "no-store" })
         .then((r) => (r.ok ? r.json() : { suggestions: [] }))
         .then((j: { suggestions?: AddressSuggestion[] }) => {
           if (ctrl.signal.aborted) return;
@@ -57,7 +68,7 @@ export default function AddressAutocomplete({
         .catch(() => {});
     }, 300);
     return () => clearTimeout(t);
-  }, [value]);
+  }, [value, endpoint]);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -77,6 +88,8 @@ export default function AddressAutocomplete({
   return (
     <div ref={wrap} className="relative">
       <input
+        id={id}
+        aria-label={ariaLabel}
         value={value}
         onChange={(e) => {
           picked.current = null;

@@ -8,8 +8,9 @@ export const metadata: Metadata = { title: "New Job" };
 // from the URL and fetches its own lists), so this thin server page is the
 // gate — the same rule the Jobs list uses for its New button. Without it a
 // role the API would refuse still got the form, and the 401/403 its contacts
-// fetch came back with crashed it.
+// fetch came back with crashed it. The actor id lets the crew default to
+// whoever is creating the job.
 export default async function NewJobPage() {
-  await requirePageActor((a) => isManager(a.role) || a.role === "USER");
-  return <NewJobClient />;
+  const actor = await requirePageActor((a) => isManager(a.role) || a.role === "USER");
+  return <NewJobClient actorId={actor.id} />;
 }

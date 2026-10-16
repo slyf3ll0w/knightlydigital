@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -11,10 +11,19 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import { alertSheet } from "@/components/ConfirmSheet";
 import { localInputToISO } from "@/lib/statuses";
-import SlotTimePicker from "@/components/SlotTimePicker";
+import SlotTimePicker, { SlotTimeSelect } from "@/components/SlotTimePicker";
 import ContactPicker from "@/components/ContactPicker";
 import SuggestedTimes from "@/components/SuggestedTimes";
-import { endFollowingStart } from "@/lib/scheduling";
+import DayChips from "@/components/DayChips";
+import DurationChips, { durationChoiceFor } from "@/components/DurationChips";
+import MoreDetails from "@/components/MoreDetails";
+import { useRememberedDuration } from "@/lib/duration-pref";
+import {
+  addMinutesToLocalDateTime,
+  endFollowingStart,
+  joinLocalDateTime,
+  splitLocalDateTime,
+} from "@/lib/scheduling";
 import PeoplePicker from "@/components/PeoplePicker";
 import ScheduleHeadsUp, { useScheduleCheck } from "@/components/ScheduleHeadsUp";
 import { ARRIVAL_WINDOW_CHOICES, arrivalWindowChoiceLabel } from "@/lib/arrival-window";
@@ -25,6 +34,10 @@ import { RecentTitleOptions, refreshRecentTitles, useRecentTitles } from "@/comp
  * Book a sales meeting / estimate. Type drives the extra field:
  * in-person → address (required, prefilled from the client),
  * video → optional meeting link, phone → nothing extra.
+ *
+ * Streamlined 2026-10-16: who, how and when stay on top (a day chip, a
+ * start time, a length); purpose, who's going, notes, the arrival window
+ * and the confirmation / reminder switches wait behind "More details".
  */
 
 type ContactOption = {
@@ -52,10 +65,24 @@ const TYPES = [
   { value: "VIDEO_CALL", label: "Video Call", hint: "Zoom, Meet, Teams — paste a link", icon: Video },
 ] as const;
 
+const DEFAULT_APPOINTMENT_MINUTES = 30;
 
 function contactAddress(c: ContactOption | undefined): string {
   if (!c) return "";
   return [c.address, c.city, c.state].filter(Boolean).join(", ");
+}
+
+/** Whole minutes from one local `YYYY-MM-DDTHH:mm` to another (null when either is incomplete). */
+function minutesBetween(start: string, end: string): number | null {
+  const a = splitLocalDateTime(start);
+  const b = splitLocalDateTime(end);
+  if (!a.time || !b.time) return null;
+  const toMs = (p: { date: string; time: string }) => {
+    const [y, mo, d] = p.date.split("-").map(Number);
+    const [h, mi] = p.time.split(":").map(Number);
+    return new Date(y, mo - 1, d, h, mi).getTime();
+  };
+  return Math.round((toMs(b) - toMs(a)) / 60_000);
 }
 
 export default function AppointmentForm({
@@ -83,21 +110,17 @@ export default function AppointmentForm({
 }) {
   const router = useRouter();
   const [contactId, setContactId] = useState(prefilledContactId);
-  // From a request, the purpose names it; otherwise the box starts with the
-  // last purpose this person typed (blank = "Estimate" on save).
+  // From a request, the purpose names it; otherwise blank = "Estimate" on
+  // save, with the purposes this person typed before as suggestions.
   const linkedTitle = prefilledTitle || (requestTitle ? `Estimate — ${requestTitle}` : "");
   const [title, setTitle] = useState(linkedTitle);
-  const [titleTyped, setTitleTyped] = useState(false);
   const recentTitles = useRecentTitles("appointment");
-  useEffect(() => {
-    if (!linkedTitle && !titleTyped && recentTitles?.[0]) setTitle(recentTitles[0]);
-    // only when the list first arrives
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recentTitles]);
   const [type, setType] = useState<string>("IN_PERSON");
   const [start, setStart] = useState(prefilledDate ? `${prefilledDate}T09:00` : "");
   const [end, setEnd] = useState("");
   const [anytime, setAnytime] = useState(false);
+  // How long: a chip (minutes) or Custom (null → an End time shows)
+  const [duration, setDuration] = useRememberedDuration("appointment", DEFAULT_APPOINTMENT_MINUTES);
   const [address, setAddress] = useState("");
   const [addressTouched, setAddressTouched] = useState(false);
   const [propertyId, setPropertyId] = useState(""); // saved-extra-address link
@@ -108,17 +131,17 @@ export default function AppointmentForm({
   const [remindClient, setRemindClient] = useState(true);
   const [sendConfirmation, setSendConfirmation] = useState(true);
   const [window_, setWindow] = useState(""); // "" = company default
+  const [more, setMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  // Anything touched since the page opened: leaving asks first. The
-  // remembered purpose lands through an effect, not an event, so it never
-  // counts.
+  // Anything touched since the page opened: leaving asks first.
   const [dirty, setDirty] = useState(false);
   const touch = () => setDirty(true);
   useUnsavedWarning(dirty && !loading);
 
   const selectedContact = contacts.find((c) => c.id === contactId);
   const effectiveAddress = addressTouched ? address : address || contactAddress(selectedContact);
+  const { date: pickedDate, time: pickedTime } = splitLocalDateTime(start);
 
   function pickContact(id: string) {
     setContactId(id);
@@ -128,11 +151,37 @@ export default function AppointmentForm({
   }
 
   function pickStart(v: string) {
-    // The end keeps the length already picked (30 minutes to start with —
-    // appointments are quick touchpoints): move a 1-hour visit to 1:00 and
-    // it ends at 2:00 (David 2026-10-06)
-    setEnd(endFollowingStart(start, end, v, 30));
+    // The end follows the start by the chosen length; on Custom it keeps
+    // the length already picked (30 minutes to start with)
+    setEnd(
+      duration != null && v.length >= 16
+        ? addMinutesToLocalDateTime(v, duration)
+        : endFollowingStart(start, end, v, DEFAULT_APPOINTMENT_MINUTES)
+    );
     setStart(v);
+    touch();
+  }
+
+  function applyDuration(minutes: number | null) {
+    setDuration(minutes);
+    if (minutes != null && start.length >= 16) setEnd(addMinutesToLocalDateTime(start, minutes));
+    touch();
+  }
+
+  function pickDay(d: string) {
+    if (anytime) {
+      setStart(d ? `${d}T09:00` : "");
+      touch();
+      return;
+    }
+    pickStart(joinLocalDateTime(d, pickedTime));
+  }
+
+  function toggleAnytime(on: boolean) {
+    setAnytime(on);
+    if (on) setStart(pickedDate ? `${pickedDate}T09:00` : "");
+    else setStart(pickedDate);
+    setEnd("");
     touch();
   }
 
@@ -156,7 +205,7 @@ export default function AppointmentForm({
     e.preventDefault();
     setError("");
     if (!contactId) return setError("Pick a client.");
-    if (!start) return setError("Pick a date and time.");
+    if (!start) return setError("Pick a day.");
     // The picker holds a bare "YYYY-MM-DD" until a time is chosen — that's
     // not a booking yet, and it used to save as UTC midnight (the evening
     // before, in the Americas)
@@ -215,6 +264,8 @@ export default function AppointmentForm({
     router.push(`/app/appointments/${data.id}`);
   }
 
+  const timed = !anytime && Boolean(pickedDate);
+
   return (
     <div className="p-4 lg:p-8 max-w-2xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
@@ -229,29 +280,10 @@ export default function AppointmentForm({
           </p>
         )}
         <div className="ds-card p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700">Who &amp; what</h2>
+          <h2 className="text-sm font-semibold text-gray-700">Who</h2>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Client *</label>
             <ContactPicker contacts={contacts} value={contactId} onChange={pickContact} />
-          </div>
-          <div>
-            <label className="mb-1 flex items-center gap-1.5 text-sm font-medium text-gray-700">
-              Purpose <span className="text-xs font-normal text-gray-400">(optional)</span>
-              <InfoTip label="Who sees the purpose?">
-                Your client sees this. It's in their reminder texts and emails and on their client portal. Leave it blank and it says "Estimate". WorkBench remembers what you type here for next time.
-              </InfoTip>
-            </label>
-            <input
-              value={title}
-              onChange={(e) => {
-                setTitle(e.target.value);
-                setTitleTyped(true);
-              }}
-              list="recent-appointment-titles"
-              placeholder="Estimate"
-              className={inputCls}
-            />
-            <RecentTitleOptions id="recent-appointment-titles" titles={recentTitles} />
           </div>
           {requestId && (
             <p className="text-xs text-gray-500">
@@ -351,139 +383,161 @@ export default function AppointmentForm({
 
         <div className="ds-card p-5 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700">When</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{anytime ? "Date *" : "Start *"}</label>
-              {anytime ? (
-                <input
-                  type="date"
-                  value={start.slice(0, 10)}
-                  onChange={(e) => setStart(`${e.target.value}T09:00`)}
-                  className={inputCls}
-                />
-              ) : (
-                <SlotTimePicker
-                  value={start}
-                  intervalMinutes={intervalMinutes}
-                  dayStartMinutes={dayStartMinutes}
-                  inputCls={inputCls}
-                  ariaLabel="Start"
-                  onChange={pickStart}
-                />
-              )}
-            </div>
-            {!anytime && (
+          <DayChips value={pickedDate} onChange={pickDay} ariaLabel="Day" />
+          {timed && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-[11rem_minmax(0,1fr)]">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">End</label>
-                <SlotTimePicker
-                  value={end}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Start *</label>
+                <SlotTimeSelect
+                  time={pickedTime}
+                  onChange={(t) => pickStart(joinLocalDateTime(pickedDate, t))}
                   intervalMinutes={intervalMinutes}
                   dayStartMinutes={dayStartMinutes}
-                  inputCls={inputCls}
-                  ariaLabel="End"
-                  onChange={(v) => {
-                    setEnd(v);
-                    touch();
-                  }}
+                  className={inputCls}
+                  ariaLabel="Start time"
                 />
               </div>
-            )}
-          </div>
-          <label className="flex items-center gap-1.5 text-xs text-gray-600 select-none">
-            <input
-              type="checkbox"
-              checked={anytime}
-              onChange={(e) => setAnytime(e.target.checked)}
-              className="h-3.5 w-3.5 rounded border-gray-300 text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
-            />
-            Anytime (no set time)
-          </label>
-          {!anytime && start.length >= 10 && (
-            <SuggestedTimes
-              date={start.slice(0, 10)}
-              userId={assigneeIds[0]}
-              address={type === "IN_PERSON" ? effectiveAddress : null}
-              durationMinutes={30}
-              onPick={(s, e) => {
-                setStart(s);
-                setEnd(e);
-                touch();
-              }}
-            />
-          )}
-          {!anytime && <ScheduleHeadsUp result={check} />}
-          {type === "IN_PERSON" && !anytime && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Arrival window <span className="text-gray-400">(what the client is promised)</span>
-              </label>
-              <select value={window_} onChange={(e) => setWindow(e.target.value)} className={inputCls}>
-                <option value="">Company default</option>
-                {ARRIVAL_WINDOW_CHOICES.map((m) => (
-                  <option key={m} value={m}>
-                    {arrivalWindowChoiceLabel(m)}
-                  </option>
-                ))}
-              </select>
+              <div className="min-w-0">
+                <label className="block text-sm font-medium text-gray-700 mb-1">How long</label>
+                <DurationChips value={duration} onChange={applyDuration} />
+              </div>
             </div>
           )}
-        </div>
-
-        <div className="ds-card p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700">Details</h2>
-          {users.length > 1 && (
+          {timed && duration === null && (
             <div>
-              <div className="mb-1 flex items-center gap-1 text-sm font-medium text-gray-700">
-                Team members
-                <InfoTip>Tick everyone going. It shows on each person&apos;s schedule and calendar, and blocks their online-booking times.</InfoTip>
-              </div>
-              <PeoplePicker
-                users={users}
-                value={assigneeIds}
-                onChange={(ids) => {
-                  setAssigneeIds(ids);
+              <label className="block text-sm font-medium text-gray-700 mb-1">End</label>
+              <SlotTimePicker
+                value={end}
+                intervalMinutes={intervalMinutes}
+                dayStartMinutes={dayStartMinutes}
+                inputCls={inputCls}
+                ariaLabel="End"
+                onChange={(v) => {
+                  setEnd(v);
                   touch();
                 }}
               />
             </div>
           )}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-              placeholder="Anything to prepare, questions to ask…"
-              className={inputCls}
-            />
-          </div>
-          <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer select-none">
+          <label className="flex items-center gap-1.5 text-xs text-gray-600 select-none">
             <input
               type="checkbox"
-              checked={sendConfirmation}
-              onChange={(e) => setSendConfirmation(e.target.checked)}
-              className="mt-0.5 accent-[color:var(--ds-primary)]"
+              checked={anytime}
+              onChange={(e) => toggleAnytime(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-gray-300 text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
             />
-            <span className="inline-flex items-center gap-1.5">
-              Send the client a confirmation now
-              <InfoTip label="What goes out?">
-                A &ldquo;you&apos;re booked&rdquo; text and email with the details, as soon as you save.
-              </InfoTip>
-            </span>
+            Anytime (no set time)
           </label>
-          <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={remindClient}
-              onChange={(e) => setRemindClient(e.target.checked)}
-              className="mt-0.5 accent-[color:var(--ds-primary)]"
+          {timed && (
+            <SuggestedTimes
+              date={pickedDate}
+              userId={assigneeIds[0]}
+              address={type === "IN_PERSON" ? effectiveAddress : null}
+              durationMinutes={duration ?? DEFAULT_APPOINTMENT_MINUTES}
+              onPick={(s, e) => {
+                setStart(s);
+                setEnd(e);
+                const mins = minutesBetween(s, e);
+                if (mins != null) setDuration(durationChoiceFor(mins));
+                touch();
+              }}
             />
-            <span className="inline-flex items-center gap-1.5">
-              Send the client automatic reminders
-              <InfoTip label="When do reminders go out?">Email/text the day before and about an hour out.</InfoTip>
-            </span>
-          </label>
+          )}
+          {!anytime && <ScheduleHeadsUp result={check} />}
         </div>
+
+        <MoreDetails
+          open={more}
+          onOpenChange={setMore}
+          hint="purpose, who's going, notes, arrival window, confirmation and reminders"
+        >
+          <div className="ds-card p-5 space-y-4">
+            <h2 className="text-sm font-semibold text-gray-700">More details</h2>
+            <div>
+              <label className="mb-1 flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                Purpose <span className="text-xs font-normal text-gray-400">(optional)</span>
+                <InfoTip label="Who sees the purpose?">
+                  Your client sees this. It&apos;s in their reminder texts and emails and on their client portal. Leave it blank and it says &ldquo;Estimate&rdquo;. WorkBench remembers what you type here and offers it next time.
+                </InfoTip>
+              </label>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                list="recent-appointment-titles"
+                placeholder="Estimate"
+                className={inputCls}
+              />
+              <RecentTitleOptions id="recent-appointment-titles" titles={recentTitles} />
+            </div>
+            {users.length > 1 && (
+              <div>
+                <div className="mb-1 flex items-center gap-1 text-sm font-medium text-gray-700">
+                  Team members
+                  <InfoTip>Starts on you. Tick everyone going. It shows on each person&apos;s schedule and calendar, and blocks their online-booking times.</InfoTip>
+                </div>
+                <PeoplePicker
+                  users={users}
+                  value={assigneeIds}
+                  onChange={(ids) => {
+                    setAssigneeIds(ids);
+                    touch();
+                  }}
+                />
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+                placeholder="Anything to prepare, questions to ask…"
+                className={inputCls}
+              />
+            </div>
+            {type === "IN_PERSON" && !anytime && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Arrival window <span className="text-gray-400">(what the client is promised)</span>
+                </label>
+                <select value={window_} onChange={(e) => setWindow(e.target.value)} className={inputCls}>
+                  <option value="">Company default</option>
+                  {ARRIVAL_WINDOW_CHOICES.map((m) => (
+                    <option key={m} value={m}>
+                      {arrivalWindowChoiceLabel(m)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={sendConfirmation}
+                onChange={(e) => setSendConfirmation(e.target.checked)}
+                className="mt-0.5 accent-[color:var(--ds-primary)]"
+              />
+              <span className="inline-flex items-center gap-1.5">
+                Send the client a confirmation now
+                <InfoTip label="What goes out?">
+                  A &ldquo;you&apos;re booked&rdquo; text and email with the details, as soon as you save.
+                </InfoTip>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={remindClient}
+                onChange={(e) => setRemindClient(e.target.checked)}
+                className="mt-0.5 accent-[color:var(--ds-primary)]"
+              />
+              <span className="inline-flex items-center gap-1.5">
+                Send the client automatic reminders
+                <InfoTip label="When do reminders go out?">Email/text the day before and about an hour out.</InfoTip>
+              </span>
+            </label>
+          </div>
+        </MoreDetails>
 
         <div className="flex gap-2">
           <button

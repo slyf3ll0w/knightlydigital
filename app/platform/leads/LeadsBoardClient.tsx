@@ -24,6 +24,8 @@ import {
 import { QuickMenu, type QuickAction } from "@/components/QuickMenu";
 import CallLink from "@/components/CallLink";
 import UseMyLocation from "@/components/UseMyLocation";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
+import { formatPhoneAsTyped, looksLikePhone, titleCaseName } from "@/lib/phone-input";
 import { callFromLine, useLineCalling } from "@/lib/line-calling";
 import Modal from "@/components/Modal";
 import PageTitle from "@/components/PageTitle";
@@ -927,10 +929,18 @@ function QuickAdd({
 
   return (
     <form onSubmit={submit} className="ds-card p-3 space-y-2">
-      <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" autoFocus className={box} />
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={() => setName((n) => titleCaseName(n))}
+        placeholder="Name"
+        autoFocus
+        className={box}
+      />
       <input
         value={contact}
-        onChange={(e) => setContact(e.target.value)}
+        // A number formats itself as it's typed; an email is left alone
+        onChange={(e) => setContact(more || looksLikePhone(e.target.value) ? formatPhoneAsTyped(e.target.value) : e.target.value)}
         placeholder={more ? "Phone (optional)" : "Phone or email (optional)"}
         type={more ? "tel" : "text"}
         className={box}
@@ -939,7 +949,14 @@ function QuickAdd({
         <>
           <input value={extra.email} onChange={(e) => setX("email", e.target.value)} placeholder="Email (optional)" type="email" className={box} />
           <input value={extra.companyName} onChange={(e) => setX("companyName", e.target.value)} placeholder="Company (optional)" className={box} />
-          <input value={extra.address} onChange={(e) => setX("address", e.target.value)} placeholder="Street address" autoComplete="off" className={box} />
+          <AddressAutocomplete
+            endpoint="/api/app/geocode/suggest"
+            value={extra.address}
+            onChange={(v) => setX("address", v)}
+            onPick={(a) => setExtra((x) => ({ ...x, address: a.street, city: a.city, state: a.state, zip: a.postalCode }))}
+            placeholder="Street address"
+            className={box}
+          />
           <UseMyLocation
             size="xs"
             onFill={(a) => setExtra((x) => ({ ...x, address: a.street, city: a.city, state: a.state, zip: a.postalCode }))}

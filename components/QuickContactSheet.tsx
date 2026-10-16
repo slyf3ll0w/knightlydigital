@@ -5,6 +5,7 @@ import Modal from "@/components/Modal";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/ds";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
+import { formatPhoneAsTyped, splitName, titleCaseName } from "@/lib/phone-input";
 import type { PickerContact } from "@/components/ContactPicker";
 
 /**
@@ -12,8 +13,10 @@ import type { PickerContact } from "@/components/ContactPicker";
  * all start with a client picker, and a brand-new company has nobody to
  * pick — the picker said "No matching clients." and the only way out was to
  * abandon the form, add the client on its own page, and start over (audit
- * 2026-10-12). Four fields, one POST to /api/app/contacts, and the new
- * person is selected in the picker that opened this.
+ * 2026-10-12). Three boxes — name, phone, email — one POST to
+ * /api/app/contacts, and the new person is selected in the picker that
+ * opened this. The phone formats itself as it's typed; a lowercase name is
+ * capitalised on the way out (streamline batch 1, 2026-10-16).
  */
 export default function QuickContactSheet({
   open,
@@ -29,20 +32,16 @@ export default function QuickContactSheet({
   initialName?: string;
   kind?: "CLIENT" | "CONTACT";
 }) {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  // Fresh draft on every open, seeded from the search text ("Maria Lopez"
-  // → first + last).
+  // Fresh draft on every open, seeded from the search text.
   useEffect(() => {
     if (!open) return;
-    const [first = "", ...rest] = initialName.trim().split(/\s+/);
-    setFirstName(first);
-    setLastName(rest.join(" "));
+    setName(initialName.trim());
     setPhone("");
     setEmail("");
     setError("");
@@ -58,15 +57,16 @@ export default function QuickContactSheet({
     // here also submitted the host (same trap as EstimatorRunner).
     e.stopPropagation();
     if (busy) return;
-    if (!firstName.trim()) {
-      setError("First name is required.");
+    const { firstName, lastName } = splitName(titleCaseName(name));
+    if (!firstName) {
+      setError("Name is required.");
       return;
     }
     setBusy(true);
     setError("");
     const { ok, data } = await postJson<{ id: string; firstName: string; lastName: string }>("/api/app/contacts", {
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
+      firstName,
+      lastName,
       phone: phone.trim() || undefined,
       email: email.trim() || undefined,
       kind,
@@ -78,7 +78,7 @@ export default function QuickContactSheet({
       setError(data?.error ?? GENERIC_ERROR);
       return;
     }
-    onCreated({ id: data.id, firstName: data.firstName ?? firstName.trim(), lastName: data.lastName ?? lastName.trim() });
+    onCreated({ id: data.id, firstName: data.firstName ?? firstName, lastName: data.lastName ?? lastName });
     onClose();
   }
 
@@ -92,25 +92,33 @@ export default function QuickContactSheet({
             {error}
           </p>
         )}
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div>
-            <label htmlFor="qc-first" className="mb-1 block text-sm font-medium text-gray-700">
-              First name *
-            </label>
-            <Input id="qc-first" value={firstName} onChange={(e) => setFirstName(e.target.value)} autoFocus required />
-          </div>
-          <div>
-            <label htmlFor="qc-last" className="mb-1 block text-sm font-medium text-gray-700">
-              Last name
-            </label>
-            <Input id="qc-last" value={lastName} onChange={(e) => setLastName(e.target.value)} />
-          </div>
+        <div className="mt-4">
+          <label htmlFor="qc-name" className="mb-1 block text-sm font-medium text-gray-700">
+            Name *
+          </label>
+          <Input
+            id="qc-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => setName((n) => titleCaseName(n))}
+            autoFocus
+            required
+            autoComplete="off"
+            placeholder="Mike Jones"
+          />
         </div>
         <div className="mt-3">
           <label htmlFor="qc-phone" className="mb-1 block text-sm font-medium text-gray-700">
             Phone
           </label>
-          <Input id="qc-phone" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(214) 555-0100" />
+          <Input
+            id="qc-phone"
+            type="tel"
+            inputMode="tel"
+            value={phone}
+            onChange={(e) => setPhone(formatPhoneAsTyped(e.target.value))}
+            placeholder="(214) 555-0100"
+          />
         </div>
         <div className="mt-3">
           <label htmlFor="qc-email" className="mb-1 block text-sm font-medium text-gray-700">

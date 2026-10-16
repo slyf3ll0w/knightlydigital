@@ -7,8 +7,11 @@ import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
+import MoreDetails from "@/components/MoreDetails";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
+import { saveNewServices } from "@/lib/save-new-services";
+import { titleFromServices } from "@/lib/service-title";
 import { type PickerWorkItem } from "@/components/WorkItemPicker";
 import ContactPicker from "@/components/ContactPicker";
 import LineItemsEditor, {
@@ -66,6 +69,24 @@ type PrefillJob = {
 
 type PrefillAppointment = { id: string; title: string; contactId: string; scheduledAt: string };
 
+const inputCls =
+  "w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]";
+
+/** "Nov 15" for a yyyy-mm-dd (noon dodges the UTC roll-back). */
+function shortDate(ymd: string): string {
+  if (!ymd) return "";
+  const d = new Date(`${ymd}T12:00:00`);
+  return Number.isNaN(d.getTime()) ? ymd : d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+/**
+ * New / edit invoice. Streamlined 2026-10-16: customer and line items on
+ * top, the total under them. The subject (defaults to the job or the
+ * services), the due date (defaults to the client's terms), tax and
+ * discount (defaults from Settings), the client message and notes wait
+ * behind "More details" / "Adjust tax or discount". Editing an existing
+ * invoice opens everything, since it was all filled in once.
+ */
 export default function InvoiceEditor({
   contacts,
   workItems = [],
@@ -165,6 +186,9 @@ export default function InvoiceEditor({
   const [lineItems, setLineItems] = useState<EditorLineItem[]>(initLines);
   const depositApplied = editInvoice?.depositApplied ?? 0;
   const backHref = editInvoice ? `/app/invoices/${editInvoice.id}` : "/app/invoices";
+  // The fold: an edit opens everything; a new invoice keeps the rest tucked away
+  const [more, setMore] = useState(Boolean(editInvoice));
+  const [adjust, setAdjust] = useState(Boolean(editInvoice) || discountType !== "NONE");
 
   const subtotal = lineItems.reduce((sum, li) => {
     return sum + (parseInt(li.quantity, 10) || 0) * (parseFloat(li.unitPrice) || 0);
@@ -194,7 +218,8 @@ export default function InvoiceEditor({
     setError(""); setLoading(true);
 
     const payload = {
-      subject: subject || null,
+      // Blank subject → named after the services ("House Wash + Gutters")
+      subject: subject.trim() || titleFromServices(lineItems.map((li) => li.name)) || null,
       notes,
       clientMessage: clientMessage || null,
       taxRate: taxRate ? parseFloat(taxRate) / 100 : null,
@@ -218,8 +243,9 @@ export default function InvoiceEditor({
 
     if (editInvoice) {
       const { ok, data } = await postJson(`/api/app/invoices/${editInvoice.id}`, payload, "PATCH");
+      if (!ok) { setLoading(false); setError(data?.error ?? GENERIC_ERROR); return; }
+      await saveNewServices(lineItems, workItems);
       setLoading(false);
-      if (!ok) { setError(data?.error ?? GENERIC_ERROR); return; }
       setDirty(false);
       router.push(`/app/invoices/${editInvoice.id}`);
       router.refresh();
@@ -233,8 +259,10 @@ export default function InvoiceEditor({
       ...payload,
     });
 
+    if (!ok || !data?.id) { setLoading(false); setError(data?.error ?? GENERIC_ERROR); return; }
+    // Typed, priced services join the price book for next time
+    await saveNewServices(lineItems, workItems);
     setLoading(false);
-    if (!ok || !data?.id) { setError(data?.error ?? GENERIC_ERROR); return; }
     setDirty(false);
     router.push(`/app/invoices/${data.id}`);
   }
@@ -276,48 +304,32 @@ export default function InvoiceEditor({
 
         <div className="ds-card p-5 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-            <input
-              type="text"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder="e.g. Pressure Washing Services"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-            />
-          </div>
-          {/* Stacks on phones — two-up squeezed both fields on small screens */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Customer *</label>
-              {editInvoice ? (
-                <p className="px-3 py-2.5 border border-gray-200 bg-gray-50 rounded-lg text-sm text-gray-700">
-                  {editInvoice.contactName || "—"}
-                </p>
-              ) : (
-                <ContactPicker
-                  contacts={contacts}
-                  value={contactId}
-                  onChange={(id) => {
-                    setContactId(id);
-                    if (!dueDateTouched) setDueDate(defaultDueFor(id));
-                  }}
-                  placeholder="Select a customer…"
-                  title="Select a customer"
-                />
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Due date</label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => {
-                  setDueDate(e.target.value);
-                  setDueDateTouched(true);
+            <label className="block text-sm font-medium text-gray-700 mb-1">Customer *</label>
+            {editInvoice ? (
+              <p className="px-3 py-2.5 border border-gray-200 bg-gray-50 rounded-lg text-sm text-gray-700">
+                {editInvoice.contactName || "—"}
+              </p>
+            ) : (
+              <ContactPicker
+                contacts={contacts}
+                value={contactId}
+                onChange={(id) => {
+                  setContactId(id);
+                  if (!dueDateTouched) setDueDate(defaultDueFor(id));
                 }}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+                placeholder="Select a customer…"
+                title="Select a customer"
               />
-            </div>
+            )}
+            {/* The due date is set by the client's terms; it's shown, not asked */}
+            {!more && dueDate && (
+              <p className="mt-1.5 text-xs text-gray-500">
+                Due {shortDate(dueDate)}{" "}
+                <button type="button" onClick={() => setMore(true)} className="ds-link font-medium">
+                  Change
+                </button>
+              </p>
+            )}
           </div>
         </div>
 
@@ -335,35 +347,41 @@ export default function InvoiceEditor({
           />
           <div className="px-5 py-4 border-t border-gray-100 bg-gray-50 rounded-b-[7px] max-lg:rounded-b-[13px]">
             <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <label className="text-sm text-gray-600">Tax</label>
-                  <input type="number" value={taxRate} onChange={(e) => setTaxRate(e.target.value)}
-                    min="0" max="100" step="0.001" placeholder="0"
-                    className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-                  />
-                  <span className="text-sm text-gray-500">%</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-sm text-gray-600">Discount</label>
-                  <select
-                    value={discountType}
-                    onChange={(e) => setDiscountType(e.target.value as "NONE" | "PERCENT" | "FIXED")}
-                    className="px-2 py-1 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-                  >
-                    <option value="NONE">None</option>
-                    <option value="PERCENT">%</option>
-                    <option value="FIXED">$</option>
-                  </select>
-                  {discountType !== "NONE" && (
-                    <input type="number" value={discountValue}
-                      onChange={(e) => setDiscountValue(e.target.value)}
-                      min="0" step="0.01" placeholder="0"
-                      className="w-24 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+              {adjust ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-gray-600">Tax</label>
+                    <input type="number" value={taxRate} onChange={(e) => setTaxRate(e.target.value)}
+                      min="0" max="100" step="0.001" placeholder="0"
+                      className="w-20 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                     />
-                  )}
+                    <span className="text-sm text-gray-500">%</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-gray-600">Discount</label>
+                    <select
+                      value={discountType}
+                      onChange={(e) => setDiscountType(e.target.value as "NONE" | "PERCENT" | "FIXED")}
+                      className="px-2 py-1 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+                    >
+                      <option value="NONE">None</option>
+                      <option value="PERCENT">%</option>
+                      <option value="FIXED">$</option>
+                    </select>
+                    {discountType !== "NONE" && (
+                      <input type="number" value={discountValue}
+                        onChange={(e) => setDiscountValue(e.target.value)}
+                        min="0" step="0.01" placeholder="0"
+                        className="w-24 px-2 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+                      />
+                    )}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <button type="button" onClick={() => setAdjust(true)} className="ds-link text-xs font-medium">
+                  Adjust tax or discount
+                </button>
+              )}
               <div className="text-right space-y-1 text-sm">
                 <div className="flex justify-between gap-8">
                   <span className="text-gray-500">Subtotal</span>
@@ -377,7 +395,7 @@ export default function InvoiceEditor({
                 )}
                 {tax > 0 && (
                   <div className="flex justify-between gap-8">
-                    <span className="text-gray-500">Tax</span>
+                    <span className="text-gray-500">Tax{taxRate ? ` (${taxRate}%)` : ""}</span>
                     <span className="font-medium">{money(tax)}</span>
                   </div>
                 )}
@@ -398,19 +416,48 @@ export default function InvoiceEditor({
           </div>
         </div>
 
-        <div className="ds-card p-5">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Client message</label>
-          <textarea value={clientMessage} onChange={(e) => setClientMessage(e.target.value)} rows={3}
-            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
-            placeholder="A message the client sees at the top of the invoice (thank-you note, payment instructions)..." />
-        </div>
-
-        <div className="ds-card p-5">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3}
-            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] resize-none"
-            placeholder="Payment terms, thank you note, etc." />
-        </div>
+        <MoreDetails open={more} onOpenChange={setMore} hint="subject, due date, client message, notes">
+          <div className="ds-card p-5 space-y-4">
+            <h2 className="text-sm font-semibold text-gray-700">More details</h2>
+            {/* Stacks on phones — two-up squeezed both fields on small screens */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                <input
+                  type="text"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  placeholder="Defaults to the line items"
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Due date</label>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => {
+                    setDueDate(e.target.value);
+                    setDueDateTouched(true);
+                  }}
+                  className={inputCls}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Client message</label>
+              <textarea value={clientMessage} onChange={(e) => setClientMessage(e.target.value)} rows={3}
+                className={`${inputCls} resize-none`}
+                placeholder="A message the client sees at the top of the invoice (thank-you note, payment instructions)..." />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3}
+                className={`${inputCls} resize-none`}
+                placeholder="Payment terms, thank you note, etc." />
+            </div>
+          </div>
+        </MoreDetails>
 
         <div className="flex items-center gap-3">
           <button type="submit" disabled={loading}
