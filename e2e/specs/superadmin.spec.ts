@@ -5,6 +5,7 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
 import { readState } from "../env";
 import { auditPage } from "../helpers/contrast";
+import { db, disconnectDb } from "../helpers/db";
 
 const state = readState();
 const sa = state.superadmin;
@@ -92,6 +93,10 @@ test.describe("platform console", () => {
     const api = page.context().request;
     const name = `E2E Lead ${Date.now()}`;
 
+    // Earlier failed runs leave their lead on the shared board — clear them
+    // so the New column doesn't grow a card per red run.
+    await db().consoleLead.deleteMany({ where: { name: { startsWith: "E2E Lead " } } });
+
     await page.goto(`${state.baseUrl}/superadmin/leads`);
     await expect(page.getByRole("heading", { name: /^Leads/, level: 1 })).toBeVisible();
 
@@ -100,7 +105,10 @@ test.describe("platform console", () => {
     const { id } = (await made.json()) as { id: string };
 
     await page.reload();
-    const card = page.getByText(name, { exact: true });
+    // The board's refresh can leave a second, hidden copy of the card in the
+    // DOM for a moment (strict-mode violation on 2026-10-16) — the visible
+    // one in <main> is the card.
+    const card = page.getByRole("main").getByText(name, { exact: true }).first();
     await expect(card).toBeVisible();
     await card.click();
     await expect(page.getByRole("button", { name: "Won" })).toBeVisible();
@@ -117,6 +125,7 @@ test.describe("platform console", () => {
     const gone = await api.delete(`${state.baseUrl}/api/superadmin/leads/${id}`);
     expect(gone.ok()).toBeTruthy();
     await page.context().close();
+    await disconnectDb();
   });
 
   test("search finds the harness company", async ({ browser }) => {
