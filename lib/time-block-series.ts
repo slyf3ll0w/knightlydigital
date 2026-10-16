@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { localDayKey } from "@/lib/booking-engine";
 import { reportError } from "@/lib/report-error";
 import { geocodeAddress } from "@/lib/geocoding";
-import { getActor, isManager, type Actor } from "@/lib/permissions";
+import { isManager, type Actor } from "@/lib/permissions";
 import {
   addDaysToKey,
   horizonEndKey,
@@ -251,5 +251,3 @@ export async function createSeriesFromBody(
   const created = await materializeSeries(series, await companyTimezone(actor.companyId), now);
   return { ok: true, series, created };
 }
-
-export { getActor };
