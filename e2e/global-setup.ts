@@ -27,6 +27,15 @@ export default async function globalSetup(): Promise<void> {
   // The deployment must be reachable before we burn test budget.
   const ping = await fetch(`${baseUrl}/app/login`, { redirect: "manual" });
   if (ping.status >= 500) throw new Error(`${baseUrl} answered ${ping.status} — aborting.`);
+  // What the DEPLOYED app charges through (/api/health `processor`). The
+  // workflow's own PAYMENT_PROCESSOR says what the specs can drive; the two
+  // must agree or the Finix card specs would look for a form that isn't there
+  // (staging on Square, 2026-10-16). Older deploys don't report it = assume
+  // the env is right.
+  const deployedProcessor: string | null = await fetch(`${baseUrl}/api/health`)
+    .then((r) => r.json() as Promise<{ processor?: string }>)
+    .then((h) => h.processor ?? null)
+    .catch(() => null);
 
   const { PrismaClient } = await import("@prisma/client");
   const prisma = new PrismaClient();
@@ -73,8 +82,12 @@ export default async function globalSetup(): Promise<void> {
     // the suite must never charge real cards.
     const finixSandbox =
       (process.env.PAYMENT_PROCESSOR ?? "") === "finix" &&
+      (deployedProcessor === null || deployedProcessor === "finix") &&
       (process.env.FINIX_ENVIRONMENT ?? "") === "sandbox" &&
       Boolean(process.env.FINIX_API_USERNAME && process.env.FINIX_API_PASSWORD);
+    if (deployedProcessor && deployedProcessor !== "finix") {
+      console.log(`[e2e] deployed processor is "${deployedProcessor}" — Finix card specs will skip`);
+    }
     const cardTestsEnabled =
       finixSandbox &&
       Boolean(a.company.finixMerchantId) &&

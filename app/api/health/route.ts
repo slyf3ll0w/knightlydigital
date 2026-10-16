@@ -26,7 +26,10 @@ export async function GET(req: NextRequest) {
   // `commit` lets CI wait for a specific build to be live before running the
   // e2e suite against it (Railway injects RAILWAY_GIT_COMMIT_SHA).
   const commit = process.env.RAILWAY_GIT_COMMIT_SHA ?? null;
-  if (req.nextUrl.searchParams.get("cron") !== "1") return NextResponse.json({ ok: true, commit });
+  // `processor` lets the e2e harness gate the specs that move sandbox money
+  // on what is DEPLOYED (Finix card specs skip while staging runs Square).
+  const processor = process.env.PAYMENT_PROCESSOR ?? "manual";
+  if (req.nextUrl.searchParams.get("cron") !== "1") return NextResponse.json({ ok: true, commit, processor });
 
   const latest = await prisma.reconcileRun.findFirst({
     orderBy: { startedAt: "desc" },

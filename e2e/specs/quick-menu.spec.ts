@@ -63,8 +63,16 @@ test.describe("quick-action menus", () => {
     await page.goto(`${state.baseUrl}/app/jobs`);
     const row = page.locator(`a[href="/app/jobs/${job.id}"]`).first();
     await expect(row).toBeVisible();
-    await row.scrollIntoViewIfNeeded();
-    const box = (await row.boundingBox())!;
+    // The list can re-render once more right after first paint (live
+    // refresh), detaching the node mid-scroll — resolve the row fresh each
+    // try instead of holding one element across the re-render.
+    let box: { x: number; y: number; width: number; height: number } | null = null;
+    for (let i = 0; i < 20 && !box; i++) {
+      await row.evaluate((el) => el.scrollIntoView({ block: "center" })).catch(() => {});
+      box = await row.boundingBox().catch(() => null);
+      if (!box) await page.waitForTimeout(250);
+    }
+    if (!box) throw new Error("job row never settled on the page");
     const at: [number, number] = [box.x + box.width / 2, box.y + box.height / 2];
 
     // A real long press: touchstart, hold past the threshold, touchend — and,
