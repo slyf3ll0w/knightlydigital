@@ -103,11 +103,14 @@ export function squareCardStyle(opts: { dark?: boolean; accent?: string }): Squa
     ".message-icon": { color: opts.dark ? "#D1D5DB" : "#6B7280" },
     ".message-text.is-error": { color: "#F87171" },
     ".message-icon.is-error": { color: "#F87171" },
+    // No fontFamily: Square only accepts its own list of families and
+    // rejects the WHOLE style for an unknown one ("Invalid style value
+    // 'Lexend, …' for property 'fontFamily'", staging 2026-10-16), which
+    // took the card form down. Its default sans-serif is close enough.
     input: {
       backgroundColor: opts.dark ? "#111827" : "#FFFFFF",
       color: opts.dark ? "#FFFFFF" : "#111827",
       fontSize: "14px",
-      fontFamily: "Lexend, Helvetica, Arial, sans-serif",
     },
     "input::placeholder": { color: opts.dark ? "#6B7280" : "#9CA3AF" },
     "input.is-error": { color: "#F87171" },

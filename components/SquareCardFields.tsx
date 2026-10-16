@@ -61,7 +61,16 @@ const SquareCardFields = forwardRef<
         if (cancelled || !window.Square || !containerRef.current) return;
         const payments = paymentsRef.current ?? window.Square.payments(config.applicationId, config.locationId);
         paymentsRef.current = payments;
-        card = await payments.card({ style: squareCardStyle({ dark, accent }) });
+        try {
+          card = await payments.card({ style: squareCardStyle({ dark, accent }) });
+        } catch (styleErr) {
+          // Square validates the style against its own whitelist and throws
+          // for anything it doesn't know. A rejected style must never cost a
+          // payment: mount plain and log what it disliked.
+          if ((styleErr as { name?: string })?.name !== "InvalidStylesError") throw styleErr;
+          console.error("[square] card style rejected, mounting unstyled", styleErr);
+          card = await payments.card();
+        }
         if (cancelled) {
           await card.destroy().catch(() => {});
           return;
