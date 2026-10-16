@@ -3,7 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Landmark, Loader2 } from "lucide-react";
 import type { SquareClientConfig } from "@/lib/pay-config";
-import { loadSquareJs, squareTokenError, type SquareAchInstance, type SquarePaymentsInstance } from "@/lib/square-js";
+import {
+  loadSquareJs,
+  squareTokenError,
+  type SquareAchInstance,
+  type SquareAchTokenizationEvent,
+  type SquarePaymentsInstance,
+  type SquareTokenResult,
+} from "@/lib/square-js";
 
 /**
  * Pay by bank through Square: the Web Payments SDK's ACH method opens Plaid
@@ -38,6 +45,24 @@ export default function SquareAchButton({
   const [busy, setBusy] = useState(false);
   const achRef = useRef<SquareAchInstance | null>(null);
   const paymentsRef = useRef<SquarePaymentsInstance | null>(null);
+  // Tokens already handed to onToken — the `ontokenization` event and the
+  // tokenize() promise can both deliver the same token; charge it once.
+  const seenTokensRef = useRef<Set<string>>(new Set());
+  const onTokenRef = useRef(onToken);
+  onTokenRef.current = onToken;
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
+
+  async function deliver(result: SquareTokenResult | undefined, errorMessage?: string) {
+    if (result?.status === "OK" && result.token) {
+      if (seenTokensRef.current.has(result.token)) return;
+      seenTokensRef.current.add(result.token);
+      await onTokenRef.current(result.token);
+      return;
+    }
+    if (result?.status === "Cancel") return;
+    onErrorRef.current(errorMessage || squareTokenError(result ?? null));
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -57,6 +82,15 @@ export default function SquareAchButton({
           await ach.destroy().catch(() => {});
           return;
         }
+        // Square requires this listener BEFORE tokenize(): a bank on Plaid's
+        // OAuth redirect flow comes back to this page and the token arrives
+        // here, not through the promise.
+        ach.addEventListener("ontokenization", (e) => {
+          const d = (e as SquareAchTokenizationEvent).detail;
+          if (!d) return;
+          setBusy(false);
+          void deliver(d.tokenResult, d.error?.message);
+        });
         achRef.current = ach;
         setReady(true);
       } catch (err) {
@@ -90,11 +124,7 @@ export default function SquareAchButton({
         amount: amount.toFixed(2),
         currency: "USD",
       });
-      if (result.status === "OK" && result.token) {
-        await onToken(result.token);
-      } else if (result.status !== "Cancel") {
-        onError(squareTokenError(result));
-      }
+      await deliver(result);
     } catch (err) {
       console.error("[square] ach tokenize failed", err);
       onError("The bank connection didn't go through. Please try again or pay by card.");

@@ -38,6 +38,13 @@ export interface SquareCardInstance {
   configure?: (options: { style?: SquareCardStyle }) => Promise<void>;
 }
 
+/** What `ontokenization` hands back (the event path Square requires for
+ *  banks that use Plaid's OAuth redirect — the tokenize() promise alone
+ *  never resolves after the redirect). */
+export type SquareAchTokenizationEvent = {
+  detail?: { tokenResult?: SquareTokenResult; error?: { message?: string } };
+};
+
 export interface SquareAchInstance {
   tokenize: (options: {
     accountHolderName: string;
