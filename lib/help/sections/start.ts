@@ -75,7 +75,7 @@ export const startSection: HelpSection = {
           items: [
             "**Add your services** (or **Review your prices** if your price book came pre-loaded): Settings → Services, so quotes, jobs and invoices fill themselves in.",
             "**Fill in your business details**: phone, address, logo and brand color under Settings → Company. They go on your booking page and every document. The timezone there decides what \"today\" means on your schedule.",
-            "**Set your business hours**: they live in Settings → Booking & forms. Booking and scheduling use them to know when you're open.",
+            "**Set your business hours**: they live in Settings → Booking & forms. Booking and scheduling use them to know when you're open. Times you're busy every week inside those hours (lunch, a standing appointment) go under **Repeating blocks** right below.",
             "**Add your first client**: type one in, or bring your list over with a CSV. See [Import your clients](/help/import-clients).",
             "**Send your first quote**. See [Create and send a quote](/help/create-and-send-a-quote).",
             "**Schedule your first job**: it lands on your calendar and your phone.",
