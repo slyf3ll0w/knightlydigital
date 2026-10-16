@@ -63,14 +63,28 @@ function noun(type: string): string {
 
 const downloadUrl = (url: string) => `${url}${url.includes("?") ? "&" : "?"}download=1`;
 
+/**
+ * Only phones and tablets get the share sheet. Chrome and Edge on Windows 11
+ * implement navigator.share too, but there it opens the Windows share dialog
+ * — not what "Save" means at a desk, where it should just download.
+ */
+function isHandheld(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const nav = navigator as Navigator & { userAgentData?: { mobile?: boolean } };
+  if (nav.userAgentData?.mobile) return true;
+  if (/iPhone|iPad|iPod|Android/i.test(nav.userAgent)) return true;
+  // iPadOS Safari calls itself a Mac; the touch screen gives it away.
+  return /Macintosh/.test(nav.userAgent) && nav.maxTouchPoints > 1;
+}
+
 /** Save to the device: the share sheet on phones that have one (Save Image / Files), a download everywhere else. */
 function SaveButton({ media }: { media: ThreadMedia }) {
   const [busy, setBusy] = useState(false);
   async function save() {
     if (busy) return;
     const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
-    // The share sheet needs the bytes as a File; only worth it where files can be shared (iOS 15+, Android Chrome).
-    if (typeof nav.share === "function" && typeof nav.canShare === "function") {
+    // The share sheet needs the bytes as a File; only worth it on a handheld that can share files (iOS 15+, Android Chrome).
+    if (isHandheld() && typeof nav.share === "function" && typeof nav.canShare === "function") {
       setBusy(true);
       try {
         const res = await fetch(downloadUrl(media.url));
