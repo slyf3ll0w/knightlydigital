@@ -19,6 +19,7 @@ import {
   LINE_ITEMS_PARAM,
 } from "./core";
 import { itemsPayload } from "./pipeline";
+import { isOnlinePayment } from "../payment-ref";
 
 /** Invoices, payments, subscriptions, expenses, and real email sends. */
 export const moneyTools: Tool[] = [
@@ -504,7 +505,7 @@ export const moneyTools: Tool[] = [
       if (!payment) return { error: "No payment with that id — check list_money (kind: payments)." };
       // The API refuses amount/method/date edits on processor charges (they'd
       // drift from what actually settled) — don't stage a card that will fail.
-      if (payment.processorRef?.startsWith("TR")) {
+      if (isOnlinePayment(payment.processorRef)) {
         return {
           error:
             "That payment was processed online, so its amount, method and date can't be edited — they have to match what actually settled. For a partial refund, tell the user to use the refund button on invoice #" +

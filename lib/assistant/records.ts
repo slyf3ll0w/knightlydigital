@@ -10,6 +10,7 @@ import {
   appointmentScope,
 } from "../permissions";
 import { type Tool, str, num, day, money, clientName, companyTz, fmtWhen } from "./core";
+import { isOnlinePayment } from "../payment-ref";
 
 /**
  * The two "power" read tools behind bulk work and complex lookups.
@@ -329,7 +330,7 @@ export const recordsTools: Tool[] = [
           return {
             total, showing: rows.length, offset, hasMore: offset + rows.length < total,
             collectedOnThisPage: money(rows.reduce((s, p) => s + Number(p.amount), 0)),
-            rows: rows.map((p) => ({ id: p.id, amount: money(p.amount), method: p.method, online: Boolean(p.processorRef?.startsWith("TR")), on: iso(p.paidAt), invoiceN: p.invoice.invoiceNumber, client: p.contact ? clientName(p.contact) : null, refunded: p.refunds.length ? money(p.refunds.reduce((s, r) => s + Number(r.amount), 0)) : undefined })),
+            rows: rows.map((p) => ({ id: p.id, amount: money(p.amount), method: p.method, online: isOnlinePayment(p.processorRef), on: iso(p.paidAt), invoiceN: p.invoice.invoiceNumber, client: p.contact ? clientName(p.contact) : null, refunded: p.refunds.length ? money(p.refunds.reduce((s, r) => s + Number(r.amount), 0)) : undefined })),
           };
         }
         case "appointments": {

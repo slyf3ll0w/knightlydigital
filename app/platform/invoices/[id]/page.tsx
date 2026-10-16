@@ -26,6 +26,7 @@ import ActivityTrail from "@/components/ActivityTrail";
 import PaymentRow from "./PaymentRow";
 import Celebration from "@/components/Celebration";
 import { shouldCelebrate } from "@/lib/celebrations";
+import { isOnlinePayment } from "@/lib/payment-ref";
 
 export default async function InvoiceDetailPage({
   params,
@@ -399,7 +400,7 @@ export default async function InvoiceDetailPage({
               // the API refuses that delete, so refund takes its place here.
               // Once it's been refunded to zero the row is just bookkeeping
               // again and a manager can clear it.
-              const online = p.processorRef?.startsWith("TR") ?? false;
+              const online = isOnlinePayment(p.processorRef);
               const holdsMoney = online && Number(p.amount) > 0.005;
               return (
                 <PaymentRow

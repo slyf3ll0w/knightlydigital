@@ -1,6 +1,7 @@
 import { prisma } from "../db";
 import { isManager } from "../permissions";
 import { type Tool, str, num, money, clientName, stage } from "./core";
+import { isOnlinePayment } from "../payment-ref";
 
 /**
  * One permanent-delete tool for every entity (managers only) — each staging a
@@ -229,7 +230,7 @@ export const deleteTools: Tool[] = [
           // An online charge still holding money is refunded, not deleted —
           // the API refuses it, so don't put a card in front of the user that
           // can't go through. (Once refunded to zero, deleting is allowed.)
-          if (p.processorRef?.startsWith("TR") && Number(p.amount) > 0.005) {
+          if (isOnlinePayment(p.processorRef) && Number(p.amount) > 0.005) {
             return {
               error:
                 "That payment was processed online, so deleting it would erase the charge record without returning the client's money. Tell the user to refund it from invoice #" +

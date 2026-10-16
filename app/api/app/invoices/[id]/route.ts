@@ -10,6 +10,7 @@ import { inPreview, previewBlockedError } from "@/lib/preview";
 import { isPastDue } from "@/lib/due-dates";
 import { queueQuickBooksInvoiceUnwind } from "@/lib/quickbooks";
 import { CLEAR } from "@/lib/send-document";
+import { isOnlinePayment } from "@/lib/payment-ref";
 
 /**
  * PATCH — full-document invoice edit (subject, line items, discount, tax,
@@ -219,7 +220,7 @@ export async function DELETE(
   // It does NOT cover money still sitting on a processor charge: deleting that
   // leaves the client charged with no invoice to show for it. Refund first,
   // then delete — a refunded charge (amount zeroed) no longer blocks.
-  if (invoice.payments.some((p) => p.processorRef?.startsWith("TR") && Number(p.amount) > 0.005)) {
+  if (invoice.payments.some((p) => isOnlinePayment(p.processorRef) && Number(p.amount) > 0.005)) {
     return NextResponse.json(
       {
         error:

@@ -5,6 +5,7 @@ import { getActor, canSeeMoney, isManager, viaContactScope } from "@/lib/permiss
 import { recomputeInvoiceStatus } from "@/lib/payments";
 import { queueQuickBooksUnwind } from "@/lib/quickbooks";
 import { logActivity } from "@/lib/activity";
+import { isOnlinePayment } from "@/lib/payment-ref";
 
 const validMethods = [
   "CARD", "ACH", "CASH", "CHECK", "CASH_APP", "PAYPAL", "VENMO", "ZELLE", "OTHER",
@@ -28,7 +29,7 @@ export async function PATCH(
   if (!payment) return NextResponse.json({ error: "Payment not found." }, { status: 404 });
 
   if (
-    payment.processorRef?.startsWith("TR") &&
+    isOnlinePayment(payment.processorRef) &&
     (body.amount !== undefined || body.method !== undefined || body.paidAt !== undefined)
   ) {
     return NextResponse.json(
@@ -106,7 +107,7 @@ export async function DELETE(
   // these for the same reason; refund is the path that actually returns money.
   // A fully-refunded row (amount zeroed by the refund) is only bookkeeping at
   // that point, so a manager may still clear it.
-  if (payment.processorRef?.startsWith("TR") && Number(payment.amount) > 0.005) {
+  if (isOnlinePayment(payment.processorRef) && Number(payment.amount) > 0.005) {
     return NextResponse.json(
       {
         error:

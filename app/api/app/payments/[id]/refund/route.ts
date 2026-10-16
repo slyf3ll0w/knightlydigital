@@ -10,6 +10,7 @@ import { squareTokenForMerchant } from "@/lib/square-connection";
 import { queueQuickBooksPaymentRefresh } from "@/lib/quickbooks";
 import { logActivity } from "@/lib/activity";
 import { fireAutomations } from "@/lib/automations-server";
+import { isFinixPayment } from "@/lib/payment-ref";
 
 /**
  * POST — refund an online payment (Finix or Square), full or partial.
@@ -40,7 +41,7 @@ export async function POST(
   if (!payment) return NextResponse.json({ error: "Payment not found." }, { status: 404 });
   // Which processor ran the charge: Finix transfers are TR…; anything else
   // with a processorRef came through Square (a Square payment id).
-  const viaFinix = Boolean(payment.processorRef?.startsWith("TR"));
+  const viaFinix = isFinixPayment(payment.processorRef);
   const viaSquare = Boolean(payment.processorRef) && !viaFinix && getProcessor().name === "square";
   if (!payment.processorRef || (!viaFinix && !viaSquare)) {
     return NextResponse.json(

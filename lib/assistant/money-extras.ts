@@ -3,6 +3,7 @@ import { canSell, canSeeMoney, isManager, viaContactScope, jobScope } from "../p
 import { isQuickBooksConfigured } from "../quickbooks";
 import { getProcessor } from "../payments";
 import { type Tool, str, num, day, money, clientName, companyTz, fmtWhen, stage } from "./core";
+import { isOnlinePayment } from "../payment-ref";
 
 /**
  * Money features that shipped after Atlas v7: real processor refunds,
@@ -29,7 +30,7 @@ export const moneyExtraTools: Tool[] = [
         select: { id: true, amount: true, method: true, processorRef: true, paidAt: true, invoice: { select: { id: true, invoiceNumber: true } }, contact: { select: { firstName: true, lastName: true, companyName: true } }, refunds: { select: { amount: true } } },
       });
       if (!p) return { error: "No payment with that id." };
-      if (!p.processorRef?.startsWith("TR")) return { error: "That payment was recorded by hand, not taken online — correct it with edit_payment (partial) or delete_record (full) instead." };
+      if (!isOnlinePayment(p.processorRef)) return { error: "That payment was recorded by hand, not taken online — correct it with edit_payment (partial) or delete_record (full) instead." };
       const max = Number(p.amount);
       if (max <= 0) return { error: "Nothing left to refund on this payment." };
       const amt = num(args.amount);

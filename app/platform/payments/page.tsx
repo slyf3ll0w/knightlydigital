@@ -35,6 +35,7 @@ import {
 } from "@/lib/finix";
 import { canChargeOnline } from "@/lib/payments-gate";
 import { squareEnvironment } from "@/lib/square";
+import { isOnlinePayment } from "@/lib/payment-ref";
 
 /**
  * Payments dashboard — the company's money view for online processing:
@@ -665,7 +666,7 @@ export default async function PaymentsDashboardPage({
                     </span>
                     <span className="flex shrink-0 items-center justify-end gap-0.5">
                       {isManager(actor.role) &&
-                        p.processorRef?.startsWith("TR") &&
+                        isOnlinePayment(p.processorRef) &&
                         Number(p.amount) > 0 && (
                           <RefundAction paymentId={p.id} amount={Number(p.amount)} />
                         )}
