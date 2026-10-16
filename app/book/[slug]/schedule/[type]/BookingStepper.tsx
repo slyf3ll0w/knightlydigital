@@ -8,7 +8,7 @@ import { smsConsentLabel, businessSmsTermsUrl, businessPrivacyUrl } from "@/lib/
 import { zipFromAddress } from "@/lib/business-hours";
 import type { PublicBookingType } from "@/lib/booking-runtime";
 import { durationLabel } from "@/lib/booking-types";
-import type { CustomField } from "@/lib/booking-intake";
+import { ADDRESS_DEFAULTS, type CustomField } from "@/lib/booking-intake";
 import type { ScheduleAppearance } from "../shell";
 import PaymentStep, { type PaymentHandle } from "./PaymentStep";
 import type { FinixConfig } from "@/lib/finix-js";
@@ -583,12 +583,12 @@ export default function BookingStepper({
 
         {step === "address" && (
           <div>
-            <label className={label}>Service address *</label>
+            <label className={label}>{intake.fields.address.label || ADDRESS_DEFAULTS.label} *</label>
             <input
               type="text"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              placeholder="123 Main St, Plano, TX 75024"
+              placeholder={intake.fields.address.placeholder || ADDRESS_DEFAULTS.placeholder}
               autoComplete="street-address"
               className={input}
               required

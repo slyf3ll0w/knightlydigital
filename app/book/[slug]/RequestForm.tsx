@@ -7,7 +7,7 @@ import { CheckCircle, Loader2 } from "lucide-react";
 import TurnstileWidget from "@/components/TurnstileWidget";
 import { textOn } from "@/lib/branding";
 import type { PublicBookingType } from "@/lib/booking-runtime";
-import type { CustomField } from "@/lib/booking-intake";
+import { ADDRESS_DEFAULTS, type CustomField } from "@/lib/booking-intake";
 import type { ScheduleAppearance } from "./schedule/shell";
 
 /**
@@ -305,7 +305,7 @@ export default function RequestForm({
             {f.address.label}
             {f.address.required ? " *" : ""}
           </label>
-          <input type="text" value={form.address} onChange={(e) => set("address", e.target.value)} required={f.address.required} placeholder="123 Main St, Dallas, TX 75201" autoComplete="street-address" className={input} />
+          <input type="text" value={form.address} onChange={(e) => set("address", e.target.value)} required={f.address.required} placeholder={f.address.placeholder || ADDRESS_DEFAULTS.placeholder} autoComplete="street-address" className={input} />
         </div>
       )}
 

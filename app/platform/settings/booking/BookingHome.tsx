@@ -12,6 +12,8 @@ import BackLink from "@/components/BackLink";
 import Modal from "@/components/Modal";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import BusinessHoursEditor from "@/components/BusinessHoursEditor";
+import RepeatingBlocksList from "@/components/RepeatingBlocksList";
+import type { SeriesDTO } from "@/lib/time-block-series";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { DAY_KEYS, type BusinessHours } from "@/lib/business-hours";
 import { arrivalWindowChoiceLabel } from "@/lib/arrival-window";
@@ -143,6 +145,7 @@ export default function BookingHome({
   rules: initialRules,
   items,
   hubFormId: initialHubFormId,
+  repeating,
 }: {
   companySlug: string;
   baseUrl: string;
@@ -155,6 +158,8 @@ export default function BookingHome({
   items: ItemRow[];
   /** Company.hubBookingTypeId — the item existing clients get in their hub; null = plain form */
   hubFormId: string | null;
+  /** Repeating blocked time (lib/time-block-series.ts) + who it can apply to */
+  repeating: { series: SeriesDTO[]; users: { id: string; name: string }[]; meId: string };
 }) {
   const router = useRouter();
   const pageUrl = `${baseUrl}/book/${companySlug}`;
@@ -490,6 +495,7 @@ export default function BookingHome({
                     .
                   </p>
                 </div>
+                <RepeatingBlocksList series={repeating.series} users={repeating.users} meId={repeating.meId} canBlockForOthers />
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <label className={smallLabel}>Arrival window</label>

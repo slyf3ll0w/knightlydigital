@@ -35,6 +35,7 @@ export async function deleteCompanyCascade(companyId: string): Promise<void> {
       await tx.job.deleteMany({ where }); // cascades items/assignments/notes/photos
       await tx.appointment.deleteMany({ where });
       await tx.timeBlock.deleteMany({ where });
+      await tx.timeBlockSeries.deleteMany({ where });
       await tx.bookingRequest.deleteMany({ where });
       await tx.request.deleteMany({ where });
       await tx.subscription.deleteMany({ where }); // references work items — before them

@@ -32,6 +32,7 @@ import { pruneBuilds } from "@/lib/estimator-build-jobs";
 import { runTaskReminders } from "@/lib/tasks";
 import { runScheduledSends } from "@/lib/send-document";
 import { archiveExpiredNotes } from "@/lib/sticky-notes";
+import { runTimeBlockSeriesSweep } from "@/lib/time-block-series";
 
 /**
  * Hourly billing cron. A scheduler (Railway cron service, or an external
@@ -135,6 +136,8 @@ export async function POST(req: NextRequest) {
     await step("autoChargeRetries", () => runAutoChargeRetries(now));
     // Materialize upcoming visit-series jobs (~4-week rolling horizon)
     await step("visits", () => generateDueVisits(now));
+    // Repeating blocked time: keep each series' occurrences a year ahead
+    await step("timeBlockSeries", () => runTimeBlockSeriesSweep(now));
     // Standing monthly expenses (rent, insurance…) post to the expense log on
     // their day of the month
     await step("recurringExpenses", () => runRecurringExpenses(now));

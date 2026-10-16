@@ -2,12 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager, type Actor } from "@/lib/permissions";
 import { geocodeAddress } from "@/lib/geocoding";
+import { companyTimezone, detachOccurrence, removeOccurrence } from "@/lib/time-block-series";
 
 /**
  * PATCH / DELETE a time block. Managers may touch any block in the company
  * (including company-wide ones); everyone else only their own personal blocks.
  * Blocks mirrored from Google Calendar (source GOOGLE) are read-only here —
  * the pull would just rewrite them — so both verbs answer 409 for those.
+ *
+ * One occurrence of a repeating block is "just this day": editing it
+ * detaches it from the series (it stops repeating on its own and keeps the
+ * change), removing it skips that day. The series itself is changed through
+ * /api/app/time-block-series/[id].
  */
 
 const MIRRORED = "This comes from Google Calendar — change it there and it updates here within a few minutes.";
@@ -81,8 +87,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   }
 
+  // "Just this day": the day leaves its series before the change lands
+  if (block.seriesId) await detachOccurrence(block, await companyTimezone(actor.companyId));
+
   const updated = await prisma.timeBlock.update({ where: { id: block.id }, data });
-  return NextResponse.json(updated);
+  return NextResponse.json({ ...updated, detached: Boolean(block.seriesId) });
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -94,6 +103,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!block) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (block.source === "GOOGLE") return NextResponse.json({ error: MIRRORED }, { status: 409 });
 
-  await prisma.timeBlock.delete({ where: { id: block.id } });
+  if (block.seriesId) {
+    await removeOccurrence(block, await companyTimezone(actor.companyId));
+  } else {
+    await prisma.timeBlock.delete({ where: { id: block.id } });
+  }
   return NextResponse.json({ ok: true });
 }

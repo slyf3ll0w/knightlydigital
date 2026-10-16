@@ -151,6 +151,62 @@ test.describe("schedule tools", () => {
     await api.delete(`/api/app/time-blocks/${block.id}`);
   });
 
+  test("a repeating block builds its days, one day can leave it, and removing it clears them", async () => {
+    // Five weeks of one weekday, a couple of months out
+    const startsOn = ymd(daysFrom(1));
+    const weekday = new Date(`${startsOn}T12:00:00Z`).getUTCDay();
+    const series = await api.post("/api/app/time-block-series", {
+      title: `${runTag} lunch`,
+      weekdays: [weekday],
+      startTime: "12:00",
+      endTime: "13:00",
+      startsOn,
+      endsOn: ymd(daysFrom(29)),
+    });
+    expect(series.id).toBeTruthy();
+    expect(series.created).toBe(5);
+    expect(series.weekdays).toEqual([weekday]);
+    const rows = await db().timeBlock.findMany({ where: { seriesId: series.id }, orderBy: { startAt: "asc" } });
+    expect(rows).toHaveLength(5);
+    expect(rows.every((r) => r.title === `${runTag} lunch` && !r.allDay)).toBe(true);
+    // A week apart (give or take a DST hour)
+    const gap = rows[1].startAt.getTime() - rows[0].startAt.getTime();
+    expect(Math.abs(gap - 7 * 86400_000)).toBeLessThanOrEqual(3600_000);
+    // The settings list shows it
+    const listed = await api.get("/api/app/time-block-series");
+    expect(listed.series.some((s: { id: string }) => s.id === series.id)).toBe(true);
+
+    // Editing one day detaches it: it stops repeating and the series skips that day
+    const second = rows[1];
+    const edited = await api.patch(`/api/app/time-blocks/${second.id}`, { title: `${runTag} dentist` });
+    expect(edited.detached).toBe(true);
+    expect(edited.seriesId).toBeNull();
+    const skipped = await db().timeBlockSeries.findUnique({ where: { id: series.id } });
+    expect(skipped?.skipDates).toHaveLength(1);
+
+    // Changing the rule rebuilds the days ahead and leaves the detached day alone
+    const patched = await api.patch(`/api/app/time-block-series/${series.id}`, { startTime: "11:30", endTime: "12:30" });
+    expect(patched.startMinute).toBe(11 * 60 + 30);
+    const rebuilt = await db().timeBlock.findMany({ where: { seriesId: series.id }, orderBy: { startAt: "asc" } });
+    expect(rebuilt).toHaveLength(4);
+    const still = await db().timeBlock.findUnique({ where: { id: second.id } });
+    expect(still?.title).toBe(`${runTag} dentist`);
+
+    // Removing one day keeps the rest; removing the series takes every day with it
+    await api.delete(`/api/app/time-blocks/${rebuilt[0].id}`);
+    expect(await db().timeBlock.count({ where: { seriesId: series.id } })).toBe(3);
+    await api.delete(`/api/app/time-block-series/${series.id}`);
+    expect(await db().timeBlock.count({ where: { seriesId: series.id } })).toBe(0);
+    await api.json("DELETE", `/api/app/time-block-series/${series.id}`, undefined, 404);
+    await db().timeBlock.delete({ where: { id: second.id } });
+
+    // Bad rules are refused with a plain reason
+    const bad = await api.json("POST", "/api/app/time-block-series", { weekdays: [], startsOn, startTime: "09:00", endTime: "10:00" }, 400);
+    expect(bad.error).toMatch(/at least one day/);
+    const backwards = await api.json("POST", "/api/app/time-block-series", { weekdays: [1], startsOn, startTime: "10:00", endTime: "09:00" }, 400);
+    expect(backwards.error).toMatch(/after the start/);
+  });
+
   test("route plan carries distance, a measured flag, the company clock and the road-times state", async () => {
     const plan = await api.get(`/api/app/route-plan?date=${ymd(dayStart)}&geometry=1`);
     expect(plan.drive).toBeTruthy();

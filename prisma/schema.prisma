@@ -315,6 +315,7 @@ model Company {
   chatChannels          ChatChannel[]
   pipelineStages        PipelineStage[]
   timeBlocks            TimeBlock[]
+  timeBlockSeries       TimeBlockSeries[]
   timeEntries           TimeEntry[]
   locationPings         LocationPing[]
   quickBooks            QuickBooksConnection?
@@ -556,6 +557,7 @@ model User {
   emailChangeTokens    EmailChangeToken[]
   superadminLoginCodes SuperadminLoginCode[]
   timeBlocks           TimeBlock[]               @relation("TimeBlockUser")
+  timeBlockSeries      TimeBlockSeries[]         @relation("TimeBlockSeriesUser")
   timeEntries          TimeEntry[]
   locationPings        LocationPing[]
   checklistChecks      JobChecklistItem[]
@@ -2039,12 +2041,56 @@ model TimeBlock {
   // — the pull rewrites/deletes them — and never pushed back out.
   source      TimeBlockSource @default(MANUAL)
   externalId  String?
+  // One occurrence of a repeating block (lib/time-block-series.ts). Editing
+  // or removing "just this day" detaches it (seriesId → null, the day lands
+  // in the series' skipDates) so a regeneration never brings it back.
+  seriesId    String?
+  series      TimeBlockSeries? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
   @@index([companyId, startAt])
   @@index([userId])
   @@index([userId, source, externalId])
+  @@index([seriesId])
+}
+
+// A weekly repeating block ("lunch every weekday", "Fridays off", "church
+// Sunday mornings"). The rule lives here; the calendar, booking engine,
+// Find a Time and routing only ever see the materialized TimeBlock rows it
+// generates a year ahead (the hourly cron keeps the horizon topped up).
+// Days are "YYYY-MM-DD" in the company's timezone; times are minutes since
+// midnight there.
+model TimeBlockSeries {
+  id               String      @id @default(cuid())
+  companyId        String
+  company          Company     @relation(fields: [companyId], references: [id])
+  // null = everyone in the company
+  userId           String?
+  user             User?       @relation("TimeBlockSeriesUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdById      String
+  title            String      @default("Blocked off")
+  // 0 = Sunday … 6 = Saturday
+  weekdays         Int[]
+  allDay           Boolean     @default(false)
+  startMinute      Int         @default(540)
+  endMinute        Int         @default(1020)
+  startsOn         String
+  // Last day the rule applies; null = no end
+  endsOn           String?
+  // Days removed or detached from the series — never regenerated
+  skipDates        String[]    @default([])
+  address          String?
+  lat              Float?
+  lng              Float?
+  // Last day occurrences exist for (the sweep extends it)
+  generatedThrough String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  occurrences      TimeBlock[]
+
+  @@index([companyId])
+  @@index([userId])
 }
 
 // ─── Jobs ─────────────────────────────────────────────────────────────────────

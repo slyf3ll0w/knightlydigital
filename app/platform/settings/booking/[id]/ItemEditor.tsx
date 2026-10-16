@@ -21,7 +21,7 @@ import {
   servicePriceLabel,
   type BookingTypeSettings,
 } from "@/lib/booking-types";
-import { defaultButtonLabel, type BookingIntake, type CustomField, type CustomFieldType, type FieldOption } from "@/lib/booking-intake";
+import { ADDRESS_DEFAULTS, defaultButtonLabel, type BookingIntake, type CustomField, type CustomFieldType, type FieldOption } from "@/lib/booking-intake";
 import { KIND_ICON } from "@/lib/booking-icons";
 
 /**
@@ -311,6 +311,9 @@ export default function ItemEditor({
           Required
         </label>
         {lock && <span className="basis-full text-xs text-gray-500">{lock.note}</span>}
+        {key === "address" && show && (
+          <input type="text" value={v.placeholder ?? ""} onChange={(e) => setField("address", { placeholder: e.target.value })} placeholder={`Example text in the box (${ADDRESS_DEFAULTS.placeholder})`} aria-label="Address example text" className={`${inputClass} basis-full`} />
+        )}
       </div>
     );
   };
@@ -668,7 +671,9 @@ export default function ItemEditor({
               {scheduled && meta.needsAddress ? (
                 <div className="flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-gray-50/50 p-3">
                   <span className="w-24 text-[13px] font-semibold text-gray-500">Address</span>
-                  <span className="text-xs text-gray-500">Asked on its own step — open times depend on it.</span>
+                  <input type="text" value={f.address.label} onChange={(e) => setField("address", { label: e.target.value })} placeholder={ADDRESS_DEFAULTS.label} aria-label="Address question" className={`${inputClass} min-w-[140px] flex-1`} />
+                  <span className="basis-full text-xs text-gray-500">Asked on its own step — open times depend on it. Always required.</span>
+                  <input type="text" value={f.address.placeholder ?? ""} onChange={(e) => setField("address", { placeholder: e.target.value })} placeholder={`Example text in the box (${ADDRESS_DEFAULTS.placeholder})`} aria-label="Address example text" className={`${inputClass} basis-full`} />
                 </div>
               ) : (
                 fieldRow("address", "Address")

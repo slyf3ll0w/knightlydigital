@@ -7,6 +7,7 @@ import { resolveSlotInterval } from "@/lib/scheduling";
 import ScheduleClient from "./ScheduleClient";
 import type { ScheduleJobDTO, WeekHours } from "./schedule-lib";
 import { apptForUser } from "@/lib/appointment-people";
+import { toSeriesDTO, type SeriesRow } from "@/lib/time-block-series";
 
 /**
  * Schedule — month / week / day calendar (Jobber-style, spec §6).
@@ -128,6 +129,7 @@ type BlockRow = {
   address?: string | null;
   source?: "MANUAL" | "GOOGLE";
   user: { name: string } | null;
+  series?: (SeriesRow & { user?: { name: string } | null }) | null;
 };
 
 /**
@@ -135,11 +137,19 @@ type BlockRow = {
  * one clamped segment per visible day. Segment ids are `${blockId}#${n}` for
  * React keys; the real block travels in `block` for the edit sheet.
  */
-function blockToDTOs(b: BlockRow, fetchStart: Date, fetchEnd: Date, canEdit: boolean, tz: string): ScheduleJobDTO[] {
+function blockToDTOs(
+  b: BlockRow,
+  fetchStart: Date,
+  fetchEnd: Date,
+  canEdit: boolean,
+  tz: string,
+  actor: { id: string; role: Parameters<typeof toSeriesDTO>[1]["role"] }
+): ScheduleJobDTO[] {
   const source = b.source ?? "MANUAL";
   // Mirrored Google events change in Google, not here
   const mirrored = source === "GOOGLE";
   const info = {
+    series: b.series ? toSeriesDTO({ ...b.series, user: b.user }, actor) : null,
     id: b.id,
     userId: b.userId,
     userName: b.user?.name ?? null,
@@ -331,13 +341,13 @@ export default async function SchedulePage({
       : Promise.resolve([]),
     prisma.timeBlock.findMany({
       where: { companyId, startAt: { lt: fetchEnd }, endAt: { gt: fetchStart }, ...blockScope },
-      include: { user: { select: { name: true } } },
+      include: { user: { select: { name: true } }, series: true },
       orderBy: { startAt: "asc" },
     }),
   ]);
 
   const blockDTOs = blocks.flatMap((b) =>
-    blockToDTOs(b, fetchStart, fetchEnd, isManager(actor.role) || b.userId === actor.id, tz)
+    blockToDTOs(b, fetchStart, fetchEnd, isManager(actor.role) || b.userId === actor.id, tz, actor)
   );
 
   // Crew minutes available per weekday: every active member × the open hours

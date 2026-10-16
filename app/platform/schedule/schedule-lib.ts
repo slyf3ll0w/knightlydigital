@@ -5,6 +5,8 @@
  * separate files that agree on one set of types.
  */
 
+import type { SeriesDTO } from "@/lib/time-block-series";
+
 // Blocked-off time riding along in the DTO — the calendar shows per-day
 // segments but the sheet edits the underlying block's full range.
 export type BlockInfo = {
@@ -20,6 +22,8 @@ export type BlockInfo = {
   canEdit: boolean;
   /** GOOGLE = mirrored from the user's Google Calendar; read-only here. */
   source: "MANUAL" | "GOOGLE";
+  /** The repeating rule this is one day of (lib/time-block-series.ts); null = one-off */
+  series: SeriesDTO | null;
 };
 
 export type ScheduleJobDTO = {

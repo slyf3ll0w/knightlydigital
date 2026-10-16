@@ -22,6 +22,7 @@ import {
   Pencil,
   Phone as PhoneIcon,
   Plus,
+  Repeat as RepeatIcon,
   RotateCcw,
   Route as RouteIcon,
   Trash2,
@@ -38,6 +39,10 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { telHref } from "@/lib/messaging";
 import { callFromLine, useLineCalling } from "@/lib/line-calling";
 import Modal from "@/components/Modal";
+import RepeatPicker from "@/components/RepeatPicker";
+import RepeatingBlockSheet from "@/components/RepeatingBlockSheet";
+import { describeRule } from "@/lib/time-block-recurrence";
+import type { SeriesDTO } from "@/lib/time-block-series";
 import SwipeRow, { type SwipeRowAction } from "@/components/SwipeRow";
 import { Chip, InfoTip } from "@/components/ds";
 import MonthGrid from "./MonthGrid";
@@ -105,6 +110,10 @@ type BlockForm = {
   startTime: string;
   endTime: string;
   address: string; // optional "where I'll be" — routing drives around it
+  /** New blocks only: make it a weekly repeating block (lib/time-block-series.ts) */
+  repeat: boolean;
+  weekdays: number[];
+  endsOn: string;
 };
 
 type Snapshot = {
@@ -180,10 +189,14 @@ export default function ScheduleClient({
     userName: string | null;
     /** Mirrored from the person's Google Calendar — read-only, edit it there */
     mirrored?: boolean;
+    /** One day of a repeating block — edits here change just this day */
+    series?: SeriesDTO | null;
     form: BlockForm;
   }>(null);
   const [blockBusy, setBlockBusy] = useState(false);
   const [blockErr, setBlockErr] = useState("");
+  // The repeating-block editor ("Edit every time" from an occurrence)
+  const [seriesSheet, setSeriesSheet] = useState<SeriesDTO | null>(null);
 
   // "Move the day" sheet
   const [shiftSheet, setShiftSheet] = useState<null | { toDate: string; includeAppointments: boolean; notify: boolean }>(null);
@@ -484,7 +497,7 @@ export default function ScheduleClient({
       return;
     }
     showToast({
-      text: `Moved ${b.title || "blocked time"}`,
+      text: `Moved ${b.title || "blocked time"}${(data as { detached?: boolean } | null)?.detached ? " (just this day)" : ""}`,
       sub: placeLabel(startAt, allDay ? null : minutesOf(startAt), Math.round((endAt.getTime() - startAt.getTime()) / 60000)),
       onUndo: async () => {
         await postJson(
@@ -812,6 +825,9 @@ export default function ScheduleClient({
         startTime: prefill ? `${pad(Math.floor(prefill.startMin / 60))}:${pad(prefill.startMin % 60)}` : "09:00",
         endTime: prefill ? `${pad(Math.floor(prefill.endMin / 60))}:${pad(prefill.endMin % 60)}` : "17:00",
         address: "",
+        repeat: false,
+        weekdays: [parseParam(d).getDay()],
+        endsOn: "",
       },
     });
   }
@@ -825,6 +841,7 @@ export default function ScheduleClient({
       canEdit: b.canEdit,
       userName: b.userName,
       mirrored: b.source === "GOOGLE",
+      series: b.series,
       form: {
         title: b.title === "Blocked off" ? "" : b.title,
         who: b.userId ?? "everyone",
@@ -834,6 +851,9 @@ export default function ScheduleClient({
         startTime: `${pad(s.getHours())}:${pad(s.getMinutes())}`,
         endTime: `${pad(e.getHours())}:${pad(e.getMinutes())}`,
         address: b.address ?? "",
+        repeat: false,
+        weekdays: [],
+        endsOn: "",
       },
     });
   }
@@ -863,6 +883,38 @@ export default function ScheduleClient({
       setBlockErr(f.allDay ? "The end date can't be before the start date." : "The end time must be after the start time.");
       return;
     }
+
+    // A new block marked "Repeats" is a series: the server builds the days
+    if (blockSheet.id === null && f.repeat) {
+      if (f.weekdays.length === 0) {
+        setBlockErr("Pick at least one day of the week.");
+        return;
+      }
+      const seriesBody: Record<string, unknown> = {
+        title: f.title,
+        allDay: f.allDay,
+        startTime: f.startTime,
+        endTime: f.endTime,
+        weekdays: f.weekdays,
+        startsOn: f.startDate,
+        endsOn: f.endsOn || null,
+        address: f.address.trim() || null,
+      };
+      if (canBlockForOthers) seriesBody.forUserId = f.who === "everyone" ? null : f.who;
+      setBlockBusy(true);
+      setBlockErr("");
+      const { ok, data } = await postJson("/api/app/time-block-series", seriesBody);
+      setBlockBusy(false);
+      if (!ok) {
+        setBlockErr(data?.error ?? GENERIC_ERROR);
+        return;
+      }
+      setBlockSheet(null);
+      showToast({ text: `Blocked ${f.title.trim() || "time"}, ${describeRule(data as SeriesDTO).toLowerCase()}`, sub: "Change or remove every time from Settings → Booking & forms, or from any day of it here." });
+      startTransition(() => router.refresh());
+      return;
+    }
+
     const body: Record<string, unknown> = {
       title: f.title,
       allDay: f.allDay,
@@ -882,7 +934,9 @@ export default function ScheduleClient({
       setBlockErr(data?.error ?? GENERIC_ERROR);
       return;
     }
+    const wasSeries = Boolean(blockSheet.series);
     setBlockSheet(null);
+    if (wasSeries) showToast({ text: "Changed just this day", sub: "The other days still repeat as before." });
     startTransition(() => router.refresh());
   }
 
@@ -896,7 +950,33 @@ export default function ScheduleClient({
       setBlockErr(data?.error ?? GENERIC_ERROR);
       return;
     }
+    const wasSeries = Boolean(blockSheet.series);
     setBlockSheet(null);
+    if (wasSeries) showToast({ text: "Removed just this day", sub: "The other days still repeat as before." });
+    startTransition(() => router.refresh());
+  }
+
+  /** Every day of a repeating block, from an occurrence's sheet */
+  async function deleteSeries() {
+    const series = blockSheet?.series;
+    if (!series) return;
+    const sure = await confirmSheet({
+      title: "Remove every time?",
+      message: `${series.title} — ${describeRule(series).toLowerCase()}. Every day of it comes off the schedule.`,
+      confirmLabel: "Remove all",
+      destructive: true,
+    });
+    if (!sure) return;
+    setBlockBusy(true);
+    setBlockErr("");
+    const { ok, data } = await postJson(`/api/app/time-block-series/${series.id}`, undefined, "DELETE");
+    setBlockBusy(false);
+    if (!ok) {
+      setBlockErr(data?.error ?? GENERIC_ERROR);
+      return;
+    }
+    setBlockSheet(null);
+    showToast({ text: `Removed ${series.title}`, sub: "Every day of it is off the schedule." });
     startTransition(() => router.refresh());
   }
 
@@ -2008,16 +2088,18 @@ export default function ScheduleClient({
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] disabled:bg-gray-50 disabled:text-gray-500"
                   />
                 </div>
-                <div>
-                  <label className="mb-0.5 block text-xs font-medium text-gray-500">Through</label>
-                  <input
-                    type="date"
-                    value={blockSheet.form.endDate}
-                    disabled={!blockSheet.canEdit}
-                    onChange={(e) => setBlockSheet((s) => s && { ...s, form: { ...s.form, endDate: e.target.value } })}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] disabled:bg-gray-50 disabled:text-gray-500"
-                  />
-                </div>
+                {!blockSheet.form.repeat && (
+                  <div>
+                    <label className="mb-0.5 block text-xs font-medium text-gray-500">Through</label>
+                    <input
+                      type="date"
+                      value={blockSheet.form.endDate}
+                      disabled={!blockSheet.canEdit}
+                      onChange={(e) => setBlockSheet((s) => s && { ...s, form: { ...s.form, endDate: e.target.value } })}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] disabled:bg-gray-50 disabled:text-gray-500"
+                    />
+                  </div>
+                )}
               </div>
             ) : (
               <>
@@ -2055,26 +2137,105 @@ export default function ScheduleClient({
                 </div>
               </>
             )}
+            {blockSheet.id === null ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={blockSheet.form.repeat}
+                      onChange={(e) => setBlockSheet((s) => s && { ...s, form: { ...s.form, repeat: e.target.checked } })}
+                      className="rounded text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
+                    />
+                    Repeats every week
+                  </label>
+                  <InfoTip>Blocks these days every week from the date above — lunch, a standing appointment, Fridays off. Booking forms show the times as taken. Change or remove every day of it from Settings → Booking &amp; forms, or open any day of it here.</InfoTip>
+                </div>
+                {blockSheet.form.repeat && (
+                  <RepeatPicker
+                    weekdays={blockSheet.form.weekdays}
+                    onWeekdays={(weekdays) => setBlockSheet((s) => s && { ...s, form: { ...s.form, weekdays } })}
+                    endsOn={blockSheet.form.endsOn}
+                    onEndsOn={(endsOn) => setBlockSheet((s) => s && { ...s, form: { ...s.form, endsOn } })}
+                    startsOn={blockSheet.form.startDate}
+                  />
+                )}
+              </div>
+            ) : (
+              blockSheet.series && (
+                <div className="flex flex-wrap items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                  <RepeatIcon size={14} className="shrink-0 text-gray-400" aria-hidden />
+                  <span className="min-w-0 flex-1">{describeRule(blockSheet.series)}</span>
+                  {blockSheet.canEdit && (
+                    <>
+                      <InfoTip>Changes on this sheet apply to this day only. Edit every time to change the whole rule.</InfoTip>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const series = blockSheet.series!;
+                          setBlockSheet(null);
+                          setSeriesSheet(series);
+                        }}
+                        className="font-semibold text-[color:var(--ds-primary)] hover:underline"
+                      >
+                        Edit every time
+                      </button>
+                    </>
+                  )}
+                </div>
+              )
+            )}
             <div className="flex items-center gap-2 pt-1">
               {blockSheet.canEdit && (
                 <button onClick={saveBlock} disabled={blockBusy} className="btn-primary">
                   {blockBusy && <Loader2 size={14} className="animate-spin" />}
-                  {blockSheet.id === null ? "Block time" : "Save"}
+                  {blockSheet.id === null ? (blockSheet.form.repeat ? "Block every week" : "Block time") : "Save"}
                 </button>
               )}
               <button onClick={() => setBlockSheet(null)} disabled={blockBusy} className="rounded-[10px] btn-tool-line bg-white px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50">
                 {blockSheet.canEdit ? "Cancel" : "Close"}
               </button>
-              {blockSheet.canEdit && blockSheet.id !== null && (
+              {blockSheet.canEdit && blockSheet.id !== null && !blockSheet.series && (
                 <button onClick={deleteBlock} disabled={blockBusy} aria-label="Remove blocked time" className="ml-auto flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50">
                   <Trash2 size={14} />
                   Remove
                 </button>
               )}
+              {blockSheet.canEdit && blockSheet.id !== null && blockSheet.series && (
+                <span className="ml-auto flex items-center gap-1">
+                  <button onClick={deleteBlock} disabled={blockBusy} aria-label="Remove this day only" className="flex items-center gap-1.5 rounded-[10px] px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50">
+                    <Trash2 size={14} />
+                    This day
+                  </button>
+                  <button onClick={deleteSeries} disabled={blockBusy} aria-label="Remove every time" className="rounded-[10px] px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50">
+                    Every time
+                  </button>
+                </span>
+              )}
             </div>
           </div>
         )}
       </Modal>
+
+      {/* Repeating-block editor — "Edit every time" from one day of a series */}
+      <RepeatingBlockSheet
+        open={Boolean(seriesSheet)}
+        initial={seriesSheet}
+        users={users}
+        meId={meId}
+        canBlockForOthers={canBlockForOthers}
+        onClose={() => setSeriesSheet(null)}
+        onSaved={(s) => {
+          setSeriesSheet(null);
+          showToast({ text: `Updated ${s.title}`, sub: `${describeRule(s)} — every day ahead was rebuilt.` });
+          startTransition(() => router.refresh());
+        }}
+        onRemoved={() => {
+          setSeriesSheet(null);
+          showToast({ text: "Removed the repeating block", sub: "Every day of it is off the schedule." });
+          startTransition(() => router.refresh());
+        }}
+      />
 
       <PlaceSheet
         intent={placeIntent}

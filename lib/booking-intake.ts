@@ -27,7 +27,16 @@ export type CustomField = {
   /** Save the answer into this client custom field as well */
   contactFieldId?: string;
 };
-export type StdField = { show: boolean; required: boolean; label: string };
+export type StdField = {
+  show: boolean;
+  required: boolean;
+  label: string;
+  /** Example text in the box (address only today); "" = the renderer's default */
+  placeholder?: string;
+};
+
+/** Words for the address question when the owner hasn't changed them. */
+export const ADDRESS_DEFAULTS = { label: "Service address", placeholder: "123 Main St, Plano, TX 75024" } as const;
 
 export type BookingIntake = {
   /** Page heading; "" = the item's name */
@@ -110,7 +119,8 @@ export function defaultIntake(kind: BookingKind, mode: BookingMode): BookingInta
       address: {
         show: meta.needsAddress,
         required: meta.needsAddress && !request,
-        label: "Service address",
+        label: ADDRESS_DEFAULTS.label,
+        placeholder: "",
       },
       date: { show: request && kind !== "MESSAGE", required: false, label: "Preferred date" },
     },
@@ -151,6 +161,7 @@ export function sanitizeIntake(raw: unknown, kind: BookingKind, mode: BookingMod
       show: f.show !== false,
       required: f.required === true,
       label: str(f.label, 60) || d.fields[key].label,
+      ...(key === "address" ? { placeholder: str(f.placeholder, 120) } : {}),
     };
   };
   const message = (r.message ?? {}) as Record<string, unknown>;

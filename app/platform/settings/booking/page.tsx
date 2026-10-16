@@ -9,13 +9,14 @@ import { sanitizeIntake } from "@/lib/booking-intake";
 import { sanitizeBookingPage } from "@/lib/booking-page";
 import { businessDetailsForced } from "@/lib/business-profile";
 import { brandAccent } from "@/lib/branding";
+import { listSeries } from "@/lib/time-block-series";
 import BookingHome from "./BookingHome";
 
 export default async function OnlineBookingPage() {
   const actor = await requirePageActor((a) => isManager(a.role));
   const companyId = actor.companyId;
 
-  const [company, bookableCount, types] = await Promise.all([
+  const [company, bookableCount, types, series, users] = await Promise.all([
     prisma.company.findUnique({
       where: { id: companyId },
       select: {
@@ -40,6 +41,8 @@ export default async function OnlineBookingPage() {
       include: bookingTypeInclude,
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     }),
+    listSeries(actor),
+    prisma.user.findMany({ where: { companyId, isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
   if (!company) redirect("/app/register");
 
@@ -65,6 +68,7 @@ export default async function OnlineBookingPage() {
         bookableCount,
       }}
       hubFormId={company.hubBookingTypeId}
+      repeating={{ series, users, meId: actor.id }}
       items={types.map((t) => {
         const intake = sanitizeIntake(t.intake, t.kind, t.mode);
         return {
