@@ -42,7 +42,8 @@ export interface SquareAchInstance {
   tokenize: (options: {
     accountHolderName: string;
     intent: "CHARGE" | "STORE";
-    amount?: number;
+    /** Decimal string, e.g. "125.00" — the SDK rejects a number. */
+    amount?: string;
     currency?: string;
   }) => Promise<SquareTokenResult>;
   destroy: () => Promise<boolean>;

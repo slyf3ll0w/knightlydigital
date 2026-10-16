@@ -85,7 +85,9 @@ export default function SquareAchButton({
       const result = await ach.tokenize({
         accountHolderName: name.trim(),
         intent: "CHARGE",
-        amount: Math.round(amount * 100) / 100,
+        // Square wants the amount as a decimal STRING ("Invalid type: amount
+        // … Expected string" on a number, staging 2026-10-16)
+        amount: amount.toFixed(2),
         currency: "USD",
       });
       if (result.status === "OK" && result.token) {
