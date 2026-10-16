@@ -204,7 +204,11 @@ export const leadsSection: HelpSection = {
         },
         {
           type: "p",
-          text: "Customers can book from 4 hours out to 30 days ahead by default. Change that under **Scheduling rules**.",
+          text: "Customers can book from 4 hours out to 30 days ahead by default. Change that under **Scheduling rules**, where your business hours live too. Times you're busy every week inside those hours (lunch, a standing appointment, Fridays off) go under **Repeating blocks**: booking forms show them as taken, and they sit on the Schedule as blocked time.",
+        },
+        {
+          type: "p",
+          text: "Each item's **Questions** card decides what the form asks. The address question can be worded your way (its label and the example text in the box); on a scheduled visit or service it's asked on its own step, since open times depend on it.",
         },
         {
           type: "p",
@@ -223,7 +227,7 @@ export const leadsSection: HelpSection = {
             },
             {
               q: "The times offered look wrong.",
-              a: "Times come from each bookable person's working hours, their existing jobs and appointments, and (if they connected it) busy time in their Google Calendar. Check the company timezone in Settings → Company too.",
+              a: "Times come from each bookable person's working hours, their existing jobs and appointments, blocked time (one-off and repeating), and (if they connected it) busy time in their Google Calendar. Check the company timezone in Settings → Company too.",
             },
             {
               q: "I can't choose Hold for approval.",

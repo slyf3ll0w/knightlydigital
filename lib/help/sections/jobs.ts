@@ -182,7 +182,7 @@ export const scheduleSection: HelpSection = {
       slug: "use-the-schedule",
       title: "Use the Schedule",
       summary: "Month, week and day views, drag to reschedule, and the dispatch board.",
-      keywords: ["calendar", "dispatch", "drag", "reschedule", "block time", "time off", "double-booked", "day view", "week view", "by tech"],
+      keywords: ["calendar", "dispatch", "drag", "reschedule", "block time", "time off", "repeating", "recurring", "every week", "lunch", "double-booked", "day view", "week view", "by tech"],
       where: { label: "Schedule", href: "/app/schedule" },
       blocks: [
         {
@@ -198,7 +198,8 @@ export const scheduleSection: HelpSection = {
             "Switch between **Month**, **Week** and **Day**. In Day view, **By tech** shows one column per person, like a dispatch board. Phones open on Day.",
             "**Drag** a visit to move it, drag its bottom edge to change its length, or drag across empty space to create something. Hold `Shift` while dragging to copy. Everything snaps to 15 minutes.",
             "After every move you get an **Undo**, plus `Text client` / `Email client` to tell them about the change.",
-            "`Block time` marks time off or shop days so nobody books over them. `Move the day` shifts a whole day's work.",
+            "`Block time` marks time off or shop days so nobody books over them. Tick **Repeats every week** and pick the days for things that happen every week (lunch, a standing appointment, Fridays off); booking forms show those times as taken, with your business hours left as they are. `Move the day` shifts a whole day's work.",
+            "Open one day of a repeating block to change or remove just that day. **Edit every time** changes the whole rule, and **Remove → Every time** clears every day of it. The same list lives under Settings → Booking & forms → Scheduling rules → **Repeating blocks**.",
             "Chips flag anything that needs a look: **Awaiting approval**, **Double-booked**, **Unassigned**, **Subcontractor**.",
           ],
         },
