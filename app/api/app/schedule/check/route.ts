@@ -8,11 +8,13 @@ import { findDriveConflicts } from "@/lib/schedule-drive";
  * POST /api/app/schedule/check — the live "heads up" under a form's time
  * fields while someone picks a time (David 2026-10-06), before anything is
  * saved: who else is booked then (lib/schedule-conflicts.ts) and, for
- * on-site work, who can't drive there in time or on to their next stop
- * (lib/schedule-drive.ts). Never blocks; the forms save regardless.
+ * on-site work, who can't drive there in time or on to their next stop —
+ * or, for off-site items (phone appointments, blocked time), whose drive to
+ * their next stop this would land on (lib/schedule-drive.ts). Never blocks;
+ * the forms save regardless.
  *
  * Body: { start, end, userIds, onSite?, address?, propertyId?, contactId?,
- *         excludeJobId?, excludeAppointmentId? }
+ *         excludeJobId?, excludeAppointmentId?, excludeTimeBlockId? }
  */
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -47,16 +49,16 @@ export async function POST(req: NextRequest) {
     excludeJobId: str(body.excludeJobId),
     excludeAppointmentId: str(body.excludeAppointmentId),
   };
+  const onSite = Boolean(body.onSite);
   const [conflicts, drive] = await Promise.all([
-    findScheduleConflicts(common).catch(() => [] as string[]),
-    body.onSite
-      ? findDriveConflicts({
-          ...common,
-          address: str(body.address)?.slice(0, 300) ?? null,
-          propertyId: str(body.propertyId) ?? null,
-          contactId: str(body.contactId) ?? null,
-        }).catch(() => [] as string[])
-      : Promise.resolve([] as string[]),
+    findScheduleConflicts({ ...common, excludeTimeBlockId: str(body.excludeTimeBlockId) }).catch(() => [] as string[]),
+    findDriveConflicts({
+      ...common,
+      onSite,
+      address: onSite ? (str(body.address)?.slice(0, 300) ?? null) : null,
+      propertyId: onSite ? (str(body.propertyId) ?? null) : null,
+      contactId: onSite ? (str(body.contactId) ?? null) : null,
+    }).catch(() => [] as string[]),
   ]);
   return NextResponse.json({ conflicts, drive });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager, appointmentScope } from "@/lib/permissions";
 import { findScheduleConflicts } from "@/lib/schedule-conflicts";
+import { findDriveConflicts } from "@/lib/schedule-drive";
 import { fireAutomations } from "@/lib/automations-server";
 import { checkPeople, peopleOf, requestedPeople, setExtraPeople } from "@/lib/appointment-people";
 import { rescheduleReminderStamps } from "@/lib/reminder-stage";
@@ -149,23 +150,35 @@ export async function PATCH(
   }
   if (updated.scheduledAt.getTime() !== appt.scheduledAt.getTime()) fireAutomations(actor.companyId, "appointment.rescheduled", updated.id);
 
-  // Non-blocking double-booking heads-up when the time or assignee moved
+  // Non-blocking double-booking + drive-time heads-up when the time or assignee moved
   let conflicts: string[] = [];
+  let drive: string[] = [];
   if (
     (body.scheduledAt !== undefined || body.scheduledEnd !== undefined || peopleChanged) &&
     updated.status === "SCHEDULED" &&
     !updated.scheduledAnytime &&
     nowPeople.length > 0
   ) {
-    conflicts = await findScheduleConflicts({
+    const window = {
       companyId: actor.companyId,
       start: updated.scheduledAt,
       end: updated.scheduledEnd ?? new Date(updated.scheduledAt.getTime() + 3600_000),
       userIds: nowPeople,
       excludeAppointmentId: updated.id,
-    }).catch(() => []);
+    };
+    const onSite = updated.type === "IN_PERSON";
+    [conflicts, drive] = await Promise.all([
+      findScheduleConflicts(window).catch(() => [] as string[]),
+      findDriveConflicts({
+        ...window,
+        onSite,
+        address: onSite ? updated.address : null,
+        propertyId: onSite ? updated.propertyId : null,
+        contactId: onSite ? updated.contactId : null,
+      }).catch(() => [] as string[]),
+    ]);
   }
-  return NextResponse.json({ ...updated, conflicts });
+  return NextResponse.json({ ...updated, conflicts, drive });
 }
 
 /** DELETE — remove an appointment entirely (managers; others cancel instead). */

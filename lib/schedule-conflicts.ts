@@ -22,6 +22,8 @@ export async function findScheduleConflicts(params: {
   userIds: string[];
   excludeJobId?: string;
   excludeAppointmentId?: string;
+  /** Editing a time block: its own row is not a conflict with itself */
+  excludeTimeBlockId?: string;
 }): Promise<string[]> {
   const { companyId, start, end, userIds } = params;
   if (!end || userIds.length === 0) return [];
@@ -105,6 +107,7 @@ export async function findScheduleConflicts(params: {
     prisma.timeBlock.findMany({
       where: {
         companyId,
+        ...(params.excludeTimeBlockId ? { id: { not: params.excludeTimeBlockId } } : {}),
         startAt: { lt: end },
         endAt: { gt: start },
         OR: [{ userId: { in: userIds } }, { userId: null }],

@@ -15,13 +15,18 @@ export type ScheduleCheckInput = {
   start: string;
   end: string;
   userIds: string[];
-  /** On-site work (a job, an in-person appointment) — checks drive time too. */
+  /**
+   * On-site work (a job, an in-person appointment) — can each person get
+   * here and on to their next stop? Off-site (phone/video, blocked time with
+   * no address) — does this land on a drive they already owe?
+   */
   onSite: boolean;
   address?: string | null;
   propertyId?: string | null;
   contactId?: string | null;
   excludeJobId?: string;
   excludeAppointmentId?: string;
+  excludeTimeBlockId?: string;
 };
 
 export type ScheduleCheckResult = { conflicts: string[]; drive: string[] };

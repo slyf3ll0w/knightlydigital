@@ -34,6 +34,7 @@ import { QuickMenu, type QuickAction, type MenuAnchor } from "@/components/Quick
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { openDirections } from "@/components/NavChooser";
 import PageTitle from "@/components/PageTitle";
+import ScheduleHeadsUp, { useScheduleCheck } from "@/components/ScheduleHeadsUp";
 import { FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { telHref } from "@/lib/messaging";
@@ -177,6 +178,11 @@ export default function ScheduleClient({
   const [error, setError] = useState("");
   // Overlap warnings from the last schedule save (non-blocking, dismissible)
   const [conflicts, setConflicts] = useState<string[]>([]);
+  /** Lines for the heads-up box from a save's response: overlaps, then drive-time notes (lib/schedule-drive.ts). */
+  const headsUp = (d?: { conflicts?: string[]; drive?: string[] } | null): string[] => [
+    ...(Array.isArray(d?.conflicts) ? d.conflicts.map((c) => `Overlaps ${c}`) : []),
+    ...(Array.isArray(d?.drive) ? d.drive : []),
+  ];
   const [mounted, setMounted] = useState(false);
   const [legs, setLegs] = useState<DriveLegs | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -196,6 +202,22 @@ export default function ScheduleClient({
   }>(null);
   const [blockBusy, setBlockBusy] = useState(false);
   const [blockErr, setBlockErr] = useState("");
+  // Live heads-up while blocking time (David 2026-10-19): who's booked then,
+  // and whose drive to their next stop this would land on. Scheduling side
+  // only — the check 403s techs, who'd otherwise see other people's bookings.
+  const bf = blockSheet?.form;
+  const blockCheck = useScheduleCheck(
+    blockSheet?.canEdit && (canCreateJob || canCreateAppointment) && bf && !bf.allDay && bf.startDate && bf.startTime && bf.endTime
+      ? {
+          start: `${bf.startDate}T${bf.startTime}`,
+          end: `${bf.startDate}T${bf.endTime}`,
+          userIds: bf.who === "everyone" ? users.map((u) => u.id).slice(0, 10) : [bf.who].filter(Boolean),
+          onSite: Boolean(bf.address.trim()),
+          address: bf.address.trim() || null,
+          excludeTimeBlockId: blockSheet.id ?? undefined,
+        }
+      : null
+  );
   // The repeating-block editor ("Edit every time" from an occurrence)
   const [seriesSheet, setSeriesSheet] = useState<SeriesDTO | null>(null);
 
@@ -361,7 +383,7 @@ export default function ScheduleClient({
 
     setSaving(true);
     setError("");
-    const { ok, data } = await postJson<{ conflicts?: string[]; code?: string }>(endpoint, body, "PATCH");
+    const { ok, data } = await postJson<{ conflicts?: string[]; drive?: string[]; code?: string }>(endpoint, body, "PATCH");
     setSaving(false);
     if (!ok) {
       patchLocal(item.id, { ...prev, assignees: item.assignees });
@@ -380,8 +402,7 @@ export default function ScheduleClient({
       setError(data?.error ?? GENERIC_ERROR);
       return false;
     }
-    const warned = data?.conflicts;
-    setConflicts(Array.isArray(warned) ? warned : []);
+    setConflicts(headsUp(data));
 
     if (opts.undoable !== false) {
       const when = next.scheduledAt
@@ -597,13 +618,13 @@ export default function ScheduleClient({
         scheduledAnytime: anytime,
       };
       if (users.length > 0) body.assigneeIds = assigneeIds;
-      const r = await postJson<{ conflicts?: string[] }>(`/api/app/jobs/${dup.data.id}`, body, "PATCH");
+      const r = await postJson<{ conflicts?: string[]; drive?: string[] }>(`/api/app/jobs/${dup.data.id}`, body, "PATCH");
       setSaving(false);
       if (!r.ok) {
         setError(r.data?.error ?? GENERIC_ERROR);
         return;
       }
-      setConflicts(r.data?.conflicts ?? []);
+      setConflicts(headsUp(r.data));
       showToast({ text: `Copied ${item.contactName} — ${item.title}`, sub: placeLabel(start, anytime ? null : minutesOf(start), itemDuration(item)) });
       startTransition(() => router.refresh());
       return;
@@ -639,7 +660,7 @@ export default function ScheduleClient({
 
   function onPlaced(r: PlaceResult) {
     setPlaceIntent(null);
-    setConflicts(r.conflicts);
+    setConflicts(headsUp(r));
     showToast({
       text: `${r.kind === "job" ? "Scheduled" : "Booked"} ${r.contactName || r.label}`,
       sub: r.label,
@@ -1766,7 +1787,7 @@ export default function ScheduleClient({
       {conflicts.length > 0 && (
         <div className="mb-3 flex items-start justify-between gap-3 rounded-lg bg-[color:var(--ds-warn-soft)] px-3 py-2 text-sm text-[color:var(--ds-warn)]">
           <div>
-            <p className="font-semibold">Heads up — this overlaps:</p>
+            <p className="font-semibold">Heads up:</p>
             {conflicts.map((c) => (
               <p key={c} className="mt-0.5 text-xs">
                 {c}
@@ -2196,6 +2217,7 @@ export default function ScheduleClient({
                 </div>
               )
             )}
+            {blockSheet.canEdit && <ScheduleHeadsUp result={blockCheck} />}
             <div className="flex items-center gap-2 pt-1">
               {blockSheet.canEdit && (
                 <button onClick={saveBlock} disabled={blockBusy} className="btn-primary">

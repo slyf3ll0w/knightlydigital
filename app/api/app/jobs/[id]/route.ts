@@ -4,6 +4,7 @@ import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, isManager, jobScope } from "@/lib/permissions";
 import { findScheduleConflicts } from "@/lib/schedule-conflicts";
+import { findDriveConflicts } from "@/lib/schedule-drive";
 import { ensureSubscriptionsForContact } from "@/lib/subscriptions";
 import { syncJobChecklist } from "@/lib/job-checklist";
 import { cleanOutsourcedTo, crewMissing, deriveJobTitle, NEEDS_CREW_CODE, NEEDS_CREW_ERROR, resolveCrew } from "@/lib/job-crew";
@@ -242,9 +243,10 @@ export async function PATCH(
   }
   if (crewChanged) fireAutomations(actor.companyId, "job.assigned", job.id);
 
-  // Non-blocking double-booking check when the schedule (or crew) changed —
-  // the save already happened; the UI shows these as a heads-up.
+  // Non-blocking double-booking + drive-time check when the schedule (or
+  // crew) changed — the save already happened; the UI shows these as a heads-up.
   let conflicts: string[] = [];
+  let drive: string[] = [];
   if (
     body.scheduledAt !== undefined ||
     body.scheduledEnd !== undefined ||
@@ -256,21 +258,38 @@ export async function PATCH(
         scheduledAt: true,
         scheduledEnd: true,
         scheduledAnytime: true,
+        outsourced: true,
+        address: true,
+        propertyId: true,
+        contactId: true,
         assignments: { select: { userId: true } },
       },
     });
     if (fresh?.scheduledAt && !fresh.scheduledAnytime) {
-      conflicts = await findScheduleConflicts({
+      const window = {
         companyId: actor.companyId,
         start: fresh.scheduledAt,
         end: fresh.scheduledEnd ?? new Date(fresh.scheduledAt.getTime() + 3600_000),
         userIds: fresh.assignments.map((a) => a.userId),
         excludeJobId: job.id,
-      }).catch(() => []);
+      };
+      [conflicts, drive] = await Promise.all([
+        findScheduleConflicts(window).catch(() => [] as string[]),
+        // An outsourced job is nobody's drive
+        fresh.outsourced
+          ? Promise.resolve([] as string[])
+          : findDriveConflicts({
+              ...window,
+              onSite: true,
+              address: fresh.address,
+              propertyId: fresh.propertyId,
+              contactId: fresh.contactId,
+            }).catch(() => [] as string[]),
+      ]);
     }
   }
 
-  return NextResponse.json({ success: true, conflicts });
+  return NextResponse.json({ success: true, conflicts, drive });
 }
 
 /**
