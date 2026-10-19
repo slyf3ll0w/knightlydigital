@@ -115,14 +115,36 @@ export default function NavChooserHost() {
       // target=_blank would ask the webview for a new window instead)
       e.preventDefault();
       window.location.href = opt.href;
-      window.setTimeout(() => {
-        // Still in front after a moment = the app isn't installed; use the web link
-        if (document.visibilityState === "visible") {
+      // Apple Maps is always there. For the others, if the shell is still in
+      // front after a moment the app isn't installed — use the web link. The
+      // moment the shell loses focus or is hidden, the app took over and the
+      // fallback is cancelled (an early timer here was itself a way to end up
+      // on the website).
+      if (app !== "apple") {
+        let left = false;
+        const gone = () => {
+          left = true;
+          cleanup();
+        };
+        const cleanup = () => {
+          window.removeEventListener("blur", gone);
+          window.removeEventListener("pagehide", gone);
+          document.removeEventListener("visibilitychange", onVis);
+        };
+        const onVis = () => {
+          if (document.visibilityState === "hidden") gone();
+        };
+        window.addEventListener("blur", gone);
+        window.addEventListener("pagehide", gone);
+        document.addEventListener("visibilitychange", onVis);
+        window.setTimeout(() => {
+          cleanup();
+          if (left || document.visibilityState !== "visible") return;
           const Browser = getCapacitor()?.Plugins?.Browser;
           if (Browser?.open) Browser.open({ url: opt.web }).catch(() => window.open(opt.web, "_blank"));
           else window.open(opt.web, "_blank");
-        }
-      }, 1500);
+        }, 2500);
+      }
     }
     // Let the anchor's own navigation happen (web), then dismiss
     window.setTimeout(close, 50);
