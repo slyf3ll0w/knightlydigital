@@ -1,5 +1,6 @@
 "use client";
 
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { useEffect, useState } from "react";
 import { Loader2, Trash2 } from "lucide-react";
 import Modal from "@/components/Modal";
@@ -209,7 +210,7 @@ export default function RepeatingBlockSheet({
         </div>
         <div>
           <label className={label}>Where (optional)</label>
-          <input type="text" value={form.address} disabled={!canEdit} placeholder="Address — so jobs get scheduled around the drive" onChange={(e) => set({ address: e.target.value })} className={field} />
+          <AddressAutocomplete endpoint="/api/app/geocode/suggest" value={form.address} disabled={!canEdit} placeholder="Address — so jobs get scheduled around the drive" onChange={(v) => set({ address: v })} onPick={(a) => set({ address: a.label })} className={field} />
         </div>
         <div className="flex items-center gap-2 pt-1">
           {canEdit && (

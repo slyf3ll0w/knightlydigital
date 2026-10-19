@@ -1,5 +1,6 @@
 "use client";
 
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -2084,12 +2085,13 @@ export default function ScheduleClient({
             )}
             <div>
               <label className="mb-0.5 block text-xs font-medium text-gray-500">Where (optional)</label>
-              <input
-                type="text"
+              <AddressAutocomplete
+                endpoint="/api/app/geocode/suggest"
                 value={blockSheet.form.address}
                 disabled={!blockSheet.canEdit}
                 placeholder="Address — so jobs get scheduled around the drive"
-                onChange={(e) => setBlockSheet((s) => s && { ...s, form: { ...s.form, address: e.target.value } })}
+                onChange={(v) => setBlockSheet((s) => s && { ...s, form: { ...s.form, address: v } })}
+                onPick={(a) => setBlockSheet((s) => s && { ...s, form: { ...s.form, address: a.label } })}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] disabled:bg-gray-50 disabled:text-gray-500"
               />
               {blockSheet.form.who !== "everyone" && blockSheet.form.address.trim() && (

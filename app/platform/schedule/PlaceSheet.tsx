@@ -1,5 +1,6 @@
 "use client";
 
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { inputCls } from "@/components/Input";
 import Link from "next/link";
@@ -780,7 +781,7 @@ export default function PlaceSheet({
           {(kind === "job" || apptType === "IN_PERSON") && (
             <div>
               <label className="mb-0.5 block text-xs font-medium text-gray-500">Address</label>
-              <input className={inputCls} value={address} onChange={(ev) => setAddress(ev.target.value)} placeholder="Service address" />
+              <AddressAutocomplete endpoint="/api/app/geocode/suggest" className={inputCls} value={address} onChange={setAddress} onPick={(a) => setAddress(a.label)} placeholder="Service address" />
             </div>
           )}
 

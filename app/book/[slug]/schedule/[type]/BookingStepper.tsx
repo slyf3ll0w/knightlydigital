@@ -1,5 +1,6 @@
 "use client";
 
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, CalendarPlus, Check, CheckCircle, Clock, ExternalLink, Globe, Loader2, MapPin, MessageSquare, Phone, Video, Wrench } from "lucide-react";
 import TurnstileWidget from "@/components/TurnstileWidget";
@@ -585,12 +586,12 @@ export default function BookingStepper({
         {step === "address" && (
           <div>
             <label className={label}>{intake.fields.address.label || ADDRESS_DEFAULTS.label} *</label>
-            <input
-              type="text"
+            <AddressAutocomplete
+              endpoint={`/api/public/address-suggest?slug=${encodeURIComponent(companySlug)}`}
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              onChange={setAddress}
+              onPick={(a) => setAddress(a.label)}
               placeholder={intake.fields.address.placeholder || ADDRESS_DEFAULTS.placeholder}
-              autoComplete="street-address"
               className={input}
               required
             />
@@ -706,7 +707,7 @@ export default function BookingStepper({
                   {intake.fields.address.label}
                   {intake.fields.address.required ? " *" : ""}
                 </label>
-                <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} required={intake.fields.address.required} autoComplete="street-address" className={input} />
+                <AddressAutocomplete dark={dark} endpoint={`/api/public/address-suggest?slug=${encodeURIComponent(companySlug)}`} value={address} onChange={setAddress} onPick={(a) => setAddress(a.label)} required={intake.fields.address.required} className={input} />
               </div>
             )}
             {sq.show && (

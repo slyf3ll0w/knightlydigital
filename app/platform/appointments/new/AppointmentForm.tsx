@@ -1,5 +1,6 @@
 "use client";
 
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { useState } from "react";
 import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
@@ -356,12 +357,18 @@ export default function AppointmentForm({
                   })}
                 </select>
               )}
-              <input
+              <AddressAutocomplete
+                endpoint="/api/app/geocode/suggest"
                 value={effectiveAddress}
-                onChange={(e) => {
+                onChange={(v) => {
                   setAddressTouched(true);
-                  setAddress(e.target.value);
+                  setAddress(v);
                   setPropertyId(""); // typing a custom address breaks the link
+                }}
+                onPick={(a) => {
+                  setAddressTouched(true);
+                  setAddress(a.label);
+                  setPropertyId("");
                 }}
                 placeholder="Defaults to the client's address"
                 className={inputCls}

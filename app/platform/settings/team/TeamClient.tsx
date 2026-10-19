@@ -1,5 +1,6 @@
 "use client";
 
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { useEffect, useState } from "react";
 import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
@@ -459,10 +460,11 @@ export default function TeamClient({
                   </label>
                   <label className="block">
                     <span className="mb-1 block text-xs font-medium text-gray-500">Starts the day from</span>
-                    <input
-                      type="text"
+                    <AddressAutocomplete
+                      endpoint="/api/app/geocode/suggest"
                       value={extraDraft.startAddress}
-                      onChange={(e) => setExtraDraft({ ...extraDraft, startAddress: e.target.value })}
+                      onChange={(v) => setExtraDraft({ ...extraDraft, startAddress: v })}
+                      onPick={(a) => setExtraDraft({ ...extraDraft, startAddress: a.label })}
                       placeholder="Leave blank for the shop"
                       className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                     />

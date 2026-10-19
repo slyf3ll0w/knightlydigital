@@ -1,5 +1,6 @@
 "use client";
 
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { useState } from "react";
 import { inputCls } from "@/components/Input";
 import { useRouter } from "next/navigation";
@@ -246,11 +247,12 @@ export default function AddressesCard({
             maxLength={60}
             className={inputCls}
           />
-          <input
-            type="text"
+          <AddressAutocomplete
+            endpoint="/api/app/geocode/suggest"
             placeholder="Street address"
             value={form.address}
-            onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+            onChange={(v) => setForm((f) => ({ ...f, address: v }))}
+            onPick={(a) => setForm((f) => ({ ...f, address: a.street, city: a.city, state: a.state, zip: a.postalCode }))}
             maxLength={200}
             className={inputCls}
           />

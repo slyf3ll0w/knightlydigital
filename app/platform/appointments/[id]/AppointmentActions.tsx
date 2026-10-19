@@ -1,5 +1,6 @@
 "use client";
 
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -520,10 +521,11 @@ export default function AppointmentActions({
             {form.type === "IN_PERSON" && (
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-0.5">Address</label>
-                <input
-                  type="text"
+                <AddressAutocomplete
+                  endpoint="/api/app/geocode/suggest"
                   value={form.address}
-                  onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                  onChange={(v) => setForm((f) => ({ ...f, address: v }))}
+                  onPick={(a) => setForm((f) => ({ ...f, address: a.label }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                   placeholder="Where you'll meet the client"
                 />

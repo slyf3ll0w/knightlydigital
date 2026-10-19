@@ -1,5 +1,6 @@
 "use client";
 
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -689,13 +690,17 @@ function NewJobForm({ actorId }: { actorId: string }) {
                   ))}
                 </select>
               )}
-              <input
-                type="text"
+              <AddressAutocomplete
+                endpoint="/api/app/geocode/suggest"
                 value={form.address}
-                onChange={(e) => {
+                onChange={(v) => {
                   // Typing a custom address breaks the saved-property link
                   setAddressTouched(true);
-                  setForm((f) => ({ ...f, address: e.target.value, propertyId: "" }));
+                  setForm((f) => ({ ...f, address: v, propertyId: "" }));
+                }}
+                onPick={(a) => {
+                  setAddressTouched(true);
+                  setForm((f) => ({ ...f, address: a.label, propertyId: "" }));
                 }}
                 className={inputCls}
                 placeholder="Defaults to customer address"

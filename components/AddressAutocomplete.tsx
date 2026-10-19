@@ -21,6 +21,9 @@ export default function AddressAutocomplete({
   endpoint = "/api/app/line/address-suggest",
   id,
   ariaLabel,
+  disabled,
+  maxLength,
+  dark = false,
 }: {
   value: string;
   onChange: (text: string) => void;
@@ -36,18 +39,24 @@ export default function AddressAutocomplete({
   endpoint?: string;
   id?: string;
   ariaLabel?: string;
+  disabled?: boolean;
+  maxLength?: number;
+  /** Public forms on a dark appearance — the list matches the field */
+  dark?: boolean;
 }) {
   const [items, setItems] = useState<AddressSuggestion[]>([]);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
-  const picked = useRef<string | null>(null);
+  // The suggestion last picked — a form may put its street OR its full label in the box
+  const picked = useRef<AddressSuggestion | null>(null);
   const abort = useRef<AbortController | null>(null);
   const wrap = useRef<HTMLDivElement>(null);
   const listId = useId();
 
   useEffect(() => {
     const q = value.trim();
-    if (q.length < 4 || picked.current === value) {
+    const justPicked = picked.current && (picked.current.street === value || picked.current.label === value);
+    if (disabled || q.length < 4 || justPicked) {
       setItems([]);
       setOpen(false);
       return;
@@ -56,7 +65,7 @@ export default function AddressAutocomplete({
       abort.current?.abort();
       const ctrl = new AbortController();
       abort.current = ctrl;
-      fetch(`${endpoint}?q=${encodeURIComponent(q)}`, { signal: ctrl.signal, cache: "no-store" })
+      fetch(`${endpoint}${endpoint.includes("?") ? "&" : "?"}q=${encodeURIComponent(q)}`, { signal: ctrl.signal, cache: "no-store" })
         .then((r) => (r.ok ? r.json() : { suggestions: [] }))
         .then((j: { suggestions?: AddressSuggestion[] }) => {
           if (ctrl.signal.aborted) return;
@@ -68,7 +77,7 @@ export default function AddressAutocomplete({
         .catch(() => {});
     }, 300);
     return () => clearTimeout(t);
-  }, [value, endpoint]);
+  }, [value, endpoint, disabled]);
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -79,7 +88,7 @@ export default function AddressAutocomplete({
   }, []);
 
   const choose = (s: AddressSuggestion) => {
-    picked.current = s.street;
+    picked.current = s;
     setOpen(false);
     setItems([]);
     onPick(s);
@@ -114,6 +123,8 @@ export default function AddressAutocomplete({
         className={className}
         placeholder={placeholder}
         required={required}
+        disabled={disabled}
+        maxLength={maxLength}
         autoComplete="off"
         role="combobox"
         aria-expanded={open}
@@ -124,7 +135,9 @@ export default function AddressAutocomplete({
         <ul
           id={listId}
           role="listbox"
-          className="ds-glass absolute left-0 right-0 top-full z-20 mt-1 max-h-60 overflow-auto rounded-xl py-1 text-sm"
+          className={`absolute left-0 right-0 top-full z-20 mt-1 max-h-60 overflow-auto rounded-xl py-1 text-sm ${
+            dark ? "border border-white/15 bg-[#161a16] shadow-lg" : "ds-glass"
+          }`}
         >
           {items.map((s, i) => (
             <li
@@ -136,10 +149,14 @@ export default function AddressAutocomplete({
                 choose(s);
               }}
               onMouseEnter={() => setActive(i)}
-              className={`cursor-pointer px-3 py-1.5 ${i === active ? "bg-gray-100 text-gray-900" : "text-gray-700"}`}
+              className={`cursor-pointer px-3 py-1.5 ${
+                dark
+                  ? i === active ? "bg-white/10 text-white" : "text-white/85"
+                  : i === active ? "bg-gray-100 text-gray-900" : "text-gray-700"
+              }`}
             >
               <span className="font-medium">{s.street}</span>
-              <span className="text-gray-500">
+              <span className={dark ? "text-white/50" : "text-gray-500"}>
                 , {s.city}, {s.state} {s.postalCode}
               </span>
             </li>

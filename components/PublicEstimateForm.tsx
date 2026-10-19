@@ -1,5 +1,6 @@
 "use client";
 
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { GENERIC_ERROR } from "@/lib/safe-fetch";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -595,7 +596,7 @@ export default function PublicEstimateForm({
         {f.address.show && (
           <div>
             <label className={label}>Service address{f.address.required ? " *" : ""}</label>
-            <input type="text" value={form.address} onChange={(e) => set("address", e.target.value)} required={f.address.required} placeholder="123 Main St, Dallas, TX 75201" autoComplete="street-address" className={input} />
+            <AddressAutocomplete dark={dark} endpoint={`/api/public/address-suggest?slug=${encodeURIComponent(companySlug)}`} value={form.address} onChange={(v) => set("address", v)} onPick={(a) => set("address", a.label)} required={f.address.required} placeholder="123 Main St, Dallas, TX 75201" className={input} />
           </div>
         )}
         {f.message.show && (
@@ -694,7 +695,7 @@ export default function PublicEstimateForm({
       {f.address.show && (
         <div>
           <label className={label}>Service address{f.address.required ? " *" : ""}</label>
-          <input type="text" value={form.address} onChange={(e) => set("address", e.target.value)} required={f.address.required} placeholder="123 Main St, Dallas, TX 75201" autoComplete="street-address" className={input} />
+          <AddressAutocomplete dark={dark} endpoint={`/api/public/address-suggest?slug=${encodeURIComponent(companySlug)}`} value={form.address} onChange={(v) => set("address", v)} onPick={(a) => set("address", a.label)} required={f.address.required} placeholder="123 Main St, Dallas, TX 75201" className={input} />
         </div>
       )}
       {f.message.show && (

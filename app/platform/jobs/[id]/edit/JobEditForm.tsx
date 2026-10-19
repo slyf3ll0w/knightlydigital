@@ -1,5 +1,6 @@
 "use client";
 
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { money } from "@/lib/statuses";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -225,12 +226,16 @@ export default function JobEditForm({
                 ))}
               </select>
             )}
-            <input
-              type="text"
+            <AddressAutocomplete
+              endpoint="/api/app/geocode/suggest"
               value={address}
-              onChange={(e) => {
+              onChange={(v) => {
                 // Typing a custom address breaks the saved-property link
-                setAddress(e.target.value);
+                setAddress(v);
+                setPropertyId("");
+              }}
+              onPick={(a) => {
+                setAddress(a.label);
                 setPropertyId("");
               }}
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"

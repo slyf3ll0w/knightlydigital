@@ -1,5 +1,6 @@
 "use client";
 
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { NETWORK_ERROR } from "@/lib/safe-fetch";
 import { Fragment, useState, useRef, useEffect, useMemo, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
@@ -45,7 +46,7 @@ import {
   type SettingsSectionKey,
 } from "@/lib/settings-nav";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
-import { Input, Textarea, Select } from "@/components/Input";
+import { Input, Textarea, Select, inputCls } from "@/components/Input";
 import { FlashBanner, useVerifyIdentity, type SignInMethods } from "@/components/VerifyIdentity";
 import { resizeImageFile } from "@/lib/resize-image";
 import { INDUSTRIES, otherIndustry } from "@/lib/pricebooks";
@@ -1688,8 +1689,18 @@ export default function SettingsClient({
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Street address</label>
-            <Input type="text" value={form.address} onChange={(e) => set("address", e.target.value)}
-              className="w-full focus:ring-2" />
+            <AddressAutocomplete
+              endpoint="/api/app/geocode/suggest"
+              value={form.address}
+              onChange={(v) => set("address", v)}
+              onPick={(a) => {
+                set("address", a.street);
+                set("city", a.city);
+                set("state", a.state);
+                set("zip", a.postalCode);
+              }}
+              className={inputCls}
+            />
           </div>
           <div className="grid grid-cols-6 gap-3">
             <div className="col-span-6 sm:col-span-3">
