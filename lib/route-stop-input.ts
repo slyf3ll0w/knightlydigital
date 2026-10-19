@@ -24,9 +24,9 @@ export type RouteStopFields = {
 
 const KINDS: TimeBlockKind[] = ["BLOCK", "ERRAND", "BREAK"];
 
-/** Minutes from midnight: "HH:mm" or a number; null clears; anything else is an error. */
+/** Minutes from midnight: "HH:mm" or a number; absent / null / "" = none; anything else is an error. */
 export function minuteField(v: unknown): number | null | "error" {
-  if (v === null || v === "") return null;
+  if (v === undefined || v === null || v === "") return null;
   if (typeof v === "number") return Number.isInteger(v) && v >= 0 && v <= 24 * 60 ? v : "error";
   if (typeof v === "string") {
     const m = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(v.trim());

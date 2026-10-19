@@ -258,7 +258,8 @@ test.describe("schedule tools", () => {
       expect(solved.applied).toBe(false);
       expect(Array.isArray(solved.keep)).toBe(true);
       expect(typeof solved.movedCount).toBe("number");
-      expect(solved.stops.map((s: { id: string }) => s.id).sort()).toEqual([a.id, b.id, c.id].sort());
+      // The company's automatic lunch rides along as a break — the client stops are these three
+      expect(solved.stops.filter((s: { kind: string }) => s.kind !== "break").map((s: { id: string }) => s.id).sort()).toEqual([a.id, b.id, c.id].sort());
       // B waits for its window: never proposed before 1 PM on the company clock
       const proposedB = solved.stops.find((s: { id: string }) => s.id === b.id);
       const hour = Number(new Date(proposedB.proposedStart).toLocaleTimeString("en-US", { hour: "2-digit", hour12: false, timeZone: solved.timezone }));

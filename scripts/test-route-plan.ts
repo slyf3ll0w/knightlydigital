@@ -19,6 +19,7 @@ import {
   type WalkStop,
 } from "../lib/route-walk";
 import { clientWindowPatch, clientWindowLabel, minuteToTime, timeToMinute } from "../lib/client-window";
+import { minuteField } from "../lib/route-stop-input";
 import { wallTimeToUtc } from "../lib/booking-engine";
 import { autoCloseAt, AUTO_CLOSE_MAX_MS } from "../lib/time-entries";
 // lib/routing pulls Prisma in for the matrix cache — mirror its 5-minute gap rounding here
@@ -300,6 +301,19 @@ test("walkDay with a break: no drive into lunch, the next leg is measured from t
   assert.equal(walked[2].startMs, at(12, 50).getTime());
   assert.equal(walked[2].driveMin, 20);
   assert.equal(walked[1].late, false);
+});
+
+test("minuteField: absent, null and blank mean none; HH:mm and minutes parse; junk is an error", () => {
+  assert.equal(minuteField(undefined), null);
+  assert.equal(minuteField(null), null);
+  assert.equal(minuteField(""), null);
+  assert.equal(minuteField("11:30"), 690);
+  assert.equal(minuteField("9:05"), 545);
+  assert.equal(minuteField(780), 780);
+  assert.equal(minuteField("780"), 780);
+  assert.equal(minuteField("noon"), "error");
+  assert.equal(minuteField(-5), "error");
+  assert.equal(minuteField(25 * 60), "error");
 });
 
 console.log(`\n${passed} passed`);
