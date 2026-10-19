@@ -203,6 +203,22 @@ export async function POST(req: NextRequest) {
     start: p.stop.scheduledAt,
     end: p.stop.scheduledEnd,
   }));
+  // Errands and tasks given a set time hold it (they're walls the walk steps
+  // around) — list them with the pins so the preview reads as the whole day
+  for (const s of day.stops) {
+    if ((s.kind === "errand" || s.kind === "task") && !s.flexible && !s.scheduledAnytime && s.progress !== "done" && s.assigneeIds.includes(userId)) {
+      pinnedDetail.push({
+        id: s.id,
+        kind: s.kind,
+        title: s.title,
+        contactName: s.contactName,
+        reason: "set time",
+        locked: false,
+        start: s.scheduledAt,
+        end: s.scheduledEnd,
+      });
+    }
+  }
   const pinnedIds = new Set(pinnedStops.map((p) => p.stop.id));
   const stops = mapped.filter((s) => !pinnedIds.has(s.id));
 
@@ -237,17 +253,21 @@ export async function POST(req: NextRequest) {
         }
       : null;
 
-  // Located stops are what the solver orders; breaks slot in afterwards
+  // Located stops are what the solver orders; breaks slot in afterwards.
+  // One is enough: a single flexible errand around a set-time one still
+  // needs a time ("when should I be there?").
   const located = stops.filter((s) => s.kind !== "break");
-  if (located.length < 2) {
+  if (located.length < 1) {
     return NextResponse.json(
       {
         error:
-          pinned.length && mapped.length >= 2
+          pinned.length && mapped.length >= 1
             ? pinnedStops.some((p) => p.reason === "kept")
-              ? "Need at least two stops that aren't kept at their time — unlock one to build a route."
-              : "Need at least two stops that haven't started yet to build a route."
-            : "Need at least two mapped stops to build a route.",
+              ? "Every stop is kept at its time — unlock one to build a route."
+              : "Every stop has already started — nothing left to place."
+            : skipped.length
+              ? "Nothing to place yet: the stops on this day have no map pin (check their addresses)."
+              : "Nothing to place yet: add a stop that Optimize may move, or give an errand a set time.",
         skipped,
         pinned,
         pinnedStops: pinnedDetail,

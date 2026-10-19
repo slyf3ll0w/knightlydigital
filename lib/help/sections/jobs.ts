@@ -359,7 +359,7 @@ export const scheduleSection: HelpSection = {
           items: [
             {
               q: "Optimize is greyed out, or a stop says \"No pin\".",
-              a: "Optimizing needs at least 2 stops that are on the map. \"No pin\" means the address couldn't be found. Edit it to a full street address with a city. A place with no pin can be fixed on the Places page.",
+              a: "Optimize needs at least one stop it may place — a mapped job, a flexible errand or task, or lunch. Stops with a set time are kept where they are and listed under \"Kept at their time\". \"No pin\" means the address couldn't be found: edit it to a full street address with a city. A place with no pin can be fixed on the Places page.",
             },
             {
               q: "Lunch didn't show up in the preview.",

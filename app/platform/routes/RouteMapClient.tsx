@@ -1486,7 +1486,7 @@ export default function RouteMapClient({
                       Optimize works per tech — assign these stops to order them.
                     </p>
                   )}
-                  {g.userId !== "" && mayOptimize(g.userId) && g.stops.length >= 2 && pinned < 2 && (
+                  {g.userId !== "" && mayOptimize(g.userId) && g.stops.length >= 1 && pinned < 1 && (
                     <p className="text-[11px] font-medium text-[color:var(--ds-warn)]">{optimizeBlocker}</p>
                   )}
                   {g.inactive && (
@@ -1535,7 +1535,7 @@ export default function RouteMapClient({
                 {mayOptimize(g.userId) && g.stops.length >= 1 && (
                   <button
                     onClick={() => runOptimize(g.userId)}
-                    disabled={previewBusy || pinned < 2}
+                    disabled={previewBusy || pinned < 1}
                     title={optimizeBlocker ?? "Order this route by drive time"}
                     className="flex items-center gap-1.5 rounded-[10px] btn-tool-line bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-800 transition-colors hover:bg-gray-50 disabled:opacity-50"
                   >

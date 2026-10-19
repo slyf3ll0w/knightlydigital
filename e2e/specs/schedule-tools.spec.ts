@@ -251,7 +251,7 @@ test.describe("schedule tools", () => {
       const solved = await first.json();
       if (first.status === 400) {
         // No map pins on this environment (no MAPBOX_TOKEN) — the rest needs geometry
-        expect(solved.error).toContain("mapped stops");
+        expect(solved.error).toContain("map pin");
         return;
       }
       expect(first.status).toBe(200);
@@ -334,7 +334,7 @@ test.describe("schedule tools", () => {
       const solved = await first.json();
       if (first.status === 400) {
         // No map pins on this environment (no MAPBOX_TOKEN) — the rest needs geometry
-        expect(solved.error).toContain("mapped stops");
+        expect(solved.error).toContain("map pin");
         return;
       }
       expect(first.status).toBe(200);
