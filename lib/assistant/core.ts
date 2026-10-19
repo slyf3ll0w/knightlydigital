@@ -2,6 +2,7 @@ import { prisma } from "../db";
 import { type Actor, contactScope } from "../permissions";
 import { wallTimeToUtc } from "../booking-engine";
 import type { AIFunctionDecl } from "../ai";
+import { matchPriceBook } from "../price-book-match";
 
 /**
  * Shared plumbing for the assistant tool registry (see index.ts for the
@@ -172,25 +173,95 @@ export type ParsedLineItem = {
   unitPrice: number;
   /** undefined = the model didn't say — inherit from the existing line on edits. */
   isOptional: boolean | undefined;
+  /** Set when the line was priced from (or matched to) a price-book entry. */
+  unitCost?: number | null;
+  workItemId?: string | null;
 };
+
+function parseLineItem(li: unknown): (ParsedLineItem & { priced: boolean }) | null {
+  const r = (li ?? {}) as Record<string, unknown>;
+  const quantity = r.quantity === null || r.quantity === undefined ? null : Math.round(num(r.quantity) ?? 0);
+  const unitPrice = num(r.unitPrice);
+  const item = {
+    name: str(r.name, 120),
+    description: str(r.description, 200),
+    // Quantities are whole units
+    quantity: quantity && quantity > 0 && quantity <= 999 ? quantity : 1,
+    unitPrice: unitPrice !== null && unitPrice >= 0 && unitPrice <= 100000 ? unitPrice : 0,
+    isOptional: r.isOptional === true ? true : r.isOptional === false ? false : undefined,
+    // A missing or $0 price means "look it up"
+    priced: unitPrice !== null && unitPrice > 0,
+  };
+  return item.description || item.name ? item : null;
+}
 
 export function parseLineItems(raw: unknown): ParsedLineItem[] {
   const items = Array.isArray(raw) ? raw.slice(0, 10) : [];
   return items
-    .map((li) => {
-      const r = (li ?? {}) as Record<string, unknown>;
-      const quantity = r.quantity === null || r.quantity === undefined ? null : Math.round(num(r.quantity) ?? 0);
-      const unitPrice = num(r.unitPrice);
-      return {
-        name: str(r.name, 120),
-        description: str(r.description, 200),
-        // Quantities are whole units
-        quantity: quantity && quantity > 0 && quantity <= 999 ? quantity : 1,
-        unitPrice: unitPrice !== null && unitPrice >= 0 && unitPrice <= 100000 ? unitPrice : 0,
-        isOptional: r.isOptional === true ? true : r.isOptional === false ? false : undefined,
-      };
-    })
-    .filter((li) => li.description || li.name);
+    .map(parseLineItem)
+    .filter((li): li is ParsedLineItem & { priced: boolean } => li !== null)
+    .map(({ priced: _priced, ...li }) => li);
+}
+
+export type ResolvedLineItems = {
+  items: ParsedLineItem[];
+  /** Lines with no price and no price-book match — ask about these, naming the closest entries. */
+  unresolved: { name: string; close: string[] }[];
+};
+
+/**
+ * parseLineItems + the price book (David 2026-10-19): a line the model sent
+ * without a price (or at $0) is priced by its name from the company's active
+ * services and products — typo-tolerant, so "Wter Heater Replacement" finds
+ * "Water Heater Replacement" and carries its price, cost basis and
+ * price-book link. A clear match also normalises the name and links the
+ * line even when the model did give a price. Nothing matching an unpriced
+ * line → it's listed in `unresolved` so the tool can ask ONE precise
+ * question ("pick one of these or give me a price") instead of "how much?".
+ */
+export async function resolveLineItems(companyId: string, raw: unknown): Promise<ResolvedLineItems> {
+  const rawItems = Array.isArray(raw) ? raw.slice(0, 10) : [];
+  const parsed = rawItems
+    .map(parseLineItem)
+    .filter((li): li is ParsedLineItem & { priced: boolean } => li !== null);
+  const book = parsed.length
+    ? await prisma.workItem.findMany({
+        where: { companyId, isActive: true },
+        select: { id: true, name: true, description: true, unitPrice: true, unitCost: true },
+        take: 500,
+      })
+    : [];
+  const unresolved: ResolvedLineItems["unresolved"] = [];
+  const items: ParsedLineItem[] = [];
+  for (const { priced, ...li } of parsed) {
+    const label = li.name || li.description;
+    const { best, close } = book.length ? matchPriceBook(label, book) : { best: null, close: [] };
+    if (best) {
+      items.push({
+        ...li,
+        name: best.name,
+        description: li.description && li.description !== li.name ? li.description : best.description ?? "",
+        unitPrice: priced ? li.unitPrice : Number(best.unitPrice),
+        unitCost: best.unitCost != null ? Number(best.unitCost) : null,
+        workItemId: best.id,
+      });
+      continue;
+    }
+    items.push(li);
+    if (!priced) unresolved.push({ name: label, close: close.map((c) => `${c.name} (${money(c.unitPrice)})`) });
+  }
+  return { items, unresolved };
+}
+
+/** The one-line error a tool returns when lines couldn't be priced. */
+export function unresolvedError(unresolved: ResolvedLineItems["unresolved"]): string {
+  return unresolved
+    .map((u) =>
+      u.close.length
+        ? `No price-book entry matches "${u.name}" — closest: ${u.close.join(", ")}. Ask the user to pick one or give a price.`
+        : `No price-book entry matches "${u.name}" and no price was given. Ask the user for the price (or the right service name).`
+    )
+    .join(" ");
 }
 
 /** Standard Gemini declaration for a line-items parameter. */
@@ -202,12 +273,15 @@ export const LINE_ITEMS_PARAM = {
       name: { type: "string", description: "Short service/product name (shown bold)" },
       description: { type: "string" },
       quantity: { type: "integer" },
-      unitPrice: { type: "number" },
+      unitPrice: {
+        type: "number",
+        description: "Omit to price the line from the price book by its name — only ask the user when the tool reports nothing matched",
+      },
       isOptional: {
         type: "boolean",
         description: "Optional add-on the client can keep or remove when approving a quote",
       },
     },
-    required: ["description", "quantity", "unitPrice"],
+    required: ["description", "quantity"],
   },
 } as const;

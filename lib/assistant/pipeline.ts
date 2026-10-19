@@ -14,7 +14,8 @@ import {
   clientName,
   findContact,
   stage,
-  parseLineItems,
+  resolveLineItems,
+  unresolvedError,
   siteBase,
   LINE_ITEMS_PARAM,
 } from "./core";
@@ -34,6 +35,8 @@ export function itemsPayload(
     quantity: number;
     unitPrice: number;
     isOptional?: boolean | undefined;
+    unitCost?: number | null;
+    workItemId?: string | null;
   }[],
   existing?: {
     name: string;
@@ -58,8 +61,8 @@ export function itemsPayload(
       quantity: li.quantity,
       unitPrice: li.unitPrice,
       isOptional: li.isOptional ?? match?.isOptional ?? false,
-      unitCost: match?.unitCost != null ? Number(match.unitCost) : undefined,
-      workItemId: match?.workItemId ?? undefined,
+      unitCost: li.unitCost ?? (match?.unitCost != null ? Number(match.unitCost) : undefined),
+      workItemId: li.workItemId ?? match?.workItemId ?? undefined,
       recurringInterval: match?.recurringInterval ?? undefined,
     };
   });
@@ -433,7 +436,9 @@ export const pipelineTools: Tool[] = [
     run: async (actor, args, ctx) => {
       const contact = await findContact(actor, str(args.clientId, 40));
       if (!contact) return { error: "No client with that id (or not visible to this user)." };
-      const lineItems = parseLineItems(args.lineItems);
+      const resolved = await resolveLineItems(actor.companyId, args.lineItems);
+      if (resolved.unresolved.length) return { error: unresolvedError(resolved.unresolved) };
+      const lineItems = resolved.items;
       if (lineItems.length === 0) return { error: "At least one line item with a description is required." };
       const total = lineItems.reduce((s, li) => s + li.quantity * li.unitPrice, 0);
       return stage(ctx, {
@@ -507,7 +512,9 @@ export const pipelineTools: Tool[] = [
         if (quote.status !== "DRAFT" && quote.status !== "AWAITING_RESPONSE") {
           return { error: `Quote #${n} is ${quote.status} — only DRAFT or AWAITING_RESPONSE quotes can be edited.` };
         }
-        const lineItems = parseLineItems(args.lineItems);
+        const resolved = await resolveLineItems(actor.companyId, args.lineItems);
+        if (resolved.unresolved.length) return { error: unresolvedError(resolved.unresolved) };
+        const lineItems = resolved.items;
         if (lineItems.length === 0) {
           return { error: "Edits replace ALL line items — call get_document for the current list and include the complete set (with your changes) in lineItems." };
         }

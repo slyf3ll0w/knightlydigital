@@ -15,7 +15,8 @@ import {
   companyTz,
   findContact,
   stage,
-  parseLineItems,
+  resolveLineItems,
+  unresolvedError,
   LINE_ITEMS_PARAM,
 } from "./core";
 import { itemsPayload } from "./pipeline";
@@ -192,7 +193,9 @@ export const moneyTools: Tool[] = [
     run: async (actor, args, ctx) => {
       const contact = await findContact(actor, str(args.clientId, 40));
       if (!contact) return { error: "No client with that id (or not visible to this user)." };
-      const lineItems = parseLineItems(args.lineItems);
+      const resolved = await resolveLineItems(actor.companyId, args.lineItems);
+      if (resolved.unresolved.length) return { error: unresolvedError(resolved.unresolved) };
+      const lineItems = resolved.items;
       if (lineItems.length === 0) return { error: "At least one line item with a description is required." };
       const total = lineItems.reduce((s, li) => s + li.quantity * li.unitPrice, 0);
       const dueDate = day(args.dueDate) ? str(args.dueDate, 10) : undefined;
@@ -260,7 +263,9 @@ export const moneyTools: Tool[] = [
         str(args.discountType, 10) || num(args.taxRate) !== null;
       if (hasEdit) {
         if (invoice.status === "PAID") return { error: `Invoice #${n} is PAID — paid invoices can't be edited.` };
-        const lineItems = parseLineItems(args.lineItems);
+        const resolved = await resolveLineItems(actor.companyId, args.lineItems);
+        if (resolved.unresolved.length) return { error: unresolvedError(resolved.unresolved) };
+        const lineItems = resolved.items;
         if (lineItems.length === 0) {
           return { error: "Edits replace ALL line items — call get_document for the current list and include the complete set (with your changes) in lineItems." };
         }

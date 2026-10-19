@@ -17,7 +17,8 @@ import {
   findContact,
   schedulePayload,
   stage,
-  parseLineItems,
+  resolveLineItems,
+  unresolvedError,
   LINE_ITEMS_PARAM,
 } from "./core";
 import { itemsPayload } from "./pipeline";
@@ -256,7 +257,9 @@ export const scheduleTools: Tool[] = [
           lines.push(crew.ids.length === 0 ? "Crew: cleared" : `Crew: ${crew.names.join(", ")}`);
         }
         if (args.lineItems !== undefined) {
-          const items = parseLineItems(args.lineItems);
+          const resolved = await resolveLineItems(actor.companyId, args.lineItems);
+          if (resolved.unresolved.length) return { error: unresolvedError(resolved.unresolved) };
+          const items = resolved.items;
           if (items.length === 0) {
             return { error: "lineItems replaces ALL line items — call get_document for the current list and send the complete set." };
           }
@@ -289,6 +292,104 @@ export const scheduleTools: Tool[] = [
         endpoint: `/api/app/jobs/${job.id}`,
         method: "PATCH",
         payload,
+      });
+    },
+  },
+  {
+    decl: {
+      name: "add_job_line_items",
+      description:
+        "Stage ADDING services/products to a job's line items (existing lines stay — no get_document needed). Finds the job by number, or by day (date, default today) plus an optional client name: when that day has exactly one matching job it is used without asking. Lines without a unitPrice are priced from the price book by name (typos are fine); ask the user for a price only when the result says nothing matched.",
+      parameters: {
+        type: "object",
+        properties: {
+          jobNumber: { type: "number", description: "when known" },
+          date: { type: "string", description: "YYYY-MM-DD the job is scheduled on (default today) — used when jobNumber is unknown" },
+          client: { type: "string", description: "client name to narrow that day's jobs (optional)" },
+          lineItems: LINE_ITEMS_PARAM,
+        },
+        required: ["lineItems"],
+      },
+    },
+    allowed: (a) => isManager(a.role) || a.role === "USER", // line-item edits, same as create_job
+    run: async (actor, args, ctx) => {
+      const sel = {
+        id: true,
+        jobNumber: true,
+        title: true,
+        scheduledAt: true,
+        scheduledAnytime: true,
+        contact: { select: { firstName: true, lastName: true, companyName: true } },
+      } as const;
+      const n = num(args.jobNumber);
+      let job = n
+        ? await prisma.job.findFirst({ where: { companyId: actor.companyId, jobNumber: n, ...jobScope(actor) }, select: sel })
+        : null;
+      if (n && !job) return { error: `No job #${n} (or not visible to this user).` };
+      if (!n) {
+        // "today's job": the day's active jobs, narrowed by client when given
+        const tz = await companyTz(actor.companyId);
+        const dateStr = str(args.date, 10) || new Date().toLocaleDateString("en-CA", { timeZone: tz });
+        if (!day(dateStr)) return { error: "date must be YYYY-MM-DD" };
+        const start = new Date(`${dateStr}T00:00:00+14:00`);
+        const end = new Date(`${dateStr}T23:59:59-12:00`);
+        const hint = str(args.client, 80).toLowerCase();
+        const candidates = (
+          await prisma.job.findMany({
+            where: { companyId: actor.companyId, ...jobScope(actor), status: "ACTIVE", scheduledAt: { gte: start, lte: end } },
+            select: sel,
+            orderBy: { scheduledAt: "asc" },
+            take: 40,
+          })
+        )
+          .filter((j) => j.scheduledAt && j.scheduledAt.toLocaleDateString("en-CA", { timeZone: tz }) === dateStr)
+          .filter((j) => !hint || clientName(j.contact).toLowerCase().includes(hint));
+        if (candidates.length === 0) {
+          return { error: `No active job scheduled on ${dateStr}${hint ? ` for "${str(args.client, 80)}"` : ""}. Check get_schedule or ask for the job number.` };
+        }
+        if (candidates.length > 1) {
+          return {
+            needsChoice: candidates.map((j) => ({
+              n: j.jobNumber, title: j.title, client: clientName(j.contact), when: fmtWhen(tz, j.scheduledAt!, j.scheduledAnytime),
+            })),
+            note: "Several jobs that day — ask which one (by client), then call again with jobNumber.",
+          };
+        }
+        job = candidates[0];
+      }
+      if (!job) return { error: "No job found." };
+      const resolved = await resolveLineItems(actor.companyId, args.lineItems);
+      if (resolved.unresolved.length) return { error: unresolvedError(resolved.unresolved) };
+      if (resolved.items.length === 0) return { error: "At least one line item with a name is required." };
+      const existing = await prisma.jobLineItem.findMany({
+        where: { jobId: job.id },
+        orderBy: { sortOrder: "asc" },
+        select: { name: true, description: true, quantity: true, unitPrice: true, unitCost: true, workItemId: true, recurringInterval: true },
+      });
+      const kept = existing.map((li) => ({
+        name: li.name,
+        description: li.description ?? "",
+        quantity: Number(li.quantity),
+        unitPrice: Number(li.unitPrice),
+        unitCost: li.unitCost != null ? Number(li.unitCost) : undefined,
+        workItemId: li.workItemId ?? undefined,
+        recurringInterval: li.recurringInterval ?? undefined,
+      }));
+      const added = itemsPayload(resolved.items);
+      const total =
+        kept.reduce((s, li) => s + li.quantity * li.unitPrice, 0) +
+        resolved.items.reduce((s, li) => s + li.quantity * li.unitPrice, 0);
+      return stage(ctx, {
+        kind: "update_job",
+        title: `Add to job #${job.jobNumber} (${job.title})`,
+        lines: [
+          `Client: ${clientName(job.contact)}`,
+          ...resolved.items.map((li) => `${li.name || li.description} × ${li.quantity} @ ${money(li.unitPrice)}`),
+          `New subtotal: ${money(total)}`,
+        ],
+        endpoint: `/api/app/jobs/${job.id}`,
+        method: "PATCH",
+        payload: { lineItems: [...kept, ...added] },
       });
     },
   },

@@ -32,7 +32,7 @@ const names = (a: Actor) => toolsForActor(a).map((t) => t.decl.name).sort();
 assert.deepEqual(
   names(owner),
   [
-    "add_client_note", "add_job_note", "add_sticky_note", "add_team_member", "assign_client",
+    "add_client_note", "add_job_line_items", "add_job_note", "add_sticky_note", "add_team_member", "assign_client",
     "business_summary", "cancel_appointment", "charge_saved_card", "clock",
     "close_lead", "collect_deposit", "convert_quote", "create_agreement_template",
     "create_client", "create_invoice", "create_job", "create_quote",
