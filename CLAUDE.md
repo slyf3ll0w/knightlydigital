@@ -996,10 +996,44 @@ matters with a team. Beyond crew auto-assign above:
 
 ## Route Manager (routes, Optimize, Find a Time)
 
-`/app/schedule/map` (`app/platform/schedule/map/`), read model `lib/route-plan.ts`,
-engine `lib/routing.ts` + `lib/directions.ts`, geocoding `lib/geocoding.ts`,
-optimizer `app/api/app/route-plan/optimize`, Find a Time `lib/find-a-time.ts`.
-Audit + design decisions: `docs/plans/route-manager-audit-2026-09-28.md`.
+`/app/routes` (`app/platform/routes/`; `/app/schedule/map` redirects), read
+model `lib/route-plan.ts`, engine `lib/routing.ts` + `lib/directions.ts`,
+geocoding `lib/geocoding.ts`, optimizer `app/api/app/route-plan/optimize`,
+Find a Time `lib/find-a-time.ts`. Audit + design decisions:
+`docs/plans/route-manager-audit-2026-09-28.md`; the redesign (research,
+phases, decisions): `docs/plans/route-manager-redesign-2026-10-19.md`.
+
+- **Stops, not just jobs (2026-10-19, redesign phase 1).** A day is an
+  ordered list of `RouteStop`s of `kind` job / appointment / block /
+  **errand** / **break** / **task**. Errands and breaks are `TimeBlock`
+  rows with `kind` ERRAND / BREAK (`flexible` + `floatAfterMin/BeforeMin`
+  = the optimizer may place it inside that window; `beforeJobId` = it must
+  come before that job; `placedAt` is stamped when an Optimize applies,
+  `doneAt` when the tech ticks it). A task with a place
+  (`Task.address/lat/lng/placeId/estimatedMinutes`) is a stop on its due
+  day (all-day = flexible, timed = fixed). Saved **Places** (`Place`:
+  supply houses, the dump, the yard; `lib/places.ts`, `/app/routes/places`,
+  `/api/app/places`) are picked in two taps; the address and pin are
+  copied onto the stop. **"Add a stop"** on the Routes page (per crew card,
+  phone too) → `POST /api/app/route-plan/stops` (errand / task / break;
+  `app/platform/routes/AddStopSheet.tsx`). Shared body parsing for block
+  routes: `lib/route-stop-input.ts`. Atlas: `list_places`, `add_place`,
+  `add_stop`.
+- **Optimize knows them.** Flexible errands/tasks are ordered with the
+  jobs (`solveStopOrder` takes precedence pairs and never violates them;
+  `enforcePrecedence` / `repairWindows` in `lib/route-walk.ts`), a break is
+  a zero-drive stop slotted by `breakInsertIndex` after the first stop
+  that ends once its window opens. The **company's automatic lunch**
+  (`Company.breakMinutes/breakAfterMin/breakBeforeMin`, Settings → Booking
+  & forms → Scheduling rules; 0 = off) rides every preview as
+  `break:new` when the tech has no break that day and is saved as a BREAK
+  block on apply (`breakAdded` in the response). Each member's **day end**
+  (`User.dayEndsAt`: SHOP / START / LAST_STOP, Team page) is the return
+  leg the solver costs — `routeMinutes(matrix, order, closeTo)` where
+  `closeTo` is `true` (back to the start) or the end point's matrix index.
+- Tests: `test-route-plan.ts` (precedence, break placement, break walk),
+  `test-routing.ts` (precedence solver, separate end point); e2e
+  `schedule-tools` ("stops that aren't clients").
 
 - **Mapbox spend (2026-09-28).** Display legs (routes page, calendar drive
   gaps) come from `driveChainLegs`: the `DriveLegCache` table first (every

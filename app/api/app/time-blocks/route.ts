@@ -2,12 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { geocodeAddress } from "@/lib/geocoding";
+import { findPlace } from "@/lib/places";
+import { routeStopFields } from "@/lib/route-stop-input";
 
 /**
  * POST — block off time on the schedule. Everyone may block their own
  * calendar; owners/admins may also block a teammate's calendar or the whole
  * company's (forUserId: null = everyone). Blocks render striped on the
  * schedule and subtract from online-booking availability.
+ *
+ * Route stops ride the same table (`kind`: ERRAND / BREAK, see
+ * lib/route-stop-input.ts): a `placeId` fills the address from a saved
+ * place, `flexible` + `floatAfterMin/BeforeMin` let the optimizer place it,
+ * `beforeJobId` orders it ahead of a job.
  */
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -22,6 +29,8 @@ export async function POST(req: NextRequest) {
   if (end.getTime() - start.getTime() > 366 * 86400000) {
     return NextResponse.json({ error: "Blocks can span a year at most." }, { status: 400 });
   }
+  const stopFields = await routeStopFields(body, actor);
+  if ("error" in stopFields) return NextResponse.json({ error: stopFields.error }, { status: 400 });
 
   // Who the block applies to: self unless a manager says otherwise
   let userId: string | null = actor.id;
@@ -46,10 +55,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Optional location — geocoded now so routing can treat the block as a
-  // stop; an address that won't resolve is still kept for the humans
-  const address = typeof body.address === "string" ? body.address.trim().slice(0, 240) || null : null;
-  const pin = address ? await geocodeAddress(address, actor.companyId) : null;
+  // Optional location — a saved place's pin, else geocoded now so routing
+  // can treat the block as a stop; an address that won't resolve is still
+  // kept for the humans
+  const place = stopFields.placeId ? await findPlace(actor.companyId, stopFields.placeId) : null;
+  const address = typeof body.address === "string" && body.address.trim() ? body.address.trim().slice(0, 240) : place?.address ?? null;
+  const pin = place && address === place.address ? { lat: place.lat, lng: place.lng } : address ? await geocodeAddress(address, actor.companyId) : null;
 
   const block = await prisma.timeBlock.create({
     data: {
@@ -58,7 +69,7 @@ export async function POST(req: NextRequest) {
       createdById: actor.id,
       title: (typeof body.title === "string" && body.title.trim()
         ? body.title.trim()
-        : "Blocked off"
+        : place?.name ?? (stopFields.kind === "BREAK" ? "Lunch" : stopFields.kind === "ERRAND" ? "Errand" : "Blocked off")
       ).slice(0, 120),
       startAt: start,
       endAt: end,
@@ -66,6 +77,7 @@ export async function POST(req: NextRequest) {
       address,
       lat: pin?.lat ?? null,
       lng: pin?.lng ?? null,
+      ...stopFields,
     },
   });
 

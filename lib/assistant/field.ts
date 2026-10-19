@@ -3,6 +3,7 @@ import { type Actor, isManager, jobScope } from "../permissions";
 import { parseRouteDate, resolveRouteDay, resolveDriveLegs, type RouteDrive } from "../route-plan";
 import { suggestTimes } from "../find-a-time";
 import { featureAllowedFor } from "../plan-gate";
+import { listPlaces } from "../places";
 import { wallTimeToUtc } from "../booking-engine";
 import { type Tool, str, num, day, clientName, companyTz, fmtWhen, stage } from "./core";
 
@@ -446,7 +447,118 @@ export const fieldTools: Tool[] = [
         lines: ["Reorders and re-times the day's mapped stops by drive time; durations are kept.", "Stops whose client already got a reminder keep their time.", ...(anchor ? [`Day starts at ${anchor}`] : []), "Reminders re-send for moved visits; clients are not texted."],
         endpoint: "/api/app/route-plan/optimize", method: "POST",
         payload: { userId: m.id, date: dateStr, apply: true, ...(/^\d{2}:\d{2}$/.test(anchor) ? { anchorTime: anchor } : {}) },
-        confirmLabel: "Optimize route", href: "/app/schedule/map",
+        confirmLabel: "Optimize route", href: "/app/routes",
+      });
+    },
+  },
+  {
+    decl: {
+      name: "list_places",
+      description: "The company's saved places — supply houses, the dump, the yard — with ids. Use before add_stop when the user names a place, or when asked what places exist.",
+      parameters: { type: "object", properties: {} },
+    },
+    allowed: () => true,
+    run: async (actor) => {
+      const places = await listPlaces(actor.companyId);
+      return { places: places.map((p) => ({ id: p.id, name: p.name, kind: p.kind, address: p.address, mapped: p.lat != null })) };
+    },
+  },
+  {
+    decl: {
+      name: "add_place",
+      description: "Stage saving a place the crew drives to that isn't a client (a supply house, the dump, the yard). Afterwards it's one tap in Add a stop.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          address: { type: "string" },
+          kind: { type: "string", enum: ["SUPPLY", "DUMP", "SHOP", "YARD", "OTHER"] },
+          notes: { type: "string" },
+        },
+        required: ["name", "address"],
+      },
+    },
+    allowed: () => true,
+    run: async (_actor, args, ctx) => {
+      const name = str(args.name, 80);
+      const address = str(args.address, 240);
+      if (!name || !address) return { error: "name and address are required." };
+      const kind = str(args.kind, 10).toUpperCase() || "OTHER";
+      return stage(ctx, {
+        kind: "add_place",
+        title: `Save place: ${name}`,
+        lines: [address, kind !== "OTHER" ? `Kind: ${kind.toLowerCase()}` : ""].filter(Boolean),
+        endpoint: "/api/app/places", method: "POST",
+        payload: { name, address, kind, notes: str(args.notes, 500) || null },
+        confirmLabel: "Save place", href: "/app/routes/places",
+      });
+    },
+  },
+  {
+    decl: {
+      name: "add_stop",
+      description: "Stage adding a non-client stop to someone's route for a day: an errand (supply run, dump, parts drop-off — at a saved place by id or any address, optionally before a named job, inside a time window, or at a set time), a task with a place, or lunch. Optimize then fits it into the day. Managers and office staff can add for anyone; techs for themselves.",
+      parameters: {
+        type: "object",
+        properties: {
+          kind: { type: "string", enum: ["errand", "task", "break"], description: "default errand" },
+          member: { type: "string", description: "team member id or name (default: the current user)" },
+          date: { type: "string", description: "YYYY-MM-DD, default today" },
+          title: { type: "string", description: "what the stop is (required for a task)" },
+          placeId: { type: "string", description: "a saved place id from list_places" },
+          address: { type: "string", description: "any address when no saved place fits" },
+          durationMinutes: { type: "integer" },
+          beforeJobId: { type: "string", description: "errand must come before this job (id from get_route_plan)" },
+          floatAfterMin: { type: "string", description: "HH:mm — not before" },
+          floatBeforeMin: { type: "string", description: "HH:mm — not after" },
+          at: { type: "string", description: "HH:mm — a fixed time instead of letting Optimize place it" },
+        },
+      },
+    },
+    allowed: () => true,
+    run: async (actor, args, ctx) => {
+      if (!(await featureAllowedFor(actor.companyId, "routes"))) return { error: "Route Manager is part of the Pro plan — not on this account." };
+      const tz = await companyTz(actor.companyId);
+      const memberArg = str(args.member, 80);
+      const m = memberArg ? await findMember(actor.companyId, memberArg) : { id: actor.id, name: actor.name };
+      if (!m) return { error: "No active team member matches that." };
+      if (m.id !== actor.id && !isManager(actor.role) && actor.role !== "USER") return { error: "You can only add stops to your own day." };
+      const kind = (["errand", "task", "break"].includes(str(args.kind, 10)) ? str(args.kind, 10) : "errand") as "errand" | "task" | "break";
+      const date = parseRouteDate(str(args.date, 10) || null, tz);
+      const dateStr = date.toISOString().slice(0, 10);
+      const title = str(args.title, 120);
+      const placeId = str(args.placeId, 64);
+      const address = str(args.address, 240);
+      if (kind !== "break" && !placeId && !address) return { error: "Give a placeId (see list_places) or an address." };
+      if (kind === "task" && !title) return { error: "A task needs a title." };
+      const place = placeId ? (await listPlaces(actor.companyId)).find((p) => p.id === placeId) : null;
+      if (placeId && !place) return { error: "No saved place with that id — call list_places." };
+      const where = place ? `${place.name} (${place.address})` : address;
+      const dur = num(args.durationMinutes);
+      const hhmm = (v: unknown) => (/^\d{1,2}:\d{2}$/.test(str(v, 5)) ? str(v, 5) : "");
+      const at = hhmm(args.at);
+      const after = hhmm(args.floatAfterMin);
+      const before = hhmm(args.floatBeforeMin);
+      const beforeJobId = str(args.beforeJobId, 64);
+      const label = kind === "break" ? "Lunch" : title || place?.name || "Errand";
+      return stage(ctx, {
+        kind: "add_stop",
+        title: `Add ${kind === "break" ? "lunch" : kind === "task" ? "a task" : "an errand"} to ${m.name}'s ${dateStr}`,
+        lines: [
+          label,
+          where ? `Where: ${where}` : "",
+          dur ? `${dur} min` : "",
+          at ? `At ${at}` : after || before ? `Between ${after || "the start"} and ${before || "the end"}` : "Optimize places it",
+          beforeJobId ? "Before the named job" : "",
+        ].filter(Boolean),
+        endpoint: "/api/app/route-plan/stops", method: "POST",
+        payload: {
+          kind, userId: m.id, date: dateStr, title: title || undefined,
+          ...(placeId ? { placeId } : {}), ...(address ? { address } : {}),
+          ...(dur ? { durationMinutes: dur } : {}), ...(beforeJobId ? { beforeJobId } : {}),
+          ...(at ? { at } : {}), ...(after ? { floatAfterMin: after } : {}), ...(before ? { floatBeforeMin: before } : {}),
+        },
+        confirmLabel: "Add stop", href: `/app/routes?date=${dateStr}&team=${m.id}`,
       });
     },
   },

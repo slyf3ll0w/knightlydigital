@@ -323,7 +323,7 @@ export const scheduleSection: HelpSection = {
       summary: "See each tech's day on a map and reorder stops by drive time.",
       plan: PRO_CHIP,
       keywords: ["route", "map", "optimize", "drive time", "directions", "no pin", "route manager", "google maps"],
-      where: { label: "Routes", href: "/app/schedule/map" },
+      where: { label: "Routes", href: "/app/routes" },
       blocks: [
         proTip("Route Manager"),
         {

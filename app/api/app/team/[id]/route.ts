@@ -63,6 +63,13 @@ export async function PATCH(
     data.startGeocodedAt = null;
     restartGeocode = Boolean(addr);
   }
+  // Where the day ends — the return leg the route optimizer costs
+  if (body.dayEndsAt !== undefined) {
+    if (body.dayEndsAt !== "SHOP" && body.dayEndsAt !== "START" && body.dayEndsAt !== "LAST_STOP") {
+      return NextResponse.json({ error: "Pick where the day ends." }, { status: 400 });
+    }
+    data.dayEndsAt = body.dayEndsAt;
+  }
 
   // Per-member weekly working hours; null = works the company's business hours
   if (body.workingHours !== undefined) {
@@ -138,7 +145,7 @@ export async function PATCH(
   const updated = await prisma.user.update({
     where: { id: target.id },
     data,
-    select: { id: true, name: true, email: true, phone: true, role: true, isActive: true, bookable: true, hourlyCost: true, meetingLink: true, startAddress: true },
+    select: { id: true, name: true, email: true, phone: true, role: true, isActive: true, bookable: true, hourlyCost: true, meetingLink: true, startAddress: true, dayEndsAt: true },
   });
   if (restartGeocode) void geocodeMemberStart(target.id);
 

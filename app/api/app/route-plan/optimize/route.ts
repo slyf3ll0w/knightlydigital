@@ -2,8 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { apptForUsers, peopleOf, peopleSelect } from "@/lib/appointment-people";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
-import { parseRouteDate, resolveRouteDay, dayStartFor, type RouteStop } from "@/lib/route-plan";
-import { driveMatrix, kmToMiles, roundGapMinutes, routeMinutes, solveStopOrder } from "@/lib/routing";
+import {
+  dayEndFor,
+  dayStartFor,
+  minuteOnDay,
+  parseRouteDate,
+  resolveRouteDay,
+  type RouteStop,
+  type StopKind,
+} from "@/lib/route-plan";
+import { driveMatrix, kmToMiles, roundGapMinutes, routeMinutes, samePoint, solveStopOrder, type IndexPrecedence } from "@/lib/routing";
 import { notifyClientOfMove } from "@/lib/schedule-notify";
 import { rescheduleReminderStamps } from "@/lib/reminder-stage";
 import { DEFAULT_JOB_DURATION_MINUTES } from "@/lib/scheduling";
@@ -15,16 +23,22 @@ import {
 } from "@/lib/business-hours";
 import { wallTimeToUtc } from "@/lib/booking-engine";
 import {
+  breakInsertIndex,
   ceilToMinutes,
   clampedDurationMinutes,
   dayInterval,
+  enforcePrecedence,
   repairWindows,
   runsPastDay,
   walkDay,
   type Interval,
+  type Precedence,
   type WalkStop,
 } from "@/lib/route-walk";
 import { checkFeature } from "@/lib/plan-gate";
+
+/** The id a not-yet-saved automatic lunch carries through preview → apply. */
+const NEW_BREAK_ID = "break:new";
 
 /**
  * POST /api/app/route-plan/optimize — order one tech's day by drive time.
@@ -36,26 +50,31 @@ import { checkFeature } from "@/lib/plan-gate";
  *   keep?: string[],           // stops to keep at their current time (locks);
  *                              // absent = every stop a reminder already went out for
  *   anchorTime?: "HH:mm",      // when the day starts (default: earliest timed stop)
- *   roundTrip?: boolean,       // cost the drive back to the start
+ *   roundTrip?: boolean,       // cost the drive to the day's end point
+ *                              // (default: the member's "day ends at" setting)
  *   notify?: boolean,          // on apply: tell each client whose time changed
  *   apply?: boolean            // false/absent = preview only, nothing written
  * }
  *
- * The route covers jobs AND confirmed in-person appointments — both get
- * reordered and re-timed together. Preview returns the proposed order with
- * proposed times and the drive-time delta; apply rewrites
+ * The route covers the tech's jobs, confirmed in-person appointments,
+ * flexible errands (supply house, dump — placed inside their float window
+ * and before the job they're for), all-day tasks with a place, and lunch:
+ * an existing BREAK block, or the company's automatic break when the day
+ * has none (saved as a BREAK block on apply). Preview returns the proposed
+ * order with proposed times and the drive-time delta; apply rewrites
  * scheduledAt/scheduledEnd (durations preserved, drive-time gaps between
  * stops, "Anytime" stops get real times) inside one transaction, clearing
  * client-reminder stamps so moved visits remind at their new times.
- * Tentative (unconfirmed) bookings, phone/video appointments, and time
- * blocks are never moved — the walk steps over the routed tech's own and
- * warns about teammates'. Stops that already started today, are on the
- * clock, run into the next day, or are LOCKED (`keep`) are pinned
- * (`pinned` in the response): they hold their times and the route is laid
- * out around them. A stop's client window (Job.arriveAfterMin/BeforeMin)
- * is honoured: the walk waits for it to open and the order is repaired so
- * nobody is arrived at after their window closes when another order can
- * avoid it; when none can, the preview warns.
+ * Tentative (unconfirmed) bookings, phone/video appointments, plain time
+ * blocks and timed errands/tasks are never moved — the walk steps over the
+ * routed tech's own and warns about teammates'. Stops that already started
+ * today, are on the clock, run into the next day, or are LOCKED (`keep`)
+ * are pinned (`pinned` in the response): they hold their times and the
+ * route is laid out around them. A stop's client window
+ * (Job.arriveAfterMin/BeforeMin) is honoured: the walk waits for it to
+ * open and the order is repaired so nobody is arrived at after their
+ * window closes when another order can avoid it; when none can, the
+ * preview warns.
  *
  * Who may run it mirrors the job PATCH: managers + USER for any tech, TECH
  * for their own route only, SALES never. Part of Route Manager (Pro).
@@ -78,7 +97,7 @@ export async function POST(req: NextRequest) {
 
   const user = await prisma.user.findFirst({
     where: { id: userId, companyId: actor.companyId, isActive: true },
-    select: { id: true, name: true, workingHours: true },
+    select: { id: true, name: true, workingHours: true, dayEndsAt: true },
   });
   if (!user) return NextResponse.json({ error: "Team member not found." }, { status: 404 });
 
@@ -103,6 +122,7 @@ export async function POST(req: NextRequest) {
     where: {
       companyId: actor.companyId,
       allDay: true,
+      kind: "BLOCK",
       startAt: { lt: dayEnd },
       endAt: { gt: dayStart },
       OR: [{ userId }, { userId: null }],
@@ -122,19 +142,31 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Routable: the tech's jobs + their confirmed in-person appointments.
-  // Tentative bookings hold their promised slot — they only warn. Phone/video
-  // appointments (no address) now ride the day as pin-less stops for
-  // Find-a-Time's sake; they're not routable and already warn via apptsRaw.
-  const assigned = day.stops.filter(
-    (s) =>
-      s.assigneeIds.includes(userId) &&
-      (s.kind === "job"
-        ? s.status === "ACTIVE" && s.progress !== "done"
-        : s.kind === "appointment" && s.status === "SCHEDULED" && !s.tentative && s.address != null)
-  );
-  const mapped = assigned.filter((s) => s.lat != null && s.lng != null);
-  const skipped = assigned.filter((s) => s.lat == null).map((s) => s.title);
+  // Routable: the tech's jobs, confirmed in-person appointments, flexible
+  // errands and breaks, and all-day tasks with a place. Tentative bookings
+  // hold their promised slot — they only warn. Phone/video appointments (no
+  // address) ride the day as pin-less stops for Find-a-Time's sake; they're
+  // not routable and already warn via apptsRaw. A timed errand/task keeps
+  // its time like a block. Done errands/tasks are over.
+  const isRoutable = (s: RouteStop) => {
+    if (!s.assigneeIds.includes(userId)) return false;
+    switch (s.kind) {
+      case "job":
+        return s.status === "ACTIVE" && s.progress !== "done";
+      case "appointment":
+        return s.status === "SCHEDULED" && !s.tentative && s.address != null;
+      case "errand":
+      case "task":
+      case "break":
+        return s.flexible && s.progress !== "done";
+      default:
+        return false;
+    }
+  };
+  const assigned = day.stops.filter(isRoutable);
+  // A break has no place of its own — it rides the route without a pin
+  const mapped = assigned.filter((s) => s.kind === "break" || (s.lat != null && s.lng != null));
+  const skipped = assigned.filter((s) => s.kind !== "break" && s.lat == null).map((s) => s.title);
 
   // Locks: an explicit list wins; otherwise every stop whose client already
   // heard a time (a reminder went out) keeps it — re-timing a promised visit
@@ -171,8 +203,43 @@ export async function POST(req: NextRequest) {
     start: p.stop.scheduledAt,
     end: p.stop.scheduledEnd,
   }));
-  const stops = mapped.filter((s) => !pinnedStops.some((p) => p.stop.id === s.id));
-  if (stops.length < 2) {
+  const pinnedIds = new Set(pinnedStops.map((p) => p.stop.id));
+  const stops = mapped.filter((s) => !pinnedIds.has(s.id));
+
+  // The automatic lunch: the company's default, unless the day already has
+  // a break of its own (routed, pinned, or fixed)
+  const existingBreak = day.stops.some((s) => s.kind === "break" && s.assigneeIds.includes(userId));
+  const breakDefault = day.breakDefault;
+  const autoBreak: RouteStop | null =
+    !existingBreak && breakDefault.minutes > 0
+      ? {
+          id: NEW_BREAK_ID,
+          kind: "break",
+          jobNumber: null,
+          title: "Lunch",
+          status: "BREAK",
+          progress: "pending",
+          contactName: "",
+          address: null,
+          scheduledAt: null,
+          scheduledEnd: null,
+          scheduledAnytime: true,
+          tentative: false,
+          reminded: false,
+          windowStart: minuteOnDay(tz, date, breakDefault.afterMin),
+          windowEnd: minuteOnDay(tz, date, breakDefault.beforeMin),
+          assigneeIds: [userId],
+          lat: null,
+          lng: null,
+          flexible: true,
+          beforeStopId: null,
+          durationMin: breakDefault.minutes,
+        }
+      : null;
+
+  // Located stops are what the solver orders; breaks slot in afterwards
+  const located = stops.filter((s) => s.kind !== "break");
+  if (located.length < 2) {
     return NextResponse.json(
       {
         error:
@@ -190,48 +257,75 @@ export async function POST(req: NextRequest) {
   }
 
   // Current order = how the day reads on the calendar right now
-  const current = [...stops].sort(
+  const current = [...located].sort(
     (a, b) => new Date(a.scheduledAt ?? 0).getTime() - new Date(b.scheduledAt ?? 0).getTime()
   );
 
   // Matrix points: the day start first when we know it (the shop, or this
-  // tech's own start address — index 0), stops after
+  // tech's own start address — index 0), the stops, then the day's END point
+  // when it's somewhere other than the start (started at home, ends at the shop)
   const routeStart = dayStartFor(day, userId);
   const hasStart = routeStart != null;
+  const routeEnd = dayEndFor(day, userId);
+  const endIsStart = Boolean(routeStart && routeEnd && samePoint(routeStart, routeEnd));
+  const separateEnd = routeEnd != null && !endIsStart;
   const points = [
     ...(hasStart ? [{ lat: routeStart!.lat, lng: routeStart!.lng }] : []),
     ...current.map((s) => ({ lat: s.lat!, lng: s.lng! })),
+    ...(separateEnd ? [{ lat: routeEnd!.lat, lng: routeEnd!.lng }] : []),
   ];
   const offset = hasStart ? 1 : 0;
+  const endIndex = separateEnd ? points.length - 1 : null;
   const dm = await driveMatrix(points, actor.companyId);
   const matrix = dm.minutes;
-  // Round trip: cost the drive back to the start so the last stop lands
-  // near home (only meaningful when we know where the day starts)
-  const roundTrip = body.roundTrip === true && hasStart;
+  // Round trip: cost the drive to where the day ends so the last stop lands
+  // near it. Default from the member's setting; the preview's checkbox
+  // overrides per run. Only meaningful when we know an end point.
+  const roundTrip = (typeof body.roundTrip === "boolean" ? body.roundTrip : user.dayEndsAt !== "LAST_STOP") && routeEnd != null;
+  // What routeMinutes/solveStopOrder close the path to
+  const closeTo: boolean | number = !roundTrip ? false : endIndex != null ? endIndex : hasStart ? true : false;
 
   const currentOrder = current.map((_, i) => i + offset);
   const currentPath = hasStart ? [0, ...currentOrder] : currentOrder;
-  const currentDriveMinutes = routeMinutes(matrix, currentPath, roundTrip);
+  const currentDriveMinutes = routeMinutes(matrix, currentPath, closeTo);
+
+  // Precedence: an errand that must come before a job on this route. When
+  // that job is pinned, the errand just has to be done before it starts —
+  // that becomes the errand's cut-off instead.
+  const routableIds = new Set(located.map((s) => s.id));
+  const precedence: Precedence[] = [];
+  const cutoffBefore = new Map<string, number>();
+  for (const s of located) {
+    if (s.kind !== "errand" || !s.beforeStopId) continue;
+    if (routableIds.has(s.beforeStopId)) precedence.push([s.id, s.beforeStopId]);
+    else {
+      const target = day.stops.find((x) => x.id === s.beforeStopId);
+      if (target?.scheduledAt && !target.scheduledAnytime) cutoffBefore.set(s.id, new Date(target.scheduledAt).getTime());
+    }
+  }
 
   // Target order: manual (validated: every routable stop present, extras —
   // a done stop, a pin the client didn't know about — ignored) or solved
-  let orderedStops: typeof current;
-  if (Array.isArray(body.order)) {
-    const byId = new Map(current.map((s) => [s.id, s]));
+  const byId = new Map<string, RouteStop>(current.map((s) => [s.id, s]));
+  const breakStops = stops.filter((s) => s.kind === "break");
+  for (const b of breakStops) byId.set(b.id, b);
+  if (autoBreak) byId.set(autoBreak.id, autoBreak);
+  const manual = Array.isArray(body.order);
+  let orderedStops: RouteStop[];
+  if (manual) {
     const ids: string[] = body.order.filter((v: unknown): v is string => typeof v === "string" && byId.has(v));
-    if (new Set(ids).size !== current.length) {
+    const locatedIds = ids.filter((id) => byId.get(id)!.kind !== "break");
+    if (new Set(locatedIds).size !== current.length) {
       return NextResponse.json(
         { error: "Stop list changed — reload the route and try again." },
         { status: 409 }
       );
     }
-    orderedStops = ids.map((id) => byId.get(id)!);
+    // The dispatcher asked for the errand before that job — honour it even by hand
+    orderedStops = enforcePrecedence([...new Set(ids)], precedence).map((id) => byId.get(id)!);
   } else {
-    const solved = solveStopOrder(
-      matrix,
-      hasStart ? 0 : currentPath[0],
-      roundTrip
-    ).filter((i) => i >= offset);
+    const indexPairs: IndexPrecedence = precedence.map(([a, b]) => [current.indexOf(byId.get(a)!) + offset, current.indexOf(byId.get(b)!) + offset]);
+    const solved = solveStopOrder(matrix, hasStart ? 0 : currentPath[0], closeTo, indexPairs).filter((i) => i >= offset && i !== endIndex);
     orderedStops = solved.map((i) => current[i - offset]);
   }
 
@@ -269,22 +363,26 @@ export async function POST(req: NextRequest) {
     anchor = new Date(ceilToMinutes(now.getTime(), 5));
   }
 
-  // Appointments default to their 30-minute convention, jobs to an hour;
-  // a span that leaves the day is cut at the day's edge (see route-walk)
-  const fallbackMinutes = (s: { kind: string }) => (s.kind === "appointment" ? 30 : DEFAULT_JOB_DURATION_MINUTES);
-  const durationOf = (s: (typeof current)[number]): number =>
-    clampedDurationMinutes(s, dayStart.getTime(), dayEnd.getTime(), fallbackMinutes(s));
+  // Appointments default to their 30-minute convention, jobs to an hour,
+  // errands / breaks / tasks to their own length; a span that leaves the
+  // day is cut at the day's edge (see route-walk)
+  const fallbackMinutes = (s: { kind: StopKind; durationMin: number | null }) =>
+    s.kind === "appointment" ? 30 : s.durationMin ?? DEFAULT_JOB_DURATION_MINUTES;
+  const durationOf = (s: RouteStop): number =>
+    s.kind === "break" || s.kind === "errand" || s.kind === "task"
+      ? Math.min(s.durationMin ?? fallbackMinutes(s), 12 * 60)
+      : clampedDurationMinutes(s, dayStart.getTime(), dayEnd.getTime(), fallbackMinutes(s));
 
   // Fixed commitments we never move. Routed in-person appointments are
   // excluded (they move with the route); what's left is phone/video calls,
-  // tentative bookings, blocked time, pinned stops and timed jobs that
-  // aren't on this route. The routed tech's own commitments shape the walk
-  // (stops step around them); teammates' only warn. Moved stops can carry
-  // CO-ASSIGNEES (a two-tech job), so their commitments are scanned too —
-  // applying tech A's route must not silently bury tech B's day.
+  // tentative bookings, blocked time, timed errands/tasks, pinned stops and
+  // timed jobs that aren't on this route. The routed tech's own commitments
+  // shape the walk (stops step around them); teammates' only warn. Moved
+  // stops can carry CO-ASSIGNEES (a two-tech job), so their commitments are
+  // scanned too — applying tech A's route must not silently bury tech B's day.
   const routedIds = new Set(orderedStops.map((s) => s.id));
   const scanUserIds = [...new Set([userId, ...orderedStops.flatMap((s) => s.assigneeIds)])];
-  const [apptsRaw, blocks, otherJobsRaw, scanUsers] = await Promise.all([
+  const [apptsRaw, blocksRaw, otherJobsRaw, scanUsers] = await Promise.all([
     prisma.appointment.findMany({
       where: {
         companyId: actor.companyId,
@@ -303,7 +401,7 @@ export async function POST(req: NextRequest) {
         endAt: { gt: dayStart },
         OR: [{ userId: { in: scanUserIds } }, { userId: null }],
       },
-      select: { title: true, startAt: true, endAt: true, userId: true },
+      select: { id: true, title: true, startAt: true, endAt: true, userId: true, kind: true, flexible: true, placedAt: true },
     }),
     // Timed jobs that are NOT on this route (skipped for a missing pin, or
     // excluded by status) keep their old times — the new walk can run
@@ -331,6 +429,9 @@ export async function POST(req: NextRequest) {
     }),
   ]);
   const appts = apptsRaw.filter((a) => !routedIds.has(a.id));
+  // A flexible errand / break that's on this route (or still unplaced)
+  // isn't a wall — it moves with the day
+  const blocks = blocksRaw.filter((b) => !routedIds.has(b.id) && !(b.kind !== "BLOCK" && b.flexible && b.placedAt == null));
   const otherJobs = otherJobsRaw.filter((j) => !routedIds.has(j.id));
 
   // What the routed tech's day already has nailed down — the walk lays the
@@ -348,47 +449,76 @@ export async function POST(req: NextRequest) {
     ...otherJobs
       .filter((j) => j.scheduledAt && j.assignments.some((x) => x.userId === userId))
       .map((j) => clip(j.scheduledAt!, j.scheduledEnd, DEFAULT_JOB_DURATION_MINUTES)),
+    // Timed tasks with a place hold their time like an appointment would
+    ...day.stops
+      .filter((s) => s.kind === "task" && !s.scheduledAnytime && s.assigneeIds.includes(userId) && !routedIds.has(s.id))
+      .map((s) => dayInterval(s, dayStart.getTime(), dayEnd.getTime(), fallbackMinutes(s))),
     ...pinnedStops.map((p) => dayInterval(p.stop, dayStart.getTime(), dayEnd.getTime(), fallbackMinutes(p.stop))),
   ].filter((x): x is Interval => x != null);
 
   // Walk the day: the first stop keeps the anchor (the shop→first leg happens
   // before the day starts), every later stop begins after the previous one
   // ends plus the rounded drive gap, stepping over fixed commitments and
-  // waiting for a client window to open.
-  const byId = new Map(current.map((s) => [s.id, s]));
-  const matrixIndex = (s: (typeof current)[number]) => current.indexOf(s) + offset;
-  const walkStopOf = (s: (typeof current)[number]): WalkStop => ({
+  // waiting for a client window (or an errand's float window) to open. A
+  // break has no place: no drive into it, and the next leg is measured from
+  // the last real stop.
+  const matrixIndex = (s: RouteStop) => (s.kind === "break" ? -1 : current.indexOf(s) + offset);
+  const walkStopOf = (s: RouteStop): WalkStop => ({
     id: s.id,
     durationMin: durationOf(s),
     earliestMs: s.windowStart ? new Date(s.windowStart).getTime() : null,
-    latestMs: s.windowEnd ? new Date(s.windowEnd).getTime() : null,
+    latestMs: cutoffBefore.get(s.id) ?? (s.windowEnd ? new Date(s.windowEnd).getTime() : null),
   });
   const walkOrder = (ids: string[]) => {
     const seq = ids.map((id) => byId.get(id)!);
+    const lastLocatedBefore = (i: number) => {
+      for (let k = i - 1; k >= 0; k--) if (seq[k].kind !== "break") return k;
+      return -1;
+    };
     return walkDay({
       anchorMs: anchor.getTime(),
       stops: seq.map(walkStopOf),
-      driveMinutes: (prev, i) => matrix[matrixIndex(seq[prev])][matrixIndex(seq[i])],
+      driveMinutes: (_prev, i) => {
+        if (seq[i].kind === "break") return 0;
+        const from = lastLocatedBefore(i);
+        if (from < 0) return 0;
+        return matrix[matrixIndex(seq[from])][matrixIndex(seq[i])];
+      },
       gapMinutes: roundGapMinutes,
       fixed,
     });
   };
-  const pathOf = (ids: string[]) => [...(hasStart ? [0] : []), ...ids.map((id) => matrixIndex(byId.get(id)!))];
+  const pathOf = (ids: string[]) => [
+    ...(hasStart ? [0] : []),
+    ...ids.map((id) => byId.get(id)!).filter((s) => s.kind !== "break").map(matrixIndex),
+  ];
+  const costOf = (ids: string[]) => routeMinutes(matrix, pathOf(ids), closeTo);
+
+  // Lunch: an existing break on the route keeps its place in a hand order;
+  // otherwise (solved, or an order that never mentioned it) it goes after
+  // the first stop that ends once its window opens
+  let orderedIds = orderedStops.map((s) => s.id);
+  const breaksToPlace = [...breakStops, ...(autoBreak ? [autoBreak] : [])].filter((b) => !orderedIds.includes(b.id));
+  for (const b of breaksToPlace) {
+    const walked = walkOrder(orderedIds);
+    const at = breakInsertIndex(walked, new Date(b.windowStart ?? anchor.toISOString()).getTime(), b.windowEnd ? new Date(b.windowEnd).getTime() : dayEnd.getTime());
+    if (at == null) continue; // the day is over before lunch could start
+    orderedIds = [...orderedIds.slice(0, at), b.id, ...orderedIds.slice(at)];
+  }
   // A solved order knows nothing about windows — repair it; a hand order is
   // the dispatcher's call and only warns.
-  if (!Array.isArray(body.order) && orderedStops.some((s) => s.windowStart || s.windowEnd)) {
-    const repaired = repairWindows(
-      orderedStops.map((s) => s.id),
-      walkOrder,
-      (ids) => routeMinutes(matrix, pathOf(ids), roundTrip)
-    );
-    orderedStops = repaired.map((id) => byId.get(id)!);
+  if (!manual && orderedIds.some((id) => byId.get(id)!.windowStart || byId.get(id)!.windowEnd || cutoffBefore.has(id))) {
+    orderedIds = repairWindows(orderedIds, walkOrder, costOf);
+    orderedIds = enforcePrecedence(orderedIds, precedence);
   }
-  const orderedIds = orderedStops.map((s) => s.id);
+  orderedStops = orderedIds.map((id) => byId.get(id)!);
   const orderedPath = pathOf(orderedIds);
-  const totalDriveMinutes = routeMinutes(matrix, orderedPath, roundTrip);
-  const totalDistanceKm = routeMinutes(dm.km, orderedPath, roundTrip);
-  const returnMinutes = roundTrip ? matrix[orderedPath[orderedPath.length - 1]][0] : 0;
+  const totalDriveMinutes = routeMinutes(matrix, orderedPath, closeTo);
+  const totalDistanceKm = routeMinutes(dm.km, orderedPath, closeTo);
+  const returnMinutes =
+    closeTo === false || orderedPath.length === 0
+      ? 0
+      : matrix[orderedPath[orderedPath.length - 1]][closeTo === true ? orderedPath[0] : closeTo];
   const walked = walkOrder(orderedIds);
   const proposed = orderedStops.map((s, i) => ({
     ...s,
@@ -421,8 +551,16 @@ export async function POST(req: NextRequest) {
   for (const p of proposed) {
     const ps = new Date(p.proposedStart).getTime();
     const pe = new Date(p.proposedEnd).getTime();
-    if (p.late && p.windowEnd) {
-      warnings.push(`"${p.title}" would arrive at ${fmt(new Date(p.proposedStart))}, after the client's ${fmt(new Date(p.windowEnd))} cut-off.`);
+    const cutoff = cutoffBefore.get(p.id);
+    if (p.late && cutoff != null) {
+      const target = day.stops.find((x) => x.id === p.beforeStopId);
+      warnings.push(`"${p.title}" would start at ${fmt(new Date(p.proposedStart))}, after ${target ? `"${target.title}"` : "the job it's for"} begins at ${fmt(new Date(cutoff))}.`);
+    } else if (p.late && p.windowEnd) {
+      warnings.push(
+        p.kind === "job" || p.kind === "appointment"
+          ? `"${p.title}" would arrive at ${fmt(new Date(p.proposedStart))}, after the client's ${fmt(new Date(p.windowEnd))} cut-off.`
+          : `"${p.title}" would start at ${fmt(new Date(p.proposedStart))}, past its ${fmt(new Date(p.windowEnd))} window.`
+      );
     }
     if (p.waitMinutes >= 15 && p.windowStart) {
       warnings.push(`"${p.title}" can't start before ${fmt(new Date(p.windowStart))} — ${p.waitMinutes} min of waiting before it.`);
@@ -449,7 +587,7 @@ export async function POST(req: NextRequest) {
     for (const b of blocks) {
       if (ps < b.endAt.getTime() && pe > b.startAt.getTime()) {
         warnings.push(
-          `"${p.title}" overlaps blocked time "${b.title || "Busy"}" (${fmt(b.startAt)})${whose(b.userId)}`
+          `"${p.title}" overlaps ${b.kind === "BLOCK" ? "blocked time" : b.kind === "BREAK" ? "a break" : "an errand"} "${b.title || "Busy"}" (${fmt(b.startAt)})${whose(b.userId)}`
         );
       }
     }
@@ -463,10 +601,10 @@ export async function POST(req: NextRequest) {
   }
   // Day-first honesty: flexible stops get real clock times when applied —
   // say so up front instead of silently pinning them.
-  const flexible = orderedStops.filter((s) => s.scheduledAnytime).length;
+  const flexible = orderedStops.filter((s) => s.scheduledAnytime && s.kind !== "break").length;
   if (flexible > 0 && body.apply !== true) {
     warnings.unshift(
-      `${flexible} "Anytime" stop${flexible === 1 ? "" : "s"} will get set arrival times when you apply this route.`
+      `${flexible} "Anytime" stop${flexible === 1 ? "" : "s"} will get set times when you apply this route.`
     );
   }
 
@@ -485,7 +623,7 @@ export async function POST(req: NextRequest) {
       const closeAt = wallTimeToUtc(tz, date.getFullYear(), date.getMonth() + 1, date.getDate(), closeMin);
       if (localMin > closeMin || homeAt.getTime() > closeAt.getTime()) {
         warnings.unshift(
-          `${roundTrip ? "Back at the start" : "Last stop wraps"} around ${fmt(homeAt)}, past ${user.name}'s ${fmt(
+          `${roundTrip ? (endIsStart ? "Back at the start" : "At the day's end point") : "Last stop wraps"} around ${fmt(homeAt)}, past ${user.name}'s ${fmt(
             wallTimeToUtc(tz, date.getFullYear(), date.getMonth() + 1, date.getDate(), closeMin)
           )} finish.`
         );
@@ -499,10 +637,11 @@ export async function POST(req: NextRequest) {
     warnings.push("Drive times are straight-line estimates right now — real road times weren't available.");
   }
 
-  // Who would hear about it: every client whose arrival actually changes
+  // Who would hear about it: every CLIENT whose arrival actually changes
   // (Anytime → a real time counts; a stop that kept its slot to the minute
-  // stays quiet)
+  // stays quiet). Errands, breaks and tasks have nobody to tell.
   const movedStops = proposed.filter((p) => {
+    if (p.kind !== "job" && p.kind !== "appointment") return false;
     const before = p.scheduledAt ? new Date(p.scheduledAt).getTime() : null;
     return p.scheduledAnytime || before === null || Math.abs(before - new Date(p.proposedStart).getTime()) >= 60000;
   });
@@ -518,11 +657,36 @@ export async function POST(req: NextRequest) {
     const movedIds = new Set(movedStops.map((p) => p.id));
     await prisma.$transaction(
       proposed.map((p) => {
+        const start = new Date(p.proposedStart);
+        const end = new Date(p.proposedEnd);
+        if (p.kind === "break" && p.id === NEW_BREAK_ID) {
+          return prisma.timeBlock.create({
+            data: {
+              companyId: actor.companyId,
+              userId,
+              createdById: actor.id,
+              title: "Lunch",
+              kind: "BREAK",
+              flexible: true,
+              floatAfterMin: breakDefault.afterMin,
+              floatBeforeMin: breakDefault.beforeMin,
+              startAt: start,
+              endAt: end,
+              placedAt: now,
+            },
+          });
+        }
+        if (p.kind === "errand" || p.kind === "break") {
+          return prisma.timeBlock.update({ where: { id: p.id }, data: { startAt: start, endAt: end, placedAt: now } });
+        }
+        if (p.kind === "task") {
+          return prisma.task.update({ where: { id: p.id }, data: { dueAt: start, allDay: false } });
+        }
         const data = {
-          scheduledAt: new Date(p.proposedStart),
-          scheduledEnd: new Date(p.proposedEnd),
+          scheduledAt: start,
+          scheduledEnd: end,
           scheduledAnytime: false,
-          ...(movedIds.has(p.id) && { ...rescheduleReminderStamps(now, new Date(p.proposedStart)), techHeadsUpSentAt: null }),
+          ...(movedIds.has(p.id) && { ...rescheduleReminderStamps(now, start), techHeadsUpSentAt: null }),
         };
         return p.kind === "appointment"
           ? prisma.appointment.update({ where: { id: p.id }, data })
@@ -537,7 +701,6 @@ export async function POST(req: NextRequest) {
       for (const p of movedStops) {
         const r = await notifyClientOfMove({
           companyId: actor.companyId,
-          // Only jobs and appointments are ever routed (blocks are fixed points)
           kind: p.kind as "job" | "appointment",
           id: p.id,
           previousStart: p.scheduledAt ? new Date(p.scheduledAt) : null,
@@ -551,12 +714,16 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     userName: user.name,
     roundTrip,
+    /** Where the costed return leg goes: the start, the shop, or nowhere. */
+    endsAt: !roundTrip ? "LAST_STOP" : endIsStart || !separateEnd ? "START" : "SHOP",
     measured: dm.measured,
     totalDistanceMiles: Math.round(kmToMiles(totalDistanceKm) * 10) / 10,
     returnMinutes: roundTrip ? Math.round(returnMinutes) : null,
     notified,
     /** How many clients a notify-on-apply would reach with this order. */
     movedCount: movedStops.length,
+    /** The automatic lunch was added to this route (saved as a break on apply). */
+    breakAdded: orderedStops.some((s) => s.id === NEW_BREAK_ID),
     stops: proposed.map((p) => ({
       id: p.id,
       kind: p.kind,
@@ -569,6 +736,7 @@ export async function POST(req: NextRequest) {
       reminded: p.reminded,
       windowStart: p.windowStart,
       windowEnd: p.windowEnd,
+      beforeStopId: p.beforeStopId,
       late: p.late,
       waitMinutes: p.waitMinutes,
       proposedStart: p.proposedStart,

@@ -24,6 +24,7 @@ export default async function TeamPage() {
         workingHours: true,
       meetingLink: true,
       startAddress: true,
+      dayEndsAt: true,
         hourlyCost: true,
         createdAt: true,
         accountId: true,
@@ -69,6 +70,7 @@ export default async function TeamPage() {
         workingHours: sanitizeWorkingHoursOrNull(u.workingHours),
         meetingLink: u.meetingLink,
         startAddress: u.startAddress,
+        dayEndsAt: u.dayEndsAt,
         hourlyCost: u.hourlyCost != null ? Number(u.hourlyCost) : null,
         createdAt: u.createdAt.toISOString(),
       }))}

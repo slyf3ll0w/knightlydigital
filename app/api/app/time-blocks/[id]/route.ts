@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager, type Actor } from "@/lib/permissions";
 import { geocodeAddress } from "@/lib/geocoding";
+import { findPlace } from "@/lib/places";
+import { routeStopFields } from "@/lib/route-stop-input";
 import { companyTimezone, detachOccurrence, removeOccurrence } from "@/lib/time-block-series";
 
 /**
@@ -55,6 +57,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       data.lng = pin?.lng ?? null;
     }
   }
+  // Route-stop fields (kind, place, float window, before-job, done)
+  const stopFields = await routeStopFields(body, actor, block);
+  if ("error" in stopFields) return NextResponse.json({ error: stopFields.error }, { status: 400 });
+  Object.assign(data, stopFields);
+  if (stopFields.placeId && stopFields.placeId !== block.placeId && body.address === undefined) {
+    // Picking a different saved place moves the stop there
+    const place = await findPlace(actor.companyId, stopFields.placeId);
+    if (place) {
+      data.address = place.address;
+      data.lat = place.lat;
+      data.lng = place.lng;
+    }
+  }
+  if (typeof body.done === "boolean") data.doneAt = body.done ? new Date() : null;
 
   const start = (data.startAt ?? block.startAt) as Date;
   const end = (data.endAt ?? block.endAt) as Date;

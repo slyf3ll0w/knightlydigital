@@ -6,6 +6,7 @@ import { hasPushDevice, inboxEmailWanted } from "@/lib/notify";
 import { zonedMidnight, zonedParts } from "@/lib/timezone";
 import type { Actor } from "@/lib/permissions";
 import { contactScope, isManager, jobScope, viaContactScope } from "@/lib/permissions";
+import { geocodeAddress } from "@/lib/geocoding";
 import {
   REMINDER_CHOICES,
   TASK_NOTES_MAX,
@@ -218,6 +219,7 @@ export const taskInclude = {
   quote: { select: { id: true, quoteNumber: true } },
   invoice: { select: { id: true, invoiceNumber: true } },
   call: { select: { id: true, customerNumber: true, direction: true } },
+  place: { select: { id: true, name: true } },
 } as const;
 
 type TaskRow = NonNullable<Awaited<ReturnType<typeof loadTaskRow>>>;
@@ -274,6 +276,11 @@ export function serializeTask(row: TaskRow, tz: string, now: Date = new Date()):
     quoteId: row.quoteId,
     invoiceId: row.invoiceId,
     callId: row.callId,
+    address: row.address,
+    hasPin: row.lat != null && row.lng != null,
+    placeId: row.placeId,
+    placeName: row.place?.name ?? null,
+    estimatedMinutes: row.estimatedMinutes,
     links: taskLinks(row),
     bucket: taskBucket(row.dueAt, row.allDay, now, tz),
     dueLabel: dueLabel(row.dueAt, row.allDay, tz, now),
@@ -489,6 +496,12 @@ export type TaskInput = {
   quoteId?: string | null;
   invoiceId?: string | null;
   callId?: string | null;
+  // A place makes the task a stop on the route for its due day
+  address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  placeId?: string | null;
+  estimatedMinutes?: number | null;
 };
 
 type PendingReminder = { choice: ReminderChoice; customAt: Date | null };
@@ -515,7 +528,7 @@ export async function validateTaskInput(
      * link that CHANGED is checked against what the actor may see, so a tech
      * can still fix the title or due date of a task made for them.
      */
-    existing?: { contactId: string | null; jobId: string | null; quoteId: string | null; invoiceId: string | null; callId: string | null };
+    existing?: { contactId: string | null; jobId: string | null; quoteId: string | null; invoiceId: string | null; callId: string | null; address?: string | null };
   }
 ): Promise<{ data: TaskInput; pending: PendingReminder | null } | { error: string }> {
   const companyId = actor.companyId;
@@ -533,6 +546,43 @@ export async function validateTaskInput(
   if (body.priority !== undefined) {
     if (body.priority !== "NORMAL" && body.priority !== "HIGH") return { error: "Priority must be normal or high." };
     data.priority = body.priority;
+  }
+
+  // Where (optional): a saved place, or a typed address. Either makes the
+  // task a stop on the assignee's route for its due day; the pin is copied
+  // from the place or geocoded once here. Clearing both lifts it off the route.
+  if (body.placeId !== undefined) {
+    if (body.placeId === null || body.placeId === "") data.placeId = null;
+    else if (typeof body.placeId === "string" && body.placeId.length <= 64) {
+      const place = await prisma.place.findFirst({ where: { id: body.placeId, companyId }, select: { id: true, address: true, lat: true, lng: true } });
+      if (!place) return { error: "That place doesn't exist." };
+      data.placeId = place.id;
+      if (body.address === undefined || body.address === place.address) {
+        data.address = place.address;
+        data.lat = place.lat;
+        data.lng = place.lng;
+      }
+    } else return { error: "That place isn't valid." };
+  }
+  if (body.address !== undefined && data.address === undefined) {
+    const address = typeof body.address === "string" ? body.address.trim().slice(0, 240) : "";
+    data.address = address || null;
+    if (address && address !== opts.existing?.address) {
+      const hit = await geocodeAddress(address, companyId);
+      data.lat = hit?.lat ?? null;
+      data.lng = hit?.lng ?? null;
+    } else if (!address) {
+      data.lat = null;
+      data.lng = null;
+    }
+  }
+  if (body.estimatedMinutes !== undefined) {
+    if (body.estimatedMinutes === null || body.estimatedMinutes === "") data.estimatedMinutes = null;
+    else {
+      const n = Number(body.estimatedMinutes);
+      if (!Number.isInteger(n) || n < 5 || n > 12 * 60) return { error: "How long should be between 5 minutes and 12 hours." };
+      data.estimatedMinutes = n;
+    }
   }
 
   // Due: the editor sends dueDate + dueTime (company-zone wall clock). A

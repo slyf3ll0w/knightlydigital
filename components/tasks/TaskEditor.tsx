@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, Flag, Link2, Trash2, X } from "lucide-react";
+import { Bell, Flag, Link2, MapPin, Trash2, X } from "lucide-react";
 import Modal from "@/components/Modal";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
+import type { PlaceDTO } from "@/lib/places-shared";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { inputCls } from "@/components/Input";
 import { Button, InfoTip } from "@/components/ds";
@@ -65,6 +67,13 @@ export default function TaskEditor({
   const [assignees, setAssignees] = useState<string[]>([meId]);
   const [links, setLinks] = useState<TaskLink[]>([]);
   const [showNotes, setShowNotes] = useState(false);
+  // Where (optional): a saved place or a typed address makes the task a
+  // stop on the route for its due day; "how long" is the stop's length
+  const [showWhere, setShowWhere] = useState(false);
+  const [places, setPlaces] = useState<PlaceDTO[] | null>(null);
+  const [placeId, setPlaceId] = useState("");
+  const [address, setAddress] = useState("");
+  const [minutes, setMinutes] = useState<number | "">("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // What the sheet opened with: closing with anything else typed asks first
@@ -113,8 +122,29 @@ export default function TaskEditor({
     setAssignees(init.assignees);
     setLinks(init.links);
     setShowNotes(Boolean(init.notes));
+    setPlaceId(task?.placeId ?? "");
+    setAddress(task?.address ?? "");
+    setMinutes(task?.estimatedMinutes ?? "");
+    setShowWhere(Boolean(task?.address));
     baseline.current = JSON.stringify(init);
   }, [open, task, prefill, meId]);
+
+  // Places load the first time "Where" opens (they rarely change)
+  useEffect(() => {
+    if (!open || !showWhere || places !== null) return;
+    let cancelled = false;
+    fetch("/api/app/places")
+      .then((r) => (r.ok ? r.json() : { places: [] }))
+      .then((d: { places?: PlaceDTO[] }) => {
+        if (!cancelled) setPlaces(d.places ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setPlaces([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, showWhere, places]);
 
   /** Backdrop, Escape, X and Cancel: a half-written task asks before it goes. */
   async function requestClose() {
@@ -178,6 +208,10 @@ export default function TaskEditor({
       remindDate: reminder === "custom" ? remindDate : undefined,
       remindTime: reminder === "custom" ? remindTime : undefined,
       priority: high ? "HIGH" : "NORMAL",
+      // Where: a place wins over typed text; clearing both lifts the task off the route
+      placeId: showWhere && placeId ? placeId : null,
+      address: showWhere ? (placeId ? places?.find((p) => p.id === placeId)?.address ?? address.trim() : address.trim()) || null : null,
+      estimatedMinutes: showWhere && minutes !== "" ? minutes : null,
       ...(isNew ? linkIds(prefill?.links ?? links) : linkIds(links)),
       ...(isNew ? { assigneeIds: assignees } : canAssign ? { assigneeId: assignees[0] } : {}),
     };
@@ -361,6 +395,101 @@ export default function TaskEditor({
             </div>
           )}
         </div>
+
+        {showWhere ? (
+          <div>
+            <p className={`${labelCls} flex items-center gap-1`}>
+              <span className="inline-flex items-center gap-1">
+                <MapPin size={12} aria-hidden /> Where
+              </span>
+              <InfoTip>A task with a place is a stop on the route for its due day. Optimize fits it in; a task with a time holds that time.</InfoTip>
+            </p>
+            {places === null ? (
+              <p className="text-xs text-[color:var(--ds-muted)]">Loading places…</p>
+            ) : (
+              places.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {places.map((p) => {
+                    const on = placeId === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          setPlaceId(on ? "" : p.id);
+                          if (!on) setAddress(p.address);
+                        }}
+                        aria-pressed={on}
+                        title={p.address}
+                        className={`rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors ${
+                          on
+                            ? "bg-[color:var(--ds-primary)] text-white"
+                            : "bg-[color:var(--ds-surface-2)] text-[color:var(--ds-ink-2)] hover:bg-[color:var(--ds-line)]"
+                        }`}
+                      >
+                        {p.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )
+            )}
+            <AddressAutocomplete
+              endpoint="/api/app/geocode/suggest"
+              value={address}
+              onChange={(v) => {
+                setAddress(v);
+                setPlaceId("");
+              }}
+              onPick={(a) => {
+                setAddress(a.label);
+                setPlaceId("");
+              }}
+              placeholder="Street, city, state"
+              className={inputCls}
+              ariaLabel="Address"
+            />
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="text-xs text-[color:var(--ds-ink-2)]">How long</span>
+              {[15, 30, 45, 60].map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMinutes(minutes === m ? "" : m)}
+                  aria-pressed={minutes === m}
+                  className={`rounded-full px-2.5 py-1 text-[12px] font-semibold transition-colors ${
+                    minutes === m
+                      ? "bg-[color:var(--ds-primary)] text-white"
+                      : "bg-[color:var(--ds-surface-2)] text-[color:var(--ds-ink-2)] hover:bg-[color:var(--ds-line)]"
+                  }`}
+                >
+                  {m < 60 ? `${m} min` : "1 hr"}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowWhere(false);
+                  setPlaceId("");
+                  setAddress("");
+                  setMinutes("");
+                }}
+                className="ml-auto text-[12px] font-medium text-[color:var(--ds-muted)] hover:underline"
+              >
+                No place
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowWhere(true)}
+            className="inline-flex items-center gap-1 text-[13px] font-medium text-[color:var(--ds-primary)] hover:underline"
+          >
+            <MapPin size={13} aria-hidden />
+            Add a place
+          </button>
+        )}
 
         <label className="flex cursor-pointer items-center gap-2.5 text-sm text-[color:var(--ds-ink)]">
           <input

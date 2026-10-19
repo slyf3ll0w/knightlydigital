@@ -183,3 +183,61 @@ export function ceilToMinutes(ms: number, stepMin: number): number {
   const step = stepMin * 60000;
   return Math.ceil(ms / step) * step;
 }
+
+// ── Precedence ("pick up the valve BEFORE the Henderson job") ───────────────
+
+/** [before, after] pairs: the first id must come earlier in the order than the second. */
+export type Precedence = [string, string];
+
+/** True when every pair holds in `order` (ids absent from the order don't constrain it). */
+export function precedenceHolds(order: string[], pairs: Precedence[]): boolean {
+  if (!pairs.length) return true;
+  const at = new Map(order.map((id, i) => [id, i]));
+  return pairs.every(([a, b]) => {
+    const ia = at.get(a);
+    const ib = at.get(b);
+    return ia === undefined || ib === undefined || ia < ib;
+  });
+}
+
+/**
+ * Repair an order so every precedence pair holds, moving as little as
+ * possible: each violating "before" stop is pulled to just ahead of its
+ * target. Pure; a hand order gets the same treatment (the dispatcher asked
+ * for the errand before that job — honour it).
+ */
+export function enforcePrecedence(order: string[], pairs: Precedence[]): string[] {
+  let current = [...order];
+  // A few passes settle chains (a before b, b before c); bounded for safety
+  for (let guard = 0; guard < pairs.length + 1 && !precedenceHolds(current, pairs); guard++) {
+    for (const [a, b] of pairs) {
+      const ia = current.indexOf(a);
+      const ib = current.indexOf(b);
+      if (ia < 0 || ib < 0 || ia < ib) continue;
+      current.splice(ia, 1);
+      const target = current.indexOf(b);
+      current.splice(target, 0, a);
+    }
+  }
+  return current;
+}
+
+// ── Breaks (lunch inside a window) ──────────────────────────────────────────
+
+/**
+ * Where a break goes in a walked day: the index (in the stop list) to insert
+ * it at, or null when the day is over before the window opens. The break
+ * follows the first stop that ends once the window has opened; a stop that
+ * straddles the whole window (a long install) is not split — the break goes
+ * before it when something precedes it, else after it. The caller re-walks
+ * with the break as a zero-drive stop whose window is [afterMs, beforeMs].
+ */
+export function breakInsertIndex(walked: Pick<WalkedStop, "startMs" | "endMs">[], afterMs: number, beforeMs: number): number | null {
+  if (!walked.length) return null;
+  const i = walked.findIndex((w) => w.endMs >= afterMs);
+  if (i < 0) return null; // every stop ends before lunch could start — no break today
+  if (walked[i].endMs <= beforeMs) return i + 1; // after the first stop that ends inside the window
+  // Stop i ends past the window: it either starts inside it (break before it) or spans it entirely
+  if (walked[i].startMs >= afterMs) return i;
+  return i > 0 ? i : i + 1;
+}

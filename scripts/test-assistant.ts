@@ -28,37 +28,28 @@ const salesNoMoney: Actor = { ...base, role: "SALES", salesSeePayments: false };
 
 const names = (a: Actor) => toolsForActor(a).map((t) => t.decl.name).sort();
 
-// 1. owner sees everything (v8: 102 tools — records, client extras, field ops, money extras, queue_next_step, estimate tools, automations, part prices)
+// 1. owner sees everything (v8: 105 tools — records, client extras, field ops, money extras, queue_next_step, estimate tools, automations, part prices)
 assert.deepEqual(
   names(owner),
   [
-    "add_client_note", "add_job_line_items", "add_job_note", "add_sticky_note", "add_team_member", "assign_client",
-    "business_summary", "cancel_appointment", "charge_saved_card", "clock",
-    "close_lead", "collect_deposit", "convert_quote", "create_agreement_template",
-    "create_client", "create_invoice", "create_job", "create_quote",
-    "create_request", "create_service", "delete_record", "duplicate_document",
-    "edit_payment", "email_client", "email_document", "export_data",
-    "find_a_time", "get_client_activity", "get_client_details",
-    "get_company_settings", "get_document", "get_job_checklist",
-    "get_lead_board", "get_price_book", "get_route_plan", "get_schedule",
-    "get_statement", "help_search", "list_agreement_templates", "list_agreements",
-    "list_clients", "list_expenses", "list_money", "list_pipeline",
-    "list_subscriptions", "list_team", "log_expense", "lookup_part_price", "manage_address",
-    "manage_automation", "manage_booking_item", "manage_client_fields", "manage_estimator", "manage_lead_webhook", "manage_person",
-    "manage_pipeline_stage", "manage_recurring_expense", "manage_saved_card",
-    "manage_subscription", "manage_time_block", "manage_time_entry",
-    "move_lead", "optimize_route", "post_team_message",
-    "query_records", "queue_next_step", "quickbooks", "record_job_signoff", "record_payment",
-    "refund_payment", "reply_in_portal", "report", "request_review",
-    "respond_to_booking", "run_estimator", "run_recurring_billing", "schedule_appointment",
-    "search_clients", "send_agreement", "send_on_my_way", "send_payout",
-    "send_portal_invite", "set_business_hours", "set_client_status", "team_map",
-    "undo_import", "update_agreement", "update_agreement_template",
-    "update_appointment", "update_checklist_item", "update_client",
-    "update_client_note", "update_company_settings", "update_expense",
-    "update_invoice", "update_job", "update_job_status", "update_quote",
-    "update_request", "update_service", "update_team_member",
-    "update_team_policy", "whats_needing_attention",
+    "add_client_note", "add_job_line_items", "add_job_note", "add_place", "add_sticky_note", "add_stop",
+    "add_team_member", "assign_client", "business_summary", "cancel_appointment", "charge_saved_card", "clock",
+    "close_lead", "collect_deposit", "convert_quote", "create_agreement_template", "create_client", "create_invoice",
+    "create_job", "create_quote", "create_request", "create_service", "delete_record", "duplicate_document",
+    "edit_payment", "email_client", "email_document", "export_data", "find_a_time", "get_client_activity",
+    "get_client_details", "get_company_settings", "get_document", "get_job_checklist", "get_lead_board", "get_price_book",
+    "get_route_plan", "get_schedule", "get_statement", "help_search", "list_agreement_templates", "list_agreements",
+    "list_clients", "list_expenses", "list_money", "list_pipeline", "list_places", "list_subscriptions",
+    "list_team", "log_expense", "lookup_part_price", "manage_address", "manage_automation", "manage_booking_item",
+    "manage_client_fields", "manage_estimator", "manage_lead_webhook", "manage_person", "manage_pipeline_stage", "manage_recurring_expense",
+    "manage_saved_card", "manage_subscription", "manage_time_block", "manage_time_entry", "move_lead", "optimize_route",
+    "post_team_message", "query_records", "queue_next_step", "quickbooks", "record_job_signoff", "record_payment",
+    "refund_payment", "reply_in_portal", "report", "request_review", "respond_to_booking", "run_estimator",
+    "run_recurring_billing", "schedule_appointment", "search_clients", "send_agreement", "send_on_my_way", "send_payout",
+    "send_portal_invite", "set_business_hours", "set_client_status", "team_map", "undo_import", "update_agreement",
+    "update_agreement_template", "update_appointment", "update_checklist_item", "update_client", "update_client_note", "update_company_settings",
+    "update_expense", "update_invoice", "update_job", "update_job_status", "update_quote", "update_request",
+    "update_service", "update_team_member", "update_team_policy", "whats_needing_attention",
   ],
   "owner gets all tools"
 );
@@ -68,12 +59,11 @@ console.log(`ok 1: owner sees all ${names(owner).length} tools`);
 assert.deepEqual(
   names(tech),
   [
-    "add_job_note", "add_sticky_note", "clock", "export_data", "find_a_time", "get_document",
-    "get_job_checklist", "get_route_plan", "get_schedule", "help_search", "list_pipeline",
-    "manage_time_block", "optimize_route", "post_team_message", "query_records",
-    "queue_next_step", "record_job_signoff", "report", "request_review", "send_on_my_way",
-    "update_checklist_item", "update_job", "update_job_status",
-    "whats_needing_attention",
+    "add_job_note", "add_place", "add_sticky_note", "add_stop", "clock", "export_data",
+    "find_a_time", "get_document", "get_job_checklist", "get_route_plan", "get_schedule", "help_search",
+    "list_pipeline", "list_places", "manage_time_block", "optimize_route", "post_team_message", "query_records",
+    "queue_next_step", "record_job_signoff", "report", "request_review", "send_on_my_way", "update_checklist_item",
+    "update_job", "update_job_status", "whats_needing_attention",
   ],
   "tech tools"
 );

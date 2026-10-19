@@ -5,13 +5,17 @@
  */
 import assert from "node:assert/strict";
 import {
+  breakInsertIndex,
   ceilToMinutes,
   clampedDurationMinutes,
   dayInterval,
+  enforcePrecedence,
+  precedenceHolds,
   repairWindows,
   routedChain,
   runsPastDay,
   walkDay,
+  type Precedence,
   type WalkStop,
 } from "../lib/route-walk";
 import { clientWindowPatch, clientWindowLabel, minuteToTime, timeToMinute } from "../lib/client-window";
@@ -242,6 +246,60 @@ test("client window: minutes ⇄ HH:mm, patch shape, labels", () => {
   assert.equal(clientWindowLabel({ arriveAfterMin: null, arriveBeforeMin: 720 }), "before 12 PM");
   assert.equal(clientWindowLabel({ arriveAfterMin: 480, arriveBeforeMin: 630 }), "8 AM – 10:30 AM");
   assert.equal(clientWindowLabel({}), null);
+});
+
+test("precedence: an errand is pulled ahead of the job it's for, chains settle, strangers are ignored", () => {
+  const pairs: Precedence[] = [["supply", "henderson"]];
+  assert.equal(precedenceHolds(["supply", "a", "henderson"], pairs), true);
+  assert.equal(precedenceHolds(["a", "henderson", "supply"], pairs), false);
+  assert.deepEqual(enforcePrecedence(["a", "henderson", "b", "supply"], pairs), ["a", "supply", "henderson", "b"]);
+  // Already fine → untouched
+  assert.deepEqual(enforcePrecedence(["supply", "henderson", "a"], pairs), ["supply", "henderson", "a"]);
+  // A pair naming a stop that isn't on the day constrains nothing
+  assert.deepEqual(enforcePrecedence(["a", "b"], [["x", "a"]]), ["a", "b"]);
+  // Chain: valve before henderson, dump before valve
+  const chain: Precedence[] = [["valve", "henderson"], ["dump", "valve"]];
+  const fixed = enforcePrecedence(["henderson", "valve", "dump"], chain);
+  assert.equal(precedenceHolds(fixed, chain), true);
+  assert.equal(fixed.length, 3);
+});
+
+test("breakInsertIndex: lunch follows the first stop that ends once the window opens; a straddling job isn't split", () => {
+  const w = (startH: number, endH: number) => ({ startMs: at(startH).getTime(), endMs: at(endH).getTime() });
+  const noon = at(11, 30).getTime();
+  const one = at(13).getTime();
+  // 8–9, 9–10, 10:30–12, 13–14 → after the 10:30–12 stop (index 2) → insert at 3
+  assert.equal(breakInsertIndex([w(8, 9), w(9, 10), { startMs: at(10, 30).getTime(), endMs: at(12).getTime() }, w(13, 14)], noon, one), 3);
+  // Every stop ends before 11:30 → no lunch today
+  assert.equal(breakInsertIndex([w(8, 9), w(9, 10)], noon, one), null);
+  // A stop that starts inside the window and runs past it → lunch goes before it
+  assert.equal(breakInsertIndex([w(8, 11), { startMs: at(12).getTime(), endMs: at(15).getTime() }], noon, one), 1);
+  // One long job spanning the whole window → after it, never split
+  assert.equal(breakInsertIndex([{ startMs: at(10).getTime(), endMs: at(15).getTime() }], noon, one), 1);
+  // Empty day
+  assert.equal(breakInsertIndex([], noon, one), null);
+});
+
+test("walkDay with a break: no drive into lunch, the next leg is measured from the last real stop, the window is honoured", () => {
+  const stops: WalkStop[] = [
+    { id: "a", durationMin: 60 },
+    { id: "lunch", durationMin: 30, earliestMs: at(11, 30).getTime(), latestMs: at(13).getTime() },
+    { id: "b", durationMin: 60 },
+  ];
+  const order = ["a", "lunch", "b"];
+  const lastLocated = (i: number) => (order[i - 1] === "lunch" ? i - 2 : i - 1);
+  const walked = walkDay({
+    anchorMs: at(11).getTime(),
+    stops,
+    driveMinutes: (_p, i) => (order[i] === "lunch" ? 0 : lastLocated(i) < 0 ? 0 : 20),
+    gapMinutes: roundGapMinutes,
+  });
+  // a 11:00–12:00, lunch waits for nothing (12:00 is inside the window) 12:00–12:30, b after a 20-min drive 12:50–13:50
+  assert.equal(walked[1].startMs, at(12).getTime());
+  assert.equal(walked[1].driveMin, 0);
+  assert.equal(walked[2].startMs, at(12, 50).getTime());
+  assert.equal(walked[2].driveMin, 20);
+  assert.equal(walked[1].late, false);
 });
 
 console.log(`\n${passed} passed`);

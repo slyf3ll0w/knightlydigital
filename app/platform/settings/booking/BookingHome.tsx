@@ -54,9 +54,28 @@ export type RulesProps = {
   arrivalWindowMinutes: number;
   /** 0 = off */
   bookingDriveLimitMinutes: number;
+  /** Automatic lunch for the route optimizer: minutes (0 = off) inside a window (minutes from midnight). */
+  breakMinutes: number;
+  breakAfterMin: number;
+  breakBeforeMin: number;
   timezone: string;
   bookableCount: number;
 };
+
+const BREAK_LENGTHS = [
+  { value: 0, label: "No automatic lunch" },
+  { value: 30, label: "30 minutes" },
+  { value: 45, label: "45 minutes" },
+  { value: 60, label: "1 hour" },
+];
+
+function minutesToTime(min: number): string {
+  return `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+}
+function timeToMinutesOrNull(t: string): number | null {
+  const m = /^(\d{2}):(\d{2})$/.exec(t);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
 
 const WINDOW_OPTIONS = [
   { value: 60, label: "1 hour" },
@@ -209,13 +228,33 @@ export default function BookingHome({
   const [zipsText, setZipsText] = useState(initialRules.serviceZips.join(", "));
   const [window_, setWindow] = useState(initialRules.arrivalWindowMinutes);
   const [driveLimit, setDriveLimit] = useState(initialRules.bookingDriveLimitMinutes);
+  const [breakMin, setBreakMin] = useState(initialRules.breakMinutes);
+  const [breakAfter, setBreakAfter] = useState(minutesToTime(initialRules.breakAfterMin));
+  const [breakBefore, setBreakBefore] = useState(minutesToTime(initialRules.breakBeforeMin));
   const [rulesSaving, setRulesSaving] = useState(false);
   const [rulesSavedAt, setRulesSavedAt] = useState(0);
   async function saveRules() {
     setRulesSaving(true);
     setError("");
     const serviceZips = zipsText.split(/[\s,;]+/).map((z) => z.trim()).filter(Boolean);
-    const { ok, data } = await postJson("/api/app/settings", { businessHours: hours, serviceZips, arrivalWindowMinutes: window_, bookingDriveLimitMinutes: driveLimit }, "PATCH");
+    const afterMin = timeToMinutesOrNull(breakAfter);
+    const beforeMin = timeToMinutesOrNull(breakBefore);
+    if (breakMin > 0 && (afterMin == null || beforeMin == null || beforeMin <= afterMin)) {
+      setError("The lunch window has to end after it starts.");
+      return;
+    }
+    const { ok, data } = await postJson(
+      "/api/app/settings",
+      {
+        businessHours: hours,
+        serviceZips,
+        arrivalWindowMinutes: window_,
+        bookingDriveLimitMinutes: driveLimit,
+        breakMinutes: breakMin,
+        ...(afterMin != null && beforeMin != null ? { breakAfterMin: afterMin, breakBeforeMin: beforeMin } : {}),
+      },
+      "PATCH"
+    );
     setRulesSaving(false);
     if (!ok) return setError(data?.error ?? GENERIC_ERROR);
     setRulesSavedAt(Date.now());
@@ -227,6 +266,7 @@ export default function BookingHome({
     hoursSummary(hours),
     `${arrivalWindowChoiceLabel(window_)} arrival window`,
     driveLimit > 0 ? `drive limit ${driveLimit} min` : "no drive limit",
+    breakMin > 0 ? `${breakMin} min lunch` : "no automatic lunch",
     zipCount > 0 ? `${zipCount} ZIP${zipCount === 1 ? "" : "s"}` : "any address",
   ].join(" · ");
 
@@ -518,6 +558,29 @@ export default function BookingHome({
                       ))}
                     </select>
                     <p className="mt-1 text-xs text-gray-500">Visits only offer times the assigned person can reach from their previous stop and on to the next.</p>
+                  </div>
+                </div>
+                <div>
+                  <label className={smallLabel}>
+                    <span className="inline-flex items-center gap-1">
+                      Lunch on the route
+                      <InfoTip>
+                        When a route is optimized, a break this long is placed somewhere inside the window — after whichever stop ends first once
+                        it opens. Someone who already has a break on their day keeps theirs. Techs can skip it from the route.
+                      </InfoTip>
+                    </span>
+                  </label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto_auto]">
+                    <select value={breakMin} onChange={(e) => setBreakMin(Number(e.target.value))} className={inputCls}>
+                      {BREAK_LENGTHS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                    <span className={`self-center text-xs text-gray-500 ${breakMin === 0 ? "opacity-40" : ""}`}>between</span>
+                    <input type="time" value={breakAfter} disabled={breakMin === 0} onChange={(e) => setBreakAfter(e.target.value)} className={`${inputCls} disabled:opacity-40`} aria-label="Lunch window opens" />
+                    <input type="time" value={breakBefore} disabled={breakMin === 0} onChange={(e) => setBreakBefore(e.target.value)} className={`${inputCls} disabled:opacity-40`} aria-label="Lunch window closes" />
                   </div>
                 </div>
                 <div>

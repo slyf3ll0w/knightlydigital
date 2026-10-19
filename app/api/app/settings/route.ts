@@ -246,6 +246,29 @@ export async function PATCH(req: NextRequest) {
           Number(body.arrivalWindowMinutes) <= 480
             ? Number(body.arrivalWindowMinutes)
             : undefined,
+        // Automatic lunch for the route optimizer (minutes; 0 = off) inside a
+        // window of minutes-from-midnight, company-local
+        breakMinutes:
+          body.breakMinutes !== undefined &&
+          Number.isInteger(Number(body.breakMinutes)) &&
+          Number(body.breakMinutes) >= 0 &&
+          Number(body.breakMinutes) <= 180
+            ? Number(body.breakMinutes)
+            : undefined,
+        breakAfterMin:
+          body.breakAfterMin !== undefined &&
+          Number.isInteger(Number(body.breakAfterMin)) &&
+          Number(body.breakAfterMin) >= 0 &&
+          Number(body.breakAfterMin) < 24 * 60
+            ? Number(body.breakAfterMin)
+            : undefined,
+        breakBeforeMin:
+          body.breakBeforeMin !== undefined &&
+          Number.isInteger(Number(body.breakBeforeMin)) &&
+          Number(body.breakBeforeMin) > 0 &&
+          Number(body.breakBeforeMin) <= 24 * 60
+            ? Number(body.breakBeforeMin)
+            : undefined,
         // Booking drive-time limit (minutes; 0 clears it → off)
         bookingDriveLimitMinutes:
           body.bookingDriveLimitMinutes !== undefined &&

@@ -240,7 +240,7 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
   {
     label: "Work",
     items: [
-      { href: "/app/schedule/map", label: "Routes", icon: RouteGlyph },
+      { href: "/app/routes", label: "Routes", icon: RouteGlyph },
       { href: "/app/contacts", label: "Clients", icon: Users, show: sellRoles },
       { href: "/app/requests", label: "Requests", icon: Inbox, show: sellRoles },
       { href: "/app/messages", label: "Messages", icon: MessageSquare, show: sellRoles },
@@ -302,7 +302,7 @@ const railGroups: { key: string; label: string; items: NavItem[] }[] = [
       { href: "/app/messages", label: "Messages", icon: MessageSquare, show: sellRoles },
       { href: "/app/calls", label: "Calls", icon: PhoneCall, show: sellRoles },
       { href: "/app/appointments", label: "Appointments", icon: CalendarClock, show: sellRoles },
-      { href: "/app/schedule/map", label: "Routes", icon: RouteGlyph },
+      { href: "/app/routes", label: "Routes", icon: RouteGlyph },
       { href: "/app/tasks", label: "Tasks", icon: ListChecks },
       { href: "/app/contracts", label: "Agreements", icon: FileSignature, show: sellRoles },
       // Managers reach timesheets through the Business hub; techs/USER need
@@ -351,7 +351,7 @@ const railAnims: Record<string, string> = {
   "/app/messages": "perk",
   "/app/calls": "perk",
   "/app/appointments": "flip",
-  "/app/schedule/map": "shuffle",
+  "/app/routes": "shuffle",
   "/app/contracts": "sheet",
   "/app/timesheets": "tick",
   "/app/tasks": "tick",
@@ -412,7 +412,7 @@ const PHONE_CREATE_ORDER = [
 // keep the tenant's brand accent) — everything with an entity gets its hue.
 const sectionTints: Record<string, string> = {
   "/app/schedule": SECTION_HUES.schedule,
-  "/app/schedule/map": SECTION_HUES.schedule,
+  "/app/routes": SECTION_HUES.schedule,
   "/app/contacts": SECTION_HUES.clients,
   "/app/requests": SECTION_HUES.requests,
   "/app/leads": SECTION_HUES.leads,
@@ -443,7 +443,7 @@ const NAV_CREATE: Record<string, { href: string; label: string }> = {
   "/app/requests": { href: "/app/requests/new", label: "New request" },
   "/app/appointments": { href: "/app/appointments/new", label: "New appointment" },
   "/app/schedule": { href: "/app/jobs/new", label: "New job" },
-  "/app/schedule/map": { href: "/app/jobs/new", label: "New job" },
+  "/app/routes": { href: "/app/jobs/new", label: "New job" },
   "/app/jobs": { href: "/app/jobs/new", label: "New job" },
   "/app/tasks": { href: "/app/tasks?new=1", label: "New task" },
   "/app/quotes": { href: "/app/quotes/new", label: "New quote" },
@@ -572,7 +572,7 @@ const MORE_RECENT_KEY = "wb-more-recent";
 const MORE_GROUPS: { label: string; tone: "a" | "b" | "c" | "d" | "e"; hrefs: string[] }[] = [
   { label: "Clients", tone: "a", hrefs: ["/app/contacts", "/app/leads", "/app/requests", "/app/messages", "/app/calls"] },
   { label: "Sales", tone: "b", hrefs: ["/app/quotes", "/app/estimates", "/app/contracts", "/app/appointments"] },
-  { label: "Field work", tone: "c", hrefs: ["/app/schedule/map", "/app/jobs", "/app/tasks", "/app/timesheets", "/app/chat"] },
+  { label: "Field work", tone: "c", hrefs: ["/app/routes", "/app/jobs", "/app/tasks", "/app/timesheets", "/app/chat"] },
   { label: "Money", tone: "d", hrefs: ["/app/invoices", "/app/payments", "/app/subscriptions"] },
   { label: "Business", tone: "e", hrefs: ["/app/business", "/app/automations", "/app/settings/products", "/app/settings/booking", "/app/settings/website", "/app/settings/team"] },
 ];
@@ -2158,9 +2158,9 @@ export default function AppShell({
 
   function isActive(href: string) {
     if (href === "/app/dashboard") return pathname === href;
-    // Routes (/app/schedule/map) has its own nav item — don't light Schedule
+    // Routes (/app/routes) has its own nav item — don't light Schedule
     if (href === "/app/schedule") {
-      return pathname.startsWith(href) && !pathname.startsWith("/app/schedule/map");
+      return pathname.startsWith(href) && !pathname.startsWith("/app/routes");
     }
     // Insights / Expenses / Team Map hang off the Business overview and no
     // longer have rows of their own, so Overview stays lit (and its rail

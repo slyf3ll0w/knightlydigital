@@ -1690,7 +1690,7 @@ export default function ScheduleClient({
               <span className="capitalize">{v}</span>
             </Segment>
           ))}
-          <Segment active={false} href={`/app/schedule/map?date=${toParam(anchor)}${team ? `&team=${team}` : ""}`}>
+          <Segment active={false} href={`/app/routes?date=${toParam(anchor)}${team ? `&team=${team}` : ""}`}>
             <RouteIcon size={13} />
             Map
           </Segment>
@@ -1742,7 +1742,7 @@ export default function ScheduleClient({
                 By tech
               </FilterChip>
             )}
-            <FilterChip hue={hue} active={false} href={`/app/schedule/map?date=${toParam(anchor)}${team ? `&team=${team}` : ""}`}>
+            <FilterChip hue={hue} active={false} href={`/app/routes?date=${toParam(anchor)}${team ? `&team=${team}` : ""}`}>
               <RouteIcon size={14} />
               Map
             </FilterChip>

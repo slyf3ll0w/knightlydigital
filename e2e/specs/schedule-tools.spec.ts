@@ -295,6 +295,75 @@ test.describe("schedule tools", () => {
     }
   });
 
+  test("stops that aren't clients: a place, an errand before a job, a task with a place, lunch slotted by Optimize", async () => {
+    const day = daysFrom(9);
+    const at = (h: number) => new Date(day.getTime() + h * 3600_000).toISOString();
+    const place = await api.post("/api/app/places", { name: `${runTag} Ferguson`, kind: "SUPPLY", address: "3100 W Plano Pkwy, Plano, TX 75075" });
+    const a = await api.post("/api/app/jobs", {
+      contactId, title: `${runTag} errand A`, address: "6000 W Plano Pkwy, Plano, TX 75093",
+      scheduledAt: at(0), scheduledEnd: at(1), assigneeIds: [state.ownerA.userId],
+    });
+    const b = await api.post("/api/app/jobs", {
+      contactId, title: `${runTag} errand B`, address: "2000 E Spring Creek Pkwy, Plano, TX 75074",
+      scheduledAt: at(2), scheduledEnd: at(3), assigneeIds: [state.ownerA.userId],
+    });
+    const errand = await api.json("POST", "/api/app/route-plan/stops", {
+      date: ymd(day), userId: state.ownerA.userId, kind: "errand", placeId: place.place.id, durationMinutes: 20, beforeJobId: b.id,
+    }, 201);
+    const task = await api.post("/api/app/tasks", {
+      title: `${runTag} drop the permit`, dueDate: ymd(day), address: "1520 K Ave, Plano, TX 75074", estimatedMinutes: 15,
+    });
+    const taskId = task.tasks[0].id as string;
+    const cleanup: string[] = [];
+    try {
+      const plan = await api.get(`/api/app/route-plan?date=${ymd(day)}`);
+      const errandStop = plan.stops.find((s: { id: string }) => s.id === errand.id);
+      expect(errandStop).toBeTruthy();
+      expect(errandStop.kind).toBe("errand");
+      expect(errandStop.flexible).toBe(true);
+      expect(errandStop.beforeStopId).toBe(b.id);
+      expect(errandStop.title).toBe(`${runTag} Ferguson`);
+      const taskStop = plan.stops.find((s: { id: string }) => s.id === taskId);
+      expect(taskStop).toBeTruthy();
+      expect(taskStop.kind).toBe("task");
+      expect(taskStop.scheduledAnytime).toBe(true);
+      expect(typeof plan.breakDefault?.minutes).toBe("number");
+
+      const first = await api.raw("POST", "/api/app/route-plan/optimize", { date: ymd(day), userId: state.ownerA.userId });
+      const solved = await first.json();
+      if (first.status === 400) {
+        // No map pins on this environment (no MAPBOX_TOKEN) — the rest needs geometry
+        expect(solved.error).toContain("mapped stops");
+        return;
+      }
+      expect(first.status).toBe(200);
+      const ids = solved.stops.map((s: { id: string }) => s.id);
+      expect(ids.indexOf(errand.id)).toBeGreaterThanOrEqual(0);
+      expect(ids.indexOf(errand.id)).toBeLessThan(ids.indexOf(b.id));
+      // The company's automatic lunch rides the preview and is saved on apply
+      expect(solved.breakAdded).toBe(true);
+      expect(solved.stops.some((s: { kind: string }) => s.kind === "break")).toBe(true);
+      const applied = await api.json("POST", "/api/app/route-plan/optimize", {
+        date: ymd(day), userId: state.ownerA.userId, order: ids, keep: solved.keep, apply: true,
+      }, 200);
+      expect(applied.applied).toBe(true);
+      const after = await api.get(`/api/app/route-plan?date=${ymd(day)}`);
+      const lunch = after.stops.find((s: { kind: string }) => s.kind === "break");
+      expect(lunch).toBeTruthy();
+      cleanup.push(lunch.id);
+      const placedErrand = after.stops.find((s: { id: string }) => s.id === errand.id);
+      expect(placedErrand.scheduledAnytime).toBe(false);
+      // Tick the errand done from the route
+      const ticked = await api.json("PATCH", `/api/app/time-blocks/${errand.id}`, { done: true }, 200);
+      expect(ticked.doneAt).toBeTruthy();
+    } finally {
+      for (const id of [errand.id, ...cleanup]) await api.json("DELETE", `/api/app/time-blocks/${id}`, undefined, 200).catch(() => {});
+      await api.json("DELETE", `/api/app/tasks/${taskId}`, undefined, 200).catch(() => {});
+      for (const j of [a, b]) await api.json("DELETE", `/api/app/jobs/${j.id}`, undefined, 200).catch(() => {});
+      await api.json("DELETE", `/api/app/places/${place.place.id}`, undefined, 200).catch(() => {});
+    }
+  });
+
   test("tenant B sees none of it", async () => {
     const b = Api.forOwnerB(state);
     const hit = await b.get(`/api/app/schedule/palette?q=${encodeURIComponent(runTag)}`);
