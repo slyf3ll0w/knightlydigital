@@ -10,6 +10,8 @@ export type PickerContact = {
   id: string;
   firstName: string;
   lastName: string;
+  /** What the quick-add sheet saved (a host form can use it as the job site). */
+  address?: string | null;
 };
 
 const fullName = (c: PickerContact) =>

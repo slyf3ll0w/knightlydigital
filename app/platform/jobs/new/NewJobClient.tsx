@@ -122,6 +122,7 @@ function NewJobForm({ actorId }: { actorId: string }) {
   // How long: a chip (minutes) or Custom (null → an End time shows)
   const [duration, setDuration] = useRememberedDuration("job", DEFAULT_JOB_DURATION_MINUTES);
   const [more, setMore] = useState(false);
+  const [addressNudged, setAddressNudged] = useState(false);
   const [form, setForm] = useState({
     contactId: prefilledContactId,
     requestId,
@@ -302,6 +303,14 @@ function NewJobForm({ actorId }: { actorId: string }) {
       setError("Pick a time, or choose Anytime");
       return;
     }
+    // A job with no address is no stop on the map or a route: say so once
+    // and wait; the second press creates it anyway (a nudge, not a wall)
+    if (!form.address.trim() && !form.propertyId && !addressNudged) {
+      setAddressNudged(true);
+      setMore(true);
+      setError("This job has no address, so it won't show on the map or a route. Add one under More details, or press Create job again to go without.");
+      return;
+    }
     setError("");
     setLoading(true);
 
@@ -384,6 +393,14 @@ function NewJobForm({ actorId }: { actorId: string }) {
                 set("contactId", id);
                 touch();
               }}
+              // A client added from the sheet joins the list with the address
+              // they were saved with, so the job site fills in like any other pick
+              onCreated={(c) =>
+                setContacts((cur) => [
+                  ...cur,
+                  { id: c.id, firstName: c.firstName, lastName: c.lastName, address: c.address ?? null, city: null, state: null, zip: null, addresses: [] },
+                ])
+              }
               placeholder="Select a customer…"
               title="Select a customer"
             />
@@ -697,10 +714,16 @@ function NewJobForm({ actorId }: { actorId: string }) {
                   // Typing a custom address breaks the saved-property link
                   setAddressTouched(true);
                   setForm((f) => ({ ...f, address: v, propertyId: "" }));
+                  if (v.trim() && addressNudged) {
+                    setAddressNudged(false);
+                    setError("");
+                  }
                 }}
                 onPick={(a) => {
                   setAddressTouched(true);
                   setForm((f) => ({ ...f, address: a.label, propertyId: "" }));
+                  setAddressNudged(false);
+                  setError("");
                 }}
                 className={inputCls}
                 placeholder="Defaults to customer address"
