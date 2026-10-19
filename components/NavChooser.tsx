@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Navigation } from "lucide-react";
 import { isApplePlatform } from "@/lib/messaging";
+import { getCapacitor, nativePlatform } from "@/components/NativeShell";
 import {
   NAV_APP_LABELS,
   isNavApp,
+  navAppHref,
   navAppsFor,
   navHref,
   orderNavApps,
@@ -20,9 +22,13 @@ import {
  * Imperative like confirmSheet(): call `openDirections({ address })` from any
  * click handler; the host (mounted once in AppShell) presents an iOS-style
  * action sheet on phones and a small centered dialog on desktop. The options
- * are real anchors so the native shell's link rule sends them to the system
- * (components/NativeShell.tsx) and the OS hands them to the installed app.
- * The last pick is remembered (localStorage) and listed first.
+ * are real anchors. On the web they carry each app's https directions link;
+ * inside the native shell they carry the app's own URL scheme (lib/nav-apps.ts
+ * navAppHref), which the OS hands straight to the installed app — no web
+ * page or redirect in between (David 2026-10-19). If the app isn't there the
+ * scheme does nothing, so after a moment with the shell still in front, the
+ * https link opens in the system browser instead. The last pick is
+ * remembered (localStorage) and listed first.
  *
  * Without a host (portal pages, marketing routes) it opens Google Maps
  * directions in a new tab, so call sites never care where they run.
@@ -96,13 +102,29 @@ export default function NavChooserHost() {
 
   const where = (dest.address ?? "").trim();
   const accent = "var(--mobile-accent, #0B57D8)";
+  const platform = nativePlatform() ?? "web";
   const options = apps
-    .map((app) => ({ app, href: navHref(app, dest) }))
-    .filter((o): o is { app: NavApp; href: string } => Boolean(o.href));
+    .map((app) => ({ app, href: navAppHref(app, dest, platform) ?? navHref(app, dest), web: navHref(app, dest) }))
+    .filter((o): o is { app: NavApp; href: string; web: string } => Boolean(o.href && o.web));
 
-  const pick = (app: NavApp) => {
+  const pick = (app: NavApp, e: React.MouseEvent<HTMLAnchorElement>) => {
     rememberApp(app);
-    // Let the anchor's own navigation happen, then dismiss
+    const opt = options.find((o) => o.app === app);
+    if (platform !== "web" && opt && opt.href !== opt.web) {
+      // The shell: hand the scheme to the OS ourselves (an anchor with
+      // target=_blank would ask the webview for a new window instead)
+      e.preventDefault();
+      window.location.href = opt.href;
+      window.setTimeout(() => {
+        // Still in front after a moment = the app isn't installed; use the web link
+        if (document.visibilityState === "visible") {
+          const Browser = getCapacitor()?.Plugins?.Browser;
+          if (Browser?.open) Browser.open({ url: opt.web }).catch(() => window.open(opt.web, "_blank"));
+          else window.open(opt.web, "_blank");
+        }
+      }, 1500);
+    }
+    // Let the anchor's own navigation happen (web), then dismiss
     window.setTimeout(close, 50);
   };
 
@@ -133,7 +155,7 @@ export default function NavChooserHost() {
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              onClick={() => pick(app)}
+              onClick={(e) => pick(app, e)}
               className="block w-full border-t sheet-hairline px-4 py-[15px] text-center text-[17px] active:bg-black/5"
               style={{ color: accent }}
             >
@@ -172,7 +194,7 @@ export default function NavChooserHost() {
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={() => pick(app)}
+                onClick={(e) => pick(app, e)}
                 className="block w-full rounded-[10px] border border-gray-200 px-3 py-2 text-center text-sm font-medium text-gray-900 hover:bg-gray-50"
               >
                 {NAV_APP_LABELS[app]}

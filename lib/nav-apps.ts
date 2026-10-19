@@ -71,6 +71,36 @@ export function navHref(app: NavApp, d: NavDestination): string | null {
   }
 }
 
+/** Where the link will be opened: inside the iOS/Android shell, or a browser. */
+export type NavPlatform = "ios" | "android" | "web";
+
+/**
+ * The link that opens the app ITSELF (David 2026-10-19). From the native
+ * shell, the https links above go through the system browser first — a web
+ * page, a redirect, sometimes a "open in app?" banner — before the maps app
+ * appears. Each app's URL scheme skips all that: the OS hands the scheme
+ * straight to the installed app. On the web the https link is still right
+ * (a browser can't open a scheme it doesn't know, and the universal link
+ * already opens the app from Safari/Chrome when it's installed).
+ */
+export function navAppHref(app: NavApp, d: NavDestination, platform: NavPlatform): string | null {
+  if (platform === "web") return navHref(app, d);
+  const target = navTarget(d);
+  if (!target) return null;
+  const enc = encodeURIComponent(target);
+  switch (app) {
+    case "apple":
+      return `maps://?daddr=${enc}&dirflg=d`;
+    case "google":
+      // Android: google.navigation starts turn-by-turn directly; iOS: the Google Maps scheme
+      return platform === "android"
+        ? `google.navigation:q=${enc}&mode=d`
+        : `comgooglemaps://?daddr=${enc}&directionsmode=driving`;
+    case "waze":
+      return hasCoords(d) ? `waze://?ll=${d.lat},${d.lng}&navigate=yes` : `waze://?q=${enc}&navigate=yes`;
+  }
+}
+
 /**
  * The one link to use where there's no room to ask (a push notification
  * action, a plain server-rendered anchor): Google's directions URL works on

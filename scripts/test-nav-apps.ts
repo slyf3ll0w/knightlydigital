@@ -3,7 +3,7 @@
  * Google Maps and Waze.   npx tsx scripts/test-nav-apps.ts
  */
 import assert from "node:assert/strict";
-import { directionsHref, navAppsFor, navHref, navTarget, orderNavApps } from "../lib/nav-apps";
+import { directionsHref, navAppHref, navAppsFor, navHref, navTarget, orderNavApps } from "../lib/nav-apps";
 
 const addr = { address: "123 Main St, Allen, TX 75002" };
 const pin = { lat: 33.1032, lng: -96.6706, address: "ignored when a pin exists" };
@@ -48,5 +48,15 @@ assert.equal(navHref("apple", { lat: null, lng: null, address: "" }), null);
 // The server-side default (push notification actions) is the Google directions link.
 assert.equal(directionsHref(addr), g);
 assert.equal(directionsHref({}), null);
+
+// ── native shell: the app's own scheme, so no web page sits between the tap and the app ──
+assert.equal(navAppHref("apple", addr, "ios"), `maps://?daddr=${encodeURIComponent(addr.address)}&dirflg=d`);
+assert.ok(navAppHref("google", addr, "ios")!.startsWith("comgooglemaps://?daddr="));
+assert.ok(navAppHref("google", addr, "ios")!.includes("directionsmode=driving"));
+assert.ok(navAppHref("google", addr, "android")!.startsWith("google.navigation:q="), "Android goes straight to turn-by-turn");
+assert.equal(navAppHref("waze", pin, "android"), "waze://?ll=33.1032,-96.6706&navigate=yes");
+assert.ok(navAppHref("waze", addr, "ios")!.startsWith("waze://?q="));
+assert.equal(navAppHref("google", addr, "web"), g, "on the web the https link is still the right one");
+assert.equal(navAppHref("apple", {}, "ios"), null);
 
 console.log("nav-apps: all assertions passed");
