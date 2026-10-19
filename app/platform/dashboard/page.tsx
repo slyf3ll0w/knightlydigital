@@ -13,7 +13,6 @@ import {
   CalendarPlus,
   CalendarCheck,
   LifeBuoy,
-  Megaphone,
   Timer,
   Repeat,
   Navigation,
@@ -699,10 +698,6 @@ export default async function DashboardPage() {
 
   const footer = (
     <div className="mt-12 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 border-t border-[color:var(--ds-line)] pt-5 text-center">
-      <Link prefetch={false} href="/app/roadmap" className="ds-small inline-flex items-center gap-1.5 hover:text-[color:var(--ds-primary)]">
-        <Megaphone size={12} />
-        See what&apos;s coming next
-      </Link>
       <Link prefetch={false} href="/app/support" className="ds-small inline-flex items-center gap-1.5 hover:text-[color:var(--ds-primary)]">
         <LifeBuoy size={12} />
         Found a bug or have an idea? Tell us

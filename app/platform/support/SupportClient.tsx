@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  ArrowRight,
   Bug,
   CheckCircle2,
   Clock,
@@ -302,14 +301,6 @@ export default function SupportClient({
                         {t.response}
                       </div>
                     )}
-                    {t.status === "PLANNED" && t.roadmapItemId && (
-                      <Link
-                        href="/app/roadmap"
-                        className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-[color:var(--ds-primary)] hover:underline"
-                      >
-                        On the Upcoming Features board <ArrowRight size={10} />
-                      </Link>
-                    )}
                   </div>
                 </div>
               </li>
@@ -317,13 +308,6 @@ export default function SupportClient({
           })}
         </ul>
       </div>
-
-      <p className="text-center text-xs text-gray-500">
-        Curious what&apos;s already in the works?{" "}
-        <Link href="/app/roadmap" className="font-medium text-gray-500 hover:text-gray-800 underline">
-          See the Upcoming Features board
-        </Link>
-      </p>
     </div>
   );
 }

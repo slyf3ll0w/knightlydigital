@@ -12,7 +12,6 @@ const companyLinks = [
   { label: 'About Us', href: '/about' },
   { label: 'Contact', href: '/contact' },
   { label: 'Client Portal', href: '/portal' },
-  { label: 'Upcoming Features', href: '/roadmap' },
 ];
 
 const socialLinks = [

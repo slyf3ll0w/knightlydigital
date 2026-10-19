@@ -1,31 +1,9 @@
-import type { Metadata } from "next";
-import { prisma } from "@/lib/db";
-import { requirePageActor } from "@/lib/permissions";
-import { isRoadmapEditor } from "@/lib/roadmap";
-import RoadmapClient from "@/app/roadmap/RoadmapClient";
-
-export const metadata: Metadata = { title: "Upcoming Features" };
+import { redirect } from "next/navigation";
 
 /**
- * In-app view of the public roadmap (/app/roadmap) — same board, rendered
- * inside the app shell instead of the marketing chrome. Reached from the
- * dashboard footer link; deliberately absent from the sidebar.
+ * The in-app Upcoming Features board is switched off for now (David
+ * 2026-10-19) — see app/roadmap/page.tsx. Old links land on the Help Center.
  */
-export default async function AppRoadmapPage() {
-  await requirePageActor();
-  const canEdit = await isRoadmapEditor();
-  const items = await prisma.roadmapItem.findMany({
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-  });
-
-  return (
-    <RoadmapClient
-      initialItems={JSON.parse(
-        // Private notes never leave the server for non-editors
-        JSON.stringify(canEdit ? items : items.map(({ privateNotes: _, ...rest }) => rest))
-      )}
-      canEdit={canEdit}
-      app
-    />
-  );
+export default function AppRoadmapPage() {
+  redirect("/app/help");
 }

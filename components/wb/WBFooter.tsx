@@ -13,7 +13,6 @@ const columns: {
       { label: "Home", href: WB_HOME },
       { label: "Features", href: "/features" },
       { label: "Pricing", href: "/pricing" },
-      { label: "Roadmap", href: "/roadmap" },
       { label: "iPhone app", href: APP_STORE_URL, external: true },
     ],
   },

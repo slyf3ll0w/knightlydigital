@@ -1,29 +1,15 @@
-import type { Metadata } from "next";
-import { prisma } from "@/lib/db";
-import { isRoadmapEditor } from "@/lib/roadmap";
-import RoadmapClient from "./RoadmapClient";
+import { notFound } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Upcoming Features",
-  description:
-    "What we're building next for WorkBench — upcoming features, bug fixes, and quality-of-life improvements, and everything that already shipped.",
-};
-
+/**
+ * The public Upcoming Features board is switched off for now (David
+ * 2026-10-19) — the Help Center stays. RoadmapClient, lib/roadmap.ts, the
+ * /api/roadmap routes and the superadmin feedback → roadmap link all remain
+ * so the board can come back by restoring this page (and /app/roadmap) plus
+ * the links in WBFooter, Footer, the dashboard footer, Support, sitemap,
+ * llms.txt and lib/mobile-nav.ts.
+ */
 export const dynamic = "force-dynamic";
 
-export default async function RoadmapPage() {
-  const canEdit = await isRoadmapEditor();
-  const items = await prisma.roadmapItem.findMany({
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-  });
-
-  return (
-    <RoadmapClient
-      initialItems={JSON.parse(
-        // Private notes never leave the server for non-editors
-        JSON.stringify(canEdit ? items : items.map(({ privateNotes: _, ...rest }) => rest))
-      )}
-      canEdit={canEdit}
-    />
-  );
+export default function RoadmapPage() {
+  notFound();
 }

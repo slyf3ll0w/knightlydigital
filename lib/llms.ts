@@ -51,7 +51,6 @@ ${summary()}
 - [Features](${BASE}/features): The complete feature catalog across four stages — win the work, run the day, get paid, keep clients close — plus Atlas and mobile.
 - [Pricing](${BASE}/pricing): ${CORE} (free), the ${VOICE}, ${PRO}, ${MAX} and ${GALLERY} add-ons, Atlas Full, processing rates, and FAQ.
 - [Get started](${BASE}/apply): How a company signs up and gets onboarded.
-- [Roadmap](${BASE}/roadmap): What's shipped and what's coming next.
 
 ## Feature deep-dives
 

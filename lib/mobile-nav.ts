@@ -51,7 +51,6 @@ const ROOTS = new Set([
   "/app/automations",
   "/app/chat",
   "/app/support",
-  "/app/roadmap",
   "/app/settings",
   "/app/settings/products",
   "/app/settings/booking",
@@ -102,7 +101,6 @@ const LABELS: [prefix: string, label: string][] = [
   ["/app/chat", "Chat"],
   ["/app/help", "Help"],
   ["/app/support", "Help"],
-  ["/app/roadmap", "Roadmap"],
 ];
 
 /**
