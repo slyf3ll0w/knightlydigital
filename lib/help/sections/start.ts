@@ -154,6 +154,7 @@ export const startSection: HelpSection = {
             "Type what needs doing. Add notes if there's more to say.",
             "Pick a **Due** date, and a time or leave it on **Anytime**.",
             "Choose a **Reminder**: at the due time, 15 minutes, 1 hour or 1 day before, or pick your own time. A task with no date can still take a custom reminder.",
+            "If the task happens somewhere — \"drop the permit at the city office\" — press `Add a place`, pick a saved place or type the address, and say how long it takes. It then shows on your route for that day (see [Plan and optimize routes](/help/plan-routes)).",
             "Tick **High priority** if it has to happen. Press `Add task`.",
           ],
         },

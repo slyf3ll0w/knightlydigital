@@ -198,7 +198,7 @@ export const scheduleSection: HelpSection = {
             "Switch between **Month**, **Week** and **Day**. In Day view, **By tech** shows one column per person, like a dispatch board. Phones open on Day.",
             "**Drag** a visit to move it, drag its bottom edge to change its length, or drag across empty space to create something. Hold `Shift` while dragging to copy. Everything snaps to 15 minutes.",
             "After every move you get an **Undo**, plus `Text client` / `Email client` to tell them about the change.",
-            "`Block time` marks time off or shop days so nobody books over them. Tick **Repeats every week** and pick the days for things that happen every week (lunch, a standing appointment, Fridays off); booking forms show those times as taken, with your business hours left as they are. `Move the day` shifts a whole day's work.",
+            "`Block time` marks time off or shop days so nobody books over them. Tick **Repeats every week** and pick the days for things that happen every week (lunch, a standing appointment, Fridays off); booking forms show those times as taken, with your business hours left as they are. `Move the day` shifts a whole day's work. A block with an address is a stop on that person's route; errands and lunch added from **Routes** are blocks too, and show here once Optimize gives them a time.",
             "Open one day of a repeating block to change or remove just that day. **Edit every time** changes the whole rule, and **Remove → Every time** clears every day of it. The same list lives under Settings → Booking & forms → Scheduling rules → **Repeating blocks**.",
             "Chips flag anything that needs a look: **Awaiting approval**, **Double-booked**, **Unassigned**, **Subcontractor**.",
           ],
@@ -320,19 +320,34 @@ export const scheduleSection: HelpSection = {
     {
       slug: "plan-routes",
       title: "Plan and optimize routes",
-      summary: "See each tech's day on a map and reorder stops by drive time.",
+      summary: "See each tech's day on a map, add supply runs, lunch and tasks to it, and order the stops by drive time.",
       plan: PRO_CHIP,
-      keywords: ["route", "map", "optimize", "drive time", "directions", "no pin", "route manager", "google maps"],
+      keywords: ["route", "map", "optimize", "drive time", "directions", "no pin", "route manager", "google maps", "errand", "supply house", "supply run", "dump", "lunch", "break", "places", "add a stop", "day ends"],
       where: { label: "Routes", href: "/app/routes" },
       blocks: [
         proTip("Route Manager"),
         {
+          type: "p",
+          text: "A route is everything one person drives to in a day: client visits, in-person appointments, blocked time with an address, and the stops that aren't clients — a supply run, the dump, a parts drop-off, a task with a place, and lunch. Each kind has its own stamp in the list (**Errand**, **Break**, **Task**), and errands and tasks get square pins on the map.",
+        },
+        {
           type: "steps",
           items: [
             "Open **Routes** and pick the day (use the arrows or the date picker). Filter to one person if you like.",
-            "Press `Optimize`. Set when the day starts and whether it's a round trip. Lock any stop that has to stay where it is.",
-            "Check the preview. If you want, tick \"Text or email the clients whose time changes.\"",
+            "Press `+` on someone's card to add a stop: an **Errand**, a **Task** or **Lunch**. Pick a saved place or type an address, say how long it takes, and either let Optimize place it, give it a window (\"between 9 and 11\"), or set a time. An errand can be marked **Before this job** so the parts are on the truck first.",
+            "Press `Optimize`. Set when the day starts and whether to end back at the shop (or wherever that person's day ends). Lock any stop that has to stay where it is.",
+            "Check the preview. Errands land inside their window and ahead of the job they're for; lunch is slotted in from your company setting if that person has no break that day. If you want, tick \"Text or email the clients whose time changes.\"",
             "Press `Apply new order`. Nothing changes until you do.",
+          ],
+        },
+        {
+          type: "list",
+          items: [
+            "**Places** (the warehouse button on the map, or `/app/routes/places`): save your supply houses, the dump and the yard once. They show up first when anyone adds a stop. Anyone can add a place; owners and admins archive them.",
+            "**Tick it off:** errands, breaks and tasks have a circle on the route — tap it when it's done. `Remove` takes an errand off the day; `Skip` drops today's lunch.",
+            "**Lunch on the route:** Settings → Booking & forms → Scheduling rules sets the length and window (30 minutes between 11:30 and 1:00 unless you change it; \"No automatic lunch\" turns it off). Someone who already has a break on the day keeps theirs.",
+            "**Where the day ends:** on the Team page each person can end at the shop, back where they started (their start address), or wherever the last stop is. Optimize counts the drive back accordingly.",
+            "**Tasks with a place:** a task with an address (Tasks → `Add a place`) shows on that person's route on its due day. A task with a time holds that time; one set to Anytime gets slotted by Optimize.",
           ],
         },
         {
@@ -344,11 +359,19 @@ export const scheduleSection: HelpSection = {
           items: [
             {
               q: "Optimize is greyed out, or a stop says \"No pin\".",
-              a: "Optimizing needs at least 2 stops that are on the map. \"No pin\" means the address couldn't be found. Edit it to a full street address with a city.",
+              a: "Optimizing needs at least 2 stops that are on the map. \"No pin\" means the address couldn't be found. Edit it to a full street address with a city. A place with no pin can be fixed on the Places page.",
+            },
+            {
+              q: "Lunch didn't show up in the preview.",
+              a: "Lunch only goes in when the day runs past the start of the window (a day that ends at 11 has no lunch), when the company setting isn't \"No automatic lunch\", and when the person doesn't already have a break on the day. Lunch is saved on the day when you apply, not before.",
+            },
+            {
+              q: "The errand landed after the job I picked under \"Before this job\".",
+              a: "Optimize never does that on its own; it can only happen when you drag the order by hand and the preview warns you, or when that job was locked at a time the errand can't beat — move the lock or the errand's window.",
             },
             {
               q: "I can't optimize someone else's day.",
-              a: "Techs can only optimize their own day, and Sales can't optimize. Managers can do anyone's.",
+              a: "Techs can only optimize their own day, and Sales can't optimize. Managers can do anyone's. Anyone can add a stop to their own day; owners, admins and office staff can add to anyone's.",
             },
           ],
         },
