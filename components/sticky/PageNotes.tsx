@@ -29,6 +29,10 @@ type Drag = { id: string; mode: "move" | "size"; startX: number; startY: number;
  *    corner; the same menu hides / shows every note.
  *  - phone: a slim "Notes on this page" strip at the top of the content
  *    that expands to the row of notes and an inline composer.
+ *  - small desktop: notes are placed in px, so one stuck on a wide monitor
+ *    can land past the right edge of a laptop screen. If any note on the
+ *    page would be cut off, the whole page falls back to the phone strip
+ *    (David 2026-10-20); widen the window and they go back to their spots.
  * Own notes are instant; team notes refresh from the 20-second nav poll
  * (`wb:notes-changed`) and when the app comes back to the foreground.
  */
@@ -54,6 +58,17 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
   const [live, setLive] = useState<Record<string, { x: number; y: number; w: number; h: number }>>({});
   const [front, setFront] = useState<string | null>(null);
   const drag = useRef<Drag | null>(null);
+  // Width of the scrolling pane the notes are placed in (0 until measured)
+  const [mainWidth, setMainWidth] = useState(0);
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main) return;
+    const measure = () => setMainWidth(main.clientWidth);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(main);
+    return () => ro.disconnect();
+  }, [mainRef]);
   // Phone: with nothing stuck here the strip lives at the bottom of the page
   const [bottomEl, setBottomEl] = useState<HTMLElement | null>(null);
   // Looked up again once the page has drawn: on a route with a loading.tsx
@@ -241,6 +256,14 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
   if (!active) return null;
   const ready = settled && loadedPage === page;
   const count = notes.length;
+  // Stored spots only (not the live drag), so a note nudged past the edge
+  // mid-drag doesn't flip the layout under the pointer.
+  const cutOff =
+    mainWidth > 0 &&
+    notes.some((n, i) => {
+      const x = n.x ?? 24 + i * (n.width + 16);
+      return x + n.width > mainWidth;
+    });
   const stripAtBottom = count === 0 && !hidden && bottomEl !== null;
 
   return (
@@ -249,7 +272,7 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
       <link rel="stylesheet" precedence="default" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&display=swap" />
 
       {/* ── Desktop layer: notes at their spot on this page ── */}
-      {ready && !hidden && count > 0 && (
+      {ready && !hidden && count > 0 && !cutOff && (
         <div className="pointer-events-none absolute left-0 top-0 z-[25] hidden h-0 w-full lg:block" aria-label="Sticky notes on this page">
           {notes.map((n, i) => {
             const p = posOf(n, i);
@@ -282,10 +305,11 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
         </div>
       )}
 
-      {/* ── Phone: the page strip (at the top with notes, at the bottom without) ── */}
+      {/* ── Phone: the page strip (at the top with notes, at the bottom without).
+             Also the desktop layout when a placed note would be cut off. ── */}
       {ready && (() => {
         const strip = (
-      <div className={`${stripAtBottom ? "px-4 pb-3 pt-6" : "px-4 pt-3"} lg:hidden`} data-notes-skip>
+      <div className={`${stripAtBottom ? "px-4 pb-3 pt-6" : "px-4 pt-3"} ${cutOff ? "lg:px-6" : "lg:hidden"}`} data-notes-skip>
         <div className={`ds-notes-strip ds-notes-strip-in ${stripOpen ? "ds-notes-strip-open" : ""}`}>
           <div className="flex items-center gap-2">
             <button
