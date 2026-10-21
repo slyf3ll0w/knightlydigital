@@ -188,7 +188,7 @@ export const leadsSection: HelpSection = {
       slug: "online-booking",
       title: "Take bookings online",
       summary: "Share your booking page or put a form on your website so customers can book or ask for work.",
-      keywords: ["booking page", "book online", "website form", "embed", "widget", "schedule online", "request form", "bookable online", "free estimate"],
+      keywords: ["booking page", "book online", "website form", "embed", "widget", "schedule online", "request form", "bookable online", "free estimate", "meeting link", "video call link", "zoom", "confirmation wording", "thank you page"],
       where: { label: "Booking & forms", href: "/app/settings/booking" },
       roles: "Owners and admins",
       blocks: [
@@ -209,6 +209,14 @@ export const leadsSection: HelpSection = {
         {
           type: "p",
           text: "Each item's **Questions** card decides what the form asks. The address question can be worded your way (its label and the example text in the box); on a scheduled visit or service it's asked on its own step, since open times depend on it.",
+        },
+        {
+          type: "p",
+          text: "Each item's **Words** card is where the wording lives: the heading and button on the form, the screen customers see after they book or send (**After they book** and the line under it), and a **Note in confirmations** (directions, parking, what to have ready) that goes on that screen and into the confirmation email, text and calendar invite. Leave a field blank to keep the standard wording.",
+        },
+        {
+          type: "p",
+          text: "A Video call item takes **Meeting links**, one per line. With one link, every booking gets it. With several, each booking takes the next one in turn and skips a room another video call already has at that time, so two calls back to back never share a room. A person's own meeting link (Settings → Team & roles) is used instead whenever they are the one assigned.",
         },
         {
           type: "p",
