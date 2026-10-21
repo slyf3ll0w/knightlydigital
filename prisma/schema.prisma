@@ -1865,8 +1865,14 @@ model BookingType {
   confirmation         BookingConfirmation @default(INSTANT)
   // In-person: promised window width; null = company default, 0 = exact
   arrivalWindowMinutes Int?
-  // Video: fallback link when the assigned member has none of their own
+  // Video: the rooms this item hands out when the assigned member has none of
+  // their own (Team page). One link = everyone gets it. Several = each booking
+  // takes the next one (round robin from meetingLinkCursor), skipping a room
+  // another video call already holds at that time, so back-to-back bookings
+  // never share a room. meetingLink mirrors the first entry for older readers.
   meetingLink          String?
+  meetingLinks         String[]            @default([])
+  meetingLinkCursor    Int                 @default(0)
   paymentMode          BookingPayment      @default(NONE)
   assignment           BookingAssignment   @default(ROUND_ROBIN)
   // Client self-serve links in the confirmation email (calls by default)

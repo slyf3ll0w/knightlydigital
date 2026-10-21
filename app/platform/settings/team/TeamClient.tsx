@@ -462,7 +462,7 @@ export default function TeamClient({
                       placeholder="https://meet.google.com/…"
                       className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                     />
-                    <span className="mt-1 block text-[11px] text-gray-400">Sent with video-call bookings assigned to {m.name.split(" ")[0]}.</span>
+                    <span className="mt-1 block text-[11px] text-gray-400">Sent with video-call bookings assigned to {m.name.split(" ")[0]} — wins over the links on the booking item.</span>
                   </label>
                   <label className="block">
                     <span className="mb-1 block text-xs font-medium text-gray-500">Starts the day from</span>

@@ -20,6 +20,7 @@ import { acquireChargeLock, calculateSurcharge, findUnrecordedTransferForInvoice
 import { buyerIdentityData, buyerIdentityRefOf, canChargeOnline, processorMerchantRef, type ChargeGateCompany } from "@/lib/payments-gate";
 import { sendEmail, bookingConfirmedEmail, bookingTeamNoticeEmail } from "@/lib/email";
 import { sendSms, smsEnabled, canText, bookingConfirmationText } from "@/lib/sms";
+import { confirmationNote } from "@/lib/booking-intake";
 import { companyNotifyAddress } from "@/lib/notify";
 import { companyManagerIds, notifyUsers } from "@/lib/push";
 import { icsAttachment } from "@/lib/ics";
@@ -363,6 +364,7 @@ export async function createServiceBooking(params: {
   // Text confirmation for the booked visit (arrival window, never the exact
   // minute). The contact row is fresh from the transaction, so its consent
   // flags are current — a booker who left the SMS box unchecked is skipped.
+  const note = confirmationNote(type);
   if (result.contact.phone && smsEnabled() && canText(result.contact)) {
     try {
       await sendSms({
@@ -377,6 +379,7 @@ export async function createServiceBooking(params: {
           windowLabel: label,
           address: customer.address,
           event: "confirmed",
+          note,
         }),
       });
     } catch (err) {
@@ -393,7 +396,7 @@ export async function createServiceBooking(params: {
         serviceName: title,
         windowLabel: label,
         address: customer.address,
-        extras: { exactTime: false, withName: assignee?.name ?? null, paidNote },
+        extras: { exactTime: false, withName: assignee?.name ?? null, paidNote, note },
       });
       await sendEmail({
         companyId: company.id,
@@ -408,7 +411,7 @@ export async function createServiceBooking(params: {
             start: slot.start,
             end: slot.end,
             summary: `${title} — ${company.name}`,
-            description: `Arrival window: ${label}`,
+            description: [`Arrival window: ${label}`, note].filter(Boolean).join("\n"),
             location: customer.address,
             organizerName: company.name,
             organizerEmail: company.email,

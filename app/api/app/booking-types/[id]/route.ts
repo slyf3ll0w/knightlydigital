@@ -60,6 +60,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     confirmation: type.confirmation,
     arrivalWindowMinutes: type.arrivalWindowMinutes,
     meetingLink: type.meetingLink,
+    meetingLinks: type.meetingLinks,
     paymentMode: type.paymentMode,
     assignment: type.assignment,
     clientCanReschedule: type.clientCanReschedule,

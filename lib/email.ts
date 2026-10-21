@@ -1565,6 +1565,8 @@ export type BookingExtras = {
   manageUrl?: string | null;
   /** "Paid $150.00" / "Deposit of $50.00 paid" line for paid bookings. */
   paidNote?: string | null;
+  /** The owner's note for this booking type (directions, what to have ready). */
+  note?: string | null;
 };
 
 function bookingExtrasHtml(x: BookingExtras, companyEmail?: string | null): string {
@@ -1575,6 +1577,7 @@ function bookingExtrasHtml(x: BookingExtras, companyEmail?: string | null): stri
       `${fieldLabel("Join link", 12)}<p style="margin:0;font-size:14px;"><a href="${esc(x.meetingLink)}" style="color:#0369A1;word-break:break-all;">${esc(x.meetingLink)}</a></p>`
     );
   if (x.phone) rows.push(`${fieldLabel("We'll call you at", 12)}<p style="margin:0;color:#111827;font-size:14px;">${esc(x.phone)}</p>`);
+  if (x.note) rows.push(`<p style="margin:16px 0 0;color:#374151;font-size:14px;white-space:pre-line;">${esc(x.note)}</p>`);
   if (x.paidNote) rows.push(`<p style="margin:14px 0 0;color:#15803D;font-size:14px;font-weight:600;">${esc(x.paidNote)}</p>`);
   if (x.manageUrl) {
     rows.push(

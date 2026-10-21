@@ -292,6 +292,8 @@ export function bookingConfirmationText(
     manageUrl?: string | null;
     /** Cancelled: where to book again. */
     rebookUrl?: string | null;
+    /** The owner's note for this booking type (directions, what to have ready). */
+    note?: string | null;
   }
 ): string {
   const { companyName, firstName, serviceName, kind, windowLabel, address, phone, meetingLink, event } = args;
@@ -299,16 +301,17 @@ export function bookingConfirmationText(
   const where = address ? ` at ${address}` : "";
   const how =
     kind === "PHONE_CALL" ? ` We'll call you${phone ? ` at ${phone}` : ""}.` : kind === "VIDEO_CALL" && meetingLink ? ` Join: ${meetingLink}` : "";
+  const note = args.note ? ` ${args.note.replace(/\s+/g, " ").trim()}` : "";
   const manage = args.manageUrl ? ` Reschedule or cancel: ${args.manageUrl}` : "";
   switch (event) {
     case "received":
-      return `Hi ${firstName}, ${companyName} got your request for ${aOrAn(what)} on ${windowLabel}${where}. We'll confirm shortly. ${OPT_OUT}`;
+      return `Hi ${firstName}, ${companyName} got your request for ${aOrAn(what)} on ${windowLabel}${where}. We'll confirm shortly.${note} ${OPT_OUT}`;
     case "rescheduled":
-      return `Hi ${firstName}, your ${what} with ${companyName} has moved to ${windowLabel}${where}.${how}${manage} ${OPT_OUT}`;
+      return `Hi ${firstName}, your ${what} with ${companyName} has moved to ${windowLabel}${where}.${how}${note}${manage} ${OPT_OUT}`;
     case "cancelled":
       return `Hi ${firstName}, your ${what} with ${companyName} on ${windowLabel} has been cancelled.${args.rebookUrl ? ` Book again: ${args.rebookUrl}` : ""} ${OPT_OUT}`;
     default:
-      return `Hi ${firstName}, your ${what} with ${companyName} is booked for ${windowLabel}${where}.${how}${manage} ${OPT_OUT}`;
+      return `Hi ${firstName}, your ${what} with ${companyName} is booked for ${windowLabel}${where}.${how}${note}${manage} ${OPT_OUT}`;
   }
 }
 
