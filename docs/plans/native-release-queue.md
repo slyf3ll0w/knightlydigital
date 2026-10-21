@@ -89,6 +89,24 @@ WorkBench"; the Shortcuts app lists ten WorkBench shortcuts.
 
 ---
 
+## iOS — queued for build 14
+
+1. **Calling engine: the phone must say which credential it holds**
+   (`ios/App/App/VoipPlugin.swift`, found 2026-10-21). A pushed call for
+   another company on the login races the page: `SoftphoneNativeEngine`
+   probeCompany gets `switch` and re-points the session BEFORE the engine
+   posts /ready, so the engine asks as the new membership while it is still
+   registered as the old one, and its leg dies at Telnyx with 480. The
+   server now covers build 13 (lib/voice.ts dialWokenPhone dials every iOS
+   credential of the login, and redials on 480). For the engine itself:
+   - remember the membership (user id) and SIP username the grant was issued
+     for, and send that membership in every /ready — the ready route then
+     dials the credential the phone actually holds, or answers `switch`;
+   - on `register()` from the page (every page load, so also right after a
+     company switch), re-fetch the grant and reconnect when its SIP username
+     differs from the one registered — an outbound call placed right after
+     a switch otherwise dials a credential the phone is not on.
+
 ## Picking this up cold — 2026-09-25
 
 **Google Play 1.3 (versionCode 5) went LIVE on 2026-09-25** — submitted and

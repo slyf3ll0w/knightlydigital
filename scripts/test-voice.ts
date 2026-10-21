@@ -34,6 +34,14 @@ import { defaultCallerIdName, defaultVoicemailGreeting, isRealLineNumber } from 
 import { callEnding, endingLabel } from "../lib/call-ending";
 import { APP_RING_SECS, MAX_APP_LEGS, SOFTPHONE_PRESENCE_MS, canUseSoftphone, isSoftphoneOnline, ringPlan } from "../lib/softphone";
 import { sipUri } from "../lib/telnyx";
+import { uniqueCredentials } from "../lib/voip";
+
+// ── the woken phone's credentials (lib/voip.ts) ─────────────────────────────
+{
+  // Own first, siblings after, no repeats or blanks.
+  assert.deepEqual(uniqueCredentials("own", ["sib-a", null, "own", "sib-a", undefined, "sib-b", ""]), ["own", "sib-a", "sib-b"]);
+  assert.deepEqual(uniqueCredentials("own", []), ["own"]);
+}
 
 // ── client state ─────────────────────────────────────────────────────────────
 {
