@@ -89,6 +89,10 @@ export const phoneSection: HelpSection = {
             "The Android app doesn't ring for calls yet. Android phones get calls as the ring-through cell.",
           ],
         },
+        {
+          type: "tip",
+          text: "Ask Atlas \"who called this morning?\" or \"any voicemails?\" for the log, and \"call Maria back\" to dial her from the business number after you confirm — your phone rings first.",
+        },
       ],
     },
     {

@@ -131,10 +131,16 @@ export const atlasSection: HelpSection = {
             "\"Who owes me money?\" or \"How did we do last month?\"",
             "\"Quote the Hendersons for a spring cleanup and email it.\"",
             "\"Move Tuesday's jobs for Mike to Wednesday and text the clients.\"",
-            "\"Reformat every client's phone number.\" Bulk changes land as one card.",
+            "\"Reformat every client's phone number.\" or \"Set every active client's Tier to Silver.\" Bulk changes land as one card.",
+            "\"Remind me to call Maria Friday at 2.\" It becomes a task with a reminder.",
+            "\"Who called this morning?\" or \"Call Maria back.\" The call log and dialing from your business line.",
             "\"Build me a booking form for free estimates.\" or \"Write a service agreement.\"",
             "\"How do I refund a payment?\" Atlas answers from this Help Center.",
           ],
+        },
+        {
+          type: "p",
+          text: "Atlas can also read your team chat, list the photos on a job, tidy sticky notes, pull ready-made estimate tools from the Library, and change the look of your booking page. If you ask for something it truly can't do yet, it tells you the closest thing it can do and offers to send the request to us.",
         },
         {
           type: "h",
