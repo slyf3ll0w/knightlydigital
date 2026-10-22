@@ -20,8 +20,11 @@ import { openSecret, sealSecret } from "../lib/secret-box";
 import {
   buildSquareState,
   verifySquareState,
+  isStaticSquareToken,
+  needsRefresh,
   REFRESH_AFTER_MS,
   STALE_AFTER_MS,
+  STATIC_TOKEN,
 } from "../lib/square-connection";
 import {
   buildSquareAuthorizeUrl,
@@ -221,6 +224,19 @@ test("PAYMENT_PROCESSOR=finix is unchanged by the Square columns", () => {
   assert.equal(buyerIdentityRefOf(contactF), "ID1");
   assert.deepEqual(buyerIdentityData("ID2"), { finixBuyerIdentityId: "ID2" });
   assert.equal(clientPayConfig(finixCo)?.processor, "finix");
+});
+
+test("static (console) tokens are never refreshed; OAuth tokens are, by age or expiry", () => {
+  const now = Date.now();
+  const day = 86_400_000;
+  const fresh = { refreshTokenEnc: "v1:sealed", refreshedAt: new Date(now - day), expiresAt: new Date(now + 29 * day) };
+  assert.equal(needsRefresh(fresh, now), false);
+  assert.equal(needsRefresh({ ...fresh, refreshedAt: new Date(now - REFRESH_AFTER_MS - 1) }, now), true, "older than 7 days");
+  assert.equal(needsRefresh({ ...fresh, expiresAt: new Date(now + day) }, now), true, "inside the last 2 days");
+  const stat = { refreshTokenEnc: STATIC_TOKEN, refreshedAt: new Date(now - 400 * day), expiresAt: new Date(now + 9 * 365 * day) };
+  assert.equal(isStaticSquareToken(STATIC_TOKEN), true);
+  assert.equal(isStaticSquareToken("v1:sealed"), false);
+  assert.equal(needsRefresh(stat, now), false, "a static token is left alone however old");
 });
 
 test("PAYMENT_PROCESSOR unset: Square is the platform processor", () => {

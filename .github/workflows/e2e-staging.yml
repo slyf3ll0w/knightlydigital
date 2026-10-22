@@ -30,7 +30,12 @@ jobs:
       AUTH_SECRET: ${{ secrets.E2E_AUTH_SECRET }}
       CRON_SECRET: ${{ secrets.E2E_CRON_SECRET }}
       DATABASE_URL: ${{ secrets.E2E_DATABASE_URL }}
-      PAYMENT_PROCESSOR: finix
+      # What the specs may drive. Staging runs Square in sandbox; the Finix
+      # block below stays so flipping staging back to Finix needs no edit here
+      # (global-setup gates each processor's card specs on what is deployed).
+      PAYMENT_PROCESSOR: square
+      SQUARE_ENVIRONMENT: sandbox
+      SQUARE_E2E_ACCESS_TOKEN: ${{ secrets.SQUARE_E2E_ACCESS_TOKEN }}
       FINIX_ENVIRONMENT: sandbox
       FINIX_API_USERNAME: ${{ secrets.FINIX_SANDBOX_API_USERNAME }}
       FINIX_API_PASSWORD: ${{ secrets.FINIX_SANDBOX_API_PASSWORD }}
