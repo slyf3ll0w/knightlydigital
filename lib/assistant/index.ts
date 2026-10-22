@@ -70,7 +70,11 @@ export const DEFAULT_ASSISTANT_NAME = "Atlas";
 // full Flash. 2.5-flash: the newer 3.x flash tiers allow only ~5 free
 // requests/min, too few for multi-tool turns; once the key moves to the paid
 // tier, set AI_MODEL_ASSISTANT=gemini-3.5-flash in Railway (no deploy).
-const ASSISTANT_MODEL_DEFAULT = "gemini-2.5-flash";
+// 2026-10-22: with an Anthropic key on the box, Atlas runs on Claude Haiku
+// 5.5 (lib/ai-claude.ts) — cheaper per token than 2.5 Flash and a far better
+// tool-user. AI_MODEL_ASSISTANT still overrides (any claude-* or gemini-*
+// id), and the Gemini fallback below still catches a Claude outage mid-turn.
+const ASSISTANT_MODEL_DEFAULT = process.env.ANTHROPIC_API_KEY ? "claude-haiku-5-5" : "gemini-2.5-flash";
 // Per-model free-tier quotas are separate buckets — when the primary 429s,
 // finishing the turn on lite beats erroring at the user.
 const ASSISTANT_MODEL_FALLBACK = "gemini-flash-lite-latest";
@@ -183,13 +187,20 @@ const APP_CHEATSHEET = `Navigation map — ONLY for when the user asks where som
 - Team, roles, working hours, who's bookable online: /app/settings/team
 - Business info, timezone, branding, deposits, QuickBooks, sending domain: /app/settings`;
 
-function systemPrompt(actor: Actor, companyName: string, tz: string, assistantName: string): string {
+/**
+ * Two halves on purpose: `stable` is byte-identical from call to call for
+ * one company (Claude caches it together with the tool list — see
+ * lib/ai-claude.ts), `volatile` carries the clock and who is asking and
+ * sits after the cache breakpoint. Gemini just gets them joined.
+ */
+function systemPrompt(actor: Actor, companyName: string, tz: string, assistantName: string): { stable: string; volatile: string } {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: tz }); // YYYY-MM-DD
   const weekday = new Date().toLocaleDateString("en-US", { timeZone: tz, weekday: "long" });
   const nowClock = new Date().toLocaleTimeString("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit" });
-  return `You are ${assistantName}, the built-in AI assistant for ${companyName}'s WorkBench account — field-service business software (clients, quotes, jobs, invoices, payments, scheduling, routes, time tracking, agreements, online booking). Your job is to make running this business easier: answer from real data, do the busywork, and surface what matters. If asked, your name is ${assistantName}; owners can rename you in /app/settings (or just ask you to do it — update_company_settings assistantName).
+  const volatile = `Right now: it is ${weekday}, ${today}, ${nowClock} in the company's timezone (${tz}). The user you are talking to is ${actor.name}, role: ${roleLabel[actor.role]}.`;
+  const stable = `You are ${assistantName}, the built-in AI assistant for ${companyName}'s WorkBench account — field-service business software (clients, quotes, jobs, invoices, payments, scheduling, routes, time tracking, agreements, online booking). Your job is to make running this business easier: answer from real data, do the busywork, and surface what matters. If asked, your name is ${assistantName}; owners can rename you in /app/settings (or just ask you to do it — update_company_settings assistantName).
 
-Today is ${weekday}, ${today}, and it is ${nowClock} in the company's timezone (${tz}). Every time you read from or pass to a tool is company-local wall time in ${tz}: when the user says "9 to 4", send 09:00 and 16:00 — never convert to UTC or any other zone. The user is ${actor.name}, role: ${roleLabel[actor.role]}.
+Today's date, the clock and the user's name and role are given at the end of these instructions. Every time you read from or pass to a tool is company-local wall time in ${tz}: when the user says "9 to 4", send 09:00 and 16:00 — never convert to UTC or any other zone.
 
 Data rules:
 - For ANY question about their business, call tools — never guess or invent numbers.
@@ -234,6 +245,7 @@ Style:
 - If asked about anything unrelated to this business or app, politely decline in one sentence.
 
 ${APP_CHEATSHEET}`;
+  return { stable, volatile };
 }
 
 /**
@@ -352,9 +364,11 @@ export async function runAssistant(
     parts: [{ text: m.content.slice(0, 4000) }],
   }));
 
+  const prompt = systemPrompt(actor, company.name, company.timezone, assistantName);
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     const callOpts = {
-      system: systemPrompt(actor, company.name, company.timezone, assistantName),
+      system: prompt.stable,
+      systemVolatile: prompt.volatile,
       contents,
       tools: active.map((t) => t.decl),
       // Bulk staging emits one functionCall per record — a 40-client batch
@@ -409,12 +423,15 @@ export async function runAssistant(
     }
 
     // execute this round's calls in parallel, then feed the results back.
-    // Every functionCall replayed into history needs a thoughtSignature for
-    // 3.x models — critical when a quota fallback switches models mid-turn
-    // (the new model rejects the old model's unsigned calls with a 400).
+    // The WHOLE assistant message is replayed (Claude requires its thinking
+    // blocks back when a turn continues after tool results; text riding
+    // alongside the calls is harmless). Every functionCall replayed into
+    // history needs a thoughtSignature for Gemini 3.x models — critical when
+    // a quota fallback switches models mid-turn (the new model rejects the
+    // old model's unsigned calls with a 400).
     contents.push({
       role: "model",
-      parts: allCalls.map((c) => ({ thoughtSignature: AI_THOUGHT_SIGNATURE_SENTINEL, ...c })),
+      parts: parts.map((p) => ("functionCall" in p ? { thoughtSignature: AI_THOUGHT_SIGNATURE_SENTINEL, ...p } : p)),
     });
     // One round before the forced no-tools answer, every result carries a
     // note so the model wraps up cleanly instead of being cut off mid-batch.
@@ -446,6 +463,7 @@ export async function runAssistant(
             name: call.functionCall.name,
             response: atlasNote ? { ...response, atlasNote } : response,
           },
+          ...(call.id ? { id: call.id } : {}),
         };
       })
     );
@@ -456,6 +474,7 @@ export async function runAssistant(
           error: `NOT EXECUTED — more than ${MAX_CALLS_PER_ROUND} calls in one round. Call this tool again with the same arguments to finish the work.`,
         },
       },
+      ...(call.id ? { id: call.id } : {}),
     }));
     contents.push({ role: "user", parts: [...executed, ...notExecuted] });
   }

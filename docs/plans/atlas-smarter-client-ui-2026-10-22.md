@@ -269,3 +269,47 @@ Header (phone, or Chrome devtools at 390 px):
 7. Open a quote titled "Kitchen remodel phase 2 — drywall, texture, paint and trim", scroll down until the small title appears in the bar → it is centred, truncated with "…", and never under "‹ Quotes" or the bell.
 8. Open a quote titled "Mow" → the small title sits in the exact centre of the bar.
 9. A company with a long name, Home page, scroll → the company name truncates and "Home" still fits.
+
+---
+
+## Addendum (same day): Atlas on Claude
+
+David chose Claude Haiku 5.5 for Atlas (he has Anthropic API credits).
+Built on the same branch:
+
+- `lib/ai-claude.ts` — Messages API adapter behind `aiChat`: any
+  `claude-*` model id routes here, everything else stays Gemini. It
+  translates the loop's Gemini-shaped history (tool-call ids, Claude's
+  thinking blocks replayed within a turn, synthesized ids for a call Gemini
+  made earlier in the same turn), maps tool declarations to `input_schema`,
+  derives `output_config.effort` from the old thinking budget, sends no
+  temperature (a 400 on the 5.5 models), and puts the cache breakpoint on
+  the stable half of the system prompt so tools + instructions are cached
+  per company. Usage maps onto the same meter (`tokensIn` = full prompt,
+  `tokensCached` = cache reads).
+- `lib/assistant/index.ts` — default model is `claude-haiku-5-5` when
+  `ANTHROPIC_API_KEY` is set (Gemini 2.5 Flash otherwise);
+  `AI_MODEL_ASSISTANT` overrides either way. The system prompt is split into
+  a stable half and a volatile half (date, clock, user). The whole assistant
+  message is replayed between rounds, not only the calls. The Gemini
+  Flash-Lite fallback still catches a Claude outage mid-turn; `lib/ai.ts`
+  strips Claude-only parts before Gemini sees them.
+- `scripts/test-ai-claude.ts` — pure mapping tests; with `ANTHROPIC_API_KEY`
+  set it also runs one live tool round trip on Haiku.
+
+**Turning it on (Railway, staging first):** set `ANTHROPIC_API_KEY`; optionally
+`COST_AI_IN_PER_M_CENTS=10`, `COST_AI_OUT_PER_M_CENTS=50`,
+`COST_AI_CACHED_PER_M_CENTS=1` so Atlas tokens bill at Haiku's rates
+(leaving the Gemini defaults over-charges tenants about 3×). Switch models
+without a deploy via `AI_MODEL_ASSISTANT=claude-sonnet-5-5` when Haiku isn't
+enough. Remove the key to go back to Gemini.
+
+**Cost picture.** Haiku 5.5 is $0.10 in / $0.50 out per million tokens,
+cache reads $0.01: cheaper than Gemini 2.5 Flash ($0.30 / $2.50). A tool
+turn today is roughly 25k prompt tokens (mostly cached after the first
+call) and 1–3k output, so about 0.1–0.3¢ a turn. $200 of credit is on the
+order of 100k Atlas turns.
+
+**What the switch buys.** Haiku 5.5 composes multi-tool work (query → N
+updates) far more reliably than 2.5 Flash and follows the never-say-can't
+procedure. It does not add tools: the gap list above still stands.

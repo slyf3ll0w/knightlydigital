@@ -193,8 +193,13 @@ export type AIPart =
   // thoughtSignature: Gemini 3.x models require one on functionCall parts in
   // history; models pass their own through, and callers replaying calls made
   // by a DIFFERENT model must supply the documented sentinel value.
-  | { functionCall: { name: string; args: Record<string, unknown> }; thoughtSignature?: string }
-  | { functionResponse: { name: string; response: Record<string, unknown> } };
+  // id: Claude pairs each tool result with its call (lib/ai-claude.ts);
+  // Gemini ignores it.
+  | { functionCall: { name: string; args: Record<string, unknown> }; thoughtSignature?: string; id?: string }
+  | { functionResponse: { name: string; response: Record<string, unknown> }; id?: string }
+  // Claude's thinking blocks, replayed verbatim when a turn continues after
+  // tool results (lib/ai-claude.ts); stripped before anything reaches Gemini.
+  | { thinking: string; signature: string; redacted?: boolean };
 
 /** Sentinel accepted by Gemini 3.x for manually-constructed function calls. */
 export const AI_THOUGHT_SIGNATURE_SENTINEL = "context_engineering_is_the_way_to_go";
@@ -209,7 +214,10 @@ export type AIFunctionDecl = {
 };
 
 export type AIChatOptions = {
+  /** The stable instructions — identical from call to call for one company, so Claude can cache them. */
   system?: string;
+  /** The part that changes every call (today's date, the clock, who's asking). Gemini gets it appended to `system`. */
+  systemVolatile?: string;
   contents: AIContent[];
   tools?: AIFunctionDecl[];
   model?: string; // overrides AI_MODEL for this call
@@ -235,13 +243,39 @@ export type AIChatOptions = {
  * functionResponse contents, and calls again. Null on unconfigured/failure.
  */
 export async function aiChat(opts: AIChatOptions): Promise<AIPart[] | null> {
+  const model = opts.model || process.env.AI_MODEL || DEFAULT_MODEL;
+  // Claude models take the other door (lib/ai-claude.ts); same contract.
+  if (/^claude-/.test(model)) {
+    const { aiChatClaude } = await import("@/lib/ai-claude");
+    return aiChatClaude(opts, model);
+  }
   const key = process.env.GEMINI_API_KEY;
   if (!key) return null;
-  const model = opts.model || process.env.AI_MODEL || DEFAULT_MODEL;
+
+  // Claude-only parts can sit in the history when a turn falls back from
+  // Claude to Gemini mid-way: thinking blocks go, tool-call ids go.
+  const contents: AIContent[] = opts.contents
+    .map((c) => ({
+      role: c.role,
+      parts: c.parts.flatMap((p): AIPart[] => {
+        if ("thinking" in p) return [];
+        if ("functionCall" in p) {
+          const { id: _id, ...rest } = p;
+          return [rest];
+        }
+        if ("functionResponse" in p) {
+          const { id: _id, ...rest } = p;
+          return [rest];
+        }
+        return [p];
+      }),
+    }))
+    .filter((c) => c.parts.length > 0);
+  const systemText = [opts.system, opts.systemVolatile].filter(Boolean).join("\n\n");
 
   const body = {
-    contents: opts.contents,
-    ...(opts.system ? { systemInstruction: { parts: [{ text: opts.system }] } } : {}),
+    contents,
+    ...(systemText ? { systemInstruction: { parts: [{ text: systemText }] } } : {}),
     ...(opts.tools && opts.tools.length > 0
       ? { tools: [{ functionDeclarations: opts.tools }] }
       : {}),
