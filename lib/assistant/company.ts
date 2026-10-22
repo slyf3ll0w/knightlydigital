@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import { prisma } from "../db";
+import { sanitizeBookingPage } from "../booking-page";
 import {
   type Role,
   canSell,
@@ -166,7 +167,7 @@ export const companyTools: Tool[] = [
     decl: {
       name: "update_company_settings",
       description:
-        "Stage changes to company settings: business name, phone, email, address/city/state/zip, website, review link, brand colors (brandColor = primary for headers, brandColorSecondary = accent for buttons; #rrggbb), timezone (IANA, e.g. America/Chicago), arrival window minutes, the assistant's display name (assistantName), card surcharge (surchargeEnabled + surchargePercent, e.g. 3 for 3%), the company-default deposit on new quotes (defaultDepositType PERCENT/FIXED/FULL/NONE + defaultDepositValue), and the online-booking service area (addServiceZips / removeServiceZips — 5-digit ZIPs). Only include what should change. Confirmation card required.",
+        "Stage changes to company settings: business name, phone, email, address/city/state/zip, website, review link, brand colors (brandColor = primary for headers, brandColorSecondary = accent for buttons; #rrggbb), timezone (IANA, e.g. America/Chicago), arrival window minutes, the assistant's display name (assistantName), card surcharge (surchargeEnabled + surchargePercent, e.g. 3 for 3%), the company-default deposit on new quotes (defaultDepositType PERCENT/FIXED/FULL/NONE + defaultDepositValue), the online-booking service area (addServiceZips / removeServiceZips — 5-digit ZIPs), and the LOOK of the public booking page (bookingTheme light/dark/transparent, bookingFont = a Google Font name, bookingFontSize sm/md/lg, bookingAccent #rrggbb or 'brand', bookingTitle, bookingDescription, bookingShowBusinessDetails). Only include what should change. Confirmation card required.",
       parameters: {
         type: "object",
         properties: {
@@ -193,6 +194,13 @@ export const companyTools: Tool[] = [
           defaultDepositValue: { type: "number" },
           addServiceZips: { type: "array", items: { type: "string" } },
           removeServiceZips: { type: "array", items: { type: "string" } },
+          bookingTheme: { type: "string", enum: ["light", "dark", "transparent"] },
+          bookingFont: { type: "string", description: "Google Font family name, e.g. 'Lexend'; 'default' resets" },
+          bookingFontSize: { type: "string", enum: ["sm", "md", "lg"] },
+          bookingAccent: { type: "string", description: "#rrggbb, or 'brand' to follow the brand color" },
+          bookingTitle: { type: "string", description: "heading on the booking page; '' = the company name" },
+          bookingDescription: { type: "string", description: "line under the heading" },
+          bookingShowBusinessDetails: { type: "boolean" },
         },
       },
     },
@@ -289,6 +297,48 @@ export const companyTools: Tool[] = [
         if (addZips.length) lines.push(`Add ZIPs: ${addZips.join(", ")}`);
         if (removeZips.length) lines.push(`Remove ZIPs: ${removeZips.join(", ")}`);
         lines.push(`Service area after change: ${zips.size} ZIP(s)`);
+      }
+      // Booking-page look: the route replaces the whole object, so merge
+      // over what's stored and send it back complete.
+      const lookKeys = ["bookingTheme", "bookingFont", "bookingFontSize", "bookingAccent", "bookingTitle", "bookingDescription", "bookingShowBusinessDetails"];
+      if (lookKeys.some((k) => args[k] !== undefined)) {
+        const row = await prisma.company.findUnique({ where: { id: actor.companyId }, select: { bookingPage: true } });
+        const look = { ...sanitizeBookingPage(row?.bookingPage) };
+        const theme = str(args.bookingTheme, 12);
+        if (theme === "light" || theme === "dark" || theme === "transparent") {
+          look.theme = theme;
+          lines.push(`Booking page theme: ${theme}`);
+        }
+        const font = str(args.bookingFont, 40);
+        if (font) {
+          look.font = font.toLowerCase() === "default" ? undefined : font;
+          lines.push(`Booking page font: ${look.font ?? "app default"}`);
+        }
+        const size = str(args.bookingFontSize, 2);
+        if (size === "sm" || size === "md" || size === "lg") {
+          look.fontSize = size;
+          lines.push(`Booking page text size: ${size}`);
+        }
+        const accent = str(args.bookingAccent, 7);
+        if (accent) {
+          if (accent.toLowerCase() === "brand") look.accent = undefined;
+          else if (/^#[0-9a-fA-F]{6}$/.test(accent)) look.accent = accent;
+          else return { error: "bookingAccent must be #rrggbb or 'brand'." };
+          lines.push(`Booking page accent: ${look.accent ?? "brand color"}`);
+        }
+        if (typeof args.bookingTitle === "string") {
+          look.title = str(args.bookingTitle, 100);
+          lines.push(`Booking page heading: ${look.title || "(company name)"}`);
+        }
+        if (typeof args.bookingDescription === "string") {
+          look.description = str(args.bookingDescription, 300);
+          lines.push(`Booking page line: ${look.description || "(default)"}`);
+        }
+        if (typeof args.bookingShowBusinessDetails === "boolean") {
+          look.showBusinessDetails = args.bookingShowBusinessDetails;
+          lines.push(args.bookingShowBusinessDetails ? "Business details shown at the foot of the booking page" : "Business details hidden on the booking page");
+        }
+        payload.bookingPage = look;
       }
       if (lines.length === 0) return { error: "Nothing to change — provide at least one setting." };
       return stage(ctx, {

@@ -313,3 +313,33 @@ order of 100k Atlas turns.
 **What the switch buys.** Haiku 5.5 composes multi-tool work (query → N
 updates) far more reliably than 2.5 Flash and follows the never-say-can't
 procedure. It does not add tools: the gap list above still stands.
+
+## Addendum (same day): the gap list, closed
+
+David picked "finish Atlas's tool gaps" as the next lane. Shipped on the
+same branch (114 tools now; `scripts/test-assistant.ts` updated):
+
+| Ask | Tool | Notes |
+| --- | --- | --- |
+| "Who called this morning?", "any voicemails?", "what did Atlas note on that call" | `list_calls` (`lib/assistant/calls.ts`) | Same scope as /app/calls; outcome words, talk time, voicemail link, call notes + Atlas notes. Says plainly when the account has no line. |
+| "Call Maria back" | `place_call` | Stages `POST /api/app/line/call`; card says the user's phone rings first. Refuses with a reason when the line can't place calls. |
+| "Text the Hendersons we're late" | `reply_in_portal` (description + card rewritten) | It already was the text when the line is active; now the card states the route: "sent as a text to (469)…" vs "portal + email". |
+| "Show me the before photos" | `list_job_photos` (`lib/assistant/extras.ts`) | Links to `/api/job-photos/<id>`; upload stays on the page. |
+| "What did I miss in chat?" | `read_team_chat` | Channel list with unread + last line, or the latest messages in one. |
+| "Take down that note" | `manage_sticky_notes` | list / update / delete; author or manager-for-team-notes, same as the page. |
+| "Is there a driveway tool I can use?" | `browse_library` | search (+ industry, sort) and add (managers) — a card that copies it into Estimate tools. |
+| "Make the booking page dark with our blue" | `update_company_settings` bookingTheme / bookingFont / bookingFontSize / bookingAccent / bookingTitle / bookingDescription / bookingShowBusinessDetails | Merges over the stored look and sends the whole object, as the route expects. |
+
+Still not a tool, on purpose: the website lane (`/app/settings/website`,
+unstable), uploads of any kind, connecting processors.
+
+Test recipes (add to the list above):
+
+10. "Who called today?" → the day's calls with outcomes; on an account with no line, a one-line explanation instead.
+11. "Call Maria Lopez" → *Call Maria Lopez from the business line* card; Confirm → your phone rings.
+12. "Text the Hendersons that we're running 20 minutes late" → card titled *Text …* with "Sent as a text to (…)" on a texting-active account, *Message …* with the portal/email line otherwise.
+13. "Show me the photos on job 1042" → list with links; open one.
+14. "What did I miss in chat?" → channels with unread counts; "read Everyone" → the messages.
+15. "Remove the sticky note about the filters" → list then a red *Remove note* card.
+16. "Find me a pressure-washing estimate tool" → Library results; "add the first one" → *Add … from the Library* card; after Confirm it is on /app/estimates.
+17. "Make the booking page dark with Lexend and our blue" → *Update company settings* card listing theme, font, accent; /book/<slug> reflects it after Confirm.

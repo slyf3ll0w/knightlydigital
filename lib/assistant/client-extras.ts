@@ -1,5 +1,8 @@
 import { prisma } from "../db";
 import { getActiveFieldDefs } from "../contact-fields";
+import { canText } from "../sms-consent";
+import { companyCanSendSms } from "../sms";
+import { fmtPhone } from "../format";
 import { canSell, canSeeMoney, isManager } from "../permissions";
 import { type Tool, str, money, clientName, companyTz, fmtWhen, findContact, stage } from "./core";
 
@@ -175,7 +178,7 @@ export const clientExtraTools: Tool[] = [
   {
     decl: {
       name: "reply_in_portal",
-      description: "Stage a reply in the client's portal message thread (the client is notified by push/SMS/email and reads it in their hub). Read the thread first with get_client_details. Use for answering a client's message; for a fresh outreach email use email_client.",
+      description: "MESSAGE A CLIENT — this is how you text them. Stages a message in the client's thread (/app/messages): when the business line is active and the client can be texted it goes out as a real SMS from the business number, otherwise as a push/email to their portal; replies land back in the same thread. Use for 'text the Hendersons we're running late', 'message Maria the gate code question', answering a client's message. For a fresh outreach EMAIL use email_client. Read the thread first with get_client_details when replying.",
       parameters: { type: "object", properties: { clientId: { type: "string" }, body: { type: "string" } }, required: ["clientId", "body"] },
     },
     allowed: (a) => canSell(a.role),
@@ -184,11 +187,23 @@ export const clientExtraTools: Tool[] = [
       if (!contact) return { error: "No client with that id." };
       const body = str(args.body, 5000);
       if (!body) return { error: "body is required." };
+      // Say how it will actually reach them — a "text" that goes out as a
+      // portal email is the kind of surprise that erodes trust in the cards.
+      const consent = await prisma.contact.findUnique({
+        where: { id: contact.id },
+        select: { phone: true, email: true, smsOptOut: true, smsDisabled: true },
+      });
+      const asText = Boolean(consent && canText(consent) && (await companyCanSendSms(actor.companyId)));
+      const route = asText
+        ? `Sent as a text to ${fmtPhone(consent!.phone)} from the business number`
+        : consent?.email
+          ? `No texting on this account/client — delivered to their client portal and emailed to ${consent.email}`
+          : "No texting and no email on file — it will wait in their client portal";
       return stage(ctx, {
-        kind: "reply_in_portal", title: `Reply to ${clientName(contact)} in messages`,
-        lines: [body.length > 400 ? `${body.slice(0, 400)}…` : body],
+        kind: "reply_in_portal", title: `${asText ? "Text" : "Message"} ${clientName(contact)}`,
+        lines: [body.length > 400 ? `${body.slice(0, 400)}…` : body, route],
         endpoint: `/api/app/messages/${contact.id}`, method: "POST", payload: { body },
-        confirmLabel: "Send reply", href: `/app/messages`,
+        confirmLabel: asText ? "Send text" : "Send message", href: `/app/messages`,
       });
     },
   },
