@@ -54,6 +54,16 @@ function squareApplicationSecret(): string {
   return process.env.SQUARE_APPLICATION_SECRET ?? "";
 }
 
+/** Square's partner sign-up link for sellers who have no Square account yet
+ *  (Settings → Online Payments "Create a Square account"). Unset = the card
+ *  just says to create one on Square first. Set SQUARE_SIGNUP_URL to the
+ *  link Square's partnerships team issues so new sellers are attributed to
+ *  WorkBench; anything but an https URL is ignored. */
+export function squareSignupUrl(): string | null {
+  const url = (process.env.SQUARE_SIGNUP_URL ?? "").trim();
+  return /^https:\/\/\S+$/.test(url) ? url : null;
+}
+
 /** True once the app id + secret are set — the processor reports `live`. */
 export function squareConfigured(): boolean {
   return Boolean(squareApplicationId() && squareApplicationSecret());

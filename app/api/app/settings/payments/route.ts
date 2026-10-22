@@ -12,12 +12,17 @@ import {
 } from "@/lib/finix";
 import { syncFromFinix } from "@/lib/finix-status";
 import { onlinePaymentsHeld, paymentsOnboardingOpen } from "@/lib/payments-gate";
-import { squareConfigured, squareEnvironment } from "@/lib/square";
+import { squareConfigured, squareEnvironment, squareSignupUrl } from "@/lib/square";
 import { squareStatusForCompany } from "@/lib/square-connection";
 
 /**
- * Online-payments setup (Finix merchant onboarding).
+ * Online-payments setup.
  *
+ * Square (the platform processor): GET answers whether the server holds
+ * Square credentials, this company's connection (lib/square-connection.ts)
+ * and the partner sign-up link; POST is Finix-only and answers 503.
+ *
+ * Finix (PAYMENT_PROCESSOR=finix, the 2025–26 processor):
  * GET  — current status, refreshed from Finix (merchant onboarding_state, or
  *        the hosted form's progress before a merchant exists). The Settings
  *        payments card polls this on mount, so state stays fresh without
@@ -49,6 +54,7 @@ export async function GET() {
       processor: "square",
       environment: squareEnvironment(),
       square: status,
+      signupUrl: squareSignupUrl(),
     });
   }
   if (processor.name !== "finix" || !finixConfigured()) {

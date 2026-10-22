@@ -5,53 +5,57 @@ export const startSection: HelpSection = {
   id: "getting-started",
   title: "Getting started",
   icon: "start",
-  tagline: "Activate your account, set up the basics, find your way around.",
+  tagline: "Turn on online payments, set up the basics, find your way around.",
   articles: [
     {
       slug: "activate-payments",
-      title: "Activate your account (business verification)",
-      summary: "The one-time verification that turns on online payments and emails to your clients.",
-      keywords: ["verify", "verification", "kyc", "finix", "underwriting", "activate", "approved", "invite code", "under review"],
-      where: { label: "Activate", href: "/app/activate" },
+      title: "Turn on online payments (connect Square)",
+      summary: "Connect your Square account once and clients can pay invoices by card or bank straight from their pay links.",
+      keywords: ["square", "connect square", "online payments", "turn on payments", "pay button", "card payments", "ach", "bank payments", "activate", "verify", "verification", "square account"],
+      where: { label: "Settings → Payments & accounting", href: "/app/settings" },
       roles: "Account owner",
       blocks: [
         {
           type: "p",
-          text: "Before WorkBench can take card and bank payments for you, the payment processor has to verify your business. It's a standard form, about 10 minutes, and only the **account owner** can fill it in.",
+          text: "Card and bank (ACH) payments in WorkBench run through your own **Square** account. Connect it once and every invoice pay link, quote deposit and client-portal payment goes straight to Square, then pays out to your bank on Square's schedule. Only the **account owner** can connect it, and there is no application or waiting period on our side.",
         },
         {
           type: "steps",
-          note: "About 10 minutes, owner only",
+          note: "A couple of minutes, owner only",
           items: [
-            "Open WorkBench. New accounts land on **Verify your business to activate your account**.",
-            "Press `Start verification` (or `Continue verification` to pick up where you left off).",
-            "Enter your legal business name and address, your EIN (or SSN if you're a sole proprietor), the owner's identity details, and the bank account for your payouts.",
-            "Submit. You'll see **Verification submitted — you're in**, and you can use the app right away.",
-            "Approval usually takes 1–2 business days. Until then, charging cards and sending emails to clients stay off.",
+            "Go to **Settings → Payments & accounting → Online Payments**.",
+            "No Square account yet? Create one on Square first (it's free and takes a few minutes), then come back to this card.",
+            "Press `Connect Square` and sign in to Square.",
+            "Approve the access Square lists. WorkBench needs to take payments, issue refunds and keep cards on file for your clients; it never sees card numbers.",
+            "You land back in Settings with **Connected to** your business name. From that moment pay links show a **Pay** button.",
           ],
         },
         {
           type: "p",
-          text: "Check where you stand in **Settings → Payments & accounting → Online payments**. It shows **under review**, **enabled**, or a request for more information with a `Continue application` button.",
+          text: "The card shows the Square business and location your money goes to. `Check connection` confirms Square still accepts the link; `Disconnect` removes it, and pay links stop offering online payment until you connect again.",
         },
         {
           type: "tip",
-          text: "Joined with an invite code? You skipped this step. Online payments show as **Coming soon** until the business is verified.",
+          text: "Your balance, payouts, processing fees and any disputes live in your Square dashboard. The **Payments** page in WorkBench has a `Square dashboard` button that opens it.",
         },
         {
           type: "faq",
           items: [
             {
               q: "Why can't my clients see a Pay button?",
-              a: "Online payments turn on when your business is approved. Until then the pay page says your business isn't taking online payments yet. You can still record cash, check and other payments with `Collect payment`.",
+              a: "Square isn't connected yet, or it was disconnected. Open **Settings → Payments & accounting** and press `Connect Square`. You can still record cash, check and other payments with `Collect payment` in the meantime.",
             },
             {
-              q: "Emails to clients fail with \"Email isn't set up on this server yet.\"",
-              a: "Client emails switch on with approval too. In the meantime, use `Copy client link` on quotes and `Copy payment link` on invoices and send them yourself.",
+              q: "Square sent me back and the card says the connection didn't complete.",
+              a: "Start again from the Online Payments card. Either the link had expired or access was declined on the Square side; approve every permission Square lists.",
             },
             {
-              q: "The underwriter asked for more information.",
-              a: "Press `Continue application` in the Online payments card, answer what they asked for, and submit again.",
+              q: "It says that Square account is already connected to another WorkBench company.",
+              a: "A Square account can be connected to one WorkBench company at a time. Disconnect it from the other company first, or connect a different Square account.",
+            },
+            {
+              q: "The card says Square hasn't renewed this connection lately.",
+              a: "Press `Check connection`. If it fails, press `Disconnect` and then `Connect Square` again. Payments you already took are not affected.",
             },
           ],
         },
@@ -277,7 +281,7 @@ export const startSection: HelpSection = {
         },
         {
           type: "p",
-          text: "Owners and admins are called **managers** in these guides. Managers see every lead and client. Only managers can delete, refund, charge a saved card, send payouts early, and open Expenses, Insights and QuickBooks.",
+          text: "Owners and admins are called **managers** in these guides. Managers see every lead and client. Only managers can delete, refund, charge a saved card, and open Expenses, Insights and QuickBooks.",
         },
         {
           type: "faq",

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import {
+  ArrowUpRight,
   Loader2,
   Check,
   Upload,
@@ -303,7 +304,10 @@ const TIMEZONES = [
 ];
 
 /**
- * Online payments setup (Finix merchant onboarding). Status comes from
+ * Online payments setup. Square (the platform processor): Connect Square /
+ * Connected + Check / Disconnect over the owner's own Square account, plus
+ * the partner sign-up link when the server has one. Finix (legacy,
+ * PAYMENT_PROCESSOR=finix): merchant onboarding. Status comes from
  * GET /api/app/settings/payments — which also re-syncs from Finix, so
  * loading this card is what keeps onboarding state fresh. Hidden entirely
  * while the platform processor isn't live (pre-launch). Companies let in on
@@ -339,6 +343,8 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
     available: boolean;
     comingSoon?: boolean;
     processor?: "square";
+    /** Square's partner sign-up link (SQUARE_SIGNUP_URL); null until one is configured. */
+    signupUrl?: string | null;
     environment?: "sandbox" | "live" | "production";
     started?: boolean;
     state?: string | null;
@@ -511,13 +517,20 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
             <p className="text-sm text-gray-600">
               Connect the Square account that should receive your payments. You&apos;ll sign in to
               Square and approve WorkBench; card and bank details are handled by Square and never
-              touch WorkBench. No Square account yet? You can create one during the connection.
+              touch WorkBench. No Square account yet? Create one first, then come back and connect it.
             </p>
             {error && <p className="text-xs text-[color:var(--ds-bad)]">{error}</p>}
             {isOwner ? (
-              <a href="/api/app/square/connect" className="btn-primary w-fit">
-                Connect Square
-              </a>
+              <div className="flex flex-wrap items-center gap-2">
+                <a href="/api/app/square/connect" className="btn-primary w-fit">
+                  Connect Square
+                </a>
+                {status.signupUrl && (
+                  <a href={status.signupUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary">
+                    Create a Square account <ArrowUpRight size={11} />
+                  </a>
+                )}
+              </div>
             ) : (
               <p className="text-xs text-gray-500">Only the account owner can connect Square.</p>
             )}

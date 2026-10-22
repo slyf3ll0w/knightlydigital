@@ -196,7 +196,7 @@ export const settingsSection: HelpSection = {
         },
         {
           type: "p",
-          text: "When a client pays you through WorkBench: 2.9% + 30¢ per card payment and 0.75% + 30¢ per bank payment. No monthly fees or minimums. Full details are on the [pricing page](https://workbenchfsm.com/pricing).",
+          text: "Online payments run through your own Square account, so the processing fee on each payment is Square's and comes out on Square's side before the payout. WorkBench adds nothing on top. Current rates are on the [pricing page](https://workbenchfsm.com/pricing), and your Square dashboard shows the exact fee on every payment.",
         },
       ],
     },
