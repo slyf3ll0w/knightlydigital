@@ -1,69 +1,106 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CreditCard, Building2, Loader2, Clock, Lock } from "lucide-react";
+import { Building2, CreditCard, Loader2, Lock } from "lucide-react";
 import ChargeOverlay, { type ChargePhase } from "@/components/ChargeOverlay";
-import { brandAccent, textOn } from "@/lib/branding";
+import { FINIX_JS_SRC, type FinixForm } from "@/lib/finix-js";
+import { isTestMode, processorLabel, type ClientPayConfig } from "@/lib/pay-config";
+import { clientAccent } from "@/lib/client-theme";
+import { textOn } from "@/lib/branding";
+import SquareCardFields, { type SquareCardFieldsHandle } from "@/components/SquareCardFields";
+import SquareAchButton from "@/components/SquareAchButton";
 import {
-  PaperSheet,
-  PaperHeader,
-  PaperStamp,
+  ActionBar,
+  Button,
+  Choice,
+  Choices,
+  ClientRoot,
+  Foot,
+  ItemRow,
+  ItemsHead,
+  Label,
+  Letterhead,
+  Notice,
   PreparedFor,
-  SectionLabel,
-  ItemsTableHead,
-  PaperFooter,
-  type PaperCompany,
-  type PaperContact,
-} from "@/components/paper-doc";
+  Receipt,
+  Sheet,
+  Stamp,
+  Stub,
+  TRow,
+  Totals,
+  longDate,
+  money,
+  shortDate,
+  type ClientCompany,
+  type ClientPerson,
+} from "@/components/client";
 
-type LineItem = { id: string; name?: string; description: string; quantity: number; unitPrice: number; total: number; recurringInterval?: "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "ANNUAL" | null };
+type LineItem = {
+  id: string;
+  name?: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  recurringInterval?: "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "ANNUAL" | null;
+};
 
 const RECURRING_LABEL: Record<string, string> = {
-  MONTHLY: "Billed monthly",
-  QUARTERLY: "Billed quarterly",
-  SEMIANNUAL: "Billed every 6 months",
-  ANNUAL: "Billed annually",
+  MONTHLY: "billed monthly",
+  QUARTERLY: "billed quarterly",
+  SEMIANNUAL: "billed every 6 months",
+  ANNUAL: "billed annually",
 };
 const METHOD_LABEL: Record<string, string> = {
-  CARD: "Card", ACH: "Bank (ACH)", CASH: "Cash", CHECK: "Check", CASH_APP: "Cash App",
+  CARD: "Card", ACH: "Bank transfer", CASH: "Cash", CHECK: "Check", CASH_APP: "Cash App",
   PAYPAL: "PayPal", VENMO: "Venmo", ZELLE: "Zelle", OTHER: "Other",
 };
-type Invoice = {
-  id: string; invoiceNumber: number; status: string; kind: string; publicToken: string;
-  subtotal: number; discount: number | null; tax: number | null; surcharge: number | null; depositApplied: number | null; total: number;
-  notes: string | null; clientMessage: string | null; dueDate: string | null;
-  issuedAt: string | null; createdAt: string;
-  contact: (PaperContact & { firstName: string; lastName: string }) | null;
-  company: PaperCompany & {
-    name: string;
-    surchargeEnabled: boolean; surchargeRate: number | null;
-  };
+
+export type PublicInvoice = {
+  id: string;
+  invoiceNumber: number;
+  status: string;
+  kind: string;
+  publicToken: string;
+  subtotal: number;
+  discount: number | null;
+  tax: number | null;
+  surcharge: number | null;
+  depositApplied: number | null;
+  total: number;
+  notes: string | null;
+  clientMessage: string | null;
+  dueDate: string | null;
+  issuedAt: string | null;
+  createdAt: string;
+  contact: (ClientPerson & { firstName: string; lastName: string }) | null;
+  company: ClientCompany & { name: string; surchargeEnabled: boolean; surchargeRate: number | null };
   lineItems: LineItem[];
   payments: { id: string; amount: number; surchargeAmount: number | null; method: string; paidAt: string }[];
 };
 
-import { FINIX_JS_SRC, type FinixForm } from "@/lib/finix-js";
-import { isTestMode, processorLabel, type ClientPayConfig } from "@/lib/pay-config";
-import SquareCardFields, { type SquareCardFieldsHandle } from "@/components/SquareCardFields";
-import SquareAchButton from "@/components/SquareAchButton";
-
-const shortDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-
+/**
+ * The public invoice — the same sheet of stationery as the estimate, with
+ * the remittance stub at the foot. Paying doesn't leave the page: the PAID
+ * stamp drops onto the sheet and the stub becomes the receipt.
+ *
+ * `demo` (the /app/design/client gallery): the card fields are a still
+ * picture and Pay plays the charge ritual locally — no processor involved.
+ */
 export default function PayPage({
   invoice,
   balance,
   pay,
   preview = false,
+  demo = false,
 }: {
-  invoice: Invoice;
+  invoice: PublicInvoice;
   balance: number;
   /** The browser tokenizer config (lib/pay-config.ts); null = no online payment. */
   pay: ClientPayConfig;
   preview?: boolean;
+  demo?: boolean;
 }) {
-  // Which processor's form to mount — the finix.js path below is unchanged;
-  // Square mounts its own components (SquareCardFields / SquareAchButton).
   const finix = pay?.processor === "finix" ? pay : null;
   const square = pay?.processor === "square" ? pay : null;
   const squareCardRef = useRef<SquareCardFieldsHandle>(null);
@@ -72,38 +109,29 @@ export default function PayPage({
   const [saveCard, setSaveCard] = useState(false);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [paidNow, setPaidNow] = useState<{ amount: number; method: "CARD" | "ACH"; at: string } | null>(null);
   const [pendingAch, setPendingAch] = useState(false);
   const [remaining, setRemaining] = useState(0);
   const [error, setError] = useState("");
   const [scriptReady, setScriptReady] = useState(false);
   const [formHasErrors, setFormHasErrors] = useState(true);
-  // Partial payments: full balance by default; "Pay another amount" opens an input
   const [partial, setPartial] = useState(false);
   const [amountText, setAmountText] = useState("");
-  // The card-terminal ritual while the charge runs (see components/ChargeOverlay)
   const [charge, setCharge] = useState<ChargePhase | null>(null);
   const formRef = useRef<FinixForm | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Display exactly what the server will charge — never a guessed fallback:
-  // a company with the rate set to 0 is charged 0, so 0 is what shows.
-  const surchargeRate = invoice.company.surchargeEnabled
-    ? Number(invoice.company.surchargeRate) || 0
-    : 0;
+  const company = invoice.company;
+  const accent = clientAccent(company);
+  const surchargeRate = company.surchargeEnabled ? Number(company.surchargeRate) || 0 : 0;
 
   const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
-  // Surcharges already collected on prior payments — itemized like the PDF so
-  // the ledger's arithmetic (total + surcharges − paid = balance) adds up.
   const priorSurcharges = invoice.payments.reduce((s, p) => s + Number(p.surchargeAmount ?? 0), 0);
   const parsedAmount = Math.round((Number(amountText) || 0) * 100) / 100;
   const payAmount = partial ? parsedAmount : balance;
   const amountValid = !partial || (parsedAmount >= 1 && parsedAmount <= balance);
-  // Deposits are all-or-nothing (the server refuses a split too), and a
-  // balance under the $1 partial floor can only be paid whole.
   const canSplit = invoice.kind !== "DEPOSIT" && balance > 1;
-  const surcharge = method === "CARD" && invoice.company.surchargeEnabled && amountValid
-    ? Math.round(payAmount * surchargeRate * 100) / 100
-    : 0;
+  const surcharge = method === "CARD" && company.surchargeEnabled && amountValid ? Math.round(payAmount * surchargeRate * 100) / 100 : 0;
   const chargeTotal = (amountValid ? payAmount : 0) + surcharge;
 
   // Load finix.js once (only when this company can actually charge online)
@@ -124,9 +152,7 @@ export default function PayPage({
     return () => script.removeEventListener("load", onLoad);
   }, [finix]);
 
-  // (Re)mount the tokenization form when the payment method toggles. finix.js
-  // has no destroy() — clearing the container and building a new instance is
-  // the supported pattern.
+  // (Re)mount the tokenization form when the payment method toggles.
   useEffect(() => {
     if (!finix || !scriptReady || !window.Finix || !containerRef.current) return;
     containerRef.current.innerHTML = "";
@@ -137,157 +163,78 @@ export default function PayPage({
       showPlaceholders: true,
       showAddress: false,
       requiredFields: method === "CARD" ? ["card_holder_name"] : ["account_holder_name"],
-      onUpdate: (_state: unknown, _bin: unknown, hasErrors: boolean) => {
-        setFormHasErrors(hasErrors);
-      },
+      onUpdate: (_state: unknown, _bin: unknown, hasErrors: boolean) => setFormHasErrors(hasErrors),
       styles: {
         default: {
           input: {
-            default: { border: "1px solid #D1D5DB", borderRadius: "8px", fontSize: "14px" },
-            focused: { border: "1px solid #22C55E", boxShadow: "0 0 0 2px rgba(34,197,94,0.25)" },
+            default: { border: "1px solid #D1D5DB", borderRadius: "10px", fontSize: "16px" },
+            focused: { border: `1px solid ${accent}`, boxShadow: `0 0 0 3px ${accent}22` },
             error: { border: "1px solid #F87171" },
           },
         },
       },
     });
-  }, [finix, scriptReady, method]);
+  }, [finix, scriptReady, method, accent]);
 
-  // "done" is the just-paid confirmation moment. Revisiting a settled
-  // invoice's link falls through to the document itself, stamped PAID.
-  const isPaid = invoice.status === "PAID";
-  // Archived = withdrawn by the business. The server already refused the
-  // charge, but the page used to show the whole card form first, so the
-  // customer typed their card and only then learned it was dead (audit
-  // 2026-10-12). No form, no stub — a notice in the stub's place.
+  const isPaid = invoice.status === "PAID" || (done && !pendingAch && remaining <= 0);
   const isArchived = invoice.status === "ARCHIVED";
-
-  if (done) {
-    return (
-      <div className="app-ui min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="max-w-sm w-full card-ledger p-8 text-center shadow-sm">
-          {pendingAch ? (
-            <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Clock size={28} className="text-blue-600" />
-            </div>
-          ) : (
-            // Same self-drawing checkmark as the charge ritual
-            <div className="charge-pop w-14 h-14 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg viewBox="0 0 48 48" className="h-7 w-7">
-                <path
-                  className="charge-draw"
-                  d="M12 25 L21 34 L37 16"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-          )}
-          <h1 className="text-xl font-bold text-gray-900 mb-2">
-            {pendingAch ? "Payment on its way!" : "Payment received!"}
-          </h1>
-          <p className="text-gray-500 text-sm">
-            {pendingAch
-              ? `Thank you. Your bank transfer for invoice #${invoice.invoiceNumber} is processing — it usually clears within a few business days.`
-              : remaining > 0
-                ? `Thank you. Your payment on invoice #${invoice.invoiceNumber} went through — $${remaining.toFixed(2)} remains on the balance.`
-                : `Thank you. Invoice #${invoice.invoiceNumber} is paid in full.`}
-          </p>
-          {remaining > 0 && !pendingAch && (
-            <button
-              onClick={() => window.location.reload()}
-              className="inline-block mt-3 text-xs font-medium text-gray-600 underline underline-offset-2 hover:text-gray-800"
-            >
-              Make another payment
-            </button>
-          )}
-          <a
-            href={`/pay/${invoice.publicToken}/pdf`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block mt-4 text-xs text-gray-500 underline underline-offset-2 hover:text-gray-700"
-          >
-            Download a copy (PDF)
-          </a>
-        </div>
-      </div>
-    );
-  }
+  const payable = !isPaid && !isArchived && !done && (pay !== null || demo) && !preview;
 
   async function submitPayment(paymentToken?: string) {
-    // The terminal ritual: processing overlay with a minimum on-screen beat,
-    // then the approved checkmark before the confirmation card. Failures drop
-    // the overlay and surface the normal inline error.
     const label = method === "CARD" ? "your card" : "your bank account";
-    setCharge({
-      state: "processing",
-      label,
-      amount: chargeTotal,
-      ...(method === "ACH" && { caption: "Submitting the bank transfer…" }),
-    });
+    setCharge({ state: "processing", label, amount: chargeTotal, ...(method === "ACH" && { caption: "Submitting the bank transfer…" }) });
     const started = Date.now();
 
-    const res = await fetch(`/api/public/pay/${invoice.publicToken}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        method,
-        paymentToken,
-        saveCard: method === "CARD" && saveCard,
-        amount: payAmount,
-      }),
-    }).catch(() => null);
+    let data: { pending?: boolean; remaining?: number; error?: string; processorLive?: boolean } | null = null;
+    let ok = false;
+    let status = 0;
+    if (demo) {
+      await new Promise((r) => setTimeout(r, 900));
+      ok = true;
+      data = { pending: method === "ACH", remaining: Math.max(0, Math.round((balance - payAmount) * 100) / 100) };
+    } else {
+      const res = await fetch(`/api/public/pay/${invoice.publicToken}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ method, paymentToken, saveCard: method === "CARD" && saveCard, amount: payAmount }),
+      }).catch(() => null);
+      ok = Boolean(res?.ok);
+      status = res?.status ?? 0;
+      data = res ? await res.json().catch(() => null) : null;
+    }
 
     await new Promise((r) => setTimeout(r, Math.max(0, 1100 - (Date.now() - started))));
     setLoading(false);
 
-    if (!res || !res.ok) {
+    if (!ok) {
       setCharge(null);
-      const data = res ? await res.json().catch(() => null) : null;
-      // 503 = no money can move. The processor-not-enabled case (identified by
-      // the processorLive field) gets the "pay the business directly" copy with the
-      // business's contact details; anything else — a paused account, say —
-      // already sends copy that fits, so show that instead of overriding it.
-      if (res && res.status === 503 && data && "processorLive" in data) {
-        const contactBits = [invoice.company.phone, invoice.company.email]
-          .filter(Boolean)
-          .join(" or ");
-        setError(
-          `Online payment isn't available for this invoice. Please contact ${invoice.company.name}${contactBits ? ` at ${contactBits}` : ""} to arrange payment.`
-        );
+      if (status === 503 && data && "processorLive" in data) {
+        const contactBits = [company.phone, company.email].filter(Boolean).join(" or ");
+        setError(`Online payment isn't available for this invoice. Please contact ${company.name}${contactBits ? ` at ${contactBits}` : ""} to arrange payment.`);
       } else {
         setError(data?.error ?? "Payment failed. Please try again.");
       }
       return;
     }
 
-    const data = await res.json().catch(() => null);
-    if (data?.pending) {
-      // ACH: submitted, not yet cleared — no "Approved" claim, straight to
-      // the on-its-way confirmation.
+    const finish = (pending: boolean) => {
       setCharge(null);
-      setPendingAch(true);
+      setPendingAch(pending);
       setRemaining(Number(data?.remaining) || 0);
+      setPaidNow({ amount: payAmount, method, at: new Date().toISOString() });
       setDone(true);
-      return;
-    }
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+    if (data?.pending) return finish(true);
     setCharge({ state: "approved", label, amount: chargeTotal });
-    setTimeout(() => {
-      setCharge(null);
-      setPendingAch(false);
-      setRemaining(Number(data?.remaining) || 0);
-      setDone(true);
-    }, 1800);
+    setTimeout(() => finish(false), 1600);
   }
 
   async function handlePay() {
     setError("");
     setLoading(true);
-
+    if (demo) return submitPayment();
     if (square) {
-      // Card only here — Square's bank flow runs from SquareAchButton
       const token = await squareCardRef.current?.tokenize();
       if (!token) {
         setLoading(false);
@@ -297,13 +244,11 @@ export default function PayPage({
       await submitPayment(token);
       return;
     }
-
     if (!finix || !formRef.current) {
       setLoading(false);
       setError("The payment form is still loading. Please try again in a moment.");
       return;
     }
-
     formRef.current.submit(async (err, res) => {
       const paymentToken = res?.data?.id;
       if (err || !paymentToken) {
@@ -315,323 +260,239 @@ export default function PayPage({
     });
   }
 
-  const accent = brandAccent(invoice.company);
+  const contactLine = [company.phone, company.email].filter(Boolean).join(" or ");
+  const fieldsReady = demo || (finix ? scriptReady : squareReady);
 
   return (
-    <div className="app-ui min-h-screen bg-white py-4 sm:py-8 px-4">
-      <div className="max-w-2xl mx-auto">
-        {preview && (
-          <p className="mb-3 text-center text-xs text-gray-400">
-            {isPaid
-              ? "Preview — doesn't count as a client view."
-              : "Preview — doesn't count as a client view. If your client hands you their card, you can run the payment right here."}
-          </p>
-        )}
+    <ClientRoot brand={company}>
+      {preview && (
+        <p className="c-preview">
+          {isPaid ? "Preview — doesn't count as a client view." : "Preview — doesn't count as a client view. If your client hands you their card, you can run the payment right here."}
+        </p>
+      )}
+      <Sheet>
+        <Letterhead
+          company={company}
+          docType={invoice.kind === "DEPOSIT" ? "Deposit invoice" : "Invoice"}
+          docNumber={invoice.invoiceNumber}
+          meta={[shortDate(invoice.issuedAt ?? invoice.createdAt), invoice.dueDate && !isPaid ? `Due ${shortDate(invoice.dueDate)}` : null]}
+        />
 
-        {/* The document — the web twin of the PDF letterhead */}
-        <PaperSheet>
-          <PaperHeader
-            company={invoice.company}
-            kind="invoice"
-            docNumber={invoice.invoiceNumber}
-            metaLines={[
-              `Date: ${shortDate(invoice.issuedAt ?? invoice.createdAt)}`,
-              invoice.dueDate ? `Due: ${shortDate(invoice.dueDate)}` : null,
-              invoice.kind === "DEPOSIT" ? "Deposit invoice" : null,
-            ]}
-          />
-
-          <div className="flex items-start justify-between gap-4">
-            <PreparedFor contact={invoice.contact} />
-            {isPaid && (
-              <div className="mt-6 shrink-0 pr-1 sm:pr-4">
-                <PaperStamp kind="invoice" text="Paid" />
-              </div>
-            )}
-          </div>
-
-          {invoice.clientMessage && (
-            <p className="mt-4 text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">
-              {invoice.clientMessage}
-            </p>
+        <div className="mt-6 flex items-start justify-between gap-4">
+          <PreparedFor person={invoice.contact} label="Billed to" />
+          {(isPaid || isArchived) && (
+            <div className="shrink-0 pt-1">
+              {isPaid ? <Stamp text="Paid" slam={done} /> : <Stamp text="Withdrawn" tone="muted" />}
+            </div>
           )}
+        </div>
 
-          {/* Line items — ruled table like the PDF */}
-          <div className="mt-5">
-            <ItemsTableHead />
-            <div>
-              {invoice.lineItems.map((li) => (
-                <div
-                  key={li.id}
-                  className="border-b border-gray-100 py-2.5 sm:grid sm:grid-cols-[1fr_54px_90px_96px] sm:items-start sm:gap-3"
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-900">
-                      {li.name || li.description}
-                      {li.recurringInterval && (
-                        <span className="ml-1.5 text-xs font-normal text-gray-400">
-                          ({RECURRING_LABEL[li.recurringInterval].toLowerCase()})
-                        </span>
-                      )}
-                    </p>
-                    {li.name && li.description && (
-                      <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
-                        {li.description}
-                      </p>
-                    )}
-                    <p className="mt-0.5 text-xs text-gray-400 sm:hidden">
-                      {Number(li.quantity)} × ${Number(li.unitPrice).toFixed(2)}
-                    </p>
-                  </div>
-                  <p className="hidden text-right text-sm text-gray-600 sm:block">
-                    {Number(li.quantity)}
-                  </p>
-                  <p className="hidden text-right text-sm text-gray-600 sm:block">
-                    ${Number(li.unitPrice).toFixed(2)}
-                  </p>
-                  <p className="text-right text-sm text-gray-900 max-sm:mt-1">
-                    ${Number(li.total).toFixed(2)}
-                  </p>
+        {invoice.clientMessage && <p className="c-body mt-6 whitespace-pre-wrap">{invoice.clientMessage}</p>}
+
+        <div className="mt-6">
+          <ItemsHead />
+          {invoice.lineItems.map((li) => (
+            <ItemRow
+              key={li.id}
+              name={li.name || li.description}
+              description={li.name ? li.description : null}
+              qty={Number(li.quantity)}
+              unit={Number(li.unitPrice)}
+              amount={Number(li.total)}
+              tag={li.recurringInterval ? RECURRING_LABEL[li.recurringInterval] : null}
+            />
+          ))}
+        </div>
+
+        <Totals>
+          <TRow label="Subtotal" value={money(invoice.subtotal)} />
+          {invoice.discount && Number(invoice.discount) > 0 ? <TRow label="Discount" value={`−${money(invoice.discount)}`} /> : null}
+          {invoice.tax && Number(invoice.tax) > 0 ? <TRow label="Tax" value={money(invoice.tax)} /> : null}
+          {invoice.depositApplied && Number(invoice.depositApplied) > 0 ? <TRow label="Deposit applied" value={`−${money(invoice.depositApplied)}`} /> : null}
+          <TRow label="Total" value={money(invoice.total)} kind="total" />
+          {priorSurcharges > 0 && <TRow label="Card surcharges" value={money(priorSurcharges)} />}
+          {paid > 0 && <TRow label="Paid to date" value={`−${money(paid)}`} />}
+          {payable && surcharge > 0 && <TRow label={`Card surcharge (${(surchargeRate * 100).toFixed(1)}%)`} value={money(surcharge)} kind="warn" />}
+          {!isPaid && (paid > 0 || priorSurcharges > 0 || surcharge > 0 || partial) && (
+            <TRow label={partial && amountValid ? "You're paying" : "Balance due"} value={money(payable ? chargeTotal : balance)} kind="due" />
+          )}
+        </Totals>
+
+        {invoice.payments.length > 0 && (
+          <div className="mt-8">
+            <Label>Payments</Label>
+            <div className="mt-1">
+              {invoice.payments.map((p) => (
+                <div key={p.id} className="c-trow">
+                  <span>
+                    {shortDate(p.paidAt)} · {METHOD_LABEL[p.method] ?? p.method}
+                  </span>
+                  <span className="c-num">{money(p.amount)}</span>
                 </div>
               ))}
             </div>
           </div>
+        )}
 
-          {/* Totals ledger — right-aligned, accent-ruled total like the PDF */}
-          <div className="mt-4 flex justify-end">
-            <div className="w-full max-w-[260px] space-y-1.5 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Subtotal</span>
-                <span>${Number(invoice.subtotal).toFixed(2)}</span>
-              </div>
-              {invoice.discount && Number(invoice.discount) > 0 ? (
-                <div className="flex justify-between text-gray-500">
-                  <span>Discount</span>
-                  <span>-${Number(invoice.discount).toFixed(2)}</span>
-                </div>
-              ) : null}
-              {invoice.tax && Number(invoice.tax) > 0 ? (
-                <div className="flex justify-between text-gray-500">
-                  <span>Tax</span>
-                  <span>${Number(invoice.tax).toFixed(2)}</span>
-                </div>
-              ) : null}
-              {invoice.depositApplied && Number(invoice.depositApplied) > 0 ? (
-                <div className="flex justify-between text-gray-500">
-                  <span>Deposit applied</span>
-                  <span>-${Number(invoice.depositApplied).toFixed(2)}</span>
-                </div>
-              ) : null}
-              <div
-                className="flex justify-between border-t-2 pt-1.5 text-base font-bold text-gray-900"
-                style={{ borderTopColor: accent }}
-              >
-                <span>Total</span>
-                <span>${Number(invoice.total).toFixed(2)}</span>
-              </div>
-              {priorSurcharges > 0 && (
-                <div className="flex justify-between text-gray-500">
-                  <span>Card surcharges</span>
-                  <span>${priorSurcharges.toFixed(2)}</span>
-                </div>
-              )}
-              {paid > 0 && (
-                <div className="flex justify-between text-gray-500">
-                  <span>Paid to date</span>
-                  <span>-${paid.toFixed(2)}</span>
-                </div>
-              )}
-              {surcharge > 0 && (
-                <div className="flex justify-between text-amber-600">
-                  <span>Card surcharge ({(surchargeRate * 100).toFixed(1)}%)</span>
-                  <span>${surcharge.toFixed(2)}</span>
-                </div>
-              )}
-              {(paid > 0 || priorSurcharges > 0 || surcharge > 0 || partial) && (
-                <div className="flex justify-between border-t border-gray-200 pt-1.5 text-base font-bold text-gray-900">
-                  <span>{partial && amountValid ? "You're paying" : "Balance due"}</span>
-                  <span>${chargeTotal.toFixed(2)}</span>
-                </div>
-              )}
-            </div>
+        {invoice.notes && (
+          <div className="mt-8">
+            <Label>Notes</Label>
+            <p className="c-small mt-1 whitespace-pre-wrap">{invoice.notes}</p>
           </div>
+        )}
 
-          {/* Payments so far — mirrors the PDF's PAYMENTS section */}
-          {invoice.payments.length > 0 && (
-            <div className="mt-6">
-              <SectionLabel>Payments</SectionLabel>
-              <div className="mt-1 space-y-1">
-                {invoice.payments.map((p) => (
-                  <div key={p.id} className="flex justify-between text-sm">
-                    <span className="text-gray-500">
-                      {shortDate(p.paidAt)} · {METHOD_LABEL[p.method] ?? p.method}
-                    </span>
-                    <span className="text-gray-700">${Number(p.amount).toFixed(2)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {invoice.notes && (
-            <div className="mt-6">
-              <SectionLabel>Notes</SectionLabel>
-              <p className="mt-1 text-xs leading-relaxed text-gray-500 whitespace-pre-wrap">
-                {invoice.notes}
-              </p>
-            </div>
-          )}
-
-          {/* No online payments for this company (not approved to charge, or
-              let in on an invite code with payments held back) — the sheet
-              stays a document: how to settle up, and no pay button at all. */}
-          {isArchived && (
-            <div className="mt-8 border-t-2 border-gray-900 pt-5">
-              <h2 className="text-sm font-semibold text-gray-700 mb-2">This invoice is no longer active</h2>
-              <p className="text-sm leading-relaxed text-gray-600">
-                {invoice.company.name} has withdrawn it, so there is nothing to pay here. If you were
-                expecting to pay, please contact them
-                {invoice.company.phone ? ` at ${invoice.company.phone}` : ""}
-                {invoice.company.email ? `${invoice.company.phone ? " or" : " at"} ${invoice.company.email}` : ""}
-                .
-              </p>
-            </div>
-          )}
-
-          {!isPaid && !isArchived && !pay && (
-            <div className="mt-8 border-t-2 border-gray-900 pt-5">
-              <h2 className="text-sm font-semibold text-gray-700 mb-2">How to pay</h2>
-              <p className="text-sm leading-relaxed text-gray-600">
-                Please pay {invoice.company.name} directly.
-                {(invoice.company.phone || invoice.company.email) && (
-                  <>
-                    {" "}
-                    Reach them at{" "}
-                    {invoice.company.phone && (
-                      <a href={`tel:${invoice.company.phone}`} className="font-medium text-gray-800 underline">
-                        {invoice.company.phone}
-                      </a>
-                    )}
-                    {invoice.company.phone && invoice.company.email && " or "}
-                    {invoice.company.email && (
-                      <a href={`mailto:${invoice.company.email}`} className="font-medium text-gray-800 underline">
-                        {invoice.company.email}
-                      </a>
-                    )}
-                    .
-                  </>
-                )}
-              </p>
-            </div>
-          )}
-
-          {/* Payment — the bottom of the same sheet, like the remittance stub
-              on a paper invoice. A settled invoice has no stub — the stamp
-              says everything. */}
-          {!isPaid && !isArchived && pay && (
-          <div className="mt-8 border-t-2 border-gray-900 pt-5">
-          {/* Amount — full balance by default, or a partial payment */}
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">Payment amount</h2>
-          {canSplit && (
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <button
-              type="button"
-              onClick={() => setPartial(false)}
-              className={`px-4 py-3 border rounded text-sm font-medium transition-colors ${
-                !partial
-                  ? "border-green-500 bg-green-50 text-green-700"
-                  : "border-gray-300 text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              Full balance — ${balance.toFixed(2)}
-            </button>
-            <button
-              type="button"
-              onClick={() => setPartial(true)}
-              className={`px-4 py-3 border rounded text-sm font-medium transition-colors ${
-                partial
-                  ? "border-green-500 bg-green-50 text-green-700"
-                  : "border-gray-300 text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              Another amount
-            </button>
-          </div>
-          )}
-          {canSplit && partial && (
-            <div className="mb-4">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  min={1}
-                  max={balance}
-                  step="0.01"
-                  value={amountText}
-                  onChange={(e) => setAmountText(e.target.value)}
-                  placeholder={balance.toFixed(2)}
-                  className="w-full pl-7 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500"
-                />
-              </div>
-              {!amountValid && amountText !== "" && (
-                <p className="mt-1.5 text-xs text-red-600">
-                  Enter an amount between $1.00 and ${balance.toFixed(2)}.
+        {/* ── What happened, on the invoice ── */}
+        {done && paidNow && (
+          <Receipt>
+            {pendingAch ? (
+              <>
+                <p className="c-receipt-line">
+                  <strong>Bank transfer submitted</strong> — {money(paidNow.amount)} on {longDate(paidNow.at)}.
                 </p>
-              )}
-              <p className="mt-1.5 text-xs text-gray-400">
-                The rest stays on the invoice — you can come back and pay it anytime.
-              </p>
-            </div>
-          )}
+                <p className="c-receipt-line">It usually clears within a few business days; this page updates when it does.</p>
+              </>
+            ) : (
+              <>
+                <p className="c-receipt-line">
+                  <strong>Paid {money(paidNow.amount)}</strong> by {paidNow.method === "CARD" ? "card" : "bank transfer"} on {longDate(paidNow.at)}.
+                  {remaining > 0 ? ` ${money(remaining)} remains on the balance.` : " Thank you."}
+                </p>
+                {remaining > 0 && (
+                  <ActionBar>
+                    <Button variant="outline" onClick={() => window.location.reload()}>
+                      Make another payment
+                    </Button>
+                  </ActionBar>
+                )}
+              </>
+            )}
+          </Receipt>
+        )}
 
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">Payment method</h2>
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <button
-              type="button"
-              onClick={() => setMethod("CARD")}
-              className={`flex items-center gap-2 px-4 py-3 border rounded text-sm font-medium transition-colors ${
-                method === "CARD"
-                  ? "border-green-500 bg-green-50 text-green-700"
-                  : "border-gray-300 text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              <CreditCard size={15} />
-              Credit / Debit
-            </button>
-            <button
-              type="button"
-              onClick={() => setMethod("ACH")}
-              className={`flex items-center gap-2 px-4 py-3 border rounded text-sm font-medium transition-colors ${
-                method === "ACH"
-                  ? "border-green-500 bg-green-50 text-green-700"
-                  : "border-gray-300 text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              <Building2 size={15} />
-              Bank (ACH)
-            </button>
-          </div>
-
-          {method === "CARD" && invoice.company.surchargeEnabled && surchargeRate > 0 && (
-            <p className="text-xs text-amber-600 mb-4 bg-amber-50 px-3 py-2 rounded">
-              A {(surchargeRate * 100).toFixed(1)}% card surcharge applies. Pay via bank transfer to avoid this fee.
+        {isPaid && !done && (
+          <Receipt>
+            <p className="c-receipt-line">
+              <strong>Paid in full.</strong> Thank you for your business.
             </p>
-          )}
+          </Receipt>
+        )}
 
-          {error && (
-            <div className="mb-3 px-4 py-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">{error}</div>
-          )}
+        {isArchived && (
+          <Receipt>
+            <p className="c-receipt-line">
+              <strong>This invoice was withdrawn</strong> by {company.name}, so there is nothing to pay here. If you were expecting
+              to pay, reach them{contactLine ? ` at ${contactLine}` : ""}.
+            </p>
+          </Receipt>
+        )}
 
-          <div className="mb-4">
+        {!isPaid && !isArchived && !done && !pay && !demo && (
+          <Stub title="How to pay">
+            <p className="c-body">
+              Please pay {company.name} directly
+              {company.phone || company.email ? (
+                <>
+                  {" "}— reach them at{" "}
+                  {company.phone && (
+                    <a href={`tel:${company.phone}`} className="c-link">
+                      {company.phone}
+                    </a>
+                  )}
+                  {company.phone && company.email && " or "}
+                  {company.email && (
+                    <a href={`mailto:${company.email}`} className="c-link">
+                      {company.email}
+                    </a>
+                  )}
+                </>
+              ) : null}
+              .
+            </p>
+          </Stub>
+        )}
+
+        {/* ── The remittance stub ── */}
+        {payable && (
+          <Stub title="Pay this invoice">
+            {canSplit && (
+              <div className="mb-5">
+                <Choices>
+                  <Choice on={!partial} onClick={() => setPartial(false)}>
+                    Full balance · {money(balance)}
+                  </Choice>
+                  <Choice on={partial} onClick={() => setPartial(true)}>
+                    Another amount
+                  </Choice>
+                </Choices>
+                {partial && (
+                  <div className="mt-3">
+                    <div className="relative max-w-xs">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[16px]" style={{ color: "var(--c-faint)" }}>
+                        $
+                      </span>
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min={1}
+                        max={balance}
+                        step="0.01"
+                        value={amountText}
+                        onChange={(e) => setAmountText(e.target.value)}
+                        placeholder={balance.toFixed(2)}
+                        className="c-field c-num pl-8"
+                        aria-label="Amount to pay"
+                      />
+                    </div>
+                    <p className="c-hint">
+                      {!amountValid && amountText !== ""
+                        ? `Enter an amount between $1.00 and ${money(balance)}.`
+                        : "The rest stays on the invoice — come back and pay it anytime."}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <Label>Pay with</Label>
+            <div className="mt-2 mb-4">
+              <Choices>
+                <Choice on={method === "CARD"} onClick={() => setMethod("CARD")}>
+                  <CreditCard size={16} />
+                  Card
+                </Choice>
+                <Choice on={method === "ACH"} onClick={() => setMethod("ACH")}>
+                  <Building2 size={16} />
+                  Bank transfer
+                </Choice>
+              </Choices>
+            </div>
+
+            {method === "CARD" && company.surchargeEnabled && surchargeRate > 0 && (
+              <div className="mb-4">
+                <Notice tone="warn">
+                  A {(surchargeRate * 100).toFixed(1)}% card surcharge applies. Pay by bank transfer to avoid it.
+                </Notice>
+              </div>
+            )}
+
+            {error && (
+              <div className="mb-4">
+                <Notice tone="bad">{error}</Notice>
+              </div>
+            )}
+
+            <div className="mb-4">
+              {demo && method === "CARD" && (
+                <div className="grid gap-3">
+                  <input className="c-field c-num" placeholder="Card number" disabled aria-label="Card number (demo)" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <input className="c-field c-num" placeholder="MM / YY" disabled aria-label="Expiry (demo)" />
+                    <input className="c-field c-num" placeholder="CVC" disabled aria-label="CVC (demo)" />
+                  </div>
+                </div>
+              )}
               {square && method === "CARD" && (
-                <SquareCardFields
-                  key="square-card"
-                  ref={squareCardRef}
-                  config={square}
-                  accent={brandAccent(invoice.company)}
-                  onReady={setSquareReady}
-                />
+                <SquareCardFields key="square-card" ref={squareCardRef} config={square} accent={accent} onReady={setSquareReady} />
               )}
               {square && method === "ACH" && (
                 <SquareAchButton
@@ -639,8 +500,8 @@ export default function PayPage({
                   config={square}
                   amount={chargeTotal}
                   defaultName={invoice.contact ? `${invoice.contact.firstName} ${invoice.contact.lastName}`.trim() : ""}
-                  accent={brandAccent(invoice.company)}
-                  textColor={textOn(brandAccent(invoice.company))}
+                  accent={accent}
+                  textColor={textOn(accent)}
                   disabled={loading || !amountValid}
                   onToken={async (token) => {
                     setError("");
@@ -652,72 +513,48 @@ export default function PayPage({
               )}
               {finix && (
                 <>
-                  {/* finix.js renders its hosted card/bank fields into this container */}
                   <div ref={containerRef} />
                   {!scriptReady && (
-                    <div className="flex items-center justify-center gap-2 py-6 text-xs text-gray-400">
+                    <div className="flex items-center justify-center gap-2 py-6 c-small">
                       <Loader2 size={13} className="animate-spin" />
                       Loading secure payment form…
                     </div>
                   )}
                 </>
               )}
-              {method === "CARD" && (finix ? scriptReady : squareReady) && (
-                <label className="flex items-start gap-2 mt-3 text-xs text-gray-500 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={saveCard}
-                    onChange={(e) => setSaveCard(e.target.checked)}
-                    className="mt-0.5 accent-green-600"
-                  />
-                  <span>
-                    Keep this card on file with {invoice.company.name} for faster future
-                    payments. You can remove it anytime.
-                  </span>
+              {method === "CARD" && fieldsReady && (
+                <label className="mt-3 flex cursor-pointer select-none items-start gap-2 c-small">
+                  <input type="checkbox" className="c-check" checked={saveCard} onChange={(e) => setSaveCard(e.target.checked)} />
+                  <span>Keep this card on file with {company.name} for faster payments next time. You can remove it anytime.</span>
                 </label>
               )}
-          </div>
+            </div>
 
-          {/* Square's bank flow has its own button (the Plaid popup must open
-              from the click); every other case pays from here */}
-          {!(square && method === "ACH") && (
-          <button
-            onClick={handlePay}
-            disabled={loading || !amountValid || (finix ? !scriptReady || formHasErrors : !squareReady)}
-            className="w-full py-3 font-semibold text-sm rounded transition-opacity hover:opacity-90 flex items-center justify-center gap-2 disabled:opacity-50"
-            style={{
-              backgroundColor: brandAccent(invoice.company),
-              color: textOn(brandAccent(invoice.company)),
-            }}
-          >
-            {loading ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <Lock size={14} />
+            {/* Square's bank flow has its own button (the Plaid popup must open from the click) */}
+            {!(square && method === "ACH") && (
+              <ActionBar>
+                <Button
+                  block
+                  onClick={handlePay}
+                  disabled={loading || !amountValid || (demo ? false : finix ? !scriptReady || formHasErrors : !squareReady)}
+                >
+                  {loading ? <Loader2 size={16} className="animate-spin" /> : <Lock size={15} />}
+                  Pay {money(chargeTotal)}
+                </Button>
+              </ActionBar>
             )}
-            Pay ${chargeTotal.toFixed(2)}
-          </button>
-          )}
 
-          <div className="flex items-center justify-center gap-1 mt-3 text-xs text-gray-400">
-            <Lock size={11} />
-            Payments secured by {processorLabel(pay)}
-            {isTestMode(pay) && (
-              <span className="ml-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">Test mode</span>
-            )}
-          </div>
-          </div>
-          )}
+            <p className="mt-3 flex items-center justify-center gap-1.5 c-small">
+              <Lock size={11} />
+              Secured by {demo ? "Square" : processorLabel(pay)}
+              {!demo && isTestMode(pay) && <span className="rounded px-1.5 py-0.5 text-[11px] font-semibold" style={{ background: "#FEF3C7", color: "#92400E" }}>Test mode</span>}
+            </p>
+          </Stub>
+        )}
 
-          <PaperFooter
-            kind="invoice"
-            docNumber={invoice.invoiceNumber}
-            companyName={invoice.company.name}
-            pdfHref={`/pay/${invoice.publicToken}/pdf`}
-          />
-        </PaperSheet>
-      </div>
+        <Foot docType="Invoice" docNumber={invoice.invoiceNumber} companyName={company.name} pdfHref={`/pay/${invoice.publicToken}/pdf`} />
+      </Sheet>
       <ChargeOverlay phase={charge} onDismiss={() => setCharge(null)} />
-    </div>
+    </ClientRoot>
   );
 }

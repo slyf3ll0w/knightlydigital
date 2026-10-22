@@ -102,6 +102,54 @@ When every page is on the kit: move `.ds` to the AppShell root (the sidebar
 and mobile bars get Lexend too), drop Oxanium from `app/layout.tsx`, and
 delete the green→blue bridge and ledger/tool styles from `globals.css`.
 
+## Client pages (the Client Kit, 2026-10-22)
+
+Everything a CLIENT of a business sees is a different product from the
+app: one job per page, no navigation, read on a phone from a text or an
+email, often by someone who will never see WorkBench again. It gets its
+own kit — `app/client.css` (tokens + styles under `.client`),
+`components/client` (pieces), `lib/client-theme.ts` (the ONE brand
+resolver for client surfaces), fixtures in `lib/client-fixtures.ts`, and the
+gallery at `/app/design/client` (frames of `/client-preview`, the fake
+Brightwire Electric). Phase 1 = the estimate (`/quote/[token]`) and the
+invoice (`/pay/[token]`); emails, booking, the hub and agreements follow
+in that order, each reviewed on the gallery first.
+
+1. **The business is the brand, WorkBench is the paper.** Their logo,
+   their name, ONE accent (`clientAccent`: document color → secondary →
+   primary → WorkBench blue, darkened only until it reads on white). The
+   accent appears on the letterhead rule, the total's rule, the primary
+   button and the stamp — nowhere else. Everything else is ink on white.
+   WorkBench appears once, small, at the very foot ("Sent with WorkBench").
+2. **Documents look like documents.** Letterhead (logo + business left,
+   document type + number + dates right), a single brand rule, PREPARED
+   FOR / BILLED TO, a ruled item table, a totals ledger with the accent
+   rule over the total, a stamp for state. The same letterhead on web, PDF
+   (`lib/pdf.tsx`) and email.
+3. **State stays on the document.** Approving or paying never swaps the
+   sheet for a "Success!" card: the stamp slams onto the paper
+   (`Stamp slam`), the sign-off / remittance stub becomes the `Receipt`
+   (who signed, what was paid, what happens next). Withdrawn and expired
+   are muted stamps with one plain sentence.
+4. **Forms look like a good clipboard.** One column, labels above,
+   48 px fields, the accent only on the focus ring and the primary button,
+   `Choices` for two or three big options. No cards inside cards.
+5. **No heroes, no gradients, no icon in a tinted circle, no "Hi {name}!"**
+   Copy is the business's voice: short, second person, specific.
+6. **Type.** Lexend for the company name, document number, headings,
+   stamps and buttons; Inter with tabular figures (`.c-num`) for body
+   copy and every column of money. A company's own brand font replaces
+   Lexend when set.
+7. **Phones first.** Items stack (name, qty × unit under it, amount
+   right), totals go full width, the next action rides the bottom edge in
+   the `ActionBar`. The desk gets the sheet on a desk-colored ground with
+   a soft shadow; the phone IS the sheet.
+8. **Always light** (`ForceLightTheme`), never the operator's dark mode.
+9. **No raw colors in pages** — tokens (`var(--c-…)`) or the kit. Status
+   colors (good / warn / bad) are fixed.
+10. **Review on the gallery before shipping**, at 390 and 900, in the
+    navy, unbranded, yellow and black-and-white brands.
+
 The platform console (`/superadmin`) is on the kit since 2026-09-30:
 `components/console/ConsoleShell` is the rail + top bar (the app's rail
 hardware, WorkBench blue/orange as the fixed brand), every page is a

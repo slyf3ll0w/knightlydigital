@@ -1,3 +1,4 @@
+import "@/app/client.css";
 import ForceLightTheme from "@/components/ForceLightTheme";
 
 // Client-facing: quotes always render light on a white background, never the

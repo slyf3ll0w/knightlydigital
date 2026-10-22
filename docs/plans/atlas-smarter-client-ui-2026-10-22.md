@@ -314,6 +314,36 @@ order of 100k Atlas turns.
 updates) far more reliably than 2.5 Flash and follows the never-say-can't
 procedure. It does not add tools: the gap list above still stands.
 
+## Addendum (same day): Client Kit phase 1 shipped (branch client-kit)
+
+David chose the paper-letterhead look and phase 1 (kit + gallery + quote
+and pay). Built:
+
+- `lib/client-theme.ts` — `clientAccent` / `clientBrandVars` / `clientPalette`:
+  the one brand resolver for client surfaces (document color → secondary →
+  primary → WorkBench blue, darkened only until it reads on white; a white
+  "document color" counts as none).
+- `app/client.css` — tokens + styles under `.client`: the sheet (the phone
+  IS the sheet; at a desk it lies on a desk-colored ground), letterhead,
+  labels, items (ruled table ≥640, stacked rows below), totals ledger with
+  the accent rule over the total, the stamp with ink grain and the slam,
+  stub, receipt, one button family, fields, choices, notices, foot.
+- `components/client/index.tsx` — ClientRoot, Sheet, Letterhead, Stamp,
+  PreparedFor, ItemsHead/ItemRow, Totals/TRow, Stub, Receipt, Button,
+  Choices/Choice, Notice, ActionBar, Foot, money/date helpers.
+- `app/quote/[token]/QuoteAcceptPage.tsx` and `app/pay/[token]/PayPage.tsx`
+  rebuilt on the kit. Approving and paying stay on the document: the stamp
+  drops on, the stub becomes the receipt. `demo` mode makes both pages play
+  the moment without a server. `components/paper-doc.tsx` deleted.
+- `/app/design/client` (gallery, signed-in) framing `/client-preview`
+  (fixtures `lib/client-fixtures.ts`: Brightwire Electric, four brands,
+  every state) at 390 and 900.
+- `docs/design-system.md` → "Client pages": the ten rules.
+
+Reviewed locally at 390/1000 in navy, yellow and black-and-white brands,
+open / approved / partial / paid states. Phase 2 (emails on the same
+letterhead) is next; then the booking family, the hub, agreements and PDFs.
+
 ## Addendum (same day): the gap list, closed
 
 David picked "finish Atlas's tool gaps" as the next lane. Shipped on the
