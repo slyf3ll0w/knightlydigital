@@ -17,7 +17,7 @@ import {
   type LatLng,
   type Slot,
 } from "@/lib/booking-engine";
-import { KIND_META, servicePriceLabel, type BookingKind, type BookingMode } from "@/lib/booking-types";
+import { KIND_META, meetingLinkPool, servicePriceLabel, type BookingKind, type BookingMode } from "@/lib/booking-types";
 import { estimateDriveBetween } from "@/lib/geo-estimate";
 
 /**
@@ -499,9 +499,58 @@ export async function assignMemberForSlot(
       data: { lastAssignedAt: new Date() },
     });
     const row = type.members.find((m) => m.userId === userId);
-    return { userId, meetingLink: row?.user.meetingLink ?? type.meetingLink ?? null };
+    const meetingLink = row?.user.meetingLink ?? (type.kind === "VIDEO_CALL" ? await nextMeetingLink(tx, type, start, opts) : null);
+    return { userId, meetingLink };
   }
   return null;
+}
+
+/**
+ * The room a new video booking gets when the assigned member has none of
+ * their own. One link on the item = that link. Several = round robin from
+ * the item's cursor, skipping any room another video call of this company
+ * already holds during the slot (two back-to-back bookings, two rooms); the
+ * cursor moves past the pick so the next booking takes the next room. Reads
+ * the cursor inside the booking's transaction, so two bookings landing at
+ * once can't both take the same turn.
+ */
+export async function nextMeetingLink(
+  tx: Db,
+  type: LoadedBookingType,
+  start: Date,
+  opts: { excludeAppointmentId?: string | null } = {}
+): Promise<string | null> {
+  const pool = meetingLinkPool(type);
+  if (pool.length === 0) return null;
+  if (pool.length === 1) return pool[0];
+  const durationMs = type.durationMinutes * 60000;
+  const end = new Date(start.getTime() + durationMs);
+  const nearby = await tx.appointment.findMany({
+    where: {
+      companyId: type.companyId,
+      type: "VIDEO_CALL",
+      status: "SCHEDULED",
+      meetingLink: { in: pool },
+      scheduledAt: { lt: end, gt: new Date(start.getTime() - 24 * HOUR) },
+      ...(opts.excludeAppointmentId ? { id: { not: opts.excludeAppointmentId } } : {}),
+    },
+    select: { meetingLink: true, scheduledAt: true, scheduledEnd: true },
+  });
+  const taken = new Set(
+    nearby.filter((a) => (a.scheduledEnd ?? new Date(a.scheduledAt.getTime() + durationMs)).getTime() > start.getTime()).map((a) => a.meetingLink)
+  );
+  const fresh = await tx.bookingType.findUnique({ where: { id: type.id }, select: { meetingLinkCursor: true } });
+  const cursor = (((fresh?.meetingLinkCursor ?? 0) % pool.length) + pool.length) % pool.length;
+  let pick = cursor;
+  for (let i = 0; i < pool.length; i++) {
+    const idx = (cursor + i) % pool.length;
+    if (!taken.has(pool[idx])) {
+      pick = idx;
+      break;
+    }
+  }
+  await tx.bookingType.update({ where: { id: type.id }, data: { meetingLinkCursor: (pick + 1) % pool.length } });
+  return pool[pick];
 }
 
 /** Geocode + stamp a member's start address (fire-and-forget from the team PATCH). */

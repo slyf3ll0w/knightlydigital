@@ -133,6 +133,10 @@ export default function PlaceSheet({
   const [newContact, setNewContact] = useState({ firstName: "", lastName: "", phone: "", email: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // A job with no address is no stop on the map or a route: the first Save
+  // without one says so and waits, the second saves anyway (a nudge, not a
+  // wall — David 2026-10-19). Typing an address clears it.
+  const [addressNudged, setAddressNudged] = useState(false);
   // Anything changed since the sheet seeded itself: closing asks first
   // (what the drop decided — date, time, tech — never counts; the learned
   // duration hint lands through an effect and doesn't either).
@@ -354,6 +358,10 @@ export default function PlaceSheet({
     // a scheduled job with nobody on it is on nobody's schedule or calendar
     if (kind === "job" && users.length > 0 && assignees.length === 0 && !outsourced) {
       return setErr("Pick who's doing this job, or mark it outsourced.");
+    }
+    if (kind === "job" && !address.trim() && !contact?.address && !addressNudged) {
+      setAddressNudged(true);
+      return setErr("No address for this job — it won't show on the map or a route. Add one, or press Save again to go without.");
     }
     // Blank appointment title → the type's plain label; blank job title → the
     // services picked (or the API's generic fallback)
@@ -781,7 +789,24 @@ export default function PlaceSheet({
           {(kind === "job" || apptType === "IN_PERSON") && (
             <div>
               <label className="mb-0.5 block text-xs font-medium text-gray-500">Address</label>
-              <AddressAutocomplete endpoint="/api/app/geocode/suggest" className={inputCls} value={address} onChange={setAddress} onPick={(a) => setAddress(a.label)} placeholder="Service address" />
+              <AddressAutocomplete
+                endpoint="/api/app/geocode/suggest"
+                className={inputCls}
+                value={address}
+                onChange={(v) => {
+                  setAddress(v);
+                  if (v.trim() && addressNudged) {
+                    setAddressNudged(false);
+                    setErr("");
+                  }
+                }}
+                onPick={(a) => {
+                  setAddress(a.label);
+                  setAddressNudged(false);
+                  setErr("");
+                }}
+                placeholder="Service address"
+              />
             </div>
           )}
 

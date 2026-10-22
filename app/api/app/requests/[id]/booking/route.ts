@@ -6,6 +6,7 @@ import { slotLabel } from "@/lib/booking-engine";
 import { resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import { manageUrlFor } from "@/lib/booking-submit";
 import { icsAttachment } from "@/lib/ics";
+import { confirmationNote } from "@/lib/booking-intake";
 import { autoAdvance } from "@/lib/pipeline";
 import { fireAutomations } from "@/lib/automations-server";
 import { logActivity } from "@/lib/activity";
@@ -41,7 +42,7 @@ export async function POST(
       appointments: {
         where: { tentative: true, status: "SCHEDULED" },
         orderBy: { scheduledAt: "asc" },
-        include: { assignedTo: { select: { name: true } } },
+        include: { assignedTo: { select: { name: true } }, bookingType: { select: { intake: true, kind: true, mode: true } } },
       },
       company: {
         select: {
@@ -130,6 +131,7 @@ export async function POST(
               phone: tentative?.type === "PHONE_CALL" ? request.contact.phone : null,
               withName: tentative?.assignedTo?.name ?? null,
               manageUrl: manageUrlFor(request.company, tentative?.manageToken ?? null),
+              note: tentative?.bookingType ? confirmationNote(tentative.bookingType) : null,
             },
           })
         : bookingDeclinedEmail({
@@ -158,6 +160,7 @@ export async function POST(
                   start: tentative.scheduledAt,
                   end: tentative.scheduledEnd ?? new Date(tentative.scheduledAt.getTime() + 30 * 60000),
                   summary: `${request.title} — ${request.company.name}`,
+                  description: tentative.bookingType ? confirmationNote(tentative.bookingType) : null,
                   location: tentative.address ?? tentative.meetingLink ?? null,
                   organizerName: request.company.name,
                   organizerEmail: request.company.email,

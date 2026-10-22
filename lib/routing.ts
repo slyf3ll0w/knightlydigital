@@ -300,23 +300,54 @@ export async function driveTimeMatrix(points: RoutePoint[], companyId?: string |
 
 // ── Solver ───────────────────────────────────────────────────────────────────
 
-/** Total along an ordered path; `closeLoop` adds the leg back to the start. */
-export function routeMinutes(matrix: number[][], order: number[], closeLoop = false): number {
+/**
+ * Total along an ordered path. `closeTo` adds the leg from the last stop to
+ * that matrix index — `true` means back to the first point of the path (a
+ * round trip), a number names any other end point (the shop when the day
+ * started at home). False/undefined = an open path that ends wherever it ends.
+ */
+export function routeMinutes(matrix: number[][], order: number[], closeTo: boolean | number = false): number {
   let total = 0;
   for (let i = 1; i < order.length; i++) total += matrix[order[i - 1]][order[i]];
-  if (closeLoop && order.length > 1) total += matrix[order[order.length - 1]][order[0]];
+  if (closeTo !== false && order.length > 0) {
+    const end = closeTo === true ? order[0] : closeTo;
+    if (order.length > 1 || end !== order[0]) total += matrix[order[order.length - 1]][end];
+  }
   return total;
+}
+
+/** Index pairs [a, b]: stop a must be visited before stop b. */
+export type IndexPrecedence = [number, number][];
+
+function indexOrderOk(order: number[], pairs: IndexPrecedence): boolean {
+  if (!pairs.length) return true;
+  const at = new Map(order.map((idx, i) => [idx, i]));
+  return pairs.every(([a, b]) => {
+    const ia = at.get(a);
+    const ib = at.get(b);
+    return ia === undefined || ib === undefined || ia < ib;
+  });
 }
 
 /**
  * Best visiting order over `matrix`, starting at index `startIndex` (fixed —
  * the shop, or wherever the day begins). Open path ends wherever it ends;
- * `roundTrip` costs the drive back to the start too, so the last stop lands
- * near home. Returns the full order including the start index.
+ * `closeTo` costs the drive to an end point too (true = back to the start,
+ * a number = that index, which is then never visited as a stop), so the
+ * last stop lands near home. `precedence` pairs ("the supply run before the
+ * Henderson job") are never violated by any order this returns. Returns the
+ * full order including the start index (and excluding a numeric end index).
  */
-export function solveStopOrder(matrix: number[][], startIndex = 0, roundTrip = false): number[] {
+export function solveStopOrder(
+  matrix: number[][],
+  startIndex = 0,
+  closeTo: boolean | number = false,
+  precedence: IndexPrecedence = []
+): number[] {
   const n = matrix.length;
-  if (n <= 2) return Array.from({ length: n }, (_, i) => i);
+  const endIndex = typeof closeTo === "number" ? closeTo : null;
+  const stops = Array.from({ length: n }, (_, i) => i).filter((i) => i !== endIndex);
+  if (stops.length <= 2) return precedence.length ? enforceIndexPrecedence(stops, precedence) : stops;
 
   // Nearest-neighbor from the start is one greedy guess; forcing each other
   // stop to go second gives n-1 different guesses, each polished by the same
@@ -325,31 +356,57 @@ export function solveStopOrder(matrix: number[][], startIndex = 0, roundTrip = f
   // instant at n ≤ 25.
   let best: number[] | null = null;
   let bestCost = Infinity;
-  for (let second = 0; second < n; second++) {
+  for (const second of stops) {
     if (second === startIndex) continue;
-    const order = improveOrder(matrix, construct(matrix, startIndex, second), roundTrip);
-    const cost = routeMinutes(matrix, order, roundTrip);
+    // A forced second stop that must follow something else is a dead guess
+    if (precedence.some(([a, b]) => b === second && a !== startIndex && stops.includes(a))) continue;
+    const order = improveOrder(matrix, construct(matrix, stops, startIndex, second, precedence), closeTo, precedence);
+    const cost = routeMinutes(matrix, order, closeTo);
     if (cost < bestCost - 0.01) {
       best = order;
       bestCost = cost;
     }
   }
-  return best ?? Array.from({ length: n }, (_, i) => i);
+  return best ?? enforceIndexPrecedence(stops, precedence);
 }
 
-/** Nearest-neighbor path from the start, with the second stop forced. */
-function construct(matrix: number[][], startIndex: number, second: number): number[] {
-  const n = matrix.length;
+/** Pull each violating "before" stop to just ahead of its target (fallback; mirrors route-walk's enforcePrecedence). */
+function enforceIndexPrecedence(order: number[], pairs: IndexPrecedence): number[] {
+  const current = [...order];
+  for (let guard = 0; guard < pairs.length + 1 && !indexOrderOk(current, pairs); guard++) {
+    for (const [a, b] of pairs) {
+      const ia = current.indexOf(a);
+      const ib = current.indexOf(b);
+      if (ia < 0 || ib < 0 || ia < ib) continue;
+      current.splice(ia, 1);
+      current.splice(current.indexOf(b), 0, a);
+    }
+  }
+  return current;
+}
+
+/** Nearest-neighbor path from the start, with the second stop forced; a stop whose predecessor isn't placed yet waits. */
+function construct(matrix: number[][], stops: number[], startIndex: number, second: number, precedence: IndexPrecedence): number[] {
   const visited = new Set<number>([startIndex, second]);
   const order = [startIndex, second];
-  while (order.length < n) {
+  const ready = (j: number) => precedence.every(([a, b]) => b !== j || visited.has(a) || !stops.includes(a));
+  while (order.length < stops.length) {
     const last = order[order.length - 1];
     let best = -1;
     let bestCost = Infinity;
-    for (let j = 0; j < n; j++) {
-      if (!visited.has(j) && matrix[last][j] < bestCost) {
+    for (const j of stops) {
+      if (!visited.has(j) && ready(j) && matrix[last][j] < bestCost) {
         best = j;
         bestCost = matrix[last][j];
+      }
+    }
+    if (best < 0) {
+      // Only blocked stops left (a precedence cycle) — take the nearest regardless
+      for (const j of stops) {
+        if (!visited.has(j) && matrix[last][j] < bestCost) {
+          best = j;
+          bestCost = matrix[last][j];
+        }
       }
     }
     order.push(best);
@@ -361,12 +418,12 @@ function construct(matrix: number[][], startIndex: number, second: number): numb
 /**
  * Local search until nothing improves: 2-opt (reverse a middle segment) and
  * Or-opt (move one stop somewhere else). Full recost per candidate because
- * drive times are asymmetric; n ≤ 25 keeps this instant. Mutates and
- * returns `order`.
+ * drive times are asymmetric; n ≤ 25 keeps this instant. A candidate that
+ * breaks a precedence pair is skipped. Mutates and returns `order`.
  */
-function improveOrder(matrix: number[][], order: number[], roundTrip: boolean): number[] {
+function improveOrder(matrix: number[][], order: number[], closeTo: boolean | number, precedence: IndexPrecedence): number[] {
   const n = order.length;
-  let bestCost = routeMinutes(matrix, order, roundTrip);
+  let bestCost = routeMinutes(matrix, order, closeTo);
   let improved = true;
   while (improved) {
     improved = false;
@@ -377,8 +434,8 @@ function improveOrder(matrix: number[][], order: number[], roundTrip: boolean): 
           ...order.slice(i, j + 1).reverse(),
           ...order.slice(j + 1),
         ];
-        const cost = routeMinutes(matrix, candidate, roundTrip);
-        if (cost < bestCost - 0.01) {
+        const cost = routeMinutes(matrix, candidate, closeTo);
+        if (cost < bestCost - 0.01 && indexOrderOk(candidate, precedence)) {
           order.splice(0, n, ...candidate);
           bestCost = cost;
           improved = true;
@@ -390,8 +447,8 @@ function improveOrder(matrix: number[][], order: number[], roundTrip: boolean): 
         if (j === i) continue;
         const candidate = order.filter((_, k) => k !== i);
         candidate.splice(j, 0, order[i]);
-        const cost = routeMinutes(matrix, candidate, roundTrip);
-        if (cost < bestCost - 0.01) {
+        const cost = routeMinutes(matrix, candidate, closeTo);
+        if (cost < bestCost - 0.01 && indexOrderOk(candidate, precedence)) {
           order.splice(0, n, ...candidate);
           bestCost = cost;
           improved = true;

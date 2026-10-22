@@ -36,7 +36,7 @@ export const teamSection: HelpSection = {
           items: [
             "**$/hr** labor cost, used for job profit. Techs never see it.",
             "**Bookable online**: whether customers can book them. See [Take bookings online](/help/online-booking).",
-            "**Working hours**, used for online booking and Find a Time.",
+            "**Working hours**, used for online booking and Find a Time. In the same panel: where they **start the day from** (home or the shop) and where they **end the day** — the shop, back where they started, or wherever the last stop is — which the route optimizer counts as the drive back.",
             "`Reset password`, `Deactivate` and `Reactivate`. Deactivating keeps their history.",
           ],
         },

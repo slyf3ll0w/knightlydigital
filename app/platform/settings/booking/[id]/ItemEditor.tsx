@@ -21,7 +21,7 @@ import {
   servicePriceLabel,
   type BookingTypeSettings,
 } from "@/lib/booking-types";
-import { ADDRESS_DEFAULTS, defaultButtonLabel, type BookingIntake, type CustomField, type CustomFieldType, type FieldOption } from "@/lib/booking-intake";
+import { ADDRESS_DEFAULTS, MAX_DONE_NOTE, defaultButtonLabel, defaultDoneWords, type BookingIntake, type CustomField, type CustomFieldType, type FieldOption } from "@/lib/booking-intake";
 import { KIND_ICON } from "@/lib/booking-icons";
 
 /**
@@ -167,6 +167,10 @@ export default function ItemEditor({
   const meta = KIND_META[draft.kind];
   const KindIcon = KIND_ICON[draft.kind];
   const scheduled = draft.mode === "SCHEDULE";
+  const doneDefaults = defaultDoneWords({ kind: draft.kind, mode: draft.mode, confirmation: draft.confirmation, quoteMode: draft.intake.quoteMode });
+  // Video rooms, one per line. Typed text stays as typed (blank lines while
+  // editing); the saved list is the trimmed, non-empty lines.
+  const [linksText, setLinksText] = useState(() => (draft.meetingLinks.length ? draft.meetingLinks : draft.meetingLink ? [draft.meetingLink] : []).join("\n"));
   const url = `${baseUrl}/book/${company.slug}/${draft.slug}`;
   const embedSrc = `${baseUrl}/embed/${company.slug}/${draft.slug}`;
   const previewSrc = `/book/${company.slug}/${draft.slug}?preview=1`;
@@ -604,9 +608,26 @@ export default function ItemEditor({
               </div>
               {draft.kind === "VIDEO_CALL" && (
                 <div>
-                  <label className={smallLabel}>Fallback meeting link</label>
-                  <input type="url" value={draft.meetingLink ?? ""} onChange={(e) => update({ meetingLink: e.target.value || null })} placeholder="https://meet.google.com/…" className={inputClass} />
-                  <p className="mt-1 text-xs text-gray-500">Used when the assigned person has no meeting link of their own (set per person on the Team page).</p>
+                  <label className={smallLabel}>Meeting links</label>
+                  <textarea
+                    value={linksText}
+                    onChange={(e) => {
+                      setLinksText(e.target.value);
+                      const meetingLinks = e.target.value
+                        .split(/\r?\n/)
+                        .map((s) => s.trim())
+                        .filter(Boolean);
+                      update({ meetingLinks, meetingLink: meetingLinks[0] ?? null });
+                    }}
+                    rows={Math.min(6, Math.max(2, linksText.split("\n").length + 1))}
+                    placeholder={"https://meet.google.com/…\nhttps://zoom.us/j/…"}
+                    spellCheck={false}
+                    className={`${inputClass} resize-none font-mono text-[13px]`}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    One per line. With several, each booking takes the next one in turn and skips a room another video call already has at that time, so back-to-back
+                    bookings never share a room. A person's own link (Team page) wins over this list.
+                  </p>
                 </div>
               )}
             </Card>
@@ -814,6 +835,45 @@ export default function ItemEditor({
             <div>
               <label className={smallLabel}>Line under the heading</label>
               <textarea value={draft.description ?? ""} onChange={(e) => update({ description: e.target.value || null })} rows={2} placeholder={meta.hint} className={`${inputClass} resize-none`} />
+            </div>
+            {/* After they book / send: the screen they land on + a note for the confirmations */}
+            <div className="grid grid-cols-1 gap-3 border-t border-gray-100 pt-3 sm:grid-cols-2">
+              <div>
+                <label className={smallLabel}>{scheduled ? "After they book" : "After they send"}</label>
+                <input
+                  value={intake.done.heading}
+                  onChange={(e) => setIntake({ done: { ...intake.done, heading: e.target.value } })}
+                  placeholder={doneDefaults.heading}
+                  maxLength={80}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={smallLabel}>Line under it</label>
+                <input
+                  value={intake.done.body}
+                  onChange={(e) => setIntake({ done: { ...intake.done, body: e.target.value } })}
+                  placeholder={doneDefaults.body}
+                  maxLength={300}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+            <div>
+              <label className={smallLabel}>Note in confirmations</label>
+              <textarea
+                value={intake.done.note}
+                onChange={(e) => setIntake({ done: { ...intake.done, note: e.target.value } })}
+                rows={3}
+                maxLength={MAX_DONE_NOTE}
+                placeholder="Directions, parking, what to have ready…"
+                className={`${inputClass} resize-none`}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                {scheduled
+                  ? "Shown on that screen and added to the confirmation email, text and calendar invite."
+                  : "Shown on that screen. Request forms don't send the customer a confirmation."}
+              </p>
             </div>
           </Card>
 

@@ -29,6 +29,7 @@ import {
   type LoadedBookingType,
 } from "@/lib/booking-runtime";
 import { KIND_META } from "@/lib/booking-types";
+import { confirmationNote } from "@/lib/booking-intake";
 import { phoneDigits } from "@/lib/phone";
 
 /**
@@ -350,6 +351,8 @@ export async function notifyBooking(input: BookingNoticeInput): Promise<void> {
 
   const manageUrl = manageUrlFor(company, appointment.manageToken);
   const kind: MeetingKind = type.kind === "PHONE_CALL" || type.kind === "VIDEO_CALL" ? type.kind : "IN_PERSON";
+  // The owner's note for this item rides along on everything but a cancellation
+  const note = event === "cancelled" ? null : confirmationNote(type);
 
   // Text confirmation — the filed texting campaign promises "your appointment
   // is confirmed" texts, and a phone-only booker otherwise heard nothing.
@@ -373,6 +376,7 @@ export async function notifyBooking(input: BookingNoticeInput): Promise<void> {
             phone: kind === "PHONE_CALL" ? contact.phone : null,
             meetingLink: kind === "VIDEO_CALL" ? appointment.meetingLink : null,
             event: event === "booked" ? (approval ? "received" : "confirmed") : event,
+            note,
             manageUrl,
             rebookUrl: event === "cancelled" ? `${APP_URL}/book/${company.slug}/${type.slug}` : null,
           }),
@@ -392,6 +396,7 @@ export async function notifyBooking(input: BookingNoticeInput): Promise<void> {
       withName: assignee?.name ?? null,
       manageUrl,
       paidNote: input.paidNote ?? null,
+      note,
     };
     const base = {
       brand: company,
@@ -412,6 +417,7 @@ export async function notifyBooking(input: BookingNoticeInput): Promise<void> {
         meta.exactTime ? null : `Arrival window: ${label}`,
         extras.meetingLink ? `Join: ${extras.meetingLink}` : null,
         extras.phone ? `We'll call you at ${extras.phone}` : null,
+        note,
         extras.manageUrl ? `Reschedule or cancel: ${extras.manageUrl}` : null,
       ]
         .filter(Boolean)

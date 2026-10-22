@@ -10,7 +10,7 @@ datasource db {
 // ─── Tenancy ─────────────────────────────────────────────────────────────────
 
 model Company {
-  id                        String      @id @default(cuid())
+  id                        String            @id @default(cuid())
   // The PUBLIC name — what clients see on every surface (texts, emails,
   // PDFs, booking page, portal, caller ID, voicemail). A solo operator can
   // put their own name here; legalName (below) carries the entity.
@@ -19,13 +19,13 @@ model Company {
   // texting (10DLC) registration and payments paperwork, and shown to
   // clients ONLY when showLegalNameOnDocs is on. Null = same as name.
   legalName                 String?
-  showLegalNameOnDocs       Boolean     @default(false)
-  slug                      String      @unique
+  showLegalNameOnDocs       Boolean           @default(false)
+  slug                      String            @unique
   // Earlier web addresses (Settings → Business info → Web address): every
   // public slug route still resolves them and redirects to the current slug,
   // so shared booking/portal links and the URLs on the texting registration
   // keep working after a rename.
-  previousSlugs             String[]    @default([])
+  previousSlugs             String[]          @default([])
   phone                     String?
   // The business email: shown to clients on quotes, invoices and the booking
   // page, and the Reply-To of every client email. Signup seeds it with the
@@ -39,7 +39,7 @@ model Company {
   // Settings → Business Info: the company's own notification EMAILS off
   // (push and the bell carry on) — for a team that reads them on their
   // phones (David 2026-10-03). lib/notify.ts companyNotifyAddress → null.
-  notifyEmailOff            Boolean     @default(false)
+  notifyEmailOff            Boolean           @default(false)
   address                   String?
   city                      String?
   state                     String?
@@ -77,31 +77,31 @@ model Company {
   // language ({ jobs: "#F97316", ... } — keys/validation in lib/section-colors.ts).
   // {} or null = the stock palette.
   sectionColors             Json?
-  logoWallpaper             Boolean     @default(false) // legacy wallpaper toggle — superseded by `wallpaper`; null wallpaper + true here still means "logo"
+  logoWallpaper             Boolean           @default(false) // legacy wallpaper toggle — superseded by `wallpaper`; null wallpaper + true here still means "logo"
   // App wallpaper behind every page: "none" | "logo" | "grid" | "dots" |
   // "blueprint" | "topo" | "pinstripe" (see WALLPAPERS in lib/wallpapers.ts).
   // Null = not chosen yet → falls back to logoWallpaper for pre-existing tenants.
   wallpaper                 String?
-  sidebarTheme              String      @default("white") // desktop sidebar: "black" | "white" | "gray"
+  sidebarTheme              String            @default("white") // desktop sidebar: "black" | "white" | "gray"
   sidebarLogoColor          String? // hex backdrop behind the sidebar logo panel; null = white
   sidebarLogoSize           Int? // desktop rail logo plate height in px (36–128); null = default 56
-  timezone                  String      @default("America/Chicago")
-  surchargeEnabled          Boolean     @default(false)
-  surchargeRate             Decimal     @default(0.0300) @db.Decimal(5, 4)
+  timezone                  String            @default("America/Chicago")
+  surchargeEnabled          Boolean           @default(false)
+  surchargeRate             Decimal           @default(0.0300) @db.Decimal(5, 4)
   // Finix payment processing (Streamflaire Payments). The identity/merchant pair
   // comes from the hosted onboarding form; onboardingState mirrors Finix's
   // merchant onboarding_state (PROVISIONING | APPROVED | REJECTED |
   // UPDATE_REQUESTED). Online charges only run when APPROVED.
   finixOnboardingFormId     String?
   finixIdentityId           String?
-  finixMerchantId           String?     @unique
+  finixMerchantId           String?           @unique
   finixOnboardingState      String?
   // Square (the processor from 2026-10): the seller's OWN Square account,
   // connected by OAuth from Settings → Online Payments. These three are the
   // public-ish handles every charge gate reads (lib/payments-gate.ts
   // canChargeOnline with PAYMENT_PROCESSOR=square); the tokens live on
   // SquareConnection. All three clear together on disconnect / revocation.
-  squareMerchantId          String?     @unique
+  squareMerchantId          String?           @unique
   squareLocationId          String?
   squareConnectedAt         DateTime?
   squareConnection          SquareConnection?
@@ -109,20 +109,20 @@ model Company {
   // until Finix underwriting approves them. This flag exempts a company from
   // that gate (test accounts, comped users) — flipped only from the superadmin
   // console.
-  paymentsWaived            Boolean     @default(false)
+  paymentsWaived            Boolean           @default(false)
   // Company-wide default deposit, applied to preset services with no deposit of
   // their own and used to prefill custom quotes. NONE = no default deposit.
-  defaultDepositType        DepositType @default(NONE)
-  defaultDepositValue       Decimal?    @db.Decimal(10, 2) // percent (0-100) or fixed dollars
+  defaultDepositType        DepositType       @default(NONE)
+  defaultDepositValue       Decimal?          @db.Decimal(10, 2) // percent (0-100) or fixed dollars
   // Default sales-tax rate as a fraction (0.0825 = 8.25%). Prefills new quotes
   // and invoices and applies to engine-generated (recurring) invoices; each
   // document can still override or clear its own rate. null = no tax.
-  defaultTaxRate            Decimal?    @db.Decimal(5, 4)
+  defaultTaxRate            Decimal?          @db.Decimal(5, 4)
   // Floor for the next quote / invoice number (lib/doc-numbers.ts) so a new
   // shop can pick up where its old system left off instead of at #1. Never
   // lowers numbering: the next number is max(last + 1, start).
-  quoteNumberStart          Int         @default(1)
-  invoiceNumberStart        Int         @default(1)
+  quoteNumberStart          Int               @default(1)
+  invoiceNumberStart        Int               @default(1)
   reviewLink                String?
   // "On my way" text template ({{placeholder}} substitution per lib/messaging.ts);
   // null = the built-in default. Sent from the tech's own phone via an sms: link.
@@ -137,18 +137,25 @@ model Company {
   // per lib/business-hours.ts; null = default weekday hours. serviceZips empty = no
   // service-area restriction. arrivalWindowMinutes = width of the promised window.
   businessHours             Json?
-  serviceZips               String[]    @default([])
-  arrivalWindowMinutes      Int         @default(120)
+  serviceZips               String[]          @default([])
+  arrivalWindowMinutes      Int               @default(120)
   // Drive-time limit for self-scheduling (minutes; null/0 = off). When on,
   // online booking only offers days where the visit clusters with the tech's
   // existing route — an anchor visit (or the shop) within this many estimated
   // drive minutes of the client's address. Requires the address before times
   // show. See bookingDriveFilter in lib/booking-availability.ts.
   bookingDriveLimitMinutes  Int?
+  // Automatic lunch for the route optimizer: a break of breakMinutes placed
+  // somewhere inside [breakAfterMin, breakBeforeMin] (minutes from midnight,
+  // company-local) on every day it optimizes, unless the tech already has a
+  // BREAK block that day. 0 = no automatic break.
+  breakMinutes              Int               @default(30)
+  breakAfterMin             Int               @default(690)
+  breakBeforeMin            Int               @default(780)
   // Granularity of the even time-slot picker when staff schedule jobs/appointments
   // in-app (minutes). Resolved through lib/scheduling.ts, which is structured so a
   // future route-management system and per-service-type overrides can refine it.
-  schedulingIntervalMinutes Int         @default(30)
+  schedulingIntervalMinutes Int               @default(30)
   industry                  String? // onboarding answer; drives starter price book + future industry defaults
   // AI setup wizard: stamped when the owner applies OR dismisses it — hides
   // the dashboard card either way (the Settings entry stays available)
@@ -177,12 +184,12 @@ model Company {
   // atlasFreePeriodStart names the month it belongs to and the assistant
   // route rolls it forward lazily (see debitAtlasTokens).
   atlasFreePeriodStart      DateTime?
-  atlasFreeTokensUsed       Int         @default(0)
+  atlasFreeTokensUsed       Int               @default(0)
   // LEGACY (2026-09-04): the one-time free trial these two backed was
   // replaced by the monthly free tier above. Unread by code; drop them with
   // `node scripts/db-push-prod.mjs --accept-data-loss` then delete here.
   atlasTrialStartedAt       DateTime?
-  atlasTrialTokensUsed      Int         @default(0)
+  atlasTrialTokensUsed      Int               @default(0)
   // Atlas paid plan (lib/assistant-billing.ts) — NOT LIVE yet: no checkout
   // is wired, the superadmin console grants/revokes it for testing. Same
   // meter as the free tier, bigger allowance: every turn's real Gemini cost
@@ -195,12 +202,12 @@ model Company {
   atlasPlanActiveAt         DateTime?
   atlasPlanLiverySubId      String? // future: the Livery Subscription id backing the plan
   atlasPeriodStart          DateTime?
-  atlasPeriodTokensUsed     Int         @default(0)
+  atlasPeriodTokensUsed     Int               @default(0)
   // Historical: stamped when a merchant came from the old sandbox
   // test-approve bypass (removed 2026-09-01 — everyone completes the hosted
   // underwriting form now; an invite code on /invite waives underwriting
   // instead). Kept for existing rows.
-  finixSandboxApproved      Boolean     @default(false)
+  finixSandboxApproved      Boolean           @default(false)
   // ── Dispatch, the business-line plan, sold through Livery (lib/addon.ts) ──
   // addonEnabled is the superadmin VISIBILITY switch: the upsell page and its
   // settings link only render while it's on (preview = on for Streamflaire
@@ -208,7 +215,7 @@ model Company {
   // when the subscription's first payment lands (or a superadmin override),
   // cleared on cancel / final payment failure. Gate features with
   // hasAddon(company), never on addonEnabled.
-  addonEnabled              Boolean     @default(false)
+  addonEnabled              Boolean           @default(false)
   addonActiveAt             DateTime?
   addonLiverySubId          String? // Livery Subscription id backing the entitlement
   // ── Plan whitelist (lib/plans.ts) — the superadmin console grants add-on
@@ -216,12 +223,12 @@ model Company {
   // everything, comped accounts, testing. Checkout for Shop is not wired
   // yet, so a grant is the only way onto it. Gate with hasPlan(company, id),
   // which also honours a paid Dispatch subscription (addonActiveAt).
-  planGrants                String[]    @default([])
+  planGrants                String[]          @default([])
   // ── Business line (lib/business-line.ts) — the tenant's own local number,
   // bought through Telnyx, carrying their automated texts AND a forwarded
   // business phone line. Texts send from it only once MessagingRegistration
   // is ACTIVE (10DLC); voice forwarding works from the minute it provisions.
-  lineNumber                String?     @unique // E.164
+  lineNumber                String?           @unique // E.164
   lineNumberId              String? // Telnyx phone_numbers resource id
   // The line's own Telnyx messaging profile (created when its 10DLC campaign is
   // filed) so STOP / START / HELP replies carry the business's name — carriers
@@ -259,7 +266,7 @@ model Company {
   // Platform console: a test / internal account (ours, a tester's, the demo).
   // Kept out of every total and chart and listed under "Test accounts" on
   // /superadmin; flipped from the accounts table (lib/console-audit.ts logs it).
-  isTest                    Boolean     @default(false)
+  isTest                    Boolean           @default(false)
   // Self-serve onboarding review: stamped when the company was created through
   // the public /apply flow and a person hasn't reviewed the application yet.
   // The app stays fully usable (banner warns access is provisional); approving
@@ -269,12 +276,12 @@ model Company {
   // Team settings: who gets website/booking leads (null = company owner),
   // and whether SALES users can see invoices & payments for their leads.
   defaultLeadUserId         String?
-  salesSeePayments          Boolean     @default(true)
+  salesSeePayments          Boolean           @default(true)
   // Lead intake webhook (Zapier/Make/ad connectors): POST /api/public/leads/[token].
   // null = intake off; rotating the token kills old integrations instantly.
-  leadWebhookToken          String?     @unique
+  leadWebhookToken          String?           @unique
   // Hide the board's Converted section (recently-won cards) to save screen space
-  hideConvertedLeads        Boolean     @default(false)
+  hideConvertedLeads        Boolean           @default(false)
   teamSize                  String? // onboarding answers below — analytics/marketing
   currentSoftware           String?
   topPriority               String?
@@ -283,13 +290,13 @@ model Company {
   // `${emailFromLocal}@${emailDomain}` once status is "verified"; every other
   // state falls back to the platform EMAIL_FROM. Rails only until the Resend
   // plan supports tenant domains — UI/API gate on EMAIL_DOMAINS_ENABLED.
-  emailDomain               String?     @unique // apex or subdomain the company verified (e.g. "summitplumbing.com")
+  emailDomain               String?           @unique // apex or subdomain the company verified (e.g. "summitplumbing.com")
   emailDomainId             String? // Resend domain id — the handle for verify/status/delete
   emailDomainStatus         String? // Resend status mirror: "pending" | "verified" | "failed" | "temporary_failure"
   emailDomainRecords        Json? // DNS records Resend wants ([{record,name,type,value,status}]) — shown in Settings
   emailFromLocal            String? // local part of the From address; null = "notifications"
-  createdAt                 DateTime    @default(now())
-  updatedAt                 DateTime    @updatedAt
+  createdAt                 DateTime          @default(now())
+  updatedAt                 DateTime          @updatedAt
 
   users                 User[]
   contacts              Contact[]
@@ -317,6 +324,7 @@ model Company {
   tasks                 Task[]
   stickyNotes           StickyNote[]
   contractTemplates     ContractTemplate[]
+  places                Place[]
   contracts             Contract[]
   expenses              Expense[]
   recurringExpenses     RecurringExpense[]
@@ -492,6 +500,9 @@ model User {
   startLat           Float?
   startLng           Float?
   startGeocodedAt    DateTime?
+  // Where the day ends (the return leg Optimize costs): the shop, back where
+  // it started (startAddress, else the shop), or wherever the last stop is.
+  dayEndsAt          DayEnd    @default(SHOP)
   // Profile picture (small client-resized square; same bytes-in-DB pattern
   // as Company.logoData — move to R2 with job photos when volume grows)
   avatarData         Bytes?
@@ -1854,8 +1865,14 @@ model BookingType {
   confirmation         BookingConfirmation @default(INSTANT)
   // In-person: promised window width; null = company default, 0 = exact
   arrivalWindowMinutes Int?
-  // Video: fallback link when the assigned member has none of their own
+  // Video: the rooms this item hands out when the assigned member has none of
+  // their own (Team page). One link = everyone gets it. Several = each booking
+  // takes the next one (round robin from meetingLinkCursor), skipping a room
+  // another video call already holds at that time, so back-to-back bookings
+  // never share a room. meetingLink mirrors the first entry for older readers.
   meetingLink          String?
+  meetingLinks         String[]            @default([])
+  meetingLinkCursor    Int                 @default(0)
   paymentMode          BookingPayment      @default(NONE)
   assignment           BookingAssignment   @default(ROUND_ROBIN)
   // Client self-serve links in the confirmation email (calls by default)
@@ -2028,39 +2045,110 @@ enum TimeBlockSource {
   GOOGLE // mirrored from the user's Google Calendar (lib/google-calendar-pull.ts)
 }
 
-model TimeBlock {
-  id          String          @id @default(cuid())
+// What a time block IS on a route (docs/plans/route-manager-redesign-2026-10-19.md):
+// BLOCK  = busy time (dentist, a meeting) — fixed; routed to only when it has a pin
+// ERRAND = a stop that isn't a client (supply house, dump, parts drop-off) — the
+//          optimizer may place it inside its float window and before a named job
+// BREAK  = lunch / a break — no place, the optimizer slots it inside its window
+enum TimeBlockKind {
+  BLOCK
+  ERRAND
+  BREAK
+}
+
+// A saved spot the team drives to that isn't a client: supply houses, the
+// dump, the yard. Picked in two taps when adding a stop; geocoded once.
+enum PlaceKind {
+  SUPPLY
+  DUMP
+  SHOP
+  YARD
+  OTHER
+}
+
+model Place {
+  id          String    @id @default(cuid())
   companyId   String
-  company     Company         @relation(fields: [companyId], references: [id])
-  // null = everyone in the company
-  userId      String?
-  user        User?           @relation("TimeBlockUser", fields: [userId], references: [id], onDelete: Cascade)
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   createdById String
-  title       String          @default("Blocked off")
+  name        String
+  kind        PlaceKind @default(OTHER)
+  address     String
+  lat         Float?
+  lng         Float?
+  geocodedAt  DateTime?
+  notes       String?   @db.Text
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  timeBlocks TimeBlock[]
+  tasks      Task[]
+
+  @@index([companyId, archivedAt])
+}
+
+// Where a member's day ends — the return leg the optimizer costs.
+// SHOP = back to the business address, START = back where they started
+// (their own start address, else the shop), LAST_STOP = wherever the day ends.
+enum DayEnd {
+  SHOP
+  START
+  LAST_STOP
+}
+
+model TimeBlock {
+  id             String           @id @default(cuid())
+  companyId      String
+  company        Company          @relation(fields: [companyId], references: [id])
+  // null = everyone in the company
+  userId         String?
+  user           User?            @relation("TimeBlockUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdById    String
+  title          String           @default("Blocked off")
   // All-day blocks still store the full day span (00:00 → 23:59:59) so the
   // booking-availability math needs no special case; the flag only moves
   // rendering into the calendar's "Anytime" row.
-  startAt     DateTime
-  endAt       DateTime
-  allDay      Boolean         @default(false)
+  startAt        DateTime
+  endAt          DateTime
+  allDay         Boolean          @default(false)
   // Optional "where I'll be" (dentist, supplier run, a personal errand) so
   // the route engine can drive to and from it: Find a Time and the
   // calendar's drive gaps treat a located block like a fixed stop.
-  address     String?
-  lat         Float?
-  lng         Float?
+  address        String?
+  lat            Float?
+  lng            Float?
+  // Route stops that aren't clients (see TimeBlockKind). An ERRAND picked
+  // from a saved Place carries placeId (the address/pin are copied so the
+  // block stands on its own if the place is archived). A flexible errand or
+  // break has no promised time: the optimizer places it inside
+  // [floatAfterMin, floatBeforeMin] (minutes from midnight, company-local;
+  // null = any time that day) and, for an errand, before `beforeJob`
+  // ("pick up the valve before the Henderson job"). startAt/endAt hold the
+  // placeholder (window start + duration) until an Optimize is applied,
+  // which stamps placedAt; the tech ticks doneAt from the route.
+  kind           TimeBlockKind    @default(BLOCK)
+  placeId        String?
+  place          Place?           @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  flexible       Boolean          @default(false)
+  floatAfterMin  Int?
+  floatBeforeMin Int?
+  beforeJobId    String?
+  beforeJob      Job?             @relation("ErrandBeforeJob", fields: [beforeJobId], references: [id], onDelete: SetNull)
+  placedAt       DateTime?
+  doneAt         DateTime?
   // Two-way calendar sync: GOOGLE blocks mirror one event in the user's own
   // Google Calendar (externalId = the Google event id). Read-only in the app
   // — the pull rewrites/deletes them — and never pushed back out.
-  source      TimeBlockSource @default(MANUAL)
-  externalId  String?
+  source         TimeBlockSource  @default(MANUAL)
+  externalId     String?
   // One occurrence of a repeating block (lib/time-block-series.ts). Editing
   // or removing "just this day" detaches it (seriesId → null, the day lands
   // in the series' skipDates) so a regeneration never brings it back.
-  seriesId    String?
-  series      TimeBlockSeries? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  seriesId       String?
+  series         TimeBlockSeries? @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   @@index([companyId, startAt])
   @@index([userId])
@@ -2200,6 +2288,7 @@ model Job {
   timeEntries    TimeEntry[]
   checklistItems JobChecklistItem[]
   tasks          Task[]
+  errandsBefore  TimeBlock[]        @relation("ErrandBeforeJob")
   quote          Quote?
   invoice        Invoice?
 
@@ -3616,45 +3705,55 @@ enum TaskPriority {
 }
 
 model Task {
-  id           String       @id @default(cuid())
-  companyId    String
-  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdById  String
-  createdBy    User         @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  assigneeId   String
-  assignee     User         @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Cascade)
-  title        String
-  notes        String?      @db.Text
+  id               String       @id @default(cuid())
+  companyId        String
+  company          Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdById      String
+  createdBy        User         @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  assigneeId       String
+  assignee         User         @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Cascade)
+  title            String
+  notes            String?      @db.Text
   // Date-only tasks store the company's local midnight with allDay = true;
   // timed tasks store the instant with allDay = false. Null = no date.
-  dueAt        DateTime?
-  allDay       Boolean      @default(true)
+  dueAt            DateTime?
+  allDay           Boolean      @default(true)
   // When to push the assignee. remindSentAt is the compare-and-set claim
   // (same pattern as Appointment.reminderHourSentAt) so the 5-minute ticker
   // and the hourly cron can both sweep without a double send.
-  remindAt     DateTime?
-  remindSentAt DateTime?
-  priority     TaskPriority @default(NORMAL)
-  doneAt       DateTime?
-  doneById     String?
+  remindAt         DateTime?
+  remindSentAt     DateTime?
+  priority         TaskPriority @default(NORMAL)
+  doneAt           DateTime?
+  doneById         String?
   // Optional links. A deleted contact / job / quote / invoice / call just
   // drops the link — the task is the person's own to-do, not the record's
   // (audit 2026-10-06: a Cascade here silently deleted tasks on client delete
   // and on "Add to existing").
-  contactId    String?
-  contact      Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  jobId        String?
-  job          Job?         @relation(fields: [jobId], references: [id], onDelete: SetNull)
-  quoteId      String?
-  quote        Quote?       @relation(fields: [quoteId], references: [id], onDelete: SetNull)
-  invoiceId    String?
-  invoice      Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
-  callId       String?
-  call         Call?        @relation(fields: [callId], references: [id], onDelete: SetNull)
+  contactId        String?
+  contact          Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  jobId            String?
+  job              Job?         @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  quoteId          String?
+  quote            Quote?       @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  invoiceId        String?
+  invoice          Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  callId           String?
+  call             Call?        @relation(fields: [callId], references: [id], onDelete: SetNull)
+  // A task with a place is a stop on the assignee's route for its due day
+  // (lib/route-plan.ts): "drop the keys at the office", "pick up the permit".
+  // placeId copies a saved Place's address/pin; estimatedMinutes is how long
+  // the stop takes (null = 15).
+  address          String?
+  lat              Float?
+  lng              Float?
+  placeId          String?
+  place            Place?       @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  estimatedMinutes Int?
   // Phase 3 (recurring tasks) — unused until then.
-  recurrence   Json?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  recurrence       Json?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   @@index([companyId, assigneeId, doneAt])
   @@index([remindAt, remindSentAt])

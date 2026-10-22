@@ -14,6 +14,7 @@ import {
   ChevronRight,
   ChevronUp,
   Check,
+  Coffee,
   CornerDownRight,
   Crosshair,
   GripVertical,
@@ -32,10 +33,15 @@ import {
   Printer,
   Route as RouteIcon,
   Send,
+  ShoppingBag,
+  SquareCheck,
+  Trash2,
   Wand2,
+  Warehouse,
   X,
 } from "lucide-react";
 import Modal from "@/components/Modal";
+import AddStopSheet from "./AddStopSheet";
 import { Chip, InfoTip } from "@/components/ds";
 import { hapticImpact } from "@/lib/haptics";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -84,9 +90,11 @@ const ANCHOR_PRESETS: { value: string; label: string }[] = [
   { value: "10:00", label: "10 AM" },
 ];
 
+type StopKind = "job" | "appointment" | "block" | "errand" | "break" | "task";
+
 type RouteStop = {
   id: string;
-  kind: "job" | "appointment" | "block";
+  kind: StopKind;
   jobNumber: number | null;
   title: string;
   status: string;
@@ -106,6 +114,11 @@ type RouteStop = {
   assigneeIds: string[];
   lat: number | null;
   lng: number | null;
+  /** Optimize may give it a time (a flexible errand / break, an all-day task). */
+  flexible: boolean;
+  /** An errand that must come before this job. */
+  beforeStopId: string | null;
+  durationMin: number | null;
 };
 
 type UnscheduledJob = {
@@ -141,7 +154,7 @@ type RouteDay = {
 
 type OptimizeStop = {
   id: string;
-  kind: "job" | "appointment";
+  kind: StopKind;
   jobNumber: number | null;
   title: string;
   contactName: string;
@@ -161,7 +174,7 @@ type OptimizeStop = {
 
 type PinnedStop = {
   id: string;
-  kind: "job" | "appointment" | "block";
+  kind: StopKind;
   title: string;
   contactName: string;
   reason: string;
@@ -176,6 +189,10 @@ type OptimizeResult = {
   stops: OptimizeStop[];
   anchorTime: string;
   roundTrip: boolean;
+  /** Where the costed return leg goes (the member's "day ends at"). */
+  endsAt?: "START" | "SHOP" | "LAST_STOP";
+  /** The company's automatic lunch was slotted in (saved as a break on apply). */
+  breakAdded?: boolean;
   measured: boolean;
   totalDistanceMiles: number;
   returnMinutes: number | null;
@@ -438,6 +455,9 @@ export default function RouteMapClient({
   const [listDrag, setListDrag] = useState<ListDrag | null>(null);
   const listDragRef = useRef<ListDrag | null>(null);
   const [reassigning, setReassigning] = useState("");
+  /** "Add a stop" sheet: whose day it lands on. */
+  const [addStopFor, setAddStopFor] = useState<{ userId: string; name: string } | null>(null);
+  const [ticking, setTicking] = useState("");
 
   // Selection replaces popups: a pin tap or a row tap picks a stop
   const [selected, setSelected] = useState<string | null>(null);
@@ -466,7 +486,7 @@ export default function RouteMapClient({
     (next: { date?: string; team?: string }) => {
       const d = next.date ?? date;
       const t = next.team ?? team;
-      router.push(`/app/schedule/map?date=${d}${t ? `&team=${t}` : ""}`);
+      router.push(`/app/routes?date=${d}${t ? `&team=${t}` : ""}`);
     },
     [router, date, team]
   );
@@ -566,10 +586,10 @@ export default function RouteMapClient({
     [canDispatch, team, users, groups]
   );
 
-  /** May this stop be handed to that member? (Never to nobody; appointments never to a tech.) */
+  /** May this stop be handed to that member? (Never to nobody; appointments never to a tech; busy time and lunch stay put.) */
   const canDropOn = useCallback(
     (stop: RouteStop, toUserId: string) => {
-      if (!toUserId || stop.kind === "block") return false;
+      if (!toUserId || stop.kind === "block" || stop.kind === "break") return false;
       const target = allUsers.find((u) => u.id === toUserId);
       if (!target || !target.isActive) return false;
       if (stop.kind === "appointment" && target.role === "TECH") return false;
@@ -727,11 +747,15 @@ export default function RouteMapClient({
           points.push([s.lat, s.lng]);
           path.push([s.lat, s.lng]);
           const delay = reduce ? 0 : Math.min(i, 12) * 30 + gi * 60;
+          // Pin shapes say what a stop is: round = a client, dashed = busy
+          // time, rounded square = an errand or task (the crew's color still)
           const icon = L.divIcon({
             html:
               s.kind === "block"
                 ? `<div class="route-pin route-pin-block" style="border-color:${g.color};animation-delay:${delay}ms"><span>${i + 1}</span></div>`
-                : `<div class="route-pin" style="background:${g.color};animation-delay:${delay}ms"><span>${i + 1}</span></div>`,
+                : s.kind === "errand" || s.kind === "task"
+                  ? `<div class="route-pin route-pin-errand" style="background:${g.color};animation-delay:${delay}ms"><span>${i + 1}</span></div>`
+                  : `<div class="route-pin" style="background:${g.color};animation-delay:${delay}ms"><span>${i + 1}</span></div>`,
             className: "",
             iconSize: [28, 28],
             iconAnchor: [14, 14],
@@ -1017,12 +1041,20 @@ export default function RouteMapClient({
       const body: Record<string, unknown> =
         stop.kind === "job"
           ? { assigneeIds: [...stop.assigneeIds.filter((id) => id !== fromUserId && id !== toUserId), ...(toUserId ? [toUserId] : [])] }
-          : { assignedToId: toUserId || null };
-      const { ok, data: res } = await postJson<{ error?: string; conflicts?: string[] }>(
-        stop.kind === "job" ? `/api/app/jobs/${stop.id}` : `/api/app/appointments/${stop.id}`,
-        body,
-        "PATCH"
-      );
+          : stop.kind === "appointment"
+            ? { assignedToId: toUserId || null }
+            : stop.kind === "task"
+              ? { assigneeId: toUserId }
+              : { forUserId: toUserId };
+      const url =
+        stop.kind === "job"
+          ? `/api/app/jobs/${stop.id}`
+          : stop.kind === "appointment"
+            ? `/api/app/appointments/${stop.id}`
+            : stop.kind === "task"
+              ? `/api/app/tasks/${stop.id}`
+              : `/api/app/time-blocks/${stop.id}`;
+      const { ok, data: res } = await postJson<{ error?: string; conflicts?: string[] }>(url, body, "PATCH");
       setReassigning("");
       if (!ok) {
         setError(res?.error ?? GENERIC_ERROR);
@@ -1106,7 +1138,13 @@ export default function RouteMapClient({
       // server ignores ids it can't route (done, started, pinned), so a
       // half-finished day reorders fine.
       const routable = from.stops
-        .filter((s) => s.lat != null && s.progress !== "done" && (s.kind === "job" ? s.status === "ACTIVE" : s.kind === "appointment" && !s.tentative))
+        .filter(
+          (s) =>
+            s.progress !== "done" &&
+            (s.kind === "break"
+              ? s.flexible
+              : s.lat != null && (s.kind === "job" ? s.status === "ACTIVE" : s.kind === "appointment" ? !s.tentative : s.kind !== "block" && s.flexible))
+        )
         .map((s) => s.id);
       runOptimize(from.userId, ids.filter((id) => routable.includes(id)));
     };
@@ -1217,9 +1255,45 @@ export default function RouteMapClient({
     return () => window.removeEventListener("keydown", onKey);
   }, [preview]);
 
+  // ── Errands, breaks and tasks: tick done, or take them off the day ───────
+  const tickStop = useCallback(
+    async (stop: RouteStop, done: boolean) => {
+      setTicking(stop.id);
+      const { ok, data: res } =
+        stop.kind === "task"
+          ? await postJson<{ error?: string }>(`/api/app/tasks/${stop.id}/done`, { done })
+          : await postJson<{ error?: string }>(`/api/app/time-blocks/${stop.id}`, { done }, "PATCH");
+      setTicking("");
+      if (!ok) {
+        setError(res?.error ?? GENERIC_ERROR);
+        return;
+      }
+      hapticImpact("LIGHT");
+      refresh();
+    },
+    [refresh]
+  );
+  const removeStop = useCallback(
+    async (stop: RouteStop) => {
+      setTicking(stop.id);
+      const { ok, data: res } = await postJson<{ error?: string }>(`/api/app/time-blocks/${stop.id}`, undefined, "DELETE");
+      setTicking("");
+      if (!ok) {
+        setError(res?.error ?? GENERIC_ERROR);
+        return;
+      }
+      hapticImpact("LIGHT");
+      setApplied(`${stop.title} taken off the day.`);
+      refresh();
+    },
+    [refresh]
+  );
+  /** May this person add a stop to that day? Managers + office for anyone; everyone for themselves. */
+  const mayAddStop = useCallback((userId: string) => Boolean(userId) && (canDispatch || userId === meId), [canDispatch, meId]);
+
   /** This day's route page for one crew — a link a teammate can open in WorkBench. */
   const appRouteHref = (userId: string) =>
-    `${typeof window !== "undefined" ? window.location.origin : ""}/app/schedule/map?date=${date}${userId ? `&team=${userId}` : ""}`;
+    `${typeof window !== "undefined" ? window.location.origin : ""}/app/routes?date=${date}${userId ? `&team=${userId}` : ""}`;
 
   const copyRoute = async (href: string, key: string) => {
     try {
@@ -1343,13 +1417,25 @@ export default function RouteMapClient({
                 : "Jobs with a scheduled date show up here as a route."}
             </InfoTip>
           </p>
-          <Link
-            href={`/app/schedule?view=day&date=${date}`}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-[10px] btn-tool-line bg-white px-3 py-1.5 text-sm font-medium text-gray-700"
-          >
-            <CalendarDays size={14} />
-            Open the calendar
-          </Link>
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+            <Link
+              href={`/app/schedule?view=day&date=${date}`}
+              className="inline-flex items-center gap-1.5 rounded-[10px] btn-tool-line bg-white px-3 py-1.5 text-sm font-medium text-gray-700"
+            >
+              <CalendarDays size={14} />
+              Open the calendar
+            </Link>
+            {(team || !canDispatch || users.length <= 1) && mayAddStop(team || meId) && (
+              <button
+                type="button"
+                onClick={() => setAddStopFor({ userId: team || meId, name: users.find((u) => u.id === (team || meId))?.name ?? meName })}
+                className="inline-flex items-center gap-1.5 rounded-[10px] btn-tool-line bg-white px-3 py-1.5 text-sm font-medium text-gray-700"
+              >
+                <Plus size={14} />
+                Add a stop
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -1400,7 +1486,7 @@ export default function RouteMapClient({
                       Optimize works per tech — assign these stops to order them.
                     </p>
                   )}
-                  {g.userId !== "" && mayOptimize(g.userId) && g.stops.length >= 2 && pinned < 2 && (
+                  {g.userId !== "" && mayOptimize(g.userId) && g.stops.length >= 1 && pinned < 1 && (
                     <p className="text-[11px] font-medium text-[color:var(--ds-warn)]">{optimizeBlocker}</p>
                   )}
                   {g.inactive && (
@@ -1435,10 +1521,21 @@ export default function RouteMapClient({
                     </button>
                   </>
                 )}
+                {mayAddStop(g.userId) && !g.inactive && (
+                  <button
+                    type="button"
+                    onClick={() => setAddStopFor({ userId: g.userId, name: g.name })}
+                    title="Add an errand, a task or lunch to this day"
+                    aria-label={`Add a stop to ${g.name}'s day`}
+                    className="flex h-8 w-8 items-center justify-center rounded-[10px] btn-tool-line bg-white text-gray-700 hover:bg-gray-50"
+                  >
+                    <Plus size={14} />
+                  </button>
+                )}
                 {mayOptimize(g.userId) && g.stops.length >= 1 && (
                   <button
                     onClick={() => runOptimize(g.userId)}
-                    disabled={previewBusy || pinned < 2}
+                    disabled={previewBusy || pinned < 1}
                     title={optimizeBlocker ?? "Order this route by drive time"}
                     className="flex items-center gap-1.5 rounded-[10px] btn-tool-line bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-800 transition-colors hover:bg-gray-50 disabled:opacity-50"
                   >
@@ -1460,6 +1557,9 @@ export default function RouteMapClient({
                 const isSelected = selected === key;
                 const window_ = windowLabel(s, tz);
                 const done = s.progress === "done";
+                const extra = s.kind === "errand" || s.kind === "break" || s.kind === "task";
+                const mayTick = extra && (canDispatch || g.userId === meId);
+                const beforeTitle = s.beforeStopId ? g.stops.find((x) => x.id === s.beforeStopId)?.title ?? null : null;
                 return (
                   <li key={s.id} data-stop-row data-stop-key={key} data-group={g.userId} data-index={i} className={insertBefore ? "border-t-2 border-t-[color:var(--ds-primary)]" : ""}>
                     {leg != null && leg > 0 && (
@@ -1502,38 +1602,78 @@ export default function RouteMapClient({
                       ) : (
                         <span className="w-1" />
                       )}
-                      <span
-                        className={`numeral-ledger flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
-                          s.progress === "active" ? "route-stop-active" : ""
-                        }`}
-                        style={{ background: s.lat == null ? "var(--ds-faint)" : done ? "var(--ds-good)" : g.color }}
-                        title={done ? "Done" : s.progress === "active" ? "On site now" : undefined}
-                      >
-                        {done ? <Check size={13} strokeWidth={3} /> : i + 1}
-                      </span>
+                      {mayTick ? (
+                        <button
+                          type="button"
+                          disabled={ticking === s.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            tickStop(s, !done);
+                          }}
+                          aria-label={done ? `Mark ${s.title} not done` : `Mark ${s.title} done`}
+                          title={done ? "Not done after all" : "Done"}
+                          className={`no-print flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors disabled:opacity-50 ${
+                            done ? "bg-[color:var(--ds-good)] text-white" : "border-2 text-transparent hover:text-gray-400"
+                          }`}
+                          style={done ? undefined : { borderColor: s.kind === "break" ? "var(--ds-faint)" : g.color }}
+                        >
+                          {ticking === s.id ? <Loader2 size={12} className="animate-spin text-gray-400" /> : done ? <Check size={13} strokeWidth={3} /> : <Check size={12} strokeWidth={3} />}
+                        </button>
+                      ) : (
+                        <span
+                          className={`numeral-ledger flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
+                            s.progress === "active" ? "route-stop-active" : ""
+                          }`}
+                          style={{ background: s.lat == null && s.kind !== "break" ? "var(--ds-faint)" : done ? "var(--ds-good)" : s.kind === "break" ? "var(--ds-faint)" : g.color }}
+                          title={done ? "Done" : s.progress === "active" ? "On site now" : undefined}
+                        >
+                          {done ? <Check size={13} strokeWidth={3} /> : s.kind === "break" ? <Coffee size={12} /> : i + 1}
+                        </span>
+                      )}
                       <div className="min-w-0 flex-1">
                         <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-gray-900">
                           <span className="truncate">{s.title}</span>
                           {s.kind === "appointment" && <span className="stamp shrink-0 text-purple-700">Appt</span>}
                           {s.kind === "block" && <span className="stamp shrink-0 text-gray-600">Busy</span>}
+                          {s.kind === "errand" && (
+                            <span className="stamp inline-flex shrink-0 items-center gap-0.5 text-gray-600" title="A stop that isn't a client">
+                              <ShoppingBag size={10} /> Errand
+                            </span>
+                          )}
+                          {s.kind === "break" && (
+                            <span className="stamp inline-flex shrink-0 items-center gap-0.5 text-gray-600">
+                              <Coffee size={10} /> Break
+                            </span>
+                          )}
+                          {s.kind === "task" && (
+                            <span className="stamp inline-flex shrink-0 items-center gap-0.5 text-gray-600">
+                              <SquareCheck size={10} /> Task
+                            </span>
+                          )}
                           {s.progress === "active" && <span className="stamp shrink-0 text-[color:var(--ds-good)]">On site</span>}
-                          {s.lat == null && (
+                          {s.lat == null && s.kind !== "break" && (
                             <span className="shrink-0">
                               <Chip tone="warn">No pin</Chip>
                             </span>
                           )}
                         </p>
                         <p className="truncate text-xs text-gray-500">
-                          {s.kind === "block" ? "Blocked off" : s.contactName}
+                          {s.kind === "block" ? "Blocked off" : s.kind === "break" ? `${s.durationMin ?? 30} min` : s.contactName}
                           {s.address ? ` · ${s.address}` : ""}
+                          {extra && s.kind !== "break" && s.durationMin ? ` · ${s.durationMin} min` : ""}
                         </p>
                         {window_ && (
-                          <p className="numeral-ledger text-[11px] font-medium text-[color:var(--ds-warn)]" title="When the client can take the visit">
-                            Client: {window_}
+                          <p className="numeral-ledger text-[11px] font-medium text-[color:var(--ds-warn)]" title={extra ? "When this stop can happen" : "When the client can take the visit"}>
+                            {extra ? "Window" : "Client"}: {window_}
+                          </p>
+                        )}
+                        {beforeTitle && (
+                          <p className="truncate text-[11px] font-medium text-[color:var(--ds-warn)]" title="Optimize keeps this stop ahead of that job">
+                            Before: {beforeTitle}
                           </p>
                         )}
                       </div>
-                      {g.userId === "" && canDispatch && s.kind !== "block" && users.length > 0 && (
+                      {g.userId === "" && canDispatch && (s.kind === "job" || s.kind === "appointment") && users.length > 0 && (
                         <select
                           value=""
                           disabled={reassigning === s.id}
@@ -1574,14 +1714,29 @@ export default function RouteMapClient({
                               Go
                             </button>
                           )}
-                          {s.kind !== "block" && (
+                          {(s.kind === "job" || s.kind === "appointment" || s.kind === "task") && (
                             <Link
-                              href={s.kind === "job" ? `/app/jobs/${s.id}` : `/app/appointments/${s.id}`}
+                              href={s.kind === "job" ? `/app/jobs/${s.id}` : s.kind === "appointment" ? `/app/appointments/${s.id}` : `/app/tasks?task=${s.id}`}
                               onClick={(e) => e.stopPropagation()}
                               className="text-[11px] font-semibold text-[color:var(--ds-primary)] hover:underline"
                             >
                               Open
                             </Link>
+                          )}
+                          {(s.kind === "errand" || s.kind === "break") && mayTick && (
+                            <button
+                              type="button"
+                              disabled={ticking === s.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeStop(s);
+                              }}
+                              className="flex items-center gap-0.5 text-[11px] font-semibold text-gray-400 hover:text-[color:var(--ds-bad)] disabled:opacity-50"
+                              title={s.kind === "break" ? "Skip lunch today" : "Take this stop off the day"}
+                            >
+                              <Trash2 size={10} />
+                              {s.kind === "break" ? "Skip" : "Remove"}
+                            </button>
                           )}
                         </span>
                       </div>
@@ -1641,6 +1796,7 @@ export default function RouteMapClient({
           font-variant-numeric: lining-nums tabular-nums;
         }
         .route-pin-start { background: ${INK}; border-radius: 9px; }
+        .route-pin-errand { border-radius: 8px; }
         .route-pin-block { background: #fff; border-width: 3px; border-style: dashed; }
         .route-pin-block span { color: #374151; }
         .route-pin-start span { font-size: 10px; letter-spacing: 0.03em; }
@@ -1809,6 +1965,10 @@ export default function RouteMapClient({
             <span className="mx-2 h-px bg-gray-200" aria-hidden />
             <Link href={`/app/schedule?view=day&date=${date}${team ? `&team=${team}` : ""}`} className={ctl} aria-label="Open the calendar" title="Calendar">
               <CalendarDays size={15} />
+            </Link>
+            <span className="mx-2 h-px bg-gray-200" aria-hidden />
+            <Link href="/app/routes/places" className={ctl} aria-label="Places — supply houses, the dump, the yard" title="Places">
+              <Warehouse size={15} />
             </Link>
             <span className="mx-2 hidden h-px bg-gray-200 lg:block" aria-hidden />
             <button type="button" onClick={() => window.print()} className={`${ctl} hidden lg:flex`} aria-label="Print the day sheet" title="Print the day sheet">
@@ -2026,11 +2186,17 @@ export default function RouteMapClient({
                     }
                     className="rounded text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
                   />
-                  End the day back at the start
+                  {preview.endsAt === "SHOP" ? "End the day at the shop" : "End the day back where it started"}
                   {preview.roundTrip && preview.returnMinutes != null && (
-                    <span className="numeral-ledger text-gray-400">(+{preview.returnMinutes} min home)</span>
+                    <span className="numeral-ledger text-gray-400">(+{preview.returnMinutes} min back)</span>
                   )}
                 </label>
+                {preview.breakAdded && (
+                  <p className="flex items-center gap-1.5 pt-1 text-xs text-gray-600">
+                    <Coffee size={13} className="shrink-0 text-gray-400" />
+                    Lunch slotted in from the company setting — it&apos;s saved on the day when you apply.
+                  </p>
+                )}
               </div>
               {preview.warnings.length > 0 && (
                 <div className="mb-3 rounded-lg bg-[color:var(--ds-warn-soft)] px-3 py-2 text-xs text-[color:var(--ds-warn)]">
@@ -2102,6 +2268,9 @@ export default function RouteMapClient({
                       <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-gray-900">
                         <span className="truncate">{s.title}</span>
                         {s.kind === "appointment" && <span className="stamp shrink-0 text-purple-700">Appt</span>}
+                        {s.kind === "errand" && <span className="stamp shrink-0 text-gray-600">Errand</span>}
+                        {s.kind === "break" && <span className="stamp shrink-0 text-gray-600">Break</span>}
+                        {s.kind === "task" && <span className="stamp shrink-0 text-gray-600">Task</span>}
                         {s.reminded && <span className="stamp shrink-0 text-[color:var(--ds-warn)]" title="The client already got a reminder for the old time">Reminded</span>}
                         {s.late && <span className="shrink-0"><Chip tone="bad">Late</Chip></span>}
                       </p>
@@ -2112,7 +2281,11 @@ export default function RouteMapClient({
                         <span className="font-semibold text-gray-800">
                           {fmtTime(s.proposedStart, tz)} – {fmtTime(s.proposedEnd, tz)}
                         </span>
-                        {windowLabel(s, tz) && <span className="ml-1.5 text-[color:var(--ds-warn)]">client: {windowLabel(s, tz)}</span>}
+                        {windowLabel(s, tz) && (
+                          <span className="ml-1.5 text-[color:var(--ds-warn)]">
+                            {s.kind === "job" || s.kind === "appointment" ? "client" : "window"}: {windowLabel(s, tz)}
+                          </span>
+                        )}
                         {s.waitMinutes >= 15 && <span className="ml-1.5 text-gray-400">waits {s.waitMinutes}m</span>}
                       </p>
                     </div>
@@ -2183,6 +2356,28 @@ export default function RouteMapClient({
           </div>
         )}
       </Modal>
+
+      {/* Add a stop — an errand, a task with a place, or lunch */}
+      <AddStopSheet
+        open={Boolean(addStopFor)}
+        onClose={() => setAddStopFor(null)}
+        date={date}
+        dateLabel={fmtDateLabel(date)}
+        userId={addStopFor?.userId ?? ""}
+        userName={addStopFor?.name ?? ""}
+        jobs={
+          addStopFor
+            ? (groups.find((g) => g.userId === addStopFor.userId)?.stops ?? [])
+                .filter((s) => s.kind === "job" && s.progress !== "done")
+                .map((s) => ({ id: s.id, title: s.title, contactName: s.contactName }))
+            : []
+        }
+        onAdded={(msg) => {
+          hapticImpact("LIGHT");
+          setApplied(msg);
+          refresh();
+        }}
+      />
     </div>
   );
 }

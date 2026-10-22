@@ -88,6 +88,11 @@ export async function POST(req: NextRequest) {
           quoteId: data.quoteId ?? null,
           invoiceId: data.invoiceId ?? null,
           callId: data.callId ?? null,
+          address: data.address ?? null,
+          lat: data.lat ?? null,
+          lng: data.lng ?? null,
+          placeId: data.placeId ?? null,
+          estimatedMinutes: data.estimatedMinutes ?? null,
         },
         include: taskInclude,
       })

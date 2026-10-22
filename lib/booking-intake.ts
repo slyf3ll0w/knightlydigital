@@ -38,6 +38,16 @@ export type StdField = {
 /** Words for the address question when the owner hasn't changed them. */
 export const ADDRESS_DEFAULTS = { label: "Service address", placeholder: "123 Main St, Plano, TX 75024" } as const;
 
+/**
+ * The owner's words for the moment after someone books or sends: the screen
+ * they land on ("" = the default for the kind and mode) and a note carried
+ * into the confirmation screen, email and text (directions, parking, what to
+ * have ready). Request items have no client confirmation, so there the note
+ * only shows on the screen.
+ */
+export type DoneWords = { heading: string; body: string; note: string };
+export const MAX_DONE_NOTE = 300;
+
 export type BookingIntake = {
   /** Page heading; "" = the item's name */
   heading: string;
@@ -61,6 +71,8 @@ export type BookingIntake = {
     options: FieldOption[];
   };
   customFields: CustomField[];
+  /** After they book / send: screen words + a note for the confirmations */
+  done: DoneWords;
   /** SERVICE items in request mode: what the submission produces */
   quoteMode: "draft" | "send";
   /** SERVICE items: customers may pick more than one service */
@@ -139,9 +151,49 @@ export function defaultIntake(kind: BookingKind, mode: BookingMode): BookingInta
       options: [],
     },
     customFields: [],
+    done: { heading: "", body: "", note: "" },
     quoteMode: "draft",
     allowMultiple: true,
   };
+}
+
+/** The after-booking screen when the owner hasn't written their own words. */
+export function defaultDoneWords(type: {
+  kind: BookingKind;
+  mode: BookingMode;
+  confirmation: "INSTANT" | "APPROVAL";
+  quoteMode?: "draft" | "send";
+}): { heading: string; body: string } {
+  if (type.mode === "REQUEST") {
+    return {
+      heading: type.kind === "MESSAGE" ? "Message sent" : "Request received",
+      body:
+        type.kind === "SERVICE"
+          ? type.quoteMode === "send"
+            ? "Your quote is on its way — check your email."
+            : "We'll send your quote shortly."
+          : type.kind === "MESSAGE"
+            ? "We'll be in touch within 1 business day."
+            : "We'll be in touch within 1 business day to set a time.",
+    };
+  }
+  return type.confirmation === "APPROVAL"
+    ? { heading: "You're penciled in!", body: "We'll confirm shortly — watch your inbox." }
+    : { heading: "You're booked!", body: "A confirmation with calendar invite is on its way to your inbox." };
+}
+
+/** The after-booking screen as it should render: the owner's words, else the defaults. */
+export function doneWords(
+  intake: Pick<BookingIntake, "done" | "quoteMode">,
+  type: { kind: BookingKind; mode: BookingMode; confirmation: "INSTANT" | "APPROVAL" }
+): { heading: string; body: string; note: string | null } {
+  const d = defaultDoneWords({ ...type, quoteMode: intake.quoteMode });
+  return { heading: intake.done.heading || d.heading, body: intake.done.body || d.body, note: intake.done.note || null };
+}
+
+/** The confirmation note on a stored item (null column = none). Server side, for the emails and texts. */
+export function confirmationNote(type: { intake: unknown; kind: BookingKind; mode: BookingMode }): string | null {
+  return sanitizeIntake(type.intake, type.kind, type.mode).done.note || null;
 }
 
 /**
@@ -166,6 +218,7 @@ export function sanitizeIntake(raw: unknown, kind: BookingKind, mode: BookingMod
   };
   const message = (r.message ?? {}) as Record<string, unknown>;
   const sq = (r.serviceQuestion ?? {}) as Record<string, unknown>;
+  const done = (r.done ?? {}) as Record<string, unknown>;
   const fields = {
     email: stdField("email"),
     phone: stdField("phone"),
@@ -199,6 +252,7 @@ export function sanitizeIntake(raw: unknown, kind: BookingKind, mode: BookingMod
             options: sanitizeOptions(sq.options),
           },
     customFields: sanitizeCustomFields(r.customFields),
+    done: { heading: str(done.heading, 80), body: str(done.body, 300), note: str(done.note, MAX_DONE_NOTE) },
     quoteMode: r.quoteMode === "send" ? "send" : "draft",
     allowMultiple: r.allowMultiple !== false,
   };

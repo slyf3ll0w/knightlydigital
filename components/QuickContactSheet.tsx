@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Modal from "@/components/Modal";
-import { Input } from "@/components/Input";
+import { Input, inputCls } from "@/components/Input";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { Button } from "@/components/ds";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { formatPhoneAsTyped, splitName, titleCaseName } from "@/lib/phone-input";
@@ -35,6 +36,11 @@ export default function QuickContactSheet({
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [address, setAddress] = useState("");
+  // A client with no address can't be a stop on a route — the first "Add
+  // client" without one says so and waits; the second saves anyway
+  // (David 2026-10-19: nudge, don't block).
+  const [nudged, setNudged] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -44,6 +50,8 @@ export default function QuickContactSheet({
     setName(initialName.trim());
     setPhone("");
     setEmail("");
+    setAddress("");
+    setNudged(false);
     setError("");
     setBusy(false);
   }, [open, initialName]);
@@ -62,13 +70,19 @@ export default function QuickContactSheet({
       setError("Name is required.");
       return;
     }
+    if (kind === "CLIENT" && !address.trim() && !nudged) {
+      setNudged(true);
+      setError("");
+      return;
+    }
     setBusy(true);
     setError("");
-    const { ok, data } = await postJson<{ id: string; firstName: string; lastName: string }>("/api/app/contacts", {
+    const { ok, data } = await postJson<{ id: string; firstName: string; lastName: string; address?: string | null }>("/api/app/contacts", {
       firstName,
       lastName,
       phone: phone.trim() || undefined,
       email: email.trim() || undefined,
+      address: address.trim() || undefined,
       kind,
       // A person you are quoting or billing is a client, not a lead to chase
       status: "ACTIVE",
@@ -78,7 +92,7 @@ export default function QuickContactSheet({
       setError(data?.error ?? GENERIC_ERROR);
       return;
     }
-    onCreated({ id: data.id, firstName: data.firstName ?? firstName, lastName: data.lastName ?? lastName });
+    onCreated({ id: data.id, firstName: data.firstName ?? firstName, lastName: data.lastName ?? lastName, address: address.trim() || null });
     onClose();
   }
 
@@ -126,12 +140,39 @@ export default function QuickContactSheet({
           </label>
           <Input id="qc-email" type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" />
         </div>
+        {kind === "CLIENT" && (
+          <div className="mt-3">
+            <label htmlFor="qc-address" className="mb-1 block text-sm font-medium text-gray-700">
+              Address
+            </label>
+            <AddressAutocomplete
+              id="qc-address"
+              endpoint="/api/app/geocode/suggest"
+              value={address}
+              onChange={(v) => {
+                setAddress(v);
+                if (v.trim()) setNudged(false);
+              }}
+              onPick={(a) => {
+                setAddress(a.label);
+                setNudged(false);
+              }}
+              placeholder="Street, city, state"
+              className={inputCls}
+            />
+            {nudged && !address.trim() && (
+              <p role="status" className="mt-2 rounded-lg bg-[color:var(--ds-warn-soft)] px-3 py-2 text-[13px] text-[color:var(--ds-warn)]">
+                No address yet — their jobs won&apos;t show on the map or a route until one is on file. Add it here, or save without.
+              </p>
+            )}
+          </div>
+        )}
         <div className="mt-5 flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
           <Button type="submit" loading={busy}>
-            Add client
+            {nudged && !address.trim() ? "Save without address" : "Add client"}
           </Button>
         </div>
       </form>

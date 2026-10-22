@@ -101,4 +101,42 @@ test("chainWindows: ≤25 points is one window; longer chains overlap by one poi
   assert.deepEqual(chainWindows([1, 2], 25), [[1, 2]]);
 });
 
+test("solveStopOrder: precedence pairs are never violated, and the solver still finds the cheapest legal order", () => {
+  // Start 0; stops 1..4 on a line: 1 is nearest the start, 4 farthest. Forcing 4 before 1
+  // is expensive, so the solver must honour it without ever proposing 1 first.
+  const pos = [0, 1, 2, 3, 4];
+  const m = pos.map((a) => pos.map((b) => Math.abs(a - b) * 10));
+  const free = solveStopOrder(m, 0);
+  assert.deepEqual(free, [0, 1, 2, 3, 4]);
+  const forced = solveStopOrder(m, 0, false, [[4, 1]]);
+  assert.equal(forced.length, 5);
+  assert.ok(forced.indexOf(4) < forced.indexOf(1), `4 must precede 1 in ${forced}`);
+  // The best legal order is 0 → 2 → 3 → 4 → 1 (70) rather than 0 → 4 → 3 → 2 → 1 (70) — either costs 70; nothing cheaper exists
+  assert.equal(routeMinutes(m, forced), 70);
+  // A chain of pairs on random days: every solved order is legal
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let day = 0; day < 40; day++) {
+    const n = 6;
+    const mm = Array.from({ length: n }, () => Array.from({ length: n }, () => Math.round(rnd() * 40) + 1));
+    for (let i = 0; i < n; i++) mm[i][i] = 0;
+    const pairs: [number, number][] = [[3, 1], [5, 3]];
+    const order = solveStopOrder(mm, 0, day % 2 === 0, pairs);
+    assert.equal(order.length, n);
+    assert.ok(order.indexOf(3) < order.indexOf(1) && order.indexOf(5) < order.indexOf(3), `illegal order ${order}`);
+  }
+});
+
+test("solveStopOrder + routeMinutes: a separate end point is costed but never visited", () => {
+  // 0 = home (start), 1..3 stops, 4 = the shop (end). Stop 3 sits next to the shop.
+  const pos = [0, 10, 20, 50, 52];
+  const m = pos.map((a) => pos.map((b) => Math.abs(a - b)));
+  const order = solveStopOrder(m, 0, 4);
+  assert.deepEqual(order, [0, 1, 2, 3], "the end index is left out of the path");
+  assert.equal(routeMinutes(m, order, 4), 52);
+  // Round trip back to the start is the old boolean form
+  assert.equal(routeMinutes(m, [0, 1, 2, 3], true), 100);
+  assert.equal(routeMinutes(m, [0, 1, 2, 3], false), 50);
+});
+
 console.log(`\n${passed} routing tests passed`);

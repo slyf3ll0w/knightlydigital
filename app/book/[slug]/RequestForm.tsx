@@ -8,7 +8,7 @@ import { CheckCircle, Loader2 } from "lucide-react";
 import TurnstileWidget from "@/components/TurnstileWidget";
 import { textOn } from "@/lib/branding";
 import type { PublicBookingType } from "@/lib/booking-runtime";
-import { ADDRESS_DEFAULTS, type CustomField } from "@/lib/booking-intake";
+import { ADDRESS_DEFAULTS, doneWords, type CustomField } from "@/lib/booking-intake";
 import type { ScheduleAppearance } from "./schedule/shell";
 
 /**
@@ -203,15 +203,10 @@ export default function RequestForm({
   }
 
   if (done) {
-    const title = item.kind === "MESSAGE" ? "Message sent" : item.kind === "SERVICE" ? "Request received" : "Request received";
-    const text =
-      item.kind === "SERVICE"
-        ? intake.quoteMode === "send"
-          ? "Your quote is on its way — check your email."
-          : "We'll send your quote shortly."
-        : item.kind === "MESSAGE"
-          ? "We'll be in touch within 1 business day."
-          : "We'll be in touch within 1 business day to set a time.";
+    // The owner's words for this screen, else the defaults for the kind
+    const words = doneWords(intake, { kind: item.kind, mode: "REQUEST", confirmation: "INSTANT" });
+    const title = words.heading;
+    const text = words.body;
     return (
       <div className={`${card} py-10 text-center`}>
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: `${accent}22` }}>
@@ -219,6 +214,7 @@ export default function RequestForm({
         </div>
         <h2 className={`mb-2 text-xl font-bold ${ink}`}>{title}</h2>
         <p className={`text-sm ${muted}`}>{text}</p>
+        {words.note && <p className={`mt-3 whitespace-pre-line text-sm ${muted}`}>{words.note}</p>}
         {doneHref && (
           <Link href={doneHref} className="mt-5 inline-block text-sm font-medium hover:underline" style={{ color: accent }}>
             See your requests

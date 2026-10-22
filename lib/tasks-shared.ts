@@ -65,6 +65,12 @@ export type TaskDTO = {
   quoteId: string | null;
   invoiceId: string | null;
   callId: string | null;
+  /** Where (a saved place or a typed address) — the task is a route stop on its due day when set. */
+  address: string | null;
+  hasPin: boolean;
+  placeId: string | null;
+  placeName: string | null;
+  estimatedMinutes: number | null;
   links: TaskLink[];
   bucket: TaskBucket;
   dueLabel: string | null;

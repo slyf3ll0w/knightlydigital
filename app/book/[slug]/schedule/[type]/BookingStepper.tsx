@@ -9,7 +9,7 @@ import { smsConsentLabel, businessSmsTermsUrl, businessPrivacyUrl } from "@/lib/
 import { zipFromAddress } from "@/lib/business-hours";
 import type { PublicBookingType } from "@/lib/booking-runtime";
 import { durationLabel } from "@/lib/booking-types";
-import { ADDRESS_DEFAULTS, type CustomField } from "@/lib/booking-intake";
+import { ADDRESS_DEFAULTS, doneWords, type CustomField } from "@/lib/booking-intake";
 import type { ScheduleAppearance } from "../shell";
 import PaymentStep, { type PaymentHandle } from "./PaymentStep";
 import type { ClientPayConfig } from "@/lib/pay-config";
@@ -411,6 +411,8 @@ export default function BookingStepper({
 
   // ── Done ──────────────────────────────────────────────────────────────────
   if (booked) {
+    // The owner's words for this screen, else the defaults for the kind
+    const words = doneWords(intake, { kind: type.kind, mode: type.mode, confirmation: booked.tentative ? "APPROVAL" : "INSTANT" });
     const summary = `${booked.typeName} — ${company.name}`;
     const where = booked.address ?? booked.meetingLink ?? null;
     const whenLabel = type.exactTime ? slotLabelIn(booked) : booked.label;
@@ -419,7 +421,7 @@ export default function BookingStepper({
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: `${accent}22` }}>
           <CheckCircle size={28} style={{ color: accent }} />
         </div>
-        <h2 className={`mb-1 text-xl font-bold ${ink}`}>{booked.tentative ? "You're penciled in!" : "You're booked!"}</h2>
+        <h2 className={`mb-1 text-xl font-bold ${ink}`}>{words.heading}</h2>
         <p className={`text-sm font-semibold ${dark ? "text-gray-200" : "text-gray-800"}`}>{booked.typeName}</p>
         <p className={`mt-1 text-lg font-bold ${ink}`}>{whenLabel}</p>
         {type.exactTime && <p className={`text-xs ${muted}`}>{tz.replace(/_/g, " ")}</p>}
@@ -431,9 +433,8 @@ export default function BookingStepper({
           </a>
         )}
         {booked.paidNote && <p className="mt-2 text-sm font-semibold text-green-600">{booked.paidNote}</p>}
-        <p className={`mt-3 text-sm ${muted}`}>
-          {booked.tentative ? "We'll confirm shortly — watch your inbox." : "A confirmation with calendar invite is on its way to your inbox."}
-        </p>
+        <p className={`mt-3 text-sm ${muted}`}>{words.body}</p>
+        {words.note && <p className={`mt-3 whitespace-pre-line text-sm ${muted}`}>{words.note}</p>}
         <div className="mt-5 flex flex-wrap items-center justify-center gap-4 text-sm font-medium">
           <a href={googleUrl(summary, booked.start, booked.end, where)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:underline" style={{ color: accent }}>
             <CalendarPlus size={14} /> Google Calendar

@@ -38,6 +38,8 @@ type Member = {
   /** Online scheduling: personal video room + where the day starts */
   meetingLink: string | null;
   startAddress: string | null;
+  /** Where the day ends for the route optimizer's return leg. */
+  dayEndsAt: "SHOP" | "START" | "LAST_STOP";
   hourlyCost: number | null;
   createdAt: string;
   /** Online now / last seen, worked out on the server (lib/presence.ts). */
@@ -91,7 +93,11 @@ export default function TeamClient({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [resetFor, setResetFor] = useState<string | null>(null);
-  const [extraDraft, setExtraDraft] = useState({ meetingLink: "", startAddress: "" });
+  const [extraDraft, setExtraDraft] = useState<{ meetingLink: string; startAddress: string; dayEndsAt: Member["dayEndsAt"] }>({
+    meetingLink: "",
+    startAddress: "",
+    dayEndsAt: "SHOP",
+  });
   const [resetPassword, setResetPassword] = useState("");
   // Working-hours editor: which member's panel is open + their draft week
   const [hoursFor, setHoursFor] = useState<string | null>(null);
@@ -363,7 +369,7 @@ export default function TeamClient({
                     setResetFor(null);
                     setHoursCustom(m.workingHours != null);
                     setHoursDraft(m.workingHours ?? companyHours);
-                    setExtraDraft({ meetingLink: m.meetingLink ?? "", startAddress: m.startAddress ?? "" });
+                    setExtraDraft({ meetingLink: m.meetingLink ?? "", startAddress: m.startAddress ?? "", dayEndsAt: m.dayEndsAt ?? "SHOP" });
                   }}
                   className={`p-1.5 rounded-full hover:bg-gray-100 active:bg-gray-100 ${
                     m.workingHours ? "text-[color:var(--ds-primary)]" : "text-gray-400 hover:text-gray-700"
@@ -456,7 +462,7 @@ export default function TeamClient({
                       placeholder="https://meet.google.com/…"
                       className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
                     />
-                    <span className="mt-1 block text-[11px] text-gray-400">Sent with video-call bookings assigned to {m.name.split(" ")[0]}.</span>
+                    <span className="mt-1 block text-[11px] text-gray-400">Sent with video-call bookings assigned to {m.name.split(" ")[0]} — wins over the links on the booking item.</span>
                   </label>
                   <label className="block">
                     <span className="mb-1 block text-xs font-medium text-gray-500">Starts the day from</span>
@@ -470,6 +476,19 @@ export default function TeamClient({
                     />
                     <span className="mt-1 block text-[11px] text-gray-400">The first drive of the day is measured from here.</span>
                   </label>
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-medium text-gray-500">Ends the day at</span>
+                    <select
+                      value={extraDraft.dayEndsAt}
+                      onChange={(e) => setExtraDraft({ ...extraDraft, dayEndsAt: e.target.value as Member["dayEndsAt"] })}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+                    >
+                      <option value="SHOP">The shop</option>
+                      <option value="START">Where the day started</option>
+                      <option value="LAST_STOP">Wherever the last stop is</option>
+                    </select>
+                    <span className="mt-1 block text-[11px] text-gray-400">Optimize counts the drive back here when ordering the day.</span>
+                  </label>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -479,6 +498,7 @@ export default function TeamClient({
                           workingHours: hoursCustom ? hoursDraft : null,
                           meetingLink: extraDraft.meetingLink.trim() || null,
                           startAddress: extraDraft.startAddress.trim() || null,
+                          dayEndsAt: extraDraft.dayEndsAt,
                         })
                       )
                         setHoursFor(null);

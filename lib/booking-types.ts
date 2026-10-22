@@ -130,7 +130,10 @@ export type BookingTypeSettings = {
   maxShownPerDay: number;
   confirmation: BookingConfirmation;
   arrivalWindowMinutes: number | null;
+  /** Video: first room of the pool (kept in step with meetingLinks[0]) */
   meetingLink: string | null;
+  /** Video: the rooms handed out in turn when the assigned member has none of their own */
+  meetingLinks: string[];
   paymentMode: BookingPayment;
   assignment: BookingAssignment;
   clientCanReschedule: boolean;
@@ -151,6 +154,17 @@ function oneOf<T extends string>(v: unknown, choices: readonly T[], fallback: T)
 }
 
 const URL_RE = /^https?:\/\/[^\s]{3,500}$/i;
+export const MAX_MEETING_LINKS = 20;
+
+/**
+ * The rooms a video item can hand out: the list when one was saved, else the
+ * single link older rows carry. Empty = no room (the member's own link or
+ * nothing).
+ */
+export function meetingLinkPool(type: { meetingLink: string | null; meetingLinks: string[] }): string[] {
+  if (type.meetingLinks.length) return type.meetingLinks;
+  return type.meetingLink ? [type.meetingLink] : [];
+}
 
 /**
  * Apply a PATCH body on top of the current settings. Every field is clamped
@@ -201,10 +215,24 @@ export function applyBookingTypePatch(
         ? null
         : clampInt(r.arrivalWindowMinutes, 0, 480, 0);
   }
-  if (r.meetingLink !== undefined) {
+  if (r.meetingLinks !== undefined) {
+    // One per line from the editor, or an array from the API. Blanks and
+    // repeats drop; one bad URL refuses the save so a typo never gets sent.
+    const list = Array.isArray(r.meetingLinks) ? r.meetingLinks : typeof r.meetingLinks === "string" ? r.meetingLinks.split(/\r?\n/) : [];
+    const links: string[] = [];
+    for (const raw of list.slice(0, MAX_MEETING_LINKS)) {
+      const link = raw == null ? "" : String(raw).trim();
+      if (!link) continue;
+      if (!URL_RE.test(link)) return { settings: current, error: `Meeting links must be full URLs (https://…) — check "${link.slice(0, 60)}".` };
+      if (!links.includes(link)) links.push(link);
+    }
+    next.meetingLinks = links;
+    next.meetingLink = links[0] ?? null;
+  } else if (r.meetingLink !== undefined) {
     const link = r.meetingLink == null ? "" : String(r.meetingLink).trim();
     if (link && !URL_RE.test(link)) return { settings: current, error: "Meeting link must be a full URL (https://…)." };
     next.meetingLink = link || null;
+    next.meetingLinks = link ? [link] : [];
   }
   if (r.paymentMode !== undefined) next.paymentMode = oneOf(r.paymentMode, ["NONE", "DEPOSIT", "FULL"] as const, current.paymentMode);
   if (r.assignment !== undefined) next.assignment = oneOf(r.assignment, ["ROUND_ROBIN", "PRIORITY"] as const, current.assignment);
@@ -257,6 +285,7 @@ export function defaultSettingsForKind(kind: BookingKind, name?: string, mode?: 
     confirmation: "INSTANT",
     arrivalWindowMinutes: call ? 0 : null,
     meetingLink: null,
+    meetingLinks: [],
     paymentMode: "NONE",
     assignment: "ROUND_ROBIN",
     clientCanReschedule: call && m === "SCHEDULE",
