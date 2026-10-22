@@ -104,7 +104,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const body = (await req.json().catch(() => ({}))) as { messages?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { messages?: unknown; voice?: unknown };
+  const voice = body.voice === true;
   const raw = Array.isArray(body.messages) ? body.messages.slice(-30) : [];
   const messages: ChatMessage[] = raw
     .map((m) => {
@@ -148,6 +149,7 @@ export async function POST(req: NextRequest) {
   /** The whole turn: model loop, metering, and the final payload. */
   async function turn(onProgress?: (text: string) => void): Promise<{ status: number; body: Record<string, unknown> }> {
     const result = await runAssistant(actor!, messages, {
+      voice,
       onFailure: (partial) => {
         // burned tokens are still spend — meter them, then let the caller retry
         void settle(partial.usage, { ...partial, proposals: 0, ok: false });

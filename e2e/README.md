@@ -49,10 +49,20 @@ npm run e2e            # everything
 npm run e2e -- smoke   # one spec file by name fragment
 ```
 
-Card-charge specs run only when the deployment's processor is `finix`,
-`FINIX_ENVIRONMENT=sandbox`, and the harness company holds an APPROVED sandbox
-merchant — with `FINIX_ENVIRONMENT=live` they are skipped automatically. **If
-Workbench ever flips to live Finix keys, re-point `E2E_BASE_URL` at a staging
+Card-charge specs are gated per processor on what the deployment reports at
+`/api/health`:
+
+- **Square** (`square-charge`): `PAYMENT_PROCESSOR=square`,
+  `SQUARE_ENVIRONMENT=sandbox` and `SQUARE_E2E_ACCESS_TOKEN` — the access token
+  of a sandbox test seller from the Square Developer Console (Sandbox test
+  accounts → the "WorkBench E2E Seller" account → authorize the app). The
+  provision step seeds company A's Square connection from it on every run
+  (static token: never refreshed, never expires, sandbox-only by code).
+- **Finix** (`card-charge`): `PAYMENT_PROCESSOR=finix`,
+  `FINIX_ENVIRONMENT=sandbox` and an APPROVED sandbox merchant on company A.
+
+With a live processor environment they are skipped automatically. **If the
+target deployment ever runs real money, re-point `E2E_BASE_URL` at a staging
 deploy that keeps sandbox keys before running this suite again.**
 
 The HTML report lands in `e2e/report/`; failure traces in `e2e/artifacts/`.
@@ -67,9 +77,14 @@ The HTML report lands in `e2e/report/`; failure traces in `e2e/artifacts/`.
 - `recurring` — monthly plan first-bill + payment anchoring, run-due
   idempotency, per-visit exactly-one-invoice, ready-to-bill queue.
 - `tenancy` — company B can neither read, write, nor list company A's records.
-- `card-charge` — real sandbox charges through `/pay`: success + 3% surcharge +
-  save-card, amount-triggered decline ($x.02), autopay charge-at-signup,
-  autopay decline → retry schedule.
+- `square-charge` — real Square sandbox charges through `/pay`: success + 3%
+  surcharge + card on file, card-number-triggered decline (4000…0002), autopay
+  charge-at-signup from the saved card. (Autopay decline isn't covered on
+  Square: its declines are card-triggered and a declining card can't be
+  saved through the pay page.)
+- `card-charge` — the Finix equivalent: success + 3% surcharge + save-card,
+  amount-triggered decline ($x.02), autopay charge-at-signup, autopay
+  decline → retry schedule.
 - `jobs-scheduling` — schedule-window guards, close-out checklist gate
   (skip-needs-reason, completedAt/closedAt stamps), double-booking heads-ups on
   jobs and appointments, job delete.

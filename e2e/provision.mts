@@ -4,12 +4,16 @@
 //   npx tsx e2e/provision.mts
 //
 // Needs DATABASE_URL (Railway public URL) in e2e/.env.e2e or the environment;
-// FINIX_* sandbox vars enable the real-charge merchant for company A.
+// SQUARE_E2E_ACCESS_TOKEN (a Developer Console sandbox test seller's token)
+// connects company A to Square; FINIX_* sandbox vars provision a Finix
+// merchant instead/as well.
 //
 //  - Company A ("E2E Harness Co", slug e2e-harness): paymentsWaived, and when
-//    Finix sandbox creds are present, a provisioned + APPROVED sandbox
-//    merchant so card-charge specs exercise the REAL /pay flow (fake money).
-//    surcharging ON at 3% so surcharge math is under test.
+//    the Square test-seller token is present, a seeded Square connection
+//    (lib/square-connection.ts seedSquareStaticConnection) — or, with Finix
+//    sandbox creds, a provisioned + APPROVED sandbox merchant — so card-charge
+//    specs exercise the REAL /pay flow (fake money). surcharging ON at 3% so
+//    surcharge math is under test.
 //  - Company B ("E2E Tenant B", slug e2e-tenant-b): minimal, paymentsWaived —
 //    exists purely to prove cross-tenant isolation.
 //
@@ -80,6 +84,27 @@ const ownerB = await upsertOwner(companyB.id, OWNER_B_EMAIL, "E2E Tenant B Owner
 
 console.log(`Company A: ${companyA.id} (${COMPANY_A_SLUG}) owner ${ownerA.id}`);
 console.log(`Company B: ${companyB.id} (${COMPANY_B_SLUG}) owner ${ownerB.id}`);
+
+// ── Square sandbox test seller for company A ────────────────────────────────
+// Re-seeded on every run: the console token never expires, but re-sealing it
+// survives an AUTH_SECRET rotation and keeps refreshedAt current.
+if (process.env.SQUARE_E2E_ACCESS_TOKEN && (process.env.SQUARE_ENVIRONMENT ?? "sandbox") === "sandbox") {
+  process.env.SQUARE_ENVIRONMENT ??= "sandbox";
+  if (!process.env.AUTH_SECRET) {
+    console.error("AUTH_SECRET is required to seal the Square token (it must be the deployment's own).");
+    process.exit(1);
+  }
+  const { seedSquareStaticConnection } = await import("../lib/square-connection");
+  const seeded = await seedSquareStaticConnection({
+    companyId: companyA.id,
+    accessToken: process.env.SQUARE_E2E_ACCESS_TOKEN,
+  });
+  console.log(
+    `Company A Square: merchant ${seeded.merchantId} · location ${seeded.locationId} (${seeded.businessName ?? "?"} / ${seeded.locationName ?? "?"})`
+  );
+} else {
+  console.log("SQUARE_E2E_ACCESS_TOKEN not present — Square card specs will be skipped.");
+}
 
 // ── Finix sandbox merchant for company A ────────────────────────────────────
 if (

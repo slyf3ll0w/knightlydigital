@@ -339,6 +339,8 @@ export async function runAssistant(
     onFailure?: (partial: Omit<AssistantResult, "reply" | "proposals">) => void;
     /** Fired before each tool round executes, so the caller can show progress. */
     onProgress?: (p: AssistantProgress) => void;
+    /** The user is talking and listening (voice mode) — the reply is read aloud, so it is shaped for the ear. */
+    voice?: boolean;
   } = {}
 ): Promise<AssistantResult | null> {
   const company = await prisma.company.findUnique({
@@ -371,6 +373,10 @@ export async function runAssistant(
   }));
 
   const prompt = systemPrompt(actor, company.name, company.timezone, assistantName);
+  if (opts.voice) {
+    prompt.volatile +=
+      "\n\nVOICE MODE: the user is SPEAKING to you and will HEAR your reply read aloud — they are not reading a screen. Answer like a sharp assistant on the phone: one to three short spoken sentences, natural and warm, no lists, no markdown, no links or paths, no ids, no codes, nothing nobody would say out loud; say money as dollars and dates as people say them (\"Friday at two\"). Still use every tool exactly as before. When you stage a card, say in one sentence what it will do — the app itself tells them how to confirm, so don't. If you must ask a question, ask one.";
+  }
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     const callOpts = {
       system: prompt.stable,

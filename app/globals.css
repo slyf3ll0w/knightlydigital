@@ -804,11 +804,32 @@ html[data-mode="dark"] .app-ui .menu-sheet > div + :is(button, a) {
 .drawer-slide-in {
   animation: drawerSlideIn 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
+/* Talking to Atlas (components/AssistantVoice.tsx): the halo behind the
+   mark breathes while it listens, ripples while it speaks, holds a slow
+   pulse while it thinks. */
+@keyframes atlasVoiceBreathe {
+  0%, 100% { transform: scale(1); opacity: 0.55; }
+  50% { transform: scale(1.18); opacity: 1; }
+}
+@keyframes atlasVoiceRipple {
+  0% { transform: scale(0.92); opacity: 0.9; }
+  100% { transform: scale(1.45); opacity: 0; }
+}
+@keyframes atlasVoiceThink {
+  0%, 100% { transform: scale(0.96); opacity: 0.35; }
+  50% { transform: scale(1.02); opacity: 0.6; }
+}
+.atlas-voice-breathe { animation: atlasVoiceBreathe 1.6s ease-in-out infinite; }
+.atlas-voice-ripple { animation: atlasVoiceRipple 1.1s ease-out infinite; }
+.atlas-voice-think { animation: atlasVoiceThink 2.2s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
   .app-ui .modal-pop,
   .app-ui .modal-pop > .modal-card,
   .drawer-scrim-in,
-  .drawer-slide-in {
+  .drawer-slide-in,
+  .atlas-voice-breathe,
+  .atlas-voice-ripple,
+  .atlas-voice-think {
     animation: none;
   }
 }

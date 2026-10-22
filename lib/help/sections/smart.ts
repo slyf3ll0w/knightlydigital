@@ -161,6 +161,39 @@ export const atlasSection: HelpSection = {
       ],
     },
     {
+      slug: "talk-to-atlas",
+      title: "Talk to Atlas out loud",
+      summary: "Tap the mic, speak, and Atlas answers in a natural voice and keeps listening.",
+      keywords: ["voice", "talk", "speak", "microphone", "mic", "hands-free", "dictate", "say", "listen"],
+      blocks: [
+        {
+          type: "p",
+          text: "You don't have to type to Atlas. With the message box empty, the send button is a **microphone**. Tap it once and you're in a conversation: speak normally, Atlas answers out loud, then listens again on its own until you say **\"stop\"** or tap **Done**. Everything you say and everything Atlas does still lands in the chat underneath, cards included.",
+        },
+        {
+          type: "steps",
+          items: [
+            "Open Atlas and tap the **microphone** (the send button when nothing is typed). Allow the microphone the first time.",
+            "Say what you need, the way you'd say it to a person: \"who called this morning?\", \"quote the Hendersons four fifty for the spring cleanup and send it\", \"remind me to call Maria Friday at two\".",
+            "When Atlas lines up a change, it tells you and asks. Say **\"yes\"** to confirm or **\"no\"** to leave it. Changes that move money or can't be undone always wait for a tap in the chat.",
+            "Tap the mark while Atlas is talking to interrupt it. Say **\"stop\"** or tap **Done** when you're finished.",
+          ],
+        },
+        {
+          type: "list",
+          items: [
+            "**Natural voice** uses a few Atlas tokens per reply. Tap the pill at the top to switch to your device's own voice, which is free.",
+            "If the mic goes quiet for a while, Atlas stops listening; tap the mic to start again.",
+            "In the iPhone and Android apps the mic records, then sends: tap once to start, once more when you're done.",
+          ],
+        },
+        {
+          type: "tip",
+          text: "Works best with the phone held normally or in a truck mount. Voice is for doing things fast; the chat is still there for anything you'd rather read.",
+        },
+      ],
+    },
+    {
       slug: "atlas-tokens",
       title: "Atlas tokens and limits",
       summary: "The free monthly allowance, what uses it, and what happens when it runs out.",

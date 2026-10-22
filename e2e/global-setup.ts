@@ -93,6 +93,20 @@ export default async function globalSetup(): Promise<void> {
       Boolean(a.company.finixMerchantId) &&
       a.company.finixOnboardingState === "APPROVED";
 
+    // Same gate for Square: deployed processor square, SQUARE_ENVIRONMENT
+    // sandbox, the test seller's token present (provision.mts seeded the
+    // connection with it) and company A actually connected.
+    const squareSandbox =
+      (process.env.PAYMENT_PROCESSOR ?? "") === "square" &&
+      (deployedProcessor === null || deployedProcessor === "square") &&
+      (process.env.SQUARE_ENVIRONMENT ?? "") === "sandbox" &&
+      Boolean(process.env.SQUARE_E2E_ACCESS_TOKEN);
+    if (deployedProcessor && deployedProcessor !== "square") {
+      console.log(`[e2e] deployed processor is "${deployedProcessor}" — Square card specs will skip`);
+    }
+    const squareCardTestsEnabled =
+      squareSandbox && Boolean(a.company.squareMerchantId) && a.company.squareConnectedAt != null;
+
     const state: E2eState = {
       baseUrl,
       cookieName: baseUrl.startsWith("https")
@@ -109,11 +123,17 @@ export default async function globalSetup(): Promise<void> {
             password: process.env.FINIX_API_PASSWORD!,
           }
         : null,
+      squareCardTestsEnabled,
       superadmin,
     };
     writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), "utf8");
+    const cards = cardTestsEnabled
+      ? "Finix ENABLED (sandbox)"
+      : squareCardTestsEnabled
+        ? "Square ENABLED (sandbox)"
+        : "skipped";
     console.log(
-      `[e2e] target ${baseUrl} · card tests ${cardTestsEnabled ? "ENABLED (sandbox)" : "skipped"} · console ${superadmin ? "signed in" : "skipped (no superadmin)"}`
+      `[e2e] target ${baseUrl} · card tests ${cards} · console ${superadmin ? "signed in" : "skipped (no superadmin)"}`
     );
   } finally {
     await prisma.$disconnect();

@@ -846,9 +846,16 @@ Built 2026-10-15 on branch `square-payments` (worktree
   `PAYMENT_PROCESSOR=finix`.
 - **Tests:** `npx tsx scripts/test-square.ts` (state, secret box, webhook
   signature, idempotency, location pick, decline wording, the gate per
-  processor, the default processor, the sign-up link). The e2e card specs still assume Finix sandbox
-  (`e2e/global-setup.ts`); a Square sandbox seller for the e2e tenant is
-  the next step once credentials exist.
+  processor, the default processor, the sign-up link, static tokens).
+  **e2e:** `e2e/specs/square-charge.spec.ts` drives the real sandbox pay
+  page (success + surcharge + card on file, 4000…0002 decline, autopay from
+  the saved card). The e2e tenant is connected by `seedSquareStaticConnection`
+  from `SQUARE_E2E_ACCESS_TOKEN` (a Developer Console sandbox test seller's
+  token, GitHub secret) in `e2e/provision.mts` — a STATIC connection
+  (`refreshTokenEnc === STATIC_TOKEN` = ""): the lazy getter, the sweep and
+  the stale page skip it; the seeder refuses outside
+  `SQUARE_ENVIRONMENT=sandbox`. The Finix card specs skip while the deployed
+  processor is Square (and vice versa).
 
 ## Payment processor (Finix)
 

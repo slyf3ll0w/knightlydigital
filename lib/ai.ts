@@ -53,6 +53,9 @@ export type AskAIOptions = {
   /** Optional inline image (base64, no data: prefix) — logo color detection. */
   imageBase64?: string;
   imageMime?: string;
+  /** Optional inline audio clip (base64) — voice-mode transcription. */
+  audioBase64?: string;
+  audioMime?: string;
   maxOutputTokens?: number;
   temperature?: number;
   /** Tenant to meter this call's token usage against (lib/usage.ts). Omitted
@@ -81,6 +84,9 @@ export async function askAI(
   const parts: Record<string, unknown>[] = [{ text: opts.prompt }];
   if (opts.imageBase64 && opts.imageMime) {
     parts.push({ inlineData: { mimeType: opts.imageMime, data: opts.imageBase64 } });
+  }
+  if (opts.audioBase64 && opts.audioMime) {
+    parts.push({ inlineData: { mimeType: opts.audioMime, data: opts.audioBase64 } });
   }
   const body = {
     contents: [{ parts }],

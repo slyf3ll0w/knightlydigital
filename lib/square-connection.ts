@@ -119,45 +119,55 @@ export async function completeSquareConnect(params: { companyId: string; code: s
     );
   }
 
+  return writeConnection({
+    companyId: params.companyId,
+    merchantId: tokens.merchant_id,
+    accessToken: tokens.access_token,
+    refreshToken: tokens.refresh_token,
+    expiresAt: new Date(tokens.expires_at),
+    merchant,
+    location,
+  });
+}
+
+/** The one writer of a connection: the SquareConnection row and the
+ *  company's handles in a single transaction. `refreshToken: null` stores a
+ *  STATIC token (see STATIC_TOKEN below). */
+async function writeConnection(params: {
+  companyId: string;
+  merchantId: string;
+  accessToken: string;
+  refreshToken: string | null;
+  expiresAt: Date;
+  merchant: square.SquareMerchant | null;
+  location: square.SquareLocation;
+}) {
+  const { merchant, location } = params;
   const now = new Date();
-  const expiresAt = new Date(tokens.expires_at);
+  const row = {
+    merchantId: params.merchantId,
+    accessTokenEnc: sealSecret(params.accessToken, SECRET_SCOPE),
+    refreshTokenEnc: params.refreshToken ? sealSecret(params.refreshToken, SECRET_SCOPE) : STATIC_TOKEN,
+    expiresAt: params.expiresAt,
+    scopes: square.squareScopes().join(" "),
+    businessName: merchant?.business_name ?? location.business_name ?? null,
+    locationName: location.name ?? null,
+    currency: location.currency ?? merchant?.currency ?? "USD",
+    country: location.country ?? merchant?.country ?? null,
+    refreshedAt: now,
+    lastRefreshError: null,
+    lastRefreshErrorAt: null,
+  };
   await prisma.$transaction([
     prisma.squareConnection.upsert({
       where: { companyId: params.companyId },
-      create: {
-        companyId: params.companyId,
-        merchantId: tokens.merchant_id,
-        accessTokenEnc: sealSecret(tokens.access_token, SECRET_SCOPE),
-        refreshTokenEnc: sealSecret(tokens.refresh_token, SECRET_SCOPE),
-        expiresAt,
-        scopes: square.squareScopes().join(" "),
-        businessName: merchant?.business_name ?? location.business_name ?? null,
-        locationName: location.name ?? null,
-        currency: location.currency ?? merchant?.currency ?? "USD",
-        country: location.country ?? merchant?.country ?? null,
-        refreshedAt: now,
-        lastRefreshError: null,
-        lastRefreshErrorAt: null,
-      },
-      update: {
-        merchantId: tokens.merchant_id,
-        accessTokenEnc: sealSecret(tokens.access_token, SECRET_SCOPE),
-        refreshTokenEnc: sealSecret(tokens.refresh_token, SECRET_SCOPE),
-        expiresAt,
-        scopes: square.squareScopes().join(" "),
-        businessName: merchant?.business_name ?? location.business_name ?? null,
-        locationName: location.name ?? null,
-        currency: location.currency ?? merchant?.currency ?? "USD",
-        country: location.country ?? merchant?.country ?? null,
-        refreshedAt: now,
-        lastRefreshError: null,
-        lastRefreshErrorAt: null,
-      },
+      create: { companyId: params.companyId, ...row },
+      update: row,
     }),
     prisma.company.update({
       where: { id: params.companyId },
       data: {
-        squareMerchantId: tokens.merchant_id,
+        squareMerchantId: params.merchantId,
         squareLocationId: location.id,
         squareConnectedAt: now,
       },
@@ -165,11 +175,57 @@ export async function completeSquareConnect(params: { companyId: string; code: s
   ]);
 
   return {
-    merchantId: tokens.merchant_id,
+    merchantId: params.merchantId,
     locationId: location.id,
     businessName: merchant?.business_name ?? location.business_name ?? null,
     locationName: location.name ?? null,
   };
+}
+
+/**
+ * `refreshTokenEnc` value of a connection whose access token never expires
+ * and cannot be refreshed: a Square Developer Console sandbox access token.
+ * The refresh paths (lazy getter, hourly sweep, stale page) leave these alone.
+ */
+export const STATIC_TOKEN = "";
+
+/** Does this connection hold a static (console) token? */
+export function isStaticSquareToken(refreshTokenEnc: string): boolean {
+  return refreshTokenEnc === STATIC_TOKEN;
+}
+
+/**
+ * Connect a company to a SANDBOX test seller without the OAuth screen, from
+ * the test account's access token in the Developer Console — the e2e harness
+ * (e2e/provision.mts) seeds its tenant this way, since Square's sandbox
+ * consent page needs the seller's dashboard open in the same browser.
+ * Refuses outside the sandbox: a static token must never reach production.
+ */
+export async function seedSquareStaticConnection(params: { companyId: string; accessToken: string }) {
+  if (square.squareEnvironment() !== "sandbox") {
+    throw new Error("seedSquareStaticConnection is sandbox-only (SQUARE_ENVIRONMENT=sandbox)");
+  }
+  const [merchant, locations] = await Promise.all([
+    square.retrieveSquareMerchant(params.accessToken),
+    square.listSquareLocations(params.accessToken),
+  ]);
+  const location = square.pickChargeLocation(locations, merchant.main_location_id);
+  if (!location) throw new Error("The test seller has no active location that can take card payments.");
+  const other = await prisma.company.findFirst({
+    where: { squareMerchantId: merchant.id, NOT: { id: params.companyId } },
+    select: { id: true },
+  });
+  if (other) throw new Error(`Square merchant ${merchant.id} is already connected to company ${other.id}`);
+  return writeConnection({
+    companyId: params.companyId,
+    merchantId: merchant.id,
+    accessToken: params.accessToken,
+    refreshToken: null,
+    // Console tokens don't expire; keep the expiry branch of needsRefresh quiet.
+    expiresAt: new Date(Date.now() + 10 * 365 * 86_400_000),
+    merchant,
+    location,
+  });
 }
 
 // ─── Access tokens ──────────────────────────────────────────────────────────
@@ -243,7 +299,9 @@ async function refreshConnection(conn: ConnectionRow): Promise<string> {
   return tokens.access_token;
 }
 
-function needsRefresh(conn: ConnectionRow, now = Date.now()): boolean {
+export function needsRefresh(conn: Pick<ConnectionRow, "refreshTokenEnc" | "refreshedAt" | "expiresAt">, now = Date.now()): boolean {
+  // A static (console) token has nothing to refresh with and never expires.
+  if (isStaticSquareToken(conn.refreshTokenEnc)) return false;
   // Due by age (Square's 7-day guidance) or by proximity to expiry (a token
   // the sweep missed must not be used in its last hours).
   return now - conn.refreshedAt.getTime() > REFRESH_AFTER_MS || conn.expiresAt.getTime() - now < 2 * 86_400_000;
@@ -290,7 +348,7 @@ export async function squareTokenForMerchant(merchantId: string) {
 export async function runSquareTokenSweep(now = new Date()): Promise<number> {
   if (!square.squareConfigured()) return 0;
   const due = await prisma.squareConnection.findMany({
-    where: { refreshedAt: { lt: new Date(now.getTime() - REFRESH_AFTER_MS) } },
+    where: { refreshedAt: { lt: new Date(now.getTime() - REFRESH_AFTER_MS) }, refreshTokenEnc: { not: STATIC_TOKEN } },
     select: CONNECTION_SELECT,
     orderBy: { refreshedAt: "asc" },
     take: 200,
@@ -307,7 +365,7 @@ export async function runSquareTokenSweep(now = new Date()): Promise<number> {
     }
   }
   const stale = await prisma.squareConnection.findMany({
-    where: { refreshedAt: { lt: new Date(now.getTime() - STALE_AFTER_MS) } },
+    where: { refreshedAt: { lt: new Date(now.getTime() - STALE_AFTER_MS) }, refreshTokenEnc: { not: STATIC_TOKEN } },
     select: { companyId: true, refreshedAt: true, lastRefreshError: true },
   });
   if (stale.length) {
