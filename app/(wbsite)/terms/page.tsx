@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: "The terms that govern your use of WorkBench.",
 };
 
-const LAST_UPDATED = "September 18, 2026";
+const LAST_UPDATED = "October 22, 2026";
 
 /* Public Terms & Conditions for WorkBench. This URL is the terms_of_service_url
    presented during payment-processor (Finix) onboarding, so it must stay
@@ -48,7 +48,7 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
   {
     heading: "5. Payments processing",
     paragraphs: [
-      "The core WorkBench software is free for up to 2 users; extra users and optional add-ons are paid monthly subscriptions, priced on our pricing page. Where online payment processing is offered, payments are processed by our payment partner — currently Finix Payments, Inc. — under their own terms and merchant agreement, which you accept when you apply for a payment account. Your eligibility, approval, funding holds, payouts, chargebacks, and reserves are governed by the payment processor’s merchant agreement and the applicable card-network rules, not by us.",
+      "The core WorkBench software is free for up to 2 users; extra users and optional add-ons are paid monthly subscriptions, priced on our pricing page. Where online payment processing is offered, payments are processed by our payment partner — currently Square (Block, Inc.) — through the Square account you create and connect to WorkBench, under Square's own terms and seller agreement. Your eligibility, account approval, funding holds, payouts, chargebacks, and reserves are governed by Square's seller agreement and the applicable card-network rules, not by us.",
       "Processing fees are disclosed during payment setup and on our pricing page. You are responsible for configuring your own prices, taxes, and any card surcharge in accordance with the laws and card-network rules that apply to your business, and for the goods and services you sell to your customers.",
       "Money you collect from your clients flows through the payment processor to the bank account you provide during setup; it is never held in a Streamflaire bank account. You are responsible for any refunds, disputes, and chargebacks arising from your transactions.",
     ],

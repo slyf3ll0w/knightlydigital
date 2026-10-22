@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     "How WorkBench collects, uses, and protects your information — and why we never sell it.",
 };
 
-const LAST_UPDATED = "September 11, 2026";
+const LAST_UPDATED = "October 22, 2026";
 
 /* Public privacy policy for WorkBench. This URL is required by the App Store,
    the Play Store, and our payment processor (Finix) onboarding, so it must stay
@@ -53,7 +53,7 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
   {
     heading: "5. Payments",
     paragraphs: [
-      "Where you enable online payments, card and bank payments are processed by our payment partner, Finix Payments, Inc., under their own privacy policy and merchant terms. When you apply for or use a payment account, the business and banking details needed for underwriting, processing, payouts, and fraud prevention are collected and handled by Finix. We receive transaction records — amounts, status, fees, payout summaries, and disputes — so we can show them to you inside WorkBench, but we do not receive or store full card numbers.",
+      "Where you enable online payments, card and bank payments are processed by our payment partner, Square (Block, Inc.), through the Square account you connect to WorkBench, under Square's own privacy policy and seller agreement. The business and banking details needed for processing, payouts, and fraud prevention are collected and handled by Square. We receive transaction records — amounts, status, estimated fees, and refunds — and an access token for your Square account so we can take payments on your behalf and show them to you inside WorkBench, but we do not receive or store full card numbers.",
       "Money your customers pay flows through the payment processor to the bank account you provide during setup. It is never held in a Streamflaire bank account.",
     ],
   },
@@ -75,7 +75,7 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
   {
     heading: "8. Service providers",
     paragraphs: [
-      "We rely on a small number of vendors to run the Service, and they only receive the data required to do their job: cloud hosting and database infrastructure (Railway), payment processing (Finix Payments, Inc.), transactional email delivery (Resend), bot and spam protection (Cloudflare Turnstile), push-notification delivery (Apple Push Notification service and Firebase Cloud Messaging), and AI processing (Google). Each vendor is bound by its own terms and privacy commitments.",
+      "We rely on a small number of vendors to run the Service, and they only receive the data required to do their job: cloud hosting and database infrastructure (Railway), payment processing (Square / Block, Inc.), transactional email delivery (Resend), bot and spam protection (Cloudflare Turnstile), push-notification delivery (Apple Push Notification service and Firebase Cloud Messaging), and AI processing (Google). Each vendor is bound by its own terms and privacy commitments.",
     ],
   },
   {

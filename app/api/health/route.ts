@@ -28,7 +28,8 @@ export async function GET(req: NextRequest) {
   const commit = process.env.RAILWAY_GIT_COMMIT_SHA ?? null;
   // `processor` lets the e2e harness gate the specs that move sandbox money
   // on what is DEPLOYED (Finix card specs skip while staging runs Square).
-  const processor = process.env.PAYMENT_PROCESSOR ?? "manual";
+  // Mirrors lib/payments.ts DEFAULT_PROCESSOR: unset = square (2026-10-22).
+  const processor = process.env.PAYMENT_PROCESSOR ?? "square";
   if (req.nextUrl.searchParams.get("cron") !== "1") return NextResponse.json({ ok: true, commit, processor });
 
   const latest = await prisma.reconcileRun.findFirst({

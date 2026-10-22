@@ -6,10 +6,12 @@ import { reportError } from "@/lib/report-error";
  * layer is built to make taking payments as easy as possible:
  *
  *  - `getProcessor()` returns the active PaymentProcessor implementation,
- *    selected by the PAYMENT_PROCESSOR env var: "manual" (records payments
- *    without moving money) or "finix" (real card/ACH charges through the
- *    company's Finix merchant account — see lib/finix.ts). Flipping the env
- *    var changes no call sites.
+ *    selected by the PAYMENT_PROCESSOR env var: "square" (the platform
+ *    default since 2026-10-22 — real card/ACH charges through the company's
+ *    own connected Square account, see lib/square.ts), "finix" (the 2025–26
+ *    processor, kept selectable — lib/finix.ts) or "manual" (records
+ *    payments without moving money). Flipping the env var changes no call
+ *    sites.
  *  - `recordPayment()` is the single write path for payments: it creates the
  *    Payment row, recalculates the invoice balance, and flips invoice status.
  */
@@ -588,8 +590,13 @@ const processors: Record<string, PaymentProcessor> = {
   square: new SquareProcessor(),
 };
 
+/** The processor when PAYMENT_PROCESSOR is unset. Square since 2026-10-22;
+ *  app/api/health/route.ts repeats the literal (it must not import this stack). */
+export const DEFAULT_PROCESSOR = "square";
+
 export function getProcessor(): PaymentProcessor {
-  const key = process.env.PAYMENT_PROCESSOR ?? "manual";
+  // An unrecognised value falls back to manual so a typo never charges anyone.
+  const key = process.env.PAYMENT_PROCESSOR ?? DEFAULT_PROCESSOR;
   return processors[key] ?? processors.manual;
 }
 

@@ -124,7 +124,7 @@ All job manager API routes are scoped to `session.user.companyId` for multi-tena
 
 **`lib/db.ts`** — Prisma client singleton.
 **`lib/auth-options.ts`** — NextAuth v4 config. JWT includes `id`, `role`, `companyId`.
-**`lib/payments.ts`** — Payment processing layer: `PaymentProcessor` seam (manual/finix, picked by PAYMENT_PROCESSOR), `recordPayment()` single write path, `recomputeInvoiceStatus()`, fee estimators. See "Payment processor (Finix)" below.
+**`lib/payments.ts`** — Payment processing layer: `PaymentProcessor` seam (square/finix/manual, picked by PAYMENT_PROCESSOR, **unset = square** since 2026-10-22), `recordPayment()` single write path, `recomputeInvoiceStatus()`, fee estimators. See "Payment processor (Square)" below.
 **`lib/cities.ts`** — 21 DFW cities.
 **`lib/services.ts`** — 2 Streamflare services (custom software, custom web design). Marketing services retired 2026-07.
 
@@ -223,8 +223,11 @@ there (`POST /api/app/activate/invite`). What a code does NOT grant is
 taking money online — `onlinePaymentsHeld` keeps that off until Finix
 approves them (`lib/payments-gate.ts`).
 
-**Payments onboarding is CLOSED by default (2026-09-30, first real users).**
-`PAYMENTS_ONBOARDING_OPEN` unset: no `/app/activate` gate at any door
+**Finix only — the platform runs on Square since 2026-10-22 (see "Payment
+processor (Square)"); everything in this paragraph applies only with
+`PAYMENT_PROCESSOR=finix`.** Payments onboarding is CLOSED by default
+(2026-09-30, first real users). `PAYMENTS_ONBOARDING_OPEN` unset: no
+`/app/activate` gate at any door
 (`paymentsGateEnabled` false, so booking pages are public too), every
 company Finix hasn't APPROVED gets `onlinePaymentsHeld` — Settings shows
 Online Payments "Coming soon", POST refuses the Finix form — and client
@@ -737,8 +740,13 @@ sends from the business number).
 
 ## Payment processor (Square — the processor from 2026-10)
 
-`PAYMENT_PROCESSOR=square` selects `SquareProcessor` in `lib/payments.ts`.
-Unlike Finix there is **no underwriting on our side**: every company brings
+`SquareProcessor` in `lib/payments.ts` is the **platform default**: unset
+`PAYMENT_PROCESSOR` = square (`DEFAULT_PROCESSOR`, 2026-10-22; "finix" and
+"manual" stay selectable, an unknown value = manual). The production switch
+is therefore the Railway env: production Square credentials +
+`SQUARE_ENVIRONMENT=production` (health reports `processor`; Finix-approved
+companies stop charging the moment the processor is Square until they
+connect a Square account). Unlike Finix there is **no underwriting on our side**: every company brings
 its OWN Square account and connects it by OAuth from Settings → Payments &
 accounting → Online Payments ("Connect Square", owner only). Money settles
 to the seller's bank on Square's schedule; the balance, payouts, fees and
@@ -819,9 +827,26 @@ Built 2026-10-15 on branch `square-payments` (worktree
   the Atlas `send_payout` tool answer "handled by Square"; the Finix
   settlement/dispute views on `/app/payments` only render for Finix.
   `FinixCostSnapshot` / platform-cost estimates are untouched.
+- **Sellers without a Square account:** `SQUARE_SIGNUP_URL` (Square's
+  partner sign-up link, so new sellers are attributed to WorkBench) adds a
+  "Create a Square account" button beside Connect Square on the Settings
+  card (`squareSignupUrl()` — https only, unset = no button, the copy just
+  says to create one on Square first). Set it once Square issues the link;
+  then name the button in the Help guide `activate-payments`.
+- **Copy that follows the processor (2026-10-22):** Help Center
+  `activate-payments` = "Turn on online payments (connect Square)" (slug
+  kept — it is linked from money/quotes guides and POPULAR_SLUGS),
+  `payouts` / `disputes` point at the Square dashboard, fee wording says
+  "Square's fee, estimate in WorkBench" (the pricing page still quotes
+  2.9% + 30¢ / 0.75% + 30¢ — David's pricing decision, not touched);
+  no guide says emails wait on payment approval any more (true on Square:
+  `companyEmailBlocked` is Finix-only). Privacy + Terms name Square
+  (Block, Inc.) as the processor. Superadmin `PaymentsControl` shows the
+  Square connection (read-only) and keeps the Finix waiver UI for
+  `PAYMENT_PROCESSOR=finix`.
 - **Tests:** `npx tsx scripts/test-square.ts` (state, secret box, webhook
   signature, idempotency, location pick, decline wording, the gate per
-  processor). The e2e card specs still assume Finix sandbox
+  processor, the default processor, the sign-up link). The e2e card specs still assume Finix sandbox
   (`e2e/global-setup.ts`); a Square sandbox seller for the e2e tenant is
   the next step once credentials exist.
 
@@ -890,7 +915,7 @@ AUTH_SECRET=     # generate: openssl rand -base64 32
 DATABASE_URL=    # PostgreSQL connection string from Railway
 NEXTAUTH_URL=    # deployed URL (e.g. https://jobflow.streamflaremedia.com or https://streamflaremedia.com)
 CRON_SECRET=     # shared secret for the recurring-billing cron (generate: openssl rand -base64 32)
-PAYMENT_PROCESSOR=manual  # "square" (SQUARE_* below) or "finix" (FINIX_* below) turns on real payments
+PAYMENT_PROCESSOR=square  # unset = square (the platform processor, SQUARE_* below); "finix" (FINIX_* below) or "manual" (no money moves) to override
 # Square — developer.squareup.com → Developer Console → the WorkBench app.
 # Sandbox and production have DIFFERENT ids/secrets; the host, the web SDK
 # script and every token are environment-specific.
@@ -900,7 +925,8 @@ SQUARE_APPLICATION_SECRET=          # server only — OAuth code exchange / refr
 SQUARE_WEBHOOK_SIGNATURE_KEY=       # Developer Console → Webhooks → the subscription's signature key
 # Optional: SQUARE_REDIRECT_URL (default ${NEXTAUTH_URL}/api/app/square/callback — must match the
 # console's OAuth Redirect URL), SQUARE_WEBHOOK_URL (default ${NEXTAUTH_URL}/api/public/webhooks/square),
-# SQUARE_EXTRA_SCOPES (space/comma list added to SQUARE_SCOPES — every seller re-authorizes)
+# SQUARE_EXTRA_SCOPES (space/comma list added to SQUARE_SCOPES — every seller re-authorizes),
+# SQUARE_SIGNUP_URL (Square's partner sign-up link → "Create a Square account" button in Settings)
 # Finix (Streamflaire Payments) — keys from dashboard.finix.com → Developers → API Keys
 FINIX_ENVIRONMENT=sandbox   # "live" + live keys at launch (sandbox keys only work on the sandbox host)
 FINIX_API_USERNAME=

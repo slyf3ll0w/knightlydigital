@@ -5,17 +5,25 @@ import { useState } from "react";
 import { Button, Card, Chip, InfoTip } from "@/components/ds";
 
 /**
- * Payment-verification status + waiver toggle. Waiving exempts the company
- * from the /app/activate underwriting gate — for test accounts and comped
- * users, since every normal company must be Finix-approved to use the app.
+ * Online-payments status for this company on the live processor.
+ *
+ * Square (the platform processor since 2026-10-22): read-only — the owner
+ * connects their own Square account from Settings, nothing to approve here.
+ * Finix (PAYMENT_PROCESSOR=finix): verification status + the waiver toggle
+ * that exempts the company from the /app/activate underwriting gate.
  */
 export function PaymentsControl({
   companyId,
+  processor,
+  square,
   onboardingState,
   paymentsWaived,
   onboardingOpen,
 }: {
   companyId: string;
+  /** getProcessor().name — "square" | "finix" | "manual". */
+  processor: string;
+  square: { connected: boolean; merchantId: string | null; connectedAt: string | null };
   onboardingState: string | null;
   paymentsWaived: boolean;
   /** PAYMENTS_ONBOARDING_OPEN — closed = no gate, Coming soon for every unapproved company. */
@@ -24,6 +32,31 @@ export function PaymentsControl({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  if (processor !== "finix") {
+    return (
+      <Card className="p-5">
+        <div className="flex items-center gap-1.5">
+          <h2 className="ds-h2">Online payments</h2>
+          <InfoTip>
+            {processor === "square"
+              ? "Payments run through the company's own Square account, which the owner connects from Settings → Payments & accounting. Nothing to approve on our side: connected means their pay links take cards and bank payments; not connected means pay pages are view-only and invoice emails say View. Payouts, fees and disputes live in their Square dashboard."
+              : "The platform processor is manual: nothing moves money anywhere. Set PAYMENT_PROCESSOR=square on Railway to turn online payments back on."}
+          </InfoTip>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+          {processor !== "square" ? (
+            <Chip tone="neutral">Manual only</Chip>
+          ) : square.connected ? (
+            <Chip tone="good">Square connected{square.connectedAt ? ` · since ${square.connectedAt}` : ""}</Chip>
+          ) : (
+            <Chip tone="neutral">Square not connected</Chip>
+          )}
+          {square.merchantId && <span className="text-xs text-gray-500">Merchant {square.merchantId}</span>}
+        </div>
+      </Card>
+    );
+  }
 
   const state =
     onboardingState === "APPROVED"

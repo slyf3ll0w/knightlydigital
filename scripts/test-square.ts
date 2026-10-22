@@ -31,9 +31,11 @@ import {
   squareIdempotencyKey,
   squareRedirectUrl,
   squareScopes,
+  squareSignupUrl,
   SquareError,
   verifySquareWebhookSignature,
 } from "../lib/square";
+import { getProcessor } from "../lib/payments";
 import { buyerIdentityData, buyerIdentityRefOf, canChargeOnline, processorMerchantRef } from "../lib/payments-gate";
 import { clientPayConfig } from "../lib/pay-client-config";
 
@@ -219,6 +221,30 @@ test("PAYMENT_PROCESSOR=finix is unchanged by the Square columns", () => {
   assert.equal(buyerIdentityRefOf(contactF), "ID1");
   assert.deepEqual(buyerIdentityData("ID2"), { finixBuyerIdentityId: "ID2" });
   assert.equal(clientPayConfig(finixCo)?.processor, "finix");
+});
+
+test("PAYMENT_PROCESSOR unset: Square is the platform processor", () => {
+  const saved = process.env.PAYMENT_PROCESSOR;
+  delete process.env.PAYMENT_PROCESSOR;
+  assert.equal(getProcessor().name, "square");
+  assert.equal(canChargeOnline(squareCo), true);
+  assert.equal(canChargeOnline(finixCo), false);
+  process.env.PAYMENT_PROCESSOR = "nonsense";
+  assert.equal(getProcessor().name, "manual", "an unknown value charges nobody");
+  if (saved === undefined) delete process.env.PAYMENT_PROCESSOR;
+  else process.env.PAYMENT_PROCESSOR = saved;
+});
+
+test("SQUARE_SIGNUP_URL: only an https link is offered", () => {
+  delete process.env.SQUARE_SIGNUP_URL;
+  assert.equal(squareSignupUrl(), null);
+  process.env.SQUARE_SIGNUP_URL = "  https://squareup.com/signup?partner=workbench  ";
+  assert.equal(squareSignupUrl(), "https://squareup.com/signup?partner=workbench");
+  process.env.SQUARE_SIGNUP_URL = "javascript:alert(1)";
+  assert.equal(squareSignupUrl(), null);
+  process.env.SQUARE_SIGNUP_URL = "http://squareup.com/signup";
+  assert.equal(squareSignupUrl(), null, "plain http is refused");
+  delete process.env.SQUARE_SIGNUP_URL;
 });
 
 test("PAYMENT_PROCESSOR=manual charges nothing anywhere", () => {
