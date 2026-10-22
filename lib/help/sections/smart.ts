@@ -88,7 +88,7 @@ export const automationsSection: HelpSection = {
           items: [
             {
               q: "My automation hasn't fired.",
-              a: "Check that it isn't **Paused**, that its conditions actually match (use the dry run), and whether it already fired for that record. Texts need texting turned on. Emails need your business approved for payments.",
+              a: "Check that it isn't **Paused**, that its conditions actually match (use the dry run), and whether it already fired for that record. Texts need texting turned on and a client with a mobile number; emails need a client with an email address.",
             },
           ],
         },

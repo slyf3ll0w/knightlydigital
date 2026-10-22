@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { PLAN_IDS, PLANS, formatCents, normalizeGrants } from "@/lib/plans";
 import { ATLAS_PLAN_TOKENS, assistantUsageSummary, formatPlanPrice, freeBalance, planBalance } from "@/lib/assistant-billing";
 import { paymentsOnboardingOpen } from "@/lib/payments-gate";
+import { getProcessor } from "@/lib/payments";
 import { consoleActionLabel, consoleAuditFor } from "@/lib/console-audit";
 import { Card, SectionTitle } from "@/components/ds";
 import { fullDate } from "@/lib/console-format";
@@ -35,6 +36,12 @@ export default async function ControlsTab({ company }: { company: CompanyCore })
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <PaymentsControl
           companyId={id}
+          processor={getProcessor().name}
+          square={{
+            connected: Boolean(company.squareMerchantId) && company.squareConnectedAt != null,
+            merchantId: company.squareMerchantId,
+            connectedAt: company.squareConnectedAt ? fullDate(company.squareConnectedAt) : null,
+          }}
           onboardingState={company.finixOnboardingState}
           paymentsWaived={company.paymentsWaived}
           onboardingOpen={paymentsOnboardingOpen()}

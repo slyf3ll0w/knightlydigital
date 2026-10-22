@@ -51,10 +51,6 @@ export const quotesSection: HelpSection = {
           type: "faq",
           items: [
             {
-              q: "I pressed Send to client and got \"Email isn't set up on this server yet.\"",
-              a: "Emails to clients switch on once your business is approved for payments (see [Activate your account](/help/activate-payments)). Until then, use `Copy client link` and send the link yourself.",
-            },
-            {
               q: "The button says Mark as sent instead of Send to client.",
               a: "The client has no email address on file and no phone that can be texted. Add one on their client page, or copy the link and send it another way.",
             },

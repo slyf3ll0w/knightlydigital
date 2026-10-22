@@ -37,7 +37,7 @@ export const invoicesSection: HelpSection = {
           items: [
             {
               q: "Send to client failed.",
-              a: "Client emails switch on once your business is approved for payments. Until then, use `Copy payment link` and send it yourself. If the button says `Mark as sent`, the client has no email on file and no phone that can be texted.",
+              a: "If the button says `Mark as sent`, the client has no email on file and no phone that can be texted: add one on their client page. For anything else, use `Copy payment link`, send it yourself, and try again later.",
             },
             {
               q: "I left an invoice and it asked \"Send this invoice first?\"",
@@ -74,10 +74,6 @@ export const invoicesSection: HelpSection = {
             "For a nudge on a different schedule, build an [automation](/help/build-an-automation) with **Send a payment reminder**.",
           ],
         },
-        {
-          type: "warn",
-          text: "Reminders are emails, so they're paused until your business is approved for payments, the same as other client emails.",
-        },
       ],
     },
     {
@@ -113,7 +109,7 @@ export const paymentsSection: HelpSection = {
       slug: "how-clients-pay",
       title: "How clients pay you online",
       summary: "The pay page, card vs bank (ACH), saved cards, and the fees.",
-      keywords: ["pay page", "card", "credit card", "ach", "bank transfer", "fees", "processing fee", "saved card", "card on file", "no pay button"],
+      keywords: ["pay page", "card", "credit card", "ach", "bank transfer", "fees", "processing fee", "saved card", "card on file", "no pay button", "square"],
       where: { label: "Payments", href: "/app/payments" },
       blocks: [
         {
@@ -123,7 +119,7 @@ export const paymentsSection: HelpSection = {
         {
           type: "list",
           items: [
-            "Card payments cost **2.9% + 30¢**. Bank payments cost **0.75% + 30¢**. There are no monthly fees. Fees come out when the money settles, and the amounts shown in the app are estimates until then.",
+            "Payments run through your own **Square** account. Square's processing fee comes out on Square's side before the money reaches your bank, so the fee WorkBench shows is an estimate; your Square dashboard has the exact amount on each payment.",
             "Bank (ACH) payments show as **Processing** for a few business days. They can still bounce during that time, and if one does it's taken back off the invoice.",
             "Clients can also save cards and pick a default for autopay in their client portal.",
           ],
@@ -133,7 +129,7 @@ export const paymentsSection: HelpSection = {
           items: [
             {
               q: "My client says there's no Pay button.",
-              a: "Your business isn't approved for online payments yet, so the page tells them you aren't taking payments online. See [Activate your account](/help/activate-payments).",
+              a: "Square isn't connected to your WorkBench account, so the page tells them you aren't taking payments online. See [Turn on online payments](/help/activate-payments).",
             },
             {
               q: "Can I take a card in person?",
@@ -217,19 +213,19 @@ export const paymentsSection: HelpSection = {
     {
       slug: "payouts",
       title: "When you get paid out",
-      summary: "How payouts reach your bank, and Send to bank now.",
-      keywords: ["payout", "deposit", "bank", "settlement", "when do i get paid", "transfer", "send to bank"],
+      summary: "Payouts come from Square, on Square's schedule, to the bank account on your Square account.",
+      keywords: ["payout", "deposit", "bank", "settlement", "when do i get paid", "transfer", "square dashboard", "balance"],
       where: { label: "Payments", href: "/app/payments" },
       blocks: [
         {
           type: "p",
-          text: "Payouts are automatic. A payment is ready to pay out about **1 business day** after it's made, and ready payments are gathered into a payout to the bank account you gave during verification.",
+          text: "Payouts are handled by **Square**, not WorkBench. Card payments typically reach your bank the next business day; Square also offers instant and same-day transfers, and a different schedule, from your Square dashboard. Bank (ACH) payments show as **Processing** for a few business days before they pay out.",
         },
         {
           type: "list",
           items: [
-            "Payout statuses on the Payments page: **Accruing** (still gathering), **Processing**, **On the way**, **Paid out**.",
-            "`Send to bank now` (managers) closes the current payout early instead of waiting.",
+            "Open **Payments** and press `Square dashboard` to see your balance, your payout history and the exact fee on each payment.",
+            "The payments list in WorkBench is what came in and which invoice it paid; the money itself lives in Square.",
             "`Export` downloads your payments as a CSV for your bookkeeper.",
           ],
         },
@@ -238,22 +234,30 @@ export const paymentsSection: HelpSection = {
     {
       slug: "disputes",
       title: "Respond to a dispute (chargeback)",
-      summary: "When a client disputes a card charge, upload your evidence before the deadline.",
-      keywords: ["dispute", "chargeback", "evidence", "fraud claim"],
+      summary: "When a client disputes a card charge, answer it in your Square dashboard before the deadline.",
+      keywords: ["dispute", "chargeback", "evidence", "fraud claim", "square dashboard"],
       where: { label: "Payments", href: "/app/payments" },
       roles: "Owners and admins",
       blocks: [
         {
+          type: "p",
+          text: "Disputes are handled by **Square**. When a client's bank disputes a charge, Square emails you and lists it under **Disputes** in your Square dashboard, with a respond-by date.",
+        },
+        {
           type: "steps",
           items: [
-            "Disputes appear on the Payments page under **Needs attention**, with a respond-by date.",
-            "Press `Upload evidence` and add what shows the work was agreed and done: the signed quote, the invoice, job photos, sign-off, messages. PDF, JPG and PNG work.",
+            "Open **Payments** and press `Square dashboard`, then go to **Disputes**.",
+            "Follow Square's prompts to upload what shows the work was agreed and done: the signed quote, the invoice, job photos, the client's sign-off, messages. PDF, JPG and PNG work.",
             "Submit before the respond-by date. The card network decides the outcome.",
           ],
         },
         {
           type: "tip",
           text: "Signed quotes, the client's job sign-off and before/after photos are your best evidence. Collecting them as you go makes disputes much easier.",
+        },
+        {
+          type: "warn",
+          text: "A lost dispute is taken back by Square on their side. WorkBench doesn't change the invoice on its own, so edit or delete the payment record if you want your books to match.",
         },
       ],
     },
