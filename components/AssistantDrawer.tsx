@@ -17,6 +17,7 @@ import {
   ExternalLink,
   Loader2,
   Lock,
+  Mic,
   PencilLine,
   Plus,
   RotateCcw,
@@ -27,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import AtlasIcon, { AtlasMark } from "@/components/AtlasIcon";
+import AssistantVoice, { type VoiceTurn } from "@/components/AssistantVoice";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import { money } from "@/lib/statuses";
 import { useMeasuredHeight } from "@/lib/use-measured-height";
@@ -456,6 +458,9 @@ export default function AssistantDrawer({
   // route as each tool round starts, so a long turn reads as work, not a hang
   const [progress, setProgress] = useState("");
   const [error, setError] = useState("");
+  // Voice mode: a full-panel overlay that talks and listens (AssistantVoice);
+  // every turn still lands in this chat underneath it.
+  const [voiceOpen, setVoiceOpen] = useState(false);
   // Server truth arrives as a prop; each send moves it locally so the drawer
   // reacts without waiting on a refresh.
   const [liveAccess, setLiveAccess] = useState<AtlasDrawerAccess>(access);
@@ -503,9 +508,13 @@ export default function AssistantDrawer({
    * step); `base` lets the caller hand over a fresher message list than the
    * closure has, so the fired flag it just wrote isn't overwritten.
    */
-  async function send(text: string, opts: { auto?: boolean; depth?: number; base?: Msg[] } = {}) {
+  async function send(
+    text: string,
+    opts: { auto?: boolean; depth?: number; base?: Msg[]; voice?: boolean } = {}
+  ): Promise<{ index: number; msg: Msg } | { error: string } | null> {
     const content = text.trim().slice(0, 4000);
-    if (!content || loading) return;
+    if (!content || loading) return null;
+    let outcome: { index: number; msg: Msg } | { error: string } | null = null;
     setError("");
     setInput("");
     const next: Msg[] = [...(opts.base ?? messages), { role: "user", content, ...(opts.auto ? { auto: true } : {}) }];
@@ -529,7 +538,10 @@ export default function AssistantDrawer({
         // the route answers plain JSON to callers that don't ask for this
         headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" },
         // strip proposals from what we send — the model only needs the text
-        body: JSON.stringify({ messages: next.map((m) => ({ role: m.role, content: m.content })) }),
+        body: JSON.stringify({
+          messages: next.map((m) => ({ role: m.role, content: m.content })),
+          ...(opts.voice ? { voice: true } : {}),
+        }),
       });
       let data: TurnData | null = null;
       let ok = res.ok;
@@ -569,22 +581,22 @@ export default function AssistantDrawer({
         else if (data?.atlasLocked)
           setLiveAccess({ level: "locked", reason: "free-spent", resetsAt: new Date().toISOString() });
         setError(data?.error ?? GENERIC_ERROR);
+        outcome = { error: data?.error ?? GENERIC_ERROR };
       } else {
         if (data.access) setLiveAccess(data.access);
         // metered accounts (free tier + plan) see what each reply cost; the
         // server sends 0 for whitelisted accounts
         const metered = typeof data.turnTokens === "number" && data.turnTokens > 0;
-        persist([
-          ...next,
-          {
-            role: "assistant",
-            content: data.reply,
-            proposals: (data.proposals ?? []).map((p) => ({ ...p, state: "pending" as const })),
-            ...(metered ? { tokens: data.turnTokens } : {}),
-            ...(data.nextStep && (data.proposals?.length ?? 0) > 0 ? { nextStep: data.nextStep } : {}),
-            ...(opts.depth ? { autoDepth: opts.depth } : {}),
-          },
-        ]);
+        const reply: Msg = {
+          role: "assistant",
+          content: data.reply,
+          proposals: (data.proposals ?? []).map((p) => ({ ...p, state: "pending" as const })),
+          ...(metered ? { tokens: data.turnTokens } : {}),
+          ...(data.nextStep && (data.proposals?.length ?? 0) > 0 ? { nextStep: data.nextStep } : {}),
+          ...(opts.depth ? { autoDepth: opts.depth } : {}),
+        };
+        persist([...next, reply]);
+        outcome = { index: next.length, msg: reply };
         // A tool moved the work to a page (the Estimates builder): go there and get out of the way
         if (data.navigate && /^\/app\//.test(data.navigate)) {
           const to = data.navigate;
@@ -596,10 +608,30 @@ export default function AssistantDrawer({
       }
     } catch {
       setError("Couldn't reach the assistant — check your connection and try again.");
+      outcome = { error: "I couldn't reach the server — check the connection and try again." };
     } finally {
       setLoading(false);
       setProgress("");
     }
+    return outcome;
+  }
+
+  /** One spoken turn for the voice overlay: the same send, plus what to read
+   *  out and how to confirm the ordinary cards by voice. */
+  async function askByVoice(text: string): Promise<VoiceTurn> {
+    const r = await send(text, { voice: true });
+    if (!r) return { error: "One moment — still working on the last thing." };
+    if ("error" in r) return r;
+    const { index, msg } = r;
+    const cards = (msg.proposals ?? []).map((p) => ({
+      title: p.title,
+      guarded: Boolean(p.danger || p.money || p.confirmText),
+    }));
+    return {
+      reply: msg.content,
+      cards,
+      confirmOrdinary: () => confirmAll(index, msg.proposals ?? []),
+    };
   }
 
   // Queued next step: once every card in a reply is settled, the drawer
@@ -747,6 +779,15 @@ export default function AssistantDrawer({
       {/* backdrop (mobile emphasis; click closes everywhere) */}
       <div className="drawer-scrim-in fixed inset-0 z-40 bg-black/20 sm:bg-black/10" onClick={onClose} />
       <div className="drawer-slide-in fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col border-l border-gray-200 bg-paper-plain pt-[env(safe-area-inset-top)] shadow-2xl sm:w-[400px]">
+        {voiceOpen && !locked && (
+          <AssistantVoice
+            name={name}
+            accent={accent}
+            progress={progress}
+            ask={askByVoice}
+            onClose={() => setVoiceOpen(false)}
+          />
+        )}
         {/* No header bar — the empty state introduces Atlas, so the chrome is
             just two floating controls. White circles with a border so they
             stay visible over any message content. */}
@@ -1019,18 +1060,36 @@ export default function AssistantDrawer({
               placeholder={`Ask ${name}, or tell it what to do...`}
               className="max-h-32 min-h-[42px] flex-1 resize-none rounded-2xl border border-gray-300 bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
-            <button
-              type="button"
-              onClick={() => {
-                hapticImpact("LIGHT");
-                send(input);
-              }}
-              disabled={loading || !input.trim()}
-              aria-label="Send"
-              className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-green-600 transition-colors hover:bg-green-500 disabled:opacity-40"
-            >
-              <ArrowUp size={17} strokeWidth={2.4} />
-            </button>
+            {input.trim() ? (
+              <button
+                type="button"
+                onClick={() => {
+                  hapticImpact("LIGHT");
+                  send(input);
+                }}
+                disabled={loading}
+                aria-label="Send"
+                className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-green-600 transition-colors hover:bg-green-500 disabled:opacity-40"
+              >
+                <ArrowUp size={17} strokeWidth={2.4} />
+              </button>
+            ) : (
+              // Nothing typed: the button is the microphone — tap to talk
+              // with Atlas (voice mode). Typing swaps it back to Send.
+              <button
+                type="button"
+                onClick={() => {
+                  hapticImpact("MEDIUM");
+                  setVoiceOpen(true);
+                }}
+                disabled={loading}
+                aria-label={`Talk to ${name}`}
+                title={`Talk to ${name}`}
+                className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-green-600 transition-colors hover:bg-green-500 disabled:opacity-40"
+              >
+                <Mic size={17} strokeWidth={2.2} />
+              </button>
+            )}
           </div>
           <p className="mt-1.5 text-center text-[10px] text-gray-400">
             AI answers can be wrong — verify anything important on its page.
