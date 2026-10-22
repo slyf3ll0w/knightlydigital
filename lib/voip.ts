@@ -112,6 +112,41 @@ export async function membershipOf(actorId: string, userId: string): Promise<{ i
  * VoIP token on this login counts as reachable for an outbound call from
  * the app: the INVITE for its own call is what wakes it.
  */
+/**
+ * Every iOS SIP credential the phone behind `userId` may be registered as:
+ * this membership's own first, then its siblings' (the other companies on
+ * the login). The native engine registers as whichever company the page is
+ * signed into, and a pushed call for ANOTHER company makes the page switch
+ * the session before the engine has said it is awake
+ * (SoftphoneNativeEngine probeCompany): the engine then asks as this
+ * membership while still registered as the other one, and a leg to this
+ * credential alone dies at Telnyx with 480 (2026-10-21: David slid to
+ * answer on the lock screen; the caller heard ringback until they gave up).
+ * One leg per credential rings the one the phone holds; the rest die
+ * within a second, unanswered.
+ */
+export async function iosCredentialsOfLogin(userId: string): Promise<string[]> {
+  const me = await prisma.user.findUnique({ where: { id: userId }, select: { sipUsernameIos: true, accountId: true } });
+  if (!me?.sipUsernameIos) return [];
+  const siblings = me.accountId
+    ? await prisma.user.findMany({
+        where: { accountId: me.accountId, id: { not: userId }, isActive: true, sipUsernameIos: { not: null } },
+        select: { sipUsernameIos: true },
+      })
+    : [];
+  return uniqueCredentials(
+    me.sipUsernameIos,
+    siblings.map((s) => s.sipUsernameIos)
+  );
+}
+
+/** Own credential first, then the siblings', no repeats or blanks. */
+export function uniqueCredentials(own: string, siblings: Array<string | null | undefined>): string[] {
+  const out = [own];
+  for (const s of siblings) if (s && !out.includes(s)) out.push(s);
+  return out;
+}
+
 export async function voipRegisteredSoftphone(userId: string): Promise<{ sipUsername: string; device: "ios" } | null> {
   const u = await prisma.user.findUnique({ where: { id: userId }, select: { sipUsernameIos: true, softphoneEnabled: true, accountId: true } });
   if (!u?.sipUsernameIos || !u.softphoneEnabled) return null;

@@ -56,7 +56,7 @@ import { APP_OUTBOUND_RING_SECS, APP_RING_SECS, VOIP_APP_RING_SECS, canUseSoftph
 import { appendTranscript, summarizeCallNotes, transcriptLine, type AtlasNotesSnapshot } from "@/lib/call-notes";
 import { ATLAS_ACCESS_SELECT, atlasAccess } from "@/lib/assistant-access";
 import { aiEnabled } from "@/lib/ai";
-import { VOIP_WAKE_SECS, pushIncomingCall, voipRegisteredSoftphone, voipTargetsFor } from "@/lib/voip";
+import { VOIP_WAKE_SECS, iosCredentialsOfLogin, pushIncomingCall, voipRegisteredSoftphone, voipTargetsFor } from "@/lib/voip";
 import {
   TTS,
   TelnyxError,
@@ -374,6 +374,8 @@ export type VoiceEventPayload = {
   to?: string;
   hangup_cause?: string;
   hangup_source?: string;
+  /** call.hangup: the SIP code behind hangup_cause ("480" = no registration behind a dialed credential) */
+  sip_hangup_cause?: string;
   /** call.gather.ended */
   digits?: string;
   status?: string;
@@ -628,7 +630,7 @@ async function dialCell(call: CallRow, opts: { ringback: boolean }): Promise<voi
 async function ringSoftphones(call: CallRow, targets: RingTarget[], woke = false): Promise<number> {
   let ringing = 0;
   const label = displayParty(call);
-  for (const t of targets) {
+  for (const [i, t] of targets.entries()) {
     const device = t.device ?? (woke ? "ios" : "browser");
     try {
       const leg = await dialCall({
@@ -644,11 +646,12 @@ async function ringSoftphones(call: CallRow, targets: RingTarget[], woke = false
         // so Telnyx answered the second dial with the first leg and never
         // rang the phone at all (found in the Prog. Voice Call Flow Tool —
         // the phone's leg simply did not exist).
-        // A woken phone may ask again after re-registering (its first leg
-        // died at 480), so its key is per attempt; the browser fan-out keeps
-        // one key per call (the appRingAt claim already stops a retried
-        // webhook ringing twice).
-        commandId: woke ? `${call.id}:app:${t.userId}:${device}:${Date.now()}` : `${call.id}:app:${t.userId}:${device}`,
+        // A woken phone is dialed again after a 480 (scheduleWokenRedial),
+        // and once per credential it may hold (dialWokenPhone) — all for the
+        // same user and device, so its key is per attempt AND per target;
+        // the browser fan-out keeps one key per call (the appRingAt claim
+        // already stops a retried webhook ringing twice).
+        commandId: woke ? `${call.id}:app:${t.userId}:${device}:${Date.now()}:${i}` : `${call.id}:app:${t.userId}:${device}`,
       });
       // upsert: the leg's first webhook may have adopted the row already (findCallByLeg).
       await prisma.callLeg.upsert({
@@ -717,9 +720,62 @@ export async function wakeSoftphoneLeg(userId: string, companyId: string, callId
   }
   const open = await prisma.callLeg.count({ where: { callId, userId, device: "ios", endedAt: null } });
   if (open > 0) return "already";
-  const rang = await ringSoftphones(call, [{ userId, sipUsername: user.sipUsernameIos, device: "ios" }], true);
-  console.info(`[voice] wake call=${callId}: ${rang > 0 ? "ringing" : "late"} — SIP leg to ${user.sipUsernameIos} ${rang > 0 ? "dialed" : "failed"} ${Math.round(sinceRing / 1000)} s after the push`);
+  const rang = await dialWokenPhone(call, userId, sinceRing);
   return rang > 0 ? "ringing" : "late";
+}
+
+/**
+ * Dial the woken phone: one leg per iOS credential it may be registered as
+ * (lib/voip.ts iosCredentialsOfLogin — its own, and its siblings' when the
+ * page switched company under it). Every leg carries THIS membership's
+ * userId: whichever credential picks up, the call is answered by this
+ * person in this company. Returns how many legs are ringing.
+ */
+async function dialWokenPhone(call: CallRow, userId: string, sinceRingMs: number, legsBefore = 0): Promise<number> {
+  const creds = await iosCredentialsOfLogin(userId);
+  const rang = await ringSoftphones(
+    call,
+    creds.map((sipUsername) => ({ userId, sipUsername, device: "ios" as const })),
+    true
+  );
+  console.info(
+    `[voice] wake call=${call.id}: ${rang > 0 ? "ringing" : "late"} — ${rang}/${creds.length} SIP leg(s) to the phone dialed ${Math.round(sinceRingMs / 1000)} s after the push${legsBefore ? ` (again, after ${legsBefore} earlier leg(s))` : ""}`
+  );
+  return rang;
+}
+
+/** A woken phone whose legs died at 480 is dialed again this soon, until this many legs have been tried. */
+const WOKEN_REDIAL_MS = 2000;
+const WOKEN_REDIAL_MAX_LEGS = 8;
+const wokenRedials = new Map<string, NodeJS.Timeout>();
+
+/**
+ * Telnyx answered the woken phone's leg with 480: no registration behind
+ * that credential — it had just registered and was not routable yet, or it
+ * holds a sibling credential the first dial missed. The phone cannot tell
+ * (its socket is fine) and so never asks again by itself; the app build 13
+ * in the field certainly doesn't. Dial it again shortly, a bounded number
+ * of times, while the caller still hears ringback. One timer per call: the
+ * hangups of several legs arrive together.
+ */
+function scheduleWokenRedial(callId: string, userId: string): void {
+  if (wokenRedials.has(callId)) return;
+  const t = setTimeout(() => {
+    wokenRedials.delete(callId);
+    void (async () => {
+      const call = await prisma.call.findUnique({ where: { id: callId }, include: callInclude });
+      if (!call || call.status !== "RINGING" || call.direction !== "INBOUND" || call.agentCallId || !call.appRingAt) return;
+      const sinceRing = Date.now() - call.appRingAt.getTime();
+      if (sinceRing > VOIP_WAKE_SECS * 1000) return; // the cell fallback is about to take over
+      const [open, dialed] = await Promise.all([
+        prisma.callLeg.count({ where: { callId, userId, device: "ios", endedAt: null } }),
+        prisma.callLeg.count({ where: { callId, userId, device: "ios" } }),
+      ]);
+      if (open > 0 || dialed >= WOKEN_REDIAL_MAX_LEGS) return;
+      await dialWokenPhone(call, userId, sinceRing, dialed);
+    })().catch((err) => reportError("[voice] woken redial failed:", err));
+  }, WOKEN_REDIAL_MS);
+  wokenRedials.set(callId, t);
 }
 
 /** Hang up every browser leg still ringing on a call, except the one that won. Their hangup webhooks close the rows. */
@@ -917,7 +973,9 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
       const row = await prisma.callLeg.findUnique({ where: { id: appLeg.id }, select: { createdAt: true } });
       const legAgeMs = row ? now.getTime() - row.createdAt.getTime() : Infinity;
       if (cause !== "timeout" && legAgeMs < 8000) {
-        console.info(`[voice] woken leg died in ${Math.round(legAgeMs / 1000)} s (${cause}); the call stays ringing for the phone to try again`);
+        const sip = p.sip_hangup_cause ?? null;
+        console.info(`[voice] woken leg died in ${Math.round(legAgeMs / 1000)} s (${cause}${sip ? ` sip ${sip}` : ""}); the call stays ringing for the phone`);
+        if (sip === "480" && appLeg.userId) scheduleWokenRedial(call.id, appLeg.userId);
         return;
       }
       return toVoicemail(call);
