@@ -1,4 +1,5 @@
 import { prisma } from "../db";
+import { getActiveFieldDefs } from "../contact-fields";
 import {
   canSell,
   canSeeMoney,
@@ -264,7 +265,7 @@ export const clientTools: Tool[] = [
     decl: {
       name: "update_client",
       description:
-        "Stage updating a client's details (name, company, email, phone, address, notes). Only include fields that should change. Confirmation card required.",
+        "Stage updating a client's details (name, company, email, phone, address, notes) and/or their CUSTOM CLIENT FIELDS (the company's own fields — gate code, pet name, route, tier, anything added in Settings or with manage_client_fields). fields = { \"<field label>\": \"<value>\" }, label as shown by manage_client_fields 'list' (case-insensitive); an empty string clears a value. Only include what should change. Bulk-friendly: to fill a field for many clients, call this once per client in the same round (the cards combine into one Confirm). Confirmation card required.",
       parameters: {
         type: "object",
         properties: {
@@ -273,6 +274,10 @@ export const clientTools: Tool[] = [
           companyName: { type: "string" },
           email: { type: "string" }, phone: { type: "string" },
           address: { type: "string" }, notes: { type: "string" },
+          fields: {
+            type: "object",
+            description: "Custom client field values keyed by field LABEL, e.g. { \"Gate code\": \"4471\", \"Tier\": \"Gold\" }. SELECT fields must use one of their options.",
+          },
         },
         required: ["clientId"],
       },
@@ -294,6 +299,42 @@ export const clientTools: Tool[] = [
           payload[key] = v;
           lines.push(`${label}: ${v}`);
         }
+      }
+      // Custom fields: labels → def ids; the PATCH route merges the values
+      // over what's stored and validates SELECT/NUMBER again server-side.
+      const custom = args.fields && typeof args.fields === "object" && !Array.isArray(args.fields)
+        ? (args.fields as Record<string, unknown>)
+        : null;
+      if (custom && Object.keys(custom).length > 0) {
+        const defs = await getActiveFieldDefs(actor.companyId);
+        if (defs.length === 0) {
+          return { error: "This account has no custom client fields yet — add one with manage_client_fields 'create' first." };
+        }
+        const customFields: Record<string, string> = {};
+        for (const [rawLabel, rawValue] of Object.entries(custom)) {
+          const label = str(rawLabel, 80).toLowerCase();
+          const def =
+            defs.find((d) => d.label.toLowerCase() === label) ??
+            defs.find((d) => d.id === rawLabel) ??
+            defs.find((d) => d.label.toLowerCase().includes(label));
+          if (!def) {
+            return { error: `No client field called "${rawLabel}". Fields on this account: ${defs.map((d) => d.label).join(", ")}.` };
+          }
+          const value = rawValue === null || rawValue === undefined ? "" : String(rawValue).trim().slice(0, 500);
+          if (value && def.type === "SELECT" && def.options.length > 0) {
+            const pick = def.options.find((o) => o.toLowerCase() === value.toLowerCase());
+            if (!pick) return { error: `"${def.label}" only takes: ${def.options.join(", ")}.` };
+            customFields[def.id] = pick;
+          } else if (value && def.type === "NUMBER" && Number.isNaN(Number(value))) {
+            return { error: `"${def.label}" is a number field.` };
+          } else if (value && def.type === "DATE" && !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+            return { error: `"${def.label}" is a date field — send YYYY-MM-DD.` };
+          } else {
+            customFields[def.id] = value;
+          }
+          lines.push(value ? `${def.label}: ${value}` : `${def.label}: (cleared)`);
+        }
+        payload.customFields = customFields;
       }
       if (lines.length === 0) return { error: "Nothing to change — provide at least one field." };
       return stage(ctx, {

@@ -1,4 +1,5 @@
 import { prisma } from "../db";
+import { getActiveFieldDefs } from "../contact-fields";
 import { canSell, canSeeMoney, isManager } from "../permissions";
 import { type Tool, str, money, clientName, companyTz, fmtWhen, findContact, stage } from "./core";
 
@@ -38,13 +39,18 @@ export const clientExtraTools: Tool[] = [
       });
       if (!full) return { error: "No client with that id." };
       const canMoney = canSeeMoney(actor);
+      // Custom fields by LABEL (stored by def id) — every active field is
+      // listed, empty ones as null, so the model sees what could be filled.
+      const defs = await getActiveFieldDefs(actor.companyId);
+      const stored = (full.customFields as Record<string, string> | null) ?? {};
+      const customFields = Object.fromEntries(defs.map((d) => [d.label, stored[d.id] ?? null]));
       return {
         client: clientName(contact),
         primaryAddress: contact.address,
         addresses: full.addresses.map((a) => ({ id: a.id, label: a.label, address: [a.address, a.city, a.state, a.zip].filter(Boolean).join(", "), jobsThere: a._count.jobs })),
         people: full.people.map((p) => ({ id: p.id, name: `${p.firstName} ${p.lastName}`.trim(), role: p.role, email: p.email, phone: p.phone, notes: p.notes })),
         ...(canMoney ? { cardsOnFile: full.savedCards.map((c) => ({ id: c.id, label: c.label, brand: c.brand, expires: c.expMonth && c.expYear ? `${c.expMonth}/${c.expYear}` : null, isDefault: c.isDefault })), paymentTermsDays: full.paymentTermsDays } : {}),
-        customFields: full.customFields ?? {},
+        customFields,
         smsOptOut: full.smsOptOut,
         textsOff: full.smsOptOut || full.smsDisabled,
         portalLastVisit: full.hubLastVisitAt ? fmtWhen(tz, full.hubLastVisitAt, false) : null,

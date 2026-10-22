@@ -2577,6 +2577,14 @@ export default function AppShell({
               subpages; at the top level it's the company's identity — round
               logo, name, and a switcher chevron (the ClickWise header). The
               hamburger is retired — the More tab opens the drawer. */}
+          {/* Phone bar = [left slot][collapsed title][bell + gear]. The two
+              side slots split the spare width equally (flex-1 basis-0) but
+              never shrink under their own content (min-w-max), so the title
+              sits dead-centre in the bar when it fits and otherwise shrinks
+              and truncates between the controls — iOS nav-bar behaviour. A
+              long quote/invoice title used to be a centred absolute box that
+              ran under "‹ Quotes" and the bell (2026-10-22). */}
+          <div className="lg:hidden flex min-w-max flex-1 basis-0 items-center">
           {mobileBack ? (
             <button
               type="button"
@@ -2585,7 +2593,7 @@ export default function AppShell({
                 goBack();
               }}
               aria-label={`Back to ${mobileBack.label}`}
-              className="glass-control glass-hit lg:hidden -ml-1 flex h-10 min-w-0 shrink items-center rounded-full pl-1 pr-3.5 text-[color:var(--mobile-accent)]"
+              className="glass-control glass-hit -ml-1 flex h-10 max-w-[38vw] items-center rounded-full pl-1 pr-3.5 text-[color:var(--mobile-accent)]"
             >
               <span className="glass-press flex min-w-0 items-center">
                 <ChevronLeft size={24} strokeWidth={2.2} className="-mr-0.5 shrink-0" />
@@ -2600,7 +2608,7 @@ export default function AppShell({
                 setCompanySheetOpen(true);
               }}
               aria-label="Switch company"
-              className="lg:hidden -ml-0.5 flex h-10 min-w-0 max-w-[52%] shrink items-center gap-2.5 active:opacity-60 transition-opacity"
+              className="-ml-0.5 flex h-10 max-w-[52vw] items-center gap-2.5 active:opacity-60 transition-opacity"
             >
               <CompanyDot name={companyName ?? "WorkBench"} logoUrl={companyLogoUrl} />
               <span className="truncate text-[16px] font-bold tracking-tight text-gray-900">
@@ -2609,7 +2617,21 @@ export default function AppShell({
               <ChevronDown size={15} strokeWidth={2.6} className="shrink-0 text-gray-400" />
             </button>
           )}
+          </div>
 
+          {/* Collapsed large title — fades up into the blurred bar once the
+              in-page title scrolls away (iOS nav-bar behavior). In the flex
+              flow between the side slots so it can never overlap them. */}
+          <span
+            aria-hidden
+            className={`lg:hidden pointer-events-none min-w-0 shrink truncate text-center text-[16px] font-semibold text-gray-900 transition-all duration-200 ${
+              headerTitle.shown ? "translate-y-0 opacity-100" : "translate-y-1.5 opacity-0"
+            }`}
+          >
+            {headerTitle.text}
+          </span>
+
+          <div className="lg:hidden flex min-w-max flex-1 basis-0 items-center justify-end">
           {/* Recent notifications — bare bell icon, red dot when anything
               needs a look (requests / past-due / new leads). Chat moved to
               the tab bar; settings keep their gear next door. */}
@@ -2621,7 +2643,7 @@ export default function AppShell({
               setNotifsOpen(true);
             }}
             aria-label="Notifications"
-            className="glass-control glass-hit lg:hidden ml-auto relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-700"
+            className="glass-control glass-hit relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-700"
           >
             <span className="glass-press flex">
               <Bell size={20} />
@@ -2634,12 +2656,13 @@ export default function AppShell({
             href={manager ? "/app/settings" : "/app/settings/profile"}
             onClick={() => hapticImpact("LIGHT")}
             aria-label={manager ? "Settings" : "My Profile"}
-            className="glass-control glass-hit lg:hidden -ml-1.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-700"
+            className="glass-control glass-hit -ml-1.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-700"
           >
             <span className="glass-press flex">
               <Settings size={20} />
             </span>
           </Link>
+          </div>
 
           {/* Desktop left slot: the page's title rises into the bar once the
               in-page h1 scrolls away (the iOS collapse, at a desk) — context
@@ -2724,21 +2747,6 @@ export default function AppShell({
             <Settings size={17} />
           </Link>
 
-          {/* Collapsed large title — fades up into the blurred bar once the
-              in-page title scrolls away (iOS nav-bar behavior). Bottom-anchored
-              so the safe-area inset above never offsets it. */}
-          <span
-            aria-hidden
-            className="lg:hidden pointer-events-none absolute inset-x-0 bottom-0 flex h-[57px] items-center justify-center"
-          >
-            <span
-              className={`max-w-[55%] truncate text-[16px] font-semibold text-gray-900 transition-all duration-200 ${
-                headerTitle.shown ? "translate-y-0 opacity-100" : "translate-y-1.5 opacity-0"
-              }`}
-            >
-              {headerTitle.text}
-            </span>
-          </span>
         </header>
 
         {/* Pull-to-refresh spinner sits in the canvas gap that opens when

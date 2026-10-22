@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../db";
 import { apptForUser } from "@/lib/appointment-people";
 import {
@@ -131,6 +132,8 @@ export const recordsTools: Tool[] = [
           city: { type: "string", description: "clients: city match" },
           zip: { type: "string", description: "clients: ZIP match" },
           leadSource: { type: "string", description: "clients/jobs: lead source match" },
+          field: { type: "string", description: "clients: a custom client field's label (manage_client_fields 'list'); rows then include that field's value" },
+          fieldValue: { type: "string", description: "clients: with field — only clients whose field equals this (case-insensitive); 'empty' = clients with no value yet" },
           sort: {
             type: "string",
             enum: ["newest", "oldest", "date_asc", "date_desc", "amount_desc", "amount_asc", "name"],
@@ -171,6 +174,31 @@ export const recordsTools: Tool[] = [
 
       switch (entity) {
         case "clients": {
+          // Custom client field filter: values live on Contact.customFields
+          // as { [defId]: string }, so the label is resolved to its def first.
+          const fieldLabel = str(args.field, 80);
+          const fieldValue = str(args.fieldValue, 200);
+          let fieldDef: { id: string; label: string } | null = null;
+          if (fieldLabel) {
+            const defs = await prisma.contactFieldDef.findMany({
+              where: { companyId, isActive: true },
+              select: { id: true, label: true },
+            });
+            const lc = fieldLabel.toLowerCase();
+            fieldDef =
+              defs.find((d) => d.label.toLowerCase() === lc) ??
+              defs.find((d) => d.label.toLowerCase().includes(lc)) ??
+              null;
+            if (!fieldDef) {
+              return {
+                error: `No client field called "${fieldLabel}". Fields on this account: ${defs.map((d) => d.label).join(", ") || "(none yet — manage_client_fields 'create' adds one)"}.`,
+              };
+            }
+          }
+          const wantsEmpty = fieldDef && fieldValue.toLowerCase() === "empty";
+          const fieldWhere = fieldDef && fieldValue && !wantsEmpty
+            ? { customFields: { path: [fieldDef.id], string_contains: "" } }
+            : {};
           const where = {
             companyId,
             ...contactScope(actor),
@@ -181,26 +209,47 @@ export const recordsTools: Tool[] = [
             ...(str(args.zip, 12) ? { zip: { startsWith: str(args.zip, 12) } } : {}),
             ...(str(args.leadSource, 60) ? { leadSource: { contains: str(args.leadSource, 60), mode: "insensitive" as const } } : {}),
             ...(dates ? { [dateField === "updated" ? "updatedAt" : "createdAt"]: dates } : {}),
+            ...fieldWhere,
           };
-          const [total, rows] = await Promise.all([
-            prisma.contact.count({ where }),
-            prisma.contact.findMany({
-              where,
-              ...page,
-              orderBy: sort === "name" ? [{ lastName: "asc" }, { firstName: "asc" }] : { createdAt: dir },
-              select: {
-                id: true, ...nameSel, email: true, phone: true, city: true, zip: true, status: true,
-                leadSource: true, createdAt: true, assignedTo: { select: { name: true } },
-                _count: { select: { jobs: true, quotes: true, invoices: true } },
-              },
-            }),
-          ]);
+          const valueOf = (c: { customFields: unknown }) => {
+            if (!fieldDef) return undefined;
+            const v = (c.customFields as Record<string, string> | null)?.[fieldDef.id];
+            return typeof v === "string" && v ? v : null;
+          };
+          // Value matching is done in code (case-insensitive equality isn't a
+          // JSON-path filter), so the page is fetched wide and filtered here.
+          const matchesValue = (c: { customFields: unknown }) => {
+            if (!fieldDef || !fieldValue) return true;
+            const v = valueOf(c);
+            if (wantsEmpty) return v === null;
+            return (v ?? "").toLowerCase() === fieldValue.toLowerCase();
+          };
+          const select = {
+            id: true, ...nameSel, email: true, phone: true, city: true, zip: true, status: true,
+            leadSource: true, createdAt: true, customFields: true, assignedTo: { select: { name: true } },
+            _count: { select: { jobs: true, quotes: true, invoices: true } },
+          } satisfies Prisma.ContactSelect;
+          const orderBy: Prisma.ContactOrderByWithRelationInput | Prisma.ContactOrderByWithRelationInput[] =
+            sort === "name" ? [{ lastName: "asc" }, { firstName: "asc" }] : { createdAt: dir as Prisma.SortOrder };
+          const fetchRows = (window: { take: number; skip?: number }) =>
+            prisma.contact.findMany({ where, orderBy, select, ...window });
+          let total: number;
+          let rows: Awaited<ReturnType<typeof fetchRows>>;
+          if (fieldDef && fieldValue) {
+            const matched = (await fetchRows({ take: 2000 })).filter(matchesValue);
+            total = matched.length;
+            rows = matched.slice(offset, offset + limit);
+          } else {
+            [total, rows] = await Promise.all([prisma.contact.count({ where }), fetchRows(page)]);
+          }
           return {
             total, showing: rows.length, offset, hasMore: offset + rows.length < total,
+            ...(fieldDef ? { field: fieldDef.label } : {}),
             rows: rows.map((c) => ({
               id: c.id, name: clientName(c), email: c.email, phone: c.phone, city: c.city, zip: c.zip,
               status: c.status, source: c.leadSource, rep: c.assignedTo?.name ?? null,
               created: iso(c.createdAt), jobs: c._count.jobs, quotes: c._count.quotes, invoices: c._count.invoices,
+              ...(fieldDef ? { [fieldDef.label]: valueOf(c) } : {}),
             })),
           };
         }
