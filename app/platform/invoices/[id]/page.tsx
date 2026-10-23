@@ -20,6 +20,7 @@ import RunAutomationMenu from "@/components/RunAutomationMenu";
 import { getProcessor, invoiceBalance } from "@/lib/payments";
 import { canChargeOnline } from "@/lib/payments-gate";
 import { clientPayConfig, PAY_CONFIG_SELECT } from "@/lib/pay-client-config";
+import { tapToPayOffer } from "@/lib/tap-to-pay";
 import type { ClientPayConfig } from "@/lib/pay-config";
 import { activityFor } from "@/lib/activity";
 import ActivityTrail from "@/components/ActivityTrail";
@@ -106,6 +107,10 @@ export default async function InvoiceDetailPage({
     }
   }
 
+  // Tap to Pay in the phone app: offered to anyone who can take money on
+  // this invoice while there is a balance (lib/tap-to-pay.ts decides).
+  const tapToPay = balance > 0 && invoice.status !== "PAID" ? await tapToPayOffer(actor) : null;
+
   // One-shot confetti (per user) on the first open after a processor-verified
   // (card/ACH) payment marked it PAID — manual cash/check entries don't celebrate.
   const hasOnlinePayment = invoice.payments.some(
@@ -143,8 +148,10 @@ export default async function InvoiceDetailPage({
         <RunAutomationMenu entity="invoice" entityId={invoice.id} manager={isManager(actor.role)} />
         <InvoiceActions
           invoiceId={invoice.id}
+          invoiceNumber={invoice.invoiceNumber}
           status={invoice.status}
           publicUrl={publicUrl}
+          tapToPay={tapToPay}
           canDelete={isManager(actor.role)}
           paymentCount={invoice.payments.length}
           paymentTotal={totalPaid}

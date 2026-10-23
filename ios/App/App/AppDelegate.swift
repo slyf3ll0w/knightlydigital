@@ -4,6 +4,7 @@ import AppShortcutsPlugin
 import FirebaseCore
 import FirebaseMessaging
 import GoogleSignIn
+import SquareMobilePaymentsSDK
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -12,6 +13,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         FirebaseApp.configure()
+        // Square Mobile Payments SDK (Tap to Pay on iPhone, TapToPayPlugin.swift)
+        // must be initialized at launch. The application id comes from
+        // Info.plist SquareApplicationID — production id for store builds,
+        // the sandbox id on a debug build; empty = Tap to Pay stays off.
+        if let squareAppId = Bundle.main.object(forInfoDictionaryKey: "SquareApplicationID") as? String, !squareAppId.isEmpty {
+            MobilePaymentsSDK.initialize(applicationLaunchOptions: launchOptions, squareApplicationID: squareAppId)
+            TapToPayPlugin.configured = true
+        }
         // PushKit must be registered AT LAUNCH: when iOS starts the closed app
         // for a VoIP push it delivers that push to the registry it finds here,
         // and an app that has none gets terminated for never reporting the

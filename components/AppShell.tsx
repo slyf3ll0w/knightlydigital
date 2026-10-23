@@ -47,6 +47,7 @@ import {
   Calculator,
   Zap,
   ListChecks,
+  HandCoins,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
@@ -376,6 +377,8 @@ const createItems: NavItem[] = [
   // Tasks has no /new page: the list opens its editor sheet from ?new=1
   { href: "/app/tasks?new=1", label: "Task", icon: ListChecks },
   { href: "/app/invoices/new", label: "Invoice", icon: Receipt, show: moneyRoles },
+  // Quick charge: amount + what for → a live pay link (docs/plans/checkout-tap-to-pay-2026-10-22.md)
+  { href: "/app/invoices/request", label: "Request payment", icon: HandCoins, show: moneyRoles },
   { href: "/app/payments/new", label: "Payment", icon: DollarSign, show: moneyRoles },
 ];
 
@@ -404,6 +407,7 @@ const PHONE_CREATE_ORDER = [
   "/app/calls?keypad=1",
   "/app/messages?new=1",
   "/app/invoices/new",
+  "/app/invoices/request",
 ];
 
 
@@ -495,6 +499,7 @@ const CREATE_TONES: Record<string, "a" | "b" | "c" | "d" | "e"> = {
   "/app/calls?keypad=1": "e",
   "/app/messages?new=1": "e",
   "/app/invoices/new": "d",
+  "/app/invoices/request": "d",
   "/app/payments/new": "d",
 };
 

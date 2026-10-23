@@ -130,6 +130,7 @@ export default function PayPage({
   const parsedAmount = Math.round((Number(amountText) || 0) * 100) / 100;
   const payAmount = partial ? parsedAmount : balance;
   const amountValid = !partial || (parsedAmount >= 1 && parsedAmount <= balance);
+  const docType = invoice.kind === "DEPOSIT" ? "Deposit invoice" : invoice.kind === "QUICK_CHARGE" ? "Payment request" : "Invoice";
   const canSplit = invoice.kind !== "DEPOSIT" && balance > 1;
   const surcharge = method === "CARD" && company.surchargeEnabled && amountValid ? Math.round(payAmount * surchargeRate * 100) / 100 : 0;
   const chargeTotal = (amountValid ? payAmount : 0) + surcharge;
@@ -273,7 +274,7 @@ export default function PayPage({
       <Sheet>
         <Letterhead
           company={company}
-          docType={invoice.kind === "DEPOSIT" ? "Deposit invoice" : "Invoice"}
+          docType={docType}
           docNumber={invoice.invoiceNumber}
           meta={[shortDate(invoice.issuedAt ?? invoice.createdAt), invoice.dueDate && !isPaid ? `Due ${shortDate(invoice.dueDate)}` : null]}
         />
@@ -552,7 +553,7 @@ export default function PayPage({
           </Stub>
         )}
 
-        <Foot docType="Invoice" docNumber={invoice.invoiceNumber} companyName={company.name} pdfHref={`/pay/${invoice.publicToken}/pdf`} />
+        <Foot docType={docType} docNumber={invoice.invoiceNumber} companyName={company.name} pdfHref={`/pay/${invoice.publicToken}/pdf`} />
       </Sheet>
       <ChargeOverlay phase={charge} onDismiss={() => setCharge(null)} />
     </ClientRoot>

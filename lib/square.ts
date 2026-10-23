@@ -27,6 +27,7 @@ export const SQUARE_API_VERSION = "2025-12-17";
 export const SQUARE_SCOPES = [
   "MERCHANT_PROFILE_READ", // ListLocations / RetrieveMerchant (who connected, which location)
   "PAYMENTS_WRITE", // CreatePayment, RefundPayment, CreateCard / DisableCard
+  "PAYMENTS_WRITE_IN_PERSON", // Tap to Pay through the Mobile Payments SDK in the phone app (2026-10-22; sellers connected before re-authorize once)
   "PAYMENTS_READ", // GetPayment / GetPaymentRefund (webhook re-fetch), ListCards
   "CUSTOMERS_READ",
   "CUSTOMERS_WRITE", // a Square customer per contact when a card goes on file

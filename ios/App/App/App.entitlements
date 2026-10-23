@@ -8,6 +8,12 @@
 	<array>
 		<string>Default</string>
 	</array>
+	<!-- Tap to Pay on iPhone. Uncomment ONLY after Apple grants the entitlement to the
+	     organization account (developer.apple.com → Account → Additional resources →
+	     Tap to Pay on iPhone); with the key present and ungranted, signing fails.
+	<key>com.apple.developer.proximity-reader.payment.acceptance</key>
+	<true/>
+	-->
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>webcredentials:workbenchfsm.com</string>

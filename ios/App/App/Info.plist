@@ -35,7 +35,14 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>WorkBench uses the microphone to take and place business-line calls inside the app.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>WorkBench records your location only when you clock in or out and while you're on the clock, so your team can see where work is happening. It is never tracked off the clock.</string>
+	<string>WorkBench records your location only when you clock in or out and while you're on the clock, so your team can see where work is happening, and Square requires it while you take a Tap to Pay payment. It is never tracked otherwise.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Square's payment SDK uses Bluetooth to find card readers. Tap to Pay on iPhone itself needs no reader.</string>
+	<!-- Square Mobile Payments SDK application id (Developer Console → Credentials).
+	     Production id for store builds, the sandbox id on a debug build. Empty = Tap
+	     to Pay stays off in this build (TapToPayPlugin reports configured: false). -->
+	<key>SquareApplicationID</key>
+	<string>sq0idp-1AGNSMGlbpWTyNAeu4m5iA</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

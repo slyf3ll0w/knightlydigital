@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
+        android:name=".HubApplication"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -51,6 +52,17 @@
     <uses-permission android:name="android.permission.USE_FINGERPRINT" android:maxSdkVersion="28" />
     <!-- Business-line calls in the webview (components/Softphone.tsx; native ringing is
          tier 3 of docs/plans/business-line-voice-2026-09-18.md): getUserMedia needs these -->
+    <!-- Square Mobile Payments SDK (Tap to Pay): location is mandatory for every
+         in-person payment (Square's fraud rules); Bluetooth + phone state are what
+         the SDK declares for readers. NFC is the Tap to Pay radio; not required so
+         phones without it still install (the button just never shows). -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.NFC" />
+    <uses-feature android:name="android.hardware.nfc" android:required="false" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <!-- RECORD_AUDIO implies a required microphone, which drops mic-less tablets and

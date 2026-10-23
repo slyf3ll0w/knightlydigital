@@ -57,6 +57,56 @@ export const invoicesSection: HelpSection = {
       ],
     },
     {
+      slug: "request-payment-link",
+      title: "Request a payment (a pay link in seconds)",
+      summary: "Type an amount and what it's for; get a link to text, email, copy or have scanned. No invoice editor.",
+      keywords: ["request payment", "payment request", "quick charge", "pay link", "checkout link", "payment link", "qr code", "charge someone", "walk-up", "no client"],
+      where: { label: "Request payment", href: "/app/invoices/request" },
+      roles: "Owners, admins and Sales + Tech (anyone who can see money)",
+      blocks: [
+        {
+          type: "p",
+          text: "For the \"just charge them $120\" moments. A payment request is an invoice with the editor skipped: one amount, one line, and a pay link you can hand over on the spot. The money lands in your reports, reminders and QuickBooks sync exactly like any other invoice.",
+        },
+        {
+          type: "steps",
+          items: [
+            "Press **Create** and pick `Request payment` (on a client's page it's in their Create menu, with the client already filled in).",
+            "Type the **Amount** and **What for** (one line — it becomes the invoice subject). Pick a **Client** if you want to text or email them; leave it empty for someone who isn't a client yet. `+ Note or tax` adds a note for the pay page and a tax percentage.",
+            "Press `Get link`. The link is live from this moment.",
+            "Share it: `Copy`, `Text it` (from your business line), `Email it`, or let them point their phone camera at the **QR code** on your screen. `Open invoice` takes you to the invoice behind it.",
+          ],
+          note: "Scan the code from your phone or laptop screen — no printing, no typing.",
+        },
+        {
+          type: "list",
+          items: [
+            "Amounts run from $1 to $25,000. For more, make a full invoice.",
+            "It shows on **Invoices** as **Awaiting Payment** with the subject you typed, numbered in your normal sequence; the pay page says **Payment request** under the number.",
+            "Clients can pay part of it, like any invoice. Card surcharge, saved cards and bank (ACH) all work the same.",
+            "In the WorkBench phone app the share step also offers `Tap to Pay` when it's set up — see [Take a card in person](/help/tap-to-pay).",
+          ],
+        },
+        {
+          type: "faq",
+          items: [
+            {
+              q: "Text it or Email it is greyed out.",
+              a: "No client was picked, so there is nobody to send to — use `Copy` or the QR code. With a client picked, texting needs a phone number on file, no opt-out, and texting turned on for your business line; emailing needs an email on file. The (i) next to the buttons says which one is missing.",
+            },
+            {
+              q: "I need to change the amount.",
+              a: "Press `Open invoice` and edit it like any invoice (until it's paid). The link stays the same.",
+            },
+            {
+              q: "Will they get reminders?",
+              a: "Only when a client is on the request — reminders go by email and text, and a request with no client has nowhere to send them.",
+            },
+          ],
+        },
+      ],
+    },
+    {
       slug: "payment-reminders",
       title: "Automatic payment reminders",
       summary: "WorkBench emails clients about unpaid invoices on a set schedule, and stops when they pay.",
@@ -90,7 +140,7 @@ export const invoicesSection: HelpSection = {
         {
           type: "list",
           items: [
-            "**Deposit invoices** must be paid in full.",
+            "**Deposit invoices** must be paid in full. Payment requests (Create → `Request payment`) can be split like any other invoice.",
             "Balances of $1 or less must be paid in full.",
             "Deposits already paid come off the final invoice automatically, shown as **Deposit applied**.",
           ],
@@ -134,7 +184,11 @@ export const paymentsSection: HelpSection = {
             },
             {
               q: "Can I take a card in person?",
-              a: "Save the client's card on their client page (or have them save it in the portal), then use `Charge card` on the invoice. There's no tap-to-pay reader.",
+              a: "Yes — in the WorkBench phone app, `Tap to Pay` on an invoice lets the client hold their card or phone to the back of yours: see [Take a card in person](/help/tap-to-pay). From a desk, save the client's card on their client page (or have them save it in the portal) and use `Charge card` on the invoice.",
+            },
+            {
+              q: "Can I charge someone without making an invoice first?",
+              a: "Yes: Create → `Request payment` makes a pay link from an amount and a line of text — [Request a payment](/help/request-payment-link).",
             },
           ],
         },
@@ -158,7 +212,75 @@ export const paymentsSection: HelpSection = {
         },
         {
           type: "tip",
-          text: "Card surcharges are never added when you charge a saved card yourself.",
+          text: "Card surcharges are never added when you charge a saved card yourself. Client standing in front of you with their card? In the phone app use `Tap to Pay` instead — [Take a card in person](/help/tap-to-pay).",
+        },
+      ],
+    },
+    {
+      slug: "tap-to-pay",
+      title: "Take a card in person (Tap to Pay)",
+      summary: "In the phone app, the client holds their card or phone to the back of yours. No reader.",
+      keywords: ["tap to pay", "tap-to-pay", "contactless", "nfc", "in person", "on site", "card reader", "apple pay", "google pay", "square reader", "take a card"],
+      where: { label: "Online Payments", href: "/app/settings" },
+      roles: "Anyone who can see money can take a payment; owners and admins set it up",
+      blocks: [
+        {
+          type: "p",
+          text: "Tap to Pay turns the WorkBench phone app into the card reader: the client taps their card, phone or watch on the back of your phone and the invoice is paid. It runs through your own Square account at Square's in-person rate — usually cheaper than a card typed online. Needs an iPhone XS or newer on iOS 16.7+, or an Android phone with NFC on Android 9+, and the latest WorkBench app from the App Store or Google Play.",
+        },
+        {
+          type: "h",
+          text: "Set it up once per phone",
+        },
+        {
+          type: "steps",
+          items: [
+            "Connect Square first (Settings → Payments & accounting → Online Payments). If the card there says **Reconnect Square to turn on Tap to Pay**, press `Reconnect Square` — Square needs one extra permission for in-person payments.",
+            "On the phone app, open the same card: **Tap to Pay on this phone** → `Set up`.",
+            "Allow **location** when asked. Square requires it for every in-person payment.",
+            "iPhone only: Apple shows its Tap to Pay terms — sign in with your Apple ID and accept. Done when the card says **Ready**.",
+          ],
+        },
+        {
+          type: "h",
+          text: "Take a payment",
+        },
+        {
+          type: "steps",
+          items: [
+            "Open the invoice in the phone app (Awaiting Payment or Past Due) and press `Tap to Pay`. The amount is the balance, plus your card surcharge if you have that turned on — the button shows the total.",
+            "Square's screen says **Hold card here**. The client holds their card or phone to the top/back of your phone until it buzzes.",
+            "Square may offer the client a text or email receipt. WorkBench records the payment, shows the approved screen and sends its usual paid email when the invoice has a client.",
+          ],
+        },
+        {
+          type: "tip",
+          text: "The share step of `Request payment` has the same `Tap to Pay` button — type an amount, tap, done, no invoice editor.",
+        },
+        {
+          type: "faq",
+          items: [
+            {
+              q: "I don't see a Tap to Pay button.",
+              a: "It only exists in the WorkBench phone app (not Safari or Chrome), on a phone that can take contactless payments, once Square is connected and your app is up to date. If Settings → Online Payments says **Reconnect Square to turn on Tap to Pay**, the account owner needs to do that first.",
+            },
+            {
+              q: "It said \"Cancelled — nothing was charged\".",
+              a: "The card was pulled away or the screen was dismissed before the tap finished. Press `Tap to Pay` again.",
+            },
+            {
+              q: "The card was declined.",
+              a: "Same as any card decline — ask for another card, or send the pay link so they can pay by bank.",
+            },
+            {
+              q: "The card was charged but the invoice still shows a balance.",
+              a: "Square confirmed the tap but WorkBench couldn't reach Square to record it. It is matched to the invoice within a few minutes on its own; refresh the invoice. If it's still open after an hour, find the payment in your Square dashboard and [contact us](/app/help).",
+            },
+            {
+              q: "Where is the money?",
+              a: "In your Square balance, paid out on your Square schedule — the same as online payments. Fees and payouts are in your Square dashboard.",
+            },
+          ],
         },
       ],
     },

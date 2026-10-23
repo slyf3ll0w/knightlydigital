@@ -21,6 +21,8 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // Square Mobile Payments SDK (Tap to Pay on Android, app/.../TapToPayPlugin.java)
+        maven { url 'https://sdk.squareup.com/public/android' }
     }
 }
 

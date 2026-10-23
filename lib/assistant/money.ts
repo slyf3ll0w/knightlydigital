@@ -21,6 +21,7 @@ import {
 } from "./core";
 import { itemsPayload } from "./pipeline";
 import { isOnlinePayment } from "../payment-ref";
+import { quickChargeIssue } from "../quick-charge";
 
 /** Invoices, payments, subscriptions, expenses, and real email sends. */
 export const moneyTools: Tool[] = [
@@ -213,6 +214,46 @@ export const moneyTools: Tool[] = [
           subject: str(args.subject, 120) || undefined,
           lineItems,
           ...(dueDate ? { dueDate } : {}),
+        },
+      });
+    },
+  },
+  {
+    decl: {
+      name: "request_payment",
+      description:
+        "Stage a quick payment request — one amount and what it is for, optionally for a client — that becomes a live pay link the moment it is confirmed (a QUICK_CHARGE invoice, no editor). Use when the user wants to charge someone or get a pay link fast ('charge Maria $120 for the filter swap', 'make me a $50 pay link'). The confirmed card answers with the link; share it with email_document or paste it. Confirmation card required.",
+      parameters: {
+        type: "object",
+        properties: {
+          amount: { type: "number", description: "dollars, 1 to 25000" },
+          description: { type: "string", description: "what the payment is for, one line" },
+          clientId: { type: "string", description: "optional — omit for someone not saved yet" },
+          message: { type: "string", description: "optional note shown on the pay page" },
+        },
+        required: ["amount", "description"],
+      },
+    },
+    allowed: (a) => canSeeMoney(a),
+    run: async (actor, args, ctx) => {
+      const amount = Math.round((num(args.amount) ?? 0) * 100) / 100;
+      const description = str(args.description, 120);
+      const issue = quickChargeIssue({ amount, description });
+      if (issue) return { error: issue };
+      const clientId = str(args.clientId, 40);
+      const contact = clientId ? await findContact(actor, clientId) : null;
+      if (clientId && !contact) return { error: "No client with that id (or not visible to this user)." };
+      return stage(ctx, {
+        kind: "request_payment",
+        title: `Payment request — ${money(amount)}${contact ? ` for ${clientName(contact)}` : ""}`,
+        lines: [description, contact ? null : "No client — the link is the only way to pay it"].filter(Boolean) as string[],
+        endpoint: "/api/app/invoices/quick-charge",
+        method: "POST",
+        payload: {
+          amount,
+          description,
+          contactId: contact?.id ?? null,
+          ...(str(args.message, 1000) ? { message: str(args.message, 1000) } : {}),
         },
       });
     },

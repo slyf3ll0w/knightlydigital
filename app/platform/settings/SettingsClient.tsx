@@ -1,5 +1,7 @@
 "use client";
 
+import TapToPaySetupCard from "@/components/TapToPaySetupCard";
+
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { NETWORK_ERROR } from "@/lib/safe-fetch";
 import { Fragment, useState, useRef, useEffect, useMemo, type KeyboardEvent } from "react";
@@ -323,6 +325,7 @@ type SquareCardStatus =
       connectedAt: string | null;
       stale: boolean;
       lastRefreshError: string | null;
+      inPerson?: boolean;
     };
 
 /** What the Square callback's ?square= outcome means to the owner. */
@@ -349,6 +352,8 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
     started?: boolean;
     state?: string | null;
     square?: SquareCardStatus;
+    /** TAP_TO_PAY is on — the phone app may offer Tap to Pay (components/TapToPaySetupCard.tsx). */
+    tapToPay?: boolean;
   } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -498,6 +503,9 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
                   {sq.lastRefreshError ? ` (${sq.lastRefreshError})` : ""}. Run Check connection; if it fails, disconnect and connect again.
                 </span>
               </p>
+            )}
+            {status.tapToPay && (
+              <TapToPaySetupCard inPerson={sq.inPerson === true} isManager={true} isOwner={isOwner} />
             )}
             {error && <p className="text-xs text-[color:var(--ds-bad)]">{error}</p>}
             <div className="flex flex-wrap items-center gap-2">

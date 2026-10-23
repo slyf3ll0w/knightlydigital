@@ -14,6 +14,7 @@ import { syncFromFinix } from "@/lib/finix-status";
 import { onlinePaymentsHeld, paymentsOnboardingOpen } from "@/lib/payments-gate";
 import { squareConfigured, squareEnvironment, squareSignupUrl } from "@/lib/square";
 import { squareStatusForCompany } from "@/lib/square-connection";
+import { tapToPayEnabled } from "@/lib/tap-to-pay";
 
 /**
  * Online-payments setup.
@@ -55,6 +56,7 @@ export async function GET() {
       environment: squareEnvironment(),
       square: status,
       signupUrl: squareSignupUrl(),
+      tapToPay: tapToPayEnabled(),
     });
   }
   if (processor.name !== "finix" || !finixConfigured()) {
