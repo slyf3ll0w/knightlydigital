@@ -90,7 +90,7 @@ public class TapToPayPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
         locationManager.delegate = self
     }
 
-    private var sdk: MobilePaymentsSDK { MobilePaymentsSDK.shared }
+    private var sdk: SDKManager { MobilePaymentsSDK.shared }
 
     // MARK: status
 
@@ -141,7 +141,7 @@ public class TapToPayPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
 
     // MARK: permissions
 
-    @objc func requestPermissions(_ call: CAPPluginCall) {
+    @objc override public func requestPermissions(_ call: CAPPluginCall) {
         let current = locationManager.authorizationStatus
         switch current {
         case .authorizedWhenInUse, .authorizedAlways:

@@ -20,6 +20,15 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as { name?: unknown; args?: unknown };
   const name = typeof body.name === "string" ? body.name : "";
   const args = body.args && typeof body.args === "object" && !Array.isArray(body.args) ? (body.args as Record<string, unknown>) : {};
+  // Not offered to live sessions (each call here is its own turn, so "stage
+  // first, then queue" can never be satisfied) — but if the model reaches
+  // for it anyway, steer instead of erroring in a loop.
+  if (name === "queue_next_step") {
+    return NextResponse.json({
+      result: { note: "There is no queue in a live conversation — you are here the whole time. Do the next step yourself now: stage it, and if the user already told you to do it, call confirm_cards." },
+      proposals: [],
+    });
+  }
   const tool = toolsForActor(actor).find((t) => t.decl.name === name);
   if (!tool) return NextResponse.json({ result: { error: `Unknown tool ${name}` }, proposals: [] });
 

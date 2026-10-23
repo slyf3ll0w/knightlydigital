@@ -1,5 +1,5 @@
 {
-  "originHash" : "28d79b4f57fec6d9fa6fe2289550dd8f6b8ea68486e7496055ca2c93917aff28",
+  "originHash" : "11e6fdd6529d9d167ff9321abe0776d163447e5c511e7d938e007b16eec2d296",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -152,6 +152,15 @@
       "state" : {
         "revision" : "a0bc79961d7be727d258d33d5a6b2f1023270ba1",
         "version" : "1.22.5"
+      }
+    },
+    {
+      "identity" : "mobile-payments-sdk-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/square/mobile-payments-sdk-ios",
+      "state" : {
+        "revision" : "134f9c16951958dcea190aea1d7b890fa9c5b8f1",
+        "version" : "2.6.0"
       }
     },
     {

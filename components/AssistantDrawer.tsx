@@ -454,7 +454,9 @@ export default function AssistantDrawer({
       content: replyText,
       proposals: proposals.map((p) => ({ ...p, state: "pending" as const })),
     };
-    const next: Msg[] = [...base, { role: "user", content: userText }, reply];
+    // No words from the user this turn (Atlas kept going after a tool) → just
+    // Atlas's message, not a fake "(spoken)" user bubble.
+    const next: Msg[] = userText && userText !== "(spoken)" ? [...base, { role: "user", content: userText }, reply] : [...base, reply];
     messagesRef.current = next; // two exchanges in one tick must not overwrite each other
     persist(next);
     const index = next.length - 1;
@@ -526,19 +528,29 @@ export default function AssistantDrawer({
    *  chat — not just the last turn's, since people ask a question or two
    *  before saying "go ahead" (David's 2026-10-23 report). Reads the live
    *  list, so it works from the socket's callbacks too. */
-  async function confirmOrdinaryPending(): Promise<{ confirmed: number; failed: number; needsTap: number }> {
+  async function confirmOrdinaryPending(): Promise<{ confirmed: number; failed: number; needsTap: number; applied: string[]; failures: { title: string; why: string }[] }> {
     const waiting: PlacedCard[] = messagesRef.current.flatMap((m, msgIdx) =>
       (m.proposals ?? []).filter((p) => p.state === "pending").map((card) => ({ msgIdx, card }))
     );
-    let confirmed = 0;
-    let failed = 0;
+    const applied: string[] = [];
+    const failures: { title: string; why: string }[] = [];
     for (const { msgIdx, card } of waiting) {
       if (!voiceConfirmable(card)) continue;
-      if (await confirm(msgIdx, card, { skipRefresh: true })) confirmed++;
-      else failed++;
+      const why = await confirm(msgIdx, card, { skipRefresh: true });
+      if (why === null) applied.push(card.title);
+      else failures.push({ title: card.title, why });
     }
-    if (confirmed + failed > 0) router.refresh();
-    return { confirmed, failed, needsTap: waiting.filter((w) => !voiceConfirmable(w.card)).length };
+    if (applied.length + failures.length > 0) router.refresh();
+    return { confirmed: applied.length, failed: failures.length, needsTap: waiting.filter((w) => !voiceConfirmable(w.card)).length, applied, failures };
+  }
+
+  /** A card anywhere in the chat, by id — the voice screen's duplicate guard asks. */
+  function findCard(id: string): CardProposal | null {
+    for (const m of messagesRef.current) {
+      const hit = m.proposals?.find((p) => p.id === id);
+      if (hit) return hit;
+    }
+    return null;
   }
 
   /** Spoken no: dismiss every card still waiting. */
@@ -601,8 +613,8 @@ export default function AssistantDrawer({
     return false;
   }
 
-  /** Submit one card; resolves true when it applied (or every item of a batch did). */
-  async function confirm(msgIdx: number, prop: Proposal, opts?: { skipRefresh?: boolean }): Promise<boolean> {
+  /** Submit one card; resolves null when it applied (or every item of a batch did), else why not. */
+  async function confirm(msgIdx: number, prop: Proposal, opts?: { skipRefresh?: boolean }): Promise<string | null> {
     setCard(msgIdx, prop.id, { state: "confirming" });
     hapticImpact("LIGHT");
     // batch card: one Confirm, many requests, run in order
@@ -623,21 +635,22 @@ export default function AssistantDrawer({
             : `${ok} of ${prop.batch.length} applied — ${failed} failed (${firstError})`,
       });
       hapticNotify(failed === 0 ? "SUCCESS" : "ERROR");
-      if (leaveDeletedRecordPage(prop.batch)) return failed === 0;
+      const outcome = failed === 0 ? null : `${failed} of ${prop.batch.length} failed: ${firstError}`;
+      if (leaveDeletedRecordPage(prop.batch)) return outcome;
       if (!opts?.skipRefresh) router.refresh();
-      return failed === 0;
+      return outcome;
     }
     const err = await submitOne(prop);
     if (err !== null) {
       setCard(msgIdx, prop.id, { state: "failed", resultNote: err });
       hapticNotify("ERROR");
-      return false;
+      return err;
     }
     setCard(msgIdx, prop.id, { state: "done", resultNote: "Done" });
     hapticNotify("SUCCESS");
-    if (leaveDeletedRecordPage([prop])) return true;
+    if (leaveDeletedRecordPage([prop])) return null;
     if (!opts?.skipRefresh) router.refresh();
-    return true;
+    return null;
   }
 
   /** Confirm every pending ordinary card in one message, in order. Danger and
@@ -680,6 +693,7 @@ export default function AssistantDrawer({
             onSkipCard={(msgIdx, id) => setCard(msgIdx, id, { state: "dismissed" })}
             confirmOrdinaryPending={confirmOrdinaryPending}
             skipPending={skipPending}
+            findCard={findCard}
             onClose={() => setVoiceOpen(false)}
             onReport={() => {
               setVoiceOpen(false);
