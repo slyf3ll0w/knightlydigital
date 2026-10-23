@@ -22,6 +22,7 @@ import { prisma } from "@/lib/db";
 import { recomputeDepositApplied } from "@/lib/deposits";
 import * as finix from "@/lib/finix";
 import * as square from "@/lib/square";
+import { PROCESSING_RATES } from "@/lib/plans";
 import { estimateProcessingCostCents } from "@/lib/platform-costs";
 import { notifyUsers } from "@/lib/push";
 import { queueQuickBooksPaymentSync } from "@/lib/quickbooks";
@@ -1078,25 +1079,32 @@ export function savedCardLabel(card: {
 }
 
 /**
- * Workbench's processing rates — what the fee profile deducts from payouts.
- * Env-tunable so live-rate changes don't need a deploy; keep these matching
- * the fee profile configured in the Finix dashboard.
+ * The processing rates the app estimates with — the company-paid schedule in
+ * lib/plans.ts PROCESSING_RATES (2.95% + 30¢ card; 0.70% ACH, $1–$8).
+ * Env-tunable so a rate change needs no deploy. The processor's settlement
+ * carries the real number; everything here is an estimate.
  */
 export function processingFees() {
+  const base = PROCESSING_RATES.companyPaid;
   return {
-    cardBps: Number(process.env.WORKBENCH_CARD_FEE_BPS ?? 290),
-    cardFixedCents: Number(process.env.WORKBENCH_CARD_FEE_FIXED_CENTS ?? 30),
-    achBps: Number(process.env.WORKBENCH_ACH_FEE_BPS ?? 75),
-    achFixedCents: Number(process.env.WORKBENCH_ACH_FEE_FIXED_CENTS ?? 30),
+    cardBps: Number(process.env.WORKBENCH_CARD_FEE_BPS ?? base.cardBps),
+    cardFixedCents: Number(process.env.WORKBENCH_CARD_FEE_FIXED_CENTS ?? base.cardFixedCents),
+    achBps: Number(process.env.WORKBENCH_ACH_FEE_BPS ?? base.achBps),
+    achFixedCents: Number(process.env.WORKBENCH_ACH_FEE_FIXED_CENTS ?? 0),
+    achMinCents: Number(process.env.WORKBENCH_ACH_FEE_MIN_CENTS ?? base.achMinCents),
+    achMaxCents: Number(process.env.WORKBENCH_ACH_FEE_MAX_CENTS ?? base.achMaxCents),
   };
 }
 
-/** Estimated processing fee in cents for one payment (settlements hold the real number). */
+/** Estimated processing fee in cents for one payment (settlements hold the
+ *  real number). ACH is clamped to the schedule's minimum and maximum. */
 export function estimateFeeCents(amountCents: number, method: "CARD" | "ACH"): number {
   const f = processingFees();
-  return method === "ACH"
-    ? Math.round((amountCents * f.achBps) / 10000) + f.achFixedCents
-    : Math.round((amountCents * f.cardBps) / 10000) + f.cardFixedCents;
+  if (method === "ACH") {
+    const raw = Math.round((amountCents * f.achBps) / 10000) + f.achFixedCents;
+    return Math.min(Math.max(raw, f.achMinCents), f.achMaxCents);
+  }
+  return Math.round((amountCents * f.cardBps) / 10000) + f.cardFixedCents;
 }
 
 /** Human label like "2.9% + 30¢" / "0.75% + 30¢" for a bps + fixed-cents pair. */

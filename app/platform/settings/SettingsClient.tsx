@@ -1142,7 +1142,7 @@ export default function SettingsClient({
     // Kept as a JSON string so the flat string-diff auto-save machinery works
     sectionColors: JSON.stringify(company.sectionColors ?? {}),
     surchargeEnabled: company.surchargeEnabled,
-    surchargeRate: company.surchargeRate ? (Number(company.surchargeRate) * 100).toFixed(2) : "3.00",
+    surchargeRate: company.surchargeRate ? (Number(company.surchargeRate) * 100).toFixed(2) : "3.50",
     defaultDepositType: company.defaultDepositType ?? "NONE",
     defaultDepositValue: company.defaultDepositValue != null ? String(Number(company.defaultDepositValue)) : "",
     // Stored as a fraction (0.0825); shown/edited as a percent ("8.25")

@@ -33,7 +33,7 @@ export default async function RouteMapPage({
         <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]">
           <MapPin size={22} />
         </span>
-        <h1 className="text-lg font-bold text-gray-900">Route Manager is part of {pro.name}</h1>
+        <h1 className="text-lg font-bold text-gray-900">Route Manager (beta) is part of {pro.name}</h1>
         <p className="mt-2 text-sm text-gray-600">
           Every stop on a map, drive times between them, one-tap route optimizing, and Find a Time when you
           book. {pro.name} also includes {pro.includes.slice(0, 3).map((s) => s.toLowerCase()).join(", ")} and more.

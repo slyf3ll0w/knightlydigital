@@ -1,3 +1,4 @@
+import { RATES, RATES_SENTENCE } from "@/lib/plans";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AnimateIn } from "@/components/AnimateIn";
@@ -72,9 +73,8 @@ const pricingFaq = [
     q: "Are there any monthly fees or minimums on payments?",
     a: (
       <p>
-        No. You pay 2.9% + 30¢ per successful card transaction and 0.75% + 30¢ per ACH bank
-        transfer, and that&apos;s the whole list. No monthly fee, no minimum volume, no charge
-        on failed or declined payments.
+        No. {RATES_SENTENCE} Pick whichever suits your clients; either way that&apos;s the whole
+        list, and failed or declined payments cost nothing.
       </p>
     ),
   },
@@ -152,7 +152,7 @@ const pricingFaq = [
 
 export const metadata: Metadata = {
   title: "Pricing",
-  description: `WorkBench FSM's core is free: full access for ${INCLUDED_SEATS} users, not a trial, funded by payment processing at 2.9% + 30¢. Optional add-ons from ${formatCents(dispatch.monthlyCents)} a month: ${dispatch.name} (business phone line), ${shop.name} (unlimited users and the ops tools), and ${jobsite.name} (job photos, coming soon).`,
+  description: `WorkBench FSM's core is free: full access for ${INCLUDED_SEATS} users, not a trial, funded by payment processing (${RATES.companyPaid.card} per card transaction, or a service fee your client pays). Optional add-ons from ${formatCents(dispatch.monthlyCents)} a month: ${dispatch.name} (business phone line), ${shop.name} (unlimited users and the ops tools), and ${jobsite.name} (job photos, coming soon).`,
 };
 
 export default function WBPricingPage() {
@@ -170,7 +170,7 @@ export default function WBPricingPage() {
           Extra users are {seatPrice} a month each.
           Add a business phone line, unlimited users with the ops tools, or job photos
           only when you want them, from {formatCents(dispatch.monthlyCents)} a month.
-          Payment processing at one flat rate funds the rest.
+          Payment processing funds the rest.
         </p>
         <div className="mt-6 hidden items-end gap-1 lg:flex" aria-hidden>
           <p className="pb-2 text-[15px] font-extrabold leading-snug text-[#10244A]">Start on {FREE_PLAN_NAME}.
@@ -197,16 +197,19 @@ export default function WBPricingPage() {
               </h2>
               <p className="mt-5 max-w-lg text-[15.5px] leading-relaxed text-gray-600">
                 Payments. WorkBench has card and ACH processing built into
-                every quote, invoice, and booking, at a flat{" "}
+                every quote, invoice, and booking. Pay the fee yourself at{" "}
                 <span className="font-bold text-gray-900">
-                  2.9% + 30¢ per card transaction
+                  {RATES.companyPaid.card} per card transaction
                 </span>{" "}
                 and{" "}
                 <span className="font-bold text-gray-900">
-                  0.75% + 30¢ per ACH bank transfer
+                  {RATES.companyPaid.ach} per ACH bank transfer
                 </span>
-                . When your clients pay you through WorkBench, a small slice
-                of that processing fee is what funds the software.
+                , or pass it on as a service fee your client pays at checkout
+                ({RATES.serviceFee.card} per card, {RATES.serviceFee.ach} ACH) and keep
+                the full invoice amount. When your clients pay you through
+                WorkBench, a small slice of that processing fee is what funds
+                the software.
               </p>
               <p className="mt-4 max-w-lg text-[15.5px] leading-relaxed text-gray-600">
                 That means we mostly make money when you do. The add-ons are
@@ -219,8 +222,8 @@ export default function WBPricingPage() {
               {[
                 {
                   icon: CreditCard,
-                  title: "One flat rate",
-                  body: "2.9% + 30¢ per successful card transaction, 0.75% + 30¢ for ACH bank transfers. No monthly fees, no minimums, no charge on failed payments.",
+                  title: "Two ways to pay for processing",
+                  body: `Company-paid: ${RATES.companyPaid.card} per card transaction, ${RATES.companyPaid.achShort} per ACH transfer. Or a service fee your client pays: ${RATES.serviceFee.card} card, ${RATES.serviceFee.achShort} ACH. No monthly fees, no minimums, no charge on failed payments.`,
                 },
                 {
                   icon: HandCoins,

@@ -1,3 +1,4 @@
+import { RATES_LINE } from "../plan-copy";
 import { ANNUAL_MONTHS, DISPATCH_MINUTES_INCLUDED, DISPATCH_TEXTS_INCLUDED } from "../../plans";
 import type { HelpSection } from "../types";
 import {
@@ -172,7 +173,7 @@ export const settingsSection: HelpSection = {
           items: [
             `**${CORE}** (free): booking, scheduling, jobs, quotes, invoicing, card and bank payments, recurring billing, the client portal, team chat, clock in and out, and ${ATLAS_FREE} Atlas tokens a month, for ${SEATS_INCLUDED} users. Each extra user is ${EXTRA_SEAT}.`,
             `**${VOICE}** (${VOICE_PRICE}, plus a one-time ${VOICE_SETUP} number setup): your business phone number, with calls in the app, voicemail, texting from the number, and Atlas call notes. ${DISPATCH_TEXTS_INCLUDED} texts and ${DISPATCH_MINUTES_INCLUDED} minutes a month are included. See [Get your business phone number](/help/set-up-business-line).`,
-            `**${PRO}** (${PRO_PRICE}): unlimited users, [estimate tools](/help/build-an-estimate-tool), [Route Manager](/help/plan-routes), [automations](/help/build-an-automation), [agreements](/help/send-an-agreement), the [team map](/help/team-map), [timesheets](/help/clock-in-and-timesheets), [QuickBooks sync](/help/quickbooks), and **Atlas Full** (${ATLAS_FULL} Atlas tokens a month).`,
+            `**${PRO}** (${PRO_PRICE}): unlimited users, [estimate tools](/help/build-an-estimate-tool), [Route Manager (beta)](/help/plan-routes), [automations](/help/build-an-automation), [agreements](/help/send-an-agreement), the [team map](/help/team-map), [timesheets](/help/clock-in-and-timesheets), [QuickBooks sync](/help/quickbooks), and **Atlas Full** (${ATLAS_FULL} Atlas tokens a month).`,
             `**${MAX}** (${MAX_PRICE}): ${VOICE} and ${PRO} together, for less than both.`,
             `**${GALLERY}** (${GALLERY_PRICE}, coming soon): job photos stamped with who, when and where, before-and-after pairs, client galleries and photo reports. It joins ${MAX} at no extra charge for anyone already on it.`,
             `**Atlas Full** on its own (${ATLAS_FULL_PRICE}): ${ATLAS_FULL} Atlas tokens a month, if Atlas is the only extra you want. See [Atlas tokens and limits](/help/atlas-tokens).`,
@@ -196,7 +197,7 @@ export const settingsSection: HelpSection = {
         },
         {
           type: "p",
-          text: "Online payments run through your own Square account, so the processing fee on each payment is Square's and comes out on Square's side before the payout. WorkBench adds nothing on top. Current rates are on the [pricing page](https://workbenchfsm.com/pricing), and your Square dashboard shows the exact fee on every payment.",
+          text: `${RATES_LINE} Payments run through your own Square account, so the fee comes out on Square's side before the payout; the fee shown in WorkBench is an estimate and your Square dashboard has the exact amount on each payment. Full details are on the [pricing page](https://workbenchfsm.com/pricing).`,
         },
       ],
     },
