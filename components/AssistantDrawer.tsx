@@ -15,6 +15,7 @@ import {
   CornerDownRight,
   CreditCard,
   ExternalLink,
+  Flag,
   Loader2,
   Lock,
   Mic,
@@ -29,8 +30,9 @@ import {
 } from "lucide-react";
 import AtlasIcon, { AtlasMark } from "@/components/AtlasIcon";
 import AssistantVoice, { type RecordedExchange, type VoiceTurn } from "@/components/AssistantVoice";
-import { requestMicrophone, type MicState } from "@/lib/voice-chat-client";
+import { micPlatform, requestMicrophone, type MicState } from "@/lib/voice-chat-client";
 import { primeLiveAudio } from "@/lib/live-voice-client";
+import { voiceLogLines } from "@/lib/voice-log";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import { money } from "@/lib/statuses";
 import { useMeasuredHeight } from "@/lib/use-measured-height";
@@ -472,6 +474,71 @@ export default function AssistantDrawer({
   // Voice mode: a full-panel overlay that talks and listens (AssistantVoice);
   // every turn still lands in this chat underneath it.
   const [voiceOpen, setVoiceOpen] = useState(false);
+  // "Report this conversation": a sentence from the user + the whole chat,
+  // cards, recaps and the voice diary → a ticket we can read in the database.
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportNote, setReportNote] = useState("");
+  const [reportState, setReportState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [reportError, setReportError] = useState("");
+  const reportFromVoice = useRef(false);
+
+  async function sendReport() {
+    const note = reportNote.trim();
+    if (!note || reportState === "sending") return;
+    setReportState("sending");
+    setReportError("");
+    let device: Record<string, unknown> = {};
+    try {
+      device = {
+        platform: micPlatform(),
+        userAgent: navigator.userAgent,
+        viewport: `${window.innerWidth}×${window.innerHeight}`,
+        online: navigator.onLine,
+        language: navigator.language,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        page: window.location.pathname,
+      };
+    } catch {
+      /* fine */
+    }
+    try {
+      const res = await fetch("/api/app/assistant/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          note,
+          messages: messagesRef.current.slice(-40).map((m) => ({
+            role: m.role,
+            content: m.content,
+            tokens: m.tokens,
+            auto: m.auto,
+            recap: m.recap,
+            proposals: (m.proposals ?? []).map((p) => ({ title: p.title, state: p.state, danger: p.danger, money: p.money })),
+          })),
+          voiceLog: voiceLogLines(),
+          voiceOpen: reportFromVoice.current,
+          device,
+        }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error || GENERIC_ERROR);
+      }
+      setReportState("sent");
+      setReportNote("");
+      hapticNotify("SUCCESS");
+    } catch (err) {
+      setReportState("error");
+      setReportError((err as Error)?.message || GENERIC_ERROR);
+    }
+  }
+
+  function openReport(fromVoice: boolean) {
+    reportFromVoice.current = fromVoice;
+    setReportState("idle");
+    setReportError("");
+    setReportOpen(true);
+  }
   // The mic request started by the tap that opened voice mode — browsers
   // that only prompt from a gesture (iOS, Safari) need it asked right then.
   const micGrantRef = useRef<Promise<MicState> | null>(null);
@@ -828,6 +895,10 @@ export default function AssistantDrawer({
             ask={askByVoice}
             recordExchange={recordExchange}
             onClose={() => setVoiceOpen(false)}
+            onReport={() => {
+              setVoiceOpen(false);
+              openReport(true);
+            }}
           />
         )}
         {/* No header bar — the empty state introduces Atlas, so the chrome is
@@ -853,6 +924,19 @@ export default function AssistantDrawer({
           className="absolute right-3 z-10 flex items-center gap-2"
           style={{ top: "calc(env(safe-area-inset-top) + 12px)" }}
         >
+          {messages.length > 0 && (
+            <button
+              type="button"
+              onClick={() => openReport(false)}
+              title="Report a problem with this conversation"
+              aria-label="Report a problem with this conversation"
+              className="glass-control glass-hit flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition-colors hover:bg-gray-50 hover:text-gray-900"
+            >
+              <span className="glass-press flex">
+                <Flag size={15} />
+              </span>
+            </button>
+          )}
           {messages.length > 0 && (
             <button
               type="button"
@@ -1139,6 +1223,60 @@ export default function AssistantDrawer({
             AI answers can be wrong — verify anything important on its page.
           </p>
         </div>
+        )}
+
+        {/* ── Report this conversation: a bottom sheet over the drawer ── */}
+        {reportOpen && (
+          <div className="absolute inset-0 z-30 flex flex-col justify-end" role="dialog" aria-label="Report a problem">
+            <div className="absolute inset-0 bg-black/20" onClick={() => setReportOpen(false)} />
+            <div className="relative rounded-t-2xl border-t border-gray-200 bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 shadow-2xl">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-display text-[15px] font-bold text-gray-900">Report a problem</p>
+                  <p className="mt-0.5 text-[12px] leading-snug text-gray-500">
+                    This conversation, its cards and the voice timings go with your note so we can see exactly what {name} did.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReportOpen(false)}
+                  aria-label="Close"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              {reportState === "sent" ? (
+                <div className="mt-4 flex items-center gap-2 rounded-xl bg-green-50 px-3 py-3 text-[13px] font-semibold text-green-800">
+                  <Check size={16} />
+                  Sent — thanks. We'll look at it.
+                </div>
+              ) : (
+                <>
+                  <textarea
+                    autoFocus
+                    value={reportNote}
+                    onChange={(e) => setReportNote(e.target.value)}
+                    rows={3}
+                    maxLength={2000}
+                    placeholder="What went wrong? e.g. “took 20 seconds to answer”, “told me about the wrong call”"
+                    className="mt-3 w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-[14px] text-gray-900 outline-none focus:border-gray-400"
+                  />
+                  {reportError && <p className="mt-1 text-[12px] text-red-600">{reportError}</p>}
+                  <button
+                    type="button"
+                    onClick={() => void sendReport()}
+                    disabled={!reportNote.trim() || reportState === "sending"}
+                    className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-full text-[14px] font-semibold disabled:opacity-40"
+                    style={{ background: "var(--wb-accent, #0b57d8)", color: "var(--wb-on-accent, #ffffff)" }}
+                  >
+                    {reportState === "sending" ? <Loader2 size={16} className="animate-spin" /> : <Flag size={15} />}
+                    {reportState === "sending" ? "Sending…" : "Send report"}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
         )}
       </div>
     </>
