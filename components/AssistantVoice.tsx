@@ -304,7 +304,9 @@ export default function AssistantVoice({
               type="button"
               onClick={tryAgain}
               className="rounded-full px-6 py-3 text-[15px] font-semibold"
-              style={{ background: accent ?? "#3B82F6", color: "#fff" }}
+              // The readable accent pair, never the raw brand color: a white
+              // secondary brand made this a white button with white text.
+              style={{ background: "var(--wb-accent, #0b57d8)", color: "var(--wb-on-accent, #ffffff)" }}
             >
               Try again
             </button>
@@ -327,12 +329,16 @@ export default function AssistantVoice({
             className={`absolute inset-0 rounded-full ${
               phase === "listening" ? "atlas-voice-breathe" : phase === "speaking" ? "atlas-voice-ripple" : phase === "thinking" ? "atlas-voice-think" : ""
             }`}
-            style={{ background: `${accent ?? "#3B82F6"}22` }}
+            style={{ background: "color-mix(in srgb, var(--wb-accent, #0b57d8) 14%, transparent)" }}
           />
           <AtlasMark size={96} accent={accent} />
           <span
-            className="absolute -bottom-1 right-2 flex h-11 w-11 items-center justify-center rounded-full border-2 border-white text-white shadow-md"
-            style={{ background: phase === "idle" ? "#6b7280" : accent ?? "#3B82F6" }}
+            className="absolute -bottom-1 right-2 flex h-11 w-11 items-center justify-center rounded-full border-2 border-white shadow-md"
+            style={
+              phase === "idle"
+                ? { background: "#6b7280", color: "#ffffff" }
+                : { background: "var(--wb-accent, #0b57d8)", color: "var(--wb-on-accent, #ffffff)" }
+            }
           >
             {phase === "listening" ? <Mic size={20} /> : phase === "speaking" ? <Square size={16} /> : phase === "idle" ? <MicOff size={20} /> : <Mic size={20} className="opacity-50" />}
           </span>
@@ -351,7 +357,7 @@ export default function AssistantVoice({
 
       <p className="px-6 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-[11px] text-gray-400">
         {inputKind === "recorder"
-          ? "Tap the mic, speak, tap again when you're done."
+          ? `Speak, then pause — Atlas answers when you stop talking. Say "stop" when you're finished.`
           : `Say "stop" when you're finished. Money and permanent changes still need a tap in the chat.`}
       </p>
     </div>

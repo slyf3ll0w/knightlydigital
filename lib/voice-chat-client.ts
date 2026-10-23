@@ -5,10 +5,17 @@ import { transcribeMime } from "./voice-chat-shared";
 /**
  * Talking to Atlas — the browser half. Ears: the Web Speech API where the
  * browser has it (desktop Chrome/Edge/Safari, iPhone Safari, Android
- * Chrome); otherwise (the iOS/Android app shells' webviews) the mic is
- * recorded and sent to /api/app/assistant/transcribe. Mouth:
- * /api/app/assistant/speak (a natural voice, metered) with the device's
- * own speech synthesis as the free fallback.
+ * Chrome); otherwise the mic is recorded and sent to
+ * /api/app/assistant/transcribe. The iOS and Android app shells ALWAYS
+ * record: WKWebView exposes webkitSpeechRecognition but refuses to run it
+ * ("not-allowed" even with the microphone allowed — David, 2026-10-23), and
+ * the Android WebView has no recognizer at all. Any browser whose
+ * recognizer refuses while the mic itself works also falls back to
+ * recording, for good. Recording stops itself after the speaker goes quiet
+ * (a small level watcher), so hands-free works there too.
+ *
+ * Mouth: /api/app/assistant/speak (a natural voice, metered) with the
+ * device's own speech synthesis as the free fallback.
  */
 
 type Recognition = {
@@ -29,6 +36,17 @@ function recognitionCtor(): (new () => Recognition) | null {
   const w = window as unknown as { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition };
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
+
+function inNativeShell(): boolean {
+  return typeof navigator !== "undefined" && navigator.userAgent.includes("StreamflaireHubShell");
+}
+
+function recorderAvailable(): boolean {
+  return typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getUserMedia === "function" && typeof MediaRecorder !== "undefined";
+}
+
+/** Once a browser's recognizer refuses, recording is used from then on. */
+let preferRecorder = false;
 
 export type MicState = "granted" | "denied" | "unavailable";
 
@@ -87,8 +105,8 @@ export function micInstructions(platform: MicPlatform = micPlatform()): string {
 }
 
 export function speechInputKind(): "browser" | "recorder" | "none" {
-  if (recognitionCtor()) return "browser";
-  if (typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getUserMedia === "function" && typeof MediaRecorder !== "undefined") return "recorder";
+  if (!inNativeShell() && !preferRecorder && recognitionCtor()) return "browser";
+  if (recorderAvailable()) return "recorder";
   return "none";
 }
 
@@ -103,74 +121,110 @@ export type ListenEvents = {
   onBlocked?: () => void;
 };
 
-/**
- * Listen for one utterance. Browser recognition ends itself after the
- * speaker pauses; the recorder path records until `stop()` or 12 s, then
- * transcribes server-side.
- */
+/** Listen for one utterance, by whichever ear this browser has. */
 export function listenOnce(ev: ListenEvents): ListenHandle {
-  const Ctor = recognitionCtor();
-  if (Ctor) {
-    const rec = new Ctor();
-    rec.lang = navigator.language?.startsWith("en") ? navigator.language : "en-US";
-    rec.continuous = false;
-    rec.interimResults = true;
-    rec.maxAlternatives = 1;
-    let finalText = "";
-    let settled = false;
-    const settle = (text: string) => {
-      if (settled) return;
-      settled = true;
-      ev.onFinal(text.trim());
-    };
-    rec.onresult = (e) => {
-      let interim = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const r = e.results[i];
-        if (r.isFinal) finalText += r[0].transcript;
-        else interim += r[0].transcript;
-      }
-      ev.onInterim?.((finalText + interim).trim());
-    };
-    rec.onerror = (e) => {
-      if (e.error === "no-speech" || e.error === "aborted") return; // onend settles with ""
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
-        if (ev.onBlocked) ev.onBlocked();
-        else ev.onError?.("Microphone access is blocked.");
-      } else if (e.error === "network") {
-        ev.onError?.("Speech recognition needs a connection.");
-      } else {
-        ev.onError?.(`Couldn't hear that (${e.error}).`);
-      }
-      settled = true;
-    };
-    rec.onend = () => settle(finalText);
-    try {
-      rec.start();
-    } catch {
-      ev.onError?.("Couldn't start listening.");
-    }
-    return {
-      stop: () => {
-        try { rec.stop(); } catch { /* already stopped */ }
-      },
-      cancel: () => {
-        settled = true;
-        try { rec.abort(); } catch { /* already stopped */ }
-      },
-    };
-  }
+  return speechInputKind() === "browser" ? listenWithBrowser(ev) : listenWithRecorder(ev);
+}
 
-  // Recorder fallback (webviews). Record → POST → transcript.
+/** The Web Speech API. Ends itself after the speaker pauses. */
+function listenWithBrowser(ev: ListenEvents): ListenHandle {
+  const Ctor = recognitionCtor()!;
+  const rec = new Ctor();
+  rec.lang = navigator.language?.startsWith("en") ? navigator.language : "en-US";
+  rec.continuous = false;
+  rec.interimResults = true;
+  rec.maxAlternatives = 1;
+  let finalText = "";
+  let settled = false;
+  let handedOff: ListenHandle | null = null;
+  const settle = (text: string) => {
+    if (settled) return;
+    settled = true;
+    ev.onFinal(text.trim());
+  };
+  rec.onresult = (e) => {
+    let interim = "";
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const r = e.results[i];
+      if (r.isFinal) finalText += r[0].transcript;
+      else interim += r[0].transcript;
+    }
+    ev.onInterim?.((finalText + interim).trim());
+  };
+  rec.onerror = (e) => {
+    if (e.error === "no-speech" || e.error === "aborted") return; // onend settles with ""
+    settled = true;
+    if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+      // The recognizer is refused — but is the microphone? If it works,
+      // record instead, now and from here on (WKWebView behaves like this).
+      void requestMicrophone().then((state) => {
+        if (state === "granted" && recorderAvailable()) {
+          preferRecorder = true;
+          handedOff = listenWithRecorder(ev);
+        } else if (ev.onBlocked) ev.onBlocked();
+        else ev.onError?.("Microphone access is blocked.");
+      });
+    } else if (e.error === "network") {
+      ev.onError?.("Speech recognition needs a connection.");
+    } else {
+      ev.onError?.(`Couldn't hear that (${e.error}).`);
+    }
+  };
+  rec.onend = () => settle(finalText);
+  try {
+    rec.start();
+  } catch {
+    ev.onError?.("Couldn't start listening.");
+  }
+  return {
+    stop: () => {
+      if (handedOff) return handedOff.stop();
+      try { rec.stop(); } catch { /* already stopped */ }
+    },
+    cancel: () => {
+      settled = true;
+      if (handedOff) return handedOff.cancel();
+      try { rec.abort(); } catch { /* already stopped */ }
+    },
+  };
+}
+
+// Level watcher: RMS of the mic signal, sampled ten times a second.
+const SPEECH_LEVEL = 0.018; // above = someone is talking (quiet room ≈ 0.003–0.008)
+const END_SILENCE_MS = 1300; // this long under the level after speech = they're done
+const NO_SPEECH_MS = 7000; // nothing at all for this long = give up quietly
+const MAX_UTTERANCE_MS = 20000;
+
+/**
+ * Record → stop when the speaker goes quiet (or on tap, or at the cap) →
+ * POST → transcript. The tap-to-stop still works; it just isn't needed.
+ */
+function listenWithRecorder(ev: ListenEvents): ListenHandle {
   let recorder: MediaRecorder | null = null;
   let stream: MediaStream | null = null;
+  let audioCtx: AudioContext | null = null;
   let cancelled = false;
+  let stopping = false;
   const chunks: Blob[] = [];
-  const timer = setTimeout(() => recorder?.state === "recording" && recorder.stop(), 12_000);
+  const timers: ReturnType<typeof setTimeout>[] = [];
+  let levelTimer: ReturnType<typeof setInterval> | null = null;
+
   const cleanup = () => {
-    clearTimeout(timer);
+    timers.forEach(clearTimeout);
+    if (levelTimer) clearInterval(levelTimer);
     stream?.getTracks().forEach((t) => t.stop());
+    void audioCtx?.close().catch(() => undefined);
   };
+  const stopRecording = () => {
+    if (stopping) return;
+    stopping = true;
+    if (recorder?.state === "recording") recorder.stop();
+    else {
+      cleanup();
+      if (!cancelled) ev.onFinal("");
+    }
+  };
+
   void (async () => {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -203,18 +257,51 @@ export function listenOnce(ev: ListenEvents): ListenHandle {
       }
     };
     recorder.start(250);
+    timers.push(setTimeout(stopRecording, MAX_UTTERANCE_MS));
+
+    // Watch the level so the recording ends when they stop talking.
+    try {
+      const Ctx = (window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext) as typeof AudioContext | undefined;
+      if (!Ctx) return;
+      audioCtx = new Ctx();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 1024;
+      source.connect(analyser);
+      const buf = new Uint8Array(analyser.fftSize);
+      const started = Date.now();
+      let heardSpeech = false;
+      let quietSince = 0;
+      levelTimer = setInterval(() => {
+        analyser.getByteTimeDomainData(buf);
+        let sum = 0;
+        for (let i = 0; i < buf.length; i++) {
+          const v = (buf[i] - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / buf.length);
+        const now = Date.now();
+        if (rms >= SPEECH_LEVEL) {
+          if (!heardSpeech) ev.onInterim?.("Listening…");
+          heardSpeech = true;
+          quietSince = 0;
+        } else if (heardSpeech) {
+          if (!quietSince) quietSince = now;
+          else if (now - quietSince >= END_SILENCE_MS) stopRecording();
+        } else if (now - started >= NO_SPEECH_MS) {
+          stopRecording();
+        }
+      }, 100);
+    } catch {
+      /* no level watcher — the cap and the tap still end the recording */
+    }
   })();
+
   return {
-    stop: () => {
-      if (recorder?.state === "recording") recorder.stop();
-      else if (!recorder) {
-        cancelled = true;
-        cleanup();
-        ev.onFinal("");
-      }
-    },
+    stop: stopRecording,
     cancel: () => {
       cancelled = true;
+      stopping = true;
       if (recorder?.state === "recording") recorder.stop();
       cleanup();
     },
