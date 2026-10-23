@@ -12,7 +12,7 @@ waiting* — not how to build.
 > **2026-09-24:** day-of checklist for this Play release (with what is
 > deliberately left for versionCode 5) is `android-1.3-release-2026-09-25.md`.
 
-## Tap to Pay — iOS build 14 + Android versionCode 6 (tree ready 2026-10-22, branch `quick-charge-tap`)
+## Tap to Pay — iOS build 14 + Android versionCode 6 (tree ready 2026-10-22; Mac steps: mobile-app-runbook-mac.md § RELEASE 1.4 — build 14; pbxproj bumped to build 14 on 2026-10-23 because build 13 was never uploaded)
 
 Square's Mobile Payments SDK inside both shells so a tech takes a card by
 holding it to the back of the phone. Design + decisions:

@@ -66,6 +66,88 @@ Project exists: **streamflaire-hub**.
    the Apple dev portal → upload to Firebase → Cloud Messaging → Apple app
    config. Until then iOS push will not deliver (Android is unaffected).
 
+## RELEASE 1.4 — build 14 (Tap to Pay + icon/launch + Siri), 2026-10-23 — DO THIS ONE
+
+Build 13 was never uploaded, so this archive is the first upload since 1.3
+(build 12): it carries everything queued for 1.4 (icon, launch screen,
+Siri expansion — see the next section) PLUS Tap to Pay on iPhone. The
+pbxproj says 1.4 / build 14. Web side is live; `TAP_TO_PAY` on Railway
+production is still unset (David flips it after the TestFlight install).
+
+**Before Xcode (browser, 5 minutes)**
+
+1. developer.apple.com → Certificates, Identifiers & Profiles → Identifiers →
+   `com.streamflaire.hub` → **Additional Capabilities** tab → tick **Tap to
+   Pay on iPhone** → Save. Without this, signing fails on the entitlement
+   key that is now live in `App.entitlements`.
+2. If Apple's approval email only granted *development*, reply to it asking
+   for the *distribution* entitlement — TestFlight / App Store builds sign
+   with the distribution profile. (If the archive uploads and installs from
+   TestFlight, you have it.)
+3. Square signatures and the production application id are already done
+   (2026-10-23).
+
+**Mac, in order**
+
+1. `git pull` (main) → `npm ci` → `npx cap sync ios` → commit whatever sync
+   rewrites under `ios/App/CapApp-SPM/`. Same plugins as 1.3; the new native
+   code is `TapToPayPlugin.swift`, `ShellViewController.swift`
+   (`instanceDescriptor` override), `AppDelegate.swift` (SDK init).
+2. `npx cap open ios`. Let SPM resolve `mobile-payments-sdk-ios` 2.6.0 with
+   BOTH products (`SquareMobilePaymentsSDK`, `MockReaderUI`). If Xcode
+   rejects the hand-edited project: delete every `5Q2026…` entry from
+   `project.pbxproj`, File → Add Package Dependencies →
+   `https://github.com/square/mobile-payments-sdk-ios`, Exact 2.6.0, tick
+   both products; Build Phases → + New Run Script Phase, dragged LAST:
+   `"${BUILT_PRODUCTS_DIR}/${FRAMEWORKS_FOLDER_PATH}/SquareMobilePaymentsSDK.framework/setup"`;
+   Build Settings → User Script Sandboxing = No. Also re-add the two
+   user-defined settings if they were lost: `SQUARE_APPLICATION_ID` (Debug =
+   the sandbox id, Release = the production id — both are in the committed
+   pbxproj diff) and `WB_SHELL_ORIGIN` (Debug =
+   `https://streamflaire-staging.up.railway.app`, Release empty).
+3. Signing & Capabilities: Tap to Pay on iPhone should now be listed (from
+   the entitlements file). Automatic signing regenerates the profile; if it
+   errors, step 1 above is the cause.
+4. **Build (⌘B) Release-equivalent first**: Product → Scheme → Edit → Run →
+   Build Configuration = Release, then ⌘B. `TapToPayPlugin.swift` has never
+   compiled — expect a handful of renames against the SDK's real Swift API
+   (likely spots: `PaymentParameters` init labels, `PromptParameters(mode:
+   additionalMethods:)`, `TapToPaySettings.isAppleAccountLinked` /
+   `linkAppleAccount`, `Payment.id`, `OnlinePayment.cardDetails`). Fix, keep
+   the method surface the page expects (`lib/native-tap-to-pay.ts`). The
+   `#if DEBUG` mock-reader code does not compile in Release, so switch the
+   scheme back to Debug and ⌘B once more to catch errors there too.
+5. Optional sandbox pass (no money, no Square activation needed): scheme App,
+   configuration Debug, iPhone by cable, Run → app opens STAGING. Needs
+   `TAP_TO_PAY=1` on the staging service and the `e@e.com` login (Brightwire
+   Electric; Reconnect Square once from a desktop browser with the sandbox
+   seller dashboard open). Settings → Online Payments → Set up → floating
+   mock reader → any unpaid invoice → Tap to Pay → mock reader: connect a
+   contactless reader → tap → Payment details → approved / declined.
+6. Phone checklist from 1.4 (quick): new icon on the home screen, cold
+   launch is solid blue then the animation, airplane mode shows the offline
+   page, dark mode, one Siri phrase ("Hey Siri, what's next in WorkBench").
+7. Archive (Product → Archive; uses Release) → Distribute → App Store
+   Connect → TestFlight. Install build 14 on the iPhone from TestFlight.
+8. On production: connect your REAL Square account to the test company
+   (workbenchfsm.com → Settings → Online Payments → Connect Square); then
+   `railway variables --set "TAP_TO_PAY=1" -e production -s Streamflaire`;
+   then on the phone Settings → Online Payments → **Tap to Pay on this
+   phone → Set up** (location, Apple's terms sheet) → an unpaid invoice →
+   Tap to Pay → your own card, $1.00 → Refund from the invoice page.
+   Recipes 7–14 in `checkout-tap-to-pay-2026-10-22.md`.
+9. Submit 1.4 for review when the $1 test passes. What's New: "Tap to Pay:
+   take cards in person with your iPhone. New app icon, a smoother launch,
+   and more Siri." App privacy: nothing new (location was already declared;
+   Tap to Pay uses it while taking a payment).
+
+**Not in this build (still queued, next one):** native speech recognition
+for Talk to Atlas, and the calling-engine credential fix — both under
+"iOS — queued for build 14" in `native-release-queue.md`; rename that
+heading to build 15 when 14 ships. Android: the vc6 bundle in Downloads
+goes to Play internal testing the same day (David's call: ship both
+together).
+
 ## RELEASE 1.4 — iOS only, 2026-10-10 (icon + launch screen; Siri expansion if queued)
 
 What's waiting is in `native-release-queue.md` § NEXT BUILD. Short version,
