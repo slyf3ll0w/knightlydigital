@@ -93,15 +93,53 @@ function bytesFromBase64(b64: string): Uint8Array {
 // iOS only lets a page make sound after a tap: the drawer calls this from
 // the tap that opens voice mode and the session reuses the unlocked context.
 let primedOut: AudioContext | null = null;
+let primedSink: Sink | null = null;
+
+/**
+ * Where Atlas's voice comes out. Not the AudioContext's own destination: on
+ * iPhones the echo canceller only covers sound played through a media
+ * element, so Web Audio output leaks straight back into the mic and the
+ * session hears Atlas talking (David's 2026-10-23 report: foreign-language
+ * fragments, Atlas interrupting itself). Routing playback through a
+ * MediaStreamDestination → <audio> puts it on the cancelled path. If the
+ * element can't play (no gesture), the context's destination is the fallback.
+ */
+type Sink = { dest: MediaStreamAudioDestinationNode; el: HTMLAudioElement; failed: boolean };
+function makeSink(ctx: AudioContext): Sink {
+  const sink: Sink = { dest: ctx.createMediaStreamDestination(), el: document.createElement("audio"), failed: false };
+  sink.el.srcObject = sink.dest.stream;
+  sink.el.setAttribute("playsinline", "");
+  sink.el.autoplay = true;
+  sink.el.play().catch(() => {
+    sink.failed = true;
+  });
+  return sink;
+}
+
 export function primeLiveAudio(): void {
   try {
     const Ctx = (window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext) as typeof AudioContext | undefined;
     if (!Ctx) return;
-    if (!primedOut || primedOut.state === "closed") primedOut = new Ctx();
+    if (!primedOut || primedOut.state === "closed") {
+      primedOut = new Ctx();
+      primedSink = null;
+    }
     void primedOut.resume().catch(() => undefined);
+    if (!primedSink) primedSink = makeSink(primedOut);
   } catch {
     /* no audio */
   }
+}
+
+/** Mic frames quieter than this never count as the user talking over Atlas. */
+const GATE_FLOOR = 0.012;
+/** How long after Atlas starts talking the mic only listens to learn the echo level. */
+const GATE_LEARN_MS = 400;
+
+function rmsOf(frame: Float32Array): number {
+  let s = 0;
+  for (let i = 0; i < frame.length; i++) s += frame[i] * frame[i];
+  return Math.sqrt(s / Math.max(1, frame.length));
 }
 
 export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
@@ -133,8 +171,11 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
   const Ctx = (window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext) as typeof AudioContext;
   const inCtx = new Ctx();
   const outCtx = primedOut && primedOut.state !== "closed" ? primedOut : new Ctx();
+  const sink = primedSink && primedOut === outCtx ? primedSink : makeSink(outCtx);
   primedOut = null;
+  primedSink = null;
   await Promise.all([inCtx.resume().catch(() => undefined), outCtx.resume().catch(() => undefined)]);
+  const outNode = (): AudioNode => (sink.failed ? outCtx.destination : sink.dest);
 
   let ws: WebSocket | null = null;
   let closed = false;
@@ -145,7 +186,12 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
   let nextPlayAt = 0;
   const playing = new Set<AudioBufferSourceNode>();
   let speaking = false;
+  let speakingSince = 0;
   let speakTimer: ReturnType<typeof setTimeout> | null = null;
+  // Barge-in gate state (see tap.port.onmessage).
+  let echoLevel = 0;
+  let gatedFrames = 0;
+  let passedFrames = 0;
 
   const send = (msg: Record<string, unknown>) => {
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
@@ -171,7 +217,7 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     for (let i = 0; i < samples.length; i++) data[i] = samples[i] / 32768;
     const src = outCtx.createBufferSource();
     src.buffer = buf;
-    src.connect(outCtx.destination);
+    src.connect(outNode());
     const now = outCtx.currentTime;
     const at = Math.max(now + 0.02, nextPlayAt);
     src.start(at);
@@ -181,6 +227,8 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     src.onended = () => playing.delete(src);
     if (!speaking) {
       speaking = true;
+      speakingSince = Date.now();
+      echoLevel = 0;
       ev.onStatus("speaking");
     }
     if (speakTimer) clearTimeout(speakTimer);
@@ -200,7 +248,7 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     throw err;
   }
   URL.revokeObjectURL(blobUrl);
-  voiceLog("live: audio ready", `in ${inCtx.sampleRate}Hz out ${outCtx.sampleRate}Hz ${since()}`);
+  voiceLog("live: audio ready", `in ${inCtx.sampleRate}Hz out ${outCtx.sampleRate}Hz via ${sink.failed ? "context" : "audio element"} ${since()}`);
   const source = inCtx.createMediaStreamSource(stream);
   const tap = new AudioWorkletNode(inCtx, "wb-mic-tap", { numberOfInputs: 1, numberOfOutputs: 0 });
   let pending: Int16Array[] = [];
@@ -220,7 +268,23 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     send({ realtimeInput: { audio: { data: base64FromBytes(new Uint8Array(merged.buffer)), mimeType: `audio/pcm;rate=${IN_RATE}` } } });
   };
   tap.port.onmessage = (e: MessageEvent<Float32Array>) => {
-    const pcm = downsampleToPcm16(e.data, inCtx.sampleRate, IN_RATE);
+    let frame = e.data;
+    // Barge-in gate: while Atlas is talking, the first GATE_LEARN_MS only
+    // measure how much of its voice leaks into the mic; after that a frame
+    // has to be clearly louder than that leak to count as the user talking
+    // over it. Gated frames go up as silence so the session's own
+    // voice-activity detector never hears Atlas and interrupts him.
+    if (speaking) {
+      const rms = rmsOf(frame);
+      const learning = Date.now() - speakingSince < GATE_LEARN_MS;
+      const gate = Math.max(GATE_FLOOR, echoLevel * 2.5);
+      if (learning || rms < gate) {
+        echoLevel = echoLevel === 0 ? rms : echoLevel * (learning ? 0.7 : 0.95) + rms * (learning ? 0.3 : 0.05);
+        frame = new Float32Array(frame.length);
+        gatedFrames++;
+      } else passedFrames++;
+    }
+    const pcm = downsampleToPcm16(frame, inCtx.sampleRate, IN_RATE);
     pending.push(pcm);
     pendingSamples += pcm.length;
     if (pendingSamples >= IN_RATE / 10) flushMic();
@@ -243,6 +307,7 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     hush();
     try { tap.port.onmessage = null; source.disconnect(); tap.disconnect(); } catch { /* fine */ }
     stream.getTracks().forEach((t) => t.stop());
+    try { sink.el.pause(); sink.el.srcObject = null; } catch { /* fine */ }
     void inCtx.close().catch(() => undefined);
     void outCtx.close().catch(() => undefined);
     try { ws?.close(); } catch { /* fine */ }
@@ -322,6 +387,11 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
       }
       if (sc.turnComplete) {
         voiceLog("live: turn complete", `heard “${userCaption.slice(0, 80)}” → said “${atlasCaption.slice(0, 80)}”`);
+        if (gatedFrames + passedFrames > 0) {
+          voiceLog("live: barge-in gate", `${gatedFrames} frames held, ${passedFrames} passed, echo≈${echoLevel.toFixed(3)}`);
+          gatedFrames = 0;
+          passedFrames = 0;
+        }
         if (userCaption) ev.onCaption("user", userCaption, true);
         if (atlasCaption) ev.onCaption("atlas", atlasCaption, true);
         userCaption = "";

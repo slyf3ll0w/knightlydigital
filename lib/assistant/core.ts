@@ -116,12 +116,35 @@ export async function companyTz(companyId: string): Promise<string> {
   return c?.timezone ?? "America/Chicago";
 }
 
-/** Look up one visible contact; shared by activity + action tools. */
+/** Look up one visible contact; shared by activity + action tools.
+ *  Takes an id — or, when the model passed a name instead (voice sessions
+ *  do this: "email Marcus Henderson"), the one contact whose first/last/
+ *  company name matches every word of it. Ambiguous names return null so
+ *  the tool asks rather than guessing. */
 export async function findContact(actor: Actor, clientId: string) {
-  return prisma.contact.findFirst({
-    where: { id: str(clientId, 40), companyId: actor.companyId, ...contactScope(actor) },
-    select: { id: true, firstName: true, lastName: true, companyName: true, address: true },
+  const select = { id: true, firstName: true, lastName: true, companyName: true, address: true } as const;
+  const key = str(clientId, 80).trim();
+  if (!key) return null;
+  const byId = await prisma.contact.findFirst({ where: { id: key.slice(0, 40), companyId: actor.companyId, ...contactScope(actor) }, select });
+  if (byId) return byId;
+  const words = key.split(/\s+/).filter((w) => /^[\p{L}\p{N}'’.&-]{2,}$/u.test(w)).slice(0, 4);
+  if (words.length === 0 || /_id|placeholder|^[a-z0-9]{20,}$/i.test(key)) return null;
+  const matches = await prisma.contact.findMany({
+    where: {
+      companyId: actor.companyId,
+      ...contactScope(actor),
+      AND: words.map((w) => ({
+        OR: [
+          { firstName: { contains: w, mode: "insensitive" as const } },
+          { lastName: { contains: w, mode: "insensitive" as const } },
+          { companyName: { contains: w, mode: "insensitive" as const } },
+        ],
+      })),
+    },
+    select,
+    take: 2,
   });
+  return matches.length === 1 ? matches[0] : null;
 }
 
 /** date (+optional time/duration) → schedule payload fields + display label,

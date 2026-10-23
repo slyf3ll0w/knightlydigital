@@ -19,6 +19,7 @@ import { startLiveSession, type LiveHandle, type LiveStatus } from "@/lib/live-v
 import { voiceLog } from "@/lib/voice-log";
 import { cardsSpeech, isAffirmative, isNegative, isStopPhrase, spokenForm, type SpokenCard } from "@/lib/voice-chat-shared";
 import type { Proposal } from "@/lib/assistant";
+import { ProposalCard, voiceConfirmable, type CardProposal, type PlacedCard } from "@/components/AssistantCard";
 
 /**
  * Talking to Atlas. Two engines:
@@ -52,6 +53,11 @@ export default function AssistantVoice({
   micGrant,
   ask,
   recordExchange,
+  cards,
+  onConfirmCard,
+  onSkipCard,
+  confirmOrdinaryPending,
+  skipPending,
   onClose,
   onReport,
 }: {
@@ -65,6 +71,14 @@ export default function AssistantVoice({
   ask: (text: string) => Promise<VoiceTurn>;
   /** Live engine: put a spoken exchange (and any cards it staged) into the chat. */
   recordExchange: (userText: string, replyText: string, proposals: Proposal[]) => RecordedExchange;
+  /** The cards waiting (or just settled) anywhere in the chat — shown on this screen. */
+  cards: PlacedCard[];
+  onConfirmCard: (msgIdx: number, card: CardProposal) => void;
+  onSkipCard: (msgIdx: number, id: string) => void;
+  /** Spoken yes: confirm every ordinary card still waiting. */
+  confirmOrdinaryPending: () => Promise<{ confirmed: number; failed: number; needsTap: number }>;
+  /** Spoken no: dismiss every card still waiting; returns how many. */
+  skipPending: () => number;
   onClose: () => void;
   /** "Report a problem": closes voice and opens the drawer's report sheet. */
   onReport: () => void;
@@ -87,7 +101,22 @@ export default function AssistantVoice({
     phaseRef.current = p;
     setPhase(p);
   };
+  // Turns engine only: the last reply staged ordinary cards, so a bare "yes"
+  // means confirm. (The live engine's model calls confirm_cards itself.)
   const pendingConfirm = useRef<{ run: () => Promise<void>; guarded: number } | null>(null);
+  // The socket's callbacks are bound once per session; read the drawer's
+  // card functions through refs so they are never stale.
+  const confirmPendingRef = useRef(confirmOrdinaryPending);
+  confirmPendingRef.current = confirmOrdinaryPending;
+  const skipPendingRef = useRef(skipPending);
+  skipPendingRef.current = skipPending;
+  // Re-render a few seconds after a card settles so it can leave the screen.
+  const [, setSettleTick] = useState(0);
+  useEffect(() => {
+    if (!cards.some((c) => c.card.settledAt !== undefined)) return;
+    const t = setTimeout(() => setSettleTick((n) => n + 1), 6200);
+    return () => clearTimeout(t);
+  }, [cards]);
 
   // ── live engine state ──
   const liveRef = useRef<LiveHandle | null>(null);
@@ -150,10 +179,7 @@ export default function AssistantVoice({
       turnUser.current = "";
       turnProposals.current = [];
       if (!userText && !atlasText && proposals.length === 0) return;
-      const ex = recordExchange(userText || "(spoken)", atlasText || "(spoken)", proposals);
-      const guarded = proposals.filter((p) => p.danger || p.money || p.confirmText).length;
-      const ordinary = proposals.length - guarded;
-      pendingConfirm.current = ordinary > 0 ? { run: ex.confirmOrdinary, guarded } : null;
+      recordExchange(userText || "(spoken)", atlasText || "(spoken)", proposals);
     },
     [recordExchange]
   );
@@ -161,17 +187,20 @@ export default function AssistantVoice({
   const onToolCall = useCallback(
     async (toolName: string, args: Record<string, unknown>): Promise<Record<string, unknown>> => {
       if (toolName === "confirm_cards") {
-        const pending = pendingConfirm.current;
-        if (!pending) return { confirmed: false, note: "Nothing is waiting to be confirmed." };
-        pendingConfirm.current = null;
-        try {
-          await pending.run();
-          hapticNotify("SUCCESS");
-          return { confirmed: true, ...(pending.guarded > 0 ? { needsTap: pending.guarded, note: "Those still need a tap in the chat." } : {}) };
-        } catch {
-          hapticNotify("ERROR");
-          return { confirmed: false, error: "It didn't go through — it's in the chat to retry." };
-        }
+        const r = await confirmPendingRef.current();
+        voiceLog("live: confirm_cards", r);
+        if (r.confirmed + r.failed + r.needsTap === 0) return { confirmed: 0, note: "No card is waiting — nothing to confirm. If the user wants something done, stage it now." };
+        hapticNotify(r.failed > 0 ? "ERROR" : "SUCCESS");
+        return {
+          confirmed: r.confirmed,
+          ...(r.failed > 0 ? { failed: r.failed, note: "Some didn't go through — the card on screen says why; offer to try again." } : {}),
+          ...(r.needsTap > 0 ? { needsTap: r.needsTap, note: "Those move money or can't be undone — the user taps the card on screen." } : {}),
+        };
+      }
+      if (toolName === "skip_cards") {
+        const n = skipPendingRef.current();
+        voiceLog("live: skip_cards", n);
+        return { skipped: n };
       }
       const res = await fetch("/api/app/assistant/live/tool", {
         method: "POST",
@@ -317,6 +346,7 @@ export default function AssistantVoice({
         }
         if (isNegative(text)) {
           pendingConfirm.current = null;
+          skipPendingRef.current();
           await say("Okay, I'll leave it. Anything else?");
           return;
         }
@@ -331,11 +361,11 @@ export default function AssistantVoice({
         await say(turn.error.replace(/[*_`]/g, ""));
         return;
       }
-      const cards = cardsSpeech(turn.cards);
-      pendingConfirm.current = cards.voiceConfirmable
-        ? { run: turn.confirmOrdinary, guarded: turn.cards.filter((c) => c.guarded).length }
+      const spoken = cardsSpeech(turn.cards);
+      pendingConfirm.current = spoken.voiceConfirmable
+        ? { run: () => confirmPendingRef.current().then(() => undefined), guarded: turn.cards.filter((c) => c.guarded).length }
         : null;
-      await say([spokenForm(turn.reply), cards.text].filter(Boolean).join(" "));
+      await say([spokenForm(turn.reply), spoken.text].filter(Boolean).join(" "));
     },
     [ask, onClose, say]
   );
@@ -453,6 +483,7 @@ export default function AssistantVoice({
     liveRef.current?.setMuted(next);
   }
 
+  const hasCards = cards.length > 0;
   const status =
     phase === "listening"
       ? interim || (engine === "live" ? "Listening — just talk." : "Listening…")
@@ -526,12 +557,12 @@ export default function AssistantVoice({
           </div>
         </div>
       ) : (
-        <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
+        <div className={`flex min-h-0 flex-1 flex-col items-center px-6 text-center ${hasCards ? "justify-start pt-2" : "justify-center"}`}>
           <button
             type="button"
             onClick={tapOrb}
             aria-label={phase === "speaking" ? "Interrupt" : phase === "listening" ? "Listening" : "Talk"}
-            className="relative flex h-40 w-40 items-center justify-center rounded-full"
+            className={`relative flex shrink-0 items-center justify-center rounded-full transition-[width,height] duration-300 ${hasCards ? "h-24 w-24" : "h-40 w-40"}`}
           >
             <span
               aria-hidden
@@ -540,22 +571,42 @@ export default function AssistantVoice({
               }`}
               style={{ background: "color-mix(in srgb, var(--wb-accent, #0b57d8) 14%, transparent)" }}
             />
-            <AtlasMark size={96} accent={accent} />
+            <AtlasMark size={hasCards ? 56 : 96} accent={accent} />
             <span
-              className="absolute -bottom-1 right-2 flex h-11 w-11 items-center justify-center rounded-full border-2 border-white shadow-md"
+              className={`absolute flex items-center justify-center rounded-full border-2 border-white shadow-md ${hasCards ? "-bottom-1 right-0 h-8 w-8" : "-bottom-1 right-2 h-11 w-11"}`}
               style={
                 phase === "idle"
                   ? { background: "#6b7280", color: "#ffffff" }
                   : { background: "var(--wb-accent, #0b57d8)", color: "var(--wb-on-accent, #ffffff)" }
               }
             >
-              {phase === "listening" ? <Mic size={20} /> : phase === "speaking" ? <Square size={16} /> : phase === "idle" ? <MicOff size={20} /> : <Mic size={20} className="opacity-50" />}
+              {phase === "listening" ? <Mic size={hasCards ? 15 : 20} /> : phase === "speaking" ? <Square size={hasCards ? 12 : 16} /> : phase === "idle" ? <MicOff size={hasCards ? 15 : 20} /> : <Mic size={hasCards ? 15 : 20} className="opacity-50" />}
             </span>
           </button>
 
-          <p className="mt-6 min-h-[3.5rem] max-w-[320px] text-[15px] leading-relaxed text-gray-800">{status}</p>
-          {heard && phase !== "listening" && (
+          <p className={`max-w-[320px] leading-relaxed text-gray-800 ${hasCards ? "mt-3 min-h-0 text-[13px]" : "mt-6 min-h-[3.5rem] text-[15px]"}`}>{status}</p>
+          {heard && phase !== "listening" && !hasCards && (
             <p className="mt-2 max-w-[320px] text-[12px] text-gray-400">You said: “{heard}”</p>
+          )}
+
+          {/* The cards Atlas staged, right here on the talk screen: say "yes"
+              (or "I confirm") for the ordinary ones, tap the ones that move
+              money or can't be undone. Settled cards linger a moment so the
+              stamp is seen, then leave. */}
+          {hasCards && (
+            <div className="mt-3 flex w-full min-h-0 flex-1 flex-col gap-2 overflow-y-auto pb-2 text-left" aria-live="polite">
+              {cards.map(({ msgIdx, card }) => (
+                <ProposalCard key={card.id} proposal={card} onConfirm={() => onConfirmCard(msgIdx, card)} onCancel={() => onSkipCard(msgIdx, card.id)} />
+              ))}
+              {cards.some((c) => c.card.state === "pending") && (
+                <p className="px-1 text-center text-[11px] text-gray-500">
+                  {cards.some((c) => c.card.state === "pending" && voiceConfirmable(c.card))
+                    ? "Say “yes” or “I confirm” for these, or tap. "
+                    : ""}
+                  {cards.some((c) => c.card.state === "pending" && !voiceConfirmable(c.card)) ? "Money and permanent changes need a tap." : ""}
+                </p>
+              )}
+            </div>
           )}
         </div>
       )}

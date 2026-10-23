@@ -36,9 +36,10 @@ function renderMessages(raw: unknown): string {
       const role = m.role === "user" ? (m.auto ? "USER (auto)" : "USER") : "ATLAS";
       const lines = [`[${i + 1}] ${role}${typeof m.tokens === "number" ? ` (${m.tokens} tokens)` : ""}: ${str(m.content, 6000)}`];
       if (Array.isArray(m.proposals)) {
-        for (const p of m.proposals.slice(0, 20) as { title?: unknown; state?: unknown; kind?: unknown; danger?: unknown; money?: unknown }[]) {
+        for (const p of m.proposals.slice(0, 20) as { title?: unknown; state?: unknown; kind?: unknown; danger?: unknown; money?: unknown; resultNote?: unknown; endpoint?: unknown }[]) {
           const flags = [p.danger ? "permanent" : "", p.money ? "money" : ""].filter(Boolean).join(",");
-          lines.push(`    card: ${str(p.title, 200)} [${str(p.state, 20) || "pending"}${flags ? `; ${flags}` : ""}]`);
+          const note = str(p.resultNote, 200);
+          lines.push(`    card: ${str(p.title, 200)} [${str(p.state, 20) || "pending"}${flags ? `; ${flags}` : ""}] ${str(p.kind, 40)} ${str(p.endpoint, 120)}${note ? ` — ${note}` : ""}`);
         }
       }
       if (typeof m.recap === "string" && m.recap) lines.push(`    recap: ${m.recap.slice(0, 1500)}`);

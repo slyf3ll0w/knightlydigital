@@ -18,11 +18,17 @@ import { liveSystemInstruction, toolsForActor } from "@/lib/assistant";
 const LIVE_MODEL = process.env.AI_MODEL_LIVE || "gemini-3.8-live";
 const VOICE = process.env.ATLAS_VOICE || "Achird";
 
-/** The one tool the BROWSER answers itself: confirming the ordinary cards Atlas staged. */
+/** The tools the BROWSER answers itself: the cards Atlas staged are on the talk screen; these settle them. */
 const CONFIRM_CARDS_DECL = {
   name: "confirm_cards",
   description:
-    "The user said yes to the change(s) you just staged. Confirms every ordinary pending card from your last answer. Cards that move money or can't be undone are NOT confirmed by voice — the result tells you how many still need a tap in the chat.",
+    "The user agreed to the pending card(s) — any clear yes: \"yes\", \"I confirm\", \"confirm\", \"go ahead\", \"do it\", \"send it\", \"sounds good\". Confirms every ordinary card still waiting on the talk screen, even if a few turns have passed since you staged them. Cards that move money or can't be undone are never confirmed by voice — the result says how many still need a tap on the card shown on screen.",
+  parameters: { type: "object", properties: {} },
+};
+const SKIP_CARDS_DECL = {
+  name: "skip_cards",
+  description:
+    "The user declined the pending card(s) — \"no\", \"don't\", \"skip it\", \"never mind\", \"cancel that\". Dismisses every card still waiting on the talk screen.",
   parameters: { type: "object", properties: {} },
 };
 
@@ -34,7 +40,7 @@ export async function POST() {
 
   const instruction = await liveSystemInstruction(gate.actor);
   if (!instruction) return NextResponse.json({ error: "No company." }, { status: 404 });
-  const functionDeclarations = [...toolsForActor(gate.actor).map((t) => t.decl), CONFIRM_CARDS_DECL];
+  const functionDeclarations = [...toolsForActor(gate.actor).map((t) => t.decl), CONFIRM_CARDS_DECL, SKIP_CARDS_DECL];
 
   // BidiGenerateContentSetup on the wire: modalities + voice live under
   // generationConfig; instruction, tools, transcription, VAD and resumption
@@ -42,18 +48,23 @@ export async function POST() {
   const setupConfig = {
     generationConfig: {
       responseModalities: ["AUDIO"],
-      speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } } },
+      // languageCode pins the session to English — the 2026-10-23 report had
+      // echo fragments transcribed as Portuguese/Spanish/German.
+      speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } }, languageCode: "en-US" },
     },
     systemInstruction: { parts: [{ text: instruction.text }] },
     tools: [{ functionDeclarations }],
     inputAudioTranscription: {},
     outputAudioTranscription: {},
     realtimeInputConfig: {
+      // Start detection LOW: HIGH fired on Atlas's own voice leaking through
+      // the phone speaker and on room noise (2026-10-23 report). End stays
+      // quick so the reply comes within a beat of the user stopping.
       automaticActivityDetection: {
-        startOfSpeechSensitivity: "START_SENSITIVITY_HIGH",
+        startOfSpeechSensitivity: "START_SENSITIVITY_LOW",
         endOfSpeechSensitivity: "END_SENSITIVITY_HIGH",
-        prefixPaddingMs: 120,
-        silenceDurationMs: 600,
+        prefixPaddingMs: 200,
+        silenceDurationMs: 700,
       },
     },
     sessionResumption: {},

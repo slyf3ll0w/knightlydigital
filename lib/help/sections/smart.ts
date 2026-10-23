@@ -175,7 +175,7 @@ export const atlasSection: HelpSection = {
           items: [
             "Open Atlas and tap the **microphone** (the send button when nothing is typed). Allow the microphone the first time.",
             "Say what you need, the way you'd say it to a person: \"who called this morning?\", \"quote the Hendersons four fifty for the spring cleanup and send it\", \"remind me to call Maria Friday at two\".",
-            "When Atlas lines up a change, it tells you and asks. Say **\"yes\"** to confirm or **\"no\"** to leave it. Changes that move money or can't be undone always wait for a tap in the chat.",
+            "When Atlas lines up a change, the confirmation card appears right on the talk screen and Atlas asks. Say **\"yes\"** or **\"I confirm\"** to confirm (even after asking a question or two first), **\"no\"** to skip it, or tap the card. Changes that move money or can't be undone always wait for a tap on the card.",
             "Talk over Atlas, or tap the mark, to interrupt it. **Mute** at the top pauses the mic; tap **Done** when you're finished.",
           ],
         },
@@ -206,7 +206,7 @@ export const atlasSection: HelpSection = {
         },
         {
           type: "tip",
-          text: "Works best with the phone held normally or in a truck mount. Voice is for doing things fast; the chat is still there for anything you'd rather read.",
+          text: "Works best with the phone held normally or in a truck mount. In a loud spot, speaker echo can make Atlas hear itself; turning the volume down a notch helps. Voice is for doing things fast; the chat is still there for anything you'd rather read.",
         },
       ],
     },
