@@ -28,8 +28,9 @@ import {
   X,
 } from "lucide-react";
 import AtlasIcon, { AtlasMark } from "@/components/AtlasIcon";
-import AssistantVoice, { type VoiceTurn } from "@/components/AssistantVoice";
+import AssistantVoice, { type RecordedExchange, type VoiceTurn } from "@/components/AssistantVoice";
 import { requestMicrophone, type MicState } from "@/lib/voice-chat-client";
+import { primeLiveAudio } from "@/lib/live-voice-client";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import { money } from "@/lib/statuses";
 import { useMeasuredHeight } from "@/lib/use-measured-height";
@@ -456,6 +457,12 @@ export default function AssistantDrawer({
   const router = useRouter();
   const storageKey = `sf-assistant-chat:${storageScope || "shared"}`;
   const [messages, setMessages] = useState<Msg[]>([]);
+  // The live voice session records exchanges from socket callbacks (stale
+  // closures) — it reads the latest list from here, not from `messages`.
+  const messagesRef = useRef<Msg[]>([]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   // What Atlas is doing right now ("Looking up clients…") — streamed from the
@@ -633,6 +640,22 @@ export default function AssistantDrawer({
     return outcome;
   }
 
+  /** Live voice: a spoken exchange already happened out loud — put it (and
+   *  any cards it staged) in the chat without another model call. */
+  function recordExchange(userText: string, replyText: string, proposals: Proposal[]): RecordedExchange {
+    const base = messagesRef.current;
+    const reply: Msg = {
+      role: "assistant",
+      content: replyText,
+      proposals: proposals.map((p) => ({ ...p, state: "pending" as const })),
+    };
+    const next: Msg[] = [...base, { role: "user", content: userText }, reply];
+    messagesRef.current = next; // two exchanges in one tick must not overwrite each other
+    persist(next);
+    const index = next.length - 1;
+    return { index, confirmOrdinary: () => confirmAll(index, reply.proposals ?? []) };
+  }
+
   /** One spoken turn for the voice overlay: the same send, plus what to read
    *  out and how to confirm the ordinary cards by voice. */
   async function askByVoice(text: string): Promise<VoiceTurn> {
@@ -803,6 +826,7 @@ export default function AssistantDrawer({
             progress={progress}
             micGrant={micGrantRef.current}
             ask={askByVoice}
+            recordExchange={recordExchange}
             onClose={() => setVoiceOpen(false)}
           />
         )}
@@ -1098,6 +1122,7 @@ export default function AssistantDrawer({
                 type="button"
                 onClick={() => {
                   hapticImpact("MEDIUM");
+                  primeLiveAudio();
                   micGrantRef.current = requestMicrophone();
                   setVoiceOpen(true);
                 }}

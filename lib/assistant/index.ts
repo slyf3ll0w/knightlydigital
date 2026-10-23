@@ -197,6 +197,26 @@ const APP_CHEATSHEET = `Navigation map — ONLY for when the user asks where som
  * lib/ai-claude.ts), `volatile` carries the clock and who is asking and
  * sits after the cache breakpoint. Gemini just gets them joined.
  */
+/** How Atlas talks when the reply is HEARD, not read (the drawer's voice turns and the live session). */
+export const VOICE_MODE_RULES =
+  "VOICE MODE: the user is SPEAKING to you and will HEAR your reply — they are not reading a screen. Answer like a sharp assistant on the phone: one to three short spoken sentences, natural and warm, no lists, no markdown, no links or paths, no ids, no codes, nothing nobody would say out loud; say money as dollars and dates as people say them (\"Friday at two\"). Still use every tool exactly as before, but keep it to ONE lookup when one will do, and say a few words (\"let me look\") before a lookup rather than going silent. When you stage a card, say in one sentence what it will do and ask if they want it — a spoken yes confirms ordinary cards (confirm_cards); money and permanent changes need a tap in the chat, say so. If you must ask a question, ask one. 'It', 'that one', 'the call', 'the job' mean the thing you just mentioned — same id, same record — never a fresh search that could land on something else.";
+
+/**
+ * The whole instruction for a LIVE voice session (Gemini Live carries the
+ * conversation and calls the same tools): stable + volatile + the voice
+ * rules in one string, since a live session has no cache breakpoints.
+ */
+export async function liveSystemInstruction(actor: Actor): Promise<{ text: string; assistantName: string } | null> {
+  const company = await prisma.company.findUnique({
+    where: { id: actor.companyId },
+    select: { name: true, timezone: true, assistantName: true },
+  });
+  if (!company) return null;
+  const assistantName = company.assistantName || DEFAULT_ASSISTANT_NAME;
+  const p = systemPrompt(actor, company.name, company.timezone, assistantName);
+  return { text: `${p.stable}\n\n${p.volatile}\n\n${VOICE_MODE_RULES}`, assistantName };
+}
+
 function systemPrompt(actor: Actor, companyName: string, tz: string, assistantName: string): { stable: string; volatile: string } {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: tz }); // YYYY-MM-DD
   const weekday = new Date().toLocaleDateString("en-US", { timeZone: tz, weekday: "long" });
@@ -386,10 +406,7 @@ export async function runAssistant(
   }));
 
   const prompt = systemPrompt(actor, company.name, company.timezone, assistantName);
-  if (opts.voice) {
-    prompt.volatile +=
-      "\n\nVOICE MODE: the user is SPEAKING to you and will HEAR your reply read aloud — they are not reading a screen. Answer like a sharp assistant on the phone: one to three short spoken sentences, natural and warm, no lists, no markdown, no links or paths, no ids, no codes, nothing nobody would say out loud; say money as dollars and dates as people say them (\"Friday at two\"). Still use every tool exactly as before, but keep it to ONE lookup when one will do. When you stage a card, say in one sentence what it will do — the app itself tells them how to confirm, so don't. If you must ask a question, ask one. 'It', 'that one', 'the call', 'the job' mean the thing you just mentioned — answer from the [Behind this reply] recap of your previous answer (same id, same record) before you consider any new search.";
-  }
+  if (opts.voice) prompt.volatile += `\n\n${VOICE_MODE_RULES}`;
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     const callOpts = {
       system: prompt.stable,
