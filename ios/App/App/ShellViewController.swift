@@ -27,7 +27,7 @@ class ShellViewController: CAPBridgeViewController {
            !origin.isEmpty,
            let url = URL(string: origin.hasSuffix("/") ? String(origin.dropLast()) + "/app/dashboard" : origin + "/app/dashboard"),
            let host = url.host {
-            descriptor.serverURL = url
+            descriptor.serverURL = url.absoluteString
             descriptor.allowedNavigationHostnames = [host]
         }
         return descriptor
