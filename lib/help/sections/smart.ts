@@ -188,6 +188,19 @@ export const atlasSection: HelpSection = {
           ],
         },
         {
+          type: "faq",
+          items: [
+            {
+              q: "It says the microphone is blocked.",
+              a: "The browser or phone remembered a No. On an iPhone: Settings app → WorkBench (or Safari's AA button → Website Settings) → Microphone → Allow. On Android: Settings → Apps → WorkBench → Permissions → Microphone. On a computer: click the lock or sliders icon at the left of the address bar → Microphone → Allow. Then tap **Try again** on the voice screen.",
+            },
+            {
+              q: "Atlas hears me but the reply is silent.",
+              a: "Turn your ringer or media volume up; on an iPhone the silent switch mutes it. If the natural voice can't load, Atlas falls back to your device's own voice automatically.",
+            },
+          ],
+        },
+        {
           type: "tip",
           text: "Works best with the phone held normally or in a truck mount. Voice is for doing things fast; the chat is still there for anything you'd rather read.",
         },

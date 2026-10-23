@@ -4,7 +4,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Mic, MicOff, Square, Volume2, VolumeX, X } from "lucide-react";
 import { AtlasMark } from "@/components/AtlasIcon";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
-import { listenOnce, primeAudio, speak, speechInputKind, type ListenHandle, type SpeakHandle } from "@/lib/voice-chat-client";
+import {
+  listenOnce,
+  micInstructions,
+  primeAudio,
+  requestMicrophone,
+  speak,
+  speechInputKind,
+  type ListenHandle,
+  type MicState,
+  type SpeakHandle,
+} from "@/lib/voice-chat-client";
 import { cardsSpeech, isAffirmative, isNegative, isStopPhrase, spokenForm, type SpokenCard } from "@/lib/voice-chat-shared";
 
 /**
@@ -22,7 +32,7 @@ export type VoiceTurn =
   | { reply: string; cards: SpokenCard[]; confirmOrdinary: () => Promise<void> }
   | { error: string };
 
-type Phase = "listening" | "thinking" | "speaking" | "idle";
+type Phase = "listening" | "thinking" | "speaking" | "idle" | "blocked";
 
 const NATURAL_KEY = "wb-atlas-voice-natural";
 
@@ -30,6 +40,7 @@ export default function AssistantVoice({
   name,
   accent,
   progress,
+  micGrant,
   ask,
   onClose,
 }: {
@@ -37,6 +48,8 @@ export default function AssistantVoice({
   accent?: string;
   /** What Atlas is doing right now (streamed from the route) — shown while thinking. */
   progress: string;
+  /** The microphone request the opening tap already started (iOS and Safari only prompt from a gesture). */
+  micGrant: Promise<MicState> | null;
   ask: (text: string) => Promise<VoiceTurn>;
   onClose: () => void;
 }) {
@@ -175,22 +188,45 @@ export default function AssistantVoice({
         setNote(message);
         setPhaseBoth("idle");
       },
+      onBlocked: () => {
+        listenRef.current = null;
+        setPhaseBoth("blocked");
+      },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inputKind, handleUtterance]);
 
-  // Enter: unlock audio on the opening tap, then listen.
+  /** Wait for the mic answer, then listen — or show how to unblock it. */
+  const begin = useCallback(
+    async (grant: Promise<MicState>) => {
+      const state = await grant;
+      if (!alive.current) return;
+      if (state === "granted") listen();
+      else if (state === "unavailable") {
+        setNote("No microphone was found on this device — type in the chat instead.");
+        setPhaseBoth("idle");
+      } else setPhaseBoth("blocked");
+    },
+    [listen]
+  );
+
+  // Enter: audio was unlocked and the mic requested on the opening tap.
   useEffect(() => {
     alive.current = true;
     primeAudio();
-    const t = setTimeout(() => listen(), 150);
+    void begin(micGrant ?? requestMicrophone());
     return () => {
       alive.current = false;
-      clearTimeout(t);
       stopAll();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function tryAgain() {
+    hapticImpact("LIGHT");
+    // Inside the click, so a browser that only prompts from a gesture prompts now.
+    void begin(requestMicrophone());
+  }
 
   function tapOrb() {
     hapticImpact("LIGHT");
@@ -258,6 +294,26 @@ export default function AssistantVoice({
         </button>
       </div>
 
+      {phase === "blocked" ? (
+        <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
+          <MicOff size={40} className="text-gray-400" />
+          <p className="mt-5 font-display text-[17px] font-bold text-gray-900">The microphone is blocked</p>
+          <p className="mt-2 max-w-[320px] text-[14px] leading-relaxed text-gray-600">{micInstructions()}</p>
+          <div className="mt-6 flex flex-col items-stretch gap-2">
+            <button
+              type="button"
+              onClick={tryAgain}
+              className="rounded-full px-6 py-3 text-[15px] font-semibold"
+              style={{ background: accent ?? "#3B82F6", color: "#fff" }}
+            >
+              Try again
+            </button>
+            <button type="button" onClick={onClose} className="rounded-full px-6 py-3 text-[14px] font-semibold text-gray-600">
+              Type instead
+            </button>
+          </div>
+        </div>
+      ) : (
       <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
         <button
           type="button"
@@ -291,6 +347,7 @@ export default function AssistantVoice({
           </p>
         )}
       </div>
+      )}
 
       <p className="px-6 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-[11px] text-gray-400">
         {inputKind === "recorder"
