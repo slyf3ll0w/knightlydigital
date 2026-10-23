@@ -11,7 +11,7 @@ export const startSection: HelpSection = {
       slug: "activate-payments",
       title: "Turn on online payments (connect Square)",
       summary: "Connect your Square account once and clients can pay invoices by card or bank straight from their pay links.",
-      keywords: ["square", "connect square", "online payments", "turn on payments", "pay button", "card payments", "ach", "bank payments", "activate", "verify", "verification", "square account"],
+      keywords: ["square", "connect square", "online payments", "turn on payments", "pay button", "card payments", "ach", "bank payments", "activate", "verify", "verification", "square account", "bank account", "link bank", "payout account"],
       where: { label: "Settings → Payments & accounting", href: "/app/settings" },
       roles: "Account owner",
       blocks: [
@@ -28,6 +28,7 @@ export const startSection: HelpSection = {
             "Press `Connect Square` and sign in to Square.",
             "Approve the access Square lists. WorkBench needs to take payments, issue refunds and keep cards on file for your clients; it never sees card numbers.",
             "You land back in Settings with **Connected to** your business name. From that moment pay links show a **Pay** button.",
+            "Link the bank account Square should pay you out to. Until you do, clients can pay but the money sits in your Square balance — the card (and Home) show **Add your bank account to Square** with a button that opens the right page in Square: Settings → Account & Settings → Banking → Bank Accounts → Add Bank Account. Square verifies it (instantly through your bank login, or within a couple of business days) and emails a confirmation link to open within 24 hours. The reminder leaves on its own once Square confirms it, or press `I've added it — check again`.",
           ],
         },
         {

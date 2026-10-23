@@ -337,12 +337,16 @@ export const paymentsSection: HelpSection = {
       slug: "payouts",
       title: "When you get paid out",
       summary: "Payouts come from Square, on Square's schedule, to the bank account on your Square account.",
-      keywords: ["payout", "deposit", "bank", "settlement", "when do i get paid", "transfer", "square dashboard", "balance"],
+      keywords: ["payout", "deposit", "bank", "bank account", "link bank account", "settlement", "when do i get paid", "transfer", "square dashboard", "balance"],
       where: { label: "Payments", href: "/app/payments" },
       blocks: [
         {
           type: "p",
           text: "Payouts are handled by **Square**, not WorkBench. Card payments typically reach your bank the next business day; Square also offers instant and same-day transfers, and a different schedule, from your Square dashboard. Bank (ACH) payments show as **Processing** for a few business days before they pay out.",
+        },
+        {
+          type: "p",
+          text: "Payouts need a bank account on your Square account. If there isn't one yet, Home and **Settings → Payments & accounting → Online Payments** show **Add your bank account to Square** with a button to the right page in Square (Settings → Account & Settings → Banking → Bank Accounts). Clients can still pay in the meantime; the money waits in your Square balance until the account is verified.",
         },
         {
           type: "list",
