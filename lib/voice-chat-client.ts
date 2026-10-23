@@ -30,6 +30,62 @@ function recognitionCtor(): (new () => Recognition) | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
+export type MicState = "granted" | "denied" | "unavailable";
+
+/**
+ * Ask for the microphone — call this INSIDE the tap that opens voice mode
+ * (iOS and Safari only allow the prompt from a user gesture). The browser
+ * shows its own Allow / Block prompt the first time; after that the answer
+ * is remembered per site, and a remembered Block is what "blocked" means.
+ */
+export async function requestMicrophone(): Promise<MicState> {
+  if (typeof navigator === "undefined" || typeof navigator.mediaDevices?.getUserMedia !== "function") return "unavailable";
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((t) => t.stop());
+    return "granted";
+  } catch (err) {
+    const name = (err as { name?: string })?.name ?? "";
+    if (name === "NotFoundError" || name === "OverconstrainedError") return "unavailable";
+    return "denied";
+  }
+}
+
+export type MicPlatform = "ios-app" | "android-app" | "ios-safari" | "android-chrome" | "safari" | "firefox" | "chrome";
+
+export function micPlatform(): MicPlatform {
+  const ua = typeof navigator === "undefined" ? "" : navigator.userAgent;
+  const shell = ua.includes("StreamflaireHubShell");
+  const ios = /iPhone|iPad|iPod/.test(ua) || (ua.includes("Mac") && typeof navigator !== "undefined" && navigator.maxTouchPoints > 1);
+  const android = /Android/.test(ua);
+  if (shell) return ios ? "ios-app" : "android-app";
+  if (ios) return "ios-safari";
+  if (android) return "android-chrome";
+  if (/Firefox\//.test(ua)) return "firefox";
+  if (/Safari\//.test(ua) && !/Chrome\/|Chromium\/|Edg\//.test(ua)) return "safari";
+  return "chrome";
+}
+
+/** How to unblock the microphone on this device, in one or two plain sentences. */
+export function micInstructions(platform: MicPlatform = micPlatform()): string {
+  switch (platform) {
+    case "ios-app":
+      return "Open your iPhone's Settings app, scroll to WorkBench, turn Microphone on, then come back and tap Try again.";
+    case "android-app":
+      return "Open your phone's Settings → Apps → WorkBench → Permissions → Microphone → Allow, then come back and tap Try again.";
+    case "ios-safari":
+      return "Tap the AA (or ···) button in Safari's address bar → Website Settings → Microphone → Allow, then tap Try again.";
+    case "android-chrome":
+      return "Tap the lock icon next to the address bar → Permissions → Microphone → Allow, then tap Try again.";
+    case "safari":
+      return "In the Safari menu choose Settings for workbenchfsm.com → Microphone → Allow, then click Try again.";
+    case "firefox":
+      return "Click the microphone icon in the address bar, clear the block, then click Try again and choose Allow.";
+    default:
+      return "Click the icon at the left of the address bar (the lock or the sliders) → Microphone → Allow, then click Try again.";
+  }
+}
+
 export function speechInputKind(): "browser" | "recorder" | "none" {
   if (recognitionCtor()) return "browser";
   if (typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getUserMedia === "function" && typeof MediaRecorder !== "undefined") return "recorder";
@@ -43,6 +99,8 @@ export type ListenEvents = {
   /** Final transcript ("" when nothing was heard). */
   onFinal: (text: string) => void;
   onError?: (message: string) => void;
+  /** The browser refused the microphone — the overlay shows how to unblock it. */
+  onBlocked?: () => void;
 };
 
 /**
@@ -77,7 +135,8 @@ export function listenOnce(ev: ListenEvents): ListenHandle {
     rec.onerror = (e) => {
       if (e.error === "no-speech" || e.error === "aborted") return; // onend settles with ""
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
-        ev.onError?.("Microphone access is blocked — allow it in the browser's site settings.");
+        if (ev.onBlocked) ev.onBlocked();
+        else ev.onError?.("Microphone access is blocked.");
       } else if (e.error === "network") {
         ev.onError?.("Speech recognition needs a connection.");
       } else {
@@ -116,7 +175,8 @@ export function listenOnce(ev: ListenEvents): ListenHandle {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
-      ev.onError?.("Microphone access is blocked — allow it for this app.");
+      if (ev.onBlocked) ev.onBlocked();
+      else ev.onError?.("Microphone access is blocked.");
       return;
     }
     if (cancelled) return cleanup();

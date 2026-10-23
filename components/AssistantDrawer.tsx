@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import AtlasIcon, { AtlasMark } from "@/components/AtlasIcon";
 import AssistantVoice, { type VoiceTurn } from "@/components/AssistantVoice";
+import { requestMicrophone, type MicState } from "@/lib/voice-chat-client";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import { money } from "@/lib/statuses";
 import { useMeasuredHeight } from "@/lib/use-measured-height";
@@ -461,6 +462,9 @@ export default function AssistantDrawer({
   // Voice mode: a full-panel overlay that talks and listens (AssistantVoice);
   // every turn still lands in this chat underneath it.
   const [voiceOpen, setVoiceOpen] = useState(false);
+  // The mic request started by the tap that opened voice mode — browsers
+  // that only prompt from a gesture (iOS, Safari) need it asked right then.
+  const micGrantRef = useRef<Promise<MicState> | null>(null);
   // Server truth arrives as a prop; each send moves it locally so the drawer
   // reacts without waiting on a refresh.
   const [liveAccess, setLiveAccess] = useState<AtlasDrawerAccess>(access);
@@ -784,6 +788,7 @@ export default function AssistantDrawer({
             name={name}
             accent={accent}
             progress={progress}
+            micGrant={micGrantRef.current}
             ask={askByVoice}
             onClose={() => setVoiceOpen(false)}
           />
@@ -1080,6 +1085,7 @@ export default function AssistantDrawer({
                 type="button"
                 onClick={() => {
                   hapticImpact("MEDIUM");
+                  micGrantRef.current = requestMicrophone();
                   setVoiceOpen(true);
                 }}
                 disabled={loading}
