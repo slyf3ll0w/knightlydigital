@@ -18,6 +18,7 @@
 		0B20260923000000000000A3 /* Intents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B20260923000000000000B3 /* Intents.swift */; };
 		0B20261022000000000000A4 /* TapToPayPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B20261022000000000000B4 /* TapToPayPlugin.swift */; };
 		5Q20261022000000000000A3 /* SquareMobilePaymentsSDK in Frameworks */ = {isa = PBXBuildFile; productRef = 5Q20261022000000000000A2 /* SquareMobilePaymentsSDK */; };
+		5Q20261022000000000000A5 /* MockReaderUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5Q20261022000000000000A4 /* MockReaderUI */; };
 		504EC30D1FED79650016851F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30B1FED79650016851F /* Main.storyboard */; };
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
@@ -53,6 +54,7 @@
 				FB2026070000000000000003 /* FirebaseMessaging in Frameworks */,
 				7E20260923000000000000A3 /* telnyx-webrtc-ios in Frameworks */,
 				5Q20261022000000000000A3 /* SquareMobilePaymentsSDK in Frameworks */,
+				5Q20261022000000000000A5 /* MockReaderUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -119,6 +121,7 @@
 				FB2026070000000000000002 /* FirebaseMessaging */,
 				7E20260923000000000000A2 /* telnyx-webrtc-ios */,
 				5Q20261022000000000000A2 /* SquareMobilePaymentsSDK */,
+				5Q20261022000000000000A4 /* MockReaderUI */,
 			);
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* App.app */;
@@ -383,7 +386,9 @@
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = com.streamflaire.hub;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SQUARE_APPLICATION_ID = "sandbox-sq0idb-xUMPL4wDkES4EWc2m923Yw";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				WB_SHELL_ORIGIN = "https://streamflaire-staging.up.railway.app";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -407,7 +412,9 @@
 				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.streamflaire.hub;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SQUARE_APPLICATION_ID = "sq0idp-1AGNSMGlbpWTyNAeu4m5iA";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+				WB_SHELL_ORIGIN = "";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -490,6 +497,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 5Q20261022000000000000A1 /* XCRemoteSwiftPackageReference "mobile-payments-sdk-ios" */;
 			productName = SquareMobilePaymentsSDK;
+		};
+		5Q20261022000000000000A4 /* MockReaderUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5Q20261022000000000000A1 /* XCRemoteSwiftPackageReference "mobile-payments-sdk-ios" */;
+			productName = MockReaderUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
