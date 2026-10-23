@@ -61,7 +61,8 @@ replying to Apple's approval email (see § David — consoles, step 1).
       `processor`). Tap to Pay needs the processor to be Square in
       production, so chase the Square payments contact if that is still
       pending — it gates Tap to Pay as much as Apple does.
-- [ ] **Android does not need Apple at all.** Once the signature and the
+- [x] **Android bundle BUILT 2026-10-23** on David's PC from d051f79f (cap sync + gradlew bundleRelease, signed with the upload key, versionCode 6 / 1.4; Square SDK + TapToPayPlugin + app id verified inside the AAB): `~/Downloads/workbench-android-vc6-tap-to-pay.aab`. David uploads it to the Play internal testing track, installs it, then flips the Railway flag below himself (Claude's CLI write was blocked by permissions). Old shells without the plugin render nothing, so the flag is safe to set before everyone updates.
+- [ ] ~~Android does not need Apple at all.~~ Once the signature and the
       application id are in: on this PC, `npx cap sync android` (revert
       `capacitor.settings.gradle` if run from a worktree), `cd android &&
       gradlew bundleRelease`, upload versionCode 6 to the Play **internal
@@ -74,7 +75,8 @@ replying to Apple's approval email (see § David — consoles, step 1).
       grant needs the new in-person permission; the Settings card says
       **Reconnect Square to turn on Tap to Pay** until you do. Every other
       connected seller sees the same prompt.
-- [ ] **When Apple's development grant arrives:** Certificates, IDs &
+- [x] **Apple entitlement APPROVED 2026-10-23**; key uncommented in App.entitlements (d051f79f). Still for David: enable Tap to Pay on iPhone on the App ID (Identifiers → com.streamflaire.hub → Additional Capabilities), reply to Apple's email for the distribution grant, Mac build 14.
+- [ ] ~~When Apple's development grant arrives:~~ Certificates, IDs &
       Profiles → Identifiers → the app → **Additional Capabilities** tab →
       enable **Tap to Pay on iPhone** → Save; uncomment the key in
       `ios/App/App/App.entitlements`; Mac session per § Mac below. Then
