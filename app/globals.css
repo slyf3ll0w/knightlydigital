@@ -134,6 +134,51 @@
     @apply gap-2 px-5 py-2.5;
   }
 
+  /* ── Secondary button — the outline twin of .btn-primary for the quieter
+     action beside it (Check connection, Reconnect Square, "check again",
+     Copy). Same shape, lift, sizes and disabled state; white on the
+     design-system line. Added 2026-10-23: the Square lane had been using
+     the class for a week without a definition, so on phones those buttons
+     showed as loose text with the icon orphaned on its own line. */
+  .btn-secondary {
+    @apply flex items-center gap-1.5 whitespace-nowrap rounded-[10px] border bg-white px-4 py-2 text-sm font-semibold text-gray-800 disabled:opacity-50;
+    border-color: var(--ds-line, #e2e8f0);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    transition:
+      transform 0.13s ease,
+      box-shadow 0.13s ease,
+      background-color 0.15s ease,
+      border-color 0.15s ease;
+  }
+  .btn-secondary:hover:not(:disabled) {
+    @apply bg-gray-50;
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.12);
+  }
+  .btn-secondary:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  }
+  .btn-secondary.btn-sm {
+    @apply gap-1 px-3 py-1.5 text-xs;
+  }
+  .btn-secondary.btn-lg {
+    @apply gap-2 px-5 py-2.5;
+  }
+
+  /* ── Button rows on phones: one button per line, full width, label
+     centred — a row of two or three pill buttons never fits a 390px card.
+     From sm up it is the usual wrapping row. */
+  .btn-row {
+    @apply grid gap-2 sm:flex sm:flex-wrap sm:items-center;
+  }
+  .btn-row > .btn-primary,
+  .btn-row > .btn-secondary,
+  .btn-row > .btn-danger {
+    @apply justify-center sm:justify-start;
+  }
+
   /* ── Danger button — the confirm-dialog "Delete everything" twin of
      .btn-primary (same shape, lift and disabled state, solid red). Menus
      never use it: a destructive MENU ITEM is text-red-600 hover:bg-red-50,

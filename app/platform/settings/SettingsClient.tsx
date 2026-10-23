@@ -499,8 +499,8 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
 
         {sq.connected ? (
           <>
-            <div className="flex items-center gap-2 text-sm text-[color:var(--ds-good)]">
-              <Check size={15} />
+            <div className="flex items-start gap-2 text-sm text-[color:var(--ds-good)]">
+              <Check size={15} className="mt-0.5 shrink-0" />
               <span>
                 Connected to <span className="font-semibold">{sq.businessName ?? "your Square account"}</span>
                 {sq.locationName ? ` · ${sq.locationName}` : ""}
@@ -519,10 +519,16 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
                   <Landmark size={15} className="mt-0.5 shrink-0 text-[color:var(--ds-warn)]" />
                   <span>
                     <span className="font-semibold">No bank account on your Square account yet.</span> Clients can pay
-                    you, but Square has nowhere to send the money until you link one — it waits in your Square balance.
+                    you, but Square has nowhere to send the money until you link one — it waits in your Square balance.{" "}
+                    <InfoTip label="Where in Square?">
+                      In your Square Dashboard: Settings → Account &amp; Settings → Banking → Bank Accounts → Add Bank
+                      Account. Square verifies it instantly through your bank login or within a couple of business days,
+                      and emails a confirmation link to open within 24 hours. WorkBench re-checks every few hours, or
+                      press the button.
+                    </InfoTip>
                   </span>
                 </p>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="btn-row">
                   <a href={SQUARE_BANK_ACCOUNTS_URL} target="_blank" rel="noopener noreferrer" className="btn-primary">
                     Add a bank account in Square <ArrowUpRight size={11} />
                   </a>
@@ -530,11 +536,6 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
                     {busy ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
                     I&apos;ve added it — check again
                   </button>
-                  <InfoTip label="Where in Square?">
-                    In your Square Dashboard: Settings → Account &amp; Settings → Banking → Bank Accounts → Add Bank Account.
-                    Square verifies it instantly through your bank login or within a couple of business days, and emails a
-                    confirmation link to open within 24 hours. WorkBench re-checks every few hours, or press the button.
-                  </InfoTip>
                 </div>
               </div>
             )}
@@ -557,7 +558,7 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
               <TapToPaySetupCard inPerson={sq.inPerson === true} isManager={true} isOwner={isOwner} />
             )}
             {error && <p className="text-xs text-[color:var(--ds-bad)]">{error}</p>}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="btn-row">
               <button onClick={checkSquare} disabled={busy} className="btn-secondary">
                 {busy ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
                 Check connection
@@ -578,21 +579,23 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
             </p>
             {error && <p className="text-xs text-[color:var(--ds-bad)]">{error}</p>}
             {isOwner ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <a href="/api/app/square/connect" className="btn-primary w-fit">
+              <div className="btn-row">
+                <a href="/api/app/square/connect" className="btn-primary">
                   Connect Square
                 </a>
                 {status.signupUrl && (
-                  <>
-                    <a href={status.signupUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary">
-                      Create a Square account <ArrowUpRight size={11} />
-                    </a>
+                  <a href={status.signupUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary">
+                    Create a Square account <ArrowUpRight size={11} />
+                  </a>
+                )}
+                {status.signupUrl && (
+                  <span className="flex items-center justify-center text-xs text-gray-500 sm:justify-start">
                     <InfoTip label="Which sign-up link is this?">
                       {status.signupModel === "serviceFee"
                         ? "Square's sign-up for businesses whose clients pay a service fee at checkout (your Service fee switch is on), so the account lands on WorkBench's rates for that. Want to pay the fee yourself instead? Turn the service fee off on this page first, then create the account."
                         : "Square's sign-up for businesses that pay the processing fee themselves (your Service fee switch is off), so the account lands on WorkBench's rates for that. Want clients to pay a service fee at checkout instead? Turn it on on this page first, then create the account."}
                     </InfoTip>
-                  </>
+                  </span>
                 )}
               </div>
             ) : (

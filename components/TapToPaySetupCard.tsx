@@ -115,7 +115,7 @@ export default function TapToPaySetupCard({
         <p className={`text-xs ${note.tone === "good" ? "text-[color:var(--ds-good)]" : "text-[color:var(--ds-bad)]"}`}>{note.text}</p>
       )}
       {isManager && status?.configured && status.capable && (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="btn-row">
           {!inPerson ? (
             isOwner ? (
               <a href="/api/app/square/connect" className="btn-secondary">
