@@ -1005,6 +1005,20 @@ LIVE_AUDIO_OUT_CENTS_PER_MIN=
 AI_MODEL_ASSISTANT_VOICE=      # the fallback turn-based voice engine's model (default = AI_MODEL_ASSISTANT)
 ```
 
+- **Atlas conversation reports** (2026-10-23): the flag at the top of the
+  Atlas chat / "Report a problem" on the voice screen → `POST
+  /api/app/assistant/report` → a `FeedbackTicket` (type BUG, `pageUrl`
+  `"atlas-report"`) whose `details` holds the user's note, context (models,
+  device), the full conversation with cards + recaps, and the voice diary
+  (`lib/voice-log.ts`: engine, token/mic/socket timings, first-audio
+  latency per turn, tool calls, fallback reason). Read them on
+  /superadmin/feedback or straight from the database:
+  `select title, details from "FeedbackTicket" where "pageUrl" = 'atlas-report' order by "createdAt" desc`.
+  Live token facts (probed against the real API): the REST body field is
+  `bidiGenerateContentSetup` + `fieldMask: "model"` (no mask = the token's
+  setup replaces the browser's whole setup, tools included), and tokens
+  connect through `GenerativeService.BidiGenerateContentConstrained`.
+
 ## Job crew + titles (`lib/job-crew.ts`)
 
 Two things every job-creating path used to leave to whoever was typing:

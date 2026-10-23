@@ -198,6 +198,10 @@ export const atlasSection: HelpSection = {
               q: "Atlas hears me but the reply is silent.",
               a: "Turn your ringer or media volume up; on an iPhone the silent switch mutes it. If the natural voice can't load, Atlas falls back to your device's own voice automatically.",
             },
+            {
+              q: "Atlas was slow, misheard me, or got something wrong.",
+              a: "Tap **Report a problem** at the bottom of the voice screen, or the **flag** at the top of the chat, say what happened in a sentence and send it. The whole conversation goes with it — what was said, the cards, and the voice timings — so we can see exactly what Atlas did and fix it.",
+            },
           ],
         },
         {

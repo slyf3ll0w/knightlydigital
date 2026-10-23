@@ -9,7 +9,12 @@
  * /api/app/assistant/live/token mints the connection.
  */
 
-const WS_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent";
+import { voiceLog } from "@/lib/voice-log";
+
+// Ephemeral tokens connect through the *Constrained* method (verified
+// 2026-10-23: BidiGenerateContent closes 1008 "unregistered caller" for a
+// token; Constrained completes setup in ~300 ms).
+const WS_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained";
 const IN_RATE = 16000;
 const OUT_RATE = 24000;
 
@@ -101,17 +106,29 @@ export function primeLiveAudio(): void {
 
 export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
   ev.onStatus("connecting");
+  const t0 = Date.now();
+  const since = () => `${Date.now() - t0}ms`;
+  voiceLog("live: start");
   const tokenRes = await fetch("/api/app/assistant/live/token", { method: "POST" });
   const tokenData = (await tokenRes.json().catch(() => ({}))) as Partial<TokenReply>;
   if (!tokenRes.ok || !tokenData.token || !tokenData.setup) {
+    voiceLog("live: token refused", `${tokenRes.status} ${tokenData.error ?? ""} ${since()}`);
     throw new Error(tokenData.error ?? "Live voice is unavailable right now.");
   }
+  voiceLog("live: token ok", `${tokenData.model} ${since()}`);
 
   // Mic first (inside the tap's activation on iOS): echo cancellation on,
   // so the phone doesn't hear Atlas through its own speaker.
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
-  });
+  let stream: MediaStream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
+    });
+  } catch (err) {
+    voiceLog("live: mic refused", err);
+    throw err;
+  }
+  voiceLog("live: mic ok", since());
 
   const Ctx = (window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext) as typeof AudioContext;
   const inCtx = new Ctx();
@@ -175,8 +192,15 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
 
   // Mic → worklet → 16 kHz PCM16 → base64 → session, ~100 ms per message.
   const blobUrl = URL.createObjectURL(new Blob([WORKLET_SRC], { type: "application/javascript" }));
-  await inCtx.audioWorklet.addModule(blobUrl);
+  try {
+    await inCtx.audioWorklet.addModule(blobUrl);
+  } catch (err) {
+    voiceLog("live: worklet failed", err);
+    stream.getTracks().forEach((t) => t.stop());
+    throw err;
+  }
   URL.revokeObjectURL(blobUrl);
+  voiceLog("live: audio ready", `in ${inCtx.sampleRate}Hz out ${outCtx.sampleRate}Hz ${since()}`);
   const source = inCtx.createMediaStreamSource(stream);
   const tap = new AudioWorkletNode(inCtx, "wb-mic-tap", { numberOfInputs: 1, numberOfOutputs: 0 });
   let pending: Int16Array[] = [];
@@ -223,25 +247,32 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     void outCtx.close().catch(() => undefined);
     try { ws?.close(); } catch { /* fine */ }
     if (inSeconds + outSeconds > 0) ev.onUsage(inSeconds, outSeconds);
+    voiceLog("live: stopped", since());
     ev.onStatus("ended");
   };
 
   // The socket.
   ws = new WebSocket(`${WS_URL}?access_token=${encodeURIComponent(tokenData.token)}`);
   ws.onopen = () => {
+    voiceLog("live: socket open", since());
     send({ setup: { model: tokenData.model, ...tokenData.setup } });
   };
   ws.onerror = () => {
+    voiceLog("live: socket error", since());
     if (!closed) ev.onError("The live connection failed.");
   };
   ws.onclose = (e) => {
     if (closed) return;
+    voiceLog("live: socket closed", `${e.code} ${e.reason} ${since()}`);
     const why = e.reason ? ` (${e.reason})` : "";
     if (!setupDone) ev.onError(`Couldn't start the live session${why}.`);
     stop();
   };
   let userCaption = "";
   let atlasCaption = "";
+  // Per-turn timing: when the user's words last arrived → first audio back.
+  let lastHeardAt = 0;
+  let turnAudioLogged = false;
   ws.onmessage = async (e) => {
     let msg: Record<string, unknown>;
     try {
@@ -251,6 +282,7 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     }
     if ("setupComplete" in msg) {
       setupDone = true;
+      voiceLog("live: setup complete", since());
       ev.onStatus("listening");
       return;
     }
@@ -265,11 +297,14 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
       | undefined;
     if (sc) {
       if (sc.interrupted) {
+        voiceLog("live: interrupted");
         hush();
         atlasCaption = "";
       }
       if (sc.inputTranscription?.text) {
         userCaption += sc.inputTranscription.text;
+        lastHeardAt = Date.now();
+        turnAudioLogged = false;
         ev.onCaption("user", userCaption, false);
       }
       if (sc.outputTranscription?.text) {
@@ -277,9 +312,16 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
         ev.onCaption("atlas", atlasCaption, false);
       }
       for (const p of sc.modelTurn?.parts ?? []) {
-        if (p.inlineData?.data) playPcm(bytesFromBase64(p.inlineData.data));
+        if (p.inlineData?.data) {
+          if (!turnAudioLogged) {
+            turnAudioLogged = true;
+            voiceLog("live: first audio", lastHeardAt ? `${Date.now() - lastHeardAt}ms after last words heard` : "unprompted");
+          }
+          playPcm(bytesFromBase64(p.inlineData.data));
+        }
       }
       if (sc.turnComplete) {
+        voiceLog("live: turn complete", `heard “${userCaption.slice(0, 80)}” → said “${atlasCaption.slice(0, 80)}”`);
         if (userCaption) ev.onCaption("user", userCaption, true);
         if (atlasCaption) ev.onCaption("atlas", atlasCaption, true);
         userCaption = "";
@@ -289,6 +331,7 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     const tc = msg.toolCall as { functionCalls?: { id: string; name: string; args?: Record<string, unknown> }[] } | undefined;
     if (tc?.functionCalls?.length) {
       ev.onStatus("working", tc.functionCalls.map((c) => c.name).join(", "));
+      const tTool = Date.now();
       const functionResponses = await Promise.all(
         tc.functionCalls.map(async (c) => {
           let response: Record<string, unknown>;
@@ -300,11 +343,15 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
           return { id: c.id, name: c.name, response };
         })
       );
+      voiceLog("live: tools", `${tc.functionCalls.map((c) => c.name).join(", ")} ${Date.now() - tTool}ms`);
       send({ toolResponse: { functionResponses } });
       if (!closed && !speaking) ev.onStatus("listening");
     }
     const ga = msg.goAway as { timeLeft?: string } | undefined;
-    if (ga) ev.onStatus("listening", "The session is about to time out — tap Done and start again if it drops.");
+    if (ga) {
+      voiceLog("live: goAway", ga.timeLeft);
+      ev.onStatus("listening", "The session is about to time out — tap Done and start again if it drops.");
+    }
   };
 
   return {

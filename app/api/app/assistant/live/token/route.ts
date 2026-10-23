@@ -60,6 +60,12 @@ export async function POST() {
     contextWindowCompression: { slidingWindow: {} },
   };
 
+  // Verified against the real API 2026-10-23 (scratch probe): the REST body
+  // field is `bidiGenerateContentSetup` (the SDK's "liveConnectConstraints"
+  // is a client-side name — the API 400s on it), and the token locks ONLY
+  // the fields named in `fieldMask`. Without a mask the token's setup
+  // replaces the connection's setup wholesale — no instruction, no tools —
+  // so we lock just the model and let the browser's setup carry the rest.
   const now = Date.now();
   const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, "Z");
   try {
@@ -70,7 +76,8 @@ export async function POST() {
         uses: 1,
         expireTime: iso(now + 30 * 60_000),
         newSessionExpireTime: iso(now + 2 * 60_000),
-        liveConnectConstraints: { model: `models/${LIVE_MODEL}`, config: { responseModalities: ["AUDIO"], sessionResumption: {} } },
+        bidiGenerateContentSetup: { model: `models/${LIVE_MODEL}` },
+        fieldMask: "model",
       }),
       signal: AbortSignal.timeout(15_000),
     });

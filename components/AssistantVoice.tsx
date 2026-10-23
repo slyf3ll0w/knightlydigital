@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Mic, MicOff, Square, Volume2, VolumeX, X } from "lucide-react";
+import { Flag, Mic, MicOff, Square, Volume2, VolumeX, X } from "lucide-react";
 import { AtlasMark } from "@/components/AtlasIcon";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import {
@@ -16,6 +16,7 @@ import {
   type SpeakHandle,
 } from "@/lib/voice-chat-client";
 import { startLiveSession, type LiveHandle, type LiveStatus } from "@/lib/live-voice-client";
+import { voiceLog } from "@/lib/voice-log";
 import { cardsSpeech, isAffirmative, isNegative, isStopPhrase, spokenForm, type SpokenCard } from "@/lib/voice-chat-shared";
 import type { Proposal } from "@/lib/assistant";
 
@@ -52,6 +53,7 @@ export default function AssistantVoice({
   ask,
   recordExchange,
   onClose,
+  onReport,
 }: {
   name: string;
   accent?: string;
@@ -64,8 +66,12 @@ export default function AssistantVoice({
   /** Live engine: put a spoken exchange (and any cards it staged) into the chat. */
   recordExchange: (userText: string, replyText: string, proposals: Proposal[]) => RecordedExchange;
   onClose: () => void;
+  /** "Report a problem": closes voice and opens the drawer's report sheet. */
+  onReport: () => void;
 }) {
   const [engine, setEngine] = useState<"live" | "turns">("live");
+  // Why the turns engine is running instead of live (shown in the footer).
+  const [fellBack, setFellBack] = useState("");
   const [phase, setPhase] = useState<Phase>("idle");
   const [interim, setInterim] = useState("");
   const [heard, setHeard] = useState("");
@@ -173,7 +179,11 @@ export default function AssistantVoice({
         body: JSON.stringify({ name: toolName, args }),
       });
       const data = (await res.json().catch(() => ({}))) as { result?: Record<string, unknown>; proposals?: Proposal[]; error?: string };
-      if (!res.ok) return { error: data.error ?? "That didn't work." };
+      if (!res.ok) {
+        voiceLog("live: tool route failed", `${toolName} ${res.status} ${data.error ?? ""}`);
+        return { error: data.error ?? "That didn't work." };
+      }
+      voiceLog("live: tool result", `${toolName}(${JSON.stringify(args).slice(0, 120)}) → ${JSON.stringify(data.result ?? {}).slice(0, 160)}${data.proposals?.length ? ` +${data.proposals.length} card(s)` : ""}`);
       if (data.proposals?.length) {
         turnProposals.current = [...turnProposals.current, ...data.proposals];
         const guarded = data.proposals.filter((p) => p.danger || p.money || p.confirmText).length;
@@ -211,6 +221,7 @@ export default function AssistantVoice({
         },
         onToolCall,
         onError: (message) => {
+          voiceLog("live: error", message);
           if (!alive.current) return;
           setNote(message);
         },
@@ -231,10 +242,13 @@ export default function AssistantVoice({
     } catch (err) {
       const message = (err as Error)?.message ?? "";
       if (/NotAllowed|denied|blocked/i.test(message) || (err as { name?: string })?.name === "NotAllowedError") {
+        voiceLog("live: blocked", message);
         setPhaseBoth("blocked");
         return;
       }
       // No live session (not configured, token refused, socket failed): the turn-based engine.
+      voiceLog("live: FALLBACK to turns", message || (err as { name?: string })?.name || "unknown");
+      setFellBack(message || "The live connection couldn't start.");
       setEngine("turns");
       void begin(micGrant ?? requestMicrophone());
     }
@@ -309,7 +323,9 @@ export default function AssistantVoice({
         pendingConfirm.current = null;
       }
       setPhaseBoth("thinking");
+      const tAsk = Date.now();
       const turn = await ask(text);
+      voiceLog("turns: answer", `${Date.now() - tAsk}ms ${"error" in turn ? `error: ${turn.error.slice(0, 80)}` : `“${turn.reply.slice(0, 80)}”`}`);
       if (!alive.current) return;
       if ("error" in turn) {
         await say(turn.error.replace(/[*_`]/g, ""));
@@ -334,10 +350,13 @@ export default function AssistantVoice({
     listenRef.current?.cancel();
     setInterim("");
     setPhaseBoth("listening");
+    const tListen = Date.now();
+    voiceLog("turns: listening", inputKind);
     listenRef.current = listenOnce({
       onInterim: (t) => setInterim(t),
       onFinal: (text) => {
         listenRef.current = null;
+        voiceLog("turns: heard", `${Date.now() - tListen}ms “${text.slice(0, 80)}”`);
         if (!alive.current || phaseRef.current !== "listening") return;
         if (!text) {
           emptyRuns.current += 1;
@@ -354,11 +373,13 @@ export default function AssistantVoice({
       },
       onError: (message) => {
         listenRef.current = null;
+        voiceLog("turns: listen error", message);
         setNote(message);
         setPhaseBoth("idle");
       },
       onBlocked: () => {
         listenRef.current = null;
+        voiceLog("turns: blocked");
         setPhaseBoth("blocked");
       },
     });
@@ -381,6 +402,7 @@ export default function AssistantVoice({
   // Enter: audio was unlocked and the mic requested on the opening tap.
   useEffect(() => {
     alive.current = true;
+    voiceLog("voice: opened", `${typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 120) : ""}`);
     primeAudio();
     void startLive();
     return () => {
@@ -538,13 +560,28 @@ export default function AssistantVoice({
         </div>
       )}
 
-      <p className="px-6 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-[11px] text-gray-400">
-        {engine === "live"
-          ? "Talk like you would to a person — you can interrupt. Money and permanent changes still need a tap in the chat."
-          : inputKind === "recorder"
-            ? `Speak, then pause — Atlas answers when you stop talking. Say "stop" when you're finished.`
-            : `Say "stop" when you're finished. Money and permanent changes still need a tap in the chat.`}
-      </p>
+      <div className="px-6 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-[11px] text-gray-400">
+        <p>
+          {engine === "live"
+            ? "Talk like you would to a person — you can interrupt. Money and permanent changes still need a tap in the chat."
+            : fellBack
+              ? `Live voice couldn't connect, so Atlas is taking turns: speak, pause, hear the answer. (${fellBack})`
+              : inputKind === "recorder"
+                ? `Speak, then pause — Atlas answers when you stop talking. Say "stop" when you're finished.`
+                : `Say "stop" when you're finished. Money and permanent changes still need a tap in the chat.`}
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            hapticImpact("LIGHT");
+            onReport();
+          }}
+          className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-gray-500 underline-offset-2 hover:underline"
+        >
+          <Flag size={11} />
+          Report a problem
+        </button>
+      </div>
     </div>
   );
 }
