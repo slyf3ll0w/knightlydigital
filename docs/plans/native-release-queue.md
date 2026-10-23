@@ -59,6 +59,57 @@ Square's sandbox and its Mock Reader:
 - When production is live: the Play build (release, production id, no mock
   reader) is the one to upload; nothing in this section ships to the store.
 
+### Sandbox test build — iPhone (2026-10-23, David has no Android phone)
+
+Same idea as the Android section above, but iOS cannot be built on the PC:
+the sandbox test on David's iPhone is the **first thing the Mac session
+does**, before the release archive. Everything is wired so it is one run:
+
+- **Debug configuration = sandbox test build.** `project.pbxproj` carries two
+  user-defined build settings on the App target: `SQUARE_APPLICATION_ID`
+  (Debug = the sandbox id, Release = the production id) and `WB_SHELL_ORIGIN`
+  (Debug = `https://streamflaire-staging.up.railway.app`, Release = empty).
+  `Info.plist` reads both (`SquareApplicationID`, `WBShellOrigin`), and
+  `ShellViewController.instanceDescriptor()` points the webview at that
+  origin when it is set. The staging host was added to `WKAppBoundDomains`
+  (the bridge cannot inject itself into a non-app-bound origin).
+- **Mock reader.** The package's second product, `MockReaderUI`, is in the
+  target (SPM cannot link per configuration, so the framework ships in
+  Release too — but only Debug imports it: `#if DEBUG import MockReaderUI`).
+  `TapToPayPlugin.swift` creates `MockReaderUI(for: MobilePaymentsSDK.shared)`
+  after a sandbox authorize (and on status() when already authorized),
+  `present()`s the floating button, `dismiss()`es it on deauthorize. In the
+  sandbox the plugin reports `capable: true` and `appleLinked: true` and
+  skips Apple's terms sheet — the mock reader stands in for NFC and Tap to
+  Pay on iPhone, which the sandbox does not run.
+- **Mac, in order:** `git pull`, `npm ci`, `npx cap sync ios`, open
+  `ios/App/App.xcworkspace` (or .xcodeproj), let SPM resolve (two products
+  from `mobile-payments-sdk-ios` 2.6.0; if the hand-edited pbxproj upsets
+  Xcode, remove the `5Q2026…` entries and add the package through File →
+  Add Package Dependencies with BOTH products ticked, then the "Square SDK
+  setup" run-script phase LAST and User Script Sandboxing = No). Signing:
+  the App ID must have **Tap to Pay on iPhone** enabled (Additional
+  Capabilities) — with the key in App.entitlements and automatic signing the
+  development profile regenerates by itself; if signing fails, that toggle
+  is the first thing to check. Scheme **App**, configuration **Debug** (the
+  default for Run), destination = David's iPhone by cable → Run. Fix any
+  SDK name drift in `TapToPayPlugin.swift` (never compiled before).
+- **On the phone:** the app opens the STAGING site. `TAP_TO_PAY=1` must be
+  set on the staging service (David). Sign in as `e@e.com` (Brightwire
+  Electric, the staging company connected to David's sandbox seller;
+  Reconnect Square once from a desktop browser with the sandbox seller
+  dashboard open — the grant needs the in-person scope). Settings → Online
+  Payments → **Tap to Pay on this phone → Set up** (location prompt; no
+  Apple sheet in the sandbox) → the floating mock reader appears → any
+  unpaid invoice → **Tap to Pay** → Square's prompt → tap the floating
+  button → connect a contactless reader → tap → Payment details → approved
+  (and once declined). The invoice goes PAID through the same route
+  production will use. Recipes 7–14 in the plan doc apply with the mock
+  reader in place of a card.
+- **Then the real build:** Product → Scheme → Edit → Archive uses Release
+  (production id, no origin override) → Distribute → TestFlight = build 14.
+  Nothing from the Debug configuration reaches that archive.
+
 ### While you wait for Apple — in this order, nothing here needs the entitlement
 
 - [x] **Try the quick charge on staging** — DONE 2026-10-23 by Claude: e2e/specs/quick-charge.spec.ts (API + form + pay page) passes against staging.
