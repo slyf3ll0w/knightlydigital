@@ -49,13 +49,20 @@ export async function GET() {
     // Square account (lib/square-connection.ts). Hidden until the server has
     // app credentials, then Connect / Connected + Disconnect.
     if (!squareConfigured()) return NextResponse.json({ available: false });
-    const status = await squareStatusForCompany(actor.companyId);
+    const [status, company] = await Promise.all([
+      squareStatusForCompany(actor.companyId),
+      prisma.company.findUnique({ where: { id: actor.companyId }, select: { surchargeEnabled: true } }),
+    ]);
+    // The sign-up link follows the company's processing model (Service fee
+    // on = the client pays it), because Square's partner links set the rate plan.
+    const signupModel = company?.surchargeEnabled ? "serviceFee" : "companyPaid";
     return NextResponse.json({
       available: true,
       processor: "square",
       environment: squareEnvironment(),
       square: status,
-      signupUrl: squareSignupUrl(),
+      signupUrl: squareSignupUrl(signupModel),
+      signupModel,
       tapToPay: tapToPayEnabled(),
     });
   }

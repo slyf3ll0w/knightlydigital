@@ -346,8 +346,10 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
     available: boolean;
     comingSoon?: boolean;
     processor?: "square";
-    /** Square's partner sign-up link (SQUARE_SIGNUP_URL); null until one is configured. */
+    /** Square's partner sign-up link for this company's processing model (lib/square.ts squareSignupUrl). */
     signupUrl?: string | null;
+    /** Which link that is: the client-paid service fee one, or the company-paid one. */
+    signupModel?: "companyPaid" | "serviceFee";
     environment?: "sandbox" | "live" | "production";
     started?: boolean;
     state?: string | null;
@@ -525,7 +527,7 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
             <p className="text-sm text-gray-600">
               Connect the Square account that should receive your payments. You&apos;ll sign in to
               Square and approve WorkBench; card and bank details are handled by Square and never
-              touch WorkBench. No Square account yet? Create one first, then come back and connect it.
+              touch WorkBench. No Square account yet? Create one with the button, then come back and connect it.
             </p>
             {error && <p className="text-xs text-[color:var(--ds-bad)]">{error}</p>}
             {isOwner ? (
@@ -534,9 +536,16 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
                   Connect Square
                 </a>
                 {status.signupUrl && (
-                  <a href={status.signupUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary">
-                    Create a Square account <ArrowUpRight size={11} />
-                  </a>
+                  <>
+                    <a href={status.signupUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary">
+                      Create a Square account <ArrowUpRight size={11} />
+                    </a>
+                    <InfoTip label="Which sign-up link is this?">
+                      {status.signupModel === "serviceFee"
+                        ? "Square's sign-up for businesses whose clients pay a service fee at checkout (your Service fee switch is on), so the account lands on WorkBench's rates for that. Want to pay the fee yourself instead? Turn the service fee off on this page first, then create the account."
+                        : "Square's sign-up for businesses that pay the processing fee themselves (your Service fee switch is off), so the account lands on WorkBench's rates for that. Want clients to pay a service fee at checkout instead? Turn it on on this page first, then create the account."}
+                    </InfoTip>
+                  </>
                 )}
               </div>
             ) : (

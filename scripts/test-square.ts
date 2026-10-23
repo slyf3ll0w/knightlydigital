@@ -251,16 +251,23 @@ test("PAYMENT_PROCESSOR unset: Square is the platform processor", () => {
   else process.env.PAYMENT_PROCESSOR = saved;
 });
 
-test("SQUARE_SIGNUP_URL: only an https link is offered", () => {
+test("Square sign-up links: one per processing model, env overrides only when https", () => {
   delete process.env.SQUARE_SIGNUP_URL;
-  assert.equal(squareSignupUrl(), null);
+  delete process.env.SQUARE_SIGNUP_URL_SERVICE_FEE;
+  assert.equal(squareSignupUrl(), "https://squareup.com/i/086C556067", "company-paid is the default");
+  assert.equal(squareSignupUrl("companyPaid"), "https://squareup.com/i/086C556067");
+  assert.equal(squareSignupUrl("serviceFee"), "https://squareup.com/i/7002D0C989");
   process.env.SQUARE_SIGNUP_URL = "  https://squareup.com/signup?partner=workbench  ";
-  assert.equal(squareSignupUrl(), "https://squareup.com/signup?partner=workbench");
+  assert.equal(squareSignupUrl("companyPaid"), "https://squareup.com/signup?partner=workbench");
+  assert.equal(squareSignupUrl("serviceFee"), "https://squareup.com/i/7002D0C989", "the other model keeps its own link");
+  process.env.SQUARE_SIGNUP_URL_SERVICE_FEE = "https://squareup.com/signup?partner=workbench-fee";
+  assert.equal(squareSignupUrl("serviceFee"), "https://squareup.com/signup?partner=workbench-fee");
   process.env.SQUARE_SIGNUP_URL = "javascript:alert(1)";
-  assert.equal(squareSignupUrl(), null);
+  assert.equal(squareSignupUrl("companyPaid"), "https://squareup.com/i/086C556067", "a bad override falls back to the default");
   process.env.SQUARE_SIGNUP_URL = "http://squareup.com/signup";
-  assert.equal(squareSignupUrl(), null, "plain http is refused");
+  assert.equal(squareSignupUrl("companyPaid"), "https://squareup.com/i/086C556067", "plain http is refused");
   delete process.env.SQUARE_SIGNUP_URL;
+  delete process.env.SQUARE_SIGNUP_URL_SERVICE_FEE;
 });
 
 test("PAYMENT_PROCESSOR=manual charges nothing anywhere", () => {
