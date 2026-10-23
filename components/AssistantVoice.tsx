@@ -35,6 +35,7 @@ export type VoiceTurn =
 type Phase = "listening" | "thinking" | "speaking" | "idle" | "blocked";
 
 const NATURAL_KEY = "wb-atlas-voice-natural";
+const ACKS = ["Let me check.", "One sec.", "Checking."];
 
 export default function AssistantVoice({
   name,
@@ -63,6 +64,10 @@ export default function AssistantVoice({
 
   const listenRef = useRef<ListenHandle | null>(null);
   const speakRef = useRef<SpeakHandle | null>(null);
+  // The spoken "let me check" that covers a lookup — one per turn, and the
+  // real reply waits for it to finish rather than talking over it.
+  const ackRef = useRef<SpeakHandle | null>(null);
+  const ackedTurn = useRef(false);
   const pendingConfirm = useRef<(() => Promise<void>) | null>(null);
   const emptyRuns = useRef(0);
   const alive = useRef(true);
@@ -93,6 +98,10 @@ export default function AssistantVoice({
       if (!alive.current) return;
       setSaid(text);
       setPhaseBoth("speaking");
+      if (ackRef.current) {
+        await Promise.race([ackRef.current.done, new Promise((r) => setTimeout(r, 2500))]);
+        ackRef.current = null;
+      }
       const h = speak(text, { natural });
       speakRef.current = h;
       await h.done;
@@ -105,10 +114,20 @@ export default function AssistantVoice({
     [natural]
   );
 
+  // The moment a lookup starts (first progress line), say so — a human
+  // says "let me check" instead of going quiet for five seconds.
+  useEffect(() => {
+    if (phase !== "thinking" || !progress || ackedTurn.current) return;
+    ackedTurn.current = true;
+    const phrase = ACKS[Math.floor(Math.random() * ACKS.length)];
+    ackRef.current = speak(phrase, { natural, cache: true });
+  }, [phase, progress, natural]);
+
   const handleUtterance = useCallback(
     async (text: string) => {
       setHeard(text);
       setInterim("");
+      ackedTurn.current = false;
       if (isStopPhrase(text)) {
         await say("Okay. I'm here when you need me.", "idle");
         onClose();
@@ -304,7 +323,9 @@ export default function AssistantVoice({
               type="button"
               onClick={tryAgain}
               className="rounded-full px-6 py-3 text-[15px] font-semibold"
-              style={{ background: accent ?? "#3B82F6", color: "#fff" }}
+              // The readable accent pair, never the raw brand color: a white
+              // secondary brand made this a white button with white text.
+              style={{ background: "var(--wb-accent, #0b57d8)", color: "var(--wb-on-accent, #ffffff)" }}
             >
               Try again
             </button>
@@ -327,12 +348,16 @@ export default function AssistantVoice({
             className={`absolute inset-0 rounded-full ${
               phase === "listening" ? "atlas-voice-breathe" : phase === "speaking" ? "atlas-voice-ripple" : phase === "thinking" ? "atlas-voice-think" : ""
             }`}
-            style={{ background: `${accent ?? "#3B82F6"}22` }}
+            style={{ background: "color-mix(in srgb, var(--wb-accent, #0b57d8) 14%, transparent)" }}
           />
           <AtlasMark size={96} accent={accent} />
           <span
-            className="absolute -bottom-1 right-2 flex h-11 w-11 items-center justify-center rounded-full border-2 border-white text-white shadow-md"
-            style={{ background: phase === "idle" ? "#6b7280" : accent ?? "#3B82F6" }}
+            className="absolute -bottom-1 right-2 flex h-11 w-11 items-center justify-center rounded-full border-2 border-white shadow-md"
+            style={
+              phase === "idle"
+                ? { background: "#6b7280", color: "#ffffff" }
+                : { background: "var(--wb-accent, #0b57d8)", color: "var(--wb-on-accent, #ffffff)" }
+            }
           >
             {phase === "listening" ? <Mic size={20} /> : phase === "speaking" ? <Square size={16} /> : phase === "idle" ? <MicOff size={20} /> : <Mic size={20} className="opacity-50" />}
           </span>
@@ -351,7 +376,7 @@ export default function AssistantVoice({
 
       <p className="px-6 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-[11px] text-gray-400">
         {inputKind === "recorder"
-          ? "Tap the mic, speak, tap again when you're done."
+          ? `Speak, then pause — Atlas answers when you stop talking. Say "stop" when you're finished.`
           : `Say "stop" when you're finished. Money and permanent changes still need a tap in the chat.`}
       </p>
     </div>

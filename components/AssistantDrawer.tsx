@@ -82,6 +82,9 @@ type Msg = {
   nextStepFired?: boolean;
   /** This user turn was sent by the drawer, not typed. */
   auto?: boolean;
+  /** What Atlas looked up for this reply (ids, names) — sent back with the
+   *  next turns so "it" / "that call" resolve to the same record. */
+  recap?: string;
   /** How many automatic turns led here — caps runaway chains. */
   autoDepth?: number;
 };
@@ -535,7 +538,16 @@ export default function AssistantDrawer({
         atlasLocked?: boolean;
         access?: AtlasDrawerAccess;
         turnTokens?: number;
+        recap?: string;
       };
+      // The model sees the text of earlier turns plus, for the last few
+      // replies, the recap of what was looked up behind them.
+      const assistantIdx = next.map((m, i) => (m.role === "assistant" ? i : -1)).filter((i) => i >= 0);
+      const withRecap = new Set(assistantIdx.slice(-3));
+      const sendable = next.map((m, i) => ({
+        role: m.role,
+        content: m.role === "assistant" && m.recap && withRecap.has(i) ? `${m.content}\n\n[Behind this reply: ${m.recap}]` : m.content,
+      }));
       const res = await fetch("/api/app/assistant", {
         method: "POST",
         // NDJSON: progress lines while the tools run, then one final line —
@@ -543,7 +555,7 @@ export default function AssistantDrawer({
         headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" },
         // strip proposals from what we send — the model only needs the text
         body: JSON.stringify({
-          messages: next.map((m) => ({ role: m.role, content: m.content })),
+          messages: sendable,
           ...(opts.voice ? { voice: true } : {}),
         }),
       });
@@ -598,6 +610,7 @@ export default function AssistantDrawer({
           ...(metered ? { tokens: data.turnTokens } : {}),
           ...(data.nextStep && (data.proposals?.length ?? 0) > 0 ? { nextStep: data.nextStep } : {}),
           ...(opts.depth ? { autoDepth: opts.depth } : {}),
+          ...(data.recap ? { recap: data.recap } : {}),
         };
         persist([...next, reply]);
         outcome = { index: next.length, msg: reply };
