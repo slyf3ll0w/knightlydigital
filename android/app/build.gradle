@@ -61,6 +61,9 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    // Square Mobile Payments SDK — Tap to Pay on Android (TapToPayPlugin.java).
+    // Square supports each version for 2 years; bump deliberately, with a device test.
+    implementation 'com.squareup.sdk:mobile-payments-sdk:2.6.1'
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { notifyUsers } from "@/lib/push";
 import { openSecret, sealSecret, signMessage } from "@/lib/secret-box";
 import * as square from "@/lib/square";
+import { hasInPersonScope } from "@/lib/tap-to-pay-shared";
 
 /**
  * A company's Square grant, end to end: the signed OAuth state, the code
@@ -388,6 +389,8 @@ export type SquareStatus =
        *  expiresAt, but someone should look. */
       stale: boolean;
       lastRefreshError: string | null;
+      /** The grant carries PAYMENTS_WRITE_IN_PERSON — Tap to Pay in the phone app can authorize. */
+      inPerson: boolean;
     };
 
 export async function squareStatusForCompany(companyId: string): Promise<SquareStatus> {
@@ -400,6 +403,7 @@ export async function squareStatusForCompany(companyId: string): Promise<SquareS
       refreshedAt: true,
       expiresAt: true,
       lastRefreshError: true,
+      scopes: true,
       company: { select: { squareConnectedAt: true } },
     },
   });
@@ -414,6 +418,7 @@ export async function squareStatusForCompany(companyId: string): Promise<SquareS
     expiresAt: conn.expiresAt,
     stale: Date.now() - conn.refreshedAt.getTime() > STALE_AFTER_MS,
     lastRefreshError: conn.lastRefreshError,
+    inPerson: hasInPersonScope(conn.scopes),
   };
 }
 

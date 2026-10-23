@@ -11,6 +11,8 @@ const ACTION_LABEL: Record<string, string> = {
   payment_edited: "Payment corrected",
   refund: "Refund issued",
   card_on_file_charged: "Card on file charged",
+  tap_to_pay_charged: "Tap to Pay payment",
+  payment_requested: "Payment requested",
 };
 
 export default function ActivityTrail({

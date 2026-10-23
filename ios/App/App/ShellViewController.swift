@@ -12,5 +12,6 @@ import Capacitor
 class ShellViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(VoipPlugin())
+        bridge?.registerPluginInstance(TapToPayPlugin())
     }
 }

@@ -4,4 +4,8 @@
     <string name="title_activity_main">WorkBench</string>
     <string name="package_name">com.streamflaire.hub</string>
     <string name="custom_url_scheme">com.streamflaire.hub</string>
+    <!-- Square Mobile Payments SDK application id (Developer Console → Credentials).
+         Production id for Play builds, the sandbox id on a debug build. Empty = Tap to
+         Pay stays off in this build (TapToPayPlugin reports configured: false). -->
+    <string name="square_application_id"></string>
 </resources>

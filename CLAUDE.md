@@ -850,6 +850,32 @@ Built 2026-10-15 on branch `square-payments` (worktree
   (`e2e/global-setup.ts`); a Square sandbox seller for the e2e tenant is
   the next step once credentials exist.
 
+- **Request payment + Tap to Pay (2026-10-22, branch `quick-charge-tap`;
+  plan `docs/plans/checkout-tap-to-pay-2026-10-22.md`).** *Request payment*
+  = a quick charge: Create → Request payment (`/app/invoices/request`,
+  also the contact Create menu and Atlas `request_payment`) → amount +
+  what for + optional client → `POST /api/app/invoices/quick-charge` makes
+  an `InvoiceKind.QUICK_CHARGE` invoice (issued now, due today,
+  AWAITING_PAYMENT, one line) and answers the pay link + an inline QR
+  (`qrcode`), then Copy / Text / Email through the normal send route.
+  Limits in `lib/quick-charge.ts`. *Tap to Pay* = Square's Mobile Payments
+  SDK in the phone app (`ios/App/App/TapToPayPlugin.swift`,
+  `android/.../TapToPayPlugin.java`, bridge `lib/native-tap-to-pay.ts`,
+  button `components/TapToPayButton.tsx` on the invoice page and the
+  quick-charge share step, setup card `components/TapToPaySetupCard.tsx`
+  under Settings → Online Payments, phone app only). Server:
+  `lib/tap-to-pay.ts` `tapToPayOffer` (gated on `TAP_TO_PAY=1`, the shell
+  UA, Square connected, `canSeeMoney`), `GET /api/app/square/mobile-token`
+  (the seller's OAuth access token for the SDK — shell only, rate-limited,
+  logged, never the refresh token), `POST /api/app/invoices/[id]/tap-payment`
+  (re-reads the payment from Square: COMPLETED, `reference_id` = invoice,
+  idempotent on the payment id; the company card surcharge applies in
+  person like the pay page). `SQUARE_SCOPES` now includes
+  `PAYMENTS_WRITE_IN_PERSON` → sellers connected before re-authorize once
+  (`SquareStatus.inPerson`, the Settings card says Reconnect). Store
+  builds, consoles and the Apple entitlement: `docs/plans/native-release-queue.md`.
+  Test: `npx tsx scripts/test-quick-charge.ts`.
+
 ## Payment processor (Finix)
 
 Two processors implement the `PaymentProcessor` seam in `lib/payments.ts`,

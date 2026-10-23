@@ -298,7 +298,7 @@ export const ENTITY_FIELDS: Record<EntityType, readonly FieldDef[]> = {
   invoice: [
     f("invoice_number", "Invoice #", "number"), f("invoice_total", "Invoice total", "number"), f("invoice_balance", "Balance owed", "number"), f("total", "Amount", "number"),
     f("invoice_status", "Invoice status", "enum", { options: ["DRAFT", "AWAITING_PAYMENT", "PAID", "PAST_DUE", "ARCHIVED"] }),
-    f("invoice_kind", "Invoice kind", "enum", { options: ["STANDARD", "DEPOSIT"] }),
+    f("invoice_kind", "Invoice kind", "enum", { options: ["STANDARD", "DEPOSIT", "QUICK_CHARGE"] }),
     f("due_date", "Due date", "text", { help: "YYYY-MM-DD or empty" }), f("due_in_days", "Days until due", "number", { help: "negative when past due" }),
     f("pay_link", "Pay link"),
   ],

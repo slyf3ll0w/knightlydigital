@@ -337,7 +337,7 @@ export default function PayPage({
             metaLines={[
               `Date: ${shortDate(invoice.issuedAt ?? invoice.createdAt)}`,
               invoice.dueDate ? `Due: ${shortDate(invoice.dueDate)}` : null,
-              invoice.kind === "DEPOSIT" ? "Deposit invoice" : null,
+              invoice.kind === "DEPOSIT" ? "Deposit invoice" : invoice.kind === "QUICK_CHARGE" ? "Payment request" : null,
             ]}
           />
 

@@ -34,11 +34,14 @@ import MenuPopover from "@/components/MenuPopover";
 import { useSendChoice, sentSummary, type SendChoiceResult } from "@/components/SendChoice";
 import { SCHEDULE_WARNING_TEXT, type ScheduleWarning } from "@/lib/send-later-shared";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
+import TapToPayButton from "@/components/TapToPayButton";
+import type { TapToPayOffer } from "@/lib/tap-to-pay-shared";
 
 type SavedCardOption = { id: string; label: string; isDefault: boolean };
 
 export default function InvoiceActions({
   invoiceId,
+  invoiceNumber = 0,
   status,
   publicUrl,
   canDelete = false,
@@ -55,8 +58,10 @@ export default function InvoiceActions({
   pay = null,
   scheduled = false,
   tz,
+  tapToPay = null,
 }: {
   invoiceId: string;
+  invoiceNumber?: number;
   status: string;
   publicUrl: string;
   canDelete?: boolean;
@@ -82,6 +87,8 @@ export default function InvoiceActions({
   scheduled?: boolean;
   /** Company timezone — Send later's default "tomorrow" is the company's day */
   tz?: string;
+  /** Tap to Pay in the phone app (lib/tap-to-pay.ts tapToPayOffer); null = not offered here. */
+  tapToPay?: TapToPayOffer;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -495,6 +502,15 @@ export default function InvoiceActions({
             Mark as sent
           </button>
         ))}
+      {(status === "AWAITING_PAYMENT" || status === "PAST_DUE") && balance > 0 && (
+        <TapToPayButton
+          invoiceId={invoiceId}
+          amount={balance}
+          label={`Invoice #${invoiceNumber}`}
+          offer={tapToPay}
+          onPaid={() => router.refresh()}
+        />
+      )}
       {(status === "AWAITING_PAYMENT" || status === "PAST_DUE") &&
         (canChargeCard ? (
           <button

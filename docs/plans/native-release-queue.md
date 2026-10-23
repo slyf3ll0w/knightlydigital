@@ -12,6 +12,83 @@ waiting* — not how to build.
 > **2026-09-24:** day-of checklist for this Play release (with what is
 > deliberately left for versionCode 5) is `android-1.3-release-2026-09-25.md`.
 
+## Tap to Pay — iOS build 14 + Android versionCode 6 (tree ready 2026-10-22, branch `quick-charge-tap`)
+
+Square's Mobile Payments SDK inside both shells so a tech takes a card by
+holding it to the back of the phone. Design + decisions:
+`checkout-tap-to-pay-2026-10-22.md`. The web side ships dark behind
+`TAP_TO_PAY=1` (Railway) and needs no build; everything below does.
+
+**What the tree carries**
+
+- iOS: `ios/App/App/TapToPayPlugin.swift` (registered in
+  `ShellViewController`), SDK init in `AppDelegate` from Info.plist
+  `SquareApplicationID`, the `mobile-payments-sdk-ios` package (exact
+  2.6.0) + a **"Square SDK setup" run-script phase, last** + User Script
+  Sandboxing off + **deployment target 15.0 → 16.0** (the SDK package's
+  platform floor is iOS 16; Tap to Pay itself needs iOS 16.7, iPhone XS+.
+  This drops only phones stuck on iOS 15 — iPhone 6s/7/SE 1st gen),
+  `NSBluetoothAlwaysUsageDescription`, the location
+  usage string now mentions Tap to Pay, and the entitlement key is in
+  `App.entitlements` **commented out**.
+- Android: `TapToPayPlugin.java` + `HubApplication.java` (SDK init from
+  `strings.xml` `square_application_id`), registered in `MainActivity`,
+  `com.squareup.sdk:mobile-payments-sdk:2.6.1` + Square's Maven repo,
+  **minSdk 24 → 28** (Android 9+; Play will show the dropped device count on
+  upload), location / Bluetooth / phone-state / NFC permissions (NFC
+  hardware `required=false`).
+- Neither plugin has run on a device. iOS was written on Windows against
+  Square's docs — expect a handful of renames when Xcode first compiles it
+  (the SDK's `Payment` / `OnlinePayment` / `TapToPaySettings` names are
+  the likely spots). Android compiles clean against SDK 2.6.1 (javac,
+  2026-10-22) but has not run on a phone.
+
+**David — consoles, BEFORE the Mac session**
+
+1. **Apple: request the Tap to Pay on iPhone entitlement** (account holder,
+   Organization account): developer.apple.com → Account → Additional
+   resources → Tap to Pay on iPhone → request for `com.streamflaire.hub`.
+   Days to weeks. When granted: add the capability to the App ID in
+   Certificates, Identifiers & Profiles, regenerate the provisioning
+   profile, and **uncomment the key in `ios/App/App/App.entitlements`**.
+   Until then the key must stay commented or signing fails.
+2. **Square Developer Console → the WorkBench app → Mobile Payments SDK →
+   Add Signature** (production): iOS = bundle id `com.streamflaire.hub` +
+   the Apple team id; Android = package `com.streamflaire.hub` + the
+   SHA-256 of the **Play app signing key** (the four fingerprints are under
+   "Picking this up cold" below — register the current one, add the others
+   if Square accepts more than one). Debug builds that take production
+   payments need their own signature; sandbox needs none.
+3. **Application id into the native projects**: the production
+   `SQUARE_APPLICATION_ID` (same value as Railway) goes into
+   `ios/App/App/Info.plist` → `SquareApplicationID` and
+   `android/app/src/main/res/values/strings.xml` → `square_application_id`.
+   Empty = Tap to Pay stays off in that build (the page never shows the
+   button). For a sandbox test build use the sandbox id instead — the
+   plugin refuses a token from the other environment with a clear message.
+4. Every seller connected before this release must **Reconnect Square**
+   once (Settings → Online Payments → the Tap to Pay card says so) — the
+   grant needs `PAYMENTS_WRITE_IN_PERSON`.
+
+**Mac — in addition to `mobile-app-runbook-mac.md`**
+
+- Open the project; Xcode resolves the new package. If it complains about
+  the hand-edited `project.pbxproj`, remove the `5Q2026…` entries and add
+  the package through File → Add Package Dependencies →
+  `https://github.com/square/mobile-payments-sdk-ios`, Exact Version
+  2.6.0, product `SquareMobilePaymentsSDK`; then Build Phases → + Run
+  Script (LAST): `"${BUILT_PRODUCTS_DIR}/${FRAMEWORKS_FOLDER_PATH}/SquareMobilePaymentsSDK.framework/setup"`;
+  Build Settings → User Script Sandboxing = No.
+- Compile; fix any SDK name drift in `TapToPayPlugin.swift`.
+- TestFlight → on the phone: Settings → Online Payments → "Tap to Pay on
+  this phone" → Set up (location → Apple terms sheet) → an invoice → Tap to
+  Pay. Recipes 7–14 in the plan doc.
+- Android: `npx cap sync android` (revert `capacitor.settings.gradle` if run
+  from a worktree), `gradlew bundleRelease`, internal testing track first.
+
+**After both builds are out**: set `TAP_TO_PAY=1` on Railway (staging
+first), run the device pass, then production.
+
 ## NEXT BUILD — launch screen + icon (iOS 1.4 / build 13) — tree ready 2026-10-10
 
 > **2026-10-10, David:** this round is **iOS only**. The Android half
