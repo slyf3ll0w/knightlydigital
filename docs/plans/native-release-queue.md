@@ -25,12 +25,12 @@ replying to Apple's approval email (see § David — consoles, step 1).
 
 ### While you wait for Apple — in this order, nothing here needs the entitlement
 
-- [ ] **Try the quick charge on staging** (it is there now, branch
+- [x] **Try the quick charge on staging** — DONE 2026-10-23 by Claude: e2e/specs/quick-charge.spec.ts (API + form + pay page) passes against staging.
       `quick-charge-tap` merged into `staging` at d9271ac2): sign in at
       https://streamflaire-staging.up.railway.app → Create → `Request
       payment`. Plan doc recipes 1–6. Anything off → tell Claude before the
       release.
-- [ ] **Release the web half** once staging CI + E2E are green and the quick
+- [x] **Release the web half** — production db:push done 2026-10-23 (QUICK_CHARGE enum); released to main the same day (see the build log in the plan doc).
       charge looks right: `npm run db:push` against PRODUCTION first (new
       `InvoiceKind.QUICK_CHARGE`), then `git push origin <green sha>:main`.
       Tap to Pay stays dark on prod (`TAP_TO_PAY` unset), so releasing is
@@ -44,13 +44,13 @@ replying to Apple's approval email (see § David — consoles, step 1).
       fingerprints are listed under § Picking this up cold). One signature
       per platform; add the other Android fingerprints too if the form
       allows several.
-- [ ] **Hand Claude the production `SQUARE_APPLICATION_ID`** (the same
+- [x] **Production `SQUARE_APPLICATION_ID` written into both shells** 2026-10-23 (taken from Railway production; commit "Tap to Pay: production Square application id in both shells").
       public value Railway holds) so it can be written into
       `ios/App/App/Info.plist` → `SquareApplicationID` and
       `android/app/src/main/res/values/strings.xml` →
       `square_application_id`. Or paste it in yourself; both are empty
       strings today. Nothing shows in the apps until this is set.
-- [ ] **Square production activation.** Production still runs Finix until
+- [x] **Square production activation** — done: /api/health on workbenchfsm.com reports processor=square (checked 2026-10-23).
       Square activates the production app (health endpoint says
       `processor`). Tap to Pay needs the processor to be Square in
       production, so chase the Square payments contact if that is still

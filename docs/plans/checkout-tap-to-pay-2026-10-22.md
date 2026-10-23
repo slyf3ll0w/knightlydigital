@@ -420,3 +420,5 @@ Open before release: Apple entitlement (David), Square application
 signatures (David), application ids into the native projects (David),
 both store builds (Mac lane), `TAP_TO_PAY=1` on staging then prod, device
 pass recipes 1–14.
+
+**2026-10-23 — web half RELEASED.** Production db:push applied the one statement (ALTER TYPE InvoiceKind ADD VALUE QUICK_CHARGE); production already ran Square (health: processor=square). Branch merged with main twice (voice-mode commits), the production SQUARE_APPLICATION_ID written into Info.plist / strings.xml, new e2e/specs/quick-charge.spec.ts (API with/without client, guard rails, the Request payment form in a signed-in browser, the public pay page header) green against staging, pay page footer now says Payment request like the header. Checked and left alone: a client-less quick charge schedules no reminders (reminders need a contact email) and QuickBooks skips it (sync returns null without a contactId) — decision 5 resolved as skip, no note. Still open: Square signatures (David), Apple entitlement (submitted), store builds, TAP_TO_PAY=1, recipes 7–14.
