@@ -35,6 +35,7 @@ import {
   UserRound,
   Users,
   Zap,
+  Landmark,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -61,6 +62,7 @@ import { confirmSheet } from "@/components/ConfirmSheet";
 import PageTitle from "@/components/PageTitle";
 import SectionHeader from "@/components/SectionHeader";
 import { Chip, InfoTip } from "@/components/ds";
+import { SQUARE_BANK_ACCOUNTS_URL } from "@/lib/square-links";
 import { slugify } from "@/lib/slugify";
 import SmsNotificationsCard from "./SmsNotificationsCard";
 import BusinessLineCard from "./BusinessLineCard";
@@ -326,6 +328,8 @@ type SquareCardStatus =
       stale: boolean;
       lastRefreshError: string | null;
       inPerson?: boolean;
+      /** Is there a bank account Square can pay out to? NONE = the nudge. */
+      payout?: "VERIFIED" | "PENDING" | "NONE" | "UNKNOWN" | null;
     };
 
 /** What the Square callback's ?square= outcome means to the owner. */
@@ -460,6 +464,11 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
         return;
       }
       setNotice({ tone: "good", text: "Square connection is healthy." });
+      const payout = data.payout as "VERIFIED" | "PENDING" | "NONE" | "UNKNOWN" | null | undefined;
+      if (payout) {
+        setStatus((s) => (s?.square?.connected ? { ...s, square: { ...s.square, payout } } : s));
+        if (payout === "VERIFIED") setNotice({ tone: "good", text: "Square connection is healthy, and your bank account is linked." });
+      }
     } catch {
       setError(NETWORK_ERROR);
     } finally {
@@ -494,9 +503,47 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
               <Check size={15} />
               <span>
                 Connected to <span className="font-semibold">{sq.businessName ?? "your Square account"}</span>
-                {sq.locationName ? ` · ${sq.locationName}` : ""}. Payouts follow your Square payout schedule.
+                {sq.locationName ? ` · ${sq.locationName}` : ""}
+                {sq.payout === "NONE" ? "." : ". Payouts follow your Square payout schedule."}
               </span>
             </div>
+            {sq.payout === "NONE" && (
+              <div
+                className="space-y-2 rounded-xl border p-3"
+                style={{
+                  borderColor: "color-mix(in srgb, var(--ds-warn) 45%, transparent)",
+                  background: "color-mix(in srgb, var(--ds-warn) 10%, transparent)",
+                }}
+              >
+                <p className="flex items-start gap-1.5 text-sm text-gray-800">
+                  <Landmark size={15} className="mt-0.5 shrink-0 text-[color:var(--ds-warn)]" />
+                  <span>
+                    <span className="font-semibold">No bank account on your Square account yet.</span> Clients can pay
+                    you, but Square has nowhere to send the money until you link one — it waits in your Square balance.
+                  </span>
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <a href={SQUARE_BANK_ACCOUNTS_URL} target="_blank" rel="noopener noreferrer" className="btn-primary">
+                    Add a bank account in Square <ArrowUpRight size={11} />
+                  </a>
+                  <button onClick={checkSquare} disabled={busy} className="btn-secondary">
+                    {busy ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                    I&apos;ve added it — check again
+                  </button>
+                  <InfoTip label="Where in Square?">
+                    In your Square Dashboard: Settings → Account &amp; Settings → Banking → Bank Accounts → Add Bank Account.
+                    Square verifies it instantly through your bank login or within a couple of business days, and emails a
+                    confirmation link to open within 24 hours. WorkBench re-checks every few hours, or press the button.
+                  </InfoTip>
+                </div>
+              </div>
+            )}
+            {sq.payout === "PENDING" && (
+              <p className="flex items-start gap-1.5 text-xs text-gray-600">
+                <Landmark size={13} className="mt-0.5 shrink-0" />
+                <span>Square is still verifying your bank account — payouts start once it&apos;s confirmed.</span>
+              </p>
+            )}
             {sq.stale && (
               <p className="flex items-start gap-1.5 text-xs text-[color:var(--ds-warn)]">
                 <AlertTriangle size={13} className="mt-0.5 shrink-0" />

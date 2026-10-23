@@ -120,7 +120,7 @@ export async function completeSquareConnect(params: { companyId: string; code: s
     );
   }
 
-  return writeConnection({
+  const written = await writeConnection({
     companyId: params.companyId,
     merchantId: tokens.merchant_id,
     accessToken: tokens.access_token,
@@ -129,6 +129,9 @@ export async function completeSquareConnect(params: { companyId: string; code: s
     merchant,
     location,
   });
+  // Somewhere to pay out to? Best effort — never fails the connect.
+  await refreshSquarePayoutStatus(params.companyId).catch(() => {});
+  return written;
 }
 
 /** The one writer of a connection: the SquareConnection row and the
@@ -375,7 +378,67 @@ export async function runSquareTokenSweep(now = new Date()): Promise<number> {
       new Error(stale.map((s) => `${s.companyId} (since ${s.refreshedAt.toISOString()}: ${s.lastRefreshError ?? "?"})`).join("; "))
     );
   }
+  await runSquarePayoutSweep(now).catch((err) => {
+    console.warn("[square] payout sweep failed:", err instanceof Error ? err.message : err);
+  });
   return refreshed;
+}
+
+// ─── Payout readiness ───────────────────────────────────────────────────────
+
+/** Re-checked this often while a connection has no verified bank account. */
+export const PAYOUT_RECHECK_MS = 6 * 3_600_000;
+
+/**
+ * Ask Square whether the seller has a bank account it can pay out to and
+ * remember the answer (SquareConnection.payoutStatus / payoutCheckedAt). The
+ * "add your bank account" nudge on Home and the Settings card read the
+ * stored value, so page loads never call Square. A grant from before
+ * BANK_ACCOUNTS_READ answers 403 → UNKNOWN (no nudge; reconnecting adds the
+ * scope). Any other failure leaves the stored value alone and returns null.
+ */
+export async function refreshSquarePayoutStatus(companyId: string): Promise<square.SquarePayoutStatus | null> {
+  let status: square.SquarePayoutStatus;
+  try {
+    const { token } = await squareTokenForCompany(companyId);
+    status = square.payoutStatusFromBankAccounts(await square.listSquareBankAccounts(token));
+  } catch (err) {
+    if (err instanceof square.SquareError && err.status === 403) {
+      status = "UNKNOWN";
+    } else {
+      if (!(err instanceof SquareNotConnectedError)) {
+        console.warn(`[square] bank-account check failed for company ${companyId}:`, err instanceof Error ? err.message : err);
+      }
+      return null;
+    }
+  }
+  await prisma.squareConnection.updateMany({
+    where: { companyId },
+    data: { payoutStatus: status, payoutCheckedAt: new Date() },
+  });
+  return status;
+}
+
+/** Hourly (inside the token sweep): re-check connections that still lack a
+ *  verified bank account, at most every PAYOUT_RECHECK_MS each. UNKNOWN
+ *  rows are left alone — only a reconnect changes what the grant can read. */
+export async function runSquarePayoutSweep(now = new Date()): Promise<number> {
+  const due = await prisma.squareConnection.findMany({
+    where: {
+      AND: [
+        { OR: [{ payoutStatus: null }, { payoutStatus: { in: ["PENDING", "NONE"] } }] },
+        { OR: [{ payoutCheckedAt: null }, { payoutCheckedAt: { lt: new Date(now.getTime() - PAYOUT_RECHECK_MS) } }] },
+      ],
+    },
+    select: { companyId: true },
+    orderBy: { payoutCheckedAt: { sort: "asc", nulls: "first" } },
+    take: 100,
+  });
+  let checked = 0;
+  for (const conn of due) {
+    if ((await refreshSquarePayoutStatus(conn.companyId)) !== null) checked++;
+  }
+  return checked;
 }
 
 // ─── Disconnect / revocation ────────────────────────────────────────────────
@@ -449,6 +512,9 @@ export type SquareStatus =
       lastRefreshError: string | null;
       /** The grant carries PAYMENTS_WRITE_IN_PERSON — Tap to Pay in the phone app can authorize. */
       inPerson: boolean;
+      /** Is there a bank account Square can pay out to? (refreshSquarePayoutStatus; null = never checked) */
+      payout: square.SquarePayoutStatus | null;
+      payoutCheckedAt: Date | null;
     };
 
 export async function squareStatusForCompany(companyId: string): Promise<SquareStatus> {
@@ -462,6 +528,8 @@ export async function squareStatusForCompany(companyId: string): Promise<SquareS
       expiresAt: true,
       lastRefreshError: true,
       scopes: true,
+      payoutStatus: true,
+      payoutCheckedAt: true,
       company: { select: { squareConnectedAt: true } },
     },
   });
@@ -477,16 +545,22 @@ export async function squareStatusForCompany(companyId: string): Promise<SquareS
     stale: Date.now() - conn.refreshedAt.getTime() > STALE_AFTER_MS,
     lastRefreshError: conn.lastRefreshError,
     inPerson: hasInPersonScope(conn.scopes),
+    payout: (conn.payoutStatus as square.SquarePayoutStatus | null) ?? null,
+    payoutCheckedAt: conn.payoutCheckedAt,
   };
 }
 
 /** Square's recommended liveness probe, used by the Settings card's
  *  "Check connection": ListLocations with the seller token. */
-export async function probeSquareConnection(companyId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function probeSquareConnection(
+  companyId: string
+): Promise<{ ok: true; payout: square.SquarePayoutStatus | null } | { ok: false; error: string }> {
   try {
     const { token } = await squareTokenForCompany(companyId);
     await square.listSquareLocations(token);
-    return { ok: true };
+    // The same button doubles as "I've added my bank account — check again"
+    const payout = await refreshSquarePayoutStatus(companyId).catch(() => null);
+    return { ok: true, payout };
   } catch (err) {
     if (err instanceof square.SquareError && err.authDead) {
       const conn = await prisma.squareConnection.findUnique({ where: { companyId }, select: { merchantId: true } });

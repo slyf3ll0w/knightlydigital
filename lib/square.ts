@@ -31,6 +31,7 @@ export const SQUARE_SCOPES = [
   "PAYMENTS_READ", // GetPayment / GetPaymentRefund (webhook re-fetch), ListCards
   "CUSTOMERS_READ",
   "CUSTOMERS_WRITE", // a Square customer per contact when a card goes on file
+  "BANK_ACCOUNTS_READ", // ListBankAccounts: is there a bank account to pay out to? (2026-10-23 — the "add your bank account" nudge)
 ] as const;
 
 export function squareScopes(): string[] {
@@ -345,6 +346,42 @@ export async function retrieveSquareMerchant(token: string): Promise<SquareMerch
 export async function listSquareLocations(token: string): Promise<SquareLocation[]> {
   const r = await squareFetch<{ locations?: SquareLocation[] }>("/v2/locations", { auth: { bearer: token } });
   return r.locations ?? [];
+}
+
+// ─── Bank accounts (payout readiness) ───────────────────────────────────────
+
+export type SquareBankAccount = {
+  id: string;
+  /** VERIFICATION_IN_PROGRESS | VERIFIED | DISABLED (permanently unusable). */
+  status?: string;
+  /** Square can send money to it. */
+  creditable?: boolean;
+  debitable?: boolean;
+  account_type?: string;
+  bank_name?: string;
+  location_id?: string;
+};
+
+/** The bank accounts linked to the seller's Square account. Needs
+ *  BANK_ACCOUNTS_READ — a 403 means the grant predates that scope. */
+export async function listSquareBankAccounts(token: string): Promise<SquareBankAccount[]> {
+  const r = await squareFetch<{ bank_accounts?: SquareBankAccount[] }>("/v2/bank-accounts?limit=100", {
+    auth: { bearer: token },
+  });
+  return r.bank_accounts ?? [];
+}
+
+/** Stored on SquareConnection.payoutStatus (lib/square-connection.ts). */
+export type SquarePayoutStatus = "VERIFIED" | "PENDING" | "NONE" | "UNKNOWN";
+
+/** Can Square pay this seller out? VERIFIED when any linked account is
+ *  verified and creditable; PENDING while Square is still verifying one;
+ *  NONE when nothing usable is linked (no account, or only DISABLED ones) —
+ *  the state the nudge exists for. */
+export function payoutStatusFromBankAccounts(accounts: SquareBankAccount[]): Exclude<SquarePayoutStatus, "UNKNOWN"> {
+  if (accounts.some((a) => a.status === "VERIFIED" && a.creditable !== false)) return "VERIFIED";
+  if (accounts.some((a) => a.status === "VERIFICATION_IN_PROGRESS")) return "PENDING";
+  return "NONE";
 }
 
 /** The location payments are recorded under: the merchant's main location
