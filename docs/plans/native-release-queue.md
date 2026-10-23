@@ -23,6 +23,42 @@ holding it to the back of the phone. Design + decisions:
 Expect the development grant first; the distribution one comes from
 replying to Apple's approval email (see § David — consoles, step 1).
 
+### Sandbox test build (Android, 2026-10-23) — try Tap to Pay before Square activates production
+
+David: "I'd like to see a sandbox test build so it's ready to go when we get
+production live." A DEBUG build of the same tree, pointed at staging, with
+Square's sandbox and its Mock Reader:
+
+- `android/app/src/debug/res/values/square.xml` overrides
+  `square_application_id` with the SANDBOX id (public; the same one staging's
+  pay page uses). The plugin refuses a production token in this build.
+- `debugImplementation com.squareup.sdk:mockreader-ui:2.6.1` — Square's
+  floating mock reader. `TapToPayPlugin` shows it by reflection after a
+  sandbox authorize (and on status() when already authorized), hides it on
+  deauthorize, and reports `capable` in the sandbox even without NFC. Release
+  builds do not ship the class, so nothing changes there.
+- `capacitor.config.ts` reads `WB_SHELL_URL` at sync time (unset = production).
+- Build (this PC, worktree-safe):
+  `WB_SHELL_URL=https://streamflaire-staging.up.railway.app npx cap sync android`
+  → `cd android && gradlew assembleDebug` → `app/build/outputs/apk/debug/app-debug.apk`
+  → then `npx cap sync android` again (no env) so the gitignored
+  `assets/capacitor.config.json` points back at production, and revert
+  `android/capacitor.settings.gradle` + `android/app/capacitor.build.gradle`.
+  Built 2026-10-23: `~/Downloads/workbench-android-SANDBOX-tap-to-pay.apk`
+  (debug-signed, same package id → uninstall the Play build first; reinstall
+  it from Play afterwards).
+- Staging side: `TAP_TO_PAY=1` on the staging service (David sets it), log in
+  on the phone as the owner of **Brightwire Electric** (`e@e.com`, the staging
+  company already connected to David's sandbox test seller), Settings →
+  Online Payments → **Reconnect Square** once from a desktop browser with the
+  sandbox seller dashboard open in another tab (the grant needs the in-person
+  scope), then Settings → Online Payments on the phone → Set up, and Tap to
+  Pay on any invoice: Square's prompt opens, tap the floating mock reader →
+  connect a contactless reader → tap → Payment details → approved. The
+  invoice is marked paid through the same server route production will use.
+- When production is live: the Play build (release, production id, no mock
+  reader) is the one to upload; nothing in this section ships to the store.
+
 ### While you wait for Apple — in this order, nothing here needs the entitlement
 
 - [x] **Try the quick charge on staging** — DONE 2026-10-23 by Claude: e2e/specs/quick-charge.spec.ts (API + form + pay page) passes against staging.
@@ -61,7 +97,7 @@ replying to Apple's approval email (see § David — consoles, step 1).
       `processor`). Tap to Pay needs the processor to be Square in
       production, so chase the Square payments contact if that is still
       pending — it gates Tap to Pay as much as Apple does.
-- [x] **Android bundle BUILT 2026-10-23** on David's PC from d051f79f (cap sync + gradlew bundleRelease, signed with the upload key, versionCode 6 / 1.4; Square SDK + TapToPayPlugin + app id verified inside the AAB): `~/Downloads/workbench-android-vc6-tap-to-pay.aab`. David uploads it to the Play internal testing track, installs it, then flips the Railway flag below himself (Claude's CLI write was blocked by permissions). Old shells without the plugin render nothing, so the flag is safe to set before everyone updates.
+- [x] **Android bundle BUILT 2026-10-23** on David's PC from d051f79f (cap sync + gradlew bundleRelease, signed with the upload key, versionCode 6 / 1.4; Square SDK + TapToPayPlugin + app id verified inside the AAB): `~/Downloads/workbench-android-vc6-tap-to-pay.aab`. **HELD** — ships with iOS build 14 (David 2026-10-23), see § Google Play below. When that day comes: upload to internal testing, install, then David sets the Railway flag (Claude's CLI write was blocked by permissions). Old shells without the plugin render nothing, so the flag is safe to set before everyone updates.
 - [ ] ~~Android does not need Apple at all.~~ Once the signature and the
       application id are in: on this PC, `npx cap sync android` (revert
       `capacitor.settings.gradle` if run from a worktree), `cd android &&
@@ -361,6 +397,20 @@ rejects reuse, even of a version that was only ever in a discarded draft;
 ---
 
 ## Google Play — waiting for the next build (versionCode 6)
+
+**Tap to Pay (Square Mobile Payments SDK) — HELD to ship together with iOS
+build 14 (David 2026-10-23: "it is behind Apple so I want to do it all at the
+same time").** The tree is ready (see the Tap to Pay section above): plugin, SDK,
+minSdk 28, production app id in strings.xml, Square signatures registered.
+A signed vc6 AAB from d051f79f sits at
+`~/Downloads/workbench-android-vc6-tap-to-pay.aab`; if anything else lands in
+`android/**` before the upload, rebuild (`npx cap sync android`, revert the two
+generated gradle files in a worktree, `cd android && gradlew bundleRelease`);
+versionCode stays 6 until something is actually uploaded. Upload to internal
+testing the same day as the TestFlight build, then `TAP_TO_PAY=1` on Railway
+production (David sets it), reconnect Square, recipes 7–14. Real cards need
+Square PRODUCTION credentials activated on David's account — the sandbox never
+moves money and has no physical readers (Mock Reader UI only).
 
 Shipped in versionCode 5 (2026-09-25), so no longer waiting: the WorkBench
 launcher icon + splash, the "WorkBench" home-screen label, native Google

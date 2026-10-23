@@ -39,6 +39,11 @@ android {
         }
     }
     buildTypes {
+        debug {
+            // Sandbox test build: src/debug/res overrides square_application_id with the
+            // SANDBOX id; point the shell at staging with WB_SHELL_URL at cap sync time.
+            versionNameSuffix '-sandbox'
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
@@ -64,6 +69,9 @@ dependencies {
     // Square Mobile Payments SDK — Tap to Pay on Android (TapToPayPlugin.java).
     // Square supports each version for 2 years; bump deliberately, with a device test.
     implementation 'com.squareup.sdk:mobile-payments-sdk:2.6.1'
+    // Sandbox-only simulated reader for debug builds (TapToPayPlugin shows it after a
+    // sandbox authorize). Never in release: the plugin reaches the class by reflection.
+    debugImplementation 'com.squareup.sdk:mockreader-ui:2.6.1'
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
