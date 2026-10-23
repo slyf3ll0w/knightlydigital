@@ -2661,7 +2661,7 @@ export default function AppShell({
             href={manager ? "/app/settings" : "/app/settings/profile"}
             onClick={() => hapticImpact("LIGHT")}
             aria-label={manager ? "Settings" : "My Profile"}
-            className="glass-control glass-hit -ml-1.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-700"
+            className="glass-control glass-hit ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-gray-700"
           >
             <span className="glass-press flex">
               <Settings size={20} />

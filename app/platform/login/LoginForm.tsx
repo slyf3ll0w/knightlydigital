@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { signOut, useSession, getCsrfToken } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { signOut, useSession, getCsrfToken, getSession } from "next-auth/react";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import TurnstileWidget, { TurnstileHandle, captchaEnabled } from "@/components/TurnstileWidget";
@@ -33,7 +32,6 @@ const EMAIL_KEY = "wb-login-email";
 
 /** The login card — a client form; page.tsx (server) decides the social props. */
 export default function LoginForm({ social }: { social: SocialSignIn }) {
-  const router = useRouter();
   const { data: session, status } = useSession();
   const [showPassword, setShowPassword] = useState(false);
   // Whether to render the social block at all. On the native path this
@@ -65,13 +63,25 @@ export default function LoginForm({ social }: { social: SocialSignIn }) {
   // Sessions WITHOUT a company (e.g. a deleted test company) must stay here,
   // or login → dashboard → register becomes a bounce loop and the register
   // page's "Sign in" link appears dead.
+  //
+  // `status` comes from the root SessionProvider, which never refetches on its
+  // own: when the server has already dropped the cookie (expiry, session-reset)
+  // the provider still says "authenticated", the dashboard redirects back here,
+  // and the two flicker forever (seen in the iOS shell 2026-10-23). So ask the
+  // server first; a dead session clears the stale client copy and stays here.
+  // A full load (not router.replace) rebuilds the provider from the cookie.
   useEffect(() => {
     if (status !== "authenticated" || redirected.current) return;
-    if (session?.user?.companyId) {
-      redirected.current = true;
-      router.replace("/app/dashboard");
-    }
-  }, [status, session, router]);
+    if (!session?.user?.companyId) return;
+    redirected.current = true;
+    getSession().then((fresh) => {
+      if (fresh?.user?.companyId) {
+        window.location.replace("/app/dashboard");
+      } else {
+        signOut({ redirect: false }).catch(() => {});
+      }
+    });
+  }, [status, session]);
 
   // The CSRF token NextAuth requires in the POST body, and the error code a
   // failed attempt comes back with (read once, then scrubbed from the URL so

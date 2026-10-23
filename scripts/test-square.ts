@@ -30,6 +30,7 @@ import {
   buildSquareAuthorizeUrl,
   declineMessage,
   isTransientSquareError,
+  payoutStatusFromBankAccounts,
   pickChargeLocation,
   squareIdempotencyKey,
   squareRedirectUrl,
@@ -80,7 +81,7 @@ test("authorize URL carries our scopes, state and redirect", () => {
   assert.equal(url.searchParams.get("state"), "abc.def");
   assert.equal(url.searchParams.get("redirect_uri"), "https://example.test/api/app/square/callback");
   const scope = url.searchParams.get("scope")!.split(" ");
-  for (const s of ["MERCHANT_PROFILE_READ", "PAYMENTS_WRITE", "PAYMENTS_READ", "CUSTOMERS_READ", "CUSTOMERS_WRITE"]) {
+  for (const s of ["MERCHANT_PROFILE_READ", "PAYMENTS_WRITE", "PAYMENTS_READ", "CUSTOMERS_READ", "CUSTOMERS_WRITE", "BANK_ACCOUNTS_READ"]) {
     assert.ok(scope.includes(s), `scope has ${s}`);
   }
   assert.equal(url.searchParams.get("session"), null, "session=false is never sent in sandbox");
@@ -268,6 +269,22 @@ test("Square sign-up links: one per processing model, env overrides only when ht
   assert.equal(squareSignupUrl("companyPaid"), "https://squareup.com/i/086C556067", "plain http is refused");
   delete process.env.SQUARE_SIGNUP_URL;
   delete process.env.SQUARE_SIGNUP_URL_SERVICE_FEE;
+});
+
+test("payout readiness: VERIFIED beats PENDING beats NONE; disabled accounts don't count", () => {
+  assert.equal(payoutStatusFromBankAccounts([]), "NONE", "no bank account = the nudge");
+  assert.equal(payoutStatusFromBankAccounts([{ id: "a", status: "DISABLED", creditable: false }]), "NONE");
+  assert.equal(payoutStatusFromBankAccounts([{ id: "a", status: "VERIFICATION_IN_PROGRESS", creditable: false }]), "PENDING");
+  assert.equal(
+    payoutStatusFromBankAccounts([
+      { id: "a", status: "DISABLED" },
+      { id: "b", status: "VERIFICATION_IN_PROGRESS" },
+      { id: "c", status: "VERIFIED", creditable: true },
+    ]),
+    "VERIFIED"
+  );
+  assert.equal(payoutStatusFromBankAccounts([{ id: "a", status: "VERIFIED", creditable: false }]), "NONE", "verified but not creditable can't receive payouts");
+  assert.equal(payoutStatusFromBankAccounts([{ id: "a", status: "VERIFIED" }]), "VERIFIED", "creditable unset = assume yes");
 });
 
 test("PAYMENT_PROCESSOR=manual charges nothing anywhere", () => {
