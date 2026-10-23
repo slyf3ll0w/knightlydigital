@@ -226,6 +226,7 @@ Actions:
 - When the user wants a link to share themselves: quote approval and invoice pay links come from get_document (clientLink / payLink), agreement signing links from list_agreements, form links and website embed code from manage_web_form, statement PDFs from get_statement, CSV exports from export_data — paste them directly in your reply.
 - Edits to quotes, invoices, and job line items REPLACE the full line-item list — call get_document first and resend every line (with your changes), never just the changed one. The exception is add_job_line_items, which APPENDS to a job. Copying a document is duplicate_document.
 - Chain lookups yourself — if the user says "cancel Tuesday's appointment with Ben", find it (get_schedule or search + activity) and stage the cancellation; don't ask them for ids.
+- CONTINUITY: your earlier replies in this conversation may end with a "[Behind this reply: …]" note listing the tool calls behind them and the gist of what came back (ids, names, dates). When the user says "it", "that one", "the call", "what's it about", they mean the record you just talked about — take the id and facts from that note and, if you need more detail, fetch THAT record (get_document / get_client_activity with its id). Never answer a follow-up about one record with a fresh search that lands on a different one.
 - "Today's job", "this morning's appointment", "the job" are lookups, not questions: check get_schedule for that day (add_job_line_items does this itself); when exactly one fits, use it without asking which client. Ask only when several could fit, and then ask by client name.
 - Prices: never ask what a service or product costs before the price book has been checked. Send line items WITHOUT unitPrice and the tool prices them from the price book by name (typos are fine) and links the line to the entry. Ask for a price only when a tool reports nothing matched, offering the closest entries it lists.
 - FINISH THE WHOLE JOB. Questions cost the user a turn, so ask only when a wrong guess would be costly (money, deletions, which of two similarly-named people), pick sensible defaults otherwise, and when you must ask, ask everything at once in one message. When the user answers a question you asked, resume the ORIGINAL request end to end — never stop after the sub-step they answered. If a later step depends on a change being saved first (assign the unassigned jobs, THEN optimize that tech's route; create the client, THEN quote them; convert the quote, THEN schedule the job), stage step one's card(s) and call queue_next_step with the exact follow-up — it runs by itself after they confirm, so they never have to prompt you again. Say so in one line: "Once you confirm, I'll build Mike's route for Tuesday."
@@ -321,6 +322,11 @@ export type AssistantResult = {
   nextStep?: string;
   /** A tool moved the work to a page — the drawer opens this path after showing the reply. */
   navigate?: string;
+  /** What this reply looked up (tool calls + the gist of their results), so
+   *  the NEXT turn can resolve "it" / "that call" to the same record instead
+   *  of searching again. The drawer stores it on the message and sends it
+   *  back appended to the reply text. */
+  recap?: string;
 };
 
 /** One tool round about to run — the drawer shows what Atlas is doing (lib/assistant/progress.ts). */
@@ -351,7 +357,14 @@ export async function runAssistant(
   const assistantName = company.assistantName || DEFAULT_ASSISTANT_NAME;
 
   const active = toolsForActor(actor);
-  let model = process.env.AI_MODEL_ASSISTANT || ASSISTANT_MODEL_DEFAULT;
+  // Voice turns may run on a faster model than typed ones (AI_MODEL_ASSISTANT_VOICE):
+  // a spoken answer that takes ten seconds is a failed conversation.
+  let model =
+    (opts.voice ? process.env.AI_MODEL_ASSISTANT_VOICE : undefined) ||
+    process.env.AI_MODEL_ASSISTANT ||
+    ASSISTANT_MODEL_DEFAULT;
+  // The recap: every read this turn, compactly — see AssistantResult.recap.
+  const recapLines: string[] = [];
   const ctx: ToolCtx = { proposals: [] };
   const usage: AssistantUsage = { tokensIn: 0, tokensOut: 0, tokensCached: 0 };
   let rounds = 0;
@@ -375,7 +388,7 @@ export async function runAssistant(
   const prompt = systemPrompt(actor, company.name, company.timezone, assistantName);
   if (opts.voice) {
     prompt.volatile +=
-      "\n\nVOICE MODE: the user is SPEAKING to you and will HEAR your reply read aloud — they are not reading a screen. Answer like a sharp assistant on the phone: one to three short spoken sentences, natural and warm, no lists, no markdown, no links or paths, no ids, no codes, nothing nobody would say out loud; say money as dollars and dates as people say them (\"Friday at two\"). Still use every tool exactly as before. When you stage a card, say in one sentence what it will do — the app itself tells them how to confirm, so don't. If you must ask a question, ask one.";
+      "\n\nVOICE MODE: the user is SPEAKING to you and will HEAR your reply read aloud — they are not reading a screen. Answer like a sharp assistant on the phone: one to three short spoken sentences, natural and warm, no lists, no markdown, no links or paths, no ids, no codes, nothing nobody would say out loud; say money as dollars and dates as people say them (\"Friday at two\"). Still use every tool exactly as before, but keep it to ONE lookup when one will do. When you stage a card, say in one sentence what it will do — the app itself tells them how to confirm, so don't. If you must ask a question, ask one. 'It', 'that one', 'the call', 'the job' mean the thing you just mentioned — answer from the [Behind this reply] recap of your previous answer (same id, same record) before you consider any new search.";
   }
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     const callOpts = {
@@ -387,7 +400,9 @@ export async function runAssistant(
       // needs far more than a chat reply's worth of output. A tight cap here
       // truncates the batch mid-emission and records silently drop.
       maxOutputTokens: 16384,
-      thinkingBudget: round === 0 ? THINKING_BUDGET : THINKING_BUDGET_FOLLOWUP,
+      // Voice: the lightest reasoning the model offers — latency is the
+      // whole experience, and spoken asks are short.
+      thinkingBudget: opts.voice ? 0 : round === 0 ? THINKING_BUDGET : THINKING_BUDGET_FOLLOWUP,
       companyId: actor.companyId, // meter every round's tokens to the tenant
       onUsage,
       // last round: no tools, force it to answer with what it has
@@ -426,6 +441,7 @@ export async function runAssistant(
         model,
         ...(ctx.nextStep && ctx.proposals.length > 0 ? { nextStep: ctx.nextStep } : {}),
         ...(ctx.navigate ? { navigate: ctx.navigate } : {}),
+        ...(recapLines.length > 0 ? { recap: recapLines.join("\n").slice(0, 1500) } : {}),
       });
       if (text) return done(text);
       // model went silent (rare) — if it staged something, still surface it
@@ -462,6 +478,13 @@ export async function runAssistant(
         } else {
           try {
             response = await tool.run(actor, call.functionCall.args ?? {}, ctx);
+            // Reads go in the recap (staged cards are already in the chat).
+            if (!("staged" in response) && !("error" in response) && recapLines.length < 8) {
+              const args = JSON.stringify(call.functionCall.args ?? {});
+              recapLines.push(
+                `${call.functionCall.name}(${args.length > 90 ? `${args.slice(0, 90)}…` : args}) → ${JSON.stringify(response).slice(0, 260)}`
+              );
+            }
           } catch (err) {
             reportError(`assistant tool ${call.functionCall.name} failed`, err);
             response = {

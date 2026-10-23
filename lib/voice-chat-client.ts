@@ -191,7 +191,7 @@ function listenWithBrowser(ev: ListenEvents): ListenHandle {
 
 // Level watcher: RMS of the mic signal, sampled ten times a second.
 const SPEECH_LEVEL = 0.018; // above = someone is talking (quiet room ≈ 0.003–0.008)
-const END_SILENCE_MS = 1300; // this long under the level after speech = they're done
+const END_SILENCE_MS = 950; // this long under the level after speech = they're done
 const NO_SPEECH_MS = 7000; // nothing at all for this long = give up quietly
 const MAX_UTTERANCE_MS = 20000;
 
@@ -315,7 +315,15 @@ export type SpeakHandle = { stop: () => void; done: Promise<void> };
  * on any failure, or when natural is off, the device voice speaks instead.
  * Resolves when the audio ends or is stopped.
  */
-export function speak(text: string, opts: { natural: boolean; signal?: AbortSignal }): SpeakHandle {
+/** First sentence / the rest — so the voice for the opening line is ready while the rest is still being made. */
+function splitForSpeech(text: string): string[] {
+  const t = text.trim();
+  if (t.length < 90) return [t];
+  const m = /^(.{25,}?[.!?])\s+(\S[\s\S]+)$/.exec(t);
+  return m ? [m[1], m[2]] : [t];
+}
+
+export function speak(text: string, opts: { natural: boolean; cache?: boolean; signal?: AbortSignal }): SpeakHandle {
   let stopped = false;
   let audio: HTMLAudioElement | null = null;
   const stopDevice = () => {
@@ -332,30 +340,44 @@ export function speak(text: string, opts: { natural: boolean; signal?: AbortSign
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(u);
     });
+  const fetchVoice = async (part: string): Promise<Blob | null> => {
+    try {
+      const res = await fetch("/api/app/assistant/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: part, ...(opts.cache ? { cache: true } : {}) }),
+        signal: opts.signal,
+      });
+      return res.ok ? await res.blob() : null;
+    } catch {
+      return null;
+    }
+  };
+  const play = (blob: Blob) =>
+    new Promise<void>((resolve) => {
+      if (stopped) return resolve();
+      const url = URL.createObjectURL(blob);
+      audio = new Audio(url);
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        resolve();
+      };
+      audio.onerror = () => resolve();
+      audio.play().catch(() => resolve());
+    });
   const done = (async () => {
     if (!text.trim()) return;
     if (opts.natural) {
-      try {
-        const res = await fetch("/api/app/assistant/speak", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text }),
-          signal: opts.signal,
-        });
-        if (res.ok && !stopped) {
-          const blob = await res.blob();
-          const url = URL.createObjectURL(blob);
-          await new Promise<void>((resolve) => {
-            audio = new Audio(url);
-            audio.onended = () => resolve();
-            audio.onerror = () => resolve();
-            audio.play().catch(() => resolve());
-          });
-          URL.revokeObjectURL(url);
-          return;
+      // Both parts are requested at once; the first plays as soon as it lands.
+      const parts = splitForSpeech(text).map(fetchVoice);
+      const first = await parts[0];
+      if (first && !stopped) {
+        await play(first);
+        for (const rest of parts.slice(1)) {
+          const blob = await rest;
+          if (blob && !stopped) await play(blob);
         }
-      } catch {
-        /* fall through to the device voice */
+        return;
       }
     }
     await device();

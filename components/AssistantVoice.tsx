@@ -35,6 +35,7 @@ export type VoiceTurn =
 type Phase = "listening" | "thinking" | "speaking" | "idle" | "blocked";
 
 const NATURAL_KEY = "wb-atlas-voice-natural";
+const ACKS = ["Let me check.", "One sec.", "Checking."];
 
 export default function AssistantVoice({
   name,
@@ -63,6 +64,10 @@ export default function AssistantVoice({
 
   const listenRef = useRef<ListenHandle | null>(null);
   const speakRef = useRef<SpeakHandle | null>(null);
+  // The spoken "let me check" that covers a lookup — one per turn, and the
+  // real reply waits for it to finish rather than talking over it.
+  const ackRef = useRef<SpeakHandle | null>(null);
+  const ackedTurn = useRef(false);
   const pendingConfirm = useRef<(() => Promise<void>) | null>(null);
   const emptyRuns = useRef(0);
   const alive = useRef(true);
@@ -93,6 +98,10 @@ export default function AssistantVoice({
       if (!alive.current) return;
       setSaid(text);
       setPhaseBoth("speaking");
+      if (ackRef.current) {
+        await Promise.race([ackRef.current.done, new Promise((r) => setTimeout(r, 2500))]);
+        ackRef.current = null;
+      }
       const h = speak(text, { natural });
       speakRef.current = h;
       await h.done;
@@ -105,10 +114,20 @@ export default function AssistantVoice({
     [natural]
   );
 
+  // The moment a lookup starts (first progress line), say so — a human
+  // says "let me check" instead of going quiet for five seconds.
+  useEffect(() => {
+    if (phase !== "thinking" || !progress || ackedTurn.current) return;
+    ackedTurn.current = true;
+    const phrase = ACKS[Math.floor(Math.random() * ACKS.length)];
+    ackRef.current = speak(phrase, { natural, cache: true });
+  }, [phase, progress, natural]);
+
   const handleUtterance = useCallback(
     async (text: string) => {
       setHeard(text);
       setInterim("");
+      ackedTurn.current = false;
       if (isStopPhrase(text)) {
         await say("Okay. I'm here when you need me.", "idle");
         onClose();
