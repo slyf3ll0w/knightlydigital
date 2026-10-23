@@ -164,7 +164,7 @@ export const paymentsSection: HelpSection = {
       blocks: [
         {
           type: "p",
-          text: "Every invoice you send has a pay link. The client picks **Credit / Debit** or **Bank (ACH)**, can tick a box to keep their card on file, and presses **Pay**.",
+          text: "Every invoice you send has a pay link. The client picks **Card** or **Bank transfer**, can tick a box to keep their card on file, and presses **Pay**. Once it goes through the invoice is stamped **Paid** right on the page.",
         },
         {
           type: "list",

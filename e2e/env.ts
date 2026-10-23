@@ -37,6 +37,10 @@ export interface E2eState {
    *  and company A has an APPROVED sandbox merchant. Never against live money. */
   cardTestsEnabled: boolean;
   finix: { applicationId: string; username: string; password: string } | null;
+  /** Square card specs only run when the deployed processor is square in
+   *  SANDBOX mode and company A was seeded with the sandbox test seller
+   *  (SQUARE_E2E_ACCESS_TOKEN, e2e/provision.mts). Never against live money. */
+  squareCardTestsEnabled: boolean;
   /** Platform console session (its own HMAC cookie, lib/superadmin-session.ts)
    *  for the first active SUPERADMIN user; null when the target has none. */
   superadmin: { token: string; userId: string } | null;

@@ -1,0 +1,215 @@
+/* ── WorkBench Client Kit ──────────────────────────────────────────────────
+   The look of everything a CLIENT of a business sees: quotes, invoices,
+   receipts (phase 1, 2026-10-22); emails, booking, the hub follow. Scoped
+   under `.client`, driven by the tokens lib/client-theme.ts emits
+   (--c-accent and friends). Rules live in docs/design-system.md → "Client
+   pages". The short version: the business is the brand, WorkBench is the
+   paper. Documents look like documents. No heroes, no gradients, no icon in
+   a tinted circle. Lexend for the letterhead, numbers and headings; Inter
+   (tabular) for body copy and columns of money. Always light.
+   ──────────────────────────────────────────────────────────────────────── */
+
+.client {
+  --c-accent: #0b57d8;
+  --c-accent-strong: #0a4cbb;
+  --c-accent-soft: #0b57d814;
+  --c-on-accent: #ffffff;
+  --c-ink: #111827;
+  --c-ink-2: #374151;
+  --c-muted: #6b7280;
+  --c-faint: #9ca3af;
+  --c-rule: #e5e7eb;
+  --c-rule-strong: #111827;
+  --c-paper: #ffffff;
+  --c-ground: #f4f4f2; /* the desk the sheet lies on, desktop only */
+  --c-good: #15803d;
+  --c-warn: #b45309;
+  --c-bad: #b91c1c;
+  --c-font-display: "Lexend", system-ui, sans-serif;
+  --c-font-body: "Inter", system-ui, sans-serif;
+  --c-r: 10px;
+
+  font-family: var(--c-font-body);
+  color: var(--c-ink);
+  background: var(--c-paper);
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  min-height: 100dvh;
+}
+@media (min-width: 760px) {
+  .client { background: var(--c-ground); }
+}
+
+/* Headings, the company name, the document number, amounts that stand alone */
+.client .c-display,
+.client h1, .client h2, .client h3 { font-family: var(--c-font-display); letter-spacing: -0.015em; }
+.client .c-num { font-family: var(--c-font-body); font-variant-numeric: lining-nums tabular-nums; }
+
+/* ── The sheet ───────────────────────────────────────────────────────── */
+.client .c-sheet {
+  background: var(--c-paper);
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 20px 20px 32px;
+}
+@media (min-width: 760px) {
+  .client .c-sheet {
+    margin: 40px auto 56px;
+    padding: 56px 64px 48px;
+    border-radius: 4px;
+    box-shadow:
+      0 1px 2px rgba(17, 24, 39, 0.06),
+      0 12px 40px rgba(17, 24, 39, 0.08);
+  }
+}
+
+/* ── Letterhead ──────────────────────────────────────────────────────── */
+.client .c-letterhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.client .c-logo { height: 44px; max-width: 180px; object-fit: contain; object-position: left; margin-bottom: 10px; display: block; }
+.client .c-company { font-family: var(--c-font-display); font-size: 17px; font-weight: 650; line-height: 1.2; }
+.client .c-meta { font-size: 12.5px; line-height: 1.55; color: var(--c-muted); margin-top: 3px; }
+.client .c-doctype { font-family: var(--c-font-display); font-size: 11px; font-weight: 600; letter-spacing: 0.22em; text-transform: uppercase; color: var(--c-muted); }
+.client .c-docnum { font-family: var(--c-font-display); font-size: 28px; font-weight: 650; line-height: 1; letter-spacing: -0.02em; margin-top: 4px; }
+.client .c-rule-accent { height: 3px; background: var(--c-accent); margin-top: 18px; }
+
+/* ── Section labels + text ───────────────────────────────────────────── */
+.client .c-label { font-family: var(--c-font-display); font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--c-faint); }
+.client .c-name { font-size: 15px; font-weight: 650; margin-top: 4px; }
+.client .c-body { font-size: 14px; line-height: 1.6; color: var(--c-ink-2); }
+.client .c-small { font-size: 12.5px; line-height: 1.55; color: var(--c-muted); }
+.client .c-title { font-family: var(--c-font-display); font-size: 19px; font-weight: 650; line-height: 1.25; letter-spacing: -0.015em; }
+
+/* ── Items (a ruled table at a desk, stacked rows on a phone) ────────── */
+.client .c-items-head { display: none; }
+.client .c-item { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; padding: 12px 0; border-bottom: 1px solid var(--c-rule); align-items: start; }
+.client .c-item-name { font-size: 14.5px; font-weight: 600; }
+.client .c-item-desc { font-size: 12.5px; line-height: 1.5; color: var(--c-muted); margin-top: 2px; }
+.client .c-item-qty { font-size: 12.5px; color: var(--c-faint); margin-top: 2px; }
+.client .c-item-amt { font-size: 14.5px; text-align: right; white-space: nowrap; }
+.client .c-item.is-off { opacity: 0.45; }
+.client .c-item.is-off .c-item-amt { text-decoration: line-through; text-decoration-color: var(--c-faint); }
+@media (min-width: 640px) {
+  .client .c-items-head { display: grid; grid-template-columns: 1fr 56px 96px 104px; gap: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--c-rule-strong); }
+  .client .c-items-head .c-label:not(:first-child) { text-align: right; }
+  .client .c-item { grid-template-columns: 1fr 56px 96px 104px; gap: 16px; }
+  .client .c-item-qty { display: none; }
+  .client .c-cell-r { text-align: right; font-size: 14px; color: var(--c-ink-2); white-space: nowrap; }
+}
+@media (max-width: 639px) {
+  .client .c-cell-r { display: none; }
+}
+
+/* ── Totals ledger ───────────────────────────────────────────────────── */
+.client .c-totals { margin-left: auto; width: 100%; max-width: 300px; margin-top: 14px; }
+.client .c-trow { display: flex; justify-content: space-between; gap: 16px; padding: 4px 0; font-size: 14px; color: var(--c-muted); }
+.client .c-trow strong, .client .c-trow .c-num { color: var(--c-ink); font-weight: 500; }
+.client .c-trow.is-total { border-top: 2px solid var(--c-accent); margin-top: 6px; padding-top: 10px; font-family: var(--c-font-display); font-size: 18px; font-weight: 650; color: var(--c-ink); }
+.client .c-trow.is-due { border-top: 1px solid var(--c-rule); margin-top: 4px; padding-top: 8px; font-weight: 650; color: var(--c-ink); font-size: 15px; }
+.client .c-trow.is-warn { color: var(--c-warn); }
+
+/* ── Stamp: the inked mark pressed onto the paper ────────────────────── */
+.client .c-stamp {
+  display: inline-block; transform: rotate(-6deg);
+  border: 2.5px solid var(--c-accent); color: var(--c-accent); border-radius: 6px;
+  padding: 4px 12px; font-family: var(--c-font-display); font-size: 15px; font-weight: 700;
+  letter-spacing: 0.22em; text-transform: uppercase; opacity: 0.9; white-space: nowrap;
+  user-select: none; pointer-events: none;
+  /* A little ink grain so it reads as pressed, not printed — kept light so the word stays legible */
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='40'><filter id='n'><feTurbulence baseFrequency='1.1' numOctaves='2'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3 0.35'/></filter><rect width='120' height='40' fill='white' filter='url(%23n)'/></svg>");
+  mask-size: 120px 40px;
+}
+.client .c-stamp.is-muted { border-color: var(--c-faint); color: var(--c-faint); }
+.client .c-stamp.is-good { border-color: var(--c-good); color: var(--c-good); }
+@media (min-width: 640px) { .client .c-stamp { font-size: 18px; padding: 5px 16px; } }
+/* The slam: the moment a client approves or pays, the stamp drops onto the sheet. */
+@keyframes cStampSlam {
+  0% { transform: rotate(-14deg) scale(2.2); opacity: 0; }
+  55% { transform: rotate(-5deg) scale(0.96); opacity: 0.9; }
+  75% { transform: rotate(-6.5deg) scale(1.03); }
+  100% { transform: rotate(-6deg) scale(1); opacity: 0.82; }
+}
+.client .c-stamp.is-slam { animation: cStampSlam 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+
+/* ── The stub: sign-off / remittance block at the foot of the sheet ─── */
+.client .c-stub { margin-top: 32px; border-top: 2px solid var(--c-rule-strong); padding-top: 20px; }
+.client .c-stub-title { font-family: var(--c-font-display); font-size: 15px; font-weight: 650; }
+
+/* ── Receipt: the state of the document, kept ON the document ────────── */
+.client .c-receipt { margin-top: 28px; border-top: 2px solid var(--c-rule-strong); padding-top: 18px; display: grid; gap: 6px; }
+.client .c-receipt-line { font-size: 14.5px; line-height: 1.55; color: var(--c-ink-2); }
+.client .c-receipt-line strong { color: var(--c-ink); font-weight: 650; }
+
+/* ── Buttons: one family, the accent only on the primary ─────────────── */
+.client .c-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 48px; padding: 0 22px; border-radius: var(--c-r);
+  font-family: var(--c-font-display); font-size: 15px; font-weight: 600; letter-spacing: -0.005em;
+  background: var(--c-accent); color: var(--c-on-accent); border: 1px solid transparent;
+  transition: background-color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.12);
+  cursor: pointer; white-space: nowrap;
+}
+.client .c-btn:hover:not(:disabled) { background: var(--c-accent-strong); }
+.client .c-btn:active:not(:disabled) { transform: scale(0.985); box-shadow: none; }
+.client .c-btn:disabled { opacity: 0.45; cursor: default; }
+.client .c-btn.is-outline { background: transparent; color: var(--c-ink); border-color: #d1d5db; box-shadow: none; }
+.client .c-btn.is-outline:hover:not(:disabled) { background: #f9fafb; }
+.client .c-btn.is-quiet { background: transparent; color: var(--c-muted); box-shadow: none; min-height: 40px; padding: 0 8px; }
+.client .c-btn.is-quiet:hover:not(:disabled) { color: var(--c-ink); background: transparent; }
+.client .c-btn.is-block { width: 100%; }
+.client .c-link { color: var(--c-ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--c-faint); }
+.client .c-link:hover { text-decoration-color: var(--c-ink); }
+
+/* ── Fields: a good intake clipboard ─────────────────────────────────── */
+.client .c-fieldlabel { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--c-ink); }
+.client .c-field {
+  width: 100%; min-height: 48px; padding: 10px 14px; border-radius: var(--c-r);
+  border: 1px solid #d1d5db; background: #fff; font-size: 16px; color: var(--c-ink);
+  outline: none; transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.client .c-field::placeholder { color: var(--c-faint); }
+.client .c-field:focus { border-color: var(--c-accent); box-shadow: 0 0 0 3px var(--c-accent-soft); }
+.client textarea.c-field { min-height: 96px; resize: vertical; line-height: 1.5; }
+.client .c-field.is-signature { font-family: "Georgia", "Times New Roman", serif; font-style: italic; font-size: 20px; }
+.client .c-hint { font-size: 12.5px; color: var(--c-muted); margin-top: 6px; }
+
+/* Choice: two or three big options (amount, method). One accent, the chosen one. */
+.client .c-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.client .c-choice {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 52px; padding: 10px 14px; border-radius: var(--c-r);
+  border: 1px solid #d1d5db; background: #fff; font-size: 14.5px; font-weight: 600; color: var(--c-ink-2);
+  cursor: pointer; transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+.client .c-choice:hover { background: #f9fafb; }
+.client .c-choice.is-on { border-color: var(--c-accent); color: var(--c-ink); box-shadow: inset 0 0 0 1px var(--c-accent); background: var(--c-accent-soft); }
+
+/* Checkbox (optional items) */
+.client .c-check { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid #9ca3af; accent-color: var(--c-accent); margin-top: 2px; flex: none; }
+
+/* ── Notices: plain words on a plain band, no icons in circles ───────── */
+.client .c-note { border-radius: var(--c-r); padding: 12px 14px; font-size: 14px; line-height: 1.55; border: 1px solid var(--c-rule); background: #fafafa; color: var(--c-ink-2); }
+.client .c-note.is-warn { border-color: #fcd34d; background: #fffbeb; color: var(--c-warn); }
+.client .c-note.is-bad { border-color: #fca5a5; background: #fef2f2; color: var(--c-bad); }
+
+/* ── Footer ──────────────────────────────────────────────────────────── */
+.client .c-foot { margin-top: 36px; border-top: 1px solid var(--c-rule); padding-top: 12px; display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--c-muted); flex-wrap: wrap; }
+.client .c-powered { text-align: center; font-size: 11.5px; color: var(--c-faint); padding: 0 16px 28px; }
+.client .c-powered a { color: inherit; text-decoration: none; font-weight: 600; }
+
+/* ── Action bar: the next action, full-width stacked buttons on a phone,
+   a row at a desk. Not sticky on purpose — a pinned Pay button sat over
+   the card fields while they were being typed into. ─────────────────── */
+.client .c-actionbar { margin-top: 20px; display: grid; gap: 8px; }
+@media (min-width: 760px) { .client .c-actionbar { display: flex; flex-wrap: wrap; gap: 12px; } }
+
+/* Preview banner (the owner looking at their own document) */
+.client .c-preview { text-align: center; font-size: 12px; color: var(--c-faint); padding: 10px 16px 0; }
+
+/* Arrival: the sheet settles onto the desk */
+@keyframes cSettle { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.client .c-sheet { animation: cSettle 0.35s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .client .c-sheet, .client .c-stamp.is-slam { animation: none; }
+}

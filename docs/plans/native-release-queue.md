@@ -168,6 +168,19 @@ WorkBench"; the Shortcuts app lists ten WorkBench shortcuts.
 
 ## iOS — queued for build 14
 
+0. **Talk to Atlas: native speech recognition** (2026-10-22, both
+   platforms). The web voice mode (`components/AssistantVoice.tsx`) uses
+   the browser's Web Speech API, which neither WKWebView nor the Android
+   WebView has, so inside the apps it falls back to recording the mic and
+   transcribing server-side (`/api/app/assistant/transcribe`) — tap to
+   start, tap to stop, a second or two of lag. Add
+   `@capacitor-community/speech-recognition` (iOS `NSSpeechRecognitionUsageDescription`
+   + the existing mic string; Android `RECORD_AUDIO`) and have
+   `lib/voice-chat-client.ts listenOnce` prefer the plugin when
+   `Capacitor.isPluginAvailable("SpeechRecognition")`, so the apps get
+   live, interim, hands-free recognition like Safari. Web keeps working
+   either way.
+
 1. **Calling engine: the phone must say which credential it holds**
    (`ios/App/App/VoipPlugin.swift`, found 2026-10-21). A pushed call for
    another company on the login races the page: `SoftphoneNativeEngine`

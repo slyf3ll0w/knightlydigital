@@ -1,3 +1,4 @@
+import "@/app/client.css";
 import ForceLightTheme from "@/components/ForceLightTheme";
 
 // Client-facing: the payment page always renders light on a white background,

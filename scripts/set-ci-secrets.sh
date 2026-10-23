@@ -31,5 +31,19 @@ printf "%s" "$app"  | pick FINIX_API_USERNAME    | gh secret set FINIX_SANDBOX_A
 printf "%s" "$app"  | pick FINIX_API_PASSWORD    | gh secret set FINIX_SANDBOX_API_PASSWORD -R "$R"
 printf "%s" "$app"  | pick FINIX_APPLICATION_ID  | gh secret set FINIX_SANDBOX_APPLICATION_ID -R "$R"
 
+# Square sandbox test seller (optional): the token the e2e provision step seeds
+# the harness tenant's Square connection from. Only ever a SANDBOX token.
+square_env=$(printf "%s" "$app" | pick SQUARE_ENVIRONMENT)
+square_e2e=$(printf "%s" "$app" | pick SQUARE_E2E_ACCESS_TOKEN)
+if [ -n "$square_e2e" ]; then
+  if [ "${square_env:-sandbox}" != "sandbox" ]; then
+    echo "Refusing SQUARE_E2E_ACCESS_TOKEN: staging SQUARE_ENVIRONMENT is '$square_env', not sandbox." >&2
+    exit 1
+  fi
+  printf "%s" "$square_e2e" | gh secret set SQUARE_E2E_ACCESS_TOKEN -R "$R"
+else
+  echo "SQUARE_E2E_ACCESS_TOKEN is not on staging — the Square card specs will skip until it is." >&2
+fi
+
 echo "Set. Current GitHub secrets:"
 gh secret list -R "$R"
