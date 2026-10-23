@@ -827,12 +827,15 @@ Built 2026-10-15 on branch `square-payments` (worktree
   the Atlas `send_payout` tool answer "handled by Square"; the Finix
   settlement/dispute views on `/app/payments` only render for Finix.
   `FinixCostSnapshot` / platform-cost estimates are untouched.
-- **Sellers without a Square account:** `SQUARE_SIGNUP_URL` (Square's
-  partner sign-up link, so new sellers are attributed to WorkBench) adds a
-  "Create a Square account" button beside Connect Square on the Settings
-  card (`squareSignupUrl()` — https only, unset = no button, the copy just
-  says to create one on Square first). Set it once Square issues the link;
-  then name the button in the Help guide `activate-payments`.
+- **Sellers without a Square account:** the "Create a Square account"
+  button beside Connect Square (Settings card) opens Square's partner
+  sign-up link, so new sellers land on WorkBench's rates. TWO links
+  (David 2026-10-23), picked by `Company.surchargeEnabled`: company-paid
+  `https://squareup.com/i/086C556067`, client service fee
+  `https://squareup.com/i/7002D0C989` — defaults in `lib/square.ts`
+  `squareSignupUrl(model)`, overridable with `SQUARE_SIGNUP_URL` /
+  `SQUARE_SIGNUP_URL_SERVICE_FEE` (https only). The card's (i) explains
+  which link it is; Help `activate-payments` names the button.
 - **Copy that follows the processor (2026-10-22):** Help Center
   `activate-payments` = "Turn on online payments (connect Square)" (slug
   kept — it is linked from money/quotes guides and POPULAR_SLUGS),
@@ -970,7 +973,7 @@ SQUARE_WEBHOOK_SIGNATURE_KEY=       # Developer Console → Webhooks → the sub
 # Optional: SQUARE_REDIRECT_URL (default ${NEXTAUTH_URL}/api/app/square/callback — must match the
 # console's OAuth Redirect URL), SQUARE_WEBHOOK_URL (default ${NEXTAUTH_URL}/api/public/webhooks/square),
 # SQUARE_EXTRA_SCOPES (space/comma list added to SQUARE_SCOPES — every seller re-authorizes),
-# SQUARE_SIGNUP_URL (Square's partner sign-up link → "Create a Square account" button in Settings)
+# SQUARE_SIGNUP_URL / SQUARE_SIGNUP_URL_SERVICE_FEE (override the built-in Square partner sign-up links; defaults in lib/square.ts)
 # Finix (Streamflaire Payments) — keys from dashboard.finix.com → Developers → API Keys
 FINIX_ENVIRONMENT=sandbox   # "live" + live keys at launch (sandbox keys only work on the sandbox host)
 FINIX_API_USERNAME=

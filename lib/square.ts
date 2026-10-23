@@ -60,9 +60,23 @@ function squareApplicationSecret(): string {
  *  just says to create one on Square first. Set SQUARE_SIGNUP_URL to the
  *  link Square's partnerships team issues so new sellers are attributed to
  *  WorkBench; anything but an https URL is ignored. */
-export function squareSignupUrl(): string | null {
-  const url = (process.env.SQUARE_SIGNUP_URL ?? "").trim();
-  return /^https:\/\/\S+$/.test(url) ? url : null;
+export type SquareSignupModel = "companyPaid" | "serviceFee";
+
+/** Square's partner sign-up links (David, 2026-10-23): one per processing
+ *  model, because the link decides the Square rate plan the new seller lands
+ *  on. company-paid = the business absorbs the fee; service fee = the client
+ *  pays it at checkout (Company.surchargeEnabled). SQUARE_SIGNUP_URL /
+ *  SQUARE_SIGNUP_URL_SERVICE_FEE override the defaults; anything but an https
+ *  URL falls back to the built-in link. */
+const SQUARE_SIGNUP_DEFAULTS: Record<SquareSignupModel, string> = {
+  companyPaid: "https://squareup.com/i/086C556067",
+  serviceFee: "https://squareup.com/i/7002D0C989",
+};
+
+export function squareSignupUrl(model: SquareSignupModel = "companyPaid"): string | null {
+  const env = model === "serviceFee" ? process.env.SQUARE_SIGNUP_URL_SERVICE_FEE : process.env.SQUARE_SIGNUP_URL;
+  const url = (env ?? "").trim();
+  return /^https:\/\/\S+$/.test(url) ? url : SQUARE_SIGNUP_DEFAULTS[model];
 }
 
 /** True once the app id + secret are set — the processor reports `live`. */

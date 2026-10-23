@@ -24,7 +24,7 @@ export const startSection: HelpSection = {
           note: "A couple of minutes, owner only",
           items: [
             "Go to **Settings → Payments & accounting → Online Payments**.",
-            "No Square account yet? Create one on Square first (it's free and takes a few minutes), then come back to this card.",
+            "No Square account yet? Press `Create a Square account` on the card. It opens Square's sign-up on WorkBench's rates — the link matches your **Service fee** switch on this page (off: you pay the processing fee; on: your client pays it at checkout), so set that first. Free, a few minutes; then come back to this card.",
             "Press `Connect Square` and sign in to Square.",
             "Approve the access Square lists. WorkBench needs to take payments, issue refunds and keep cards on file for your clients; it never sees card numbers.",
             "You land back in Settings with **Connected to** your business name. From that moment pay links show a **Pay** button.",
