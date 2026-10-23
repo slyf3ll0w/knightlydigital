@@ -182,6 +182,7 @@ export const pipelineTools: Tool[] = [
             clientMessage: true, discountType: true, discountValue: true, taxRate: true,
             depositType: true, depositValue: true, sentAt: true, publicToken: true,
             contact: { select: { firstName: true, lastName: true, companyName: true } },
+            job: { select: { jobNumber: true, status: true, scheduledAt: true } },
             lineItems: {
               orderBy: { sortOrder: "asc" },
               select: { name: true, description: true, quantity: true, unitPrice: true, isOptional: true },
@@ -192,6 +193,11 @@ export const pipelineTools: Tool[] = [
         return {
           n: q.quoteNumber, title: q.title, status: q.status, client: clientName(q.contact),
           sent: q.sentAt?.toISOString().slice(0, 10),
+          // The job this quote became (convert_quote) — schedule THAT with
+          // update_job; never create a second job for quoted work.
+          ...(q.job
+            ? { jobNumber: q.job.jobNumber, jobStatus: q.job.status, jobScheduled: q.job.scheduledAt?.toISOString() ?? null, note: `This quote is already job #${q.job.jobNumber} — schedule or edit that job (update_job), don't create another.` }
+            : {}),
           clientLink: `${siteBase()}/quote/${q.publicToken}`,
           clientMessage: q.clientMessage, notes: q.notes,
           ...(seePrices
@@ -618,7 +624,7 @@ export const pipelineTools: Tool[] = [
     decl: {
       name: "convert_quote",
       description:
-        "Stage converting an APPROVED quote (by quote number) into a job. Only approved quotes convert. Confirmation card required.",
+        "Stage converting an APPROVED quote (by quote number) into THE job for that work — the only way quoted work becomes a job (never create_job for it). Only approved quotes convert. Afterwards get_document on the quote shows its jobNumber; schedule that job with update_job. Confirmation card required.",
       parameters: {
         type: "object",
         properties: { quoteNumber: { type: "number" } },

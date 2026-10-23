@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { limit } from "@/lib/rate-limit";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
-import { sendEmail, clientMessageEmail } from "@/lib/email";
+import { sendEmail, clientMessageEmail, emailEnabled } from "@/lib/email";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 
 // Sending caps. Every one of these goes out on the shared Resend domain, so
@@ -151,8 +151,14 @@ export async function POST(
   if (!emailed) {
     // Never leave an unsent message looking sent on the timeline
     await prisma.clientMessage.delete({ where: { id: message.id } });
+    // Say which it was: no mail service at all, or this address bounced at
+    // the sender (test addresses like example.com are refused outright).
     return NextResponse.json(
-      { error: "Email isn't set up on this server yet — the message wasn't sent." },
+      {
+        error: emailEnabled()
+          ? `The email to ${contact.email} couldn't be sent — the address was refused by the mail service. Check the client's email and try again.`
+          : "Email isn't set up on this server yet — the message wasn't sent.",
+      },
       { status: 424 }
     );
   }

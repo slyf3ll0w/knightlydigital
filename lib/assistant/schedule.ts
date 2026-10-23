@@ -126,7 +126,7 @@ export const scheduleTools: Tool[] = [
     decl: {
       name: "create_job",
       description:
-        "Stage a new job for a client, optionally scheduled (omit date to leave it unscheduled, omit time for 'anytime that day') and optionally with a crew (team member names or ids). Title is optional. A scheduled job needs a crew unless the company is a one-person operation (auto-assigned) or the job is outsourced. Confirmation card required.",
+        "Stage a new job for a client, optionally scheduled (omit date to leave it unscheduled, omit time for 'anytime that day') and optionally with a crew (team member names or ids). Title is optional. A scheduled job needs a crew unless the company is a one-person operation (auto-assigned) or the job is outsourced. NOT for work that already has a quote — approve it and convert_quote instead, then schedule that job with update_job (a second job for quoted work is a mess). Confirmation card required.",
       parameters: {
         type: "object",
         properties: {

@@ -28,6 +28,14 @@ export function voiceConfirmable(p: Proposal): boolean {
   return !p.danger && !p.money && !p.confirmText;
 }
 
+/** Cards that put words in front of a client (email, text, portal message,
+ *  sending a document). Voice applies these only after the user has HEARD
+ *  the message and said yes — never on the instruction alone (David
+ *  2026-10-23: "communicating with clients will need to be approved"). */
+export function isOutreach(p: Proposal): boolean {
+  return /^(email_|send_|reply_|text_|post_|respond_|collect_deposit)/.test(p.kind);
+}
+
 // ── proposal card ────────────────────────────────────────────────────────────
 
 /** Icon + default verb from the proposal kind — tools set confirmLabel when

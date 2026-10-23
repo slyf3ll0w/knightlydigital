@@ -192,6 +192,7 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
   let speakTimer: ReturnType<typeof setTimeout> | null = null;
   // Barge-in gate state (see tap.port.onmessage).
   let echoLevel = 0;
+  let learnMs = GATE_LEARN_MS;
   let gatedFrames = 0;
   let passedFrames = 0;
 
@@ -199,12 +200,23 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
   };
 
+  let unmuteTimer: ReturnType<typeof setTimeout> | null = null;
   const hush = () => {
     playing.forEach((s) => {
       try { s.stop(); } catch { /* already stopped */ }
     });
     playing.clear();
     nextPlayAt = 0;
+    // The media-element path buffers ~100–200 ms, so a stopped source still
+    // trails out of the speaker after an interruption: mute the element for
+    // the length of that tail so the cut is clean.
+    if (!sink.failed) {
+      sink.el.muted = true;
+      if (unmuteTimer) clearTimeout(unmuteTimer);
+      unmuteTimer = setTimeout(() => {
+        sink.el.muted = false;
+      }, 250);
+    }
     if (speaking) {
       speaking = false;
       ev.onStatus("listening");
@@ -230,7 +242,10 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     if (!speaking) {
       speaking = true;
       speakingSince = Date.now();
-      echoLevel = 0;
+      // Keep the leak level learned last time: the learning window then only
+      // needs to be short, so a user cutting in right as Atlas starts loses
+      // less of their first words.
+      learnMs = echoLevel > 0 ? 150 : GATE_LEARN_MS;
       ev.onStatus("speaking");
     }
     if (speakTimer) clearTimeout(speakTimer);
@@ -278,7 +293,7 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     // voice-activity detector never hears Atlas and interrupts him.
     if (speaking) {
       const rms = rmsOf(frame);
-      const learning = Date.now() - speakingSince < GATE_LEARN_MS;
+      const learning = Date.now() - speakingSince < learnMs;
       const gate = Math.max(GATE_FLOOR, echoLevel * 2.5);
       if (learning || rms < gate) {
         echoLevel = echoLevel === 0 ? rms : echoLevel * (learning ? 0.7 : 0.95) + rms * (learning ? 0.3 : 0.05);

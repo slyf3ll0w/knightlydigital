@@ -19,7 +19,7 @@ import { startLiveSession, type LiveHandle, type LiveStatus } from "@/lib/live-v
 import { voiceLog } from "@/lib/voice-log";
 import { cardsSpeech, isAffirmative, isNegative, isStopPhrase, spokenForm, type SpokenCard } from "@/lib/voice-chat-shared";
 import type { Proposal } from "@/lib/assistant";
-import { ProposalCard, voiceConfirmable, type CardProposal, type PlacedCard } from "@/components/AssistantCard";
+import { ProposalCard, isOutreach, voiceConfirmable, type CardProposal, type PlacedCard } from "@/components/AssistantCard";
 
 /**
  * Talking to Atlas. Two engines:
@@ -89,7 +89,7 @@ export default function AssistantVoice({
   onConfirmCard: (msgIdx: number, card: CardProposal) => void;
   onSkipCard: (msgIdx: number, id: string) => void;
   /** Spoken yes: confirm every ordinary card still waiting. */
-  confirmOrdinaryPending: () => Promise<{ confirmed: number; failed: number; needsTap: number; applied: string[]; failures: { title: string; why: string }[] }>;
+  confirmOrdinaryPending: (opts?: { hold?: (card: CardProposal) => boolean }) => Promise<{ confirmed: number; failed: number; needsTap: number; applied: string[]; failures: { title: string; why: string }[]; held: string[] }>;
   /** Spoken no: dismiss every card still waiting; returns how many. */
   skipPending: () => number;
   /** A card by id, wherever it is in the chat (the duplicate guard checks its state). */
@@ -134,6 +134,11 @@ export default function AssistantVoice({
   const recentActions = useRef<Map<string, { at: number; ids: string[] }>>(new Map());
   // What Atlas said last turn, flushed into the chat when the turn ends.
   const lastAtlas = useRef("");
+  // Which user turn each card was staged in. A card that talks to a client
+  // is applied only once the user has spoken AGAIN after it was staged —
+  // i.e. heard it and said yes — never on the instruction alone.
+  const userTurn = useRef(0);
+  const stagedAtTurn = useRef<Map<string, number>>(new Map());
   // Re-render a few seconds after a card settles so it can leave the screen.
   const [, setSettleTick] = useState(0);
   useEffect(() => {
@@ -211,13 +216,23 @@ export default function AssistantVoice({
   const onToolCall = useCallback(
     async (toolName: string, args: Record<string, unknown>): Promise<Record<string, unknown>> => {
       if (toolName === "confirm_cards") {
-        const r = await confirmPendingRef.current();
-        voiceLog("live: confirm_cards", { confirmed: r.confirmed, failed: r.failed, needsTap: r.needsTap, failures: r.failures });
-        if (r.confirmed + r.failed + r.needsTap === 0) return { confirmed: 0, note: "No card is waiting — nothing to confirm. If the user wants something done, stage it now (once)." };
-        hapticNotify(r.failed > 0 ? "ERROR" : "SUCCESS");
+        // Cards staged earlier in THIS turn are still only in turnProposals —
+        // put them in the chat first, or the confirm finds nothing (the
+        // 2026-10-23 "I've archived it" that never happened).
+        if (turnProposals.current.length > 0) flushExchange("");
+        const turnNow = userTurn.current;
+        const r = await confirmPendingRef.current({
+          hold: (card) => isOutreach(card) && (stagedAtTurn.current.get(card.id) ?? -1) >= turnNow,
+        });
+        voiceLog("live: confirm_cards", { confirmed: r.confirmed, failed: r.failed, needsTap: r.needsTap, held: r.held, failures: r.failures });
+        if (r.confirmed + r.failed + r.needsTap + r.held.length === 0) return { confirmed: 0, note: "No card is waiting — nothing to confirm. If the user wants something done, stage it now (once)." };
+        if (r.confirmed + r.failed > 0) hapticNotify(r.failed > 0 ? "ERROR" : "SUCCESS");
         return {
           confirmed: r.confirmed,
           applied: r.applied,
+          ...(r.held.length > 0
+            ? { heldForApproval: r.held, holdNote: "These go to a client, so they are NOT sent yet: read the message to the user word for word and ask. When they say yes, call confirm_cards again." }
+            : {}),
           ...(r.failed > 0 ? { failed: r.failures, note: "These didn't go through for the reason given — fix the cause and redo, or ask one question." } : {}),
           ...(r.needsTap > 0 ? { needsTap: r.needsTap, tapNote: "Those move money or can't be undone — the user taps the card on screen." } : {}),
         };
@@ -253,6 +268,7 @@ export default function AssistantVoice({
       voiceLog("live: tool result", `${toolName}(${JSON.stringify(args).slice(0, 120)}) → ${JSON.stringify(data.result ?? {}).slice(0, 160)}${data.proposals?.length ? ` +${data.proposals.length} card(s)` : ""}`);
       if (data.proposals?.length) {
         recentActions.current.set(actionKey, { at: Date.now(), ids: data.proposals.map((p) => p.id) });
+        data.proposals.forEach((p) => stagedAtTurn.current.set(p.id, userTurn.current));
         turnProposals.current = [...turnProposals.current, ...data.proposals];
         const guarded = data.proposals.filter((p) => p.danger || p.money || p.confirmText).length;
         return {
@@ -281,6 +297,7 @@ export default function AssistantVoice({
               setHeard(text);
               setInterim("");
               turnUser.current = text;
+              userTurn.current += 1;
             }
           } else {
             setSaid(text);

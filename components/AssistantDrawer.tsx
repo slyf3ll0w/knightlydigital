@@ -528,20 +528,25 @@ export default function AssistantDrawer({
    *  chat — not just the last turn's, since people ask a question or two
    *  before saying "go ahead" (David's 2026-10-23 report). Reads the live
    *  list, so it works from the socket's callbacks too. */
-  async function confirmOrdinaryPending(): Promise<{ confirmed: number; failed: number; needsTap: number; applied: string[]; failures: { title: string; why: string }[] }> {
+  async function confirmOrdinaryPending(opts?: { hold?: (card: CardProposal) => boolean }): Promise<{ confirmed: number; failed: number; needsTap: number; applied: string[]; failures: { title: string; why: string }[]; held: string[] }> {
     const waiting: PlacedCard[] = messagesRef.current.flatMap((m, msgIdx) =>
       (m.proposals ?? []).filter((p) => p.state === "pending").map((card) => ({ msgIdx, card }))
     );
     const applied: string[] = [];
     const failures: { title: string; why: string }[] = [];
+    const held: string[] = [];
     for (const { msgIdx, card } of waiting) {
       if (!voiceConfirmable(card)) continue;
+      if (opts?.hold?.(card)) {
+        held.push(card.title);
+        continue;
+      }
       const why = await confirm(msgIdx, card, { skipRefresh: true });
       if (why === null) applied.push(card.title);
       else failures.push({ title: card.title, why });
     }
     if (applied.length + failures.length > 0) router.refresh();
-    return { confirmed: applied.length, failed: failures.length, needsTap: waiting.filter((w) => !voiceConfirmable(w.card)).length, applied, failures };
+    return { confirmed: applied.length, failed: failures.length, needsTap: waiting.filter((w) => !voiceConfirmable(w.card)).length, applied, failures, held };
   }
 
   /** A card anywhere in the chat, by id — the voice screen's duplicate guard asks. */
@@ -893,9 +898,11 @@ export default function AssistantDrawer({
                 {/* Atlas speaks in plain text, not a boxed bubble (Claude-app
                     pattern) — only his action cards get containers. */}
                 <div className="px-0.5 py-1">
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
-                    <Linkified text={m.content} />
-                  </p>
+                  {m.content && (
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
+                      <Linkified text={m.content} />
+                    </p>
+                  )}
                   {typeof m.tokens === "number" && (
                     <p className="mt-1 flex items-center gap-1 text-[10px] text-gray-400">
                       <Coins size={10} />
