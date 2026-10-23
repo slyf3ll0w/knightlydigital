@@ -241,7 +241,7 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
   {
     label: "Work",
     items: [
-      { href: "/app/routes", label: "Routes", icon: RouteGlyph },
+      { href: "/app/routes", label: "Routes (beta)", icon: RouteGlyph },
       { href: "/app/contacts", label: "Clients", icon: Users, show: sellRoles },
       { href: "/app/requests", label: "Requests", icon: Inbox, show: sellRoles },
       { href: "/app/messages", label: "Messages", icon: MessageSquare, show: sellRoles },

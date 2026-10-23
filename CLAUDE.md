@@ -836,14 +836,25 @@ Built 2026-10-15 on branch `square-payments` (worktree
 - **Copy that follows the processor (2026-10-22):** Help Center
   `activate-payments` = "Turn on online payments (connect Square)" (slug
   kept — it is linked from money/quotes guides and POPULAR_SLUGS),
-  `payouts` / `disputes` point at the Square dashboard, fee wording says
-  "Square's fee, estimate in WorkBench" (the pricing page still quotes
-  2.9% + 30¢ / 0.75% + 30¢ — David's pricing decision, not touched);
+  `payouts` / `disputes` point at the Square dashboard;
   no guide says emails wait on payment approval any more (true on Square:
   `companyEmailBlocked` is Finix-only). Privacy + Terms name Square
   (Block, Inc.) as the processor. Superadmin `PaymentsControl` shows the
   Square connection (read-only) and keeps the Finix waiver UI for
   `PAYMENT_PROCESSOR=finix`.
+- **Processing rates (David 2026-10-22):** two models, one source —
+  `lib/plans.ts` `PROCESSING_RATES` / `RATES` / `RATES_SENTENCE` /
+  `RATES_SHORT` (+ `lib/help/plan-copy.ts` RATE_CARD / RATE_ACH / FEE_CARD /
+  FEE_CARD_PCT / RATES_LINE for guides). **Company-paid** (the business
+  absorbs it): 2.95% + 30¢ card; ACH 0.70%, $1 min, $8 max. **Service fee**
+  (the client pays at checkout, business gets the full amount): 3.50% + 30¢
+  card; ACH 0.75%, $1 min, $8 max. Every marketing page, llms.txt, the Help
+  Center, `processingFees()` defaults (ACH now clamped by
+  `WORKBENCH_ACH_FEE_MIN/MAX_CENTS`) and the Settings surcharge default
+  (3.50) read from there — never type a rate into a page. NOT built: the
+  in-app "surcharge" is still a company-chosen card percentage (0–10%, no
+  30¢ part, no ACH fee); making the service fee a fixed schedule with the
+  ACH part is a product change for later.
 - **Tests:** `npx tsx scripts/test-square.ts` (state, secret box, webhook
   signature, idempotency, location pick, decline wording, the gate per
   processor, the default processor, the sign-up link, static tokens).
@@ -1065,6 +1076,12 @@ matters with a team. Beyond crew auto-assign above:
   keep whatever they have; Settings → timezone still edits it.
 
 ## Route Manager (routes, Optimize, Find a Time)
+
+**Marked beta since 2026-10-22 (David: not production-ready yet):** nav says
+"Routes (beta)" (AppShell + lib/mobile-nav.ts), the page header carries a
+Beta chip, plan copy says "Route Manager (beta)" (lib/plans.ts includes +
+FEATURE_LABEL, plan-copy, llms, Help account guide) and the plan-routes
+guide opens with a beta tip. Drop all of those together when it graduates.
 
 `/app/routes` (`app/platform/routes/`; `/app/schedule/map` redirects), read
 model `lib/route-plan.ts`, engine `lib/routing.ts` + `lib/directions.ts`,

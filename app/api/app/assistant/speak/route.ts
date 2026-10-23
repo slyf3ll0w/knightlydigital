@@ -20,6 +20,7 @@ const CENTS_PER_1K = (() => {
   return Number.isFinite(n) && n >= 0 ? n : 1;
 })();
 const MAX_CHARS = 1200;
+const PHRASE_CACHE = new Map<string, { bytes: Buffer; mime: string }>();
 
 type InteractionsResponse = {
   output_audio?: { data?: string; mime_type?: string };
@@ -40,9 +41,16 @@ export async function POST(req: NextRequest) {
   if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
   const key = process.env.GEMINI_API_KEY;
   if (!key) return NextResponse.json({ error: "Voice isn't configured." }, { status: 503 });
-  const body = (await req.json().catch(() => ({}))) as { text?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { text?: unknown; cache?: unknown };
   const text = typeof body.text === "string" ? body.text.trim().slice(0, MAX_CHARS) : "";
   if (!text) return NextResponse.json({ error: "Nothing to say." }, { status: 400 });
+  // Stock phrases ("Let me check.") are kept in memory after the first
+  // synthesis so the acknowledgement plays instantly and costs nothing.
+  const cacheKey = body.cache === true && text.length <= 80 ? `${VOICE}:${text}` : null;
+  const hit = cacheKey ? PHRASE_CACHE.get(cacheKey) : undefined;
+  if (hit) {
+    return new NextResponse(new Uint8Array(hit.bytes), { status: 200, headers: { "Content-Type": hit.mime, "Cache-Control": "no-store" } });
+  }
 
   try {
     const res = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
@@ -69,10 +77,13 @@ export async function POST(req: NextRequest) {
     const cents = (text.length / 1000) * CENTS_PER_1K;
     recordAiUsage(gate.actor.companyId, { tokensIn: text.length, tokensOut: 0, tokensCached: 0 });
     await gate.charge(cents);
-    return new NextResponse(Buffer.from(audio.data, "base64"), {
-      status: 200,
-      headers: { "Content-Type": audio.mime.startsWith("audio/") ? audio.mime : "audio/wav", "Cache-Control": "no-store" },
-    });
+    const bytes = Buffer.from(audio.data, "base64");
+    const mime = audio.mime.startsWith("audio/") ? audio.mime : "audio/wav";
+    if (cacheKey) {
+      if (PHRASE_CACHE.size >= 60) PHRASE_CACHE.delete(PHRASE_CACHE.keys().next().value as string);
+      PHRASE_CACHE.set(cacheKey, { bytes, mime });
+    }
+    return new NextResponse(new Uint8Array(bytes), { status: 200, headers: { "Content-Type": mime, "Cache-Control": "no-store" } });
   } catch (err) {
     reportError("assistant speak: request failed", err);
     return NextResponse.json({ error: "Voice is unavailable right now." }, { status: 424 });

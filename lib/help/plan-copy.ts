@@ -1,3 +1,4 @@
+import { RATES, RATES_SENTENCE } from "@/lib/plans";
 /**
  * Plan names, prices and allowances for the Help Center, read from the same
  * constants as the pricing page (lib/plans, lib/atlas-pricing), so a price
@@ -67,6 +68,15 @@ export const HOW_TO_ADD_PRO = `Call or email us and we switch it on for you.`;
 export function proTip(feature: string): HelpBlock {
   return {
     type: "tip",
-    text: `${feature} ${feature.endsWith("s") ? "are" : "is"} part of the **${PRO}** plan (${PRO_PRICE}), along with unlimited users, estimate tools, Route Manager, automations, agreements, the team map, timesheets, QuickBooks sync, and ${ATLAS_FULL} Atlas tokens a month. **${MAX}** (${MAX_PRICE}) includes ${PRO} and ${VOICE} together. See [Plans and pricing](/help/plans-and-pricing).`,
+    text: `${feature} ${feature.endsWith("s") ? "are" : "is"} part of the **${PRO}** plan (${PRO_PRICE}), along with unlimited users, estimate tools, Route Manager (beta), automations, agreements, the team map, timesheets, QuickBooks sync, and ${ATLAS_FULL} Atlas tokens a month. **${MAX}** (${MAX_PRICE}) includes ${PRO} and ${VOICE} together. See [Plans and pricing](/help/plans-and-pricing).`,
   };
 }
+
+// Payment processing (lib/plans.ts PROCESSING_RATES): company-paid vs the
+// service fee the client pays.
+export const RATE_CARD = RATES.companyPaid.card;
+export const RATE_ACH = RATES.companyPaid.ach;
+export const FEE_CARD = RATES.serviceFee.card;
+export const FEE_CARD_PCT = RATES.serviceFee.cardPct;
+export const FEE_ACH = RATES.serviceFee.ach;
+export const RATES_LINE = RATES_SENTENCE;

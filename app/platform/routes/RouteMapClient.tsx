@@ -1318,7 +1318,7 @@ export default function RouteMapClient({
   const list = (
     <div ref={listRef} className="route-list min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-3 pt-2 lg:p-2.5">
       <div className="hidden print:block">
-        <h1 className="text-xl font-bold text-gray-900">Routes</h1>
+        <h1 className="text-xl font-bold text-gray-900">Routes (beta)</h1>
         <p className="text-sm font-semibold text-gray-700">{fmtDateLabel(date)}</p>
       </div>
 
@@ -1890,7 +1890,8 @@ export default function RouteMapClient({
         {/* Header pill — title, day, crew filter — floating top-left */}
         <div className="route-controls no-print absolute left-3 top-3 z-[1000] flex max-w-[calc(100%-4.25rem)] flex-wrap items-center gap-1.5">
           <div className="wb-map-glass flex items-center gap-0.5 rounded-[12px] px-1.5 py-1">
-            <h1 className="numeral-ledger mr-1.5 hidden pl-1.5 text-[15px] font-bold text-gray-900 sm:block">Routes</h1>
+            <h1 className="numeral-ledger hidden pl-1.5 text-[15px] font-bold text-gray-900 sm:block">Routes</h1>
+            <span className="mr-1.5 hidden sm:block"><Chip tone="warn">Beta</Chip></span>
             <button
               onClick={() => go({ date: shiftDate(date, -1) })}
               className="rounded-full p-1.5 transition-colors hover:bg-gray-100 active:bg-gray-100"

@@ -327,6 +327,10 @@ export const scheduleSection: HelpSection = {
       blocks: [
         proTip("Route Manager"),
         {
+          type: "tip",
+          text: "Route Manager is in **beta**: it works, and it is still being refined. If a day doesn't optimize the way you expect, tell us from Help → Report a bug.",
+        },
+        {
           type: "p",
           text: "A route is everything one person drives to in a day: client visits, in-person appointments, blocked time with an address, and the stops that aren't clients — a supply run, the dump, a parts drop-off, a task with a place, and lunch. Each kind has its own stamp in the list (**Errand**, **Break**, **Task**), and errands and tasks get square pins on the map.",
         },

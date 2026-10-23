@@ -1,4 +1,5 @@
 "use client";
+import { RATES } from "@/lib/plans";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -47,10 +48,10 @@ const tabs = [
     key: "paid",
     label: "Get paid",
     title: "One click turns the finished job into an invoice with a Pay button.",
-    body: "Card and ACH are built in at one flat rate. Deposits, partial payments, autopay for recurring plans, and reminders that go out on their own.",
+    body: "Card and ACH are built in, with the fee paid by you or passed to the client as a service fee. Deposits, partial payments, autopay for recurring plans, and reminders that go out on their own.",
     points: [
       "Invoices from the driveway, paid from a link",
-      "2.9% + 30¢ per card, 0.75% + 30¢ per ACH transfer",
+      `${RATES.companyPaid.card} per card, ${RATES.companyPaid.achShort} per ACH, or a client service fee`,
       "Recurring billing and one-click refunds",
     ],
     href: "/features/payments",

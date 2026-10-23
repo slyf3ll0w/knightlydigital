@@ -234,7 +234,7 @@ export default async function PaymentsDashboardPage({
 
   const fees = processingFees();
   const cardRate = feeRateLabel(fees.cardBps, fees.cardFixedCents);
-  const achRate = feeRateLabel(fees.achBps, fees.achFixedCents);
+  const achRate = `${feeRateLabel(fees.achBps, fees.achFixedCents)} ($${fees.achMinCents / 100} min, $${fees.achMaxCents / 100} max)`;
 
   // Payout totals across listed settlements — the "what has processing cost me" line
   const payoutTotals = settlements.reduce(

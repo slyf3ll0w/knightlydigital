@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import AtlasIcon, { AtlasMark } from "@/components/AtlasIcon";
 import AssistantVoice, { type VoiceTurn } from "@/components/AssistantVoice";
+import { requestMicrophone, type MicState } from "@/lib/voice-chat-client";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import { money } from "@/lib/statuses";
 import { useMeasuredHeight } from "@/lib/use-measured-height";
@@ -81,6 +82,9 @@ type Msg = {
   nextStepFired?: boolean;
   /** This user turn was sent by the drawer, not typed. */
   auto?: boolean;
+  /** What Atlas looked up for this reply (ids, names) — sent back with the
+   *  next turns so "it" / "that call" resolve to the same record. */
+  recap?: string;
   /** How many automatic turns led here — caps runaway chains. */
   autoDepth?: number;
 };
@@ -461,6 +465,9 @@ export default function AssistantDrawer({
   // Voice mode: a full-panel overlay that talks and listens (AssistantVoice);
   // every turn still lands in this chat underneath it.
   const [voiceOpen, setVoiceOpen] = useState(false);
+  // The mic request started by the tap that opened voice mode — browsers
+  // that only prompt from a gesture (iOS, Safari) need it asked right then.
+  const micGrantRef = useRef<Promise<MicState> | null>(null);
   // Server truth arrives as a prop; each send moves it locally so the drawer
   // reacts without waiting on a refresh.
   const [liveAccess, setLiveAccess] = useState<AtlasDrawerAccess>(access);
@@ -531,7 +538,16 @@ export default function AssistantDrawer({
         atlasLocked?: boolean;
         access?: AtlasDrawerAccess;
         turnTokens?: number;
+        recap?: string;
       };
+      // The model sees the text of earlier turns plus, for the last few
+      // replies, the recap of what was looked up behind them.
+      const assistantIdx = next.map((m, i) => (m.role === "assistant" ? i : -1)).filter((i) => i >= 0);
+      const withRecap = new Set(assistantIdx.slice(-3));
+      const sendable = next.map((m, i) => ({
+        role: m.role,
+        content: m.role === "assistant" && m.recap && withRecap.has(i) ? `${m.content}\n\n[Behind this reply: ${m.recap}]` : m.content,
+      }));
       const res = await fetch("/api/app/assistant", {
         method: "POST",
         // NDJSON: progress lines while the tools run, then one final line —
@@ -539,7 +555,7 @@ export default function AssistantDrawer({
         headers: { "Content-Type": "application/json", Accept: "application/x-ndjson" },
         // strip proposals from what we send — the model only needs the text
         body: JSON.stringify({
-          messages: next.map((m) => ({ role: m.role, content: m.content })),
+          messages: sendable,
           ...(opts.voice ? { voice: true } : {}),
         }),
       });
@@ -594,6 +610,7 @@ export default function AssistantDrawer({
           ...(metered ? { tokens: data.turnTokens } : {}),
           ...(data.nextStep && (data.proposals?.length ?? 0) > 0 ? { nextStep: data.nextStep } : {}),
           ...(opts.depth ? { autoDepth: opts.depth } : {}),
+          ...(data.recap ? { recap: data.recap } : {}),
         };
         persist([...next, reply]);
         outcome = { index: next.length, msg: reply };
@@ -784,6 +801,7 @@ export default function AssistantDrawer({
             name={name}
             accent={accent}
             progress={progress}
+            micGrant={micGrantRef.current}
             ask={askByVoice}
             onClose={() => setVoiceOpen(false)}
           />
@@ -1080,6 +1098,7 @@ export default function AssistantDrawer({
                 type="button"
                 onClick={() => {
                   hapticImpact("MEDIUM");
+                  micGrantRef.current = requestMicrophone();
                   setVoiceOpen(true);
                 }}
                 disabled={loading}

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { RATES_SENTENCE, RATES_SHORT } from "@/lib/plans";
 import Link from "next/link";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
 import { CreditCard } from "lucide-react";
@@ -8,8 +9,7 @@ import { pickFeatures } from "@/lib/wb-features";
 
 export const metadata: Metadata = {
   title: "Payments",
-  description:
-    "Card and ACH built into every invoice, quote, and booking at one flat rate: 2.9% + 30¢ per card transaction, 0.75% + 30¢ ACH. No monthly fees, saved cards with autopay, automatic reminders, and same-day-ish payouts.",
+  description: `Card and ACH built into every invoice, quote, and booking: ${RATES_SHORT}. No monthly fees, saved cards with autopay, automatic reminders, and next-business-day payouts through your own Square account.`,
 };
 
 const features = pickFeatures("paid", [
@@ -26,9 +26,7 @@ const faq = [
     q: "What does payment processing actually cost?",
     a: (
       <p>
-        One flat rate: 2.9% + 30¢ per successful card transaction and 0.75% + 30¢
-        per ACH bank transfer. No monthly fees, no minimum volume, and
-        nothing charged on a failed or declined payment. This is also how
+        {RATES_SENTENCE} This is also how
         WorkBench funds the free software — see the{" "}
         <Link href="/pricing" className="font-semibold text-[#0B57D8] hover:underline">
           pricing page

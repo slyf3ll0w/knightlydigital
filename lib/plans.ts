@@ -108,7 +108,7 @@ export const PLANS: Record<PlanId, Plan> = {
     includes: [
       "Unlimited users, every role",
       "Estimator and the Estimator Library",
-      "Route Manager",
+      "Route Manager (beta)",
       "Automations",
       "Agreements and contracts",
       "Live team map",
@@ -209,7 +209,7 @@ export function normalizeGrants(grants: readonly string[]): PlanId[] {
 export type GatedFeature = "routes" | "task_assign" | "team_notes";
 
 const FEATURE_LABEL: Record<GatedFeature, string> = {
-  routes: "Route Manager",
+  routes: "Route Manager (beta)",
   // Tasks & sticky notes (docs/plans/tasks-schedule-send-sticky-notes-2026-10-03.md):
   // personal tasks and notes are free; handing tasks to employees and
   // team sticky notes sit with the other team tools.
@@ -240,3 +240,65 @@ export function featureAllowed(company: PlanHolder, feature: GatedFeature, live:
       return hasPlan(company, "SHOP");
   }
 }
+
+// ── Payment processing rates (decided 2026-10-22) ──────────────────────────
+
+/**
+ * Two ways a company can pay for card and ACH processing — the one source
+ * the pricing page, the Help Center, the app's fee estimates and the
+ * Settings default read. Company-paid: the business absorbs the fee.
+ * Service fee: the client pays it at checkout and the business receives the
+ * full invoice amount. ACH fees are capped both ways.
+ */
+export type ProcessingRate = {
+  cardBps: number;
+  cardFixedCents: number;
+  achBps: number;
+  achMinCents: number;
+  achMaxCents: number;
+};
+
+export const PROCESSING_RATES: { companyPaid: ProcessingRate; serviceFee: ProcessingRate } = {
+  companyPaid: { cardBps: 295, cardFixedCents: 30, achBps: 70, achMinCents: 100, achMaxCents: 800 },
+  serviceFee: { cardBps: 350, cardFixedCents: 30, achBps: 75, achMinCents: 100, achMaxCents: 800 },
+};
+
+function pctLabel(bps: number): string {
+  return `${(bps / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+}
+function wholeDollars(cents: number): string {
+  return cents % 100 === 0 ? `$${cents / 100}` : formatCents(cents);
+}
+
+/** "2.95% + 30¢" */
+export function cardRateLabel(r: ProcessingRate): string {
+  return `${pctLabel(r.cardBps)} + ${r.cardFixedCents}¢`;
+}
+/** "0.70% ($1 minimum, $8 maximum)" */
+export function achRateLabel(r: ProcessingRate): string {
+  return `${pctLabel(r.achBps)} (${wholeDollars(r.achMinCents)} minimum, ${wholeDollars(r.achMaxCents)} maximum)`;
+}
+/** "0.70%, $1–$8" */
+export function achRateShort(r: ProcessingRate): string {
+  return `${pctLabel(r.achBps)}, ${wholeDollars(r.achMinCents)}–${wholeDollars(r.achMaxCents)}`;
+}
+
+export const RATES = {
+  companyPaid: {
+    card: cardRateLabel(PROCESSING_RATES.companyPaid),
+    cardPct: pctLabel(PROCESSING_RATES.companyPaid.cardBps),
+    ach: achRateLabel(PROCESSING_RATES.companyPaid),
+    achShort: achRateShort(PROCESSING_RATES.companyPaid),
+  },
+  serviceFee: {
+    card: cardRateLabel(PROCESSING_RATES.serviceFee),
+    cardPct: pctLabel(PROCESSING_RATES.serviceFee.cardBps),
+    ach: achRateLabel(PROCESSING_RATES.serviceFee),
+    achShort: achRateShort(PROCESSING_RATES.serviceFee),
+  },
+};
+
+/** The full statement, for the pricing page and FAQs. */
+export const RATES_SENTENCE = `Two ways to pay for processing. Company-paid: ${RATES.companyPaid.card} per card transaction and ${RATES.companyPaid.ach} per ACH bank transfer. Or add a service fee your client pays at checkout — ${RATES.serviceFee.card} per card transaction and ${RATES.serviceFee.ach} per ACH bank transfer — and you receive the full invoice amount. No monthly fees, no volume minimums, no charge on failed payments.`;
+/** The short form, for feature bullets and meta descriptions. */
+export const RATES_SHORT = `${RATES.companyPaid.card} per card transaction and ${RATES.companyPaid.achShort} per ACH transfer company-paid, or a client service fee of ${RATES.serviceFee.card} card and ${RATES.serviceFee.achShort} ACH`;

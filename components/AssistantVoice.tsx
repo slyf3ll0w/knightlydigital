@@ -4,7 +4,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Mic, MicOff, Square, Volume2, VolumeX, X } from "lucide-react";
 import { AtlasMark } from "@/components/AtlasIcon";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
-import { listenOnce, primeAudio, speak, speechInputKind, type ListenHandle, type SpeakHandle } from "@/lib/voice-chat-client";
+import {
+  listenOnce,
+  micInstructions,
+  primeAudio,
+  requestMicrophone,
+  speak,
+  speechInputKind,
+  type ListenHandle,
+  type MicState,
+  type SpeakHandle,
+} from "@/lib/voice-chat-client";
 import { cardsSpeech, isAffirmative, isNegative, isStopPhrase, spokenForm, type SpokenCard } from "@/lib/voice-chat-shared";
 
 /**
@@ -22,14 +32,16 @@ export type VoiceTurn =
   | { reply: string; cards: SpokenCard[]; confirmOrdinary: () => Promise<void> }
   | { error: string };
 
-type Phase = "listening" | "thinking" | "speaking" | "idle";
+type Phase = "listening" | "thinking" | "speaking" | "idle" | "blocked";
 
 const NATURAL_KEY = "wb-atlas-voice-natural";
+const ACKS = ["Let me check.", "One sec.", "Checking."];
 
 export default function AssistantVoice({
   name,
   accent,
   progress,
+  micGrant,
   ask,
   onClose,
 }: {
@@ -37,6 +49,8 @@ export default function AssistantVoice({
   accent?: string;
   /** What Atlas is doing right now (streamed from the route) — shown while thinking. */
   progress: string;
+  /** The microphone request the opening tap already started (iOS and Safari only prompt from a gesture). */
+  micGrant: Promise<MicState> | null;
   ask: (text: string) => Promise<VoiceTurn>;
   onClose: () => void;
 }) {
@@ -50,6 +64,10 @@ export default function AssistantVoice({
 
   const listenRef = useRef<ListenHandle | null>(null);
   const speakRef = useRef<SpeakHandle | null>(null);
+  // The spoken "let me check" that covers a lookup — one per turn, and the
+  // real reply waits for it to finish rather than talking over it.
+  const ackRef = useRef<SpeakHandle | null>(null);
+  const ackedTurn = useRef(false);
   const pendingConfirm = useRef<(() => Promise<void>) | null>(null);
   const emptyRuns = useRef(0);
   const alive = useRef(true);
@@ -80,6 +98,10 @@ export default function AssistantVoice({
       if (!alive.current) return;
       setSaid(text);
       setPhaseBoth("speaking");
+      if (ackRef.current) {
+        await Promise.race([ackRef.current.done, new Promise((r) => setTimeout(r, 2500))]);
+        ackRef.current = null;
+      }
       const h = speak(text, { natural });
       speakRef.current = h;
       await h.done;
@@ -92,10 +114,20 @@ export default function AssistantVoice({
     [natural]
   );
 
+  // The moment a lookup starts (first progress line), say so — a human
+  // says "let me check" instead of going quiet for five seconds.
+  useEffect(() => {
+    if (phase !== "thinking" || !progress || ackedTurn.current) return;
+    ackedTurn.current = true;
+    const phrase = ACKS[Math.floor(Math.random() * ACKS.length)];
+    ackRef.current = speak(phrase, { natural, cache: true });
+  }, [phase, progress, natural]);
+
   const handleUtterance = useCallback(
     async (text: string) => {
       setHeard(text);
       setInterim("");
+      ackedTurn.current = false;
       if (isStopPhrase(text)) {
         await say("Okay. I'm here when you need me.", "idle");
         onClose();
@@ -175,22 +207,45 @@ export default function AssistantVoice({
         setNote(message);
         setPhaseBoth("idle");
       },
+      onBlocked: () => {
+        listenRef.current = null;
+        setPhaseBoth("blocked");
+      },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inputKind, handleUtterance]);
 
-  // Enter: unlock audio on the opening tap, then listen.
+  /** Wait for the mic answer, then listen — or show how to unblock it. */
+  const begin = useCallback(
+    async (grant: Promise<MicState>) => {
+      const state = await grant;
+      if (!alive.current) return;
+      if (state === "granted") listen();
+      else if (state === "unavailable") {
+        setNote("No microphone was found on this device — type in the chat instead.");
+        setPhaseBoth("idle");
+      } else setPhaseBoth("blocked");
+    },
+    [listen]
+  );
+
+  // Enter: audio was unlocked and the mic requested on the opening tap.
   useEffect(() => {
     alive.current = true;
     primeAudio();
-    const t = setTimeout(() => listen(), 150);
+    void begin(micGrant ?? requestMicrophone());
     return () => {
       alive.current = false;
-      clearTimeout(t);
       stopAll();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function tryAgain() {
+    hapticImpact("LIGHT");
+    // Inside the click, so a browser that only prompts from a gesture prompts now.
+    void begin(requestMicrophone());
+  }
 
   function tapOrb() {
     hapticImpact("LIGHT");
@@ -258,6 +313,28 @@ export default function AssistantVoice({
         </button>
       </div>
 
+      {phase === "blocked" ? (
+        <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
+          <MicOff size={40} className="text-gray-400" />
+          <p className="mt-5 font-display text-[17px] font-bold text-gray-900">The microphone is blocked</p>
+          <p className="mt-2 max-w-[320px] text-[14px] leading-relaxed text-gray-600">{micInstructions()}</p>
+          <div className="mt-6 flex flex-col items-stretch gap-2">
+            <button
+              type="button"
+              onClick={tryAgain}
+              className="rounded-full px-6 py-3 text-[15px] font-semibold"
+              // The readable accent pair, never the raw brand color: a white
+              // secondary brand made this a white button with white text.
+              style={{ background: "var(--wb-accent, #0b57d8)", color: "var(--wb-on-accent, #ffffff)" }}
+            >
+              Try again
+            </button>
+            <button type="button" onClick={onClose} className="rounded-full px-6 py-3 text-[14px] font-semibold text-gray-600">
+              Type instead
+            </button>
+          </div>
+        </div>
+      ) : (
       <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
         <button
           type="button"
@@ -271,12 +348,16 @@ export default function AssistantVoice({
             className={`absolute inset-0 rounded-full ${
               phase === "listening" ? "atlas-voice-breathe" : phase === "speaking" ? "atlas-voice-ripple" : phase === "thinking" ? "atlas-voice-think" : ""
             }`}
-            style={{ background: `${accent ?? "#3B82F6"}22` }}
+            style={{ background: "color-mix(in srgb, var(--wb-accent, #0b57d8) 14%, transparent)" }}
           />
           <AtlasMark size={96} accent={accent} />
           <span
-            className="absolute -bottom-1 right-2 flex h-11 w-11 items-center justify-center rounded-full border-2 border-white text-white shadow-md"
-            style={{ background: phase === "idle" ? "#6b7280" : accent ?? "#3B82F6" }}
+            className="absolute -bottom-1 right-2 flex h-11 w-11 items-center justify-center rounded-full border-2 border-white shadow-md"
+            style={
+              phase === "idle"
+                ? { background: "#6b7280", color: "#ffffff" }
+                : { background: "var(--wb-accent, #0b57d8)", color: "var(--wb-on-accent, #ffffff)" }
+            }
           >
             {phase === "listening" ? <Mic size={20} /> : phase === "speaking" ? <Square size={16} /> : phase === "idle" ? <MicOff size={20} /> : <Mic size={20} className="opacity-50" />}
           </span>
@@ -291,10 +372,11 @@ export default function AssistantVoice({
           </p>
         )}
       </div>
+      )}
 
       <p className="px-6 pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-[11px] text-gray-400">
         {inputKind === "recorder"
-          ? "Tap the mic, speak, tap again when you're done."
+          ? `Speak, then pause — Atlas answers when you stop talking. Say "stop" when you're finished.`
           : `Say "stop" when you're finished. Money and permanent changes still need a tap in the chat.`}
       </p>
     </div>

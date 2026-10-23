@@ -176,6 +176,7 @@ export async function POST(req: NextRequest) {
       body: {
         reply: result.reply,
         proposals: result.proposals,
+        ...(result.recap ? { recap: result.recap } : {}),
         ...(result.nextStep ? { nextStep: result.nextStep } : {}),
         ...(result.navigate ? { navigate: result.navigate } : {}),
         access: accessAfter(access!, debit),

@@ -1,3 +1,4 @@
+import { RATE_CARD, RATE_ACH, FEE_CARD_PCT } from "../plan-copy";
 import type { HelpSection } from "../types";
 import { PRO_CHIP, proTip } from "../plan-copy";
 
@@ -169,7 +170,7 @@ export const paymentsSection: HelpSection = {
         {
           type: "list",
           items: [
-            "Payments run through your own **Square** account. Square's processing fee comes out on Square's side before the money reaches your bank, so the fee WorkBench shows is an estimate; your Square dashboard has the exact amount on each payment.",
+            `Card payments cost **${RATE_CARD}** and bank payments **${RATE_ACH}** when you pay the fee yourself. Or pass the card fee on as a service fee the client pays at checkout (see [Add a card service fee](/help/card-surcharging)). Fees come out on Square's side before the money reaches your bank, so the fee WorkBench shows is an estimate; your Square dashboard has the exact amount on each payment.`,
             "Bank (ACH) payments show as **Processing** for a few business days. They can still bounce during that time, and if one does it's taken back off the invoice.",
             "Clients can also save cards and pick a default for autopay in their client portal.",
           ],
@@ -385,9 +386,9 @@ export const paymentsSection: HelpSection = {
     },
     {
       slug: "card-surcharging",
-      title: "Add a card surcharge",
-      summary: "Pass card fees on to clients who pay by card.",
-      keywords: ["surcharge", "convenience fee", "card fee", "pass fees"],
+      title: "Add a card service fee (surcharge)",
+      summary: "Pass the card fee on to clients who pay by card, and receive the full invoice amount.",
+      keywords: ["surcharge", "service fee", "convenience fee", "card fee", "pass fees"],
       where: { label: "Payments settings", href: "/app/settings" },
       roles: "Owners and admins",
       blocks: [
@@ -395,7 +396,7 @@ export const paymentsSection: HelpSection = {
           type: "steps",
           items: [
             "Go to **Settings → Payments & accounting**.",
-            "Turn on **Enable surcharging** and set the **Surcharge rate** (0–10%).",
+            `Turn on **Enable surcharging** and set the **Surcharge rate** (0–10%). The standard service fee is **${FEE_CARD_PCT}**, which is what a new account starts with.`,
             "Save. Clients who pay by card see the surcharge and a note that paying by bank avoids it.",
           ],
         },
