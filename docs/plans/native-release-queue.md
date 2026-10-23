@@ -61,7 +61,7 @@ replying to Apple's approval email (see § David — consoles, step 1).
       `processor`). Tap to Pay needs the processor to be Square in
       production, so chase the Square payments contact if that is still
       pending — it gates Tap to Pay as much as Apple does.
-- [x] **Android bundle BUILT 2026-10-23** on David's PC from d051f79f (cap sync + gradlew bundleRelease, signed with the upload key, versionCode 6 / 1.4; Square SDK + TapToPayPlugin + app id verified inside the AAB): `~/Downloads/workbench-android-vc6-tap-to-pay.aab`. David uploads it to the Play internal testing track, installs it, then flips the Railway flag below himself (Claude's CLI write was blocked by permissions). Old shells without the plugin render nothing, so the flag is safe to set before everyone updates.
+- [x] **Android bundle BUILT 2026-10-23** on David's PC from d051f79f (cap sync + gradlew bundleRelease, signed with the upload key, versionCode 6 / 1.4; Square SDK + TapToPayPlugin + app id verified inside the AAB): `~/Downloads/workbench-android-vc6-tap-to-pay.aab`. **HELD** — ships with iOS build 14 (David 2026-10-23), see § Google Play below. When that day comes: upload to internal testing, install, then David sets the Railway flag (Claude's CLI write was blocked by permissions). Old shells without the plugin render nothing, so the flag is safe to set before everyone updates.
 - [ ] ~~Android does not need Apple at all.~~ Once the signature and the
       application id are in: on this PC, `npx cap sync android` (revert
       `capacitor.settings.gradle` if run from a worktree), `cd android &&
