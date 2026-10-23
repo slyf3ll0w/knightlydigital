@@ -462,7 +462,10 @@ final class VoipEngine: NSObject {
                 if attempt < 2 {
                     r.readyPosted = false
                     self.calls[callId] = r
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { self.postReady(callId, attempt: attempt + 1) }
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 1_500_000_000)
+                        self.postReady(callId, attempt: attempt + 1)
+                    }
                 }
             }
         }
