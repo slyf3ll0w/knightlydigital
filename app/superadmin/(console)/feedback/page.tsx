@@ -22,5 +22,7 @@ export default async function SuperadminFeedbackPage() {
     },
   });
 
-  return <FeedbackClient tickets={JSON.parse(JSON.stringify(tickets))} />;
+  // The raw capture JSON is for scripts/ticket.mts, not the page — the
+  // rendered text in `details` already says everything a reviewer needs.
+  return <FeedbackClient tickets={JSON.parse(JSON.stringify(tickets.map((t) => ({ ...t, capture: undefined }))))} />;
 }

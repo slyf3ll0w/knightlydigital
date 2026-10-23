@@ -40,6 +40,9 @@ async function upsertCompany(slug: string, name: string, extras: Record<string, 
     email: null,
     timezone: "America/Chicago",
     paymentsWaived: true,
+    // A test account: out of the console's live totals, and it gets the
+    // tester-only surfaces ("Suggest a change") so the suite can drive them.
+    isTest: true,
     ...extras,
   };
   const company = existing
