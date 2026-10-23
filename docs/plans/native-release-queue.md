@@ -23,6 +23,42 @@ holding it to the back of the phone. Design + decisions:
 Expect the development grant first; the distribution one comes from
 replying to Apple's approval email (see § David — consoles, step 1).
 
+### Sandbox test build (Android, 2026-10-23) — try Tap to Pay before Square activates production
+
+David: "I'd like to see a sandbox test build so it's ready to go when we get
+production live." A DEBUG build of the same tree, pointed at staging, with
+Square's sandbox and its Mock Reader:
+
+- `android/app/src/debug/res/values/square.xml` overrides
+  `square_application_id` with the SANDBOX id (public; the same one staging's
+  pay page uses). The plugin refuses a production token in this build.
+- `debugImplementation com.squareup.sdk:mockreader-ui:2.6.1` — Square's
+  floating mock reader. `TapToPayPlugin` shows it by reflection after a
+  sandbox authorize (and on status() when already authorized), hides it on
+  deauthorize, and reports `capable` in the sandbox even without NFC. Release
+  builds do not ship the class, so nothing changes there.
+- `capacitor.config.ts` reads `WB_SHELL_URL` at sync time (unset = production).
+- Build (this PC, worktree-safe):
+  `WB_SHELL_URL=https://streamflaire-staging.up.railway.app npx cap sync android`
+  → `cd android && gradlew assembleDebug` → `app/build/outputs/apk/debug/app-debug.apk`
+  → then `npx cap sync android` again (no env) so the gitignored
+  `assets/capacitor.config.json` points back at production, and revert
+  `android/capacitor.settings.gradle` + `android/app/capacitor.build.gradle`.
+  Built 2026-10-23: `~/Downloads/workbench-android-SANDBOX-tap-to-pay.apk`
+  (debug-signed, same package id → uninstall the Play build first; reinstall
+  it from Play afterwards).
+- Staging side: `TAP_TO_PAY=1` on the staging service (David sets it), log in
+  on the phone as the owner of **Brightwire Electric** (`e@e.com`, the staging
+  company already connected to David's sandbox test seller), Settings →
+  Online Payments → **Reconnect Square** once from a desktop browser with the
+  sandbox seller dashboard open in another tab (the grant needs the in-person
+  scope), then Settings → Online Payments on the phone → Set up, and Tap to
+  Pay on any invoice: Square's prompt opens, tap the floating mock reader →
+  connect a contactless reader → tap → Payment details → approved. The
+  invoice is marked paid through the same server route production will use.
+- When production is live: the Play build (release, production id, no mock
+  reader) is the one to upload; nothing in this section ships to the store.
+
 ### While you wait for Apple — in this order, nothing here needs the entitlement
 
 - [x] **Try the quick charge on staging** — DONE 2026-10-23 by Claude: e2e/specs/quick-charge.spec.ts (API + form + pay page) passes against staging.

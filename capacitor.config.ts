@@ -6,6 +6,12 @@ import type { CapacitorConfig } from '@capacitor/cli';
  * with no store re-review. native-shell/ holds only the offline error page —
  * the app itself is never bundled.
  */
+// WB_SHELL_URL at `cap sync` time points a TEST build at another origin (the
+// staging site for the Tap to Pay sandbox build); unset = production. The
+// synced value lands in the gitignored assets/capacitor.config.json only.
+const origin = (process.env.WB_SHELL_URL || 'https://workbenchfsm.com').replace(/\/$/, '');
+const host = new URL(origin).host;
+
 const config: CapacitorConfig = {
   appId: 'com.streamflaire.hub',
   appName: 'WorkBench',
@@ -13,10 +19,10 @@ const config: CapacitorConfig = {
   server: {
     // /app/dashboard so the shell opens into the product, not the marketing
     // home; middleware redirects to /app/login when unauthenticated
-    url: 'https://workbenchfsm.com/app/dashboard',
+    url: `${origin}/app/dashboard`,
     // Required because url has a path: Capacitor otherwise treats any other
     // path (e.g. the 307 → /app/login) as external and throws it to Safari
-    allowNavigation: ['workbenchfsm.com'],
+    allowNavigation: [host],
     // Shown instead of the default webview error page when the site is unreachable
     errorPath: 'error.html',
   },

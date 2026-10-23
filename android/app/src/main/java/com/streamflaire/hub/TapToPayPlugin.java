@@ -83,6 +83,33 @@ public class TapToPayPlugin extends Plugin {
         }
     }
 
+    /**
+     * Sandbox test builds only (debug: mockreader-ui is a debugImplementation):
+     * Square's floating Mock Reader button, which simulates a contactless reader
+     * and lets the tester pick tap / approve / decline — the sandbox has no real
+     * readers and never moves money. Reached by reflection so release builds,
+     * which do not ship the class, compile and never show it; and only ever in
+     * the sandbox environment, per Square's rule.
+     */
+    private static volatile boolean mockReaderShown = false;
+
+    private void mockReader(boolean show) {
+        if (!"sandbox".equals(environmentName())) return;
+        if (show == mockReaderShown) return;
+        try {
+            Class<?> ui = Class.forName("com.squareup.sdk.mobilepayments.mockreader.ui.MockReaderUI");
+            java.lang.reflect.Method m = ui.getMethod(show ? "show" : "hide");
+            android.app.Activity activity = getActivity();
+            Runnable r = () -> { try { m.invoke(null); } catch (Throwable ignored) {} };
+            if (activity != null) activity.runOnUiThread(r); else r.run();
+            mockReaderShown = show;
+        } catch (ClassNotFoundException notDebugBuild) {
+            // release build: no mock reader, nothing to do
+        } catch (Throwable t) {
+            android.util.Log.w("TapToPay", "Mock reader UI", t);
+        }
+    }
+
     private static boolean isAuthorized() {
         AuthorizationState state = MobilePaymentsSdk.authorizationManager().getAuthorizationState();
         return state != null && state.isAuthorized();
@@ -100,6 +127,7 @@ public class TapToPayPlugin extends Plugin {
     /** Tap to Pay needs NFC and Android 9+; the SDK pairs the phone as a reader by itself. */
     private boolean deviceCapable() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return false;
+        if ("sandbox".equals(environmentName())) return true; // mock reader, no NFC needed
         PackageManager pm = getContext().getPackageManager();
         return pm.hasSystemFeature(PackageManager.FEATURE_NFC);
     }
@@ -119,6 +147,7 @@ public class TapToPayPlugin extends Plugin {
             return;
         }
         boolean authorized = isAuthorized();
+        if (authorized) mockReader(true);
         String locationId = authorized ? authorizedLocationId() : null;
         r.put("configured", true);
         r.put("capable", deviceCapable());
@@ -175,6 +204,7 @@ public class TapToPayPlugin extends Plugin {
             @Override
             public void onResult(Result<AuthorizedLocation, AuthorizeErrorCode> result) {
                 if (result.isSuccess()) {
+                    mockReader(true);
                     JSObject r = new JSObject();
                     r.put("ok", true);
                     call.resolve(r);
@@ -191,6 +221,7 @@ public class TapToPayPlugin extends Plugin {
     @PluginMethod
     public void deauthorize(PluginCall call) {
         if (configured && isAuthorized()) {
+            mockReader(false);
             MobilePaymentsSdk.authorizationManager().deauthorize();
         }
         call.resolve();

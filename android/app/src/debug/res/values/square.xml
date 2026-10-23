@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug (sandbox test) builds only: overrides the production id in
+     src/main/res/values/strings.xml with the SANDBOX application id (public;
+     the same value staging uses for the Web Payments SDK). The plugin refuses
+     a production token in this build, and Square never moves money here. -->
+<resources>
+    <string name="square_application_id">sandbox-sq0idb-xUMPL4wDkES4EWc2m923Yw</string>
+</resources>
