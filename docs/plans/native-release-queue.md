@@ -43,7 +43,13 @@ replying to Apple's approval email (see § David — consoles, step 1).
       and release → App integrity → App signing; the four known
       fingerprints are listed under § Picking this up cold). One signature
       per platform; add the other Android fingerprints too if the form
-      allows several.
+      allows several. **Format gotcha (2026-10-23):** the form rejects the
+      Play Console / keytool form ("Enter a valid SHA-256 certificate") —
+      paste the 64 hex characters with NO colons, lowercase:
+      current classical key = `1a2b78058d44c6921efc9b82552061d7cb57e49d798e6463e881bab49bcaab52`,
+      post-quantum = `54bbaa773189e158375ae0c6de6d6859e35f7fccbbcc155150cfa0383e5e7f16`,
+      previous = `001c3dc1b6703a38edc00dff8000b7f0fdc9625c9bb63e76b9ce2f6992e62f96`,
+      upload key = `dedf69374c20a2fa9e68b63636835859a595eb9df0ae70f5c4957aebd771c6fd`.
 - [x] **Production `SQUARE_APPLICATION_ID` written into both shells** 2026-10-23 (taken from Railway production; commit "Tap to Pay: production Square application id in both shells").
       public value Railway holds) so it can be written into
       `ios/App/App/Info.plist` → `SquareApplicationID` and
