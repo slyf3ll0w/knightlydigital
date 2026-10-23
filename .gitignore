@@ -9,3 +9,6 @@ e2e/.env.e2e
 e2e/.state.json
 e2e/report/
 e2e/artifacts/
+
+# scripts/ticket.mts output (pulled feedback tickets + pictures)
+.tickets/

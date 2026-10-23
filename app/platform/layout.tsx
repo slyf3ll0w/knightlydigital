@@ -22,6 +22,7 @@ import TeamLocationReporter from "@/components/TeamLocationReporter";
 import ArrivalNudge from "@/components/ArrivalNudge";
 import Softphone from "@/components/Softphone";
 import LineCalling from "@/components/LineCalling";
+import SuggestChange from "@/components/SuggestChange";
 import { resolveWallpaper } from "@/lib/wallpapers";
 
 export const metadata: Metadata = {
@@ -79,6 +80,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             addonActiveAt: true,
             lineVoiceAppAt: true,
             lineNumber: true,
+            isTest: true,
           },
         })
       : null,
@@ -167,7 +169,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       {(softphone || ringsForSibling) && <Softphone />}
       {/* Every Call button dials from the line under the same conditions (components/CallLink.tsx). */}
       <LineCalling enabled={softphone} />
+      {/* "Suggest a change" — tap anything, say what to change; test accounts only for now */}
+      {company?.isTest && <SuggestChange />}
       <AppShell
+        suggestChanges={Boolean(company?.isTest)}
         userName={user?.name ?? session.user.name}
         userEmail={session.user.email}
         role={user?.role ?? session.user.role}
