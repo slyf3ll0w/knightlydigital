@@ -35,7 +35,7 @@ export const clientsSection: HelpSection = {
         },
         {
           type: "tip",
-          text: "Need to track something WorkBench doesn't have a field for, like a gate code or pet name? Add it under Settings → Client custom fields and it appears on every client. Or ask Atlas: \"add a Gate code field and set the Hendersons' to 4471\", or \"set every active client's Tier to Silver\" (one card to confirm).",
+          text: "Need to track something WorkBench doesn't have a field for, like a gate code or pet name? Add it under Settings → Client custom fields and it appears on every client; the same page lets you rename a field, change its type or choices, reorder, and archive it (saved values are kept). Or ask Atlas: \"add a Gate code field and set the Hendersons' to 4471\", or \"set every active client's Tier to Silver\" (one card to confirm).",
         },
       ],
     },

@@ -80,7 +80,7 @@ export const quotesSection: HelpSection = {
         {
           type: "list",
           items: [
-            "**Approve** it by typing their full name under **Sign by typing your full name** and pressing `Approve quote`.",
+            "**Approve** it by typing their full name under **Sign by typing your full name** and pressing `Approve` (the button shows the total). The quote is stamped **Approved** right on the page, with what happens next.",
             "**Request changes** with a note. The quote moves to **Changes Requested** and you're notified. Edit it and send it again.",
             "Untick any optional items before approving.",
           ],

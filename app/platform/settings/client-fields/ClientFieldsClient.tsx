@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { inputClsAuto } from "@/components/Input";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, ListPlus, Loader2, Plus, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ListPlus, Loader2, Pencil, Plus, X } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import SectionHeader from "@/components/SectionHeader";
 import BackLink from "@/components/BackLink";
@@ -43,6 +43,11 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
   const [type, setType] = useState("TEXT");
   const [optionsText, setOptionsText] = useState("");
   const [required, setRequired] = useState(false);
+  // Inline edit of an existing field (name, type, choices, required) — the
+  // row turns into the same form the Add card uses. 2026-10-22: there was
+  // no way to change a field once made (David).
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [edit, setEdit] = useState({ label: "", type: "TEXT", optionsText: "", required: false });
 
   const active = defs.filter((d) => d.isActive);
   const archived = defs.filter((d) => !d.isActive);
@@ -77,6 +82,32 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
       setRequired(false);
       setShowAdd(false);
     }
+  }
+
+  function startEdit(def: Def) {
+    setError("");
+    setShowAdd(false);
+    setEditingId(def.id);
+    setEdit({ label: def.label, type: def.type, optionsText: def.options.join("\n"), required: def.required });
+  }
+
+  async function saveEdit(def: Def) {
+    const options = edit.optionsText.split("\n").map((o) => o.trim()).filter(Boolean);
+    if (edit.type === "SELECT" && options.length < 2) {
+      setError("A dropdown needs at least two choices.");
+      return;
+    }
+    const ok = await call(
+      `/api/app/contact-fields/${def.id}`,
+      {
+        label: edit.label,
+        type: edit.type,
+        required: edit.required,
+        options: edit.type === "SELECT" ? options : [],
+      },
+      "PATCH"
+    );
+    if (ok) setEditingId(null);
   }
 
   async function move(def: Def, dir: -1 | 1) {
@@ -209,7 +240,73 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
             body="Add one to start tailoring client records to your business."
           />
         )}
-        {active.map((d, i) => (
+        {active.map((d, i) =>
+          editingId === d.id ? (
+            <div key={d.id} className="space-y-3 px-4 py-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs text-gray-500">Field name *</label>
+                  <input
+                    value={edit.label}
+                    onChange={(e) => setEdit((s) => ({ ...s, label: e.target.value }))}
+                    className={`${inputClsAuto} w-full`}
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-gray-500">Type</label>
+                  <select
+                    value={edit.type}
+                    onChange={(e) => setEdit((s) => ({ ...s, type: e.target.value }))}
+                    className={`${inputClsAuto} w-full`}
+                  >
+                    {Object.entries(TYPE_LABELS).map(([k, v]) => (
+                      <option key={k} value={k}>
+                        {v}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              {edit.type === "SELECT" && (
+                <div>
+                  <label className="mb-1 block text-xs text-gray-500">Choices (one per line)</label>
+                  <textarea
+                    value={edit.optionsText}
+                    onChange={(e) => setEdit((s) => ({ ...s, optionsText: e.target.value }))}
+                    rows={3}
+                    className={`${inputClsAuto} w-full`}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Renaming or removing a choice hides that value on clients who had it until it is picked again.
+                  </p>
+                </div>
+              )}
+              {edit.type !== d.type && (
+                <p className="text-xs text-gray-500">
+                  Changing the type keeps every saved value; a value that doesn&apos;t fit the new type is hidden until it&apos;s re-entered.
+                </p>
+              )}
+              <label className="flex select-none items-center gap-1.5 text-xs text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={edit.required}
+                  onChange={(e) => setEdit((s) => ({ ...s, required: e.target.checked }))}
+                  className="h-3.5 w-3.5 rounded border-gray-300 text-[color:var(--ds-primary)] focus:ring-[color:var(--ds-primary)]"
+                />
+                Required when adding a client
+              </label>
+              <div className="flex gap-2">
+                <button onClick={() => saveEdit(d)} disabled={busy || !edit.label.trim()} className="btn-primary">
+                  {busy && <Loader2 size={13} className="animate-spin" />}
+                  Save changes
+                </button>
+                <button onClick={() => setEditingId(null)} className="rounded-lg px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
           <div key={d.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
             <div className="flex flex-col gap-0.5">
               <button
@@ -240,6 +337,14 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
               </p>
             </div>
             <button
+              onClick={() => startEdit(d)}
+              disabled={busy}
+              className="flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-medium text-[color:var(--ds-primary)] hover:bg-[color:var(--ds-primary-soft)]"
+            >
+              <Pencil size={12} />
+              Edit
+            </button>
+            <button
               onClick={() => call(`/api/app/contact-fields/${d.id}`, { required: !d.required }, "PATCH")}
               disabled={busy}
               className="px-2.5 py-1.5 rounded-full text-xs font-medium text-gray-600 hover:bg-gray-100"
@@ -254,7 +359,8 @@ export default function ClientFieldsClient({ defs }: { defs: Def[] }) {
               Archive
             </button>
           </div>
-        ))}
+          )
+        )}
       </div>
 
       {archived.length > 0 && (
