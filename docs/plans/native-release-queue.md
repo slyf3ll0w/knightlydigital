@@ -362,6 +362,20 @@ rejects reuse, even of a version that was only ever in a discarded draft;
 
 ## Google Play — waiting for the next build (versionCode 6)
 
+**Tap to Pay (Square Mobile Payments SDK) — HELD to ship together with iOS
+build 14 (David 2026-10-23: "it is behind Apple so I want to do it all at the
+same time").** The tree is ready (see the Tap to Pay section above): plugin, SDK,
+minSdk 28, production app id in strings.xml, Square signatures registered.
+A signed vc6 AAB from d051f79f sits at
+`~/Downloads/workbench-android-vc6-tap-to-pay.aab`; if anything else lands in
+`android/**` before the upload, rebuild (`npx cap sync android`, revert the two
+generated gradle files in a worktree, `cd android && gradlew bundleRelease`);
+versionCode stays 6 until something is actually uploaded. Upload to internal
+testing the same day as the TestFlight build, then `TAP_TO_PAY=1` on Railway
+production (David sets it), reconnect Square, recipes 7–14. Real cards need
+Square PRODUCTION credentials activated on David's account — the sandbox never
+moves money and has no physical readers (Mock Reader UI only).
+
 Shipped in versionCode 5 (2026-09-25), so no longer waiting: the WorkBench
 launcher icon + splash, the "WorkBench" home-screen label, native Google
 sign-in (`@capgo/capacitor-social-login`), `RECORD_AUDIO` +
