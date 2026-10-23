@@ -44,7 +44,7 @@ assert.deepEqual(
     "manage_client_fields", "manage_estimator", "manage_lead_webhook", "manage_person", "manage_pipeline_stage", "manage_recurring_expense",
     "manage_saved_card", "manage_sticky_notes", "manage_subscription", "manage_task", "manage_time_block", "manage_time_entry", "move_lead", "optimize_route", "place_call",
     "post_team_message", "query_records", "queue_next_step", "quickbooks", "read_team_chat", "record_job_signoff", "record_payment",
-    "refund_payment", "reply_in_portal", "report", "request_ability", "request_review", "respond_to_booking", "run_estimator",
+    "refund_payment", "reply_in_portal", "report", "request_ability", "request_payment", "request_review", "respond_to_booking", "run_estimator",
     "run_recurring_billing", "schedule_appointment", "search_clients", "send_agreement", "send_on_my_way", "send_payout",
     "send_portal_invite", "set_business_hours", "set_client_status", "team_map", "undo_import", "update_agreement",
     "update_agreement_template", "update_appointment", "update_checklist_item", "update_client", "update_client_note", "update_company_settings",
