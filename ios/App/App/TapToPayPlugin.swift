@@ -3,6 +3,9 @@ import UIKit
 import Capacitor
 import CoreLocation
 import SquareMobilePaymentsSDK
+#if DEBUG
+import MockReaderUI
+#endif
 
 /**
  * WorkBenchTapToPay — Square's Mobile Payments SDK in the iPhone app, so a
@@ -54,6 +57,34 @@ public class TapToPayPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
     private var locationWaiters: [(Bool) -> Void] = []
     private var activePayment: PaymentHandle?
     private var paymentDelegate: PaymentDelegateBox?
+#if DEBUG
+    /// Sandbox test builds: Square's floating mock reader (the sandbox has no real
+    /// readers and never moves money). Shown after a sandbox authorize, hidden on
+    /// deauthorize. MockReaderUI is linked for every configuration (SPM has no
+    /// per-configuration products) but only Debug imports and uses it, and only
+    /// in the sandbox environment, per Square's rule.
+    private var mockReaderUI: MockReaderUI?
+#endif
+
+    private var isSandbox: Bool {
+        if case .production = sdk.settingsManager.sdkSettings.environment { return false }
+        return true
+    }
+
+    private func mockReader(show: Bool) {
+#if DEBUG
+        guard isSandbox else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            if show {
+                if self.mockReaderUI == nil { self.mockReaderUI = try? MockReaderUI(for: self.sdk) }
+                try? self.mockReaderUI?.present()
+            } else {
+                self.mockReaderUI?.dismiss()
+            }
+        }
+#endif
+    }
 
     public override func load() {
         locationManager.delegate = self
@@ -80,6 +111,16 @@ public class TapToPayPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
             }
         }()
         let settings = sdk.readerManager.tapToPaySettings
+        // Sandbox test build: the mock reader stands in for the phone's NFC and
+        // Apple's Tap to Pay terms, so neither gate applies.
+        if isSandbox {
+            if authorized { mockReader(show: true) }
+            call.resolve([
+                "platform": "ios", "configured": true, "capable": true, "authorized": authorized,
+                "locationId": locationId ?? NSNull(), "appleLinked": true, "environment": environment,
+            ])
+            return
+        }
         let capable = settings.isDeviceCapable
         // Only ask about the Apple ID once the seller is authorized; the
         // SDK answers false (not an error) before that.
@@ -149,6 +190,7 @@ public class TapToPayPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
             if let error = error {
                 call.reject(error.localizedDescription, "NOT_AUTHORIZED", error)
             } else {
+                self.mockReader(show: true)
                 call.resolve(["ok": true])
             }
         }
@@ -159,6 +201,7 @@ public class TapToPayPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
             call.resolve()
             return
         }
+        mockReader(show: false)
         sdk.authorizationManager.deauthorize { call.resolve() }
     }
 
@@ -166,6 +209,7 @@ public class TapToPayPlugin: CAPPlugin, CAPBridgedPlugin, CLLocationManagerDeleg
 
     @objc func linkAppleAccount(_ call: CAPPluginCall) {
         guard TapToPayPlugin.configured else { return call.reject("Tap to Pay is not configured in this build", "SDK_NOT_CONFIGURED") }
+        if isSandbox { return call.resolve(["linked": true]) } // mock reader: no Apple terms sheet
         let settings = sdk.readerManager.tapToPaySettings
         settings.isAppleAccountLinked { linked, _ in
             if linked {
