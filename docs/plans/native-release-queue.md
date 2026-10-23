@@ -43,7 +43,13 @@ replying to Apple's approval email (see § David — consoles, step 1).
       and release → App integrity → App signing; the four known
       fingerprints are listed under § Picking this up cold). One signature
       per platform; add the other Android fingerprints too if the form
-      allows several.
+      allows several. **Format gotcha (2026-10-23):** the form rejects the
+      Play Console / keytool form ("Enter a valid SHA-256 certificate") —
+      paste the 64 hex characters with NO colons, lowercase:
+      current classical key = `1a2b78058d44c6921efc9b82552061d7cb57e49d798e6463e881bab49bcaab52`,
+      post-quantum = `54bbaa773189e158375ae0c6de6d6859e35f7fccbbcc155150cfa0383e5e7f16`,
+      previous = `001c3dc1b6703a38edc00dff8000b7f0fdc9625c9bb63e76b9ce2f6992e62f96`,
+      upload key = `dedf69374c20a2fa9e68b63636835859a595eb9df0ae70f5c4957aebd771c6fd`.
 - [x] **Production `SQUARE_APPLICATION_ID` written into both shells** 2026-10-23 (taken from Railway production; commit "Tap to Pay: production Square application id in both shells").
       public value Railway holds) so it can be written into
       `ios/App/App/Info.plist` → `SquareApplicationID` and
@@ -55,7 +61,8 @@ replying to Apple's approval email (see § David — consoles, step 1).
       `processor`). Tap to Pay needs the processor to be Square in
       production, so chase the Square payments contact if that is still
       pending — it gates Tap to Pay as much as Apple does.
-- [ ] **Android does not need Apple at all.** Once the signature and the
+- [x] **Android bundle BUILT 2026-10-23** on David's PC from d051f79f (cap sync + gradlew bundleRelease, signed with the upload key, versionCode 6 / 1.4; Square SDK + TapToPayPlugin + app id verified inside the AAB): `~/Downloads/workbench-android-vc6-tap-to-pay.aab`. David uploads it to the Play internal testing track, installs it, then flips the Railway flag below himself (Claude's CLI write was blocked by permissions). Old shells without the plugin render nothing, so the flag is safe to set before everyone updates.
+- [ ] ~~Android does not need Apple at all.~~ Once the signature and the
       application id are in: on this PC, `npx cap sync android` (revert
       `capacitor.settings.gradle` if run from a worktree), `cd android &&
       gradlew bundleRelease`, upload versionCode 6 to the Play **internal
@@ -68,7 +75,8 @@ replying to Apple's approval email (see § David — consoles, step 1).
       grant needs the new in-person permission; the Settings card says
       **Reconnect Square to turn on Tap to Pay** until you do. Every other
       connected seller sees the same prompt.
-- [ ] **When Apple's development grant arrives:** Certificates, IDs &
+- [x] **Apple entitlement APPROVED 2026-10-23**; key uncommented in App.entitlements (d051f79f). Still for David: enable Tap to Pay on iPhone on the App ID (Identifiers → com.streamflaire.hub → Additional Capabilities), reply to Apple's email for the distribution grant, Mac build 14.
+- [ ] ~~When Apple's development grant arrives:~~ Certificates, IDs &
       Profiles → Identifiers → the app → **Additional Capabilities** tab →
       enable **Tap to Pay on iPhone** → Save; uncomment the key in
       `ios/App/App/App.entitlements`; Mac session per § Mac below. Then
