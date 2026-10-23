@@ -43,9 +43,19 @@ test.describe("suggest a change", () => {
       await expect(h1).toBeVisible();
 
       // The More sheet / user menu fire this event; drive it directly so the
-      // test is about the picker, not the menus.
-      await page.evaluate(() => window.dispatchEvent(new Event("wb:suggest-change")));
-      await expect(page.getByText(/what you want changed/)).toBeVisible();
+      // test is about the picker, not the menus. The listener exists only
+      // once the layout has hydrated (the menus can't be tapped before that
+      // either), so fire until the banner answers.
+      const banner = page.getByText(/what you want changed/);
+      await expect
+        .poll(
+          async () => {
+            await page.evaluate(() => window.dispatchEvent(new Event("wb:suggest-change")));
+            return banner.isVisible();
+          },
+          { timeout: 30_000, intervals: [500, 1000] }
+        )
+        .toBe(true);
 
       // In pick mode a press is a pick, nothing else fires
       await h1.click();
@@ -68,13 +78,16 @@ test.describe("suggest a change", () => {
       expect(ticket).not.toBeNull();
       try {
         expect(ticket!.type).toBe("SUGGESTION");
-        expect(ticket!.title).toMatch(/^Change: E2E .* — h1 /);
+        // The pick is the exact element under the pointer — the h1 itself,
+        // or the greeting span inside it on narrower layouts.
+        expect(ticket!.title).toMatch(/^Change: E2E .* — (h1|span) /);
         expect(ticket!.details).toContain(`WHAT TO CHANGE (How it works)\n${note}`);
         expect(ticket!.details).toContain("page: /app/dashboard");
         expect(ticket!.details).toContain(`viewport: ${viewport.width}×${viewport.height}`);
-        expect(ticket!.details).toContain("ELEMENT\n<h1");
-        const capture = ticket!.capture as { target?: { tag?: string }; shot?: string; page?: { url?: string } } | null;
-        expect(capture?.target?.tag).toBe("h1");
+        expect(ticket!.details).toMatch(/ELEMENT\n<(h1|span)/);
+        const capture = ticket!.capture as { target?: { tag?: string; path?: string }; shot?: string; page?: { url?: string } } | null;
+        expect(["h1", "span"]).toContain(capture?.target?.tag);
+        expect(capture?.target?.path).toMatch(/h1/);
         expect(capture?.page?.url).toContain("/app/dashboard");
 
         // The picture: present whenever the deployment has R2, and the
