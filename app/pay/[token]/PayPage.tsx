@@ -273,7 +273,7 @@ export default function PayPage({
       <Sheet>
         <Letterhead
           company={company}
-          docType={invoice.kind === "DEPOSIT" ? "Deposit invoice" : "Invoice"}
+          docType={invoice.kind === "DEPOSIT" ? "Deposit invoice" : invoice.kind === "QUICK_CHARGE" ? "Payment request" : "Invoice"}
           docNumber={invoice.invoiceNumber}
           meta={[shortDate(invoice.issuedAt ?? invoice.createdAt), invoice.dueDate && !isPaid ? `Due ${shortDate(invoice.dueDate)}` : null]}
         />

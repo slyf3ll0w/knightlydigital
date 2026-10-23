@@ -2619,6 +2619,7 @@ enum InvoiceStatus {
 enum InvoiceKind {
   STANDARD
   DEPOSIT
+  QUICK_CHARGE // a payment request: one amount, one line, no editor (docs/plans/checkout-tap-to-pay-2026-10-22.md)
 }
 
 model Invoice {

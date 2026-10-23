@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Inbox, CalendarClock, FileText, FileSignature, Briefcase, Receipt, DollarSign } from "lucide-react";
+import { Plus, Inbox, CalendarClock, FileText, FileSignature, Briefcase, Receipt, DollarSign, HandCoins } from "lucide-react";
 import MenuPopover from "@/components/MenuPopover";
 
 /**
@@ -32,6 +32,7 @@ export default function ContactCreateMenu({ contactId, canSeeMoney }: { contactI
     ...(canSeeMoney
       ? [
           { href: `/app/invoices/new?contactId=${contactId}`, label: "Invoice", icon: Receipt },
+          { href: `/app/invoices/request?contactId=${contactId}`, label: "Request payment", icon: HandCoins },
           { href: `/app/payments/new?contactId=${contactId}`, label: "Payment", icon: DollarSign },
         ]
       : []),
