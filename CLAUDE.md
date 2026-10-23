@@ -1021,6 +1021,14 @@ AI_MODEL_ASSISTANT=            # optional override, e.g. claude-sonnet-5-5
 COST_AI_IN_PER_M_CENTS=        # Haiku 5.5: 10 (Gemini 2.5 Flash default 30)
 COST_AI_OUT_PER_M_CENTS=       # Haiku 5.5: 50 (default 250)
 COST_AI_CACHED_PER_M_CENTS=    # Haiku 5.5: 1 (default 7.5)
+# Live voice (Talk to Atlas): Gemini Live carries the conversation (speech in
+# and out over one socket, tools run on our server through
+# /api/app/assistant/live/tool), minted per session by /live/token.
+AI_MODEL_LIVE=                 # default gemini-3.8-live
+ATLAS_VOICE=                   # prebuilt voice name, default Achird
+LIVE_AUDIO_IN_CENTS_PER_MIN=   # metering into Atlas tokens; defaults 0.5 in / 1.8 out (Gemini's list prices)
+LIVE_AUDIO_OUT_CENTS_PER_MIN=
+AI_MODEL_ASSISTANT_VOICE=      # the fallback turn-based voice engine's model (default = AI_MODEL_ASSISTANT)
 ```
 
 ## Job crew + titles (`lib/job-crew.ts`)

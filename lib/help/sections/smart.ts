@@ -168,7 +168,7 @@ export const atlasSection: HelpSection = {
       blocks: [
         {
           type: "p",
-          text: "You don't have to type to Atlas. With the message box empty, the send button is a **microphone**. Tap it once and you're in a conversation: speak normally, Atlas answers out loud, then listens again on its own until you say **\"stop\"** or tap **Done**. Everything you say and everything Atlas does still lands in the chat underneath, cards included.",
+          text: "You don't have to type to Atlas. With the message box empty, the send button is a **microphone**. Tap it once and you're in a live conversation: talk the way you would to a person, Atlas answers within a beat, and you can talk over it to interrupt. Tap **Done** when you're finished. Everything you say and everything Atlas does still lands in the chat underneath, cards included.",
         },
         {
           type: "steps",
@@ -176,15 +176,15 @@ export const atlasSection: HelpSection = {
             "Open Atlas and tap the **microphone** (the send button when nothing is typed). Allow the microphone the first time.",
             "Say what you need, the way you'd say it to a person: \"who called this morning?\", \"quote the Hendersons four fifty for the spring cleanup and send it\", \"remind me to call Maria Friday at two\".",
             "When Atlas lines up a change, it tells you and asks. Say **\"yes\"** to confirm or **\"no\"** to leave it. Changes that move money or can't be undone always wait for a tap in the chat.",
-            "Tap the mark while Atlas is talking to interrupt it. Say **\"stop\"** or tap **Done** when you're finished.",
+            "Talk over Atlas, or tap the mark, to interrupt it. **Mute** at the top pauses the mic; tap **Done** when you're finished.",
           ],
         },
         {
           type: "list",
           items: [
-            "**Natural voice** uses a few Atlas tokens per reply. Tap the pill at the top to switch to your device's own voice, which is free.",
-            "If the mic goes quiet for a while, Atlas stops listening; tap the mic to start again.",
-            "In the iPhone and Android apps the mic records, then sends: tap once to start, once more when you're done.",
+            "A conversation uses a few Atlas tokens per minute of talk.",
+            "A session runs up to fifteen minutes, then Atlas asks you to tap the mic to start a fresh one.",
+            "If the live connection can't start, Atlas falls back to taking turns: speak, pause, hear the answer.",
           ],
         },
         {
