@@ -3257,6 +3257,14 @@ model SquareConnection {
   locationName       String?
   currency           String? // location currency, "USD"
   country            String?
+  // Payout readiness (2026-10-23): does the seller's Square account hold a
+  // bank account Square can pay out to? ListBankAccounts (BANK_ACCOUNTS_READ)
+  // at connect, on Check connection and hourly until VERIFIED. VERIFIED |
+  // PENDING (verification in progress) | NONE (the "add your bank account"
+  // nudge on Home + Settings) | UNKNOWN (grant predates the scope). null =
+  // never checked.
+  payoutStatus       String?
+  payoutCheckedAt    DateTime?
   // Last successful token issue/refresh; the sweep keys off this
   refreshedAt        DateTime  @default(now())
   lastRefreshError   String?

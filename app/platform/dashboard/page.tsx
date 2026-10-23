@@ -30,6 +30,7 @@ import { arrivalTimeLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-win
 import { startOfDayIn, startOfMonthIn, startOfWeekIn, zonedMidnight, zonedParts } from "@/lib/timezone";
 import CountUp from "@/components/CountUp";
 import GetStartedCard from "./GetStartedCard";
+import PayoutNudge from "./PayoutNudge";
 import { loadGetStarted } from "@/lib/get-started";
 import DashboardTasks from "./DashboardTasks";
 import { dashboardTasks } from "@/lib/tasks";
@@ -132,6 +133,7 @@ export default async function DashboardPage() {
     myOpenEntry,
     newLeads,
     taskLists,
+    payoutNudge,
   ] = await Promise.all([
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEW" } }),
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEEDS_APPROVAL" } }),
@@ -231,6 +233,13 @@ export default async function DashboardPage() {
       : Promise.resolve(0),
     // My open tasks: due today join Today, overdue join Needs you
     dashboardTasks(actor, tz, now),
+    // Square connected but no bank account to pay out to (managers): the
+    // stored answer only — nothing here calls Square (PayoutNudge.tsx)
+    isManager(actor.role)
+      ? prisma.squareConnection
+          .findUnique({ where: { companyId }, select: { payoutStatus: true } })
+          .then((c) => c?.payoutStatus === "NONE")
+      : Promise.resolve(false),
   ]);
   const todayTasks = taskLists.today;
   const overdueTasks = taskLists.overdue;
@@ -735,6 +744,7 @@ export default async function DashboardPage() {
       <div className="mt-6 flex flex-col gap-7 lg:hidden">
         {/* The Get started checklist comes first on phones: it used to be the
             last thing on the page, under three $0 stats (audit 2026-10-12) */}
+        {payoutNudge && <PayoutNudge />}
         {showSetupCard && getStarted && <GetStartedCard data={getStarted} />}
         {heroEl}
 
@@ -802,6 +812,7 @@ export default async function DashboardPage() {
 
       {/* ─────────────── Desktop ─────────────── */}
       <div className="hidden lg:block">
+        {payoutNudge && <PayoutNudge className="mt-6" />}
         {showSetupCard && getStarted && (
           <div className="mt-6">
             <GetStartedCard data={getStarted} />

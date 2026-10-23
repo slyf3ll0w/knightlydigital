@@ -896,6 +896,16 @@ Built 2026-10-15 on branch `square-payments` (worktree
   (`SquareStatus.inPerson`, the Settings card says Reconnect). Store
   builds, consoles and the Apple entitlement: `docs/plans/native-release-queue.md`.
   Test: `npx tsx scripts/test-quick-charge.ts`.
+- **"Add your bank account" nudge (2026-10-23):** `SQUARE_SCOPES` includes
+  `BANK_ACCOUNTS_READ`; `refreshSquarePayoutStatus()` (lib/square-connection.ts,
+  ListBankAccounts) stores `SquareConnection.payoutStatus` VERIFIED | PENDING |
+  NONE | UNKNOWN + `payoutCheckedAt` — at connect, on Check connection, and
+  from the hourly `squareTokens` step (`runSquarePayoutSweep`, every 6 h
+  until VERIFIED). NONE = the Home card (`app/platform/dashboard/PayoutNudge.tsx`,
+  managers, no Hide) + the Settings card's "Add a bank account in Square"
+  block (deep link in `lib/square-links.ts`, "check again" = the probe).
+  UNKNOWN (grant predates the scope → 403) = no nudge. Pages read the stored
+  value only; nothing on a page load calls Square.
 
 ## Payment processor (Finix)
 
