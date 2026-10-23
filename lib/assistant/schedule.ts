@@ -212,7 +212,8 @@ export const scheduleTools: Tool[] = [
       const job = await prisma.job.findFirst({
         where: { companyId: actor.companyId, jobNumber: n ?? -1, ...jobScope(actor) },
         select: {
-          id: true, title: true,
+          id: true, title: true, outsourced: true,
+          assignments: { select: { userId: true } },
           contact: { select: { firstName: true, lastName: true, companyName: true } },
         },
       });
@@ -220,14 +221,22 @@ export const scheduleTools: Tool[] = [
       const payload: Record<string, unknown> = {};
       const lines: string[] = [];
       let whenLabel = "";
+      const fullEdit = isManager(actor.role) || actor.role === "USER";
       if (str(args.date, 10)) {
         const sched = await schedulePayload(actor.companyId, args.date, args.time, args.durationMinutes);
         if ("error" in sched) return sched;
         Object.assign(payload, sched.fields);
         whenLabel = sched.label;
         lines.push(`Reschedule to: ${whenLabel}`);
+        // A scheduled job needs somebody on it (the route refuses otherwise).
+        // Nobody assigned and no crew given → the person asking takes it,
+        // and the card says so, instead of a failed card and a second ask
+        // (2026-10-23 voice report).
+        if (fullEdit && args.crew === undefined && job.assignments.length === 0 && !job.outsourced) {
+          payload.assigneeIds = [actor.id];
+          lines.push(`Crew: ${actor.name} (nobody was assigned — change it with crew)`);
+        }
       }
-      const fullEdit = isManager(actor.role) || actor.role === "USER";
       const wantsFullEdit =
         str(args.title, 120) || str(args.description, 2000) || str(args.address, 200) ||
         args.crew !== undefined || args.lineItems !== undefined;
@@ -285,7 +294,7 @@ export const scheduleTools: Tool[] = [
       if (lines.length === 0) return { error: "Nothing to change — provide a new date, title, description, address, crew, or lineItems." };
       return stage(ctx, {
         kind: "update_job",
-        title: whenLabel && lines.length === 1
+        title: whenLabel && !wantsFullEdit
           ? `Move job #${n} (${job.title}) to ${whenLabel}`
           : `Update job #${n} (${job.title})`,
         lines: [`Client: ${clientName(job.contact)}`, ...lines],

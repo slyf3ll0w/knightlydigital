@@ -576,16 +576,38 @@ export const pipelineTools: Tool[] = [
           CHANGES_REQUESTED: "Mark changes requested",
           ARCHIVED: "Archive",
         };
-        results.push(
-          stage(ctx, {
-            kind: "update_quote",
-            title: `${labels[status]}: quote #${n} — ${money(quote.total)}`,
-            lines: [`Client: ${clientName(quote.contact)}`, `Currently: ${quote.status}`],
-            endpoint: `/api/app/quotes/${quote.id}`,
-            method: "PATCH",
-            payload: { status },
-          })
-        );
+        // The route refuses to approve a quote that was never sent. A draft
+        // the user says the client approved gets one card that does both,
+        // in order — not a failed card and a second round trip (2026-10-23
+        // voice report).
+        if (status === "APPROVED" && quote.status === "DRAFT") {
+          results.push(
+            stage(ctx, {
+              kind: "update_quote",
+              title: `Mark sent and approved: quote #${n} — ${money(quote.total)}`,
+              lines: [`Client: ${clientName(quote.contact)}`, "Currently: DRAFT", "Step 1: mark as sent", "Step 2: mark approved"],
+              endpoint: `/api/app/quotes/${quote.id}`,
+              method: "PATCH",
+              payload: { status: "APPROVED" },
+              batch: [
+                { endpoint: `/api/app/quotes/${quote.id}`, method: "PATCH", payload: { status: "AWAITING_RESPONSE" } },
+                { endpoint: `/api/app/quotes/${quote.id}`, method: "PATCH", payload: { status: "APPROVED" } },
+              ],
+              confirmLabel: "Mark sent + approved",
+            })
+          );
+        } else {
+          results.push(
+            stage(ctx, {
+              kind: "update_quote",
+              title: `${labels[status]}: quote #${n} — ${money(quote.total)}`,
+              lines: [`Client: ${clientName(quote.contact)}`, `Currently: ${quote.status}`],
+              endpoint: `/api/app/quotes/${quote.id}`,
+              method: "PATCH",
+              payload: { status },
+            })
+          );
+        }
       }
 
       if (results.length === 0) return { error: "Nothing to change — provide status or document edits." };

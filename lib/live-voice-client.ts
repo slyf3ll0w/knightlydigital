@@ -24,6 +24,8 @@ export type LiveEvents = {
   onStatus: (s: LiveStatus, detail?: string) => void;
   /** Live captions: what the user is heard saying, what Atlas is saying. */
   onCaption: (role: "user" | "atlas", text: string, final: boolean) => void;
+  /** The model's turn ended (spoken, interrupted, or silent after tools) — record the exchange now. */
+  onTurnComplete: () => void;
   /** A tool call to run on our server (or locally for confirm_cards); return the response object. */
   onToolCall: (name: string, args: Record<string, unknown>) => Promise<Record<string, unknown>>;
   onError: (message: string) => void;
@@ -362,9 +364,12 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
       | undefined;
     if (sc) {
       if (sc.interrupted) {
-        voiceLog("live: interrupted");
+        // Keep what Atlas managed to say: the exchange (and any cards it
+        // staged) must still land in the chat, or a "yes" after the
+        // interruption finds nothing to confirm (2026-10-23 report).
+        voiceLog("live: interrupted", `after “${atlasCaption.slice(0, 60)}”`);
         hush();
-        atlasCaption = "";
+        if (atlasCaption) atlasCaption = `${atlasCaption.trim()} —`;
       }
       if (sc.inputTranscription?.text) {
         userCaption += sc.inputTranscription.text;
@@ -396,23 +401,28 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
         if (atlasCaption) ev.onCaption("atlas", atlasCaption, true);
         userCaption = "";
         atlasCaption = "";
+        ev.onTurnComplete();
       }
     }
     const tc = msg.toolCall as { functionCalls?: { id: string; name: string; args?: Record<string, unknown> }[] } | undefined;
     if (tc?.functionCalls?.length) {
       ev.onStatus("working", tc.functionCalls.map((c) => c.name).join(", "));
       const tTool = Date.now();
-      const functionResponses = await Promise.all(
-        tc.functionCalls.map(async (c) => {
-          let response: Record<string, unknown>;
-          try {
-            response = await ev.onToolCall(c.name, c.args ?? {});
-          } catch (err) {
-            response = { error: (err as Error)?.message ?? "failed" };
-          }
-          return { id: c.id, name: c.name, response };
-        })
-      );
+      // In order, one at a time, with confirm/skip last: "mark it sent and
+      // approve it" stages two cards and the confirm in one batch, and the
+      // confirm must see the cards the earlier calls staged.
+      const settles = (n: string) => n === "confirm_cards" || n === "skip_cards";
+      const ordered = [...tc.functionCalls].sort((a, b) => Number(settles(a.name)) - Number(settles(b.name)));
+      const functionResponses: { id: string; name: string; response: Record<string, unknown> }[] = [];
+      for (const c of ordered) {
+        let response: Record<string, unknown>;
+        try {
+          response = await ev.onToolCall(c.name, c.args ?? {});
+        } catch (err) {
+          response = { error: (err as Error)?.message ?? "failed" };
+        }
+        functionResponses.push({ id: c.id, name: c.name, response });
+      }
       voiceLog("live: tools", `${tc.functionCalls.map((c) => c.name).join(", ")} ${Date.now() - tTool}ms`);
       send({ toolResponse: { functionResponses } });
       if (!closed && !speaking) ev.onStatus("listening");

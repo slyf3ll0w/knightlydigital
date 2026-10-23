@@ -44,6 +44,18 @@ export type RecordedExchange = { index: number; confirmOrdinary: () => Promise<v
 type Phase = "listening" | "thinking" | "speaking" | "idle" | "blocked";
 
 const NATURAL_KEY = "wb-atlas-voice-natural";
+
+/** JSON with object keys sorted, so {a,b} and {b,a} compare equal. */
+function stableJson(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stableJson).join(",")}]`;
+  if (v && typeof v === "object") {
+    return `{${Object.keys(v as Record<string, unknown>)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${stableJson((v as Record<string, unknown>)[k])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(v) ?? "null";
+}
 const ACKS = ["Let me check.", "One sec.", "Checking."];
 
 export default function AssistantVoice({
@@ -58,6 +70,7 @@ export default function AssistantVoice({
   onSkipCard,
   confirmOrdinaryPending,
   skipPending,
+  findCard,
   onClose,
   onReport,
 }: {
@@ -76,9 +89,11 @@ export default function AssistantVoice({
   onConfirmCard: (msgIdx: number, card: CardProposal) => void;
   onSkipCard: (msgIdx: number, id: string) => void;
   /** Spoken yes: confirm every ordinary card still waiting. */
-  confirmOrdinaryPending: () => Promise<{ confirmed: number; failed: number; needsTap: number }>;
+  confirmOrdinaryPending: () => Promise<{ confirmed: number; failed: number; needsTap: number; applied: string[]; failures: { title: string; why: string }[] }>;
   /** Spoken no: dismiss every card still waiting; returns how many. */
   skipPending: () => number;
+  /** A card by id, wherever it is in the chat (the duplicate guard checks its state). */
+  findCard: (id: string) => CardProposal | null;
   onClose: () => void;
   /** "Report a problem": closes voice and opens the drawer's report sheet. */
   onReport: () => void;
@@ -110,6 +125,15 @@ export default function AssistantVoice({
   confirmPendingRef.current = confirmOrdinaryPending;
   const skipPendingRef = useRef(skipPending);
   skipPendingRef.current = skipPending;
+  const findCardRef = useRef(findCard);
+  findCardRef.current = findCard;
+  // Duplicate guard: the same action with the same arguments within ten
+  // minutes returns the earlier card's state instead of staging again. The
+  // 2026-10-23 report had one request staged twelve times (and a quote
+  // created twice) because the model re-staged on every "yes".
+  const recentActions = useRef<Map<string, { at: number; ids: string[] }>>(new Map());
+  // What Atlas said last turn, flushed into the chat when the turn ends.
+  const lastAtlas = useRef("");
   // Re-render a few seconds after a card settles so it can leave the screen.
   const [, setSettleTick] = useState(0);
   useEffect(() => {
@@ -188,19 +212,33 @@ export default function AssistantVoice({
     async (toolName: string, args: Record<string, unknown>): Promise<Record<string, unknown>> => {
       if (toolName === "confirm_cards") {
         const r = await confirmPendingRef.current();
-        voiceLog("live: confirm_cards", r);
-        if (r.confirmed + r.failed + r.needsTap === 0) return { confirmed: 0, note: "No card is waiting — nothing to confirm. If the user wants something done, stage it now." };
+        voiceLog("live: confirm_cards", { confirmed: r.confirmed, failed: r.failed, needsTap: r.needsTap, failures: r.failures });
+        if (r.confirmed + r.failed + r.needsTap === 0) return { confirmed: 0, note: "No card is waiting — nothing to confirm. If the user wants something done, stage it now (once)." };
         hapticNotify(r.failed > 0 ? "ERROR" : "SUCCESS");
         return {
           confirmed: r.confirmed,
-          ...(r.failed > 0 ? { failed: r.failed, note: "Some didn't go through — the card on screen says why; offer to try again." } : {}),
-          ...(r.needsTap > 0 ? { needsTap: r.needsTap, note: "Those move money or can't be undone — the user taps the card on screen." } : {}),
+          applied: r.applied,
+          ...(r.failed > 0 ? { failed: r.failures, note: "These didn't go through for the reason given — fix the cause and redo, or ask one question." } : {}),
+          ...(r.needsTap > 0 ? { needsTap: r.needsTap, tapNote: "Those move money or can't be undone — the user taps the card on screen." } : {}),
         };
       }
       if (toolName === "skip_cards") {
         const n = skipPendingRef.current();
         voiceLog("live: skip_cards", n);
         return { skipped: n };
+      }
+      const actionKey = `${toolName}:${stableJson(args)}`;
+      const earlier = recentActions.current.get(actionKey);
+      if (earlier && Date.now() - earlier.at < 10 * 60_000) {
+        const states = earlier.ids.map((id) => findCardRef.current(id)?.state ?? "gone");
+        if (states.some((s) => s === "pending" || s === "confirming")) {
+          voiceLog("live: duplicate blocked", `${toolName} (card still waiting)`);
+          return { alreadyStaged: true, note: "That exact card is already waiting on screen — do not stage it again. If the user agreed, call confirm_cards; otherwise ask them." };
+        }
+        if (states.length > 0 && states.every((s) => s === "done")) {
+          voiceLog("live: duplicate blocked", `${toolName} (already applied)`);
+          return { alreadyDone: true, note: "That was already applied a moment ago — do not do it again. Tell the user it's done and move on to the next step." };
+        }
       }
       const res = await fetch("/api/app/assistant/live/tool", {
         method: "POST",
@@ -214,6 +252,7 @@ export default function AssistantVoice({
       }
       voiceLog("live: tool result", `${toolName}(${JSON.stringify(args).slice(0, 120)}) → ${JSON.stringify(data.result ?? {}).slice(0, 160)}${data.proposals?.length ? ` +${data.proposals.length} card(s)` : ""}`);
       if (data.proposals?.length) {
+        recentActions.current.set(actionKey, { at: Date.now(), ids: data.proposals.map((p) => p.id) });
         turnProposals.current = [...turnProposals.current, ...data.proposals];
         const guarded = data.proposals.filter((p) => p.danger || p.money || p.confirmText).length;
         return {
@@ -245,8 +284,17 @@ export default function AssistantVoice({
             }
           } else {
             setSaid(text);
-            if (final) flushExchange(text);
+            if (final) lastAtlas.current = text;
           }
+        },
+        onTurnComplete: () => {
+          if (!alive.current) return;
+          // Flush whatever happened this turn — words, or just cards staged
+          // behind a silent turn or one that got interrupted — so a later
+          // "yes" always finds them.
+          const said = lastAtlas.current;
+          lastAtlas.current = "";
+          flushExchange(said);
         },
         onToolCall,
         onError: (message) => {

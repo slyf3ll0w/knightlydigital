@@ -7,7 +7,7 @@
  */
 type Entry = { t: number; event: string; detail?: string };
 
-const MAX = 200;
+const MAX = 400;
 let entries: Entry[] = [];
 
 export function voiceLog(event: string, detail?: unknown): void {

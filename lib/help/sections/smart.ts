@@ -175,7 +175,7 @@ export const atlasSection: HelpSection = {
           items: [
             "Open Atlas and tap the **microphone** (the send button when nothing is typed). Allow the microphone the first time.",
             "Say what you need, the way you'd say it to a person: \"who called this morning?\", \"quote the Hendersons four fifty for the spring cleanup and send it\", \"remind me to call Maria Friday at two\".",
-            "When Atlas lines up a change, the confirmation card appears right on the talk screen and Atlas asks. Say **\"yes\"** or **\"I confirm\"** to confirm (even after asking a question or two first), **\"no\"** to skip it, or tap the card. Changes that move money or can't be undone always wait for a tap on the card.",
+            "Tell Atlas to do something (\"mark that quote sent and approve it\", \"assign the job to me\") and it does it — the cards appear on the talk screen already applied, and Atlas says what happened. When Atlas *suggests* a change you didn't ask for, the card waits: say **\"yes\"** or **\"I confirm\"** (even after asking a question or two first), **\"no\"** to skip it, or tap the card. Changes that move money or can't be undone always wait for a tap on the card.",
             "Talk over Atlas, or tap the mark, to interrupt it. **Mute** at the top pauses the mic; tap **Done** when you're finished.",
           ],
         },

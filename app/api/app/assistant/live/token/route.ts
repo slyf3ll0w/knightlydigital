@@ -22,7 +22,7 @@ const VOICE = process.env.ATLAS_VOICE || "Achird";
 const CONFIRM_CARDS_DECL = {
   name: "confirm_cards",
   description:
-    "The user agreed to the pending card(s) — any clear yes: \"yes\", \"I confirm\", \"confirm\", \"go ahead\", \"do it\", \"send it\", \"sounds good\". Confirms every ordinary card still waiting on the talk screen, even if a few turns have passed since you staged them. Cards that move money or can't be undone are never confirmed by voice — the result says how many still need a tap on the card shown on screen.",
+    "Applies every ordinary card still waiting on the talk screen (even if a few turns have passed since you staged them). Call it (a) right after staging, in the same turn, when the user explicitly TOLD you to do the thing — their instruction was the yes — and (b) when they agree to something you proposed: \"yes\", \"I confirm\", \"go ahead\", \"do it\", \"send it\", \"sounds good\". Cards that move money or can't be undone are never applied by voice — the result says how many still need a tap on the card on screen. The result also lists any card that failed and why, so you can fix the cause.",
   parameters: { type: "object", properties: {} },
 };
 const SKIP_CARDS_DECL = {
@@ -40,7 +40,18 @@ export async function POST() {
 
   const instruction = await liveSystemInstruction(gate.actor);
   if (!instruction) return NextResponse.json({ error: "No company." }, { status: 404 });
-  const functionDeclarations = [...toolsForActor(gate.actor).map((t) => t.decl), CONFIRM_CARDS_DECL, SKIP_CARDS_DECL];
+  // No queue_next_step in a live session: the chat drawer fires queued steps
+  // after cards settle, but here the model is present the whole time and
+  // just does the next step itself. (It looped on it 12× in the 2026-10-23
+  // report because each live tool call has its own ctx and "nothing is
+  // staged yet this turn" was always true.)
+  const functionDeclarations = [
+    ...toolsForActor(gate.actor)
+      .filter((t) => t.decl.name !== "queue_next_step")
+      .map((t) => t.decl),
+    CONFIRM_CARDS_DECL,
+    SKIP_CARDS_DECL,
+  ];
 
   // BidiGenerateContentSetup on the wire: modalities + voice live under
   // generationConfig; instruction, tools, transcription, VAD and resumption
