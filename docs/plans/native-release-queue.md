@@ -19,6 +19,68 @@ holding it to the back of the phone. Design + decisions:
 `checkout-tap-to-pay-2026-10-22.md`. The web side ships dark behind
 `TAP_TO_PAY=1` (Railway) and needs no build; everything below does.
 
+**Apple entitlement request submitted 2026-10-22** (David, Account Holder).
+Expect the development grant first; the distribution one comes from
+replying to Apple's approval email (see § David — consoles, step 1).
+
+### While you wait for Apple — in this order, nothing here needs the entitlement
+
+- [ ] **Try the quick charge on staging** (it is there now, branch
+      `quick-charge-tap` merged into `staging` at d9271ac2): sign in at
+      https://streamflaire-staging.up.railway.app → Create → `Request
+      payment`. Plan doc recipes 1–6. Anything off → tell Claude before the
+      release.
+- [ ] **Release the web half** once staging CI + E2E are green and the quick
+      charge looks right: `npm run db:push` against PRODUCTION first (new
+      `InvoiceKind.QUICK_CHARGE`), then `git push origin <green sha>:main`.
+      Tap to Pay stays dark on prod (`TAP_TO_PAY` unset), so releasing is
+      safe before any build exists. The two new Help guides go live with it.
+- [ ] **Square Developer Console → the WorkBench app → Mobile Payments SDK →
+      Add Signature** (production app): iOS = bundle id
+      `com.streamflaire.hub` + your Apple **Team ID** (developer.apple.com →
+      Membership details); Android = package `com.streamflaire.hub` + the
+      SHA-256 of the current **Play app signing key** (Play Console → Test
+      and release → App integrity → App signing; the four known
+      fingerprints are listed under § Picking this up cold). One signature
+      per platform; add the other Android fingerprints too if the form
+      allows several.
+- [ ] **Hand Claude the production `SQUARE_APPLICATION_ID`** (the same
+      public value Railway holds) so it can be written into
+      `ios/App/App/Info.plist` → `SquareApplicationID` and
+      `android/app/src/main/res/values/strings.xml` →
+      `square_application_id`. Or paste it in yourself; both are empty
+      strings today. Nothing shows in the apps until this is set.
+- [ ] **Square production activation.** Production still runs Finix until
+      Square activates the production app (health endpoint says
+      `processor`). Tap to Pay needs the processor to be Square in
+      production, so chase the Square payments contact if that is still
+      pending — it gates Tap to Pay as much as Apple does.
+- [ ] **Android does not need Apple at all.** Once the signature and the
+      application id are in: on this PC, `npx cap sync android` (revert
+      `capacitor.settings.gradle` if run from a worktree), `cd android &&
+      gradlew bundleRelease`, upload versionCode 6 to the Play **internal
+      testing** track (runbook § PLAY STORE), install it, then set
+      `TAP_TO_PAY=1` on Railway production, reconnect Square once from
+      Settings → Online Payments (the card asks), and run recipes 7–14 with
+      a real card for $1.00. If Android proves the server side, the iOS
+      build is only the plugin + entitlement.
+- [ ] **Reconnect Square on your own company** after the release — the
+      grant needs the new in-person permission; the Settings card says
+      **Reconnect Square to turn on Tap to Pay** until you do. Every other
+      connected seller sees the same prompt.
+- [ ] **When Apple's development grant arrives:** Certificates, IDs &
+      Profiles → Identifiers → the app → **Additional Capabilities** tab →
+      enable **Tap to Pay on iPhone** → Save; uncomment the key in
+      `ios/App/App/App.entitlements`; Mac session per § Mac below. Then
+      reply to Apple's email for the distribution grant before the
+      TestFlight / App Store build.
+
+Things Claude can do meanwhile, on request: a debug-only MockReaderUI
+hookup so the Android and iOS flows can be exercised against the Square
+sandbox without a card; a debug shell pointed at staging
+(`capacitor.config.ts` `server.url`) for testing Tap to Pay there before
+prod; the Invoices-list kind chip and job-page button left out of the plan.
+
 **What the tree carries**
 
 - iOS: `ios/App/App/TapToPayPlugin.swift` (registered in
