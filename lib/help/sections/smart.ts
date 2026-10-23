@@ -182,6 +182,7 @@ export const atlasSection: HelpSection = {
         {
           type: "list",
           items: [
+            "Don't like the voice? Tap **Voice** at the top of the talk screen to pick a different one — several male and female voices, and an American, British, Australian or Indian accent. The pick is remembered on that phone or computer.",
             "A conversation uses a few Atlas tokens per minute of talk.",
             "A session runs up to fifteen minutes, then Atlas asks you to tap the mic to start a fresh one.",
             "If the live connection can't start, Atlas falls back to taking turns: speak, pause, hear the answer.",

@@ -10,6 +10,7 @@
  */
 
 import { voiceLog } from "@/lib/voice-log";
+import { getVoicePick } from "@/lib/atlas-voices";
 
 // Ephemeral tokens connect through the *Constrained* method (verified
 // 2026-10-23: BidiGenerateContent closes 1008 "unregistered caller" for a
@@ -149,7 +150,12 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
   const t0 = Date.now();
   const since = () => `${Date.now() - t0}ms`;
   voiceLog("live: start");
-  const tokenRes = await fetch("/api/app/assistant/live/token", { method: "POST" });
+  const pick = getVoicePick();
+  const tokenRes = await fetch("/api/app/assistant/live/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(pick ? { voice: pick.voice || undefined, accent: pick.accent } : {}),
+  });
   const tokenData = (await tokenRes.json().catch(() => ({}))) as Partial<TokenReply>;
   if (!tokenRes.ok || !tokenData.token || !tokenData.setup) {
     voiceLog("live: token refused", `${tokenRes.status} ${tokenData.error ?? ""} ${since()}`);

@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { reportError } from "@/lib/report-error";
+import { DEFAULT_ACCENT, isAccentCode, isVoiceId } from "@/lib/atlas-voices";
 import { voiceGate } from "@/lib/assistant-voice-gate";
 import { liveSystemInstruction, toolsForActor } from "@/lib/assistant";
 
@@ -32,11 +33,15 @@ const SKIP_CARDS_DECL = {
   parameters: { type: "object", properties: {} },
 };
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   const gate = await voiceGate("speak");
   if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
   const key = process.env.GEMINI_API_KEY;
   if (!key) return NextResponse.json({ error: "Live voice isn't configured." }, { status: 503 });
+  // The listener's voice + accent pick (lib/atlas-voices.ts), validated.
+  const body = (await req.json().catch(() => ({}))) as { voice?: unknown; accent?: unknown };
+  const voiceName = isVoiceId(body.voice) ? body.voice : VOICE;
+  const languageCode = isAccentCode(body.accent) ? body.accent : DEFAULT_ACCENT;
 
   const instruction = await liveSystemInstruction(gate.actor);
   if (!instruction) return NextResponse.json({ error: "No company." }, { status: 404 });
@@ -59,9 +64,10 @@ export async function POST() {
   const setupConfig = {
     generationConfig: {
       responseModalities: ["AUDIO"],
-      // languageCode pins the session to English — the 2026-10-23 report had
-      // echo fragments transcribed as Portuguese/Spanish/German.
-      speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: VOICE } }, languageCode: "en-US" },
+      // languageCode pins the session to English (the 2026-10-23 report had
+      // echo fragments transcribed as Portuguese/Spanish/German) and sets
+      // the accent — en-GB is how "a British voice" happens.
+      speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } }, languageCode },
     },
     systemInstruction: { parts: [{ text: instruction.text }] },
     tools: [{ functionDeclarations }],

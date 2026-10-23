@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Flag, Mic, MicOff, Square, Volume2, VolumeX, X } from "lucide-react";
+import { AudioLines, Check, Flag, Mic, MicOff, Square, Volume2, VolumeX, X } from "lucide-react";
 import { AtlasMark } from "@/components/AtlasIcon";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import {
@@ -20,6 +20,7 @@ import { voiceLog } from "@/lib/voice-log";
 import { cardsSpeech, isAffirmative, isNegative, isStopPhrase, spokenForm, type SpokenCard } from "@/lib/voice-chat-shared";
 import type { Proposal } from "@/lib/assistant";
 import { ProposalCard, isOutreach, voiceConfirmable, type CardProposal, type PlacedCard } from "@/components/AssistantCard";
+import { ATLAS_ACCENTS, ATLAS_VOICES, DEFAULT_ACCENT, describePick, getVoicePick, setVoicePick, type VoicePick } from "@/lib/atlas-voices";
 
 /**
  * Talking to Atlas. Two engines:
@@ -108,6 +109,12 @@ export default function AssistantVoice({
   const [note, setNote] = useState("");
   const [natural, setNatural] = useState(true);
   const [muted, setMuted] = useState(false);
+  // Voice picker (lib/atlas-voices.ts): the listener's voice + accent.
+  const [pickOpen, setPickOpen] = useState(false);
+  const [pick, setPick] = useState<VoicePick | null>(null);
+  useEffect(() => {
+    setPick(getVoicePick());
+  }, []);
   const inputKind = speechInputKind();
 
   const alive = useRef(true);
@@ -542,6 +549,21 @@ export default function AssistantVoice({
     }
   }
 
+  /** A new voice or accent: remember it, and restart the live session with it
+   *  (a session's voice is fixed at setup). The turns engine just uses it on
+   *  the next spoken reply. */
+  function choosePick(next: VoicePick | null) {
+    hapticImpact("LIGHT");
+    setVoicePick(next);
+    setPick(next);
+    voiceLog("voice: pick", next ? `${next.voice || "default"} ${next.accent}` : "default");
+    if (engine === "live") {
+      stopAll();
+      setMuted(false);
+      void startLive();
+    }
+  }
+
   function toggleMute() {
     const next = !muted;
     setMuted(next);
@@ -561,6 +583,21 @@ export default function AssistantVoice({
   return (
     <div className="absolute inset-0 z-20 flex flex-col bg-paper-plain pt-[env(safe-area-inset-top)]" role="dialog" aria-label={`Talk to ${name}`}>
       <div className="flex items-center justify-between px-4 pt-3">
+        <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            hapticImpact("LIGHT");
+            setPickOpen(true);
+          }}
+          title={`Voice: ${describePick(pick, "Achird")}`}
+          className="glass-control glass-hit flex h-9 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 text-[12px] font-semibold text-gray-600 shadow-sm"
+        >
+          <span className="glass-press flex items-center gap-1.5">
+            <AudioLines size={14} />
+            Voice
+          </span>
+        </button>
         {engine === "live" ? (
           <button
             type="button"
@@ -586,6 +623,7 @@ export default function AssistantVoice({
             </span>
           </button>
         )}
+        </div>
         <button
           type="button"
           onClick={() => {
@@ -698,6 +736,68 @@ export default function AssistantVoice({
           Report a problem
         </button>
       </div>
+
+      {/* ── Voice picker: a voice (character) and an accent (language code) ── */}
+      {pickOpen && (
+        <div className="absolute inset-0 z-30 flex flex-col justify-end" role="dialog" aria-label="Choose a voice">
+          <div className="absolute inset-0 bg-black/20" onClick={() => setPickOpen(false)} />
+          <div className="relative max-h-[80%] overflow-y-auto rounded-t-2xl border-t border-gray-200 bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-display text-[15px] font-bold text-gray-900">{name}&rsquo;s voice</p>
+                <p className="mt-0.5 text-[12px] text-gray-500">Now: {describePick(pick, "Achird")}. Remembered on this device.</p>
+              </div>
+              <button type="button" onClick={() => setPickOpen(false)} aria-label="Close" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100">
+                <X size={16} />
+              </button>
+            </div>
+
+            <p className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Accent</p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {ATLAS_ACCENTS.map((a) => {
+                const on = (pick?.accent ?? DEFAULT_ACCENT) === a.code;
+                return (
+                  <button
+                    key={a.code}
+                    type="button"
+                    onClick={() => choosePick({ voice: pick?.voice ?? "", accent: a.code })}
+                    className={`rounded-full border px-3 py-1.5 text-[12px] font-semibold ${on ? "border-transparent" : "border-gray-200 bg-white text-gray-700"}`}
+                    style={on ? { background: "var(--wb-accent, #0b57d8)", color: "var(--wb-on-accent, #ffffff)" } : undefined}
+                  >
+                    {a.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {(["male", "female"] as const).map((g) => (
+              <div key={g}>
+                <p className="mt-4 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{g === "male" ? "Male voices" : "Female voices"}</p>
+                <div className="mt-1.5 divide-y divide-gray-100 rounded-xl border border-gray-200">
+                  {ATLAS_VOICES.filter((v) => v.gender === g).map((v) => {
+                    const on = (pick?.voice || "Achird") === v.id;
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => choosePick({ voice: v.id, accent: pick?.accent ?? DEFAULT_ACCENT })}
+                        className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"
+                      >
+                        <span>
+                          <span className="block text-[14px] font-semibold text-gray-900">{v.label}</span>
+                          <span className="block text-[12px] text-gray-500">{v.blurb}</span>
+                        </span>
+                        {on && <Check size={16} style={{ color: "var(--wb-accent, #0b57d8)" }} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            <p className="mt-3 text-center text-[11px] text-gray-400">Picking one restarts the conversation with that voice.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

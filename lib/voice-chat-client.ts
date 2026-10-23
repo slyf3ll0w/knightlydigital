@@ -1,6 +1,7 @@
 "use client";
 
 import { transcribeMime } from "./voice-chat-shared";
+import { getVoicePick } from "./atlas-voices";
 
 /**
  * Talking to Atlas — the browser half. Ears: the Web Speech API where the
@@ -345,7 +346,7 @@ export function speak(text: string, opts: { natural: boolean; cache?: boolean; s
       const res = await fetch("/api/app/assistant/speak", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: part, ...(opts.cache ? { cache: true } : {}) }),
+        body: JSON.stringify({ text: part, ...(opts.cache ? { cache: true } : {}), ...(getVoicePick()?.voice ? { voice: getVoicePick()!.voice } : {}) }),
         signal: opts.signal,
       });
       return res.ok ? await res.blob() : null;

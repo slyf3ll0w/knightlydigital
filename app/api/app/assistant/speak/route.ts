@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { reportError } from "@/lib/report-error";
 import { recordAiUsage } from "@/lib/usage";
 import { voiceGate } from "@/lib/assistant-voice-gate";
+import { isVoiceId } from "@/lib/atlas-voices";
 
 /**
  * Atlas's voice: text → WAV through Gemini's speech model (the Interactions
@@ -41,12 +42,14 @@ export async function POST(req: NextRequest) {
   if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
   const key = process.env.GEMINI_API_KEY;
   if (!key) return NextResponse.json({ error: "Voice isn't configured." }, { status: 503 });
-  const body = (await req.json().catch(() => ({}))) as { text?: unknown; cache?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { text?: unknown; cache?: unknown; voice?: unknown };
   const text = typeof body.text === "string" ? body.text.trim().slice(0, MAX_CHARS) : "";
+  // The listener's voice pick (lib/atlas-voices.ts); the company default otherwise.
+  const voice = isVoiceId(body.voice) ? body.voice : VOICE;
   if (!text) return NextResponse.json({ error: "Nothing to say." }, { status: 400 });
   // Stock phrases ("Let me check.") are kept in memory after the first
   // synthesis so the acknowledgement plays instantly and costs nothing.
-  const cacheKey = body.cache === true && text.length <= 80 ? `${VOICE}:${text}` : null;
+  const cacheKey = body.cache === true && text.length <= 80 ? `${voice}:${text}` : null;
   const hit = cacheKey ? PHRASE_CACHE.get(cacheKey) : undefined;
   if (hit) {
     return new NextResponse(new Uint8Array(hit.bytes), { status: 200, headers: { "Content-Type": hit.mime, "Cache-Control": "no-store" } });
@@ -60,7 +63,7 @@ export async function POST(req: NextRequest) {
         model: TTS_MODEL,
         input: [{ type: "user_input", content: [{ type: "text", text, annotations: [{ type: "speech_metadata", style: "warm, natural, unhurried; a capable assistant speaking to a colleague" }] }] }],
         response_format: { type: "audio" },
-        generation_config: { speech_config: [{ voice: VOICE }] },
+        generation_config: { speech_config: [{ voice }] },
       }),
       signal: AbortSignal.timeout(30_000),
     });
