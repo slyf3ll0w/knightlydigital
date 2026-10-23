@@ -15,7 +15,7 @@ import { liveSystemInstruction, toolsForActor } from "@/lib/assistant";
  * Cost: Gemini bills live audio by the minute (~0.5¢ in, ~1.8¢ out);
  * /api/app/assistant/live/usage meters it into Atlas tokens.
  */
-export const LIVE_MODEL = process.env.AI_MODEL_LIVE || "gemini-3.8-live";
+const LIVE_MODEL = process.env.AI_MODEL_LIVE || "gemini-3.8-live";
 const VOICE = process.env.ATLAS_VOICE || "Achird";
 
 /** The one tool the BROWSER answers itself: confirming the ordinary cards Atlas staged. */
