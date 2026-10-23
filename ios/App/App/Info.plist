@@ -42,7 +42,7 @@
 	     Production id for store builds, the sandbox id on a debug build. Empty = Tap
 	     to Pay stays off in this build (TapToPayPlugin reports configured: false). -->
 	<key>SquareApplicationID</key>
-	<string></string>
+	<string>sq0idp-1AGNSMGlbpWTyNAeu4m5iA</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
