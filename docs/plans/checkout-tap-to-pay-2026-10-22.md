@@ -405,7 +405,18 @@ Tap to Pay (section 2):
   from the SDK's real signatures (javap on the AAR) after the first pass.
 - `npx tsc --noEmit` clean; `scripts/test-quick-charge.ts` passes.
 
+Help Center (section 6) written 2026-10-22 on David's go: new
+`request-payment-link` + `tap-to-pay`, and `how-clients-pay` /
+`charge-a-saved-card` / `partial-payments-and-deposits` point at them. The
+Tap to Pay guide is public before the native builds ship; it says the
+button needs the latest app, which is true.
+
+Pushed to `staging` 2026-10-22 (merge of origin/staging 229ddfd5 into the
+branch; one conflict in the pay page header resolved for the new
+`docType` prop) so David can try the quick charge. Release to main only
+after CI + e2e are green and the quick charge is checked on staging.
+
 Open before release: Apple entitlement (David), Square application
 signatures (David), application ids into the native projects (David),
-both store builds (Mac lane), Help Center guides (section 6, ask first),
-`TAP_TO_PAY=1` on staging then prod, device pass recipes 1–14.
+both store builds (Mac lane), `TAP_TO_PAY=1` on staging then prod, device
+pass recipes 1–14.
