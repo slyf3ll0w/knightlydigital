@@ -1,16 +1,17 @@
 import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { isBlobStorageConfigured, signedGetUrl } from "@/lib/blob-storage";
+import { isBlobStorageConfigured, signedGetUrl, getObjectBytes, wantsBytes } from "@/lib/blob-storage";
 
 /**
  * Serve a picture used on an estimate tool. Public on purpose — these
  * pictures are the option/question illustrations on the company's public
  * estimate form, so anyone with the form can already see them. Bytes in R2
- * answer with a redirect to a short-lived presigned URL; bytes still in
- * Postgres stream from the row.
+ * answer with a redirect to a short-lived presigned URL (a script's fetch()
+ * can't follow it, so that one gets the bytes through us — wantsBytes);
+ * bytes still in Postgres stream from the row.
  */
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!/^[A-Za-z0-9_-]{8,64}$/.test(id)) return new NextResponse(null, { status: 404 });
   const img = await prisma.estimatorImage.findUnique({ where: { id }, select: { data: true, mimeType: true, storageKey: true } });
@@ -18,6 +19,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   if (img.storageKey && isBlobStorageConfigured()) {
     try {
+      if (wantsBytes(req.headers)) {
+        const bytes = await getObjectBytes(img.storageKey);
+        if (bytes) {
+          return new NextResponse(bytes, {
+            headers: { "Content-Type": img.mimeType, "Cache-Control": "public, max-age=3600", "X-Content-Type-Options": "nosniff" },
+          });
+        }
+      }
       const url = await signedGetUrl(img.storageKey);
       return NextResponse.redirect(url, { status: 302, headers: { "Cache-Control": "public, max-age=300" } });
     } catch (err) {

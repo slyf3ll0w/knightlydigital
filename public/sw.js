@@ -211,7 +211,12 @@ async function handleNavigation(event, request) {
 
 async function cacheFirst(request, cacheName, max) {
   const cached = await safeMatch(request, { ignoreVary: true });
-  if (cached) return cached;
+  // A stylesheet cached from a <link> load is opaque (no-cors); a script
+  // fetching the same URL in CORS mode can't read an opaque body ("Response
+  // served by service worker is opaque"), so it goes to the network and the
+  // readable copy replaces the opaque one. html-to-image reads the Google
+  // Fonts CSS this way to embed the fonts in a "Suggest a change" picture.
+  if (cached && !(cached.type === "opaque" && request.mode === "cors")) return cached;
   const response = await fetch(request);
   if (response.ok || response.type === "opaque") {
     await putCapped(cacheName, request, response.clone(), max);
