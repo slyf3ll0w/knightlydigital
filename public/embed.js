@@ -80,7 +80,10 @@
       background: background(host),
     };
     var h = document.querySelector("h1, h2");
-    if (h) style.headingFont = getComputedStyle(h).fontFamily;
+    if (h) {
+      style.headingFont = getComputedStyle(h).fontFamily;
+      style.headingWeight = getComputedStyle(h).fontWeight;
+    }
 
     var cands = document.querySelectorAll('button, .btn, [class*="button"], [class*="btn"], input[type="submit"], a[class*="cta"]');
     var radiusFrom = null;
@@ -88,7 +91,8 @@
       var b = cands[i];
       if (el.contains(b) || !visible(b)) continue;
       var bs = getComputedStyle(b);
-      if (!radiusFrom && parse(bs.backgroundColor) && parse(bs.backgroundColor).a >= 0.5) radiusFrom = bs;
+      // Corners come from the first real-looking button, solid or outlined
+      if (!radiusFrom && ((parse(bs.backgroundColor) && parse(bs.backgroundColor).a >= 0.5) || parseFloat(bs.borderTopWidth) >= 1)) radiusFrom = bs;
       if (colorful(parse(bs.backgroundColor))) {
         style.accent = bs.backgroundColor;
         style.accentText = bs.color;
@@ -110,6 +114,12 @@
           break;
         }
       }
+    }
+    // A black-and-white site has no brand color: its ink (the heading color,
+    // else the text color) is the accent. The frame still checks contrast.
+    if (!style.accent) {
+      var ink = parse(h ? getComputedStyle(h).color : style.color) || parse(style.color);
+      if (ink && ink.a >= 0.9) style.accent = h ? getComputedStyle(h).color : style.color;
     }
     if (radiusFrom) style.radius = radiusFrom.borderTopLeftRadius;
     return style;

@@ -5,8 +5,9 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   clampFontSize,
   clampRadius,
+  clampWeight,
   contrast,
-  googleFontFor,
+  googleFontHrefs,
   isDarkGround,
   onAccentFor,
   parseCssColor,
@@ -100,17 +101,19 @@ export default function EmbedStyleMatch({ dark }: { dark: boolean }) {
       } else set("embedInk", "--embed-ink", null);
 
       const font = sanitizeFontStack(d.font);
-      if (font) {
-        const href = googleFontFor(font.first);
-        if (href) loadFont(href);
-      }
+      if (font) googleFontHrefs(font.first).forEach(loadFont);
       set("embedFont", "--embed-font", font ? font.stack : null);
       const heading = sanitizeFontStack(d.headingFont);
       if (heading && heading.stack !== font?.stack) {
-        const href = googleFontFor(heading.first);
-        if (href) loadFont(href);
+        googleFontHrefs(heading.first).forEach(loadFont);
         set("embedHeadingFont", "--embed-heading-font", heading.stack);
-      } else set("embedHeadingFont", "--embed-heading-font", null);
+        // Display faces are often one weight; bolding them fakes a bold
+        const weight = clampWeight(d.headingWeight);
+        set("embedHeadingWeight", "--embed-heading-weight", weight === null ? null : String(weight));
+      } else {
+        set("embedHeadingFont", "--embed-heading-font", null);
+        set("embedHeadingWeight", "--embed-heading-weight", null);
+      }
 
       const size = clampFontSize(d.fontSize);
       set("embedSize", "--embed-size", size && size !== 16 ? `${size}px` : null);

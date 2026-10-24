@@ -20,6 +20,7 @@ export type HostStyleMessage = {
   type: "workbench:style";
   font?: unknown;
   headingFont?: unknown;
+  headingWeight?: unknown;
   fontSize?: unknown;
   color?: unknown;
   background?: unknown;
@@ -89,7 +90,9 @@ export function sanitizeFontStack(v: unknown): { stack: string; first: string } 
   const names = v
     .split(",")
     .map((n) => n.replace(/["']/g, "").replace(/[^a-zA-Z0-9 _-]/g, "").trim().slice(0, 40))
-    .filter(Boolean)
+    // Fontsource names its variable builds "Figtree Variable"; the family is "Figtree"
+    .map((n) => n.replace(/\s+variable$/i, "").trim())
+    .filter((n, i, all) => n && all.findIndex((m) => m.toLowerCase() === n.toLowerCase()) === i)
     .slice(0, 4);
   if (names.length === 0) return null;
   const parts = names.map((n) => (GENERIC.has(n.toLowerCase()) ? n.toLowerCase() : `"${n}"`));
@@ -99,13 +102,29 @@ export function sanitizeFontStack(v: unknown): { stack: string; first: string } 
   return { stack: parts.join(", "), first: names[0] };
 }
 
-/** Google Fonts stylesheet for a family name, or null for generics / system faces. */
-export function googleFontFor(name: string): string | null {
+/**
+ * Google Fonts stylesheets for a family name (none for generics / system
+ * faces). Two links: the plain family always resolves, the weighted one adds
+ * 500-700 where they exist. One css2 request naming a weight the family lacks
+ * (Instrument Serif is 400 only) fails as a whole.
+ */
+export function googleFontHrefs(name: string): string[] {
   const n = name.trim();
-  if (!/^[a-zA-Z0-9 ]{2,40}$/.test(n)) return null;
+  if (!/^[a-zA-Z0-9 ]{2,40}$/.test(n)) return [];
   const k = n.toLowerCase();
-  if (GENERIC.has(k) || SYSTEM.has(k)) return null;
-  return `https://fonts.googleapis.com/css2?family=${n.replace(/ /g, "+")}:wght@400;500;600;700&display=swap`;
+  if (GENERIC.has(k) || SYSTEM.has(k)) return [];
+  const fam = n.replace(/ /g, "+");
+  return [
+    `https://fonts.googleapis.com/css2?family=${fam}&display=swap`,
+    `https://fonts.googleapis.com/css2?family=${fam}:wght@400;500;600;700&display=swap`,
+  ];
+}
+
+/** A host font-weight rounded to a hundred, 300-800. */
+export function clampWeight(v: unknown): number | null {
+  const n = typeof v === "number" ? v : typeof v === "string" ? parseFloat(v) : NaN;
+  if (!Number.isFinite(n)) return null;
+  return Math.max(300, Math.min(800, Math.round(n / 100) * 100));
 }
 
 export function clampRadius(v: unknown): number | null {
