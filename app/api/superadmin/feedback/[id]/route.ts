@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getSuperadmin } from "@/lib/superadmin";
 import { logConsoleAction } from "@/lib/console-audit";
 import { ROADMAP_CATEGORIES } from "@/lib/roadmap";
+import { deleteObject } from "@/lib/blob-storage";
 
 /**
  * Review a feedback ticket. "approve" posts an (edited) item onto the public
@@ -106,6 +107,11 @@ export async function DELETE(
   const ticket = await prisma.feedbackTicket
     .delete({ where: { id }, include: { company: { select: { id: true, name: true } } } })
     .catch(() => null);
-  if (ticket) logConsoleAction(admin, "feedback-delete", { company: ticket.company, detail: ticket.title });
+  if (ticket) {
+    logConsoleAction(admin, "feedback-delete", { company: ticket.company, detail: ticket.title });
+    // The picture on a change request goes with it (best effort — an orphan
+    // object is a cleanup problem, not a reason to fail the delete).
+    if (ticket.screenshotKey) void deleteObject(ticket.screenshotKey).catch(() => undefined);
+  }
   return NextResponse.json({ success: true });
 }

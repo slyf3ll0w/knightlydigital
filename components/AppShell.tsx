@@ -35,6 +35,7 @@ import {
   ChevronsUpDown,
   CircleUserRound,
   LifeBuoy,
+  Wand2,
   MessageSquare,
   MessagesSquare,
   SquareKanban,
@@ -86,6 +87,7 @@ import {
   sectionColorVars,
 } from "@/lib/section-colors";
 import { hapticImpact } from "@/lib/haptics";
+import { SUGGEST_CHANGE_EVENT } from "@/components/SuggestChange";
 import RowActions, { type QuickAction } from "@/components/QuickMenu";
 import { syncAppBadge } from "@/lib/badge";
 import { switchToMembership } from "@/lib/company-switch";
@@ -692,11 +694,13 @@ function UserMenu({
   userEmail,
   userId,
   companyName,
+  suggestChanges = false,
 }: {
   userName?: string | null;
   userEmail?: string | null;
   userId?: string | null;
   companyName?: string | null;
+  suggestChanges?: boolean;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -741,6 +745,19 @@ function UserMenu({
             compact
           />
           <div className="my-1 border-t border-gray-100" />
+          {suggestChanges && (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                window.dispatchEvent(new Event(SUGGEST_CHANGE_EVENT));
+              }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <Wand2 size={14} className="text-gray-400" />
+              Suggest a change
+            </button>
+          )}
           <Link prefetch={false}
             href="/app/help"
             onClick={() => setOpen(false)}
@@ -1684,6 +1701,9 @@ interface AppShellProps {
   previewMode?: boolean;
   /** The company has a business line — the phone Message picker can text a typed-in number. */
   hasLine?: boolean;
+  /** Company.isTest: show "Suggest a change" (More sheet + user menu) — fires
+   *  SUGGEST_CHANGE_EVENT for components/SuggestChange.tsx. Testers only for now. */
+  suggestChanges?: boolean;
 }
 
 export default function AppShell({
@@ -1710,6 +1730,7 @@ export default function AppShell({
   userId,
   previewMode = false,
   hasLine = false,
+  suggestChanges = false,
 }: AppShellProps) {
   const assistantAvailable = aiEnabled && !previewMode && atlas.level !== "off";
   const atlasLocked = atlas.level === "locked";
@@ -2409,6 +2430,7 @@ export default function AppShell({
           userEmail={userEmail}
           userId={userId}
           companyName={companyName}
+          suggestChanges={suggestChanges}
         />
       </div>
     </>
@@ -2558,6 +2580,7 @@ export default function AppShell({
         assistantName={assistantName || "Atlas"}
         assistantAccent={brandColorSecondary || brandColor || undefined}
         openAssistant={() => setAssistantOpen(true)}
+        suggestChanges={suggestChanges}
       />
 
       {/* ── Main content area ─────────────────────────────────────────────── */}
@@ -3329,6 +3352,7 @@ function MoreSheet({
   assistantName,
   assistantAccent,
   openAssistant,
+  suggestChanges = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -3345,6 +3369,7 @@ function MoreSheet({
   assistantName: string;
   assistantAccent?: string;
   openAssistant: () => void;
+  suggestChanges?: boolean;
 }) {
   const manager = isManagerRole(role);
   const signOut = useAppSignOut();
@@ -3574,6 +3599,28 @@ function MoreSheet({
               )}
             </div>
           ))}
+
+          {/* Suggest a change (test accounts): close the sheet, then the
+              picker takes the page — the next tap is the pick */}
+          {!needle && suggestChanges && (
+            <button
+              type="button"
+              onClick={() => {
+                hapticImpact("LIGHT");
+                onClose();
+                window.setTimeout(() => window.dispatchEvent(new Event(SUGGEST_CHANGE_EVENT)), 80);
+              }}
+              className="mt-4 flex w-full items-center gap-3 rounded-xl bg-gray-50 px-3 py-2.5 text-left active:bg-gray-100"
+            >
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-white text-gray-700 shadow-sm">
+                <Wand2 size={15} strokeWidth={2} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[13.5px] font-semibold text-gray-900">Suggest a change</span>
+                <span className="block text-[11.5px] text-gray-500">Tap anything on a page, say what to change</span>
+              </span>
+            </button>
+          )}
 
           {/* Help + sign out: quiet, at the end */}
           {!needle && (

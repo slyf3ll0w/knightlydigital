@@ -8,6 +8,7 @@ import { Button, Card, Chip, DsPage, PageHeader, SectionTitle } from "@/componen
 import { Input, Textarea } from "@/components/Input";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { fullDate } from "@/lib/console-format";
+import { DETAILS_SEPARATOR, shortTicketId } from "@/lib/change-request";
 
 type Ticket = {
   id: string;
@@ -17,6 +18,8 @@ type Ticket = {
   details: string;
   pageUrl: string | null;
   response: string | null;
+  /** A "Suggest a change" ticket's picture (R2) — shown via /api/superadmin/feedback/[id]/screenshot */
+  screenshotKey?: string | null;
   createdAt: string;
   user: { name: string; email: string } | null;
   company: { id: string; name: string };
@@ -142,6 +145,38 @@ export default function FeedbackClient({ tickets }: { tickets: Ticket[] }) {
 }
 
 /**
+ * The ticket text. Captured tickets (Atlas reports, change requests) arrive
+ * as sections split by DETAILS_SEPARATOR: the submitter's own words come
+ * first and stay open, the capture folds away behind "Full capture" — and a
+ * change request shows its picture. Plain tickets render as before.
+ */
+function TicketBody({ t }: { t: Ticket }) {
+  const sections = t.details.split(DETAILS_SEPARATOR);
+  const captured = sections.length > 1;
+  const shot = t.screenshotKey ? `/api/superadmin/feedback/${t.id}/screenshot` : null;
+  return (
+    <div className="mt-3">
+      <p className="whitespace-pre-line text-[14px] text-[color:var(--ds-ink)]">{captured ? sections[0] : t.details}</p>
+      {shot && (
+        <a href={shot} target="_blank" rel="noreferrer" className="mt-3 block w-fit" title="Open the picture full size">
+          <img src={shot} alt="The screen when the ticket was filed" className="max-h-80 rounded-xl border border-[color:var(--ds-line)] bg-[color:var(--ds-surface-2)]" />
+        </a>
+      )}
+      {captured && (
+        <details className="mt-3 rounded-xl bg-[color:var(--ds-surface-2)] px-3 py-2">
+          <summary className="cursor-pointer text-[12.5px] font-semibold text-[color:var(--ds-ink-2)]">
+            Full capture ({sections.length - 1} sections) · <span className="font-mono">npx tsx scripts/ticket.mts {shortTicketId(t.id)}</span>
+          </summary>
+          <pre className="mt-2 max-h-[32rem] overflow-auto whitespace-pre-wrap break-words text-[12px] leading-relaxed text-[color:var(--ds-ink)]">
+            {sections.slice(1).join("\n\n────────\n\n")}
+          </pre>
+        </details>
+      )}
+    </div>
+  );
+}
+
+/**
  * One ticket. Top-level component (NOT nested in FeedbackClient) so typing in
  * the editor doesn't remount the card — a nested component function gets a new
  * identity every parent render, which resets the textarea cursor to the start
@@ -199,14 +234,14 @@ function TicketCard({
                 {t.company.name}
               </Link>{" "}
               · {fullDate(t.createdAt)}
-              {t.pageUrl ? ` · ${t.pageUrl}` : ""}
+              {t.pageUrl ? ` · ${t.pageUrl}` : ""} · <span className="font-mono">#{shortTicketId(t.id)}</span>
             </p>
           </div>
         </div>
         <Chip tone={chip.tone}>{chip.label}</Chip>
       </div>
 
-      <p className="mt-3 whitespace-pre-line text-[14px] text-[color:var(--ds-ink)]">{t.details}</p>
+      <TicketBody t={t} />
 
       {t.response && (
         <p className="mt-3 whitespace-pre-line border-l-2 border-[color:var(--ds-line-strong)] bg-[color:var(--ds-surface-2)] px-3 py-2 text-[13px] text-[color:var(--ds-ink-2)]">
