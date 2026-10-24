@@ -2939,30 +2939,34 @@ export default function AppShell({
               </button>
             </div>
           )}
-          <button
-            type="button"
-            onClick={() => {
-              hapticImpact("LIGHT");
-              setAssistantOpen(true);
-            }}
-            aria-label="Open assistant"
-            data-tour="atlas"
-            title={assistantName || "Atlas"}
-            className="fixed z-40 hidden lg:block rounded-full shadow-lg transition-transform hover:scale-105 lg:bottom-6 lg:right-6"
-          >
-            <AtlasMark size={52} accent={brandColorSecondary || brandColor || undefined} className="block" />
-          </button>
-          {/* Desktop: the mic rides on the mark's shoulder — one click to talk. */}
-          <button
-            type="button"
-            onClick={talkToAssistant}
-            aria-label={`Talk to ${assistantName || "Atlas"}`}
-            title={`Talk to ${assistantName || "Atlas"}`}
-            className="fixed z-40 hidden lg:flex h-9 w-9 items-center justify-center rounded-full border-2 border-white shadow-md transition-transform hover:scale-105 lg:bottom-[52px] lg:right-[50px]"
-            style={{ background: "var(--wb-accent, #0b57d8)", color: "var(--wb-on-accent, #ffffff)" }}
-          >
-            <Mic size={16} />
-          </button>
+          {/* Desktop launcher: one capsule. The mark opens the chat; the mic
+              beside it starts a voice session. Replaced the accent mic badge
+              that rode on the mark's shoulder (David 2026-10-24: "not a fan"). */}
+          <div className="fixed z-40 hidden lg:flex items-center gap-0.5 rounded-full bg-white p-1.5 shadow-lg ring-1 ring-black/[0.06] lg:bottom-6 lg:right-6">
+            <button
+              type="button"
+              onClick={() => {
+                hapticImpact("LIGHT");
+                setAssistantOpen(true);
+              }}
+              aria-label="Open assistant"
+              data-tour="atlas"
+              title={`Ask ${assistantName || "Atlas"}`}
+              className="rounded-full transition-transform hover:scale-105"
+            >
+              <AtlasMark size={44} accent={brandColorSecondary || brandColor || undefined} className="block" />
+            </button>
+            <span aria-hidden className="mx-0.5 h-6 w-px bg-gray-200" />
+            <button
+              type="button"
+              onClick={talkToAssistant}
+              aria-label={`Talk to ${assistantName || "Atlas"}`}
+              title={`Talk to ${assistantName || "Atlas"}`}
+              className="flex h-11 w-11 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900"
+            >
+              <Mic size={19} strokeWidth={2.1} />
+            </button>
+          </div>
         </>
       )}
       {assistantAvailable && assistantMounted && (

@@ -18,6 +18,8 @@ import {
   ATLAS_FREE_TOKENS,
 } from "../lib/assistant-billing";
 import { atlasAccess } from "../lib/assistant-access";
+import { clientProse } from "../lib/assistant/core";
+import { withClientHeadsUp, HEADS_UP_RULE } from "../lib/assistant/heads-up";
 import type { Actor } from "../lib/permissions";
 
 const base = { id: "u1", name: "Test", companyId: "c1", salesSeePayments: true };
@@ -37,7 +39,7 @@ assert.deepEqual(
     "close_lead", "collect_deposit", "convert_quote", "create_agreement_template", "create_client", "create_invoice",
     "create_job", "create_quote", "create_request", "create_service", "delete_record", "duplicate_document",
     "edit_payment", "email_client", "email_document", "export_data", "find_a_time", "get_client_activity",
-    "get_client_details", "get_company_settings", "get_document", "get_job_checklist", "get_lead_board", "get_price_book",
+    "get_client_details", "get_client_notes", "get_company_settings", "get_document", "get_job_checklist", "get_lead_board", "get_price_book",
     "get_route_plan", "get_schedule", "get_statement", "help_search", "list_agreement_templates", "list_agreements",
     "list_calls", "list_clients", "list_expenses", "list_job_photos", "list_money", "list_pipeline", "list_places", "list_subscriptions",
     "list_team", "log_expense", "lookup_part_price", "manage_address", "manage_automation", "manage_booking_item",
@@ -287,6 +289,36 @@ console.log("ok 2: tech limited to schedule + job + field tools");
   assert.equal(ctx.nextStep, "Optimize Mike's route for 2026-09-09");
   assert.ok(toolsForActor(tech).some((t) => t.decl.name === "queue_next_step"), "every role can queue");
   console.log("ok 5f: queue_next_step gates on staged cards and records the follow-up");
+})();
+
+// 5g. client-facing text: an all-lowercase message gets sentence case; anything already cased is untouched
+{
+  assert.equal(
+    clientProse("hey bob, we're running late. i'll be there by 3. sorry!"),
+    "Hey bob, we're running late. I'll be there by 3. Sorry!"
+  );
+  assert.equal(clientProse("ok. see you then\nthanks, i appreciate it"), "Ok. See you then\nThanks, I appreciate it");
+  assert.equal(clientProse("Hi Bob — all set. see you at 3"), "Hi Bob — all set. see you at 3", "a capital anywhere = left alone");
+  assert.equal(clientProse(""), "");
+  console.log("ok 5g: all-lowercase client text gets sentence case, cased text is left as written");
+}
+
+// 5h. heads-up plumbing without a database: errors, note-carrying tools and
+// plain reads pass through untouched; the per-turn cap holds
+(async () => {
+  const ctx: ToolCtx = { proposals: [] };
+  const err = { error: "nope" };
+  assert.strictEqual(await withClientHeadsUp(owner, "create_job", { clientId: "c1" }, err, ctx), err, "errors pass through");
+  const read = { clients: [] };
+  assert.strictEqual(await withClientHeadsUp(owner, "search_clients", { query: "bob" }, read, ctx), read, "plain reads pass through");
+  const act = { name: "Bob" };
+  assert.strictEqual(await withClientHeadsUp(owner, "get_client_activity", { clientId: "c1" }, act, ctx), act, "tools that carry notes pass through");
+  assert.ok(!ctx.headsUpSeen?.size, "nothing was looked up");
+  const capped: ToolCtx = { proposals: [], headsUpSeen: new Set(["a", "b", "c", "d", "e"]) };
+  const staged = { staged: true, summary: "x" };
+  assert.strictEqual(await withClientHeadsUp(owner, "create_job", { clientId: "c1" }, staged, capped), staged, "five clients a turn, then nothing");
+  assert.ok(HEADS_UP_RULE.includes("Never refuse"), "the rule tells Atlas the user decides");
+  console.log("ok 5h: client heads-up skips errors, note-carrying tools, plain reads, and caps per turn");
 })();
 
 // 6. optional live round-trip

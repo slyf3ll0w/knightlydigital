@@ -4,7 +4,7 @@ import { canText } from "../sms-consent";
 import { companyCanSendSms } from "../sms";
 import { fmtPhone } from "../format";
 import { canSell, canSeeMoney, isManager } from "../permissions";
-import { type Tool, str, money, clientName, companyTz, fmtWhen, findContact, stage } from "./core";
+import { clientProse, type Tool, str, money, clientName, companyTz, fmtWhen, findContact, stage } from "./core";
 
 /**
  * Client features that shipped after Atlas v7: multiple service addresses,
@@ -164,8 +164,8 @@ export const clientExtraTools: Tool[] = [
       if (!contact) return { error: "No client with that id." };
       const c = await prisma.contact.findUnique({ where: { id: contact.id }, select: { email: true } });
       if (!c?.email) return { error: "This client has no email on file — add one with update_client first." };
-      const subject = str(args.subject, 150);
-      const body = str(args.body, 10000);
+      const subject = clientProse(str(args.subject, 150));
+      const body = clientProse(str(args.body, 10000));
       if (!subject || !body) return { error: "subject and body are required." };
       return stage(ctx, {
         kind: "email_client", title: `Email ${clientName(contact)}`,
@@ -185,7 +185,7 @@ export const clientExtraTools: Tool[] = [
     run: async (actor, args, ctx) => {
       const contact = await findContact(actor, str(args.clientId, 40));
       if (!contact) return { error: "No client with that id." };
-      const body = str(args.body, 5000);
+      const body = clientProse(str(args.body, 5000));
       if (!body) return { error: "body is required." };
       // Say how it will actually reach them — a "text" that goes out as a
       // portal email is the kind of surprise that erodes trust in the cards.

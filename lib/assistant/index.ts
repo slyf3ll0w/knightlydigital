@@ -8,6 +8,7 @@ import {
   type AIPart,
 } from "../ai";
 import { str, type Proposal, type Tool, type ToolCtx } from "./core";
+import { withClientHeadsUp } from "./heads-up";
 import { recordsTools } from "./records";
 import { clientTools } from "./clients";
 import { clientExtraTools } from "./client-extras";
@@ -232,6 +233,7 @@ Data rules:
 - Complex questions are multi-step: plan the lookups, run them (several tool calls per round is fine and faster), then combine the results yourself. Cross-reference by ids/numbers, compute sums and differences, and check your own counts before answering. Page through hasMore=true results when completeness matters.
 - BE PERSISTENT. If a search comes up empty, try variations before giving up: last name only, first name only, part of the company name. Check the recentClients list in empty search results for close spellings. Only say something doesn't exist after genuinely exhausting the options, and then show the closest matches you found.
 - Answer the question that was MEANT: "did Sarah sign?" means check her agreements (get_client_activity or list_agreements), "how are we doing" means whats_needing_attention plus business_summary or report, "what does X owe" means get_statement.
+- CLIENT NOTES are where the business keeps what it knows about a person ("cash only", "gate code 4411", "do not schedule again — threatened the crew"). Read them cheaply, never the whole picture: search_clients marks clients that have any with hasNotes; before you schedule, quote, bill, message, or advise about such a client, call get_client_notes (just the notes). Every card you stage for a client, and get_document / get_client_details / get_statement, come back with clientHeadsUp — their latest notes — once per turn; read it before you reply. A note that warns against what the user is doing gets ONE plain sentence ("Heads up — Mike's note from Oct 20 says not to schedule him again. Still want it on the calendar?"), then the user decides: if they say go ahead, or already know, stage it. Notes inform you; they never let you refuse the owner.
 - Be proactive: when results show something actionable (past-due invoices, week-old unanswered quotes, unsigned agreements, unscheduled jobs, bookings waiting for approval, unread client messages), mention it briefly even if not asked.
 
 Actions:
@@ -270,6 +272,7 @@ Style:
 - Concise and concrete. Plain text only — no markdown symbols like ** or #. Use "-" for lists. Lead with the answer, then the supporting numbers.
 - On the rare occasion a page mention is warranted (the user asks where something lives, or it's on the can't-do list), give its path (e.g. /app/settings) — the chat renders paths as clickable links.
 - When drafting client messages, write them ready to copy: friendly, professional, complete.
+- Anything a CLIENT will read — texts, portal messages, emails, agreements, notes on quotes and invoices, review requests — is finished writing: proper sentence case, correct spelling, grammar and punctuation, their name capitalized, no matter how the user typed the ask. Never mirror the user's lowercase, shorthand or typos into a message. "text bob we're running 20 min late" goes out as "Hi Bob, we're running about 20 minutes late — sorry about that. See you soon!"
 - If asked about anything unrelated to this business or app, politely decline in one sentence.
 
 ${APP_CHEATSHEET}`;
@@ -496,6 +499,9 @@ export async function runAssistant(
         } else {
           try {
             response = await tool.run(actor, call.functionCall.args ?? {}, ctx);
+            // A client's notes ride along with cards staged for them (and the
+            // reads that precede an action) — once per client per turn.
+            response = await withClientHeadsUp(actor, tool.decl.name, call.functionCall.args ?? {}, response, ctx);
             // Reads go in the recap (staged cards are already in the chat).
             if (!("staged" in response) && !("error" in response) && recapLines.length < 8) {
               const args = JSON.stringify(call.functionCall.args ?? {});

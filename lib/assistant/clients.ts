@@ -13,6 +13,7 @@ import {
   money,
   clientName,
   findContact,
+  num,
   stage,
 } from "./core";
 
@@ -38,6 +39,7 @@ export const clientTools: Tool[] = [
       const select = {
         id: true, firstName: true, lastName: true, companyName: true,
         email: true, phone: true, status: true, city: true,
+        notes: true, _count: { select: { contactNotes: true } },
       } as const;
       const rows = await prisma.contact.findMany({
         where: {
@@ -58,9 +60,11 @@ export const clientTools: Tool[] = [
         orderBy: { updatedAt: "desc" },
         select,
       });
+      // hasNotes costs a few tokens and tells the model when get_client_notes is worth a call.
       const shape = (c: (typeof rows)[number]) => ({
         id: c.id, name: clientName(c), status: c.status,
         email: c.email, phone: c.phone, city: c.city,
+        ...(c._count.contactNotes > 0 || (c.notes ?? "").trim() ? { hasNotes: true } : {}),
       });
       if (rows.length > 0) return { clients: rows.map(shape) };
       // no match → hand back the recent roster so the model can self-correct
@@ -208,6 +212,48 @@ export const clientTools: Tool[] = [
           id: n.id, by: n.user.name, mine: n.userId === actor.id,
           on: n.createdAt.toISOString().slice(0, 10), note: n.body.slice(0, 200),
         })),
+      };
+    },
+  },
+
+  {
+    decl: {
+      name: "get_client_notes",
+      description:
+        "JUST the notes on one client (by id from search_clients): the profile note plus the team's dated notes, newest first, with note ids for update_client_note. Cheap — call it before scheduling, quoting, billing, messaging or advising about a client that search_clients marked hasNotes, instead of pulling get_client_activity for the notes alone.",
+      parameters: {
+        type: "object",
+        properties: { clientId: { type: "string" }, limit: { type: "integer", description: "notes to return (default 10, max 30)" } },
+        required: ["clientId"],
+      },
+    },
+    allowed: (a) => canSell(a.role),
+    run: async (actor, args) => {
+      const contact = await findContact(actor, str(args.clientId, 80));
+      if (!contact) return { error: "No client with that id (or not visible to this user)." };
+      const lim = Math.min(30, Math.max(1, Math.round(num(args.limit) ?? 10)));
+      const c = await prisma.contact.findUnique({
+        where: { id: contact.id },
+        select: {
+          notes: true,
+          contactNotes: {
+            take: lim, orderBy: { createdAt: "desc" },
+            select: { id: true, body: true, createdAt: true, userId: true, user: { select: { name: true } } },
+          },
+          _count: { select: { contactNotes: true } },
+        },
+      });
+      if (!c) return { error: "No client with that id." };
+      const profileNote = (c.notes ?? "").trim();
+      return {
+        client: clientName(contact),
+        profileNote: profileNote || null,
+        notes: c.contactNotes.map((n) => ({
+          id: n.id, by: n.user.name, mine: n.userId === actor.id,
+          on: n.createdAt.toISOString().slice(0, 10), note: n.body.length > 600 ? `${n.body.slice(0, 600)}…` : n.body,
+        })),
+        ...(c._count.contactNotes > c.contactNotes.length ? { moreNotes: c._count.contactNotes - c.contactNotes.length } : {}),
+        ...(!profileNote && c.contactNotes.length === 0 ? { note: "No notes on this client." } : {}),
       };
     },
   },
@@ -454,7 +500,7 @@ export const clientTools: Tool[] = [
     decl: {
       name: "update_client_note",
       description:
-        "Stage editing or deleting one of a client's notes (note id from get_client_activity). Only the note's author can edit; the author or a manager can delete. Pass newText to edit, or remove: true to delete. Confirmation card required.",
+        "Stage editing or deleting one of a client's notes (note id from get_client_notes or get_client_activity). Only the note's author can edit; the author or a manager can delete. Pass newText to edit, or remove: true to delete. Confirmation card required.",
       parameters: {
         type: "object",
         properties: {

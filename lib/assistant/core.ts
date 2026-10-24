@@ -55,6 +55,8 @@ export type ToolCtx = {
   addUsage?: (u: { tokensIn: number; tokensOut: number; tokensCached: number }) => void;
   /** Set by a tool whose work lives on a page (the Estimates builder): the drawer opens this /app path after the reply. */
   navigate?: string;
+  /** Clients whose notes were already attached as a clientHeadsUp this turn (lib/assistant/heads-up.ts). */
+  headsUpSeen?: Set<string>;
 };
 
 export type Tool = {
@@ -80,6 +82,21 @@ export function num(v: unknown): number | null {
 
 export function money(v: unknown): string {
   return `$${Number(v ?? 0).toFixed(2)}`;
+}
+
+/**
+ * Text a CLIENT will read, as the model wrote it. The prompt asks for
+ * finished writing; this is the backstop for the one failure David saw
+ * (2026-10-24): a text sent entirely in lowercase because the user types
+ * that way and the model mirrored it. Only an all-lowercase message is
+ * touched — the first letter of each sentence and the pronoun I come up.
+ * Anything with a capital in it already is left exactly as written.
+ */
+export function clientProse(s: string): string {
+  if (!s || /[A-Z]/.test(s)) return s;
+  return s
+    .replace(/(^|[.!?]["')\]]?\s+|\n\s*)([a-z])/g, (_m, pre: string, ch: string) => pre + ch.toUpperCase())
+    .replace(/\bi\b/g, "I");
 }
 
 export function clientName(c: { firstName: string; lastName: string; companyName?: string | null }): string {
