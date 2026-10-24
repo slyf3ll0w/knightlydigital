@@ -222,8 +222,11 @@ export async function fetchInboundMedia(url: string, contentTypeHint?: string | 
 export async function mediaResponse(
   id: string,
   cache: "private" | "public" = "private",
-  opts: { download?: boolean } = {}
+  opts: { download?: boolean; stream?: boolean } = {}
 ): Promise<NextResponse> {
+  // stream: hand over the bytes even without a filename — a script's fetch()
+  // can't follow the redirect to R2 (lib/blob-storage.ts wantsBytes).
+  const direct = opts.download || opts.stream;
   const row = await prisma.portalMessageMedia.findUnique({
     where: { id },
     select: { data: true, contentType: true, storageKey: true, expiredAt: true, createdAt: true },
@@ -237,7 +240,7 @@ export async function mediaResponse(
   if (row.storageKey && isBlobStorageConfigured()) {
     try {
       const url = await signedGetUrl(row.storageKey, 600);
-      if (!opts.download) {
+      if (!direct) {
         // Never let a cache hand out an expired signed URL.
         return NextResponse.redirect(url, { status: 302, headers: { "Cache-Control": "no-store" } });
       }

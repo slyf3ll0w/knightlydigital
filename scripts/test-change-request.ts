@@ -57,6 +57,15 @@ const actor = { name: "Dana Tester", id: "user_1", role: "OWNER", companyId: "co
   assert.equal(c.shot, "none");
   assert.equal(c.diag.errors.length, 30);
   assert.equal(c.diag.errors[29].message, "e49", "newest kept");
+  assert.equal(c.shotError, undefined, "no render failure → no field");
+}
+{
+  // a failed render names its reason in the SCREEN section (ticket #56msow)
+  const c = sanitizeCapture({ shot: "none", shotError: "Error: " + "x".repeat(400) });
+  assert.equal(c.shotError?.length, 300, "reason clamped");
+  const d = changeRequestDetails("no picture", c, actor);
+  assert.ok(d.includes("picture: none · the app's render failed: Error: xxx"), "reason shown");
+  assert.ok(!changeRequestDetails("fine", sanitizeCapture({ shot: "auto" }), actor).includes("render failed"));
 }
 
 // ── describeTarget / title / pathOf ──────────────────────────────────────────

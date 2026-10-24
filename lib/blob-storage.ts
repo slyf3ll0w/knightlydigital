@@ -122,6 +122,30 @@ export async function signedGetUrl(key: string, expiresInSeconds = 600): Promise
 }
 
 /**
+ * The object's bytes, read through the server. For the one caller a redirect
+ * can't serve (see wantsBytes); null when R2 has no such object.
+ */
+export async function getObjectBytes(key: string): Promise<Uint8Array<ArrayBuffer> | null> {
+  const res = await client().fetch(bucketUrl(key), { method: "GET", signal: AbortSignal.timeout(20_000) });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`R2 GET ${key} failed: ${res.status}`);
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+/**
+ * Whether an image route should stream the bytes instead of redirecting to
+ * R2. An <img> load (mode no-cors) follows the redirect fine, but a script's
+ * fetch() runs in CORS mode and the bucket answers without CORS headers, so
+ * the same URL fails with "Load failed" — which is how "Suggest a change"
+ * lost its whole screen picture on a chat with a photo in it (ticket #56msow,
+ * 2026-10-24: html-to-image fetches every <img> to inline it). Browsers say
+ * which kind of request this is in Sec-Fetch-Mode (Safari 16.4+, Chrome 76+).
+ */
+export function wantsBytes(headers: Headers): boolean {
+  return headers.get("sec-fetch-mode") === "cors";
+}
+
+/**
  * Best-effort delete. A missing object is success — the caller is removing
  * the row either way, and an orphaned object is a cleanup problem, not a
  * reason to fail the user's delete.

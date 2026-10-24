@@ -65,6 +65,8 @@ export type ChangeCapture = {
   diag: ChangeDiag;
   /** How the picture was made: rendered by the app, attached by the user, or none */
   shot: "auto" | "own" | "none";
+  /** Why the app's own picture failed, when it did (shot none/own after a failed render) */
+  shotError?: string;
   capturedAt: string;
 };
 
@@ -161,6 +163,7 @@ export function sanitizeCapture(raw: unknown): ChangeCapture {
     page,
     diag: { errors, requests },
     shot: r.shot === "auto" || r.shot === "own" ? r.shot : "none",
+    ...(str(r.shotError, 300) ? { shotError: str(r.shotError, 300) } : {}),
     capturedAt: str(r.capturedAt, 40) || new Date().toISOString(),
   };
 }
@@ -242,7 +245,7 @@ export function changeRequestDetails(
       `viewport: ${p.viewport.w}×${p.viewport.h} @${p.viewport.dpr}x · ${p.theme}${p.standalone ? " · installed app" : " · browser tab"}${p.online ? "" : " · OFFLINE"}`,
       `device: ${p.platform || "?"}${p.lang ? ` · ${p.lang}` : ""}`,
       `ua: ${p.ua || "?"}`,
-      `picture: ${capture.shot === "auto" ? "rendered by the app" : capture.shot === "own" ? "attached by the user" : "none"}`,
+      `picture: ${capture.shot === "auto" ? "rendered by the app" : capture.shot === "own" ? "attached by the user" : "none"}${capture.shotError ? ` · the app's render failed: ${capture.shotError}` : ""}`,
       `user: ${actor.name} (${actor.id}) · role ${actor.role} · company ${actor.companyName ? `${actor.companyName} ` : ""}${actor.companyId}`,
       `captured: ${capture.capturedAt}`,
     ].join("\n")

@@ -237,6 +237,31 @@ function freezeScroll(): () => void {
 
 const MAX_DATA_URL = 3_500_000; // ~2.6 MB of PNG; past that the picture goes out as JPEG
 
+/**
+ * The keyboard goes away before the picture is taken. A flow started while
+ * a field had focus (the chat composer) would otherwise shoot a viewport
+ * squashed to the space above the keyboard (ticket #56msow: 402×539 on an
+ * iPhone) and then keep the keyboard bouncing through the sheet. Blur the
+ * field, then wait for the shell's kb-open flag to drop and the viewport
+ * height to hold still — at most ~700 ms, usually far less.
+ */
+async function settleKeyboard(): Promise<void> {
+  const active = document.activeElement;
+  if (active instanceof HTMLElement && active.matches(EDITABLE) && !active.closest("[data-wb-suggest]")) active.blur();
+  const height = () => Math.round(window.visualViewport?.height ?? window.innerHeight);
+  const deadline = Date.now() + 700;
+  let last = height();
+  let still = 0;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 50));
+    const now = height();
+    const open = document.documentElement.classList.contains("kb-open");
+    still = now === last && !open ? still + 1 : 0;
+    last = now;
+    if (still >= 2) return;
+  }
+}
+
 async function renderPage(target: Element | null): Promise<string> {
   const { toCanvas } = await import("html-to-image");
   const pr = Math.min(window.devicePixelRatio || 1, 2);
@@ -253,6 +278,10 @@ async function renderPage(target: Element | null): Promise<string> {
       filter: (n: Node) => !(n instanceof Element && n.hasAttribute("data-wb-suggest")),
       backgroundColor: getComputedStyle(document.body).backgroundColor || "#ffffff",
       cacheBust: false,
+      // A picture the library can't fetch (an expired chat photo, a host
+      // without CORS) is left blank — without this handler one such <img>
+      // rejected the whole render (ticket #56msow).
+      onImageErrorHandler: () => undefined,
     });
   } finally {
     restore();
@@ -307,6 +336,7 @@ export default function SuggestChange() {
   const targetEl = useRef<Element | null>(null);
   const [shot, setShot] = useState<string | null>(null);
   const [shotKind, setShotKind] = useState<ChangeCapture["shot"]>("none");
+  const [shotError, setShotError] = useState("");
   const [kind, setKind] = useState<ChangeKind>("looks");
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
@@ -339,6 +369,7 @@ export default function SuggestChange() {
     targetEl.current = null;
     setShot(null);
     setShotKind("none");
+    setShotError("");
     setNote("");
     setError("");
     setSentId("");
@@ -348,6 +379,9 @@ export default function SuggestChange() {
   useEffect(() => {
     const start = () => {
       reset();
+      // Pick mode over a page with the keyboard up is cramped; close it first
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && active.matches(EDITABLE)) active.blur();
       setPhase("pick");
     };
     window.addEventListener(SUGGEST_CHANGE_EVENT, start);
@@ -360,15 +394,19 @@ export default function SuggestChange() {
     setTarget(el ? targetInfo(el) : null);
     setHover(null);
     setPhase("shoot");
+    setShotError("");
     try {
-      // Let React drop the pick overlay before the clone is taken
+      // The keyboard goes down, then React drops the pick overlay, then the clone is taken
+      await settleKeyboard();
       await new Promise((r) => setTimeout(r, 30));
       setShot(await renderPage(el));
       setShotKind("auto");
     } catch (err) {
-      console.warn("[suggest-change] picture failed", err);
+      // console.error lands in the diagnostics ring too, so the ticket says why
+      console.error("[suggest-change] picture failed", err);
       setShot(null);
       setShotKind("none");
+      setShotError(err instanceof Error ? `${err.name}: ${err.message}` : String(err ?? "unknown"));
     }
     setPhase("compose");
   }, []);
@@ -554,6 +592,7 @@ export default function SuggestChange() {
       page: pageInfo(),
       diag: { errors: recent(errors), requests: recent(requests) },
       shot: shot ? shotKind : "none",
+      ...(shotError ? { shotError: shotError.slice(0, 300) } : {}),
       capturedAt: new Date().toISOString(),
     };
     try {
@@ -726,7 +765,9 @@ export default function SuggestChange() {
             </div>
 
             <textarea
-              autoFocus
+              // A desk gets the cursor; a phone would get the keyboard shoving
+              // the sheet around before the picture is even seen — tap to type.
+              autoFocus={!coarse}
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={3}
