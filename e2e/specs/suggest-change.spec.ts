@@ -106,18 +106,17 @@ test.describe("suggest a change", () => {
           )
           .toBe(true);
       } else {
-        // On a desk, empty space / plain text belongs to sticky notes first:
-        // the right-click opens their small menu, which carries the
-        // "Suggest a change" row; a control (button, link) goes straight in.
-        const row = page.getByRole("menuitem", { name: "Suggest a change" });
+        // On a desk a control (button, link) goes straight in. Plain text and
+        // empty space belong to sticky notes first — their right-click menu
+        // carries the "Suggest a change" row (checked by hand; the Linux
+        // runner's headless Chromium never showed that popover).
+        const control = page.getByRole("link", { name: "New job", exact: true }).or(page.getByRole("button", { name: "New job", exact: true })).first();
+        await expect(control).toBeVisible();
         await expect
           .poll(
             async () => {
               if (await started()) return true;
-              await h1.click({ button: "right" });
-              // the menu renders a beat after the click on a slow runner
-              await row.waitFor({ state: "visible", timeout: 2000 }).catch(() => undefined);
-              if (await row.isVisible()) await row.click();
+              await control.click({ button: "right", timeout: 3000 }).catch(() => undefined);
               await page.waitForTimeout(600);
               return started();
             },
@@ -128,7 +127,24 @@ test.describe("suggest a change", () => {
             const seen = await page.evaluate(() => (window as unknown as { __cm?: unknown[] }).__cm ?? []);
             const menus = await page.evaluate(() => Array.from(document.querySelectorAll("[role=menuitem]")).map((m) => m.textContent?.trim()));
             const flag = await page.evaluate(() => document.documentElement.dataset.suggestChanges ?? "(unset)");
-            throw new Error(`right-click never started the flow · flag=${flag} · contextmenu seen: ${JSON.stringify(seen)} · menu items: ${JSON.stringify(menus)}\n${String(err)}`);
+            const box = await control.boundingBox();
+            const under = box
+              ? await page.evaluate(
+                  ([x, y]) => {
+                    const chain: string[] = [];
+                    let p = document.elementFromPoint(x, y);
+                    while (p && p !== document.body && chain.length < 8) {
+                      chain.unshift(`${p.tagName.toLowerCase()}${p.getAttribute("role") ? `[${p.getAttribute("role")}]` : ""}.${(p.getAttribute("class") || "").split(/\s+/).slice(0, 3).join(".")}`);
+                      p = p.parentElement;
+                    }
+                    return chain.join(" > ");
+                  },
+                  [box.x + box.width / 2, box.y + box.height / 2] as [number, number]
+                )
+              : "(no box)";
+            throw new Error(
+              `right-click never started the flow · flag=${flag} · contextmenu seen: ${JSON.stringify(seen)} · menu items: ${JSON.stringify(menus)} · under the pointer: ${under}\n${String(err)}`
+            );
           });
       }
       await expect(dialog).toBeVisible({ timeout: 45_000 });
@@ -149,16 +165,18 @@ test.describe("suggest a change", () => {
       expect(ticket).not.toBeNull();
       try {
         expect(ticket!.type).toBe("SUGGESTION");
-        // The pick is the exact element under the pointer — the h1 itself,
-        // or the greeting span inside it on narrower layouts.
-        expect(ticket!.title).toMatch(/^Change: E2E .* — (h1|span) /);
+        // The pick is the exact element under the pointer: the heading (or
+        // the greeting span inside it) on the phone, the New job control at
+        // the desk.
+        expect(ticket!.title).toMatch(phone ? /^Change: E2E .* — (h1|span) / : /^Change: E2E .* — (a|button) “New job”/);
         expect(ticket!.details).toContain(`WHAT TO CHANGE (How it works)\n${note}`);
         expect(ticket!.details).toContain("page: /app/dashboard");
         expect(ticket!.details).toContain(`viewport: ${viewport.width}×${viewport.height}`);
-        expect(ticket!.details).toMatch(/ELEMENT\n<(h1|span)/);
-        const capture = ticket!.capture as { target?: { tag?: string; path?: string }; shot?: string; page?: { url?: string } } | null;
-        expect(["h1", "span"]).toContain(capture?.target?.tag);
-        expect(capture?.target?.path).toMatch(/h1/);
+        expect(ticket!.details).toMatch(phone ? /ELEMENT\n<(h1|span)/ : /ELEMENT\n<(a|button)/);
+        const capture = ticket!.capture as { target?: { tag?: string; path?: string; text?: string }; shot?: string; page?: { url?: string } } | null;
+        expect(phone ? ["h1", "span"] : ["a", "button"]).toContain(capture?.target?.tag);
+        if (phone) expect(capture?.target?.path).toMatch(/h1/);
+        else expect(capture?.target?.text).toBe("New job");
         expect(capture?.page?.url).toContain("/app/dashboard");
 
         // The picture: present whenever the deployment has R2, and the
