@@ -3,7 +3,7 @@
 // sheet sends, and the ticket lands tagged change-request with the capture
 // and its picture — which the console can serve. The e2e tenants are test
 // accounts (provision.mts), so the feature is on for them.
-import { test, expect } from "@playwright/test";
+import { test, expect, type Browser } from "@playwright/test";
 import { readState } from "../env";
 import { db, disconnectDb } from "../helpers/db";
 
@@ -15,6 +15,23 @@ const VIEWPORTS = [
   ["desktop", { width: 1440, height: 900 }],
   ["phone", { width: 390, height: 844 }],
 ] as const;
+
+/** A signed-in owner context. The welcome tour (first dashboard visit) is dismissed up front: its dialog would sit over the heading. */
+async function ownerContext(browser: Browser, viewport: { width: number; height: number }) {
+  const phone = viewport.width < 800;
+  const context = await browser.newContext({ viewport, isMobile: phone, hasTouch: phone });
+  await context.addCookies([
+    { name: state.cookieName, value: owner.token, url: state.baseUrl, secure: state.baseUrl.startsWith("https"), httpOnly: true },
+  ]);
+  await context.addInitScript(() => {
+    try {
+      sessionStorage.setItem("sf-tour-dismissed", "1");
+    } catch {
+      /* ignore */
+    }
+  });
+  return context;
+}
 
 test.describe("suggest a change", () => {
   test.describe.configure({ timeout: 150_000 });
@@ -30,10 +47,7 @@ test.describe("suggest a change", () => {
   });
 
   test("the menu entry opens pick mode; Escape leaves the page untouched", async ({ browser }) => {
-    const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-    await context.addCookies([
-      { name: state.cookieName, value: owner.token, url: state.baseUrl, secure: state.baseUrl.startsWith("https"), httpOnly: true },
-    ]);
+    const context = await ownerContext(browser, { width: 1440, height: 900 });
     const page = await context.newPage();
     await page.goto(`${state.baseUrl}/app/dashboard`);
     await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
@@ -56,10 +70,7 @@ test.describe("suggest a change", () => {
   for (const [label, viewport] of VIEWPORTS) {
     test(`${label}: pick the heading, the picture renders, the ticket carries the capture`, async ({ browser }) => {
       const phone = viewport.width < 800;
-      const context = await browser.newContext({ viewport, isMobile: phone, hasTouch: phone });
-      await context.addCookies([
-        { name: state.cookieName, value: owner.token, url: state.baseUrl, secure: state.baseUrl.startsWith("https"), httpOnly: true },
-      ]);
+      const context = await ownerContext(browser, viewport);
       const page = await context.newPage();
       await page.goto(`${state.baseUrl}/app/dashboard`);
       await expect(page).not.toHaveURL(/\/app\/login/);
@@ -90,11 +101,16 @@ test.describe("suggest a change", () => {
           )
           .toBe(true);
       } else {
+        // On a desk, empty space / plain text belongs to sticky notes first:
+        // the right-click opens their small menu, which carries the
+        // "Suggest a change" row; a control (button, link) goes straight in.
+        const row = page.getByRole("menuitem", { name: "Suggest a change" });
         await expect
           .poll(
             async () => {
               if (await started()) return true;
               await h1.click({ button: "right" });
+              if (await row.isVisible()) await row.click();
               return started();
             },
             { timeout: 30_000, intervals: [400, 800] }

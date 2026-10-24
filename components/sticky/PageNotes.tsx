@@ -142,7 +142,8 @@ export default function PageNotes({ mainRef, meId, canPin }: { mainRef: RefObjec
       const rect = main.getBoundingClientRect();
       const at = { x: Math.round(e.clientX - rect.left + main.scrollLeft), y: Math.round(e.clientY - rect.top + main.scrollTop) };
       e.preventDefault();
-      setMenu({ open: true, anchor: { x: e.clientX, y: e.clientY }, at });
+      // `target` rides along for the menu's "Suggest a change" row (test accounts)
+      setMenu({ open: true, anchor: { x: e.clientX, y: e.clientY, target }, at });
     };
     document.addEventListener("contextmenu", onContext);
     return () => document.removeEventListener("contextmenu", onContext);
