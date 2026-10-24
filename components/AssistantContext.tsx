@@ -17,6 +17,9 @@ export type AssistantContextValue = {
   /** Company accent for AtlasMark; undefined = the default badge color. */
   accent?: string;
   open: () => void;
+  /** Open straight into a voice conversation (the Talk buttons). Call from
+   *  the tap handler itself — iPhones grant the mic only inside the tap. */
+  talk: () => void;
 };
 
 const AssistantContext = createContext<AssistantContextValue>({
@@ -24,6 +27,7 @@ const AssistantContext = createContext<AssistantContextValue>({
   locked: false,
   name: "Atlas",
   open: () => {},
+  talk: () => {},
 });
 
 export const AssistantProvider = AssistantContext.Provider;

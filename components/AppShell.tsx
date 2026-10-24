@@ -48,6 +48,7 @@ import {
   Zap,
   ListChecks,
   HandCoins,
+  Mic,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
@@ -63,6 +64,7 @@ import { confirmLeave } from "@/lib/nav-guard";
 import { SETTINGS_SECTIONS, settingsHref } from "@/lib/settings-nav";
 import { AtlasMark } from "@/components/AtlasIcon";
 import { AssistantProvider } from "@/components/AssistantContext";
+import { launchVoice } from "@/lib/voice-launch";
 import Modal from "@/components/Modal";
 import TourGuide from "@/components/TourGuide";
 // Code-split: neither is needed to paint a page, and the Atlas drawer alone
@@ -1733,6 +1735,15 @@ export default function AppShell({
   const [companySheetOpen, setCompanySheetOpen] = useState(false);
   const [notifsOpen, setNotifsOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
+  // Open straight into the voice screen (Talk buttons): the tap primes audio
+  // + asks for the mic (lib/voice-launch.ts), the drawer picks that up.
+  const [assistantVoice, setAssistantVoice] = useState(false);
+  const talkToAssistant = () => {
+    hapticImpact("MEDIUM");
+    launchVoice();
+    setAssistantVoice(true);
+    setAssistantOpen(true);
+  };
   const mainRef = useRef<HTMLElement>(null);
 
   // Rail v2: collapsible group open-state, remembered per user (a group
@@ -2637,6 +2648,23 @@ export default function AppShell({
           </span>
 
           <div className="lg:hidden flex min-w-max flex-1 basis-0 items-center justify-end">
+          {/* Talk to Atlas — the voice conversation is the front door on a
+              phone (David 2026-10-23: "most people will prefer this over the
+              chat"), so the mic sits in the bar on every page. */}
+          {assistantAvailable && (
+            <button
+              type="button"
+              onClick={talkToAssistant}
+              aria-label={`Talk to ${assistantName || "Atlas"}`}
+              title={`Talk to ${assistantName || "Atlas"}`}
+              className="glass-control glass-hit mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
+              style={{ color: brandColorSecondary || brandColor || "var(--ds-primary)" }}
+            >
+              <span className="glass-press flex">
+                <Mic size={20} />
+              </span>
+            </button>
+          )}
           {/* Recent notifications — bare bell icon, red dot when anything
               needs a look (requests / past-due / new leads). Chat moved to
               the tab bar; settings keep their gear next door. */}
@@ -2775,6 +2803,7 @@ export default function AppShell({
               name: assistantName || "Atlas",
               accent: brandColorSecondary || brandColor || undefined,
               open: () => setAssistantOpen(true),
+              talk: talkToAssistant,
             }}
           >
             {children}
@@ -2874,7 +2903,7 @@ export default function AppShell({
                 <p className="mt-0.5 text-xs leading-relaxed text-gray-500">
                   {atlasLocked
                     ? "Out of tokens for now — I'm back when the meter refills."
-                    : "Ask me anything about your business — or tell me what to do and I'll handle it."}
+                    : "Tap the mic and just talk — or type. Ask anything, or tell me what to do and I'll handle it."}
                 </p>
               </button>
               <button
@@ -2900,12 +2929,25 @@ export default function AppShell({
           >
             <AtlasMark size={52} accent={brandColorSecondary || brandColor || undefined} className="block" />
           </button>
+          {/* Desktop: the mic rides on the mark's shoulder — one click to talk. */}
+          <button
+            type="button"
+            onClick={talkToAssistant}
+            aria-label={`Talk to ${assistantName || "Atlas"}`}
+            title={`Talk to ${assistantName || "Atlas"}`}
+            className="fixed z-40 hidden lg:flex h-9 w-9 items-center justify-center rounded-full border-2 border-white shadow-md transition-transform hover:scale-105 lg:bottom-[52px] lg:right-[50px]"
+            style={{ background: "var(--wb-accent, #0b57d8)", color: "var(--wb-on-accent, #ffffff)" }}
+          >
+            <Mic size={16} />
+          </button>
         </>
       )}
       {assistantAvailable && assistantMounted && (
         <AssistantDrawer
           open={assistantOpen}
           onClose={() => setAssistantOpen(false)}
+          startVoice={assistantVoice}
+          onVoiceStarted={() => setAssistantVoice(false)}
           name={assistantName || "Atlas"}
           storageScope={userId ?? ""}
           accent={brandColorSecondary || brandColor || undefined}

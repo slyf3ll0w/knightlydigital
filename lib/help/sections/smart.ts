@@ -173,7 +173,7 @@ export const atlasSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Open Atlas and tap the **microphone** (the send button when nothing is typed). Allow the microphone the first time.",
+            "Tap the **microphone** in the top bar on your phone (it's on every page), the mic beside Atlas's bubble on a computer, the **Talk to Atlas** button on Home, or the mic in the chat itself. Allow the microphone the first time.",
             "Say what you need, the way you'd say it to a person: \"who called this morning?\", \"quote the Hendersons four fifty for the spring cleanup and send it\", \"remind me to call Maria Friday at two\".",
             "Tell Atlas to do something (\"mark that quote sent and approve it\", \"assign the job to me\") and it does it — the cards appear on the talk screen already applied, and Atlas says what happened. When Atlas *suggests* a change you didn't ask for, the card waits: say **\"yes\"** or **\"I confirm\"** (even after asking a question or two first), **\"no\"** to skip it, or tap the card. Anything that goes to a client — an email, a text, a portal message — always waits too: Atlas reads it to you first. Changes that move money or can't be undone always wait for a tap on the card.",
             "Talk over Atlas, or tap the mark, to interrupt it. **Mute** at the top pauses the mic; tap **Done** when you're finished.",

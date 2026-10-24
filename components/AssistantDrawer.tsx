@@ -33,6 +33,7 @@ import AssistantVoice, { type RecordedExchange, type VoiceTurn } from "@/compone
 import { ProposalCard, voiceConfirmable, type CardProposal, type CardState, type PlacedCard } from "@/components/AssistantCard";
 import { micPlatform, requestMicrophone, type MicState } from "@/lib/voice-chat-client";
 import { primeLiveAudio } from "@/lib/live-voice-client";
+import { takeMicGrant } from "@/lib/voice-launch";
 import { voiceLogLines } from "@/lib/voice-log";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import { money } from "@/lib/statuses";
@@ -179,6 +180,8 @@ export default function AssistantDrawer({
   accent,
   access = { level: "full" },
   pricing = DEFAULT_PRICING,
+  startVoice = false,
+  onVoiceStarted,
 }: {
   open: boolean;
   onClose: () => void;
@@ -193,6 +196,10 @@ export default function AssistantDrawer({
   access?: AtlasDrawerAccess;
   /** The allowances (free tokens, plan tokens, plan price) — for copy. */
   pricing?: AtlasPricing;
+  /** Open straight onto the voice screen (a Talk button was tapped; the tap
+   *  already called launchVoice()). The shell clears it via onVoiceStarted. */
+  startVoice?: boolean;
+  onVoiceStarted?: () => void;
 }) {
   const router = useRouter();
   const storageKey = `sf-assistant-chat:${storageScope || "shared"}`;
@@ -300,11 +307,22 @@ export default function AssistantDrawer({
   }, [storageKey]);
 
   useEffect(() => {
-    if (open) {
-      inputRef.current?.focus();
-      bottomRef.current?.scrollIntoView();
+    if (!open) return;
+    bottomRef.current?.scrollIntoView();
+    if (startVoice && !locked) {
+      // Straight to the voice screen: no keyboard, no slide — the grant the
+      // tap already asked for comes along (lib/voice-launch.ts).
+      micGrantRef.current = takeMicGrant() ?? requestMicrophone();
+      setVoiceOpen(true);
+      onVoiceStarted?.();
+      return;
     }
-  }, [open]);
+    // Focus the box only where a keyboard doesn't take over the screen: on a
+    // phone the keyboard shooting up under the drawer was the "loads in
+    // weird" (David 2026-10-23).
+    if (typeof window !== "undefined" && window.matchMedia?.("(pointer: fine)").matches) inputRef.current?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, startVoice]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -684,7 +702,7 @@ export default function AssistantDrawer({
     <>
       {/* backdrop (mobile emphasis; click closes everywhere) */}
       <div className="drawer-scrim-in fixed inset-0 z-40 bg-black/20 sm:bg-black/10" onClick={onClose} />
-      <div className="drawer-slide-in fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col border-l border-gray-200 bg-paper-plain pt-[env(safe-area-inset-top)] shadow-2xl sm:w-[400px]">
+      <div className={`${voiceOpen ? "drawer-scrim-in" : "drawer-slide-in"} fixed inset-y-0 right-0 z-50 flex w-full max-w-full flex-col border-l border-gray-200 bg-paper-plain pt-[env(safe-area-inset-top)] shadow-2xl sm:w-[400px]`}>
         {voiceOpen && !locked && (
           <AssistantVoice
             name={name}
@@ -1015,6 +1033,8 @@ export default function AssistantDrawer({
                   hapticImpact("MEDIUM");
                   primeLiveAudio();
                   micGrantRef.current = requestMicrophone();
+                  // Keyboard down before the voice screen comes up.
+                  inputRef.current?.blur();
                   setVoiceOpen(true);
                 }}
                 disabled={loading}
