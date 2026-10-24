@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Calculator, ChevronRight } from "lucide-react";
 import type { ScheduleAppearance } from "../schedule/shell";
+import { embedAccent, embedWash } from "@/lib/embed-style";
 
 export type EstimateMenuItem = { id: string; slug: string; heading: string; description: string | null; showPrice: "exact" | "range" | "hidden" };
 
@@ -17,7 +18,9 @@ export default function EstimateMenu({
   hrefBase?: string;
 }) {
   if (tools.length === 0) return null;
-  const { dark, accent, transparent } = appearance;
+  const { dark, accent: savedAccent, transparent } = appearance;
+  // Saved accent, or the host website's once an embed matches it (lib/embed-style.ts)
+  const accent = embedAccent(savedAccent);
   const card = transparent ? "border" : dark ? "bg-[#101410] border border-white/10" : "card-ledger";
   return (
     <div className="space-y-3">
@@ -26,9 +29,9 @@ export default function EstimateMenu({
           key={t.id}
           href={`${hrefBase}/estimate/${t.slug}`}
           className={`${card} flex items-center gap-4 rounded-lg p-4 transition-opacity hover:opacity-90 ${dark ? "border-white/10" : ""}`}
-          style={transparent ? { borderColor: `${accent}55` } : undefined}
+          style={transparent ? { borderColor: embedWash(savedAccent, 33) } : undefined}
         >
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${accent}22`, color: accent }}>
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: embedWash(savedAccent, 13), color: accent }}>
             <Calculator size={20} />
           </span>
           <span className="min-w-0 flex-1">

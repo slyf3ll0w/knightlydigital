@@ -245,7 +245,7 @@ async function handleAutoChargeFailure(params: {
           email: true,
           brandColor: true,
           documentColor: true,
-          brandColorSecondary: true,
+          brandColorSecondary: true, phone: true,
           logoUrl: true,
         },
       },
@@ -314,6 +314,7 @@ async function handleAutoChargeFailure(params: {
     const { subject, html } = autopayFailedEmail({
       brand: invoice.company,
       companyName: invoice.company.name,
+      contactFirstName: invoice.contact.firstName,
       invoiceNumber: invoice.invoiceNumber,
       total: params.amount,
       cardLabel: params.cardLabel,
@@ -538,13 +539,14 @@ export async function runCardExpiryNudges(now: Date = new Date()): Promise<numbe
         select: {
           email: true,
           hubToken: true,
+          firstName: true,
           company: {
             select: {
               name: true,
               email: true,
               brandColor: true,
               documentColor: true,
-              brandColorSecondary: true,
+              brandColorSecondary: true, phone: true,
               logoUrl: true,
             },
           },
@@ -565,6 +567,7 @@ export async function runCardExpiryNudges(now: Date = new Date()): Promise<numbe
       const { subject, html } = cardExpiringEmail({
         brand: card.contact.company,
         companyName: card.contact.company.name,
+        contactFirstName: card.contact.firstName,
         cardLabel: card.label,
         expired: expiresAt <= now,
         updateCardUrl: `${baseUrl}/hub/${card.contact.hubToken}/payment-method`,

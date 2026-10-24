@@ -177,7 +177,7 @@ async function applyCompanyTax(
 async function settleGeneratedInvoice(opts: {
   companyId: string;
   subscriptionId: string;
-  contact: { email: string | null };
+  contact: { email: string | null; firstName?: string | null };
   serviceName: string;
   invoiceId: string;
   invoiceNumber: number;
@@ -213,7 +213,7 @@ async function settleGeneratedInvoice(opts: {
         email: true,
         brandColor: true,
         documentColor: true,
-        brandColorSecondary: true,
+        brandColorSecondary: true, phone: true,
         logoUrl: true,
         finixMerchantId: true,
         finixOnboardingState: true, squareMerchantId: true, squareConnectedAt: true,
@@ -224,6 +224,7 @@ async function settleGeneratedInvoice(opts: {
       const { subject, html } = invoiceLinkEmail({
         brand: company,
         companyName: company.name,
+        contactFirstName: opts.contact.firstName,
         invoiceNumber: opts.invoiceNumber,
         total: opts.amount,
         payUrl: `${baseUrl}/pay/${opts.publicToken}`,

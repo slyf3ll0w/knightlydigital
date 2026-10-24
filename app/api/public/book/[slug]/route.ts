@@ -309,6 +309,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     const { subject, html } = quoteLinkEmail({
       brand: company,
       companyName: company.name,
+      contactFirstName: firstName,
       quoteNumber: result.quote.quoteNumber,
       total: result.quote.total,
       viewUrl: `${baseUrl}/quote/${result.quote.publicToken}`,

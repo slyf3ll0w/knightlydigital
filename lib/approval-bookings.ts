@@ -67,7 +67,7 @@ export async function expireApprovalBookings(now: Date): Promise<{ expired: numb
           arrivalWindowMinutes: true,
           brandColor: true,
           documentColor: true,
-          brandColorSecondary: true,
+          brandColorSecondary: true, phone: true,
           logoUrl: true,
         },
       },

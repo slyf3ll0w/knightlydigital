@@ -92,6 +92,7 @@ export async function sendQuote(opts: {
   const { subject, html } = quoteLinkEmail({
     brand: quote.company,
     companyName: quote.company.name,
+    contactFirstName: quote.contact.firstName,
     quoteNumber: quote.quoteNumber,
     total: Number(quote.total),
     viewUrl,
@@ -219,6 +220,7 @@ export async function sendInvoice(opts: {
   const { subject, html } = invoiceLinkEmail({
     brand: invoice.company,
     companyName: invoice.company.name,
+    contactFirstName: contact.firstName,
     invoiceNumber: invoice.invoiceNumber,
     total: Number(invoice.total),
     payUrl,

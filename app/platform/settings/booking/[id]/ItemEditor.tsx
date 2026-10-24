@@ -23,6 +23,7 @@ import {
 } from "@/lib/booking-types";
 import { ADDRESS_DEFAULTS, MAX_DONE_NOTE, defaultButtonLabel, defaultDoneWords, type BookingIntake, type CustomField, type CustomFieldType, type FieldOption } from "@/lib/booking-intake";
 import { KIND_ICON } from "@/lib/booking-icons";
+import { embedCode } from "@/lib/embed-style";
 
 /**
  * One item's editor: sections on the left, the real public page on the
@@ -172,7 +173,6 @@ export default function ItemEditor({
   // editing); the saved list is the trimmed, non-empty lines.
   const [linksText, setLinksText] = useState(() => (draft.meetingLinks.length ? draft.meetingLinks : draft.meetingLink ? [draft.meetingLink] : []).join("\n"));
   const url = `${baseUrl}/book/${company.slug}/${draft.slug}`;
-  const embedSrc = `${baseUrl}/embed/${company.slug}/${draft.slug}`;
   const previewSrc = `/book/${company.slug}/${draft.slug}?preview=1`;
 
   const flush = useCallback(async () => {
@@ -294,8 +294,7 @@ export default function ItemEditor({
   const f = intake.fields;
   const sq = intake.serviceQuestion;
 
-  const snippet = `<iframe src="${embedSrc}" data-jobflow="${company.slug}/${draft.slug}" style="width:100%;border:0;min-height:640px" title="${draft.name} — ${company.name}"></iframe>
-<script>window.addEventListener("message",function(e){var d=e.data;if(e.origin==="${baseUrl ? new URL(baseUrl).origin : ""}"&&d&&d.type==="jobflow:height"&&d.slug==="${company.slug}/${draft.slug}"){var f=document.querySelector('iframe[data-jobflow="${company.slug}/${draft.slug}"]');if(f)f.style.height=d.height+"px";}});</script>`;
+  const snippet = embedCode(baseUrl, company.slug, draft.slug, `${draft.name} — ${company.name}`);
 
   /** One standard question row: label, shown, required — with the rule the kind/mode forces. */
   const fieldRow = (key: keyof BookingIntake["fields"], title: string, lock?: { note: string; show?: boolean; required?: boolean }) => {

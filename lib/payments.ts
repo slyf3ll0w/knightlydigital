@@ -833,14 +833,14 @@ async function sendPaymentReceipt(params: {
       total: true,
       companyId: true,
       payments: { select: { amount: true, surchargeAmount: true } },
-      contact: { select: { email: true } },
+      contact: { select: { email: true, firstName: true } },
       company: {
         select: {
           name: true,
           email: true,
           brandColor: true,
           documentColor: true,
-          brandColorSecondary: true,
+          brandColorSecondary: true, phone: true,
           logoUrl: true,
         },
       },
@@ -853,6 +853,7 @@ async function sendPaymentReceipt(params: {
   const { subject, html } = paymentReceiptEmail({
     brand: invoice.company,
     companyName: invoice.company.name,
+    contactFirstName: invoice.contact.firstName,
     invoiceNumber: invoice.invoiceNumber,
     amount: params.amount,
     methodLabel: paymentMethodLabel[params.method] ?? params.method,
@@ -1146,7 +1147,7 @@ export async function sendReviewRequest(params: {
       reviewLink: true,
       brandColor: true,
       documentColor: true,
-      brandColorSecondary: true,
+      brandColorSecondary: true, phone: true,
       logoUrl: true,
     },
   });

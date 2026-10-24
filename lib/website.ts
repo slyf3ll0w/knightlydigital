@@ -25,6 +25,7 @@ import { sanitizeBusinessHours, type BusinessHours } from "@/lib/business-hours"
 import { listPublicBookingTypes, menuTypes } from "@/lib/booking-runtime";
 import { sanitizeBrief, publicBrief, emptyBrief, briefGaps, type WebsiteBrief, type BriefGap } from "@/lib/website-brief";
 import type { WebsiteStatus } from "@prisma/client";
+import { embedCode } from "@/lib/embed-style";
 
 export const SITE_DATA_VERSION = 1;
 
@@ -81,6 +82,8 @@ export type SiteBookingItem = {
   url: string;
   /** Iframe source (posts `jobflow:height` for auto-resize) */
   embedUrl: string;
+  /** Copy-paste snippet (public/embed.js): sizes itself and matches the site's look */
+  embedCode: string;
 };
 
 export type SiteData = {
@@ -177,6 +180,7 @@ export async function loadSiteData(slug: string): Promise<SiteData | null> {
     mode: t.mode,
     url: `${base}/book/${company.slug}/${t.slug}`,
     embedUrl: `${base}/embed/${company.slug}/${t.slug}`,
+    embedCode: embedCode(base, company.slug, t.slug, t.name),
   }));
 
   // A line number not yet provisioned sits as a `pending:<id>` claim token

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
 import { resolveChannel } from "@/lib/chat";
 import { mediaResponse } from "@/lib/message-media";
+import { wantsBytes } from "@/lib/blob-storage";
 
 /**
  * A thread attachment for the signed-in team: the row must belong to the
@@ -41,5 +42,5 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return new Response(null, { status: 404 });
     }
   }
-  return mediaResponse(id, "private", { download: req.nextUrl.searchParams.get("download") === "1" });
+  return mediaResponse(id, "private", { download: req.nextUrl.searchParams.get("download") === "1", stream: wantsBytes(req.headers) });
 }

@@ -261,6 +261,7 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
       const { subject, html } = quoteLinkEmail({
         brand: company,
         companyName: company.name,
+        contactFirstName: customer.firstName,
         quoteNumber: out.quote.quoteNumber,
         total: out.quote.total,
         viewUrl: `${APP_URL}/quote/${out.quote.publicToken}`,

@@ -5,6 +5,7 @@ import { Check, ChevronDown, ChevronRight, Copy, ExternalLink, Loader2 } from "l
 import { Input, Select, Textarea } from "@/components/Input";
 import { useAssistant } from "@/components/AssistantContext";
 import { InfoTip } from "@/components/ds";
+import { embedCode } from "@/lib/embed-style";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { DEFAULT_OUT_OF_AREA, PUBLIC_LIMITS, PUBLIC_PHOTO_ASSIST_DAILY_CAP, publicSlugFrom, taxNoteFor, type EstimatorPublicConfig } from "@/lib/estimator-public";
 import { confirmGuessedRates } from "@/components/RatesToConfirm";
@@ -60,12 +61,7 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
 
   const liveSlug = tool.publicSlug;
   const hostedUrl = tool.isPublic && liveSlug ? `${baseUrl}/book/${companySlug}/estimate/${liveSlug}` : "";
-  const embedKey = liveSlug ? `${companySlug}/estimate/${liveSlug}` : "";
-  const origin = baseUrl ? new URL(baseUrl).origin : "";
-  const embedSnippet = hostedUrl
-    ? `<iframe src="${baseUrl}/embed/${embedKey}" data-jobflow="${embedKey}" style="width:100%;max-width:640px;height:720px;border:0;" title="Get an estimate"></iframe>
-<script>window.addEventListener("message",function(e){var d=e.data;if(e.origin==="${origin}"&&d&&d.type==="jobflow:height"&&d.slug==="${embedKey}"){var f=document.querySelector('iframe[data-jobflow="${embedKey}"]');if(f)f.style.height=d.height+"px";if(e.source&&e.source.postMessage)e.source.postMessage({type:"jobflow:page",href:location.href},e.origin);}});</script>`
-    : "";
+  const embedSnippet = hostedUrl && liveSlug ? embedCode(baseUrl, companySlug, `estimate/${liveSlug}`, "Get an estimate") : "";
 
   async function copy(text: string, key: string) {
     try {
@@ -151,7 +147,7 @@ export default function PublishPanel({ tool, companySlug, baseUrl, onSaved, onDi
               </div>
             </div>
             <div>
-              <p className="mb-1 text-xs font-semibold text-gray-700">Embed — paste into your site where the form should appear</p>
+              <p className="mb-1 flex items-center gap-1 text-xs font-semibold text-gray-700">Embed — paste into your site where the form should appear <InfoTip>{"Paste it into your site’s HTML where the form should go. It sizes itself and picks up your website’s font, colors and button shape so it fits in; your saved look is used when it can’t read the site. Add data-match=\"off\" to the div to keep your saved look."}</InfoTip></p>
               <div className="flex items-start gap-2">
                 <textarea readOnly value={embedSnippet} rows={2} onFocus={(e) => e.currentTarget.select()} className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-[11px] text-gray-600" />
                 <button type="button" onClick={() => copy(embedSnippet, "embed")} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-700 hover:bg-gray-50">

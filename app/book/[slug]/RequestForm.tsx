@@ -6,7 +6,7 @@ import { smsConsentLabel, businessSmsTermsUrl, businessPrivacyUrl } from "@/lib/
 import Link from "next/link";
 import { CheckCircle, Loader2 } from "lucide-react";
 import TurnstileWidget from "@/components/TurnstileWidget";
-import { textOn } from "@/lib/branding";
+import { embedAccent, embedOnAccent, embedWash } from "@/lib/embed-style";
 import type { PublicBookingType } from "@/lib/booking-runtime";
 import { ADDRESS_DEFAULTS, doneWords, type CustomField } from "@/lib/booking-intake";
 import type { ScheduleAppearance } from "./schedule/shell";
@@ -48,7 +48,10 @@ export default function RequestForm({
   /** Show the SMS consent checkbox — only when the business has its own line (offersSmsConsent). */
   offerSms?: boolean;
 }) {
-  const { dark, accent, transparent } = appearance;
+  const { dark, accent: savedAccent, transparent } = appearance;
+  // Saved accent, or the host website's once an embed matches it (lib/embed-style.ts)
+  const accent = embedAccent(savedAccent);
+  const onAccent = embedOnAccent(savedAccent);
   const intake = item.intake;
   const f = intake.fields;
   // In the hub, what the client already has on file isn't asked again
@@ -209,7 +212,7 @@ export default function RequestForm({
     const text = words.body;
     return (
       <div className={`${card} py-10 text-center`}>
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: `${accent}22` }}>
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: embedWash(savedAccent, 13) }}>
           <CheckCircle size={28} style={{ color: accent }} />
         </div>
         <h2 className={`mb-2 text-xl font-bold ${ink}`}>{title}</h2>
@@ -389,7 +392,7 @@ export default function RequestForm({
         type="submit"
         disabled={loading || preview}
         className="flex w-full items-center justify-center gap-2 rounded py-3 text-sm font-semibold transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-50"
-        style={{ backgroundColor: accent, color: textOn(accent) }}
+        style={{ backgroundColor: accent, color: onAccent }}
       >
         {loading && <Loader2 size={14} className="animate-spin" />}
         {item.buttonLabel}
