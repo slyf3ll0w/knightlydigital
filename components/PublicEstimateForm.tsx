@@ -7,7 +7,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ArrowLeft, Camera, Check, CheckCircle, Loader2, X } from "lucide-react";
 import TurnstileWidget from "@/components/TurnstileWidget";
-import { textOn } from "@/lib/branding";
+import { embedAccent, embedOnAccent } from "@/lib/embed-style";
 import { smsConsentLabel, businessSmsTermsUrl, businessPrivacyUrl } from "@/lib/sms-consent";
 import type { ScheduleAppearance } from "@/app/book/[slug]/schedule/shell";
 import { sectionsOf, visibleInputIds, formDefaults, inputsComplete, type EstimatorInput, type EstimatorSpec, type FormValue } from "@/lib/estimator";
@@ -81,12 +81,15 @@ export default function PublicEstimateForm({
   /** "Before sales tax (8.25%)." when the business adds tax on quotes — tool prices are pre-tax */
   taxNote?: string;
 }) {
-  const { dark, accent, transparent } = appearance;
+  const { dark, accent: savedAccent, transparent } = appearance;
+  // Saved accent, or the host website's once an embed matches it (lib/embed-style.ts)
+  const accent = embedAccent(savedAccent);
+  const onAccent = embedOnAccent(savedAccent);
   const f = config.fields;
   const instant = config.reveal === "instant" && config.showPrice !== "hidden";
   // name + contact details before the questions; the last question submits
   const contactFirst = config.reveal === "before_form";
-  const theme = useMemo(() => publicTheme(dark, accent), [dark, accent]);
+  const theme = useMemo(() => ({ ...publicTheme(dark, savedAccent), accent, onAccent }), [dark, savedAccent, accent, onAccent]);
   // visibleInputIds wants a spec; the form only ever holds the inputs
   const spec = useMemo<EstimatorSpec>(() => ({ version: 1, inputs, variables: [], lines: [] }), [inputs]);
 
@@ -436,7 +439,7 @@ export default function PublicEstimateForm({
                   Add photo
                 </button>
               )}
-              <button type="button" disabled={photoBusy || (!photo && about.trim().length < 8)} onClick={() => void fillFromAtlas()} className={`${primary} w-auto px-4 py-2`} style={{ backgroundColor: accent, color: textOn(accent) }}>
+              <button type="button" disabled={photoBusy || (!photo && about.trim().length < 8)} onClick={() => void fillFromAtlas()} className={`${primary} w-auto px-4 py-2`} style={{ backgroundColor: accent, color: onAccent }}>
                 {photoBusy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                 {assessed.length > 0 ? "Assess & fill in" : "Fill in for me"}
               </button>
@@ -470,7 +473,7 @@ export default function PublicEstimateForm({
                   <MapMeasure
                     measure={inp.measure}
                     points={geomRef.current[inp.id] ?? []}
-                    accent={accent}
+                    accent={savedAccent}
                     dark={dark}
                     initialCenter={mapCenter}
                     onChange={(pts, val) => {
@@ -520,7 +523,7 @@ export default function PublicEstimateForm({
               <ArrowLeft size={14} />
             </button>
           )}
-          <button type="submit" disabled={loading} className={primary} style={{ backgroundColor: accent, color: textOn(accent) }}>
+          <button type="submit" disabled={loading} className={primary} style={{ backgroundColor: accent, color: onAccent }}>
             {loading && <Loader2 size={14} className="animate-spin" />}
             {!last ? "Next" : instant || contactFirst ? buttonLabel : "Continue"}
           </button>
@@ -608,7 +611,7 @@ export default function PublicEstimateForm({
             <textarea value={form.message} onChange={(e) => set("message", e.target.value)} rows={3} required={f.message.required} className={`${input} resize-none`} />
           </div>
         )}
-        <button type="submit" className={primary} style={{ backgroundColor: accent, color: textOn(accent) }}>
+        <button type="submit" className={primary} style={{ backgroundColor: accent, color: onAccent }}>
           Continue
         </button>
         {preview && (
@@ -708,7 +711,7 @@ export default function PublicEstimateForm({
         </div>
       )}
       {!preview && <TurnstileWidget onToken={setCaptchaToken} action="booking" />}
-      <button type="submit" disabled={loading || preview} className={primary} style={{ backgroundColor: accent, color: textOn(accent) }}>
+      <button type="submit" disabled={loading || preview} className={primary} style={{ backgroundColor: accent, color: onAccent }}>
         {loading && <Loader2 size={14} className="animate-spin" />}
         {instant ? (config.onSubmit === "send" ? "Email me this quote" : "Send my request") : buttonLabel}
       </button>

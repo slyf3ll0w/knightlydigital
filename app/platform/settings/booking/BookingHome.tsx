@@ -8,6 +8,7 @@ import { Check, ChevronDown, ChevronRight, ChevronUp, Copy, ExternalLink, Globe,
 import PageTitle from "@/components/PageTitle";
 import SectionHeader from "@/components/SectionHeader";
 import { Chip, InfoTip } from "@/components/ds";
+import { embedCode } from "@/lib/embed-style";
 import BackLink from "@/components/BackLink";
 import Modal from "@/components/Modal";
 import { confirmSheet } from "@/components/ConfirmSheet";
@@ -321,9 +322,7 @@ export default function BookingHome({
     }
   }
 
-  const embedKey = companySlug;
-  const embedSnippet = `<iframe src="${baseUrl}/embed/${companySlug}" data-jobflow="${embedKey}" style="width:100%;max-width:640px;height:760px;border:0;" title="Book online"></iframe>
-<script>window.addEventListener("message",function(e){var d=e.data;if(e.origin==="${baseUrl ? new URL(baseUrl).origin : ""}"&&d&&d.type==="jobflow:height"&&d.slug==="${embedKey}"){var f=document.querySelector('iframe[data-jobflow="${embedKey}"]');if(f)f.style.height=d.height+"px";}});</script>`;
+  const embedSnippet = embedCode(baseUrl, companySlug);
 
   const onPage = items.filter((t) => t.isActive && t.showOnPage).length;
   const pageFacts = [
@@ -414,12 +413,12 @@ export default function BookingHome({
               {open === "embed" && (
                 <div className="space-y-2 px-4 pb-4 lg:px-5">
                   <div className="flex items-start gap-2">
-                    <textarea readOnly value={embedSnippet} rows={4} className="min-w-0 flex-1 rounded-lg bg-gray-50 px-3 py-2 font-mono text-[11px] text-gray-700" />
+                    <textarea readOnly value={embedSnippet} rows={3} className="min-w-0 flex-1 rounded-lg bg-gray-50 px-3 py-2 font-mono text-[11px] text-gray-700" />
                     <button type="button" onClick={() => copy(embedSnippet, "embed")} className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700" title="Copy snippet">
                       {copied === "embed" ? <Check size={14} className="text-[color:var(--ds-good)]" /> : <Copy size={14} />}
                     </button>
+                    <InfoTip align="end">{"Paste it into your site’s HTML where the form should go. It sizes itself and picks up your website’s font, colors and button shape so it fits in; your saved look is used when it can’t read the site. Add data-match=\"off\" to the div to keep your saved look."}</InfoTip>
                   </div>
-                  <p className="text-xs text-gray-500">Paste it into your site&apos;s HTML. It resizes itself and carries your saved look; add ?theme=dark or ?transparent=1 to the src to override per placement.</p>
                 </div>
               )}
             </div>

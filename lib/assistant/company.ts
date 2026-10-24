@@ -22,6 +22,7 @@ import {
 import { type Tool, str, num, money, stage, siteBase } from "./core";
 import { sanitizeIntake } from "@/lib/booking-intake";
 import { KIND_META } from "@/lib/booking-types";
+import { embedCode } from "@/lib/embed-style";
 
 /** kebab-case a label into a stable config key/id. */
 function slugId(label: string): string {
@@ -745,11 +746,7 @@ export const companyTools: Tool[] = [
       const company = await prisma.company.findUnique({ where: { id: actor.companyId }, select: { slug: true, name: true } });
       const companySlug = company?.slug ?? "";
       const link = (slug: string) => `${baseUrl}/book/${companySlug}/${slug}`;
-      const embedFor = (slug: string | null, title: string) => {
-        const key = slug ? `${companySlug}/${slug}` : companySlug;
-        const src = slug ? `${baseUrl}/embed/${companySlug}/${slug}` : `${baseUrl}/embed/${companySlug}`;
-        return `<iframe src="${src}" data-jobflow="${key}" style="width:100%;max-width:640px;height:760px;border:0;" title="${title}"></iframe>\n<script>window.addEventListener("message",function(e){var d=e.data;if(e.origin==="${baseUrl}"&&d&&d.type==="jobflow:height"&&d.slug==="${key}"){var f=document.querySelector('iframe[data-jobflow="${key}"]');if(f)f.style.height=d.height+"px";}});</script>`;
-      };
+      const embedFor = (slug: string | null, title: string) => embedCode(baseUrl, companySlug, slug ?? "", title);
 
       if (action === "list") {
         const rows = await prisma.bookingType.findMany({
