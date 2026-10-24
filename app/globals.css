@@ -849,6 +849,14 @@ html[data-mode="dark"] .app-ui .menu-sheet > div + :is(button, a) {
 .drawer-slide-in {
   animation: drawerSlideIn 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
+/* The voice screen arrives as one calm fade-and-settle, not a slide plus a
+   pop (phones used to show the drawer sliding, the keyboard rising and the
+   screen appearing in three beats). */
+@keyframes atlasVoiceIn {
+  from { opacity: 0; transform: scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+.atlas-voice-in { animation: atlasVoiceIn 0.22s ease-out both; }
 /* Talking to Atlas (components/AssistantVoice.tsx): the halo behind the
    mark breathes while it listens, ripples while it speaks, holds a slow
    pulse while it thinks. */
@@ -872,6 +880,7 @@ html[data-mode="dark"] .app-ui .menu-sheet > div + :is(button, a) {
   .app-ui .modal-pop > .modal-card,
   .drawer-scrim-in,
   .drawer-slide-in,
+  .atlas-voice-in,
   .atlas-voice-breathe,
   .atlas-voice-ripple,
   .atlas-voice-think {

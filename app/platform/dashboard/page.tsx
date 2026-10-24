@@ -31,6 +31,7 @@ import { startOfDayIn, startOfMonthIn, startOfWeekIn, zonedMidnight, zonedParts 
 import CountUp from "@/components/CountUp";
 import GetStartedCard from "./GetStartedCard";
 import PayoutNudge from "./PayoutNudge";
+import TalkToAtlas from "@/components/TalkToAtlas";
 import { loadGetStarted } from "@/lib/get-started";
 import DashboardTasks from "./DashboardTasks";
 import { dashboardTasks } from "@/lib/tasks";
@@ -742,6 +743,9 @@ export default async function DashboardPage() {
 
       {/* ─────────────── Phone ─────────────── */}
       <div className="mt-6 flex flex-col gap-7 lg:hidden">
+        {/* Voice first: the talk screen is the easiest way to run the day
+            from a truck, so it sits at the top of Home (2026-10-23). */}
+        <TalkToAtlas />
         {/* The Get started checklist comes first on phones: it used to be the
             last thing on the page, under three $0 stats (audit 2026-10-12) */}
         {payoutNudge && <PayoutNudge />}
@@ -819,6 +823,7 @@ export default async function DashboardPage() {
           </div>
         )}
         <PushNudge className="mt-6" />
+        <TalkToAtlas className="mt-6" />
 
         {seePerformance && (
           <div className="mt-7 grid grid-cols-3 gap-4">

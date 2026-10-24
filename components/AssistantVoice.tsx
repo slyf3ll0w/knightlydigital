@@ -581,7 +581,7 @@ export default function AssistantVoice({
           : note || "Tap the mic to talk";
 
   return (
-    <div className="absolute inset-0 z-20 flex flex-col bg-paper-plain pt-[env(safe-area-inset-top)]" role="dialog" aria-label={`Talk to ${name}`}>
+    <div className="atlas-voice-in absolute inset-0 z-20 flex flex-col bg-paper-plain pt-[env(safe-area-inset-top)]" role="dialog" aria-label={`Talk to ${name}`}>
       <div className="flex items-center justify-between px-4 pt-3">
         <div className="flex items-center gap-2">
         <button
