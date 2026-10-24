@@ -1110,6 +1110,21 @@ html[data-mode="dark"] .app-ui .bg-themed {
   touch-action: manipulation;
 }
 
+/* "Suggest a change" (components/SuggestChange.tsx) is on for this account:
+   a press-and-hold anywhere is the gesture, so page text must not select or
+   raise the iOS callout under the finger. Typing fields keep selection. */
+html[data-suggest-changes] .app-ui {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+html[data-suggest-changes] .app-ui input,
+html[data-suggest-changes] .app-ui textarea,
+html[data-suggest-changes] .app-ui [contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* Text selection in the brand accent — small, everywhere */
 .app-ui ::selection {
   background-color: color-mix(in srgb, var(--wb-accent, #0B57D8) 26%, transparent);

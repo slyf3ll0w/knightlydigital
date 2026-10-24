@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import type { LucideIcon } from "lucide-react";
+import { Wand2, type LucideIcon } from "lucide-react";
 import BottomSheet from "@/components/BottomSheet";
 import { hapticImpact } from "@/lib/haptics";
+import { SUGGEST_CHANGE_HERE_EVENT, type SuggestHereDetail } from "@/components/SuggestChange";
 
 /**
  * Quick actions for a list row: right-click (desktop) or press-and-hold
@@ -35,7 +36,13 @@ export type QuickAction = {
   heading?: boolean;
 };
 
-export type MenuAnchor = { x: number; y: number; alignRight?: boolean };
+export type MenuAnchor = {
+  x: number;
+  y: number;
+  alignRight?: boolean;
+  /** What the gesture landed on — the pick for "Suggest a change" (components/SuggestChange.tsx). */
+  target?: Element | null;
+};
 
 const LONG_PRESS_MS = 380;
 const MOVE_CANCEL_PX = 10;
@@ -110,7 +117,26 @@ export function QuickMenu({ open, anchor, title, actions, onClose }: { open: boo
     [busy, onClose]
   );
 
-  const items = actions.filter((a) => a.heading || !a.disabled || a.hint);
+  // "Suggest a change" rides every quick menu while the feature is on for
+  // this account (test accounts; SuggestChange stamps <html>), so a row that
+  // owns its hold / right-click still reaches it. The row it was opened on
+  // is the pick.
+  const suggestOn = open && !!anchor && typeof document !== "undefined" && document.documentElement.dataset.suggestChanges === "1";
+  const all: QuickAction[] = suggestOn
+    ? [
+        ...actions,
+        {
+          key: "wb-suggest-change",
+          label: "Suggest a change",
+          icon: Wand2,
+          onSelect: () => {
+            const detail: SuggestHereDetail = { target: anchor?.target ?? null, x: anchor?.x ?? 0, y: anchor?.y ?? 0 };
+            window.dispatchEvent(new CustomEvent(SUGGEST_CHANGE_HERE_EVENT, { detail }));
+          },
+        },
+      ]
+    : actions;
+  const items = all.filter((a) => a.heading || !a.disabled || a.hint);
 
   const desktopItem = (a: QuickAction) => {
     if (a.heading) return <p key={a.key} className="px-3.5 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{a.label}</p>;
@@ -252,11 +278,13 @@ export default function RowActions({ actions, title, children, className = "" }:
     <div
       className={`group relative ${className}`}
       style={{ WebkitTouchCallout: "none" }}
+      // the page-wide "Suggest a change" gesture (components/SuggestChange.tsx) leaves this element to its own menu
+      data-holds=""
       onContextMenu={(e) => {
         e.preventDefault();
         // a press-and-hold already opened the sheet on this browser
         if (timer.current || open) return;
-        openAt({ x: e.clientX, y: e.clientY });
+        openAt({ x: e.clientX, y: e.clientY, target: e.target as Element });
       }}
       onTouchStart={(e) => {
         const t = e.touches[0];
@@ -268,7 +296,7 @@ export default function RowActions({ actions, title, children, className = "" }:
           timer.current = null;
           held.current = true;
           hapticImpact("MEDIUM");
-          openAt({ x: t.clientX, y: t.clientY });
+          openAt({ x: t.clientX, y: t.clientY, target: t.target instanceof Element ? t.target : null });
         }, LONG_PRESS_MS);
       }}
       onTouchMove={(e) => {

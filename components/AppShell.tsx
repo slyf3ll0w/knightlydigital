@@ -3617,7 +3617,7 @@ function MoreSheet({
               </span>
               <span className="min-w-0">
                 <span className="block text-[13.5px] font-semibold text-gray-900">Suggest a change</span>
-                <span className="block text-[11.5px] text-gray-500">Tap anything on a page, say what to change</span>
+                <span className="block text-[11.5px] text-gray-500">Press and hold anything on a page — or tap here to pick</span>
               </span>
             </button>
           )}
