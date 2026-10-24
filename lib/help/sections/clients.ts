@@ -204,6 +204,10 @@ export const leadsSection: HelpSection = {
         },
         {
           type: "p",
+          text: "A form embedded with that code picks up your website's look on its own: its font, text color, button color and how round the corners are, and it turns dark on a dark site. If a color would be hard to read, the form keeps the look you set under **Look**. To use your saved look in one spot instead, add `data-match=\"off\"` to the code's first tag. Code copied before October 24, 2026 still works but doesn't match your site; copy it again to get the matching.",
+        },
+        {
+          type: "p",
           text: "Customers can book from 4 hours out to 30 days ahead by default. Change that under **Scheduling rules**, where your business hours live too. Times you're busy every week inside those hours (lunch, a standing appointment, Fridays off) go under **Repeating blocks**: booking forms show them as taken, and they sit on the Schedule as blocked time.",
         },
         {

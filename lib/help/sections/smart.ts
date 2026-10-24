@@ -329,6 +329,10 @@ export const estimatorSection: HelpSection = {
         },
         {
           type: "p",
+          text: "The embedded form matches your website's font, colors and button corners by itself. Add `data-match=\"off\"` to the code's first tag to keep your saved look instead.",
+        },
+        {
+          type: "p",
           text: "Visitors with a ZIP code outside your service area still come in as a request, just without a price.",
         },
       ],
