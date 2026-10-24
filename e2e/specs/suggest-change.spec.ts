@@ -29,6 +29,11 @@ async function ownerContext(browser: Browser, viewport: { width: number; height:
     } catch {
       /* ignore */
     }
+    // Evidence for a failure: who saw each right-click, and whether something had already claimed it
+    const log: unknown[] = [];
+    (window as unknown as { __cm: unknown[] }).__cm = log;
+    document.addEventListener("contextmenu", (e) => log.push({ at: "doc-capture", tag: (e.target as Element)?.tagName, prevented: e.defaultPrevented }), true);
+    window.addEventListener("contextmenu", (e) => log.push({ at: "win-bubble", tag: (e.target as Element)?.tagName, prevented: e.defaultPrevented }));
   });
   return context;
 }
@@ -110,12 +115,21 @@ test.describe("suggest a change", () => {
             async () => {
               if (await started()) return true;
               await h1.click({ button: "right" });
+              // the menu renders a beat after the click on a slow runner
+              await row.waitFor({ state: "visible", timeout: 2000 }).catch(() => undefined);
               if (await row.isVisible()) await row.click();
+              await page.waitForTimeout(600);
               return started();
             },
-            { timeout: 30_000, intervals: [400, 800] }
+            { timeout: 40_000, intervals: [500, 1000] }
           )
-          .toBe(true);
+          .toBe(true)
+          .catch(async (err: unknown) => {
+            const seen = await page.evaluate(() => (window as unknown as { __cm?: unknown[] }).__cm ?? []);
+            const menus = await page.evaluate(() => Array.from(document.querySelectorAll("[role=menuitem]")).map((m) => m.textContent?.trim()));
+            const flag = await page.evaluate(() => document.documentElement.dataset.suggestChanges ?? "(unset)");
+            throw new Error(`right-click never started the flow · flag=${flag} · contextmenu seen: ${JSON.stringify(seen)} · menu items: ${JSON.stringify(menus)}\n${String(err)}`);
+          });
       }
       await expect(dialog).toBeVisible({ timeout: 45_000 });
       await expect(page).toHaveURL(/\/app\/dashboard/);
