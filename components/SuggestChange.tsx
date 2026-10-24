@@ -24,6 +24,19 @@ import { KIND_LABEL, describeTarget, shortTicketId } from "@/lib/change-request"
  */
 
 export const SUGGEST_CHANGE_EVENT = "wb:suggest-change";
+/** From a quick menu's "Suggest a change" row (components/QuickMenu.tsx): start on that element, no pick mode. */
+export const SUGGEST_CHANGE_HERE_EVENT = "wb:suggest-change-here";
+export type SuggestHereDetail = { target?: Element | null; x: number; y: number };
+
+// ── The gesture (2026-10-24): press-and-hold on a phone, right-click at a desk ──
+// Either one starts the flow on the thing under the finger / pointer, no
+// menu first. Elements that own that gesture already (QuickMenu rows and nav
+// items carry a quick menu) keep it — their menu gets a "Suggest a change"
+// row instead — and typing fields keep the browser's own menu and selection.
+const HOLD_MS = 450;
+const HOLD_MOVE_PX = 10;
+const OWNS_GESTURE = "[data-holds], [role=menu], [data-wb-suggest]";
+const EDITABLE = "input, textarea, select, [contenteditable=''], [contenteditable=true]";
 
 // ── Diagnostics ring — installed once per page load ──────────────────────────
 const RING = 40;
@@ -299,8 +312,22 @@ export default function SuggestChange() {
   const [error, setError] = useState("");
   const [sentId, setSentId] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  // A hold that started the flow must not also fire the row's tap when the
+  // finger lifts (phones rarely send that click, but when they do it opens
+  // whatever was under the finger). Refs: the gesture effect below is torn
+  // down the moment the phase changes, these outlive it.
+  const heldRef = useRef(false);
+  const swallowUntil = useRef(0);
 
   useEffect(installDiagnostics, []);
+  // Tells the CSS (globals.css: no text selection / iOS callout under a
+  // hold) and QuickMenu (adds its row) that the feature is on for this account.
+  useEffect(() => {
+    document.documentElement.dataset.suggestChanges = "1";
+    return () => {
+      delete document.documentElement.dataset.suggestChanges;
+    };
+  }, []);
   useEffect(() => {
     if (pathname && visited[visited.length - 1] !== pathname) push(visited, pathname, 12);
   }, [pathname]);
@@ -346,6 +373,123 @@ export default function SuggestChange() {
     setPhase("compose");
   }, []);
 
+  // A quick menu's "Suggest a change" row: the menu closes (300 ms sheet
+  // exit), then the row it was opened on is the pick.
+  useEffect(() => {
+    const onHere = (e: Event) => {
+      const d = (e as CustomEvent<SuggestHereDetail>).detail;
+      reset();
+      setPhase("shoot");
+      window.setTimeout(() => {
+        const fromPoint = document.elementFromPoint(d.x, d.y);
+        const el =
+          d.target && d.target.isConnected
+            ? d.target
+            : fromPoint && !fromPoint.closest("[data-wb-suggest], [role=dialog]")
+              ? fromPoint
+              : null;
+        void choose(el ? pickTarget(el) : null);
+      }, 380);
+    };
+    window.addEventListener(SUGGEST_CHANGE_HERE_EVENT, onHere);
+    return () => window.removeEventListener(SUGGEST_CHANGE_HERE_EVENT, onHere);
+  }, [reset, choose]);
+
+  // The echo guard for a hold (see heldRef) — always on
+  useEffect(() => {
+    const onTouchEnd = () => {
+      if (heldRef.current) {
+        heldRef.current = false;
+        swallowUntil.current = Date.now() + 600;
+      }
+    };
+    const onClick = (e: MouseEvent) => {
+      if (!swallowUntil.current) return;
+      const fresh = Date.now() < swallowUntil.current;
+      swallowUntil.current = 0;
+      if (!fresh) return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    document.addEventListener("touchend", onTouchEnd, true);
+    document.addEventListener("touchcancel", onTouchEnd, true);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      document.removeEventListener("touchend", onTouchEnd, true);
+      document.removeEventListener("touchcancel", onTouchEnd, true);
+      document.removeEventListener("click", onClick, true);
+    };
+  }, []);
+
+  // The gesture: right-click, or hold still for HOLD_MS. Only while idle.
+  useEffect(() => {
+    if (phase !== "idle") return;
+    let timer: number | null = null;
+    let start: { x: number; y: number; target: Element } | null = null;
+    let lastTouchAt = 0;
+    const clear = () => {
+      if (timer) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+    };
+    const skip = (t: EventTarget | null) => !(t instanceof Element) || !!t.closest(OWNS_GESTURE) || !!t.closest(EDITABLE);
+
+    const onContextMenu = (e: MouseEvent) => {
+      // A quick menu claimed it (RowActions calls preventDefault first) —
+      // its menu carries the "Suggest a change" row.
+      if (e.defaultPrevented) return;
+      // Android fires contextmenu for a long press too: the hold timer owns
+      // that one, this just keeps the browser's own menu from opening.
+      if (Date.now() - lastTouchAt < 1000) {
+        e.preventDefault();
+        return;
+      }
+      // Shift + right-click keeps the browser's menu (inspect, copy link)
+      if (e.shiftKey || skip(e.target)) return;
+      e.preventDefault();
+      void choose(pickTarget(e.target as Element));
+    };
+    const onTouchStart = (e: TouchEvent) => {
+      lastTouchAt = Date.now();
+      clear();
+      const t = e.touches[0];
+      if (!t || e.touches.length > 1 || skip(e.target)) return;
+      start = { x: t.clientX, y: t.clientY, target: e.target as Element };
+      timer = window.setTimeout(() => {
+        timer = null;
+        if (!start) return;
+        heldRef.current = true;
+        hapticImpact("MEDIUM");
+        const el = document.elementFromPoint(start.x, start.y) ?? start.target;
+        void choose(pickTarget(el));
+      }, HOLD_MS);
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!timer || !start || !t) return;
+      if (e.touches.length > 1 || Math.hypot(t.clientX - start.x, t.clientY - start.y) > HOLD_MOVE_PX) clear();
+    };
+    const onTouchEnd = () => {
+      clear();
+      start = null;
+    };
+    // bubble phase on window: React's own contextmenu handlers (QuickMenu) run first
+    window.addEventListener("contextmenu", onContextMenu);
+    document.addEventListener("touchstart", onTouchStart, { passive: true, capture: true });
+    document.addEventListener("touchmove", onTouchMove, { passive: true, capture: true });
+    document.addEventListener("touchend", onTouchEnd, true);
+    document.addEventListener("touchcancel", onTouchEnd, true);
+    return () => {
+      clear();
+      window.removeEventListener("contextmenu", onContextMenu);
+      document.removeEventListener("touchstart", onTouchStart, { capture: true });
+      document.removeEventListener("touchmove", onTouchMove, { capture: true });
+      document.removeEventListener("touchend", onTouchEnd, true);
+      document.removeEventListener("touchcancel", onTouchEnd, true);
+    };
+  }, [phase, choose]);
+
   // Pick mode: the page is frozen — every press is a pick, nothing fires
   useEffect(() => {
     if (phase !== "pick") return;
@@ -360,7 +504,7 @@ export default function SuggestChange() {
     const block = (e: Event) => {
       if (ours(e.target)) return;
       e.stopPropagation();
-      if (e.type === "mousedown") e.preventDefault();
+      if (e.type === "mousedown" || e.type === "contextmenu") e.preventDefault();
     };
     const onClick = (e: MouseEvent) => {
       if (ours(e.target)) return;
@@ -375,7 +519,7 @@ export default function SuggestChange() {
         reset();
       }
     };
-    const blocked = ["pointerdown", "mousedown", "pointerup", "mouseup", "touchstart", "touchend"] as const;
+    const blocked = ["pointerdown", "mousedown", "pointerup", "mouseup", "touchstart", "touchend", "contextmenu"] as const;
     document.addEventListener("pointermove", onMove, true);
     for (const t of blocked) document.addEventListener(t, block, { capture: true, passive: t.startsWith("touch") });
     document.addEventListener("click", onClick, true);
@@ -493,6 +637,7 @@ export default function SuggestChange() {
             <p className="font-display text-[15px] font-bold text-gray-900">Suggest a change</p>
             <p className="mt-0.5 text-[12px] leading-snug text-gray-500">
               A picture of this screen, the thing you picked and the page details go with your note — nothing to explain.
+              {coarse ? " Next time: press and hold anything." : " Next time: right-click anything."}
             </p>
           </div>
           <button

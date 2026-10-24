@@ -29,6 +29,30 @@ test.describe("suggest a change", () => {
     expect(res.status).toBe(401);
   });
 
+  test("the menu entry opens pick mode; Escape leaves the page untouched", async ({ browser }) => {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    await context.addCookies([
+      { name: state.cookieName, value: owner.token, url: state.baseUrl, secure: state.baseUrl.startsWith("https"), httpOnly: true },
+    ]);
+    const page = await context.newPage();
+    await page.goto(`${state.baseUrl}/app/dashboard`);
+    await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
+    const banner = page.getByText(/what you want changed/);
+    await expect
+      .poll(
+        async () => {
+          await page.evaluate(() => window.dispatchEvent(new Event("wb:suggest-change")));
+          return banner.isVisible();
+        },
+        { timeout: 30_000, intervals: [500, 1000] }
+      )
+      .toBe(true);
+    await page.keyboard.press("Escape");
+    await expect(banner).toBeHidden();
+    await expect(page).toHaveURL(/\/app\/dashboard/);
+    await context.close();
+  });
+
   for (const [label, viewport] of VIEWPORTS) {
     test(`${label}: pick the heading, the picture renders, the ticket carries the capture`, async ({ browser }) => {
       const phone = viewport.width < 800;
@@ -42,24 +66,41 @@ test.describe("suggest a change", () => {
       const h1 = page.getByRole("heading", { level: 1 }).first();
       await expect(h1).toBeVisible();
 
-      // The More sheet / user menu fire this event; drive it directly so the
-      // test is about the picker, not the menus. The listener exists only
-      // once the layout has hydrated (the menus can't be tapped before that
-      // either), so fire until the banner answers.
-      const banner = page.getByText(/what you want changed/);
-      await expect
-        .poll(
-          async () => {
-            await page.evaluate(() => window.dispatchEvent(new Event("wb:suggest-change")));
-            return banner.isVisible();
-          },
-          { timeout: 30_000, intervals: [500, 1000] }
-        )
-        .toBe(true);
-
-      // In pick mode a press is a pick, nothing else fires
-      await h1.click();
+      // The gesture: a press-and-hold on the phone, a right-click at the desk —
+      // straight into the flow on that element. The listeners exist only once
+      // the layout has hydrated, so repeat the gesture until the flow answers
+      // (a repeat while the picture is being taken is ignored).
       const dialog = page.getByRole("dialog", { name: "Suggest a change" });
+      const started = async () => (await dialog.isVisible()) || (await page.getByText("Taking a picture…").isVisible());
+      if (phone) {
+        const cdp = await context.newCDPSession(page);
+        const box = (await h1.boundingBox())!;
+        const x = box.x + Math.min(40, box.width / 2);
+        const y = box.y + box.height / 2;
+        await expect
+          .poll(
+            async () => {
+              if (await started()) return true;
+              await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+              await page.waitForTimeout(700);
+              await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+              return started();
+            },
+            { timeout: 30_000, intervals: [400, 800] }
+          )
+          .toBe(true);
+      } else {
+        await expect
+          .poll(
+            async () => {
+              if (await started()) return true;
+              await h1.click({ button: "right" });
+              return started();
+            },
+            { timeout: 30_000, intervals: [400, 800] }
+          )
+          .toBe(true);
+      }
       await expect(dialog).toBeVisible({ timeout: 45_000 });
       await expect(page).toHaveURL(/\/app\/dashboard/);
       await expect(dialog.getByText(/^Picked:/)).toBeVisible();
