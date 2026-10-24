@@ -76,7 +76,7 @@ export const portalThreadContactInclude = {
       email: true,
       logoUrl: true,
       brandColor: true,
-      brandColorSecondary: true,
+      brandColorSecondary: true, phone: true,
       documentColor: true,
     },
   },

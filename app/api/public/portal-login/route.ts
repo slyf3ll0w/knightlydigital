@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
   const company = await prisma.company.findFirst({
     where: slugWhere(slug),
-    select: { id: true, name: true, brandColor: true, documentColor: true, brandColorSecondary: true, logoUrl: true, suspendedAt: true },
+    select: { id: true, name: true, brandColor: true, documentColor: true, brandColorSecondary: true, phone: true, logoUrl: true, suspendedAt: true },
   });
   if (!company) return ok;
   // Suspended companies: same silent response as an unknown email — no

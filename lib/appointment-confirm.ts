@@ -46,7 +46,7 @@ export async function sendAppointmentConfirmation(
             timezone: true,
             arrivalWindowMinutes: true,
             brandColor: true,
-            brandColorSecondary: true,
+            brandColorSecondary: true, phone: true,
             documentColor: true,
             logoUrl: true,
           },

@@ -7,19 +7,19 @@ import { reportError } from "@/lib/report-error";
  * EMAIL_FROM must use the domain verified in Resend
  * (default: notifications@workbenchfsm.com).
  *
- * Two shells, two audiences:
+ * Every template is a plain letter (David 2026-10-24: the old card-on-gray
+ * shells with caps labels, colored rules and rubber stamps read as AI
+ * generated). White page, left-aligned text, short plain sentences, at most
+ * one button, a sign-off. No headings, no badges, no em dashes in the copy.
+ *
+ * - clientShell() — client-facing (quotes, invoices, bookings, contracts,
+ *                   portal). The company's logo when it has one, the
+ *                   message, then "Thanks, <company>" + phone and a quiet
+ *                   "Sent with WorkBench". The button and links use the
+ *                   company's accent (brandAccent semantics).
  * - wbShell()     — platform emails (notifications to businesses, invites,
- *                   password resets, console codes). WorkBench-branded: the
- *                   color wordmark on white, navy→blue rule, orange stamp
- *                   dash, and the app's "tool" button look.
- * - clientShell() — client-facing emails (quotes, invoices, bookings,
- *                   contracts, portal). The "paper trail" look of the
- *                   quote/invoice PDFs (lib/pdf.tsx): white sheet, company
- *                   identity left / letter-spaced doc type + big #number
- *                   right, brand-accent rule, small-caps field labels,
- *                   hairline item rows, right-aligned totals ledger, rubber
- *                   stamps, hairline footer. Buttons use the same accent as
- *                   the document pages (brandAccent semantics).
+ *                   password resets, console codes). Same letter, signed by
+ *                   WorkBench, WorkBench blue button.
  */
 
 import { prisma } from "@/lib/db";
@@ -36,18 +36,15 @@ const FROM_ADDRESS = FROM.match(/<([^>]+)>/)?.[1] ?? FROM;
 // phishing filters (Yahoo PH01 bounced exactly this).
 const APP_URL = (process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com").replace(/\/+$/, "");
 
-const WB_NAVY = "#0A1428";
+
 const WB_BLUE = "#0B57D8";
 const WB_ORANGE = "#F86808"; // the logo's Bench orange
-const FONT = "-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif";
+const FONT = "-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif";
 
-// Paper-trail palette + fixed doc-type inks — the same values as the PDFs
-// (lib/pdf.tsx INK/MUTED/FAINT/DOC_TYPE_INK), duplicated here so email.ts
-// never imports the react-pdf stack.
-const INK = "#111827";
-const MUTED = "#6B7280";
-const FAINT = "#E5E7EB";
-const DOC_INK = { quote: "#15803D", invoice: "#0369A1", alert: "#B45309" } as const;
+// Letter palette: one text color, one quiet gray, one hairline.
+const TEXT = "#1F2937";
+const QUIET = "#6B7280";
+const HAIR = "#E5E7EB";
 
 /** Whether Resend is configured — without it every sendEmail is a no-op. */
 export function emailEnabled(): boolean {
@@ -60,13 +57,13 @@ export function emailEnabled(): boolean {
 export type EmailBrand = {
   brandColor?: string | null;
   brandColorSecondary?: string | null;
-  /** Client-document color — preferred over brandColor when set */
+  /** Client-document color — kept in the type so callers' selects compile; not painted. */
   documentColor?: string | null;
   logoUrl?: string | null;
+  /** Company phone, printed under the sign-off when present. */
+  phone?: string | null;
 };
 
-// documentColor is no longer painted (the paper shell is white like the PDF)
-// but stays in the type so callers' company selects keep compiling.
 const BRAND_HEX = /^#[0-9a-fA-F]{6}$/;
 const hex = (v: string | null | undefined) => (BRAND_HEX.test(v ?? "") ? v! : null);
 
@@ -101,188 +98,139 @@ function esc(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/** Multi-line user text (messages, notes) → escaped HTML with line breaks. */
+const multiline = (s: string) => esc(s).replace(/\r\n/g, "\n").replace(/\n/g, "<br />");
+
 /* ------------------------------------------------------------------ */
-/* Shared building blocks                                              */
+/* Letter pieces                                                       */
 /* ------------------------------------------------------------------ */
 
-/** Small-caps field label (matches the document pages' field labels). */
-const fieldLabel = (label: string, topMargin = 16) =>
-  `<p style="margin:${topMargin}px 0 4px;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">${label}</p>`;
+/** A paragraph of the letter. `html` is trusted markup — escape user input first. */
+const p = (html: string) =>
+  `<p style="margin:0 0 14px;color:${TEXT};font-size:15px;line-height:1.6;font-family:${FONT};">${html}</p>`;
+
+/** Smaller gray aside (a PDF link, "reply to this email"). */
+const aside = (html: string) =>
+  `<p style="margin:0 0 14px;color:${QUIET};font-size:13px;line-height:1.5;font-family:${FONT};">${html}</p>`;
+
+const hello = (firstName?: string | null) => p(firstName?.trim() ? `Hi ${esc(firstName.trim())},` : "Hello,");
+
+/** A plain link in the body copy. */
+const link = (href: string, label: string, color: string) =>
+  `<a href="${esc(href)}" style="color:${color};text-decoration:underline;">${label}</a>`;
 
 /**
- * Line-item list in the PDF table's clothes: small-caps ITEM header on a
- * heavy ink rule, hairline dividers between rows. Names only — the linked
- * document carries quantities and prices.
+ * Facts set apart from the sentences: "label  value" lines, the way someone
+ * would line them up in a typed email. Values are trusted markup.
  */
-function itemsBlock(names: string[]): string {
-  if (names.length === 0) return "";
-  const rows = names
+function facts(rows: { label: string; value: string }[]): string {
+  if (rows.length === 0) return "";
+  const tr = rows
     .map(
-      (n) =>
-        `<tr><td style="padding:8px 0;border-bottom:1px solid ${FAINT};color:${INK};font-size:14px;font-family:${FONT};">${esc(n)}</td></tr>`
+      (r) =>
+        `<tr><td style="padding:3px 16px 3px 0;color:${QUIET};font-size:14px;font-family:${FONT};vertical-align:top;white-space:nowrap;">${esc(r.label)}</td><td style="padding:3px 0;color:${TEXT};font-size:14px;font-family:${FONT};vertical-align:top;">${r.value}</td></tr>`
     )
     .join("");
-  return `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:18px 0 0;border-collapse:collapse;">
-        <tr><td style="padding:0 0 6px;border-bottom:2px solid ${INK};color:${MUTED};font-size:10px;font-weight:700;letter-spacing:1.5px;font-family:${FONT};">ITEM</td></tr>
-        ${rows}
-      </table>`;
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 16px;border-collapse:collapse;">${tr}</table>`;
 }
 
 /**
- * Right-aligned totals ledger — the PDF's: the grand total riding a 2px
- * brand-accent rule, money hard-right. `after` rows (remaining balance,
- * deposit due) sit under the grand line in the muted ledger voice.
+ * What's on the quote/invoice: the item names, then the total on its own
+ * line under a hairline. `after` rows (remaining balance, deposit) follow it.
  */
-function totalsLedger(
-  brand: EmailBrand,
-  grandLabel: string,
-  amount: number,
+function ledger(
+  names: string[],
+  total: { label: string; amount: number },
   after: { label: string; amount: number }[] = []
 ): string {
-  const accent = accentColor(brand);
-  const grandCell = `padding:8px 0 0;border-top:2px solid ${accent};color:${INK};font-size:16px;font-weight:700;font-family:${FONT};`;
+  const cell = `font-size:14px;font-family:${FONT};`;
+  const items = names
+    .map((n) => `<tr><td colspan="2" style="padding:4px 0;color:${TEXT};${cell}">${esc(n)}</td></tr>`)
+    .join("");
+  const totalRow = `<tr>
+      <td style="padding:${names.length ? "8px" : "0"} 0 0;${names.length ? `border-top:1px solid ${HAIR};` : ""}color:${TEXT};font-size:15px;font-weight:600;font-family:${FONT};">${esc(total.label)}</td>
+      <td style="padding:${names.length ? "8px" : "0"} 0 0;${names.length ? `border-top:1px solid ${HAIR};` : ""}color:${TEXT};font-size:15px;font-weight:600;font-family:${FONT};text-align:right;white-space:nowrap;">${usd(total.amount)}</td>
+    </tr>`;
   const afterRows = after
     .map(
       (r) =>
-        `<tr><td style="padding:5px 0 0;color:${MUTED};font-size:13px;font-family:${FONT};">${esc(r.label)}</td><td style="padding:5px 0 0;color:${INK};font-size:13px;font-family:${FONT};text-align:right;white-space:nowrap;">${usd(r.amount)}</td></tr>`
+        `<tr><td style="padding:4px 0 0;color:${QUIET};${cell}">${esc(r.label)}</td><td style="padding:4px 0 0;color:${QUIET};${cell}text-align:right;white-space:nowrap;">${usd(r.amount)}</td></tr>`
     )
     .join("");
-  return `
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 0;border-collapse:collapse;"><tr>
-        <td>&nbsp;</td>
-        <td width="230" style="width:230px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
-            <tr>
-              <td style="${grandCell}">${esc(grandLabel)}</td>
-              <td style="${grandCell}text-align:right;white-space:nowrap;">${usd(amount)}</td>
-            </tr>
-            ${afterRows}
-          </table>
-        </td>
-      </tr></table>`;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:420px;margin:0 0 18px;border-collapse:collapse;">${items}${totalRow}${afterRows}</table>`;
 }
 
-/** Accent CTA button for client emails — same accent as the document pages. */
-function accentBtn(href: string, label: string, brand: EmailBrand): string {
+/** The one button in a client email, in the company's accent. */
+function button(href: string, label: string, brand: EmailBrand): string {
   const a = accentColor(brand);
-  return `<a href="${esc(href)}"
-         style="display:inline-block;margin-top:20px;background:${a};color:${onColor(a)};text-decoration:none;font-size:14px;font-weight:600;padding:11px 22px;border-radius:8px;">${label}</a>`;
+  return `<p style="margin:4px 0 20px;"><a href="${esc(href)}" style="display:inline-block;background:${a};color:${onColor(a)};text-decoration:none;font-size:15px;font-weight:600;font-family:${FONT};padding:11px 20px;border-radius:6px;">${label}</a></p>`;
 }
 
 /**
- * Client-facing shell — the quote/invoice PDF's paper header, shrunk to email
- * width: white sheet, company identity (logo + bold name) left, letter-spaced
- * doc-type caps + big #number right, then the brand-accent rule. Optional
- * rubber stamp ("PAID", "CONFIRMED") presses into the header whitespace under
- * the number, exactly where the PDF stamps land. Hairline footer reads like
- * the PDF's: "Invoice #14 · Company", with a quiet "Powered by WorkBench".
+ * Client-facing letter. Logo (when the company has one), the message, the
+ * sign-off with the company name and phone, then a quiet "Sent with
+ * WorkBench". Nothing else: no header band, no labels, no stamps.
  */
 function clientShell({
   brand,
   companyName,
-  context,
-  docNumber,
-  docInk,
-  stamp,
-  footerLeft,
   inner,
+  signoff = "Thanks,",
 }: {
   brand: EmailBrand;
   companyName: string;
-  /** Letter-spaced caps label top-right — the PDF's doc type ("Quote", "Appointment reminder"). */
-  context: string;
-  /** Big #number under the doc type (quotes, invoices, receipts). */
-  docNumber?: number;
-  /** Ink for the doc-type label — DOC_INK.quote / DOC_INK.invoice; muted otherwise. */
-  docInk?: string;
-  /** Rubber-stamp badge under the doc number. Rotation is progressive
-   *  enhancement — Apple Mail tilts it, Gmail/Outlook set it straight. */
-  stamp?: { text: string; ink: string };
-  /** Left footer slot ("Invoice #14") — pairs with the company name like the PDF footer. */
-  footerLeft?: string;
   inner: string;
+  /** First line of the sign-off; "" drops it (the name still signs). */
+  signoff?: string;
 }): string {
-  const accent = accentColor(brand);
   const logo = brand.logoUrl
-    ? `<img src="${esc(absUrl(brand.logoUrl))}" alt="" style="display:block;max-height:40px;max-width:200px;margin:0 0 10px;" />`
+    ? `<img src="${esc(absUrl(brand.logoUrl))}" alt="${esc(companyName)}" style="display:block;max-height:40px;max-width:180px;margin:0 0 24px;border:0;" />`
     : "";
-  const stampHtml = stamp
-    ? `<div style="margin-top:12px;"><span style="display:inline-block;border:2px solid ${stamp.ink};border-radius:4px;padding:3px 10px;color:${stamp.ink};font-size:12px;font-weight:700;letter-spacing:3px;font-family:${FONT};transform:rotate(-4deg);opacity:0.8;">${esc(stamp.text)}</span></div>`
-    : "";
+  const sign = [signoff ? esc(signoff) : "", esc(companyName), brand.phone ? esc(brand.phone) : ""].filter(Boolean).join("<br />");
   return `
-<div style="font-family:${FONT};background:#f3f4f6;padding:24px;">
-  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid ${FAINT};border-radius:10px;overflow:hidden;">
-    <div style="padding:26px 28px 0;">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;"><tr>
-        <td style="vertical-align:top;">
-          ${logo}
-          <p style="margin:0;color:${INK};font-size:16px;font-weight:700;line-height:1.3;font-family:${FONT};">${esc(companyName)}</p>
-        </td>
-        <td style="vertical-align:top;text-align:right;padding-left:12px;">
-          <p style="margin:0;color:${docInk ?? MUTED};font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;font-family:${FONT};">${esc(context)}</p>
-          ${docNumber ? `<p style="margin:2px 0 0;color:${INK};font-size:22px;font-weight:700;font-family:${FONT};">#${docNumber}</p>` : ""}
-          ${stampHtml}
-        </td>
-      </tr></table>
-      <div style="height:3px;font-size:3px;line-height:3px;background:${accent};margin-top:16px;">&nbsp;</div>
-    </div>
-    <div style="padding:22px 28px 26px;">
-      ${inner}
-    </div>
-    <div style="padding:12px 28px 14px;border-top:1px solid ${FAINT};">
-      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;"><tr>
-        <td style="color:#9ca3af;font-size:11px;font-family:${FONT};">${footerLeft ? `${esc(footerLeft)} &nbsp;·&nbsp; ` : ""}${esc(companyName)}</td>
-        <td style="text-align:right;color:#9ca3af;font-size:11px;font-family:${FONT};padding-left:12px;white-space:nowrap;">Powered by <a href="https://workbenchfsm.com" style="color:#9ca3af;text-decoration:underline;">WorkBench</a></td>
-      </tr></table>
-    </div>
+<div style="background:#ffffff;padding:28px 20px;font-family:${FONT};">
+  <div style="max-width:560px;">
+    ${logo}
+    ${inner}
+    <p style="margin:6px 0 0;color:${TEXT};font-size:15px;line-height:1.6;font-family:${FONT};">${sign}</p>
+    <p style="margin:36px 0 0;color:#9CA3AF;font-size:12px;font-family:${FONT};">Sent with <a href="https://workbenchfsm.com" style="color:#9CA3AF;text-decoration:underline;">WorkBench</a></p>
   </div>
 </div>`;
 }
 
-/** "Tool" CTA button for platform emails — the app's btn-tool look. */
+/** WorkBench-blue button for platform emails. */
 const wbBtn = (href: string, label: string) =>
-  `<a href="${esc(href)}"
-         style="display:inline-block;margin-top:20px;background:${WB_BLUE};border:1.5px solid ${WB_NAVY};box-shadow:2px 2px 0 ${WB_NAVY};color:#ffffff;text-decoration:none;font-size:14px;font-weight:700;padding:11px 22px;border-radius:10px;">${label}</a>`;
+  `<p style="margin:4px 0 20px;"><a href="${esc(href)}" style="display:inline-block;background:${WB_BLUE};color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;font-family:${FONT};padding:11px 20px;border-radius:6px;">${label}</a></p>`;
 
-/** Code box (invite codes, sign-in codes) — tool-outlined monospace stamp. */
-const wbCodeBox = (code: string, fontSize: number, letterSpacing: number) =>
-  `<p style="margin:0 0 16px;padding:16px 20px;background:#f9fafb;border:1.5px solid ${WB_NAVY};box-shadow:2px 2px 0 ${WB_NAVY};border-radius:10px;color:${WB_NAVY};font-size:${fontSize}px;font-weight:700;letter-spacing:${letterSpacing}px;font-family:ui-monospace,Menlo,monospace;text-align:center;">${esc(code)}</p>`;
+/** A one-time code, big enough to read and copy. */
+const wbCode = (code: string, letterSpacing: number) =>
+  `<p style="margin:0 0 18px;color:${TEXT};font-size:26px;font-weight:700;letter-spacing:${letterSpacing}px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">${esc(code)}</p>`;
 
 /**
- * Platform shell — WorkBench-branded. Color wordmark on white, a navy→blue
- * rule under the header, an orange stamp dash over the label (the app's
- * card-tool accent dash), and a double-rule footer.
+ * Platform letter — the WorkBench wordmark, the message, a quiet footer
+ * (who it was sent to and why, then workbenchfsm.com).
  */
 function wbShell({
-  label,
   inner,
   footNote,
 }: {
-  label: string;
   inner: string;
   /** Optional extra footer line (e.g. which company this was sent to). */
   footNote?: string;
 }): string {
   return `
-<div style="font-family:${FONT};background:#f3f4f6;padding:24px;">
-  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
-    <div style="padding:20px 28px 16px;">
-      <img src="${APP_URL}/workbench-logo-email.png" alt="WorkBench" width="180" height="30" style="display:block;height:30px;width:180px;" />
-    </div>
-    <div style="height:3px;font-size:3px;line-height:3px;background:${WB_NAVY};background:linear-gradient(90deg,${WB_NAVY},${WB_BLUE});">&nbsp;</div>
-    <div style="padding:24px 28px;">
-      <div style="width:22px;height:3px;font-size:3px;line-height:3px;background:${WB_ORANGE};">&nbsp;</div>
-      <p style="margin:6px 0 18px;color:#6b7280;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;">${label}</p>
-      ${inner}
-    </div>
-    <div style="padding:14px 28px;border-top:3px double #e5e7eb;">
-      ${footNote ? `<p style="margin:0 0 2px;color:#9ca3af;font-size:12px;">${footNote}</p>` : ""}
-      <p style="margin:0;color:#9ca3af;font-size:12px;">WorkBench — field service management · <a href="https://workbenchfsm.com" style="color:#9ca3af;text-decoration:underline;">workbenchfsm.com</a></p>
-    </div>
+<div style="background:#ffffff;padding:28px 20px;font-family:${FONT};">
+  <div style="max-width:560px;">
+    <img src="${APP_URL}/workbench-logo-email.png" alt="WorkBench" width="144" height="24" style="display:block;height:24px;width:144px;margin:0 0 24px;border:0;" />
+    ${inner}
+    <p style="margin:36px 0 0;color:#9CA3AF;font-size:12px;line-height:1.5;font-family:${FONT};">${footNote ? `${footNote}<br />` : ""}WorkBench · <a href="https://workbenchfsm.com" style="color:#9CA3AF;text-decoration:underline;">workbenchfsm.com</a></p>
   </div>
 </div>`;
 }
+
+const longDate = (d: Date) => d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+const longDateTime = (d: Date) =>
+  d.toLocaleString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
 
 /* ------------------------------------------------------------------ */
 /* Send                                                                */
@@ -354,7 +302,7 @@ export async function sendEmail({
   replyTo,
   fromName,
   companyId,
-  pageBackground = "#f3f4f6",
+  pageBackground = "#ffffff",
   attachments,
 }: {
   to: string;
@@ -368,8 +316,8 @@ export async function sendEmail({
   /** Tenant to meter this send against (lib/usage.ts). Omitted → counted as
    *  platform overhead (password resets, portal logins). */
   companyId?: string | null;
-  /** Canvas behind the template — "#ffffff" for the plain personal-email
-   *  look (client messages), default gray for the card-on-canvas shells. */
+  /** Canvas behind the template. Every template is a white letter now;
+   *  kept for callers that still pass it. */
   pageBackground?: string;
 }): Promise<boolean> {
   if (!RESEND_API_KEY) return false;
@@ -476,34 +424,19 @@ export function newRequestEmail({
   source: "booking_form" | "client_hub" | "webhook";
 }): { subject: string; html: string } {
   const sourceLabel =
-    source === "client_hub"
-      ? "your client hub"
-      : source === "webhook"
-        ? "your lead integration"
-        : "your booking form";
-  const detailRows = (details ?? "")
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => `<p style="margin:0 0 4px;color:#374151;font-size:14px;">${esc(line)}</p>`)
-    .join("");
-
+    source === "client_hub" ? "your client portal" : source === "webhook" ? "your lead integration" : "your booking form";
   const html = wbShell({
-    label: `New request · #${requestNumber}`,
-    footNote: `Sent to ${esc(companyName)} by WorkBench`,
+    footNote: `Sent to ${esc(companyName)}`,
     inner: `
-      <p style="margin:0 0 16px;color:#111827;font-size:15px;">
-        A new request just came in from ${sourceLabel}.
-      </p>
-      <p style="margin:0 0 16px;color:#111827;font-size:20px;font-weight:700;">${esc(title)}</p>
-      ${fieldLabel("From", 0)}
-      <p style="margin:0 0 2px;color:#111827;font-size:14px;font-weight:600;">${esc(contactName)}</p>
-      ${contactPhone ? `<p style="margin:0 0 2px;color:#374151;font-size:14px;">${esc(contactPhone)}</p>` : ""}
-      ${contactEmail ? `<p style="margin:0 0 2px;color:#374151;font-size:14px;">${esc(contactEmail)}</p>` : ""}
-      ${detailRows ? `${fieldLabel("Details")}${detailRows}` : ""}
-      ${wbBtn(`${APP_URL}/app/requests/${requestId}`, "View request")}`,
+      ${p(`${esc(contactName)} sent request #${requestNumber} through ${sourceLabel}: <strong>${esc(title)}</strong>`)}
+      ${facts([
+        ...(contactPhone ? [{ label: "Phone", value: esc(contactPhone) }] : []),
+        ...(contactEmail ? [{ label: "Email", value: esc(contactEmail) }] : []),
+      ])}
+      ${details?.trim() ? p(multiline(details.trim())) : ""}
+      ${wbBtn(`${APP_URL}/app/requests/${requestId}`, "Open the request")}`,
   });
-
-  return { subject: `New request: ${title}`, html };
+  return { subject: `New request from ${contactName}: ${title}`, html };
 }
 
 /** Heads-up to the company when a client signs a contract. */
@@ -520,24 +453,13 @@ export function contractSignedNotifyEmail({
   signerName: string;
   signedAt: Date;
 }): { subject: string; html: string } {
-  const when = signedAt.toLocaleString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
   const html = wbShell({
-    label: "Contract signed",
-    footNote: `Sent to ${esc(companyName)} by WorkBench`,
+    footNote: `Sent to ${esc(companyName)}`,
     inner: `
-      <p style="margin:0 0 16px;color:#111827;font-size:15px;">
-        <strong>${esc(signerName)}</strong> signed
-        <strong>${esc(title)}</strong> on ${when}.
-      </p>
-      ${wbBtn(`${APP_URL}/app/contracts/${contractId}`, "View contract")}`,
+      ${p(`${esc(signerName)} signed <strong>${esc(title)}</strong> on ${longDateTime(signedAt)}.`)}
+      ${wbBtn(`${APP_URL}/app/contracts/${contractId}`, "Open the contract")}`,
   });
-  return { subject: `Contract signed: ${title}`, html };
+  return { subject: `${signerName} signed ${title}`, html };
 }
 
 /**
@@ -555,33 +477,17 @@ export function passwordResetEmail({
   hasPassword?: boolean;
 }): { subject: string; html: string } {
   const html = wbShell({
-    label: hasPassword ? "Password reset" : "Set a password",
     inner: hasPassword
       ? `
-      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(name)},</p>
-      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
-        We received a request to reset your WorkBench password. Click the
-        button below to choose a new one. This link expires in 1 hour and can be
-        used once.
-      </p>
-      ${wbBtn(resetUrl, "Reset your password")}
-      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
-        If you didn't request this, you can safely ignore this email — your
-        password won't change until you open the link and set a new one.
-      </p>`
+      ${hello(name)}
+      ${p("Use the button below to choose a new WorkBench password. The link works once and expires in an hour.")}
+      ${wbBtn(resetUrl, "Choose a new password")}
+      ${aside("If you didn't ask for this, ignore this email. Your password stays the same.")}`
       : `
-      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(name)},</p>
-      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
-        Your WorkBench login opens with Google and doesn't have a password yet.
-        Click the button below to set one — after that you can log in with
-        either. This link expires in 1 hour and can be used once.
-      </p>
+      ${hello(name)}
+      ${p("You sign in to WorkBench with Google, so there's no password on your login yet. Use the button below to set one, and you can sign in either way. The link works once and expires in an hour.")}
       ${wbBtn(resetUrl, "Set a password")}
-      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
-        If you didn't request this, you can safely ignore this email — nothing
-        changes until you open the link. Signing in with Google keeps working
-        either way.
-      </p>`,
+      ${aside("If you didn't ask for this, ignore this email. Signing in with Google keeps working.")}`,
   });
   return {
     subject: hasPassword ? "Reset your WorkBench password" : "Set a password for your WorkBench login",
@@ -607,52 +513,37 @@ export function lineRegistrationEmail({
   outcome: "active" | "rejected" | "campaign_rejected";
   reason: string | null;
 }): { subject: string; html: string } {
-  const base = (process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com").replace(/\/+$/, "");
-  const settings = `${base}/app/settings?s=phone`;
+  const settings = `${APP_URL}/app/settings?s=phone`;
   const number = lineNumber ? ` from ${esc(lineNumber)}` : "";
   if (outcome === "active") {
     return {
       subject: `Texting is on for ${companyName}`,
       html: wbShell({
-        label: "Business line",
         inner: `
-      <p style="margin:0 0 12px;color:#111827;font-size:15px;">The carriers approved <strong>${esc(companyName)}</strong> for texting.</p>
-      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
-        Appointment reminders, quote and invoice links, and replies now go out${number}, in your business's name.
-        Nothing to switch on — it is already working.
-      </p>
+      ${p(`The carriers approved ${esc(companyName)} for texting. Appointment reminders, invoice links and your replies now go out${number} under your business name.`)}
+      ${p("There's nothing to switch on.")}
       ${wbBtn(settings, "Open Phone & texting")}`,
       }),
     };
   }
   if (outcome === "campaign_rejected") {
     return {
-      subject: `Texting for ${companyName}: the carriers sent the application back`,
+      subject: `Texting for ${companyName} was sent back`,
       html: wbShell({
-        label: "Business line",
         inner: `
-      <p style="margin:0 0 12px;color:#111827;font-size:15px;">The carriers sent back the texting application for <strong>${esc(companyName)}</strong>.</p>
-      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
-        This one is on our side of the paperwork, not yours — we have been notified and are sorting it out with them.
-        You do not need to change anything. Calls and voicemail keep working in the meantime.
-      </p>
+      ${p(`The carriers sent back the texting application for ${esc(companyName)}. This part of the paperwork is ours, not yours, and we're already working it out with them.`)}
+      ${p("You don't need to change anything. Calls and voicemail keep working in the meantime.")}
       ${wbBtn(settings, "See the status")}`,
       }),
     };
   }
   return {
-    subject: `Texting for ${companyName} needs a quick fix`,
+    subject: `Texting for ${companyName} needs a fix`,
     html: wbShell({
-      label: "Business line",
       inner: `
-      <p style="margin:0 0 12px;color:#111827;font-size:15px;">The carrier registry did not approve the texting registration for <strong>${esc(companyName)}</strong>.</p>
-      <p style="margin:0 0 8px;color:#374151;font-size:14px;"><strong>Their reason:</strong></p>
-      <p style="margin:0 0 16px;padding:12px 16px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#991b1b;font-size:14px;">${esc(reason ?? "Not given — open Settings for details.")}</p>
-      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
-        Fix the detail they named and resubmit from Settings; corrected registrations are re-filed right away.
-        Calls and voicemail keep working while this is sorted. Not sure what they want?
-        <a href="${base}/texting-registration" style="color:#0B57D8;">What the registry checks, and why</a>.
-      </p>
+      ${p(`The carrier registry didn't approve texting for ${esc(companyName)}. Their reason:`)}
+      ${p(`<em>${esc(reason ?? "They didn't give one. Open Settings for details.")}</em>`)}
+      ${p(`Fix what they named and resubmit from Settings. We re-file corrected registrations right away, and calls and voicemail keep working until then. ${link(`${APP_URL}/texting-registration`, "What the registry checks", WB_BLUE)}.`)}
       ${wbBtn(settings, "Fix and resubmit")}`,
     }),
   };
@@ -672,22 +563,12 @@ export function teamAddedEmail({
   companyName: string;
   roleLabel: string;
 }): { subject: string; html: string } {
-  const base = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
   const html = wbShell({
-    label: "Team update",
     inner: `
-      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(name)},</p>
-      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
-        <strong>${esc(companyName)}</strong> just added you to their team on
-        WorkBench as <strong>${esc(roleLabel)}</strong>. Your sign-in stays the
-        same — after signing in, tap your profile picture to switch between
-        your companies.
-      </p>
-      ${wbBtn(`${base}/app/dashboard`, "Open WorkBench")}
-      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
-        Not expecting this? Ask ${esc(companyName)} to remove you from their
-        team, or contact support.
-      </p>`,
+      ${hello(name)}
+      ${p(`${esc(companyName)} added you to their team on WorkBench as ${esc(roleLabel)}. You sign in the same way as before. To switch companies, tap your profile picture.`)}
+      ${wbBtn(`${APP_URL}/app/dashboard`, "Open WorkBench")}
+      ${aside(`Not expecting this? Ask ${esc(companyName)} to remove you, or reply to this email.`)}`,
   });
   return { subject: `${companyName} added you to their team on WorkBench`, html };
 }
@@ -705,20 +586,11 @@ export function signInMethodLinkedEmail({
   providerEmail: string | null;
 }): { subject: string; html: string } {
   const html = wbShell({
-    label: "Security notice",
     inner: `
-      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi,</p>
-      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
-        <strong>Sign in with ${esc(provider)}</strong> was just connected to
-        your WorkBench login${providerEmail ? ` (${esc(providerEmail)})` : ""}.
-        From now on that ${esc(provider)} account opens WorkBench without a
-        password.
-      </p>
+      ${hello()}
+      ${p(`Sign in with ${esc(provider)} was just connected to your WorkBench login${providerEmail ? ` (${esc(providerEmail)})` : ""}. That ${esc(provider)} account can now open WorkBench without a password.`)}
       ${wbBtn(`${APP_URL}/app/settings/profile`, "Review sign-in methods")}
-      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
-        Wasn't you? Disconnect it under Settings → My Profile → Connected
-        sign-ins, change your password, and contact support.
-      </p>`,
+      ${aside("If this wasn't you, disconnect it under Settings, My Profile, Connected sign-ins, then change your password and reply to this email.")}`,
   });
   return { subject: `Sign in with ${provider} was connected to your WorkBench login`, html };
 }
@@ -737,19 +609,11 @@ export function emailChangeVerifyEmail({
   verifyUrl: string;
 }): { subject: string; html: string } {
   const html = wbShell({
-    label: "Confirm your email",
     inner: `
-      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(name)},</p>
-      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
-        Someone asked to change the WorkBench sign-in email to
-        <strong>${esc(newEmail)}</strong>. Confirm below and this becomes the
-        address you sign in with. The link expires in 1 hour and works once.
-      </p>
+      ${hello(name)}
+      ${p(`Someone asked to change the WorkBench sign-in email to ${esc(newEmail)}. Confirm below and you'll sign in with this address from now on. The link works once and expires in an hour.`)}
       ${wbBtn(verifyUrl, "Confirm this email")}
-      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
-        If this wasn't you, ignore this email — nothing changes until the link
-        is opened, and the old address keeps working.
-      </p>`,
+      ${aside("If this wasn't you, ignore this email. Nothing changes, and the old address keeps working.")}`,
   });
   return { subject: "Confirm your new WorkBench email", html };
 }
@@ -766,20 +630,12 @@ export function emailChangeNoticeEmail({
   newEmail: string;
 }): { subject: string; html: string } {
   const html = wbShell({
-    label: "Email change requested",
     inner: `
-      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(name)},</p>
-      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
-        A request was made to change your WorkBench sign-in email to
-        <strong>${esc(newEmail)}</strong>. It only takes effect once that
-        address confirms it — until then you keep signing in here.
-      </p>
-      <p style="margin:0;color:#6b7280;font-size:12px;">
-        Didn't ask for this? Change your password now and contact us — whoever
-        made the request was signed in as you.
-      </p>`,
+      ${hello(name)}
+      ${p(`Someone asked to change your WorkBench sign-in email to ${esc(newEmail)}. Nothing changes until that address confirms it, so you keep signing in here for now.`)}
+      ${aside("If you didn't ask for this, change your password now and reply to this email. Whoever asked was signed in as you.")}`,
   });
-  return { subject: "Someone requested an email change on your WorkBench account", html };
+  return { subject: "Someone asked to change your WorkBench email", html };
 }
 
 /** "New access application" notification to the WorkBench admin inbox. */
@@ -814,33 +670,28 @@ export function newApplicationEmail({
   website: string | null;
   message: string | null;
 }): { subject: string; html: string } {
-  const row = (label: string, value: string | null) =>
-    value
-      ? `${fieldLabel(label, 0)}<p style="margin:0 0 12px;color:#111827;font-size:14px;">${esc(value)}</p>`
-      : "";
-
+  const rows: [string, string | null][] = [
+    ["Business", companyName],
+    ["Contact", name],
+    ["Email", email],
+    ["Phone", phone],
+    ["Trade", industry],
+    ["Team size", teamSize],
+    ["Location", [city, state].filter(Boolean).join(", ") || null],
+    ["Takes payment today", paymentsToday],
+    ["Monthly volume", monthlyVolume],
+    ["Years in business", yearsInBusiness],
+    ["Structure", entityType],
+    ["Website", website],
+  ];
   const html = wbShell({
-    label: "New application",
     inner: `
-      <p style="margin:0 0 16px;color:#111827;font-size:15px;">
-        A new company applied for WorkBench access.
-      </p>
-      ${row("Business", companyName)}
-      ${row("Contact", name)}
-      ${row("Email", email)}
-      ${row("Phone", phone)}
-      ${row("Trade", industry)}
-      ${row("Team size", teamSize)}
-      ${row("Location", [city, state].filter(Boolean).join(", ") || null)}
-      ${row("Takes payment today", paymentsToday)}
-      ${row("Monthly volume", monthlyVolume)}
-      ${row("Years in business", yearsInBusiness)}
-      ${row("Structure", entityType)}
-      ${row("Website", website)}
-      ${row("Notes", message)}
-      ${wbBtn(`${APP_URL}/superadmin/applications`, "Review Application")}`,
+      ${p(`${esc(companyName)} applied for WorkBench access.`)}
+      ${facts(rows.filter((r): r is [string, string] => Boolean(r[1])).map(([label, v]) => ({ label, value: esc(v) })))}
+      ${message?.trim() ? p(multiline(message.trim())) : ""}
+      ${wbBtn(`${APP_URL}/superadmin/applications`, "Review the application")}`,
   });
-  return { subject: `New WorkBench application — ${companyName}`, html };
+  return { subject: `New WorkBench application: ${companyName}`, html };
 }
 
 /** Platform notification — a tenant filed a bug report or suggestion. */
@@ -863,15 +714,13 @@ export function newFeedbackEmail({
 }): { subject: string; html: string } {
   const kind = type === "BUG" ? "Bug report" : "Suggestion";
   const html = wbShell({
-    label: `New ${kind.toLowerCase()}`,
     inner: `
-      ${fieldLabel(kind, 0)}<p style="margin:0 0 12px;color:#111827;font-size:15px;font-weight:700;">${esc(title)}</p>
-      ${fieldLabel("Details")}<p style="margin:0 0 12px;color:#111827;font-size:14px;white-space:pre-line;">${esc(details)}</p>
-      ${fieldLabel("From")}<p style="margin:0 0 12px;color:#111827;font-size:14px;">${esc(userName)} (${esc(userEmail)}) · ${esc(companyName)}</p>
-      ${pageUrl ? `${fieldLabel("Page")}<p style="margin:0 0 12px;color:#111827;font-size:14px;">${esc(pageUrl)}</p>` : ""}
-      ${wbBtn(`${APP_URL}/superadmin/feedback`, "Review Feedback")}`,
+      ${p(`${kind} from ${esc(userName)} (${esc(userEmail)}) at ${esc(companyName)}: <strong>${esc(title)}</strong>`)}
+      ${p(multiline(details))}
+      ${pageUrl ? aside(`Page: ${esc(pageUrl)}`) : ""}
+      ${wbBtn(`${APP_URL}/superadmin/feedback`, "Open feedback")}`,
   });
-  return { subject: `WorkBench ${kind.toLowerCase()} — ${title}`, html };
+  return { subject: `${kind}: ${title}`, html };
 }
 
 /** Platform notification — someone sent the marketing site's contact form. */
@@ -888,21 +737,18 @@ export function newContactSubmissionEmail({
   businessName: string | null;
   message: string;
 }): { subject: string; html: string } {
-  const row = (label: string, value: string | null, first = false) =>
-    value
-      ? `${fieldLabel(label, first ? 0 : 16)}<p style="margin:0 0 12px;color:#111827;font-size:14px;white-space:pre-line;">${esc(value)}</p>`
-      : "";
   const html = wbShell({
-    label: "Website contact form",
     inner: `
-      ${row("Name", name, true)}
-      ${row("Business", businessName)}
-      ${row("Email", email)}
-      ${row("Phone", phone)}
-      ${row("How can we help", message)}
+      ${p(`${esc(name)} wrote in through the website contact form.`)}
+      ${facts([
+        ...(businessName ? [{ label: "Business", value: esc(businessName) }] : []),
+        { label: "Email", value: esc(email) },
+        ...(phone ? [{ label: "Phone", value: esc(phone) }] : []),
+      ])}
+      ${p(multiline(message))}
       ${wbBtn(`${APP_URL}/superadmin/contact`, "Open in the console")}`,
   });
-  return { subject: `Website contact — ${name}${businessName ? ` (${businessName})` : ""}`, html };
+  return { subject: `Website contact: ${name}${businessName ? ` (${businessName})` : ""}`, html };
 }
 
 /** Invite code delivery — sent on application approval or a direct invite. */
@@ -915,21 +761,14 @@ export function inviteCodeEmail({
 }): { subject: string; html: string } {
   const signupUrl = `${APP_URL}/invite?code=${encodeURIComponent(code)}`;
   const html = wbShell({
-    label: "You're in",
     inner: `
-      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(name || "there")},</p>
-      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
-        Your WorkBench access has been approved. Use the invite code below to
-        create your account — it's single-use and tied to your business.
-      </p>
-      ${wbCodeBox(code, 20, 2)}
+      ${hello(name)}
+      ${p("You're approved for WorkBench. Here's your invite code. It works once and is tied to your business.")}
+      ${wbCode(code, 2)}
       ${wbBtn(signupUrl, "Create your account")}
-      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
-        The button pre-fills your code. If you weren't expecting this email,
-        you can ignore it.
-      </p>`,
+      ${aside("The button fills in the code for you. If you weren't expecting this, you can ignore it.")}`,
   });
-  return { subject: "You're in — your WorkBench invite code", html };
+  return { subject: "Your WorkBench invite code", html };
 }
 
 /** Self-serve onboarding: the application was approved — the account they're
@@ -942,21 +781,13 @@ export function applicationApprovedEmail({
   companyName: string;
 }): { subject: string; html: string } {
   const html = wbShell({
-    label: "You're approved",
     inner: `
-      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(name || "there")},</p>
-      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
-        Good news — we reviewed your application and
-        <strong>${esc(companyName)}</strong> is approved on WorkBench. Your
-        account is fully yours: the pending-approval notice is gone and
-        nothing else changes.
-      </p>
+      ${hello(name)}
+      ${p(`We reviewed your application and ${esc(companyName)} is approved. The pending notice is gone and everything else stays as it is.`)}
       ${wbBtn(`${APP_URL}/app/dashboard`, "Open WorkBench")}
-      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
-        Questions? Just reply to this email.
-      </p>`,
+      ${aside("Questions? Reply to this email.")}`,
   });
-  return { subject: "You're approved — welcome to WorkBench", html };
+  return { subject: `${companyName} is approved on WorkBench`, html };
 }
 
 /** Platform-console sign-in code — the email second factor for superadmins. */
@@ -965,23 +796,120 @@ export function superadminLoginCodeEmail({ code }: { code: string }): {
   html: string;
 } {
   const html = wbShell({
-    label: "Platform console",
     inner: `
-      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
-        Here's your sign-in code for the WorkBench platform console. It expires
-        in 10 minutes and works once.
-      </p>
-      ${wbCodeBox(code, 24, 6)}
-      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
-        If you didn't just try to sign in, someone else has your password —
-        change it now.
-      </p>`,
+      ${p("Your platform console sign-in code. It works once and expires in 10 minutes.")}
+      ${wbCode(code, 6)}
+      ${aside("If you didn't just try to sign in, someone has your password. Change it now.")}`,
   });
   return { subject: "Your WorkBench console sign-in code", html };
 }
 
+/**
+ * "A client messaged you" ping to the COMPANY inbox — sent for the first
+ * unread message in a thread (rapid follow-ups collapse into it).
+ */
+export function portalMessageTeamEmail({
+  companyName,
+  contactId,
+  contactName,
+  messageBody,
+  via,
+}: {
+  companyName: string;
+  contactId: string;
+  contactName: string;
+  messageBody: string;
+  via: string;
+}): { subject: string; html: string } {
+  const how = via === "sms" ? "by text" : via === "web" ? "from the website chat" : "from their client portal";
+  const html = wbShell({
+    footNote: `Sent to ${esc(companyName)}`,
+    inner: `
+      ${p(`${esc(contactName)} wrote ${how}:`)}
+      <p style="margin:0 0 16px;padding:0 0 0 12px;border-left:2px solid ${HAIR};color:${TEXT};font-size:15px;line-height:1.6;font-family:${FONT};">${multiline(messageBody)}</p>
+      ${wbBtn(`${APP_URL}/app/messages/thread/${contactId}`, "Reply")}`,
+  });
+  return { subject: `New message from ${contactName}`, html };
+}
+
+/**
+ * Task reminder to the assignee — the email twin of the "Reminder: …" push,
+ * sent only when push can't reach them (lib/tasks.ts reminderEmailWanted).
+ */
+export function taskReminderEmail({
+  companyName,
+  title,
+  dueText,
+  highPriority,
+  notes,
+  taskUrl,
+}: {
+  companyName: string;
+  title: string;
+  /** "Due Today · 3:00 PM" or null for a task with no date. */
+  dueText: string | null;
+  highPriority: boolean;
+  notes?: string | null;
+  /** In-app path (/app/tasks?task=…); made absolute here. */
+  taskUrl: string;
+}): { subject: string; html: string } {
+  const html = wbShell({
+    inner: `
+      ${p(`Reminder${highPriority ? " (high priority)" : ""}: <strong>${esc(title)}</strong>`)}
+      ${dueText ? p(esc(dueText)) : ""}
+      ${notes?.trim() ? aside(multiline(notes.trim())) : ""}
+      ${wbBtn(absUrl(taskUrl), "Open the task")}`,
+    footNote: `Sent to you at ${esc(companyName)} because WorkBench notifications are off on all your devices. Turn them on under Settings, My Profile.`,
+  });
+  return { subject: `${highPriority ? "Reminder (high priority)" : "Reminder"}: ${title}${dueText ? `, ${dueText}` : ""}`, html };
+}
+
+/**
+ * To the company inbox when a customer books, moves or cancels online —
+ * the team-side twin of the client emails below.
+ */
+export function bookingTeamNoticeEmail({
+  companyName,
+  event,
+  serviceName,
+  contactName,
+  windowLabel,
+  previousLabel,
+  assigneeName,
+  detailUrl,
+  paidNote,
+}: {
+  companyName: string;
+  event: "booked" | "rescheduled" | "cancelled" | "needs_approval";
+  serviceName: string;
+  contactName: string;
+  windowLabel: string;
+  previousLabel?: string | null;
+  assigneeName?: string | null;
+  detailUrl: string;
+  paidNote?: string | null;
+}): { subject: string; html: string } {
+  const verb =
+    event === "booked" ? "booked" : event === "rescheduled" ? "moved" : event === "cancelled" ? "cancelled" : "asked to book";
+  const html = wbShell({
+    footNote: `Sent to ${esc(companyName)}`,
+    inner: `
+      ${p(`${esc(contactName)} ${verb} <strong>${esc(serviceName)}</strong> online${event === "needs_approval" ? ". It's waiting for you to accept or decline." : "."}`)}
+      ${facts([
+        { label: event === "cancelled" ? "Was" : "When", value: esc(windowLabel) },
+        ...(previousLabel ? [{ label: "Before", value: esc(previousLabel) }] : []),
+        ...(assigneeName ? [{ label: "With", value: esc(assigneeName) }] : []),
+        ...(paidNote ? [{ label: "Payment", value: esc(paidNote) }] : []),
+      ])}
+      ${wbBtn(detailUrl, event === "needs_approval" ? "Accept or decline" : "Open the booking")}`,
+  });
+  const label =
+    event === "needs_approval" ? "Booking to approve" : event === "cancelled" ? "Cancelled" : event === "rescheduled" ? "Moved" : "New booking";
+  return { subject: `${label}: ${serviceName} for ${contactName}, ${windowLabel}`, html };
+}
+
 /* ------------------------------------------------------------------ */
-/* Client-facing emails (company-branded like the documents)           */
+/* Client-facing emails (signed by the company)                        */
 /* ------------------------------------------------------------------ */
 
 /**
@@ -1005,23 +933,14 @@ export function reviewRequestEmail({
   const html = clientShell({
     brand,
     companyName,
-    context: "Thank you",
     inner: `
-      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
-      <p style="margin:0 0 12px;color:#374151;font-size:14px;">
-        ${
-          jobTitle
-            ? `Thanks for choosing ${esc(companyName)} — we just wrapped up
-        <strong>${esc(jobTitle)}</strong> and hope everything looks great.`
-            : `Thanks for choosing ${esc(companyName)} — we hope everything looks great.`
-        }
-      </p>
-      <p style="margin:0;color:#374151;font-size:14px;">
-        If you have a minute, a quick Google review helps our small business more than you know.
-      </p>
-      ${accentBtn(reviewLink, "Leave a review", brand)}`,
+      ${hello(contactFirstName)}
+      ${p(jobTitle ? `Thanks for having us out for ${esc(jobTitle)}. We hope it all looks right.` : `Thanks for choosing ${esc(companyName)}. We hope everything looks right.`)}
+      ${p("If you have a minute, a Google review would mean a lot to us. It's how most of our new customers find us.")}
+      ${button(reviewLink, "Leave a review", brand)}
+      ${aside("If anything isn't right, reply to this email and we'll come fix it.")}`,
   });
-  return { subject: `How did we do? — ${companyName}`, html };
+  return { subject: `How did we do, ${contactFirstName}?`, html };
 }
 
 /** Signing-link email to a client when a contract is issued. */
@@ -1041,16 +960,13 @@ export function contractSignEmail({
   const html = clientShell({
     brand,
     companyName,
-    context: "Agreement",
     inner: `
-      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
-      <p style="margin:0;color:#374151;font-size:14px;">
-        ${esc(companyName)} sent you an agreement to review and sign:
-        <strong>${esc(title)}</strong>.
-      </p>
-      ${accentBtn(signUrl, "Review &amp; sign", brand)}`,
+      ${hello(contactFirstName)}
+      ${p(`Here's the agreement for you to look over and sign: <strong>${esc(title)}</strong>.`)}
+      ${button(signUrl, "Review and sign", brand)}
+      ${aside("Questions about anything in it? Reply to this email.")}`,
   });
-  return { subject: `${companyName} sent you an agreement to sign: ${title}`, html };
+  return { subject: `Agreement to sign: ${title}`, html };
 }
 
 /**
@@ -1072,29 +988,22 @@ export function hubAccessEmail({
   const html = clientShell({
     brand,
     companyName,
-    context: "Client portal",
     inner: `
-      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
-      <p style="margin:0;color:#374151;font-size:14px;">
-        Here's your personal link to the ${esc(companyName)} client portal — view your
-        quotes and invoices, check scheduled visits, and send us new requests.
-      </p>
-      ${accentBtn(hubUrl, "Open your client portal", brand)}
-      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
-        This link is unique to you — keep it handy, or request a fresh one
-        anytime from the portal sign-in page.
-      </p>`,
+      ${hello(contactFirstName)}
+      ${p("Here's your link to your client portal with us. You can see your quotes and invoices, check upcoming visits, and send us a new request.")}
+      ${button(hubUrl, "Open your client portal", brand)}
+      ${aside("The link is just for you. Keep this email, or ask for a new link from the sign-in page any time.")}`,
   });
-  return { subject: `Your ${companyName} client portal`, html };
+  return { subject: `Your client portal with ${companyName}`, html };
 }
 
 /**
  * One-off message to a client (composed on the contact page). Deliberately
  * looks like a person wrote it in their mail app — plain white, no brand
- * header, no card chrome, no auto-greeting (the sender writes their own).
- * The signature block is the only footer. Tracking stays: the pixel
- * (classified/filtered by /api/public/open) plus a whisper-quiet "view
- * online" link whose page beacon is the certain open signal.
+ * header, no auto-greeting (the sender writes their own). The signature block
+ * is the only footer. Tracking stays: the pixel (classified/filtered by
+ * /api/public/open) plus a whisper-quiet "view online" link whose page beacon
+ * is the certain open signal.
  */
 export function clientMessageEmail({
   messageSubject,
@@ -1113,15 +1022,14 @@ export function clientMessageEmail({
   readUrl: string;
   pixelUrl: string;
 }): { subject: string; html: string } {
-  const toHtml = (s: string) => esc(s).replace(/\r\n/g, "\n").replace(/\n/g, "<br />");
   const logo = logoUrl
     ? `<img src="${esc(absUrl(logoUrl))}" alt="" style="display:block;margin-top:14px;max-height:44px;max-width:180px;" />`
     : "";
   const html = `
 <div style="font-family:${FONT};background:#ffffff;padding:24px 20px;">
   <div style="max-width:640px;">
-    <p style="margin:0;color:#111827;font-size:15px;line-height:1.65;">${toHtml(messageBody)}</p>
-    <p style="margin:24px 0 0;color:#374151;font-size:14px;line-height:1.6;">${toHtml(signature)}</p>
+    <p style="margin:0;color:#111827;font-size:15px;line-height:1.65;">${multiline(messageBody)}</p>
+    <p style="margin:24px 0 0;color:#374151;font-size:14px;line-height:1.6;">${multiline(signature)}</p>
     ${logo}
     <p style="margin:32px 0 0;color:#b3b8c0;font-size:11px;">
       <a href="${esc(readUrl)}" style="color:#b3b8c0;text-decoration:underline;">View this message online</a>
@@ -1135,7 +1043,7 @@ export function clientMessageEmail({
 /**
  * "You have a new message" ping to a CLIENT — portal messaging thread. The
  * body rides along (it's their message), with a button into the hub thread
- * where they can reply. Company-branded like the other client-facing mail.
+ * where they can reply.
  */
 export function portalMessageEmail({
   brand,
@@ -1150,57 +1058,16 @@ export function portalMessageEmail({
   messageBody: string;
   messagesUrl: string;
 }): { subject: string; html: string } {
-  const toHtml = (s: string) => esc(s).replace(/\r\n/g, "\n").replace(/\n/g, "<br />");
   const html = clientShell({
     brand,
     companyName,
-    context: "New message",
+    signoff: "",
     inner: `
-      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
-      <p style="margin:0 0 12px;color:#374151;font-size:14px;">${esc(companyName)} sent you a message:</p>
-      <div style="margin:0 0 4px;padding:12px 14px;background:#f9fafb;border-left:3px solid #d1d5db;border-radius:0 8px 8px 0;">
-        <p style="margin:0;color:#111827;font-size:14px;line-height:1.6;">${toHtml(messageBody)}</p>
-      </div>
-      ${accentBtn(messagesUrl, "Reply in your portal", brand)}
-      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
-        Your conversation history lives in your client portal — the button
-        above takes you straight to it.
-      </p>`,
+      ${hello(contactFirstName)}
+      ${p(multiline(messageBody))}
+      ${button(messagesUrl, "Reply", brand)}`,
   });
   return { subject: `New message from ${companyName}`, html };
-}
-
-/**
- * "A client messaged you" ping to the COMPANY inbox — sent for the first
- * unread message in a thread (rapid follow-ups collapse into it).
- */
-export function portalMessageTeamEmail({
-  companyName,
-  contactId,
-  contactName,
-  messageBody,
-  via,
-}: {
-  companyName: string;
-  contactId: string;
-  contactName: string;
-  messageBody: string;
-  via: string;
-}): { subject: string; html: string } {
-  const toHtml = (s: string) => esc(s).replace(/\r\n/g, "\n").replace(/\n/g, "<br />");
-  const html = wbShell({
-    label: "New client message",
-    footNote: `Sent to ${esc(companyName)} by WorkBench`,
-    inner: `
-      <p style="margin:0 0 16px;color:#111827;font-size:15px;">
-        ${esc(contactName)} sent you a message${via === "sms" ? " by text" : via === "web" ? " from the website chat" : " from their client portal"}.
-      </p>
-      <div style="margin:0 0 4px;padding:12px 14px;background:#f9fafb;border-left:3px solid #d1d5db;border-radius:0 8px 8px 0;">
-        <p style="margin:0;color:#111827;font-size:14px;line-height:1.6;">${toHtml(messageBody)}</p>
-      </div>
-      ${wbBtn(`${APP_URL}/app/messages/thread/${contactId}`, "Open conversation")}`,
-  });
-  return { subject: `New message from ${contactName}`, html };
 }
 
 /** Signed copy back to the client (their record of the agreement). */
@@ -1225,29 +1092,19 @@ export function contractSignedCopyEmail({
 }): { subject: string; html: string } {
   const bodyHtml = body
     .split("\n")
-    .map((line) => `<p style="margin:0 0 8px;color:#374151;font-size:13px;">${esc(line) || "&nbsp;"}</p>`)
+    .map((line) => `<p style="margin:0 0 8px;color:#374151;font-size:13px;line-height:1.5;font-family:${FONT};">${esc(line) || "&nbsp;"}</p>`)
     .join("");
   const html = clientShell({
     brand,
     companyName,
-    context: "Signed agreement",
-    stamp: { text: "SIGNED", ink: DOC_INK.quote },
     inner: `
-      <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
-      <p style="margin:0 0 16px;color:#374151;font-size:14px;">
-        Here's your copy of <strong>${esc(title)}</strong>, signed by
-        <strong>${esc(signatureName)}</strong> on
-        ${signedAt.toLocaleString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}.
-      </p>
-      <div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;background:#f9fafb;">
+      ${hello(contactFirstName)}
+      ${p(`Here's your copy of <strong>${esc(title)}</strong>, signed by ${esc(signatureName)} on ${longDateTime(signedAt)}. You can also ${link(signUrl, "view it online", linkColor(brand))}.`)}
+      <div style="margin:0 0 20px;padding:16px 0 8px;border-top:1px solid ${HAIR};border-bottom:1px solid ${HAIR};">
         ${bodyHtml}
-      </div>
-      <a href="${esc(signUrl)}"
-         style="display:inline-block;margin-top:16px;color:${linkColor(brand)};text-decoration:underline;font-size:13px;">
-        View online
-      </a>`,
+      </div>`,
   });
-  return { subject: `Your signed copy: ${title} — ${companyName}`, html };
+  return { subject: `Your signed copy of ${title}`, html };
 }
 
 /**
@@ -1258,6 +1115,7 @@ export function contractSignedCopyEmail({
 export function invoiceLinkEmail({
   brand,
   companyName,
+  contactFirstName,
   invoiceNumber,
   total,
   payUrl,
@@ -1266,6 +1124,7 @@ export function invoiceLinkEmail({
 }: {
   brand: EmailBrand;
   companyName: string;
+  contactFirstName?: string | null;
   invoiceNumber: number;
   total: number;
   payUrl: string;
@@ -1275,22 +1134,14 @@ export function invoiceLinkEmail({
   const html = clientShell({
     brand,
     companyName,
-    context: "Invoice",
-    docNumber: invoiceNumber,
-    docInk: DOC_INK.invoice,
-    footerLeft: `Invoice #${invoiceNumber}`,
     inner: `
-      <p style="margin:0;color:#111827;font-size:15px;">
-        Thanks for your request — here's your invoice from ${esc(companyName)}.
-      </p>
-      ${itemsBlock(serviceNames)}
-      ${totalsLedger(brand, "Total", total)}
-      ${accentBtn(payUrl, payable ? "View &amp; pay invoice" : "View invoice", brand)}
-      <p style="margin:12px 0 0;color:#6b7280;font-size:12px;">
-        Prefer a copy for your records? <a href="${payUrl}/pdf" style="color:#6b7280;">Download the PDF</a>.
-      </p>`,
+      ${hello(contactFirstName)}
+      ${p(`Here's invoice ${invoiceNumber}.`)}
+      ${ledger(serviceNames, { label: "Total", amount: total })}
+      ${button(payUrl, payable ? "Pay invoice" : "View invoice", brand)}
+      ${aside(`Need a copy for your records? ${link(`${payUrl}/pdf`, "Download the PDF", QUIET)}.`)}`,
   });
-  return { subject: `Your invoice from ${companyName} — #${invoiceNumber}`, html };
+  return { subject: `Invoice ${invoiceNumber} from ${companyName}`, html };
 }
 
 /**
@@ -1302,6 +1153,7 @@ export function invoiceLinkEmail({
 export function autopayFailedEmail({
   brand,
   companyName,
+  contactFirstName,
   invoiceNumber,
   total,
   cardLabel,
@@ -1310,6 +1162,7 @@ export function autopayFailedEmail({
 }: {
   brand: EmailBrand;
   companyName: string;
+  contactFirstName?: string | null;
   invoiceNumber: number;
   total: number;
   cardLabel: string | null;
@@ -1319,27 +1172,14 @@ export function autopayFailedEmail({
   const html = clientShell({
     brand,
     companyName,
-    context: "Invoice",
-    docNumber: invoiceNumber,
-    docInk: DOC_INK.invoice,
-    footerLeft: `Invoice #${invoiceNumber}`,
     inner: `
-      <p style="margin:0;color:#111827;font-size:15px;">
-        The automatic payment for your invoice from ${esc(companyName)} didn't go
-        through${cardLabel ? ` — ${esc(cardLabel)} was declined` : ""}. This usually
-        just means the card expired or was replaced.
-      </p>
-      ${totalsLedger(brand, "Amount due", total)}
-      ${accentBtn(updateCardUrl, "Update card on file", brand)}
-      <p style="margin:16px 0 0;color:#374151;font-size:14px;">
-        We'll automatically try again once your card is updated. Prefer to pay this
-        one directly? <a href="${payUrl}" style="color:#374151;">Pay the invoice online</a>.
-      </p>`,
+      ${hello(contactFirstName)}
+      ${p(`The automatic payment for invoice ${invoiceNumber} didn't go through${cardLabel ? `. ${esc(cardLabel)} was declined` : ""}. Usually that just means the card expired or was replaced.`)}
+      ${ledger([], { label: "Amount due", amount: total })}
+      ${button(updateCardUrl, "Update your card", brand)}
+      ${aside(`We'll try again once the card is updated. You can also ${link(payUrl, "pay this invoice now", QUIET)}.`)}`,
   });
-  return {
-    subject: `Payment didn't go through — invoice #${invoiceNumber} from ${companyName}`,
-    html,
-  };
+  return { subject: `Your payment for invoice ${invoiceNumber} didn't go through`, html };
 }
 
 /**
@@ -1350,12 +1190,14 @@ export function autopayFailedEmail({
 export function cardExpiringEmail({
   brand,
   companyName,
+  contactFirstName,
   cardLabel,
   expired,
   updateCardUrl,
 }: {
   brand: EmailBrand;
   companyName: string;
+  contactFirstName?: string | null;
   cardLabel: string;
   expired: boolean;
   updateCardUrl: string;
@@ -1363,31 +1205,26 @@ export function cardExpiringEmail({
   const html = clientShell({
     brand,
     companyName,
-    context: "Card on file",
     inner: `
-      <p style="margin:0 0 16px;color:#111827;font-size:15px;">
-        The card you keep on file with ${esc(companyName)} for automatic payments
-        (${esc(cardLabel)}) ${expired ? "has expired" : "expires soon"}. Updating it
-        now keeps your service billing running without interruption.
-      </p>
-      ${accentBtn(updateCardUrl, "Update card on file", brand)}`,
+      ${hello(contactFirstName)}
+      ${p(`The card we have on file for your automatic payments (${esc(cardLabel)}) ${expired ? "has expired" : "expires soon"}. If you update it now, your next payment will go through as usual.`)}
+      ${button(updateCardUrl, "Update your card", brand)}`,
   });
   return {
-    subject: expired
-      ? `Your card on file with ${companyName} has expired`
-      : `Your card on file with ${companyName} expires soon`,
+    subject: expired ? `Your card on file with ${companyName} has expired` : `Your card on file with ${companyName} expires soon`,
     html,
   };
 }
 
 /**
- * Quote follow-up — a friendly nudge a few days after a quote went out with no
- * response. Two stages (3 and 7 days); tone stays light — this is sales, not
- * dunning. Stops the moment the quote is approved, changed, or expires.
+ * Quote follow-up — a light nudge a few days after a quote went out with no
+ * response. Two stages (3 and 7 days); this is sales, not dunning. Stops the
+ * moment the quote is approved, changed, or expires.
  */
 export function quoteFollowUpEmail({
   brand,
   companyName,
+  contactFirstName,
   quoteNumber,
   total,
   viewUrl,
@@ -1396,6 +1233,7 @@ export function quoteFollowUpEmail({
 }: {
   brand: EmailBrand;
   companyName: string;
+  contactFirstName?: string | null;
   quoteNumber: number;
   total: number;
   viewUrl: string;
@@ -1404,34 +1242,19 @@ export function quoteFollowUpEmail({
 }): { subject: string; html: string } {
   const opener =
     stage === "followup_3"
-      ? `Just checking in — here's the quote from ${esc(companyName)} in case it got buried. Review and approve online whenever you're ready.`
-      : `Your quote from ${esc(companyName)} is still open. If anything looks off, reply and we'll adjust it — otherwise you can approve online in a minute.`;
-  const expiryNote = validUntil
-    ? `<p style="margin:10px 0 0;color:#b45309;font-size:13px;">This quote is valid until ${validUntil.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.</p>`
-    : "";
+      ? `Following up on quote ${quoteNumber} we sent over. Let us know if you have any questions, or approve it online when you're ready.`
+      : `Quote ${quoteNumber} is still open. If something should change, reply and we'll adjust it.`;
   const html = clientShell({
     brand,
     companyName,
-    context: "Quote",
-    docNumber: quoteNumber,
-    docInk: DOC_INK.quote,
-    footerLeft: `Quote #${quoteNumber}`,
     inner: `
-      <p style="margin:0;color:#111827;font-size:15px;">${opener}</p>
-      ${totalsLedger(brand, "Quote total", total)}
-      ${expiryNote}
-      ${accentBtn(viewUrl, "Review &amp; approve quote", brand)}
-      <p style="margin:12px 0 0;color:#6b7280;font-size:12px;">
-        Questions or changes? Just reply to this email.
-      </p>`,
+      ${hello(contactFirstName)}
+      ${p(opener)}
+      ${ledger([], { label: "Quote total", amount: total })}
+      ${validUntil ? p(`The price is good through ${longDate(validUntil)}.`) : ""}
+      ${button(viewUrl, "View quote", brand)}`,
   });
-  return {
-    subject:
-      stage === "followup_3"
-        ? `Still thinking it over? Your quote from ${companyName} — #${quoteNumber}`
-        : `Your quote from ${companyName} is still open — #${quoteNumber}`,
-    html,
-  };
+  return { subject: `Following up on quote ${quoteNumber}`, html };
 }
 
 /**
@@ -1443,6 +1266,7 @@ export function quoteFollowUpEmail({
 export function paymentReceiptEmail({
   brand,
   companyName,
+  contactFirstName,
   invoiceNumber,
   amount,
   methodLabel,
@@ -1452,6 +1276,7 @@ export function paymentReceiptEmail({
 }: {
   brand: EmailBrand;
   companyName: string;
+  contactFirstName?: string | null;
   invoiceNumber: number;
   amount: number;
   methodLabel: string;
@@ -1460,41 +1285,26 @@ export function paymentReceiptEmail({
   pending?: boolean;
 }): { subject: string; html: string } {
   const settled = !pending && remainingBalance <= 0;
-  const balanceNote = settled
-    ? `<p style="margin:12px 0 0;color:#15803d;font-size:14px;font-weight:600;">This invoice is paid in full — thank you!</p>`
-    : "";
+  const lead = pending
+    ? `We got your bank payment of ${usd(amount)} for invoice ${invoiceNumber}. Bank payments take a few business days to clear.`
+    : settled
+      ? `We got your payment of ${usd(amount)}. Invoice ${invoiceNumber} is paid in full.`
+      : `We got your payment of ${usd(amount)} for invoice ${invoiceNumber}.`;
   const html = clientShell({
     brand,
     companyName,
-    context: "Receipt",
-    docNumber: invoiceNumber,
-    docInk: DOC_INK.invoice,
-    stamp: settled ? { text: "PAID", ink: DOC_INK.invoice } : undefined,
-    footerLeft: `Invoice #${invoiceNumber}`,
     inner: `
-      <p style="margin:0;color:#111827;font-size:15px;">
-        ${
-          pending
-            ? `Your bank payment to ${esc(companyName)} is processing — this is your confirmation. It usually clears within a few business days.`
-            : `Thank you! Here's your receipt from ${esc(companyName)}.`
-        }
-      </p>
-      ${totalsLedger(
-        brand,
-        pending ? "Amount processing" : "Amount paid",
-        amount,
-        remainingBalance > 0 ? [{ label: "Remaining balance", amount: remainingBalance }] : []
-      )}
-      <p style="margin:8px 0 0;color:#6b7280;font-size:13px;text-align:right;">${esc(methodLabel)}</p>
-      ${balanceNote}
-      <p style="margin:16px 0 0;color:#6b7280;font-size:12px;">
-        Need a copy for your records? <a href="${payUrl}/pdf" style="color:#6b7280;">Download the invoice PDF</a>${remainingBalance > 0 ? ` or <a href="${payUrl}" style="color:#6b7280;">pay the remaining balance</a>` : ""}.
-      </p>`,
+      ${hello(contactFirstName)}
+      ${p(lead)}
+      ${facts([
+        { label: pending ? "Processing" : "Paid", value: usd(amount) },
+        { label: "Method", value: esc(methodLabel) },
+        ...(remainingBalance > 0 ? [{ label: "Still owed", value: usd(remainingBalance) }] : []),
+      ])}
+      ${aside(`${link(`${payUrl}/pdf`, "Download the invoice", QUIET)}${remainingBalance > 0 ? ` or ${link(payUrl, "pay the rest", QUIET)}` : ""}.`)}`,
   });
   return {
-    subject: pending
-      ? `Payment processing — $${amount.toFixed(2)} to ${companyName}`
-      : `Receipt from ${companyName} — $${amount.toFixed(2)}`,
+    subject: pending ? `Payment received for invoice ${invoiceNumber} (processing)` : `Receipt for invoice ${invoiceNumber}`,
     html,
   };
 }
@@ -1507,6 +1317,7 @@ export function paymentReceiptEmail({
 export function quoteLinkEmail({
   brand,
   companyName,
+  contactFirstName,
   quoteNumber,
   total,
   viewUrl,
@@ -1515,45 +1326,30 @@ export function quoteLinkEmail({
 }: {
   brand: EmailBrand;
   companyName: string;
+  contactFirstName?: string | null;
   quoteNumber: number;
   total: number;
   viewUrl: string;
   serviceNames: string[];
   depositNote?: string;
 }): { subject: string; html: string } {
-  const deposit = depositNote
-    ? `<p style="margin:8px 0 0;color:#6b7280;font-size:13px;text-align:right;">${esc(depositNote)}</p>`
-    : "";
   const html = clientShell({
     brand,
     companyName,
-    context: "Quote",
-    docNumber: quoteNumber,
-    docInk: DOC_INK.quote,
-    footerLeft: `Quote #${quoteNumber}`,
     inner: `
-      <p style="margin:0;color:#111827;font-size:15px;">
-        Thanks for your request — here's your quote from ${esc(companyName)}. Review it and approve online to get started.
-      </p>
-      ${itemsBlock(serviceNames)}
-      ${totalsLedger(brand, "Total", total)}
-      ${deposit}
-      ${accentBtn(viewUrl, "View &amp; approve quote", brand)}
-      <p style="margin:12px 0 0;color:#6b7280;font-size:12px;">
-        Prefer a copy for your records? <a href="${viewUrl}/pdf" style="color:#6b7280;">Download the PDF</a>.
-      </p>`,
+      ${hello(contactFirstName)}
+      ${p(`Here's quote ${quoteNumber}. You can approve it online and we'll get you on the schedule.`)}
+      ${ledger(serviceNames, { label: "Total", amount: total })}
+      ${depositNote ? p(esc(depositNote)) : ""}
+      ${button(viewUrl, "View quote", brand)}
+      ${aside(`Questions or changes? Reply to this email. ${link(`${viewUrl}/pdf`, "Download the PDF", QUIET)}.`)}`,
   });
-  return { subject: `Your quote from ${companyName} — #${quoteNumber}`, html };
+  return { subject: `Quote ${quoteNumber} from ${companyName}`, html };
 }
-
-const windowBlock = (windowLabel: string, address?: string | null, heading = "Arrival window") => `
-      ${fieldLabel(heading)}
-      <p style="margin:0;color:#111827;font-size:18px;font-weight:700;">${esc(windowLabel)}</p>
-      ${address ? `<p style="margin:6px 0 0;color:#374151;font-size:14px;">${esc(address)}</p>` : ""}`;
 
 /** Extra rows a booking confirmation may carry: how we'll meet, self-serve links. */
 export type BookingExtras = {
-  /** Calls promise an exact time — the heading reads "When" instead of "Arrival window". */
+  /** Calls promise an exact time — the label reads "When" instead of "Arrival". */
   exactTime?: boolean;
   /** VIDEO_CALL: the join link. */
   meetingLink?: string | null;
@@ -1569,24 +1365,25 @@ export type BookingExtras = {
   note?: string | null;
 };
 
-function bookingExtrasHtml(x: BookingExtras, companyEmail?: string | null): string {
-  const rows: string[] = [];
-  if (x.withName) rows.push(`${fieldLabel("With", 12)}<p style="margin:0;color:#111827;font-size:14px;">${esc(x.withName)}</p>`);
-  if (x.meetingLink)
-    rows.push(
-      `${fieldLabel("Join link", 12)}<p style="margin:0;font-size:14px;"><a href="${esc(x.meetingLink)}" style="color:#0369A1;word-break:break-all;">${esc(x.meetingLink)}</a></p>`
-    );
-  if (x.phone) rows.push(`${fieldLabel("We'll call you at", 12)}<p style="margin:0;color:#111827;font-size:14px;">${esc(x.phone)}</p>`);
-  if (x.note) rows.push(`<p style="margin:16px 0 0;color:#374151;font-size:14px;white-space:pre-line;">${esc(x.note)}</p>`);
-  if (x.paidNote) rows.push(`<p style="margin:14px 0 0;color:#15803D;font-size:14px;font-weight:600;">${esc(x.paidNote)}</p>`);
-  if (x.manageUrl) {
-    rows.push(
-      `<p style="margin:18px 0 0;font-size:13px;"><a href="${esc(x.manageUrl)}" style="color:#0369A1;font-weight:600;">Reschedule or cancel</a></p>`
-    );
-  } else if (companyEmail) {
-    rows.push(`<p style="margin:16px 0 0;color:#6b7280;font-size:13px;">Need to change the time? Reply to this email and we'll sort it out.</p>`);
-  }
-  return rows.join("");
+/** When / where / with whom, lined up — the facts every booking email carries. */
+function bookingFacts(windowLabel: string, address: string | null | undefined, x: BookingExtras, whenLabel?: string): string {
+  return facts([
+    { label: whenLabel ?? (x.exactTime ? "When" : "Arriving"), value: `<strong>${esc(windowLabel)}</strong>` },
+    ...(address ? [{ label: "Where", value: esc(address) }] : []),
+    ...(x.withName ? [{ label: "With", value: esc(x.withName) }] : []),
+    ...(x.phone ? [{ label: "We'll call", value: esc(x.phone) }] : []),
+    ...(x.meetingLink ? [{ label: "Join", value: link(x.meetingLink, esc(x.meetingLink), "#0369A1") }] : []),
+  ]);
+}
+
+/** The owner's note, the paid line, and how to change the time. */
+function bookingAfter(x: BookingExtras, brand: EmailBrand, canReply: boolean): string {
+  const parts: string[] = [];
+  if (x.note?.trim()) parts.push(p(multiline(x.note.trim())));
+  if (x.paidNote) parts.push(p(esc(x.paidNote)));
+  if (x.manageUrl) parts.push(aside(`Need to change it? ${link(x.manageUrl, "Reschedule or cancel", linkColor(brand))}.`));
+  else if (canReply) parts.push(aside("Need a different time? Reply to this email."));
+  return parts.join("");
 }
 
 /** To the client right after they self-schedule: received, awaiting confirmation. */
@@ -1610,17 +1407,13 @@ export function bookingReceivedEmail({
   const html = clientShell({
     brand,
     companyName,
-    context: "Booking received",
-    inner: `<p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
-      <p style="margin:0;color:#374151;font-size:14px;">
-        Thanks for booking <strong>${esc(serviceName)}</strong> with ${esc(companyName)}.
-        Your requested time is penciled in — we'll confirm it shortly and you'll get
-        another email when it's locked in.
-      </p>
-      ${windowBlock(windowLabel, address, extras.exactTime ? "When" : "Arrival window")}
-      ${bookingExtrasHtml({ ...extras, manageUrl: null }, null)}`,
+    inner: `
+      ${hello(contactFirstName)}
+      ${p(`Thanks for booking ${esc(serviceName)}. We've got the time you picked and will confirm it soon. You'll get another email once it's set.`)}
+      ${bookingFacts(windowLabel, address, extras, "Requested")}
+      ${bookingAfter({ ...extras, manageUrl: null }, brand, false)}`,
   });
-  return { subject: `Booking received — ${serviceName} with ${companyName}`, html };
+  return { subject: `We got your booking request: ${serviceName}`, html };
 }
 
 /** To the client when a booking is confirmed — instantly, or on Accept and Schedule. */
@@ -1646,17 +1439,13 @@ export function bookingConfirmedEmail({
   const html = clientShell({
     brand,
     companyName,
-    context: "Booking confirmed",
-    stamp: { text: "CONFIRMED", ink: DOC_INK.quote },
-    inner: `<p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
-      <p style="margin:0;color:#374151;font-size:14px;">
-        Good news — your <strong>${esc(serviceName)}</strong> booking with
-        ${esc(companyName)} is confirmed. ${extras.exactTime ? "Talk soon!" : "We'll see you then!"}
-      </p>
-      ${windowBlock(windowLabel, address, extras.exactTime ? "When" : "Arrival window")}
-      ${bookingExtrasHtml(extras, companyEmail)}`,
+    inner: `
+      ${hello(contactFirstName)}
+      ${p(`You're booked for ${esc(serviceName)}. ${extras.exactTime ? "Talk to you then." : "See you then."}`)}
+      ${bookingFacts(windowLabel, address, extras)}
+      ${bookingAfter(extras, brand, Boolean(companyEmail))}`,
   });
-  return { subject: `Confirmed: ${serviceName} — ${windowLabel}`, html };
+  return { subject: `Confirmed: ${serviceName}, ${windowLabel}`, html };
 }
 
 /** To the client after they move their own booking (self-serve reschedule). */
@@ -1684,16 +1473,13 @@ export function bookingRescheduledEmail({
   const html = clientShell({
     brand,
     companyName,
-    context: "Booking updated",
-    stamp: { text: "RESCHEDULED", ink: DOC_INK.invoice },
-    inner: `<p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
-      <p style="margin:0;color:#374151;font-size:14px;">
-        Your <strong>${esc(serviceName)}</strong> with ${esc(companyName)} has moved${previousLabel ? ` from ${esc(previousLabel)}` : ""}.
-      </p>
-      ${windowBlock(windowLabel, address, extras.exactTime ? "New time" : "New arrival window")}
-      ${bookingExtrasHtml(extras, companyEmail)}`,
+    inner: `
+      ${hello(contactFirstName)}
+      ${p(`Your ${esc(serviceName)} has moved${previousLabel ? ` from ${esc(previousLabel)}` : ""}. Here's the new time.`)}
+      ${bookingFacts(windowLabel, address, extras)}
+      ${bookingAfter(extras, brand, Boolean(companyEmail))}`,
   });
-  return { subject: `Rescheduled: ${serviceName} — ${windowLabel}`, html };
+  return { subject: `New time for ${serviceName}: ${windowLabel}`, html };
 }
 
 /** To the client after they cancel their own booking. */
@@ -1717,17 +1503,14 @@ export function bookingCancelledEmail({
   const html = clientShell({
     brand,
     companyName,
-    context: "Booking cancelled",
-    stamp: { text: "CANCELLED", ink: DOC_INK.alert },
-    inner: `<p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
-      <p style="margin:0;color:#374151;font-size:14px;">
-        Your <strong>${esc(serviceName)}</strong> with ${esc(companyName)} on
-        <strong>${esc(windowLabel)}</strong> has been cancelled.
-      </p>
-      ${rebookUrl ? accentBtn(rebookUrl, "Book another time", brand) : ""}
-      ${companyEmail ? `<p style="margin:16px 0 0;color:#6b7280;font-size:13px;">Changed your mind? Reply to this email and we'll get you back on the schedule.</p>` : ""}`,
+    signoff: "",
+    inner: `
+      ${hello(contactFirstName)}
+      ${p(`Your ${esc(serviceName)} on ${esc(windowLabel)} is cancelled.`)}
+      ${rebookUrl ? button(rebookUrl, "Book another time", brand) : ""}
+      ${companyEmail ? aside("Changed your mind? Reply to this email and we'll put you back on the schedule.") : ""}`,
   });
-  return { subject: `Cancelled: ${serviceName} — ${windowLabel}`, html };
+  return { subject: `Cancelled: ${serviceName}, ${windowLabel}`, html };
 }
 
 /** To the client when the business declines the booking. */
@@ -1749,93 +1532,13 @@ export function bookingDeclinedEmail({
   const html = clientShell({
     brand,
     companyName,
-    context: "Booking update",
-    inner: `<p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
-      <p style="margin:0;color:#374151;font-size:14px;">
-        Unfortunately ${esc(companyName)} couldn't make
-        ${windowLabel ? `<strong>${esc(windowLabel)}</strong>` : "your requested time"} work
-        for <strong>${esc(serviceName)}</strong>.
-      </p>
-      <p style="margin:12px 0 0;color:#374151;font-size:14px;">
-        We'd still love to help —
-        ${companyEmail ? "reply to this email" : "get in touch"} and we'll find a time that works.
-      </p>`,
+    signoff: "Sorry about that,",
+    inner: `
+      ${hello(contactFirstName)}
+      ${p(`We can't make ${windowLabel ? esc(windowLabel) : "the time you asked for"} work for ${esc(serviceName)}.`)}
+      ${p(`We'd still like to help. ${companyEmail ? "Reply to this email" : "Get in touch"} and we'll find a time that works.`)}`,
   });
-  return { subject: `About your ${serviceName} booking with ${companyName}`, html };
-}
-
-/**
- * Task reminder to the assignee — the email twin of the "Reminder: …" push,
- * sent only when push can't reach them (lib/tasks.ts reminderEmailWanted).
- */
-export function taskReminderEmail({
-  companyName,
-  title,
-  dueText,
-  highPriority,
-  notes,
-  taskUrl,
-}: {
-  companyName: string;
-  title: string;
-  /** "Due Today · 3:00 PM" or null for a task with no date. */
-  dueText: string | null;
-  highPriority: boolean;
-  notes?: string | null;
-  /** In-app path (/app/tasks?task=…); made absolute here. */
-  taskUrl: string;
-}): { subject: string; html: string } {
-  const html = wbShell({
-    label: highPriority ? "Task reminder · high priority" : "Task reminder",
-    inner: `<p style="margin:0 0 12px;color:#111827;font-size:15px;"><strong>${esc(title)}</strong></p>
-      ${dueText ? `<p style="margin:0;color:#374151;font-size:14px;">${esc(dueText)}</p>` : ""}
-      ${notes ? `<p style="margin:12px 0 0;color:#6b7280;font-size:13px;white-space:pre-wrap;">${esc(notes)}</p>` : ""}
-      ${wbBtn(absUrl(taskUrl), "Open the task")}`,
-    footNote: `Sent to you at ${esc(companyName)} because none of your devices has WorkBench notifications on — change that under Settings → My Profile.`,
-  });
-  return { subject: `${highPriority ? "Reminder (high priority)" : "Reminder"}: ${title}${dueText ? ` — ${dueText}` : ""} · ${companyName}`, html };
-}
-
-/**
- * To the company inbox when a customer books, moves or cancels online —
- * the team-side twin of the client emails above.
- */
-export function bookingTeamNoticeEmail({
-  companyName,
-  event,
-  serviceName,
-  contactName,
-  windowLabel,
-  previousLabel,
-  assigneeName,
-  detailUrl,
-  paidNote,
-}: {
-  companyName: string;
-  event: "booked" | "rescheduled" | "cancelled" | "needs_approval";
-  serviceName: string;
-  contactName: string;
-  windowLabel: string;
-  previousLabel?: string | null;
-  assigneeName?: string | null;
-  detailUrl: string;
-  paidNote?: string | null;
-}): { subject: string; html: string } {
-  const verb =
-    event === "booked" ? "booked" : event === "rescheduled" ? "rescheduled" : event === "cancelled" ? "cancelled" : "requested";
-  const label =
-    event === "needs_approval" ? "Booking to approve" : event === "cancelled" ? "Booking cancelled" : event === "rescheduled" ? "Booking moved" : "New booking";
-  const html = wbShell({
-    label,
-    inner: `<p style="margin:0 0 12px;color:#111827;font-size:15px;"><strong>${esc(contactName)}</strong> ${verb} <strong>${esc(serviceName)}</strong> online.</p>
-      ${windowBlock(windowLabel, null, event === "cancelled" ? "Was" : "When")}
-      ${previousLabel ? `<p style="margin:6px 0 0;color:#6b7280;font-size:13px;">Previously ${esc(previousLabel)}</p>` : ""}
-      ${assigneeName ? `<p style="margin:12px 0 0;color:#374151;font-size:14px;">Assigned to ${esc(assigneeName)}</p>` : ""}
-      ${paidNote ? `<p style="margin:12px 0 0;color:#15803D;font-size:14px;font-weight:600;">${esc(paidNote)}</p>` : ""}
-      ${wbBtn(detailUrl, event === "needs_approval" ? "Accept or decline" : "Open")}`,
-    footNote: `Sent to ${esc(companyName)}`,
-  });
-  return { subject: `${label}: ${serviceName} — ${contactName}, ${windowLabel}`, html };
+  return { subject: `About your ${serviceName} booking`, html };
 }
 
 /** Appointment reminder to the client: the day before, and again about an hour out. */
@@ -1869,47 +1572,41 @@ export function appointmentReminderEmail({
 }): { subject: string; html: string } {
   const noun = kind === "PHONE_CALL" ? "call" : kind === "VIDEO_CALL" ? "video call" : "visit";
   const what = new RegExp(`\\b${noun}\\b`, "i").test(serviceName) ? serviceName : `${serviceName} ${noun}`;
-  const strong = `<strong>${esc(what)}</strong>`;
+  const visit = kind === "IN_PERSON" || kind === "VISIT";
   const lead =
     stage === "day"
-      ? `A quick reminder about your upcoming ${strong} with ${esc(companyName)}.`
+      ? `A reminder about your ${esc(what)}.`
       : kind === "PHONE_CALL"
-        ? `${esc(companyName)} will call you soon for your ${strong}.`
+        ? `We'll be calling you soon for your ${esc(what)}.`
         : kind === "VIDEO_CALL"
-          ? `Your ${strong} with ${esc(companyName)} starts soon.`
-          : `${esc(companyName)} will arrive soon for your ${strong}.`;
-  const extras: string[] = [];
-  if (kind === "PHONE_CALL" && phone) extras.push(`${fieldLabel("We'll call you at", 12)}<p style="margin:0;color:#111827;font-size:14px;">${esc(phone)}</p>`);
-  if (kind === "VIDEO_CALL" && meetingLink)
-    extras.push(
-      `${fieldLabel("Join link", 12)}<p style="margin:0;font-size:14px;"><a href="${esc(meetingLink)}" style="color:#0369A1;word-break:break-all;">${esc(meetingLink)}</a></p>`
-    );
+          ? `Your ${esc(what)} starts soon.`
+          : `We're on our way soon for your ${esc(what)}.`;
   const html = clientShell({
     brand,
     companyName,
-    context: "Appointment reminder",
-    inner: `<p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${esc(contactFirstName)},</p>
-      <p style="margin:0;color:#374151;font-size:14px;">${lead}</p>
-      ${windowBlock(windowLabel, kind === "IN_PERSON" || kind === "VISIT" ? address : null, kind === "IN_PERSON" || kind === "VISIT" ? "Arrival window" : "When")}
-      ${extras.join("")}
-      ${companyEmail ? `<p style="margin:16px 0 0;color:#6b7280;font-size:13px;">Need a different time? Reply to this email.</p>` : ""}`,
+    signoff: "",
+    inner: `
+      ${hello(contactFirstName)}
+      ${p(lead)}
+      ${bookingFacts(windowLabel, visit ? address : null, { exactTime: !visit, phone: kind === "PHONE_CALL" ? phone : null, meetingLink: kind === "VIDEO_CALL" ? meetingLink : null })}
+      ${companyEmail ? aside("Need a different time? Reply to this email.") : ""}`,
   });
-  const soon =
-    kind === "PHONE_CALL" ? "We'll call you soon" : kind === "VIDEO_CALL" ? "Starting soon" : "We're on our way soon";
+  const soon = kind === "PHONE_CALL" ? "We'll call you soon" : kind === "VIDEO_CALL" ? "Starting soon" : "On our way soon";
   return {
-    subject: stage === "day" ? `Reminder: ${what} — ${windowLabel}` : `${soon}: ${what} — ${windowLabel}`,
+    subject: stage === "day" ? `Reminder: ${what}, ${windowLabel}` : `${soon}: ${what}, ${windowLabel}`,
     html,
   };
 }
 
 /**
- * Payment reminder / dunning email. Tone escalates by stage: a friendly nudge
- * on the due date through a firmer final notice at two weeks overdue.
+ * Payment reminder / dunning email. Tone firms up by stage: a plain reminder
+ * on the due date through a final notice at two weeks overdue.
  */
 export function paymentReminderEmail({
   brand,
   companyName,
   companyEmail,
+  contactFirstName,
   invoiceNumber,
   balance,
   payUrl,
@@ -1920,6 +1617,7 @@ export function paymentReminderEmail({
   brand: EmailBrand;
   companyName: string;
   companyEmail?: string | null;
+  contactFirstName?: string | null;
   invoiceNumber: number;
   balance: number;
   payUrl: string;
@@ -1928,46 +1626,34 @@ export function paymentReminderEmail({
   /** False when the company can't take online payments — the button just views. */
   payable?: boolean;
 }): { subject: string; html: string } {
-  const due = dueDate.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const due = longDate(dueDate);
   const copy = {
     due: {
-      subject: `Payment reminder — invoice #${invoiceNumber} from ${companyName}`,
-      lead: `This is a friendly reminder that invoice #${invoiceNumber} is due today (${due}).`,
+      subject: `Invoice ${invoiceNumber} is due today`,
+      lead: `A reminder that invoice ${invoiceNumber} is due today, ${due}.`,
     },
     overdue_3: {
-      subject: `Past due — invoice #${invoiceNumber} from ${companyName}`,
-      lead: `Invoice #${invoiceNumber} was due on ${due} and is now a few days past due.`,
+      subject: `Invoice ${invoiceNumber} is past due`,
+      lead: `Invoice ${invoiceNumber} was due on ${due} and hasn't been paid yet.`,
     },
     overdue_7: {
-      subject: `Second notice — invoice #${invoiceNumber} from ${companyName}`,
-      lead: `Invoice #${invoiceNumber} has been past due since ${due}. Please arrange payment when you can.`,
+      subject: `Second notice: invoice ${invoiceNumber}`,
+      lead: `Invoice ${invoiceNumber} has been past due since ${due}. Please take care of it when you can.`,
     },
     overdue_14: {
-      subject: `Final notice — invoice #${invoiceNumber} from ${companyName}`,
-      lead: `Invoice #${invoiceNumber} has been past due since ${due}. This is a final reminder before follow-up.`,
+      subject: `Final notice: invoice ${invoiceNumber}`,
+      lead: `Invoice ${invoiceNumber} has been past due since ${due}. This is our last reminder.`,
     },
   }[stage];
-
-  // Overdue stages press an escalating stamp into the header — the paper
-  // trail's version of the firmer tone.
-  const stamp =
-    stage === "due"
-      ? undefined
-      : { text: stage === "overdue_14" ? "FINAL NOTICE" : "PAST DUE", ink: DOC_INK.alert };
-
   const html = clientShell({
     brand,
     companyName,
-    context: "Invoice",
-    docNumber: invoiceNumber,
-    docInk: DOC_INK.invoice,
-    stamp,
-    footerLeft: `Invoice #${invoiceNumber}`,
     inner: `
-      <p style="margin:0;color:#111827;font-size:15px;">${esc(copy.lead)}</p>
-      ${totalsLedger(brand, "Balance due", balance)}
-      ${accentBtn(payUrl, payable ? "View &amp; pay invoice" : "View invoice", brand)}
-      ${companyEmail ? `<p style="margin:20px 0 0;color:#6b7280;font-size:13px;">Already paid or have a question? Reply to this email or reach ${esc(companyName)} at ${esc(companyEmail)}.</p>` : ""}`,
+      ${hello(contactFirstName)}
+      ${p(esc(copy.lead))}
+      ${ledger([], { label: "Balance due", amount: balance })}
+      ${button(payUrl, payable ? "Pay invoice" : "View invoice", brand)}
+      ${companyEmail ? aside("Already paid, or have a question? Reply to this email.") : ""}`,
   });
   return { subject: copy.subject, html };
 }

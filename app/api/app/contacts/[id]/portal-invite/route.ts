@@ -33,7 +33,7 @@ export async function POST(
       firstName: true,
       hubToken: true,
       company: {
-        select: { name: true, brandColor: true, documentColor: true, brandColorSecondary: true, logoUrl: true },
+        select: { name: true, brandColor: true, documentColor: true, brandColorSecondary: true, phone: true, logoUrl: true },
       },
     },
   });

@@ -81,6 +81,7 @@ export async function finishQuoteApproval(
     const { subject, html } = invoiceLinkEmail({
       brand: quote.company,
       companyName: quote.company.name,
+      contactFirstName: quote.contact.firstName,
       invoiceNumber: deposit.invoice.invoiceNumber,
       total: deposit.amount,
       payUrl: `${baseUrl}/pay/${deposit.invoice.publicToken}`,

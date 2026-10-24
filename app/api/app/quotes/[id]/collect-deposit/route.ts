@@ -87,6 +87,7 @@ export async function POST(
     const { subject, html } = invoiceLinkEmail({
       brand: quote.company,
       companyName: quote.company.name,
+      contactFirstName: quote.contact.firstName,
       invoiceNumber: deposit.invoice.invoiceNumber,
       total: deposit.amount,
       payUrl,

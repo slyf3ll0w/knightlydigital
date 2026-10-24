@@ -60,7 +60,7 @@ export async function POST(
 
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { name: true, brandColor: true, documentColor: true, brandColorSecondary: true, logoUrl: true },
+    select: { name: true, brandColor: true, documentColor: true, brandColorSecondary: true, phone: true, logoUrl: true },
   });
   const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
   const { subject, html } = contractSignEmail({

@@ -122,7 +122,7 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
   const { companyId } = automation;
   const { company, contact } = loaded;
   const tz = company.timezone ?? "America/Chicago";
-  const brand = { brandColor: company.brandColor, brandColorSecondary: company.brandColorSecondary, documentColor: company.documentColor, logoUrl: company.logoUrl };
+  const brand = { brandColor: company.brandColor, brandColorSecondary: company.brandColorSecondary, documentColor: company.documentColor, logoUrl: company.logoUrl, phone: company.phone };
 
   switch (step.type) {
     case "notify_team": {
@@ -204,7 +204,7 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
       const deposit = quoteDepositAmount({ total: Number(q.total), depositType: q.depositType, depositValue: q.depositValue == null ? null : Number(q.depositValue) });
       const viewUrl = `${baseUrl()}/quote/${q.publicToken}`;
       const { subject, html } = quoteLinkEmail({
-        brand, companyName: company.name, quoteNumber: q.quoteNumber, total: Number(q.total), viewUrl,
+        brand, companyName: company.name, contactFirstName: contact.firstName, quoteNumber: q.quoteNumber, total: Number(q.total), viewUrl,
         serviceNames: q.lineItems.filter((li) => !(li.isOptional && li.optedOut)).map((li) => li.name || li.description || "Service"),
         depositNote: deposit > 0 ? `A deposit of ${moneyLabel(deposit)} is due when you approve.` : undefined,
       });
@@ -224,7 +224,7 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
       if (await companyEmailBlocked(companyId)) return "skipped: company email blocked";
       const payable = canChargeOnline(company);
       const payUrl = `${baseUrl()}/pay/${i.publicToken}`;
-      const { subject, html } = invoiceLinkEmail({ brand, companyName: company.name, invoiceNumber: i.invoiceNumber, total: Number(i.total), payUrl, serviceNames: i.lineItems.map((li) => li.name || li.description || "Service"), payable });
+      const { subject, html } = invoiceLinkEmail({ brand, companyName: company.name, contactFirstName: contact.firstName, invoiceNumber: i.invoiceNumber, total: Number(i.total), payUrl, serviceNames: i.lineItems.map((li) => li.name || li.description || "Service"), payable });
       const emailed = await sendEmail({ companyId, to: contact.email, subject, html, replyTo: company.email || undefined, fromName: company.name });
       if (!emailed) return "failed: email send failed";
       let texted = false;
@@ -247,7 +247,7 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
       const dueIn = Number(loaded.ctx.due_in_days ?? 0);
       const stage = dueIn >= 0 ? "due" : dueIn <= -14 ? "overdue_14" : dueIn <= -7 ? "overdue_7" : "overdue_3";
       const { subject, html } = paymentReminderEmail({
-        brand, companyName: company.name, companyEmail: company.email, invoiceNumber: i.invoiceNumber, balance, payUrl: `${baseUrl()}/pay/${i.publicToken}`,
+        brand, companyName: company.name, contactFirstName: contact.firstName, companyEmail: company.email, invoiceNumber: i.invoiceNumber, balance, payUrl: `${baseUrl()}/pay/${i.publicToken}`,
         dueDate: i.dueDate ?? now, stage, payable: canChargeOnline(company),
       });
       const sent = await sendEmail({ companyId, to: contact.email, subject, html, replyTo: company.email || undefined, fromName: company.name });

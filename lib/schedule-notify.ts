@@ -28,7 +28,7 @@ const companySelect = {
   arrivalWindowMinutes: true,
   brandColor: true,
   documentColor: true,
-  brandColorSecondary: true,
+  brandColorSecondary: true, phone: true,
   logoUrl: true,
 } as const;
 

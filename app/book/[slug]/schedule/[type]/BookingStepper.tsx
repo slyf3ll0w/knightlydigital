@@ -4,7 +4,7 @@ import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, CalendarPlus, Check, CheckCircle, Clock, ExternalLink, Globe, Loader2, MapPin, MessageSquare, Phone, Video, Wrench } from "lucide-react";
 import TurnstileWidget from "@/components/TurnstileWidget";
-import { textOn } from "@/lib/branding";
+import { embedAccent, embedOnAccent, embedWash } from "@/lib/embed-style";
 import { smsConsentLabel, businessSmsTermsUrl, businessPrivacyUrl } from "@/lib/sms-consent";
 import { zipFromAddress } from "@/lib/business-hours";
 import type { PublicBookingType } from "@/lib/booking-runtime";
@@ -104,7 +104,10 @@ export default function BookingStepper({
   /** Client hub: the signed-in client is on file (prefill carries their details) — no captcha */
   hub?: { token: string } | null;
 }) {
-  const { dark, accent, transparent } = appearance;
+  const { dark, accent: savedAccent, transparent } = appearance;
+  // Saved accent, or the host website's once an embed matches it (lib/embed-style.ts)
+  const accent = embedAccent(savedAccent);
+  const onAccent = embedOnAccent(savedAccent);
   const Icon = ICON[type.kind];
   const visitorTz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || company.timezone, [company.timezone]);
   // Calls show in the visitor's zone (they might be anywhere); visits always in company time
@@ -418,7 +421,7 @@ export default function BookingStepper({
     const whenLabel = type.exactTime ? slotLabelIn(booked) : booked.label;
     return (
       <div className={`${card} mx-auto max-w-lg px-6 py-10 text-center`}>
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: `${accent}22` }}>
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: embedWash(savedAccent, 13) }}>
           <CheckCircle size={28} style={{ color: accent }} />
         </div>
         <h2 className={`mb-1 text-xl font-bold ${ink}`}>{words.heading}</h2>
@@ -459,7 +462,7 @@ export default function BookingStepper({
   const rail = (
     <aside className={`${card} p-5 lg:sticky lg:top-6`}>
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${accent}22`, color: accent }}>
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: embedWash(savedAccent, 13), color: accent }}>
           <Icon size={18} />
         </span>
         <div className="min-w-0">
@@ -625,7 +628,7 @@ export default function BookingStepper({
                   {shownDays.map((d) => {
                     const active = d.date === activeDay;
                     return (
-                      <button key={d.date} type="button" onClick={() => setActiveDay(d.date)} className={`shrink-0 rounded border px-3 py-1.5 text-xs font-semibold transition-colors ${active ? "" : dark ? "border-white/15 text-gray-300 hover:border-white/30" : "border-gray-300 text-gray-600 hover:border-gray-400"}`} style={active ? { backgroundColor: accent, borderColor: accent, color: textOn(accent) } : undefined}>
+                      <button key={d.date} type="button" onClick={() => setActiveDay(d.date)} className={`shrink-0 rounded border px-3 py-1.5 text-xs font-semibold transition-colors ${active ? "" : dark ? "border-white/15 text-gray-300 hover:border-white/30" : "border-gray-300 text-gray-600 hover:border-gray-400"}`} style={active ? { backgroundColor: accent, borderColor: accent, color: onAccent } : undefined}>
                         {d.label}
                       </button>
                     );
@@ -635,7 +638,7 @@ export default function BookingStepper({
                   {(shownDays.find((d) => d.date === activeDay)?.slots ?? []).map((s) => {
                     const selected = slot?.start === s.start;
                     return (
-                      <button key={s.start} type="button" onClick={() => setSlot(s)} className={chip(selected)} style={selected ? { backgroundColor: accent, borderColor: accent, color: textOn(accent) } : undefined}>
+                      <button key={s.start} type="button" onClick={() => setSlot(s)} className={chip(selected)} style={selected ? { backgroundColor: accent, borderColor: accent, color: onAccent } : undefined}>
                         {s.label}
                       </button>
                     );
@@ -758,7 +761,7 @@ export default function BookingStepper({
                 depositAmount={depositAmount}
                 surchargeRate={payment?.surchargeRate ?? null}
                 dark={dark}
-                accent={accent}
+                accent={savedAccent}
                 onReady={setCardReady}
               />
             )}
@@ -772,7 +775,7 @@ export default function BookingStepper({
             target="_blank"
             rel="noopener noreferrer"
             className={primaryBtn}
-            style={{ backgroundColor: accent, color: textOn(accent) }}
+            style={{ backgroundColor: accent, color: onAccent }}
             onClick={(e) => {
               if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim()) {
                 e.preventDefault();
@@ -783,7 +786,7 @@ export default function BookingStepper({
             <ExternalLink size={14} /> Continue to secure checkout
           </a>
         ) : step === "details" ? (
-          <button type="submit" disabled={preview || submitting || (paying && (type.paymentMode === "FULL" || (depositAmount ?? 0) > 0) && !cardReady)} className={primaryBtn} style={{ backgroundColor: accent, color: textOn(accent) }}>
+          <button type="submit" disabled={preview || submitting || (paying && (type.paymentMode === "FULL" || (depositAmount ?? 0) > 0) && !cardReady)} className={primaryBtn} style={{ backgroundColor: accent, color: onAccent }}>
             {submitting && <Loader2 size={14} className="animate-spin" />}
             {paying
               ? type.paymentMode === "FULL"
@@ -794,7 +797,7 @@ export default function BookingStepper({
               : type.buttonLabel}
           </button>
         ) : (
-          <button type="button" disabled={!canAdvance} onClick={() => setStepIdx(stepIdx + 1)} className={primaryBtn} style={{ backgroundColor: accent, color: textOn(accent) }}>
+          <button type="button" disabled={!canAdvance} onClick={() => setStepIdx(stepIdx + 1)} className={primaryBtn} style={{ backgroundColor: accent, color: onAccent }}>
             {step === "time" && slot ? (
               <>
                 <Check size={14} /> {slotLabelIn(slot)}

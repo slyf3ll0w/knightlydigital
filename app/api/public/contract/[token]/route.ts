@@ -80,7 +80,7 @@ export async function POST(
         email: true,
         brandColor: true,
         documentColor: true,
-        brandColorSecondary: true,
+        brandColorSecondary: true, phone: true,
         logoUrl: true,
       },
     }),
