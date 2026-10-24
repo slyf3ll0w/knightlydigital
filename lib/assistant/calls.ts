@@ -2,6 +2,7 @@ import { prisma } from "../db";
 import { canSell, contactScope, isManager } from "../permissions";
 import { fmtPhone } from "../format";
 import { type Tool, str, num, clientName, fmtWhen, stage } from "./core";
+import { quoted } from "./untrusted";
 
 /**
  * The business line's call log and placing a call (2026-10-22). Reads mirror
@@ -119,8 +120,9 @@ export const callTools: Tool[] = [
           ...(c.durationSec ? { talkMinutes: Math.max(1, Math.round(c.durationSec / 60)) } : {}),
           ...(c.voicemailRecordingId ? { voicemail: `${c.voicemailSec ?? 0}s — play at /app/calls/${c.id}` } : {}),
           ...(c.answeredBy?.name || c.user?.name ? { handledBy: c.answeredBy?.name ?? c.user?.name } : {}),
-          ...(c.notes ? { notes: c.notes.length > 300 ? `${c.notes.slice(0, 300)}…` : c.notes } : {}),
-          ...(c.atlasNotes ? { atlasNotes: c.atlasNotes.length > 400 ? `${c.atlasNotes.slice(0, 400)}…` : c.atlasNotes } : {}),
+          // Fenced: the caller's words (and Atlas's summary of them) are data, not orders.
+          ...(c.notes ? { notes: quoted(c.notes, 300) } : {}),
+          ...(c.atlasNotes ? { atlasNotes: quoted(c.atlasNotes, 400) } : {}),
         })),
         note: "Unknown numbers can be saved as a lead or client with create_client (phone prefilled); the call links itself.",
       };

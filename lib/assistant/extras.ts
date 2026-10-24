@@ -5,6 +5,7 @@ import { listNotes } from "../sticky-notes";
 import { INDUSTRIES } from "../pricebooks";
 import { LISTING_SELECT, LISTING_STATUS, listingCard, listingMarks } from "../estimator-library";
 import { type Tool, str, num, companyTz, fmtWhen, stage } from "./core";
+import { quoted } from "./untrusted";
 
 /**
  * The 2026-10-22 gap sweep: read-only doors onto things Atlas could not see
@@ -53,7 +54,7 @@ export const extraTools: Tool[] = [
         photos: photos.map((p) => ({
           id: p.id,
           type: p.type.toLowerCase(),
-          ...(p.caption ? { caption: p.caption } : {}),
+          ...(p.caption ? { caption: quoted(p.caption, 200) } : {}),
           taken: fmtWhen(tz, p.createdAt, false),
           link: `/api/job-photos/${p.id}`,
           ...(p.siteUse ? { onWebsite: true } : {}),
@@ -114,7 +115,7 @@ export const extraTools: Tool[] = [
           .map((m) => ({
             from: m.userName,
             at: fmtWhen(tz, new Date(m.createdAt), false),
-            text: m.deletedAt ? "(deleted)" : m.body.length > 500 ? `${m.body.slice(0, 500)}…` : m.body,
+            text: m.deletedAt ? "(deleted)" : quoted(m.body, 500),
             ...(m.media.length > 0 ? { photos: m.media.length } : {}),
             ...(m.reactions.length > 0 ? { reactions: m.reactions.map((r) => r.emoji).join(" ") } : {}),
           })),

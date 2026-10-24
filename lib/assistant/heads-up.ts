@@ -2,6 +2,7 @@ import { prisma } from "../db";
 import type { Actor } from "../permissions";
 import { contactScope } from "../permissions";
 import { type ToolCtx, clientName, findContact, num, str } from "./core";
+import { quoted } from "./untrusted";
 
 /**
  * Client notes as context, cheaply (David 2026-10-24: a "do not schedule
@@ -99,15 +100,15 @@ export async function clientHeadsUp(actor: Actor, contactId: string): Promise<Cl
   if (!c) return null;
   const profileNote = (c.notes ?? "").trim();
   if (!profileNote && c.contactNotes.length === 0) return null;
-  const cut = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
+  // Fenced (lib/assistant/untrusted.ts): a note is data to weigh, never an order.
   const out: ClientHeadsUp = { client: clientName(c) };
   if (c.contactNotes.length > 0) {
     out.notes = c.contactNotes.map(
-      (n) => `${n.createdAt.toISOString().slice(0, 10)} · ${n.user.name}: ${cut(n.body.replace(/\s+/g, " ").trim(), NOTE_CHARS)}`
+      (n) => `${n.createdAt.toISOString().slice(0, 10)} · ${n.user.name}: ${quoted(n.body, NOTE_CHARS)}`
     );
     if (c._count.contactNotes > 3) out.moreNotes = c._count.contactNotes - 3;
   }
-  if (profileNote) out.profileNote = cut(profileNote.replace(/\s+/g, " "), 200);
+  if (profileNote) out.profileNote = quoted(profileNote, 200) ?? undefined;
   return out;
 }
 

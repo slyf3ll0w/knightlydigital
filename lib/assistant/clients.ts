@@ -16,6 +16,7 @@ import {
   num,
   stage,
 } from "./core";
+import { quoted } from "./untrusted";
 
 /** Clients: search/list/activity reads, contact CRUD, notes, portal invites, import undo. */
 export const clientTools: Tool[] = [
@@ -210,7 +211,7 @@ export const clientTools: Tool[] = [
         })),
         recentNotes: c.contactNotes.map((n) => ({
           id: n.id, by: n.user.name, mine: n.userId === actor.id,
-          on: n.createdAt.toISOString().slice(0, 10), note: n.body.slice(0, 200),
+          on: n.createdAt.toISOString().slice(0, 10), note: quoted(n.body, 200),
         })),
       };
     },
@@ -247,10 +248,10 @@ export const clientTools: Tool[] = [
       const profileNote = (c.notes ?? "").trim();
       return {
         client: clientName(contact),
-        profileNote: profileNote || null,
+        profileNote: quoted(profileNote, 500),
         notes: c.contactNotes.map((n) => ({
           id: n.id, by: n.user.name, mine: n.userId === actor.id,
-          on: n.createdAt.toISOString().slice(0, 10), note: n.body.length > 600 ? `${n.body.slice(0, 600)}…` : n.body,
+          on: n.createdAt.toISOString().slice(0, 10), note: quoted(n.body, 600),
         })),
         ...(c._count.contactNotes > c.contactNotes.length ? { moreNotes: c._count.contactNotes - c.contactNotes.length } : {}),
         ...(!profileNote && c.contactNotes.length === 0 ? { note: "No notes on this client." } : {}),

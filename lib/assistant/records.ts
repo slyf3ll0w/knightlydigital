@@ -11,6 +11,7 @@ import {
   appointmentScope,
 } from "../permissions";
 import { type Tool, str, num, day, money, clientName, companyTz, fmtWhen } from "./core";
+import { quoted } from "./untrusted";
 import { isOnlinePayment } from "../payment-ref";
 
 /**
@@ -269,7 +270,7 @@ export const recordsTools: Tool[] = [
           ]);
           return {
             total, showing: rows.length, offset, hasMore: offset + rows.length < total,
-            rows: rows.map((r) => ({ n: r.requestNumber, title: r.title, status: r.status, source: r.source, client: clientName(r.contact), created: iso(r.createdAt), preferred: iso(r.preferredDate) })),
+            rows: rows.map((r) => ({ n: r.requestNumber, title: quoted(r.title, 120), status: r.status, source: r.source, client: clientName(r.contact), created: iso(r.createdAt), preferred: iso(r.preferredDate) })),
           };
         }
         case "quotes": {

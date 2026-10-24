@@ -5,6 +5,7 @@ import { companyCanSendSms } from "../sms";
 import { fmtPhone } from "../format";
 import { canSell, canSeeMoney, isManager } from "../permissions";
 import { clientProse, type Tool, str, money, clientName, companyTz, fmtWhen, findContact, stage } from "./core";
+import { quoted } from "./untrusted";
 
 /**
  * Client features that shipped after Atlas v7: multiple service addresses,
@@ -51,13 +52,13 @@ export const clientExtraTools: Tool[] = [
         client: clientName(contact),
         primaryAddress: contact.address,
         addresses: full.addresses.map((a) => ({ id: a.id, label: a.label, address: [a.address, a.city, a.state, a.zip].filter(Boolean).join(", "), jobsThere: a._count.jobs })),
-        people: full.people.map((p) => ({ id: p.id, name: `${p.firstName} ${p.lastName}`.trim(), role: p.role, email: p.email, phone: p.phone, notes: p.notes })),
+        people: full.people.map((p) => ({ id: p.id, name: `${p.firstName} ${p.lastName}`.trim(), role: p.role, email: p.email, phone: p.phone, notes: quoted(p.notes, 300) })),
         ...(canMoney ? { cardsOnFile: full.savedCards.map((c) => ({ id: c.id, label: c.label, brand: c.brand, expires: c.expMonth && c.expYear ? `${c.expMonth}/${c.expYear}` : null, isDefault: c.isDefault })), paymentTermsDays: full.paymentTermsDays } : {}),
         customFields,
         smsOptOut: full.smsOptOut,
         textsOff: full.smsOptOut || full.smsDisabled,
         portalLastVisit: full.hubLastVisitAt ? fmtWhen(tz, full.hubLastVisitAt, false) : null,
-        portalThread: full.portalMessages.reverse().map((m) => ({ from: m.direction === "INBOUND" ? "client" : m.sender?.name ?? "us", at: fmtWhen(tz, m.createdAt, false), unread: m.direction === "INBOUND" && !m.readByTeamAt, body: m.body.length > 240 ? `${m.body.slice(0, 240)}…` : m.body })),
+        portalThread: full.portalMessages.reverse().map((m) => ({ from: m.direction === "INBOUND" ? "client" : m.sender?.name ?? "us", at: fmtWhen(tz, m.createdAt, false), unread: m.direction === "INBOUND" && !m.readByTeamAt, body: quoted(m.body, 240) })),
         emailsSent: full.clientMessages.map((m) => ({ subject: m.subject, at: fmtWhen(tz, m.createdAt, false), by: m.sender?.name ?? null, opened: Boolean(m.emailOpenedAt || m.viewCount > 0) })),
       };
     },

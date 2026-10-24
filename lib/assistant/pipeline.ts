@@ -19,6 +19,7 @@ import {
   siteBase,
   LINE_ITEMS_PARAM,
 } from "./core";
+import { quoted } from "./untrusted";
 
 /** Full-replace line-item payload for the quote/invoice/job PATCH routes.
  *  Both name and description are set so every list/display renders, and the
@@ -272,7 +273,7 @@ export const pipelineTools: Tool[] = [
           ...(seePrices ? { quantity: Number(li.quantity), unitPrice: Number(li.unitPrice) } : {}),
         })),
         recentNotes: j.notes.map((nt) => ({
-          by: nt.user.name, on: nt.createdAt.toISOString().slice(0, 10), note: nt.body.slice(0, 200),
+          by: nt.user.name, on: nt.createdAt.toISOString().slice(0, 10), note: quoted(nt.body, 200),
         })),
       };
     },
