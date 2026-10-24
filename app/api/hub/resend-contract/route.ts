@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       firstName: true,
       companyId: true,
       company: {
-        select: { name: true, brandColor: true, documentColor: true, brandColorSecondary: true, logoUrl: true, suspendedAt: true },
+        select: { name: true, brandColor: true, documentColor: true, brandColorSecondary: true, phone: true, logoUrl: true, suspendedAt: true },
       },
     },
   });

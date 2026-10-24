@@ -119,14 +119,14 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
     include: {
       payments: { select: { amount: true, surchargeAmount: true } },
       reminders: { select: { type: true } },
-      contact: { select: { email: true } },
+      contact: { select: { email: true, firstName: true } },
       company: {
         select: {
           name: true,
           email: true,
           brandColor: true,
           documentColor: true,
-          brandColorSecondary: true,
+          brandColorSecondary: true, phone: true,
           logoUrl: true,
           finixMerchantId: true,
           finixOnboardingState: true, squareMerchantId: true, squareConnectedAt: true,
@@ -188,6 +188,7 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
       const { subject, html } = paymentReminderEmail({
         brand: inv.company,
         companyName: inv.company.name,
+        contactFirstName: inv.contact.firstName,
         companyEmail: inv.company.email,
         invoiceNumber: inv.invoiceNumber,
         balance,
@@ -261,14 +262,14 @@ export async function runQuoteFollowUps(
     orderBy: { sentAt: "desc" },
     include: {
       reminders: { select: { type: true } },
-      contact: { select: { email: true } },
+      contact: { select: { email: true, firstName: true } },
       company: {
         select: {
           name: true,
           email: true,
           brandColor: true,
           documentColor: true,
-          brandColorSecondary: true,
+          brandColorSecondary: true, phone: true,
           logoUrl: true,
           finixMerchantId: true,
           finixOnboardingState: true, squareMerchantId: true, squareConnectedAt: true,
@@ -313,6 +314,7 @@ export async function runQuoteFollowUps(
       const { subject, html } = quoteFollowUpEmail({
         brand: quote.company,
         companyName: quote.company.name,
+        contactFirstName: quote.contact.firstName,
         quoteNumber: quote.quoteNumber,
         total: Number(quote.total),
         viewUrl: `${baseUrl}/quote/${quote.publicToken}`,
@@ -373,7 +375,7 @@ const reminderCompanySelect = {
   arrivalWindowMinutes: true,
   brandColor: true,
   documentColor: true,
-  brandColorSecondary: true,
+  brandColorSecondary: true, phone: true,
   logoUrl: true,
   finixMerchantId: true,
   finixOnboardingState: true, squareMerchantId: true, squareConnectedAt: true,

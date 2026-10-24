@@ -53,7 +53,7 @@ export async function POST(
           slug: true,
           brandColor: true,
           documentColor: true,
-          brandColorSecondary: true,
+          brandColorSecondary: true, phone: true,
           logoUrl: true,
         },
       },
