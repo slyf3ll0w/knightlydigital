@@ -25,21 +25,28 @@ export async function POST(req: NextRequest) {
   // Native app (Capacitor shell): body = { platform: "ios"|"android", token }
   // where token is the FCM device token, stored in the endpoint column —
   // or platform "ios-voip", the PushKit token that rings the iPhone for a
-  // business-line call when the app is closed (lib/voip.ts).
-  if (body?.platform === "ios" || body?.platform === "android" || body?.platform === "ios-voip") {
+  // business-line call when the app is closed, or "android-voip", the same
+  // FCM token registered by the Android calling engine (lib/voip.ts). The
+  // Android page registers that one token twice ("android" from
+  // components/PushNotifications.tsx, "android-voip" from the engine);
+  // "android-voip" wins and stays, because it says the shell can be rung
+  // and still receives every ordinary notification.
+  if (body?.platform === "ios" || body?.platform === "android" || body?.platform === "ios-voip" || body?.platform === "android-voip") {
     const token = typeof body?.token === "string" ? body.token.trim() : "";
     if (!token || token.length > 4096 || token.includes(" ")) {
       return NextResponse.json({ error: "Invalid device token." }, { status: 400 });
     }
+    const existing = await prisma.pushSubscription.findUnique({ where: { endpoint: token }, select: { platform: true } });
+    const platform = body.platform === "android" && existing?.platform === "android-voip" ? "android-voip" : body.platform;
     await prisma.pushSubscription.upsert({
       where: { endpoint: token },
       create: {
         userId: actor.id,
         endpoint: token,
-        platform: body.platform,
+        platform,
         userAgent,
       },
-      update: { userId: actor.id, platform: body.platform },
+      update: { userId: actor.id, platform },
     });
     return NextResponse.json({ ok: true }, { status: 201 });
   }

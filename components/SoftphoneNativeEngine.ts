@@ -7,6 +7,8 @@ import {
   rememberVoipToken,
   stashPendingVoipCall,
   takePendingVoipCall,
+  voipDevice,
+  voipPushPlatform,
   type VoipCallSnapshot,
   type VoipIncoming,
   type VoipPlugin,
@@ -22,12 +24,12 @@ import {
 } from "@/lib/softphone-client";
 
 /**
- * The softphone on the iPhone: no WebRTC in the page. The native engine
- * (ios/App/App/VoipPlugin.swift) registers with Telnyx, rings the system
- * call screen and carries the audio — in the background too, which a web
- * page never could. This module keeps the call card in step with it and
- * turns the card's taps into engine calls (which go through CallKit, so the
- * system screen agrees).
+ * The softphone in the phone apps: no WebRTC in the page. The native engine
+ * (ios/App/App/VoipPlugin.swift, android/.../VoipPlugin.kt) registers with
+ * Telnyx, rings the system call screen and carries the audio — in the
+ * background too, which a web page never could. This module keeps the call
+ * card in step with it and turns the card's taps into engine calls (which
+ * go through the system call screen, so it agrees).
  *
  * The one thing the page still owns is which company it is signed into: a
  * pushed call for another company on this login makes the engine
@@ -38,6 +40,9 @@ import {
 export function startNativeSoftphone(voip: VoipPlugin, sessionUpdate: () => (data?: unknown) => Promise<unknown>): () => void {
   let stopped = false;
   const off: Array<() => void> = [];
+  const device = voipDevice();
+  const pushPlatform = voipPushPlatform(device);
+  const micSettings = device === "android" ? "Settings → Apps → WorkBench → Permissions → Microphone" : "Settings → WorkBench → Microphone";
 
   const toCard = (c: VoipIncoming & Partial<VoipCallSnapshot>): SoftphoneCall => ({
     callId: c.callId,
@@ -76,7 +81,7 @@ export function startNativeSoftphone(voip: VoipPlugin, sessionUpdate: () => (dat
       const res = await fetch("/api/app/line/softphone/ready", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ callId, probe: true }),
+        body: JSON.stringify({ callId, probe: true, device }),
       });
       const j = (await res.json().catch(() => ({}))) as { outcome?: string; userId?: string };
       if (stopped || j.outcome !== "switch" || !j.userId || switching) return;
@@ -94,12 +99,12 @@ export function startNativeSoftphone(voip: VoipPlugin, sessionUpdate: () => (dat
   // ── What the engine tells us ──────────────────────────────────────────────
   off.push(
     onVoip<{ token: string | null }>(voip, "voipToken", ({ token }) => {
-      rememberVoipToken(token);
+      rememberVoipToken(token, pushPlatform);
       if (!token) return;
       void fetch("/api/app/push", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ platform: "ios-voip", token }),
+        body: JSON.stringify({ platform: pushPlatform, token }),
       }).catch(() => {});
     })
   );
@@ -194,7 +199,7 @@ export function startNativeSoftphone(voip: VoipPlugin, sessionUpdate: () => (dat
       const res = await fetch("/api/app/line/call", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contactId: target.contactId ?? null, to: target.to ?? null, via: "app", device: "ios" }),
+        body: JSON.stringify({ contactId: target.contactId ?? null, to: target.to ?? null, via: "app", device }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string; callId?: string; customerNumber?: string };
       if (!res.ok || !data.callId) throw new Error(data.error || "Couldn't place the call.");
@@ -209,7 +214,7 @@ export function startNativeSoftphone(voip: VoipPlugin, sessionUpdate: () => (dat
       const { granted } = await voip.requestMic().catch(() => ({ granted: false }));
       setSoftphoneState({
         mic: granted ? "granted" : "denied",
-        error: granted ? null : "Microphone access was refused — allow it in Settings → WorkBench → Microphone, then reopen the app.",
+        error: granted ? null : `Microphone access was refused — allow it in ${micSettings}, then reopen the app.`,
       });
       return granted;
     },
@@ -222,7 +227,7 @@ export function startNativeSoftphone(voip: VoipPlugin, sessionUpdate: () => (dat
     },
     testMic: async (): Promise<MicTestResult> => {
       const { granted } = await voip.requestMic().catch(() => ({ granted: false }));
-      return { heard: granted, label: granted ? "iPhone microphone" : null, osMuted: false, error: granted ? null : "Allow the microphone in Settings → WorkBench." };
+      return { heard: granted, label: granted ? (device === "android" ? "Phone microphone" : "iPhone microphone") : null, osMuted: false, error: granted ? null : `Allow the microphone in ${micSettings}.` };
     },
   });
 
@@ -243,7 +248,7 @@ export function startNativeSoftphone(voip: VoipPlugin, sessionUpdate: () => (dat
     })
     .catch(() => {});
   void voip.register().catch(() => {});
-  // The iPhone's one-time microphone prompt: the first time calls are on for
+  // The phone's one-time microphone prompt: the first time calls are on for
   // this device, not on the first Answer.
   void voip
     .requestMic()

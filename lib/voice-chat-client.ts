@@ -2,18 +2,22 @@
 
 import { transcribeMime } from "./voice-chat-shared";
 import { getVoicePick } from "./atlas-voices";
+import { nativeSpeech, onNativeSpeech, nativeSpeechError, type NativeSpeechPlugin } from "./native-speech";
 
 /**
  * Talking to Atlas — the browser half. Ears: the Web Speech API where the
  * browser has it (desktop Chrome/Edge/Safari, iPhone Safari, Android
  * Chrome); otherwise the mic is recorded and sent to
- * /api/app/assistant/transcribe. The iOS and Android app shells ALWAYS
- * record: WKWebView exposes webkitSpeechRecognition but refuses to run it
- * ("not-allowed" even with the microphone allowed — David, 2026-10-23), and
- * the Android WebView has no recognizer at all. Any browser whose
- * recognizer refuses while the mic itself works also falls back to
- * recording, for good. Recording stops itself after the speaker goes quiet
- * (a small level watcher), so hands-free works there too.
+ * /api/app/assistant/transcribe. The iOS and Android app shells have no
+ * usable Web Speech API (WKWebView exposes webkitSpeechRecognition but
+ * refuses to run it — "not-allowed" even with the microphone allowed —
+ * David, 2026-10-23; the Android WebView has no recognizer at all), so
+ * shells built with the WorkBenchSpeech plugin (lib/native-speech.ts; iOS
+ * build 14 / Android versionCode 6) use the PHONE's recognizer instead —
+ * live words as they talk, like Safari. Older shells, and any browser whose
+ * recognizer refuses while the mic itself works, fall back to recording,
+ * for good. Recording stops itself after the speaker goes quiet (a small
+ * level watcher), so hands-free works there too.
  *
  * Mouth: /api/app/assistant/speak (a natural voice, metered) with the
  * device's own speech synthesis as the free fallback.
@@ -62,6 +66,18 @@ export async function requestMicrophone(): Promise<MicState> {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     stream.getTracks().forEach((t) => t.stop());
+    // The phone app's recognizer has a permission of its own (iOS: Speech
+    // Recognition, asked once). Declining it is not declining the mic: the
+    // recorder still works, so from then on this device records.
+    const native = nativeSpeech();
+    if (native && !preferRecorder) {
+      try {
+        const { speech } = await native.requestPermissions();
+        if (speech !== "granted") preferRecorder = true;
+      } catch {
+        preferRecorder = true;
+      }
+    }
     return "granted";
   } catch (err) {
     const name = (err as { name?: string })?.name ?? "";
@@ -89,7 +105,7 @@ export function micPlatform(): MicPlatform {
 export function micInstructions(platform: MicPlatform = micPlatform()): string {
   switch (platform) {
     case "ios-app":
-      return "Open your iPhone's Settings app, scroll to WorkBench, turn Microphone on, then come back and tap Try again.";
+      return "Open your iPhone's Settings app, scroll to WorkBench, turn Microphone (and Speech Recognition) on, then come back and tap Try again.";
     case "android-app":
       return "Open your phone's Settings → Apps → WorkBench → Permissions → Microphone → Allow, then come back and tap Try again.";
     case "ios-safari":
@@ -105,8 +121,9 @@ export function micInstructions(platform: MicPlatform = micPlatform()): string {
   }
 }
 
-export function speechInputKind(): "browser" | "recorder" | "none" {
+export function speechInputKind(): "browser" | "native" | "recorder" | "none" {
   if (!inNativeShell() && !preferRecorder && recognitionCtor()) return "browser";
+  if (inNativeShell() && !preferRecorder && nativeSpeech()) return "native";
   if (recorderAvailable()) return "recorder";
   return "none";
 }
@@ -124,7 +141,10 @@ export type ListenEvents = {
 
 /** Listen for one utterance, by whichever ear this browser has. */
 export function listenOnce(ev: ListenEvents): ListenHandle {
-  return speechInputKind() === "browser" ? listenWithBrowser(ev) : listenWithRecorder(ev);
+  const kind = speechInputKind();
+  if (kind === "browser") return listenWithBrowser(ev);
+  if (kind === "native") return listenWithNative(nativeSpeech()!, ev);
+  return listenWithRecorder(ev);
 }
 
 /** The Web Speech API. Ends itself after the speaker pauses. */
@@ -186,6 +206,108 @@ function listenWithBrowser(ev: ListenEvents): ListenHandle {
       settled = true;
       if (handedOff) return handedOff.cancel();
       try { rec.abort(); } catch { /* already stopped */ }
+    },
+  };
+}
+
+// The phone's recognizer (lib/native-speech.ts). Android ends a listen on
+// its own after a pause; Apple's never does, so a pause after the last
+// change in the words ends it here — same feel on both.
+const NATIVE_END_SILENCE_MS = 1200;
+const NATIVE_FINAL_GRACE_MS = 2500; // after stop(): how long to wait for the final words
+
+function listenWithNative(p: NativeSpeechPlugin, ev: ListenEvents): ListenHandle {
+  let text = "";
+  let settled = false;
+  let stopping = false;
+  let handedOff: ListenHandle | null = null;
+  const timers: ReturnType<typeof setTimeout>[] = [];
+  let silence: ReturnType<typeof setTimeout> | null = null;
+  const offs: (() => void)[] = [];
+
+  const cleanup = () => {
+    timers.forEach(clearTimeout);
+    if (silence) clearTimeout(silence);
+    offs.forEach((off) => off());
+  };
+  const settle = (t: string) => {
+    if (settled) return;
+    settled = true;
+    cleanup();
+    ev.onFinal(t.trim());
+  };
+  const stop = () => {
+    if (stopping || settled) return;
+    stopping = true;
+    if (silence) clearTimeout(silence);
+    void p.stop().catch(() => undefined);
+    timers.push(setTimeout(() => settle(text), NATIVE_FINAL_GRACE_MS));
+  };
+  const armSilence = () => {
+    if (silence) clearTimeout(silence);
+    silence = setTimeout(stop, NATIVE_END_SILENCE_MS);
+  };
+
+  offs.push(
+    onNativeSpeech(p, "partial", ({ text: t }) => {
+      if (settled || stopping) return;
+      if (t && t !== text) {
+        text = t;
+        ev.onInterim?.(t);
+        armSilence();
+      }
+    }),
+    onNativeSpeech(p, "final", ({ text: t }) => settle(t || text)),
+    onNativeSpeech(p, "ended", ({ reason, message }) => {
+      if (settled) return;
+      if (reason === "final" || reason === "noSpeech") settle(text);
+      else if (reason === "cancelled") {
+        settled = true;
+        cleanup();
+      } else {
+        settled = true;
+        cleanup();
+        ev.onError?.(message || "Couldn't hear that.");
+      }
+    })
+  );
+
+  timers.push(setTimeout(stop, MAX_UTTERANCE_MS));
+  timers.push(
+    setTimeout(() => {
+      if (!text) stop();
+    }, NO_SPEECH_MS)
+  );
+
+  const language = navigator.language?.startsWith("en") ? navigator.language : "en-US";
+  void p.start({ language }).catch((err) => {
+    if (settled) return;
+    const { code, message } = nativeSpeechError(err);
+    settled = true;
+    cleanup();
+    if (code === "PERMISSION") {
+      if (ev.onBlocked) ev.onBlocked();
+      else ev.onError?.("Microphone access is blocked.");
+      return;
+    }
+    // No recognizer on this phone (or it refused to start): record from here on.
+    preferRecorder = true;
+    if (recorderAvailable()) {
+      settled = false;
+      handedOff = listenWithRecorder(ev);
+    } else ev.onError?.(message || "Couldn't start listening.");
+  });
+
+  return {
+    stop: () => {
+      if (handedOff) return handedOff.stop();
+      stop();
+    },
+    cancel: () => {
+      if (handedOff) return handedOff.cancel();
+      settled = true;
+      cleanup();
+      void p.cancel().catch(() => undefined);
     },
   };
 }

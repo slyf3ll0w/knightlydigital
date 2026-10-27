@@ -144,7 +144,7 @@ was wrong about that; it only applies to a softphone that places PSTN calls).
   while a call is ringing on another page (the card is fixed-position, so it's
   visible everywhere already).
 
-## Tier 3 — native ringing when the app is closed — iOS BUILT 2026-09-23 (store build 1.3, build 8), Android PLANNED
+## Tier 3 — native ringing when the app is closed — iOS BUILT 2026-09-23 (store build 1.3, build 8), Android BUILT 2026-10-27 (versionCode 6, branch `android-parity`)
 
 **The engine is native (build 8, after builds 6–7 proved the web engine can't
 do it).** The first two on-device tests failed the same way: slide to answer on
@@ -241,6 +241,82 @@ as platform `ios-voip` (dropped on sign-out from any membership), the
 VOIP_WAKE_SECS (35 s) window before the cell, a woken leg that rings out
 going to voicemail rather than the cell. See `native-release-queue.md`
 § App Store for the console/Mac steps.
+
+**Android (2026-10-27, versionCode 6).** The same engine, in Kotlin, with
+Android's pieces in place of Apple's — nothing about the server's call
+flow changed, only which push and which credential:
+
+- **Wake:** `lib/push.ts sendVoipFcm` sends an FCM high-priority DATA
+  message (`type: "call"`, callId / label / number / companyName /
+  sentAt, TTL = the wake window; no `notification` block, or Android
+  would show a plain notification itself and never wake the engine).
+  `voipTargetsFor` finds Android tokens under platform **`android-voip`**:
+  the engine registers the ordinary FCM token under that name
+  (`VoipEngine.registerForPushes` → the page POSTs `/api/app/push`), and
+  the push route never lets the page's own `"android"` registration of the
+  same token downgrade it — so a shell WITH the engine is told apart from
+  one without (vc4–5 would never answer the data message and must keep
+  ringing the cell at once). `android-voip` rows carry ordinary
+  notifications too; only `ios-voip` is push-only.
+- **Receive:** `WbMessagingService.kt` replaces the Capacitor push plugin's
+  FirebaseMessagingService in the manifest (`tools:node="remove"`) and
+  extends it, so every other message still reaches the plugin; a `call`
+  message goes to `VoipEngine.onPush` (dropped if it sat in FCM over 60 s).
+- **Ring:** `CallService.kt`, a foreground service of type
+  `phoneCall|microphone` (`FOREGROUND_SERVICE_PHONE_CALL` /
+  `_MICROPHONE`, `MANAGE_OWN_CALLS`, `USE_FULL_SCREEN_INTENT` — the set
+  Telnyx's own sample ships to Play), posts a CallStyle notification
+  (Answer / Decline; Hang up once on the line), plays the default ringtone
+  looping + vibrates when the ringer allows, and fires the full-screen
+  `IncomingCallActivity.kt` over the lock screen (showWhenLocked /
+  turnScreenOn) — WorkBench blue, the caller big, Decline / Answer, then
+  Mute / Speaker / Hang up / Open WorkBench. No Telecom ConnectionService:
+  self-managed accounts still make the app draw its own screen, and the
+  SDK handles audio focus.
+- **Engine:** `VoipEngine.kt` is `VoipPlugin.swift`'s VoipEngine line for
+  line — the same Rec state (answered before the INVITE → answer on
+  arrival; unclaimed 45 s timeout; `fresh` reconnect on a push; the 1.5 s
+  settle after CLIENT_READY; the `switch` re-register as a sibling
+  membership; Decline → `POST …/call/decline`, outbound cancel →
+  `DELETE …/call`, hold → `PATCH …/call { hold }` for the server's hold
+  music), on the Telnyx Android SDK (`com.github.team-telnyx:telnyx-webrtc-android:3.7.3`,
+  JitPack; `socketResponseFlow` for LOGIN / CLIENT_READY / INVITE / BYE,
+  `callStateFlow` per call, `acceptCall(callId, callerIdNumber)`,
+  `onMuteUnmutePressed`, `onHoldUnholdPressed`, `dtmf`,
+  `setAudioOutputDevice`). HTTP to the site uses `HttpURLConnection` with
+  the WebView's cookies (`CookieManager`) and `?device=android` /
+  `{ device: "android" }`; breadcrumbs go to `/api/public/voip-trace`
+  with `build=android-<versionName>-<versionCode>`.
+- **Credential:** `User.sipCredentialIdAndroid` / `sipUsernameAndroid`
+  (`SoftphoneDevice = "browser" | "ios" | "android"`, `credentialFor`,
+  `phoneCredentialsOfLogin(userId, device)`, `CallLeg.device = "android"`,
+  `wakeSoftphoneLeg(…, device)`, the 480 redial keeps the leg's device).
+- **Page:** `lib/native-voip.ts nativeVoip()` answers on Android too (same
+  `WorkBenchVoip` bridge name and method surface); `voipDevice()` /
+  `voipPushPlatform()` pick the device and platform;
+  `SoftphoneNativeEngine.ts` sends `device` on probe / ready / place-call
+  and words the mic hint per platform; `rememberVoipToken` stores the
+  platform so sign-out drops the right row; the platform layout mounts the
+  softphone in either shell when a sibling company rings.
+- **Test ring:** superadmin console → a user's row → **Ring their phone**
+  (`POST /api/superadmin/voip-test { userId }`) sends the real wake push
+  with a fake call id: the phone rings, the engine registers and posts
+  ready, the server answers `late`, the screen dismisses — the whole path
+  but the SIP leg, without placing a call.
+- **Verify on a phone (recipes):** (1) install vc6, sign in as a user with
+  Calls in the app on, open the app once — `PushSubscription` has an
+  `android-voip` row for the token; (2) lock the phone, call the line from
+  another phone — within ~3 s the screen lights up with the WorkBench call
+  screen and rings; Answer → audio both ways within the wake window; Hang
+  up ends the caller's leg; (3) same with the app swiped away; (4) Decline
+  → the caller gets voicemail; (5) let it ring out → voicemail, the cell
+  never rings; (6) from the app: Call in app → the customer rings, audio
+  both ways, Mute / Speaker / keypad tones; (7) two companies on the
+  login: a call to the other company switches the page and still connects;
+  (8) sign out → the row is gone, the phone no longer rings; (9) Do Not
+  Disturb / silent → vibration only / nothing, the notification still shows.
+  The emulator (no SIM, virtual mic) proved (1), the test ring and the
+  build; audio needs a real phone.
 
 **Every company on the login rings the phone (2026-09-23).** A token is
 registered under whichever membership the app is signed into, but

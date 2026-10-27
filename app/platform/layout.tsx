@@ -7,7 +7,7 @@ import type { Role } from "@prisma/client";
 import { hasAddon } from "@/lib/addon";
 import { voiceConfigured } from "@/lib/telnyx";
 import { SOFTPHONE_ROLES } from "@/lib/softphone";
-import { isIosShellUserAgent } from "@/lib/sign-in-options";
+import { isNativeShellUserAgent } from "@/lib/sign-in-options";
 import { prisma } from "@/lib/db";
 import { paymentsGateStatus } from "@/lib/payments-gate";
 import { atlasAccess, ATLAS_ACCESS_SELECT, ATLAS_PRICING } from "@/lib/assistant-access";
@@ -141,7 +141,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // over, so the softphone mounts (and stays "off") whenever another
   // membership of this login can take calls.
   const ringsForSibling =
-    !softphone && user && voiceConfigured() && isIosShellUserAgent((await headers()).get("user-agent"))
+    !softphone && user && voiceConfigured() && isNativeShellUserAgent((await headers()).get("user-agent"))
       ? (await prisma.user.count({
           where: {
             id: { not: session.user.id },

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getActor, canSell } from "@/lib/permissions";
 import { wakeSoftphoneLeg } from "@/lib/voice";
 import { membershipOf, siblingMembershipFor } from "@/lib/voip";
+import type { PhoneDevice } from "@/lib/softphone";
 
 /**
  * POST { callId, probe? } — "I'm awake for this call." The iPhone app was
@@ -17,15 +18,18 @@ import { membershipOf, siblingMembershipFor } from "@/lib/voip";
  * `switch` with the membership to move to: the app re-points its session
  * (lib/company-switch.ts), reloads as that company and asks again.
  * `probe: true` only asks that question — no leg is dialed — so the app can
- * start switching before its softphone has even registered. The iPhone's
+ * start switching before its softphone has even registered. A phone's
  * native engine instead registers AS that membership and asks again with
  * `membership` set (its session stays as it was; only the SIP leg moves).
+ * `device` names which phone credential to dial ("ios" when absent — the
+ * iPhone builds in the field send none; the Android engine sends "android").
  */
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const body = (await req.json().catch(() => ({}))) as { callId?: unknown; probe?: unknown; membership?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { callId?: unknown; probe?: unknown; membership?: unknown; device?: unknown };
   const callId = typeof body.callId === "string" ? body.callId : "";
+  const device: PhoneDevice = body.device === "android" ? "android" : "ios";
   if (!callId) return NextResponse.json({ error: "callId required." }, { status: 400 });
   const headers = { "Cache-Control": "no-store" };
 
@@ -40,7 +44,7 @@ export async function POST(req: NextRequest) {
   if (typeof body.membership === "string" && body.membership !== actor.id) {
     const as = await membershipOf(actor.id, body.membership);
     if (!as || as.companyId !== call.companyId) return answer({ outcome: "ineligible" });
-    return answer({ outcome: await wakeSoftphoneLeg(as.id, as.companyId, callId) });
+    return answer({ outcome: await wakeSoftphoneLeg(as.id, as.companyId, callId, device) });
   }
   if (call.companyId !== actor.companyId) {
     const target = await siblingMembershipFor(actor.id, call.companyId);
@@ -48,5 +52,5 @@ export async function POST(req: NextRequest) {
   }
   if (!canSell(actor.role)) return answer({ outcome: "ineligible" });
   if (body.probe === true) return answer({ outcome: "same" });
-  return answer({ outcome: await wakeSoftphoneLeg(actor.id, actor.companyId, callId) });
+  return answer({ outcome: await wakeSoftphoneLeg(actor.id, actor.companyId, callId, device) });
 }

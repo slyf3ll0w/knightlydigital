@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { signOut } from "next-auth/react";
-import { rememberVoipToken, rememberedVoipToken } from "@/lib/native-voip";
+import { rememberVoipToken, rememberedVoipToken, rememberedVoipPlatform } from "@/lib/native-voip";
 import { attemptSignOut } from "@/lib/sign-out-core";
 import { confirmLeave, hasLeaveGuards } from "@/lib/nav-guard";
 
@@ -112,7 +112,7 @@ async function run(callbackUrl: string): Promise<boolean> {
       void fetch("/api/app/push", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ platform: "ios-voip", token }),
+        body: JSON.stringify({ platform: rememberedVoipPlatform(), token }),
       }).catch(() => {});
     }
     return false;

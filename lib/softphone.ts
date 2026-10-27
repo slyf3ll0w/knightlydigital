@@ -83,7 +83,10 @@ export function isSoftphoneOnline(seenAt: Date | null | undefined, now: Date): b
   return Boolean(seenAt && now.getTime() - seenAt.getTime() <= SOFTPHONE_PRESENCE_MS);
 }
 
-export type SoftphoneDevice = "browser" | "ios";
+export type SoftphoneDevice = "browser" | "ios" | "android";
+/** The phone apps — each wakes on a push and is dialed on its own credential (lib/voip.ts). */
+export type PhoneDevice = Exclude<SoftphoneDevice, "browser">;
+export const PHONE_DEVICES: readonly PhoneDevice[] = ["ios", "android"];
 export type RingTarget = { userId: string; sipUsername: string; device?: SoftphoneDevice };
 
 export type RingPlan = {
@@ -140,13 +143,48 @@ async function ensureSipConnection(company: { id: string; name: string; lineSipC
 }
 
 /** The user's telephony credential under that connection, created on first use. */
-type CredentialCols = { sipCredentialId: string | null; sipUsername: string | null; sipCredentialIdIos: string | null; sipUsernameIos: string | null };
+type CredentialCols = {
+  sipCredentialId: string | null;
+  sipUsername: string | null;
+  sipCredentialIdIos: string | null;
+  sipUsernameIos: string | null;
+  sipCredentialIdAndroid: string | null;
+  sipUsernameAndroid: string | null;
+};
+export const CREDENTIAL_SELECT = {
+  sipCredentialId: true,
+  sipUsername: true,
+  sipCredentialIdIos: true,
+  sipUsernameIos: true,
+  sipCredentialIdAndroid: true,
+  sipUsernameAndroid: true,
+} as const;
 
-/** The user's credential for this device kind — the browser's and the iPhone's are separate Telnyx registrations. */
+/** The user's credential for this device kind — the browser's, the iPhone's and the Android phone's are separate Telnyx registrations. */
 export function credentialFor(user: CredentialCols, device: SoftphoneDevice): { credentialId: string | null; sipUsername: string | null } {
-  return device === "ios"
-    ? { credentialId: user.sipCredentialIdIos, sipUsername: user.sipUsernameIos }
-    : { credentialId: user.sipCredentialId, sipUsername: user.sipUsername };
+  if (device === "ios") return { credentialId: user.sipCredentialIdIos, sipUsername: user.sipUsernameIos };
+  if (device === "android") return { credentialId: user.sipCredentialIdAndroid, sipUsername: user.sipUsernameAndroid };
+  return { credentialId: user.sipCredentialId, sipUsername: user.sipUsername };
+}
+
+/** The SIP username column a device's leg is dialed to (lib/voip.ts). */
+export function sipUsernameColumn(device: SoftphoneDevice): "sipUsername" | "sipUsernameIos" | "sipUsernameAndroid" {
+  return device === "ios" ? "sipUsernameIos" : device === "android" ? "sipUsernameAndroid" : "sipUsername";
+}
+export type PhoneSipColumn = "sipUsernameIos" | "sipUsernameAndroid";
+export function phoneSipColumn(device: PhoneDevice): PhoneSipColumn {
+  return device === "ios" ? "sipUsernameIos" : "sipUsernameAndroid";
+}
+/** Prisma `where` for "has a credential of this kind" — spelled out per column so the types stay exact. */
+export function hasPhoneCredential(device: PhoneDevice): { sipUsernameIos: { not: null } } | { sipUsernameAndroid: { not: null } } {
+  return device === "ios" ? { sipUsernameIos: { not: null } } : { sipUsernameAndroid: { not: null } };
+}
+export const PHONE_SIP_SELECT = { sipUsernameIos: true, sipUsernameAndroid: true } as const;
+
+function credentialData(device: SoftphoneDevice, credentialId: string | null, sipUsername: string | null) {
+  if (device === "ios") return { sipCredentialIdIos: credentialId, sipUsernameIos: sipUsername };
+  if (device === "android") return { sipCredentialIdAndroid: credentialId, sipUsernameAndroid: sipUsername };
+  return { sipCredentialId: credentialId, sipUsername };
 }
 
 async function ensureUserCredential(
@@ -156,10 +194,10 @@ async function ensureUserCredential(
 ): Promise<{ credentialId: string; sipUsername: string }> {
   const have = credentialFor(user, device);
   if (have.credentialId && have.sipUsername) return { credentialId: have.credentialId, sipUsername: have.sipUsername };
-  const cred = await createTelephonyCredential(connectionId, `wb:${user.id}${device === "ios" ? ":ios" : ""}`);
+  const cred = await createTelephonyCredential(connectionId, `wb:${user.id}${device === "browser" ? "" : `:${device}`}`);
   await prisma.user.update({
     where: { id: user.id },
-    data: device === "ios" ? { sipCredentialIdIos: cred.id, sipUsernameIos: cred.sip_username } : { sipCredentialId: cred.id, sipUsername: cred.sip_username },
+    data: credentialData(device, cred.id, cred.sip_username),
   });
   return { credentialId: cred.id, sipUsername: cred.sip_username };
 }
@@ -191,7 +229,7 @@ export async function issueSoftphoneGrant(userId: string, companyId: string, dev
     }),
     prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, role: true, softphoneEnabled: true, sipCredentialId: true, sipUsername: true, sipCredentialIdIos: true, sipUsernameIos: true },
+      select: { id: true, name: true, role: true, softphoneEnabled: true, ...CREDENTIAL_SELECT },
     }),
   ]);
   if (!company || !user) throw new SoftphoneError("Not found.", 404);
@@ -209,11 +247,7 @@ export async function issueSoftphoneGrant(userId: string, companyId: string, dev
     } catch (err) {
       if (!(err instanceof TelnyxError && err.status === 404)) throw err;
       // The credential is gone at Telnyx: forget it and mint a new one.
-      cred = await ensureUserCredential(
-        device === "ios" ? { ...user, sipCredentialIdIos: null, sipUsernameIos: null } : { ...user, sipCredentialId: null, sipUsername: null },
-        connectionId,
-        device
-      );
+      cred = await ensureUserCredential({ ...user, ...credentialData(device, null, null) }, connectionId, device);
       token = await createCredentialToken(cred.credentialId);
     }
     return { token, sipUsername: cred.sipUsername, lineNumber: company.lineNumber, companyName: company.name };
@@ -286,7 +320,10 @@ export async function deleteSoftphoneResources(companyId: string): Promise<void>
     await deleteCredentialConnection(company.lineSipConnectionId).catch((e) => reportError("[softphone] connection delete failed:", e));
   }
   await prisma.$transaction([
-    prisma.user.updateMany({ where: { companyId }, data: { sipCredentialId: null, sipUsername: null, sipCredentialIdIos: null, sipUsernameIos: null, softphoneSeenAt: null } }),
+    prisma.user.updateMany({
+      where: { companyId },
+      data: { sipCredentialId: null, sipUsername: null, sipCredentialIdIos: null, sipUsernameIos: null, sipCredentialIdAndroid: null, sipUsernameAndroid: null, softphoneSeenAt: null },
+    }),
     prisma.company.update({ where: { id: companyId }, data: { lineSipConnectionId: null } }),
   ]);
 }

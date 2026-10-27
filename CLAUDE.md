@@ -475,9 +475,14 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
   a NATIVE engine instead (tier 3, 2026-09-23: `ios/App/App/VoipPlugin.swift`
   = PushKit + CallKit + the Telnyx iOS SDK; the page only mirrors it through
   `components/SoftphoneNativeEngine.ts`), because iOS freezes a background
-  web page; the Android shell still stays a cell. The phone has its OWN
-  credential (`User.sipUsernameIos`, `?device=ios`, `CallLeg.device`) — a
-  shared one had the phone's login bumping the desktop off the line. Two
+  web page. The Android app has the same engine from versionCode 6
+  (2026-10-27: `android/.../VoipEngine.kt` + `CallService.kt` +
+  `IncomingCallActivity.kt`, woken by an FCM DATA message —
+  `lib/push.ts sendVoipFcm`, token platform `android-voip`, credential
+  `User.sipUsernameAndroid`, `?device=android`); older Android shells run
+  the browser softphone in the foreground only. Each phone has its OWN
+  credential (`User.sipUsernameIos` / `sipUsernameAndroid`, `CallLeg.device`)
+  — a shared one had the phone's login bumping the desktop off the line. Two
   Telnyx rules that cost a live test: the credential connection needs
   `sip_uri_calling_preference: "internal"` (else SIP 403 on every browser
   dial; `ensureSipUriCalling` heals old ones) and `from_display_name` is
@@ -606,8 +611,7 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
 - **Caller ID name on cells**: CNAM only reaches landlines; the Settings card
   now points at freecallerregistry.com (Hiya + First Orion + TNS, the
   analytics behind AT&T/T-Mobile/Verizon) — free, and the only lever there is.
-- **Not built yet**: Android tier 3 (native ringing with the app closed;
-  iOS shipped 2026-09-23), voicemail transcription, missed-call text-back,
+- **Not built yet**: voicemail transcription, missed-call text-back,
   business-hours routing, port-in, call transfer.
 
 **Out of funds (2026-09-22).** Telnyx refuses every mutation — number purchase,

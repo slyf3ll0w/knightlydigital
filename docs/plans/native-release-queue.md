@@ -23,6 +23,42 @@ holding it to the back of the phone. Design + decisions:
 Expect the development grant first; the distribution one comes from
 replying to Apple's approval email (see § David — consoles, step 1).
 
+### Talk to Atlas — the phone's own speech recognizer (both shells, 2026-10-27, branch `android-parity`)
+
+Rides the same iOS build 14 / Android versionCode 6. Inside the apps the
+voice mode's turn-taking fallback used to record the mic and ship the clip
+to `/api/app/assistant/transcribe` (a second or two of lag, no words while
+you talk) because neither webview has a usable Web Speech API. Now a local
+plugin, **WorkBenchSpeech**, runs the OS recognizer and streams the words
+to the page as they are said:
+
+- `ios/App/App/SpeechPlugin.swift` (SFSpeechRecognizer on an AVAudioEngine
+  tap; registered in `ShellViewController`; pbxproj entries `0B20261027…`)
+  + Info.plist `NSSpeechRecognitionUsageDescription` and a mic string that
+  mentions Atlas. Apple's recognizer never ends on silence, so the page
+  stops it after a pause in the words (`NATIVE_END_SILENCE_MS`).
+- `android/app/src/main/java/com/streamflaire/hub/SpeechPlugin.java`
+  (Android `SpeechRecognizer`, dictation mode, partials on; registered in
+  `MainActivity`) + the manifest `<queries>` for
+  `android.speech.RecognitionService` — without it Android 11+ reports no
+  recognizer and the page silently records instead.
+- Web (ships with any deploy, inert in older shells): `lib/native-speech.ts`
+  (bridge, reached through `window.Capacitor.Plugins` like Tap to Pay),
+  `lib/voice-chat-client.ts` `speechInputKind()` = `"native"` →
+  `listenWithNative`; `requestMicrophone` also asks the plugin's permission
+  (iOS: Speech Recognition) after the mic — declining it just means that
+  device records from then on. The voice diary logs `turns: listening native`.
+- The community npm plugin was NOT used: it has no Swift Package manifest
+  (CapApp-SPM cannot link it) and loses Android errors on an
+  already-resolved promise. Shape adapted from it (MIT).
+- **Verify on the phone** (voice mode falls back to turns when Gemini Live
+  cannot connect — airplane the socket or use "Report a problem" to read the
+  diary): Home → Talk to Atlas → the first open asks Microphone then (iPhone)
+  Speech Recognition → words appear on screen AS you talk → a pause of about
+  a second sends the turn → "Say stop" ends it. Decline Speech Recognition
+  once on a test phone → the hint reads "Speak, then pause" and recording
+  still works. The emulator cannot test this (no recognition service).
+
 ### Sandbox test build (Android, 2026-10-23) — try Tap to Pay before Square activates production
 
 David: "I'd like to see a sandbox test build so it's ready to go when we get
@@ -325,8 +361,9 @@ WorkBench"; the Shortcuts app lists ten WorkBench shortcuts.
 
 ## iOS — queued for build 14
 
-0. **Talk to Atlas: native speech recognition** (2026-10-22, both
-   platforms). The web voice mode (`components/AssistantVoice.tsx`) uses
+0. ~~**Talk to Atlas: native speech recognition**~~ **DONE 2026-10-27** — see
+   § Talk to Atlas under Tap to Pay above (local plugin on both shells, not
+   the community package). Original note: the web voice mode (`components/AssistantVoice.tsx`) uses
    the browser's Web Speech API, which neither WKWebView nor the Android
    WebView has, so inside the apps it falls back to recording the mic and
    transcribing server-side (`/api/app/assistant/transcribe`) — tap to
@@ -477,9 +514,20 @@ Older installs keep ringing the cell. With the app closed or backgrounded
 long enough for Android to kill it, the app leg times out and the cell
 rings — that gap is what tier 3 below closes.
 
-**Calls ringing the phone when the app is closed — Android half** (queued 2026-09-23). iOS shipped it in 1.3 (PushKit + CallKit). Android needs an FCM high-priority data message → a foreground service with a full-screen incoming-call intent (ConnectionService for the native dialer look), and `components/Softphone.tsx` gating on a matching bridge the way it does on `nativeVoip()` for iOS; server side, a second platform beside `ios-voip` in `lib/voip.ts`. Until then Android phones are cells.
+**Calls ringing the phone when the app is closed — Android half — BUILT 2026-10-27 (branch `android-parity`, rides versionCode 6).** iOS shipped it in 1.3 (PushKit + CallKit); Android now mirrors it: `lib/voip.ts` sends an FCM high-priority DATA message (`lib/push.ts sendVoipFcm`, platform `android-voip`) → `WbMessagingService.kt` (replaces the push plugin's service in the manifest, extends it) → `VoipEngine.kt` (the Telnyx Android SDK 3.7.3 via JitPack; same grant → register → `/softphone/ready { device: "android" }` dance, own credential `User.sipUsernameAndroid`) → `CallService.kt` (foreground service, type phoneCall|microphone: CallStyle notification with Answer / Decline, ringtone + vibration honouring the ringer switch, full-screen `IncomingCallActivity.kt` over the lock screen that doubles as the in-call screen) → the web page mirrors it through the same `WorkBenchVoip` bridge as iOS (`lib/native-voip.ts` now answers on Android; `SoftphoneNativeEngine.ts` sends the device). The app's native code is Kotlin from here (Kotlin Gradle plugin 2.4.21). Design + decisions: `business-line-voice-2026-09-18.md` § Tier 3 (Android). **Schema:** `User.sipCredentialIdAndroid` / `sipUsernameAndroid` — `npm run db:push` on production BEFORE the web release. **Not yet compiled or device-tested** (2026-10-27: the Kotlin release build was cut off by memory pressure on David's PC with the emulator running; re-run `cd android && gradlew assembleRelease` with the emulator closed, fix any SDK name drift in VoipEngine.kt, then the superadmin test ring on the emulator and recipes 1–9 in the plan doc § Tier 3 Android on a real phone).
 
-**Code shrinking / R8** (queued 2026-09-25). Play's release dashboard flags
+**Code shrinking / R8 — DONE 2026-10-27 (branch `android-parity`, rides versionCode 6).**
+`minifyEnabled` + `shrinkResources` on the release build type with
+`proguard-android-optimize.txt`; keep rules in `android/app/proguard-rules.pro`
+(everything under `com.streamflaire.hub` and `com.getcapacitor`, every
+`@CapacitorPlugin`, `@JavascriptInterface` members, Square's SDK; line
+numbers kept so Play's traces read). The mapping file is inside the AAB
+(`BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map`) — Play
+picks it up on upload, nothing to attach. Verified on the Android 15
+emulator (`wb35`, Pixel 7, Google APIs): the release APK launches, the
+bridge injects, the Tap to Pay and Speech plugins answer. **Re-cut the AAB
+from this branch** — the 2026-10-23 one in Downloads predates R8 and the
+speech plugin. Original note: Play's release dashboard flags
 "DEX code optimization is below our threshold — Obfuscation 2%", fix by
 **Feb 2027**, and every upload warns about the missing deobfuscation file
 and native debug symbols. Turn on `minifyEnabled` + `shrinkResources` for
@@ -488,10 +536,11 @@ the mapping file with the bundle. Needs a build because it changes the
 compiled APK; test the webview bridge on a device first (obfuscation can
 break `@CapacitorPlugin` reflection if the keep-rules are wrong).
 
-**Edge-to-edge deprecations** (queued 2026-09-25). Play recommends dropping
-deprecated edge-to-edge APIs/parameters (targetSdk 36). Check what
-`@capacitor/status-bar` / `@capacitor/keyboard` versions fix it and bump
-them; ride along with the R8 build.
+**Edge-to-edge deprecations** (queued 2026-09-25) — nothing to do: the
+tree is on Capacitor 8 (`@capacitor/status-bar` 8.0.2 only calls
+`setStatusBarColor` below SDK 35; core's `SystemBars` uses
+`WindowInsetsControllerCompat`). Check the vc6 upload's warnings; if Play
+still names one, it comes from a plugin, not this project.
 
 ## App Store — 1.3 SUBMITTED 2026-09-23 (build 12), Waiting for Review
 
