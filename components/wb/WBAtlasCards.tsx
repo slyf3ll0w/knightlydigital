@@ -38,7 +38,7 @@ function Atlas({ children, tokens }: { children: React.ReactNode; tokens: string
 
 type Row = { label: string; value: string; numeral?: boolean };
 
-function Card({
+export function AtlasCard({
   icon: Icon,
   kicker,
   title,
@@ -46,6 +46,7 @@ function Card({
   batch,
   commit,
   done,
+  flush,
 }: {
   icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
   kicker: string;
@@ -54,10 +55,12 @@ function Card({
   batch?: string[];
   commit?: string;
   done?: { note: string };
+  /** No right margin (the talk screen lays cards edge to edge). */
+  flush?: boolean;
 }) {
   const ink = done ? GREEN : BLUE;
   return (
-    <div className="card-ledger mr-4 overflow-hidden text-left">
+    <div className={`card-ledger overflow-hidden text-left ${flush ? "" : "mr-4"}`}>
       <div
         className="flex items-start gap-3 px-3.5 pb-2.5 pt-3"
         style={{ background: `color-mix(in srgb, ${ink} 9%, transparent)` }}
@@ -93,7 +96,7 @@ function Card({
             {rows?.map((r) => (
               <div key={r.label} className="flex items-baseline justify-between gap-3 py-1.5 text-xs">
                 <span className="shrink-0 text-gray-500">{r.label}</span>
-                <span className={`min-w-0 truncate text-right font-medium text-gray-800 ${r.numeral ? "font-display text-[13px]" : ""}`}>
+                <span className={`min-w-0 text-right font-medium text-gray-800 ${r.numeral ? "font-display text-[13px]" : r.value.length > 40 ? "text-[11.5px] leading-snug" : "truncate"}`}>
                   {r.value}
                 </span>
               </div>
@@ -168,7 +171,7 @@ export default function WBAtlasCards() {
       <Drawer caption="Sending anything to a client gets a card first. Atlas lays out exactly what goes out, and nothing moves until you tap Send.">
         <You>Send the Hendersons their quote.</You>
         <Atlas tokens="312">Quote #1042 is ready for Sarah Henderson. Here is what goes out:</Atlas>
-        <Card
+        <AtlasCard
           icon={FileText}
           kicker="Needs your OK"
           title="Send quote #1042"
@@ -187,7 +190,7 @@ export default function WBAtlasCards() {
         <Atlas tokens="540">
           Three invoices are open, $3,100.00 in total. Marcus Henderson is the oldest at 21 days. Want me to send reminders?
         </Atlas>
-        <Card
+        <AtlasCard
           icon={Bell}
           kicker="3 changes · needs your OK"
           title="Send 3 payment reminders"
@@ -205,7 +208,7 @@ export default function WBAtlasCards() {
         <Atlas tokens="1,120">
           Moved all three to Friday the 25th in the same order, drive time intact. Each client got a text with the new time.
         </Atlas>
-        <Card
+        <AtlasCard
           icon={CalendarDays}
           kicker="Applied"
           title="Move 3 jobs to Fri, Sep 25"

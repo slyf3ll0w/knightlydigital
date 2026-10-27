@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { AnimateIn } from "@/components/AnimateIn";
 import WBAtlasCards from "@/components/wb/WBAtlasCards";
+import { WBAtlasVoiceSection } from "@/components/wb/WBAtlasVoice";
 import WBCta from "@/components/wb/WBCta";
 import WBDayOnTheJob from "@/components/wb/WBDayOnTheJob";
 import WBFaq from "@/components/wb/WBFaq";
@@ -30,6 +31,7 @@ import {
   Landmark,
   Leaf,
   MapPin,
+  Mic,
   Phone,
   Plug,
   Smartphone,
@@ -43,8 +45,9 @@ import {
 
 export const metadata: Metadata = {
   title: { absolute: "WorkBench FSM — Free field service management software" },
+  alternates: { canonical: "https://workbenchfsm.com/" },
   description:
-    "WorkBench FSM is field service management software for home-service companies: scheduling, quoting, invoicing, and payments. Online booking, dispatch, a client portal, team chat, an AI assistant, and native iPhone and Android apps. The Core plan is free for 2 users with full access, not a trial; extra users are $10 a month, and optional add-ons cover a phone line, unlimited users, and job photos.",
+    "WorkBench FSM is field service management software for home-service companies: scheduling, quoting, invoicing, and payments. Online booking, dispatch, a client portal, team chat, Atlas (an AI assistant you can talk to hands-free), and native iPhone and Android apps. The Core plan is free for 2 users with full access, not a trial; extra users are $10 a month, and optional add-ons cover a phone line, unlimited users, and job photos.",
 };
 
 const tradeCards = [
@@ -182,6 +185,23 @@ const faqItems = [
     ),
   },
   {
+    q: "Can I talk to Atlas instead of typing?",
+    a: (
+      <p>
+        Yes. Tap the microphone in the app and talk the way you&rsquo;d talk to
+        an office manager: &ldquo;who still owes me money?&rdquo;, &ldquo;move
+        Tuesday&rsquo;s jobs to Friday.&rdquo; Atlas answers out loud within a
+        beat, you can interrupt it, and anything that goes to a client is read
+        back to you before it is sent. Pick from several voices and accents.
+        Voice is on every account and uses a few Atlas tokens a minute. See{" "}
+        <Link href="/features/atlas" className="font-semibold text-[#0B57D8] hover:underline">
+          Atlas
+        </Link>
+        .
+      </p>
+    ),
+  },
+  {
     q: "Can I get my data out?",
     a: (
       <p>
@@ -205,7 +225,8 @@ export default function WBHomePage() {
             </h1>
             <p className="mx-auto mt-6 max-w-2xl lg:mx-0 lg:max-w-xl text-[17px] leading-relaxed text-gray-600 sm:text-[19px]">
               WorkBench FSM is field service management software: scheduling,
-              quotes, invoicing, and payments for home-service companies. The {FREE_PLAN_NAME} plan is free for your
+              quotes, invoicing, and payments for home-service companies, with
+              Atlas, an assistant you can talk to hands-free. The {FREE_PLAN_NAME} plan is free for your
               first {INCLUDED_SEATS} users, with full access and no trial clock. Add
               users or add-ons only when you need them.
             </p>
@@ -261,6 +282,18 @@ export default function WBHomePage() {
               width={290}
               className="wb-float absolute bottom-[196px] left-[178px] hidden sm:block xl:left-[196px] xl:bottom-[214px]"
             />
+            <div
+              className="wb-float absolute bottom-6 right-3 hidden items-center gap-3 rounded-2xl bg-white py-2.5 pl-2.5 pr-4 text-left sm:-right-5 sm:flex"
+              style={{ "--wb-tilt": "-1.5deg", animationDelay: "-4.1s" } as React.CSSProperties}
+            >
+              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-blue-50">
+                <Mic className="h-[18px] w-[18px] text-[#0B57D8]" strokeWidth={2.2} />
+              </span>
+              <span>
+                <span className="block text-[13.5px] font-bold text-gray-900">&ldquo;Move Tuesday&rsquo;s jobs to Friday.&rdquo;</span>
+                <span className="block text-[12px] text-gray-500">Said to Atlas · 3 jobs moved</span>
+              </span>
+            </div>
             <div className="absolute -left-[16.5rem] bottom-6 hidden w-[14rem] items-end gap-1 xl:flex" aria-hidden>
               <p className="pb-1 text-right text-[15px] font-extrabold leading-snug text-[#10244A]">
                 What your techs
@@ -450,12 +483,27 @@ export default function WBHomePage() {
           <AnimateIn className="max-w-3xl">
             <p className="wb-label">Atlas, the built-in assistant</p>
             <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
-              Ask in plain English. Atlas does the busywork.{" "}
-              <span className="text-gray-400">It asks before anything goes out.</span>
+              Just say it. Atlas gets it done.{" "}
+              <span className="text-gray-400">Out loud or typed, it asks before anything reaches a client.</span>
             </h2>
+            <p className="mt-5 text-[17px] leading-relaxed text-gray-600">
+              Tap the mic and talk to Atlas the way you&rsquo;d talk to an office
+              manager. It answers in a natural voice within a beat, moves the
+              schedule, drafts the quote, finds who owes you, and reads anything
+              client-facing back to you before it goes out.
+            </p>
           </AnimateIn>
           <AnimateIn delay={120} className="mt-12">
-            <WBAtlasCards />
+            <WBAtlasVoiceSection />
+          </AnimateIn>
+          <AnimateIn delay={120} className="mt-16">
+            <p className="wb-label">Or type it</p>
+            <p className="mt-3 max-w-2xl text-[15.5px] leading-relaxed text-gray-600">
+              The chat works the same way. Every change is a card you can read before you approve it.
+            </p>
+            <div className="mt-8">
+              <WBAtlasCards />
+            </div>
           </AnimateIn>
           <div className="mt-8">
             <Link href="/features/atlas" className="inline-flex items-center gap-1.5 text-[14.5px] font-bold text-[#0B57D8] hover:underline">

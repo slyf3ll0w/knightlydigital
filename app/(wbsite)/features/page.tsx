@@ -22,7 +22,7 @@ import {
 export const metadata: Metadata = {
   title: "Features",
   description:
-    "Everything in WorkBench FSM, end to end: online booking, lead pipeline, quotes with e-signature, scheduling and dispatch, clock-in, team chat, invoicing, card & ACH payments, recurring billing, and a client hub — free with full access for 2 users, not a trial. Plus Atlas, an AI assistant with 10,000 free tokens every month, and optional add-ons for a phone line, unlimited users with the ops tools, and job photos.",
+    "Everything in WorkBench FSM, end to end: online booking, lead pipeline, quotes with e-signature, scheduling and dispatch, clock-in, team chat, invoicing, card & ACH payments, recurring billing, and a client hub — free with full access for 2 users, not a trial. Plus Atlas, an AI assistant you can talk to hands-free, with 10,000 free tokens every month, and optional add-ons for a phone line, unlimited users with the ops tools, and job photos.",
 };
 
 // Section id → deep-dive pages worth a link once the reader has seen the
@@ -160,7 +160,9 @@ export default function WBFeaturesPage() {
                 <p className="mt-4 max-w-lg text-[15.5px] leading-relaxed text-gray-600">
                   Atlas works the same tools your team does, with the same
                   permissions, and it confirms with you before anything goes
-                  out the door. Ask it to do the busywork in plain English.
+                  out the door. Talk to it hands-free from the truck, or type:
+                  either way it does the busywork, and anything that reaches a
+                  client is read back to you first.
                 </p>
                 <p className="mt-3 max-w-lg text-[14px] leading-relaxed text-gray-600">
                   10,000 free tokens every month on every account. Atlas Full
