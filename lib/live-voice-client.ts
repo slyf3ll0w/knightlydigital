@@ -35,7 +35,8 @@ export type LiveEvents = {
 };
 
 export type LiveHandle = {
-  stop: () => void;
+  /** End the session; `reason` lands in the voice diary ("done tap", "report tap", "socket closed 1011"…). */
+  stop: (reason?: string) => void;
   /** Stop playback now (the user tapped to interrupt). */
   hush: () => void;
   setMuted: (m: boolean) => void;
@@ -322,7 +323,7 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     }
   }, 60_000);
 
-  const stop = () => {
+  const stop = (reason = "stop") => {
     if (closed) return;
     closed = true;
     clearInterval(usageTimer);
@@ -335,8 +336,10 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     void outCtx.close().catch(() => undefined);
     try { ws?.close(); } catch { /* fine */ }
     if (inSeconds + outSeconds > 0) ev.onUsage(inSeconds, outSeconds);
-    voiceLog("live: stopped", since());
-    ev.onStatus("ended");
+    // The 2026-10-27 "conversation abruptly ended" report had a bare
+    // "stopped" line and no socket close — the diary now says who ended it.
+    voiceLog("live: stopped", `${reason} ${since()}`);
+    ev.onStatus("ended", reason);
   };
 
   // The socket.
@@ -354,7 +357,7 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     voiceLog("live: socket closed", `${e.code} ${e.reason} ${since()}`);
     const why = e.reason ? ` (${e.reason})` : "";
     if (!setupDone) ev.onError(`Couldn't start the live session${why}.`);
-    stop();
+    stop(`socket closed ${e.code}${why}`);
   };
   let userCaption = "";
   let atlasCaption = "";

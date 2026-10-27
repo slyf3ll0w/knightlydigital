@@ -121,7 +121,7 @@ export const clientTools: Tool[] = [
     decl: {
       name: "get_client_activity",
       description:
-        "The full picture for one client (by id from search_clients): contact info, quotes, jobs, invoices, upcoming appointments, agreements/contracts and their signature status, subscriptions, and recent notes (with note ids for update_client_note).",
+        "The full picture for one client (by id from search_clients): contact info, pipeline stage, quotes, jobs, invoices, upcoming appointments, agreements/contracts and their signature status, subscriptions, and recent notes (with note ids for update_client_note). A lead closed as lost shows when and WHY (the lost reason entered at the time).",
       parameters: {
         type: "object",
         properties: { clientId: { type: "string" } },
@@ -136,6 +136,8 @@ export const clientTools: Tool[] = [
         select: {
           firstName: true, lastName: true, companyName: true, email: true, phone: true,
           address: true, status: true, leadSource: true,
+          wonAt: true, lostAt: true, lostReason: true,
+          pipelineStage: { select: { name: true } },
           quotes: {
             take: 5, orderBy: { updatedAt: "desc" },
             select: { quoteNumber: true, status: true, total: true, title: true, sentAt: true },
@@ -176,6 +178,12 @@ export const clientTools: Tool[] = [
         phone: c.phone,
         address: c.address,
         leadSource: c.leadSource,
+        ...(c.pipelineStage ? { pipelineStage: c.pipelineStage.name } : {}),
+        ...(c.wonAt ? { wonOn: c.wonAt.toISOString().slice(0, 10) } : {}),
+        // The 2026-10-27 report: "I put in lost reasons" and Atlas couldn't find them.
+        ...(c.lostAt || c.lostReason
+          ? { lost: { on: c.lostAt?.toISOString().slice(0, 10) ?? null, reason: c.lostReason ? quoted(c.lostReason, 300) : "(no reason was entered)" } }
+          : {}),
         quotes: c.quotes.map((q) => ({
           n: q.quoteNumber, title: q.title, status: q.status,
           sent: q.sentAt?.toISOString().slice(0, 10),

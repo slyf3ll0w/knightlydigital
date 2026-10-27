@@ -146,6 +146,12 @@ export default function AssistantVoice({
   // i.e. heard it and said yes — never on the instruction alone.
   const userTurn = useRef(0);
   const stagedAtTurn = useRef<Map<string, number>>(new Map());
+  // True while the user's current utterance is still being captioned. The
+  // turn counter advances on the FIRST words of an utterance: the model's
+  // confirm_cards for a spoken "yes" arrives before that caption is final, so
+  // counting at the final caption kept an outreach card held on the very
+  // turn that approved it — and Atlas then said it was sent (2026-10-24 report).
+  const utteranceOpen = useRef(false);
   // Re-render a few seconds after a card settles so it can leave the screen.
   const [, setSettleTick] = useState(0);
   useEffect(() => {
@@ -174,8 +180,8 @@ export default function AssistantVoice({
     }
   }, []);
 
-  const stopAll = useCallback(() => {
-    liveRef.current?.stop();
+  const stopAll = useCallback((reason: string) => {
+    liveRef.current?.stop(reason);
     liveRef.current = null;
     listenRef.current?.cancel();
     listenRef.current = null;
@@ -203,7 +209,7 @@ export default function AssistantVoice({
       setNote(detail ? `Looking up ${detail.replace(/_/g, " ")}…` : "Looking that up…");
       setPhaseBoth("thinking");
     } else if (s === "ended") {
-      setNote("The conversation ended — tap the mic to start again.");
+      setNote(detail?.startsWith("socket closed") ? "The connection dropped — tap the mic to start again." : "The conversation ended — tap the mic to start again.");
       setPhaseBoth("idle");
     }
   }, []);
@@ -238,7 +244,7 @@ export default function AssistantVoice({
           confirmed: r.confirmed,
           applied: r.applied,
           ...(r.held.length > 0
-            ? { heldForApproval: r.held, holdNote: "These go to a client, so they are NOT sent yet: read the message to the user word for word and ask. When they say yes, call confirm_cards again." }
+            ? { heldForApproval: r.held, sent: false, holdNote: "NOT SENT — these go to a client and are still waiting. Never tell the user it was sent. Read the message to them word for word and ask; when they then say yes, call confirm_cards again and report what it says." }
             : {}),
           ...(r.failed > 0 ? { failed: r.failures, note: "These didn't go through for the reason given — fix the cause and redo, or ask one question." } : {}),
           ...(r.needsTap > 0 ? { needsTap: r.needsTap, tapNote: "Those move money or can't be undone — the user taps the card on screen." } : {}),
@@ -300,11 +306,15 @@ export default function AssistantVoice({
           if (!alive.current) return;
           if (role === "user") {
             setInterim(text);
+            if (!utteranceOpen.current) {
+              utteranceOpen.current = true;
+              userTurn.current += 1;
+            }
             if (final) {
               setHeard(text);
               setInterim("");
               turnUser.current = text;
-              userTurn.current += 1;
+              utteranceOpen.current = false;
             }
           } else {
             setSaid(text);
@@ -313,6 +323,7 @@ export default function AssistantVoice({
         },
         onTurnComplete: () => {
           if (!alive.current) return;
+          utteranceOpen.current = false;
           // Flush whatever happened this turn — words, or just cards staged
           // behind a silent turn or one that got interrupted — so a later
           // "yes" always finds them.
@@ -509,7 +520,7 @@ export default function AssistantVoice({
     void startLive();
     return () => {
       alive.current = false;
-      stopAll();
+      stopAll("screen closed");
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -558,7 +569,7 @@ export default function AssistantVoice({
     setPick(next);
     voiceLog("voice: pick", next ? `${next.voice || "default"} ${next.accent}` : "default");
     if (engine === "live") {
-      stopAll();
+      stopAll("voice change");
       setMuted(false);
       void startLive();
     }
@@ -628,6 +639,7 @@ export default function AssistantVoice({
           type="button"
           onClick={() => {
             hapticImpact("LIGHT");
+            voiceLog("voice: done tap");
             onClose();
           }}
           aria-label="Done talking"
@@ -728,6 +740,7 @@ export default function AssistantVoice({
           type="button"
           onClick={() => {
             hapticImpact("LIGHT");
+            voiceLog("voice: report tap");
             onReport();
           }}
           className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-gray-500 underline-offset-2 hover:underline"

@@ -116,7 +116,7 @@ export const recordsTools: Tool[] = [
           status: {
             type: "string",
             description:
-              "One status or a comma list. clients: LEAD, ACTIVE, ARCHIVED. requests: NEW, NEEDS_APPROVAL, CONVERTED, ARCHIVED. quotes: DRAFT, AWAITING_RESPONSE, APPROVED, CHANGES_REQUESTED, CONVERTED, ARCHIVED. jobs: ACTIVE, REQUIRES_INVOICING, ARCHIVED. invoices: DRAFT, AWAITING_PAYMENT, PAID, PAST_DUE, ARCHIVED. appointments: SCHEDULED, COMPLETED, CANCELLED, NO_SHOW. agreements: DRAFT, SENT, SIGNED, VOID. subscriptions: ACTIVE, PAUSED, CANCELLED. Omit for the entity's default (archived hidden).",
+              "One status or a comma list. clients: LEAD, ACTIVE, ARCHIVED (lost leads are ARCHIVED and carry lostOn + lostReason). requests: NEW, NEEDS_APPROVAL, CONVERTED, ARCHIVED. quotes: DRAFT, AWAITING_RESPONSE, APPROVED, CHANGES_REQUESTED, CONVERTED, ARCHIVED. jobs: ACTIVE, REQUIRES_INVOICING, ARCHIVED. invoices: DRAFT, AWAITING_PAYMENT, PAID, PAST_DUE, ARCHIVED. appointments: SCHEDULED, COMPLETED, CANCELLED, NO_SHOW. agreements: DRAFT, SENT, SIGNED, VOID. subscriptions: ACTIVE, PAUSED, CANCELLED. Omit for the entity's default (archived hidden).",
           },
           q: { type: "string", description: "Text match on title/subject/number and client name" },
           clientId: { type: "string", description: "Only this client's records" },
@@ -227,7 +227,8 @@ export const recordsTools: Tool[] = [
           };
           const select = {
             id: true, ...nameSel, email: true, phone: true, city: true, zip: true, status: true,
-            leadSource: true, createdAt: true, customFields: true, assignedTo: { select: { name: true } },
+            leadSource: true, createdAt: true, customFields: true, lostAt: true, lostReason: true,
+            assignedTo: { select: { name: true } },
             _count: { select: { jobs: true, quotes: true, invoices: true } },
           } satisfies Prisma.ContactSelect;
           const orderBy: Prisma.ContactOrderByWithRelationInput | Prisma.ContactOrderByWithRelationInput[] =
@@ -250,6 +251,7 @@ export const recordsTools: Tool[] = [
               id: c.id, name: clientName(c), email: c.email, phone: c.phone, city: c.city, zip: c.zip,
               status: c.status, source: c.leadSource, rep: c.assignedTo?.name ?? null,
               created: iso(c.createdAt), jobs: c._count.jobs, quotes: c._count.quotes, invoices: c._count.invoices,
+              ...(c.lostAt || c.lostReason ? { lostOn: iso(c.lostAt), lostReason: c.lostReason ? quoted(c.lostReason, 200) : null } : {}),
               ...(fieldDef ? { [fieldDef.label]: valueOf(c) } : {}),
             })),
           };

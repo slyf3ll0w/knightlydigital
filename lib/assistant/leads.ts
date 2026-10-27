@@ -2,6 +2,7 @@ import { prisma } from "../db";
 import { canSell, canSeePricing, contactScope, isManager } from "../permissions";
 import { ensureStages, triggerLabel, PIPELINE_TRIGGERS } from "../pipeline";
 import { type Tool, str, money, clientName, findContact, stage } from "./core";
+import { quoted } from "./untrusted";
 
 /**
  * Lead pipeline (kanban board) tools: read the board, move/close cards, and
@@ -30,11 +31,16 @@ export const leadTools: Tool[] = [
     decl: {
       name: "get_lead_board",
       description:
-        "The lead pipeline board: every stage with its leads (name, lead source, days sitting in the stage, open quote value, repeat-client flag, assignee). Use for questions like \"what's in my pipeline\", \"which leads are going stale\", or before moving/closing a lead. Leads leave the board by winning (they become clients) or losing.",
-      parameters: { type: "object", properties: {} },
+        "The lead pipeline board: every stage with its leads (name, lead source, days sitting in the stage, open quote value, repeat-client flag, assignee). Use for questions like \"what's in my pipeline\", \"which leads are going stale\", or before moving/closing a lead. Leads leave the board by winning (they become clients) or losing. Pass lost: true for the leads closed as lost in the last 90 days WITH the reason each was lost — the answer to \"why am I losing leads\" or \"what happened to my lost leads\".",
+      parameters: {
+        type: "object",
+        properties: {
+          lost: { type: "boolean", description: "also list recently lost leads and their lost reasons" },
+        },
+      },
     },
     allowed: (a) => canSell(a.role),
-    run: async (actor) => {
+    run: async (actor, args) => {
       const stages = await ensureStages(actor.companyId);
       const leads = await prisma.contact.findMany({
         where: {
@@ -78,9 +84,35 @@ export const leadTools: Tool[] = [
               : {}),
           })),
       }));
+      // Lost leads live off the board (ARCHIVED) with the reason typed at close
+      // time — the 2026-10-27 report had Atlas insisting there were no reasons.
+      const lost = args.lost === true
+        ? await prisma.contact.findMany({
+            where: {
+              companyId: actor.companyId,
+              ...contactScope(actor),
+              lostAt: { gte: new Date(Date.now() - 90 * 86400000) },
+            },
+            orderBy: { lostAt: "desc" },
+            take: 30,
+            select: { id: true, firstName: true, lastName: true, companyName: true, leadSource: true, lostAt: true, lostReason: true },
+          })
+        : null;
       return {
         board,
-        note: "Stages are customizable (manage_pipeline_stage). close_lead settles a lead: won lands the card in the built-in Converted section (they become an active client); lost archives it.",
+        ...(lost
+          ? {
+              lost: lost.map((l) => ({
+                leadId: l.id,
+                name: clientName(l),
+                source: l.leadSource,
+                lostOn: l.lostAt?.toISOString().slice(0, 10) ?? null,
+                reason: l.lostReason ? quoted(l.lostReason, 200) : "(no reason was entered)",
+              })),
+              ...(lost.length === 0 ? { lostNote: "No leads were closed as lost in the last 90 days." } : {}),
+            }
+          : {}),
+        note: "Stages are customizable (manage_pipeline_stage). close_lead settles a lead: won lands the card in the built-in Converted section (they become an active client); lost archives it with a reason (get_lead_board lost: true, or get_client_activity, shows the reasons).",
       };
     },
   },
