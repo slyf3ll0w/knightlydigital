@@ -72,7 +72,7 @@ export const phoneSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Everyone signed in with **Calls in the app** turned on rings first, in the browser or the iPhone app, for about 15 seconds.",
+            "Everyone signed in with **Calls in the app** turned on rings first — in the browser, or on the iPhone and Android apps — for about 15 seconds.",
             "If nobody picks up, your **ring-through cell** rings for about 25 seconds, showing your business number. When you answer, a voice says who's calling and asks you to **press 1** to take it.",
             "If nobody takes it, the caller hears your greeting and can leave a voicemail (up to 3 minutes). You get a notification.",
           ],
@@ -86,7 +86,7 @@ export const phoneSection: HelpSection = {
           items: [
             "Pressing `Decline` in the app sends the caller on to your cell or voicemail.",
             "With no ring-through number saved, calls go straight to voicemail.",
-            "The Android app doesn't ring for calls yet. Android phones get calls as the ring-through cell.",
+            "The iPhone and Android apps ring even when the app is closed: the call shows on your lock screen like any other call. (Android needs the app version from late October 2026 or newer.)",
           ],
         },
         {
