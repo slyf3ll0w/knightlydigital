@@ -24,6 +24,7 @@ import {
 import { itemsPayload } from "./pipeline";
 import { DEFAULT_JOB_TITLE } from "../job-crew";
 import { composeAddress } from "../geocoding";
+import { checkPeople } from "../appointment-people";
 
 /** Resolve an array of member ids/names against the active team (full-replace crew). */
 async function resolveCrew(
@@ -102,6 +103,7 @@ export const scheduleTools: Tool[] = [
             id: true, title: true, type: true, scheduledAt: true, scheduledAnytime: true, tentative: true,
             contact: { select: { firstName: true, lastName: true, companyName: true } },
             assignedTo: { select: { name: true } },
+            extraAssignees: { select: { user: { select: { name: true } } } },
           },
         }),
       ]);
@@ -114,7 +116,8 @@ export const scheduleTools: Tool[] = [
         appointments: appts.map((a) => ({
           id: a.id, title: a.title, type: a.type, client: clientName(a.contact),
           when: fmtWhen(tz, a.scheduledAt, a.scheduledAnytime),
-          with: a.assignedTo?.name, ...(a.tentative ? { tentative: true } : {}),
+          with: [a.assignedTo?.name, ...a.extraAssignees.map((x) => x.user.name)].filter(Boolean).join(", ") || undefined,
+          ...(a.tentative ? { tentative: true } : {}),
         })),
       };
     },
@@ -486,7 +489,7 @@ export const scheduleTools: Tool[] = [
     decl: {
       name: "schedule_appointment",
       description:
-        "Stage an appointment (estimate visit, sales call) with a client. type: PHONE_CALL, VIDEO_CALL, or IN_PERSON (in-person needs an address — the client's address is used if none given). Omit time for an 'anytime that day' appointment. Managers can assign it to another member (memberId from list_team); it defaults to whoever books it. Confirmation card required.",
+        "Stage an appointment (estimate visit, sales call) with a client. type: PHONE_CALL, VIDEO_CALL, or IN_PERSON (in-person needs an address — the client's address is used if none given). Omit time for an 'anytime that day' appointment. It defaults to whoever books it; managers and dispatchers can put one or MORE team members on it (members: names or ids, first = lead; techs can't be on appointments). Confirmation card required.",
       parameters: {
         type: "object",
         properties: {
@@ -497,7 +500,8 @@ export const scheduleTools: Tool[] = [
           time: { type: "string", description: "HH:MM 24h, company-local (optional)" },
           durationMinutes: { type: "number", description: "default 60" },
           address: { type: "string" },
-          memberId: { type: "string", description: "assign to this team member (managers only)" },
+          memberId: { type: "string", description: "assign to one team member (managers/dispatchers) — use members for more than one" },
+          members: { type: "array", items: { type: "string" }, description: "everyone going: team member names or ids, first = lead (managers/dispatchers)" },
         },
         required: ["clientId", "title", "type", "date"],
       },
@@ -515,18 +519,20 @@ export const scheduleTools: Tool[] = [
       }
       const sched = await schedulePayload(actor.companyId, args.date, args.time, args.durationMinutes);
       if ("error" in sched) return sched;
+      // Several people may go (David 2026-10-27, same as the New Appointment
+      // tick list): members replaces memberId; both resolve names or ids.
       let assignedLine: string | null = null;
-      let assignedToId: string | undefined;
+      let assigneeIds: string[] | undefined;
       const memberId = str(args.memberId, 40);
-      if (memberId) {
-        if (!isManager(actor.role)) return { error: "Only managers can assign appointments to someone else." };
-        const member = await prisma.user.findFirst({
-          where: { id: memberId, companyId: actor.companyId, isActive: true },
-          select: { id: true, name: true },
-        });
-        if (!member) return { error: "No active team member with that id — check list_team." };
-        assignedToId = member.id;
-        assignedLine = `With: ${member.name}`;
+      const wanted = Array.isArray(args.members) && args.members.length > 0 ? args.members : memberId ? [memberId] : [];
+      if (wanted.length > 0) {
+        if (!isManager(actor.role) && actor.role !== "USER") return { error: "Only managers and dispatchers can put someone else on an appointment." };
+        const people = await resolveCrew(actor.companyId, wanted);
+        if ("error" in people) return people;
+        const bad = await checkPeople(actor.companyId, people.ids);
+        if (bad) return { error: bad };
+        assigneeIds = people.ids;
+        assignedLine = `With: ${people.names.join(", ")}`;
       }
       return stage(ctx, {
         kind: "schedule_appointment",
@@ -545,7 +551,7 @@ export const scheduleTools: Tool[] = [
           type,
           ...sched.fields,
           ...(type === "IN_PERSON" ? { address } : {}),
-          ...(assignedToId ? { assignedToId } : {}),
+          ...(assigneeIds ? { assigneeIds } : {}),
         },
       });
     },
@@ -554,7 +560,7 @@ export const scheduleTools: Tool[] = [
     decl: {
       name: "update_appointment",
       description:
-        "Stage appointment changes (by the id from get_schedule or get_client_activity): move it to a new date/time, retitle, change address/notes, or reassign to another member (managers only, memberId from list_team). To cancel use cancel_appointment. Confirmation card required.",
+        "Stage appointment changes (by the id from get_schedule or get_client_activity): move it to a new date/time, retitle, change address/notes, or change who's going (members: the full new list of team member names/ids, first = lead — REPLACES everyone on it; memberId = just one person; managers/dispatchers). To cancel use cancel_appointment. Confirmation card required.",
       parameters: {
         type: "object",
         properties: {
@@ -565,7 +571,8 @@ export const scheduleTools: Tool[] = [
           title: { type: "string" },
           address: { type: "string" },
           notes: { type: "string" },
-          memberId: { type: "string", description: "reassign to this team member (managers only)" },
+          memberId: { type: "string", description: "reassign to one team member (managers/dispatchers)" },
+          members: { type: "array", items: { type: "string" }, description: "everyone on it after the change: team member names or ids, first = lead — replaces the whole list (managers/dispatchers)" },
         },
         required: ["appointmentId"],
       },
@@ -609,17 +616,17 @@ export const scheduleTools: Tool[] = [
         lines.push(`Notes: ${notes.slice(0, 120)}`);
       }
       const memberId = str(args.memberId, 40);
-      if (memberId) {
-        if (!isManager(actor.role)) return { error: "Only managers can reassign appointments." };
-        const member = await prisma.user.findFirst({
-          where: { id: memberId, companyId: actor.companyId, isActive: true },
-          select: { id: true, name: true },
-        });
-        if (!member) return { error: "No active team member with that id — check list_team." };
-        payload.assignedToId = member.id;
-        lines.push(`Reassign to: ${member.name}`);
+      const wanted = Array.isArray(args.members) && args.members.length > 0 ? args.members : memberId ? [memberId] : [];
+      if (wanted.length > 0) {
+        if (!isManager(actor.role) && actor.role !== "USER") return { error: "Only managers and dispatchers can change who's on an appointment." };
+        const people = await resolveCrew(actor.companyId, wanted);
+        if ("error" in people) return people;
+        const bad = await checkPeople(actor.companyId, people.ids);
+        if (bad) return { error: bad };
+        payload.assigneeIds = people.ids;
+        lines.push(people.ids.length === 1 ? `Reassign to: ${people.names[0]}` : `People: ${people.names.join(", ")}`);
       }
-      if (lines.length === 0) return { error: "Nothing to change — provide a new date, title, address, notes, or memberId." };
+      if (lines.length === 0) return { error: "Nothing to change — provide a new date, title, address, notes, memberId, or members." };
       return stage(ctx, {
         kind: "update_appointment",
         title: whenLabel && lines.length === 1

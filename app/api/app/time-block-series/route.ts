@@ -7,7 +7,8 @@ import { createSeriesFromBody, listSeries, toSeriesDTO } from "@/lib/time-block-
  *
  * GET  — every series in the company (the settings list).
  * POST — create one and build its occurrences a year ahead. Body:
- *   { title?, forUserId? (managers; null = everyone), address?,
+ *   { title?, forUserId? (managers; null = everyone), forUserIds? (managers;
+ *     several people — one series each), address?,
  *     weekdays: number[] (0 = Sun), allDay?, startTime?, endTime? ("HH:MM"),
  *     startsOn: "YYYY-MM-DD", endsOn?: "YYYY-MM-DD" | null }
  * Same permissions as one-off blocks: everyone for themselves, owners and
@@ -28,5 +29,5 @@ export async function POST(req: NextRequest) {
 
   const out = await createSeriesFromBody(actor, body, new Date());
   if (!out.ok) return NextResponse.json({ error: out.error }, { status: out.status });
-  return NextResponse.json({ ...toSeriesDTO(out.series, actor), created: out.created }, { status: 201 });
+  return NextResponse.json({ ...toSeriesDTO(out.series, actor), created: out.created, count: out.count }, { status: 201 });
 }

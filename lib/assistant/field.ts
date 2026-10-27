@@ -271,7 +271,7 @@ export const fieldTools: Tool[] = [
   {
     decl: {
       name: "manage_time_block",
-      description: "Blocked-off time on the calendar (vacation, lunch, shop day). action list (date range), create, update. Your own calendar is self-serve; a teammate's or a company-wide block needs a manager. Delete via delete_record entity time_block.",
+      description: "Blocked-off time on the calendar (vacation, lunch, shop day). action list (date range), create, update. Your own calendar is self-serve; a teammate's, several teammates' at once (members), or a company-wide block needs a manager. Delete via delete_record entity time_block.",
       parameters: {
         type: "object",
         properties: {
@@ -283,6 +283,7 @@ export const fieldTools: Tool[] = [
           startTime: { type: "string", description: "HH:mm (omit for all day)" },
           endTime: { type: "string", description: "HH:mm" },
           member: { type: "string", description: "team member id or name; 'everyone' = company-wide (managers); omit = the current user" },
+          members: { type: "array", items: { type: "string" }, description: "create: several team members (ids or names) blocked off at once, one block each (managers)" },
           from: { type: "string", description: "list: YYYY-MM-DD" },
           to: { type: "string", description: "list: YYYY-MM-DD" },
         },
@@ -306,7 +307,20 @@ export const fieldTools: Tool[] = [
       const memberArg = str(args.member, 80);
       let forUserId: string | null | undefined = undefined;
       let who = actor.name;
-      if (memberArg.toLowerCase() === "everyone" || memberArg.toLowerCase() === "company") {
+      // Several specific people at once (David 2026-10-27): one block each
+      const membersArg = Array.isArray(args.members) ? args.members.map((v) => str(v, 80)).filter(Boolean).slice(0, 20) : [];
+      let forUserIds: string[] | undefined;
+      if (membersArg.length > 0) {
+        if (!isManager(actor.role)) return { error: "Only managers can block time for several people." };
+        const names: string[] = [];
+        forUserIds = [];
+        for (const w of membersArg) {
+          const m = await findMember(actor.companyId, w);
+          if (!m) return { error: `No active team member matches "${w}" — check list_team.` };
+          if (!forUserIds.includes(m.id)) { forUserIds.push(m.id); names.push(m.name); }
+        }
+        who = names.join(", ");
+      } else if (memberArg.toLowerCase() === "everyone" || memberArg.toLowerCase() === "company") {
         if (!isManager(actor.role)) return { error: "Only managers can block time company-wide." };
         forUserId = null; who = "everyone";
       } else if (memberArg) {
@@ -341,7 +355,7 @@ export const fieldTools: Tool[] = [
           title: `Block off ${who}: ${title || "Blocked off"}`,
           lines: [`${fmtWhen(tz, startAt, allDay)} → ${fmtWhen(tz, allDay ? new Date(endAt.getTime() - 1) : endAt, allDay)}`],
           endpoint: "/api/app/time-blocks", method: "POST",
-          payload: { startAt: startAt.toISOString(), endAt: endAt.toISOString(), allDay, ...(title ? { title } : {}), ...(forUserId !== undefined ? { forUserId } : {}) },
+          payload: { startAt: startAt.toISOString(), endAt: endAt.toISOString(), allDay, ...(title ? { title } : {}), ...(forUserIds ? { forUserIds } : forUserId !== undefined ? { forUserId } : {}) },
           confirmLabel: "Block time", href: "/app/schedule",
         });
       }

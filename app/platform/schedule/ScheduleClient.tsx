@@ -43,6 +43,7 @@ import { callFromLine, useLineCalling } from "@/lib/line-calling";
 import Modal from "@/components/Modal";
 import RepeatPicker from "@/components/RepeatPicker";
 import RepeatingBlockSheet from "@/components/RepeatingBlockSheet";
+import PeoplePicker from "@/components/PeoplePicker";
 import { describeRule } from "@/lib/time-block-recurrence";
 import type { SeriesDTO } from "@/lib/time-block-series";
 import SwipeRow, { type SwipeRowAction } from "@/components/SwipeRow";
@@ -107,6 +108,8 @@ export type { ScheduleJobDTO, BlockInfo } from "./schedule-lib";
 type BlockForm = {
   title: string;
   who: string; // user id | "everyone" (managers only)
+  /** New blocks only (managers): more people who get the same block, one row each */
+  also: string[];
   allDay: boolean;
   startDate: string;
   endDate: string;
@@ -212,7 +215,7 @@ export default function ScheduleClient({
       ? {
           start: `${bf.startDate}T${bf.startTime}`,
           end: `${bf.startDate}T${bf.endTime}`,
-          userIds: bf.who === "everyone" ? users.map((u) => u.id).slice(0, 10) : [bf.who].filter(Boolean),
+          userIds: bf.who === "everyone" ? users.map((u) => u.id).slice(0, 10) : [bf.who, ...bf.also].filter(Boolean).slice(0, 10),
           onSite: Boolean(bf.address.trim()),
           address: bf.address.trim() || null,
           excludeTimeBlockId: blockSheet.id ?? undefined,
@@ -842,6 +845,7 @@ export default function ScheduleClient({
       form: {
         title: "",
         who: prefill?.who === null ? "everyone" : prefill?.who ?? meId,
+        also: [],
         allDay: false,
         startDate: d,
         endDate: d,
@@ -868,6 +872,7 @@ export default function ScheduleClient({
       form: {
         title: b.title === "Blocked off" ? "" : b.title,
         who: b.userId ?? "everyone",
+        also: [],
         allDay: b.allDay,
         startDate: toParam(s),
         endDate: toParam(e),
@@ -923,7 +928,11 @@ export default function ScheduleClient({
         endsOn: f.endsOn || null,
         address: f.address.trim() || null,
       };
-      if (canBlockForOthers) seriesBody.forUserId = f.who === "everyone" ? null : f.who;
+      if (canBlockForOthers) {
+        const more = f.who === "everyone" ? [] : f.also.filter((id) => id !== f.who);
+        if (more.length > 0) seriesBody.forUserIds = [f.who, ...more];
+        else seriesBody.forUserId = f.who === "everyone" ? null : f.who;
+      }
       setBlockBusy(true);
       setBlockErr("");
       const { ok, data } = await postJson("/api/app/time-block-series", seriesBody);
@@ -945,7 +954,12 @@ export default function ScheduleClient({
       endAt: endAt.toISOString(),
       address: f.address.trim() || null,
     };
-    if (canBlockForOthers) body.forUserId = f.who === "everyone" ? null : f.who;
+    if (canBlockForOthers) {
+      // Several specific people: one block each (the server fans it out)
+      const more = blockSheet.id === null && f.who !== "everyone" ? f.also.filter((id) => id !== f.who) : [];
+      if (more.length > 0) body.forUserIds = [f.who, ...more];
+      else body.forUserId = f.who === "everyone" ? null : f.who;
+    }
 
     setBlockBusy(true);
     setBlockErr("");
@@ -2074,6 +2088,17 @@ export default function ScheduleClient({
                     </option>
                   ))}
                 </select>
+                {blockSheet.id === null && blockSheet.form.who !== "everyone" && users.length > 1 && (
+                  <div className="mt-2">
+                    <label className="mb-1 block text-xs font-medium text-gray-500">Also block this time for</label>
+                    <PeoplePicker
+                      users={users.filter((u) => u.id !== blockSheet.form.who)}
+                      value={blockSheet.form.also}
+                      allowNone
+                      onChange={(ids) => setBlockSheet((s) => s && { ...s, form: { ...s.form, also: ids } })}
+                    />
+                  </div>
+                )}
               </div>
             ) : (
               blockSheet.id !== null &&

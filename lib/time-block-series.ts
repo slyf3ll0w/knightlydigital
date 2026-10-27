@@ -232,22 +232,41 @@ export async function createSeriesFromBody(
   actor: Actor,
   body: Record<string, unknown>,
   now: Date
-): Promise<{ ok: true; series: SeriesRow; created: number } | { ok: false; status: number; error: string }> {
+): Promise<{ ok: true; series: SeriesRow; created: number; count: number } | { ok: false; status: number; error: string }> {
   const parsed = parseSeriesInput(body);
   if (!parsed.ok) return { ok: false, status: 400, error: parsed.error };
-  const who = await resolveBlockTarget(actor, body, actor.id);
-  if (!who.ok) return who;
+  // Several specific people at once (forUserIds, managers): one series per
+  // person, so each can still be changed or removed on its own.
+  let targets: (string | null)[];
+  if (Array.isArray(body.forUserIds)) {
+    if (!isManager(actor.role)) return { ok: false, status: 403, error: "Only owners and admins can block off time for others." };
+    const ids = [...new Set(body.forUserIds.filter((v: unknown): v is string => typeof v === "string" && v.length > 0))].slice(0, 20);
+    if (ids.length === 0) return { ok: false, status: 400, error: "Pick at least one team member." };
+    const found = await prisma.user.count({ where: { id: { in: ids }, companyId: actor.companyId, isActive: true } });
+    if (found !== ids.length) return { ok: false, status: 404, error: "Team member not found." };
+    targets = ids;
+  } else {
+    const who = await resolveBlockTarget(actor, body, actor.id);
+    if (!who.ok) return who;
+    targets = [who.userId];
+  }
   const where = await resolveBlockAddress(body, actor.companyId);
-  const series = await prisma.timeBlockSeries.create({
-    data: {
-      companyId: actor.companyId,
-      userId: who.userId,
-      createdById: actor.id,
-      title: cleanTitle(body.title),
-      ...parsed.rule,
-      ...where,
-    },
-  });
-  const created = await materializeSeries(series, await companyTimezone(actor.companyId), now);
-  return { ok: true, series, created };
+  const tz = await companyTimezone(actor.companyId);
+  let first: SeriesRow | null = null;
+  let created = 0;
+  for (const userId of targets) {
+    const series = await prisma.timeBlockSeries.create({
+      data: {
+        companyId: actor.companyId,
+        userId,
+        createdById: actor.id,
+        title: cleanTitle(body.title),
+        ...parsed.rule,
+        ...where,
+      },
+    });
+    created += await materializeSeries(series, tz, now);
+    first ??= series;
+  }
+  return { ok: true, series: first!, created, count: targets.length };
 }

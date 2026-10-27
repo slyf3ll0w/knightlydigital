@@ -152,7 +152,11 @@ export const clientTools: Tool[] = [
           },
           appointments: {
             where: { status: "SCHEDULED" }, take: 3, orderBy: { scheduledAt: "asc" },
-            select: { id: true, title: true, scheduledAt: true, type: true, tentative: true },
+            select: {
+              id: true, title: true, scheduledAt: true, type: true, tentative: true,
+              assignedTo: { select: { name: true } },
+              extraAssignees: { select: { user: { select: { name: true } } } },
+            },
           },
           contracts: {
             take: 5, orderBy: { updatedAt: "desc" },
@@ -215,6 +219,7 @@ export const clientTools: Tool[] = [
         })),
         upcomingAppointments: c.appointments.map((a) => ({
           id: a.id, title: a.title, type: a.type, at: a.scheduledAt.toISOString(),
+          with: [a.assignedTo?.name, ...a.extraAssignees.map((x) => x.user.name)].filter(Boolean).join(", ") || undefined,
           ...(a.tentative ? { tentative: true } : {}),
         })),
         recentNotes: c.contactNotes.map((n) => ({
