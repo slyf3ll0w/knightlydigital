@@ -5,7 +5,9 @@
  * session's language code — so a pick is voice + accent. Stored per
  * browser (it's the listener's taste, not the company's), sent with each
  * live-session token and each spoken reply; the server validates against
- * these lists. ATLAS_VOICE stays the company-wide default.
+ * these lists. ATLAS_VOICE stays the company-wide default. Since 2026-10-27
+ * the pick also lives on the User row (/api/app/assistant/voice-pick) so it
+ * follows the person between devices; the browser copy is a cache of it.
  */
 
 export type VoiceGender = "male" | "female";
@@ -64,6 +66,49 @@ export function setVoicePick(p: VoicePick | null): void {
     else localStorage.removeItem(KEY);
   } catch {
     /* fine */
+  }
+}
+
+/**
+ * Bring the browser copy in line with the account's pick (GET), or, when
+ * the account has none yet and this browser does, upload this one. Never
+ * throws, never takes longer than `timeoutMs` — the talk screen waits on it
+ * before opening the session so a new device starts in the right voice.
+ */
+export async function syncVoicePick(timeoutMs = 1500): Promise<VoicePick | null> {
+  if (typeof window === "undefined") return null;
+  const local = getVoicePick();
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), timeoutMs);
+  try {
+    const res = await fetch("/api/app/assistant/voice-pick", { signal: ctl.signal });
+    if (!res.ok) return local;
+    const data = (await res.json()) as { pick?: VoicePick | null };
+    if (data.pick) {
+      const server = { voice: isVoiceId(data.pick.voice) ? data.pick.voice : "", accent: isAccentCode(data.pick.accent) ? data.pick.accent : DEFAULT_ACCENT };
+      setVoicePick(server);
+      return server;
+    }
+    if (local) void saveVoicePick(local);
+    return local;
+  } catch {
+    return local;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Save the pick on the account (fire and forget; the browser copy is already set). */
+export async function saveVoicePick(p: VoicePick | null): Promise<void> {
+  try {
+    await fetch("/api/app/assistant/voice-pick", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(p ? { voice: p.voice || undefined, accent: p.accent } : { pick: null }),
+      keepalive: true,
+    });
+  } catch {
+    /* the browser copy still applies; the next open retries the sync */
   }
 }
 

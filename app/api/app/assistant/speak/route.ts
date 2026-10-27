@@ -3,6 +3,7 @@ import { reportError } from "@/lib/report-error";
 import { recordAiUsage } from "@/lib/usage";
 import { voiceGate } from "@/lib/assistant-voice-gate";
 import { isVoiceId } from "@/lib/atlas-voices";
+import { prisma } from "@/lib/db";
 
 /**
  * Atlas's voice: text → WAV through Gemini's speech model (the Interactions
@@ -45,7 +46,8 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as { text?: unknown; cache?: unknown; voice?: unknown };
   const text = typeof body.text === "string" ? body.text.trim().slice(0, MAX_CHARS) : "";
   // The listener's voice pick (lib/atlas-voices.ts); the company default otherwise.
-  const voice = isVoiceId(body.voice) ? body.voice : VOICE;
+  const saved = isVoiceId(body.voice) ? null : await prisma.user.findUnique({ where: { id: gate.actor.id }, select: { atlasVoice: true } });
+  const voice = isVoiceId(body.voice) ? body.voice : isVoiceId(saved?.atlasVoice) ? saved.atlasVoice : VOICE;
   if (!text) return NextResponse.json({ error: "Nothing to say." }, { status: 400 });
   // Stock phrases ("Let me check.") are kept in memory after the first
   // synthesis so the acknowledgement plays instantly and costs nothing.

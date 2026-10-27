@@ -273,6 +273,11 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
   }
   URL.revokeObjectURL(blobUrl);
   voiceLog("live: audio ready", `in ${inCtx.sampleRate}Hz out ${outCtx.sampleRate}Hz via ${sink.failed ? "context" : "audio element"} ${since()}`);
+  // A headset or speaker switching mid-session changes the device clock the
+  // output is resampled for — logged so a "voice went deep" report
+  // (2026-10-27) can be matched to a device change.
+  const onDeviceChange = () => voiceLog("live: audio device changed", `out ${outCtx.sampleRate}Hz state ${outCtx.state} ${since()}`);
+  try { navigator.mediaDevices?.addEventListener("devicechange", onDeviceChange); } catch { /* fine */ }
   const source = inCtx.createMediaStreamSource(stream);
   const tap = new AudioWorkletNode(inCtx, "wb-mic-tap", { numberOfInputs: 1, numberOfOutputs: 0 });
   let pending: Int16Array[] = [];
@@ -335,6 +340,7 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     void inCtx.close().catch(() => undefined);
     void outCtx.close().catch(() => undefined);
     try { ws?.close(); } catch { /* fine */ }
+    try { navigator.mediaDevices?.removeEventListener("devicechange", onDeviceChange); } catch { /* fine */ }
     if (inSeconds + outSeconds > 0) ev.onUsage(inSeconds, outSeconds);
     // The 2026-10-27 "conversation abruptly ended" report had a bare
     // "stopped" line and no socket close — the diary now says who ended it.

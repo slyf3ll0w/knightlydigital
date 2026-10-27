@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { reportError } from "@/lib/report-error";
 import { DEFAULT_ACCENT, isAccentCode, isVoiceId } from "@/lib/atlas-voices";
+import { prisma } from "@/lib/db";
 import { voiceGate } from "@/lib/assistant-voice-gate";
 import { liveSystemInstruction, toolsForActor } from "@/lib/assistant";
 
@@ -40,8 +41,13 @@ export async function POST(req: NextRequest) {
   if (!key) return NextResponse.json({ error: "Live voice isn't configured." }, { status: 503 });
   // The listener's voice + accent pick (lib/atlas-voices.ts), validated.
   const body = (await req.json().catch(() => ({}))) as { voice?: unknown; accent?: unknown };
-  const voiceName = isVoiceId(body.voice) ? body.voice : VOICE;
-  const languageCode = isAccentCode(body.accent) ? body.accent : DEFAULT_ACCENT;
+  // No pick in the request → the one saved on the account (follows the
+  // person between devices), else the company default.
+  const saved = isVoiceId(body.voice) || isAccentCode(body.accent)
+    ? null
+    : await prisma.user.findUnique({ where: { id: gate.actor.id }, select: { atlasVoice: true, atlasAccent: true } });
+  const voiceName = isVoiceId(body.voice) ? body.voice : isVoiceId(saved?.atlasVoice) ? saved.atlasVoice : VOICE;
+  const languageCode = isAccentCode(body.accent) ? body.accent : isAccentCode(saved?.atlasAccent) ? saved.atlasAccent : DEFAULT_ACCENT;
 
   const instruction = await liveSystemInstruction(gate.actor);
   if (!instruction) return NextResponse.json({ error: "No company." }, { status: 404 });

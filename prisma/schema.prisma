@@ -491,6 +491,10 @@ model User {
   // Appointment purposes / job titles this person typed, newest first:
   // { appointment: string[], job: string[] } (lib/recent-titles.ts)
   recentTitles       Json?
+  // Atlas's voice + accent as this person likes it (lib/atlas-voices.ts),
+  // so the pick follows them between devices; null = the company default.
+  atlasVoice         String?
+  atlasAccent        String?
   // Online scheduling extras (Team page): a personal video-meeting room
   // pasted into video-call confirmations, and where this member starts the
   // day (geocoded like Company.address) so the first drive of the day is

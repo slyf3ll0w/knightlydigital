@@ -76,7 +76,9 @@ export default async function QuotesPage({
       ? { status: "DRAFT" as QuoteStatus, scheduledSendAt: { not: null } }
       : validStatus
         ? { status: validStatus }
-        : {}),
+        : // "All" is everything still in play — archived quotes live only
+          // under their own tab (David 2026-10-27)
+          { status: { not: "ARCHIVED" as QuoteStatus } }),
     ...search,
   };
 

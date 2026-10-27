@@ -20,7 +20,7 @@ import { voiceLog } from "@/lib/voice-log";
 import { cardsSpeech, isAffirmative, isNegative, isStopPhrase, spokenForm, type SpokenCard } from "@/lib/voice-chat-shared";
 import type { Proposal } from "@/lib/assistant";
 import { ProposalCard, isOutreach, voiceConfirmable, type CardProposal, type PlacedCard } from "@/components/AssistantCard";
-import { ATLAS_ACCENTS, ATLAS_VOICES, DEFAULT_ACCENT, describePick, getVoicePick, setVoicePick, type VoicePick } from "@/lib/atlas-voices";
+import { ATLAS_ACCENTS, ATLAS_VOICES, DEFAULT_ACCENT, describePick, getVoicePick, saveVoicePick, setVoicePick, syncVoicePick, type VoicePick } from "@/lib/atlas-voices";
 
 /**
  * Talking to Atlas. Two engines:
@@ -517,7 +517,13 @@ export default function AssistantVoice({
     alive.current = true;
     voiceLog("voice: opened", `${typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 120) : ""}`);
     primeAudio();
-    void startLive();
+    // The account's voice pick first (≤1.5 s), so a phone picked up after
+    // choosing a voice at the desk opens in that voice (2026-10-27 report).
+    void syncVoicePick().then((p) => {
+      if (!alive.current) return;
+      setPick(p);
+      void startLive();
+    });
     return () => {
       alive.current = false;
       stopAll("screen closed");
@@ -566,6 +572,7 @@ export default function AssistantVoice({
   function choosePick(next: VoicePick | null) {
     hapticImpact("LIGHT");
     setVoicePick(next);
+    void saveVoicePick(next);
     setPick(next);
     voiceLog("voice: pick", next ? `${next.voice || "default"} ${next.accent}` : "default");
     if (engine === "live") {
