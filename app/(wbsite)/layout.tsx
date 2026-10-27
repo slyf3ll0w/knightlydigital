@@ -19,6 +19,25 @@ import {
 // Escape the agency-site "| Streamflaire Group LLC" title template
 export const metadata: Metadata = {
   title: { template: "%s | WorkBench FSM", default: "WorkBench FSM — Free field service management software" },
+  description:
+    "WorkBench FSM is free field service management software for home-service companies: scheduling, quotes, invoicing, payments, a client portal, and Atlas, an AI assistant you can talk to hands-free.",
+  // Every marketing page is its own canonical (the home page sets its
+  // explicit "/" because the route is /wb behind a rewrite).
+  alternates: { canonical: "./" },
+  openGraph: {
+    type: "website",
+    siteName: "WorkBench FSM",
+    locale: "en_US",
+    images: [
+      {
+        url: "/screens/desktop-dashboard.jpg",
+        width: 1512,
+        height: 791,
+        alt: "The WorkBench FSM dashboard: money collected and outstanding, the Needs-you list, and today's schedule",
+      },
+    ],
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 // SoftwareApplication structured data — read by search engines and AI
@@ -35,7 +54,7 @@ const softwareAppJsonLd = {
   operatingSystem: "Web, iOS, Android",
   url: "https://workbenchfsm.com",
   description:
-    `WorkBench FSM (WorkBench) is field service management software for home-service teams: online booking, lead pipeline, scheduling and dispatch, quotes with e-signature, clock-in, team chat, one-click invoicing, built-in card and ACH payments, recurring billing, and a client portal. The core is free with full access for ${INCLUDED_SEATS} users, then ${formatCents(EXTRA_SEAT_CENTS)} per extra user a month. It also includes Atlas, an AI assistant with 10,000 free tokens every month. Optional flat-priced add-ons: ${PLANS.DISPATCH.name} (a business phone line), ${PLANS.SHOP.name} (unlimited users, estimator, routes, automations, agreements, team map, timesheets, QuickBooks, Atlas Full), and ${PLANS.JOBSITE.name} (job photos, coming soon).`,
+    `WorkBench FSM (WorkBench) is field service management software for home-service teams: online booking, lead pipeline, scheduling and dispatch, quotes with e-signature, clock-in, team chat, one-click invoicing, built-in card and ACH payments, recurring billing, and a client portal. The core is free with full access for ${INCLUDED_SEATS} users, then ${formatCents(EXTRA_SEAT_CENTS)} per extra user a month. It also includes Atlas, an AI assistant you can talk to hands-free in a natural voice or type to, which schedules, quotes, invoices and messages on request and confirms before anything reaches a client; every account gets 10,000 free Atlas tokens every month. Optional flat-priced add-ons: ${PLANS.DISPATCH.name} (a business phone line), ${PLANS.SHOP.name} (unlimited users, estimator, routes, automations, agreements, team map, timesheets, QuickBooks, Atlas Full), and ${PLANS.JOBSITE.name} (job photos, coming soon).`,
   offers: [
     {
       "@type": "Offer",
@@ -78,8 +97,13 @@ const softwareAppJsonLd = {
     "Card & ACH payments",
     "Recurring billing",
     "Client portal",
-    "Atlas AI assistant",
+    "Atlas AI assistant (chat and hands-free voice)",
+    "Native iPhone and Android apps",
   ],
+  isAccessibleForFree: true,
+  image: "https://workbenchfsm.com/workbench-logo.png",
+  screenshot: "https://workbenchfsm.com/screens/desktop-dashboard.jpg",
+  softwareHelp: { "@type": "CreativeWork", url: "https://workbenchfsm.com/help" },
   publisher: {
     "@type": "Organization",
     name: "Streamflaire",
@@ -88,6 +112,37 @@ const softwareAppJsonLd = {
     email: WB_EMAIL,
   },
   sameAs: [APP_STORE_URL, PLAY_STORE_URL, WB_FACEBOOK_URL],
+};
+
+// Who makes it and what this site is, so brand searches ("WorkBench FSM")
+// and answer engines tie the product, the company and the apps together.
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Streamflaire",
+  legalName: "Streamflaire Group LLC",
+  url: "https://workbenchfsm.com",
+  logo: "https://workbenchfsm.com/workbench-logo.png",
+  brand: { "@type": "Brand", name: "WorkBench FSM", alternateName: "WorkBench" },
+  contactPoint: {
+    "@type": "ContactPoint",
+    telephone: WB_PHONE.e164,
+    email: WB_EMAIL,
+    contactType: "sales",
+    areaServed: "US",
+    availableLanguage: "English",
+  },
+  address: { "@type": "PostalAddress", addressRegion: "TX", addressCountry: "US" },
+  sameAs: [APP_STORE_URL, PLAY_STORE_URL, WB_FACEBOOK_URL, "https://streamflaire.com"],
+};
+
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "WorkBench FSM",
+  alternateName: "WorkBench",
+  url: "https://workbenchfsm.com",
+  publisher: { "@type": "Organization", name: "Streamflaire", url: "https://streamflaire.com" },
 };
 
 /**
@@ -103,6 +158,16 @@ export default function WBSiteLayout({
         type="application/ld+json"
         // eslint-disable-next-line react/no-danger
         dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareAppJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
       />
       <WBNav />
       <main className="pt-20 sm:pt-24">{children}</main>

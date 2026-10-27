@@ -35,7 +35,7 @@ const rows: CompareRow[] = [
   },
   {
     label: "AI assistant",
-    workbench: "Atlas — a built-in assistant that can schedule, quote, invoice, and message on your behalf, always with a confirmation step. 10,000 free tokens every month; Atlas Full is $20/month for 150,000.",
+    workbench: "Atlas — a built-in assistant you can talk to hands-free (or type to) that schedules, quotes, invoices, and messages on your behalf, always with a confirmation step. 10,000 free tokens every month; Atlas Full is $20/month for 150,000.",
     competitor: "Has been rolling out AI features; check their current feature list for scope.",
   },
   {

@@ -36,6 +36,7 @@ export default function WBFeaturePage({
   phone,
   chip,
   steps,
+  extra,
   features,
   faq,
   related,
@@ -58,6 +59,8 @@ export default function WBFeaturePage({
   phone: React.ComponentProps<typeof WBSplitHero>["phone"];
   chip?: React.ComponentProps<typeof WBSplitHero>["chip"];
   steps?: Step[];
+  /** A page-specific band between "How it works" and the feature grid. */
+  extra?: React.ReactNode;
   features: FeatureItem[];
   faq: FaqItem[];
   related: { label: string; href: string }[];
@@ -131,6 +134,8 @@ export default function WBFeaturePage({
           </div>
         </section>
       )}
+
+      {extra}
 
       {/* Feature grid */}
       <section className="border-t border-gray-200 bg-white">
