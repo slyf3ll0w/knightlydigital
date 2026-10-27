@@ -45,8 +45,13 @@ android {
             versionNameSuffix '-sandbox'
         }
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // R8: Play flagged the vc5 upload ("DEX optimization below threshold",
+            // enforced from Feb 2027). Shrinks + obfuscates; keep rules in
+            // proguard-rules.pro; the mapping file rides inside the AAB
+            // (BUNDLE-METADATA) so Play de-obfuscates crash traces by itself.
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (keystorePropsFile.exists()) {
                 signingConfig signingConfigs.release
             }

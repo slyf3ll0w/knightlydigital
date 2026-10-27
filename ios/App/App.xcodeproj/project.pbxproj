@@ -17,6 +17,7 @@
 		0B20260923000000000000A2 /* VoipPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B20260923000000000000B2 /* VoipPlugin.swift */; };
 		0B20260923000000000000A3 /* Intents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B20260923000000000000B3 /* Intents.swift */; };
 		0B20261022000000000000A4 /* TapToPayPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B20261022000000000000B4 /* TapToPayPlugin.swift */; };
+		0B20261027000000000000A5 /* SpeechPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B20261027000000000000B5 /* SpeechPlugin.swift */; };
 		5Q20261022000000000000A3 /* SquareMobilePaymentsSDK in Frameworks */ = {isa = PBXBuildFile; productRef = 5Q20261022000000000000A2 /* SquareMobilePaymentsSDK */; };
 		5Q20261022000000000000A5 /* MockReaderUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5Q20261022000000000000A4 /* MockReaderUI */; };
 		504EC30D1FED79650016851F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30B1FED79650016851F /* Main.storyboard */; };
@@ -35,6 +36,7 @@
 		0B20260923000000000000B2 /* VoipPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoipPlugin.swift; sourceTree = "<group>"; };
 		0B20260923000000000000B3 /* Intents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Intents.swift; sourceTree = "<group>"; };
 		0B20261022000000000000B4 /* TapToPayPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapToPayPlugin.swift; sourceTree = "<group>"; };
+		0B20261027000000000000B5 /* SpeechPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechPlugin.swift; sourceTree = "<group>"; };
 		504EC30C1FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		504EC30E1FED79650016851F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
@@ -88,6 +90,7 @@
 				0B20260923000000000000B1 /* ShellViewController.swift */,
 				0B20260923000000000000B2 /* VoipPlugin.swift */,
 				0B20261022000000000000B4 /* TapToPayPlugin.swift */,
+				0B20261027000000000000B5 /* SpeechPlugin.swift */,
 				0B20260923000000000000B3 /* Intents.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
@@ -208,6 +211,7 @@
 				0B20260923000000000000A2 /* VoipPlugin.swift in Sources */,
 				0B20260923000000000000A3 /* Intents.swift in Sources */,
 				0B20261022000000000000A4 /* TapToPayPlugin.swift in Sources */,
+				0B20261027000000000000A5 /* SpeechPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

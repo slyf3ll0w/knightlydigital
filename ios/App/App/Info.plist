@@ -33,7 +33,9 @@
 	<key>NSFaceIDUsageDescription</key>
 	<string>WorkBench uses Face ID to unlock the app when App Lock is turned on.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>WorkBench uses the microphone to take and place business-line calls inside the app.</string>
+	<string>WorkBench uses the microphone for business-line calls inside the app and to hear you when you talk to Atlas.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>WorkBench turns what you say to Atlas into text on the phone, so it can answer as you speak.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>WorkBench records your location only when you clock in or out and while you're on the clock, so your team can see where work is happening, and Square requires it while you take a Tap to Pay payment. It is never tracked otherwise.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>

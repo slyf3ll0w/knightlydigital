@@ -41,6 +41,16 @@
         </provider>
     </application>
 
+    <!-- Talk to Atlas (SpeechPlugin.java): on Android 11+ an app only sees the
+         phone's speech recognition service when it declares it here. Without
+         this SpeechRecognizer.isRecognitionAvailable() is false and the page
+         falls back to recording + server transcription. -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
