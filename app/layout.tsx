@@ -22,6 +22,12 @@ export const metadata: Metadata = {
   description:
     "WorkBench is field service management for home-service teams: scheduling, quotes, invoices, online booking, client hub, team chat, and built-in payments. Free to use.",
   metadataBase: new URL("https://workbenchfsm.com"),
+  // Search Console / Bing Webmaster ownership tags, pasted from each console
+  // into the Railway env; nothing renders while they are unset.
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION || undefined,
+    other: process.env.BING_SITE_VERIFICATION ? { "msvalidate.01": process.env.BING_SITE_VERIFICATION } : undefined,
+  },
   icons: {
     icon: "/icon.png",
   },

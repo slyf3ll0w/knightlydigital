@@ -1,4 +1,4 @@
-import { RATES_SHORT } from "@/lib/plans";
+import { EXTRA_SEAT_CENTS, INCLUDED_SEATS, PLANS, RATES_SHORT, formatCents } from "@/lib/plans";
 import {
   ArrowRight,
   Banknote,
@@ -140,7 +140,7 @@ export const sections: FeatureSection[] = [
       {
         icon: Users,
         title: "Roles & permissions",
-        body: "Owner, admin, sales, and tech roles out of the box, each seeing what they need and nothing they don't. Two users are included free; more are $10 a month each, or unlimited with Pro.",
+        body: `Owner, admin, sales, and tech roles out of the box, each seeing what they need and nothing they don't. ${INCLUDED_SEATS} users are included free; more are ${formatCents(EXTRA_SEAT_CENTS)} a month each, or unlimited with ${PLANS.SHOP.name}.`,
       },
       {
         icon: Keyboard,
@@ -243,6 +243,16 @@ export const sections: FeatureSection[] = [
 ];
 
 export const APP_STORE_URL = "https://apps.apple.com/app/workbench-fsm/id6789991103";
+
+/** Look up one feature by its exact title in any section (the trade pages
+ * mix sections). Throws loudly so a renamed feature fails the build. */
+export function featureByTitle(title: string): FeatureItem {
+  for (const s of sections) {
+    const item = s.items.find((i) => i.title === title);
+    if (item) return item;
+  }
+  throw new Error(`wb-features: "${title}" is not in the catalog`);
+}
 
 /** Look up one feature item by its section id + exact title. Throws loudly
  * in dev if a deep-dive page's reference to the catalog goes stale. */

@@ -1,3 +1,4 @@
+import { INCLUDED_SEATS } from "@/lib/plans";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AnimateIn } from "@/components/AnimateIn";
@@ -48,7 +49,7 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
   {
     heading: "5. Payments processing",
     paragraphs: [
-      "The core WorkBench software is free for up to 2 users; extra users and optional add-ons are paid monthly subscriptions, priced on our pricing page. Where online payment processing is offered, payments are processed by our payment partner — currently Square (Block, Inc.) — through the Square account you create and connect to WorkBench, under Square's own terms and seller agreement. Your eligibility, account approval, funding holds, payouts, chargebacks, and reserves are governed by Square's seller agreement and the applicable card-network rules, not by us.",
+      `The core WorkBench software is free for up to ${INCLUDED_SEATS} users; extra users and optional add-ons are paid monthly subscriptions, priced on our pricing page. Where online payment processing is offered, payments are processed by our payment partner — currently Square (Block, Inc.) — through the Square account you create and connect to WorkBench, under Square's own terms and seller agreement. Your eligibility, account approval, funding holds, payouts, chargebacks, and reserves are governed by Square's seller agreement and the applicable card-network rules, not by us.`,
       "Processing fees are disclosed during payment setup and on our pricing page. You are responsible for configuring your own prices, taxes, and any card surcharge in accordance with the laws and card-network rules that apply to your business, and for the goods and services you sell to your customers.",
       "Money you collect from your clients flows through the payment processor to the bank account you provide during setup; it is never held in a Streamflaire bank account. You are responsible for any refunds, disputes, and chargebacks arising from your transactions.",
     ],
@@ -156,7 +157,7 @@ export default function TermsPage() {
             <div className="rounded-2xl border border-blue-100 bg-blue-50/60 px-5 py-4">
               <p className="text-[15px] leading-relaxed text-gray-700">
                 <span className="font-bold text-gray-900">The short version:</span>{" "}
-                The core of WorkBench is free for up to 2 users, your records belong to you, be a good citizen,
+                The core of WorkBench is free for up to {INCLUDED_SEATS} users, your records belong to you, be a good citizen,
                 and online payments run through our payment partner under their merchant
                 terms. The details are below.
               </p>

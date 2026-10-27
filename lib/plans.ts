@@ -1,3 +1,4 @@
+import { ATLAS_PLAN_TOKENS } from "./atlas-pricing";
 /**
  * WorkBench plans — the one catalog the marketing site, the app, and the
  * superadmin console all read, so a price or a plan name can never drift
@@ -116,7 +117,7 @@ export const PLANS: Record<PlanId, Plan> = {
       "QuickBooks Online sync",
       "Tasks you can hand to your team",
       "Team sticky notes everyone sees",
-      "Atlas Full: 150,000 Atlas tokens a month",
+      `Atlas Full: ${ATLAS_PLAN_TOKENS.toLocaleString("en-US")} Atlas tokens a month`,
     ],
   },
   JOBSITE: {

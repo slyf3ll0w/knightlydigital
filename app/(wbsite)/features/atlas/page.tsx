@@ -8,6 +8,7 @@ import { WB_SHOTS } from "@/components/wb/WBSplitHero";
 import { WB_DAY_PHOTOS } from "@/lib/wb-site";
 import type { FeatureItem } from "@/lib/wb-features";
 import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } from "@/lib/atlas-pricing";
+import { INCLUDED_SEATS } from "@/lib/plans";
 
 const freeTokens = tokenCount(ATLAS_FREE_TOKENS);
 const planTokens = tokenCount(ATLAS_PLAN_TOKENS);
@@ -206,7 +207,7 @@ export default function AtlasPage() {
       ctaTitle={`${freeTokens} free tokens a month. ${planPrice} when you want more.`}
       ctaBody={
         <>
-          The core WorkBench software is free with full access for 2 users, not a trial. Atlas
+          The core WorkBench software is free with full access for {INCLUDED_SEATS} users, not a trial. Atlas
           comes with {freeTokens} free tokens every month on every account, voice included;
           Atlas Full is {planTokens} a month for {planPrice}.
         </>

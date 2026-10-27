@@ -10,6 +10,7 @@ import WBCta from "@/components/wb/WBCta";
 import WBFaq, { FaqItem } from "./WBFaq";
 import WBCompareTable, { CompareRow } from "./WBCompareTable";
 import type { FeatureItem } from "@/lib/wb-features";
+import { EXTRA_SEAT_CENTS, INCLUDED_SEATS, formatCents } from "@/lib/plans";
 
 /**
  * Shared template for /vs/[competitor] pages. The goal is an honest,
@@ -156,7 +157,7 @@ export default function WBComparePage({
 
       <WBCta
         title="Free to start. Pay as the crew grows."
-        body="Free for 2 users, $10 a month per extra user, no contract. Sign up and we onboard your company personally."
+        body={`Free for ${INCLUDED_SEATS} users, ${formatCents(EXTRA_SEAT_CENTS)} a month per extra user, no contract. Sign up and we onboard your company personally.`}
         secondary={{ label: "See every feature", href: "/features" }}
       />
     </>

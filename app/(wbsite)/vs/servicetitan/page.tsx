@@ -1,5 +1,14 @@
 import type { Metadata } from "next";
-import { RATES_SHORT } from "@/lib/plans";
+import { EXTRA_SEAT_CENTS, INCLUDED_SEATS, PLANS, RATES_SHORT, formatCents } from "@/lib/plans";
+import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } from "@/lib/atlas-pricing";
+const seats = INCLUDED_SEATS;
+const seatPrice = formatCents(EXTRA_SEAT_CENTS);
+const voicePrice = formatCents(PLANS.DISPATCH.monthlyCents);
+const proPrice = formatCents(PLANS.SHOP.monthlyCents);
+const freeTokens = tokenCount(ATLAS_FREE_TOKENS);
+const planTokens = tokenCount(ATLAS_PLAN_TOKENS);
+const planPrice = formatPlanPrice();
+
 import Link from "next/link";
 import { Banknote, Bot, Rocket, Users } from "lucide-react";
 import WBComparePage from "@/components/wb/WBComparePage";
@@ -15,7 +24,7 @@ export const metadata: Metadata = {
 const rows: CompareRow[] = [
   {
     label: "Pricing model",
-    workbench: "Free core software with full access for 2 users, not a trial, funded by processing when a client pays through it (" + RATES_SHORT + "). Optional flat-priced add-ons per company from $25 a month; unlimited users come with the Pro add-on at $89.",
+    workbench: `Free core software with full access for ${seats} users, not a trial, funded by processing when a client pays through it (${RATES_SHORT}). Optional flat-priced add-ons per company from ${voicePrice} a month; unlimited users come with the ${PLANS.SHOP.name} add-on at ${proPrice}.`,
     competitor: "An enterprise platform with custom quotes, typically involving implementation and onboarding fees on top of subscription pricing. Contact ServiceTitan for a quote.",
   },
   {
@@ -35,7 +44,7 @@ const rows: CompareRow[] = [
   },
   {
     label: "AI assistant",
-    workbench: "Atlas — talk to it hands-free or type; it schedules, quotes, invoices, and messages on request, always with a confirmation step. 10,000 free tokens every month; Atlas Full is $20/month for 150,000.",
+    workbench: `Atlas — talk to it hands-free or type; it schedules, quotes, invoices, and messages on request, always with a confirmation step. ${freeTokens} free tokens every month; Atlas Full is ${planPrice}/month for ${planTokens}.`,
     competitor: "Has invested in AI capabilities across its platform; check their current offering for scope.",
   },
   {
@@ -59,7 +68,7 @@ const differentiators: FeatureItem[] = [
   {
     icon: Bot,
     title: "Atlas, priced for what it costs to run",
-    body: "The AI assistant works your scheduling, quotes, invoices, and messages under your account's own permissions. Every account gets 10,000 free tokens a month — real work, not a demo — and the $20 plan only exists for offices that want more.",
+    body: `The AI assistant works your scheduling, quotes, invoices, and messages under your account's own permissions. Every account gets ${freeTokens} free tokens a month — real work, not a demo — and the ${planPrice} plan only exists for offices that want more.`,
   },
   {
     icon: Users,
