@@ -524,10 +524,14 @@ rings — that gap is what tier 3 below closes.
 numbers kept so Play's traces read). The mapping file is inside the AAB
 (`BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map`) — Play
 picks it up on upload, nothing to attach. Verified on the Android 15
-emulator (`wb35`, Pixel 7, Google APIs): the release APK launches, the
-bridge injects, the Tap to Pay and Speech plugins answer. **Re-cut the AAB
-from this branch** — the 2026-10-23 one in Downloads predates R8 and the
-speech plugin. Original note: Play's release dashboard flags
+emulator (`wb35`, Pixel 7, Google APIs): the release APK launches and
+renders, the plugin classes and bridge names survive R8. **The bundle to
+upload is `~/Downloads/workbench-android-vc6-parity.aab`** (re-cut
+2026-10-27 from branch `android-parity`: R8 + speech plugin + calling
+engine); the 2026-10-23 `workbench-android-vc6-tap-to-pay.aab` is
+superseded. Upload only after the web side with the Android columns is on
+production (db:push first), or the engine registers against a server that
+does not know `android-voip` yet. Original note: Play's release dashboard flags
 "DEX code optimization is below our threshold — Obfuscation 2%", fix by
 **Feb 2027**, and every upload warns about the missing deobfuscation file
 and native debug symbols. Turn on `minifyEnabled` + `shrinkResources` for
