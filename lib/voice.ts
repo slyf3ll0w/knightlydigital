@@ -52,11 +52,11 @@ import { fmtPhone } from "@/lib/format";
 import { phoneDigits } from "@/lib/phone";
 import { notifyUsers } from "@/lib/push";
 import { toE164 } from "@/lib/sms";
-import { APP_OUTBOUND_RING_SECS, APP_RING_SECS, VOIP_APP_RING_SECS, canUseSoftphone, onlineSoftphoneUsers, ringPlan, userSoftphoneOnline, type RingTarget } from "@/lib/softphone";
+import { APP_OUTBOUND_RING_SECS, APP_RING_SECS, VOIP_APP_RING_SECS, canUseSoftphone, onlineSoftphoneUsers, ringPlan, userSoftphoneOnline, type RingTarget, type PhoneDevice, type SoftphoneDevice, phoneSipColumn, PHONE_SIP_SELECT } from "@/lib/softphone";
 import { appendTranscript, summarizeCallNotes, transcriptLine, type AtlasNotesSnapshot } from "@/lib/call-notes";
 import { ATLAS_ACCESS_SELECT, atlasAccess } from "@/lib/assistant-access";
 import { aiEnabled } from "@/lib/ai";
-import { VOIP_WAKE_SECS, iosCredentialsOfLogin, pushIncomingCall, voipRegisteredSoftphone, voipTargetsFor } from "@/lib/voip";
+import { VOIP_WAKE_SECS, phoneCredentialsOfLogin, pushIncomingCall, voipRegisteredSoftphone, voipTargetsFor } from "@/lib/voip";
 import {
   TTS,
   TelnyxError,
@@ -130,7 +130,7 @@ export const STALE_VOICEMAIL_MS = 10 * 60_000;
 /** customer = the far party; agent = the cell, or the one browser that won / placed the call; app = a browser rung for an inbound call. */
 export type Leg = "customer" | "agent" | "app";
 export type Stage = "ring" | "whisper" | "bridged" | "vm_greeting" | "vm_record" | "out_whisper" | "out_no_answer";
-/** `woke`: this app leg belongs to an iPhone that a VoIP push woke for the call (lib/voip.ts). */
+/** `woke`: this app leg belongs to a phone app (iPhone or Android) that a push woke for the call (lib/voip.ts). */
 export type ClientState = { callId: string; leg: Leg; stage?: Stage; userId?: string; woke?: boolean };
 
 export function encodeState(s: ClientState): string {
@@ -402,7 +402,7 @@ type CallRow = Call & {
   contact: Pick<Contact, "firstName" | "lastName"> | null;
 };
 
-type AppLeg = { id: string; telnyxCallId: string; userId: string | null };
+type AppLeg = { id: string; telnyxCallId: string; userId: string | null; device?: string | null };
 type LegHit = { call: CallRow; leg: Leg; appLeg: AppLeg | null };
 
 const callInclude = { company: { select: companySelect }, contact: { select: { firstName: true, lastName: true } } } as const;
@@ -425,9 +425,9 @@ async function findCallByLeg(ccid: string | undefined, clientState?: string | nu
   if (call) return { call, leg: call.telnyxCallId === ccid ? "customer" : "agent", appLeg: null };
   const appLeg = await prisma.callLeg.findUnique({
     where: { telnyxCallId: ccid },
-    select: { id: true, telnyxCallId: true, userId: true, call: { include: callInclude } },
+    select: { id: true, telnyxCallId: true, userId: true, device: true, call: { include: callInclude } },
   });
-  if (appLeg) return { call: appLeg.call, leg: "app", appLeg: { id: appLeg.id, telnyxCallId: appLeg.telnyxCallId, userId: appLeg.userId } };
+  if (appLeg) return { call: appLeg.call, leg: "app", appLeg: { id: appLeg.id, telnyxCallId: appLeg.telnyxCallId, userId: appLeg.userId, device: appLeg.device } };
   const state = decodeState(clientState);
   if (!state || state.leg !== "app") return null;
   const parent = await prisma.call.findUnique({ where: { id: state.callId }, include: callInclude });
@@ -626,7 +626,7 @@ async function dialCell(call: CallRow, opts: { ringback: boolean }): Promise<voi
   }
 }
 
-/** Dial every online browser as a SIP leg (one CallLeg row each). Returns how many are ringing. `woke` = these are pushed iPhones (longer ring, voicemail instead of the cell when it runs out). */
+/** Dial every online browser as a SIP leg (one CallLeg row each). Returns how many are ringing. `woke` = these are pushed phones (longer ring, voicemail instead of the cell when it runs out). */
 async function ringSoftphones(call: CallRow, targets: RingTarget[], woke = false): Promise<number> {
   let ringing = 0;
   const label = displayParty(call);
@@ -690,13 +690,13 @@ function scheduleCellFallback(callId: string, delayMs: number): void {
 export type WakeOutcome = "ringing" | "already" | "late" | "ineligible";
 
 /**
- * The iPhone app is awake for a call it was pushed for
- * (POST /api/app/line/softphone/ready): dial its SIP leg now, if the call is
- * still ringing and nobody has it. "late" = it went elsewhere (answered,
- * cell already ringing, caller gone) and the app should drop the system
- * call screen.
+ * The phone app (iPhone or Android, `device`) is awake for a call it was
+ * pushed for (POST /api/app/line/softphone/ready): dial its SIP leg now, if
+ * the call is still ringing and nobody has it. "late" = it went elsewhere
+ * (answered, cell already ringing, caller gone) and the app should drop the
+ * system call screen.
  */
-export async function wakeSoftphoneLeg(userId: string, companyId: string, callId: string): Promise<WakeOutcome> {
+export async function wakeSoftphoneLeg(userId: string, companyId: string, callId: string, device: PhoneDevice = "ios"): Promise<WakeOutcome> {
   const call = await prisma.call.findFirst({ where: { id: callId, companyId }, include: callInclude });
   if (!call || call.status !== "RINGING" || call.direction !== "INBOUND" || call.agentCallId || !call.appRingAt) {
     console.info(`[voice] wake call=${callId}: late (${!call ? "no row" : `status=${call.status} agent=${call.agentCallId ?? "-"} appRingAt=${call.appRingAt?.toISOString() ?? "-"}`})`);
@@ -710,36 +710,37 @@ export async function wakeSoftphoneLeg(userId: string, companyId: string, callId
   // The phone's OWN credential: a leg already ringing this user's browser is
   // not this phone's leg (that mistake read as "already" and left a phone
   // that had answered on the lock screen with nothing to answer).
+  const col = phoneSipColumn(device);
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { sipUsernameIos: true, softphoneEnabled: true, role: true, isActive: true },
+    select: { ...PHONE_SIP_SELECT, softphoneEnabled: true, role: true, isActive: true },
   });
-  if (!user?.sipUsernameIos || !user.softphoneEnabled || !user.isActive || !canUseSoftphone(user.role)) {
-    console.info(`[voice] wake call=${callId}: ineligible (sip=${user?.sipUsernameIos ? "yes" : "no"} on=${user?.softphoneEnabled} active=${user?.isActive} role=${user?.role})`);
+  if (!user?.[col] || !user.softphoneEnabled || !user.isActive || !canUseSoftphone(user.role)) {
+    console.info(`[voice] wake call=${callId}: ineligible (${device} sip=${user?.[col] ? "yes" : "no"} on=${user?.softphoneEnabled} active=${user?.isActive} role=${user?.role})`);
     return "ineligible";
   }
-  const open = await prisma.callLeg.count({ where: { callId, userId, device: "ios", endedAt: null } });
+  const open = await prisma.callLeg.count({ where: { callId, userId, device, endedAt: null } });
   if (open > 0) return "already";
-  const rang = await dialWokenPhone(call, userId, sinceRing);
+  const rang = await dialWokenPhone(call, userId, sinceRing, device);
   return rang > 0 ? "ringing" : "late";
 }
 
 /**
- * Dial the woken phone: one leg per iOS credential it may be registered as
- * (lib/voip.ts iosCredentialsOfLogin — its own, and its siblings' when the
- * page switched company under it). Every leg carries THIS membership's
- * userId: whichever credential picks up, the call is answered by this
- * person in this company. Returns how many legs are ringing.
+ * Dial the woken phone: one leg per credential of its kind it may be
+ * registered as (lib/voip.ts phoneCredentialsOfLogin — its own, and its
+ * siblings' when the page switched company under it). Every leg carries
+ * THIS membership's userId: whichever credential picks up, the call is
+ * answered by this person in this company. Returns how many legs are ringing.
  */
-async function dialWokenPhone(call: CallRow, userId: string, sinceRingMs: number, legsBefore = 0): Promise<number> {
-  const creds = await iosCredentialsOfLogin(userId);
+async function dialWokenPhone(call: CallRow, userId: string, sinceRingMs: number, device: PhoneDevice, legsBefore = 0): Promise<number> {
+  const creds = await phoneCredentialsOfLogin(userId, device);
   const rang = await ringSoftphones(
     call,
-    creds.map((sipUsername) => ({ userId, sipUsername, device: "ios" as const })),
+    creds.map((sipUsername) => ({ userId, sipUsername, device })),
     true
   );
   console.info(
-    `[voice] wake call=${call.id}: ${rang > 0 ? "ringing" : "late"} — ${rang}/${creds.length} SIP leg(s) to the phone dialed ${Math.round(sinceRingMs / 1000)} s after the push${legsBefore ? ` (again, after ${legsBefore} earlier leg(s))` : ""}`
+    `[voice] wake call=${call.id}: ${rang > 0 ? "ringing" : "late"} — ${rang}/${creds.length} SIP leg(s) to the ${device} phone dialed ${Math.round(sinceRingMs / 1000)} s after the push${legsBefore ? ` (again, after ${legsBefore} earlier leg(s))` : ""}`
   );
   return rang;
 }
@@ -758,7 +759,7 @@ const wokenRedials = new Map<string, NodeJS.Timeout>();
  * of times, while the caller still hears ringback. One timer per call: the
  * hangups of several legs arrive together.
  */
-function scheduleWokenRedial(callId: string, userId: string): void {
+function scheduleWokenRedial(callId: string, userId: string, device: PhoneDevice): void {
   if (wokenRedials.has(callId)) return;
   const t = setTimeout(() => {
     wokenRedials.delete(callId);
@@ -768,11 +769,11 @@ function scheduleWokenRedial(callId: string, userId: string): void {
       const sinceRing = Date.now() - call.appRingAt.getTime();
       if (sinceRing > VOIP_WAKE_SECS * 1000) return; // the cell fallback is about to take over
       const [open, dialed] = await Promise.all([
-        prisma.callLeg.count({ where: { callId, userId, device: "ios", endedAt: null } }),
-        prisma.callLeg.count({ where: { callId, userId, device: "ios" } }),
+        prisma.callLeg.count({ where: { callId, userId, device, endedAt: null } }),
+        prisma.callLeg.count({ where: { callId, userId, device } }),
       ]);
       if (open > 0 || dialed >= WOKEN_REDIAL_MAX_LEGS) return;
-      await dialWokenPhone(call, userId, sinceRing, dialed);
+      await dialWokenPhone(call, userId, sinceRing, device, dialed);
     })().catch((err) => reportError("[voice] woken redial failed:", err));
   }, WOKEN_REDIAL_MS);
   wokenRedials.set(callId, t);
@@ -975,7 +976,7 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
       if (cause !== "timeout" && legAgeMs < 8000) {
         const sip = p.sip_hangup_cause ?? null;
         console.info(`[voice] woken leg died in ${Math.round(legAgeMs / 1000)} s (${cause}${sip ? ` sip ${sip}` : ""}); the call stays ringing for the phone`);
-        if (sip === "480" && appLeg.userId) scheduleWokenRedial(call.id, appLeg.userId);
+        if (sip === "480" && appLeg.userId) scheduleWokenRedial(call.id, appLeg.userId, appLeg.device === "android" ? "android" : "ios");
         return;
       }
       return toVoicemail(call);
@@ -1255,7 +1256,7 @@ export async function startOutboundCall(
   companyId: string,
   userId: string,
   target: { contactId?: string | null; to?: string | null },
-  opts: { via?: "cell" | "app"; device?: "browser" | "ios" } = {}
+  opts: { via?: "cell" | "app"; device?: SoftphoneDevice } = {}
 ): Promise<{ callId: string; via: "cell" | "app"; agentNumber: string | null; customerNumber: string }> {
   if (!voiceEnabled()) throw new VoiceError("Calling from the app isn't available on this server yet.", 503);
   const [company, user] = await Promise.all([
@@ -1272,11 +1273,15 @@ export async function startOutboundCall(
     throw new VoiceError("Your line isn't on the voice app yet — try again in a minute.", 503);
   }
   const via = opts.via ?? "cell";
-  // The device placing the call gets the leg: the iPhone app names itself
+  // The device placing the call gets the leg: a phone app names itself
   // (its own credential, no heartbeat — the INVITE for its call wakes it);
   // anything else is a registered browser.
   const softphone =
-    via !== "app" ? null : opts.device === "ios" ? await voipRegisteredSoftphone(userId) : (await userSoftphoneOnline(userId)) ?? (await voipRegisteredSoftphone(userId));
+    via !== "app"
+      ? null
+      : opts.device === "ios" || opts.device === "android"
+        ? await voipRegisteredSoftphone(userId, opts.device)
+        : (await userSoftphoneOnline(userId)) ?? (await voipRegisteredSoftphone(userId));
   if (via === "app" && !softphone) throw new VoiceError("Your softphone isn't connected — reload the page, or call from your cell.", 409);
   const agentNumber = via === "app" ? null : (toE164(user?.phone) ?? company.lineForwardTo);
   if (via === "cell" && !agentNumber) throw new VoiceError("Add your cell number under Settings → My Profile so we can ring you first.", 409);

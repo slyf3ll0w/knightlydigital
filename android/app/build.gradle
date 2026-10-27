@@ -1,4 +1,5 @@
 apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
 
 // Upload-key signing for Play releases. The keystore + passwords live in
 // android/keystore.properties (gitignored — see that file's template in
@@ -6,6 +7,7 @@ apply plugin: 'com.android.application'
 // holds the real app signing key; this upload key only authenticates uploads,
 // so it's resettable through Play Console support if ever lost. Builds
 // without the properties file (CI, other machines) still work, just unsigned.
+def firebaseMessagingVersion = project.hasProperty('firebaseMessagingVersion') ? rootProject.ext.firebaseMessagingVersion : '25.0.1'
 def keystorePropsFile = rootProject.file('keystore.properties')
 def keystoreProps = new Properties()
 if (keystorePropsFile.exists()) {
@@ -59,6 +61,13 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        // Matches capacitor.build.gradle's Java 21 compileOptions.
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21
+    }
+}
+
 repositories {
     flatDir{
         dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
@@ -77,6 +86,14 @@ dependencies {
     // Sandbox-only simulated reader for debug builds (TapToPayPlugin shows it after a
     // sandbox authorize). Never in release: the plugin reaches the class by reflection.
     debugImplementation 'com.squareup.sdk:mockreader-ui:2.6.1'
+    // Business-line calls with the app closed (VoipEngine.kt, CallService.kt):
+    // the Telnyx Android WebRTC SDK (JitPack; the iPhone uses telnyx-webrtc-ios
+    // the same way), coroutines for its flows, and Firebase Messaging so the
+    // engine can read the FCM token itself (the push plugin keeps its copy
+    // private). firebaseMessagingVersion comes from the push plugin's gradle.
+    implementation 'com.github.team-telnyx:telnyx-webrtc-android:3.7.3'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0'
+    implementation "com.google.firebase:firebase-messaging:$firebaseMessagingVersion"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"

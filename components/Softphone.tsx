@@ -409,15 +409,17 @@ export default function Softphone() {
   updateSessionRef.current = updateSession;
 
   useEffect(() => {
-    // The iPhone app has a native calling engine (PushKit + CallKit + the
-    // Telnyx iOS SDK): the page only mirrors it — see SoftphoneNativeEngine.
-    // An iPhone build without the bridge stays a cell.
-    // The Android shell runs this same browser softphone, foreground only
-    // (no engine yet, so a closed app still rings the cell after the app leg
-    // times out) — but only from versionCode 4 on, which is the build that
-    // added RECORD_AUDIO to the manifest. Older installs have no microphone
-    // permission at all, and there getUserMedia can never succeed, so they
-    // keep ringing the cell instead of picking up a call they cannot answer.
+    // The phone apps have a native calling engine (iOS: PushKit + CallKit +
+    // the Telnyx iOS SDK, 1.3 build 8; Android: an FCM data push + a
+    // foreground call service + the Telnyx Android SDK, versionCode 6): the
+    // page only mirrors it — see SoftphoneNativeEngine. An iPhone build
+    // without the bridge stays a cell. An Android shell without it (vc4–5)
+    // runs this same browser softphone, foreground only (a closed app still
+    // rings the cell after the app leg times out) — but only from
+    // versionCode 4 on, which is the build that added RECORD_AUDIO to the
+    // manifest. Older installs have no microphone permission at all, and
+    // there getUserMedia can never succeed, so they keep ringing the cell
+    // instead of picking up a call they cannot answer.
     const voip = nativeVoip();
     if (voip) return startNativeSoftphone(voip, () => updateSessionRef.current);
     if (nativePlatform() === "ios" || (nativePlatform() === "android" && !androidShellHasMicrophone())) {

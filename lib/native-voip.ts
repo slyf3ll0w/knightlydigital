@@ -3,21 +3,24 @@
 import { getCapacitor, nativePlatform } from "@/components/NativeShell";
 
 /**
- * The iPhone app's calling engine (ios/App/App/VoipPlugin.swift: PushKit +
- * CallKit + the Telnyx iOS SDK), reached through window.Capacitor.Plugins
- * like every shell integration — nothing here imports @capacitor/*, so the
- * web bundle is untouched and a shell built before the plugin existed simply
- * has no bridge.
+ * The phone app's calling engine — ios/App/App/VoipPlugin.swift (PushKit +
+ * CallKit + the Telnyx iOS SDK) or android/.../VoipPlugin.kt (an FCM data
+ * push + a foreground call service + the Telnyx Android SDK) — reached
+ * through window.Capacitor.Plugins like every shell integration: nothing
+ * here imports @capacitor/*, so the web bundle is untouched and a shell
+ * built before the plugin existed simply has no bridge.
  *
- * On iOS the page never touches WebRTC: iOS freezes a background WKWebView,
- * so a call answered from the lock screen can only be taken by native code.
+ * In the apps the page never touches WebRTC: iOS freezes a background
+ * WKWebView and Android kills a backgrounded one, so a call answered from
+ * the lock screen can only be taken by native code.
  * components/SoftphoneNativeEngine.ts mirrors the engine's state on the call
- * card and forwards taps here. Every tap goes through CallKit on the native
- * side, so the system call screen and the card always agree.
+ * card and forwards taps here. Every tap goes through the system call
+ * screen on the native side, so it and the card always agree.
  *
  * Events (retained until the page attaches a listener; a cold start for a
  * call has the system screen up seconds before this code runs):
- *   voipToken      the PushKit token (and again whenever iOS rotates it)
+ *   voipToken      the PushKit token on iOS, the FCM token on Android (and
+ *                  again whenever the OS rotates it)
  *   engineState    { ready, error? } — registered with Telnyx, or why not
  *   incomingCall   a call is ringing on the system screen
  *   callAnswered   Answer tapped (there, or here via answer())
@@ -56,12 +59,24 @@ export type VoipPlugin = {
   addListener(event: string, cb: (data: unknown) => void): Promise<Handle> | Handle;
 };
 
+export type VoipDevice = "ios" | "android";
+
 export function nativeVoip(): VoipPlugin | null {
-  if (nativePlatform() !== "ios") return null;
+  if (!nativePlatform()) return null;
   const p = getCapacitor()?.Plugins?.WorkBenchVoip as VoipPlugin | undefined;
   // `answer` arrived with the native engine (1.3 build 8); an older shell's
   // bridge only forwarded PushKit and is of no use to the page.
   return typeof p?.register === "function" && typeof p?.answer === "function" ? p : null;
+}
+
+/** Which phone the engine runs on — its credential, its push platform. */
+export function voipDevice(): VoipDevice {
+  return nativePlatform() === "android" ? "android" : "ios";
+}
+
+/** The PushSubscription platform the engine's token registers under (lib/voip.ts VOIP_PLATFORMS). */
+export function voipPushPlatform(device: VoipDevice = voipDevice()): "ios-voip" | "android-voip" {
+  return device === "android" ? "android-voip" : "ios-voip";
 }
 
 /** Subscribe and get back an unsubscribe; tolerant of both plugin handle shapes. */
@@ -79,11 +94,17 @@ export function onVoip<T>(p: VoipPlugin, event: string, cb: Listener<T>): () => 
 }
 
 const TOKEN_KEY = "wb-voip-token";
+const TOKEN_PLATFORM_KEY = "wb-voip-platform";
 
-export function rememberVoipToken(token: string | null): void {
+export function rememberVoipToken(token: string | null, platform: "ios-voip" | "android-voip" = voipPushPlatform()): void {
   try {
-    if (token) localStorage.setItem(TOKEN_KEY, token);
-    else localStorage.removeItem(TOKEN_KEY);
+    if (token) {
+      localStorage.setItem(TOKEN_KEY, token);
+      localStorage.setItem(TOKEN_PLATFORM_KEY, platform);
+    } else {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(TOKEN_PLATFORM_KEY);
+    }
   } catch {}
 }
 
@@ -92,6 +113,15 @@ export function rememberedVoipToken(): string | null {
     return localStorage.getItem(TOKEN_KEY);
   } catch {
     return null;
+  }
+}
+
+/** The platform the remembered token was registered under (an older iPhone build stored no platform). */
+export function rememberedVoipPlatform(): "ios-voip" | "android-voip" {
+  try {
+    return localStorage.getItem(TOKEN_PLATFORM_KEY) === "android-voip" ? "android-voip" : "ios-voip";
+  } catch {
+    return "ios-voip";
   }
 }
 

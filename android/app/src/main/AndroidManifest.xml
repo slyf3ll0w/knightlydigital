@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <application
         android:name=".HubApplication"
         android:allowBackup="true"
@@ -31,6 +32,38 @@
                 <data android:scheme="https" android:host="workbenchfsm.com" android:pathPrefix="/app" />
             </intent-filter>
         </activity>
+
+        <!-- Business-line calls with the app closed (docs/plans/business-line-voice-2026-09-18.md
+             § Tier 3, Android half). WbMessagingService takes over Firebase messaging
+             from the Capacitor push plugin (it extends that service, so ordinary
+             notifications are untouched) and hands a "call" data message to
+             VoipEngine; CallService is the foreground service that rings
+             (full-screen IncomingCallActivity over the lock screen, CallStyle
+             notification, ringtone) and then keeps the call's process and
+             microphone alive; IncomingCallActivity is the call screen. -->
+        <service
+            android:name="com.capacitorjs.plugins.pushnotifications.MessagingService"
+            tools:node="remove" />
+        <service
+            android:name=".WbMessagingService"
+            android:exported="false">
+            <intent-filter android:priority="100">
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".CallService"
+            android:exported="false"
+            android:foregroundServiceType="phoneCall|microphone" />
+        <activity
+            android:name=".IncomingCallActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Material.NoActionBar" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -75,6 +108,18 @@
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- Calls with the app closed (CallService): a foreground service of type
+         phoneCall (+ microphone once answered), the full-screen incoming-call
+         screen over the lock screen, the ringtone's vibration, and the
+         call-ownership declaration the phoneCall type expects. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- RECORD_AUDIO implies a required microphone, which drops mic-less tablets and
          TVs from Play (20 devices on the vc4 upload). The app runs without one. -->
     <uses-feature android:name="android.hardware.microphone" android:required="false" />

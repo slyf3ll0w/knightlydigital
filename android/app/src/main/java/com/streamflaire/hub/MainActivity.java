@@ -10,6 +10,7 @@ public class MainActivity extends BridgeActivity {
         // Plugins that live in this project (not in node_modules) register before the bridge loads.
         registerPlugin(TapToPayPlugin.class);
         registerPlugin(SpeechPlugin.class);
+        registerPlugin(VoipPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

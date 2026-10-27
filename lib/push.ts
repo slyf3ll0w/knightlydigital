@@ -81,6 +81,43 @@ async function fcmAccessToken(sa: ServiceAccount): Promise<string> {
   return data.access_token;
 }
 
+/** FCM is set up on this server (a Firebase service account) — the Android app can be rung. */
+export function fcmConfigured(): boolean {
+  return Boolean(fcmAccount);
+}
+
+/**
+ * The push that rings the Android app when it is closed (lib/voip.ts): a
+ * DATA-only message — no notification block, or Android would show a plain
+ * notification itself and never wake the app's calling engine — at high
+ * priority, which is what lets the OS start the app's foreground call
+ * service from the background, and a TTL of the wake window so a phone that
+ * was off never rings for a call long over. Returns like sendFcm.
+ */
+export async function sendVoipFcm(
+  deviceToken: string,
+  data: Record<string, string>,
+  ttlSecs: number
+): Promise<"ok" | "dead" | "error"> {
+  if (!fcmAccount) return "error";
+  const accessToken = await fcmAccessToken(fcmAccount);
+  const res = await fetch(`https://fcm.googleapis.com/v1/projects/${fcmAccount.project_id}/messages:send`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message: {
+        token: deviceToken,
+        data: { type: "call", ...data },
+        android: { priority: "high", ttl: `${Math.max(1, Math.round(ttlSecs))}s`, direct_boot_ok: true },
+      },
+    }),
+  });
+  if (res.ok) return "ok";
+  if (res.status === 404) return "dead";
+  reportError("[voip] FCM send failed:", res.status, (await res.text()).slice(0, 300));
+  return "error";
+}
+
 /** Send one FCM message; "dead" means the device token is gone and the row should be pruned. */
 async function sendFcm(
   sa: ServiceAccount,
@@ -220,7 +257,9 @@ export async function notifyUsers(
     const subs = await prisma.pushSubscription.findMany({
       where: {
         userId: { in: [...new Set([...userIds, ...siblingRows.map((r) => r.id)])] },
-        // VoIP tokens are for ringing the phone (lib/voip.ts), never for a notification.
+        // A PushKit token only rings the iPhone (lib/voip.ts), never a
+        // notification. The Android app's "android-voip" row IS its FCM
+        // token, so it carries notifications like an "android" row.
         platform: { not: "ios-voip" },
       },
     });

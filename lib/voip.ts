@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { apnsConfigured, sendVoipPush } from "@/lib/apns";
-import { SOFTPHONE_ROLES } from "@/lib/softphone";
+import { fcmConfigured, sendVoipFcm } from "@/lib/push";
+import { PHONE_DEVICES, PHONE_SIP_SELECT, SOFTPHONE_ROLES, hasPhoneCredential, phoneSipColumn, type PhoneDevice } from "@/lib/softphone";
 
 /**
  * Ringing the iPhone app when it is closed (tier 3 of
@@ -17,11 +18,28 @@ import { SOFTPHONE_ROLES } from "@/lib/softphone";
  * (lib/voice.ts wakeSoftphoneLeg). Meanwhile the caller hears ringback,
  * and if no phone wakes in time the cell rings exactly as before.
  *
- * Android is not here yet: it needs an FCM high-priority data message plus
- * a foreground service (queued in docs/plans/native-release-queue.md).
+ * The Android app (versionCode 6+) does the same with an FCM high-priority
+ * DATA message (lib/push.ts sendVoipFcm) in place of the VoIP push: its
+ * calling engine (android/.../VoipEngine.kt) is woken by
+ * WbMessagingService, shows a full-screen incoming call from a foreground
+ * service, and runs the same grant → register → ready dance with its own
+ * credential (User.sipUsernameAndroid). Its token is the ordinary FCM
+ * token, registered under platform "android-voip" so the server can tell a
+ * shell with the engine from one without (which would never answer the
+ * data message, and must keep ringing the cell at once).
  */
 
-export const VOIP_PLATFORM = "ios-voip";
+export const VOIP_PLATFORMS = { ios: "ios-voip", android: "android-voip" } as const satisfies Record<PhoneDevice, string>;
+export const VOIP_PLATFORM = VOIP_PLATFORMS.ios;
+const VOIP_PLATFORM_LIST = Object.values(VOIP_PLATFORMS) as string[];
+
+export function voipPlatformDevice(platform: string): PhoneDevice | null {
+  return platform === VOIP_PLATFORMS.ios ? "ios" : platform === VOIP_PLATFORMS.android ? "android" : null;
+}
+
+function voipConfigured(): boolean {
+  return apnsConfigured() || fcmConfigured();
+}
 
 /**
  * How long the caller waits for a pushed phone to wake, register and take its
@@ -36,13 +54,13 @@ export const VOIP_WAKE_SECS = 35;
 export type VoipTarget = {
   /** The membership in the call's company that this phone answers as (its SIP leg, its call rows). */
   userId: string;
-  tokens: string[];
+  tokens: { token: string; device: PhoneDevice }[];
   /** The login behind this phone has more than one company, so the system call screen names which one is ringing. */
   multiCompany: boolean;
 };
 
 /**
- * Every iPhone that should ring for this company's calls.
+ * Every phone (iPhone or Android app) that should ring for this company's calls.
  *
  * A phone registers its VoIP token under whichever membership the app is
  * signed into, but a login can have several companies. The phone rings for
@@ -53,7 +71,7 @@ export type VoipTarget = {
  * (POST /api/app/line/softphone/ready answers "switch").
  */
 export async function voipTargetsFor(companyId: string): Promise<VoipTarget[]> {
-  if (!apnsConfigured()) return [];
+  if (!voipConfigured()) return [];
   const members = await prisma.user.findMany({
     where: { companyId, isActive: true, softphoneEnabled: true, role: { in: [...SOFTPHONE_ROLES] } },
     select: { id: true, accountId: true },
@@ -70,16 +88,18 @@ export async function voipTargetsFor(companyId: string): Promise<VoipTarget[]> {
   const membershipsPerAccount = new Map<string, number>();
   for (const s of siblings) if (s.accountId) membershipsPerAccount.set(s.accountId, (membershipsPerAccount.get(s.accountId) ?? 0) + 1);
   const rows = await prisma.pushSubscription.findMany({
-    where: { platform: VOIP_PLATFORM, userId: { in: [...new Set([...members.map((m) => m.id), ...siblings.map((s) => s.id)])] } },
-    select: { endpoint: true, user: { select: { id: true, accountId: true } } },
+    where: { platform: { in: VOIP_PLATFORM_LIST }, userId: { in: [...new Set([...members.map((m) => m.id), ...siblings.map((s) => s.id)])] } },
+    select: { endpoint: true, platform: true, user: { select: { id: true, accountId: true } } },
   });
   const byUser = new Map<string, VoipTarget>();
   for (const r of rows) {
     const local = members.some((m) => m.id === r.user.id) ? r.user.id : r.user.accountId ? memberByAccount.get(r.user.accountId) : undefined;
     if (!local) continue;
     const multiCompany = Boolean(r.user.accountId && (membershipsPerAccount.get(r.user.accountId) ?? 0) > 1);
+    const device = voipPlatformDevice(r.platform);
+    if (!device || (device === "ios" && !apnsConfigured()) || (device === "android" && !fcmConfigured())) continue;
     const t = byUser.get(local) ?? { userId: local, tokens: [], multiCompany };
-    t.tokens.push(r.endpoint);
+    t.tokens.push({ token: r.endpoint, device });
     byUser.set(local, t);
   }
   return [...byUser.values()];
@@ -113,11 +133,11 @@ export async function membershipOf(actorId: string, userId: string): Promise<{ i
  * the app: the INVITE for its own call is what wakes it.
  */
 /**
- * Every iOS SIP credential the phone behind `userId` may be registered as:
- * this membership's own first, then its siblings' (the other companies on
- * the login). The native engine registers as whichever company the page is
- * signed into, and a pushed call for ANOTHER company makes the page switch
- * the session before the engine has said it is awake
+ * Every SIP credential of this device kind the phone behind `userId` may be
+ * registered as: this membership's own first, then its siblings' (the other
+ * companies on the login). The native engine registers as whichever company
+ * the page is signed into, and a pushed call for ANOTHER company makes the
+ * page switch the session before the engine has said it is awake
  * (SoftphoneNativeEngine probeCompany): the engine then asks as this
  * membership while still registered as the other one, and a leg to this
  * credential alone dies at Telnyx with 480 (2026-10-21: David slid to
@@ -125,20 +145,25 @@ export async function membershipOf(actorId: string, userId: string): Promise<{ i
  * One leg per credential rings the one the phone holds; the rest die
  * within a second, unanswered.
  */
-export async function iosCredentialsOfLogin(userId: string): Promise<string[]> {
-  const me = await prisma.user.findUnique({ where: { id: userId }, select: { sipUsernameIos: true, accountId: true } });
-  if (!me?.sipUsernameIos) return [];
-  const siblings = me.accountId
+export async function phoneCredentialsOfLogin(userId: string, device: PhoneDevice): Promise<string[]> {
+  const col = phoneSipColumn(device);
+  const me = await prisma.user.findUnique({ where: { id: userId }, select: { ...PHONE_SIP_SELECT, accountId: true } });
+  const own = me?.[col];
+  if (!own) return [];
+  const siblings = me?.accountId
     ? await prisma.user.findMany({
-        where: { accountId: me.accountId, id: { not: userId }, isActive: true, sipUsernameIos: { not: null } },
-        select: { sipUsernameIos: true },
+        where: { accountId: me.accountId, id: { not: userId }, isActive: true, ...hasPhoneCredential(device) },
+        select: PHONE_SIP_SELECT,
       })
     : [];
   return uniqueCredentials(
-    me.sipUsernameIos,
-    siblings.map((s) => s.sipUsernameIos)
+    own,
+    siblings.map((s) => s[col])
   );
 }
+
+/** @deprecated use phoneCredentialsOfLogin(userId, "ios") */
+export const iosCredentialsOfLogin = (userId: string) => phoneCredentialsOfLogin(userId, "ios");
 
 /** Own credential first, then the siblings', no repeats or blanks. */
 export function uniqueCredentials(own: string, siblings: Array<string | null | undefined>): string[] {
@@ -147,14 +172,23 @@ export function uniqueCredentials(own: string, siblings: Array<string | null | u
   return out;
 }
 
-export async function voipRegisteredSoftphone(userId: string): Promise<{ sipUsername: string; device: "ios" } | null> {
-  const u = await prisma.user.findUnique({ where: { id: userId }, select: { sipUsernameIos: true, softphoneEnabled: true, accountId: true } });
-  if (!u?.sipUsernameIos || !u.softphoneEnabled) return null;
-  const token = await prisma.pushSubscription.findFirst({
-    where: { platform: VOIP_PLATFORM, OR: [{ userId }, ...(u.accountId ? [{ user: { accountId: u.accountId } }] : [])] },
-    select: { id: true },
+export async function voipRegisteredSoftphone(userId: string, device?: PhoneDevice): Promise<{ sipUsername: string; device: PhoneDevice } | null> {
+  const u = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { sipUsernameIos: true, sipUsernameAndroid: true, softphoneEnabled: true, accountId: true },
   });
-  return token ? { sipUsername: u.sipUsernameIos, device: "ios" } : null;
+  if (!u?.softphoneEnabled) return null;
+  const devices = device ? [device] : PHONE_DEVICES;
+  for (const d of devices) {
+    const sipUsername = u[phoneSipColumn(d)];
+    if (!sipUsername) continue;
+    const token = await prisma.pushSubscription.findFirst({
+      where: { platform: VOIP_PLATFORMS[d], OR: [{ userId }, ...(u.accountId ? [{ user: { accountId: u.accountId } }] : [])] },
+      select: { id: true },
+    });
+    if (token) return { sipUsername, device: d };
+  }
+  return null;
 }
 
 /**
@@ -173,9 +207,10 @@ export async function siblingMembershipFor(userId: string, companyId: string): P
 }
 
 /**
- * Send the VoIP push to every device of every target; dead tokens are
- * pruned. Returns how many devices were reached (best effort — "reached"
- * means Apple accepted the push, not that the phone rang).
+ * Send the wake push to every device of every target — APNs VoIP for an
+ * iPhone, an FCM data message for an Android phone; dead tokens are pruned.
+ * Returns how many devices were reached (best effort — "reached" means the
+ * push service accepted it, not that the phone rang).
  */
 export async function pushIncomingCall(
   call: { id: string; label: string; number: string; companyName: string },
@@ -188,8 +223,11 @@ export async function pushIncomingCall(
       // Two companies on one phone: the lock screen says which one is ringing.
       const label = t.multiCompany && call.companyName ? `${call.label} · ${call.companyName}` : call.label;
       const payload = { callId: call.id, label, number: call.number, companyName: call.companyName };
-      return t.tokens.map(async (token) => {
-        const r = await sendVoipPush(token, payload, VOIP_WAKE_SECS);
+      return t.tokens.map(async ({ token, device }) => {
+        const r =
+          device === "android"
+            ? await sendVoipFcm(token, { ...payload, sentAt: String(Date.now()) }, VOIP_WAKE_SECS)
+            : await sendVoipPush(token, payload, VOIP_WAKE_SECS);
         if (r === "ok") reached++;
         else if (r === "dead") dead.push(token);
       });

@@ -48,3 +48,12 @@
 -dontwarn java.sql.JDBCType
 -dontwarn org.slf4j.Logger
 -dontwarn org.slf4j.LoggerFactory
+
+# Telnyx Android WebRTC SDK (the calling engine): Gson maps its verto
+# messages onto Kotlin data classes by field name, and the WebRTC library is
+# JNI-backed — keep both whole.
+-keep class com.telnyx.webrtc.** { *; }
+-keep class org.webrtc.** { *; }
+-keepclassmembers class * { @com.google.gson.annotations.SerializedName <fields>; }
+-dontwarn com.telnyx.webrtc.**
+-dontwarn org.webrtc.**

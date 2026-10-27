@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
         contactId: typeof body.contactId === "string" ? body.contactId : null,
         to: typeof body.to === "string" ? body.to : null,
       },
-      { via: body.via === "app" ? "app" : "cell", device: body.device === "ios" ? "ios" : "browser" }
+      { via: body.via === "app" ? "app" : "cell", device: body.device === "ios" || body.device === "android" ? body.device : "browser" }
     );
     return NextResponse.json(out, { status: 201 });
   } catch (err) {
