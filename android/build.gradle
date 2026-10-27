@@ -9,6 +9,10 @@ buildscript {
     dependencies {
         classpath 'com.android.tools.build:gradle:8.13.0'
         classpath 'com.google.gms:google-services:4.4.4'
+        // The app's own native code is Kotlin from the calling engine on
+        // (app/.../VoipEngine.kt talks to the Telnyx SDK's Kotlin API — flows,
+        // default arguments — which Java cannot use comfortably).
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.21'
 
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
@@ -23,6 +27,8 @@ allprojects {
         mavenCentral()
         // Square Mobile Payments SDK (Tap to Pay on Android, app/.../TapToPayPlugin.java)
         maven { url 'https://sdk.squareup.com/public/android' }
+        // Telnyx Android WebRTC SDK (the calling engine, app/.../VoipEngine.kt) is published through JitPack.
+        maven { url 'https://jitpack.io' }
     }
 }
 

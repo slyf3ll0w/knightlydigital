@@ -8,7 +8,7 @@ import WBCta from "@/components/wb/WBCta";
 import WBFaq, { FaqItem } from "./WBFaq";
 import WBScreenshotFrame from "./WBScreenshotFrame";
 import type { FeatureItem } from "@/lib/wb-features";
-import { FREE_PLAN_NAME, PLANS } from "@/lib/plans";
+import { FREE_PLAN_NAME, INCLUDED_SEATS, PLANS } from "@/lib/plans";
 
 type Accent = "blue" | "orange";
 
@@ -43,7 +43,7 @@ export default function WBFeaturePage({
   ctaTitle = "Free to start. Full access, not a trial.",
   ctaBody = (
     <>
-      Two users included, flat-priced add-ons when the crew needs more.
+      {INCLUDED_SEATS} users included, flat-priced add-ons when the crew needs more.
       Apply, and we&apos;ll onboard your company personally.
     </>
   ),

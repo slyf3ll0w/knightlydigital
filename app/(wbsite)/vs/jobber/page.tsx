@@ -1,5 +1,14 @@
 import type { Metadata } from "next";
-import { RATES_SHORT } from "@/lib/plans";
+import { EXTRA_SEAT_CENTS, INCLUDED_SEATS, PLANS, RATES_SHORT, formatCents } from "@/lib/plans";
+import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } from "@/lib/atlas-pricing";
+const seats = INCLUDED_SEATS;
+const seatPrice = formatCents(EXTRA_SEAT_CENTS);
+const voicePrice = formatCents(PLANS.DISPATCH.monthlyCents);
+const proPrice = formatCents(PLANS.SHOP.monthlyCents);
+const freeTokens = tokenCount(ATLAS_FREE_TOKENS);
+const planTokens = tokenCount(ATLAS_PLAN_TOKENS);
+const planPrice = formatPlanPrice();
+
 import Link from "next/link";
 import { Banknote, Bot, PenLine, Users } from "lucide-react";
 import WBComparePage from "@/components/wb/WBComparePage";
@@ -15,12 +24,12 @@ export const metadata: Metadata = {
 const rows: CompareRow[] = [
   {
     label: "Pricing model",
-    workbench: "Free core software with full access for 2 users, not a trial. Optional flat-priced add-ons per company, from $25 a month: Voice (a business phone line), Pro (unlimited users and the ops tools, $89), and Gallery (job photos, coming soon). WorkBench also earns on processing when a client pays through it (" + RATES_SHORT + "), and nothing is charged if you never process a payment.",
+    workbench: `Free core software with full access for ${seats} users, not a trial. Optional flat-priced add-ons per company, from ${voicePrice} a month: ${PLANS.DISPATCH.name} (a business phone line), ${PLANS.SHOP.name} (unlimited users and the ops tools, ${proPrice}), and ${PLANS.JOBSITE.name} (job photos, coming soon). WorkBench also earns on processing when a client pays through it (${RATES_SHORT}), and nothing is charged if you never process a payment.`,
     competitor: "A monthly subscription with multiple pricing tiers, typically priced per user. Check jobber.com for current plans.",
   },
   {
     label: "Seats / users",
-    workbench: "2 included free, $10 a month each after that, or unlimited with the Pro add-on — owner, admin, sales, and tech roles on every plan.",
+    workbench: `${seats} included free, ${seatPrice} a month each after that, or unlimited with the ${PLANS.SHOP.name} add-on — owner, admin, sales, and tech roles on every plan.`,
     competitor: "Higher tiers generally unlock more users; adding seats can move you to a higher tier.",
   },
   {
@@ -35,7 +44,7 @@ const rows: CompareRow[] = [
   },
   {
     label: "AI assistant",
-    workbench: "Atlas — a built-in assistant you can talk to hands-free (or type to) that schedules, quotes, invoices, and messages on your behalf, always with a confirmation step. 10,000 free tokens every month; Atlas Full is $20/month for 150,000.",
+    workbench: `Atlas — a built-in assistant you can talk to hands-free (or type to) that schedules, quotes, invoices, and messages on your behalf, always with a confirmation step. ${freeTokens} free tokens every month; Atlas Full is ${planPrice}/month for ${planTokens}.`,
     competitor: "Has been rolling out AI features; check their current feature list for scope.",
   },
   {
@@ -54,12 +63,12 @@ const differentiators: FeatureItem[] = [
   {
     icon: Banknote,
     title: "No monthly bill unless you add something",
-    body: "The core stays free, and there's no tier ladder to climb. If a busy season means five more techs on the app, that's $10 a seat, or $89 flat for unlimited users with the Pro add-on — never a jump to a bigger plan.",
+    body: `The core stays free, and there's no tier ladder to climb. If a busy season means five more techs on the app, that's ${seatPrice} a seat, or ${proPrice} flat for unlimited users with the ${PLANS.SHOP.name} add-on — never a jump to a bigger plan.`,
   },
   {
     icon: Bot,
     title: "Atlas, priced for what it costs to run",
-    body: "The AI assistant works your scheduling, quotes, invoices, and messages under your account's own permissions. Every account gets 10,000 free tokens a month — real work, not a demo — and the $20 plan only exists for offices that want more.",
+    body: `The AI assistant works your scheduling, quotes, invoices, and messages under your account's own permissions. Every account gets ${freeTokens} free tokens a month — real work, not a demo — and the ${planPrice} plan only exists for offices that want more.`,
   },
   {
     icon: PenLine,
@@ -123,7 +132,7 @@ export default function VsJobberPage() {
           WorkBench vs. Jobber: <span className="text-[#0B57D8]">free core software</span>, one flat fee.
         </>
       }
-      intro="Jobber and WorkBench both run scheduling, quoting, invoicing, and payments for home-service teams. The difference is the pricing model: Jobber is a per-user monthly subscription; WorkBench is free core software (full access for two users, not a trial) with flat-priced optional add-ons, funded mostly by a flat percentage of the payments you process through it."
+      intro={`Jobber and WorkBench both run scheduling, quoting, invoicing, and payments for home-service teams. The difference is the pricing model: Jobber is a per-user monthly subscription; WorkBench is free core software (full access for ${seats} users, not a trial) with flat-priced optional add-ons, funded mostly by a flat percentage of the payments you process through it.`}
       rows={rows}
       fairPoint={{
         title: "Jobber has been at this since 2011 and it shows.",

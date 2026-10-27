@@ -61,3 +61,26 @@ export const WB_PHOTOS = {
     alt: "A roofer standing on the roof of a brick house with a ladder against the gutter",
   },
 } as const;
+
+/**
+ * Real App Store phone captures used in the split heroes (WBSplitHero) and
+ * the trade pages. `zoom` is the magnified region in the screenshot's own
+ * pixels (640 x 1385 captures unless `size` says otherwise).
+ */
+export type WbShot = {
+  src: string;
+  alt: string;
+  size?: { w: number; h: number };
+  zoom?: { x: number; y: number; w: number; h: number };
+};
+
+export const WB_SHOTS = {
+  schedule: { src: "/screens/mobile-01.png", alt: "The WorkBench phone app: the week's schedule, one card per job", zoom: { x: 18, y: 922, w: 604, h: 124 } },
+  jobs: { src: "/screens/mobile-02.png", alt: "The WorkBench phone app: the jobs list with status on every job", zoom: { x: 24, y: 668, w: 596, h: 228 } },
+  invoices: { src: "/screens/mobile-03.png", alt: "The WorkBench phone app: invoices, each marked paid", zoom: { x: 24, y: 589, w: 592, h: 243 } },
+  clients: { src: "/screens/mobile-04.png", alt: "The WorkBench phone app: every client in one list", zoom: { x: 24, y: 569, w: 592, h: 223 } },
+  quotes: { src: "/screens/mobile-05.png", alt: "The WorkBench phone app: quotes and where each one stands", zoom: { x: 24, y: 586, w: 592, h: 243 } },
+  insights: { src: "/screens/mobile-06.png", alt: "The WorkBench phone app: revenue, expenses, and profit", zoom: { x: 20, y: 361, w: 600, h: 287 } },
+  menu: { src: "/screens/mobile-atlas.png", alt: "The WorkBench phone app menu with Atlas at the top", zoom: { x: 18, y: 466, w: 604, h: 96 } },
+  timeclock: { src: "/screens/mobile-timeclock.png", alt: "A job in the WorkBench phone app with the Clock In button", zoom: { x: 24, y: 662, w: 594, h: 174 } },
+} satisfies Record<string, WbShot>;

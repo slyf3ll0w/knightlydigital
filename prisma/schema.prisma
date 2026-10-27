@@ -554,13 +554,16 @@ model User {
   emailAlerts        Boolean?
   // Per-user Telnyx telephony credential (under Company.lineSipConnectionId);
   // sipUsername is what Call Control dials (sip:<username>@sip.telnyx.com).
-  // One credential per device kind: the browser's and the iPhone app's are
-  // separate registrations at Telnyx, so a phone logging in never bumps the
-  // desktop off the line and each gets exactly the leg meant for it.
-  sipCredentialId    String?
-  sipUsername        String?
-  sipCredentialIdIos String?
-  sipUsernameIos     String?
+  // One credential per device kind: the browser's, the iPhone app's and
+  // the Android app's are separate registrations at Telnyx, so a phone
+  // logging in never bumps the desktop off the line and each gets exactly
+  // the leg meant for it (lib/softphone.ts credentialFor).
+  sipCredentialId        String?
+  sipUsername            String?
+  sipCredentialIdIos     String?
+  sipUsernameIos         String?
+  sipCredentialIdAndroid String?
+  sipUsernameAndroid     String?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -685,7 +688,10 @@ model PushSubscription {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   // Web: the push-service endpoint URL. Native (ios/android): the FCM device token.
   endpoint  String   @unique
-  platform  String   @default("web") // "web" | "ios" | "android"
+  // "web" | "ios" | "android" | "ios-voip" (PushKit, rings the iPhone) |
+  // "android-voip" (the Android app's FCM token, registered by its calling
+  // engine: rings the phone AND carries ordinary notifications — lib/voip.ts)
+  platform  String   @default("web")
   // Web-push encryption keys — null for native subscriptions
   p256dh    String?
   auth      String?
@@ -3646,8 +3652,9 @@ model CallLeg {
   userId       String?
   user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   telnyxCallId String    @unique // call_control_id of this SIP leg
-  // "browser" (a registered tab, rung at once) or "ios" (the iPhone app,
-  // dialed once its VoIP push woke it) — its own credential either way.
+  // "browser" (a registered tab, rung at once), "ios" (the iPhone app) or
+  // "android" (the Android app) — a phone is dialed once its push woke it;
+  // its own credential either way.
   device       String?
   endedAt      DateTime?
   hangupCause  String?

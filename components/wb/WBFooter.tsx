@@ -2,6 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { WB_HOME } from "./WBNav";
 import { APP_STORE_URL, WB_EMAIL, WB_EMAIL_HREF, WB_FACEBOOK_URL, WB_PHONE } from "@/lib/wb-site";
+import { INCLUDED_SEATS } from "@/lib/plans";
+import { FREE_PAGE_PATH } from "@/lib/wb-free";
+import { TRADES } from "@/lib/wb-trades";
 
 const columns: {
   heading: string;
@@ -13,8 +16,13 @@ const columns: {
       { label: "Home", href: WB_HOME },
       { label: "Features", href: "/features" },
       { label: "Pricing", href: "/pricing" },
+      { label: "The free plan", href: FREE_PAGE_PATH },
       { label: "iPhone app", href: APP_STORE_URL, external: true },
     ],
+  },
+  {
+    heading: "For your trade",
+    links: [...TRADES.map((t) => ({ label: t.name, href: `/trades/${t.slug}` })), { label: "Every trade", href: "/trades" }],
   },
   {
     heading: "Features",
@@ -55,7 +63,7 @@ const columns: {
 export default function WBFooter() {
   return (
     <footer className="border-t border-gray-200 bg-white">
-      <div className="mx-auto grid max-w-6xl gap-12 px-5 py-16 sm:px-8 lg:grid-cols-[minmax(240px,1.2fr)_repeat(4,minmax(0,1fr))] lg:gap-10">
+      <div className="mx-auto grid max-w-6xl gap-12 px-5 py-16 sm:px-8 lg:grid-cols-[minmax(220px,1.1fr)_repeat(5,minmax(0,1fr))] lg:gap-10">
         <div className="max-w-xs">
           <Image
             src="/workbench-wordmark.png"
@@ -66,7 +74,7 @@ export default function WBFooter() {
           />
           <p className="mt-5 text-[14px] leading-relaxed text-gray-500">
             WorkBench FSM: field service management software for home-service
-            companies. Free for 2 users, funded by payment processing. Add-ons only if you want them.
+            companies. Free for {INCLUDED_SEATS} users, funded by payment processing. Add-ons only if you want them.
           </p>
           <div className="mt-6 space-y-2 text-[14px] font-semibold text-gray-800">
             <a href={WB_PHONE.href} className="block hover:text-[#0B57D8]">

@@ -1,3 +1,4 @@
+import { INCLUDED_SEATS } from "@/lib/plans";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { AnimateIn } from "@/components/AnimateIn";
@@ -13,7 +14,7 @@ import { paymentsGateEnabled } from "@/lib/payments-gate";
 export const metadata: Metadata = {
   title: "Get started",
   description:
-    "Open your WorkBench account in minutes: tell us about your business and start setting up. Free with full access for 2 users, not a trial.",
+    `Open your WorkBench account in minutes: tell us about your business and start setting up. Free with full access for ${INCLUDED_SEATS} users, not a trial.`,
 };
 
 const verifySteps = [

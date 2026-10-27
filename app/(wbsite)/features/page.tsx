@@ -9,7 +9,8 @@ import WBScribble from "@/components/wb/WBScribble";
 import WBCta from "@/components/wb/WBCta";
 import WBPhoneShowcase from "@/components/wb/WBPhoneShowcase";
 import { APP_STORE_URL, sections } from "@/lib/wb-features";
-import { PLANS } from "@/lib/plans";
+import { INCLUDED_SEATS, PLANS } from "@/lib/plans";
+import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } from "@/lib/atlas-pricing";
 import {
   CheckCircle2,
   ArrowRight,
@@ -22,7 +23,7 @@ import {
 export const metadata: Metadata = {
   title: "Features",
   description:
-    "Everything in WorkBench FSM, end to end: online booking, lead pipeline, quotes with e-signature, scheduling and dispatch, clock-in, team chat, invoicing, card & ACH payments, recurring billing, and a client hub — free with full access for 2 users, not a trial. Plus Atlas, an AI assistant you can talk to hands-free, with 10,000 free tokens every month, and optional add-ons for a phone line, unlimited users with the ops tools, and job photos.",
+    `Everything in WorkBench FSM, end to end: online booking, lead pipeline, quotes with e-signature, scheduling and dispatch, clock-in, team chat, invoicing, card & ACH payments, recurring billing, and a client hub — free with full access for ${INCLUDED_SEATS} users, not a trial. Plus Atlas, an AI assistant you can talk to hands-free, with ${tokenCount(ATLAS_FREE_TOKENS)} free tokens every month, and optional add-ons for a phone line, unlimited users with the ops tools, and job photos.`,
 };
 
 // Section id → deep-dive pages worth a link once the reader has seen the
@@ -59,7 +60,7 @@ export default function WBFeaturesPage() {
           WorkBench covers the whole arc of a job: winning it, running it,
           getting paid for it, and keeping the client for the next one.
           Nearly all of sections 01 to 04 are in Core, the free plan,
-          with full access for two users. The few marked Pro come with
+          with full access for {INCLUDED_SEATS} users. The few marked Pro come with
           that add-on, alongside the estimator, routes, automations, and
           QuickBooks. Atlas, the AI assistant, gives every account free
           tokens each month, with a larger paid allowance for heavy users.
@@ -165,9 +166,9 @@ export default function WBFeaturesPage() {
                   client is read back to you first.
                 </p>
                 <p className="mt-3 max-w-lg text-[14px] leading-relaxed text-gray-600">
-                  10,000 free tokens every month on every account. Atlas Full
-                  is 150,000 a month for $20 on its own, and included with
-                  Pro; it is the one thing with a meter.
+                  {tokenCount(ATLAS_FREE_TOKENS)} free tokens every month on every account. Atlas Full
+                  is {tokenCount(ATLAS_PLAN_TOKENS)} a month for {formatPlanPrice()} on its own, and included with
+                  {" "}{PLANS.SHOP.name}; it is the one thing with a meter.
                 </p>
                 <Link
                   href="/features/atlas"
@@ -263,7 +264,7 @@ export default function WBFeaturesPage() {
 
       <WBCta
         title="Free to start. Add more when the crew needs it."
-        body="Full access for two users, not a trial, and flat-priced add-ons when you want them. Sign up and we onboard your company personally."
+        body={`Full access for ${INCLUDED_SEATS} users, not a trial, and flat-priced add-ons when you want them. Sign up and we onboard your company personally.`}
       />
     </>
   );

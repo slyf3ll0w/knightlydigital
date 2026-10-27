@@ -15,58 +15,30 @@ import WBPhoneReal, { WBZoom } from "@/components/wb/WBPhoneReal";
 import WBTestimonials from "@/components/wb/WBTestimonials";
 import WBScribble from "@/components/wb/WBScribble";
 import WBSystemTabs from "@/components/wb/WBSystemTabs";
-import { APP_STORE_URL, PLAY_STORE_URL, WB_PHOTOS, WB_TRADE_PHOTOS, WB_PHONE } from "@/lib/wb-site";
+import WBTradeCards from "@/components/wb/WBTradeCards";
+import { FREE_PAGE_PATH } from "@/lib/wb-free";
+import { APP_STORE_URL, PLAY_STORE_URL, WB_PHOTOS, WB_PHONE } from "@/lib/wb-site";
 import { EXTRA_SEAT_CENTS, FREE_PLAN_NAME, INCLUDED_SEATS, PLANS, formatCents } from "@/lib/plans";
 import {
   ArrowRight,
-  Bug,
   CalendarClock,
   CalendarDays,
   Check,
   CheckCircle2,
-  Droplets,
-  Fan,
-  Hammer,
-  Home,
   Landmark,
-  Leaf,
   MapPin,
   Mic,
   Phone,
-  Plug,
   Smartphone,
-  Sparkles,
-  SprayCan,
-  Warehouse,
-  Waves,
   WifiOff,
-  Zap,
 } from "lucide-react";
 
 export const metadata: Metadata = {
   title: { absolute: "WorkBench FSM — Free field service management software" },
   alternates: { canonical: "https://workbenchfsm.com/" },
   description:
-    "WorkBench FSM is field service management software for home-service companies: scheduling, quoting, invoicing, and payments. Online booking, dispatch, a client portal, team chat, Atlas (an AI assistant you can talk to hands-free), and native iPhone and Android apps. The Core plan is free for 2 users with full access, not a trial; extra users are $10 a month, and optional add-ons cover a phone line, unlimited users, and job photos.",
+    `WorkBench FSM is field service management software for home-service companies: scheduling, quoting, invoicing, and payments. Online booking, dispatch, a client portal, team chat, Atlas (an AI assistant you can talk to hands-free), and native iPhone and Android apps. The ${FREE_PLAN_NAME} plan is free for ${INCLUDED_SEATS} users with full access, not a trial; extra users are ${formatCents(EXTRA_SEAT_CENTS)} a month, and optional add-ons cover a phone line, unlimited users, and job photos.`,
 };
-
-const tradeCards = [
-  { icon: Droplets, label: "Plumbing", photo: WB_TRADE_PHOTOS.plumbing },
-  { icon: Fan, label: "HVAC", photo: WB_TRADE_PHOTOS.hvac },
-  { icon: Zap, label: "Electrical", photo: WB_TRADE_PHOTOS.electrical },
-  { icon: Leaf, label: "Lawn care", photo: WB_TRADE_PHOTOS.lawn },
-  { icon: Home, label: "Roofing", photo: WB_TRADE_PHOTOS.roofing },
-  { icon: Sparkles, label: "Cleaning", photo: WB_TRADE_PHOTOS.cleaning },
-  { icon: SprayCan, label: "Pressure washing", photo: WB_TRADE_PHOTOS.pressure },
-  { icon: Waves, label: "Pool service", photo: WB_TRADE_PHOTOS.pool },
-];
-
-const moreTrades = [
-  { icon: Hammer, label: "Handyman" },
-  { icon: Bug, label: "Pest control" },
-  { icon: Plug, label: "Appliance repair" },
-  { icon: Warehouse, label: "Garage doors" },
-];
 
 const rateRows = [
   { label: "The software", value: `${FREE_PLAN_NAME} plan, free` },
@@ -92,7 +64,11 @@ const faqItems = [
         photos) are priced flat per company. The core is funded by built-in
         payment processing: when a client pays an invoice through WorkBench, a
         small slice of the flat processing fee is what keeps the lights on. The
-        full breakdown is on the{" "}
+        full story is on the{" "}
+        <Link href={FREE_PAGE_PATH} className="font-semibold text-[#0B57D8] hover:underline">
+          free plan page
+        </Link>{" "}
+        and the full breakdown is on the{" "}
         <Link href="/pricing" className="font-semibold text-[#0B57D8] hover:underline">
           pricing page
         </Link>
@@ -525,43 +501,10 @@ export default function WBHomePage() {
             <p className="mt-4 text-[16px] leading-relaxed text-gray-600">
               Quotes are priced by the job, schedules are built around drive
               time, and invoices are sent from the driveway. If your trade is on
-              this list, it fits.
+              this list, it fits. Pick yours to see how a day runs.
             </p>
           </AnimateIn>
-          <div className="mt-12 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-            {tradeCards.map(({ icon: Icon, label, photo }, i) => (
-              <AnimateIn key={label} delay={(i % 4) * 60}>
-                <div className="group relative aspect-[4/5] overflow-hidden rounded-2xl bg-gray-200 sm:aspect-[4/3] lg:aspect-[4/5]">
-                  <Image
-                    src={photo.src}
-                    alt={photo.alt}
-                    fill
-                    sizes="(min-width: 1024px) 270px, 50vw"
-                    className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0A1328]/85 via-[#0A1328]/15 to-transparent" aria-hidden />
-                  <div className="absolute inset-x-0 bottom-0 flex items-center gap-2.5 p-3.5 sm:p-4">
-                    <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-white/15 backdrop-blur-sm">
-                      <Icon className="h-4 w-4 text-white" strokeWidth={2.2} />
-                    </span>
-                    <span className="text-[15px] font-bold text-white sm:text-[16px]">{label}</span>
-                  </div>
-                </div>
-              </AnimateIn>
-            ))}
-          </div>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
-            <span className="text-[14px] font-semibold text-gray-500">Also:</span>
-            {moreTrades.map(({ icon: Icon, label }) => (
-              <span
-                key={label}
-                className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-[14px] font-bold text-gray-900 ring-1 ring-inset ring-gray-200/70"
-              >
-                <Icon className="h-4 w-4 text-[#0B57D8]" strokeWidth={2} />
-                {label}
-              </span>
-            ))}
-          </div>
+          <WBTradeCards featured={8} />
         </div>
       </section>
 

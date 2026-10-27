@@ -8,6 +8,8 @@ import { RATES_SHORT } from "@/lib/plans";
  */
 import { DISPATCH_MINUTES_INCLUDED, DISPATCH_TEXTS_INCLUDED } from "./plans";
 import { HELP_SECTIONS, helpCenterMarkdown } from "./help/search";
+import { FREE_PAGE_PATH } from "./wb-free";
+import { TRADES } from "./wb-trades";
 import {
   ATLAS_FREE,
   ATLAS_FULL,
@@ -51,6 +53,7 @@ ${summary()}
 - [Home](${BASE}/): Overview, the free ${CORE} plan, trades supported, and the mobile apps.
 - [Features](${BASE}/features): The complete feature catalog across four stages — win the work, run the day, get paid, keep clients close — plus Atlas and mobile.
 - [Pricing](${BASE}/pricing): ${CORE} (free), the ${VOICE}, ${PRO}, ${MAX} and ${GALLERY} add-ons, Atlas Full, processing rates, and FAQ.
+- [The free plan](${BASE}${FREE_PAGE_PATH}): What "free, not a trial" means — full access for ${SEATS_INCLUDED} users, no card, no clock — what is in ${CORE}, and the three optional things that cost money.
 - [Get started](${BASE}/apply): How a company signs up and gets onboarded.
 
 ## Feature deep-dives
@@ -69,6 +72,11 @@ ${summary()}
 - [Help Center, full text](${BASE}/help/all.md): Every guide in one Markdown file. Use it to answer how-to questions about WorkBench.
 - [Plans and pricing guide](${BASE}/help/plans-and-pricing): What each plan adds and how to add one.
 ${topics}
+
+## By trade
+
+- [Every trade](${BASE}/trades): WorkBench for companies that send people to a customer's home.
+${TRADES.map((t) => `- [${t.name}](${BASE}/trades/${t.slug}): ${t.description}`).join("\n")}
 
 ## Comparisons
 

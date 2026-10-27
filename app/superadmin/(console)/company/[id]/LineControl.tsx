@@ -157,7 +157,13 @@ export function LineControl({
             {row(
               "Voice",
               voiceAppAt ? (
-                <>Call Control (whisper, voicemail, app calls) since {fmt(voiceAppAt)}</>
+                <>
+                  Call Control (whisper, voicemail, app calls) since {fmt(voiceAppAt)} ·{" "}
+                  <button type="button" onClick={() => send({ action: "line-ring" })} disabled={busy} className="ds-link">
+                    ring the phone apps
+                  </button>
+                  <InfoTip>Sends the real wake push to every iPhone / Android app signed in with Calls in the app on, with no call behind it: the phone rings, its engine registers, the server says the call is gone and the screen closes. Proves a phone can be rung without placing a call.</InfoTip>
+                </>
               ) : voiceAvailable ? (
                 <>
                   plain forwarding ·{" "}

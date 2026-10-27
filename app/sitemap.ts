@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 import { HELP_SECTIONS } from "@/lib/help/content";
+import { FREE_PAGE_PATH } from "@/lib/wb-free";
+import { TRADES } from "@/lib/wb-trades";
 
 const BASE = "https://workbenchfsm.com";
 
@@ -24,6 +26,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
     })),
     { url: `${BASE}/pricing`, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${BASE}${FREE_PAGE_PATH}`, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${BASE}/trades`, changeFrequency: "monthly", priority: 0.7 },
+    ...TRADES.map((t) => ({
+      url: `${BASE}/trades/${t.slug}`,
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+    })),
     ...COMPETITORS.map((slug) => ({
       url: `${BASE}/vs/${slug}`,
       changeFrequency: "monthly" as const,

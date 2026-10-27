@@ -7,6 +7,7 @@ import { limit } from "@/lib/rate-limit";
 import { companyHasProtectedUser, deleteCompanyCascade } from "@/lib/company-delete";
 import { LineError, appealCampaignRegistration, approveRegistration, attachExistingNumber, keepLine, moveLine, refreshKeywordReplies, releaseLine } from "@/lib/business-line";
 import { VoiceError, ensureVoiceRouting } from "@/lib/voice";
+import { pushIncomingCall, voipTargetsFor } from "@/lib/voip";
 import { PLAN_IDS, isPlanId, normalizeGrants } from "@/lib/plans";
 import type { Prisma } from "@prisma/client";
 
@@ -50,6 +51,7 @@ const ACTIONS = new Set([
   "line-attach",
   "line-keep",
   "line-voice-sync",
+  "line-ring",
   "line-file",
   "line-appeal",
   "line-keywords",
@@ -275,6 +277,21 @@ export async function PATCH(
       if (err instanceof VoiceError) return NextResponse.json({ error: err.message }, { status: err.status });
       throw err;
     }
+  }
+
+  // Ring every phone app registered for this company's calls, with no call
+  // behind it: the real wake push (APNs VoIP / FCM data), the phone shows
+  // its call screen, its engine registers and asks for the leg, the server
+  // answers "late" (no such call) and the screen dismisses — the whole
+  // path but the SIP leg, without anyone placing a call. The way to check a
+  // phone can be rung at all (lib/voip.ts).
+  if (action === "line-ring") {
+    const targets = await voipTargetsFor(id);
+    const phones = targets.reduce((n, t) => n + t.tokens.length, 0);
+    if (phones === 0) return NextResponse.json({ error: "No phone app is registered for this company's calls (Calls in the app on, signed in on the iPhone or Android app)." }, { status: 409 });
+    const reached = await pushIncomingCall({ id: `test-ring-${Date.now().toString(36)}`, label: "WorkBench test ring", number: "", companyName: company.name }, targets);
+    audit(`${reached}/${phones} phone(s) reached`);
+    return NextResponse.json({ success: true, phones, reached });
   }
 
   // Approve a waiting (or rejected / queued) texting registration: the one

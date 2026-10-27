@@ -85,6 +85,7 @@ const LABELS: Record<string, string> = {
   "line-attach": "Attached a business-line number",
   "line-keep": "Cancelled the line release",
   "line-voice-sync": "Moved the line onto the voice app",
+  "line-ring": "Test-rang the phone apps",
   "line-file": "Filed the texting registration",
   "line-appeal": "Appealed the texting campaign",
   "line-keywords": "Set brand-named STOP/HELP replies",

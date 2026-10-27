@@ -19,6 +19,7 @@ class ShellViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(VoipPlugin())
         bridge?.registerPluginInstance(TapToPayPlugin())
+        bridge?.registerPluginInstance(SpeechPlugin())
     }
 
     override open func instanceDescriptor() -> InstanceDescriptor {

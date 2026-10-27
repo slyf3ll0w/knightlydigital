@@ -739,7 +739,7 @@ export default function AssistantVoice({
             ? "Talk like you would to a person — you can interrupt. Money and permanent changes still need a tap in the chat."
             : fellBack
               ? `Live voice couldn't connect, so Atlas is taking turns: speak, pause, hear the answer. (${fellBack})`
-              : inputKind === "recorder"
+              : inputKind === "recorder" || inputKind === "native"
                 ? `Speak, then pause — Atlas answers when you stop talking. Say "stop" when you're finished.`
                 : `Say "stop" when you're finished. Money and permanent changes still need a tap in the chat.`}
         </p>

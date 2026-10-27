@@ -5,6 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Check, Sparkles } from "lucide-react";
 import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } from "@/lib/atlas-pricing";
+import { freeGroups } from "@/lib/wb-free";
 import {
   ANNUAL_MONTHS,
   DISPATCH_OVERAGE_CENTS,
@@ -25,44 +26,6 @@ import {
  * not a trial — then the optional add-ons (Voice, Pro, Gallery, Max) with a monthly/annual toggle. Every number comes from lib/plans.ts.
  */
 
-const freeGroups: { label: string; accent: string; items: string[] }[] = [
-  {
-    label: "Run the work",
-    accent: "border-[#0B57D8]",
-    items: [
-      "Client database & history",
-      "Online booking & self-scheduling",
-      "Drag-to-schedule calendar",
-      "Job pipeline with notes & photos",
-      "Lead pipeline board",
-      "Clock in and out on the job",
-    ],
-  },
-  {
-    label: "Get paid",
-    accent: "border-[#F86A0A]",
-    items: [
-      "Quotes with e-signature",
-      "One-click invoicing",
-      "Card & ACH payments",
-      "Deposits & payment reminders",
-      "Recurring billing & autopay",
-      "One-click refunds",
-    ],
-  },
-  {
-    label: "Grow & manage",
-    accent: "border-[#0B57D8]",
-    items: [
-      "Branded client portal",
-      "Two-way client messaging",
-      "Team chat & mobile push",
-      "Team roles & permissions",
-      "iPhone & Android apps, offline mode",
-      `Atlas AI, ${tokenCount(ATLAS_FREE_TOKENS)} free tokens a month`,
-    ],
-  },
-];
 
 function PriceLine({ monthlyCents, annual }: { monthlyCents: number; annual: boolean }) {
   const yearly = annualCents(monthlyCents);
