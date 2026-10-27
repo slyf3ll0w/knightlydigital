@@ -16,10 +16,12 @@
  */
 import { execFileSync, spawnSync } from "node:child_process";
 
+// --environment production is explicit: the repo link points at staging, so
+// without it this "prod" push silently went to whichever env was linked.
 const extra = process.argv.slice(2);
 const npx = process.platform === "win32" ? "npx.cmd" : "npx";
 
-const kv = execFileSync(npx, ["-y", "@railway/cli", "variables", "--service", "Postgres", "--kv"], {
+const kv = execFileSync(npx, ["-y", "@railway/cli", "variables", "--service", "Postgres", "--environment", "production", "--kv"], {
   encoding: "utf8",
   stdio: ["ignore", "pipe", "inherit"],
   shell: process.platform === "win32",

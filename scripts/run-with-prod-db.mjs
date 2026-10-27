@@ -8,13 +8,19 @@
  */
 import { execFileSync, spawnSync } from "node:child_process";
 
-const [script, ...extra] = process.argv.slice(2);
+// --env <name> (default production) picks the Railway environment; the repo link
+// points at staging, so without this the "prod" runner silently read staging.
+const argv = process.argv.slice(2);
+let environment = "production";
+const envAt = argv.indexOf("--env");
+if (envAt !== -1) { environment = argv[envAt + 1] ?? environment; argv.splice(envAt, 2); }
+const [script, ...extra] = argv;
 if (!script) {
-  console.error("usage: node scripts/run-with-prod-db.mjs <script.mjs> [args]");
+  console.error("usage: node scripts/run-with-prod-db.mjs [--env production|staging] <script.mjs> [args]");
   process.exit(1);
 }
 const npx = process.platform === "win32" ? "npx.cmd" : "npx";
-const kv = execFileSync(npx, ["-y", "@railway/cli", "variables", "--service", "Postgres", "--kv"], {
+const kv = execFileSync(npx, ["-y", "@railway/cli", "variables", "--service", "Postgres", "--environment", environment, "--kv"], {
   encoding: "utf8",
   stdio: ["ignore", "pipe", "inherit"],
   shell: process.platform === "win32",
@@ -25,6 +31,6 @@ if (!line) {
   process.exit(1);
 }
 const url = line.slice("DATABASE_PUBLIC_URL=".length);
-console.log(`Running ${script} ${extra.join(" ")} against production (${new URL(url).hostname})`.trim());
+console.log(`Running ${script} ${extra.join(" ")} against ${environment} (${new URL(url).hostname})`.trim());
 const res = spawnSync(process.execPath, [script, ...extra], { stdio: "inherit", env: { ...process.env, DATABASE_URL: url } });
 process.exit(res.status ?? 1);
