@@ -105,6 +105,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
         endedAt: true,
         endedBy: true,
         contact: { select: { id: true, firstName: true, lastName: true, status: true } },
+        participants: { select: { status: true, label: true } },
         user: { select: { name: true } },
         via: true,
         answeredBy: { select: { name: true } },

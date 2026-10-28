@@ -7,9 +7,10 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, canSell } from "@/lib/permissions";
 import { fmtDateTime, fmtPhone, fmtTime } from "@/lib/format";
 import { money } from "@/lib/statuses";
-import { resolveCallContacts } from "@/lib/voice";
+import { callPeopleView, resolveCallContacts } from "@/lib/voice";
 import { loadCallEvents, type CallEvent } from "@/lib/call-events";
 import CallRow, { EVENT_ICON, standingWord } from "@/components/CallRow";
+import Monogram from "@/components/Monogram";
 import CallsLive from "@/components/CallsLive";
 import CallScreenLive from "./CallScreenLive";
 import CallActions from "./CallActions";
@@ -84,6 +85,28 @@ export default async function CallScreenPage({ params }: { params: Promise<{ id:
         endedBy: true,
         endedAt: true,
         via: true,
+        userId: true,
+        answeredByUserId: true,
+        telnyxCallId: true,
+        agentCallId: true,
+        conferenceId: true,
+        participants: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            kind: true,
+            status: true,
+            userId: true,
+            contactId: true,
+            number: true,
+            label: true,
+            telnyxCallId: true,
+            addedByUserId: true,
+            joinedAt: true,
+            leftAt: true,
+            createdAt: true,
+          },
+        },
         notes: true,
         transcript: true,
         atlasNotes: true,
@@ -160,6 +183,8 @@ export default async function CallScreenPage({ params }: { params: Promise<{ id:
       ])
     : [new Map<string, CallEvent[]>(), [], [], [], [], []];
   const onThisCall = events.get(call.id) ?? [];
+  // People added to the call who actually joined (Add a person); ringing/no-answer attempts are not history.
+  const alsoOn = call.participants.filter((p) => p.status === "joined" || p.status === "left");
 
   const name = contact ? `${contact.firstName} ${contact.lastName}`.trim() || contact.companyName || "" : "";
   const number = fmtPhone(call.customerNumber);
@@ -200,7 +225,35 @@ export default async function CallScreenPage({ params }: { params: Promise<{ id:
         placedAt={fmtDateTime(call.createdAt, tz)}
         canCall={routed}
         via={call.via === "app" ? "app" : call.via === "cell" ? "cell" : null}
+        initialPeople={callPeopleView(call, actor.id)}
       />
+
+      {terminal && alsoOn.length > 0 && (
+        <section className="ds-card mt-4 p-4 sm:p-5">
+          <SectionHeader title="Also on the call" />
+          <ul className="mt-2 divide-y divide-gray-100">
+            {alsoOn.map((p) => (
+              <li key={p.id} className="flex items-center gap-3 py-2 text-sm">
+                <Monogram name={p.label} size={28} />
+                <span className="min-w-0 flex-1 truncate">
+                  {p.contactId ? (
+                    <Link href={`/app/contacts/${p.contactId}`} className="font-medium text-gray-800 hover:underline">
+                      {p.label}
+                    </Link>
+                  ) : (
+                    <span className="font-medium text-gray-800">{p.label}</span>
+                  )}
+                  <span className="text-gray-400"> · {p.kind === "team" ? "teammate" : p.kind === "contact" ? "client" : fmtPhone(p.number ?? "")}</span>
+                </span>
+                <span className="numeral-ledger shrink-0 text-xs tabular-nums text-gray-500">
+                  {p.joinedAt ? fmtTime(p.joinedAt, tz) : ""}
+                  {p.joinedAt && p.leftAt ? ` – ${fmtTime(p.leftAt, tz)}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <CallActions
         callId={call.id}

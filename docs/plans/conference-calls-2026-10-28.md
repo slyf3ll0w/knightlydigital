@@ -1,7 +1,25 @@
 # Conference calls on the Voice line — plan (2026-10-28)
 
-**Status: PLANNED, not built.** David asked 2026-10-28 whether the WorkBench
-Voice line can do conference calls. It cannot today: every call is exactly two
+**Status: BUILT 2026-10-28 (branch `conference-calls`), phases 1 + 2 + the
+server side of phase 3; NOT live-tested — spike 0 still has to happen on
+staging with David's phones.** What shipped, against the sections below:
+schema (`Call.conferenceId`, `CallParticipant`, `CallLeg.participantId`),
+`lib/telnyx.ts` `createConference` / `conferenceAction`, the rules in
+`lib/voice-conference.ts` (+ `scripts/test-voice-conference.ts`), the
+orchestration in `lib/voice.ts` (promote on first Add, participant legs,
+team invites by SIP + VoIP push, hold-everyone-but-me, Leave vs End for
+everyone, the warm-transfer hand-off, customer-hangup teardown, stale sweep),
+routes `/api/app/line/call/participants` + `/leave` (+ `DELETE …/call?all=1`),
+the call screen (Add control, `AddPersonSheet` with team / clients / number,
+participant strip with mute + ✕, Leave / End for everyone, "Join" on an
+invite), the floating card (count + Add), `CallRow` "+N", the call page's
+"Also on the call". Decisions taken as recommended: anyone on the call may
+Add, cap 4, fair use counts the call once, beeps on. Not built: the Atlas
+`add_to_call` tool, speaker labels, the Help guides (ask David — see the end).
+Fallback for a failed spike: `VOICE_CONFERENCE_FIRST=1` (outcome B below).
+
+David asked 2026-10-28 whether the WorkBench
+Voice line can do conference calls. It could not: every call was exactly two
 legs (the customer, and either the ring-through cell or one app leg) joined
 with the Call Control `bridge` command in `lib/voice.ts` (`bridgeLegs`). This
 plan adds **Add a person** to a live call, which gives three things in one

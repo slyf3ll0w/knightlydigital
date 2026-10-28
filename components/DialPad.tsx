@@ -89,11 +89,17 @@ export default function DialPad({
   mode = "dial",
   size = "md",
   className = "",
+  onDial,
+  callLabel,
 }: {
   mode?: "dial" | "tones";
   /** "lg" = the phone-sized keys (72px, the iOS keypad) for the bottom sheet; "md" = the desktop panel and the call screen's tones. */
   size?: "md" | "lg";
   className?: string;
+  /** Dial mode with a different job: the green button hands the number (and the contact it matched) to the caller instead of placing a call — "Add" on the call screen's Add a person sheet. */
+  onDial?: (target: { to: string; contactId?: string; label?: string }) => Promise<void>;
+  /** The button's word when `onDial` is set (default "Call"). */
+  callLabel?: string;
 }) {
   const router = useRouter();
   const sp = useSoftphone();
@@ -170,12 +176,12 @@ export default function DialPad({
   };
 
   const onCall = sp.status === "ready" && !!sp.call;
-  const canDial = !tones && value.trim().length >= 3 && !busy && !onCall;
+  const canDial = !tones && value.trim().length >= 3 && !busy && (onDial ? true : !onCall);
   /** Registration is down for a reason a reconnect can fix — the dialer says so instead of quietly ringing the cell. */
-  const down = !tones && softphoneRecoverable(sp);
+  const down = !tones && !onDial && softphoneRecoverable(sp);
   /** Another tab of this browser holds the line: "Ring here instead" brings it over; never the cell. */
-  const elsewhere = !tones && softphoneElsewhere(sp);
-  const fallbackNote = tones ? null : softphoneFallbackNote(sp);
+  const elsewhere = !tones && !onDial && softphoneElsewhere(sp);
+  const fallbackNote = tones || onDial ? null : softphoneFallbackNote(sp);
 
   async function call() {
     if (!canDial) return;
@@ -185,6 +191,13 @@ export default function DialPad({
     const to = value.trim();
     const target = lookup ? { contactId: lookup.id, label: lookup.name } : { to };
     try {
+      if (onDial) {
+        // Not a call: the number goes to whoever asked for the keypad (Add a person).
+        await onDial(lookup ? { to, contactId: lookup.id, label: lookup.name } : { to });
+        setValue("");
+        setLookup(null);
+        return;
+      }
       let callId: string | null = null;
       let inApp = softphoneIdle(sp);
       if (!inApp && (softphoneRecoverable(sp) || softphoneElsewhere(sp))) {
@@ -371,23 +384,25 @@ export default function DialPad({
               void call();
             }}
             disabled={!canDial}
-            aria-label={onCall ? "Already on a call" : reconnecting ? "Reconnecting the browser" : "Call"}
+            aria-label={onDial ? (callLabel ?? "Call") : onCall ? "Already on a call" : reconnecting ? "Reconnecting the browser" : "Call"}
             title={
-              onCall
-                ? "Already on a call"
-                : softphoneIdle(sp)
-                  ? "Call from this browser"
-                  : down
-                    ? "Reconnects the browser first; rings your cell if it can't"
-                    : elsewhere
-                      ? "Brings the line to this tab, then calls from here"
-                      : "Ring your cell first, then connect them"
+              onDial
+                ? (callLabel ?? "Call")
+                : onCall
+                  ? "Already on a call"
+                  : softphoneIdle(sp)
+                    ? "Call from this browser"
+                    : down
+                      ? "Reconnects the browser first; rings your cell if it can't"
+                      : elsewhere
+                        ? "Brings the line to this tab, then calls from here"
+                        : "Ring your cell first, then connect them"
             }
             style={{ backgroundColor: "var(--wb-primary, #0A1428)" }}
             className={`btn-tool chamfer flex w-full items-center justify-center rounded-[10px] font-semibold text-white disabled:opacity-40 ${callCls}`}
           >
             {busy ? <Loader2 size={big ? 20 : 16} className="animate-spin" /> : <Phone size={big ? 20 : 16} />}
-            Call
+            {onDial ? (callLabel ?? "Call") : "Call"}
           </button>
         </div>
       )}

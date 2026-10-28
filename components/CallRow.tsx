@@ -70,6 +70,8 @@ export type CallRowData = {
   endedBy?: string | null;
   /** What got done on this call — quote sent, appointment booked, saved as a lead… */
   events?: CallEvent[];
+  /** People added to the call (lib/voice-conference.ts): the row shows "+N" for the ones who joined. */
+  participants?: Array<{ status: string; label?: string }>;
 };
 
 export const EVENT_ICON: Record<CallEventKind, LucideIcon> = {
@@ -218,6 +220,10 @@ export default function CallRow({
   // Once the line can text, a known caller gets a Text button: the thread sends from the business number and replies land back in it.
   const showText = canText && !live && Boolean(call.contact);
   const events = call.events ?? [];
+  // People added to the call (Add a person): "+1" after the name, names on hover.
+  const joined = (call.participants ?? []).filter((p) => p.status === "joined" || p.status === "left");
+  const plus = joined.length;
+  const joinedNames = joined.map((p) => p.label).filter(Boolean).join(", ");
   const title = showContact ? label : call.direction === "INBOUND" ? "Incoming call" : "Outgoing call";
   const href = `/app/calls/${call.id}`;
   const nameInk = missed && !live ? "text-red-600" : "text-gray-900";
@@ -267,6 +273,11 @@ export default function CallRow({
           >
             {title}
           </Link>
+          {plus > 0 && (
+            <span className="shrink-0 text-xs text-gray-400" title={joinedNames ? `Also on the call: ${joinedNames}` : `${plus} more on the call`}>
+              +{plus}
+            </span>
+          )}
           {showContact && standing && <span className="shrink-0 text-xs text-gray-400">{standing}</span>}
           {name && showContact && <span className="numeral-ledger hidden truncate text-xs text-gray-400 lg:inline">{number}</span>}
           <span className="numeral-ledger ml-auto shrink-0 text-xs tabular-nums text-gray-500">{when}</span>

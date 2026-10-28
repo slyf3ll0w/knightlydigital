@@ -24,6 +24,8 @@ export type SoftphoneCall = {
   /** When the conversation started (bridged), for the elapsed timer. */
   startedAt: number | null;
   muted: boolean;
+  /** Ringing because a teammate is adding this person to a live call: "Dave wants to add you to the call with Sarah Chen" (lib/voice-conference.ts). */
+  invite?: string | null;
 };
 
 export type MicState = "unknown" | "prompt" | "granted" | "denied";

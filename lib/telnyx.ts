@@ -414,6 +414,67 @@ export async function callAction(callControlId: string, action: CallCommand, bod
   }
 }
 
+/* ───────────────────────── Conferences (Add a person to a call) ───────────────────────── */
+
+export type ConferenceBeep = "always" | "never" | "on_enter" | "on_exit";
+
+export type CreateConferenceInput = {
+  /** An ANSWERED leg: it is moved into the new conference at once. */
+  callControlId: string;
+  name: string;
+  clientState?: string;
+  commandId?: string;
+  beep?: ConferenceBeep;
+  comfortNoise?: boolean;
+  maxParticipants?: number;
+};
+
+export type ConferenceRecord = { id: string; name: string; status?: string };
+
+/**
+ * POST /conferences — a conference built FROM an existing leg (lib/voice.ts
+ * promoteToConference). Conferences expire when the last participant leaves
+ * or after four hours; the webhooks (conference.created / participant.joined
+ * / participant.left / ended) arrive at the Call Control app's webhook URL.
+ */
+export async function createConference(input: CreateConferenceInput): Promise<ConferenceRecord> {
+  const out = await call<{ data?: ConferenceRecord }>("POST", "/conferences", {
+    call_control_id: input.callControlId,
+    name: input.name,
+    client_state: input.clientState,
+    command_id: input.commandId,
+    beep_enabled: input.beep ?? "always",
+    comfort_noise: input.comfortNoise ?? false,
+    start_conference_on_create: true,
+    max_participants: input.maxParticipants,
+  });
+  if (!out.data?.id) throw new TelnyxError(502, "Conference create returned no id");
+  return out.data;
+}
+
+export type ConferenceCommand = "join" | "leave" | "mute" | "unmute" | "hold" | "unhold";
+
+/**
+ * One conference command — join { call_control_id, … }, leave
+ * { call_control_id }, mute / unmute / hold / unhold { call_control_ids }.
+ * Same race rule as callAction: a conference (or leg) that is already gone
+ * is a false return, never a throw.
+ */
+export async function conferenceAction(conferenceId: string, action: ConferenceCommand, body: Record<string, unknown> = {}): Promise<boolean> {
+  try {
+    await call("POST", `/conferences/${encodeURIComponent(conferenceId)}/actions/${action}`, body);
+    return true;
+  } catch (err) {
+    const gone =
+      err instanceof TelnyxError && (err.status === 404 || /no longer active|already ended|not found|hung up|conference.*(ended|expired)/i.test(err.detail));
+    if (gone) {
+      console.warn(`[telnyx] conference ${action} on ${conferenceId} skipped: ${err.detail}`);
+      return false;
+    }
+    throw err;
+  }
+}
+
 /** Telnyx TTS: basic tier, female en-US — good enough for a whisper and a greeting. */
 export const TTS = { voice: "female", language: "en-US" } as const;
 

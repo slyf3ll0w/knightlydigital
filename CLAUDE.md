@@ -611,8 +611,56 @@ free `sms:`/`tel:` deep links (`lib/messaging.ts`) stay free and untouched.
 - **Caller ID name on cells**: CNAM only reaches landlines; the Settings card
   now points at freecallerregistry.com (Hiya + First Orion + TNS, the
   analytics behind AT&T/T-Mobile/Verizon) — free, and the only lever there is.
+- **Add a person to a call (2026-10-28, branch `conference-calls`; plan
+  `docs/plans/conference-calls-2026-10-28.md`; rules in
+  `lib/voice-conference.ts`, `npx tsx scripts/test-voice-conference.ts`).**
+  Three-way calls and warm transfers in one mechanism: the **Add** control
+  on the call screen (`CallScreenLive.tsx` → `AddPersonSheet.tsx`: Your
+  team / Clients / A number — `DialPad` with `onDial`) and the floating
+  card's UserPlus (lands on `/app/calls/<id>?add=1`). The first Add
+  promotes the bridged pair into a Telnyx **conference**
+  (`startConference`: `POST /conferences` FROM the customer leg, the
+  answerer's leg `join`ed; `Call.conferenceId` is the lock — a `pending:`
+  token while it is created). Each added person is a `CallParticipant`
+  (kind team | contact | number, status ringing → joined → left |
+  no_answer | failed, `label` resolved at add time): a number/client gets
+  its own leg (`client_state` leg `"participant"`, `PARTICIPANT_RING_SECS`
+  30 s, `join`ed on `call.answered`); a **teammate** is rung like an inbound
+  call (browser SIP legs + the VoIP push, `CallLeg.participantId`,
+  `wakeSoftphoneLeg` dials a woken phone for the invite) with the card
+  "Dave wants to add you to the call with …" (`inviteLine`, `invite` on
+  `GET /api/app/line/softphone/call`), and the device that answers becomes
+  the participant's leg (`onTeamLegAnswered` drops the rest). The customer
+  and the answerer stay on the Call row (`telnyxCallId` / `agentCallId`),
+  so nothing that reads a call changed. Routes:
+  `/api/app/line/call/participants` (GET addable teammates with
+  presence, POST add, DELETE remove, PATCH mute) and
+  `/api/app/line/call/leave`; `DELETE /api/app/line/call` is **Leave** on a
+  conference with others on it unless `&all=1` (End for everyone). Rules:
+  anyone on the call (or an owner/admin) may add / mute / remove; cap
+  `MAX_PARTICIPANTS` 4 (customer + you + 2, ringing counts); **Hold** in a
+  conference = `conference hold` with the music on every leg but the
+  presser's (`setHoldMusic(…, actorId)` — the phone apps' PATCH takes the
+  same path); the red button reads **Leave** once someone else is joined
+  (`redButtonMode`); the answerer leaving hands the row to the earliest
+  joined teammate (`handOffAfterLeave` → `answeredByUserId`, `agentCallId`
+  null — that IS the warm transfer; a supplier alone with the customer
+  keeps the row as is); the customer hanging up ends it for everyone
+  (`endConferenceLegs`), and when only the customer is left the call is
+  ended (`afterParticipantLeft`). `conference.participant.left` closes a
+  row whose hangup webhook was lost. The log row shows **+N** and the call
+  page lists "Also on the call" with join/leave times; duration stays
+  customer-answered → customer-ended, so a three-way counts once toward
+  fair use. Transcription keeps running on the customer leg (its inbound
+  track is the whole mix). **Unverified live (spike 0 in the plan):**
+  whether Telnyx accepts `POST /conferences` on a leg that is currently
+  bridged; `VOICE_CONFERENCE_FIRST=1` is the fallback — app-answered calls
+  start in a conference instead of a bridge (`bridgeLegs` →
+  `startConference`), at a conference participant-minute per leg.
 - **Not built yet**: voicemail transcription, missed-call text-back,
-  business-hours routing, port-in, call transfer.
+  business-hours routing, port-in, blind transfer (hand a ringing call on
+  without joining), speaker labels per participant in Atlas notes, Atlas
+  `add_to_call`.
 
 **Out of funds (2026-09-22).** Telnyx refuses every mutation — number purchase,
 brand/campaign filing, placing a call, even the free SIP credential — once the

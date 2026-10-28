@@ -16,7 +16,9 @@ import { VoiceError, cancelCall, setHoldMusic, startOutboundCall } from "@/lib/v
  * DELETE ?id= — hang up a call that is still ringing or in progress: the
  * softphone's Cancel before its own INVITE has landed (nothing to hang up
  * in the browser yet), or a stuck card. Every leg is dropped at Telnyx and
- * a still-ringing row closes as FAILED / MISSED.
+ * a still-ringing row closes as FAILED / MISSED. On a call with other
+ * people added (lib/voice-conference.ts) this is Leave — only the caller's
+ * leg drops — unless `&all=1` (End for everyone).
  */
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -51,7 +53,7 @@ export async function DELETE(req: NextRequest) {
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
   try {
-    return NextResponse.json(await cancelCall(actor.companyId, id));
+    return NextResponse.json(await cancelCall(actor.companyId, id, { actorId: actor.id, everyone: req.nextUrl.searchParams.get("all") === "1" }));
   } catch (err) {
     if (err instanceof VoiceError) return NextResponse.json({ error: err.message }, { status: err.status });
     reportError("[voice] cancel route error:", err);
@@ -67,7 +69,7 @@ export async function PATCH(req: NextRequest) {
   const body = (await req.json().catch(() => null)) as { id?: unknown; hold?: unknown } | null;
   if (!body || typeof body.id !== "string") return NextResponse.json({ error: "Missing id" }, { status: 400 });
   try {
-    return NextResponse.json(await setHoldMusic(actor.companyId, body.id, body.hold !== false));
+    return NextResponse.json(await setHoldMusic(actor.companyId, body.id, body.hold !== false, actor.id));
   } catch (err) {
     if (err instanceof VoiceError) return NextResponse.json({ error: err.message }, { status: err.status });
     reportError("[voice] hold route error:", err);

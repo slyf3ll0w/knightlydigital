@@ -52,15 +52,30 @@ import { fmtPhone } from "@/lib/format";
 import { phoneDigits } from "@/lib/phone";
 import { notifyUsers } from "@/lib/push";
 import { toE164 } from "@/lib/sms";
-import { APP_OUTBOUND_RING_SECS, APP_RING_SECS, VOIP_APP_RING_SECS, canUseSoftphone, onlineSoftphoneUsers, ringPlan, userSoftphoneOnline, type RingTarget, type PhoneDevice, type SoftphoneDevice, phoneSipColumn, PHONE_SIP_SELECT } from "@/lib/softphone";
+import { APP_OUTBOUND_RING_SECS, APP_RING_SECS, VOIP_APP_RING_SECS, canUseSoftphone, isSoftphoneOnline, onlineSoftphoneUsers, ringPlan, userSoftphoneOnline, type RingTarget, type PhoneDevice, type SoftphoneDevice, phoneSipColumn, PHONE_SIP_SELECT } from "@/lib/softphone";
 import { appendTranscript, summarizeCallNotes, transcriptLine, type AtlasNotesSnapshot } from "@/lib/call-notes";
 import { ATLAS_ACCESS_SELECT, atlasAccess } from "@/lib/assistant-access";
 import { aiEnabled } from "@/lib/ai";
 import { VOIP_WAKE_SECS, phoneCredentialsOfLogin, pushIncomingCall, voipRegisteredSoftphone, voipTargetsFor } from "@/lib/voip";
 import {
+  MAX_PARTICIPANTS,
+  PARTICIPANT_RING_SECS,
+  actorLeg,
+  canAddParticipant,
+  handOffAfterLeave,
+  holdTargets,
+  inviteLine,
+  isRealLegId,
+  othersRemain,
+  participantStatusAfterHangup,
+  type ParticipantKind,
+} from "@/lib/voice-conference";
+import {
   TTS,
   TelnyxError,
   callAction,
+  conferenceAction,
+  createConference,
   dialCall,
   getRecording,
   listRecordingsForLeg,
@@ -127,11 +142,11 @@ export const STALE_VOICEMAIL_MS = 10 * 60_000;
 
 /* ───────────────────────── Pure helpers ───────────────────────── */
 
-/** customer = the far party; agent = the cell, or the one browser that won / placed the call; app = a browser rung for an inbound call. */
-export type Leg = "customer" | "agent" | "app";
-export type Stage = "ring" | "whisper" | "bridged" | "vm_greeting" | "vm_record" | "out_whisper" | "out_no_answer";
-/** `woke`: this app leg belongs to a phone app (iPhone or Android) that a push woke for the call (lib/voip.ts). */
-export type ClientState = { callId: string; leg: Leg; stage?: Stage; userId?: string; woke?: boolean };
+/** customer = the far party; agent = the cell, or the one browser that won / placed the call; app = a browser rung for an inbound call (or for a teammate being added); participant = a number dialed into a conference (Add a person). */
+export type Leg = "customer" | "agent" | "app" | "participant";
+export type Stage = "ring" | "whisper" | "bridged" | "vm_greeting" | "vm_record" | "out_whisper" | "out_no_answer" | "conference";
+/** `woke`: this app leg belongs to a phone app (iPhone or Android) that a push woke for the call (lib/voip.ts). `participantId`: the CallParticipant this leg rings or is. */
+export type ClientState = { callId: string; leg: Leg; stage?: Stage; userId?: string; woke?: boolean; participantId?: string };
 
 export function encodeState(s: ClientState): string {
   return Buffer.from(JSON.stringify(s)).toString("base64");
@@ -141,8 +156,15 @@ export function decodeState(raw: string | null | undefined): ClientState | null 
   if (!raw) return null;
   try {
     const j = JSON.parse(Buffer.from(raw, "base64").toString("utf8")) as Partial<ClientState>;
-    if (typeof j.callId !== "string" || (j.leg !== "customer" && j.leg !== "agent" && j.leg !== "app")) return null;
-    return { callId: j.callId, leg: j.leg, stage: j.stage, ...(typeof j.userId === "string" ? { userId: j.userId } : {}), ...(j.woke === true ? { woke: true } : {}) };
+    if (typeof j.callId !== "string" || (j.leg !== "customer" && j.leg !== "agent" && j.leg !== "app" && j.leg !== "participant")) return null;
+    return {
+      callId: j.callId,
+      leg: j.leg,
+      stage: j.stage,
+      ...(typeof j.userId === "string" ? { userId: j.userId } : {}),
+      ...(j.woke === true ? { woke: true } : {}),
+      ...(typeof j.participantId === "string" ? { participantId: j.participantId } : {}),
+    };
   } catch {
     return null;
   }
@@ -385,6 +407,8 @@ export type VoiceEventPayload = {
   recording_ended_at?: string;
   /** call.transcription (Atlas notes, lib/call-notes.ts) */
   transcription_data?: { transcript?: string; is_final?: boolean; confidence?: number; transcription_track?: string };
+  /** conference.* events (Add a person): which conference the leg joined or left */
+  conference_id?: string;
 };
 
 export type VoiceEvent = { event_type: string; id?: string; payload: VoiceEventPayload };
@@ -397,24 +421,61 @@ const companySelect = {
   lineVoicemailGreeting: true,
 } as const;
 
+/** What the call screen and the rules need of a participant (lib/voice-conference.ts ParticipantLite + the chip). */
+const participantSelect = {
+  id: true,
+  kind: true,
+  status: true,
+  userId: true,
+  contactId: true,
+  number: true,
+  label: true,
+  telnyxCallId: true,
+  addedByUserId: true,
+  joinedAt: true,
+  leftAt: true,
+  createdAt: true,
+} as const;
+
+type ParticipantRow = {
+  id: string;
+  kind: string;
+  status: string;
+  userId: string | null;
+  contactId: string | null;
+  number: string | null;
+  label: string;
+  telnyxCallId: string | null;
+  addedByUserId: string;
+  joinedAt: Date | null;
+  leftAt: Date | null;
+  createdAt: Date;
+};
+
 type CallRow = Call & {
   company: { id: string; name: string; lineNumber: string | null; lineForwardTo: string | null; lineVoicemailGreeting: string | null };
   contact: Pick<Contact, "firstName" | "lastName"> | null;
+  participants: ParticipantRow[];
 };
 
-type AppLeg = { id: string; telnyxCallId: string; userId: string | null; device?: string | null };
-type LegHit = { call: CallRow; leg: Leg; appLeg: AppLeg | null };
+type AppLeg = { id: string; telnyxCallId: string; userId: string | null; device?: string | null; participantId?: string | null };
+type LegHit = { call: CallRow; leg: Leg; appLeg: AppLeg | null; participant: ParticipantRow | null };
 
-const callInclude = { company: { select: companySelect }, contact: { select: { firstName: true, lastName: true } } } as const;
+const callInclude = {
+  company: { select: companySelect },
+  contact: { select: { firstName: true, lastName: true } },
+  participants: { select: participantSelect, orderBy: { createdAt: "asc" } },
+} as const;
 
 /**
  * The row behind a webhook's call_control_id: the customer leg, the agent leg
- * (the cell, or the browser that won / placed the call), or one of the
- * browser legs rung for an inbound call (CallLeg). A browser leg whose row
+ * (the cell, or the browser that won / placed the call), one of the
+ * browser legs rung for an inbound call (CallLeg) — or, once someone pressed
+ * Add, a participant's dialed leg (CallParticipant). A browser leg whose row
  * hasn't landed yet — Telnyx can deliver its first event before our insert
  * commits — is adopted from the client_state stamped on the dial, so a fast
  * decline is never lost (it would leave the caller on ringback until the
- * stale sweep).
+ * stale sweep); a participant leg is adopted the same way.
  */
 async function findCallByLeg(ccid: string | undefined, clientState?: string | null): Promise<LegHit | null> {
   if (!ccid) return null;
@@ -422,23 +483,51 @@ async function findCallByLeg(ccid: string | undefined, clientState?: string | nu
     where: { OR: [{ telnyxCallId: ccid }, { agentCallId: ccid }] },
     include: callInclude,
   });
-  if (call) return { call, leg: call.telnyxCallId === ccid ? "customer" : "agent", appLeg: null };
+  if (call) return { call, leg: call.telnyxCallId === ccid ? "customer" : "agent", appLeg: null, participant: null };
   const appLeg = await prisma.callLeg.findUnique({
     where: { telnyxCallId: ccid },
-    select: { id: true, telnyxCallId: true, userId: true, device: true, call: { include: callInclude } },
+    select: { id: true, telnyxCallId: true, userId: true, device: true, participantId: true, call: { include: callInclude } },
   });
-  if (appLeg) return { call: appLeg.call, leg: "app", appLeg: { id: appLeg.id, telnyxCallId: appLeg.telnyxCallId, userId: appLeg.userId, device: appLeg.device } };
+  if (appLeg) {
+    return {
+      call: appLeg.call,
+      leg: "app",
+      appLeg: { id: appLeg.id, telnyxCallId: appLeg.telnyxCallId, userId: appLeg.userId, device: appLeg.device, participantId: appLeg.participantId },
+      participant: appLeg.participantId ? (appLeg.call.participants.find((p) => p.id === appLeg.participantId) ?? null) : null,
+    };
+  }
+  const participant = await prisma.callParticipant.findUnique({
+    where: { telnyxCallId: ccid },
+    select: { ...participantSelect, call: { include: callInclude } },
+  });
+  if (participant) {
+    const { call: parent, ...row } = participant;
+    return { call: parent, leg: "participant", appLeg: null, participant: row };
+  }
   const state = decodeState(clientState);
-  if (!state || state.leg !== "app") return null;
+  if (!state || (state.leg !== "app" && state.leg !== "participant")) return null;
   const parent = await prisma.call.findUnique({ where: { id: state.callId }, include: callInclude });
   if (!parent) return null;
+  if (state.leg === "participant") {
+    if (!state.participantId) return null;
+    // The dial's row update hasn't landed: claim the leg for its participant.
+    await prisma.callParticipant.updateMany({ where: { id: state.participantId, callId: parent.id, telnyxCallId: null }, data: { telnyxCallId: ccid } });
+    const row = await prisma.callParticipant.findUnique({ where: { id: state.participantId }, select: participantSelect });
+    if (!row || row.telnyxCallId !== ccid) return null;
+    return { call: parent, leg: "participant", appLeg: null, participant: row };
+  }
   const adopted = await prisma.callLeg.upsert({
     where: { telnyxCallId: ccid },
-    create: { callId: parent.id, userId: state.userId ?? null, telnyxCallId: ccid },
+    create: { callId: parent.id, userId: state.userId ?? null, telnyxCallId: ccid, participantId: state.participantId ?? null },
     update: {},
-    select: { id: true, telnyxCallId: true, userId: true },
+    select: { id: true, telnyxCallId: true, userId: true, participantId: true },
   });
-  return { call: parent, leg: "app", appLeg: adopted };
+  return {
+    call: parent,
+    leg: "app",
+    appLeg: adopted,
+    participant: adopted.participantId ? (parent.participants.find((p) => p.id === adopted.participantId) ?? null) : null,
+  };
 }
 
 /** Entry point for /api/public/webhooks/telnyx/voice. Never throws; a failed step is logged and the call falls through to Telnyx's own timeout. */
@@ -461,6 +550,14 @@ export async function handleVoiceEvent(ev: VoiceEvent): Promise<void> {
         return onRecordingSaved(p);
       case "call.transcription":
         return onTranscription(p);
+      case "conference.participant.joined":
+        return onConferenceJoined(p);
+      case "conference.participant.left":
+        return onConferenceLeft(p);
+      case "conference.created":
+      case "conference.ended":
+        console.info(`[voice] ${ev.event_type} ${p.conference_id ?? "?"} state=${describeState(p.client_state)}`);
+        return;
       default:
         return;
     }
@@ -468,6 +565,11 @@ export async function handleVoiceEvent(ev: VoiceEvent): Promise<void> {
     reportError(`[voice] ${ev.event_type} failed:`, err);
   }
 }
+
+const describeState = (raw: string | null | undefined): string => {
+  const st = decodeState(raw);
+  return st ? `${st.leg}/${st.stage ?? "-"} call=${st.callId}` : "-";
+};
 
 async function onInboundInitiated(p: VoiceEventPayload): Promise<void> {
   const ccid = p.call_control_id;
@@ -510,7 +612,10 @@ async function onInboundInitiated(p: VoiceEventPayload): Promise<void> {
 async function onAnswered(p: VoiceEventPayload): Promise<void> {
   const hit = await findCallByLeg(p.call_control_id, p.client_state);
   if (!hit) return;
-  const { call, leg, appLeg } = hit;
+  const { call, leg, appLeg, participant } = hit;
+  // Add a person: a dialed number picked up, or a rung teammate's app answered.
+  if (leg === "participant" && participant && participant.telnyxCallId) return onParticipantAnswered(call, participant.id, participant.telnyxCallId);
+  if (leg === "app" && appLeg?.participantId) return onTeamLegAnswered(call, appLeg.participantId, appLeg.telnyxCallId);
   if (call.status !== "RINGING") {
     // A browser that picked up after someone else already won: drop it.
     if (leg === "app" && appLeg) await callAction(appLeg.telnyxCallId, "hangup");
@@ -626,10 +731,10 @@ async function dialCell(call: CallRow, opts: { ringback: boolean }): Promise<voi
   }
 }
 
-/** Dial every online browser as a SIP leg (one CallLeg row each). Returns how many are ringing. `woke` = these are pushed phones (longer ring, voicemail instead of the cell when it runs out). */
-async function ringSoftphones(call: CallRow, targets: RingTarget[], woke = false): Promise<number> {
+/** Dial every online browser as a SIP leg (one CallLeg row each). Returns how many are ringing. `woke` = these are pushed phones (longer ring, voicemail instead of the cell when it runs out). `invite` = these legs ring a teammate being ADDED to a live call (CallParticipant). */
+async function ringSoftphones(call: CallRow, targets: RingTarget[], woke = false, invite?: { participantId: string; label: string }): Promise<number> {
   let ringing = 0;
-  const label = displayParty(call);
+  const label = invite?.label ?? displayParty(call);
   for (const [i, t] of targets.entries()) {
     const device = t.device ?? (woke ? "ios" : "browser");
     try {
@@ -638,7 +743,14 @@ async function ringSoftphones(call: CallRow, targets: RingTarget[], woke = false
         from: call.company.lineNumber!,
         fromDisplayName: sipDisplayName(label),
         customHeaders: [{ name: "X-WB-Call-Id", value: call.id }],
-        clientState: encodeState({ callId: call.id, leg: "app", stage: "ring", userId: t.userId, ...(woke ? { woke: true } : {}) }),
+        clientState: encodeState({
+          callId: call.id,
+          leg: "app",
+          stage: "ring",
+          userId: t.userId,
+          ...(woke ? { woke: true } : {}),
+          ...(invite ? { participantId: invite.participantId } : {}),
+        }),
         timeoutSecs: woke ? VOIP_APP_RING_SECS : APP_RING_SECS,
         linkTo: call.telnyxCallId!,
         // command_id is Telnyx's idempotency key. One per call, user AND
@@ -651,13 +763,17 @@ async function ringSoftphones(call: CallRow, targets: RingTarget[], woke = false
         // same user and device, so its key is per attempt AND per target;
         // the browser fan-out keeps one key per call (the appRingAt claim
         // already stops a retried webhook ringing twice).
-        commandId: woke ? `${call.id}:app:${t.userId}:${device}:${Date.now()}:${i}` : `${call.id}:app:${t.userId}:${device}`,
+        commandId: invite
+          ? `${call.id}:add:${invite.participantId}:${t.userId}:${device}:${Date.now()}:${i}`
+          : woke
+            ? `${call.id}:app:${t.userId}:${device}:${Date.now()}:${i}`
+            : `${call.id}:app:${t.userId}:${device}`,
       });
       // upsert: the leg's first webhook may have adopted the row already (findCallByLeg).
       await prisma.callLeg.upsert({
         where: { telnyxCallId: leg.call_control_id },
-        create: { callId: call.id, userId: t.userId, telnyxCallId: leg.call_control_id, device },
-        update: { userId: t.userId, device },
+        create: { callId: call.id, userId: t.userId, telnyxCallId: leg.call_control_id, device, participantId: invite?.participantId ?? null },
+        update: { userId: t.userId, device, ...(invite ? { participantId: invite.participantId } : {}) },
       });
       ringing++;
     } catch (err) {
@@ -698,6 +814,9 @@ export type WakeOutcome = "ringing" | "already" | "late" | "ineligible";
  */
 export async function wakeSoftphoneLeg(userId: string, companyId: string, callId: string, device: PhoneDevice = "ios"): Promise<WakeOutcome> {
   const call = await prisma.call.findFirst({ where: { id: callId, companyId }, include: callInclude });
+  // Add a person: the push was an invite onto a live call, not an inbound ring.
+  const invite = call?.status === "IN_PROGRESS" ? call.participants.find((p) => p.kind === "team" && p.userId === userId && p.status === "ringing") : null;
+  if (call && invite) return wakeTeamInvite(call, invite, userId, device);
   if (!call || call.status !== "RINGING" || call.direction !== "INBOUND" || call.agentCallId || !call.appRingAt) {
     console.info(`[voice] wake call=${callId}: late (${!call ? "no row" : `status=${call.status} agent=${call.agentCallId ?? "-"} appRingAt=${call.appRingAt?.toISOString() ?? "-"}`})`);
     return "late";
@@ -798,10 +917,18 @@ async function bridgeLegs(call: CallRow): Promise<void> {
   // call_control_id_to_bridge_with only to dodge the path parameter).
   let ok = false;
   try {
-    ok = await callAction(call.agentCallId, "bridge", {
-      call_control_id: call.telnyxCallId,
-      client_state: encodeState({ callId: call.id, leg: "agent", stage: "bridged" }),
-    });
+    if (conferenceFirst(call)) {
+      // VOICE_CONFERENCE_FIRST=1: an app-answered call starts life in a
+      // conference instead of a bridge — the fallback if Telnyx will not
+      // promote a bridged pair on the first Add (plan, spike 0). Costs a
+      // conference participant-minute on every app call, hence opt-in.
+      ok = await startConference(call);
+    } else {
+      ok = await callAction(call.agentCallId, "bridge", {
+        call_control_id: call.telnyxCallId,
+        client_state: encodeState({ callId: call.id, leg: "agent", stage: "bridged" }),
+      });
+    }
   } catch (err) {
     reportError("[voice] bridge failed:", err);
   }
@@ -906,7 +1033,7 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
     console.info(`[voice] hangup for a leg we don't hold: ${p.call_control_id} cause=${p.hangup_cause ?? "-"} state=${st ? `${st.leg}/${st.stage ?? "-"} call=${st.callId}` : "-"}`);
     return;
   }
-  const { call, leg, appLeg } = hit;
+  const { call, leg, appLeg, participant } = hit;
   const now = new Date();
   const cause = p.hangup_cause ?? null;
 
@@ -949,10 +1076,15 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
         });
       }
     }
+    // Add a person: a conference does not end with the customer the way a
+    // bridge does — drop everyone still on it (the answerer included).
+    if (isRealLegId(call.conferenceId)) await endConferenceLegs(call, now, cause);
     // Atlas was listening: the transcript is complete now — write the notes, or hold them for a save.
     await finishAtlasNotes(call);
     return;
   }
+
+  if (leg === "participant" && participant) return onParticipantLegEnded(call, participant, cause, now);
 
   if (leg === "app" && appLeg) {
     // One browser timed out (a Decline went through declineCall first and the
@@ -961,6 +1093,7 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
     // browser won, or the cell is ringing: nothing to do.
     console.info(`[voice] app leg ended call=${call.id} user=${appLeg.userId} cause=${cause ?? "-"} status=${call.status} agent=${call.agentCallId ?? "-"}`);
     await prisma.callLeg.update({ where: { id: appLeg.id }, data: { endedAt: now, hangupCause: cause } }).catch(() => {});
+    if (appLeg.participantId) return onTeamLegEnded(call, appLeg, cause, now);
     if (call.status !== "RINGING" || call.direction !== "INBOUND" || call.agentCallId) return;
     const open = await prisma.callLeg.count({ where: { callId: call.id, endedAt: null } });
     if (open > 0) return;
@@ -989,6 +1122,19 @@ async function onHangup(p: VoiceEventPayload): Promise<void> {
 
   // Agent leg: the cell, or the browser that won / placed the call
   await prisma.callLeg.updateMany({ where: { telnyxCallId: p.call_control_id, endedAt: null }, data: { endedAt: now, hangupCause: cause } }).catch(() => {});
+  if (call.status === "IN_PROGRESS" && isRealLegId(call.conferenceId) && p.call_control_id) {
+    // Add a person: the answerer left a conference. Others still on it with
+    // the customer → the call goes on (a teammate takes it over — that is
+    // the warm transfer); nobody else → the customer must be dropped too,
+    // since a conference does not end with one leg the way a bridge does.
+    if (othersRemain(call, call.participants, p.call_control_id)) return onAnswererLeft(call, p.call_control_id);
+    if (!call.endedBy) {
+      const endedBy = callEnding("agent", call.direction, cause, p.hangup_source);
+      if (endedBy) await prisma.call.updateMany({ where: { id: call.id, endedBy: null }, data: { endedBy } }).catch(() => {});
+    }
+    if (isRealLegId(call.telnyxCallId)) await callAction(call.telnyxCallId, "hangup");
+    return;
+  }
   if (call.status === "IN_PROGRESS" && !call.endedBy) {
     // Bridged: the customer leg's hangup closes the row, but this leg knows
     // which side let go — keep that if nobody has said yet.
@@ -1390,10 +1536,20 @@ export async function declineCall(companyId: string, callId: string): Promise<{ 
   return { status: "VOICEMAIL" };
 }
 
-export async function cancelCall(companyId: string, callId: string): Promise<{ status: CallStatus }> {
-  const call = await prisma.call.findFirst({ where: { id: callId, companyId } });
+/**
+ * `actorId` without `everyone`: on a conference with others still on it, the
+ * red button means Leave — only the actor's leg drops (a phone's CallKit End
+ * takes this path too, through the agent-leg hangup webhook). `everyone`
+ * ends it for all.
+ */
+export async function cancelCall(companyId: string, callId: string, opts: { actorId?: string; everyone?: boolean } = {}): Promise<{ status: CallStatus }> {
+  const call = await prisma.call.findFirst({ where: { id: callId, companyId }, include: callInclude });
   if (!call) throw new VoiceError("Call not found.", 404);
   if (isTerminalStatus(call.status)) return { status: call.status };
+  if (call.status === "IN_PROGRESS" && isRealLegId(call.conferenceId) && !opts.everyone && opts.actorId) {
+    const me = actorLeg(call, call.participants, opts.actorId);
+    if (me && othersRemain(call, call.participants, me.telnyxCallId)) return leaveCall(companyId, callId, opts.actorId);
+  }
   // Our side is ending a connected call: say so before the legs drop, or the
   // agent leg's hangup webhook reads the platform's own hangup as "they hung up".
   if (call.status === "IN_PROGRESS") {
@@ -1404,6 +1560,7 @@ export async function cancelCall(companyId: string, callId: string): Promise<{ s
       if (ccid && !ccid.startsWith("pending:")) await callAction(ccid, "hangup").catch((e) => reportError("[voice] cancel hangup failed:", e));
     }
     await hangupAppLegs(call.id, null).catch(() => {});
+    await hangupParticipantLegs(call, new Date(), "cancelled").catch(() => {});
   }
   if (call.status !== "RINGING") return { status: call.status }; // bridged: the customer leg's hangup closes the row
   const now = new Date();
@@ -1425,15 +1582,516 @@ export async function cancelCall(companyId: string, callId: string): Promise<{ s
  * other party would sit in silence. Play the hold loop on their leg instead
  * (telnyxCallId is the customer in both directions) and stop it on unhold.
  */
-export async function setHoldMusic(companyId: string, callId: string, on: boolean): Promise<{ held: boolean }> {
-  const call = await prisma.call.findFirst({ where: { id: callId, companyId }, select: { status: true, telnyxCallId: true } });
+export async function setHoldMusic(companyId: string, callId: string, on: boolean, actorId?: string): Promise<{ held: boolean }> {
+  const call = await prisma.call.findFirst({
+    where: { id: callId, companyId },
+    select: { status: true, direction: true, via: true, userId: true, answeredByUserId: true, telnyxCallId: true, agentCallId: true, conferenceId: true, participants: { select: participantSelect } },
+  });
   if (!call) throw new VoiceError("Call not found.", 404);
   if (!voiceEnabled() || call.status !== "IN_PROGRESS" || !call.telnyxCallId || call.telnyxCallId.startsWith("pending:")) {
     return { held: false };
   }
+  if (isRealLegId(call.conferenceId)) {
+    // Add a person: everyone but the one pressing the button hears the music
+    // (the conference's own hold takes their legs out of the mix meanwhile).
+    const me = actorId ? actorLeg(call, call.participants, actorId) : null;
+    const targets = holdTargets(call, call.participants, me?.telnyxCallId ?? null);
+    if (targets.length === 0) return { held: false };
+    try {
+      if (on) await conferenceAction(call.conferenceId, "hold", { call_control_ids: targets, audio_url: holdMusicUrl() });
+      else await conferenceAction(call.conferenceId, "unhold", { call_control_ids: targets });
+    } catch (err) {
+      const detail = err instanceof TelnyxError ? err.detail : "unknown error";
+      throw new VoiceError(`Telnyx couldn't ${on ? "hold" : "resume"} the call: ${detail}`, 424);
+    }
+    return { held: on };
+  }
   if (on) await callAction(call.telnyxCallId, "playback_start", { audio_url: holdMusicUrl(), loop: "infinity" });
   else await callAction(call.telnyxCallId, "playback_stop");
   return { held: on };
+}
+
+/* ───────────────────────── Add a person (conference) ───────────────────────── */
+
+/*
+ * Rules in lib/voice-conference.ts; plan in docs/plans/conference-calls-2026-10-28.md.
+ * The first Add on a call promotes the bridged pair into a Telnyx conference
+ * (startConference: created FROM the customer leg, the answerer's leg joined
+ * — Call.conferenceId is the lock), and every added person is a
+ * CallParticipant: a dialed number / client gets its own leg (client_state
+ * leg "participant"), a teammate is rung the way an inbound call rings them
+ * (browser SIP legs + the phone push; CallLeg.participantId marks the legs)
+ * and whichever device answers becomes the participant's leg. Hold plays
+ * the music to everyone but the person pressing it; the red button is Leave
+ * once others are on; the answerer leaving hands the row to a joined
+ * teammate (warm transfer); the customer hanging up ends it for everyone.
+ */
+
+const conferenceFirst = (call: Pick<Call, "via">): boolean => process.env.VOICE_CONFERENCE_FIRST === "1" && call.via === "app";
+
+const MANAGER_ROLES = new Set(["OWNER", "ADMIN"]);
+
+export type ParticipantView = {
+  id: string;
+  kind: string;
+  label: string;
+  status: string;
+  userId: string | null;
+  contactId: string | null;
+  number: string | null;
+  joinedAt: string | null;
+  leftAt: string | null;
+};
+
+export type CallPeopleView = {
+  conferenceId: string | null;
+  participants: ParticipantView[];
+  /** Which leg is the viewer's: the answerer's, a joined teammate's, or none. */
+  me: "agent" | "participant" | null;
+  canAdd: { ok: boolean; reason?: string };
+  redButton: "leave" | "hangup";
+};
+
+const participantView = (p: ParticipantRow): ParticipantView => ({
+  id: p.id,
+  kind: p.kind,
+  label: p.label,
+  status: p.status,
+  userId: p.userId,
+  contactId: p.contactId,
+  number: p.number,
+  joinedAt: p.joinedAt?.toISOString() ?? null,
+  leftAt: p.leftAt?.toISOString() ?? null,
+});
+
+/** The call screen's view of who is on a call (GET /api/app/line/softphone/call). */
+export function callPeopleView(
+  call: Pick<Call, "status" | "direction" | "via" | "userId" | "answeredByUserId" | "telnyxCallId" | "agentCallId" | "conferenceId"> & { participants: ParticipantRow[] },
+  actorId: string
+): CallPeopleView {
+  const me = actorLeg(call, call.participants, actorId);
+  const can = canAddParticipant(call, call.participants);
+  return {
+    conferenceId: isRealLegId(call.conferenceId) ? call.conferenceId : null,
+    participants: call.participants.map(participantView),
+    me: me?.kind ?? null,
+    canAdd: can.ok ? { ok: true } : { ok: false, reason: can.reason },
+    redButton: me && isRealLegId(call.conferenceId) && othersRemain(call, call.participants, me.telnyxCallId) ? "leave" : "hangup",
+  };
+}
+
+/** Anyone on the call may add, mute or remove people; owners and admins may from the Calls page too. */
+function requireOnCall(call: CallRow, actor: { id: string; role: string }): void {
+  if (actorLeg(call, call.participants, actor.id) || MANAGER_ROLES.has(actor.role)) return;
+  throw new VoiceError("Only someone on the call can do that.", 403);
+}
+
+/**
+ * Create the conference from the customer leg and join the answerer's leg.
+ * `Call.conferenceId` is claimed first (a "pending:" token), so two Adds at
+ * once make one conference. False when the claim was taken or a leg is gone;
+ * throws when Telnyx refuses (the claim is released).
+ */
+async function startConference(call: Pick<Call, "id" | "telnyxCallId" | "agentCallId">): Promise<boolean> {
+  if (!isRealLegId(call.telnyxCallId) || !isRealLegId(call.agentCallId)) return false;
+  const claimed = await prisma.call.updateMany({ where: { id: call.id, conferenceId: null }, data: { conferenceId: `pending:${call.id}` } });
+  if (claimed.count === 0) return false;
+  let conf: { id: string };
+  try {
+    conf = await createConference({
+      callControlId: call.telnyxCallId,
+      name: call.id,
+      clientState: encodeState({ callId: call.id, leg: "customer", stage: "conference" }),
+      commandId: `${call.id}:conference`,
+    });
+  } catch (err) {
+    await prisma.call.updateMany({ where: { id: call.id, conferenceId: `pending:${call.id}` }, data: { conferenceId: null } }).catch(() => {});
+    throw err;
+  }
+  await prisma.call.update({ where: { id: call.id }, data: { conferenceId: conf.id } });
+  const ok = await conferenceAction(conf.id, "join", {
+    call_control_id: call.agentCallId,
+    start_conference_on_enter: true,
+    client_state: encodeState({ callId: call.id, leg: "agent", stage: "conference" }),
+    command_id: `${call.id}:conference:agent`,
+  });
+  console.info(`[voice] conference ${conf.id} for call=${call.id} (answerer joined=${ok})`);
+  return ok;
+}
+
+/** The call's conference id, creating it from the bridged pair on the first Add. */
+async function promoteToConference(call: CallRow): Promise<string> {
+  const current = call.conferenceId ?? "";
+  if (current && !current.startsWith("pending:")) return current;
+  if (current.startsWith("pending:")) throw new VoiceError("Setting the call up — try again in a second.", 409);
+  try {
+    await startConference(call);
+  } catch (err) {
+    const detail = err instanceof TelnyxError ? err.detail : err instanceof Error ? err.message : "unknown error";
+    reportError(`[voice] promoting call ${call.id} to a conference failed:`, err);
+    throw new VoiceError(`Telnyx couldn't open the call up for more people: ${detail}`, 424);
+  }
+  const fresh = await prisma.call.findUnique({ where: { id: call.id }, select: { conferenceId: true } });
+  if (isRealLegId(fresh?.conferenceId)) return fresh.conferenceId;
+  if (fresh?.conferenceId) throw new VoiceError("Setting the call up — try again in a second.", 409);
+  throw new VoiceError("The call couldn't be opened up for more people.", 424);
+}
+
+export type AddTarget = { userId?: string | null; contactId?: string | null; to?: string | null };
+
+/**
+ * "Add" on the call screen (POST /api/app/line/call/participants): a
+ * teammate (rung in the app), a client/lead (dialed from the line) or a
+ * typed number. Returns the ringing participant; webhooks do the rest.
+ */
+export async function addParticipant(companyId: string, callId: string, actor: { id: string; role: string; name: string }, target: AddTarget): Promise<ParticipantView> {
+  if (!voiceEnabled()) throw new VoiceError("Calling from the app isn't available on this server yet.", 503);
+  const call = await prisma.call.findFirst({ where: { id: callId, companyId }, include: callInclude });
+  if (!call) throw new VoiceError("Call not found.", 404);
+  requireOnCall(call, actor);
+  const can = canAddParticipant(call, call.participants);
+  if (!can.ok) throw new VoiceError(can.reason, 409);
+  if (!isRealLegId(call.telnyxCallId) || !isRealLegId(call.agentCallId) || !call.company.lineNumber) throw new VoiceError("The call isn't connected.", 409);
+
+  let kind: ParticipantKind;
+  let userId: string | null = null;
+  let contactId: string | null = null;
+  let number: string | null = null;
+  let label = "";
+  const seated = (p: ParticipantRow) => p.status === "ringing" || p.status === "joined";
+  if (target.userId) {
+    const user = await prisma.user.findFirst({ where: { id: target.userId, companyId, isActive: true }, select: { id: true, name: true, role: true } });
+    if (!user || !canUseSoftphone(user.role)) throw new VoiceError("Teammate not found.", 404);
+    if (user.id === actor.id) throw new VoiceError("That's you — you're already on the call.");
+    if (call.answeredByUserId === user.id || call.participants.some((p) => p.userId === user.id && seated(p))) {
+      throw new VoiceError(`${user.name.split(" ")[0]} is already on the call.`, 409);
+    }
+    kind = "team";
+    userId = user.id;
+    label = user.name;
+  } else if (target.contactId) {
+    const contact = await prisma.contact.findFirst({ where: { id: target.contactId, companyId }, select: { id: true, phone: true, firstName: true, lastName: true } });
+    if (!contact) throw new VoiceError("Client not found.", 404);
+    number = toE164(contact.phone);
+    if (!number) throw new VoiceError("This client has no dialable phone number.");
+    kind = "contact";
+    contactId = contact.id;
+    label = `${contact.firstName} ${contact.lastName}`.trim() || fmtPhone(number);
+  } else {
+    number = toE164(target.to);
+    if (!number) throw new VoiceError("Enter a valid phone number.");
+    const digits = phoneDigits(number);
+    const match = digits
+      ? await prisma.contact.findFirst({ where: { companyId, phoneDigits: digits }, orderBy: { updatedAt: "desc" }, select: { id: true, firstName: true, lastName: true } })
+      : null;
+    kind = "number";
+    contactId = match?.id ?? null;
+    label = (match ? `${match.firstName} ${match.lastName}`.trim() : "") || fmtPhone(number);
+  }
+  if (number) {
+    if (number === call.company.lineNumber) throw new VoiceError("That's your own business line.");
+    if (number === call.customerNumber) throw new VoiceError("They're already on the call.");
+    if (call.participants.some((p) => p.number === number && seated(p))) throw new VoiceError(`${label} is already on the call.`, 409);
+  }
+
+  await promoteToConference(call);
+  const row = await prisma.callParticipant.create({
+    data: { callId: call.id, kind, userId, contactId, number, label, addedByUserId: actor.id, status: "ringing" },
+    select: participantSelect,
+  });
+  try {
+    if (kind === "team") await ringTeamInvite(call, row, actor.name);
+    else await dialParticipantNumber(call, row, number!);
+  } catch (err) {
+    await prisma.callParticipant.updateMany({ where: { id: row.id, status: "ringing" }, data: { status: "failed", leftAt: new Date(), hangupCause: "dial_failed" } }).catch(() => {});
+    if (err instanceof VoiceError) throw err;
+    reportError(`[voice] adding ${kind} to call ${call.id} failed:`, err);
+    if (isInsufficientFunds(err)) {
+      await alertTelnyxFunds(`adding a person to a call from ${call.company.lineNumber}`);
+      throw new VoiceError(VOICE_PAUSED_MESSAGE, 424);
+    }
+    const detail = err instanceof TelnyxError ? err.detail : "unknown error";
+    throw new VoiceError(`Telnyx couldn't ring them: ${detail}`, 424);
+  }
+  console.info(`[voice] call=${call.id}: ${actor.id} added ${kind} "${label}" (participant ${row.id})`);
+  return participantView(row);
+}
+
+/** Ring a number from the line into the conference; the dial's leg is claimed on the row (or adopted by its first webhook). */
+async function dialParticipantNumber(call: CallRow, row: ParticipantRow, number: string): Promise<void> {
+  const leg = await dialCall({
+    to: number,
+    from: call.company.lineNumber!,
+    clientState: encodeState({ callId: call.id, leg: "participant", stage: "ring", participantId: row.id }),
+    timeoutSecs: PARTICIPANT_RING_SECS,
+    linkTo: call.telnyxCallId!,
+    commandId: `${call.id}:participant:${row.id}`,
+  });
+  await prisma.callParticipant.updateMany({
+    where: { id: row.id, OR: [{ telnyxCallId: null }, { telnyxCallId: leg.call_control_id }] },
+    data: { telnyxCallId: leg.call_control_id },
+  });
+}
+
+/** Ring a teammate's browser (SIP leg) and phones (VoIP push) with the "wants to add you" card. */
+async function ringTeamInvite(call: CallRow, row: ParticipantRow, byName: string): Promise<void> {
+  const label = inviteLine(byName, displayParty(call));
+  const [browser, phones] = await Promise.all([userSoftphoneOnline(row.userId!), voipTargetsFor(call.companyId)]);
+  const mine = phones.filter((t) => t.userId === row.userId);
+  let ringing = 0;
+  if (browser) ringing = await ringSoftphones(call, [{ userId: row.userId!, sipUsername: browser.sipUsername, device: "browser" }], false, { participantId: row.id, label });
+  const woken = mine.length ? await pushIncomingCall({ id: call.id, label, number: call.customerNumber, companyName: call.company.name }, mine) : 0;
+  if (ringing === 0 && woken === 0) throw new VoiceError(`${row.label.split(" ")[0]} isn't on the app right now.`, 409);
+  scheduleInviteExpiry(row.id, ((woken > 0 ? VOIP_WAKE_SECS : APP_RING_SECS) + 5) * 1000);
+}
+
+/** A pushed phone that never wakes rings nothing and sends no hangup: the invite is closed as no answer on a timer. */
+function scheduleInviteExpiry(participantId: string, delayMs: number): void {
+  setTimeout(() => {
+    void (async () => {
+      const row = await prisma.callParticipant.findUnique({ where: { id: participantId }, select: { id: true, callId: true, status: true } });
+      if (!row || row.status !== "ringing") return;
+      const open = await prisma.callLeg.count({ where: { callId: row.callId, participantId, endedAt: null } });
+      if (open > 0) return;
+      await prisma.callParticipant.updateMany({ where: { id: participantId, status: "ringing" }, data: { status: "no_answer", leftAt: new Date(), hangupCause: "timeout" } });
+      console.info(`[voice] invite ${participantId} on call=${row.callId} rang out`);
+    })().catch((err) => reportError("[voice] invite expiry failed:", err));
+  }, delayMs);
+}
+
+/** The phone app woke for an invite onto a live call (wakeSoftphoneLeg): dial its SIP leg now. */
+async function wakeTeamInvite(call: CallRow, invite: ParticipantRow, userId: string, device: PhoneDevice): Promise<WakeOutcome> {
+  const col = phoneSipColumn(device);
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { ...PHONE_SIP_SELECT, softphoneEnabled: true, role: true, isActive: true } });
+  if (!user?.[col] || !user.softphoneEnabled || !user.isActive || !canUseSoftphone(user.role)) return "ineligible";
+  const open = await prisma.callLeg.count({ where: { callId: call.id, participantId: invite.id, userId, device, endedAt: null } });
+  if (open > 0) return "already";
+  const [creds, by] = await Promise.all([phoneCredentialsOfLogin(userId, device), prisma.user.findUnique({ where: { id: invite.addedByUserId }, select: { name: true } })]);
+  const rang = await ringSoftphones(
+    call,
+    creds.map((sipUsername) => ({ userId, sipUsername, device })),
+    true,
+    { participantId: invite.id, label: inviteLine(by?.name ?? "", displayParty(call)) }
+  );
+  console.info(`[voice] invite ${invite.id} call=${call.id}: ${rang}/${creds.length} SIP leg(s) to the ${device} phone`);
+  return rang > 0 ? "ringing" : "late";
+}
+
+/** Put an answered leg into the conference; a refused join drops the leg and marks the row failed. */
+async function joinConference(call: CallRow, participantId: string, ccid: string, leg: "participant" | "app"): Promise<void> {
+  let ok = false;
+  try {
+    ok = await conferenceAction(call.conferenceId!, "join", {
+      call_control_id: ccid,
+      start_conference_on_enter: true,
+      client_state: encodeState({ callId: call.id, leg, stage: "conference", participantId }),
+      command_id: `${call.id}:join:${participantId}:${ccid}`,
+    });
+  } catch (err) {
+    reportError(`[voice] conference join failed for participant ${participantId}:`, err);
+  }
+  if (ok) {
+    console.info(`[voice] participant ${participantId} joined call=${call.id}`);
+    return;
+  }
+  await callAction(ccid, "hangup").catch(() => {});
+  await prisma.callParticipant.updateMany({ where: { id: participantId, status: "joined" }, data: { status: "failed", leftAt: new Date(), hangupCause: "join_failed" } });
+}
+
+/** A dialed number picked up. */
+async function onParticipantAnswered(call: CallRow, participantId: string, ccid: string): Promise<void> {
+  if (call.status !== "IN_PROGRESS" || !isRealLegId(call.conferenceId)) {
+    await callAction(ccid, "hangup").catch(() => {});
+    await prisma.callParticipant.updateMany({ where: { id: participantId, status: "ringing" }, data: { status: "failed", leftAt: new Date(), hangupCause: "call_over" } });
+    return;
+  }
+  const claimed = await prisma.callParticipant.updateMany({ where: { id: participantId, status: "ringing" }, data: { status: "joined", joinedAt: new Date(), telnyxCallId: ccid } });
+  if (claimed.count === 0) return; // retried webhook
+  await joinConference(call, participantId, ccid, "participant");
+}
+
+/** A rung teammate answered on one of their devices: that leg is theirs, the others are dropped. */
+async function onTeamLegAnswered(call: CallRow, participantId: string, ccid: string): Promise<void> {
+  if (call.status !== "IN_PROGRESS" || !isRealLegId(call.conferenceId)) {
+    await callAction(ccid, "hangup").catch(() => {});
+    return;
+  }
+  const claimed = await prisma.callParticipant.updateMany({ where: { id: participantId, status: "ringing" }, data: { status: "joined", joinedAt: new Date(), telnyxCallId: ccid } });
+  if (claimed.count === 0) {
+    // Another of their devices won, or the invite was cancelled / rang out.
+    await callAction(ccid, "hangup").catch(() => {});
+    return;
+  }
+  const others = await prisma.callLeg.findMany({ where: { callId: call.id, participantId, endedAt: null, telnyxCallId: { not: ccid } }, select: { telnyxCallId: true } });
+  for (const l of others) await callAction(l.telnyxCallId, "hangup").catch(() => {});
+  await joinConference(call, participantId, ccid, "app");
+}
+
+/** A dialed participant's leg ended: no answer, or they left the call. */
+async function onParticipantLegEnded(call: CallRow, participant: ParticipantRow, cause: string | null, now: Date): Promise<void> {
+  const status = participantStatusAfterHangup(participant.status, cause);
+  await prisma.callParticipant.updateMany({ where: { id: participant.id, status: { in: ["ringing", "joined"] } }, data: { status, leftAt: now, hangupCause: cause } });
+  console.info(`[voice] participant ${participant.id} (${participant.kind}) ended call=${call.id} cause=${cause ?? "-"} → ${status}`);
+  if (participant.status === "joined") await afterParticipantLeft(call.id);
+}
+
+/** One of a rung teammate's legs ended: they left (it was their joined leg), or that device stopped ringing. */
+async function onTeamLegEnded(call: CallRow, appLeg: AppLeg, cause: string | null, now: Date): Promise<void> {
+  const row = call.participants.find((p) => p.id === appLeg.participantId);
+  if (!row) return;
+  if (row.status === "joined" && row.telnyxCallId === appLeg.telnyxCallId) {
+    await prisma.callParticipant.updateMany({ where: { id: row.id, status: "joined" }, data: { status: "left", leftAt: now, hangupCause: cause } });
+    await afterParticipantLeft(call.id);
+    return;
+  }
+  if (row.status !== "ringing") return;
+  const open = await prisma.callLeg.count({ where: { callId: call.id, participantId: row.id, endedAt: null } });
+  if (open > 0) return;
+  // Rang out or declined → no answer. A leg that died within seconds (a
+  // phone's registration had gone stale, SIP 480) is not an answer: the
+  // phone re-registers and asks again, and the invite timer closes it otherwise.
+  const leg = await prisma.callLeg.findUnique({ where: { id: appLeg.id }, select: { createdAt: true } });
+  const ageMs = leg ? now.getTime() - leg.createdAt.getTime() : Infinity;
+  if (cause !== "timeout" && ageMs < 3000) return;
+  await prisma.callParticipant.updateMany({ where: { id: row.id, status: "ringing" }, data: { status: "no_answer", leftAt: now, hangupCause: cause ?? "timeout" } });
+}
+
+/** Someone left the mix: when only the customer is left (the answerer gone too), end the call. */
+async function afterParticipantLeft(callId: string): Promise<void> {
+  const fresh = await prisma.call.findUnique({ where: { id: callId }, include: callInclude });
+  if (!fresh || fresh.status !== "IN_PROGRESS") return;
+  if (othersRemain(fresh, fresh.participants, null)) return;
+  console.info(`[voice] call=${callId}: everyone but the customer left — ending it`);
+  if (isRealLegId(fresh.telnyxCallId)) await callAction(fresh.telnyxCallId, "hangup").catch(() => {});
+}
+
+/** The answerer left a conference that goes on: a joined teammate takes the row over (warm transfer). */
+async function onAnswererLeft(call: CallRow, leavingLeg: string): Promise<void> {
+  const next = handOffAfterLeave(call.participants, leavingLeg);
+  const r = await prisma.call.updateMany({
+    where: { id: call.id, agentCallId: leavingLeg },
+    data: { agentCallId: null, ...(next ? { answeredByUserId: next, via: "app" } : {}) },
+  });
+  if (r.count > 0) console.info(`[voice] call=${call.id}: the answerer left; ${next ? `handed to user ${next}` : "the others stay on"}`);
+}
+
+/** Leave (POST /api/app/line/call/leave): only the actor's leg drops; the call goes on for the others. */
+export async function leaveCall(companyId: string, callId: string, actorId: string): Promise<{ status: CallStatus }> {
+  const call = await prisma.call.findFirst({ where: { id: callId, companyId }, include: callInclude });
+  if (!call) throw new VoiceError("Call not found.", 404);
+  if (call.status !== "IN_PROGRESS") return { status: call.status };
+  const me = actorLeg(call, call.participants, actorId);
+  if (!me) throw new VoiceError("You're not on this call.", 409);
+  if (!isRealLegId(call.conferenceId) || !othersRemain(call, call.participants, me.telnyxCallId)) return cancelCall(companyId, callId, { everyone: true });
+  if (me.kind === "agent") await onAnswererLeft(call, me.telnyxCallId);
+  else await prisma.callParticipant.updateMany({ where: { id: me.participantId, status: "joined" }, data: { status: "left", leftAt: new Date(), hangupCause: "left" } });
+  if (voiceEnabled()) await callAction(me.telnyxCallId, "hangup").catch((e) => reportError("[voice] leave hangup failed:", e));
+  await afterParticipantLeft(call.id);
+  return { status: call.status };
+}
+
+/** The ✕ on a participant chip: hang their leg up (or stop ringing them). */
+export async function removeParticipant(companyId: string, callId: string, actor: { id: string; role: string }, participantId: string): Promise<ParticipantView> {
+  const call = await prisma.call.findFirst({ where: { id: callId, companyId }, include: callInclude });
+  if (!call) throw new VoiceError("Call not found.", 404);
+  requireOnCall(call, actor);
+  const row = call.participants.find((p) => p.id === participantId);
+  if (!row) throw new VoiceError("They're not on this call.", 404);
+  if (row.status === "ringing" || row.status === "joined") {
+    const now = new Date();
+    await prisma.callParticipant.updateMany({
+      where: { id: row.id, status: { in: ["ringing", "joined"] } },
+      data: { status: row.status === "joined" ? "left" : "no_answer", leftAt: now, hangupCause: "removed" },
+    });
+    if (voiceEnabled()) {
+      if (isRealLegId(row.telnyxCallId)) await callAction(row.telnyxCallId, "hangup").catch((e) => reportError("[voice] remove hangup failed:", e));
+      const legs = await prisma.callLeg.findMany({ where: { callId: call.id, participantId: row.id, endedAt: null }, select: { telnyxCallId: true } });
+      for (const l of legs) await callAction(l.telnyxCallId, "hangup").catch(() => {});
+    }
+    await prisma.callLeg.updateMany({ where: { callId: call.id, participantId: row.id, endedAt: null }, data: { endedAt: now, hangupCause: "removed" } });
+    if (row.status === "joined") await afterParticipantLeft(call.id);
+  }
+  const fresh = await prisma.callParticipant.findUnique({ where: { id: row.id }, select: participantSelect });
+  return participantView(fresh ?? row);
+}
+
+/** Mute / unmute one participant in the mix (the chip's toggle). */
+export async function muteParticipant(companyId: string, callId: string, actor: { id: string; role: string }, participantId: string, mute: boolean): Promise<{ muted: boolean }> {
+  const call = await prisma.call.findFirst({ where: { id: callId, companyId }, include: callInclude });
+  if (!call) throw new VoiceError("Call not found.", 404);
+  requireOnCall(call, actor);
+  const row = call.participants.find((p) => p.id === participantId);
+  if (!row || row.status !== "joined" || !isRealLegId(row.telnyxCallId) || !isRealLegId(call.conferenceId)) throw new VoiceError("They're not on the call.", 409);
+  try {
+    await conferenceAction(call.conferenceId, mute ? "mute" : "unmute", { call_control_ids: [row.telnyxCallId] });
+  } catch (err) {
+    const detail = err instanceof TelnyxError ? err.detail : "unknown error";
+    throw new VoiceError(`Telnyx couldn't ${mute ? "mute" : "unmute"} them: ${detail}`, 424);
+  }
+  return { muted: mute };
+}
+
+/** Who could be added right now: active teammates who take calls, with whether the app can reach them. */
+export async function addablePeople(companyId: string, callId: string, actorId: string): Promise<{ team: Array<{ id: string; name: string; online: "app" | "phone" | null }> }> {
+  const [call, users, phones] = await Promise.all([
+    prisma.call.findFirst({ where: { id: callId, companyId }, select: { answeredByUserId: true, participants: { select: { userId: true, status: true } } } }),
+    prisma.user.findMany({
+      where: { companyId, isActive: true, id: { not: actorId } },
+      select: { id: true, name: true, role: true, softphoneEnabled: true, softphoneSeenAt: true, sipUsername: true },
+      orderBy: { name: "asc" },
+    }),
+    voipTargetsFor(companyId).catch(() => []),
+  ]);
+  const onCall = new Set<string>();
+  if (call?.answeredByUserId) onCall.add(call.answeredByUserId);
+  for (const p of call?.participants ?? []) if (p.userId && (p.status === "ringing" || p.status === "joined")) onCall.add(p.userId);
+  const withPhone = new Set(phones.map((t) => t.userId));
+  const now = new Date();
+  const team = users
+    .filter((u) => canUseSoftphone(u.role) && !onCall.has(u.id))
+    .map((u) => ({
+      id: u.id,
+      name: u.name,
+      online: (u.softphoneEnabled && u.sipUsername && isSoftphoneOnline(u.softphoneSeenAt, now) ? "app" : u.softphoneEnabled && withPhone.has(u.id) ? "phone" : null) as "app" | "phone" | null,
+    }))
+    .sort((a, b) => Number(Boolean(b.online)) - Number(Boolean(a.online)) || a.name.localeCompare(b.name));
+  return { team };
+}
+
+/** conference.participant.joined — Telnyx confirms the mix; the row was marked at the answer, so this is the audit line. */
+async function onConferenceJoined(p: VoiceEventPayload): Promise<void> {
+  const hit = await findCallByLeg(p.call_control_id, p.client_state);
+  console.info(`[voice] conference ${p.conference_id ?? "?"} joined by ${hit ? `${hit.leg}${hit.participant ? ` ${hit.participant.id}` : ""} call=${hit.call.id}` : `unknown leg ${p.call_control_id}`}`);
+}
+
+/** conference.participant.left — the leg's own hangup usually got here first; this closes the row if that webhook was lost. */
+async function onConferenceLeft(p: VoiceEventPayload): Promise<void> {
+  const hit = await findCallByLeg(p.call_control_id, p.client_state);
+  console.info(`[voice] conference ${p.conference_id ?? "?"} left by ${hit ? `${hit.leg}${hit.participant ? ` ${hit.participant.id}` : ""} call=${hit.call.id}` : `unknown leg ${p.call_control_id}`}`);
+  if (!hit?.participant || hit.participant.status !== "joined" || hit.participant.telnyxCallId !== p.call_control_id) return;
+  await prisma.callParticipant.updateMany({ where: { id: hit.participant.id, status: "joined" }, data: { status: "left", leftAt: new Date(), hangupCause: "conference_left" } });
+  await afterParticipantLeft(hit.call.id);
+}
+
+/** The customer hung up on a conference: drop the answerer and every participant still on it. */
+async function endConferenceLegs(call: CallRow, now: Date, cause: string | null): Promise<void> {
+  if (isRealLegId(call.agentCallId)) await callAction(call.agentCallId, "hangup").catch((e) => reportError("[voice] conference answerer hangup failed:", e));
+  await hangupParticipantLegs(call, now, cause).catch((e) => reportError("[voice] conference participant hangup failed:", e));
+}
+
+/** Hang up every participant leg still open (dialed numbers and ringing teammates) and close their rows. */
+async function hangupParticipantLegs(call: CallRow, now: Date, cause: string | null): Promise<void> {
+  for (const p of call.participants) {
+    if ((p.status === "ringing" || p.status === "joined") && isRealLegId(p.telnyxCallId)) await callAction(p.telnyxCallId, "hangup").catch(() => {});
+  }
+  await hangupAppLegs(call.id, null).catch(() => {});
+  await closeParticipantRows(call.id, now, cause);
+}
+
+/** Ringing → no answer, joined → left, for every open row on a call that is over. */
+async function closeParticipantRows(callId: string, now: Date, cause: string | null): Promise<void> {
+  await prisma.callParticipant.updateMany({ where: { callId, status: "ringing" }, data: { status: "no_answer", leftAt: now, hangupCause: cause } });
+  await prisma.callParticipant.updateMany({ where: { callId, status: "joined" }, data: { status: "left", leftAt: now, hangupCause: cause } });
 }
 
 /* ───────────────────────── Voicemail playback ───────────────────────── */
@@ -1487,6 +2145,7 @@ export async function runStaleCallSweep(now = new Date()): Promise<{ closed: num
         await hangupAppLegs(call.id, null).catch(() => {});
       }
       await prisma.callLeg.updateMany({ where: { callId: call.id, endedAt: null }, data: { endedAt: now, hangupCause: "stale" } });
+      await closeParticipantRows(call.id, now, "stale");
       await finishAtlasNotes(call);
       fireCallStatus(call, status);
       out.closed++;

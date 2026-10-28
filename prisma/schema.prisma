@@ -3630,15 +3630,47 @@ model Call {
   atlasNotesError      String?
   atlasNotesUserId     String? // who asked (and whose company meter pays)
   atlasNotesTokens     Int?
+  // Telnyx conference id once someone pressed "Add" on the call screen
+  // (lib/voice.ts promoteToConference): the two original legs move from
+  // the bridge into a conference and every added person is a CallParticipant.
+  conferenceId         String?
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
   legs                 CallLeg[]
+  participants         CallParticipant[]
   tasks                Task[]
 
   @@index([companyId, createdAt])
   @@index([contactId, createdAt])
   @@index([agentCallId])
   @@index([status, createdAt])
+}
+
+// Someone added to a live call (lib/voice.ts addParticipant): a teammate
+// rung in the app, a client/lead dialed from the line, or a typed number.
+// The customer (Call.telnyxCallId) and the person who answered
+// (Call.agentCallId) are NOT rows here, so every existing read of a call
+// keeps working; the call screen merges them for the participant strip.
+model CallParticipant {
+  id            String    @id @default(cuid())
+  callId        String
+  call          Call      @relation(fields: [callId], references: [id], onDelete: Cascade)
+  kind          String // "team" | "contact" | "number"
+  userId        String? // team member rung (their membership in this company)
+  contactId     String? // client/lead dialed
+  number        String? // E.164 dialed (contact or raw); null for a teammate
+  label         String // what the chips print, resolved at add time
+  // The participant's own leg: the PSTN dial, or the app leg that answered
+  // for a teammate (their ringing legs are CallLeg rows with participantId).
+  telnyxCallId  String?   @unique
+  addedByUserId String
+  status        String // "ringing" | "joined" | "left" | "no_answer" | "failed"
+  joinedAt      DateTime?
+  leftAt        DateTime?
+  hangupCause   String?
+  createdAt     DateTime  @default(now())
+
+  @@index([callId])
 }
 
 // One softphone leg of an inbound call (lib/softphone.ts): the SIP dial to
@@ -3656,6 +3688,10 @@ model CallLeg {
   // "android" (the Android app) — a phone is dialed once its push woke it;
   // its own credential either way.
   device       String?
+  // Set when this leg rings a teammate being ADDED to a live call
+  // (CallParticipant.kind "team"); the leg that answers becomes the
+  // participant's telnyxCallId and the rest are hung up.
+  participantId String?
   endedAt      DateTime?
   hangupCause  String?
   createdAt    DateTime  @default(now())

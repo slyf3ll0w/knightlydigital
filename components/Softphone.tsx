@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronUp, Maximize2, Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneOff, Play, StickyNote, Volume2, X } from "lucide-react";
+import { ChevronUp, Maximize2, Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneOff, Play, StickyNote, UserPlus, Volume2, X } from "lucide-react";
 import StickyEditor from "@/components/sticky/StickyEditor";
 import { getCapacitor, nativePlatform } from "@/components/NativeShell";
 import { useSession } from "next-auth/react";
@@ -809,9 +809,9 @@ export default function Softphone() {
       // Our own row is the truth about who this is (contact link, formatted number).
       fetch(`/api/app/line/softphone/call${callId ? `?id=${encodeURIComponent(callId)}` : ""}`, { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
-        .then((j: { call?: { id: string; label: string; number: string; contactId: string | null; direction?: string } | null } | null) => {
+        .then((j: { call?: { id: string; label: string; number: string; contactId: string | null; direction?: string; invite?: string | null } | null } | null) => {
           if (!j?.call || callRef.current !== call) return;
-          if (j.call.direction === "OUTBOUND") {
+          if (j.call.direction === "OUTBOUND" && !j.call.invite) {
             // Headers didn't make it through the SDK, but the row says this is an outbound call placed elsewhere.
             console.info("[softphone] ringing leg belongs to an outbound call placed elsewhere; ignoring");
             callRef.current = null;
@@ -819,7 +819,8 @@ export default function Softphone() {
             setSoftphoneState({ call: null });
             return;
           }
-          patchSoftphoneCall({ callId: j.call.id, label: j.call.label, number: j.call.number, contactId: j.call.contactId });
+          // A teammate is adding this person to a live call: the card says who wants them (lib/voice-conference.ts inviteLine).
+          patchSoftphoneCall({ callId: j.call.id, label: j.call.label, number: j.call.number, contactId: j.call.contactId, invite: j.call.invite ?? null });
         })
         .catch(() => {});
     };
@@ -1439,6 +1440,35 @@ function useNow(active: boolean): number {
  * when you navigate. Glass + theme tokens: the material is scoped to
  * .app-ui/.ds, which AppShell owns and this (mounted beside it) carries itself.
  */
+const PEOPLE_POLL_MS = 4_000;
+
+/** How many people were ADDED to the live call and are on it (ringing counts), polled quietly; 0 off a call. */
+function useOthersOnCall(callId: string | null): number {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    setCount(0);
+    if (!callId) return;
+    let stop = false;
+    const tick = async () => {
+      try {
+        const res = await fetch(`/api/app/line/softphone/call?id=${encodeURIComponent(callId)}`, { cache: "no-store" });
+        const j = (await res.json()) as { call?: { people?: { participants?: Array<{ status: string }> } } | null };
+        if (stop) return;
+        setCount((j.call?.people?.participants ?? []).filter((p) => p.status === "joined" || p.status === "ringing").length);
+      } catch {
+        /* next tick */
+      }
+    };
+    void tick();
+    const t = setInterval(tick, PEOPLE_POLL_MS);
+    return () => {
+      stop = true;
+      clearInterval(t);
+    };
+  }, [callId]);
+  return count;
+}
+
 const DOCK_TOP = "top-[calc(env(safe-area-inset-top)+63px)] lg:top-[65px]";
 // .ds-glass is the notifications dropdown's material (app/ds.css) and applies to the element itself
 // (`.ds.ds-glass`); .sheet-material only styles a DESCENDANT of .app-ui, which is why the first
@@ -1481,18 +1511,22 @@ function CallCard({ call }: { call: SoftphoneCall }) {
       setAutoOpen(false);
     }
   }, [pathname]);
+  // Others on the call (Add a person): a quiet count on the card; the strip itself lives on the call screen.
+  const others = useOthersOnCall(call.state === "active" || call.state === "held" ? call.callId : null);
   // The call screen (/app/calls/[id]) carries the full controls for this very call — no second card on top of it.
   const screenHref = call.callId ? `/app/calls/${call.callId}` : null;
   if (screenHref && pathname === screenHref) return null;
   const open = ringing || dialing || (pinned ?? autoOpen);
   const numberLine = call.number && call.label !== fmtNumber(call.number) ? `${fmtNumber(call.number)} · ` : "";
   const subtitle = ringing
-    ? "calling your business line"
+    ? call.invite
+      ? call.invite
+      : "calling your business line"
     : dialing
       ? "calling from your business line…"
       : held
         ? `on hold · ${fmtElapsed(call.startedAt, now)}`
-        : fmtElapsed(call.startedAt, now);
+        : `${fmtElapsed(call.startedAt, now)}${others > 0 ? ` · ${others + 2} on the call` : ""}`;
   const round = "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-50";
   const quiet = "bg-[color:var(--ds-ink)]/8 text-[color:var(--ds-ink)] hover:bg-[color:var(--ds-ink)]/14";
   // Company accent, straight from the design-system tokens the body carries
@@ -1619,6 +1653,12 @@ function CallCard({ call }: { call: SoftphoneCall }) {
             >
               <StickyNote size={18} />
             </button>
+            {screenHref && !dialing && (
+              // Add a person: the picker lives on the call screen (team / clients / a number).
+              <Link href={`${screenHref}?add=1`} className={`${round} ${quiet}`} title="Add a person to this call" aria-label="Add a person to this call">
+                <UserPlus size={18} />
+              </Link>
+            )}
             <button
               type="button"
               onClick={() => softphone.toggleHold()}
