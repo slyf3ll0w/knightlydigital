@@ -153,10 +153,14 @@ export const PLANS: Record<PlanId, Plan> = {
 export const FULL_SHOP = {
   name: "Max",
   tagline: "Every add-on, one price.",
-  /** What it costs today: Voice + Pro, with Gallery joining at no extra charge for anyone already on it. */
-  monthlyCents: Math.round(envNum(process.env.PLAN_FULL_SHOP_CENTS, 9_900)),
-  /** What it will cost once Gallery ships and joins the bundle. */
-  monthlyCentsAfterJobsite: Math.round(envNum(process.env.PLAN_FULL_SHOP_LATER_CENTS, 11_900)),
+  /**
+   * What it costs today: Voice + Pro, with Gallery joining at no extra charge
+   * for anyone already on it. $99 → $109 on 2026-10-28, following Voice's
+   * $25 → $35 (David: Max keeps the same $15 discount against the pair).
+   */
+  monthlyCents: Math.round(envNum(process.env.PLAN_FULL_SHOP_CENTS, 10_900)),
+  /** What it will cost once Gallery ships and joins the bundle ($119 → $129, same step). */
+  monthlyCentsAfterJobsite: Math.round(envNum(process.env.PLAN_FULL_SHOP_LATER_CENTS, 12_900)),
 } as const;
 
 /** The plans Max bundles — every add-on, whether shipped yet or not. */
