@@ -24,7 +24,7 @@ export default async function MessagesInboxPage() {
     // decides whether New message may start a thread with a typed number.
     prisma.company.findUnique({
       where: { id: actor.companyId },
-      select: { timezone: true, lineNumber: true, planGrants: true, addonActiveAt: true, addonEnabled: true },
+      select: { timezone: true, lineNumber: true, planGrants: true, paidPlans: true, addonActiveAt: true, addonEnabled: true },
     }),
   ]);
   const tz = company?.timezone ?? "America/Chicago";

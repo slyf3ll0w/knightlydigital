@@ -32,6 +32,9 @@ export const SQUARE_SCOPES = [
   "CUSTOMERS_READ",
   "CUSTOMERS_WRITE", // a Square customer per contact when a card goes on file
   "BANK_ACCOUNTS_READ", // ListBankAccounts: is there a bank account to pay out to? (2026-10-23 — the "add your bank account" nudge)
+  "PAYOUTS_READ", // ListPayouts / ListPayoutEntries: the Payouts tab on /app/payments (2026-10-28)
+  "DISPUTES_READ", // ListDisputes: the Disputes tab (2026-10-28)
+  "DISPUTES_WRITE", // accept a dispute, upload evidence (2026-10-28)
 ] as const;
 
 export function squareScopes(): string[] {
@@ -206,7 +209,10 @@ export const HARD_DECLINE_CODES = new Set([
 
 type Auth = { bearer: string } | { client: true } | { none: true };
 
-async function squareFetch<T>(
+/** Every Square call goes through here. Exported for the sibling modules
+ *  (lib/plan-billing.ts, lib/square-seller-reports.ts) so one transport
+ *  carries the version header, the error shape and the timeout. */
+export async function squareFetch<T>(
   path: string,
   opts: { method?: "GET" | "POST" | "PUT" | "DELETE"; body?: unknown; auth: Auth; timeoutMs?: number }
 ): Promise<T> {

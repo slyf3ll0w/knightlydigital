@@ -224,6 +224,25 @@ model Company {
   // yet, so a grant is the only way onto it. Gate with hasPlan(company, id),
   // which also honours a paid Dispatch subscription (addonActiveAt).
   planGrants                String[]          @default([])
+  // ── Paid plans (lib/plan-billing.ts, 2026-10-28) — the plan ids this
+  // company PAYS for through WorkBench's own Square account, derived from its
+  // ACTIVE PlanSubscription rows (Max writes all three). hasPlan() reads it
+  // next to planGrants; never edit it by hand — syncCompanyEntitlements does.
+  paidPlans                 String[]    @default([])
+  // Extra people paid for a month at a time: the count of ACTIVE SEAT
+  // subscriptions. Core's limit is INCLUDED_SEATS + paidSeats (lib/plans.ts seatLimit).
+  paidSeats                 Int         @default(0)
+  // The company as a CUSTOMER of WorkBench in our Square account (not the
+  // seller-side squareMerchantId): one customer, one card on file that every
+  // plan subscription charges. Brand/last 4 are display copies.
+  squareBillingCustomerId   String?
+  squareBillingCardId       String?
+  squareBillingCardBrand    String?
+  squareBillingCardLast4    String?
+  // The one-time Voice setup fee (DISPATCH_SETUP_CENTS), charged with the
+  // first Voice / Max subscription; null = not charged yet (grants never pay it).
+  dispatchSetupPaidAt       DateTime?
+  planSubscriptions         PlanSubscription[]
   // ── Business line (lib/business-line.ts) — the tenant's own local number,
   // bought through Telnyx, carrying their automated texts AND a forwarded
   // business phone line. Texts send from it only once MessagingRegistration
@@ -3289,6 +3308,37 @@ model SquareConnection {
   updatedAt          DateTime  @updatedAt
 
   @@index([refreshedAt])
+}
+
+// A plan the company pays WorkBench for — one row per Square subscription in
+// OUR Square account (lib/plan-billing.ts). `product` is a lib/plans.ts
+// BillingProduct (DISPATCH / SHOP / JOBSITE / FULL_SHOP / SEAT); a company
+// buying three seats has three SEAT rows. `status` mirrors Square's
+// subscription status (PENDING / ACTIVE / PAUSED / CANCELED / DEACTIVATED);
+// `entitled` is what hasPlan() counts, derived by the reducer in
+// lib/plan-subscriptions.ts (ACTIVE, or canceled but paid through a date
+// still ahead). Company.paidPlans / paidSeats are the denormalized sums.
+model PlanSubscription {
+  id                   String    @id @default(cuid())
+  companyId            String
+  company              Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product              String
+  cadence              String // MONTHLY | ANNUAL
+  squareSubscriptionId String    @unique
+  planVariationId      String
+  status               String
+  entitled             Boolean   @default(false)
+  startedAt            DateTime?
+  /** Square's charged_through_date: paid up to the end of this day (date only). */
+  chargedThrough       DateTime?
+  canceledAt           DateTime?
+  lastPaymentAt        DateTime?
+  lastFailureAt        DateTime?
+  lastFailureNote      String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([companyId])
 }
 
 enum QuickBooksEntityType {

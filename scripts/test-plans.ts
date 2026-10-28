@@ -22,6 +22,17 @@ import {
   separatelyMonthlyCents,
   featureAllowed,
   planGatingLive,
+  GATED_FEATURES,
+  INCLUDED_SEATS,
+  canAddPerson,
+  featureBlurb,
+  featureLabel,
+  featurePlan,
+  planSource,
+  productPlans,
+  productPriceCents,
+  productSellable,
+  seatLimit,
 } from "../lib/plans";
 
 // ── Catalog sanity: the numbers the site prints ──
@@ -90,14 +101,60 @@ assert.deepEqual(activePlans(everything), ["DISPATCH", "SHOP", "JOBSITE"]);
 assert.equal(hasPlan({ planGrants: ["DISPATCH"] }, "DISPATCH"), true);
 assert.equal(hasPlan({ planGrants: [] }, "DISPATCH"), false);
 
+// A plan paid through Square counts like a grant …
+const paidPro = { planGrants: [], paidPlans: ["SHOP"], addonActiveAt: null };
+assert.equal(hasPlan(paidPro, "SHOP"), true);
+assert.equal(hasUnlimitedSeats(paidPro), true);
+assert.equal(planSource(paidPro, "SHOP"), "paid");
+assert.equal(planSource(granted, "SHOP"), "grant");
+assert.equal(planSource(paid, "DISPATCH"), "livery");
+assert.equal(planSource(bench, "SHOP"), null);
+// … and Max pays for every plan.
+assert.deepEqual(productPlans("FULL_SHOP"), ["DISPATCH", "SHOP", "JOBSITE"]);
+assert.deepEqual(productPlans("SEAT"), []);
+assert.deepEqual(productPlans("SHOP"), ["SHOP"]);
+assert.equal(productPriceCents("SHOP", "MONTHLY"), 8_900);
+assert.equal(productPriceCents("SHOP", "ANNUAL"), 89_000);
+assert.equal(productPriceCents("FULL_SHOP", "MONTHLY"), 10_900);
+assert.equal(productPriceCents("SEAT", "MONTHLY"), 1_000);
+assert.equal(productSellable("JOBSITE"), false, "Gallery is coming soon");
+assert.equal(productSellable("FULL_SHOP"), true);
+
 // Feature gates: dark until PLAN_GATING=1, then Pro-only.
 assert.equal(featureAllowed(bench, "routes", false), true);
 assert.equal(featureAllowed(bench, "routes", true), false);
 assert.equal(featureAllowed(granted, "routes", true), true);
+assert.equal(featureAllowed(paidPro, "routes", true), true);
 assert.equal(featureAllowed(everything, "routes", true), true);
 assert.equal(featureAllowed(paid, "routes", true), false, "Voice alone is not Pro");
+// Every Pro feature carries a gate, named and described, and is Pro.
+for (const f of GATED_FEATURES) {
+  assert.equal(featurePlan(f), "SHOP");
+  assert.ok(featureLabel(f).length > 3, f);
+  assert.ok(featureBlurb(f).length > 20, f);
+  assert.equal(featureAllowed(bench, f, true), false, `${f} gated for Core`);
+  assert.equal(featureAllowed(granted, f, true), true, `${f} open for Pro`);
+}
+// A test account passes every gate (David 2026-10-28) — Voice is not a gate.
+const tester = { planGrants: [] as string[], addonActiveAt: null, isTest: true };
+for (const f of GATED_FEATURES) assert.equal(featureAllowed(tester, f, true), true, `${f} open for a test account`);
+assert.equal(hasPlan(tester, "DISPATCH"), false, "a test account still needs Voice granted");
 assert.equal(planGatingLive({}), false);
 assert.equal(planGatingLive({ PLAN_GATING: "1" }), true);
 assert.equal(planGatingLive({ PLAN_GATING: "0" }), false);
+
+// Seats: Core = INCLUDED_SEATS + paid seats; Pro, test accounts and a dark gate = no limit.
+assert.equal(INCLUDED_SEATS, 2);
+assert.equal(seatLimit(bench, true), 2);
+assert.equal(seatLimit({ ...bench, paidSeats: 3 }, true), 5);
+assert.equal(seatLimit(bench, false), null);
+assert.equal(seatLimit(granted, true), null);
+assert.equal(seatLimit(paidPro, true), null);
+assert.equal(seatLimit(tester, true), null);
+assert.equal(canAddPerson(bench, 1, true), true);
+assert.equal(canAddPerson(bench, 2, true), false);
+assert.equal(canAddPerson({ ...bench, paidSeats: 1 }, 2, true), true);
+assert.equal(canAddPerson(bench, 50, false), true);
+assert.equal(canAddPerson(paid, 2, true), false, "Voice alone keeps the Core seat count");
 
 console.log("test-plans: ok");

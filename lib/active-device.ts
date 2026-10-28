@@ -181,7 +181,7 @@ export async function claimDevice(
       activeDeviceId: true,
       activeDeviceAt: true,
       activeDeviceLabel: true,
-      company: { select: { planGrants: true, addonActiveAt: true } },
+      company: { select: { planGrants: true, paidPlans: true, addonActiveAt: true } },
     },
   });
   if (!row || row.role === "SUPERADMIN" || exemptEmail(row.email) || exemptPlan(row.company)) return { kind: "claim" };

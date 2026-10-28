@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { featureAllowed, featureLabel, type GatedFeature } from "@/lib/plans";
+import { PLAN_HOLDER_SELECT, PLANS, featureAllowed, featureLabel, featurePlan, type GatedFeature } from "@/lib/plans";
 
 /**
  * Server-side plan gate for Pro features (lib/plans.ts decides; this only
@@ -18,7 +18,7 @@ export const PLAN_REQUIRED_CODE = "PLAN_REQUIRED";
 export async function featureAllowedFor(companyId: string, feature: GatedFeature): Promise<boolean> {
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { planGrants: true, addonActiveAt: true },
+    select: PLAN_HOLDER_SELECT,
   });
   if (!company) return false;
   return featureAllowed(company, feature);
@@ -32,7 +32,12 @@ export async function checkFeature(
   return {
     ok: false,
     response: NextResponse.json(
-      { error: `${featureLabel(feature)} is part of the Pro plan.`, code: PLAN_REQUIRED_CODE, plan: "SHOP" },
+      {
+        error: `${featureLabel(feature)} is part of the ${PLANS[featurePlan(feature)].name} plan.`,
+        code: PLAN_REQUIRED_CODE,
+        plan: featurePlan(feature),
+        feature,
+      },
       { status: 402 }
     ),
   };

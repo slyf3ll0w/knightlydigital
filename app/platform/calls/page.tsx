@@ -82,6 +82,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
         lineVoiceAppAt: true,
         timezone: true,
         planGrants: true,
+        paidPlans: true,
         addonActiveAt: true,
         addonEnabled: true,
         messagingRegistration: { select: { status: true } },

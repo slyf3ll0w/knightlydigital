@@ -32,13 +32,16 @@ import { ATLAS_PLAN_TOKENS } from "./atlas-pricing";
  *
  * Annual billing on every add-on = 10 × the monthly price (two months free).
  *
- * Entitlements: a company is on a plan when the superadmin console has
- * whitelisted it (Company.planGrants — the first users get everything free)
- * or, for Voice, when its Livery subscription is active
- * (Company.addonActiveAt, lib/addon.ts). Checkout for Pro and Max is
- * not wired yet; the grant is the only way onto them today. Nothing but the
- * phone line is gated in the app yet — see the plan doc for the gating
- * roll-out.
+ * Entitlements (2026-10-28, docs/plans/plan-gating-square-billing-2026-10-28.md):
+ * a company is on a plan when the superadmin console has whitelisted it
+ * (Company.planGrants — comped accounts), when it PAYS for it through
+ * WorkBench's Square account (Company.paidPlans, kept in step with its
+ * PlanSubscription rows by lib/plan-billing.ts; Max pays for every plan at
+ * once), or, for Voice, when its legacy Livery subscription is active
+ * (Company.addonActiveAt, lib/addon.ts). Feature gates (featureAllowed) are
+ * dark until PLAN_GATING=1; once live, TEST accounts (Company.isTest) pass
+ * every gate — only Voice still needs a grant or a subscription, because a
+ * phone number costs real money — and every live account needs the plan.
  *
  * Prices are env-tunable (cents) so a price change is a Railway variable,
  * not a deploy; the site reads these constants, never its own numbers.
@@ -209,13 +212,38 @@ export type PlanHolder = {
   planGrants: string[];
   /** Voice's paid entitlement (lib/addon.ts) — the Livery subscription, or a manual grant. */
   addonActiveAt?: Date | null;
+  /** Plans paid for through Square (lib/plan-billing.ts syncs it from PlanSubscription rows). */
+  paidPlans?: readonly string[];
+  /** Extra people paid for a month at a time (one SEAT subscription each). */
+  paidSeats?: number;
+  /** Superadmin "Test" flag: passes every feature gate except Voice. */
+  isTest?: boolean;
 };
+
+/** The Company columns every entitlement check reads — spread into selects. */
+export const PLAN_HOLDER_SELECT = {
+  planGrants: true,
+  paidPlans: true,
+  paidSeats: true,
+  addonActiveAt: true,
+  isTest: true,
+} as const;
 
 /** Is this company on the plan — whitelisted, or (Voice) subscribed? */
 export function hasPlan(company: PlanHolder, plan: PlanId): boolean {
   if (company.planGrants.includes(plan)) return true;
+  if (company.paidPlans?.includes(plan)) return true;
   if (plan === "DISPATCH" && company.addonActiveAt) return true;
   return false;
+}
+
+/** How the company is on the plan: a superadmin grant, a Square subscription, the legacy Livery one — or not at all. */
+export type PlanSource = "grant" | "paid" | "livery" | null;
+export function planSource(company: PlanHolder, plan: PlanId): PlanSource {
+  if (company.planGrants.includes(plan)) return "grant";
+  if (company.paidPlans?.includes(plan)) return "paid";
+  if (plan === "DISPATCH" && company.addonActiveAt) return "livery";
+  return null;
 }
 
 /** Pro lifts the seat cap; everything else pays per extra user. */
@@ -228,6 +256,61 @@ export function activePlans(company: PlanHolder): PlanId[] {
   return PLAN_IDS.filter((id) => hasPlan(company, id));
 }
 
+// ── Seats ──
+
+/**
+ * How many active people the company may have, or null for no limit (Pro /
+ * Max, a test account, or the gate still dark). Core: INCLUDED_SEATS plus
+ * every seat paid for.
+ */
+export function seatLimit(company: PlanHolder, live: boolean = planGatingLive()): number | null {
+  if (!live || company.isTest || hasUnlimitedSeats(company)) return null;
+  return INCLUDED_SEATS + Math.max(0, company.paidSeats ?? 0);
+}
+
+/** May one more active person join, given how many are active now? */
+export function canAddPerson(company: PlanHolder, activePeople: number, live: boolean = planGatingLive()): boolean {
+  const limit = seatLimit(company, live);
+  return limit === null || activePeople < limit;
+}
+
+// ── What can be bought (lib/plan-billing.ts sells these through Square) ──
+
+/** A plan, the Max bundle, or one extra person. */
+export type BillingProduct = PlanId | "FULL_SHOP" | "SEAT";
+export const BILLING_PRODUCTS: readonly BillingProduct[] = ["DISPATCH", "SHOP", "JOBSITE", "FULL_SHOP", "SEAT"] as const;
+export type BillingCadence = "MONTHLY" | "ANNUAL";
+
+export function isBillingProduct(v: unknown): v is BillingProduct {
+  return typeof v === "string" && (BILLING_PRODUCTS as readonly string[]).includes(v);
+}
+
+/** The plans a paid product puts the company on (a seat puts it on none). */
+export function productPlans(product: BillingProduct): PlanId[] {
+  if (product === "FULL_SHOP") return [...FULL_SHOP_PLANS];
+  if (product === "SEAT") return [];
+  return [product];
+}
+
+export function productName(product: BillingProduct): string {
+  if (product === "FULL_SHOP") return FULL_SHOP.name;
+  if (product === "SEAT") return "Extra person";
+  return PLANS[product].name;
+}
+
+/** What a product costs per term, in cents (annual = ANNUAL_MONTHS × monthly; seats are monthly only). */
+export function productPriceCents(product: BillingProduct, cadence: BillingCadence): number {
+  const monthly =
+    product === "FULL_SHOP" ? FULL_SHOP.monthlyCents : product === "SEAT" ? EXTRA_SEAT_CENTS : PLANS[product].monthlyCents;
+  return cadence === "ANNUAL" ? annualCents(monthly) : monthly;
+}
+
+/** Sold today? Gallery is coming soon; everything else is. */
+export function productSellable(product: BillingProduct): boolean {
+  if (product === "FULL_SHOP" || product === "SEAT") return true;
+  return !PLANS[product].comingSoon;
+}
+
 /** Only the ids the catalog knows, deduplicated, in catalog order. */
 export function normalizeGrants(grants: readonly string[]): PlanId[] {
   return PLAN_IDS.filter((id) => grants.includes(id));
@@ -235,8 +318,34 @@ export function normalizeGrants(grants: readonly string[]): PlanId[] {
 
 // ── Feature gates ──
 
-/** The Pro features that carry a gate in code. Each one names its own copy. */
-export type GatedFeature = "routes" | "task_assign" | "team_notes";
+/**
+ * The Pro features that carry a gate in code — the whole Pro card
+ * (PLANS.SHOP.includes), one id per feature. Each one names its own copy.
+ */
+export type GatedFeature =
+  | "routes"
+  | "task_assign"
+  | "team_notes"
+  | "estimator"
+  | "automations"
+  | "agreements"
+  | "team_map"
+  | "timesheets"
+  | "quickbooks"
+  | "seats";
+
+export const GATED_FEATURES: readonly GatedFeature[] = [
+  "routes",
+  "task_assign",
+  "team_notes",
+  "estimator",
+  "automations",
+  "agreements",
+  "team_map",
+  "timesheets",
+  "quickbooks",
+  "seats",
+] as const;
 
 const FEATURE_LABEL: Record<GatedFeature, string> = {
   routes: "Route Manager (beta)",
@@ -245,10 +354,40 @@ const FEATURE_LABEL: Record<GatedFeature, string> = {
   // team sticky notes sit with the other team tools.
   task_assign: "Giving tasks to your team",
   team_notes: "Team sticky notes",
+  estimator: "The Estimator",
+  automations: "Automations",
+  agreements: "Agreements and contracts",
+  team_map: "The live team map",
+  timesheets: "Timesheets and labor costing",
+  quickbooks: "QuickBooks Online sync",
+  seats: "More than the included people",
+};
+
+/** One line of what the feature does, for the upsell card. */
+const FEATURE_BLURB: Record<GatedFeature, string> = {
+  routes: "Every stop on a map, drive times between them, one-tap route optimizing, and Find a Time when you book.",
+  task_assign: "Hand tasks to anyone on the team and see everyone's open work in one list.",
+  team_notes: "Sticky notes the whole team sees, on the dashboard and on the phone.",
+  estimator: "Build estimates from your own price book with the Estimator and its Library of saved assemblies.",
+  automations: "Zapier-style automations: when something happens in WorkBench, do the next thing for you.",
+  agreements: "Service agreements and contracts your clients sign online.",
+  team_map: "See where everyone on the clock is right now.",
+  timesheets: "Clock in and out on jobs, weekly timesheets, and labor cost on every job's margin.",
+  quickbooks: "Customers, invoices, payments and estimates synced to QuickBooks Online every night.",
+  seats: `Core includes ${INCLUDED_SEATS} people. Add a person for ${formatCents(EXTRA_SEAT_CENTS)} a month, or go Pro for unlimited people.`,
 };
 
 export function featureLabel(feature: GatedFeature): string {
   return FEATURE_LABEL[feature];
+}
+
+export function featureBlurb(feature: GatedFeature): string {
+  return FEATURE_BLURB[feature];
+}
+
+/** The plan that unlocks a feature. Every gated feature is Pro today. */
+export function featurePlan(_feature: GatedFeature): PlanId {
+  return "SHOP";
 }
 
 /**
@@ -260,15 +399,16 @@ export function planGatingLive(env: Record<string, string | undefined> = process
   return env.PLAN_GATING === "1";
 }
 
-/** May this company use the feature right now? */
+/**
+ * May this company use the feature right now? Dark gate = yes. A test
+ * account = yes (David 2026-10-28: test accounts have everything open except
+ * Voice, which is not a GatedFeature — the phone line gates on hasAddon /
+ * hasPlan DISPATCH in lib/business-line.ts). Otherwise: on the plan.
+ */
 export function featureAllowed(company: PlanHolder, feature: GatedFeature, live: boolean = planGatingLive()): boolean {
   if (!live) return true;
-  switch (feature) {
-    case "routes":
-    case "task_assign":
-    case "team_notes":
-      return hasPlan(company, "SHOP");
-  }
+  if (company.isTest) return true;
+  return hasPlan(company, featurePlan(feature));
 }
 
 // ── Payment processing rates (decided 2026-10-22) ──────────────────────────
