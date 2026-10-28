@@ -34,7 +34,7 @@ const rows: CompareRow[] = [
   },
   {
     label: "Payments",
-    workbench: "Card and ACH built in at one flat rate across invoices, quotes, and bookings — see the pricing page for the exact numbers.",
+    workbench: "Card and ACH built in at one flat rate across invoices, quotes, and bookings, about what Jobber Payments charges — the difference is there's no subscription underneath it. The pricing page has the exact numbers and a side-by-side estimate.",
     competitor: "Offers built-in payment processing (Jobber Payments) with its own published rates — compare directly on their site.",
   },
   {

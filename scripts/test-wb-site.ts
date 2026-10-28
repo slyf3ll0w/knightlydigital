@@ -46,6 +46,7 @@ const PRICE_PATTERNS: { re: RegExp; why: string }[] = [
 /** Files whose numbers are not WorkBench prices. */
 const ALLOW: RegExp[] = [
   /texting-registration[\\/]page\.tsx$/, // "about $7 a month" is Google Workspace's price
+  /lib[\\/]wb-savings\.ts$/, // competitor list prices + the benchmark rate, dated; scripts/test-wb-savings.ts checks their age
 ];
 
 function walk(dir: string, out: string[] = []): string[] {

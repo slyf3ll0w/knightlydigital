@@ -7,6 +7,8 @@ import WBTestimonials from "@/components/wb/WBTestimonials";
 import WBScribble from "@/components/wb/WBScribble";
 import WBFaq from "@/components/wb/WBFaq";
 import WBPricing from "@/components/wb/WBPricing";
+import WBSavings from "@/components/wb/WBSavings";
+import { BENCHMARK } from "@/lib/wb-savings";
 import { ArrowRight, Compass, CreditCard, HandCoins, Puzzle, ShieldCheck, Sparkles } from "lucide-react";
 import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } from "@/lib/atlas-pricing";
 import {
@@ -34,6 +36,22 @@ const jobsite = PLANS.JOBSITE;
 const seatPrice = formatCents(EXTRA_SEAT_CENTS);
 
 const pricingFaq = [
+  {
+    q: "Isn't the processing fee the real price?",
+    a: (
+      <p>
+        It is a price, but not a new one. Online card payments cost a business about {BENCHMARK.label} almost
+        anywhere ({BENCHMARK.note}); on WorkBench the company-paid rate is {RATES.companyPaid.card}. The
+        difference is that everywhere else that fee sits on top of a monthly subscription, and here the
+        software is free. Or add a service fee your client pays at checkout and the processing costs you
+        nothing. The{" "}
+        <a href="#savings" className="font-semibold text-[#0B57D8] hover:underline">
+          estimate above
+        </a>{" "}
+        puts numbers on it for your shop.
+      </p>
+    ),
+  },
   {
     q: "Is the free plan a trial?",
     a: (
@@ -250,6 +268,27 @@ export default function WBPricingPage() {
               ))}
             </ul>
           </div>
+        </div>
+      </section>
+
+      {/* ── You're paying card fees already ── */}
+      <section id="savings" className="scroll-mt-24 border-t border-gray-200 bg-[#F6F8FB]">
+        <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
+          <AnimateIn className="max-w-3xl">
+            <p className="wb-label">What you keep</p>
+            <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
+              You&rsquo;re paying card fees already. The subscription is what you save.
+            </h2>
+            <p className="mt-5 text-[15.5px] leading-relaxed text-gray-600">
+              Whoever runs your payments takes about {BENCHMARK.label} of every online card payment. On
+              WorkBench it is {RATES.companyPaid.card}, and there is no subscription underneath it. Put in your
+              team, what clients pay you by card in a month, and a typical invoice, and see the whole bill next to
+              the cheapest published plan at the two best-known alternatives.
+            </p>
+          </AnimateIn>
+          <AnimateIn delay={120} className="mt-10">
+            <WBSavings />
+          </AnimateIn>
         </div>
       </section>
 

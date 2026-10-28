@@ -614,12 +614,14 @@ export default function WBHomePage() {
               The core software is free for {INCLUDED_SEATS} users, with full
               access and no trial clock. Three optional add-ons cover a business
               phone line, unlimited users with the ops tools, and job photos.
-              The rest is funded by built-in payment processing at one flat rate.
+              The rest is funded by built-in payment processing at one flat rate, about what
+              you pay for card payments anywhere, without a subscription underneath it.
             </p>
             <ul className="mt-7 grid gap-3">
               {[
                 `Full access on ${FREE_PLAN_NAME}, not a trial`,
                 `Add-ons priced flat per company, from ${formatCents(PLANS.DISPATCH.monthlyCents)} a month`,
+                "Card fees you'd pay any processor; the software on top is free",
                 "Cash and check invoices stay free too",
                 "No contracts. Your data exports any time",
               ].map((line) => (
@@ -631,10 +633,16 @@ export default function WBHomePage() {
                 </li>
               ))}
             </ul>
-            <Link href="/pricing" className="wb-pill wb-pill-outline mt-8">
-              How the pricing works
-              <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-            </Link>
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <Link href="/pricing" className="wb-pill wb-pill-outline">
+                How the pricing works
+                <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+              </Link>
+              <Link href="/pricing#savings" className="inline-flex items-center gap-1.5 text-[14.5px] font-bold text-[#0B57D8] hover:underline">
+                See what you keep vs. Jobber and Housecall Pro
+                <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+              </Link>
+            </div>
           </AnimateIn>
           <AnimateIn delay={120} className="relative">
             <div className="absolute -top-14 right-2 hidden items-end gap-1 lg:flex" aria-hidden>
