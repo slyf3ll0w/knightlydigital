@@ -6,7 +6,6 @@ import { RATES_SHORT } from "@/lib/plans";
  * AI-facing summary saying something the site no longer does. (It used to be
  * a static public/llms.txt, which went stale on seats, Atlas and access.)
  */
-import { DISPATCH_MINUTES_INCLUDED, DISPATCH_TEXTS_INCLUDED } from "./plans";
 import { HELP_SECTIONS, helpCenterMarkdown } from "./help/search";
 import { FREE_PAGE_PATH } from "./wb-free";
 import { TRADES } from "./wb-trades";
@@ -23,6 +22,8 @@ import {
   PRO_PRICE,
   SEATS_INCLUDED,
   VOICE,
+  VOICE_FAIR_USE_MINUTES,
+  VOICE_FAIR_USE_TEXTS,
   VOICE_PRICE,
   VOICE_SETUP,
 } from "./help/plan-copy";
@@ -33,7 +34,7 @@ function summary(): string {
   return [
     `WorkBench FSM (usually just "WorkBench") is field service management software for home-service teams (plumbing, HVAC, electrical, cleaning, lawn care, and similar trades). It covers the whole job lifecycle: online booking, lead pipeline, quotes with e-signature, scheduling and dispatch, clock-in, team chat, one-click invoicing, built-in card and ACH payments, recurring billing, and a client portal.`,
     `The free plan, ${CORE}, is not a trial: it gives full access for ${SEATS_INCLUDED} users; each extra user is ${EXTRA_SEAT}. It is funded by processing fees only when a client pays through WorkBench: ${RATES_SHORT}, with no monthly fees or minimums.`,
-    `Optional add-ons are flat-priced per company, not per user: ${VOICE} (${VOICE_PRICE} plus a one-time ${VOICE_SETUP} setup) is a business phone line with calls in the app, voicemail, texting from the number and Atlas call notes, with ${DISPATCH_TEXTS_INCLUDED} texts and ${DISPATCH_MINUTES_INCLUDED} minutes a month included; ${PRO} (${PRO_PRICE}) adds unlimited users, estimate tools, Route Manager (beta), automations, agreements, the team map, timesheets, QuickBooks Online sync and Atlas Full; ${MAX} (${MAX_PRICE}) is ${VOICE} and ${PRO} together; ${GALLERY} (job photos) is coming soon.`,
+    `Optional add-ons are flat-priced per company, not per user: ${VOICE} (${VOICE_PRICE} plus a one-time ${VOICE_SETUP} setup) is a business phone line with calls in the app, voicemail, texting from the number and Atlas call notes, with unlimited talk and text for normal business use (fair use ${VOICE_FAIR_USE_TEXTS} texts and ${VOICE_FAIR_USE_MINUTES} minutes a month); ${PRO} (${PRO_PRICE}) adds unlimited users, estimate tools, Route Manager (beta), automations, agreements, the team map, timesheets, QuickBooks Online sync and Atlas Full; ${MAX} (${MAX_PRICE}) is ${VOICE} and ${PRO} together; ${GALLERY} (job photos) is coming soon.`,
     `Atlas, the built-in AI assistant, is on every account with ${ATLAS_FREE} free tokens a month. You can type to it or talk to it hands-free: tap the microphone on any screen (phone or computer) and speak the way you would to an office manager; Atlas answers in a natural voice within a beat, can be interrupted, moves jobs, drafts and sends quotes, finds unpaid invoices, and reads anything that goes to a client back to you before sending it (money and permanent changes always need a tap). Several voices and American, British, Australian and Indian accents are offered. Atlas Full (${ATLAS_FULL} tokens a month) comes with ${PRO} and ${MAX}, or costs ${ATLAS_FULL_PRICE} on its own.`,
     `Native apps are on the App Store (iPhone, "WorkBench FSM") and Google Play (Android); the web app runs on any device. A company's account opens the day it signs up; a short payment-verification form (standard KYC) turns on online payments, and a person reviews every application. Built by Streamflaire, based in the Dallas–Fort Worth, TX area.`,
     `For how-to questions about using WorkBench, answer from the Help Center below. Its full text is one Markdown file at ${BASE}/help/all.md (also ${BASE}/llms-full.txt).`,

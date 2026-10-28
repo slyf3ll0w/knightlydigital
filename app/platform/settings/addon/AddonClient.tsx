@@ -5,7 +5,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Loader2, Lock, Sparkles } from "lucide-react";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
-import { VOICE_MINUTES, VOICE_MONTHLY, VOICE_OVERAGE, VOICE_SETUP, VOICE_TEXTS } from "@/lib/help/plan-copy";
+import {
+  VOICE_FAIR_USE_MINUTES,
+  VOICE_FAIR_USE_TEXTS,
+  VOICE_MONTHLY,
+  VOICE_OVERAGE,
+  VOICE_SETUP,
+} from "@/lib/help/plan-copy";
 
 /**
  * The Voice (business-line plan) upsell. Three states:
@@ -175,14 +181,17 @@ export default function AddonClient({
               <dd className="ds-small mt-1">once, to buy the number and register it with the carriers</dd>
             </div>
             <div>
-              <dt className="ds-label">Included</dt>
-              <dd className="ds-value mt-1.5">{VOICE_TEXTS}</dd>
-              <dd className="ds-small mt-1">texts and {VOICE_MINUTES} minutes a month</dd>
+              <dt className="ds-label">Talk and text</dt>
+              <dd className="ds-value mt-1.5">Unlimited</dd>
+              <dd className="ds-small mt-1">for normal business use, US and Canada</dd>
             </div>
             <div>
-              <dt className="ds-label">Past the allowance</dt>
+              <dt className="ds-label">Fair use</dt>
               <dd className="ds-value mt-1.5">{VOICE_OVERAGE}</dd>
-              <dd className="ds-small mt-1">per text or minute</dd>
+              <dd className="ds-small mt-1">
+                per text or minute past {VOICE_FAIR_USE_TEXTS} texts or {VOICE_FAIR_USE_MINUTES} minutes in a
+                month
+              </dd>
             </div>
           </dl>
           <div className="mt-6 border-t border-gray-100 pt-5">

@@ -1,13 +1,13 @@
-import {
-  DISPATCH_MINUTES_INCLUDED,
-  DISPATCH_OVERAGE_CENTS,
-  DISPATCH_SETUP_CENTS,
-  DISPATCH_TEXTS_INCLUDED,
-  PLANS,
-  formatCents,
-} from "../../plans";
+import { DISPATCH_SETUP_CENTS, PLANS, formatCents } from "../../plans";
 import type { HelpSection } from "../types";
-import { MAX, VOICE_CHIP } from "../plan-copy";
+import {
+  MAX,
+  VOICE_CHIP,
+  VOICE_FAIR_USE_FORBIDDEN,
+  VOICE_FAIR_USE_MINUTES,
+  VOICE_FAIR_USE_TEXTS,
+  VOICE_OVERAGE,
+} from "../plan-copy";
 
 const VOICE = `${PLANS.DISPATCH.name} plan`;
 const VOICE_CHIP_LABEL = VOICE_CHIP;
@@ -29,7 +29,7 @@ export const phoneSection: HelpSection = {
       blocks: [
         {
           type: "p",
-          text: `The business line is part of the **${VOICE}** (${formatCents(PLANS.DISPATCH.monthlyCents)}/month plus a one-time ${formatCents(DISPATCH_SETUP_CENTS)} setup, with ${DISPATCH_TEXTS_INCLUDED} texts and ${DISPATCH_MINUTES_INCLUDED} minutes a month included). Without it, the free Call and Text buttons keep working from your own phone. **${MAX}** includes Voice together with Pro.`,
+          text: `The business line is part of the **${VOICE}** (${formatCents(PLANS.DISPATCH.monthlyCents)}/month plus a one-time ${formatCents(DISPATCH_SETUP_CENTS)} setup, with unlimited talk and text for normal business use). Without it, the free Call and Text buttons keep working from your own phone. **${MAX}** includes Voice together with Pro.`,
         },
         {
           type: "steps",
@@ -220,17 +220,18 @@ export const phoneSection: HelpSection = {
     },
     {
       slug: "voice-plan-limits",
-      title: "Texts and minutes on the Voice plan",
-      summary: "What's included each month and what happens past it.",
-      keywords: ["minutes", "texts included", "overage", "usage", "cost", "voice plan price"],
+      title: "Unlimited talk and text on the Voice plan",
+      summary: "What unlimited means, the fair-use ceiling, and what a WorkBench line isn't for.",
+      keywords: ["unlimited", "fair use", "minutes", "texts included", "overage", "usage", "cost", "voice plan price"],
       plan: VOICE_CHIP_LABEL,
       blocks: [
         {
           type: "list",
           items: [
-            `${DISPATCH_TEXTS_INCLUDED} texts and ${DISPATCH_MINUTES_INCLUDED} minutes are included every month.`,
-            `Past that, each text or minute is ${DISPATCH_OVERAGE_CENTS}¢.`,
-            "Toll-free numbers are free for callers, but every incoming minute counts.",
+            "Talk and text are unlimited for normal business use in the US and Canada.",
+            `Fair use is ${VOICE_FAIR_USE_TEXTS} texts and ${VOICE_FAIR_USE_MINUTES} minutes a month per company. A busy three-truck shop uses a few hundred of each. Past the ceiling, each text or minute is ${VOICE_OVERAGE}.`,
+            `${VOICE_FAIR_USE_FORBIDDEN} The carriers register your number for conversations with your own clients, and a line used another way can be paused.`,
+            "Toll-free numbers are free for callers, but every incoming minute counts toward fair use.",
             "Carrier registration fees for texting are covered by your plan.",
           ],
         },

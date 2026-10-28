@@ -13,17 +13,15 @@ import { ArrowRight, Compass, CreditCard, HandCoins, Puzzle, ShieldCheck, Sparkl
 import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } from "@/lib/atlas-pricing";
 import {
   ANNUAL_MONTHS,
-  DISPATCH_MINUTES_INCLUDED,
-  DISPATCH_OVERAGE_CENTS,
   DISPATCH_SETUP_CENTS,
-  DISPATCH_TEXTS_INCLUDED,
   EXTRA_SEAT_CENTS,
+  FAIR_USE_FORBIDDEN,
+  FAIR_USE_SENTENCE,
   FREE_PLAN_NAME,
   FULL_SHOP,
   INCLUDED_SEATS,
   PLANS,
   formatCents,
-  formatUnitCents,
 } from "@/lib/plans";
 import { WB_PHONE, WB_TRADE_PHOTOS } from "@/lib/wb-site";
 
@@ -102,11 +100,18 @@ const pricingFaq = [
       <p>
         {formatCents(DISPATCH_SETUP_CENTS)} once, when you get your number: that covers buying
         it and registering your business with the carriers so it can text (a filing every
-        business that texts has to make). Each month includes{" "}
-        {DISPATCH_TEXTS_INCLUDED.toLocaleString("en-US")} texts and{" "}
-        {DISPATCH_MINUTES_INCLUDED.toLocaleString("en-US")} minutes; past that it&apos;s{" "}
-        {formatUnitCents(DISPATCH_OVERAGE_CENTS)} per text or minute, billed with the next
-        month. Most small shops never reach the allowance.
+        business that texts has to make). After that, talk and text are unlimited.
+      </p>
+    ),
+  },
+  {
+    q: `What does "unlimited" mean on ${dispatch.name}?`,
+    a: (
+      <p>
+        {FAIR_USE_SENTENCE} A busy three-truck shop uses a few hundred of each, so a real
+        business never meets the ceiling; it exists so the line can&apos;t be run as a dialer.{" "}
+        {FAIR_USE_FORBIDDEN} The carriers register your number for conversations with your
+        own clients, and that is what it is for.
       </p>
     ),
   },

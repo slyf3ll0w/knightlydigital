@@ -116,3 +116,32 @@ Shop are unlimited.
    rather than handing out all of Shop.
 7. In-app "Plans" page for owners (what they're on, what they could add) —
    today the only in-app plan surface is Settings → Dispatch.
+
+## 2026-10-28 — Voice goes to $35, unlimited talk and text
+
+Decided with David 2026-10-28. Voice (id DISPATCH) moves from $25 with a
+500-text / 500-minute allowance to **$35 a month, unlimited talk and text for
+normal business use**. Cost check: Telnyx runs roughly 1–1.5¢ per bridged
+minute and under 1¢ per text, so $35 breaks even around 2,500 units a month;
+a busy three-truck shop uses a few hundred. Nothing was ever metered for
+billing (texts count in `CompanyUsageDaily`, minutes only in
+`Call.durationSec`), so "unlimited" matches what ships.
+
+What "unlimited" means is a **fair-use ceiling**: `DISPATCH_FAIR_USE_TEXTS`
+and `DISPATCH_FAIR_USE_MINUTES` (3,000 each, env `PLAN_DISPATCH_FAIR_USE_*`),
+past which usage bills at `DISPATCH_OVERAGE_CENTS` (still 3¢). The wording
+lives once, in `FAIR_USE_SENTENCE` + `FAIR_USE_FORBIDDEN` (lib/plans.ts) and
+is printed by the pricing card footnote, a new pricing FAQ entry, Help
+(`/help/voice-plan-limits`, `/help/plans-and-pricing`,
+`/help/set-up-business-line`), Settings → Voice, llms.txt, the JSON-LD offer
+and Terms §8 ("Fair use on the Voice plan"). The real exploit is not cost but
+compliance: every tenant's 10DLC campaign is filed under Streamflaire's Telnyx
+account for conversational customer care, so an auto-dialer or text blaster
+puts the account at risk — the Terms forbid both and let us pause a line.
+
+Not changed: Max stays $99 (its discount against Voice + Pro grows from $15
+to $25 — David's call whether Max follows); the Livery product for Voice still
+charges $25 until David edits it in the Livery dashboard; the one-time $25
+setup. Still open from the list above: item 3 (usage metering) now means a
+monthly roll-up of texts + minutes per company with an operator alert at the
+ceiling, not a per-unit invoice for ordinary shops.

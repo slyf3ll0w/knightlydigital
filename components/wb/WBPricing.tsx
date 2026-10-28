@@ -11,6 +11,8 @@ import {
   DISPATCH_OVERAGE_CENTS,
   DISPATCH_SETUP_CENTS,
   EXTRA_SEAT_CENTS,
+  FAIR_USE_MINUTES_LABEL,
+  FAIR_USE_TEXTS_LABEL,
   FREE_PLAN_NAME,
   FULL_SHOP,
   INCLUDED_SEATS,
@@ -172,8 +174,9 @@ export default function WBPricing() {
             </ul>
             <p className="mt-6 border-t border-gray-100 pt-4 text-[12.5px] leading-relaxed text-gray-500">
               Plus {formatCents(DISPATCH_SETUP_CENTS)} once to buy the number and register it with
-              the carriers. Past the allowance, {formatUnitCents(DISPATCH_OVERAGE_CENTS)} per text
-              or minute.
+              the carriers. Unlimited means normal business use: up to {FAIR_USE_TEXTS_LABEL} texts
+              and {FAIR_USE_MINUTES_LABEL} minutes a month, then{" "}
+              {formatUnitCents(DISPATCH_OVERAGE_CENTS)} each.
             </p>
           </div>
 
