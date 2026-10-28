@@ -58,12 +58,28 @@ async function fillSquareCard(page: Page, number: string): Promise<void> {
     await dumpSquareFrames(page);
     throw err;
   }
-  // Masked inputs: type digit-by-digit so the mask formats them itself.
+  // Masked inputs: type digit-by-digit so the mask formats them itself. Each
+  // field is clicked first — Square's frame moves focus on its own as a mask
+  // completes, and keystrokes sent during that hop were lost (2026-10-28: the
+  // ZIP stayed empty, "Postal code is not valid", the charge never ran).
   await cardNumber.click();
   await cardNumber.pressSequentially(number, { delay: 25 });
-  await squareField(page, "expirationDate", "MM/YY").pressSequentially(CARD.exp, { delay: 25 });
-  await squareField(page, "cvv", "CVV").pressSequentially(CARD.cvv, { delay: 25 });
-  await squareField(page, "postalCode", "ZIP").pressSequentially(CARD.zip, { delay: 25 });
+  for (const [id, placeholder, value] of [
+    ["expirationDate", "MM/YY", CARD.exp],
+    ["cvv", "CVV", CARD.cvv],
+    ["postalCode", "ZIP", CARD.zip],
+  ] as const) {
+    const field = squareField(page, id, placeholder);
+    await field.click();
+    await field.pressSequentially(value, { delay: 25 });
+    await expect(field).toHaveValue(new RegExp(value.slice(-2)), { timeout: 5_000 }).catch(async () => {
+      // Typed into a stale focus target: once more, after a settle.
+      await page.waitForTimeout(300);
+      await field.click();
+      await field.fill("");
+      await field.pressSequentially(value, { delay: 40 });
+    });
+  }
 }
 
 async function payInBrowser(page: Page, payUrl: string, opts: { number?: string; saveCard?: boolean } = {}) {
