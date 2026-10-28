@@ -29,8 +29,10 @@ assert.equal(PLANS.DISPATCH.monthlyCents, 3_500);
 assert.equal(PLANS.SHOP.monthlyCents, 8_900);
 assert.equal(PLANS.JOBSITE.monthlyCents, 2_900);
 assert.equal(PLANS.JOBSITE.comingSoon, true);
-assert.equal(FULL_SHOP.monthlyCents, 9_900);
-assert.equal(FULL_SHOP.monthlyCentsAfterJobsite, 11_900);
+assert.equal(FULL_SHOP.monthlyCents, 10_900);
+assert.equal(FULL_SHOP.monthlyCentsAfterJobsite, 12_900);
+// Max keeps its $15 discount against Voice + Pro bought separately.
+assert.equal(separatelyMonthlyCents() - FULL_SHOP.monthlyCents, 1_500);
 assert.equal(ANNUAL_MONTHS, 10);
 assert.equal(annualCents(3_500), 35_000);
 // Max is a discount on the shipped add-ons bought separately (today: Voice + Pro).

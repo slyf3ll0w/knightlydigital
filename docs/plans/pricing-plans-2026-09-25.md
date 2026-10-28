@@ -18,7 +18,7 @@ bundle. Annual billing on any add-on = pay for 10 months, get 12.
 | **Dispatch** | $25/mo ($250/yr) · **$25 one-time** number setup | The business phone line (lib/business-line.ts): local number, 10DLC texting registration, calls ring in the app then the cell, dialer, voicemail, call log, Atlas call notes. **500 texts + 500 minutes/mo included; 3¢ per text or minute after**, billed with the next month. |
 | **Shop** | $89/mo ($890/yr) | **Unlimited users** + Estimator & Library, Route Manager, Automations, Agreements, Team map, Timesheets & labor costing, QuickBooks Online, Atlas Full's 150,000 tokens. |
 | **Jobsite** | $29/mo ($290/yr) · **coming soon** | CompanyCam-style job photos (`job-photos-companycam-2026-09-25.md`). Shown on the site, not sold. |
-| **Full Shop** | **$99/mo ($990/yr) now** → $119/mo once Jobsite ships | Dispatch + Shop today; Jobsite joins at no extra charge. Anyone on it before Jobsite ships keeps $99. |
+| **Full Shop** | **$109/mo ($1,090/yr) now** (was $99 until 2026-10-28) → $129/mo once Jobsite ships | Dispatch + Shop today; Jobsite joins at no extra charge. Anyone on it before Jobsite ships keeps their launch price. |
 
 Extra users at $10/user/mo apply to Bench, Dispatch, and Jobsite. Shop and Full
 Shop are unlimited.
@@ -110,8 +110,8 @@ Shop are unlimited.
    checkout exists (Livery one-time product).
 5. **Jobsite** — build per `job-photos-companycam-2026-09-25.md`; flip
    `PLANS.JOBSITE.comingSoon` and Full Shop's price (`PLAN_FULL_SHOP_CENTS`
-   → 11900) when it ships, honouring the "keep $99" promise for existing
-   Full Shop rows.
+   → 12900) when it ships, honouring the "keep your launch price" promise
+   for existing Full Shop rows.
 6. **Accountant-referral QuickBooks** — a QBO-only grant (or a fourth grant id)
    rather than handing out all of Shop.
 7. In-app "Plans" page for owners (what they're on, what they could add) —
@@ -139,9 +139,11 @@ compliance: every tenant's 10DLC campaign is filed under Streamflaire's Telnyx
 account for conversational customer care, so an auto-dialer or text blaster
 puts the account at risk — the Terms forbid both and let us pause a line.
 
-Not changed: Max stays $99 (its discount against Voice + Pro grows from $15
-to $25 — David's call whether Max follows); the Livery product for Voice still
-charges $25 until David edits it in the Livery dashboard; the one-time $25
-setup. Still open from the list above: item 3 (usage metering) now means a
+Max follows (David, same day): $99 → **$109** now and $119 → **$129** after
+Gallery, so it keeps the same $15 discount against Voice + Pro. Not changed:
+the one-time $25 setup. Billing: the Livery product for Voice still charges
+$25; David is moving subscription billing to **Square** soon and will set the
+plans up there, so no Livery edits — item 2 above (checkout for Pro / Max /
+seats) becomes Square subscription plans rather than Livery products. Still open from the list above: item 3 (usage metering) now means a
 monthly roll-up of texts + minutes per company with an operator alert at the
 ceiling, not a per-unit invoice for ordinary shops.
