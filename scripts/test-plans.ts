@@ -5,6 +5,9 @@
 import assert from "node:assert/strict";
 import {
   ANNUAL_MONTHS,
+  DISPATCH_FAIR_USE_MINUTES,
+  DISPATCH_FAIR_USE_TEXTS,
+  FAIR_USE_SENTENCE,
   FULL_SHOP,
   PLANS,
   PLAN_IDS,
@@ -22,16 +25,23 @@ import {
 } from "../lib/plans";
 
 // ── Catalog sanity: the numbers the site prints ──
-assert.equal(PLANS.DISPATCH.monthlyCents, 2_500);
+assert.equal(PLANS.DISPATCH.monthlyCents, 3_500);
 assert.equal(PLANS.SHOP.monthlyCents, 8_900);
 assert.equal(PLANS.JOBSITE.monthlyCents, 2_900);
 assert.equal(PLANS.JOBSITE.comingSoon, true);
 assert.equal(FULL_SHOP.monthlyCents, 9_900);
 assert.equal(FULL_SHOP.monthlyCentsAfterJobsite, 11_900);
 assert.equal(ANNUAL_MONTHS, 10);
-assert.equal(annualCents(2_500), 25_000);
+assert.equal(annualCents(3_500), 35_000);
 // Max is a discount on the shipped add-ons bought separately (today: Voice + Pro).
-assert.equal(separatelyMonthlyCents(), 11_400);
+assert.equal(separatelyMonthlyCents(), 12_400);
+// Voice is unlimited talk and text, defined by a fair-use ceiling no real shop meets.
+assert.equal(DISPATCH_FAIR_USE_TEXTS, 3_000);
+assert.equal(DISPATCH_FAIR_USE_MINUTES, 3_000);
+assert.ok(PLANS.DISPATCH.includes.some((s) => /unlimited talk and text/i.test(s)));
+assert.ok(FAIR_USE_SENTENCE.includes("3,000 texts and 3,000 minutes"));
+assert.ok(FAIR_USE_SENTENCE.includes("3¢"));
+assert.ok(!PLANS.DISPATCH.includes.some((s) => /\d+ texts/.test(s)), "no fixed allowance on the card");
 assert.ok(FULL_SHOP.monthlyCents < separatelyMonthlyCents());
 // … and after Gallery joins, still a discount on all three.
 assert.ok(

@@ -6,9 +6,9 @@ import WBFooter from "@/components/wb/WBFooter";
 import WBContactButton from "@/components/wb/WBContactButton";
 import { APP_STORE_URL, PLAY_STORE_URL, WB_EMAIL, WB_FACEBOOK_URL, WB_PHONE } from "@/lib/wb-site";
 import {
-  DISPATCH_MINUTES_INCLUDED,
   DISPATCH_SETUP_CENTS,
-  DISPATCH_TEXTS_INCLUDED,
+  FAIR_USE_MINUTES_LABEL,
+  FAIR_USE_TEXTS_LABEL,
   EXTRA_SEAT_CENTS,
   FREE_PLAN_NAME,
   FULL_SHOP,
@@ -69,7 +69,7 @@ const softwareAppJsonLd = {
       name: PLANS.DISPATCH.name,
       price: (PLANS.DISPATCH.monthlyCents / 100).toFixed(2),
       priceCurrency: "USD",
-      description: `${PLANS.DISPATCH.tagline} Per company per month; ${formatCents(DISPATCH_SETUP_CENTS)} one-time number setup; ${DISPATCH_TEXTS_INCLUDED} texts and ${DISPATCH_MINUTES_INCLUDED} minutes a month included.`,
+      description: `${PLANS.DISPATCH.tagline} Per company per month; ${formatCents(DISPATCH_SETUP_CENTS)} one-time number setup; unlimited talk and text for normal business use (fair use ${FAIR_USE_TEXTS_LABEL} texts and ${FAIR_USE_MINUTES_LABEL} minutes a month).`,
     },
     {
       "@type": "Offer",

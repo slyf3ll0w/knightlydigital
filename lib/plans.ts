@@ -16,10 +16,11 @@ import { ATLAS_PLAN_TOKENS } from "./atlas-pricing";
  *
  *   Voice (id DISPATCH) — the business phone line (lib/business-line.ts): a local
  *                number, texting registration, calls that ring in the app,
- *                the dialer, voicemail, call notes. Includes a monthly
- *                text + minute allowance; usage past it bills per unit. A
- *                one-time setup fee covers buying the number and the
- *                carrier (10DLC) registration.
+ *                the dialer, voicemail, call notes. Unlimited talk and text
+ *                for normal business use (US + Canada), defined by a
+ *                fair-use ceiling (DISPATCH_FAIR_USE_*) past which usage
+ *                bills per unit. A one-time setup fee covers buying the
+ *                number and the carrier (10DLC) registration.
  *   Pro (id SHOP) — unlimited users plus the ops tools: Estimator + Library,
  *                Route Manager, Automations, Agreements, Team map,
  *                Timesheets, QuickBooks Online, and Atlas Full's tokens.
@@ -79,9 +80,20 @@ export type Plan = {
 };
 
 export const DISPATCH_SETUP_CENTS = Math.round(envNum(process.env.PLAN_DISPATCH_SETUP_CENTS, 2_500));
-export const DISPATCH_TEXTS_INCLUDED = Math.round(envNum(process.env.PLAN_DISPATCH_TEXTS, 500));
-export const DISPATCH_MINUTES_INCLUDED = Math.round(envNum(process.env.PLAN_DISPATCH_MINUTES, 500));
-/** Per text and per minute past the allowance, in cents. */
+/**
+ * Voice is unlimited talk and text for normal business use (decided
+ * 2026-10-28 with the move from $25 to $35; it replaced a 500-text /
+ * 500-minute allowance). The fair-use ceiling is what "unlimited" means in
+ * the Terms: past it in a month, usage bills per unit at
+ * DISPATCH_OVERAGE_CENTS. Set where no real shop meets it (a busy
+ * three-truck shop runs a few hundred of each) but an auto-dialer or a text
+ * blaster does — which the carriers' 10DLC registration forbids on these
+ * lines anyway. Metering: texts already count in CompanyUsageDaily; minutes
+ * roll up from Call.durationSec. Neither bills yet (pricing plan doc, item 3).
+ */
+export const DISPATCH_FAIR_USE_TEXTS = Math.round(envNum(process.env.PLAN_DISPATCH_FAIR_USE_TEXTS, 3_000));
+export const DISPATCH_FAIR_USE_MINUTES = Math.round(envNum(process.env.PLAN_DISPATCH_FAIR_USE_MINUTES, 3_000));
+/** Per text and per minute past the fair-use ceiling, in cents. */
 export const DISPATCH_OVERAGE_CENTS = envNum(process.env.PLAN_DISPATCH_OVERAGE_CENTS, 3);
 
 export const PLANS: Record<PlanId, Plan> = {
@@ -89,7 +101,7 @@ export const PLANS: Record<PlanId, Plan> = {
     id: "DISPATCH",
     name: "Voice",
     tagline: "Your own business phone line, inside WorkBench.",
-    monthlyCents: Math.round(envNum(process.env.PLAN_DISPATCH_CENTS, 2_500)),
+    monthlyCents: Math.round(envNum(process.env.PLAN_DISPATCH_CENTS, 3_500)),
     comingSoon: false,
     includes: [
       "A local business number, registered to text in your name",
@@ -97,7 +109,7 @@ export const PLANS: Record<PlanId, Plan> = {
       "Browser dialer, hold, voicemail, and a full call log",
       "Text clients from the line; automatic texts send from it too",
       "Atlas call notes after every call",
-      `${DISPATCH_TEXTS_INCLUDED.toLocaleString("en-US")} texts and ${DISPATCH_MINUTES_INCLUDED.toLocaleString("en-US")} minutes a month included`,
+      "Unlimited talk and text for normal business use",
     ],
   },
   SHOP: {
@@ -164,6 +176,19 @@ export function formatCents(cents: number): string {
 export function formatUnitCents(cents: number): string {
   return cents < 100 ? `${cents % 1 === 0 ? cents : cents.toFixed(1)}¢` : formatCents(cents);
 }
+
+/** "3,000" — a fair-use count as copy prints it. */
+export const FAIR_USE_TEXTS_LABEL = DISPATCH_FAIR_USE_TEXTS.toLocaleString("en-US");
+export const FAIR_USE_MINUTES_LABEL = DISPATCH_FAIR_USE_MINUTES.toLocaleString("en-US");
+
+/**
+ * What "unlimited" means on Voice — the one sentence the pricing card, the
+ * FAQ, Help, Settings → Voice and the Terms all print, so the promise can
+ * never be worded two ways.
+ */
+export const FAIR_USE_SENTENCE = `Unlimited covers normal business use in the US and Canada: up to ${FAIR_USE_TEXTS_LABEL} texts and ${FAIR_USE_MINUTES_LABEL} minutes a month per company. Past that, each text or minute is ${formatUnitCents(DISPATCH_OVERAGE_CENTS)}.`;
+/** The second half: what a WorkBench line is not for. */
+export const FAIR_USE_FORBIDDEN = "Auto-dialers, bulk or marketing blasts, and call-center use aren't allowed on a WorkBench line.";
 
 /**
  * Sum of the shipped add-ons bought separately, monthly — what Max is

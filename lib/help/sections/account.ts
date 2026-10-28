@@ -1,5 +1,5 @@
 import { RATES_LINE } from "../plan-copy";
-import { ANNUAL_MONTHS, DISPATCH_MINUTES_INCLUDED, DISPATCH_TEXTS_INCLUDED } from "../../plans";
+import { ANNUAL_MONTHS } from "../../plans";
 import type { HelpSection } from "../types";
 import {
   ATLAS_FREE,
@@ -172,7 +172,7 @@ export const settingsSection: HelpSection = {
           note: "Pick what you need",
           items: [
             `**${CORE}** (free): booking, scheduling, jobs, quotes, invoicing, card and bank payments, recurring billing, the client portal, team chat, clock in and out, and ${ATLAS_FREE} Atlas tokens a month, for ${SEATS_INCLUDED} users. Each extra user is ${EXTRA_SEAT}.`,
-            `**${VOICE}** (${VOICE_PRICE}, plus a one-time ${VOICE_SETUP} number setup): your business phone number, with calls in the app, voicemail, texting from the number, and Atlas call notes. ${DISPATCH_TEXTS_INCLUDED} texts and ${DISPATCH_MINUTES_INCLUDED} minutes a month are included. See [Get your business phone number](/help/set-up-business-line).`,
+            `**${VOICE}** (${VOICE_PRICE}, plus a one-time ${VOICE_SETUP} number setup): your business phone number, with calls in the app, voicemail, texting from the number, and Atlas call notes. Unlimited talk and text for normal business use (see [Unlimited talk and text on the Voice plan](/help/voice-plan-limits)). See [Get your business phone number](/help/set-up-business-line).`,
             `**${PRO}** (${PRO_PRICE}): unlimited users, [estimate tools](/help/build-an-estimate-tool), [Route Manager (beta)](/help/plan-routes), [automations](/help/build-an-automation), [agreements](/help/send-an-agreement), the [team map](/help/team-map), [timesheets](/help/clock-in-and-timesheets), [QuickBooks sync](/help/quickbooks), and **Atlas Full** (${ATLAS_FULL} Atlas tokens a month).`,
             `**${MAX}** (${MAX_PRICE}): ${VOICE} and ${PRO} together, for less than both.`,
             `**${GALLERY}** (${GALLERY_PRICE}, coming soon): job photos stamped with who, when and where, before-and-after pairs, client galleries and photo reports. It joins ${MAX} at no extra charge for anyone already on it.`,

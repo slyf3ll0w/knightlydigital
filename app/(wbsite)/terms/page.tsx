@@ -1,4 +1,4 @@
-import { INCLUDED_SEATS } from "@/lib/plans";
+import { FAIR_USE_MINUTES_LABEL, FAIR_USE_TEXTS_LABEL, INCLUDED_SEATS } from "@/lib/plans";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AnimateIn } from "@/components/AnimateIn";
@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   description: "The terms that govern your use of WorkBench.",
 };
 
-const LAST_UPDATED = "October 22, 2026";
+const LAST_UPDATED = "October 28, 2026";
 
 /* Public Terms & Conditions for WorkBench. This URL is the terms_of_service_url
    presented during payment-processor (Finix) onboarding, so it must stay
@@ -71,6 +71,7 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
     paragraphs: [
       "You may stop using the Service and delete your account at any time. We may suspend or terminate your access if you violate these Terms, if required by law or our payment partner, or if we discontinue the Service. On termination, your right to use the Service ends; you can export or delete your data beforehand, and we will handle any remaining data as described in our Privacy Policy.",
       "Business phone numbers. A phone number provided through the Service (a local or toll-free business line) is yours to keep. If your subscription ends, the number stays active for 30 days; during that time you can resubscribe, or ask us to port the number to another carrier and we will cooperate with the port-out. After that period, the number is released and cannot be recovered.",
+      `Fair use on the Voice plan. Unlimited talk and text covers normal business use in the United States and Canada: up to ${FAIR_USE_TEXTS_LABEL} text messages and ${FAIR_USE_MINUTES_LABEL} voice minutes per month per company, which no ordinary field-service business approaches. Usage past that ceiling is billed per text and per minute at the rate shown on the pricing page. A business line provided through the Service may not be used for auto-dialing, bulk or marketing broadcasts, call-center or resale use, or any messaging that the carriers' registration rules prohibit; we may pause or end a line used in those ways.`,
     ],
   },
   {

@@ -5,11 +5,13 @@ import { RATES, RATES_SENTENCE } from "@/lib/plans";
  * change updates every guide. Keep plan wording here, not in the guides.
  */
 import {
-  DISPATCH_MINUTES_INCLUDED,
   DISPATCH_OVERAGE_CENTS,
   DISPATCH_SETUP_CENTS,
-  DISPATCH_TEXTS_INCLUDED,
   EXTRA_SEAT_CENTS,
+  FAIR_USE_FORBIDDEN,
+  FAIR_USE_MINUTES_LABEL,
+  FAIR_USE_SENTENCE,
+  FAIR_USE_TEXTS_LABEL,
   FREE_PLAN_NAME,
   FULL_SHOP,
   INCLUDED_SEATS,
@@ -32,12 +34,18 @@ export const MAX_PRICE = `${formatCents(FULL_SHOP.monthlyCents)}/month`;
 export const GALLERY = PLANS.JOBSITE.name;
 export const GALLERY_PRICE = `${formatCents(PLANS.JOBSITE.monthlyCents)}/month`;
 export const VOICE_SETUP = formatCents(DISPATCH_SETUP_CENTS);
-/** "$25" — the monthly price alone (VOICE_PRICE carries "/month"). */
+/** "$35" — the monthly price alone (VOICE_PRICE carries "/month"). */
 export const VOICE_MONTHLY = formatCents(PLANS.DISPATCH.monthlyCents);
-export const VOICE_TEXTS = n(DISPATCH_TEXTS_INCLUDED);
-export const VOICE_MINUTES = n(DISPATCH_MINUTES_INCLUDED);
-/** "3¢" — per text or minute past the allowance. */
+/** "3,000" each — the fair-use ceiling that defines unlimited. */
+export const VOICE_FAIR_USE_TEXTS = FAIR_USE_TEXTS_LABEL;
+export const VOICE_FAIR_USE_MINUTES = FAIR_USE_MINUTES_LABEL;
+/** "3¢" — per text or minute past the fair-use ceiling. */
 export const VOICE_OVERAGE = formatUnitCents(DISPATCH_OVERAGE_CENTS);
+/** The fair-use promise, worded once (lib/plans). */
+export const VOICE_FAIR_USE = FAIR_USE_SENTENCE;
+export const VOICE_FAIR_USE_FORBIDDEN = FAIR_USE_FORBIDDEN;
+/** One line for Settings and guides: what you get. */
+export const VOICE_UNLIMITED_LINE = "Unlimited talk and text for normal business use.";
 
 export const SEATS_INCLUDED = INCLUDED_SEATS;
 export const EXTRA_SEAT = `${formatCents(EXTRA_SEAT_CENTS)}/month`;
