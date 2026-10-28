@@ -7,6 +7,8 @@ import WBFaq from "@/components/wb/WBFaq";
 import WBFaqJsonLd from "@/components/wb/WBFaqJsonLd";
 import WBTestimonials from "@/components/wb/WBTestimonials";
 import WBCta from "@/components/wb/WBCta";
+import WBSavingsExamples from "@/components/wb/WBSavingsExamples";
+import { BENCHMARK } from "@/lib/wb-savings";
 import { WB_SHOTS, WB_TRADE_PHOTOS } from "@/lib/wb-site";
 import { freeGroups } from "@/lib/wb-free";
 import { ATLAS_FREE_TOKENS, tokenCount } from "@/lib/atlas-pricing";
@@ -271,6 +273,10 @@ export default function FreePage() {
                   service fee your client pays at checkout ({RATES.serviceFee.card} card, {RATES.serviceFee.ach} ACH) and
                   keep the full invoice amount. No monthly fees, no minimums, no charge on failed payments.
                 </p>
+                <p className="mt-3 text-[14.5px] leading-relaxed text-gray-600">
+                  This is the fee you pay already: online card payments cost about {BENCHMARK.label} almost anywhere.
+                  The difference is that here there is no subscription underneath it.
+                </p>
               </div>
             </AnimateIn>
             <AnimateIn delay={90}>
@@ -317,6 +323,27 @@ export default function FreePage() {
                   has the numbers.
                 </p>
               </div>
+            </AnimateIn>
+          </div>
+        </div>
+      </section>
+
+      {/* ── What three shops keep ── */}
+      <section className="border-t border-gray-200 bg-white">
+        <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
+          <div className="grid gap-10 lg:grid-cols-[1fr_1.3fr] lg:gap-16">
+            <AnimateIn>
+              <p className="wb-label">What you keep</p>
+              <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
+                The card fee is the same bill you pay now. The subscription isn&rsquo;t.
+              </h2>
+              <p className="mt-4 text-[16px] leading-relaxed text-gray-600">
+                Three shops, their card volume, and what each keeps in a year next to the cheapest published plan
+                at Jobber and Housecall Pro, with everyone&rsquo;s processing counted.
+              </p>
+            </AnimateIn>
+            <AnimateIn delay={120}>
+              <WBSavingsExamples />
             </AnimateIn>
           </div>
         </div>

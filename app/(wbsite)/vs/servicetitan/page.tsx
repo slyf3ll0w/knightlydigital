@@ -39,7 +39,7 @@ const rows: CompareRow[] = [
   },
   {
     label: "Payments",
-    workbench: "Card and ACH built in at one flat, published rate — see the pricing page.",
+    workbench: "Card and ACH built in at one flat, published rate, about what you pay for online card payments anywhere — the difference is there's no subscription underneath it. The pricing page has the exact numbers.",
     competitor: "Offers integrated payment processing as part of its platform.",
   },
   {
