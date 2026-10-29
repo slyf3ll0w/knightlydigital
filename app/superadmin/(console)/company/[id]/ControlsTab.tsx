@@ -57,6 +57,19 @@ export default async function ControlsTab({ company }: { company: CompanyCore })
           }))}
           grants={normalizeGrants(company.planGrants)}
           dispatchPaid={Boolean(company.addonActiveAt)}
+          paidPlans={normalizeGrants(company.paidPlans)}
+          paidSeats={company.paidSeats}
+          card={company.squareBillingCardLast4 ? `${company.squareBillingCardBrand ?? "Card"} •••• ${company.squareBillingCardLast4}` : null}
+          subscriptions={company.planSubscriptions.map((s) => ({
+            id: s.id,
+            product: s.product,
+            cadence: s.cadence,
+            status: s.status,
+            entitled: s.entitled,
+            chargedThrough: s.chargedThrough ? fullDate(s.chargedThrough) : null,
+            canceledAt: s.canceledAt ? fullDate(s.canceledAt) : null,
+            failing: Boolean(s.lastFailureAt),
+          }))}
         />
         <AssistantControl
           companyId={id}

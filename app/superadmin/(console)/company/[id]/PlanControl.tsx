@@ -20,12 +20,30 @@ export function PlanControl({
   plans,
   grants,
   dispatchPaid,
+  paidPlans = [],
+  paidSeats = 0,
+  card = null,
+  subscriptions = [],
 }: {
   companyId: string;
   plans: { id: PlanId; name: string; tagline: string; price: string; comingSoon: boolean }[];
   grants: PlanId[];
   /** A Livery subscription backs Voice (so it is on even without a grant). */
   dispatchPaid: boolean;
+  /** Plans paid through WorkBench's Square account (lib/plan-billing.ts). */
+  paidPlans?: PlanId[];
+  paidSeats?: number;
+  card?: string | null;
+  subscriptions?: {
+    id: string;
+    product: string;
+    cadence: string;
+    status: string;
+    entitled: boolean;
+    chargedThrough: string | null;
+    canceledAt: string | null;
+    failing: boolean;
+  }[];
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -75,7 +93,8 @@ export function PlanControl({
       <ul className="ds-divide mt-4 overflow-hidden rounded-xl bg-[color:var(--ds-surface-2)]">
         {plans.map((p) => {
           const granted = grants.includes(p.id);
-          const paid = p.id === "DISPATCH" && dispatchPaid;
+          const paidSquare = paidPlans.includes(p.id);
+          const paid = paidSquare || (p.id === "DISPATCH" && dispatchPaid);
           return (
             <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5">
               <div className="min-w-0">
@@ -83,7 +102,9 @@ export function PlanControl({
                   <span className="text-[14px] font-semibold text-[color:var(--ds-ink)]">{p.name}</span>
                   <span className="ds-small">{p.price}/mo</span>
                   {p.comingSoon && <Chip tone="warn">Coming soon</Chip>}
-                  <Chip tone={granted || paid ? "good" : "neutral"}>{granted ? "Granted" : paid ? "Paid (Livery)" : "Off"}</Chip>
+                  <Chip tone={granted || paid ? "good" : "neutral"}>
+                    {granted ? "Granted" : paidSquare ? "Paid (Square)" : paid ? "Paid (Livery)" : "Off"}
+                  </Chip>
                 </div>
                 <p className="ds-small mt-0.5">{p.tagline}</p>
               </div>
@@ -112,6 +133,36 @@ export function PlanControl({
         )}
       </div>
       {error && <p className="mt-2 text-sm text-[color:var(--ds-bad)]">{error}</p>}
+
+      {(subscriptions.length > 0 || card) && (
+        <div className="mt-5">
+          <div className="flex items-center gap-1.5">
+            <h3 className="text-[14px] font-semibold text-[color:var(--ds-ink)]">Billing (Square)</h3>
+            <InfoTip>
+              What the company pays WorkBench through our Square account — one row per Square subscription. Read-only
+              here: the owner changes these on Settings → Plans, and the Square dashboard shows the invoices. Paid
+              seats: {paidSeats}.
+            </InfoTip>
+            {card && <span className="ds-small">{card}</span>}
+          </div>
+          <ul className="ds-divide mt-2 overflow-hidden rounded-xl bg-[color:var(--ds-surface-2)]">
+            {subscriptions.map((s) => (
+              <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="text-[13px] font-semibold text-[color:var(--ds-ink)]">
+                    {s.product === "FULL_SHOP" ? "Max" : s.product === "SEAT" ? "Extra person" : (plans.find((p) => p.id === s.product)?.name ?? s.product)}
+                  </span>
+                  <span className="ds-small">{s.cadence === "ANNUAL" ? "annual" : "monthly"}</span>
+                  <Chip tone={s.failing ? "bad" : s.entitled ? "good" : "neutral"}>{s.failing ? "Card failing" : s.status}</Chip>
+                </div>
+                <span className="ds-small">
+                  {s.canceledAt ? `ends ${s.canceledAt}` : s.chargedThrough ? `paid through ${s.chargedThrough}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </Card>
   );
 }

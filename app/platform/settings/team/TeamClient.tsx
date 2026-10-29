@@ -19,8 +19,9 @@ import { alertSheet } from "@/components/ConfirmSheet";
 import type { BusinessHours } from "@/lib/business-hours";
 
 /**
- * Team management — add members (seats priced per lib/plans.ts, not enforced
- * yet), change roles,
+ * Team management — add members (seats priced per lib/plans.ts; once
+ * PLAN_GATING is live a Core company at its limit gets 402 SEATS_REQUIRED
+ * and a link to Settings → Plans), change roles,
  * deactivate, reset passwords; plus the company's lead-routing and
  * sales-payments policies.
  */
@@ -92,6 +93,8 @@ export default function TeamClient({
   const [form, setForm] = useState({ name: "", email: "", phone: "", role: "TECH", password: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // The last refusal was the seat cap → the error row carries the way to buy one.
+  const [seatCap, setSeatCap] = useState(false);
   const [resetFor, setResetFor] = useState<string | null>(null);
   const [extraDraft, setExtraDraft] = useState<{ meetingLink: string; startAddress: string; dayEndsAt: Member["dayEndsAt"] }>({
     meetingLink: "",
@@ -121,12 +124,14 @@ export default function TeamClient({
   async function addMember() {
     setBusy(true);
     setError("");
-    const { ok, data } = await postJson("/api/app/team", form, "POST");
+    const { ok, data } = await postJson<{ code?: string }>("/api/app/team", form, "POST");
     setBusy(false);
     if (!ok) {
       setError(data?.error ?? GENERIC_ERROR);
+      setSeatCap(data?.code === "SEATS_REQUIRED");
       return;
     }
+    setSeatCap(false);
     setForm({ name: "", email: "", phone: "", role: "TECH", password: "" });
     setShowAdd(false);
     router.refresh();
@@ -186,9 +191,19 @@ export default function TeamClient({
       </div>
 
       {error && (
-        <div role="alert" className="form-error mb-4 flex items-center justify-between">
-          {error}
-          <button onClick={() => setError("")} className="p-0.5 text-[color:var(--ds-bad)] opacity-70 hover:opacity-100">
+        <div role="alert" className="form-error mb-4 flex items-center justify-between gap-3">
+          <span>
+            {error}
+            {seatCap && (
+              <>
+                {" "}
+                <a href="/app/settings/plans" className="font-semibold underline">
+                  Add a person
+                </a>
+              </>
+            )}
+          </span>
+          <button onClick={() => { setError(""); setSeatCap(false); }} className="p-0.5 text-[color:var(--ds-bad)] opacity-70 hover:opacity-100">
             <X size={14} />
           </button>
         </div>

@@ -5,6 +5,7 @@ import { getActor, isManager, canManageRole, type Role } from "@/lib/permissions
 import { ensureAccountForUser, setPasswordForUser } from "@/lib/account";
 import { sanitizeWorkingHoursOrNull } from "@/lib/business-hours";
 import { geocodeMemberStart } from "@/lib/booking-runtime";
+import { seatRefusal } from "@/lib/seats";
 
 /**
  * PATCH — edit a team member: role, active toggle, password reset, name/phone.
@@ -100,6 +101,11 @@ export async function PATCH(
       return NextResponse.json({ error: "You can't deactivate your own account." }, { status: 400 });
     }
     data.isActive = Boolean(body.isActive);
+    // Bringing someone back counts as a seat like adding them does.
+    if (data.isActive && !target.isActive) {
+      const refusal = await seatRefusal(actor.companyId);
+      if (refusal) return refusal;
+    }
   }
 
   let passwordToSet: string | null = null;

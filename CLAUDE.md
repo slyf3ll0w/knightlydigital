@@ -790,6 +790,61 @@ Notification when audio is still locked. A known caller gets a Text button on th
 row once the line's registration is ACTIVE (it opens the message thread, which
 sends from the business number).
 
+## Plans, feature gating and plan billing (2026-10-28)
+
+Plan: `docs/plans/plan-gating-square-billing-2026-10-28.md`. Catalog +
+entitlement rules: `lib/plans.ts` (`npx tsx scripts/test-plans.ts`).
+
+- **Entitlement** = `hasPlan(company, id)`: a superadmin grant
+  (`Company.planGrants`), a plan PAID through WorkBench's own Square account
+  (`Company.paidPlans`, derived — never edit by hand), or for Voice the legacy
+  Livery subscription (`addonActiveAt`). `PLAN_HOLDER_SELECT` is the select
+  every check spreads. `planSource()` says which.
+- **Feature gates** (`featureAllowed`, `lib/plan-gate.ts` `checkFeature` →
+  402 `{ code: "PLAN_REQUIRED", plan, feature }`): one `GatedFeature` id per
+  line of the Pro card — routes, task_assign, team_notes, estimator,
+  automations (the BUILDER only; existing automations keep firing),
+  agreements, team_map, timesheets (clock, timesheets, labor cost), quickbooks
+  (connecting; a connected company keeps syncing), seats. **Dark until
+  `PLAN_GATING=1`** on Railway; once live, **test accounts (`Company.isTest`)
+  pass every gate** (David 2026-10-28 — everything open except Voice, which is
+  not a GatedFeature: the phone line gates on `hasAddon`/`hasPlan DISPATCH`),
+  live accounts need the plan. Pages render `components/PlanRequired.tsx`
+  (`data-plan-required="<feature>"`); `components/PlanGateToast.tsx` turns any
+  402 PLAN_REQUIRED / SEATS_REQUIRED from `/api/app/*` into a toast with a
+  link to Settings → Plans; the nav shows a "Pro" chip on locked items
+  (`lockedFeatures` from the platform layout). Roll-out: census → grants →
+  flip the variable. `/api/health` reports `planGating`.
+- **Seats** (`lib/seats.ts` `seatRefusal`): Core = `INCLUDED_SEATS` +
+  `Company.paidSeats`; the team POST and a reactivation past the cap answer
+  402 `SEATS_REQUIRED`. Pro / Max / test accounts / dark gate = no cap.
+- **Plan billing** (`lib/plan-billing.ts`, pure rules in
+  `lib/plan-subscriptions.ts`, `npx tsx scripts/test-plan-billing.ts`): plans
+  are Square SUBSCRIPTIONS in WORKBENCH'S OWN Square account (not a seller's).
+  Settings → Plans (`/app/settings/plans`, `PlansClient.tsx`; the old
+  `/app/settings/addon` redirects) mounts Square's Web Payments SDK with our
+  app id + `SQUARE_BILLING_LOCATION_ID`; `POST /api/app/billing` (owner)
+  creates the company as our Square customer (`squareBillingCustomerId`,
+  reference_id = companyId), vaults the card (`squareBillingCardId`), charges
+  the one-time Voice setup fee when due (`dispatchSetupPaidAt`), then
+  creates / swaps (`swap-plan`, prorated: Pro → Max, monthly → annual) /
+  cancels (end of period) subscriptions — one `PlanSubscription` row each;
+  extra people are one SEAT subscription apiece. `reduceSubscription` decides
+  `entitled` (ACTIVE unless paid-through is > `PAYMENT_GRACE_DAYS` behind;
+  canceled rows stay on through what was paid), `syncCompanyEntitlements`
+  sums rows into `paidPlans` / `paidSeats` and stamps `addonActiveAt` (Voice)
+  + `atlasPlanActiveAt` (Pro) the way a grant does. Inputs: our own calls,
+  the billing webhook `/api/public/webhooks/square-billing`
+  (`SQUARE_BILLING_WEBHOOK_SIGNATURE_KEY`; subscription.created/updated,
+  invoice.payment_made / scheduled_charge_failed / updated — payload is a
+  hint, re-fetched), and the hourly cron step `planBilling`
+  (`runPlanBillingSweep`). Plan variation ids come from env
+  `SQUARE_PLAN_<PRODUCT>_<CADENCE>`; `npx tsx scripts/square-billing-setup.ts`
+  creates the Square catalog plans from lib/plans.ts prices and prints them.
+  Unset env = the Plans page says checkout isn't switched on yet. Livery
+  stays only for existing Voice subscribers (its webhook is untouched).
+  Superadmin company page → Plans card shows paid rows read-only.
+
 ## Payment processor (Square — the processor from 2026-10)
 
 `SquareProcessor` in `lib/payments.ts` is the **platform default**: unset
@@ -1063,6 +1118,19 @@ EMAIL_DOMAINS_ENABLED=   # "1" to enable
 # with defaults in lib/plans.ts; the marketing site reads the same constants.
 LIVERY_ADDON_CHECKOUT_URL=  # e.g. https://paywithlivery.com/l/workbench-dispatch
 LIVERY_WEBHOOK_SECRET=      # whsec_… from Livery → Settings → Developers
+# Plan billing — WorkBench's OWN Square account (lib/plan-billing.ts). Settings →
+# Plans says "not switched on yet" until the first three are set. Same
+# SQUARE_ENVIRONMENT as the seller integration; the token is OUR account's.
+SQUARE_BILLING_ACCESS_TOKEN=          # Developer Console → WorkBench app → Credentials → Access token
+SQUARE_BILLING_LOCATION_ID=           # our location (Dashboard → Account & Settings → Locations)
+SQUARE_BILLING_WEBHOOK_SIGNATURE_KEY= # the square-billing webhook subscription's key (events: subscription.created/updated, invoice.payment_made, invoice.scheduled_charge_failed, invoice.updated)
+# SQUARE_BILLING_WEBHOOK_URL overrides ${NEXTAUTH_URL}/api/public/webhooks/square-billing
+# Plan variation ids, printed by `npx tsx scripts/square-billing-setup.ts`; a missing one = that Add button is disabled
+SQUARE_PLAN_DISPATCH_MONTHLY= SQUARE_PLAN_DISPATCH_ANNUAL=
+SQUARE_PLAN_SHOP_MONTHLY=     SQUARE_PLAN_SHOP_ANNUAL=
+SQUARE_PLAN_FULL_SHOP_MONTHLY= SQUARE_PLAN_FULL_SHOP_ANNUAL=
+SQUARE_PLAN_SEAT_MONTHLY=
+PLAN_GATING=                  # "1" = Pro feature gates + seat cap live (test accounts exempt); unset = everything open
 # Telnyx — provider texting + business lines (lib/sms.ts, lib/business-line.ts).
 # All three needed: without API key + profile every send is a no-op and the
 # Business Line card is hidden; without the public key the inbound webhook
@@ -1223,10 +1291,11 @@ phases, decisions): `docs/plans/route-manager-redesign-2026-10-19.md`.
   figures carry a `~`. Superadmin console shows month-to-date for all three.
 - **Plan gate.** Routes, Optimize, Find a Time, the on-my-way ETA and the
   Atlas route tools check `featureAllowed(company, "routes")`
-  (`lib/plans.ts` / `lib/plan-gate.ts` → 402 `PLAN_REQUIRED`). The gate is
-  dark until **`PLAN_GATING=1`** is set on Railway (after the first accounts
-  are whitelisted in superadmin). The e2e tenant A is provisioned with the
-  SHOP grant so the suite survives the switch.
+  (`lib/plans.ts` / `lib/plan-gate.ts` → 402 `PLAN_REQUIRED`) — one of the
+  ten gates in "Plans, feature gating and plan billing" above; dark until
+  **`PLAN_GATING=1`**, test accounts exempt. The e2e tenant A is provisioned
+  with the SHOP grant so the suite survives the switch; tenant B is Core and
+  `e2e/specs/plan-gate.spec.ts` checks the card + the 402 when gating is live.
 - **Optimize honours promised times.** A stop whose client already got a
   reminder starts **locked** (`keep` in the body; the preview shows a lock
   per stop); a job's **client window** (`Job.arriveAfterMin/BeforeMin`,

@@ -6,6 +6,7 @@ import { emailWhere, normalizeEmail } from "@/lib/user-email";
 import { findOrAdoptAccountByEmail } from "@/lib/account";
 import { sendEmail, teamAddedEmail } from "@/lib/email";
 import { fireAutomations } from "@/lib/automations-server";
+import { seatRefusal } from "@/lib/seats";
 
 /**
  * GET — the team roster. Managers get the full list (the Team settings page:
@@ -40,7 +41,9 @@ export async function GET() {
 /**
  * POST — add a team member. Seats are priced per lib/plans.ts (Core includes
  * INCLUDED_SEATS people, EXTRA_SEAT_CENTS a month each past that; Pro and Max
- * are unlimited) — the limit is not enforced here yet, so nothing is refused.
+ * are unlimited). Once PLAN_GATING is live a Core company at its limit is
+ * refused with 402 SEATS_REQUIRED (lib/seats.ts) and pointed at Settings →
+ * Plans, where a seat is bought in two taps; test accounts are never refused.
  *
  * An email that already has a WorkBench login gets ATTACHED, not rejected:
  * the account gains a membership at this company and keeps its existing
@@ -86,6 +89,9 @@ export async function POST(req: NextRequest) {
       { status: 409 }
     );
   }
+
+  const refusal = await seatRefusal(actor.companyId);
+  if (refusal) return refusal;
 
   // Existing login elsewhere → attach a new membership to it.
   const account = await findOrAdoptAccountByEmail(email);

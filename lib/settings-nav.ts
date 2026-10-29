@@ -196,9 +196,9 @@ export const QUICKBOOKS_LINK: SettingsLink = {
  * the company's superadmin visibility switch (Company.addonEnabled) is on.
  */
 export const ADDON_LINK: SettingsLink = {
-  href: "/app/settings/addon",
-  label: "Voice",
-  sub: "Your own business phone line inside WorkBench",
+  href: "/app/settings/plans",
+  label: "Plans",
+  sub: "What you're on — add Voice, Pro or Max, people, your card",
   hueKey: "payments",
   icon: "Sparkles",
 };

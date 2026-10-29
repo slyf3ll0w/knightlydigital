@@ -36,8 +36,8 @@ export default function VoicePlanNote({
       <p className="min-w-0 flex-1">
         {line} <InfoTip label={`What the ${voice.name} plan adds`}>{detail}</InfoTip>
       </p>
-      {manager && planPage && (
-        <Link href="/app/settings/addon" className="shrink-0 text-[13px] font-semibold text-[color:var(--ds-primary)]">
+      {manager && (planPage || true) && (
+        <Link href="/app/settings/plans" className="shrink-0 text-[13px] font-semibold text-[color:var(--ds-primary)]">
           See the plan
         </Link>
       )}
