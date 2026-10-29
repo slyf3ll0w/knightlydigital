@@ -1,7 +1,9 @@
 # Plan gating live, sign-up through Square, and a fuller Payments section
 
 Status: **BUILT on branch `plan-gating` 2026-10-28** (parts 1 and 2 as one
-release, part 3 alongside) — see "What shipped" at the end. David's decisions
+release, part 3 alongside); **plan billing rebuilt WorkBench-native
+2026-10-29** — see "What shipped" at the end (the Square-subscriptions design
+in §2 is historical). David's decisions
 (same day): WorkBench's own Square account; grant from the census (no blanket
 grandfathering); the seat cap ships with the Plans page in the same release;
 gated items stay visible with a Pro chip; monthly + annual from day one; Max is
@@ -267,6 +269,49 @@ reports 1, mobile + Help). Help: `/help/payments`, `/help/payouts`, new
 
 ## What shipped (2026-10-28, branch `plan-gating`)
 
+### WorkBench-native (2026-10-29) — the final design
+
+David: "use my own systems, like a WorkBench user would — my users ideally
+never see Square." So plan billing is now exactly what every WorkBench
+business does to bill a client, and the Square-subscriptions sections below
+(**Billing**, **Square-led**, **Through WorkBench's own WorkBench account**,
+**Prices and sign-ups from WorkBench**) are **historical** — that code was
+removed.
+
+- The WorkBench company inside the app (`Company.isPlatform`, console →
+  "Make WorkBench's account") is the biller. It connects Square with the
+  ordinary Connect Square button; Square only processes the card under that
+  connection. Customers never see Square.
+- Each customer company is a **client** of the WorkBench company
+  (`Company.billingContactId`): found by the owner's email, then phone, at
+  sign-up or on the first Plans page visit, otherwise made.
+- Each plan is a **price-book item** of the WorkBench company
+  (`WorkItem.planProduct`: Voice plan, Pro plan, Max plan, Extra person).
+- Buying a plan on Settings → Plans creates a **recurring series** on the
+  contact (Subscription, MONTHLY or ANNUAL, autopay from the saved card, the
+  first invoice charged at once). Seats are one monthly series each; the
+  Voice setup fee is a one-off invoice. Switching term or Pro → Max starts
+  the new series today and the old one runs out at its paid date — no
+  proration.
+- **Entitlement is read off the series' invoices** (`lib/plan-entitlement.ts`
+  `reduceSeries`, `npx tsx scripts/test-plan-entitlement.ts`): on while the
+  last paid period runs, plus a 7-day grace while the series is active;
+  cancelled or paused runs to the paid date; a $0 invoice counts as paid.
+  `syncPlanEntitlements` writes `Company.paidPlans / paidSeats` after a
+  payment, after autopay gives up, after the WorkBench account edits a
+  series, on the Plans page, and hourly.
+- Invoices, receipts and the card live on the customer's **client hub**
+  ("your billing page" link on Settings → Plans). Failed cards get the
+  ordinary autopay retries and dunning email with a card-update link.
+- David manages discounts, trials, pauses, cancels and starts plans for a
+  customer from his normal WorkBench account: Clients → the customer →
+  Recurring, like any owner. A series started with no card sends the
+  customer a WorkBench invoice; the plan is on once it is paid.
+- Removed: the Square Subscriptions path (PlanSubscription, the catalog
+  reader, the square-billing webhook, the setup script), the console Billing
+  page, per-company price offers. **No env to set** — `SQUARE_BILLING_*`
+  and `SQUARE_PLAN_*` are gone.
+
 - **Gating** — `lib/plans.ts`: `PlanHolder` gained `paidPlans` / `paidSeats` /
   `isTest` (`PLAN_HOLDER_SELECT`); `featureAllowed` passes test accounts;
   ten `GatedFeature` ids with labels + blurbs; `seatLimit` / `canAddPerson`.
@@ -325,18 +370,27 @@ company's console Plans card lists those prices: tick one and save
 price ("Your price · <name>"); "Send by invoice" starts the subscription on
 it right away with no card — Square emails the owner the invoice.
 
-David's part before the switch (in order): on production, open the
-WorkBench company in the console → **Make WorkBench's account**; on that
-company's Settings → Payments, **Reconnect Square** (the grant needs the
-new scopes; the card shows the prompt); in the Developer Console add
-`subscription.created`, `subscription.updated`, `invoice.payment_made`,
-`invoice.scheduled_charge_failed`, `invoice.updated` to the existing
-webhook subscription (optional — the hourly sweep and the Plans page
-refresh cover it); test by making himself a customer in the Square
-Dashboard (email = his owner sign-in) with a discounted Voice variation and
-opening Settings → Plans (or console **Check Square now**); run the census
-and grant Pro to the live accounts to keep; set `PLAN_GATING=1`. Help
-Center revisions were made on this branch 2026-10-29.
+David's part before the switch (in order, updated for the WorkBench-native
+design 2026-10-29):
+
+1. On production, open the WorkBench company in the console → **Make
+   WorkBench's account** (done).
+2. Connect Square on that company (Settings → Payments & accounting →
+   Connect Square; done). Nothing else to set up — no scopes, no webhook
+   events, no env.
+3. Open Settings → Plans on a customer account (or sign a new one up) and
+   watch it appear as a **client** in the WorkBench account (Clients). The
+   plan items (Voice plan, Pro plan, Max plan, Extra person) exist in the
+   WorkBench account's price book after that first Plans page visit.
+4. To test a discounted Voice plan: in the WorkBench account, Clients →
+   David Lessly's company → **Recurring** → New series with the **Voice
+   plan** item at any price; card on file, or send the invoice. The
+   customer's Plans page shows Voice **On** once the invoice is paid.
+5. Run the census and grant Pro to the live accounts to keep.
+6. Set `PLAN_GATING=1`.
+
+Help Center revisions were made on this branch 2026-10-29 (billed by
+WorkBench, "your billing page", no proration, retries over a week).
 
 ## Decisions for David (answered 2026-10-28 — kept for the record)
 

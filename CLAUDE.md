@@ -790,13 +790,13 @@ Notification when audio is still locked. A known caller gets a Text button on th
 row once the line's registration is ACTIVE (it opens the message thread, which
 sends from the business number).
 
-## Plans, feature gating and plan billing (2026-10-28)
+## Plans, feature gating and plan billing (2026-10-28; billing WorkBench-native 2026-10-29)
 
 Plan: `docs/plans/plan-gating-square-billing-2026-10-28.md`. Catalog +
 entitlement rules: `lib/plans.ts` (`npx tsx scripts/test-plans.ts`).
 
 - **Entitlement** = `hasPlan(company, id)`: a superadmin grant
-  (`Company.planGrants`), a plan PAID through WorkBench's own Square account
+  (`Company.planGrants`), a plan PAID through WorkBench's own billing
   (`Company.paidPlans`, derived — never edit by hand), or for Voice the legacy
   Livery subscription (`addonActiveAt`). `PLAN_HOLDER_SELECT` is the select
   every check spreads. `planSource()` says which.
@@ -818,69 +818,61 @@ entitlement rules: `lib/plans.ts` (`npx tsx scripts/test-plans.ts`).
 - **Seats** (`lib/seats.ts` `seatRefusal`): Core = `INCLUDED_SEATS` +
   `Company.paidSeats`; the team POST and a reactivation past the cap answer
   402 `SEATS_REQUIRED`. Pro / Max / test accounts / dark gate = no cap.
-- **Plan billing** (`lib/plan-billing.ts`, pure rules in
-  `lib/plan-subscriptions.ts`, `npx tsx scripts/test-plan-billing.ts`): plans
-  are Square SUBSCRIPTIONS in WORKBENCH'S OWN Square account (not a seller's).
-  Settings → Plans (`/app/settings/plans`, `PlansClient.tsx`; the old
-  `/app/settings/addon` redirects) mounts Square's Web Payments SDK with our
-  app id + `SQUARE_BILLING_LOCATION_ID`; `POST /api/app/billing` (owner)
-  creates the company as our Square customer (`squareBillingCustomerId`,
-  reference_id = companyId), vaults the card (`squareBillingCardId`), charges
-  the one-time Voice setup fee when due (`dispatchSetupPaidAt`), then
-  creates / swaps (`swap-plan`, prorated: Pro → Max, monthly → annual) /
-  cancels (end of period) subscriptions — one `PlanSubscription` row each;
-  extra people are one SEAT subscription apiece. `reduceSubscription` decides
-  `entitled` (ACTIVE unless paid-through is > `PAYMENT_GRACE_DAYS` behind;
-  canceled rows stay on through what was paid), `syncCompanyEntitlements`
-  sums rows into `paidPlans` / `paidSeats` and stamps `addonActiveAt` (Voice)
-  + `atlasPlanActiveAt` (Pro) the way a grant does. Inputs: our own calls,
-  the billing webhook `/api/public/webhooks/square-billing`
-  (`SQUARE_BILLING_WEBHOOK_SIGNATURE_KEY`; subscription.created/updated,
-  invoice.payment_made / scheduled_charge_failed / updated — payload is a
-  hint, re-fetched), and the hourly cron step `planBilling`
-  (`runPlanBillingSweep`, which also DISCOVERS every subscription in the
-  account). **Square is the source of truth (2026-10-29):** David makes and
-  prices the plans in the Square Dashboard; `lib/plan-catalog.ts` reads the
-  catalog (cached 10 min) and `mapCatalogVariations` names each variation's
-  product from the plan / variation name (Voice, Pro, Max, Seat, Gallery)
-  and its cadence from the last billing phase — a discounted or trial
-  variation under "Voice" is still Voice; the in-app checkout sells the
-  list-price one (`pickVariation`). A subscription made in the Dashboard
-  is matched to a company by `companyForSquareCustomer` (stamped customer
-  id → customer `reference_id` = company id → the one active OWNER with
-  that email) and applied on the owner's Plans page load
-  (`refreshCompanyFromSquare`, throttled 3 min), the superadmin **Check
-  Square now** button (`plan-refresh`), the webhook, or the hourly sweep.
-  `SQUARE_PLAN_<PRODUCT>_<CADENCE>` env ids are optional overrides
-  (`scripts/square-billing-setup.ts` can still create plans from code).
-  **Prices from the console (2026-10-29):** `/superadmin/billing` (nav
-  Money → Billing) lists every catalog variation + every PlanSubscription
-  and has "Add a price" (`POST /api/superadmin/billing` `add-price` →
-  `addCatalogPrice`: a new variation under the product's plan, created if
-  missing; `reread` drops the cache). A company's console Plans card lists
-  the catalog as "Prices for this company": ticked ids are saved to
-  `Company.planOffers` (`plan-offer`) and Settings → Plans then sells /
-  prices that variation for that plan + term (`offeredVariation`,
-  `PlanCardState.offer`, the card says "Your price · <name>"); "Send by
-  invoice" (`plan-invoice` → `startInvoicedSubscription`) creates the
-  subscription with NO card so Square emails the owner the invoice.
-  **Credentials = the WorkBench company's own Square connection
-  (2026-10-29, `lib/plan-billing-env.ts` `planBillingCredentials`):** the
-  company flagged `Company.isPlatform` (console header → "Make WorkBench's
-  account", `mark-platform` / `unmark-platform`, one at a time) connects
-  Square with the ordinary Connect Square button; its grant carries
-  `PLATFORM_BILLING_SCOPES` (Subscriptions, Items, Invoices, Orders —
-  `scopesWantedFor(isPlatform)`, so a connection made before the flag shows
-  the Reconnect prompt), plan billing borrows that token (refreshed by the
-  seller sweep) and bills under `Company.squareLocationId`, and the seller
-  webhook `/api/public/webhooks/square` routes `subscription.*` /
-  `invoice.*` events from that merchant (`isPlatformMerchant`) to plan
-  billing — add those event types to the existing webhook subscription in
-  the Developer Console. `SQUARE_BILLING_ACCESS_TOKEN` + `_LOCATION_ID`
-  remain an env override. Nothing set up = the Plans page says checkout
-  isn't switched on yet. Livery stays only for existing Voice subscribers
-  (its webhook is untouched). Superadmin company page → Plans card shows
-  paid rows read-only.
+- **Plan billing — WorkBench-native (2026-10-29, David: "use my own systems,
+  like a WorkBench user would; my users never see Square")** —
+  `lib/plan-billing.ts` (I/O; the header comment is the design), pure rules in
+  `lib/plan-entitlement.ts` (`npx tsx scripts/test-plan-entitlement.ts`).
+  WorkBench bills its paid plans the way any WorkBench business bills a
+  client: NO Square objects, NO webhooks, NO env. The WorkBench company
+  inside the app (`Company.isPlatform`; console header → "Make WorkBench's
+  account", `mark-platform` / `unmark-platform`, one at a time) is the
+  biller; it connects Square with the ordinary Connect Square button and
+  that connection only runs the card (`planBillingConfigured` = platform
+  company exists, not suspended, `canChargeOnline`, live processor).
+  Each customer company is a CLIENT of it — `Company.billingContactId` → a
+  Contact in the WorkBench company (`ensureBillingContact`: an existing
+  contact by the owner's email, then phone, wins a matched lead, else made;
+  linked at sign-up and on the Plans page). Each plan is a price-book item
+  there (`WorkItem.planProduct`; `ensurePlanItems` makes "Voice plan" /
+  "Pro plan" / "Max plan" / "Extra person"). Buying a plan = a recurring
+  SERIES on the contact (`Subscription`, interval MONTHLY or ANNUAL,
+  `savedCardId` = the card on file, first invoice made + charged at once by
+  `billSubscriptionNow`; a decline = 402 `CARD_DECLINED`, the series is
+  cancelled and the invoice archived). Seats are one monthly series each
+  (`addSeat` / `removeSeat`). The one-time Voice setup fee is a one-off
+  WorkBench invoice charged through `attemptAutoCharge`
+  (`dispatchSetupPaidAt`). Switching term or Pro → Max (`planChange`)
+  starts the new series today and cancels the old, which runs to its paid
+  date — NO proration. `cancelPlan` = series CANCELLED, on through what was
+  paid; `resumePlan` re-activates (bills now when nothing is left).
+  Settings → Plans (`/app/settings/plans`, `PlansClient.tsx`;
+  `/app/settings/addon` redirects) keeps its shape, mounts the WorkBench
+  company's own Square card form (`putCardOnFile` → `squareVaultCard` +
+  `lib/saved-cards.ts`), says "Billed by WorkBench" and links the customer's
+  client hub as **"your billing page"** (invoices, receipts, the card;
+  `hubUrl`). `POST /api/app/billing` (owner): subscribe / cancel / resume /
+  card / seat-add / seat-remove; GET = `planBillingState`. **Entitlement is
+  READ, never typed:** `reduceSeries` turns a series + its invoices into a
+  `PlanRow` — on while the period the last PAID invoice bought runs
+  (issuedAt + interval) plus `PAYMENT_GRACE_DAYS` = 7 while ACTIVE; a $0
+  invoice counts as paid (trials, comped prices); CANCELLED / PAUSED keep
+  what was paid — and `syncPlanEntitlements` sums rows into
+  `Company.paidPlans` / `paidSeats` and stamps `addonActiveAt` (Voice) +
+  `atlasPlanActiveAt` (Pro) the way a grant does. It runs after a payment
+  on one of these invoices (`lib/payments.ts` recordPayment), after autopay
+  gives up (`lib/auto-charge.ts` — the ordinary +1d/+3d/+7d retries and the
+  dunning email with the hub card-update link), when the WorkBench account
+  creates or edits a series (the subscriptions routes), on the Plans page,
+  and hourly (cron step `planBilling` → `runPlanEntitlementSweep`).
+  **David runs the business side from the WorkBench account like any
+  owner:** Clients → the customer → Recurring (price, pause, cancel; a new
+  series on the plan item at any price = a discount or trial), Invoices, the
+  card on file. A series started there with no card sends the customer a
+  WorkBench invoice they pay from their hub; the plan is on once paid. No
+  platform company, or no Square on it = the Plans page says checkout isn't
+  switched on yet. Livery stays only for existing Voice subscribers (its
+  webhook is untouched). Superadmin company page → Plans card shows paid
+  rows read-only and points to Clients → Recurring for changes.
 
 ## Payment processor (Square — the processor from 2026-10)
 
@@ -1165,21 +1157,10 @@ EMAIL_DOMAINS_ENABLED=   # "1" to enable
 # with defaults in lib/plans.ts; the marketing site reads the same constants.
 LIVERY_ADDON_CHECKOUT_URL=  # e.g. https://paywithlivery.com/l/workbench-dispatch
 LIVERY_WEBHOOK_SECRET=      # whsec_… from Livery → Settings → Developers
-# Plan billing — WorkBench's OWN Square account (lib/plan-billing.ts, credentials in
-# lib/plan-billing-env.ts). NORMAL SETUP NEEDS NO ENV: the company flagged
-# Company.isPlatform (console → "Make WorkBench's account") connects Square with the
-# ordinary Connect Square button (its grant adds PLATFORM_BILLING_SCOPES) and plan
-# billing runs on that connection + location; its subscription / invoice events
-# arrive on the ordinary seller webhook (add the event types to that subscription).
-# These three are the OPTIONAL override (a Developer Console token + the separate
-# /api/public/webhooks/square-billing receiver); env wins when set.
-SQUARE_BILLING_ACCESS_TOKEN=          # Developer Console → WorkBench app → Credentials → Access token
-SQUARE_BILLING_LOCATION_ID=           # our location (Dashboard → Account & Settings → Locations)
-SQUARE_BILLING_WEBHOOK_SIGNATURE_KEY= # the square-billing webhook subscription's key (events: subscription.created/updated, invoice.payment_made, invoice.scheduled_charge_failed, invoice.updated)
-# SQUARE_BILLING_WEBHOOK_URL overrides ${NEXTAUTH_URL}/api/public/webhooks/square-billing
-# Plan variation ids are READ FROM THE CATALOG by name (lib/plan-catalog.ts); these are optional overrides
-# (a product × cadence with no catalog match and no override = that Add button is disabled)
-# SQUARE_PLAN_DISPATCH_MONTHLY= SQUARE_PLAN_SHOP_MONTHLY= SQUARE_PLAN_FULL_SHOP_MONTHLY= SQUARE_PLAN_SEAT_MONTHLY= (+ _ANNUAL)
+# Plan billing (lib/plan-billing.ts) NEEDS NO ENV: the company flagged Company.isPlatform
+# (console → "Make WorkBench's account") connects Square with the ordinary Connect Square
+# button; customers are its clients, plans are recurring series on them, and that
+# connection only runs the card. No tokens, no webhook, no plan ids.
 PLAN_GATING=                  # "1" = Pro feature gates + seat cap live (test accounts exempt); unset = everything open
 # Telnyx — provider texting + business lines (lib/sms.ts, lib/business-line.ts).
 # All three needed: without API key + profile every send is a no-op and the
@@ -1538,6 +1519,8 @@ modules need a placeholder `DATABASE_URL=postgresql://u:p@localhost:5432/unused`
 or booking: `test-money` (refund split, deposit credit, due dates),
 `test-ops-guards` (quote expiry, geocode acceptance, serialization retry),
 `test-subscriptions` (billing/visit cursor math, decline classification),
+`test-plans` (catalog, gates, seats), `test-plan-entitlement` (plan series +
+invoices → entitlement, grace, term switches),
 `test-sms-keywords`, `test-route-plan`, `test-booking-engine`,
 `test-job-crew`, `test-calendar-sync`, `test-business-line`, `test-voice`. The Playwright suite in `e2e/` runs
 against the deployed app (see `e2e/README.md`) and is the post-deploy check.

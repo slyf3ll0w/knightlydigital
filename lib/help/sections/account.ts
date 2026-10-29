@@ -5,6 +5,8 @@ import {
   ATLAS_FREE,
   ATLAS_FULL,
   ATLAS_FULL_PRICE,
+  BILLED_BY_LINE,
+  BILLING_PAGE,
   CORE,
   EXTRA_SEAT,
   EXTRA_SEAT_MO,
@@ -167,7 +169,7 @@ export const settingsSection: HelpSection = {
       blocks: [
         {
           type: "p",
-          text: `**${CORE}** is free and is the whole app. Everything else is a plan you add when you want it on ${PLANS_PAGE_LINK}, priced per company, not per person. How to add, switch and cancel one is in [Manage your plan](/help/manage-your-plan).`,
+          text: `**${CORE}** is free and is the whole app. Everything else is a plan you add when you want it on ${PLANS_PAGE_LINK}, priced per company, not per person, and billed by WorkBench to a card on file. How to add, switch and cancel one is in [Manage your plan](/help/manage-your-plan).`,
         },
         {
           type: "h",
@@ -224,13 +226,17 @@ export const settingsSection: HelpSection = {
       slug: "manage-your-plan",
       title: "Manage your plan",
       summary: "Add Voice, Pro or Max, pay monthly or yearly, add people, change the card, cancel or resume — all on Settings → Plans.",
-      keywords: ["subscribe", "subscription", "buy", "checkout", "upgrade", "downgrade", "annual", "yearly", "monthly", "cancel plan", "resume", "keep it", "card on file", "replace card", "card failed", "card didn't go through", "receipt", "invoice for my plan", "add a person", "seat", "extra user", "switch to max", "prorated", "setup fee", "included"],
+      keywords: ["subscribe", "subscription", "buy", "checkout", "upgrade", "downgrade", "annual", "yearly", "monthly", "cancel plan", "resume", "keep it", "card on file", "replace card", "card failed", "card didn't go through", "receipt", "invoice for my plan", "billing page", "billed by workbench", "add a person", "seat", "extra user", "switch to max", "prorated", "proration", "setup fee", "included", "pay by invoice", "discount"],
       where: { label: "Plans", href: PLANS_PAGE },
       roles: "Account owner (admins can look)",
       blocks: [
         {
           type: "p",
           text: `**Settings → Plans** is the one place for plans. The top card says what you're on — **${CORE}** always, plus **${VOICE}**, **${PRO}** or **${MAX}** when you have them. **Included** next to a plan means we switched it on for your account at no charge; **previous billing** means an older ${VOICE} subscription that still runs through our earlier billing system. Only the account owner can add or change plans; admins can see the page. What each plan adds is in [Plans and pricing](/help/plans-and-pricing).`,
+        },
+        {
+          type: "p",
+          text: BILLED_BY_LINE,
         },
         {
           type: "h",
@@ -242,8 +248,8 @@ export const settingsSection: HelpSection = {
           items: [
             `Go to **Settings → Plans**. Pick **Monthly** or **Annual · 2 months free** at the top — annual is ${ANNUAL_TERM}, and each card shows the price per term.`,
             `Press \`Add ${VOICE}\`, \`Add ${PRO}\` or \`Add ${MAX}\` (\`Switch to ${MAX}\` when you already have one of the two).`,
-            "The first time, type your card into the sheet. It's Square's own secure card form; WorkBench never sees the number. Later plans just confirm against the card on file.",
-            `Press \`Start …\`. The plan is on at once — the card reads **On** with its renewal date — and Square emails you the receipt.`,
+            "The first time, type your card into the sheet. It's a secure card form — the number goes straight to the card processor and WorkBench never sees it. Later plans just confirm against the card on file.",
+            `Press \`Start …\`. The first invoice is charged to the card right then, the plan is on at once — the card reads **On** with its renewal date — and the receipt is emailed to you.`,
           ],
         },
         {
@@ -251,7 +257,7 @@ export const settingsSection: HelpSection = {
           items: [
             `**One-time number setup:** the first ${VOICE} or ${MAX} subscription for a company with no business number yet adds the ${VOICE_SETUP} setup fee, shown on the card as **+ ${VOICE_SETUP} one-time setup**. It covers buying the number and its carrier registration. A company that already has a number isn't charged it.`,
             `**${GALLERY}** says **Coming soon** — it can't be added yet.`,
-            "**Receipts and invoices** come from Square (Block, Inc.) by email each time the card is charged; WorkBench doesn't send its own.",
+            `**Invoices and receipts:** every charge is a WorkBench invoice, paid by the card on its renewal date and receipted by email. All of them, with the card, are on ${BILLING_PAGE}.`,
           ],
         },
         {
@@ -261,8 +267,8 @@ export const settingsSection: HelpSection = {
         {
           type: "list",
           items: [
-            "**Monthly → annual (or back):** flip the toggle at the top and the plan's card offers `Switch to annual` / `Switch to monthly`. Confirm in the sheet. Square prorates the change — you're credited for what's left of the old term.",
-            `**${PRO} → ${MAX}:** press \`Switch to ${MAX}\` on the ${MAX} card. Prorated the same way; the ${PRO} (and ${VOICE}) card then reads **Part of ${MAX}**.`,
+            "**Monthly → annual (or back):** flip the toggle at the top and the plan's card offers `Switch to annual` / `Switch to monthly`. Confirm in the sheet. The new term starts today and is charged today; what you already paid for simply runs out at its date. Nothing is prorated or credited back — switch close to your renewal date if you want the least overlap.",
+            `**${PRO} → ${MAX}:** press \`Switch to ${MAX}\` on the ${MAX} card. The same way: ${MAX} starts today, and your ${PRO} (and ${VOICE}) plan runs out at the date you had already paid to. The ${PRO} (and ${VOICE}) card then reads **Part of ${MAX}**.`,
           ],
         },
         {
@@ -279,7 +285,7 @@ export const settingsSection: HelpSection = {
         },
         {
           type: "p",
-          text: "One card pays for everything. Under **Card on file**, `Add a card` or `Replace` opens the card sheet; `Save card` moves every plan to the new card and removes the old one.",
+          text: `One card pays for everything. Under **Card on file**, \`Add a card\` or \`Replace\` opens the card sheet; \`Save card\` moves every plan to the new card and removes the old one. The same card can be changed from ${BILLING_PAGE}, which is also where the link in a card-failed email takes you.`,
         },
         {
           type: "h",
@@ -299,7 +305,7 @@ export const settingsSection: HelpSection = {
         },
         {
           type: "p",
-          text: `Square retries the charge on its own. You get a notification (**card didn't go through**), the Plans page shows a red line with a \`Replace card\` button, and the plan's card reads **Card failing**. Replace the card and the next retry clears it. If a renewal is still unpaid ${PAYMENT_GRACE} after its date, the plan's features pause until it is — your data stays, and paying brings everything back.`,
+          text: `WorkBench retries the charge over the following week and emails you about the failed charge with a link to update the card. You also get a notification (**card didn't go through**), the Plans page shows a red line with a \`Replace card\` button, and the plan's card reads **Card failing**. Replace the card and the next retry clears it — or pay the open invoice from ${BILLING_PAGE}. If a renewal is still unpaid ${PAYMENT_GRACE} after its date, the plan's features pause until it is — your data stays, and paying brings everything back.`,
         },
         {
           type: "faq",
@@ -310,7 +316,15 @@ export const settingsSection: HelpSection = {
             },
             {
               q: "Can I pay by bank or invoice instead of a card?",
-              a: "Plans are charged to a card through Square. Message us from the Help Center if that won't work for you.",
+              a: `The buttons on this page charge a card. If you'd rather be invoiced, message us from the Help Center: we start the plan on a WorkBench invoice you pay from ${BILLING_PAGE} — by card or bank — and the plan is on as soon as it's paid.`,
+            },
+            {
+              q: "Where are my invoices and receipts for the plan?",
+              a: `On ${BILLING_PAGE}. It's the same kind of client page your own clients get from you: every plan invoice, its receipt, and the card on file.`,
+            },
+            {
+              q: "We agreed a different price — where does it show?",
+              a: `A special price or trial is set up by us on your account. The plan then reads **On** here like any other, and ${BILLING_PAGE} shows the invoices at your price.`,
             },
             {
               q: "My Voice plan says \"previous billing\" — what does that mean?",

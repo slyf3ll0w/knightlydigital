@@ -83,6 +83,14 @@ export const ANNUAL_TERM = `${ANNUAL_MONTHS} months' price for 12 months (two mo
 export const PAYMENT_GRACE = `${PAYMENT_GRACE_DAYS} days`;
 
 /**
+ * Where a company's plan invoices, receipts and card live: its client hub in
+ * the WorkBench account, linked from the bottom of Settings → Plans. Plans are
+ * billed by WorkBench itself (lib/plan-billing.ts), never by Square directly.
+ */
+export const BILLING_PAGE = "**your billing page** (the link at the bottom of Settings → Plans)";
+export const BILLED_BY_LINE = `Plans are billed by WorkBench — the same way you bill a client's recurring plan — to the card on file. Every charge is a WorkBench invoice, and the invoices, receipts and the card are on ${BILLING_PAGE}.`;
+
+/**
  * What a Core account sees on a Pro feature once it's locked — the one
  * sentence every gated guide and the plans guide share.
  */
