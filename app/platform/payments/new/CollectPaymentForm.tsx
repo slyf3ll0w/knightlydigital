@@ -33,12 +33,23 @@ const methods = [
   { value: "OTHER", label: "Other" },
 ];
 
+export type CollectPaymentPrefill = {
+  amount?: string;
+  paidAt?: string;
+  method?: string;
+  referenceNumber?: string;
+  details?: string;
+};
+
 export default function CollectPaymentForm({
   invoices,
   preselectedInvoiceId,
+  prefill,
 }: {
   invoices: OutstandingInvoice[];
   preselectedInvoiceId: string;
+  /** A payment already taken elsewhere (a Square POS sale) — amount, date and reference arrive filled in. */
+  prefill?: CollectPaymentPrefill;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -48,18 +59,20 @@ export default function CollectPaymentForm({
   const [invoiceId, setInvoiceId] = useState(initial?.id ?? "");
   const selected = invoices.find((i) => i.id === invoiceId) ?? null;
 
-  const [amount, setAmount] = useState(initial ? String(initial.balance.toFixed(2)) : "");
-  const [method, setMethod] = useState("CASH");
+  const [amount, setAmount] = useState(prefill?.amount ?? (initial ? String(initial.balance.toFixed(2)) : ""));
+  const [method, setMethod] = useState(prefill?.method ?? "CASH");
   // Local date, not toISOString() — UTC rolls to tomorrow for evening entries
-  const [paidAt, setPaidAt] = useState(new Date().toLocaleDateString("en-CA"));
-  const [referenceNumber, setReferenceNumber] = useState("");
-  const [details, setDetails] = useState("");
-  const [emailReceipt, setEmailReceipt] = useState(true);
+  const [paidAt, setPaidAt] = useState(prefill?.paidAt ?? new Date().toLocaleDateString("en-CA"));
+  const [referenceNumber, setReferenceNumber] = useState(prefill?.referenceNumber ?? "");
+  const [details, setDetails] = useState(prefill?.details ?? "");
+  // A payment that already happened elsewhere was receipted there
+  const [emailReceipt, setEmailReceipt] = useState(!prefill?.amount);
 
   function selectInvoice(id: string) {
     setInvoiceId(id);
     const inv = invoices.find((i) => i.id === id);
-    if (inv) setAmount(String(inv.balance.toFixed(2)));
+    // A prefilled amount is what the client actually paid — keep it
+    if (inv && !prefill?.amount) setAmount(String(inv.balance.toFixed(2)));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -98,10 +111,20 @@ export default function CollectPaymentForm({
         <BackLink href={preselectedInvoiceId ? `/app/invoices/${preselectedInvoiceId}` : "/app/payments"} />
         {/* Card processing teaser lives in the (i): ready for the processor, disabled until live */}
         <PageTitle
-          sub={selected ? `${selected.contactName} — balance ${money(selected.balance)}` : undefined}
-          info="Instant card and bank payments are coming soon — clients will be able to pay online with one click. Until then, record payments you've collected here."
+          sub={
+            prefill?.amount
+              ? `Recording ${money(Number(prefill.amount))} taken ${prefill.details ? `with ${prefill.details.replace(/^Square · /, "")}` : "outside WorkBench"} — pick the invoice it paid`
+              : selected
+                ? `${selected.contactName} — balance ${money(selected.balance)}`
+                : undefined
+          }
+          info={
+            prefill?.amount
+              ? "This sale is already in your bank — Square took it in another of its apps. Recording it on the invoice it paid keeps the client's balance and your reports right; nothing is charged again."
+              : "Record a payment you collected in person — cash, check, or a card run elsewhere. Clients paying online from their pay link are recorded automatically."
+          }
         >
-          Collect Payment
+          {prefill?.amount ? "Record payment" : "Collect Payment"}
         </PageTitle>
       </div>
 

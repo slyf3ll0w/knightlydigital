@@ -512,10 +512,24 @@ export type SquareStatus =
       lastRefreshError: string | null;
       /** The grant carries PAYMENTS_WRITE_IN_PERSON — Tap to Pay in the phone app can authorize. */
       inPerson: boolean;
+      /**
+       * Scopes WorkBench asks for today (SQUARE_SCOPES + extras) that this
+       * grant was made without — adding a scope means the seller re-authorizes
+       * once (2026-10-28: PAYOUTS_READ / DISPUTES_READ / DISPUTES_WRITE for the
+       * Payouts and Disputes tabs). Empty = up to date. `inPerson` is the
+       * older single-scope form of the same check.
+       */
+      missingScopes: string[];
       /** Is there a bank account Square can pay out to? (refreshSquarePayoutStatus; null = never checked) */
       payout: square.SquarePayoutStatus | null;
       payoutCheckedAt: Date | null;
     };
+
+/** Which of `wanted` the stored space-separated grant lacks (pure). */
+export function scopesMissingFrom(stored: string | null | undefined, wanted: readonly string[] = square.squareScopes()): string[] {
+  const have = new Set((stored ?? "").split(/[\s,]+/).filter(Boolean));
+  return wanted.filter((s) => !have.has(s));
+}
 
 export async function squareStatusForCompany(companyId: string): Promise<SquareStatus> {
   const conn = await prisma.squareConnection.findUnique({
@@ -545,6 +559,7 @@ export async function squareStatusForCompany(companyId: string): Promise<SquareS
     stale: Date.now() - conn.refreshedAt.getTime() > STALE_AFTER_MS,
     lastRefreshError: conn.lastRefreshError,
     inPerson: hasInPersonScope(conn.scopes),
+    missingScopes: scopesMissingFrom(conn.scopes),
     payout: (conn.payoutStatus as square.SquarePayoutStatus | null) ?? null,
     payoutCheckedAt: conn.payoutCheckedAt,
   };

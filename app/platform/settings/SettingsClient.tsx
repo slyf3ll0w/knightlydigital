@@ -328,6 +328,8 @@ type SquareCardStatus =
       stale: boolean;
       lastRefreshError: string | null;
       inPerson?: boolean;
+      /** OAuth scopes the stored grant lacks (lib/square-connection.ts) — e.g. PAYOUTS_READ for the Payouts tab. */
+      missingScopes?: string[];
       /** Is there a bank account Square can pay out to? NONE = the nudge. */
       payout?: "VERIFIED" | "PENDING" | "NONE" | "UNKNOWN" | null;
     };
@@ -551,6 +553,23 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
                 <span>
                   Square hasn&apos;t renewed this connection lately
                   {sq.lastRefreshError ? ` (${sq.lastRefreshError})` : ""}. Run Check connection; if it fails, disconnect and connect again.
+                </span>
+              </p>
+            )}
+            {(sq.missingScopes?.length ?? 0) > 0 && (
+              <p className="flex items-start gap-1.5 text-xs text-[color:var(--ds-warn)]">
+                <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+                <span>
+                  Reconnect Square to see payouts and disputes on the Payments page — WorkBench now reads them from your
+                  Square account.
+                  {isOwner && (
+                    <>
+                      {" "}
+                      <a href="/api/app/square/connect" className="font-semibold underline">
+                        Reconnect Square
+                      </a>
+                    </>
+                  )}
                 </span>
               </p>
             )}

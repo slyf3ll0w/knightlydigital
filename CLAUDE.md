@@ -931,8 +931,18 @@ Built 2026-10-15 on branch `square-payments` (worktree
   re-fetched with the seller's token before anything changes (same
   discipline as the Finix receiver).
 - **Not on Square:** `/api/app/payments/payout` ("Send to bank now") and
-  the Atlas `send_payout` tool answer "handled by Square"; the Finix
-  settlement/dispute views on `/app/payments` only render for Finix.
+  the Atlas `send_payout` tool answer "handled by Square" (instant transfer
+  is a Square-dashboard deep link). The Finix settlement/dispute views only
+  render for Finix; Square-connected companies get their own
+  **Payments · Payouts · Disputes · Reports** tabs (2026-10-28,
+  `app/platform/payments/square/*`, seller-token reads in
+  `lib/square-seller-reports.ts` — ListPayments incl. sales made outside
+  WorkBench with "Record on an invoice", Payouts + entries, Disputes with
+  evidence upload / submit / accept, pure report math in
+  `lib/payments-reports.ts` + CSV; scopes `PAYOUTS_READ`, `DISPUTES_READ`,
+  `DISPUTES_WRITE` → `SquareStatus.missingScopes` and a one-time Reconnect
+  prompt on the Payments page and the Settings card). Routes under
+  `/api/app/payments/square/*` and `/api/app/payments/reports`.
   `FinixCostSnapshot` / platform-cost estimates are untouched.
 - **Sellers without a Square account:** the "Create a Square account"
   button beside Connect Square (Settings card) opens Square's partner
