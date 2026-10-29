@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { FREE_PLAN_NAME, formatCents, type PlanId } from "@/lib/plans";
+import { FREE_PLAN_NAME, type PlanId } from "@/lib/plans";
 import { Button, Card, Chip, InfoTip } from "@/components/ds";
 
 /**
@@ -24,8 +24,7 @@ export function PlanControl({
   paidSeats = 0,
   card = null,
   subscriptions = [],
-  planOffers = [],
-  catalog = [],
+  billingContactId = null,
 }: {
   companyId: string;
   plans: { id: PlanId; name: string; tagline: string; price: string; comingSoon: boolean }[];
@@ -46,44 +45,16 @@ export function PlanControl({
     canceledAt: string | null;
     failing: boolean;
   }[];
-  /** Square plan-variation ids offered to this company (Company.planOffers). */
-  planOffers?: string[];
-  /** Every price in WorkBench's Square catalog (lib/plan-catalog.ts). */
-  catalog?: { id: string; product: string; cadence: string; priceCents: number | null; name: string; planName: string }[];
+  /** This company's contact in the WorkBench account (Company.billingContactId) — where its plans are managed. */
+  billingContactId?: string | null;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [offers, setOffers] = useState<string[]>(planOffers);
-  const offersDirty = JSON.stringify([...offers].sort()) !== JSON.stringify([...planOffers].sort());
-  const productLabel = (product: string) =>
-    product === "FULL_SHOP" ? "Max" : product === "SEAT" ? "Extra person" : (plans.find((p) => p.id === product)?.name ?? product);
-
-  async function post(action: string, body: Record<string, unknown>, key: string) {
-    setBusy(key);
-    setError(null);
-    try {
-      const res = await fetch(`/api/superadmin/companies/${companyId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, ...body }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error ?? "Request failed.");
-        return;
-      }
-      router.refresh();
-    } catch {
-      setError("Request failed.");
-    } finally {
-      setBusy(null);
-    }
-  }
 
   const everything = plans.every((p) => grants.includes(p.id));
 
-  async function send(action: "plan-grant" | "plan-revoke" | "plan-refresh", plan: PlanId | "ALL") {
+  async function send(action: "plan-grant" | "plan-revoke", plan: PlanId | "ALL") {
     setBusy(`${action}:${plan}`);
     setError(null);
     try {
@@ -166,80 +137,24 @@ export function PlanControl({
       </div>
       {error && <p className="mt-2 text-sm text-[color:var(--ds-bad)]">{error}</p>}
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Button variant="outline" size="sm" disabled={busy !== null} onClick={() => send("plan-refresh", "ALL")}>
-          {busy === "plan-refresh:ALL" ? "Checking…" : "Check Square now"}
-        </Button>
-        <InfoTip>
-          Reads this company&apos;s subscriptions from WorkBench&apos;s Square account and applies them — a subscription
-          made in the Square Dashboard (customer email = the owner&apos;s sign-in, or reference id = this company id)
-          is picked up here, on the owner&apos;s Plans page, or by the hourly sweep.
-        </InfoTip>
-      </div>
-
-      {catalog.length > 0 && (
-        <div className="mt-5">
-          <div className="flex items-center gap-1.5">
-            <h3 className="text-[14px] font-semibold text-[color:var(--ds-ink)]">Prices for this company</h3>
-            <InfoTip>
-              Every price in WorkBench&apos;s Square catalog (add one on Console → Billing). Tick a price and the owner&apos;s
-              Settings → Plans sells it instead of the list price for that plan and term — one per plan and term.
-              &quot;Send by invoice&quot; starts the subscription on that price right now, no card needed: Square emails the
-              owner the invoice and the plan switches on; unpaid past the grace period, it switches off again.
-            </InfoTip>
-          </div>
-          <ul className="ds-divide mt-2 overflow-hidden rounded-xl bg-[color:var(--ds-surface-2)]">
-            {catalog.map((v) => (
-              <li key={v.id} className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2">
-                <label className="flex min-w-0 items-center gap-2 text-[13px] text-[color:var(--ds-ink)]">
-                  <input
-                    type="checkbox"
-                    checked={offers.includes(v.id)}
-                    onChange={() => setOffers((o) => (o.includes(v.id) ? o.filter((x) => x !== v.id) : [...o, v.id]))}
-                  />
-                  <span className="font-semibold">{productLabel(v.product)}</span>
-                  <span className="ds-small truncate">
-                    {v.name}
-                    {v.planName && v.planName !== v.name ? ` · ${v.planName}` : ""} · {v.cadence === "ANNUAL" ? "annual" : "monthly"} ·{" "}
-                    {v.priceCents == null ? "—" : formatCents(v.priceCents)}
-                  </span>
-                </label>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={busy !== null}
-                  onClick={() => {
-                    if (confirm(`Start ${productLabel(v.product)} (${v.name}) for this company now? Square emails the owner the invoice.`)) {
-                      post("plan-invoice", { variationId: v.id }, `plan-invoice:${v.id}`);
-                    }
-                  }}
-                >
-                  {busy === `plan-invoice:${v.id}` ? "Sending…" : "Send by invoice"}
-                </Button>
-              </li>
-            ))}
-          </ul>
-          {offersDirty && (
-            <div className="mt-2 flex items-center gap-2">
-              <Button variant="outline" size="sm" disabled={busy !== null} onClick={() => post("plan-offer", { variationIds: offers }, "plan-offer")}>
-                {busy === "plan-offer" ? "Saving…" : "Save prices"}
-              </Button>
-              <Button variant="ghost" size="sm" disabled={busy !== null} onClick={() => setOffers(planOffers)}>
-                Undo
-              </Button>
-            </div>
-          )}
-        </div>
+      {billingContactId && (
+        <p className="ds-small mt-3">
+          Paid plans are recurring series on this company&apos;s client record in the WorkBench account —{" "}
+          <a href={`/app/contacts/${billingContactId}`} className="font-semibold underline" target="_blank" rel="noreferrer">
+            open the client
+          </a>{" "}
+          (signed in as WorkBench) to change a price, pause, cancel or start a plan; entitlement follows the invoices.
+        </p>
       )}
 
       {(subscriptions.length > 0 || card) && (
         <div className="mt-5">
           <div className="flex items-center gap-1.5">
-            <h3 className="text-[14px] font-semibold text-[color:var(--ds-ink)]">Billing (Square)</h3>
+            <h3 className="text-[14px] font-semibold text-[color:var(--ds-ink)]">Billing (WorkBench)</h3>
             <InfoTip>
-              What the company pays WorkBench through our Square account — one row per Square subscription. Read-only
-              here: the owner changes these on Settings → Plans, and the Square dashboard shows the invoices. Paid
-              seats: {paidSeats}.
+              What the company pays WorkBench — one row per recurring series on its client record in the WorkBench
+              account, read off the invoices. Read-only here: the owner changes these on Settings → Plans; the
+              WorkBench account changes them under Clients → Recurring. Paid seats: {paidSeats}.
             </InfoTip>
             {card && <span className="ds-small">{card}</span>}
           </div>

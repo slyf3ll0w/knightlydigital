@@ -1,5 +1,5 @@
 import { ANNUAL_MONTHS, RATES, RATES_SENTENCE } from "@/lib/plans";
-import { PAYMENT_GRACE_DAYS } from "@/lib/plan-subscriptions";
+import { PAYMENT_GRACE_DAYS } from "@/lib/plan-entitlement";
 /**
  * Plan names, prices and allowances for the Help Center, read from the same
  * constants as the pricing page (lib/plans, lib/atlas-pricing), so a price
@@ -79,7 +79,7 @@ export const HOW_TO_ADD_PRO = `The account owner adds it on ${PLANS_PAGE_LINK}: 
 /** "10 months' price for 12 months (two months free)" — the annual term. */
 export const ANNUAL_TERM = `${ANNUAL_MONTHS} months' price for 12 months (two months free)`;
 
-/** Days a renewal can go unpaid before the plan's features pause (lib/plan-subscriptions). */
+/** Days a renewal can go unpaid before the plan's features pause (lib/plan-entitlement). */
 export const PAYMENT_GRACE = `${PAYMENT_GRACE_DAYS} days`;
 
 /**

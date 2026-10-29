@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { reportError } from "@/lib/report-error";
 import { prisma } from "@/lib/db";
 import { RESERVED_SLUGS, slugWhere, slugify } from "@/lib/company-slug";
 import { pricebookForIndustry } from "@/lib/pricebooks";
@@ -80,13 +81,13 @@ export async function createCompanySignup(opts: {
   }
 }
 
-function createInTransaction(
+async function createInTransaction(
   opts: Parameters<typeof createCompanySignup>[0],
   slug: string
 ) {
   const { companyName, industry, owner, inviteId, accessPending, applicationId, paymentsWaived, timezone } =
     opts;
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     // Claim the invite atomically — a pre-check outside the transaction can
     // race a concurrent signup on the same code; the updateMany count settles it.
     if (inviteId) {
@@ -201,4 +202,11 @@ function createInTransaction(
 
     return { companyId: company.id, userId: ownerUserId };
   });
+  // The new company is also a client of the WorkBench company (lib/plan-billing.ts
+  // ensureBillingContact): a lead David already has, matched by the owner's
+  // email / phone, becomes the client; otherwise one is made. Best effort.
+  await import("@/lib/plan-billing")
+    .then((m) => m.ensureBillingContact(result.companyId))
+    .catch((e) => reportError("[signup] billing contact failed", e));
+  return result;
 }

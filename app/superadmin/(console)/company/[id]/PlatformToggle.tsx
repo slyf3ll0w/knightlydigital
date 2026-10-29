@@ -7,7 +7,7 @@ import { Button } from "@/components/ds";
 
 /**
  * "WorkBench's own account" switch (Company.isPlatform): the company whose
- * Square connection plan billing runs through (lib/plan-billing-env.ts).
+ * Square connection and client list plan billing runs through (lib/plan-billing.ts).
  * One at a time — marking this one clears any other.
  */
 export default function PlatformToggle({ companyId, isPlatform }: { companyId: string; isPlatform: boolean }) {

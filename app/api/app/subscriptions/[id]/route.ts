@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { syncEntitlementsForSubscription } from "@/lib/plan-billing";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import {
@@ -302,6 +303,8 @@ export async function PATCH(
   }
 
   const updated = await prisma.subscription.update({ where: { id }, data });
+  // WorkBench's own account editing a customer's plan (price, pause, cancel): entitlement follows (no-op elsewhere).
+  await syncEntitlementsForSubscription(id).catch(() => {});
   if (updated.status !== sub.status) {
     if (updated.status === "PAUSED") fireAutomations(companyId, "subscription.paused", id);
     else if (updated.status === "CANCELLED") fireAutomations(companyId, "subscription.cancelled", id);

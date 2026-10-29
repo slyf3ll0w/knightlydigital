@@ -36,7 +36,7 @@ import { ATLAS_PLAN_TOKENS } from "./atlas-pricing";
  * a company is on a plan when the superadmin console has whitelisted it
  * (Company.planGrants — comped accounts), when it PAYS for it through
  * WorkBench's Square account (Company.paidPlans, kept in step with its
- * PlanSubscription rows by lib/plan-billing.ts; Max pays for every plan at
+ * the company's recurring series in the WorkBench account by lib/plan-billing.ts; Max pays for every plan at
  * once), or, for Voice, when its legacy Livery subscription is active
  * (Company.addonActiveAt, lib/addon.ts). Feature gates (featureAllowed) are
  * dark until PLAN_GATING=1; once live, TEST accounts (Company.isTest) pass
@@ -212,7 +212,7 @@ export type PlanHolder = {
   planGrants: string[];
   /** Voice's paid entitlement (lib/addon.ts) — the Livery subscription, or a manual grant. */
   addonActiveAt?: Date | null;
-  /** Plans paid for through Square (lib/plan-billing.ts syncs it from PlanSubscription rows). */
+  /** Plans paid for through WorkBench itself (lib/plan-billing.ts syncs it from the recurring series on the company's client record). */
   paidPlans?: readonly string[];
   /** Extra people paid for a month at a time (one SEAT subscription each). */
   paidSeats?: number;

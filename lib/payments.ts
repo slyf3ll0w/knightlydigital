@@ -748,6 +748,13 @@ export async function recordPayment(params: RecordPaymentParams) {
 
   if (result.fullyPaid) fireAutomations(params.companyId, "invoice.paid", params.invoiceId);
 
+  // WorkBench's own plans: a paid invoice on a customer's series switches the
+  // plan on (lib/plan-billing.ts; a no-op for every other company's invoices).
+  // Awaited so the owner sees the plan the moment the charge answers.
+  await import("@/lib/plan-billing")
+    .then((m) => m.syncEntitlementsForInvoice(params.invoiceId))
+    .catch((e) => reportError("[payments] plan entitlement sync failed", e));
+
   // Push the good news to the owner(s) — covers online /pay payments,
   // subscription auto-charges, and payments a teammate recorded.
   const owners = await prisma.user.findMany({

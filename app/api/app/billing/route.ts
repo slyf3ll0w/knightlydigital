@@ -8,7 +8,6 @@ import {
   cancelPlan,
   planBillingState,
   putCardOnFile,
-  refreshCompanyFromSquare,
   removeSeat,
   resumePlan,
   subscribe,
@@ -32,8 +31,6 @@ export async function GET() {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  // A subscription made in the Square Dashboard is on by the time the owner looks (throttled; never fails the page).
-  await refreshCompanyFromSquare(actor.companyId);
   const state = await planBillingState(actor.companyId, planGatingLive());
   return NextResponse.json(state);
 }

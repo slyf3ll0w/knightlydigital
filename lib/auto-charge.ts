@@ -268,6 +268,10 @@ async function handleAutoChargeFailure(params: {
     },
   });
   fireAutomations(params.companyId, "payment.autocharge_failed", params.invoiceId);
+  // WorkBench's own plans: the customer's Plans page shows the failure (lib/plan-billing.ts; no-op elsewhere).
+  import("@/lib/plan-billing")
+    .then((m) => m.syncEntitlementsForInvoice(params.invoiceId))
+    .catch((e) => reportError("[auto-charge] plan entitlement sync failed", e));
 
   logActivity({
     companyId: params.companyId,

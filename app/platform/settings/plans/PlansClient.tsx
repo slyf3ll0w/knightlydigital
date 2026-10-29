@@ -100,7 +100,7 @@ export default function PlansClient({ initial, isOwner }: { initial: PlanBilling
             <h2 className="ds-h2">You&apos;re on</h2>
             <InfoTip>
               {FREE_PLAN_NAME} is the free core — clients, booking, scheduling, quotes, invoices, payments, chat.
-              Add-ons are billed through Square. &ldquo;Included&rdquo; means we switched a plan on for your account at no charge.
+              Add-ons are billed by WorkBench, like any client&apos;s recurring plan. &ldquo;Included&rdquo; means we switched a plan on for your account at no charge.
               {s.isTest && " This is a test account, so every feature is open regardless."}
             </InfoTip>
           </div>
@@ -227,7 +227,15 @@ export default function PlansClient({ initial, isOwner }: { initial: PlanBilling
           )}
         </div>
         <p className="ds-small mt-2">
-          Charged by Square (Block, Inc.) for WorkBench. Receipts come from Square by email.{" "}
+          Billed by WorkBench. Invoices, receipts and this card are on{" "}
+          {s.hubUrl ? (
+            <a href={s.hubUrl} className="ds-link" target="_blank" rel="noreferrer">
+              your billing page
+            </a>
+          ) : (
+            "your billing page"
+          )}
+          .{" "}
           <Link href="/pricing" className="ds-link" target="_blank" rel="noreferrer">
             Full pricing
           </Link>
@@ -280,7 +288,7 @@ function PlanCardView({
   const [more, setMore] = useState(false);
   const sub = plan.subscription;
   const ending = Boolean(sub?.entitled && sub.canceledAt);
-  const failing = Boolean(sub?.lastFailureAt && Date.now() - new Date(sub.lastFailureAt).getTime() < 14 * 86_400_000);
+  const failing = Boolean(sub?.failing);
   const isMax = plan.product === "FULL_SHOP";
   const maxOn = state.plans.find((p) => p.product === "FULL_SHOP")?.on;
   const shown = more ? plan.includes : plan.includes.slice(0, 4);
@@ -344,7 +352,6 @@ function PlanCardView({
         </div>
         <div className="shrink-0 text-right">
           <div className="text-[17px] font-bold text-[color:var(--ds-ink)]">{perTerm(plan, cadence)}</div>
-          {plan.offer?.[cadence] && <div className="ds-small">Your price · {plan.offer[cadence]}</div>}
           {cadence === "ANNUAL" && <div className="ds-small">{monthLabel(Math.round(plan.annualCents / 12))} effective</div>}
           {setupDue && <div className="ds-small">+ {formatCents(state.setupFee.cents)} one-time setup</div>}
         </div>
@@ -408,7 +415,7 @@ function ActionSheet({
     title = swap ? `Switch ${plan.name} to ${cadence === "ANNUAL" ? "annual" : "monthly"}` : `Add ${plan.name}`;
     const setup = state.setupFee.due && (plan.product === "DISPATCH" || plan.product === "FULL_SHOP");
     summary = `${perTerm(plan, cadence)}${setup ? ` plus a one-time ${formatCents(state.setupFee.cents)} setup for your phone number` : ""}. ${
-      swap ? "Square prorates the change." : "Starts today; cancel any time and it runs to the end of what you paid for."
+      swap ? "The new term starts today; what you already paid for runs out on its own." : "Starts today; cancel any time and it runs to the end of what you paid for."
     }`;
     cta = swap ? "Switch" : `Start ${plan.name}`;
     action = "subscribe";

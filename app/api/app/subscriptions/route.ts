@@ -8,6 +8,7 @@ import {
   generateDueVisits,
   billSubscriptionNow,
 } from "@/lib/subscriptions";
+import { syncEntitlementsForSubscription } from "@/lib/plan-billing";
 import { inPreview } from "@/lib/preview";
 import { fireAutomations } from "@/lib/automations-server";
 
@@ -208,6 +209,8 @@ export async function POST(req: NextRequest) {
   });
 
   fireAutomations(companyId, "subscription.started", sub.id);
+  // WorkBench's own account starting a plan for a customer: entitlement follows (no-op for every other company).
+  const syncPlan = () => syncEntitlementsForSubscription(sub.id).catch((e) => reportError("[subscriptions] plan entitlement sync failed", e));
 
   // Put the first visits on the calendar right away
   const visits = frequency ? await generateDueVisits(new Date(), companyId) : null;
@@ -223,6 +226,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  await syncPlan();
   return NextResponse.json(
     {
       ...JSON.parse(JSON.stringify(sub)),
