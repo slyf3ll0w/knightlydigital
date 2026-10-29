@@ -1,5 +1,5 @@
 import type { HelpSection } from "../types";
-import { proTip } from "../plan-copy";
+import { PRO, proTip } from "../plan-copy";
 
 export const startSection: HelpSection = {
   id: "getting-started",
@@ -26,7 +26,7 @@ export const startSection: HelpSection = {
             "Go to **Settings → Payments & accounting → Online Payments**.",
             "No Square account yet? Press `Create a Square account` on the card. It opens Square's sign-up on WorkBench's rates — the link matches your **Service fee** switch on this page (off: you pay the processing fee; on: your client pays it at checkout), so set that first. Free, a few minutes; then come back to this card.",
             "Press `Connect Square` and sign in to Square.",
-            "Approve the access Square lists. WorkBench needs to take payments, issue refunds and keep cards on file for your clients; it never sees card numbers.",
+            "Approve the access Square lists. WorkBench needs to take payments, issue refunds, keep cards on file for your clients, and read your payouts and disputes so they show on the Payments page; it never sees card numbers.",
             "You land back in Settings with **Connected to** your business name. From that moment pay links show a **Pay** button.",
             "Link the bank account Square should pay you out to. Until you do, clients can pay but the money sits in your Square balance — the card (and Home) show **Add your bank account to Square** with a button that opens the right page in Square: Settings → Account & Settings → Banking → Bank Accounts → Add Bank Account. Square verifies it (instantly through your bank login, or within a couple of business days) and emails a confirmation link to open within 24 hours. The reminder leaves on its own once Square confirms it, or press `I've added it — check again`.",
           ],
@@ -37,7 +37,11 @@ export const startSection: HelpSection = {
         },
         {
           type: "tip",
-          text: "Your balance, payouts, processing fees and any disputes live in your Square dashboard. The **Payments** page in WorkBench has a `Square dashboard` button that opens it.",
+          text: "Once connected, the **Payments** page shows every payment, your payouts to the bank, any disputes and revenue reports, read live from your Square account — see [Your Payments page](/help/payments-page). The things that stay Square-only (instant transfer, deposit schedule, bank accounts) are links at the bottom of each tab.",
+        },
+        {
+          type: "tip",
+          text: "Connected Square a while ago? The Payments page and the Online Payments card may ask you once to **Reconnect Square** so WorkBench can read your payouts and disputes. It's the same sign-in as the first time, one click, and nothing else changes — payments keep working meanwhile.",
         },
         {
           type: "faq",
@@ -202,7 +206,7 @@ export const startSection: HelpSection = {
             },
             {
               q: "Can I give a task to someone?",
-              a: "Owners and admins can, on the Pro plan. Sales + Tech, Sales and Tech roles create tasks for themselves only.",
+              a: `Owners and admins can, on the ${PRO} plan (or Max). Without it the **Team** tab and the who-it's-for picker don't show, and the menu marks Tasks with a small **${PRO}** chip; the owner adds ${PRO} on Settings → Plans. Sales + Tech, Sales and Tech roles create tasks for themselves only.`,
             },
             {
               q: "Where did my finished task go?",
@@ -235,7 +239,7 @@ export const startSection: HelpSection = {
           type: "list",
           items: [
             "**Edit or take down:** tap the note. `Take down` removes it; an expiring note comes down on its own.",
-            "**Team notes:** tick **Show it to the whole team** and everyone in the company sees the note on that page, with your initials in the corner. Each person can slide it around on their own screen. Only you (or an owner or admin) can edit or take it down.",
+            `**Team notes** (${PRO}): tick **Show it to the whole team** and everyone in the company sees the note on that page, with your initials in the corner. Each person can slide it around on their own screen. Only you (or an owner or admin) can edit or take it down. Your own notes are free on every plan.`,
             "**Make a task:** press `Make a task` on the note and it turns into a task on your list (the first line becomes the title); the note stays.",
             "**Hide them:** right-click an empty spot and choose `Hide sticky notes` (or `Hide sticky notes everywhere` in the phone strip). `Show sticky notes` brings them back. It's per device.",
           ],

@@ -1,5 +1,5 @@
 import type { HelpSection } from "../types";
-import { CORE, EXTRA_SEAT, MAX, PRO, PRO_CHIP, PRO_PRICE, SEATS_INCLUDED, proTip } from "../plan-copy";
+import { CORE, EXTRA_SEAT, MAX, PLANS_PAGE_LINK, PRO, PRO_CHIP, PRO_GATE_LINE, PRO_PRICE, SEATS_INCLUDED, proTip } from "../plan-copy";
 
 export const teamSection: HelpSection = {
   id: "team",
@@ -62,7 +62,7 @@ export const teamSection: HelpSection = {
         },
         {
           type: "tip",
-          text: `**${CORE}** (free) includes ${SEATS_INCLUDED} users. Each extra user is ${EXTRA_SEAT}. **${PRO}** (${PRO_PRICE}) and **${MAX}** include unlimited users. See [Plans and pricing](/help/plans-and-pricing).`,
+          text: `**${CORE}** (free) includes ${SEATS_INCLUDED} people. Adding or reactivating someone past that shows a message with an \`Add a person\` link: each extra person is ${EXTRA_SEAT}, bought by the owner on ${PLANS_PAGE_LINK}. **${PRO}** (${PRO_PRICE}) and **${MAX}** include unlimited people. See [Manage your plan](/help/manage-your-plan).`,
         },
       ],
     },
@@ -70,12 +70,13 @@ export const teamSection: HelpSection = {
       slug: "clock-in-and-timesheets",
       title: "Clock in and out, and timesheets",
       summary: "Track time on jobs, fix missed punches, and see labor cost.",
-      plan: `${PRO_CHIP} (timesheets)`,
+      plan: PRO_CHIP,
       keywords: ["clock in", "clock out", "time clock", "hours", "timesheet", "payroll", "gps", "labor cost", "forgot to clock out"],
       where: { label: "Timesheets", href: "/app/timesheets" },
       roles: "Everyone except Sales",
       blocks: [
-        { type: "tip", text: `Clocking in and out works on every plan. The weekly **Timesheets** page, labor cost on jobs and the payroll CSV are part of **${PRO}** (${PRO_PRICE}), along with unlimited users and the team map. See [Plans and pricing](/help/plans-and-pricing).` },
+        proTip("Clocking in and out, the weekly Timesheets page and labor cost on jobs"),
+        { type: "p", text: `${PRO_GATE_LINE} On ${CORE} the job page has no \`Clock in\` button and the Profit margin card has no Labor line; time already logged is kept and shows again when ${PRO} is on.` },
         {
           type: "list",
           items: [
@@ -254,7 +255,7 @@ export const reportsSection: HelpSection = {
       where: { label: "QuickBooks", href: "/app/settings/quickbooks" },
       roles: "Owners and admins",
       blocks: [
-        { type: "tip", text: `QuickBooks sync is part of **${PRO}** (${PRO_PRICE}). If your bookkeeper or accountant sent you to WorkBench, we turn QuickBooks on free on ${CORE}: mention it when you sign up, or call us.` },
+        { type: "tip", text: `Connecting QuickBooks is part of **${PRO}** (${PRO_PRICE}; also in **${MAX}**) — the owner adds it on ${PLANS_PAGE_LINK}, see [Plans and pricing](/help/plans-and-pricing). A QuickBooks you connected before keeps syncing on ${CORE}. If your bookkeeper or accountant sent you to WorkBench, we turn QuickBooks on free on ${CORE}: mention it when you sign up, or message us from the Help Center.` },
         {
           type: "steps",
           items: [

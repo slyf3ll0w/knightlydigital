@@ -1,18 +1,23 @@
 import { RATES_LINE } from "../plan-copy";
-import { ANNUAL_MONTHS } from "../../plans";
 import type { HelpSection } from "../types";
 import {
+  ANNUAL_TERM,
   ATLAS_FREE,
   ATLAS_FULL,
   ATLAS_FULL_PRICE,
   CORE,
   EXTRA_SEAT,
+  EXTRA_SEAT_MO,
   GALLERY,
   GALLERY_PRICE,
   HOW_TO_ADD_PRO,
   MAX,
   MAX_PRICE,
+  PAYMENT_GRACE,
+  PLANS_PAGE,
+  PLANS_PAGE_LINK,
   PRO,
+  PRO_GATE_LINE,
   PRO_PRICE,
   SEATS_INCLUDED,
   VOICE,
@@ -156,12 +161,13 @@ export const settingsSection: HelpSection = {
     {
       slug: "plans-and-pricing",
       title: "Plans and pricing",
-      summary: "What's free, what each paid add-on adds, how to add one, and how processing fees work.",
-      keywords: ["price", "pricing", "plan", "cost", "subscription", "billing", "core", "voice", "pro", "max", "gallery", "upgrade", "add-on", "users", "seats", "atlas full", "tokens"],
+      summary: "What's free, what each paid plan adds, what a Core account sees on a Pro feature, and how processing fees work.",
+      keywords: ["price", "pricing", "plan", "cost", "subscription", "billing", "core", "voice", "pro", "max", "gallery", "upgrade", "add-on", "users", "seats", "people", "atlas full", "tokens", "see plans", "part of pro", "locked", "pro chip"],
+      where: { label: "Plans", href: PLANS_PAGE },
       blocks: [
         {
           type: "p",
-          text: `**${CORE}** is free and is the whole app. Everything else is an add-on you turn on when you want it, priced per company, not per user.`,
+          text: `**${CORE}** is free and is the whole app. Everything else is a plan you add when you want it on ${PLANS_PAGE_LINK}, priced per company, not per person. How to add, switch and cancel one is in [Manage your plan](/help/manage-your-plan).`,
         },
         {
           type: "h",
@@ -171,9 +177,9 @@ export const settingsSection: HelpSection = {
           type: "list",
           note: "Pick what you need",
           items: [
-            `**${CORE}** (free): booking, scheduling, jobs, quotes, invoicing, card and bank payments, recurring billing, the client portal, team chat, clock in and out, and ${ATLAS_FREE} Atlas tokens a month, for ${SEATS_INCLUDED} users. Each extra user is ${EXTRA_SEAT}.`,
+            `**${CORE}** (free): booking, scheduling, jobs, quotes, invoicing, card and bank payments, recurring billing, the client portal, team chat, your own tasks and sticky notes, and ${ATLAS_FREE} Atlas tokens a month, for ${SEATS_INCLUDED} people. Each extra person is ${EXTRA_SEAT}.`,
             `**${VOICE}** (${VOICE_PRICE}, plus a one-time ${VOICE_SETUP} number setup): your business phone number, with calls in the app, voicemail, texting from the number, and Atlas call notes. Unlimited talk and text for normal business use (see [Unlimited talk and text on the Voice plan](/help/voice-plan-limits)). See [Get your business phone number](/help/set-up-business-line).`,
-            `**${PRO}** (${PRO_PRICE}): unlimited users, [estimate tools](/help/build-an-estimate-tool), [Route Manager (beta)](/help/plan-routes), [automations](/help/build-an-automation), [agreements](/help/send-an-agreement), the [team map](/help/team-map), [timesheets](/help/clock-in-and-timesheets), [QuickBooks sync](/help/quickbooks), and **Atlas Full** (${ATLAS_FULL} Atlas tokens a month).`,
+            `**${PRO}** (${PRO_PRICE}): unlimited people, [estimate tools](/help/build-an-estimate-tool), [Route Manager (beta)](/help/plan-routes), [automations](/help/build-an-automation), [agreements](/help/send-an-agreement), the [team map](/help/team-map), [clock-in, timesheets and labor cost](/help/clock-in-and-timesheets), [QuickBooks sync](/help/quickbooks), [tasks for your team](/help/tasks-and-reminders), [team sticky notes](/help/sticky-notes), and **Atlas Full** (${ATLAS_FULL} Atlas tokens a month).`,
             `**${MAX}** (${MAX_PRICE}): ${VOICE} and ${PRO} together, for less than both.`,
             `**${GALLERY}** (${GALLERY_PRICE}, coming soon): job photos stamped with who, when and where, before-and-after pairs, client galleries and photo reports. It joins ${MAX} at no extra charge for anyone already on it.`,
             `**Atlas Full** on its own (${ATLAS_FULL_PRICE}): ${ATLAS_FULL} Atlas tokens a month, if Atlas is the only extra you want. See [Atlas tokens and limits](/help/atlas-tokens).`,
@@ -186,10 +192,23 @@ export const settingsSection: HelpSection = {
         {
           type: "list",
           items: [
-            `**${VOICE}**: the account owner presses \`Subscribe\` in Settings → Phone & texting. Billing runs through Livery, our payments partner.`,
-            `**${PRO}**, **${MAX}** and **Atlas Full**: ${HOW_TO_ADD_PRO} Call (833) 495-0229 or email contact@workbenchfsm.com.`,
-            `Paying yearly costs ${ANNUAL_MONTHS} months' price for 12 months (two months free).`,
+            `**${VOICE}**, **${PRO}** and **${MAX}**: ${HOW_TO_ADD_PRO}`,
+            `**Atlas Full** on its own: message us from the Help Center and we switch it on for you.`,
+            `Paying yearly costs ${ANNUAL_TERM}.`,
+            `A plan can also be switched on for you by us — it then reads **Included** on the Plans page, with nothing to pay.`,
           ],
+        },
+        {
+          type: "h",
+          text: `What ${CORE} sees on a ${PRO} feature`,
+        },
+        {
+          type: "p",
+          text: `${PRO_GATE_LINE} Nothing you built is lost: automations you already turned on keep running, a QuickBooks you already connected keeps syncing, your time entries stay, and the people already on your team stay signed in.`,
+        },
+        {
+          type: "p",
+          text: `**${VOICE}** works the same way for the phone line: without it the Call and Text buttons use your own phone, and the Calls and Messages pages say what the plan adds, with a \`See the plan\` link.`,
         },
         {
           type: "h",
@@ -198,6 +217,110 @@ export const settingsSection: HelpSection = {
         {
           type: "p",
           text: `${RATES_LINE} Payments run through your own Square account, so the fee comes out on Square's side before the payout; the fee shown in WorkBench is an estimate and your Square dashboard has the exact amount on each payment. Full details are on the [pricing page](https://workbenchfsm.com/pricing).`,
+        },
+      ],
+    },
+    {
+      slug: "manage-your-plan",
+      title: "Manage your plan",
+      summary: "Add Voice, Pro or Max, pay monthly or yearly, add people, change the card, cancel or resume — all on Settings → Plans.",
+      keywords: ["subscribe", "subscription", "buy", "checkout", "upgrade", "downgrade", "annual", "yearly", "monthly", "cancel plan", "resume", "keep it", "card on file", "replace card", "card failed", "card didn't go through", "receipt", "invoice for my plan", "add a person", "seat", "extra user", "switch to max", "prorated", "setup fee", "included"],
+      where: { label: "Plans", href: PLANS_PAGE },
+      roles: "Account owner (admins can look)",
+      blocks: [
+        {
+          type: "p",
+          text: `**Settings → Plans** is the one place for plans. The top card says what you're on — **${CORE}** always, plus **${VOICE}**, **${PRO}** or **${MAX}** when you have them. **Included** next to a plan means we switched it on for your account at no charge; **previous billing** means an older ${VOICE} subscription that still runs through our earlier billing system. Only the account owner can add or change plans; admins can see the page. What each plan adds is in [Plans and pricing](/help/plans-and-pricing).`,
+        },
+        {
+          type: "h",
+          text: "Add a plan",
+        },
+        {
+          type: "steps",
+          note: "Two taps once the card is in",
+          items: [
+            `Go to **Settings → Plans**. Pick **Monthly** or **Annual · 2 months free** at the top — annual is ${ANNUAL_TERM}, and each card shows the price per term.`,
+            `Press \`Add ${VOICE}\`, \`Add ${PRO}\` or \`Add ${MAX}\` (\`Switch to ${MAX}\` when you already have one of the two).`,
+            "The first time, type your card into the sheet. It's Square's own secure card form; WorkBench never sees the number. Later plans just confirm against the card on file.",
+            `Press \`Start …\`. The plan is on at once — the card reads **On** with its renewal date — and Square emails you the receipt.`,
+          ],
+        },
+        {
+          type: "list",
+          items: [
+            `**One-time number setup:** the first ${VOICE} or ${MAX} subscription for a company with no business number yet adds the ${VOICE_SETUP} setup fee, shown on the card as **+ ${VOICE_SETUP} one-time setup**. It covers buying the number and its carrier registration. A company that already has a number isn't charged it.`,
+            `**${GALLERY}** says **Coming soon** — it can't be added yet.`,
+            "**Receipts and invoices** come from Square (Block, Inc.) by email each time the card is charged; WorkBench doesn't send its own.",
+          ],
+        },
+        {
+          type: "h",
+          text: "Switch monthly and annual, or go up to Max",
+        },
+        {
+          type: "list",
+          items: [
+            "**Monthly → annual (or back):** flip the toggle at the top and the plan's card offers `Switch to annual` / `Switch to monthly`. Confirm in the sheet. Square prorates the change — you're credited for what's left of the old term.",
+            `**${PRO} → ${MAX}:** press \`Switch to ${MAX}\` on the ${MAX} card. Prorated the same way; the ${PRO} (and ${VOICE}) card then reads **Part of ${MAX}**.`,
+          ],
+        },
+        {
+          type: "h",
+          text: "Add people",
+        },
+        {
+          type: "p",
+          text: `${CORE} includes ${SEATS_INCLUDED} people. The **People** card shows how many you have of how many. \`Add a person · ${EXTRA_SEAT_MO}\` buys one more seat, billed monthly on the same card; \`Remove\` ends a paid seat at the close of its month. On ${PRO} and ${MAX} people are unlimited and the buttons disappear. Adding or reactivating someone on **Settings → Team & roles** past the limit shows the same message, with an \`Add a person\` link that brings you here.`,
+        },
+        {
+          type: "h",
+          text: "Change the card",
+        },
+        {
+          type: "p",
+          text: "One card pays for everything. Under **Card on file**, `Add a card` or `Replace` opens the card sheet; `Save card` moves every plan to the new card and removes the old one.",
+        },
+        {
+          type: "h",
+          text: "Cancel or resume",
+        },
+        {
+          type: "list",
+          items: [
+            "`Cancel` on a plan's card ends it at the **end of the period you paid for** — the card reads **Ends <date>** and everything in the plan keeps working until then. Nothing is refunded for the rest of the term.",
+            "Changed your mind before that date? Press `Keep it` and the plan carries on as before.",
+            `Once the plan that gives you ${VOICE} has ended, your business number starts a 30-day countdown before it's released — see [Get your business phone number](/help/set-up-business-line).`,
+          ],
+        },
+        {
+          type: "h",
+          text: "When a card doesn't go through",
+        },
+        {
+          type: "p",
+          text: `Square retries the charge on its own. You get a notification (**card didn't go through**), the Plans page shows a red line with a \`Replace card\` button, and the plan's card reads **Card failing**. Replace the card and the next retry clears it. If a renewal is still unpaid ${PAYMENT_GRACE} after its date, the plan's features pause until it is — your data stays, and paying brings everything back.`,
+        },
+        {
+          type: "faq",
+          items: [
+            {
+              q: "The Add buttons are greyed out.",
+              a: "If the page says online checkout isn't switched on yet, message us from the Help Center and we set your plan up by hand. If you're not the account owner, ask the owner — the page says so under the top card.",
+            },
+            {
+              q: "Can I pay by bank or invoice instead of a card?",
+              a: "Plans are charged to a card through Square. Message us from the Help Center if that won't work for you.",
+            },
+            {
+              q: "My Voice plan says \"previous billing\" — what does that mean?",
+              a: "You subscribed before plans moved to this page, and that subscription still bills the old way. It keeps working as it is; message us from the Help Center if you'd like it moved onto your card here.",
+            },
+            {
+              q: "I was on Max — does the Gallery add cost later?",
+              a: `No. ${GALLERY} joins ${MAX} at no extra charge for anyone already on it when it ships.`,
+            },
+          ],
         },
       ],
     },

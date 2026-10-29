@@ -1,4 +1,5 @@
-import { RATES, RATES_SENTENCE } from "@/lib/plans";
+import { ANNUAL_MONTHS, RATES, RATES_SENTENCE } from "@/lib/plans";
+import { PAYMENT_GRACE_DAYS } from "@/lib/plan-subscriptions";
 /**
  * Plan names, prices and allowances for the Help Center, read from the same
  * constants as the pricing page (lib/plans, lib/atlas-pricing), so a price
@@ -49,6 +50,8 @@ export const VOICE_UNLIMITED_LINE = "Unlimited talk and text for normal business
 
 export const SEATS_INCLUDED = INCLUDED_SEATS;
 export const EXTRA_SEAT = `${formatCents(EXTRA_SEAT_CENTS)}/month`;
+/** "$10/mo" — as the Plans page prints it on the Add a person button. */
+export const EXTRA_SEAT_MO = `${formatCents(EXTRA_SEAT_CENTS)}/mo`;
 
 /**
  * In-app one-liners about seats and the free core (Team page, signup doors,
@@ -66,17 +69,45 @@ export const ATLAS_FULL_PRICE = `${formatCents(ATLAS_PLAN_PRICE_CENTS)}/month`;
 export const PRO_CHIP = `${PRO} plan · ${formatCents(PLANS.SHOP.monthlyCents)}/mo`;
 export const VOICE_CHIP = `${VOICE} plan · ${formatCents(PLANS.DISPATCH.monthlyCents)}/mo`;
 
-/** How a Pro/Max account gets switched on (no self-serve checkout yet). */
-export const HOW_TO_ADD_PRO = `Call or email us and we switch it on for you.`;
+/** Where plans are bought and managed (Settings → Plans). */
+export const PLANS_PAGE = "/app/settings/plans";
+export const PLANS_PAGE_LINK = `[Settings → Plans](${PLANS_PAGE})`;
+
+/** How a Pro/Max account gets switched on: self-serve, with us as the fallback. */
+export const HOW_TO_ADD_PRO = `The account owner adds it on ${PLANS_PAGE_LINK}: pick **Monthly** or **Annual**, add a card, done (see [Manage your plan](/help/manage-your-plan)). Or message us from the Help Center and we switch it on for you.`;
+
+/** "10 months' price for 12 months (two months free)" — the annual term. */
+export const ANNUAL_TERM = `${ANNUAL_MONTHS} months' price for 12 months (two months free)`;
+
+/** Days a renewal can go unpaid before the plan's features pause (lib/plan-subscriptions). */
+export const PAYMENT_GRACE = `${PAYMENT_GRACE_DAYS} days`;
+
+/**
+ * What a Core account sees on a Pro feature once it's locked — the one
+ * sentence every gated guide and the plans guide share.
+ */
+export const PRO_GATE_LINE = `On ${CORE} the page shows a card saying it's part of ${PRO}, with a \`See plans\` button; the menu marks it with a small **${PRO}** chip, and an action that needs ${PRO} answers with a message that links to Plans.`;
 
 /**
  * The "Good to know" line for the first guide of a Pro feature: what the
- * plan costs, what else is in it, and that Max includes it too.
+ * plan costs, what else is in it, that Max includes it too, and where to
+ * add it.
  */
 export function proTip(feature: string): HelpBlock {
   return {
     type: "tip",
-    text: `${feature} ${feature.endsWith("s") ? "are" : "is"} part of the **${PRO}** plan (${PRO_PRICE}), along with unlimited users, estimate tools, Route Manager (beta), automations, agreements, the team map, timesheets, QuickBooks sync, and ${ATLAS_FULL} Atlas tokens a month. **${MAX}** (${MAX_PRICE}) includes ${PRO} and ${VOICE} together. See [Plans and pricing](/help/plans-and-pricing).`,
+    text: `${feature} ${feature.endsWith("s") ? "are" : "is"} part of the **${PRO}** plan (${PRO_PRICE}), along with unlimited people, estimate tools, Route Manager (beta), automations, agreements, the team map, timesheets, QuickBooks sync, tasks for your team, team sticky notes, and ${ATLAS_FULL} Atlas tokens a month. **${MAX}** (${MAX_PRICE}) includes ${PRO} and ${VOICE} together. The owner adds either on ${PLANS_PAGE_LINK}. See [Plans and pricing](/help/plans-and-pricing).`,
+  };
+}
+
+/**
+ * The short form, for the second and later guides of the same feature:
+ * one line, the plan, where to add it.
+ */
+export function proLine(feature: string): HelpBlock {
+  return {
+    type: "tip",
+    text: `${feature} ${feature.endsWith("s") ? "are" : "is"} part of **${PRO}** (${PRO_PRICE}; also in **${MAX}**). The owner adds it on ${PLANS_PAGE_LINK} — see [Plans and pricing](/help/plans-and-pricing).`,
   };
 }
 

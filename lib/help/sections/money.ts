@@ -157,6 +157,54 @@ export const paymentsSection: HelpSection = {
   tagline: "Card and bank payments, fees, refunds, payouts and disputes.",
   articles: [
     {
+      slug: "payments-page",
+      title: "Your Payments page: payments, payouts, disputes and reports",
+      summary: "Everything through your Square account in four tabs, including sales you took in the Square app, with a Record on an invoice button.",
+      keywords: ["payments page", "payments tab", "payouts tab", "disputes tab", "reports", "revenue report", "by tech", "by job type", "csv", "square pos", "square reader", "outside workbench", "record on an invoice", "reconnect square", "collected", "fees this month"],
+      where: { label: "Payments", href: "/app/payments" },
+      roles: "Owners, admins and anyone who can see money",
+      blocks: [
+        {
+          type: "p",
+          text: "With Square connected, **Payments** reads your Square account live each time it opens. Four numbers sit at the top — **Collected** and **Processing fees** this month, **On its way to your bank**, **Open disputes** — and under them four tabs: **Payments · Payouts · Disputes · Reports**. On a phone each tab is its own screen.",
+        },
+        {
+          type: "list",
+          items: [
+            "**Payments**: every online payment WorkBench took, with its invoice, method, live Square status, fee and the ↺ refund button. Below it, **Square · outside WorkBench** lists sales your Square account took somewhere else in the last 90 days — the Square POS app, Tap to Pay in the Square app, a reader, Square Invoices or Square Online. They're already in your bank but not on an invoice here, so each has `Record on an invoice`: it opens Collect payment with the amount, date, method and Square reference filled in; pick the invoice and save.",
+            "**Payouts**: each transfer Square made to your bank — when it was sent, to which account, its status, the transfer fee and the amount. Open one for **What's in it**: every payment, refund, dispute and fee that made up that payout, with gross, fee and net. Links to **Instant transfer**, **Deposit schedule** and **Bank accounts** in Square sit at the bottom. See [When you get paid out](/help/payouts).",
+            "**Disputes**: cases where a client's bank questioned a charge, with the reason, status, respond-by date and amount. Open one to upload evidence and send it to the bank, or accept it. See [Respond to a dispute](/help/disputes).",
+            "**Reports**: money in for the last 12 days, weeks or months (`By day`, `By week`, `By month`) — collected, refunds, fees and net — plus **By tech** (who was on the job the invoice billed) and **By job type** (the price-book services on the job). `Download CSV` gives the table to your bookkeeper. Cash and check payments you recorded count too; sales taken outside WorkBench show under **No job**.",
+          ],
+        },
+        {
+          type: "tip",
+          text: "`Export` at the top of the page still downloads every payment as a CSV, and `Collect payment` records a cash, check or other payment by hand — see [Record a cash, check or other payment](/help/record-cash-or-check).",
+        },
+        {
+          type: "faq",
+          items: [
+            {
+              q: "The page asks me to Reconnect Square.",
+              a: "You connected Square before WorkBench read payouts and disputes, so Square needs you to approve that once more. The owner presses `Reconnect Square` (on the Payments page or the Online Payments card in Settings) and signs in to Square as the first time. One click; payments keep working meanwhile and nothing else changes. Until then the Payouts and Disputes tabs stay empty.",
+            },
+            {
+              q: "A tab says Square didn't answer just now.",
+              a: "Square was unreachable for a moment. Your own records still show; the Square numbers fill in when you open the page again.",
+            },
+            {
+              q: "The fee on a payment changed after a day.",
+              a: "WorkBench estimates the fee from the published rate when the payment lands and swaps in Square's posted fee once Square reports it. Reports use the posted fee whenever there is one.",
+            },
+            {
+              q: "A sale shows under Square · outside WorkBench but I already invoiced it.",
+              a: "Recording it with `Record on an invoice` is what links the two. Until then WorkBench has no way to know which invoice a Square POS sale paid.",
+            },
+          ],
+        },
+      ],
+    },
+    {
       slug: "how-clients-pay",
       title: "How clients pay you online",
       summary: "The pay page, card vs bank (ACH), saved cards, and the fees.",
@@ -170,7 +218,7 @@ export const paymentsSection: HelpSection = {
         {
           type: "list",
           items: [
-            `Card payments cost **${RATE_CARD}** and bank payments **${RATE_ACH}** when you pay the fee yourself. Or pass the card fee on as a service fee the client pays at checkout (see [Add a card service fee](/help/card-surcharging)). Fees come out on Square's side before the money reaches your bank, so the fee WorkBench shows is an estimate; your Square dashboard has the exact amount on each payment.`,
+            `Card payments cost **${RATE_CARD}** and bank payments **${RATE_ACH}** when you pay the fee yourself. Or pass the card fee on as a service fee the client pays at checkout (see [Add a card service fee](/help/card-surcharging)). Fees come out on Square's side before the money reaches your bank; the **Payments** page shows Square's posted fee on each payment once Square reports it (see [Your Payments page](/help/payments-page)).`,
             "Bank (ACH) payments show as **Processing** for a few business days. They can still bounce during that time, and if one does it's taken back off the invoice.",
             "Clients can also save cards and pick a default for autopay in their client portal.",
           ],
@@ -274,11 +322,15 @@ export const paymentsSection: HelpSection = {
             },
             {
               q: "The card was charged but the invoice still shows a balance.",
-              a: "Square confirmed the tap but WorkBench couldn't reach Square to record it. It is matched to the invoice within a few minutes on its own; refresh the invoice. If it's still open after an hour, find the payment in your Square dashboard and [contact us](/app/help).",
+              a: "Square confirmed the tap but WorkBench couldn't reach Square to record it. It is matched to the invoice within a few minutes on its own; refresh the invoice. If it's still open after an hour, open **Payments**: the sale is listed under **Square · outside WorkBench** — press `Record on an invoice` and pick the invoice.",
             },
             {
               q: "Where is the money?",
-              a: "In your Square balance, paid out on your Square schedule — the same as online payments. Fees and payouts are in your Square dashboard.",
+              a: "In your Square balance, paid out on your Square schedule — the same as online payments. The **Payouts** tab on the Payments page shows each payout and what's in it; see [Your Payments page](/help/payments-page).",
+            },
+            {
+              q: "I took the card in the Square app instead. Does WorkBench see it?",
+              a: "Yes. Sales your Square account took outside WorkBench — the Square POS app, Tap to Pay in the Square app, a reader — show on **Payments** under **Square · outside WorkBench** with a `Record on an invoice` button, so the client's balance and your reports stay right.",
             },
           ],
         },
@@ -288,7 +340,7 @@ export const paymentsSection: HelpSection = {
       slug: "record-cash-or-check",
       title: "Record a cash, check or other payment",
       summary: "Log payments you took outside WorkBench so balances stay right.",
-      keywords: ["cash", "check", "zelle", "venmo", "cash app", "paypal", "offline payment", "manual payment", "collect payment"],
+      keywords: ["cash", "check", "zelle", "venmo", "cash app", "paypal", "offline payment", "manual payment", "collect payment", "square pos", "square app", "record on an invoice", "outside workbench"],
       where: { label: "Payments", href: "/app/payments/new" },
       blocks: [
         {
@@ -298,6 +350,10 @@ export const paymentsSection: HelpSection = {
             "Pick the method (Cash, Check, Cash App, PayPal, Venmo, Zelle or Other) and add a reference like a check number.",
             "Save. The invoice balance updates. No money moves. This is bookkeeping only.",
           ],
+        },
+        {
+          type: "p",
+          text: "Took the card in the Square app, on a Square reader or through Square Invoices? Those sales are already in your bank, but not on an invoice here. **Payments** lists them under **Square · outside WorkBench** with a `Record on an invoice` button that fills in the amount, date, method and Square reference — pick the invoice and save. See [Your Payments page](/help/payments-page).",
         },
         {
           type: "p",
@@ -336,13 +392,13 @@ export const paymentsSection: HelpSection = {
     {
       slug: "payouts",
       title: "When you get paid out",
-      summary: "Payouts come from Square, on Square's schedule, to the bank account on your Square account.",
-      keywords: ["payout", "deposit", "bank", "bank account", "link bank account", "settlement", "when do i get paid", "transfer", "square dashboard", "balance"],
-      where: { label: "Payments", href: "/app/payments" },
+      summary: "Payouts come from Square, on Square's schedule, to the bank account on your Square account. The Payouts tab shows each one and what's in it.",
+      keywords: ["payout", "deposit", "bank", "bank account", "link bank account", "settlement", "when do i get paid", "transfer", "instant transfer", "deposit schedule", "balance", "payouts tab", "on its way to your bank"],
+      where: { label: "Payouts", href: "/app/payments?tab=payouts" },
       blocks: [
         {
           type: "p",
-          text: "Payouts are handled by **Square**, not WorkBench. Card payments typically reach your bank the next business day; Square also offers instant and same-day transfers, and a different schedule, from your Square dashboard. Bank (ACH) payments show as **Processing** for a few business days before they pay out.",
+          text: "Payouts are made by **Square**, not WorkBench. Card payments typically reach your bank the next business day; Square also offers instant and same-day transfers, and a different schedule. Bank (ACH) payments show as **Processing** for a few business days before they pay out.",
         },
         {
           type: "p",
@@ -351,9 +407,19 @@ export const paymentsSection: HelpSection = {
         {
           type: "list",
           items: [
-            "Open **Payments** and press `Square dashboard` to see your balance, your payout history and the exact fee on each payment.",
-            "The payments list in WorkBench is what came in and which invoice it paid; the money itself lives in Square.",
-            "`Export` downloads your payments as a CSV for your bookkeeper.",
+            "Open **Payments** → **Payouts**. **On its way to your bank** at the top is what Square holds for you right now; each row is one payout — when it was sent, which account, its status, Square's transfer fee and the amount.",
+            "Open a payout for **What's in it**: every payment, refund, dispute and fee Square moved in it, with gross (what the client paid), fee (Square's cut) and net (what reached the bank).",
+            "**Instant transfer** (Square charges a fee), **Deposit schedule** and **Bank accounts** stay in Square — the links at the bottom of the tab open the right screen, same sign-in.",
+            "`Export` at the top of the page downloads your payments as a CSV for your bookkeeper; the **Reports** tab has revenue by day, week, month, tech and job type. See [Your Payments page](/help/payments-page).",
+          ],
+        },
+        {
+          type: "faq",
+          items: [
+            {
+              q: "The Payouts tab is empty and asks me to Reconnect Square.",
+              a: "You connected Square before WorkBench read payouts. The owner presses `Reconnect Square` and signs in to Square once more; the tab fills in straight after. Payments keep working meanwhile.",
+            },
           ],
         },
       ],
@@ -361,30 +427,44 @@ export const paymentsSection: HelpSection = {
     {
       slug: "disputes",
       title: "Respond to a dispute (chargeback)",
-      summary: "When a client disputes a card charge, answer it in your Square dashboard before the deadline.",
-      keywords: ["dispute", "chargeback", "evidence", "fraud claim", "square dashboard"],
-      where: { label: "Payments", href: "/app/payments" },
+      summary: "A client's bank disputed a charge: upload evidence and send it from the Disputes tab before the respond-by date, or accept it.",
+      keywords: ["dispute", "chargeback", "evidence", "fraud claim", "respond by", "send evidence", "accept the dispute", "disputes tab"],
+      where: { label: "Disputes", href: "/app/payments?tab=disputes" },
       roles: "Owners and admins",
       blocks: [
         {
           type: "p",
-          text: "Disputes are handled by **Square**. When a client's bank disputes a charge, Square emails you and lists it under **Disputes** in your Square dashboard, with a respond-by date.",
+          text: "When a client's bank disputes a charge, Square emails you and the case appears on **Payments → Disputes** (the tab shows a count while any are open), with the reason, the amount, a status and a **respond-by** date — in red when it's under three days away. Open one to see the payment it's about, with `Open invoice` when it was a WorkBench payment.",
         },
         {
           type: "steps",
           items: [
-            "Open **Payments** and press `Square dashboard`, then go to **Disputes**.",
-            "Follow Square's prompts to upload what shows the work was agreed and done: the signed quote, the invoice, job photos, the client's sign-off, messages. PDF, JPG and PNG work.",
-            "Submit before the respond-by date. The card network decides the outcome.",
+            "Open **Payments** → **Disputes** and tap the case.",
+            "Under **Evidence**, pick what the file is, then `Upload a file` — the invoice, the signed quote or agreement, photos of the finished work, the client's sign-off, messages. PDF, JPG or PNG, 5 MB each. `Write an explanation` adds a short account in plain words (`Add explanation`).",
+            "Press `Send evidence to the bank` before the respond-by date. Square forwards it all to the client's bank; if you haven't pressed it by that date, Square sends whatever is uploaded on its own. The card network decides the outcome and the status updates on the tab.",
+            "If the client is right, press `Accept the dispute instead`. The money goes back to them and the case closes.",
           ],
         },
         {
           type: "tip",
-          text: "Signed quotes, the client's job sign-off and before/after photos are your best evidence. Collecting them as you go makes disputes much easier.",
+          text: "Signed quotes, the client's job sign-off and before/after photos are your best evidence. Collecting them as you go makes disputes much easier. Square's own disputes screen (linked at the bottom of the tab) shows the same cases with the bank's letters attached.",
         },
         {
           type: "warn",
           text: "A lost dispute is taken back by Square on their side. WorkBench doesn't change the invoice on its own, so edit or delete the payment record if you want your books to match.",
+        },
+        {
+          type: "faq",
+          items: [
+            {
+              q: "The Disputes tab is empty and asks me to Reconnect Square.",
+              a: "You connected Square before WorkBench read disputes. The owner presses `Reconnect Square` and signs in to Square once more; the tab fills in straight after. Until then, Square's emails are your notice of a new case.",
+            },
+            {
+              q: "The upload button isn't there.",
+              a: "Only owners and admins can act on a dispute, and only while it's open. A closed case shows what was uploaded, read-only.",
+            },
+          ],
         },
       ],
     },

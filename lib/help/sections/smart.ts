@@ -1,5 +1,5 @@
 import type { HelpSection } from "../types";
-import { ATLAS_FREE, ATLAS_FULL, ATLAS_FULL_PRICE, MAX, PRO, PRO_CHIP, PRO_PRICE, proTip } from "../plan-copy";
+import { ATLAS_FREE, ATLAS_FULL, ATLAS_FULL_PRICE, CORE, MAX, PRO, PRO_CHIP, PRO_GATE_LINE, PRO_PRICE, proLine, proTip } from "../plan-copy";
 
 export const automationsSection: HelpSection = {
   id: "automations",
@@ -17,6 +17,10 @@ export const automationsSection: HelpSection = {
       roles: "Owners and admins",
       blocks: [
         proTip("Automations"),
+        {
+          type: "p",
+          text: `${PRO_GATE_LINE} Automations you already turned on keep running on ${CORE}; opening the Automations page to build, edit, pause or check them needs ${PRO}.`,
+        },
         {
           type: "p",
           text: "An automation is one **trigger** (something that happens) followed by steps: **Only continue if…** conditions, **Wait** steps, and **actions**.",
@@ -65,9 +69,11 @@ export const automationsSection: HelpSection = {
       where: { label: "Automations", href: "/app/automations" },
       roles: "Owners and admins",
       blocks: [
+        proLine("The automations builder"),
         {
           type: "list",
           items: [
+            `On ${CORE}, automations you built while on ${PRO} keep firing as they are; the Automations page (editing, pausing, run history, new rules) comes back when ${PRO} is on.`,
             "Automations never move money, delete, archive, or change team members.",
             "Up to **30 rules** per company and **300 runs a day**.",
             "A rule fires at most once per record per event, and automations can't trigger each other.",
@@ -225,7 +231,7 @@ export const atlasSection: HelpSection = {
             "Each reply shows how many tokens it used, and the meter above the message box shows what's left. On a phone a small pill at the top of the drawer shows the same number.",
             "Call notes, building estimate tools and drafting automation text also use tokens.",
             "When they're gone, Atlas says so and opens again when the meter refills. Everything else in WorkBench keeps working.",
-            "Using Atlas every day? Atlas Full is the way to stop running out. Call or email us to switch it on.",
+            `Using Atlas every day? Atlas Full is the way to stop running out. It comes with **${PRO}**, which the owner adds on [Settings → Plans](/app/settings/plans) (see [Manage your plan](/help/manage-your-plan)); for Atlas Full on its own, message us from the Help Center.`,
           ],
         },
         {
@@ -262,6 +268,7 @@ export const estimatorSection: HelpSection = {
       roles: "Owners and admins build; sales roles run them",
       blocks: [
         proTip("Estimate tools"),
+        { type: "p", text: PRO_GATE_LINE },
         {
           type: "steps",
           items: [
@@ -294,6 +301,7 @@ export const estimatorSection: HelpSection = {
       keywords: ["measure", "map", "satellite", "square feet", "area", "length", "onsite", "run estimate"],
       where: { label: "Estimates", href: "/app/estimates" },
       blocks: [
+        proLine("Estimate tools"),
         {
           type: "steps",
           items: [
@@ -317,6 +325,7 @@ export const estimatorSection: HelpSection = {
       where: { label: "Estimates", href: "/app/estimates" },
       roles: "Owners and admins",
       blocks: [
+        proLine("Estimate tools"),
         {
           type: "steps",
           items: [
@@ -345,6 +354,7 @@ export const estimatorSection: HelpSection = {
       keywords: ["library", "share", "template", "borrow", "rates to confirm"],
       where: { label: "Library", href: "/app/estimates/library" },
       blocks: [
+        proLine("The Estimator Library"),
         {
           type: "p",
           text: "The **Library** has tools other WorkBench businesses shared. When you add one, every rate goes under **Rates to confirm**, so you set your own numbers before using it. Share one of yours with `Share to the Library`.",

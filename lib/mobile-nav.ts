@@ -74,7 +74,7 @@ const LABELS: [prefix: string, label: string][] = [
   ["/app/settings/import", "Import clients"],
   ["/app/settings/automations", "Automations"],
   ["/app/automations", "Automations"],
-  ["/app/settings/addon", "Voice"],
+  ["/app/settings/plans", "Plans"],
   ["/app/settings", "Settings"],
   ["/app/dashboard", "Home"],
   ["/app/routes", "Routes (beta)"],

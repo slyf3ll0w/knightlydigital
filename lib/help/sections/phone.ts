@@ -1,8 +1,11 @@
-import { DISPATCH_SETUP_CENTS, PLANS, formatCents } from "../../plans";
+import { PLANS } from "../../plans";
 import type { HelpSection } from "../types";
 import {
   MAX,
+  PLANS_PAGE_LINK,
   VOICE_CHIP,
+  VOICE_MONTHLY,
+  VOICE_SETUP,
   VOICE_FAIR_USE_FORBIDDEN,
   VOICE_FAIR_USE_MINUTES,
   VOICE_FAIR_USE_TEXTS,
@@ -29,12 +32,12 @@ export const phoneSection: HelpSection = {
       blocks: [
         {
           type: "p",
-          text: `The business line is part of the **${VOICE}** (${formatCents(PLANS.DISPATCH.monthlyCents)}/month plus a one-time ${formatCents(DISPATCH_SETUP_CENTS)} setup, with unlimited talk and text for normal business use). Without it, the free Call and Text buttons keep working from your own phone. **${MAX}** includes Voice together with Pro.`,
+          text: `The business line is part of the **${VOICE}** (${VOICE_MONTHLY}/month plus a one-time ${VOICE_SETUP} setup, with unlimited talk and text for normal business use). Without it, the free Call and Text buttons keep working from your own phone. **${MAX}** includes Voice together with Pro. The owner adds either on ${PLANS_PAGE_LINK} — see [Manage your plan](/help/manage-your-plan).`,
         },
         {
           type: "steps",
           items: [
-            "Go to **Settings → Phone & texting**. If you don't have the plan yet, the owner presses `Subscribe`.",
+            "Go to **Settings → Phone & texting**. If you don't have the plan yet, the card says so with a link to **Plans**, where the owner presses `Add Voice`.",
             "Choose **Local number** (most customers answer these) or **Toll-free (8xx) number**, and type the area code you want.",
             "Enter **Ring calls through to**: the cell phone that should ring when nobody answers in the app.",
             "Press `Get a number`. Calls work as soon as the number is live.",
@@ -55,7 +58,7 @@ export const phoneSection: HelpSection = {
             },
             {
               q: "The card says my plan ended and the number will be released.",
-              a: "Your subscription lapsed. Resubscribe before the date shown to keep the number, or email us before then if you want to move it to another provider.",
+              a: "Your subscription ended. Add Voice (or Max) again on Settings → Plans before the date shown and the number stays; or email us before then if you want to move it to another provider.",
             },
           ],
         },
