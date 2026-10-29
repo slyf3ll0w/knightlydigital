@@ -29,7 +29,8 @@ export async function createSquareSubscription(params: {
   locationId: string;
   planVariationId: string;
   customerId: string;
-  cardId: string;
+  /** The card on file to charge. Omitted = Square emails the customer an invoice each period instead. */
+  cardId?: string | null;
   /** IANA zone the billing day is reckoned in (the company's). */
   timezone?: string | null;
   source?: string;
@@ -41,7 +42,7 @@ export async function createSquareSubscription(params: {
       location_id: params.locationId,
       plan_variation_id: params.planVariationId,
       customer_id: params.customerId,
-      card_id: params.cardId,
+      ...(params.cardId ? { card_id: params.cardId } : {}),
       ...(params.timezone ? { timezone: params.timezone } : {}),
       source: { name: params.source ?? "WorkBench" },
     },

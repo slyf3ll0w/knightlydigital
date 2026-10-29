@@ -344,6 +344,7 @@ function PlanCardView({
         </div>
         <div className="shrink-0 text-right">
           <div className="text-[17px] font-bold text-[color:var(--ds-ink)]">{perTerm(plan, cadence)}</div>
+          {plan.offer?.[cadence] && <div className="ds-small">Your price · {plan.offer[cadence]}</div>}
           {cadence === "ANNUAL" && <div className="ds-small">{monthLabel(Math.round(plan.annualCents / 12))} effective</div>}
           {setupDue && <div className="ds-small">+ {formatCents(state.setupFee.cents)} one-time setup</div>}
         </div>

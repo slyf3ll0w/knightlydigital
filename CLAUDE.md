@@ -853,6 +853,17 @@ entitlement rules: `lib/plans.ts` (`npx tsx scripts/test-plans.ts`).
   Square now** button (`plan-refresh`), the webhook, or the hourly sweep.
   `SQUARE_PLAN_<PRODUCT>_<CADENCE>` env ids are optional overrides
   (`scripts/square-billing-setup.ts` can still create plans from code).
+  **Prices from the console (2026-10-29):** `/superadmin/billing` (nav
+  Money → Billing) lists every catalog variation + every PlanSubscription
+  and has "Add a price" (`POST /api/superadmin/billing` `add-price` →
+  `addCatalogPrice`: a new variation under the product's plan, created if
+  missing; `reread` drops the cache). A company's console Plans card lists
+  the catalog as "Prices for this company": ticked ids are saved to
+  `Company.planOffers` (`plan-offer`) and Settings → Plans then sells /
+  prices that variation for that plan + term (`offeredVariation`,
+  `PlanCardState.offer`, the card says "Your price · <name>"); "Send by
+  invoice" (`plan-invoice` → `startInvoicedSubscription`) creates the
+  subscription with NO card so Square emails the owner the invoice.
   **Credentials = the WorkBench company's own Square connection
   (2026-10-29, `lib/plan-billing-env.ts` `planBillingCredentials`):** the
   company flagged `Company.isPlatform` (console header → "Make WorkBench's

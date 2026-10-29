@@ -14,11 +14,12 @@ import { AddonControl } from "./AddonControl";
 import { LineControl } from "./LineControl";
 import { AccountActions } from "./AccountActions";
 import type { CompanyCore } from "./shared";
+import { catalogVariations } from "@/lib/plan-catalog";
 
 /** Every switch the platform has for this account, and who flipped what. */
 export default async function ControlsTab({ company }: { company: CompanyCore }) {
   const id = company.id;
-  const [atlasUsage, users, contacts, jobs, invoices, payments, audit] = await Promise.all([
+  const [atlasUsage, users, contacts, jobs, invoices, payments, audit, catalog] = await Promise.all([
     assistantUsageSummary(id),
     prisma.user.count({ where: { companyId: id } }),
     prisma.contact.count({ where: { companyId: id } }),
@@ -26,6 +27,7 @@ export default async function ControlsTab({ company }: { company: CompanyCore })
     prisma.invoice.count({ where: { companyId: id } }),
     prisma.payment.count({ where: { companyId: id } }),
     consoleAuditFor(id, 40),
+    catalogVariations().catch(() => []),
   ]);
   const atlasPlan = planBalance(company);
   const atlasFree = freeBalance(company);
@@ -59,6 +61,8 @@ export default async function ControlsTab({ company }: { company: CompanyCore })
           dispatchPaid={Boolean(company.addonActiveAt)}
           paidPlans={normalizeGrants(company.paidPlans)}
           paidSeats={company.paidSeats}
+          planOffers={company.planOffers}
+          catalog={catalog.map((v) => ({ id: v.id, product: v.product, cadence: v.cadence, priceCents: v.priceCents, name: v.name, planName: v.planName }))}
           card={company.squareBillingCardLast4 ? `${company.squareBillingCardBrand ?? "Card"} •••• ${company.squareBillingCardLast4}` : null}
           subscriptions={company.planSubscriptions.map((s) => ({
             id: s.id,

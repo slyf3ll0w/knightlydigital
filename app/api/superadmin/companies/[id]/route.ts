@@ -9,7 +9,7 @@ import { LineError, appealCampaignRegistration, approveRegistration, attachExist
 import { VoiceError, ensureVoiceRouting } from "@/lib/voice";
 import { pushIncomingCall, voipTargetsFor } from "@/lib/voip";
 import { PLAN_IDS, isPlanId, normalizeGrants } from "@/lib/plans";
-import { planBillingConfigured, refreshCompanyFromSquare } from "@/lib/plan-billing";
+import { billingErrorResponse, planBillingConfigured, refreshCompanyFromSquare, startInvoicedSubscription } from "@/lib/plan-billing";
 import { resetPlatformCompanyCache } from "@/lib/plan-billing-env";
 import type { Prisma } from "@prisma/client";
 
@@ -63,6 +63,8 @@ const ACTIONS = new Set([
   "plan-grant",
   "plan-revoke",
   "plan-refresh",
+  "plan-offer",
+  "plan-invoice",
   "mark-platform",
   "unmark-platform",
 ]);
@@ -160,6 +162,32 @@ export async function PATCH(
     );
     audit(`${body.plan === "ALL" ? "everything (Max)" : target.join("+")} → now ${planGrants.join(", ") || "none"}`);
     return NextResponse.json({ success: true, planGrants });
+  }
+
+  // Prices for this company (Company.planOffers): Settings → Plans sells
+  // these Square variations instead of the list price (lib/plan-catalog.ts).
+  if (action === "plan-offer") {
+    const ids = Array.isArray(body.variationIds) ? body.variationIds.filter((v): v is string => typeof v === "string" && /^[A-Z0-9]{5,64}$/i.test(v)) : null;
+    if (!ids || ids.length > 20) return NextResponse.json({ error: "Bad price list." }, { status: 400 });
+    await prisma.company.update({ where: { id }, data: { planOffers: Array.from(new Set(ids)) } });
+    audit(ids.length ? `${ids.length} price${ids.length === 1 ? "" : "s"} offered` : "list prices");
+    return NextResponse.json({ success: true, planOffers: ids });
+  }
+
+  // Start a subscription on a Square price with the invoice emailed to the
+  // owner (lib/plan-billing.ts startInvoicedSubscription) — no card needed.
+  if (action === "plan-invoice") {
+    const variationId = typeof body.variationId === "string" ? body.variationId.trim() : "";
+    if (!variationId) return NextResponse.json({ error: "Pick a price." }, { status: 400 });
+    try {
+      const row = await startInvoicedSubscription({ companyId: id, variationId });
+      audit(`${row.product} ${row.cadence.toLowerCase()} started by invoice (${row.squareSubscriptionId})`);
+      return NextResponse.json({ success: true, subscription: { id: row.id, status: row.status, entitled: row.entitled } });
+    } catch (err) {
+      const { status, error, code } = billingErrorResponse(err);
+      if (status >= 500) console.error("[superadmin] plan-invoice failed", err);
+      return NextResponse.json({ error, ...(code ? { code } : {}) }, { status });
+    }
   }
 
   // WorkBench's own company (Company.isPlatform): plan billing runs through

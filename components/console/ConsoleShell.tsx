@@ -16,6 +16,7 @@ import {
   SquareKanban,
   TrendingUp,
   type LucideIcon,
+  CreditCard,
 } from "lucide-react";
 import ConsoleSearch from "./ConsoleSearch";
 
@@ -44,7 +45,14 @@ const GROUPS: { key: string; label: string; items: Item[] }[] = [
       { href: "/superadmin/contact", label: "Contact form", icon: Mail, badge: "contact" },
     ],
   },
-  { key: "money", label: "Money", items: [{ href: "/superadmin/profitability", label: "Profitability", icon: TrendingUp }] },
+  {
+    key: "money",
+    label: "Money",
+    items: [
+      { href: "/superadmin/profitability", label: "Profitability", icon: TrendingUp },
+      { href: "/superadmin/billing", label: "Billing", icon: CreditCard },
+    ],
+  },
   {
     key: "product",
     label: "Product",

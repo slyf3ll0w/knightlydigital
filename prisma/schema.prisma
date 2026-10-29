@@ -232,6 +232,10 @@ model Company {
   // Extra people paid for a month at a time: the count of ACTIVE SEAT
   // subscriptions. Core's limit is INCLUDED_SEATS + paidSeats (lib/plans.ts seatLimit).
   paidSeats                 Int         @default(0)
+  // Square plan-variation ids OFFERED to this company from the console
+  // ("Prices for this company", 2026-10-29): Settings → Plans sells these
+  // instead of the list-price variation for the same plan + term.
+  planOffers                String[]    @default([])
   // The company as a CUSTOMER of WorkBench in our Square account (not the
   // seller-side squareMerchantId): one customer, one card on file that every
   // plan subscription charges. Brand/last 4 are display copies.

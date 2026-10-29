@@ -316,6 +316,15 @@ Square with the ordinary Connect Square button; `lib/plan-billing-env.ts`
 merchant's `subscription.*` / `invoice.*` events to plan billing, and the
 env token stays as an override.
 
+**Prices and sign-ups from WorkBench (2026-10-29, David: "do steps 4–6 from
+WorkBench").** Console → Billing (`/superadmin/billing`) shows every price in
+the Square catalog and every subscription, and "Add a price" makes a new
+variation (any name and amount) under the plan that sells the product. A
+company's console Plans card lists those prices: tick one and save
+(`Company.planOffers`) and the owner's Settings → Plans sells it at that
+price ("Your price · <name>"); "Send by invoice" starts the subscription on
+it right away with no card — Square emails the owner the invoice.
+
 David's part before the switch (in order): on production, open the
 WorkBench company in the console → **Make WorkBench's account**; on that
 company's Settings → Payments, **Reconnect Square** (the grant needs the

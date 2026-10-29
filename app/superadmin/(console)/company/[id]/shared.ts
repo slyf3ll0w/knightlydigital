@@ -30,6 +30,7 @@ export const COMPANY_SELECT = {
   planGrants: true,
   paidPlans: true,
   paidSeats: true,
+  planOffers: true,
   squareBillingCardBrand: true,
   squareBillingCardLast4: true,
   planSubscriptions: {

@@ -13,7 +13,7 @@ import {
   squareEnvironment,
 } from "@/lib/square";
 import * as api from "@/lib/square-billing-api";
-import { catalogVariations, resolveVariation, variationFor, variationFrom } from "@/lib/plan-catalog";
+import { catalogVariations, offeredVariation, resolveVariation, variationFor, variationFrom } from "@/lib/plan-catalog";
 import { planBillingConfigured, planBillingCredentials, type PlanBillingCredentials } from "@/lib/plan-billing-env";
 import { parseSquareDate, planChange, reduceSubscription, sumEntitlements, type CatalogVariation } from "@/lib/plan-subscriptions";
 import {
@@ -132,6 +132,7 @@ const SELECT = {
   squareBillingCardId: true,
   squareBillingCardBrand: true,
   squareBillingCardLast4: true,
+  planOffers: true,
 } as const;
 
 type BillingCompany = NonNullable<Awaited<ReturnType<typeof loadCompany>>>;
@@ -384,8 +385,8 @@ export async function recordInvoiceEvent(invoice: api.SquareInvoice, eventType: 
 
 // ── Actions (the Plans page) ──
 
-async function variationOrThrow(product: BillingProduct, cadence: BillingCadence): Promise<string> {
-  const id = await variationFor(product, cadence);
+async function variationOrThrow(product: BillingProduct, cadence: BillingCadence, offers: readonly string[] = []): Promise<string> {
+  const id = await variationFor(product, cadence, offers);
   if (!id) {
     throw new PlanBillingError(
       `${productName(product)} isn't available for ${cadence === "ANNUAL" ? "annual" : "monthly"} billing yet. Message us from the Help Center.`,
@@ -432,8 +433,8 @@ export async function subscribe(params: {
   const { companyId, product, cadence } = params;
   if (product === "SEAT") return addSeat({ companyId, sourceId: params.sourceId });
   if (!productSellable(product)) throw new PlanBillingError(`${productName(product)} is coming soon.`, 409, "COMING_SOON");
-  const variationId = await variationOrThrow(product, cadence);
   const company = await requireCompany(companyId);
+  const variationId = await variationOrThrow(product, cadence, company.planOffers);
   const plans = productPlans(product);
   if (plans.every((p) => company.planGrants.includes(p))) {
     throw new PlanBillingError(`${productName(product)} is already on for your account at no charge.`, 409, "ALREADY_GRANTED");
@@ -562,8 +563,10 @@ export type PlanCardState = {
   monthlyCents: number;
   annualCents: number;
   sellable: boolean;
-  /** A plan variation id exists in env for the cadence (so Add can work). */
+  /** A plan variation exists for the cadence (so Add can work). */
   available: Record<BillingCadence, boolean>;
+  /** A price the console set for THIS company (Company.planOffers) — the variation's name per term; null = list price. */
+  offer: Record<BillingCadence, string | null>;
   /** The company is on every plan this product covers. */
   on: boolean;
   /** How (for a single-plan product); Max reports "paid" only when its own row exists. */
@@ -641,18 +644,21 @@ export async function planBillingState(companyId: string, gatingLive: boolean): 
             : null
         : planSource(company, product);
     const base = product === "FULL_SHOP" ? FULL_SHOP : PLANS[product];
+    const offerMonthly = offeredVariation(catalog, product, "MONTHLY", company.planOffers);
+    const offerAnnual = offeredVariation(catalog, product, "ANNUAL", company.planOffers);
     return {
       product,
       name: base.name,
       tagline: base.tagline,
       includes: product === "FULL_SHOP" ? [`Everything in ${PLANS.DISPATCH.name} and ${PLANS.SHOP.name}`, `${PLANS.JOBSITE.name} joins at no extra charge when it ships`] : PLANS[product].includes,
-      monthlyCents: productPriceCents(product, "MONTHLY"),
-      annualCents: annualCents(productPriceCents(product, "MONTHLY")),
+      monthlyCents: offerMonthly?.priceCents ?? productPriceCents(product, "MONTHLY"),
+      annualCents: offerAnnual?.priceCents ?? annualCents(productPriceCents(product, "MONTHLY")),
       sellable: productSellable(product),
       available: {
-        MONTHLY: Boolean(variationFrom(catalog, product, "MONTHLY")),
-        ANNUAL: Boolean(variationFrom(catalog, product, "ANNUAL")),
+        MONTHLY: Boolean(variationFrom(catalog, product, "MONTHLY", company.planOffers)),
+        ANNUAL: Boolean(variationFrom(catalog, product, "ANNUAL", company.planOffers)),
       },
+      offer: { MONTHLY: offerMonthly?.name ?? null, ANNUAL: offerAnnual?.name ?? null },
       on,
       source,
       subscription: own ? summarize(own) : null,
@@ -672,7 +678,7 @@ export async function planBillingState(companyId: string, gatingLive: boolean): 
       limit: seatLimit(company, gatingLive),
       activePeople,
       unlimited: hasPlan(company, "SHOP"),
-      available: Boolean(variationFrom(catalog, "SEAT", "MONTHLY")),
+      available: Boolean(variationFrom(catalog, "SEAT", "MONTHLY", company.planOffers)),
       priceCents: productPriceCents("SEAT", "MONTHLY"),
     },
     card: company.squareBillingCardId ? { brand: company.squareBillingCardBrand, last4: company.squareBillingCardLast4 } : null,
@@ -685,6 +691,36 @@ export async function planBillingState(companyId: string, gatingLive: boolean): 
     gatingLive,
     isTest: company.isTest,
   };
+}
+
+// ── Console: start a subscription that Square invoices by email ──
+
+/**
+ * Put a company on a plan variation WITHOUT a card: Square creates the
+ * subscription and emails the first invoice to the customer (the owner's
+ * email); the row then follows what gets paid (reduceSubscription — unpaid
+ * past the grace period switches it off). David's way to start a discounted
+ * or trial subscription for someone from WorkBench's own account.
+ */
+export async function startInvoicedSubscription(params: { companyId: string; variationId: string }): Promise<PlanSubscription> {
+  const { token, locationId } = await requireConfigured();
+  const sold = await resolveVariation(params.variationId);
+  if (!sold) throw new PlanBillingError("That price isn't one of our plans.", 400, "UNKNOWN_VARIATION");
+  const company = await requireCompany(params.companyId);
+  const customerId = await ensureBillingCustomer(company);
+  const sub = await api.createSquareSubscription({
+    token,
+    idempotencyKey: `wb-invoiced:${company.id}:${params.variationId}:${Math.floor(Date.now() / 60_000)}`,
+    locationId,
+    planVariationId: params.variationId,
+    customerId,
+    timezone: company.timezone,
+    source: "WorkBench console",
+  });
+  const applied = await applySquareSubscription(sub, { companyId: company.id, product: sold.product, cadence: sold.cadence });
+  await syncCompanyEntitlements(company.id);
+  if (!applied) throw new PlanBillingError("Square made the subscription but it couldn't be filed here.", 500);
+  return applied.row;
 }
 
 // ── Looking a company up in Square (Dashboard-made subscriptions) ──
