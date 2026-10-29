@@ -289,14 +289,33 @@ reports 1, mobile + Help). Help: `/help/payments`, `/help/payouts`, new
   `lib/square-seller-reports.ts`, `lib/payments-reports.ts`); new OAuth
   scopes PAYOUTS_READ + DISPUTES_READ/WRITE → connected sellers reconnect once.
 
-David's part before the switch (in order): run
-`npx tsx scripts/square-billing-setup.ts` with the sandbox token, set the
-printed `SQUARE_PLAN_*` + `SQUARE_BILLING_*` on staging, make the
-`square-billing` webhook subscription in the Developer Console, test a
-subscription on staging as a test account; repeat for production; run the
-census and grant Pro to the live accounts to keep; set `PLAN_GATING=1`
-(staging first, then production). Help Center revisions are listed in the
-hand-off message and wait for his go-ahead.
+**Square-led (2026-10-29).** David made the plans in the Square Dashboard
+of WorkBench's own account and wants Square subscriptions to grant the
+entitlements with as little WorkBench-side setup as possible. So:
+`lib/plan-catalog.ts` reads the catalog and names each variation's product
+from the plan / variation name (`productForPlanName`: Voice / Pro / Max /
+Seat / Gallery) and its cadence from the last billing phase
+(`mapCatalogVariations`, tested) — any variation under "Voice", a
+discounted or trial one included, is a Voice subscription; the in-app
+checkout sells the list-price variation (`pickVariation`). A subscription
+made in the Dashboard is matched to a company by `companyForSquareCustomer`
+(our stamped customer id → the customer's `reference_id` = company id → the
+one active OWNER whose sign-in email matches) and picked up by
+`refreshCompanyFromSquare` on the owner's Plans page load (throttled), the
+superadmin **Check Square now** button, the webhook, or the hourly sweep's
+discovery pass (every subscription at our location). `SQUARE_PLAN_*` env
+ids are now optional overrides; the webhook is optional too (the sweep and
+the page-load refresh cover it within the hour / on the next look).
+
+David's part before the switch (in order): set `SQUARE_BILLING_ACCESS_TOKEN`
+(Developer Console → the WorkBench application → Credentials → Production
+access token, the account that holds the plans) + `SQUARE_BILLING_LOCATION_ID`
+on production (the plans live in the production account; staging's sandbox
+has none); optionally the `square-billing` webhook; test by making himself
+a customer in the Dashboard (email = his owner sign-in) with a discounted
+Voice variation and opening Settings → Plans; run the census and grant Pro
+to the live accounts to keep; set `PLAN_GATING=1`. Help Center revisions
+are listed in the hand-off message and wait for his go-ahead.
 
 ## Decisions for David (answered 2026-10-28 — kept for the record)
 

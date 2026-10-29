@@ -199,3 +199,30 @@ export async function retrieveSquareCatalogObject(token: string, id: string): Pr
   });
   return r.object;
 }
+
+// ── Customers of OUR account (who a Dashboard-made subscription belongs to) ──
+
+export interface SquareBillingCustomer {
+  id: string;
+  reference_id?: string;
+  email_address?: string;
+  given_name?: string;
+  family_name?: string;
+  company_name?: string;
+}
+
+export async function retrieveSquareCustomer(token: string, customerId: string): Promise<SquareBillingCustomer> {
+  const r = await squareFetch<{ customer: SquareBillingCustomer }>(`/v2/customers/${encodeURIComponent(customerId)}`, {
+    auth: { bearer: token },
+  });
+  return r.customer;
+}
+
+/** Every customer of ours with exactly this email (Square keeps duplicates). */
+export async function searchSquareCustomersByEmail(token: string, email: string): Promise<SquareBillingCustomer[]> {
+  const r = await squareFetch<{ customers?: SquareBillingCustomer[] }>("/v2/customers/search", {
+    auth: { bearer: token },
+    body: { limit: 20, query: { filter: { email_address: { exact: email } } } },
+  });
+  return r.customers ?? [];
+}

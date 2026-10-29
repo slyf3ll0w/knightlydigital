@@ -9,6 +9,7 @@ import { LineError, appealCampaignRegistration, approveRegistration, attachExist
 import { VoiceError, ensureVoiceRouting } from "@/lib/voice";
 import { pushIncomingCall, voipTargetsFor } from "@/lib/voip";
 import { PLAN_IDS, isPlanId, normalizeGrants } from "@/lib/plans";
+import { planBillingConfigured, refreshCompanyFromSquare } from "@/lib/plan-billing";
 import type { Prisma } from "@prisma/client";
 
 /**
@@ -60,6 +61,7 @@ const ACTIONS = new Set([
   "addon-revoke",
   "plan-grant",
   "plan-revoke",
+  "plan-refresh",
 ]);
 
 /** Real-data threshold: above this the delete gate demands the typed phrase. */
@@ -155,6 +157,18 @@ export async function PATCH(
     );
     audit(`${body.plan === "ALL" ? "everything (Max)" : target.join("+")} → now ${planGrants.join(", ") || "none"}`);
     return NextResponse.json({ success: true, planGrants });
+  }
+
+  // Read the company's subscriptions from WorkBench's own Square account and
+  // apply them (lib/plan-billing.ts) — the console's way to pick up a
+  // subscription made in the Square Dashboard right now.
+  if (action === "plan-refresh") {
+    if (!planBillingConfigured()) {
+      return NextResponse.json({ error: "Plan billing isn't configured on this environment (SQUARE_BILLING_* env)." }, { status: 503 });
+    }
+    const { applied } = await refreshCompanyFromSquare(id, { force: true });
+    audit(`${applied} subscription${applied === 1 ? "" : "s"} applied from Square`);
+    return NextResponse.json({ success: true, applied });
   }
 
   // Payment-verification waiver: exempts the company from the /app/activate

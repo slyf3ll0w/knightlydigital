@@ -5,8 +5,12 @@
 import assert from "node:assert/strict";
 import {
   PAYMENT_GRACE_DAYS,
+  cadenceForSquare,
+  mapCatalogVariations,
   parseSquareDate,
+  pickVariation,
   planChange,
+  productForPlanName,
   productForVariation,
   reduceSubscription,
   sumEntitlements,
@@ -99,5 +103,65 @@ assert.deepEqual(planChange([max], { product: "SHOP", cadence: "MONTHLY" }), { s
 assert.deepEqual(planChange([max], { product: "FULL_SHOP", cadence: "ANNUAL" }), { swap: "r-max", cancel: [], already: false });
 const seat = { id: "r-seat", product: "SEAT", cadence: "MONTHLY", entitled: true };
 assert.deepEqual(planChange([seat], { product: "SHOP", cadence: "MONTHLY" }), { swap: null, cancel: [], already: false }, "seats are not plans");
+
+// ── Plans made in the Square Dashboard → products (2026-10-29) ──
+assert.equal(productForPlanName("Voice"), "DISPATCH");
+assert.equal(productForPlanName("WorkBench Pro"), "SHOP");
+assert.equal(productForPlanName("Max (Voice + Pro)"), "FULL_SHOP");
+assert.equal(productForPlanName("Extra seat"), "SEAT");
+assert.equal(productForPlanName("Gallery"), "JOBSITE");
+assert.equal(productForPlanName("Coffee club"), null);
+assert.equal(productForPlanName(""), null);
+
+assert.equal(cadenceForSquare("MONTHLY"), "MONTHLY");
+assert.equal(cadenceForSquare("ANNUAL"), "ANNUAL");
+assert.equal(cadenceForSquare("WEEKLY"), null);
+assert.equal(cadenceForSquare(undefined, "Voice yearly"), "ANNUAL");
+assert.equal(cadenceForSquare(undefined, "Voice"), null);
+
+const catalog = [
+  {
+    id: "P1",
+    subscription_plan_data: {
+      name: "Voice",
+      subscription_plan_variations: [
+        { id: "V1", subscription_plan_variation_data: { name: "Monthly", phases: [{ cadence: "MONTHLY", ordinal: 0, pricing: { type: "STATIC", price_money: { amount: 3500 } } }] } },
+        { id: "V2", subscription_plan_variation_data: { name: "Founder deal", phases: [{ cadence: "MONTHLY", ordinal: 0, pricing: { type: "STATIC", price_money: { amount: 1000 } } }] } },
+        { id: "V3", subscription_plan_variation_data: { name: "Annual", phases: [{ cadence: "ANNUAL", ordinal: 0, pricing: { type: "STATIC", price_money: { amount: 35000 } } }] } },
+        { id: "V4", is_deleted: true, subscription_plan_variation_data: { name: "Old", phases: [{ cadence: "MONTHLY", ordinal: 0 }] } },
+        { id: "V5", subscription_plan_variation_data: { name: "Weekly", phases: [{ cadence: "WEEKLY", ordinal: 0 }] } },
+      ],
+    },
+  },
+  {
+    id: "P2",
+    subscription_plan_data: {
+      name: "WorkBench",
+      subscription_plan_variations: [
+        // a free first month, then the real price: the LAST phase decides
+        { id: "V6", subscription_plan_variation_data: { name: "Pro monthly", phases: [{ cadence: "MONTHLY", ordinal: 0, pricing: { type: "STATIC", price_money: { amount: 0 } } }, { cadence: "MONTHLY", ordinal: 1, pricing: { type: "STATIC", price_money: { amount: 8900 } } }] } },
+        { id: "V7", subscription_plan_variation_data: { name: "Lawn care", phases: [{ cadence: "MONTHLY", ordinal: 0 }] } },
+      ],
+    },
+  },
+  { id: "P3", is_deleted: true, subscription_plan_data: { name: "Pro", subscription_plan_variations: [{ id: "V8", subscription_plan_variation_data: { name: "Monthly", phases: [{ cadence: "MONTHLY" }] } }] } },
+];
+const vars = mapCatalogVariations(catalog);
+assert.deepEqual(
+  vars.map((v) => [v.id, v.product, v.cadence, v.priceCents]),
+  [
+    ["V1", "DISPATCH", "MONTHLY", 3500],
+    ["V2", "DISPATCH", "MONTHLY", 1000],
+    ["V3", "DISPATCH", "ANNUAL", 35000],
+    ["V6", "SHOP", "MONTHLY", 8900],
+  ]
+);
+// The in-app checkout sells the list-price variation; a discount is entitlement-only.
+assert.equal(pickVariation(vars, "DISPATCH", "MONTHLY", 3500)?.id, "V1");
+// No list-price match → the dearest, never the discount.
+assert.equal(pickVariation(vars, "DISPATCH", "MONTHLY", 3600)?.id, "V1");
+assert.equal(pickVariation(vars, "DISPATCH", "ANNUAL", 35000)?.id, "V3");
+assert.equal(pickVariation(vars, "SHOP", "ANNUAL", 89000), null);
+assert.equal(pickVariation(vars, "SEAT", "MONTHLY", 900), null);
 
 console.log("test-plan-billing: ok");

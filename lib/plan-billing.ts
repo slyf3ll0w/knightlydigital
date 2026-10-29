@@ -13,14 +13,9 @@ import {
   squareEnvironment,
 } from "@/lib/square";
 import * as api from "@/lib/square-billing-api";
-import {
-  parseSquareDate,
-  planChange,
-  productForVariation,
-  reduceSubscription,
-  sumEntitlements,
-  variationIdFor,
-} from "@/lib/plan-subscriptions";
+import { catalogVariations, resolveVariation, variationFor, variationFrom } from "@/lib/plan-catalog";
+import { planBillingConfigured, planBillingLocationId, planBillingToken } from "@/lib/plan-billing-env";
+import { parseSquareDate, planChange, reduceSubscription, sumEntitlements, type CatalogVariation } from "@/lib/plan-subscriptions";
 import {
   DISPATCH_SETUP_CENTS,
   FULL_SHOP,
@@ -69,25 +64,24 @@ import type { PlanSubscription } from "@prisma/client";
  *  - the billing webhook (/api/public/webhooks/square-billing),
  *  - the hourly sweep (runPlanBillingSweep) for anything the webhook missed.
  *
- * Env: SQUARE_BILLING_ACCESS_TOKEN (our account's token for the
- * SQUARE_ENVIRONMENT in use), SQUARE_BILLING_LOCATION_ID, the plan
- * variation ids SQUARE_PLAN_<PRODUCT>_<CADENCE> (scripts/square-billing-setup.ts
- * creates the plans and prints them), SQUARE_BILLING_WEBHOOK_SIGNATURE_KEY
- * (+ optional SQUARE_BILLING_WEBHOOK_URL). Unset = Settings → Plans says
- * checkout isn't switched on yet.
+ * Square is the source of truth, not just our checkout (2026-10-29): a
+ * subscription David makes in the Square Dashboard — any variation under a
+ * plan named Voice / Pro / Max / Seat, a discounted or trial one included —
+ * counts the same as one bought on Settings → Plans. The plans are read from
+ * the catalog (lib/plan-catalog.ts, names → products), the customer is
+ * matched to a company by our reference_id or the owner's email
+ * (companyForSquareCustomer), and `refreshCompanyFromSquare` looks the
+ * company up on every Plans page load (at most every few minutes), so a
+ * Dashboard subscription shows up without a webhook.
+ *
+ * Env (lib/plan-billing-env.ts): SQUARE_BILLING_ACCESS_TOKEN (our account's
+ * token for the SQUARE_ENVIRONMENT in use), SQUARE_BILLING_LOCATION_ID,
+ * SQUARE_BILLING_WEBHOOK_SIGNATURE_KEY (+ optional SQUARE_BILLING_WEBHOOK_URL).
+ * SQUARE_PLAN_<PRODUCT>_<CADENCE> ids are optional overrides. Unset token /
+ * location = Settings → Plans says checkout isn't switched on yet.
  */
 
-export function planBillingToken(): string {
-  return (process.env.SQUARE_BILLING_ACCESS_TOKEN ?? "").trim();
-}
-
-export function planBillingLocationId(): string {
-  return (process.env.SQUARE_BILLING_LOCATION_ID ?? "").trim();
-}
-
-export function planBillingConfigured(): boolean {
-  return Boolean(planBillingToken() && planBillingLocationId() && squareApplicationId());
-}
+export { planBillingConfigured, planBillingLocationId, planBillingToken };
 
 /** What the browser needs to tokenize a card for OUR account (Settings → Plans). */
 export function planBillingPayConfig(): SquareClientConfig | null {
@@ -237,17 +231,11 @@ export async function applySquareSubscription(
   now: Date = new Date()
 ): Promise<{ companyId: string; row: PlanSubscription } | null> {
   const existing = await prisma.planSubscription.findUnique({ where: { squareSubscriptionId: sub.id } });
-  const sold = productForVariation(sub.plan_variation_id);
+  const sold = await resolveVariation(sub.plan_variation_id);
   const product = sold?.product ?? hint?.product ?? (existing?.product as BillingProduct | undefined);
   const cadence = sold?.cadence ?? hint?.cadence ?? (existing?.cadence as BillingCadence | undefined);
   let companyId = existing?.companyId ?? hint?.companyId ?? null;
-  if (!companyId && sub.customer_id) {
-    const company = await prisma.company.findFirst({
-      where: { squareBillingCustomerId: sub.customer_id },
-      select: { id: true },
-    });
-    companyId = company?.id ?? null;
-  }
+  if (!companyId && sub.customer_id) companyId = await companyForSquareCustomer(sub.customer_id);
   if (!companyId || !product || !cadence) {
     console.warn(`[plan-billing] subscription ${sub.id} ignored (company ${companyId ?? "?"}, variation ${sub.plan_variation_id ?? "?"})`);
     return null;
@@ -268,6 +256,50 @@ export async function applySquareSubscription(
     ? await prisma.planSubscription.update({ where: { id: existing.id }, data })
     : await prisma.planSubscription.create({ data: { ...data, squareSubscriptionId: sub.id } });
   return { companyId, row };
+}
+
+/**
+ * Which company a Square customer of OURS is. A subscription made in the
+ * Square Dashboard arrives with a customer we never created, so after the
+ * stamped squareBillingCustomerId we try the customer's reference_id (our
+ * checkout sets it to the company id — David can type it in the Dashboard
+ * too) and then the one company whose active OWNER signs in with that
+ * email. A match is stamped so the next event is a plain lookup. Null =
+ * nobody we know (the caller logs and ignores the subscription).
+ */
+export async function companyForSquareCustomer(customerId: string): Promise<string | null> {
+  const known = await prisma.company.findFirst({ where: { squareBillingCustomerId: customerId }, select: { id: true } });
+  if (known) return known.id;
+  if (!planBillingConfigured()) return null;
+  let customer: api.SquareBillingCustomer;
+  try {
+    customer = await api.retrieveSquareCustomer(planBillingToken(), customerId);
+  } catch (err) {
+    if (err instanceof SquareError && err.status === 404) return null;
+    throw err;
+  }
+  const companyId = await companyForCustomerFields(customer);
+  if (!companyId) return null;
+  await prisma.company.updateMany({ where: { id: companyId, squareBillingCustomerId: null }, data: { squareBillingCustomerId: customerId } });
+  return companyId;
+}
+
+async function companyForCustomerFields(customer: api.SquareBillingCustomer): Promise<string | null> {
+  const ref = customer.reference_id?.trim();
+  if (ref) {
+    const byRef = await prisma.company.findUnique({ where: { id: ref }, select: { id: true } });
+    if (byRef) return byRef.id;
+  }
+  const email = customer.email_address?.trim();
+  if (!email) return null;
+  const owners = await prisma.user.findMany({
+    where: { email: { equals: email, mode: "insensitive" }, role: "OWNER", isActive: true, companyId: { not: null } },
+    select: { companyId: true },
+  });
+  const ids = Array.from(new Set(owners.map((o) => o.companyId).filter((id): id is string => Boolean(id))));
+  if (ids.length === 1) return ids[0];
+  if (ids.length > 1) console.warn(`[plan-billing] Square customer ${customer.id}: email matches ${ids.length} companies — not linked`);
+  return null;
 }
 
 /**
@@ -349,8 +381,8 @@ export async function recordInvoiceEvent(invoice: api.SquareInvoice, eventType: 
 
 // ── Actions (the Plans page) ──
 
-function variationOrThrow(product: BillingProduct, cadence: BillingCadence): string {
-  const id = variationIdFor(product, cadence);
+async function variationOrThrow(product: BillingProduct, cadence: BillingCadence): Promise<string> {
+  const id = await variationFor(product, cadence);
   if (!id) {
     throw new PlanBillingError(
       `${productName(product)} isn't available for ${cadence === "ANNUAL" ? "annual" : "monthly"} billing yet. Message us from the Help Center.`,
@@ -397,7 +429,7 @@ export async function subscribe(params: {
   const { companyId, product, cadence } = params;
   if (product === "SEAT") return addSeat({ companyId, sourceId: params.sourceId });
   if (!productSellable(product)) throw new PlanBillingError(`${productName(product)} is coming soon.`, 409, "COMING_SOON");
-  const variationId = variationOrThrow(product, cadence);
+  const variationId = await variationOrThrow(product, cadence);
   const company = await requireCompany(companyId);
   const plans = productPlans(product);
   if (plans.every((p) => company.planGrants.includes(p))) {
@@ -486,7 +518,7 @@ export async function resumePlan(params: { companyId: string; rowId: string }): 
 /** One more paid person: a new SEAT subscription on the card on file. */
 export async function addSeat(params: { companyId: string; sourceId?: string | null }): Promise<void> {
   const { token, locationId } = requireConfigured();
-  const variationId = variationOrThrow("SEAT", "MONTHLY");
+  const variationId = await variationOrThrow("SEAT", "MONTHLY");
   const company = await requireCompany(params.companyId);
   if (hasPlan(company, "SHOP")) throw new PlanBillingError("Pro already includes unlimited people.", 409, "ALREADY_ON");
   const { cardId, customerId } = await cardForCharge(company, params.sourceId);
@@ -579,10 +611,14 @@ function summarize(r: PlanSubscription): SubscriptionSummary {
 }
 
 export async function planBillingState(companyId: string, gatingLive: boolean): Promise<PlanBillingState> {
-  const [company, rows, activePeople] = await Promise.all([
+  const [company, rows, activePeople, catalog] = await Promise.all([
     requireCompany(companyId),
     prisma.planSubscription.findMany({ where: { companyId }, orderBy: { createdAt: "asc" } }),
     prisma.user.count({ where: { companyId, isActive: true, role: { not: "SUPERADMIN" } } }),
+    catalogVariations().catch((err) => {
+      reportError("[plan-billing] catalog read failed", err);
+      return [] as CatalogVariation[];
+    }),
   ]);
   const live = rows.filter((r) => r.entitled);
   const rowFor = (product: BillingProduct) => live.find((r) => r.product === product) ?? rows.filter((r) => r.product === product).at(-1) ?? null;
@@ -611,8 +647,8 @@ export async function planBillingState(companyId: string, gatingLive: boolean): 
       annualCents: annualCents(productPriceCents(product, "MONTHLY")),
       sellable: productSellable(product),
       available: {
-        MONTHLY: Boolean(variationIdFor(product, "MONTHLY")),
-        ANNUAL: Boolean(variationIdFor(product, "ANNUAL")),
+        MONTHLY: Boolean(variationFrom(catalog, product, "MONTHLY")),
+        ANNUAL: Boolean(variationFrom(catalog, product, "ANNUAL")),
       },
       on,
       source,
@@ -633,7 +669,7 @@ export async function planBillingState(companyId: string, gatingLive: boolean): 
       limit: seatLimit(company, gatingLive),
       activePeople,
       unlimited: hasPlan(company, "SHOP"),
-      available: Boolean(variationIdFor("SEAT", "MONTHLY")),
+      available: Boolean(variationFrom(catalog, "SEAT", "MONTHLY")),
       priceCents: productPriceCents("SEAT", "MONTHLY"),
     },
     card: company.squareBillingCardId ? { brand: company.squareBillingCardBrand, last4: company.squareBillingCardLast4 } : null,
@@ -646,6 +682,58 @@ export async function planBillingState(companyId: string, gatingLive: boolean): 
     gatingLive,
     isTest: company.isTest,
   };
+}
+
+// ── Looking a company up in Square (Dashboard-made subscriptions) ──
+
+const REFRESH_EVERY_MS = 3 * 60_000;
+const lastRefresh = new Map<string, number>();
+
+/**
+ * Pull everything Square holds for this company — every subscription of its
+ * customer, and when we have no customer yet, any customer of ours whose
+ * email is the owner's — and apply it. The Plans page calls this on load
+ * (throttled per instance), so a subscription David makes in the Square
+ * Dashboard is on by the time the owner looks. Square trouble is logged
+ * and swallowed: the page still renders from what we have.
+ */
+export async function refreshCompanyFromSquare(companyId: string, opts: { force?: boolean } = {}): Promise<{ applied: number }> {
+  if (!planBillingConfigured()) return { applied: 0 };
+  const last = lastRefresh.get(companyId) ?? 0;
+  if (!opts.force && Date.now() - last < REFRESH_EVERY_MS) return { applied: 0 };
+  lastRefresh.set(companyId, Date.now());
+  const token = planBillingToken();
+  const company = await prisma.company.findUnique({ where: { id: companyId }, select: { id: true, squareBillingCustomerId: true } });
+  if (!company) return { applied: 0 };
+  let applied = 0;
+  try {
+    const customerIds = new Set<string>();
+    if (company.squareBillingCustomerId) customerIds.add(company.squareBillingCustomerId);
+    if (!customerIds.size) {
+      const owners = await prisma.user.findMany({
+        where: { companyId, role: "OWNER", isActive: true },
+        select: { email: true },
+      });
+      for (const o of owners) {
+        const found = await api.searchSquareCustomersByEmail(token, o.email.trim());
+        for (const c of found) customerIds.add(c.id);
+      }
+    }
+    if (!customerIds.size) return { applied: 0 };
+    let cursor: string | undefined;
+    do {
+      const page = await api.searchSquareSubscriptions({ token, customerIds: Array.from(customerIds), cursor });
+      for (const sub of page.subscriptions) {
+        const hit = await applySquareSubscription(sub, { companyId });
+        if (hit) applied += 1;
+      }
+      cursor = page.cursor;
+    } while (cursor);
+    if (applied) await syncCompanyEntitlements(companyId);
+  } catch (err) {
+    if (!(err instanceof SquareError && isTransientSquareError(err))) reportError("[plan-billing] refresh from Square failed", err);
+  }
+  return { applied };
 }
 
 // ── Hourly sweep ──
@@ -679,6 +767,31 @@ export async function runPlanBillingSweep(now: Date = new Date()): Promise<{ che
       if (err instanceof SquareError && isTransientSquareError(err)) continue;
       reportError("[plan-billing] sweep refresh failed", err);
     }
+  }
+  // Discovery: every subscription in our account, so one made in the Square
+  // Dashboard (or whose webhook never arrived) is picked up within the hour.
+  try {
+    const token = planBillingToken();
+    const known = new Set((await prisma.planSubscription.findMany({ select: { squareSubscriptionId: true } })).map((r) => r.squareSubscriptionId));
+    const touched = new Set<string>();
+    let cursor: string | undefined;
+    let seen = 0;
+    do {
+      const page = await api.searchSquareSubscriptions({ token, locationIds: [planBillingLocationId()], cursor });
+      for (const sub of page.subscriptions) {
+        seen += 1;
+        if (known.has(sub.id)) continue;
+        const hit = await applySquareSubscription(sub, undefined, now);
+        if (hit) {
+          touched.add(hit.companyId);
+          checked += 1;
+        }
+      }
+      cursor = page.cursor;
+    } while (cursor && seen < 2000);
+    for (const companyId of touched) await syncCompanyEntitlements(companyId, now);
+  } catch (err) {
+    if (!(err instanceof SquareError && isTransientSquareError(err))) reportError("[plan-billing] sweep discovery failed", err);
   }
   return { checked };
 }

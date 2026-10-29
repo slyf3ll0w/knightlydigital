@@ -838,12 +838,24 @@ entitlement rules: `lib/plans.ts` (`npx tsx scripts/test-plans.ts`).
   (`SQUARE_BILLING_WEBHOOK_SIGNATURE_KEY`; subscription.created/updated,
   invoice.payment_made / scheduled_charge_failed / updated — payload is a
   hint, re-fetched), and the hourly cron step `planBilling`
-  (`runPlanBillingSweep`). Plan variation ids come from env
-  `SQUARE_PLAN_<PRODUCT>_<CADENCE>`; `npx tsx scripts/square-billing-setup.ts`
-  creates the Square catalog plans from lib/plans.ts prices and prints them.
-  Unset env = the Plans page says checkout isn't switched on yet. Livery
-  stays only for existing Voice subscribers (its webhook is untouched).
-  Superadmin company page → Plans card shows paid rows read-only.
+  (`runPlanBillingSweep`, which also DISCOVERS every subscription in the
+  account). **Square is the source of truth (2026-10-29):** David makes and
+  prices the plans in the Square Dashboard; `lib/plan-catalog.ts` reads the
+  catalog (cached 10 min) and `mapCatalogVariations` names each variation's
+  product from the plan / variation name (Voice, Pro, Max, Seat, Gallery)
+  and its cadence from the last billing phase — a discounted or trial
+  variation under "Voice" is still Voice; the in-app checkout sells the
+  list-price one (`pickVariation`). A subscription made in the Dashboard
+  is matched to a company by `companyForSquareCustomer` (stamped customer
+  id → customer `reference_id` = company id → the one active OWNER with
+  that email) and applied on the owner's Plans page load
+  (`refreshCompanyFromSquare`, throttled 3 min), the superadmin **Check
+  Square now** button (`plan-refresh`), the webhook, or the hourly sweep.
+  `SQUARE_PLAN_<PRODUCT>_<CADENCE>` env ids are optional overrides
+  (`scripts/square-billing-setup.ts` can still create plans from code).
+  Unset token / location = the Plans page says checkout isn't switched on
+  yet. Livery stays only for existing Voice subscribers (its webhook is
+  untouched). Superadmin company page → Plans card shows paid rows read-only.
 
 ## Payment processor (Square — the processor from 2026-10)
 
@@ -1135,11 +1147,9 @@ SQUARE_BILLING_ACCESS_TOKEN=          # Developer Console → WorkBench app → 
 SQUARE_BILLING_LOCATION_ID=           # our location (Dashboard → Account & Settings → Locations)
 SQUARE_BILLING_WEBHOOK_SIGNATURE_KEY= # the square-billing webhook subscription's key (events: subscription.created/updated, invoice.payment_made, invoice.scheduled_charge_failed, invoice.updated)
 # SQUARE_BILLING_WEBHOOK_URL overrides ${NEXTAUTH_URL}/api/public/webhooks/square-billing
-# Plan variation ids, printed by `npx tsx scripts/square-billing-setup.ts`; a missing one = that Add button is disabled
-SQUARE_PLAN_DISPATCH_MONTHLY= SQUARE_PLAN_DISPATCH_ANNUAL=
-SQUARE_PLAN_SHOP_MONTHLY=     SQUARE_PLAN_SHOP_ANNUAL=
-SQUARE_PLAN_FULL_SHOP_MONTHLY= SQUARE_PLAN_FULL_SHOP_ANNUAL=
-SQUARE_PLAN_SEAT_MONTHLY=
+# Plan variation ids are READ FROM THE CATALOG by name (lib/plan-catalog.ts); these are optional overrides
+# (a product × cadence with no catalog match and no override = that Add button is disabled)
+# SQUARE_PLAN_DISPATCH_MONTHLY= SQUARE_PLAN_SHOP_MONTHLY= SQUARE_PLAN_FULL_SHOP_MONTHLY= SQUARE_PLAN_SEAT_MONTHLY= (+ _ANNUAL)
 PLAN_GATING=                  # "1" = Pro feature gates + seat cap live (test accounts exempt); unset = everything open
 # Telnyx — provider texting + business lines (lib/sms.ts, lib/business-line.ts).
 # All three needed: without API key + profile every send is a no-op and the

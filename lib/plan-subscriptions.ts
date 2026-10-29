@@ -152,3 +152,104 @@ export function planChange(
   if (live.some((r) => r.product === "FULL_SHOP")) return { swap: null, cancel: [], already: true };
   return { swap: null, cancel: [], already: false };
 }
+
+// ── Plan variations from the catalog itself (2026-10-29) ──
+//
+// David makes the plans in the Square Dashboard of WorkBench's own account
+// (Subscriptions → Plans), so the ids are not known ahead of time and a
+// discounted or trial variation can appear at any moment. Instead of the
+// SQUARE_PLAN_* env (still honoured when set), lib/plan-catalog.ts reads the
+// catalog and this matcher decides what each variation sells from its NAMES
+// (plan name first, then the variation's) and its billing phase. Any
+// variation under a plan called "Voice" is a Voice subscription whatever
+// it costs — the price only decides which variation the in-app checkout
+// offers (the one at list price, else the dearest).
+
+export interface CatalogVariation {
+  id: string;
+  product: BillingProduct;
+  cadence: BillingCadence;
+  /** Recurring price of the last phase, null when Square prices it relatively (discount phases). */
+  priceCents: number | null;
+  planName: string;
+  name: string;
+}
+
+/** A plan / variation name → the product it sells, by the words in it. Null = not one of ours. */
+export function productForPlanName(name: string | null | undefined): BillingProduct | null {
+  const n = (name ?? "").toLowerCase();
+  if (!n) return null;
+  if (/\b(seat|seats|extra person|additional person|team member|per person|user)\b/.test(n)) return "SEAT";
+  if (/\b(max|full shop|everything|bundle)\b/.test(n)) return "FULL_SHOP";
+  if (/\b(voice|dispatch|phone|business line)\b/.test(n)) return "DISPATCH";
+  if (/\b(pro|shop|office)\b/.test(n)) return "SHOP";
+  if (/\b(gallery|jobsite|job site|photos)\b/.test(n)) return "JOBSITE";
+  return null;
+}
+
+/** Square's phase cadence → ours; anything but monthly / yearly is not a plan we sell. */
+export function cadenceForSquare(cadence: string | null | undefined, name?: string | null): BillingCadence | null {
+  const c = (cadence ?? "").toUpperCase();
+  if (c === "MONTHLY" || c === "THIRTY_DAYS") return "MONTHLY";
+  if (c === "ANNUAL") return "ANNUAL";
+  if (c) return null;
+  const n = (name ?? "").toLowerCase();
+  if (/\b(annual|annually|yearly|year|\/yr)\b/.test(n)) return "ANNUAL";
+  if (/\b(monthly|month|\/mo)\b/.test(n)) return "MONTHLY";
+  return null;
+}
+
+/** The shape of a Square SUBSCRIPTION_PLAN catalog object this matcher needs (lib/square-billing-api.ts has the full one). */
+export interface CatalogPlanLike {
+  id: string;
+  is_deleted?: boolean;
+  subscription_plan_data?: {
+    name?: string;
+    subscription_plan_variations?: {
+      id: string;
+      is_deleted?: boolean;
+      subscription_plan_variation_data?: {
+        name?: string;
+        phases?: { cadence?: string; ordinal?: number; pricing?: { type?: string; price_money?: { amount?: number } } }[];
+      };
+    }[];
+  };
+}
+
+/** Every variation in the catalog that sells one of our products, in catalog order. */
+export function mapCatalogVariations(plans: readonly CatalogPlanLike[]): CatalogVariation[] {
+  const out: CatalogVariation[] = [];
+  for (const plan of plans) {
+    if (plan.is_deleted) continue;
+    const planName = plan.subscription_plan_data?.name ?? "";
+    for (const v of plan.subscription_plan_data?.subscription_plan_variations ?? []) {
+      if (v.is_deleted) continue;
+      const data = v.subscription_plan_variation_data;
+      const name = data?.name ?? "";
+      const product = productForPlanName(planName) ?? productForPlanName(name);
+      if (!product) continue;
+      const phases = [...(data?.phases ?? [])].sort((a, b) => (a.ordinal ?? 0) - (b.ordinal ?? 0));
+      const last = phases.at(-1);
+      const cadence = cadenceForSquare(last?.cadence, `${planName} ${name}`);
+      if (!cadence) continue;
+      const amount = last?.pricing?.type === "STATIC" ? last.pricing.price_money?.amount : undefined;
+      out.push({ id: v.id, product, cadence, priceCents: typeof amount === "number" ? amount : null, planName, name });
+    }
+  }
+  return out;
+}
+
+/** The variation the in-app checkout should sell for product × cadence: the one at list price, else the dearest. */
+export function pickVariation(
+  variations: readonly CatalogVariation[],
+  product: BillingProduct,
+  cadence: BillingCadence,
+  listPriceCents: number
+): CatalogVariation | null {
+  const candidates = variations.filter((v) => v.product === product && v.cadence === cadence);
+  if (!candidates.length) return null;
+  return (
+    candidates.find((v) => v.priceCents === listPriceCents) ??
+    [...candidates].sort((a, b) => (b.priceCents ?? -1) - (a.priceCents ?? -1))[0]
+  );
+}

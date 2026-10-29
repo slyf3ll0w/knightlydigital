@@ -51,7 +51,7 @@ export function PlanControl({
 
   const everything = plans.every((p) => grants.includes(p.id));
 
-  async function send(action: "plan-grant" | "plan-revoke", plan: PlanId | "ALL") {
+  async function send(action: "plan-grant" | "plan-revoke" | "plan-refresh", plan: PlanId | "ALL") {
     setBusy(`${action}:${plan}`);
     setError(null);
     try {
@@ -133,6 +133,17 @@ export function PlanControl({
         )}
       </div>
       {error && <p className="mt-2 text-sm text-[color:var(--ds-bad)]">{error}</p>}
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button variant="outline" size="sm" disabled={busy !== null} onClick={() => send("plan-refresh", "ALL")}>
+          {busy === "plan-refresh:ALL" ? "Checking…" : "Check Square now"}
+        </Button>
+        <InfoTip>
+          Reads this company&apos;s subscriptions from WorkBench&apos;s Square account and applies them — a subscription
+          made in the Square Dashboard (customer email = the owner&apos;s sign-in, or reference id = this company id)
+          is picked up here, on the owner&apos;s Plans page, or by the hourly sweep.
+        </InfoTip>
+      </div>
 
       {(subscriptions.length > 0 || card) && (
         <div className="mt-5">
