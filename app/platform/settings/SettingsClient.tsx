@@ -1594,7 +1594,7 @@ export default function SettingsClient({
                     </span>
                     <span className="min-w-0 flex-1 truncate">{s.label}</span>
                   </button>
-                  {s.key === "phone" && company.addonEnabled && <RailLink link={ADDON_LINK} />}
+                  {s.key === "phone" && <RailLink link={ADDON_LINK} />}
                 </Fragment>
               );
             })}
@@ -1643,7 +1643,7 @@ export default function SettingsClient({
                       </span>
                       <ChevronRight size={16} className="shrink-0 text-[color:var(--ds-faint)]" />
                     </button>
-                    {s.key === "phone" && company.addonEnabled && <LinkRow link={ADDON_LINK} />}
+                    {s.key === "phone" && <LinkRow link={ADDON_LINK} />}
                   </Fragment>
                 );
               })}

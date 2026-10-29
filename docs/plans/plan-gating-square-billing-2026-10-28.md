@@ -1,7 +1,12 @@
 # Plan gating live, sign-up through Square, and a fuller Payments section
 
-Status: **PLANNED** (2026-10-28). Nothing here is built yet. David asked for
-three things on the same day:
+Status: **BUILT on branch `plan-gating` 2026-10-28** (parts 1 and 2 as one
+release, part 3 alongside) — see "What shipped" at the end. David's decisions
+(same day): WorkBench's own Square account; grant from the census (no blanket
+grandfathering); the seat cap ships with the Plans page in the same release;
+gated items stay visible with a Pro chip; monthly + annual from day one; Max is
+one Square plan; build all three without pausing. David asked for three things
+on the same day:
 
 1. **Plan gating live.** Test accounts (`Company.isTest`) have everything
    open except Voice by default. Live accounts are gated unless David grants
@@ -260,7 +265,40 @@ reports 1, mobile + Help). Help: `/help/payments`, `/help/payouts`, new
 
 ---
 
-## Decisions for David
+## What shipped (2026-10-28, branch `plan-gating`)
+
+- **Gating** — `lib/plans.ts`: `PlanHolder` gained `paidPlans` / `paidSeats` /
+  `isTest` (`PLAN_HOLDER_SELECT`); `featureAllowed` passes test accounts;
+  ten `GatedFeature` ids with labels + blurbs; `seatLimit` / `canAddPerson`.
+  `components/PlanRequired.tsx` on every gated page, `checkFeature` 402 on
+  every API entry, Atlas tools answer in words, `components/PlanGateToast.tsx`
+  for the 402s, Pro chips in the nav (`lockedFeatures`), `lib/seats.ts`
+  seat cap in the team routes (402 `SEATS_REQUIRED`), `/api/health.planGating`,
+  `e2e/specs/plan-gate.spec.ts`. Still dark until `PLAN_GATING=1`.
+- **Billing** — `lib/plan-billing.ts` + pure `lib/plan-subscriptions.ts`
+  (`scripts/test-plan-billing.ts`), `lib/square-billing-api.ts`,
+  `PlanSubscription` model + `Company.paidPlans / paidSeats /
+  squareBilling* / dispatchSetupPaidAt`, `POST /api/app/billing`,
+  `/app/settings/plans` (`PlansClient.tsx`), `/api/public/webhooks/square-billing`,
+  cron step `planBilling`, `scripts/square-billing-setup.ts` (creates the
+  Square catalog plans from lib/plans.ts and prints the env). Seats are one
+  SEAT subscription each (Square variations have no quantity). Upgrades use
+  `swap-plan` (prorated). The old `/app/settings/addon` redirects.
+- **Payments section** — see the commit on this branch for
+  `app/platform/payments` (tabs Payments · Payouts · Disputes · Reports,
+  `lib/square-seller-reports.ts`, `lib/payments-reports.ts`); new OAuth
+  scopes PAYOUTS_READ + DISPUTES_READ/WRITE → connected sellers reconnect once.
+
+David's part before the switch (in order): run
+`npx tsx scripts/square-billing-setup.ts` with the sandbox token, set the
+printed `SQUARE_PLAN_*` + `SQUARE_BILLING_*` on staging, make the
+`square-billing` webhook subscription in the Developer Console, test a
+subscription on staging as a test account; repeat for production; run the
+census and grant Pro to the live accounts to keep; set `PLAN_GATING=1`
+(staging first, then production). Help Center revisions are listed in the
+hand-off message and wait for his go-ahead.
+
+## Decisions for David (answered 2026-10-28 — kept for the record)
 
 1. **Square account**: WorkBench's (recommended) or Streamflaire's?
 2. **Live accounts at switch-on**: grant the ones over the line yourself from
