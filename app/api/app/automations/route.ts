@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkFeature } from "@/lib/plan-gate";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { AUTOMATION_LIMITS, compileAutomation } from "@/lib/automations";
@@ -15,6 +16,8 @@ import { AUTOMATION_SELECT, automationShape as shape, mintWebhookToken } from "@
 export async function GET() {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "automations");
+  if (!gate.ok) return gate.response;
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const rows = await prisma.automation.findMany({ where: { companyId: actor.companyId }, select: AUTOMATION_SELECT, orderBy: [{ isActive: "desc" }, { name: "asc" }] });
   return NextResponse.json(rows.map(shape));
@@ -23,6 +26,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "automations");
+  if (!gate.ok) return gate.response;
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;

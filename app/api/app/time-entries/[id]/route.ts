@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkFeature } from "@/lib/plan-gate";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 
@@ -17,6 +18,8 @@ export async function PATCH(
 ) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "timesheets");
+  if (!gate.ok) return gate.response;
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;
@@ -85,6 +88,8 @@ export async function DELETE(
 ) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "timesheets");
+  if (!gate.ok) return gate.response;
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;

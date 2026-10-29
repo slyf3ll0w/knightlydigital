@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse, after } from "next/server";
+import { checkFeature } from "@/lib/plan-gate";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { readAssistImage } from "@/lib/estimator-assist";
@@ -22,6 +23,8 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "estimator");
+  if (!gate.ok) return gate.response;
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown> & { prompt?: unknown; estimatorId?: unknown; answers?: unknown };
   const prompt = typeof body.prompt === "string" ? body.prompt : "";
@@ -47,6 +50,8 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "estimator");
+  if (!gate.ok) return gate.response;
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const estimatorId = (req.nextUrl.searchParams.get("estimatorId") ?? "").slice(0, 40) || null;
   const rows = await resumableBuilds(actor.companyId, estimatorId);

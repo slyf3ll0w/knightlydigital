@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkFeature } from "@/lib/plan-gate";
 import { getActor, canSell } from "@/lib/permissions";
 import { compileSpec, explainRun, parseVariants, runCompiled, runVariants } from "@/lib/estimator";
 import { loadVisibleListing } from "@/lib/estimator-library";
@@ -14,6 +15,8 @@ import { loadVisibleListing } from "@/lib/estimator-library";
 export async function POST(req: NextRequest, { params }: { params: Promise<{ listing: string }> }) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "estimator");
+  if (!gate.ok) return gate.response;
   if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { listing } = await params;
   const row = await loadVisibleListing(listing, actor.companyId);

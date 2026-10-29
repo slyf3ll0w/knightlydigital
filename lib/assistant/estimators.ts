@@ -1,6 +1,7 @@
 import { prisma } from "../db";
 import { canSell, isManager } from "../permissions";
 import { str, stage, type Tool } from "./core";
+import { featureAllowedFor } from "../plan-gate";
 import {
   compileSpec,
   describeSpecChanges,
@@ -13,6 +14,9 @@ import {
 } from "../estimator";
 import { checkSpec, ESTIMATOR_SELECT, estimatorSummary, loadPriceBook, publicEstimatePath, runStoredEstimator } from "../estimator-server";
 import { describePublicConfig, publicSlugFrom, sanitizePublicConfig, type EstimatorPublicConfig } from "../estimator-public";
+
+/** What Atlas says when the company is off Pro (lib/plans.ts featureAllowed "estimator"). Quotes themselves stay free. */
+const ESTIMATOR_GATE_NOTE = "The Estimator is part of the Pro plan — not on this account. Quotes still work without it.";
 
 /**
  * Estimate tools (docs/plans/ai-estimators-2026-09-19.md).
@@ -267,6 +271,7 @@ const manageEstimator: Tool = {
   },
   allowed: (a) => isManager(a.role),
   run: async (actor, args, ctx) => {
+    if (!(await featureAllowedFor(actor.companyId, "estimator"))) return { error: ESTIMATOR_GATE_NOTE };
     const action = str(args.action, 10);
 
     if (action === "guide") {
@@ -456,6 +461,7 @@ const runEstimatorTool: Tool = {
   },
   allowed: (a) => canSell(a.role),
   run: async (actor, args) => {
+    if (!(await featureAllowedFor(actor.companyId, "estimator"))) return { error: ESTIMATOR_GATE_NOTE };
     const rows = await prisma.estimator.findMany({
       where: { companyId: actor.companyId, isActive: true },
       select: ESTIMATOR_SELECT,

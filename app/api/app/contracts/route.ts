@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkFeature } from "@/lib/plan-gate";
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope } from "@/lib/permissions";
@@ -16,6 +17,8 @@ import { fireAutomations } from "@/lib/automations-server";
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "agreements");
+  if (!gate.ok) return gate.response;
   if (await inPreview(actor.companyId))
     return NextResponse.json(previewBlockedError("Sending agreements to clients"), { status: 403 });
   if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });

@@ -73,6 +73,8 @@ import TourGuide from "@/components/TourGuide";
 const NotificationsSheet = dynamic(() => import("@/components/NotificationsSheet"), { ssr: false });
 const AssistantDrawer = dynamic(() => import("@/components/AssistantDrawer"), { ssr: false });
 import LiveToasts, { type LiveToast } from "@/components/LiveToasts";
+import PlanGateToast from "@/components/PlanGateToast";
+import type { GatedFeature } from "@/lib/plans";
 import { kindForUrl } from "@/lib/toast";
 import PageNotes from "@/components/sticky/PageNotes";
 import BuildProgressBar from "@/components/BuildProgressBar";
@@ -176,6 +178,10 @@ type NavItem = {
   label: string;
   icon: typeof Home;
   show?: (role: string, salesMoney: boolean) => boolean;
+  /** The Pro feature behind this page (lib/plans.ts). When it is in the
+   *  shell's `lockedFeatures` the item stays visible with a "Pro" chip —
+   *  people should see what Pro has; the page itself is the upsell. */
+  feature?: GatedFeature;
 };
 
 // Nav-count refresh throttle (module-level: survives re-renders, resets on
@@ -245,7 +251,7 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
   {
     label: "Work",
     items: [
-      { href: "/app/routes", label: "Routes (beta)", icon: RouteGlyph },
+      { href: "/app/routes", label: "Routes (beta)", icon: RouteGlyph, feature: "routes" },
       { href: "/app/contacts", label: "Clients", icon: Users, show: sellRoles },
       { href: "/app/requests", label: "Requests", icon: Inbox, show: sellRoles },
       { href: "/app/messages", label: "Messages", icon: MessageSquare, show: sellRoles },
@@ -253,13 +259,13 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
       { href: "/app/leads", label: "Leads", icon: SquareKanban, show: sellRoles },
       { href: "/app/appointments", label: "Appointments", icon: CalendarClock, show: sellRoles },
       { href: "/app/quotes", label: "Quotes", icon: FileText, show: sellRoles },
-      { href: "/app/estimates", label: "Estimates", icon: Calculator, show: sellRoles },
-      { href: "/app/contracts", label: "Agreements", icon: FileSignature, show: sellRoles },
+      { href: "/app/estimates", label: "Estimates", icon: Calculator, show: sellRoles, feature: "estimator" },
+      { href: "/app/contracts", label: "Agreements", icon: FileSignature, show: sellRoles, feature: "agreements" },
       { href: "/app/jobs", label: "Jobs", icon: Briefcase },
       { href: "/app/tasks", label: "Tasks", icon: ListChecks },
       // Managers reach timesheets through the Business hub; techs/USER need
       // a direct path to their own hours.
-      { href: "/app/timesheets", label: "Timesheets", icon: Timer, show: (r) => !isManagerRole(r) && r !== "SALES" },
+      { href: "/app/timesheets", label: "Timesheets", icon: Timer, show: (r) => !isManagerRole(r) && r !== "SALES", feature: "timesheets" },
       { href: "/app/invoices", label: "Invoices", icon: Receipt, show: moneyRoles },
       { href: "/app/payments", label: "Payments", icon: DollarSign, show: moneyRoles },
       { href: "/app/subscriptions", label: "Recurring", icon: Repeat, show: moneyRoles },
@@ -272,7 +278,7 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
       // with live stats) — it links every reporting page, so those don't get
       // their own rows here (lib/mobile-nav.ts sends them back to Overview).
       { href: "/app/business", label: "Overview", icon: Building2, show: isManagerRole },
-      { href: "/app/automations", label: "Automations", icon: Zap, show: isManagerRole },
+      { href: "/app/automations", label: "Automations", icon: Zap, show: isManagerRole, feature: "automations" },
       // Same labels as the Settings index — one name per page everywhere.
       { href: "/app/settings/products", label: "Services", icon: Tag, show: isManagerRole },
       { href: "/app/settings/booking", label: "Booking & forms", icon: Globe, show: isManagerRole },
@@ -303,16 +309,16 @@ const railGroups: { key: string; label: string; items: NavItem[] }[] = [
     items: [
       { href: "/app/leads", label: "Leads", icon: SquareKanban, show: sellRoles },
       { href: "/app/requests", label: "Requests", icon: Inbox, show: sellRoles },
-      { href: "/app/estimates", label: "Estimates", icon: Calculator, show: sellRoles },
+      { href: "/app/estimates", label: "Estimates", icon: Calculator, show: sellRoles, feature: "estimator" },
       { href: "/app/messages", label: "Messages", icon: MessageSquare, show: sellRoles },
       { href: "/app/calls", label: "Calls", icon: PhoneCall, show: sellRoles },
       { href: "/app/appointments", label: "Appointments", icon: CalendarClock, show: sellRoles },
-      { href: "/app/routes", label: "Routes", icon: RouteGlyph },
+      { href: "/app/routes", label: "Routes", icon: RouteGlyph, feature: "routes" },
       { href: "/app/tasks", label: "Tasks", icon: ListChecks },
-      { href: "/app/contracts", label: "Agreements", icon: FileSignature, show: sellRoles },
+      { href: "/app/contracts", label: "Agreements", icon: FileSignature, show: sellRoles, feature: "agreements" },
       // Managers reach timesheets through the Business hub; techs/USER need
       // a direct path to their own hours.
-      { href: "/app/timesheets", label: "Timesheets", icon: Timer, show: (r) => !isManagerRole(r) && r !== "SALES" },
+      { href: "/app/timesheets", label: "Timesheets", icon: Timer, show: (r) => !isManagerRole(r) && r !== "SALES", feature: "timesheets" },
     ],
   },
   {
@@ -329,7 +335,7 @@ const railGroups: { key: string; label: string; items: NavItem[] }[] = [
     items: [
       // Overview links Insights / Expenses / Team Map / Timesheets itself.
       { href: "/app/business", label: "Overview", icon: Building2, show: isManagerRole },
-      { href: "/app/automations", label: "Automations", icon: Zap, show: isManagerRole },
+      { href: "/app/automations", label: "Automations", icon: Zap, show: isManagerRole, feature: "automations" },
       // Same labels as the Settings index — one name per page everywhere.
       { href: "/app/settings/products", label: "Services", icon: Tag, show: isManagerRole },
       { href: "/app/settings/booking", label: "Booking & forms", icon: Globe, show: isManagerRole },
@@ -338,6 +344,37 @@ const railGroups: { key: string; label: string; items: NavItem[] }[] = [
     ],
   },
 ];
+
+// Which Pro feature sits behind a nav href (from the item definitions above,
+// so the rail, the More sheet and the Recent row all agree). Team map has no
+// nav item of its own (it hangs off the Business overview).
+const NAV_FEATURES: Record<string, GatedFeature> = Object.fromEntries(
+  [...navGroups.flatMap((g) => g.items), ...railGroups.flatMap((g) => g.items)]
+    .filter((i) => i.feature)
+    .map((i) => [i.href, i.feature as GatedFeature])
+);
+
+/**
+ * The tiny "Pro" chip after a locked feature's nav label (lib/plans.ts
+ * featureAllowed said no for this company). One line, uppercase, no icon —
+ * it marks, it doesn't explain; the page it leads to carries the upsell.
+ * `tone` picks the surface: the rail paints with its own accent, everything
+ * else with the design-system primary.
+ */
+function ProChip({ tone = "ds" }: { tone?: "rail" | "ds" }) {
+  return (
+    <span
+      aria-label="Part of Pro"
+      className={`inline-flex shrink-0 items-center rounded-full px-1.5 text-[9.5px] font-semibold uppercase leading-[15px] tracking-[0.08em] ${
+        tone === "rail"
+          ? "border border-current/30 text-[color:var(--rail-accent)]"
+          : "bg-[color:var(--ds-primary-soft,#0B57D81A)] text-[color:var(--ds-primary,#0B57D8)]"
+      }`}
+    >
+      Pro
+    </span>
+  );
+}
 
 // Every rail icon performs its real-world verb on hover — the gear turns,
 // the calendar flips its page, the briefcase gets picked up, the tag swings
@@ -1704,6 +1741,10 @@ interface AppShellProps {
   /** Company.isTest: show "Suggest a change" (More sheet + user menu) — fires
    *  SUGGEST_CHANGE_EVENT for components/SuggestChange.tsx. Testers only for now. */
   suggestChanges?: boolean;
+  /** Pro features this company can't use right now (app/platform/layout.tsx
+   *  via lib/plans.ts featureAllowed): their nav items wear a "Pro" chip.
+   *  Empty while the gate is dark, for test accounts, and on Pro / Max. */
+  lockedFeatures?: GatedFeature[];
 }
 
 export default function AppShell({
@@ -1731,6 +1772,7 @@ export default function AppShell({
   previewMode = false,
   hasLine = false,
   suggestChanges = false,
+  lockedFeatures = [],
 }: AppShellProps) {
   const assistantAvailable = aiEnabled && !previewMode && atlas.level !== "off";
   const atlasLocked = atlas.level === "locked";
@@ -2351,6 +2393,7 @@ export default function AppShell({
           }
         />
         <span className="truncate">{label}</span>
+        {NAV_FEATURES[href] && lockedFeatures.includes(NAV_FEATURES[href]) && <ProChip tone="rail" />}
         {badge > 0 ? (
           <span
             key={badge}
@@ -2581,6 +2624,7 @@ export default function AppShell({
         assistantAccent={brandColorSecondary || brandColor || undefined}
         openAssistant={() => setAssistantOpen(true)}
         suggestChanges={suggestChanges}
+        lockedFeatures={lockedFeatures}
       />
 
       {/* ── Main content area ─────────────────────────────────────────────── */}
@@ -2884,6 +2928,8 @@ export default function AppShell({
 
       {/* Live notification cards (new request / lead / message / chat) — glass banners, no reload needed */}
       <LiveToasts items={toasts} onDismiss={(id) => setToasts((t) => t.filter((x) => x.id !== id))} />
+      {/* 402 PLAN_REQUIRED / SEATS_REQUIRED from any /api/app route → one quiet toast (components/PlanGateToast.tsx) */}
+      <PlanGateToast />
 
       {/* A rejected save scrolls its red banner into view (components/FormErrorFocus.tsx) */}
       <FormErrorFocus />
@@ -3357,6 +3403,7 @@ function MoreSheet({
   assistantAccent,
   openAssistant,
   suggestChanges = false,
+  lockedFeatures = [],
 }: {
   open: boolean;
   onClose: () => void;
@@ -3374,6 +3421,7 @@ function MoreSheet({
   assistantAccent?: string;
   openAssistant: () => void;
   suggestChanges?: boolean;
+  lockedFeatures?: GatedFeature[];
 }) {
   const manager = isManagerRole(role);
   const signOut = useAppSignOut();
@@ -3474,7 +3522,10 @@ function MoreSheet({
             </span>
           )}
         </span>
-        <span className="max-w-full truncate text-[11.5px] font-medium leading-tight text-gray-800">{label}</span>
+        <span className="flex max-w-full items-center gap-1">
+          <span className="min-w-0 truncate text-[11.5px] font-medium leading-tight text-gray-800">{label}</span>
+          {NAV_FEATURES[href] && lockedFeatures.includes(NAV_FEATURES[href]) && <ProChip />}
+        </span>
       </Link>
       </RowActions>
     );

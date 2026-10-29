@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkFeature } from "@/lib/plan-gate";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { compileAutomation, specFromJson } from "@/lib/automations";
@@ -12,6 +13,8 @@ async function load(id: string, companyId: string) {
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "automations");
+  if (!gate.ok) return gate.response;
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await params;
   const row = await load(id, actor.companyId);
@@ -31,6 +34,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "automations");
+  if (!gate.ok) return gate.response;
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await params;
   const row = await load(id, actor.companyId);
@@ -70,6 +75,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "automations");
+  if (!gate.ok) return gate.response;
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await params;
   const row = await load(id, actor.companyId);

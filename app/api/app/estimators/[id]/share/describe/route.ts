@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkFeature } from "@/lib/plan-gate";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { specFromJson, type EstimatorSpec } from "@/lib/estimator";
@@ -33,6 +34,8 @@ function toolBrief(spec: EstimatorSpec): string {
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "estimator");
+  if (!gate.ok) return gate.response;
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await params;
   const [tool, company] = await Promise.all([

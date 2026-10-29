@@ -11,6 +11,8 @@ import ViewedFact from "@/components/ViewedFact";
 import ContractActions from "./ContractActions";
 import { canText, companyCanSendSms } from "@/lib/sms";
 import { fmtPhone } from "@/lib/format";
+import { featureAllowedFor } from "@/lib/plan-gate";
+import PlanRequired from "@/components/PlanRequired";
 
 export const metadata: Metadata = { title: "Agreement" };
 
@@ -20,6 +22,9 @@ export default async function ContractDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const actor = await requirePageActor((a) => canSell(a.role));
+  // The client's own signing page (/contract/[token]) stays open; this is the team's side.
+  if (!(await featureAllowedFor(actor.companyId, "agreements")))
+    return <PlanRequired feature="agreements" back={{ href: "/app/quotes", label: "Back to quotes" }} />;
 
   const { id } = await params;
   const contract = await prisma.contract.findFirst({

@@ -16,6 +16,7 @@ import { prisma } from "@/lib/db";
 import { sendEmail, contractSignEmail } from "@/lib/email";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { fireAutomations } from "@/lib/automations-server";
+import { featureAllowedFor } from "@/lib/plan-gate";
 
 /**
  * How long a contract signing link stays valid after it's sent. Links are
@@ -57,6 +58,9 @@ export async function autoSendQuoteAgreements(
       include: { lineItems: true, contact: true, contracts: { select: { templateId: true } } },
     });
     if (!quote) return;
+    // Agreements are Pro (lib/plans.ts): a company off the plan sends no new
+    // agreements from its quotes. Ones already sent stay signable.
+    if (!(await featureAllowedFor(quote.companyId, "agreements"))) return;
 
     // WorkItems referenced by this quote's lines that carry a matching template
     const workItemIds = Array.from(

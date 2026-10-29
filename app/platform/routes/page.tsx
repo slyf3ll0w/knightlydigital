@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { MapPin } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { isManager, requirePageActor } from "@/lib/permissions";
 import { localDayParts } from "@/lib/booking-engine";
 import { featureAllowedFor } from "@/lib/plan-gate";
-import { PLANS } from "@/lib/plans";
+import PlanRequired from "@/components/PlanRequired";
 import RouteMapClient from "./RouteMapClient";
 
 export const metadata: Metadata = { title: "Route Map" };
@@ -26,29 +24,8 @@ export default async function RouteMapPage({
   const actor = await requirePageActor();
   const canFilterTeam = isManager(actor.role) || actor.role === "USER";
 
-  if (!(await featureAllowedFor(actor.companyId, "routes"))) {
-    const pro = PLANS.SHOP;
-    return (
-      <div className="mx-auto max-w-lg px-4 py-16 text-center">
-        <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-primary)]">
-          <MapPin size={22} />
-        </span>
-        <h1 className="text-lg font-bold text-gray-900">Route Manager (beta) is part of {pro.name}</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Every stop on a map, drive times between them, one-tap route optimizing, and Find a Time when you
-          book. {pro.name} also includes {pro.includes.slice(0, 3).map((s) => s.toLowerCase()).join(", ")} and more.
-        </p>
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-          <Link href="/pricing" className="btn-primary">
-            See plans
-          </Link>
-          <Link href="/app/schedule" className="rounded-[10px] btn-tool-line bg-white px-3 py-2 text-sm font-medium text-gray-700">
-            Back to the schedule
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  if (!(await featureAllowedFor(actor.companyId, "routes")))
+    return <PlanRequired feature="routes" back={{ href: "/app/schedule", label: "Back to the schedule" }} />;
 
   const { date, team } = await searchParams;
   const dateParam =

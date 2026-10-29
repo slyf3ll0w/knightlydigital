@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkFeature } from "@/lib/plan-gate";
 import { prisma } from "@/lib/db";
 import { getActor, canSell } from "@/lib/permissions";
 import { specFromJson } from "@/lib/estimator";
@@ -15,6 +16,8 @@ import { readAssistImage, runAssist } from "@/lib/estimator-assist";
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "estimator");
+  if (!gate.ok) return gate.response;
   if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await params;
   const row = await prisma.estimator.findFirst({

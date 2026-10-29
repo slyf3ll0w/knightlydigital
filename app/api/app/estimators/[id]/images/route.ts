@@ -1,5 +1,6 @@
 import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
+import { checkFeature } from "@/lib/plan-gate";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { isBlobStorageConfigured, putObject } from "@/lib/blob-storage";
@@ -20,6 +21,8 @@ const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "estimator");
+  if (!gate.ok) return gate.response;
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await params;
   const tool = await prisma.estimator.findFirst({ where: { id, companyId: actor.companyId }, select: { id: true } });

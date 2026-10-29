@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { checkFeature } from "@/lib/plan-gate";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { emailEnabled } from "@/lib/email";
@@ -17,6 +18,8 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "automations");
+  if (!gate.ok) return gate.response;
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const companyId = actor.companyId;
   const [users, stages, customFields, agreementTemplates, company, smsLive, qbo] = await Promise.all([

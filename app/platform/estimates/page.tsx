@@ -7,6 +7,8 @@ import { sanitizePublicConfig } from "@/lib/estimator-public";
 import { resumableBuildId } from "@/lib/estimator-build-jobs";
 import { INDUSTRIES } from "@/lib/pricebooks";
 import { pickSort, ESTIMATE_SORTS } from "@/lib/list-sort";
+import { featureAllowedFor } from "@/lib/plan-gate";
+import PlanRequired from "@/components/PlanRequired";
 import EstimatesClient, { type EstimatesFilter, type Tool } from "./EstimatesClient";
 
 export const metadata: Metadata = { title: "Estimates" };
@@ -24,6 +26,9 @@ const FILTERS: EstimatesFilter[] = ["", "published", "off"];
  */
 export default async function EstimatesPage({ searchParams }: { searchParams: Promise<{ prompt?: string; run?: string; q?: string; status?: string; sort?: string; view?: string }> }) {
   const actor = await requirePageActor((a) => canSell(a.role));
+  // The Estimator and its Library are Pro (quotes themselves are free).
+  if (!(await featureAllowedFor(actor.companyId, "estimator")))
+    return <PlanRequired feature="estimator" back={{ href: "/app/quotes", label: "Back to quotes" }} />;
   const manager = isManager(actor.role);
   const sp = await searchParams;
   const view: "tools" | "library" = sp.view === "library" ? "library" : "tools";

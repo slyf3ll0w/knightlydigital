@@ -3329,7 +3329,7 @@ model PlanSubscription {
   status               String
   entitled             Boolean   @default(false)
   startedAt            DateTime?
-  /** Square's charged_through_date: paid up to the end of this day (date only). */
+  // Square's charged_through_date: paid up to the end of this day (date only).
   chargedThrough       DateTime?
   canceledAt           DateTime?
   lastPaymentAt        DateTime?

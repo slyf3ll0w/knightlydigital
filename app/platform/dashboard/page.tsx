@@ -33,6 +33,7 @@ import GetStartedCard from "./GetStartedCard";
 import PayoutNudge from "./PayoutNudge";
 import TalkToAtlas from "@/components/TalkToAtlas";
 import { loadGetStarted } from "@/lib/get-started";
+import { featureAllowedFor } from "@/lib/plan-gate";
 import DashboardTasks from "./DashboardTasks";
 import { dashboardTasks } from "@/lib/tasks";
 import UpNextActions from "./UpNextActions";
@@ -94,6 +95,9 @@ export default async function DashboardPage() {
   const sell = canSell(actor.role);
   const seeMoney = canSeeMoney(actor);
   const seePrices = canSeePricing(actor.role);
+  // Timesheets are Pro (lib/plans.ts): without them the "On the clock" card
+  // and the hero's Clock In stay off the page — the upsell is /app/timesheets.
+  const timesheetsAllowed = await featureAllowedFor(companyId, "timesheets");
   const seePerformance = isManager(actor.role) || actor.role === "USER";
   const leadScope = viaContactScope(actor);
   const jScope = jobScope(actor);
@@ -183,8 +187,9 @@ export default async function DashboardPage() {
     isManager(actor.role)
       ? loadGetStarted(companyId)
       : Promise.resolve(null),
-    // Who's clocked in right now (owners/admins) — open time entries
-    isManager(actor.role)
+    // Who's clocked in right now (owners/admins) — open time entries. The
+    // card is Pro (timesheets): an empty list hides it when the gate is up.
+    isManager(actor.role) && timesheetsAllowed
       ? prisma.timeEntry.findMany({
           where: { companyId, endedAt: null },
           include: {
@@ -572,7 +577,7 @@ export default async function DashboardPage() {
             ? { id: myOpenEntry.id, startedAt: myOpenEntry.startedAt.toISOString() }
             : null
         }
-        canClock={upNextJob?.status === "ACTIVE" && actor.role !== "SALES"}
+        canClock={upNextJob?.status === "ACTIVE" && actor.role !== "SALES" && timesheetsAllowed}
         apptType={upNext.apptType}
       />
     </div>

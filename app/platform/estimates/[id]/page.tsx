@@ -8,6 +8,8 @@ import { specFromJson } from "@/lib/estimator";
 import { sanitizePublicConfig } from "@/lib/estimator-public";
 import { resumableBuildId } from "@/lib/estimator-build-jobs";
 import { loadToolStats } from "@/lib/estimator-context";
+import { featureAllowedFor } from "@/lib/plan-gate";
+import PlanRequired from "@/components/PlanRequired";
 import { Suspense } from "react";
 import ToolClient, { type LeadRow } from "./ToolClient";
 
@@ -36,6 +38,8 @@ function estimateFromDetails(details: string | null): number | null {
  */
 export default async function ToolPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ s?: string; prompt?: string }> }) {
   const actor = await requirePageActor((a) => canSell(a.role));
+  if (!(await featureAllowedFor(actor.companyId, "estimator")))
+    return <PlanRequired feature="estimator" back={{ href: "/app/quotes", label: "Back to quotes" }} />;
   const manager = isManager(actor.role);
   const { id } = await params;
   const sp = await searchParams;

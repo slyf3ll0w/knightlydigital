@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkFeature } from "@/lib/plan-gate";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { sanitizeGps } from "@/lib/time-entries";
@@ -14,6 +15,10 @@ import { sanitizeGps } from "@/lib/time-entries";
 export async function GET() {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Team map is Pro: a 402 here stops TeamLocationReporter before it ever
+  // reads the phone's position (it bails on any non-OK answer).
+  const gate = await checkFeature(actor.companyId, "team_map");
+  if (!gate.ok) return gate.response;
   const open = await prisma.timeEntry.findFirst({
     where: { userId: actor.id, endedAt: null },
     select: { id: true },
@@ -24,6 +29,10 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // Team map is Pro: a 402 here stops TeamLocationReporter before it ever
+  // reads the phone's position (it bails on any non-OK answer).
+  const gate = await checkFeature(actor.companyId, "team_map");
+  if (!gate.ok) return gate.response;
 
   const body = await req.json().catch(() => ({}));
   const gps = sanitizeGps(body);

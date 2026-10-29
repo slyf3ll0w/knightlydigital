@@ -1,5 +1,6 @@
 import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
+import { checkFeature } from "@/lib/plan-gate";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { deleteObject, isBlobStorageConfigured } from "@/lib/blob-storage";
@@ -8,6 +9,8 @@ import { deleteObject, isBlobStorageConfigured } from "@/lib/blob-storage";
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string; imageId: string }> }) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "estimator");
+  if (!gate.ok) return gate.response;
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id, imageId } = await params;
   const row = await prisma.estimatorImage.findFirst({ where: { id: imageId, estimatorId: id, companyId: actor.companyId }, select: { id: true, storageKey: true } });

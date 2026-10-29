@@ -1,6 +1,7 @@
 import { prisma } from "../db";
 import { isManager } from "../permissions";
 import { str, stage, type Tool } from "./core";
+import { featureAllowedFor } from "../plan-gate";
 import {
   ACTION_TYPES,
   ACTIONS,
@@ -180,6 +181,9 @@ const manageAutomation: Tool = {
   },
   allowed: (a) => isManager(a.role),
   run: async (actor, args, ctx) => {
+    // The builder is Pro; rules already saved keep firing regardless.
+    if (!(await featureAllowedFor(actor.companyId, "automations")))
+      return { error: "Automations are part of the Pro plan — not on this account. Existing automations keep running." };
     const action = str(args.action, 10);
     if (action === "guide") return guide(actor.companyId);
 

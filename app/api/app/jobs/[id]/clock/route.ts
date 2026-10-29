@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkFeature } from "@/lib/plan-gate";
 import { prisma } from "@/lib/db";
 import { getActor, jobScope } from "@/lib/permissions";
 import { autoCloseAt, formatDuration, resolveOccurredAt, sanitizeGps } from "@/lib/time-entries";
@@ -24,6 +25,8 @@ export async function POST(
 ) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "timesheets");
+  if (!gate.ok) return gate.response;
   if (actor.role === "SALES") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = await params;

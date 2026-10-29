@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkFeature } from "@/lib/plan-gate";
 import { prisma } from "@/lib/db";
 import { limit } from "@/lib/rate-limit";
 import { getActor, canSell, viaContactScope } from "@/lib/permissions";
@@ -20,6 +21,8 @@ export async function POST(
 ) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "agreements");
+  if (!gate.ok) return gate.response;
   // Sends land in a client's inbox — same per-company cap as quote/invoice sends
   const sendRl = await limit(`send:${actor.companyId}`, 120, 60 * 60 * 1000);
   if (!sendRl.ok) {

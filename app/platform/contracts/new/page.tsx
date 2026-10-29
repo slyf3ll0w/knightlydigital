@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, isManager, contactScope } from "@/lib/permissions";
+import { featureAllowedFor } from "@/lib/plan-gate";
+import PlanRequired from "@/components/PlanRequired";
 import NewContractForm from "./NewContractForm";
 
 export const metadata: Metadata = { title: "New Agreement" };
@@ -12,6 +14,13 @@ export default async function NewContractPage({
 }) {
   const actor = await requirePageActor((a) => canSell(a.role));
   const { contactId } = await searchParams;
+  if (!(await featureAllowedFor(actor.companyId, "agreements")))
+    return (
+      <PlanRequired
+        feature="agreements"
+        back={contactId ? { href: `/app/contacts/${contactId}`, label: "Back to the client" } : { href: "/app/quotes", label: "Back to quotes" }}
+      />
+    );
 
   const [contacts, templates] = await Promise.all([
     prisma.contact.findMany({

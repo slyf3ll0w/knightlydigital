@@ -7,6 +7,9 @@ import { listPlaces } from "../places";
 import { wallTimeToUtc } from "../booking-engine";
 import { type Tool, str, num, day, clientName, companyTz, fmtWhen, stage } from "./core";
 
+/** What Atlas says when the company is off Pro (lib/plans.ts featureAllowed "timesheets"). */
+const TIMESHEETS_GATE_NOTE = "Timesheets and labor costing are part of the Pro plan — not on this account.";
+
 /**
  * Field operations that shipped after Atlas v7: job checklists, clock in/out,
  * on-my-way + review texts, job sign-off, time entries, time blocks, the
@@ -103,6 +106,7 @@ export const fieldTools: Tool[] = [
     },
     allowed: notSales,
     run: async (actor, args, ctx) => {
+      if (!(await featureAllowedFor(actor.companyId, "timesheets"))) return { error: TIMESHEETS_GATE_NOTE };
       const job = await findJob(actor, num(args.jobNumber));
       if (!job) return { error: `No job #${args.jobNumber}.` };
       const action = str(args.action, 3) === "out" ? "out" : "in";
@@ -213,6 +217,7 @@ export const fieldTools: Tool[] = [
     },
     allowed: (a) => isManager(a.role),
     run: async (actor, args, ctx) => {
+      if (!(await featureAllowedFor(actor.companyId, "timesheets"))) return { error: TIMESHEETS_GATE_NOTE };
       const tz = await companyTz(actor.companyId);
       const parse = (v: unknown): Date | null => {
         const s = str(v, 40);
@@ -381,6 +386,7 @@ export const fieldTools: Tool[] = [
     },
     allowed: (a) => isManager(a.role),
     run: async (actor) => {
+      if (!(await featureAllowedFor(actor.companyId, "team_map"))) return { error: "The live team map is part of the Pro plan — not on this account." };
       const tz = await companyTz(actor.companyId);
       const open = await prisma.timeEntry.findMany({
         where: { companyId: actor.companyId, endedAt: null },

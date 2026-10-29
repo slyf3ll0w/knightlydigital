@@ -34,6 +34,7 @@ import ConvertToAppointmentNotice from "./ConvertToAppointment";
 import { looksLikeAppointment } from "@/lib/appointment-hint";
 import Fold from "@/components/Fold";
 import { completeAddress, composeAddress } from "@/lib/geocoding";
+import { featureAllowedFor } from "@/lib/plan-gate";
 
 export default async function JobDetailPage({
   params,
@@ -115,17 +116,23 @@ export default async function JobDetailPage({
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
 
-  // Time clock: closed time on this job + who's on it right now
+  // Time clock: closed time on this job + who's on it right now. Timesheets
+  // and labor costing are Pro (lib/plans.ts): without the plan the clock card
+  // is simply not on the page and the margin card shows no Labor line — the
+  // upsell lives on /app/timesheets, not on every job.
+  const timesheetsAllowed = await featureAllowedFor(companyId, "timesheets");
   const closedEntries = job.timeEntries.filter((e) => e.endedAt);
   const loggedMs = closedEntries.reduce((s, e) => s + entryMs(e), 0);
-  const laborCost = closedEntries.reduce((s, e) => {
-    const rate = e.user.hourlyCost ? Number(e.user.hourlyCost) : 0;
-    return s + (rate > 0 ? (entryMs(e) / 3600_000) * rate : 0);
-  }, 0);
+  const laborCost = timesheetsAllowed
+    ? closedEntries.reduce((s, e) => {
+        const rate = e.user.hourlyCost ? Number(e.user.hourlyCost) : 0;
+        return s + (rate > 0 ? (entryMs(e) / 3600_000) * rate : 0);
+      }, 0)
+    : 0;
   const othersOnClock = job.timeEntries
     .filter((e) => !e.endedAt && e.userId !== actor.id)
     .map((e) => e.user.name);
-  const canClock = actor.role !== "SALES";
+  const canClock = actor.role !== "SALES" && timesheetsAllowed;
 
   // A sales visit booked as a job can be re-booked as an appointment while
   // nothing has happened on it yet (mirrors the API's own guard). The banner

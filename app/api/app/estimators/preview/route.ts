@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkFeature } from "@/lib/plan-gate";
 import { getActor, isManager } from "@/lib/permissions";
 import { auditSpec, explainRun, parseVariants, runCompiled, runVariants } from "@/lib/estimator";
 import { checkSpec } from "@/lib/estimator-server";
@@ -15,6 +16,8 @@ import { checkSpec } from "@/lib/estimator-server";
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "estimator");
+  if (!gate.ok) return gate.response;
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const body = (await req.json().catch(() => ({}))) as { spec?: unknown; inputs?: unknown; variants?: unknown; explain?: unknown };
   const check = await checkSpec(actor.companyId, body.spec);

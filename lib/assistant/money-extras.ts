@@ -1,6 +1,7 @@
 import { prisma } from "../db";
 import { canSell, canSeeMoney, isManager, viaContactScope, jobScope } from "../permissions";
 import { isQuickBooksConfigured } from "../quickbooks";
+import { featureAllowedFor } from "../plan-gate";
 import { getProcessor } from "../payments";
 import { type Tool, str, num, day, money, clientName, companyTz, fmtWhen, stage } from "./core";
 import { isOnlinePayment } from "../payment-ref";
@@ -146,7 +147,11 @@ export const moneyExtraTools: Tool[] = [
     run: async (actor, args, ctx) => {
       const configured = isQuickBooksConfigured();
       const conn = configured ? await prisma.quickBooksConnection.findUnique({ where: { companyId: actor.companyId } }) : null;
-      if (!conn) return { connected: false, note: configured ? "Not connected — connect from /app/settings (QuickBooks)." : "QuickBooks isn't enabled on this platform yet." };
+      if (!conn) {
+        // Pro feature — but a company already connected keeps syncing (grandfathered), so the gate only speaks when there is no connection.
+        if (!(await featureAllowedFor(actor.companyId, "quickbooks"))) return { connected: false, note: "QuickBooks Online sync is part of the Pro plan — not on this account." };
+        return { connected: false, note: configured ? "Not connected — connect from /app/settings (QuickBooks)." : "QuickBooks isn't enabled on this platform yet." };
+      }
       if (str(args.action, 6) === "sync") {
         return stage(ctx, { kind: "quickbooks_sync", title: `Sync to QuickBooks (${conn.qboCompanyName ?? "connected company"})`, lines: ["Pushes unsynced invoices, payments, quotes (as estimates), and expenses."], endpoint: "/api/app/quickbooks/sync", method: "POST", payload: {}, confirmLabel: "Sync now", href: "/app/settings" });
       }

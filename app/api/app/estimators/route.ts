@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkFeature } from "@/lib/plan-gate";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager } from "@/lib/permissions";
 import { ESTIMATOR_LIMITS, specFromJson } from "@/lib/estimator";
@@ -18,6 +19,8 @@ import { publicSlugFrom, sanitizePublicConfig } from "@/lib/estimator-public";
 export async function GET() {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "estimator");
+  if (!gate.ok) return gate.response;
   if (!canSell(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const manager = isManager(actor.role);
   const [rows, book] = await Promise.all([
@@ -49,6 +52,8 @@ function estimatorBroken(r: { id: string; name: string; description: string | nu
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await checkFeature(actor.companyId, "estimator");
+  if (!gate.ok) return gate.response;
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;

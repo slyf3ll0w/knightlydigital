@@ -11,6 +11,7 @@ import { isNativeShellUserAgent } from "@/lib/sign-in-options";
 import { prisma } from "@/lib/db";
 import { paymentsGateStatus } from "@/lib/payments-gate";
 import { atlasAccess, ATLAS_ACCESS_SELECT, ATLAS_PRICING } from "@/lib/assistant-access";
+import { GATED_FEATURES, PLAN_HOLDER_SELECT, featureAllowed, type GatedFeature } from "@/lib/plans";
 import AppShell from "@/components/AppShell";
 import NativeShell from "@/components/NativeShell";
 import LaunchSplash from "@/components/LaunchSplash";
@@ -77,10 +78,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             paymentsWaived: true,
             suspendedAt: true,
             accessPendingAt: true,
-            addonActiveAt: true,
             lineVoiceAppAt: true,
             lineNumber: true,
-            isTest: true,
+            // planGrants / paidPlans / paidSeats / addonActiveAt / isTest — the
+            // nav's Pro chips (lockedFeatures) and the softphone's hasAddon.
+            ...PLAN_HOLDER_SELECT,
           },
         })
       : null,
@@ -155,6 +157,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       : false;
   const updateRequested =
     gate === "pending" && company?.finixOnboardingState === "UPDATE_REQUESTED";
+  // Pro features this company can't use right now (lib/plans.ts): the nav
+  // shows them with a "Pro" chip. Empty while the gate is dark, for test
+  // accounts, and for anyone on Pro / Max.
+  const lockedFeatures: GatedFeature[] = company ? GATED_FEATURES.filter((f) => !featureAllowed(company, f)) : [];
 
   return (
     <>
@@ -195,6 +201,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         assistantName={company?.assistantName}
         userId={session.user.id}
         hasLine={Boolean(company?.lineNumber && !company.lineNumber.startsWith("pending:"))}
+        lockedFeatures={lockedFeatures}
       >
         {updateRequested ? (
           <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">

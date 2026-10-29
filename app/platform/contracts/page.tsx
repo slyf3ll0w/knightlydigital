@@ -13,6 +13,8 @@ import { SegmentedRow, Segment } from "@/components/FilterChips";
 import Pager from "@/components/Pager";
 import { pickSort, CONTRACT_SORTS, contractOrderBy } from "@/lib/list-sort";
 import { requirePageActor, canSell, isManager, viaContactScope } from "@/lib/permissions";
+import { featureAllowedFor } from "@/lib/plan-gate";
+import PlanRequired from "@/components/PlanRequired";
 import TemplatesPanel from "./TemplatesPanel";
 import type { ContractStatus } from "@prisma/client";
 
@@ -43,6 +45,8 @@ export default async function ContractsPage({
   searchParams: Promise<{ view?: string; status?: string; q?: string; page?: string; sort?: string }>;
 }) {
   const actor = await requirePageActor((a) => canSell(a.role));
+  if (!(await featureAllowedFor(actor.companyId, "agreements")))
+    return <PlanRequired feature="agreements" back={{ href: "/app/quotes", label: "Back to quotes" }} />;
   const companyId = actor.companyId;
   const scope = viaContactScope(actor);
   const manager = isManager(actor.role);

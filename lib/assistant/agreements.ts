@@ -1,6 +1,11 @@
 import { prisma } from "../db";
 import { canSell, isManager, contactScope, viaContactScope } from "../permissions";
 import { type Tool, str, clientName, stage, siteBase } from "./core";
+import { featureAllowedFor } from "../plan-gate";
+
+/** What Atlas says when the company is off Pro (lib/plans.ts featureAllowed "agreements"). Already-sent agreements stay signable. */
+const AGREEMENTS_GATE_NOTE = "Agreements and contracts are part of the Pro plan — not on this account.";
+const gated = async (companyId: string) => !(await featureAllowedFor(companyId, "agreements"));
 
 /** Agreements/contracts: templates, sending for e-signature, void/edit. */
 export const agreementTools: Tool[] = [
@@ -16,6 +21,7 @@ export const agreementTools: Tool[] = [
     },
     allowed: (a) => canSell(a.role),
     run: async (actor, args) => {
+      if (await gated(actor.companyId)) return { error: AGREEMENTS_GATE_NOTE };
       const filter = str(args.filter, 12) || "outstanding";
       const status =
         filter === "signed"
@@ -54,6 +60,7 @@ export const agreementTools: Tool[] = [
     },
     allowed: (a) => canSell(a.role),
     run: async (actor) => {
+      if (await gated(actor.companyId)) return { error: AGREEMENTS_GATE_NOTE };
       const rows = await prisma.contractTemplate.findMany({
         where: { companyId: actor.companyId, isActive: true },
         take: 25,
@@ -85,7 +92,8 @@ export const agreementTools: Tool[] = [
       },
     },
     allowed: (a) => isManager(a.role),
-    run: async (_actor, args, ctx) => {
+    run: async (actor, args, ctx) => {
+      if (await gated(actor.companyId)) return { error: AGREEMENTS_GATE_NOTE };
       const name = str(args.name, 100);
       const body = str(args.body, 50000);
       if (!name || body.length < 100) {
@@ -125,6 +133,7 @@ export const agreementTools: Tool[] = [
     },
     allowed: (a) => isManager(a.role),
     run: async (actor, args, ctx) => {
+      if (await gated(actor.companyId)) return { error: AGREEMENTS_GATE_NOTE };
       const template = await prisma.contractTemplate.findFirst({
         where: { id: str(args.templateId, 40), companyId: actor.companyId },
         select: { id: true, name: true },
@@ -176,6 +185,7 @@ export const agreementTools: Tool[] = [
     },
     allowed: (a) => canSell(a.role),
     run: async (actor, args, ctx) => {
+      if (await gated(actor.companyId)) return { error: AGREEMENTS_GATE_NOTE };
       const contact = await prisma.contact.findFirst({
         where: { id: str(args.clientId, 40), companyId: actor.companyId, ...contactScope(actor) },
         select: { id: true, firstName: true, lastName: true, companyName: true, email: true },
@@ -234,6 +244,7 @@ export const agreementTools: Tool[] = [
     },
     allowed: (a) => canSell(a.role),
     run: async (actor, args, ctx) => {
+      if (await gated(actor.companyId)) return { error: AGREEMENTS_GATE_NOTE };
       const contract = await prisma.contract.findFirst({
         where: { id: str(args.agreementId, 40), companyId: actor.companyId, ...viaContactScope(actor) },
         select: {

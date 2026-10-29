@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
 import { AUTOMATION_SELECT, automationShape } from "@/lib/automations-server";
+import { featureAllowedFor } from "@/lib/plan-gate";
+import PlanRequired from "@/components/PlanRequired";
 import AutomationsClient from "./AutomationsClient";
 import type { Row } from "./types";
 
@@ -15,6 +17,9 @@ export const metadata: Metadata = { title: "Automations" };
  */
 export default async function AutomationsPage() {
   const actor = await requirePageActor((a) => isManager(a.role));
+  // The builder is Pro; existing rules keep firing (lib/automations-server.ts is never gated).
+  if (!(await featureAllowedFor(actor.companyId, "automations")))
+    return <PlanRequired feature="automations" back={{ href: "/app/dashboard", label: "Back to Home" }} />;
   const [rows, recent] = await Promise.all([
     prisma.automation.findMany({ where: { companyId: actor.companyId }, select: AUTOMATION_SELECT, orderBy: [{ isActive: "desc" }, { name: "asc" }] }),
     prisma.automationRun.findMany({

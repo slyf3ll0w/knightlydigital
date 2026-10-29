@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { planGatingLive } from "@/lib/plans";
 
 // Railway's deploy healthcheck (and any uptime monitor) hits this. It must
 // prove the app can actually serve tenants — process up AND database
@@ -30,7 +31,10 @@ export async function GET(req: NextRequest) {
   // on what is DEPLOYED (Finix card specs skip while staging runs Square).
   // Mirrors lib/payments.ts DEFAULT_PROCESSOR: unset = square (2026-10-22).
   const processor = process.env.PAYMENT_PROCESSOR ?? "square";
-  if (req.nextUrl.searchParams.get("cron") !== "1") return NextResponse.json({ ok: true, commit, processor });
+  // `planGating` lets the e2e plan-gate spec know whether the Pro feature
+  // gates (lib/plans.ts, PLAN_GATING=1) are live on this deployment.
+  const planGating = planGatingLive();
+  if (req.nextUrl.searchParams.get("cron") !== "1") return NextResponse.json({ ok: true, commit, processor, planGating });
 
   const latest = await prisma.reconcileRun.findFirst({
     orderBy: { startedAt: "desc" },

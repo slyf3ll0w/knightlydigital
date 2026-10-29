@@ -9,6 +9,8 @@ import AddEntry from "./AddEntry";
 import PageTitle from "@/components/PageTitle";
 import EmptyState from "@/components/EmptyState";
 import { Chip } from "@/components/ds";
+import { featureAllowedFor } from "@/lib/plan-gate";
+import PlanRequired from "@/components/PlanRequired";
 
 /**
  * Weekly timesheets. Techs see their own hours; owners/admins see the whole
@@ -22,6 +24,8 @@ export default async function TimesheetsPage({
   searchParams: Promise<{ week?: string }>;
 }) {
   const actor = await requirePageActor((a) => a.role !== "SALES");
+  if (!(await featureAllowedFor(actor.companyId, "timesheets")))
+    return <PlanRequired feature="timesheets" back={{ href: "/app/jobs", label: "Back to jobs" }} />;
   const manager = isManager(actor.role);
   const { week } = await searchParams;
 
