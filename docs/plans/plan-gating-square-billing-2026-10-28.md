@@ -307,15 +307,27 @@ discovery pass (every subscription at our location). `SQUARE_PLAN_*` env
 ids are now optional overrides; the webhook is optional too (the sweep and
 the page-load refresh cover it within the hour / on the next look).
 
-David's part before the switch (in order): set `SQUARE_BILLING_ACCESS_TOKEN`
-(Developer Console → the WorkBench application → Credentials → Production
-access token, the account that holds the plans) + `SQUARE_BILLING_LOCATION_ID`
-on production (the plans live in the production account; staging's sandbox
-has none); optionally the `square-billing` webhook; test by making himself
-a customer in the Dashboard (email = his owner sign-in) with a discounted
-Voice variation and opening Settings → Plans; run the census and grant Pro
-to the live accounts to keep; set `PLAN_GATING=1`. Help Center revisions
-are listed in the hand-off message and wait for his go-ahead.
+**Through WorkBench's own WorkBench account (2026-10-29, David's ask).**
+No Developer Console token: the WorkBench company inside the app is flagged
+`Company.isPlatform` (console → "Make WorkBench's account") and connects
+Square with the ordinary Connect Square button; `lib/plan-billing-env.ts`
+`planBillingCredentials` borrows that connection's token (its grant adds
+`PLATFORM_BILLING_SCOPES`) and location, the seller webhook routes that
+merchant's `subscription.*` / `invoice.*` events to plan billing, and the
+env token stays as an override.
+
+David's part before the switch (in order): on production, open the
+WorkBench company in the console → **Make WorkBench's account**; on that
+company's Settings → Payments, **Reconnect Square** (the grant needs the
+new scopes; the card shows the prompt); in the Developer Console add
+`subscription.created`, `subscription.updated`, `invoice.payment_made`,
+`invoice.scheduled_charge_failed`, `invoice.updated` to the existing
+webhook subscription (optional — the hourly sweep and the Plans page
+refresh cover it); test by making himself a customer in the Square
+Dashboard (email = his owner sign-in) with a discounted Voice variation and
+opening Settings → Plans (or console **Check Square now**); run the census
+and grant Pro to the live accounts to keep; set `PLAN_GATING=1`. Help
+Center revisions were made on this branch 2026-10-29.
 
 ## Decisions for David (answered 2026-10-28 — kept for the record)
 

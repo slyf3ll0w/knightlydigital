@@ -10,6 +10,7 @@ import { VoiceError, ensureVoiceRouting } from "@/lib/voice";
 import { pushIncomingCall, voipTargetsFor } from "@/lib/voip";
 import { PLAN_IDS, isPlanId, normalizeGrants } from "@/lib/plans";
 import { planBillingConfigured, refreshCompanyFromSquare } from "@/lib/plan-billing";
+import { resetPlatformCompanyCache } from "@/lib/plan-billing-env";
 import type { Prisma } from "@prisma/client";
 
 /**
@@ -62,6 +63,8 @@ const ACTIONS = new Set([
   "plan-grant",
   "plan-revoke",
   "plan-refresh",
+  "mark-platform",
+  "unmark-platform",
 ]);
 
 /** Real-data threshold: above this the delete gate demands the typed phrase. */
@@ -159,12 +162,29 @@ export async function PATCH(
     return NextResponse.json({ success: true, planGrants });
   }
 
+  // WorkBench's own company (Company.isPlatform): plan billing runs through
+  // its Square connection (lib/plan-billing-env.ts). One at a time.
+  if (action === "mark-platform" || action === "unmark-platform") {
+    const isPlatform = action === "mark-platform";
+    await prisma.$transaction([
+      ...(isPlatform ? [prisma.company.updateMany({ where: { isPlatform: true, id: { not: id } }, data: { isPlatform: false } })] : []),
+      prisma.company.update({ where: { id }, data: { isPlatform } }),
+    ]);
+    resetPlatformCompanyCache();
+    console.warn(`[superadmin] "${company.name}" (${id}) ${isPlatform ? "is now" : "is no longer"} WorkBench's own account, by ${admin.email}`);
+    audit();
+    return NextResponse.json({ success: true, isPlatform });
+  }
+
   // Read the company's subscriptions from WorkBench's own Square account and
   // apply them (lib/plan-billing.ts) — the console's way to pick up a
   // subscription made in the Square Dashboard right now.
   if (action === "plan-refresh") {
-    if (!planBillingConfigured()) {
-      return NextResponse.json({ error: "Plan billing isn't configured on this environment (SQUARE_BILLING_* env)." }, { status: 503 });
+    if (!(await planBillingConfigured())) {
+      return NextResponse.json(
+        { error: "Plan billing isn't set up: mark WorkBench's own company and connect its Square account (or set SQUARE_BILLING_* env)." },
+        { status: 503 }
+      );
     }
     const { applied } = await refreshCompanyFromSquare(id, { force: true });
     audit(`${applied} subscription${applied === 1 ? "" : "s"} applied from Square`);

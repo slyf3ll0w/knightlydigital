@@ -14,7 +14,7 @@ import {
 } from "@/lib/square";
 import * as api from "@/lib/square-billing-api";
 import { catalogVariations, resolveVariation, variationFor, variationFrom } from "@/lib/plan-catalog";
-import { planBillingConfigured, planBillingLocationId, planBillingToken } from "@/lib/plan-billing-env";
+import { planBillingConfigured, planBillingCredentials, type PlanBillingCredentials } from "@/lib/plan-billing-env";
 import { parseSquareDate, planChange, reduceSubscription, sumEntitlements, type CatalogVariation } from "@/lib/plan-subscriptions";
 import {
   DISPATCH_SETUP_CENTS,
@@ -81,15 +81,16 @@ import type { PlanSubscription } from "@prisma/client";
  * location = Settings → Plans says checkout isn't switched on yet.
  */
 
-export { planBillingConfigured, planBillingLocationId, planBillingToken };
+export { planBillingConfigured, planBillingCredentials };
 
 /** What the browser needs to tokenize a card for OUR account (Settings → Plans). */
-export function planBillingPayConfig(): SquareClientConfig | null {
-  if (!planBillingConfigured()) return null;
+export async function planBillingPayConfig(): Promise<SquareClientConfig | null> {
+  const creds = await planBillingCredentials();
+  if (!creds) return null;
   return {
     processor: "square",
     applicationId: squareApplicationId(),
-    locationId: planBillingLocationId(),
+    locationId: creds.locationId,
     environment: squareEnvironment(),
   };
 }
@@ -145,18 +146,19 @@ async function requireCompany(companyId: string): Promise<BillingCompany> {
   return c;
 }
 
-function requireConfigured(): { token: string; locationId: string } {
-  if (!planBillingConfigured()) {
+async function requireConfigured(): Promise<PlanBillingCredentials> {
+  const creds = await planBillingCredentials();
+  if (!creds) {
     throw new PlanBillingError("Online checkout isn't switched on yet. Message us from the Help Center and we'll set your plan up.", 503, "NOT_CONFIGURED");
   }
-  return { token: planBillingToken(), locationId: planBillingLocationId() };
+  return creds;
 }
 
 // ── Customer + card on file ──
 
 async function ensureBillingCustomer(company: BillingCompany): Promise<string> {
   if (company.squareBillingCustomerId) return company.squareBillingCustomerId;
-  const { token } = requireConfigured();
+  const { token } = await requireConfigured();
   const owner = await prisma.user.findFirst({
     where: { companyId: company.id, role: "OWNER", isActive: true },
     orderBy: { createdAt: "asc" },
@@ -181,7 +183,7 @@ async function ensureBillingCustomer(company: BillingCompany): Promise<string> {
  * the stored card.
  */
 export async function putCardOnFile(companyId: string, sourceId: string): Promise<{ cardId: string; brand: string | null; last4: string | null }> {
-  const { token } = requireConfigured();
+  const { token } = await requireConfigured();
   const company = await requireCompany(companyId);
   const customerId = await ensureBillingCustomer(company);
   const card = await createSquareCard({
@@ -270,10 +272,11 @@ export async function applySquareSubscription(
 export async function companyForSquareCustomer(customerId: string): Promise<string | null> {
   const known = await prisma.company.findFirst({ where: { squareBillingCustomerId: customerId }, select: { id: true } });
   if (known) return known.id;
-  if (!planBillingConfigured()) return null;
+  const creds = await planBillingCredentials();
+  if (!creds) return null;
   let customer: api.SquareBillingCustomer;
   try {
-    customer = await api.retrieveSquareCustomer(planBillingToken(), customerId);
+    customer = await api.retrieveSquareCustomer(creds.token, customerId);
   } catch (err) {
     if (err instanceof SquareError && err.status === 404) return null;
     throw err;
@@ -339,7 +342,7 @@ export async function syncCompanyEntitlements(companyId: string, now: Date = new
 
 /** Re-read one subscription from Square and bring the row + company up to date. */
 export async function refreshSubscription(squareSubscriptionId: string, hint?: { companyId?: string }): Promise<void> {
-  const { token } = requireConfigured();
+  const { token } = await requireConfigured();
   const sub = await api.retrieveSquareSubscription(token, squareSubscriptionId);
   const applied = await applySquareSubscription(sub, hint);
   if (applied) await syncCompanyEntitlements(applied.companyId);
@@ -425,7 +428,7 @@ export async function subscribe(params: {
   cadence: BillingCadence;
   sourceId?: string | null;
 }): Promise<void> {
-  const { token, locationId } = requireConfigured();
+  const { token, locationId } = await requireConfigured();
   const { companyId, product, cadence } = params;
   if (product === "SEAT") return addSeat({ companyId, sourceId: params.sourceId });
   if (!productSellable(product)) throw new PlanBillingError(`${productName(product)} is coming soon.`, 409, "COMING_SOON");
@@ -499,7 +502,7 @@ async function ownRow(companyId: string, rowId: string): Promise<PlanSubscriptio
 
 /** Cancel at the end of the current billing period (Square's default). */
 export async function cancelPlan(params: { companyId: string; rowId: string }): Promise<void> {
-  const { token } = requireConfigured();
+  const { token } = await requireConfigured();
   const row = await ownRow(params.companyId, params.rowId);
   const sub = await api.cancelSquareSubscription(token, row.squareSubscriptionId);
   await applySquareSubscription(sub, { companyId: params.companyId });
@@ -508,7 +511,7 @@ export async function cancelPlan(params: { companyId: string; rowId: string }): 
 
 /** Call off a scheduled cancel. */
 export async function resumePlan(params: { companyId: string; rowId: string }): Promise<void> {
-  const { token } = requireConfigured();
+  const { token } = await requireConfigured();
   const row = await ownRow(params.companyId, params.rowId);
   const sub = await api.resumeSquareSubscription(token, row.squareSubscriptionId);
   await applySquareSubscription(sub, { companyId: params.companyId });
@@ -517,7 +520,7 @@ export async function resumePlan(params: { companyId: string; rowId: string }): 
 
 /** One more paid person: a new SEAT subscription on the card on file. */
 export async function addSeat(params: { companyId: string; sourceId?: string | null }): Promise<void> {
-  const { token, locationId } = requireConfigured();
+  const { token, locationId } = await requireConfigured();
   const variationId = await variationOrThrow("SEAT", "MONTHLY");
   const company = await requireCompany(params.companyId);
   if (hasPlan(company, "SHOP")) throw new PlanBillingError("Pro already includes unlimited people.", 409, "ALREADY_ON");
@@ -538,7 +541,7 @@ export async function addSeat(params: { companyId: string; sourceId?: string | n
 
 /** One fewer paid person at the end of its period: the newest seat not already ending. */
 export async function removeSeat(params: { companyId: string }): Promise<void> {
-  const { token } = requireConfigured();
+  const { token } = await requireConfigured();
   const row = await prisma.planSubscription.findFirst({
     where: { companyId: params.companyId, product: "SEAT", entitled: true, canceledAt: null },
     orderBy: { createdAt: "desc" },
@@ -660,8 +663,8 @@ export async function planBillingState(companyId: string, gatingLive: boolean): 
     .filter((d): d is Date => Boolean(d) && Date.now() - d!.getTime() < 14 * 86_400_000)
     .sort((a, b) => b.getTime() - a.getTime())[0];
   return {
-    configured: planBillingConfigured(),
-    pay: planBillingPayConfig(),
+    configured: await planBillingConfigured(),
+    pay: await planBillingPayConfig(),
     plans,
     seats: {
       included: INCLUDED_SEATS,
@@ -698,11 +701,12 @@ const lastRefresh = new Map<string, number>();
  * and swallowed: the page still renders from what we have.
  */
 export async function refreshCompanyFromSquare(companyId: string, opts: { force?: boolean } = {}): Promise<{ applied: number }> {
-  if (!planBillingConfigured()) return { applied: 0 };
   const last = lastRefresh.get(companyId) ?? 0;
   if (!opts.force && Date.now() - last < REFRESH_EVERY_MS) return { applied: 0 };
+  const creds = await planBillingCredentials();
+  if (!creds) return { applied: 0 };
   lastRefresh.set(companyId, Date.now());
-  const token = planBillingToken();
+  const token = creds.token;
   const company = await prisma.company.findUnique({ where: { id: companyId }, select: { id: true, squareBillingCustomerId: true } });
   if (!company) return { applied: 0 };
   let applied = 0;
@@ -744,7 +748,8 @@ export async function refreshCompanyFromSquare(companyId: string, opts: { force?
  * passed, is re-read. Transient Square trouble is skipped quietly.
  */
 export async function runPlanBillingSweep(now: Date = new Date()): Promise<{ checked: number }> {
-  if (!planBillingConfigured()) return { checked: 0 };
+  const creds = await planBillingCredentials();
+  if (!creds) return { checked: 0 };
   const today = parseSquareDate(now.toISOString().slice(0, 10))!;
   const rows = await prisma.planSubscription.findMany({
     where: {
@@ -771,13 +776,13 @@ export async function runPlanBillingSweep(now: Date = new Date()): Promise<{ che
   // Discovery: every subscription in our account, so one made in the Square
   // Dashboard (or whose webhook never arrived) is picked up within the hour.
   try {
-    const token = planBillingToken();
+    const token = creds.token;
     const known = new Set((await prisma.planSubscription.findMany({ select: { squareSubscriptionId: true } })).map((r) => r.squareSubscriptionId));
     const touched = new Set<string>();
     let cursor: string | undefined;
     let seen = 0;
     do {
-      const page = await api.searchSquareSubscriptions({ token, locationIds: [planBillingLocationId()], cursor });
+      const page = await api.searchSquareSubscriptions({ token, locationIds: [creds.locationId], cursor });
       for (const sub of page.subscriptions) {
         seen += 1;
         if (known.has(sub.id)) continue;

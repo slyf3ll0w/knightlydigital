@@ -15,6 +15,7 @@ export const COMPANY_SELECT = {
   timezone: true,
   createdAt: true,
   isTest: true,
+  isPlatform: true,
   suspendedAt: true,
   suspendedReason: true,
   accessPendingAt: true,

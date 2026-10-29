@@ -853,9 +853,23 @@ entitlement rules: `lib/plans.ts` (`npx tsx scripts/test-plans.ts`).
   Square now** button (`plan-refresh`), the webhook, or the hourly sweep.
   `SQUARE_PLAN_<PRODUCT>_<CADENCE>` env ids are optional overrides
   (`scripts/square-billing-setup.ts` can still create plans from code).
-  Unset token / location = the Plans page says checkout isn't switched on
-  yet. Livery stays only for existing Voice subscribers (its webhook is
-  untouched). Superadmin company page → Plans card shows paid rows read-only.
+  **Credentials = the WorkBench company's own Square connection
+  (2026-10-29, `lib/plan-billing-env.ts` `planBillingCredentials`):** the
+  company flagged `Company.isPlatform` (console header → "Make WorkBench's
+  account", `mark-platform` / `unmark-platform`, one at a time) connects
+  Square with the ordinary Connect Square button; its grant carries
+  `PLATFORM_BILLING_SCOPES` (Subscriptions, Items, Invoices, Orders —
+  `scopesWantedFor(isPlatform)`, so a connection made before the flag shows
+  the Reconnect prompt), plan billing borrows that token (refreshed by the
+  seller sweep) and bills under `Company.squareLocationId`, and the seller
+  webhook `/api/public/webhooks/square` routes `subscription.*` /
+  `invoice.*` events from that merchant (`isPlatformMerchant`) to plan
+  billing — add those event types to the existing webhook subscription in
+  the Developer Console. `SQUARE_BILLING_ACCESS_TOKEN` + `_LOCATION_ID`
+  remain an env override. Nothing set up = the Plans page says checkout
+  isn't switched on yet. Livery stays only for existing Voice subscribers
+  (its webhook is untouched). Superadmin company page → Plans card shows
+  paid rows read-only.
 
 ## Payment processor (Square — the processor from 2026-10)
 
@@ -1140,9 +1154,14 @@ EMAIL_DOMAINS_ENABLED=   # "1" to enable
 # with defaults in lib/plans.ts; the marketing site reads the same constants.
 LIVERY_ADDON_CHECKOUT_URL=  # e.g. https://paywithlivery.com/l/workbench-dispatch
 LIVERY_WEBHOOK_SECRET=      # whsec_… from Livery → Settings → Developers
-# Plan billing — WorkBench's OWN Square account (lib/plan-billing.ts). Settings →
-# Plans says "not switched on yet" until the first three are set. Same
-# SQUARE_ENVIRONMENT as the seller integration; the token is OUR account's.
+# Plan billing — WorkBench's OWN Square account (lib/plan-billing.ts, credentials in
+# lib/plan-billing-env.ts). NORMAL SETUP NEEDS NO ENV: the company flagged
+# Company.isPlatform (console → "Make WorkBench's account") connects Square with the
+# ordinary Connect Square button (its grant adds PLATFORM_BILLING_SCOPES) and plan
+# billing runs on that connection + location; its subscription / invoice events
+# arrive on the ordinary seller webhook (add the event types to that subscription).
+# These three are the OPTIONAL override (a Developer Console token + the separate
+# /api/public/webhooks/square-billing receiver); env wins when set.
 SQUARE_BILLING_ACCESS_TOKEN=          # Developer Console → WorkBench app → Credentials → Access token
 SQUARE_BILLING_LOCATION_ID=           # our location (Dashboard → Account & Settings → Locations)
 SQUARE_BILLING_WEBHOOK_SIGNATURE_KEY= # the square-billing webhook subscription's key (events: subscription.created/updated, invoice.payment_made, invoice.scheduled_charge_failed, invoice.updated)

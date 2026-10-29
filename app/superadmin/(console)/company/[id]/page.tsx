@@ -9,6 +9,7 @@ import { PLANS, normalizeGrants } from "@/lib/plans";
 import { atlasAccess } from "@/lib/assistant-access";
 import { COMPANY_SELECT, TABS, TAB_LABELS, type Tab } from "./shared";
 import TestToggle from "./TestToggle";
+import PlatformToggle from "./PlatformToggle";
 import OverviewTab from "./OverviewTab";
 import TeamTab from "./TeamTab";
 import MoneyTab from "./MoneyTab";
@@ -52,6 +53,7 @@ export default async function CompanyPage({
 
   const chips: { label: string; tone: "primary" | "secondary" | "good" | "warn" | "bad" | "neutral" }[] = [];
   if (company.isTest) chips.push({ label: "Test account", tone: "neutral" });
+  if (company.isPlatform) chips.push({ label: "WorkBench's own account", tone: "secondary" });
   for (const p of normalizeGrants(company.planGrants)) chips.push({ label: `${PLANS[p].name} granted`, tone: "primary" });
   if (company.addonActiveAt && company.addonLiverySubId) chips.push({ label: "Voice subscription", tone: "primary" });
   if (lineOn) chips.push({ label: company.lineReleaseAt ? "Line releasing" : `Line ${company.lineNumber}`, tone: company.lineReleaseAt ? "warn" : "good" });
@@ -93,7 +95,12 @@ export default async function CompanyPage({
             every control. Mark test keeps this account out of every console total.
           </>
         }
-        actions={<TestToggle companyId={company.id} isTest={company.isTest} />}
+        actions={
+          <span className="flex flex-wrap items-center gap-2">
+            <PlatformToggle companyId={company.id} isPlatform={company.isPlatform} />
+            <TestToggle companyId={company.id} isTest={company.isTest} />
+          </span>
+        }
       />
 
       <div className="ds-hero ds-rise mt-6 p-5 lg:p-6" style={rise(1)}>

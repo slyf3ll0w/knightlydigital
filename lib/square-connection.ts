@@ -53,8 +53,8 @@ export function verifySquareState(state: string, now = Date.now()): SquareOAuthS
   return diff === 0 ? { companyId, userId } : null;
 }
 
-export function squareAuthorizeUrlFor(companyId: string, userId: string): string {
-  return square.buildSquareAuthorizeUrl({ state: buildSquareState(companyId, userId) });
+export function squareAuthorizeUrlFor(companyId: string, userId: string, opts: { isPlatform?: boolean } = {}): string {
+  return square.buildSquareAuthorizeUrl({ state: buildSquareState(companyId, userId), scopes: scopesWantedFor(Boolean(opts.isPlatform)) });
 }
 
 // ─── Connect ────────────────────────────────────────────────────────────────
@@ -148,12 +148,13 @@ async function writeConnection(params: {
 }) {
   const { merchant, location } = params;
   const now = new Date();
+  const owner = await prisma.company.findUnique({ where: { id: params.companyId }, select: { isPlatform: true } });
   const row = {
     merchantId: params.merchantId,
     accessTokenEnc: sealSecret(params.accessToken, SECRET_SCOPE),
     refreshTokenEnc: params.refreshToken ? sealSecret(params.refreshToken, SECRET_SCOPE) : STATIC_TOKEN,
     expiresAt: params.expiresAt,
-    scopes: square.squareScopes().join(" "),
+    scopes: scopesWantedFor(Boolean(owner?.isPlatform)).join(" "),
     businessName: merchant?.business_name ?? location.business_name ?? null,
     locationName: location.name ?? null,
     currency: location.currency ?? merchant?.currency ?? "USD",
@@ -525,6 +526,11 @@ export type SquareStatus =
       payoutCheckedAt: Date | null;
     };
 
+/** The scopes a company's grant should carry: every seller's, plus plan billing's for WorkBench's own company. */
+export function scopesWantedFor(isPlatform: boolean): string[] {
+  return isPlatform ? Array.from(new Set([...square.squareScopes(), ...square.PLATFORM_BILLING_SCOPES])) : square.squareScopes();
+}
+
 /** Which of `wanted` the stored space-separated grant lacks (pure). */
 export function scopesMissingFrom(stored: string | null | undefined, wanted: readonly string[] = square.squareScopes()): string[] {
   const have = new Set((stored ?? "").split(/[\s,]+/).filter(Boolean));
@@ -544,7 +550,7 @@ export async function squareStatusForCompany(companyId: string): Promise<SquareS
       scopes: true,
       payoutStatus: true,
       payoutCheckedAt: true,
-      company: { select: { squareConnectedAt: true } },
+      company: { select: { squareConnectedAt: true, isPlatform: true } },
     },
   });
   if (!conn) return { connected: false };
@@ -559,7 +565,7 @@ export async function squareStatusForCompany(companyId: string): Promise<SquareS
     stale: Date.now() - conn.refreshedAt.getTime() > STALE_AFTER_MS,
     lastRefreshError: conn.lastRefreshError,
     inPerson: hasInPersonScope(conn.scopes),
-    missingScopes: scopesMissingFrom(conn.scopes),
+    missingScopes: scopesMissingFrom(conn.scopes, scopesWantedFor(conn.company.isPlatform)),
     payout: (conn.payoutStatus as square.SquarePayoutStatus | null) ?? null,
     payoutCheckedAt: conn.payoutCheckedAt,
   };

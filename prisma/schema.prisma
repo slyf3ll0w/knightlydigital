@@ -286,6 +286,10 @@ model Company {
   // Kept out of every total and chart and listed under "Test accounts" on
   // /superadmin; flipped from the accounts table (lib/console-audit.ts logs it).
   isTest                    Boolean           @default(false)
+  // WorkBench's OWN company (2026-10-29): its Square connection is the account
+  // plans are billed through (lib/plan-billing-env.ts). One at a time; set
+  // from the console (mark-platform / unmark-platform).
+  isPlatform                Boolean           @default(false)
   // Self-serve onboarding review: stamped when the company was created through
   // the public /apply flow and a person hasn't reviewed the application yet.
   // The app stays fully usable (banner warns access is provisional); approving

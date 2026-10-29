@@ -45,6 +45,24 @@ export function squareScopes(): string[] {
   return Array.from(new Set([...SQUARE_SCOPES, ...extra]));
 }
 
+/**
+ * Extra scopes WorkBench's OWN company asks for when it connects Square
+ * (Company.isPlatform) — plan billing runs on that grant
+ * (lib/plan-billing-env.ts): Subscriptions + the catalog the plans live in +
+ * the invoices Square bills each period through. Ordinary sellers are never
+ * asked for these.
+ */
+export const PLATFORM_BILLING_SCOPES = [
+  "SUBSCRIPTIONS_READ",
+  "SUBSCRIPTIONS_WRITE",
+  "ITEMS_READ",
+  "ITEMS_WRITE",
+  "INVOICES_READ",
+  "INVOICES_WRITE",
+  "ORDERS_READ",
+  "ORDERS_WRITE",
+] as const;
+
 export type SquareEnvironment = "sandbox" | "production";
 
 export function squareEnvironment(): SquareEnvironment {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { reportError } from "@/lib/report-error";
 import { SquareError, isTransientSquareError, verifySquareWebhookSignature, type SquareWebhookEvent } from "@/lib/square";
-import { planBillingConfigured, planBillingToken, recordInvoiceEvent, refreshSubscription } from "@/lib/plan-billing";
+import { planBillingCredentials, recordInvoiceEvent, refreshSubscription } from "@/lib/plan-billing";
 import { retrieveSquareInvoice } from "@/lib/square-billing-api";
 
 /**
@@ -21,7 +21,8 @@ import { retrieveSquareInvoice } from "@/lib/square-billing-api";
  * day, and the hourly sweep re-reads anything missed anyway.
  */
 export async function POST(req: NextRequest) {
-  if (!planBillingConfigured()) return NextResponse.json({ received: true });
+  const creds = await planBillingCredentials();
+  if (!creds) return NextResponse.json({ received: true });
 
   const rawBody = await req.text();
   const notificationUrl =
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
       case "invoice.published":
       case "invoice.canceled": {
         if (!objectId) break;
-        const invoice = await retrieveSquareInvoice(planBillingToken(), objectId); // re-fetch = verification
+        const invoice = await retrieveSquareInvoice(creds.token, objectId); // re-fetch = verification
         await recordInvoiceEvent(invoice, event.type);
         break;
       }

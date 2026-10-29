@@ -1,5 +1,5 @@
 import * as api from "@/lib/square-billing-api";
-import { planBillingConfigured, planBillingToken } from "@/lib/plan-billing-env";
+import { planBillingCredentials } from "@/lib/plan-billing-env";
 import { reportError } from "@/lib/report-error";
 import { productPriceCents, type BillingCadence, type BillingProduct } from "@/lib/plans";
 import { mapCatalogVariations, pickVariation, productForVariation, variationIdFor, type CatalogVariation } from "@/lib/plan-subscriptions";
@@ -22,8 +22,9 @@ const MISS_RELOAD_MS = 60_000;
 let cache: { at: number; token: string; variations: CatalogVariation[] } | null = null;
 
 export async function catalogVariations(force = false): Promise<CatalogVariation[]> {
-  if (!planBillingConfigured()) return [];
-  const token = planBillingToken();
+  const creds = await planBillingCredentials();
+  if (!creds) return [];
+  const token = creds.token;
   if (!force && cache && cache.token === token && Date.now() - cache.at < TTL_MS) return cache.variations;
   try {
     const plans = await api.listSquareSubscriptionPlans(token);

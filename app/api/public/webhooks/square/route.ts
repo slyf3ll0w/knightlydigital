@@ -1,5 +1,8 @@
 import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
+import { isPlatformMerchant, planBillingCredentials } from "@/lib/plan-billing-env";
+import { recordInvoiceEvent, refreshSubscription } from "@/lib/plan-billing";
+import { retrieveSquareInvoice } from "@/lib/square-billing-api";
 import { prisma } from "@/lib/db";
 import {
   getSquarePayment,
@@ -75,6 +78,21 @@ export async function POST(req: NextRequest) {
       case "refund.created":
         if (merchantId && objectId) await handleRefund(merchantId, objectId);
         break;
+      // Plan billing on WorkBench's own connected account (lib/plan-billing.ts):
+      // subscription / invoice events are only ever ours — any other merchant's
+      // are ignored. Add the event types to this webhook subscription in the
+      // Developer Console; the hourly sweep covers anything missed.
+      case "subscription.created":
+      case "subscription.updated":
+        if (merchantId && objectId && (await isPlatformMerchant(merchantId))) await refreshSubscription(objectId);
+        break;
+      case "invoice.payment_made":
+      case "invoice.scheduled_charge_failed":
+      case "invoice.updated":
+      case "invoice.published":
+      case "invoice.canceled":
+        if (merchantId && objectId && (await isPlatformMerchant(merchantId))) await handlePlatformInvoice(objectId, event.type);
+        break;
       default:
         break;
     }
@@ -85,6 +103,13 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ received: true });
+}
+
+async function handlePlatformInvoice(invoiceId: string, eventType: string) {
+  const creds = await planBillingCredentials();
+  if (!creds) return;
+  const invoice = await retrieveSquareInvoice(creds.token, invoiceId); // re-fetch = verification
+  await recordInvoiceEvent(invoice, eventType);
 }
 
 async function handlePayment(merchantId: string, paymentId: string) {

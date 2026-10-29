@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { getProcessor } from "@/lib/payments";
 import { squareConfigured } from "@/lib/square";
@@ -22,5 +23,7 @@ export async function GET() {
   if (getProcessor().name !== "square" || !squareConfigured()) {
     return NextResponse.json({ error: "Square isn't configured on this server yet." }, { status: 503 });
   }
-  return NextResponse.redirect(squareAuthorizeUrlFor(actor.companyId, actor.id));
+  // WorkBench's own company asks for the plan-billing scopes on top (lib/plan-billing-env.ts).
+  const company = await prisma.company.findUnique({ where: { id: actor.companyId }, select: { isPlatform: true } });
+  return NextResponse.redirect(squareAuthorizeUrlFor(actor.companyId, actor.id, { isPlatform: Boolean(company?.isPlatform) }));
 }
