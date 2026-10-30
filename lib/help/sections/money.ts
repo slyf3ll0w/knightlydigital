@@ -159,14 +159,14 @@ export const paymentsSection: HelpSection = {
     {
       slug: "payments-page",
       title: "Your Payments page: payments, payouts, disputes and reports",
-      summary: "Five tabs on your Square account — payments, payouts, disputes, reports, gift cards — and the items behind every sale.",
+      summary: "Four tabs on your Square account — payments, payouts, disputes, reports — the items behind every sale, and a door to gift cards.",
       keywords: ["payments page", "payments tab", "payouts tab", "disputes tab", "reports", "revenue report", "by tech", "by job type", "csv", "square pos", "square reader", "outside workbench", "record on an invoice", "reconnect square", "collected", "fees this month", "transaction details", "itemized", "order items", "gift cards tab", "in square"],
       where: { label: "Payments", href: "/app/payments" },
       roles: "Owners, admins and anyone who can see money",
       blocks: [
         {
           type: "p",
-          text: "With Square connected, **Payments** reads your Square account live each time it opens. Four numbers sit at the top — **Collected** and **Processing fees** this month, **On its way to your bank**, **Open disputes** — and under them five tabs: **Payments · Payouts · Disputes · Reports · Gift cards**. On a phone each tab is its own screen.",
+          text: "With Square connected, **Payments** reads your Square account live each time it opens. Four numbers sit at the top — **Collected** and **Processing fees** this month, **On its way to your bank**, **Open disputes** — and under them four tabs: **Payments · Payouts · Disputes · Reports**. On a phone each tab is its own screen.",
         },
         {
           type: "list",
@@ -175,7 +175,7 @@ export const paymentsSection: HelpSection = {
             "**Payouts**: each transfer Square made to your bank — when it was sent, to which account, its status, the transfer fee and the amount. Open one for **What's in it**: every payment, refund, dispute and fee that made up that payout, with gross, fee and net. Links to **Instant transfer**, **Deposit schedule** and **Bank accounts** in Square sit at the bottom. See [When you get paid out](/help/payouts).",
             "**Disputes**: cases where a client's bank questioned a charge, with the reason, status, respond-by date and amount. Open one to upload evidence and send it to the bank, or accept it. See [Respond to a dispute](/help/disputes).",
             "**Reports**: money in for the last 12 days, weeks or months (`By day`, `By week`, `By month`) — collected, refunds, fees and net — plus **By tech** (who was on the job the invoice billed) and **By job type** (the price-book services on the job). `Download CSV` gives the table to your bookkeeper. Cash and check payments you recorded count too; sales taken outside WorkBench show under **No job**.",
-            "**Gift cards**: every gift card on your Square account with its state, balance and history, plus `Sell a gift card` and `Check a balance`. See [Sell and take Square gift cards](/help/gift-cards).",
+            "**Gift cards** (the row under the Payments tab, and under **Settings → Payments & accounting**): every gift card on your Square account with its state, balance and history, plus `Sell a gift card` and `Check a balance`. See [Sell and take Square gift cards](/help/gift-cards).",
           ],
         },
         {
@@ -480,7 +480,7 @@ export const paymentsSection: HelpSection = {
       blocks: [
         {
           type: "p",
-          text: "Gift cards are Square's. Sold here, at the counter in the Square app or online, they're one pool with one balance each, and **Payments → Gift cards** lists every one on your account with its state and balance. WorkBench sells digital cards and takes any of them as payment.",
+          text: "Gift cards are Square's. Sold here, at the counter in the Square app or online, they're one pool with one balance each. The **Gift cards** screen — the row under the Payments tab on **Payments**, or **Settings → Payments & accounting → Gift cards** — lists every one on your account with its state and balance. WorkBench sells digital cards and takes any of them as payment.",
         },
         {
           type: "h",
@@ -489,7 +489,7 @@ export const paymentsSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Open **Payments → Gift cards** and press `Sell a gift card`.",
+            "Open the **Gift cards** screen and press `Sell a gift card`.",
             "Type the amount ($5 to $2,000), who it's for and the email the card number goes to. Pick the client who's paying if there is one (their email is used unless you add one), or leave it blank for a walk-up. A note goes into the email if you add one.",
             "WorkBench makes an ordinary invoice for the amount (no sales tax) and hands you the pay link — send it, or take `Tap to Pay` in the phone app. The card waits under **Pending** until that invoice is paid: by pay link, card on file, Tap to Pay or a payment you record.",
             "The moment the invoice is paid the card loads, the recipient's email arrives with the number, and the card reads **Active** on the tab.",
@@ -508,7 +508,8 @@ export const paymentsSection: HelpSection = {
           items: [
             "**On an invoice**: open it (Awaiting Payment or Past Due), press ⋯ → `Redeem a gift card`, type the number, see the balance and take it. The card pays as much as it holds; whatever is left on the invoice can be paid another way.",
             "**On the pay page**: the client picks **Gift card**, types the number from their email and presses `Pay up to … with gift card`. There is no service fee on a gift card.",
-            "**Check a balance**: `Check a balance` on the Gift cards tab, or tap any card for its history — loads, uses on invoices and refunds back onto it.",
+            "**Check a balance**: `Check a balance` on the Gift cards screen, or tap any card for its history — loads, uses on invoices and refunds back onto it.",
+            "**Retire a card**: `Deactivate` on a card ends it for good — a pending sale's invoice is archived with it, and a card with a balance can't be used or brought back afterwards. Deactivated cards hide from the list; `show deactivated` brings them back.",
             "A refund of a gift card payment (the ↺ button on **Payments**) goes back onto the card.",
             "A client's own cards show on their client page under **Gift cards**.",
           ],
@@ -522,15 +523,15 @@ export const paymentsSection: HelpSection = {
             },
             {
               q: "The recipient didn't get the email.",
-              a: "Check the address you typed when you sold it: the sale's invoice names the recipient. Once the card is Active, open it on the Gift cards tab, copy the number and send it yourself.",
+              a: "Check the address you typed when you sold it: the sale's invoice names the recipient. Once the card is Active, open it on the Gift cards screen, copy the number and send it yourself.",
             },
             {
               q: "Sell a gift card asks me to reconnect Square.",
               a: "Gift cards need permissions your Square connection didn't have yet. The owner presses `Reconnect Square` once (on the Payments page or the Online Payments card in Settings) and signs in to Square; nothing else changes.",
             },
             {
-              q: "A card bought in the Square app isn't on the tab.",
-              a: "The tab shows what Square answers with — open the page again if Square didn't answer just now. Physical cards are registered in the Square app, not here; once they are, they list and redeem like any other.",
+              q: "A card bought in the Square app isn't in the list.",
+              a: "The list shows what Square answers with — open the page again if Square didn't answer just now. Physical cards are registered in the Square app, not here; once they are, they list and redeem like any other.",
             },
           ],
         },
