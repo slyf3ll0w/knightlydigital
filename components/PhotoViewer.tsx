@@ -14,6 +14,8 @@ import { JOB_STAGE_OPTIONS, STAGE_LABEL, photoMapUrl, photoSrc, type PhotoStage,
  * it, when, "View on map" when the shot was located, and the actions:
  * Show to client · Use on website (managers) · Delete.
  */
+const ACTIVE_PILL = "bg-white text-black"; // theme-ok: the viewer is black in both themes; the chosen stage is a white pill with black ink
+
 export default function PhotoViewer({
   photos,
   index,
@@ -272,7 +274,7 @@ export default function PhotoViewer({
                 key={o.value}
                 type="button"
                 onClick={() => void restage(o.value)}
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${o.value === photo.stage ? "bg-white text-black" : "bg-white/15 text-white hover:bg-white/25"}`}
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${o.value === photo.stage ? ACTIVE_PILL : "bg-white/15 text-white hover:bg-white/25"}`}
               >
                 {o.label}
               </button>
