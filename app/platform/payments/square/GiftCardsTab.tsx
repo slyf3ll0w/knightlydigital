@@ -9,6 +9,7 @@ import { formatGan, ganTail, listSquareGiftCardActivities, retrieveSquareGiftCar
 import { ReconnectCard, RuledLabel, SquareUnavailable, TabBack } from "./bits";
 import { giftCardActivityLabel, giftCardState } from "./labels";
 import GiftCardActions from "./GiftCardActions";
+import GiftCardRemoveButton from "./GiftCardRemoveButton";
 
 /**
  * Gift cards tab (Square, 2026-10-30): every card on the seller's Square
@@ -26,6 +27,7 @@ export default async function GiftCardsTab({
   canSell,
   canReconnect,
   missingScope,
+  showAll = false,
 }: {
   companyId: string;
   tz: string;
@@ -34,6 +36,8 @@ export default async function GiftCardsTab({
   canSell: boolean;
   canReconnect: boolean;
   missingScope: boolean;
+  /** ?all=1 — list deactivated cards too (hidden by default). */
+  showAll?: boolean;
 }) {
   if (missingScope) return <ReconnectCard what="gift cards" canReconnect={canReconnect} />;
 
@@ -63,7 +67,10 @@ export default async function GiftCardsTab({
         <TabBack tab="giftcards" label="Gift cards" />
         <div className="ds-card mb-4 overflow-hidden">
           <div className="p-5 sm:p-6">
-            <p className="ds-label">Gift card {ganTail(g.gan)}</p>
+            <div className="flex items-start justify-between gap-3">
+              <p className="ds-label">Gift card {ganTail(g.gan)}</p>
+              {canSell && g.state !== "DEACTIVATED" && <GiftCardRemoveButton giftCardId={g.id} balanceCents={g.balanceCents} pending={g.state === "PENDING"} />}
+            </div>
             <p className="numeral-ledger mt-1 text-[34px] font-semibold leading-none text-[color:var(--ds-ink)]">{money(g.balanceCents / 100)}</p>
             <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-gray-500">
               <Chip tone={state.tone}>{state.label}</Chip>
@@ -160,9 +167,16 @@ export default async function GiftCardsTab({
   const waiting = sales.filter((s) => s.state !== "ACTIVE" && s.invoice.status !== "ARCHIVED");
   const activeBalance = cards.filter((c) => c.state === "ACTIVE").reduce((s, c) => s + c.balanceCents, 0);
   const sorted = [...cards].sort((a, b) => (a.state === "ACTIVE" ? 0 : 1) - (b.state === "ACTIVE" ? 0 : 1) || (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+  // Deactivated cards — and the empty shells of sales that were cancelled
+  // before they were paid — stay out of the way unless asked for (?all=1).
+  const retired = (c: (typeof cards)[number]) => c.state === "DEACTIVATED" || (c.state === "PENDING" && saleByCard.get(c.id)?.state === "DEACTIVATED");
+  const shown = showAll ? sorted : sorted.filter((c) => !retired(c));
+  const hiddenCount = sorted.length - shown.length;
 
   return (
     <>
+      {/* Off the Payments tab bar since 2026-10-30 (rarely visited): reached from rows on the Payments tab and Settings → Payments & accounting. */}
+      <TabBack tab="payments" label="Payments" />
       <div className="mb-6">
         <GiftCardActions canSell={canSell} contacts={contacts} />
       </div>
@@ -202,14 +216,23 @@ export default async function GiftCardsTab({
         </RuledLabel>
         {!read.ok && <SquareUnavailable failure={read} what="gift cards" />}
         <div className="ds-card overflow-hidden">
-          {sorted.length === 0 ? (
-            <EmptyState
-              art="invoices"
-              hue="var(--ds-primary)"
-              title={read.ok ? "No gift cards yet" : "Couldn't read Square just now"}
-              body={read.ok ? "Sell one above — the buyer pays an ordinary invoice and the recipient gets the card number by email." : "Your gift cards will list here once Square answers."}
-              showPlusIcon={false}
-            />
+          {shown.length === 0 ? (
+            hiddenCount > 0 ? (
+              <p className="px-4 py-6 text-center text-sm text-gray-500">
+                {hiddenCount === 1 ? "The one card here is deactivated" : `All ${hiddenCount} cards here are deactivated`} ·{" "}
+                <Link prefetch={false} href="/app/payments?tab=giftcards&all=1" className="ds-link">
+                  show {hiddenCount === 1 ? "it" : "them"}
+                </Link>
+              </p>
+            ) : (
+              <EmptyState
+                art="invoices"
+                hue="var(--ds-primary)"
+                title={read.ok ? "No gift cards yet" : "Couldn't read Square just now"}
+                body={read.ok ? "Sell one above — the buyer pays an ordinary invoice and the recipient gets the card number by email." : "Your gift cards will list here once Square answers."}
+                showPlusIcon={false}
+              />
+            )
           ) : (
             <>
               <div className="divide-y divide-gray-100">
@@ -220,7 +243,7 @@ export default async function GiftCardsTab({
                   <span className="text-right">Balance</span>
                   <span></span>
                 </div>
-                {sorted.map((c) => {
+                {shown.map((c) => {
                   const sale = saleByCard.get(c.id);
                   const who = sale?.contact ?? (c.customerIds.map((id) => byCustomer.get(id)).find(Boolean) ?? null);
                   const st = giftCardState(c.state);
@@ -251,7 +274,23 @@ export default async function GiftCardsTab({
               </div>
               <div className="flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5 lg:grid lg:grid-cols-[150px_1fr_130px_110px_28px]">
                 <span className="text-xs font-medium text-gray-500 lg:col-span-3">
-                  {sorted.length} {sorted.length === 1 ? "card" : "cards"} · outstanding balance on active cards
+                  {shown.length} {shown.length === 1 ? "card" : "cards"} · outstanding balance on active cards
+                  {hiddenCount > 0 && (
+                    <>
+                      {" · "}
+                      <Link prefetch={false} href="/app/payments?tab=giftcards&all=1" className="ds-link">
+                        show {hiddenCount} deactivated
+                      </Link>
+                    </>
+                  )}
+                  {showAll && sorted.some(retired) && (
+                    <>
+                      {" · "}
+                      <Link prefetch={false} href="/app/payments?tab=giftcards" className="ds-link">
+                        hide deactivated
+                      </Link>
+                    </>
+                  )}
                 </span>
                 <span className="numeral-ledger text-sm font-bold text-gray-900 text-right">{money(activeBalance / 100)}</span>
                 <span className="hidden lg:block" />

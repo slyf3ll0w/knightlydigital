@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowUpRight, ChevronRight, RefreshCw } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, ChevronRight, Gift, RefreshCw, Star } from "lucide-react";
 import { InfoTip } from "@/components/ds";
 import FilterBar, { listHref } from "@/components/FilterBar";
 import { squareDashboardUrl, type SquareDashboardScreen } from "@/lib/square-links";
@@ -24,8 +24,9 @@ const TAB_OPTIONS = [
   { value: "payouts", label: "Payouts" },
   { value: "disputes", label: "Disputes" },
   { value: "reports", label: "Reports" },
-  { value: "giftcards", label: "Gift cards" },
-  { value: "loyalty", label: "Loyalty" },
+  // Gift cards and loyalty keep their ?tab= URLs but left the bar on
+  // 2026-10-30 (rarely visited): SquareProductRows below and Settings →
+  // Payments & accounting reach them.
 ];
 
 /** Payments · Payouts · Disputes · Reports — a segmented control on phones, chips on a desk. */
@@ -135,6 +136,30 @@ export function SquareLinkRows({
             </span>
             <ChevronRight size={14} className="hidden text-gray-400 lg:block" />
           </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Gift cards and loyalty: Square products run from WorkBench, reached from rows rather than the tab bar (2026-10-30). */
+export function SquareProductRows() {
+  const rows = [
+    { href: "/app/payments?tab=giftcards", Icon: Gift, title: "Gift cards", sub: "Sell a card, check a balance, every card on your Square account" },
+    { href: "/app/payments?tab=loyalty", Icon: Star, title: "Loyalty", sub: "Your Square Loyalty program and its members" },
+  ];
+  return (
+    <div className="ds-card overflow-hidden">
+      <div className="divide-y divide-gray-100">
+        {rows.map(({ href, Icon, title, sub }) => (
+          <Link key={href} prefetch={false} href={href} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors">
+            <Icon size={16} className="shrink-0 text-gray-400" aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium text-gray-900">{title}</span>
+              <span className="block truncate text-xs text-gray-500">{sub}</span>
+            </span>
+            <ChevronRight size={14} className="text-gray-400" />
+          </Link>
         ))}
       </div>
     </div>

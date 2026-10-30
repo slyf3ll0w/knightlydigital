@@ -10,10 +10,12 @@ import { squareTokenForCompany } from "@/lib/square-connection";
 import { sendEmail, giftCardEmail } from "@/lib/email";
 import {
   createSquareGiftCard,
+  deactivateSquareGiftCard,
   linkSquareGiftCardToCustomer,
   listSquareGiftCards,
   loadSquareGiftCard,
   normalizeGan,
+  retrieveSquareGiftCard,
   retrieveSquareGiftCardByGan,
   ganTail,
   type SellerGiftCard,
@@ -402,4 +404,49 @@ export async function giftCardsOverview(companyId: string, params: { cursor?: st
     take: 200,
   });
   return { read, sales };
+}
+
+/**
+ * "Delete" a gift card (2026-10-30 request). Square has no delete: the card
+ * is DEACTIVATED there — the balance left on it is forfeited and it can
+ * never be reactivated — and a WorkBench sale still waiting on its invoice
+ * is closed out (the unpaid invoice is archived so nobody pays for a dead
+ * card). A PENDING card Square won't deactivate (nothing was ever loaded)
+ * stays an empty shell on the Square account; the sale still goes, and the
+ * list hides the shell. Managers only (the route checks).
+ */
+export async function removeGiftCard(params: { companyId: string; giftCardId: string; actorId: string; actorName: string }): Promise<{ state: string }> {
+  const company = await companyForGiftCards(params.companyId);
+  const read = await retrieveSquareGiftCard(company.id, params.giftCardId);
+  if (!read.ok) throw fromFailure(read);
+  const card = read.data;
+  const sale = await prisma.giftCardSale.findFirst({
+    where: { companyId: company.id, squareGiftCardId: params.giftCardId },
+    select: { id: true, state: true, invoice: { select: { id: true, status: true, invoiceNumber: true } } },
+  });
+  let state = card.state;
+  if (card.state !== "DEACTIVATED") {
+    const done = await deactivateSquareGiftCard(company.id, { giftCardId: card.id, locationId: company.squareLocationId, idempotencyKey: `gcx:${card.id}` });
+    if (done.ok) state = "DEACTIVATED";
+    else if (card.state !== "PENDING" || done.transient) throw fromFailure(done);
+    else console.warn(`[gift-cards] Square would not deactivate pending card ${card.id}: ${done.message}`);
+  }
+  if (sale) {
+    if (sale.invoice.status !== "PAID" && sale.invoice.status !== "ARCHIVED") {
+      await prisma.invoice.update({ where: { id: sale.invoice.id }, data: { status: "ARCHIVED" } }).catch(() => {});
+    }
+    await prisma.giftCardSale.update({ where: { id: sale.id }, data: { state: "DEACTIVATED" } }).catch(() => {});
+  }
+  if (sale) {
+    logActivity({
+      companyId: company.id,
+      userId: params.actorId,
+      userName: params.actorName,
+      entityType: "invoice",
+      entityId: sale.invoice.id,
+      action: "gift_card_deactivated",
+      detail: `Gift card ${ganTail(card.gan)} deactivated${card.balanceCents > 0 ? ` with $${(card.balanceCents / 100).toFixed(2)} left` : ""}${sale.invoice.status !== "PAID" ? ` — invoice #${sale.invoice.invoiceNumber} archived` : ""}`,
+    });
+  }
+  return { state };
 }

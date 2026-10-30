@@ -64,7 +64,7 @@ const PAGE_SIZE = 25;
 export default async function PaymentsDashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; tab?: string; payout?: string; dispute?: string; period?: string; payment?: string; giftcard?: string; cursor?: string }>;
+  searchParams: Promise<{ page?: string; tab?: string; payout?: string; dispute?: string; period?: string; payment?: string; giftcard?: string; cursor?: string; all?: string }>;
 }) {
   const actor = await requirePageActor(canSeeMoney);
   const companyId = actor.companyId;

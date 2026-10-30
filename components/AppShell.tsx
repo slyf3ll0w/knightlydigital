@@ -626,6 +626,11 @@ const MORE_GROUPS: { label: string; tone: "a" | "b" | "c" | "d" | "e"; hrefs: st
 const forRole = (items: NavItem[], role: string, salesMoney: boolean) =>
   items.filter((i) => !i.show || i.show(role, salesMoney));
 
+// Doors only test accounts get (Company.isTest → `websiteStudio`): the
+// Website page while the studio feature is unfinished (2026-10-30).
+const STUDIO_HREFS = new Set(["/app/settings/website"]);
+const forStudio = (items: NavItem[], websiteStudio: boolean) => (websiteStudio ? items : items.filter((i) => !STUDIO_HREFS.has(i.href)));
+
 // Guided-tour anchors (components/TourGuide.tsx). Keyed by href so the
 // desktop sidebar and mobile tab bar both carry them — the visible one wins.
 const tourKeys: Record<string, string> = {
@@ -1127,6 +1132,7 @@ function CommandPalette({
   previewMode,
   salesMoney,
   userId,
+  websiteStudio = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -1134,6 +1140,7 @@ function CommandPalette({
   previewMode: boolean;
   salesMoney: boolean;
   userId?: string | null;
+  websiteStudio?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -1249,7 +1256,7 @@ function CommandPalette({
     (row.group === "Clients" || row.group === "Jobs") && recordActions(row).length > 1;
   const destinations: Row[] = [
     ...forRole(railDrivers, role, salesMoney),
-    ...railGroups.flatMap((g) => forRole(g.items, role, salesMoney)),
+    ...railGroups.flatMap((g) => forStudio(forRole(g.items, role, salesMoney), websiteStudio)),
     { href: "/app/chat", label: "Team Chat", icon: MessagesSquare },
     ...(manager ? [{ href: "/app/settings", label: "Settings", icon: Settings }] : []),
     // Each settings section is its own destination — "Phone & texting" is
@@ -1741,6 +1748,10 @@ interface AppShellProps {
   /** Company.isTest: show "Suggest a change" (More sheet + user menu) — fires
    *  SUGGEST_CHANGE_EVENT for components/SuggestChange.tsx. Testers only for now. */
   suggestChanges?: boolean;
+  /** Company.isTest: Settings → Website (the studio-built site) is still
+   *  being finished and shows for test accounts only (2026-10-30 request);
+   *  live accounts never see the door. */
+  websiteStudio?: boolean;
   /** Pro features this company can't use right now (app/platform/layout.tsx
    *  via lib/plans.ts featureAllowed): their nav items wear a "Pro" chip.
    *  Empty while the gate is dark, for test accounts, and on Pro / Max. */
@@ -1772,6 +1783,7 @@ export default function AppShell({
   previewMode = false,
   hasLine = false,
   suggestChanges = false,
+  websiteStudio = false,
   lockedFeatures = [],
 }: AppShellProps) {
   const assistantAvailable = aiEnabled && !previewMode && atlas.level !== "off";
@@ -2422,7 +2434,7 @@ export default function AppShell({
           navLink(href, label, Icon)
         )}
         {railGroups
-          .map((g) => ({ ...g, items: forRole(g.items, userRole, salesMoney) }))
+          .map((g) => ({ ...g, items: forStudio(forRole(g.items, userRole, salesMoney), websiteStudio) }))
           .filter((g) => g.items.length > 0)
           .map((g) => {
             const open = (openGroups[g.key] ?? false) || g.items.some((i) => isActive(i.href));
@@ -2624,6 +2636,7 @@ export default function AppShell({
         assistantAccent={brandColorSecondary || brandColor || undefined}
         openAssistant={() => setAssistantOpen(true)}
         suggestChanges={suggestChanges}
+        websiteStudio={websiteStudio}
         lockedFeatures={lockedFeatures}
       />
 
@@ -2896,6 +2909,7 @@ export default function AppShell({
         previewMode={previewMode}
         salesMoney={salesMoney}
         userId={userId}
+        websiteStudio={websiteStudio}
       />
 
       {/* g/n sequences, `/`, and the `?` cheat sheet */}
@@ -3403,12 +3417,15 @@ function MoreSheet({
   assistantAccent,
   openAssistant,
   suggestChanges = false,
+  websiteStudio = false,
   lockedFeatures = [],
 }: {
   open: boolean;
   onClose: () => void;
   role: string;
   salesMoney: boolean;
+  /** Company.isTest — the Website door shows for test accounts only. */
+  websiteStudio?: boolean;
   counts: { requests: number; pastDue: number; chat: number; messages: number; tasks: number };
   teamCount: number;
   userName?: string | null;
@@ -3471,7 +3488,7 @@ function MoreSheet({
     { href: "/app/help", label: "Help Center", icon: LifeBuoy },
   ];
   // Home + Schedule live on the tab bar; everything else is bucketed by MORE_GROUPS
-  const pool = [...navGroups.slice(1).flatMap((g) => forRole(g.items, role, salesMoney)), ...teamItems];
+  const pool = [...navGroups.slice(1).flatMap((g) => forStudio(forRole(g.items, role, salesMoney), websiteStudio)), ...teamItems];
   const placed = new Set<string>();
   const sections = MORE_GROUPS.map((g) => {
     const items = g.hrefs.map((h) => pool.find((i) => i.href === h)).filter((i): i is NavItem => Boolean(i));

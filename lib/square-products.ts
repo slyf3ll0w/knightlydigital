@@ -362,6 +362,35 @@ export async function linkSquareGiftCardToCustomer(companyId: string, giftCardId
   });
 }
 
+/**
+ * Deactivate a card for good — Square's DEACTIVATE activity: whatever
+ * balance is left is forfeited and the card can never be reactivated. This
+ * is the "delete a gift card" of the 2026-10-30 request; Square keeps the
+ * card on the account as DEACTIVATED and the list hides those by default.
+ */
+export async function deactivateSquareGiftCard(
+  companyId: string,
+  params: { giftCardId: string; locationId: string; idempotencyKey: string }
+): Promise<SellerRead<SellerGiftCardActivity>> {
+  return withSellerToken(companyId, "DeactivateGiftCard", async (token) => {
+    const r = await squareFetch<{ gift_card_activity: SquareGiftCardActivityRaw }>(`/v2/gift-cards/activities`, {
+      auth: { bearer: token },
+      method: "POST",
+      body: {
+        idempotency_key: productIdempotencyKey(params.idempotencyKey),
+        gift_card_activity: {
+          type: "DEACTIVATE",
+          location_id: params.locationId,
+          gift_card_id: params.giftCardId,
+          deactivate_activity_details: { reason: "UNKNOWN_REASON" },
+        },
+      },
+      timeoutMs: 25_000,
+    });
+    return mapSellerGiftCardActivity(r.gift_card_activity);
+  });
+}
+
 export type GiftCardActivityType =
   | "ACTIVATE"
   | "LOAD"

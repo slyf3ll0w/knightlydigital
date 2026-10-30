@@ -179,6 +179,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       {company?.isTest && <SuggestChange />}
       <AppShell
         suggestChanges={Boolean(company?.isTest)}
+        websiteStudio={Boolean(company?.isTest)}
         userName={user?.name ?? session.user.name}
         userEmail={session.user.email}
         role={user?.role ?? session.user.role}
