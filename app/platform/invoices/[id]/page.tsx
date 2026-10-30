@@ -12,7 +12,9 @@ import { Chip } from "@/components/ds";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import ViewedFact from "@/components/ViewedFact";
-import InvoiceActions from "./InvoiceActions";
+import InvoiceActions, { type InvoiceLoyalty } from "./InvoiceActions";
+import { loyaltyForContact } from "@/lib/loyalty";
+import { rewardDiscountFor, rewardTierLabel } from "@/lib/square-products";
 import { canText } from "@/lib/sms-consent";
 import { companyCanSendSms } from "@/lib/sms";
 import { fmtPhone } from "@/lib/format";
@@ -111,6 +113,24 @@ export default async function InvoiceDetailPage({
   // this invoice while there is a balance (lib/tap-to-pay.ts decides).
   const tapToPay = balance > 0 && invoice.status !== "PAID" ? await tapToPayOffer(actor) : null;
 
+  // Square products (docs/plans/square-products-2026-10-30.md): a gift card
+  // can pay any open balance once this company runs on Square; a loyalty
+  // reward goes on before the first payment, for an enrolled client.
+  const onSquare = payCfg?.processor === "square";
+  const giftCards = onSquare && balance > 0 && invoice.status !== "PAID" && invoice.status !== "ARCHIVED";
+  let loyalty: InvoiceLoyalty | null = null;
+  if (onSquare && invoice.contact && invoice.payments.length === 0 && invoice.status !== "PAID" && invoice.status !== "ARCHIVED") {
+    const l = await loyaltyForContact(companyId, invoice.contact.id).catch(() => null);
+    if (l?.account) {
+      loyalty = {
+        points: l.account.balance,
+        one: l.program.one,
+        other: l.program.other,
+        tiers: l.program.tiers.map((t) => ({ id: t.id, name: t.name, points: t.points, label: rewardTierLabel(t), applies: rewardDiscountFor(t, Number(invoice.subtotal)) !== null })),
+      };
+    }
+  }
+
   // One-shot confetti (per user) on the first open after a processor-verified
   // (card/ACH) payment marked it PAID — manual cash/check entries don't celebrate.
   const hasOnlinePayment = invoice.payments.some(
@@ -165,6 +185,8 @@ export default async function InvoiceDetailPage({
           balance={balance}
           scheduled={Boolean(invoice.scheduledSendAt)}
           tz={tz}
+          giftCards={giftCards}
+          loyalty={loyalty}
           reopenStatus={
             totalPaid > 0 && totalPaid >= Number(invoice.total) - 0.005
               ? "PAID"

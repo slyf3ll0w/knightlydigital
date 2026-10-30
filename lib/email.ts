@@ -1314,6 +1314,45 @@ export function paymentReceiptEmail({
 }
 
 /**
+ * A gift card's number, sent to the recipient (or the buyer) the moment the
+ * card is loaded — lib/gift-cards.ts activateGiftCardForInvoice. The number
+ * IS the card: it is read out at checkout, typed on the pay page, or shown
+ * to staff. Plain letter, no artwork.
+ */
+export function giftCardEmail({
+  brand,
+  companyName,
+  recipientName,
+  gan,
+  amount,
+  message,
+}: {
+  brand: EmailBrand;
+  companyName: string;
+  recipientName?: string | null;
+  gan: string;
+  amount: number;
+  message?: string | null;
+}): { subject: string; html: string } {
+  const digits = gan.replace(/\D/g, "");
+  const shown = digits.replace(/(\d{4})(?=\d)/g, "$1 ").trim() || gan;
+  const html = clientShell({
+    brand,
+    companyName,
+    inner: `
+      ${hello(recipientName)}
+      ${p(`Here's your ${esc(companyName)} gift card for ${usd(amount)}.`)}
+      ${facts([
+        { label: "Card number", value: `<span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:16px;letter-spacing:1px;">${esc(shown)}</span>` },
+        { label: "Balance", value: usd(amount) },
+      ])}
+      ${message?.trim() ? p(`<em>${multiline(message.trim())}</em>`) : ""}
+      ${aside("To use it, give the number when you pay an invoice — online, choose Gift card and type it in. Any balance left stays on the card.")}`,
+  });
+  return { subject: `Your ${companyName} gift card (${usd(amount)})`, html };
+}
+
+/**
  * Quote-ready email — sent to a client when a service request comes in on a
  * "send" form (or a quote is shared), linking them to the public approval page.
  * `depositNote` surfaces a required deposit so there are no surprises at approval.

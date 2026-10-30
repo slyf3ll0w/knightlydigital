@@ -29,7 +29,27 @@ export async function POST(
   { params }: { params: Promise<{ token: string }> }
 ) {
   const { token } = await params;
-  const { method, paymentToken, saveCard, amount: requestedAmount } = await req.json();
+  const { method, paymentToken, saveCard, amount: requestedAmount, gan } = await req.json();
+
+  // A Square gift card (docs/plans/square-products-2026-10-30.md): the card
+  // pays min(its balance, the invoice balance) through Square, recorded as a
+  // GIFT_CARD payment; no surcharge, no card form. Everything else below is
+  // the card / bank path.
+  if (method === "GIFT_CARD") {
+    const target = await prisma.invoice.findFirst({ where: { publicToken: token }, select: { id: true, companyId: true, company: { select: { suspendedAt: true } } } });
+    if (!target) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
+    if (target.company.suspendedAt) {
+      return suspendedResponse("Online payments are unavailable for this business. Please contact them directly to arrange payment.");
+    }
+    const { GiftCardError, redeemGiftCardOnInvoice } = await import("@/lib/gift-cards");
+    try {
+      const r = await redeemGiftCardOnInvoice({ companyId: target.companyId, invoiceId: target.id, gan: String(gan ?? ""), byClient: true });
+      return NextResponse.json({ success: true, pending: false, remaining: r.remaining, paid: r.amount, cardBalance: r.cardBalanceCents / 100, cardTail: r.tail });
+    } catch (err) {
+      if (err instanceof GiftCardError) return NextResponse.json({ error: err.message, code: err.code }, { status: err.status === 409 ? 409 : err.status >= 500 ? 424 : 402 });
+      throw err;
+    }
+  }
 
   // Re-derive any deposit credit on a final invoice before computing the
   // balance, so the charge reflects deposits paid (or bounced) since creation.

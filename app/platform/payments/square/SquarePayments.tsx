@@ -10,16 +10,20 @@ import PaymentsTab from "./PaymentsTab";
 import PayoutsTab from "./PayoutsTab";
 import DisputesTab from "./DisputesTab";
 import ReportsTab from "./ReportsTab";
+import GiftCardsTab from "./GiftCardsTab";
+import LoyaltyTab from "./LoyaltyTab";
+import TransactionDetail from "./TransactionDetail";
 
 /** How far back the Payments tab lists Square sales taken outside WorkBench. */
 const OUTSIDE_WINDOW_DAYS = 90;
 
 /**
  * The Square-connected company's money view: the Square dashboard's
- * capabilities in WorkBench's shape (2026-10-28). KPI strip (collected and
- * fees this month, on its way to the bank, open disputes), then one of four
- * tabs — Payments · Payouts · Disputes · Reports — each its own screen on a
- * phone. Every Square number is read live with the seller's token and
+ * capabilities in WorkBench's shape (2026-10-28; gift cards, loyalty and the
+ * transaction detail 2026-10-30). KPI strip (collected and fees this month,
+ * on its way to the bank, open disputes), then one of six tabs — Payments ·
+ * Payouts · Disputes · Reports · Gift cards · Loyalty — each its own screen
+ * on a phone. Every Square number is read live with the seller's token and
  * tolerated to fail on its own; our own records always render.
  */
 export default async function SquarePayments({
@@ -36,7 +40,7 @@ export default async function SquarePayments({
   /** Scopes the stored grant lacks (SquareStatus.missingScopes). */
   missingScopes: string[];
   isOwner: boolean;
-  params: { tab?: string; page?: string; payout?: string; dispute?: string; period?: string };
+  params: { tab?: string; page?: string; payout?: string; dispute?: string; period?: string; payment?: string; giftcard?: string; cursor?: string };
 }) {
   const companyId = actor.companyId;
   const tab = parseSquareTab(params.tab);
@@ -46,6 +50,7 @@ export default async function SquarePayments({
   const monthStart = startOfMonthIn(tz, now);
   const needPayouts = !missingScopes.includes("PAYOUTS_READ");
   const needDisputes = !missingScopes.includes("DISPUTES_READ");
+  const manager = isManager(actor.role);
 
   // The month window feeds the KPIs on every tab; the Payments tab's 90-day
   // window and the Reports range are wider, so each loads its own.
@@ -69,7 +74,15 @@ export default async function SquarePayments({
     : { ok: false, transient: false, missingScopes: true, notConnected: false, message: "Reconnect Square to see disputes." };
   const onTheWay = payouts.filter((p) => p.status === "SENT").reduce((s, p) => s + p.amountCents, 0);
   const openDisputes = disputes.filter((d) => UNRESOLVED_DISPUTE_STATES.has(d.state)).length;
-  const needsReconnect = Boolean(payoutsFailure?.missingScopes || disputesFailure?.missingScopes);
+  // Any scope the grant lacks → one Reconnect card on the Payments tab; the
+  // other tabs show it in place of their own content.
+  const needsReconnect = missingScopes.length > 0;
+  const whatIsMissing = [
+    !needPayouts || !needDisputes ? "payouts and disputes" : "",
+    missingScopes.includes("ORDERS_READ") ? "the items behind a sale" : "",
+    missingScopes.some((s) => s.startsWith("GIFTCARDS")) ? "gift cards" : "",
+    missingScopes.some((s) => s.startsWith("LOYALTY")) ? "loyalty" : "",
+  ].filter(Boolean);
 
   // Day-by-day bars for the "Collected" card, like the dashboard's
   const daily = Array.from({ length: zonedParts(tz, now).d }, () => 0);
@@ -135,7 +148,7 @@ export default async function SquarePayments({
         disputes={disputes}
         failure={disputesFailure}
         disputeId={params.dispute ?? null}
-        canAct={isManager(actor.role)}
+        canAct={manager}
         sandbox={sandbox}
         canReconnect={isOwner}
       />
@@ -145,6 +158,31 @@ export default async function SquarePayments({
     const { rows, square } = await loadReportRows(companyId, periods[0].start, periods[periods.length - 1].end);
     const report = buildPaymentsReport(rows, { tz, period, anchor: now });
     body = <ReportsTab report={report} squareFailure={square.failure} squareTruncated={square.truncated} />;
+  } else if (tab === "giftcards") {
+    body = (
+      <GiftCardsTab
+        companyId={companyId}
+        tz={tz}
+        giftCardId={params.giftcard ?? null}
+        cursor={params.cursor ?? null}
+        canSell={manager}
+        canReconnect={isOwner}
+        missingScope={missingScopes.some((s) => s.startsWith("GIFTCARDS"))}
+      />
+    );
+  } else if (tab === "loyalty") {
+    body = (
+      <LoyaltyTab
+        companyId={companyId}
+        sandbox={sandbox}
+        cursor={params.cursor ?? null}
+        canManage={manager}
+        canReconnect={isOwner}
+        missingScope={missingScopes.some((s) => s.startsWith("LOYALTY"))}
+      />
+    );
+  } else if (params.payment) {
+    body = <TransactionDetail companyId={companyId} tz={tz} paymentId={params.payment} canReconnect={isOwner} />;
   } else {
     const from = new Date(now.getTime() - OUTSIDE_WINDOW_DAYS * 86_400_000);
     const win = await loadSquareWindow(companyId, from, now);
@@ -153,22 +191,22 @@ export default async function SquarePayments({
 
   return (
     <>
-      {needsReconnect && tab !== "payouts" && tab !== "disputes" && <ReconnectCard what="payouts and disputes" canReconnect={isOwner} />}
+      {needsReconnect && tab === "payments" && !params.payment && (
+        <ReconnectCard what={whatIsMissing.join(", ") || "everything Square reports"} canReconnect={isOwner} />
+      )}
       <KpiStrip desktopCols={4} kpis={kpis} />
       <SquareTabs tab={tab} openDisputes={openDisputes} />
       {body}
-      {tab === "payments" && (
+      {tab === "payments" && !params.payment && (
         <div className="mb-8">
-          <RuledLabel info="Products and settings that belong to your Square account rather than to WorkBench — they open in Square's dashboard with the same sign-in.">
+          <RuledLabel info="Products and settings that belong to your Square account rather than to WorkBench — they open in Square's dashboard with the same sign-in. Gift cards and loyalty have their own tabs here now.">
             In Square
           </RuledLabel>
           <SquareLinkRows
             sandbox={sandbox}
             rows={[
-              { screen: "transactions", title: "All transactions in Square", sub: "Square's own list, with receipts and itemized sales" },
-              { screen: "onlineStore", title: "Square Online", sub: "Your online store, if you run one" },
-              { screen: "loyalty", title: "Loyalty", sub: "Points and rewards for repeat clients" },
-              { screen: "giftCards", title: "Gift cards", sub: "Sell and redeem gift cards" },
+              { screen: "transactions", title: "Transactions in Square", sub: "Square's own list — tap any payment here for the same detail" },
+              { screen: "onlineStore", title: "Square Online", sub: "Your online store, if you run one (Square has no API for it)" },
             ]}
           />
         </div>

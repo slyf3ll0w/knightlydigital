@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Building2, CreditCard, Loader2, Lock } from "lucide-react";
+import { Building2, CreditCard, Gift, Loader2, Lock } from "lucide-react";
 import ChargeOverlay, { type ChargePhase } from "@/components/ChargeOverlay";
 import { FINIX_JS_SRC, type FinixForm } from "@/lib/finix-js";
 import { isTestMode, processorLabel, type ClientPayConfig } from "@/lib/pay-config";
@@ -105,11 +105,14 @@ export default function PayPage({
   const square = pay?.processor === "square" ? pay : null;
   const squareCardRef = useRef<SquareCardFieldsHandle>(null);
   const [squareReady, setSquareReady] = useState(false);
-  const [method, setMethod] = useState<"CARD" | "ACH">("CARD");
+  // GIFT_CARD (Square only): the number of a Square gift card pays what it
+  // can — no card form, no surcharge; the server charges min(balance, card).
+  const [method, setMethod] = useState<"CARD" | "ACH" | "GIFT_CARD">("CARD");
   const [saveCard, setSaveCard] = useState(false);
+  const [gan, setGan] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
-  const [paidNow, setPaidNow] = useState<{ amount: number; method: "CARD" | "ACH"; at: string } | null>(null);
+  const [paidNow, setPaidNow] = useState<{ amount: number; method: "CARD" | "ACH" | "GIFT_CARD"; at: string } | null>(null);
   const [pendingAch, setPendingAch] = useState(false);
   const [remaining, setRemaining] = useState(0);
   const [error, setError] = useState("");
@@ -182,11 +185,11 @@ export default function PayPage({
   const payable = !isPaid && !isArchived && !done && (pay !== null || demo) && !preview;
 
   async function submitPayment(paymentToken?: string) {
-    const label = method === "CARD" ? "your card" : "your bank account";
+    const label = method === "CARD" ? "your card" : method === "GIFT_CARD" ? "your gift card" : "your bank account";
     setCharge({ state: "processing", label, amount: chargeTotal, ...(method === "ACH" && { caption: "Submitting the bank transfer…" }) });
     const started = Date.now();
 
-    let data: { pending?: boolean; remaining?: number; error?: string; processorLive?: boolean } | null = null;
+    let data: { pending?: boolean; remaining?: number; paid?: number; cardBalance?: number; error?: string; processorLive?: boolean } | null = null;
     let ok = false;
     let status = 0;
     if (demo) {
@@ -197,7 +200,7 @@ export default function PayPage({
       const res = await fetch(`/api/public/pay/${invoice.publicToken}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ method, paymentToken, saveCard: method === "CARD" && saveCard, amount: payAmount }),
+        body: JSON.stringify({ method, paymentToken, saveCard: method === "CARD" && saveCard, amount: payAmount, ...(method === "GIFT_CARD" ? { gan } : {}) }),
       }).catch(() => null);
       ok = Boolean(res?.ok);
       status = res?.status ?? 0;
@@ -222,12 +225,13 @@ export default function PayPage({
       setCharge(null);
       setPendingAch(pending);
       setRemaining(Number(data?.remaining) || 0);
-      setPaidNow({ amount: payAmount, method, at: new Date().toISOString() });
+      // A gift card pays what it holds — the server says how much actually moved.
+      setPaidNow({ amount: method === "GIFT_CARD" && Number(data?.paid) > 0 ? Number(data?.paid) : payAmount, method, at: new Date().toISOString() });
       setDone(true);
       window.scrollTo({ top: 0, behavior: "smooth" });
     };
     if (data?.pending) return finish(true);
-    setCharge({ state: "approved", label, amount: chargeTotal });
+    setCharge({ state: "approved", label, amount: method === "GIFT_CARD" && Number(data?.paid) > 0 ? Number(data?.paid) : chargeTotal });
     setTimeout(() => finish(false), 1600);
   }
 
@@ -235,6 +239,10 @@ export default function PayPage({
     setError("");
     setLoading(true);
     if (demo) return submitPayment();
+    if (method === "GIFT_CARD") {
+      await submitPayment();
+      return;
+    }
     if (square) {
       const token = await squareCardRef.current?.tokenize();
       if (!token) {
@@ -355,7 +363,7 @@ export default function PayPage({
             ) : (
               <>
                 <p className="c-receipt-line">
-                  <strong>Paid {money(paidNow.amount)}</strong> by {paidNow.method === "CARD" ? "card" : "bank transfer"} on {longDate(paidNow.at)}.
+                  <strong>Paid {money(paidNow.amount)}</strong> by {paidNow.method === "CARD" ? "card" : paidNow.method === "GIFT_CARD" ? "gift card" : "bank transfer"} on {longDate(paidNow.at)}.
                   {remaining > 0 ? ` ${money(remaining)} remains on the balance.` : " Thank you."}
                 </p>
                 {remaining > 0 && (
@@ -465,6 +473,12 @@ export default function PayPage({
                   <Building2 size={16} />
                   Bank transfer
                 </Choice>
+                {(square || demo) && (
+                  <Choice on={method === "GIFT_CARD"} onClick={() => setMethod("GIFT_CARD")}>
+                    <Gift size={16} />
+                    Gift card
+                  </Choice>
+                )}
               </Choices>
             </div>
 
@@ -473,6 +487,22 @@ export default function PayPage({
                 <Notice tone="warn">
                   A {(surchargeRate * 100).toFixed(1)}% card surcharge applies. Pay by bank transfer to avoid it.
                 </Notice>
+              </div>
+            )}
+
+            {method === "GIFT_CARD" && (
+              <div className="mb-4">
+                <Label>Gift card number</Label>
+                <input
+                  value={gan}
+                  onChange={(e) => setGan(e.target.value)}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  placeholder="7783 3200 0000 0000"
+                  className="c-field c-num mt-2 tracking-wider"
+                  aria-label="Gift card number"
+                />
+                <p className="c-hint">The number from the gift card email. It pays as much as it holds; anything left stays on the card, and the rest of the balance can be paid another way.</p>
               </div>
             )}
 
@@ -542,10 +572,14 @@ export default function PayPage({
                 <Button
                   block
                   onClick={handlePay}
-                  disabled={loading || !amountValid || (demo ? false : finix ? !scriptReady || formHasErrors : !squareReady)}
+                  disabled={
+                    loading ||
+                    !amountValid ||
+                    (method === "GIFT_CARD" ? gan.replace(/\D/g, "").length < 10 : demo ? false : finix ? !scriptReady || formHasErrors : !squareReady)
+                  }
                 >
-                  {loading ? <Loader2 size={16} className="animate-spin" /> : <Lock size={15} />}
-                  Pay {money(chargeTotal)}
+                  {loading ? <Loader2 size={16} className="animate-spin" /> : method === "GIFT_CARD" ? <Gift size={15} /> : <Lock size={15} />}
+                  {method === "GIFT_CARD" ? `Pay up to ${money(chargeTotal)} with gift card` : `Pay ${money(chargeTotal)}`}
                 </Button>
               </ActionBar>
             )}
