@@ -159,6 +159,23 @@ async function encodeJpeg(bitmap: ImageBitmap, maxDimension: number, quality: nu
   });
 }
 
+/**
+ * A job-site photo and its thumbnail from one decode: the 1600 px JPEG the
+ * viewer and the report use, plus a 400 px one for grids and feeds (the
+ * Gallery tab would otherwise pull sixty full-size images to draw a page).
+ * Both come from the same bitmap so a phone decodes the camera file once.
+ */
+export async function resizePhotoPair(file: File): Promise<{ full: Blob; thumb: Blob }> {
+  const bitmap = await createImageBitmap(file);
+  try {
+    const full = await encodeJpeg(bitmap, 1600, 0.82);
+    const thumb = await encodeJpeg(bitmap, 400, 0.78);
+    return { full, thumb };
+  } finally {
+    bitmap.close();
+  }
+}
+
 export async function resizePhotoFile(
   file: File,
   maxDimension = 1600

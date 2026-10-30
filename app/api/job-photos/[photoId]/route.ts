@@ -5,9 +5,10 @@ import { getActor } from "@/lib/permissions";
 import { isBlobStorageConfigured, signedGetUrl, getObjectBytes, wantsBytes } from "@/lib/blob-storage";
 
 /**
- * Serve an uploaded job photo. Requires a signed-in member of the photo's
+ * Serve an uploaded photo. Requires a signed-in member of the photo's
  * company — job photos (gate codes on doors, interiors) are not public the
- * way logos are.
+ * way logos are. `?size=thumb` serves the 400 px copy when there is one
+ * (grids and feeds); the full photo otherwise.
  *
  * Two storage paths, one URL: photos in R2 answer with a redirect to a
  * short-lived presigned URL, so the bytes go browser↔R2 and never through
@@ -25,26 +26,35 @@ export async function GET(
 
   const { photoId } = await params;
   const photo = await prisma.jobPhoto.findFirst({
-    where: { id: photoId, job: { companyId: actor.companyId } },
-    select: { data: true, mimeType: true, storageKey: true },
+    // companyId is stamped on every row (backfill-photo-owners); the job
+    // fallback only matters for a row the backfill has not reached yet.
+    where: {
+      id: photoId,
+      OR: [{ companyId: actor.companyId }, { companyId: null, job: { companyId: actor.companyId } }],
+    },
+    select: { data: true, mimeType: true, storageKey: true, thumbKey: true },
   });
   if (!photo) return new NextResponse(null, { status: 404 });
 
-  if (photo.storageKey && isBlobStorageConfigured()) {
+  const wantThumb = req.nextUrl.searchParams.get("size") === "thumb";
+  const key = wantThumb && photo.thumbKey ? photo.thumbKey : photo.storageKey;
+  const mime = wantThumb && photo.thumbKey ? "image/jpeg" : photo.mimeType;
+
+  if (key && isBlobStorageConfigured()) {
     try {
       if (wantsBytes(req.headers)) {
-        const bytes = await getObjectBytes(photo.storageKey);
-        if (bytes && photo.mimeType) {
+        const bytes = await getObjectBytes(key);
+        if (bytes && mime) {
           return new NextResponse(bytes, {
             headers: {
-              "Content-Type": photo.mimeType,
+              "Content-Type": mime,
               "Cache-Control": "private, max-age=3600",
               "X-Content-Type-Options": "nosniff",
             },
           });
         }
       }
-      const url = await signedGetUrl(photo.storageKey);
+      const url = await signedGetUrl(key);
       // Cache shorter than the signature's own lifetime, or a browser could
       // reuse a cached redirect to a URL that has already expired.
       return NextResponse.redirect(url, {

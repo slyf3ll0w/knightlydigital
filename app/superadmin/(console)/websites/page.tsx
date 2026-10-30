@@ -33,19 +33,13 @@ export default async function ConsoleWebsitesPage() {
     },
   });
   const flagged = await prisma.jobPhoto.groupBy({
-    by: ["jobId"],
-    where: { siteUse: true, job: { companyId: { in: rows.map((r) => r.companyId) } } },
+    by: ["companyId"],
+    where: { siteUse: true, companyId: { in: rows.map((r) => r.companyId) } },
     _count: { _all: true },
   });
-  // jobId → companyId for the flagged counts
-  const jobs = flagged.length
-    ? await prisma.job.findMany({ where: { id: { in: flagged.map((f) => f.jobId) } }, select: { id: true, companyId: true } })
-    : [];
-  const jobCompany = new Map(jobs.map((j) => [j.id, j.companyId]));
   const flaggedByCompany = new Map<string, number>();
   for (const f of flagged) {
-    const c = jobCompany.get(f.jobId);
-    if (c) flaggedByCompany.set(c, (flaggedByCompany.get(c) ?? 0) + f._count._all);
+    if (f.companyId) flaggedByCompany.set(f.companyId, (flaggedByCompany.get(f.companyId) ?? 0) + f._count._all);
   }
 
   const base = appBaseUrl();

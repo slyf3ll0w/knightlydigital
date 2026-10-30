@@ -525,7 +525,7 @@ function PhotosCard({ photos, setPhotos, onError }: { photos: Photo[]; setPhotos
   }
 
   async function saveAlt(photo: Photo, alt: string) {
-    const url = photo.source === "upload" ? `/api/app/website/photos/${photo.id}` : `/api/app/jobs/${photo.jobId}/photos/${photo.id}`;
+    const url = photo.source === "upload" ? `/api/app/website/photos/${photo.id}` : `/api/app/photos/${photo.id}`;
     const { ok, data } = await postJson(url, { alt }, "PATCH");
     if (!ok) onError(data?.error ?? GENERIC_ERROR);
   }
@@ -543,7 +543,7 @@ function PhotosCard({ photos, setPhotos, onError }: { photos: Photo[]; setPhotos
       return;
     const { ok, data } = upload
       ? await postJson(`/api/app/website/photos/${photo.id}`, undefined, "DELETE")
-      : await postJson(`/api/app/jobs/${photo.jobId}/photos/${photo.id}`, { siteUse: false }, "PATCH");
+      : await postJson(`/api/app/photos/${photo.id}`, { siteUse: false }, "PATCH");
     if (!ok) return onError(data?.error ?? GENERIC_ERROR);
     setPhotos((p) => p.filter((x) => x.id !== photo.id));
   }

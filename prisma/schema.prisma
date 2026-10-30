@@ -324,6 +324,7 @@ model Company {
   requests              Request[]
   jobs                  Job[]
   quotes                Quote[]
+  photos                JobPhoto[]
   invoices              Invoice[]
   payments              Payment[]
   refunds               Refund[]
@@ -590,6 +591,7 @@ model User {
 
   assignments          JobAssignment[]
   notes                JobNote[]
+  photos               JobPhoto[]
   contactNotes         ContactNote[]
   clientMessages       ClientMessage[]
   assignedContacts     Contact[]                 @relation("AssignedContacts")
@@ -1152,6 +1154,7 @@ model Contact {
   requests          Request[]
   jobs              Job[]
   quotes            Quote[]
+  photos            JobPhoto[]
   invoices          Invoice[]
   payments          Payment[]
   subscriptions     Subscription[]
@@ -2474,16 +2477,55 @@ model JobNote {
   @@index([jobId])
 }
 
+// A photo's stage in the work (docs/plans/job-photos-companycam-2026-09-25.md,
+// "2026-10-20 reframe"): ESTIMATE = taken on the site visit, before the quote;
+// BEFORE / DURING / AFTER = on the job; GENERAL = anything else.
 enum PhotoType {
   BEFORE
   AFTER
   GENERAL
+  ESTIMATE
+  DURING
 }
 
+// One photo across the whole lifecycle (Gallery plan). Named JobPhoto for
+// history — a photo can now hang off a quote (quoteId) before any job exists;
+// converting the quote carries its photos onto the job (jobId). contactId and
+// companyId are always set on new rows (backfilled from the job for old ones:
+// scripts/backfill-photo-owners.mjs) so a client's property gallery and the
+// company feed never need the job join.
 model JobPhoto {
   id         String    @id @default(cuid())
-  jobId      String
-  job        Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId      String?
+  job        Job?      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  quoteId    String?
+  quote      Quote?    @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  contactId  String?
+  contact    Contact?  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  companyId  String?
+  company    Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // Who took it, when, and where (one-shot browser geolocation at capture).
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  takenAt    DateTime?
+  lat        Float?
+  lng        Float?
+  accuracy   Float?
+  // Upload idempotency: the phone mints one key per shot, so a retried
+  // upload (flaky signal) can never make two rows.
+  clientKey  String?   @unique
+  // 400 px JPEG beside the full-size object (R2 only) for grids and feeds.
+  thumbKey   String?
+  // May the client see it (hub, report, gallery link)? AFTER shots default on,
+  // everything else off until a tech flips it (decision 4, 2026-10-30).
+  clientVisible Boolean @default(false)
+  // Before/after pair: both rows carry the same pairId.
+  pairId     String?
+  tags       String[]  @default([])
+  // Markup (phase C): the original is never touched; the marked-up JPEG is a
+  // second object and the strokes are kept so it can be reopened.
+  markedKey  String?
+  markup     Json?
   url        String
   caption    String?
   type       PhotoType @default(GENERAL)
@@ -2505,6 +2547,10 @@ model JobPhoto {
   alt        String?
 
   @@index([jobId])
+  @@index([quoteId])
+  @@index([contactId, createdAt])
+  @@index([companyId, createdAt])
+  @@index([pairId])
   @@index([siteUse])
 }
 
@@ -2536,6 +2582,7 @@ model Quote {
   request               Request?        @relation(fields: [requestId], references: [id])
   jobId                 String?         @unique // set when this quote is converted into a job
   job                   Job?            @relation(fields: [jobId], references: [id])
+  photos                JobPhoto[]
   // The estimate tool this quote started from — an in-app run's "Create
   // quote", or a website estimate form. The tool's page lists them under
   // Leads (docs/plans/ai-estimators-2026-09-19.md, Batch 13).

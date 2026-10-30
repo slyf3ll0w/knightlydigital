@@ -28,7 +28,8 @@ import NoteForm from "./NoteForm";
 import JobNoteItem from "./JobNoteItem";
 import ScheduleJob from "./ScheduleJob";
 import AssignTeam from "./AssignTeam";
-import PhotoUpload from "./PhotoUpload";
+import PhotoGrid from "@/components/PhotoGrid";
+import { PHOTO_VIEW_SELECT, toPhotoView } from "@/lib/photos";
 import JobChecklist from "./JobChecklist";
 import ConvertToAppointmentNotice from "./ConvertToAppointment";
 import { looksLikeAppointment } from "@/lib/appointment-hint";
@@ -66,7 +67,7 @@ export default async function JobDetailPage({
         property: { select: { label: true } },
         assignments: { include: { user: true } },
         notes: { include: { user: true }, orderBy: { createdAt: "asc" } },
-        photos: { orderBy: { createdAt: "asc" } },
+        photos: { orderBy: [{ takenAt: "asc" }, { createdAt: "asc" }], select: PHOTO_VIEW_SELECT },
         lineItems: { orderBy: { sortOrder: "asc" } },
         timeEntries: {
           include: { user: { select: { id: true, name: true, hourlyCost: true } } },
@@ -570,18 +571,7 @@ export default async function JobDetailPage({
             title="Photos"
             meta={job.photos.length > 0 ? `${job.photos.length}` : "Add"}
           >
-            <PhotoUpload
-              jobId={job.id}
-              canSite={isManager(actor.role)}
-              photos={job.photos.map((p) => ({
-                id: p.id,
-                url: p.url,
-                caption: p.caption,
-                type: p.type,
-                siteUse: p.siteUse,
-                alt: p.alt,
-              }))}
-            />
+            <PhotoGrid target={{ kind: "job", id: job.id }} canSite={isManager(actor.role)} photos={job.photos.map(toPhotoView)} />
           </Fold>
           </div>
         </div>

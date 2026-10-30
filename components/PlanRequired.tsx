@@ -41,11 +41,13 @@ export default function PlanRequired({
         <Lock size={20} />
       </span>
       <h1 className="text-lg font-bold text-[color:var(--ds-ink)]">
-        {label} is part of {plan.name}
+        {plan.comingSoon ? `${label} is coming soon` : `${label} is part of ${plan.name}`}
       </h1>
       <p className="mt-2 text-sm text-[color:var(--ds-ink-soft)]">{featureBlurb(feature)}</p>
       <p className="mt-2 text-sm text-[color:var(--ds-ink-soft)]">
-        {plan.name} is {formatCents(plan.monthlyCents)} a month and also includes {others.join(", ")} and more.
+        {plan.comingSoon
+          ? `It will be part of the ${plan.name} plan, ${formatCents(plan.monthlyCents)} a month.`
+          : `${plan.name} is ${formatCents(plan.monthlyCents)} a month and also includes ${others.join(", ")} and more.`}
       </p>
       <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
         <Link href="/app/settings/plans" className="btn-primary">

@@ -18,12 +18,12 @@ export const extraTools: Tool[] = [
     decl: {
       name: "list_job_photos",
       description:
-        "The photos on a job (before / after / general) with captions and links the user can open. Use for 'show me the before photos from the Smith job', 'did anyone take pictures', 'how many photos are on job 1042'. Uploading photos stays on the job page.",
+        "The photos on a job (estimate / before / during / after / general) with captions and links the user can open. Use for 'show me the before photos from the Smith job', 'did anyone take pictures', 'how many photos are on job 1042'. Uploading photos stays on the job page.",
       parameters: {
         type: "object",
         properties: {
           jobId: { type: "string", description: "job id or number (get_document / query_records)" },
-          type: { type: "string", enum: ["BEFORE", "AFTER", "GENERAL", "ALL"] },
+          type: { type: "string", enum: ["ESTIMATE", "BEFORE", "DURING", "AFTER", "GENERAL", "ALL"] },
         },
         required: ["jobId"],
       },

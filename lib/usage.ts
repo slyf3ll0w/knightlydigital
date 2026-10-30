@@ -142,10 +142,10 @@ export async function rollupStorageSnapshots(): Promise<number> {
       FROM "User" WHERE "avatarData" IS NOT NULL GROUP BY "companyId"
     ) u ON u."companyId" = c.id
     LEFT JOIN (
-      SELECT j."companyId",
+      SELECT COALESCE(jp."companyId", j."companyId") AS "companyId",
              SUM(COALESCE(jp."sizeBytes", octet_length(jp."data"), 0)) AS bytes
-      FROM "JobPhoto" jp JOIN "Job" j ON j.id = jp."jobId"
-      GROUP BY j."companyId"
+      FROM "JobPhoto" jp LEFT JOIN "Job" j ON j.id = jp."jobId"
+      GROUP BY COALESCE(jp."companyId", j."companyId")
     ) p ON p."companyId" = c.id
   `;
   // Batched: one round trip per 50 companies instead of one per company

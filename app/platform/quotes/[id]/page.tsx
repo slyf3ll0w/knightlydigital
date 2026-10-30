@@ -21,6 +21,10 @@ import { activityFor } from "@/lib/activity";
 import ActivityTrail from "@/components/ActivityTrail";
 import { canText, companyCanSendSms } from "@/lib/sms";
 import { fmtPhone } from "@/lib/format";
+import Fold from "@/components/Fold";
+import PhotoGrid from "@/components/PhotoGrid";
+import { PHOTO_VIEW_SELECT, toPhotoView } from "@/lib/photos";
+import { featureAllowedFor } from "@/lib/plan-gate";
 
 export default async function QuoteDetailPage({
   params,
@@ -45,10 +49,14 @@ export default async function QuoteDetailPage({
         select: { id: true, invoiceNumber: true, status: true, total: true },
       },
       revisions: { orderBy: { revision: "desc" } },
+      photos: { orderBy: [{ takenAt: "asc" }, { createdAt: "asc" }], select: PHOTO_VIEW_SELECT },
     },
   });
 
   if (!quote) notFound();
+  // Estimate photos are a Gallery-plan feature (lib/plans.ts "gallery");
+  // the fold shows the plan card instead once the gate is live.
+  const galleryOpen = await featureAllowedFor(companyId, "gallery");
 
   // Valid through the END of the valid-until day in the company's timezone
   const companyTz = await prisma.company.findUnique({ where: { id: companyId }, select: { timezone: true } });
@@ -431,6 +439,19 @@ export default async function QuoteDetailPage({
             <p className="text-sm text-gray-700 whitespace-pre-wrap">{quote.notes}</p>
           </div>
         )}
+      </div>
+
+      {/* Site-visit photos: what was looked at before the price. They ride
+          onto the job when the quote converts (lib/quote-convert.ts). */}
+      <div className="mt-6">
+        <Fold title="Photos" meta={quote.photos.length > 0 ? String(quote.photos.length) : "Add"}>
+          <PhotoGrid
+            target={{ kind: "quote", id: quote.id }}
+            canSite={isManager(actor.role)}
+            photos={quote.photos.map(toPhotoView)}
+            locked={!galleryOpen}
+          />
+        </Fold>
       </div>
 
       {quote.revisions.length > 0 && (
