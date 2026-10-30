@@ -117,7 +117,7 @@ export const phoneSection: HelpSection = {
         },
         {
           type: "p",
-          text: "During a call you can **Mute**, **Hold** (they hear hold music), use the **Keypad** for phone menus, and **Hang up**. The call screen also lets you save an unknown caller as a lead or client, start a quote, appointment, job or invoice for them, and type **Notes** that save as you go.",
+          text: "During a call you can **Mute**, **Hold** (they hear hold music), use the **Keypad** for phone menus, and **Hang up**. Scroll down to save the caller or start something and a slim bar stays pinned to the top with the timer, **Mute** and **End**, so hanging up never needs a scroll back — even with the keyboard up on a phone. The call screen also lets you save an unknown caller as a lead or client, start a quote, appointment, job or invoice for them, and type **Notes** that save as you go.",
         },
         {
           type: "p",

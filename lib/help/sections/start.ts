@@ -174,6 +174,7 @@ export const startSection: HelpSection = {
             "**Edit:** tap the row, then `Edit`. Everything can change; only owners and admins can change who a task is for.",
             "**Groups:** Overdue, Today, Tomorrow, Later and No date. Done tasks move to the **Done** tab, where you can untick one by mistake.",
             "**From a client or job page:** the Create menu's `Task` starts one already linked to that client or job, so the link shows on the task.",
+            "**Link a client:** in the editor press `Link a client`, type a name and pick the client or lead the task is about. The link shows on the task row and opens their page; the × on the chip removes it.",
           ],
         },
         {
