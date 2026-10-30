@@ -29,7 +29,10 @@ import JobNoteItem from "./JobNoteItem";
 import ScheduleJob from "./ScheduleJob";
 import AssignTeam from "./AssignTeam";
 import PhotoGrid from "@/components/PhotoGrid";
+import PhotoUpload from "./PhotoUpload";
 import { PHOTO_VIEW_SELECT, toPhotoView } from "@/lib/photos";
+import { photoSrc } from "@/lib/photos-shared";
+import { galleryPreviewFor } from "@/lib/gallery-preview";
 import JobChecklist from "./JobChecklist";
 import ConvertToAppointmentNotice from "./ConvertToAppointment";
 import { looksLikeAppointment } from "@/lib/appointment-hint";
@@ -122,6 +125,8 @@ export default async function JobDetailPage({
   // is simply not on the page and the margin card shows no Labor line — the
   // upsell lives on /app/timesheets, not on every job.
   const timesheetsAllowed = await featureAllowedFor(companyId, "timesheets");
+  // Gallery preview: the new photo grid + viewer only for test accounts for now.
+  const galleryPreview = await galleryPreviewFor(companyId);
   const closedEntries = job.timeEntries.filter((e) => e.endedAt);
   const loggedMs = closedEntries.reduce((s, e) => s + entryMs(e), 0);
   const laborCost = timesheetsAllowed
@@ -571,7 +576,24 @@ export default async function JobDetailPage({
             title="Photos"
             meta={job.photos.length > 0 ? `${job.photos.length}` : "Add"}
           >
-            <PhotoGrid target={{ kind: "job", id: job.id }} canSite={isManager(actor.role)} photos={job.photos.map(toPhotoView)} />
+            {galleryPreview ? (
+              <PhotoGrid target={{ kind: "job", id: job.id }} canSite={isManager(actor.role)} photos={job.photos.map(toPhotoView)} />
+            ) : (
+              // Live accounts keep the uploader exactly as it was until the
+              // Gallery work is opened (lib/gallery-preview.ts).
+              <PhotoUpload
+                jobId={job.id}
+                canSite={isManager(actor.role)}
+                photos={job.photos.map((p) => ({
+                  id: p.id,
+                  url: photoSrc(p.id),
+                  caption: p.caption,
+                  type: p.type,
+                  siteUse: p.siteUse,
+                  alt: p.alt,
+                }))}
+              />
+            )}
           </Fold>
           </div>
         </div>

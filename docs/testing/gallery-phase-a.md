@@ -7,6 +7,10 @@ and where, a full-screen viewer with caption / stage / client visibility,
 thumbnails, and estimate photos riding onto the job when the quote converts.
 Automated: `npm run e2e -- photos` and `npx tsx scripts/test-photos.ts`.
 
+**Preview only:** all of this shows up for **test accounts** (superadmin
+"Test" flag) until David opens it (`GALLERY_OPEN=1`). A live account still
+sees the old job uploader and no Photos fold on quotes — check that too.
+
 Run these on **staging** on a phone (the iPhone or Android app, or the site in
 a phone browser) and once on desktop. Every step has an **Expect** line; a
 mismatch is a finding.
