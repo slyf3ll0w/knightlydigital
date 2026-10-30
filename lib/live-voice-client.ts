@@ -152,17 +152,24 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
   const since = () => `${Date.now() - t0}ms`;
   voiceLog("live: start");
   const pick = getVoicePick();
-  const tokenRes = await fetch("/api/app/assistant/live/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(pick ? { voice: pick.voice || undefined, accent: pick.accent } : {}),
-  });
-  const tokenData = (await tokenRes.json().catch(() => ({}))) as Partial<TokenReply>;
-  if (!tokenRes.ok || !tokenData.token || !tokenData.setup) {
-    voiceLog("live: token refused", `${tokenRes.status} ${tokenData.error ?? ""} ${since()}`);
-    throw new Error(tokenData.error ?? "Live voice is unavailable right now.");
-  }
-  voiceLog("live: token ok", `${tokenData.model} ${since()}`);
+  // One single-use token per socket: the first connection here, and a fresh
+  // one for every reconnect (a dropped session is resumed with the handle
+  // Gemini handed us — see sessionResumptionUpdate below).
+  const mintToken = async (): Promise<TokenReply> => {
+    const tokenRes = await fetch("/api/app/assistant/live/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(pick ? { voice: pick.voice || undefined, accent: pick.accent } : {}),
+    });
+    const data = (await tokenRes.json().catch(() => ({}))) as Partial<TokenReply>;
+    if (!tokenRes.ok || !data.token || !data.setup || !data.model) {
+      voiceLog("live: token refused", `${tokenRes.status} ${data.error ?? ""} ${since()}`);
+      throw new Error(data.error ?? "Live voice is unavailable right now.");
+    }
+    voiceLog("live: token ok", `${data.model} ${since()}`);
+    return data as TokenReply;
+  };
+  const tokenData = await mintToken();
 
   // Mic first (inside the tap's activation on iOS): echo cancellation on,
   // so the phone doesn't hear Atlas through its own speaker.
@@ -190,6 +197,14 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
   let closed = false;
   let muted = false;
   let setupDone = false;
+  // Session resumption (2026-10-27 report: Google closed the socket 1011
+  // "Internal error" 92 s in and the conversation simply ended). Gemini
+  // hands out a resumption handle as the session goes; when the socket
+  // drops under us — or Google says goAway — a new socket with a fresh
+  // token picks the same conversation up where it was.
+  let resumeHandle: string | null = null;
+  let reconnects = 0;
+  const MAX_RECONNECTS = 3;
   let inSeconds = 0;
   let outSeconds = 0;
   let nextPlayAt = 0;
@@ -230,10 +245,20 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     }
   };
 
-  const playPcm = (bytes: Uint8Array) => {
+  // The reply's sample rate comes with each chunk (audio/pcm;rate=24000). It
+  // is read rather than assumed: audio at another rate played as 24 kHz
+  // would come out slow and deep — the 2026-10-27 "voice gets real deep"
+  // report — so the diary also notes the format and the output clock.
+  let lastFormat = "";
+  const rateOf = (mimeType: string | undefined): number => {
+    const m = /rate=(\d+)/.exec(mimeType ?? "");
+    const r = m ? Number(m[1]) : OUT_RATE;
+    return r >= 8000 && r <= 96000 ? r : OUT_RATE;
+  };
+  const playPcm = (bytes: Uint8Array, rate: number) => {
     const samples = new Int16Array(bytes.buffer, bytes.byteOffset, Math.floor(bytes.byteLength / 2));
     if (samples.length === 0) return;
-    const buf = outCtx.createBuffer(1, samples.length, OUT_RATE);
+    const buf = outCtx.createBuffer(1, samples.length, rate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < samples.length; i++) data[i] = samples[i] / 32768;
     const src = outCtx.createBufferSource();
@@ -321,6 +346,11 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
   source.connect(tap);
 
   const usageTimer = setInterval(() => {
+    if (outSeconds > 0) {
+      // Pitch forensics for the "voice went deep" report: the output clock,
+      // its state and how far ahead playback is scheduled.
+      voiceLog("live: audio clock", `out ${outCtx.sampleRate}Hz ${outCtx.state} lead ${Math.max(0, nextPlayAt - outCtx.currentTime).toFixed(2)}s latency ${(outCtx.baseLatency ?? 0).toFixed(3)}s`);
+    }
     if (inSeconds + outSeconds > 0) {
       ev.onUsage(inSeconds, outSeconds);
       inSeconds = 0;
@@ -348,29 +378,63 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     ev.onStatus("ended", reason);
   };
 
-  // The socket.
-  ws = new WebSocket(`${WS_URL}?access_token=${encodeURIComponent(tokenData.token)}`);
-  ws.onopen = () => {
-    voiceLog("live: socket open", since());
-    send({ setup: { model: tokenData.model, ...tokenData.setup } });
+  // The socket. `openSocket` runs once for the first connection and again
+  // for every resume; the message handler below is shared.
+  const openSocket = (token: TokenReply, handle: string | null) => {
+    const sock = new WebSocket(`${WS_URL}?access_token=${encodeURIComponent(token.token)}`);
+    ws = sock;
+    sock.onopen = () => {
+      voiceLog("live: socket open", `${handle ? "resuming " : ""}${since()}`);
+      send({ setup: { model: token.model, ...token.setup, ...(handle ? { sessionResumption: { handle } } : {}) } });
+    };
+    sock.onerror = () => {
+      if (ws !== sock) return;
+      voiceLog("live: socket error", since());
+      if (!closed && !setupDone && reconnects === 0) ev.onError("The live connection failed.");
+    };
+    sock.onclose = (e) => {
+      if (closed || ws !== sock) return;
+      voiceLog("live: socket closed", `${e.code} ${e.reason} ${since()}`);
+      const why = e.reason ? ` (${e.reason})` : "";
+      if (!setupDone && reconnects === 0) {
+        ev.onError(`Couldn't start the live session${why}.`);
+        stop(`socket closed ${e.code}${why}`);
+        return;
+      }
+      // Google dropped a session we can resume: pick it back up.
+      if (resumeHandle && reconnects < MAX_RECONNECTS) {
+        void resume(`socket closed ${e.code}${why}`);
+        return;
+      }
+      stop(`socket closed ${e.code}${why}`);
+    };
+    sock.onmessage = onMessage;
   };
-  ws.onerror = () => {
-    voiceLog("live: socket error", since());
-    if (!closed) ev.onError("The live connection failed.");
-  };
-  ws.onclose = (e) => {
+
+  const resume = async (reason: string) => {
     if (closed) return;
-    voiceLog("live: socket closed", `${e.code} ${e.reason} ${since()}`);
-    const why = e.reason ? ` (${e.reason})` : "";
-    if (!setupDone) ev.onError(`Couldn't start the live session${why}.`);
-    stop(`socket closed ${e.code}${why}`);
+    reconnects++;
+    setupDone = false;
+    hush();
+    voiceLog("live: reconnect", `${reconnects}/${MAX_RECONNECTS} after ${reason}`);
+    ev.onStatus("connecting", "reconnecting");
+    let token: TokenReply;
+    try {
+      token = await mintToken();
+    } catch (err) {
+      voiceLog("live: reconnect failed", err);
+      stop(reason);
+      return;
+    }
+    if (closed) return;
+    openSocket(token, resumeHandle);
   };
   let userCaption = "";
   let atlasCaption = "";
   // Per-turn timing: when the user's words last arrived → first audio back.
   let lastHeardAt = 0;
   let turnAudioLogged = false;
-  ws.onmessage = async (e) => {
+  const onMessage = async (e: MessageEvent) => {
     let msg: Record<string, unknown>;
     try {
       msg = JSON.parse(typeof e.data === "string" ? e.data : await (e.data as Blob).text());
@@ -379,9 +443,14 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     }
     if ("setupComplete" in msg) {
       setupDone = true;
-      voiceLog("live: setup complete", since());
+      voiceLog(reconnects ? "live: resumed" : "live: setup complete", since());
       ev.onStatus("listening");
       return;
+    }
+    const sru = msg.sessionResumptionUpdate as { newHandle?: string; resumable?: boolean } | undefined;
+    if (sru?.resumable && sru.newHandle) {
+      if (!resumeHandle) voiceLog("live: resumable", since());
+      resumeHandle = sru.newHandle;
     }
     const sc = msg.serverContent as
       | {
@@ -417,7 +486,12 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
             turnAudioLogged = true;
             voiceLog("live: first audio", lastHeardAt ? `${Date.now() - lastHeardAt}ms after last words heard` : "unprompted");
           }
-          playPcm(bytesFromBase64(p.inlineData.data));
+          const fmt = p.inlineData.mimeType ?? "audio/pcm";
+          if (fmt !== lastFormat) {
+            lastFormat = fmt;
+            voiceLog("live: audio format", `${fmt} → ${rateOf(fmt)}Hz on a ${outCtx.sampleRate}Hz clock`);
+          }
+          playPcm(bytesFromBase64(p.inlineData.data), rateOf(fmt));
         }
       }
       if (sc.turnComplete) {
@@ -459,10 +533,13 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     }
     const ga = msg.goAway as { timeLeft?: string } | undefined;
     if (ga) {
-      voiceLog("live: goAway", ga.timeLeft);
-      ev.onStatus("listening", "The session is about to time out — tap Done and start again if it drops.");
+      // Google will close this socket shortly; onclose resumes the session
+      // with the handle, so there is nothing to do here but note it.
+      voiceLog("live: goAway", `${ga.timeLeft ?? ""}${resumeHandle ? " (will resume)" : " (no handle yet)"}`);
     }
   };
+
+  openSocket(tokenData, null);
 
   return {
     stop,
