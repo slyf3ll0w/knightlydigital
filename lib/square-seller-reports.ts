@@ -94,7 +94,7 @@ export function sellerFailureStatus(f: SellerReadFailure): { status: number; bod
   return { status: 424, body: { error: f.message } };
 }
 
-async function withSellerToken<T>(companyId: string, label: string, fn: (token: string) => Promise<T>): Promise<SellerRead<T>> {
+export async function withSellerToken<T>(companyId: string, label: string, fn: (token: string) => Promise<T>): Promise<SellerRead<T>> {
   try {
     const { token } = await squareTokenForCompany(companyId);
     return { ok: true, data: await fn(token) };
@@ -111,7 +111,7 @@ export function sumMoney(list: { amount_money?: SquareMoney }[] | undefined | nu
   return (list ?? []).reduce((s, x) => s + cents(x.amount_money), 0);
 }
 
-function qs(params: Record<string, string | number | undefined | null>): string {
+export function qs(params: Record<string, string | number | undefined | null>): string {
   const p = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== null && v !== "") p.set(k, String(v));
   const s = p.toString();

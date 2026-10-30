@@ -18,6 +18,8 @@ import {
 import { runAutoChargeRetries, runCardExpiryNudges } from "@/lib/auto-charge";
 import { runQuickBooksNightlySync } from "@/lib/quickbooks";
 import { runSquareTokenSweep } from "@/lib/square-connection";
+import { runGiftCardActivationSweep } from "@/lib/gift-cards";
+import { runLoyaltyProgramSweep } from "@/lib/loyalty";
 import { runPlanEntitlementSweep } from "@/lib/plan-billing";
 import { runGoogleCalendarSweep } from "@/lib/google-calendar";
 import { runGoogleCalendarPullSweep } from "@/lib/google-calendar-pull";
@@ -188,6 +190,11 @@ export async function POST(req: NextRequest) {
     // Square OAuth tokens: refresh any older than 7 days (they live 30),
     // page when one has gone 8 days without. No-op unless SQUARE_* are set.
     await step("squareTokens", () => runSquareTokenSweep(now));
+    // Gift cards sold in WorkBench whose activation Square refused (or that
+    // missed the payment hook) load here once their invoice is paid; the
+    // loyalty program cache re-reads every 6 h. No-ops without Square.
+    await step("giftCards", () => runGiftCardActivationSweep(now));
+    await step("loyaltyPrograms", () => runLoyaltyProgramSweep(now));
     // Plan entitlement: every customer company re-derives its paid plans from
     // its series' invoices in the WorkBench account (periods end, grace runs
     // out). No-op until a company is marked WorkBench's own.

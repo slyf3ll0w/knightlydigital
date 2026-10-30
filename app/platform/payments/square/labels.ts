@@ -201,6 +201,78 @@ export function disputeReasonLabel(reason: string): string {
 }
 
 /** The evidence types a field-service business actually has, in the order to offer them. */
+/** A gift card's state in words + tone (lib/square-products.ts GiftCardState). */
+export function giftCardState(state: string): { label: string; tone: Tone } {
+  switch (state) {
+    case "ACTIVE":
+      return { label: "Active", tone: "good" };
+    case "PENDING":
+      return { label: "Not paid yet", tone: "warn" };
+    case "DEACTIVATED":
+      return { label: "Deactivated", tone: "neutral" };
+    case "BLOCKED":
+      return { label: "Blocked", tone: "bad" };
+    default:
+      return { label: state.toLowerCase().replace(/_/g, " "), tone: "neutral" };
+  }
+}
+
+/** What happened to a gift card, in words (GiftCardActivityType). */
+export function giftCardActivityLabel(type: string): string {
+  switch (type) {
+    case "ACTIVATE":
+      return "Loaded (new card)";
+    case "LOAD":
+      return "Loaded";
+    case "REDEEM":
+      return "Used";
+    case "REFUND":
+      return "Refund back onto the card";
+    case "UNLINKED_ACTIVITY_REFUND":
+      return "Refund";
+    case "ADJUST_INCREMENT":
+      return "Added by hand";
+    case "ADJUST_DECREMENT":
+      return "Removed by hand";
+    case "CLEAR_BALANCE":
+      return "Balance cleared";
+    case "DEACTIVATE":
+      return "Deactivated";
+    case "BLOCK":
+      return "Blocked";
+    case "UNBLOCK":
+      return "Unblocked";
+    case "IMPORT":
+      return "Imported";
+    case "IMPORT_REVERSAL":
+      return "Import reversed";
+    case "TRANSFER_BALANCE_FROM":
+      return "Moved to another card";
+    case "TRANSFER_BALANCE_TO":
+      return "Moved from another card";
+    default:
+      return type.toLowerCase().replace(/_/g, " ");
+  }
+}
+
+/** Square's card entry method in words. */
+export function entryMethodLabel(method: string | null | undefined): string {
+  switch (method) {
+    case "KEYED":
+      return "Typed in";
+    case "SWIPED":
+      return "Swiped";
+    case "EMV":
+      return "Chip";
+    case "ON_FILE":
+      return "Card on file";
+    case "CONTACTLESS":
+      return "Tap";
+    default:
+      return "";
+  }
+}
+
 export const EVIDENCE_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: "RECEIPT", label: "Invoice or receipt" },
   { value: "SERVICE_RECEIVED_DOCUMENTATION", label: "Proof the work was done (photos, sign-off)" },

@@ -105,6 +105,7 @@ model Company {
   squareLocationId          String?
   squareConnectedAt         DateTime?
   squareConnection          SquareConnection?
+  giftCardSales             GiftCardSale[]
   // Payment verification is mandatory: new companies are held at /app/activate
   // until Finix underwriting approves them. This flag exempts a company from
   // that gate (test accounts, comped users) — flipped only from the superadmin
@@ -1123,6 +1124,10 @@ model Contact {
   // first time a card is saved on file (Square cards belong to a customer)
   // and reused after. Square's counterpart of finixBuyerIdentityId.
   squareCustomerId     String?
+  // Square Loyalty account under the company's program (lib/loyalty.ts):
+  // set when staff enroll the client or the client joins from the hub.
+  squareLoyaltyAccountId String?
+  giftCardSales        GiftCardSale[]
   // Provider SMS (Telnyx): set when the client texts STOP to our number —
   // automated texts (reminders, quote/invoice links) skip them. Telnyx also
   // blocks at their edge; this flag keeps our senders honest and visible.
@@ -1183,6 +1188,40 @@ model Contact {
 // time. The legacy Contact.processorCustomerRef/savedCardLabel/savedCardAt
 // columns mirror the default card (kept in sync by syncDefaultCardMirror) so
 // nothing that still reads them breaks.
+// A gift card sold through WorkBench (lib/gift-cards.ts, 2026-10-30,
+// docs/plans/square-products-2026-10-30.md): a DIGITAL Square gift card made
+// PENDING at sale time plus the invoice the buyer pays for it. When that
+// invoice is PAID the card is ACTIVATED for `amountCents` and the recipient
+// is emailed the number. Balances and redemptions live on Square (the card
+// is redeemed by paying an invoice with it); this row is the sale record.
+model GiftCardSale {
+  id               String    @id @default(cuid())
+  companyId        String
+  company          Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // The buyer (the invoice's client), when known
+  contactId        String?
+  contact          Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  invoiceId        String    @unique
+  invoice          Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  squareGiftCardId String
+  // Gift card account number — what the recipient types to redeem it
+  gan              String
+  amountCents      Int
+  // PENDING (invoice unpaid) | ACTIVE (loaded) | FAILED (activation refused; retried by cron)
+  state            String    @default("PENDING")
+  activatedAt      DateTime?
+  recipientName    String?
+  recipientEmail   String?
+  message          String?
+  lastError        String?
+  attempts         Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([companyId, state])
+  @@index([contactId])
+}
+
 model SavedCard {
   id                String    @id @default(cuid())
   companyId         String
@@ -2732,6 +2771,7 @@ model Invoice {
 
   lineItems        InvoiceLineItem[]
   payments         Payment[]
+  giftCardSale     GiftCardSale?
   reminders        PaymentReminder[]
   // Visit jobs this invoice consolidated (Job.consolidatedInvoiceId)
   consolidatedJobs Job[]             @relation("ConsolidatedVisits")
@@ -2804,6 +2844,7 @@ enum PaymentMethod {
   PAYPAL
   VENMO
   ZELLE
+  GIFT_CARD // a Square gift card redeemed on the invoice (lib/gift-cards.ts; processorRef = the Square payment)
   OTHER
 }
 
@@ -3307,6 +3348,14 @@ model SquareConnection {
   // never checked.
   payoutStatus       String?
   payoutCheckedAt    DateTime?
+  // The seller's Square Loyalty program (lib/loyalty.ts, 2026-10-30): id of
+  // the main program and its status — ACTIVE (subscribed, rules set) |
+  // INACTIVE (program exists, subscription lapsed) | NONE (no program) |
+  // UNKNOWN (grant predates LOYALTY_READ). Refreshed on the Loyalty tab, on
+  // Check connection and in the hourly token step. null = never checked.
+  loyaltyProgramId   String?
+  loyaltyStatus      String?
+  loyaltyCheckedAt   DateTime?
   // Last successful token issue/refresh; the sweep keys off this
   refreshedAt        DateTime  @default(now())
   lastRefreshError   String?

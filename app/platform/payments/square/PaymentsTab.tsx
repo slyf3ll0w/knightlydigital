@@ -107,16 +107,17 @@ export default async function PaymentsTab({
                   <span></span>
                 </div>
                 {payments.map((p) => (
-                  <Link
+                  <div
                     key={p.id}
-                    prefetch={false}
-                    href={`/app/invoices/${p.invoiceId}`}
-                    className="flex lg:grid lg:grid-cols-[110px_1fr_90px_130px_90px_110px_56px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                    className="relative flex lg:grid lg:grid-cols-[110px_1fr_90px_130px_90px_110px_56px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
                   >
+                    {/* The whole row opens the invoice (stretched link); the actions at the end sit above it. */}
                     <span className="text-sm text-gray-500 w-20 lg:w-auto shrink-0">{shortDate(p.paidAt, tz)}</span>
                     <div className="flex-1 lg:flex-none min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">
-                        {p.contact ? `${p.contact.firstName} ${p.contact.lastName}` : "—"}
+                        <Link prefetch={false} href={`/app/invoices/${p.invoiceId}`} className="after:absolute after:inset-0 after:content-['']">
+                          {p.contact ? `${p.contact.firstName} ${p.contact.lastName}` : "—"}
+                        </Link>
                       </p>
                       <p className="text-xs text-gray-500 truncate">
                         Invoice #{p.invoice?.invoiceNumber}
@@ -128,13 +129,23 @@ export default async function PaymentsTab({
                     {stamp(p.processorRef)}
                     <span className="numeral-ledger hidden lg:block text-sm text-gray-500 text-right">{feeOf(p.processorRef, p.feeCents)}</span>
                     <span className="numeral-ledger text-sm font-semibold text-gray-900 text-right">{money(Number(p.amount))}</span>
-                    <span className="flex shrink-0 items-center justify-end gap-0.5">
+                    <span className="relative z-10 flex shrink-0 items-center justify-end gap-0.5">
                       {manager && isOnlinePayment(p.processorRef) && Number(p.amount) > 0 && (
                         <RefundAction paymentId={p.id} amount={Number(p.amount)} />
                       )}
+                      {p.processorRef && win.byId.has(p.processorRef) && (
+                        <Link
+                          prefetch={false}
+                          href={`/app/payments?payment=${encodeURIComponent(p.processorRef)}`}
+                          className="text-xs font-medium text-gray-500 hover:text-gray-700 px-1"
+                          title="Square's detail: fee, receipt, refunds"
+                        >
+                          Details
+                        </Link>
+                      )}
                       <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
                     </span>
-                  </Link>
+                  </div>
                 ))}
               </div>
               <div className="flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5 lg:grid lg:grid-cols-[110px_1fr_90px_130px_90px_110px_56px]">
@@ -204,7 +215,9 @@ export default async function PaymentsTab({
                       <span className="text-sm text-gray-500 w-20 lg:w-auto shrink-0">{shortDate(p.createdAt, tz)}</span>
                       <div className="flex-1 lg:flex-none min-w-0">
                         <p className="flex items-center gap-2 text-sm font-medium text-gray-900 truncate">
-                          {squareProductLabel(p.squareProduct)}
+                          <Link prefetch={false} href={`/app/payments?payment=${encodeURIComponent(p.id)}`} className="hover:underline" title="Items, fee, receipt">
+                            {squareProductLabel(p.squareProduct)}
+                          </Link>
                           <Chip tone="secondary">Outside WorkBench</Chip>
                         </p>
                         <p className="text-xs text-gray-500 truncate">

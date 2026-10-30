@@ -16,6 +16,8 @@ import { money } from "@/lib/statuses";
 import { invoiceBalance } from "@/lib/payments";
 import { arrivalTimeLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import ResendContractButton from "./ResendContractButton";
+import RewardsCard from "./RewardsCard";
+import { Suspense } from "react";
 import { hubFormWords } from "@/lib/hub-form";
 
 export default async function HubHomePage({
@@ -197,6 +199,11 @@ export default async function HubHomePage({
           </div>
         </div>
       )}
+
+      {/* Rewards — only for a business with an active Square Loyalty program (reads Square; streamed) */}
+      <Suspense fallback={null}>
+        <RewardsCard token={token} />
+      </Suspense>
 
       {/* Agreements — signing happens via the emailed link, never inline here */}
       {contact.contracts.length > 0 && (
