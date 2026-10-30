@@ -177,9 +177,15 @@ test.describe("card charges (Square sandbox)", () => {
     });
     expect(sub.firstBill).toBe("charged");
 
-    const invoice = await db().invoice.findFirst({ where: { subscriptionId: sub.id } });
+    const invoice = await db().invoice.findFirst({ where: { subscriptionId: sub.id }, include: { payments: true } });
     expect(invoice!.status).toBe("PAID");
     const dbSub = await db().subscription.findUnique({ where: { id: sub.id } });
     expect(dbSub!.anchoredAt).not.toBeNull();
+    // Company A's 3% service fee rides the card-on-file charge too (2026-10-30):
+    // $12.34 principal + $0.37 surcharge = $12.71 on the card, itemized.
+    expect(invoice!.payments).toHaveLength(1);
+    expect(Number(invoice!.payments[0].amount)).toBeCloseTo(12.71, 2);
+    expect(Number(invoice!.payments[0].surchargeAmount)).toBeCloseTo(0.37, 2);
+    expect(Number(invoice!.surcharge)).toBeCloseTo(0.37, 2);
   });
 });

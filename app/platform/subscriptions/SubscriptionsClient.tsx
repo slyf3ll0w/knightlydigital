@@ -103,12 +103,15 @@ export default function SubscriptionsClient({
   readyJobs = [],
   team,
   canManage,
+  surchargePct = null,
 }: {
   initialSubs: Sub[];
   /** Completed per-visit-series work nothing has invoiced yet. */
   readyJobs?: ReadyJob[];
   team: { id: string; name: string }[];
   canManage: boolean;
+  /** The company's card surcharge (percent) when its Service fee switch is on — autopay charges carry it. */
+  surchargePct?: number | null;
 }) {
   const router = useRouter();
   const [subs, setSubs] = useState<Sub[]>(initialSubs);
@@ -335,7 +338,10 @@ export default function SubscriptionsClient({
                   Ready to bill{" "}
                   <span className="numeral-ledger">{money(readyTotal)}</span>
                 </span>
-                <InfoTip>One invoice per series, charged to the card on file.</InfoTip>
+                <InfoTip>
+                  One invoice per series, charged to the card on file.
+                  {surchargePct ? ` Your ${surchargePct}% card surcharge is added to each card charge, like on the pay page.` : ""}
+                </InfoTip>
               </p>
               <p className="text-xs text-[color:var(--ds-muted)]">
                 {readyJobs.length} completed visit{readyJobs.length === 1 ? "" : "s"} ·{" "}
@@ -465,7 +471,10 @@ export default function SubscriptionsClient({
                           )}
                           {s.contact.savedCards.length > 0 && (
                             <div className="col-span-2">
-                              <label className="block text-xs text-gray-500 mb-0.5">Autopay card</label>
+                              <label className="block text-xs text-gray-500 mb-0.5">
+                                Autopay card
+                                {surchargePct ? ` · charged with your ${surchargePct}% card surcharge` : ""}
+                              </label>
                               <select
                                 value={editForm.savedCardId}
                                 onChange={(e) =>

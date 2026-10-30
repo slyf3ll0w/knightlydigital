@@ -32,6 +32,13 @@ type Sheet =
 
 const monthLabel = (cents: number) => `${formatCents(cents)}/mo`;
 
+/** "plus a 3.5% card fee ($1.23)" — the biller's card surcharge on one charge, or "" when WorkBench absorbs it. */
+function cardFeeNote(rate: number | null, cents: number): string {
+  if (!rate || cents <= 0) return "";
+  const fee = Math.round(cents * rate);
+  return ` plus a ${(rate * 100).toFixed(1).replace(/\.0$/, "")}% card fee (${formatCents(fee)})`;
+}
+
 function perTerm(plan: PlanCardState, cadence: BillingCadence): string {
   return cadence === "ANNUAL" ? `${formatCents(plan.annualCents)}/yr` : monthLabel(plan.monthlyCents);
 }
@@ -227,7 +234,7 @@ export default function PlansClient({ initial, isOwner }: { initial: PlanBilling
           )}
         </div>
         <p className="ds-small mt-2">
-          Billed by WorkBench. Invoices, receipts and this card are on{" "}
+          Billed by WorkBench{s.cardFeeRate ? `, plus a ${(s.cardFeeRate * 100).toFixed(1).replace(/\.0$/, "")}% card fee on each charge` : ""}. Invoices, receipts and this card are on{" "}
           {s.hubUrl ? (
             <a href={s.hubUrl} className="ds-link" target="_blank" rel="noreferrer">
               your billing page
@@ -414,7 +421,8 @@ function ActionSheet({
     const swap = plan.subscription?.entitled;
     title = swap ? `Switch ${plan.name} to ${cadence === "ANNUAL" ? "annual" : "monthly"}` : `Add ${plan.name}`;
     const setup = state.setupFee.due && (plan.product === "DISPATCH" || plan.product === "FULL_SHOP");
-    summary = `${perTerm(plan, cadence)}${setup ? ` plus a one-time ${formatCents(state.setupFee.cents)} setup for your phone number` : ""}. ${
+    const termCents = cadence === "ANNUAL" ? plan.annualCents : plan.monthlyCents;
+    summary = `${perTerm(plan, cadence)}${cardFeeNote(state.cardFeeRate, termCents)}${setup ? ` plus a one-time ${formatCents(state.setupFee.cents)} setup for your phone number` : ""}. ${
       swap ? "The new term starts today; what you already paid for runs out on its own." : "Starts today; cancel any time and it runs to the end of what you paid for."
     }`;
     cta = swap ? "Switch" : `Start ${plan.name}`;
@@ -423,15 +431,17 @@ function ActionSheet({
     done = swap ? `${plan.name} switched` : `${plan.name} is on`;
   } else if (sheet?.kind === "seat") {
     title = "Add a person";
-    summary = `${monthLabel(state.seats.priceCents)} per extra person, billed monthly. You can remove it any time.`;
+    summary = `${monthLabel(state.seats.priceCents)} per extra person${cardFeeNote(state.cardFeeRate, state.seats.priceCents)}, billed monthly. You can remove it any time.`;
     cta = "Add a person";
     action = "seat-add";
     done = "Added a person";
   } else if (sheet?.kind === "card") {
     title = state.card ? "Replace your card" : "Add a card";
-    summary = state.card
-      ? `Every plan moves to the new card; ${state.card.brand ?? "the old card"} •••• ${state.card.last4 ?? ""} is removed.`
-      : "The card every plan is charged to.";
+    const feeLine = state.cardFeeRate ? ` Card charges carry a ${(state.cardFeeRate * 100).toFixed(1).replace(/\.0$/, "")}% card fee, itemized on each invoice.` : "";
+    summary =
+      (state.card
+        ? `Every plan moves to the new card; ${state.card.brand ?? "the old card"} •••• ${state.card.last4 ?? ""} is removed.`
+        : "The card every plan is charged to.") + feeLine;
     cta = "Save card";
     action = "card";
     done = "Card saved";

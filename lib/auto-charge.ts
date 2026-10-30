@@ -6,7 +6,11 @@ import { reportError } from "@/lib/report-error";
  * The flow: `attemptAutoCharge` resolves which card to charge — the series'
  * pinned card (Subscription.savedCardId), else the contact's default
  * SavedCard, else the legacy Contact.processorCustomerRef mirror — and runs
- * the charge. A failure is classified hard vs soft from the processor's
+ * the charge for the balance plus the company's card surcharge when its
+ * Service fee switch is on (`cardOnFileCharge`, 2026-10-30: the fee the
+ * client would pay for that card on the pay page, disclosed where the card
+ * was saved; before this, autopay charged the bare balance and the business
+ * ate Square's fee). A failure is classified hard vs soft from the processor's
  * decline code: soft declines (insufficient funds, do-not-honor, issuer
  * hiccups) are retried by the hourly cron on a +1d / +3d / +7d schedule
  * (max 4 attempts total, far under the card networks' retry caps); hard
@@ -34,7 +38,7 @@ import { defaultSavedCard } from "@/lib/saved-cards";
 import { logActivity } from "@/lib/activity";
 import { notifyUsers } from "@/lib/push";
 import { sendEmail, autopayFailedEmail, cardExpiringEmail } from "@/lib/email";
-import { classifyDecline, MAX_AUTO_CHARGE_ATTEMPTS, nextRetryAt } from "@/lib/autopay-rules";
+import { cardOnFileCharge, classifyDecline, MAX_AUTO_CHARGE_ATTEMPTS, nextRetryAt } from "@/lib/autopay-rules";
 import { fireAutomations } from "@/lib/automations-server";
 
 // Policy (decline classification, retry schedule) is lib/autopay-rules.ts —
@@ -80,9 +84,18 @@ export async function attemptAutoCharge(params: {
       name: true,
       savedCard: { select: { id: true, instrumentRef: true, label: true, contactId: true } },
       contact: { select: { id: true, processorCustomerRef: true, savedCardLabel: true } },
+      // The company's Service fee switch: a card on file pays the same card
+      // surcharge the client would on the pay page (disclosed when the card
+      // was saved — pay page, hub, the Plans page).
+      company: { select: { surchargeEnabled: true, surchargeRate: true } },
     },
   });
   if (!sub) return "no_card";
+  const fee = cardOnFileCharge({
+    amount: params.amount,
+    surchargeEnabled: sub.company.surchargeEnabled,
+    surchargeRate: sub.company.surchargeRate == null ? null : Number(sub.company.surchargeRate),
+  });
 
   // Pinned card → default card → legacy mirror. A pinned card that was
   // deleted SetNulls back to the default automatically.
@@ -108,7 +121,8 @@ export async function attemptAutoCharge(params: {
     });
     const result = await processor.chargeStored({
       customerRef: instrumentRef,
-      amount: params.amount,
+      amount: fee.total,
+      surcharge: fee.surcharge > 0 ? fee.surcharge : undefined,
       description: params.chargeDescription,
       metadata: {
         invoiceId: params.invoiceId,
@@ -121,14 +135,25 @@ export async function attemptAutoCharge(params: {
       await recordPayment({
         companyId: params.companyId,
         invoiceId: params.invoiceId,
-        amount: params.amount,
+        amount: fee.total,
         method: "CARD",
         processorRef: result.transactionId,
+        surchargeAmount: fee.surcharge > 0 ? fee.surcharge : null,
         cardBrand: result.cardBrand,
         cardType: result.cardType,
         details: `${params.paymentDetails}${cardLabel ? ` (${cardLabel})` : ""}`,
         receiptPending: result.pending,
       });
+      if (fee.surcharge > 0) {
+        // Same bookkeeping as the pay page: Invoice.surcharge mirrors the sum
+        // of its payments' surcharges (QuickBooks posts it as its own income
+        // line). Read-then-write is safe — the charge lock keeps writers serial.
+        const cur = await prisma.invoice.findUnique({ where: { id: params.invoiceId }, select: { surcharge: true } });
+        await prisma.invoice.update({
+          where: { id: params.invoiceId },
+          data: { surcharge: Math.round((Number(cur?.surcharge ?? 0) + fee.surcharge) * 100) / 100 },
+        });
+      }
       await prisma.invoice.update({
         where: { id: params.invoiceId },
         data: { autoChargeNextAt: null, autoChargeGaveUpAt: null, autoChargeLastError: null },
@@ -151,7 +176,7 @@ export async function attemptAutoCharge(params: {
     await handleAutoChargeFailure({
       companyId: params.companyId,
       invoiceId: params.invoiceId,
-      amount: params.amount,
+      amount: fee.total, // what the card was actually asked for
       cardLabel,
       error: result.error,
       code: result.code,

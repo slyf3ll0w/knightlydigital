@@ -526,7 +526,12 @@ export default function PayPage({
               {method === "CARD" && fieldsReady && (
                 <label className="mt-3 flex cursor-pointer select-none items-start gap-2 c-small">
                   <input type="checkbox" className="c-check" checked={saveCard} onChange={(e) => setSaveCard(e.target.checked)} />
-                  <span>Keep this card on file with {company.name} for faster payments next time. You can remove it anytime.</span>
+                  <span>
+                    Keep this card on file with {company.name} for faster payments next time. You can remove it anytime.
+                    {company.surchargeEnabled && surchargeRate > 0 && (
+                      <> Charges to a card on file, including automatic plan payments, carry the same {(surchargeRate * 100).toFixed(1)}% card surcharge.</>
+                    )}
+                  </span>
                 </label>
               )}
             </div>

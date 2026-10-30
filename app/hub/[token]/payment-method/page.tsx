@@ -28,12 +28,20 @@ export default async function HubPaymentMethodPage({
           name: true,
           brandColorSecondary: true,
           brandColor: true,
+          surchargeEnabled: true,
+          surchargeRate: true,
           ...PAY_CONFIG_SELECT,
         },
       },
     },
   });
   if (!contact) notFound();
+  // Disclosed where the card is saved: a card on file pays the company's
+  // card surcharge on automatic charges, same as on the pay page.
+  const surchargePct =
+    contact.company.surchargeEnabled && contact.company.surchargeRate != null && Number(contact.company.surchargeRate) > 0
+      ? (Number(contact.company.surchargeRate) * 100).toFixed(1)
+      : null;
 
   // Same gate as the pay page: tokenization only works when this company can
   // charge online (lib/payments-gate.ts canChargeOnline).
@@ -48,6 +56,7 @@ export default async function HubPaymentMethodPage({
         Cards on file let {contact.company.name} charge agreed work without
         chasing you for payment. Your default card is used unless you say
         otherwise — and you can remove any card anytime.
+        {surchargePct && <> Card charges carry a {surchargePct}% card surcharge, shown on each receipt.</>}
       </p>
       <SavedCardManager
         token={token}

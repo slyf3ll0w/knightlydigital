@@ -1269,6 +1269,7 @@ export function paymentReceiptEmail({
   contactFirstName,
   invoiceNumber,
   amount,
+  surcharge = 0,
   methodLabel,
   remainingBalance,
   payUrl,
@@ -1279,6 +1280,8 @@ export function paymentReceiptEmail({
   contactFirstName?: string | null;
   invoiceNumber: number;
   amount: number;
+  /** The card surcharge included in `amount` (0 = none) — shown as its own line. */
+  surcharge?: number;
   methodLabel: string;
   remainingBalance: number;
   payUrl: string;
@@ -1298,6 +1301,7 @@ export function paymentReceiptEmail({
       ${p(lead)}
       ${facts([
         { label: pending ? "Processing" : "Paid", value: usd(amount) },
+        ...(surcharge > 0 ? [{ label: "Includes card surcharge", value: usd(surcharge) }] : []),
         { label: "Method", value: esc(methodLabel) },
         ...(remainingBalance > 0 ? [{ label: "Still owed", value: usd(remainingBalance) }] : []),
       ])}
