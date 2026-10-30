@@ -28,6 +28,7 @@ import {
   MonitorSmartphone,
   Phone,
   PhoneCall,
+  Gift,
   RefreshCw,
   Search,
   Tags,
@@ -40,6 +41,7 @@ import {
 } from "lucide-react";
 import {
   ADDON_LINK,
+  GIFT_CARDS_LINK,
   QUICKBOOKS_LINK,
   SETTINGS_LINK_GROUPS,
   SETTINGS_SECTIONS,
@@ -76,6 +78,8 @@ import {
 } from "@/lib/section-colors";
 
 type Company = {
+  /** Test account (Company.isTest): doors still being finished (Website) show only for these. */
+  isTest?: boolean;
   id: string; name: string; legalName: string | null; showLegalNameOnDocs: boolean; slug: string; phone: string | null;
   email: string | null; notifyEmail?: string | null; notifyEmailOff?: boolean; address: string | null; city: string | null;
   state: string | null; zip: string | null; website: string | null;
@@ -267,6 +271,7 @@ const LINK_ICONS: Record<SettingsLink["icon"], LucideIcon> = {
   RefreshCw,
   Sparkles,
   MonitorSmartphone,
+  Gift,
 };
 
 /** Desktop rail entry for a standalone page. */
@@ -1195,7 +1200,10 @@ export default function SettingsClient({
   const nq = navQ.trim().toLowerCase();
   const navMatch = (label: string, sub?: string) => !nq || label.toLowerCase().includes(nq) || (sub ?? "").toLowerCase().includes(nq);
   const railSections = SETTINGS_SECTIONS.filter((s) => navMatch(s.label, s.sub));
-  const railGroups = SETTINGS_LINK_GROUPS.map((g) => ({ ...g, links: g.links.filter((l) => navMatch(l.label, l.sub)) })).filter((g) => g.links.length > 0);
+  // Test-only doors (Website, while the studio feature is unfinished — 2026-10-30) show for test accounts only.
+  const visibleLink = (l: SettingsLink) => !l.testOnly || Boolean(company.isTest);
+  const indexGroups = SETTINGS_LINK_GROUPS.map((g) => ({ ...g, links: g.links.filter(visibleLink) })).filter((g) => g.links.length > 0);
+  const railGroups = SETTINGS_LINK_GROUPS.map((g) => ({ ...g, links: g.links.filter((l) => visibleLink(l) && navMatch(l.label, l.sub)) })).filter((g) => g.links.length > 0);
   const activeSection = SETTINGS_SECTIONS.find((s) => s.key === active);
   const ActiveIcon = activeSection ? SECTION_ICONS[activeSection.icon] : Building2;
   const show = (s: SectionId) => active === s;
@@ -1667,7 +1675,7 @@ export default function SettingsClient({
                 );
               })}
             </div>
-            {SETTINGS_LINK_GROUPS.map((g) => (
+            {indexGroups.map((g) => (
               <div key={g.key}>
                 <p className="ds-label mb-2 px-1">{g.label}</p>
                 <div className="ds-card ds-divide overflow-hidden">
@@ -2406,10 +2414,13 @@ export default function SettingsClient({
         </div>
         )}
 
-        {/* Accounting — QuickBooks Online lives on its own page */}
+        {/* Accounting — QuickBooks Online lives on its own page. Gift cards
+            (Square, rarely visited) moved here from the Payments page's tab
+            bar on 2026-10-30. */}
         {show("payments") && (
-        <div className="ds-card overflow-hidden">
+        <div className="ds-card ds-divide overflow-hidden">
           <LinkRow link={QUICKBOOKS_LINK} />
+          <LinkRow link={GIFT_CARDS_LINK} />
         </div>
         )}
 

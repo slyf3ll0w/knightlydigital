@@ -4,7 +4,7 @@ import { money } from "@/lib/statuses";
 import { startOfMonthIn, zonedParts } from "@/lib/timezone";
 import { buildPaymentsReport, isReportPeriod, lastPeriods, REPORT_PERIOD_COUNT, summarize, type ReportPeriod } from "@/lib/payments-reports";
 import { listSquareDisputes, listSquarePayouts, UNRESOLVED_DISPUTE_STATES, type SellerDispute, type SellerPayout, type SellerReadFailure } from "@/lib/square-seller-reports";
-import { ReconnectCard, SquareLinkRows, SquareTabs, parseSquareTab, RuledLabel } from "./bits";
+import { GiftCardsRow, ReconnectCard, SquareLinkRows, SquareTabs, parseSquareTab, RuledLabel } from "./bits";
 import { loadReportRows, loadSquareWindow } from "./data";
 import PaymentsTab from "./PaymentsTab";
 import PayoutsTab from "./PayoutsTab";
@@ -39,7 +39,7 @@ export default async function SquarePayments({
   /** Scopes the stored grant lacks (SquareStatus.missingScopes). */
   missingScopes: string[];
   isOwner: boolean;
-  params: { tab?: string; page?: string; payout?: string; dispute?: string; period?: string; payment?: string; giftcard?: string; cursor?: string };
+  params: { tab?: string; page?: string; payout?: string; dispute?: string; period?: string; payment?: string; giftcard?: string; cursor?: string; all?: string };
 }) {
   const companyId = actor.companyId;
   const tab = parseSquareTab(params.tab);
@@ -159,6 +159,7 @@ export default async function SquarePayments({
   } else if (tab === "giftcards") {
     body = (
       <GiftCardsTab
+        showAll={params.all === "1"}
         companyId={companyId}
         tz={tz}
         giftCardId={params.giftcard ?? null}
@@ -182,7 +183,10 @@ export default async function SquarePayments({
         <ReconnectCard what={whatIsMissing.join(", ") || "everything Square reports"} canReconnect={isOwner} />
       )}
       <KpiStrip desktopCols={4} kpis={kpis} />
-      <SquareTabs tab={tab} openDisputes={openDisputes} />
+      {/* Gift cards left the bar on 2026-10-30 (rarely visited): reached from
+          the row below and Settings → Payments & accounting; GiftCardsTab
+          draws its own way back. */}
+      {tab !== "giftcards" && <SquareTabs tab={tab} openDisputes={openDisputes} />}
       {body}
       {tab === "payments" && !params.payment && (
         <div className="mb-8">
@@ -195,6 +199,14 @@ export default async function SquarePayments({
               { screen: "transactions", title: "Transactions in Square", sub: "Square's own list — tap any payment here for the same detail" },
             ]}
           />
+        </div>
+      )}
+      {tab === "payments" && !params.payment && (
+        <div className="mb-8">
+          <RuledLabel info="Gift cards sold and redeemed through WorkBench on your Square account. Rarely needed, so the door lives here and under Settings → Payments & accounting rather than on the tab bar.">
+            Gift cards
+          </RuledLabel>
+          <GiftCardsRow />
         </div>
       )}
     </>

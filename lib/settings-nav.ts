@@ -92,7 +92,9 @@ export type SettingsLink = {
   /** lib/section-colors SECTION_HUES key */
   hueKey: "services" | "contracts" | "clients" | "leads" | "forms" | "team" | "business" | "payments";
   /** lucide-react icon name */
-  icon: "Package" | "FileSignature" | "Tags" | "Filter" | "Globe" | "Users" | "Upload" | "UserRound" | "RefreshCw" | "Sparkles" | "MonitorSmartphone";
+  icon: "Package" | "FileSignature" | "Tags" | "Filter" | "Globe" | "Users" | "Upload" | "UserRound" | "RefreshCw" | "Sparkles" | "MonitorSmartphone" | "Gift";
+  /** Test accounts only (Company.isTest) while the page is unfinished. */
+  testOnly?: boolean;
 };
 
 export type SettingsLinkGroup = { key: string; label: string; links: readonly SettingsLink[] };
@@ -130,6 +132,8 @@ export const SETTINGS_LINK_GROUPS: readonly SettingsLinkGroup[] = [
         sub: "A site built for your business by the studio — brief, photos, status",
         hueKey: "business",
         icon: "MonitorSmartphone",
+        // Not finished yet: live accounts don't see the door (2026-10-30).
+        testOnly: true,
       },
       {
         href: "/app/settings/client-fields",
@@ -189,6 +193,19 @@ export const QUICKBOOKS_LINK: SettingsLink = {
   sub: "Sync clients, invoices, and payments automatically",
   hueKey: "payments",
   icon: "RefreshCw",
+};
+
+/**
+ * Gift cards (Square, run from WorkBench). Rarely visited, so the door lives
+ * here under Payments & accounting (and as a row on the Payments page)
+ * rather than on the Payments tab bar (2026-10-30 request).
+ */
+export const GIFT_CARDS_LINK: SettingsLink = {
+  href: "/app/payments?tab=giftcards",
+  label: "Gift cards",
+  sub: "Sell a card, check a balance, every card on your Square account",
+  hueKey: "payments",
+  icon: "Gift",
 };
 
 /**

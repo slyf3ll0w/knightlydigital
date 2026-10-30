@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Grid3x3, Mic, MicOff, Pause, Phone, PhoneIncoming, PhoneMissed, PhoneOff, PhoneOutgoing, Play, StickyNote, UserPlus, Voicemail, Volume2, X, type LucideIcon } from "lucide-react";
@@ -224,6 +225,11 @@ export default function CallScreenLive({
   const wasLive = useRef(false);
   /** The browser call on this screen just ended; the row still says RINGING/IN_PROGRESS until its webhook lands. */
   const [ended, setEnded] = useState(false);
+  // The call card scrolled out of view — a long page, or the keyboard up on
+  // a phone while saving the caller — so a slim bar pinned to the top keeps
+  // End and Mute within reach (2026-10-30 report: "End is off the screen").
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [cardOff, setCardOff] = useState(false);
 
   const rowLive = LIVE.has(row.status);
 
@@ -286,6 +292,19 @@ export default function CallScreenLive({
     const t = setTimeout(() => setConfirmEnd(false), 4000);
     return () => clearTimeout(t);
   }, [confirmEnd]);
+
+  // Watch the card while this tab is on the call (not while it rings).
+  const pinnable = Boolean(live) && live?.state !== "ringing";
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!pinnable || !el || typeof IntersectionObserver === "undefined") {
+      setCardOff(false);
+      return;
+    }
+    const io = new IntersectionObserver(([entry]) => setCardOff(!entry.isIntersecting), { threshold: 0.15 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [pinnable]);
 
   useEffect(() => {
     if (!peopleError) return;
@@ -458,7 +477,41 @@ export default function CallScreenLive({
   const showStrip = (live && !ringing && !dialing) || (!live && !ended && row.status === "IN_PROGRESS");
 
   return (
-    <div className="ds-card mt-3 px-5 pb-6 pt-8 text-center sm:px-8">
+    <div ref={cardRef} className="ds-card mt-3 px-5 pb-6 pt-8 text-center sm:px-8">
+      {live && !ringing && cardOff && typeof document !== "undefined" &&
+        createPortal(
+          <div
+            role="status"
+            aria-label="On a call"
+            className="fixed inset-x-0 z-[70] flex items-center gap-3 border-b border-[color:var(--ds-line)] bg-[color:var(--ds-surface)] px-4 py-2 shadow-sm"
+            style={{ top: "env(safe-area-inset-top, 0px)" }}
+          >
+            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${held ? "bg-[color:var(--ds-warn)]" : "animate-pulse bg-[color:var(--ds-good)]"}`} aria-hidden />
+            <span className="min-w-0 flex-1 truncate text-sm font-medium text-[color:var(--ds-ink)]">
+              {label}
+              <span className="numeral-ledger ml-2 tabular-nums text-[color:var(--ds-muted)]">{dialing ? "Calling…" : held ? "On hold" : fmtElapsed(live.startedAt, now)}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => softphone.toggleMute()}
+              disabled={dialing}
+              aria-pressed={live.muted}
+              aria-label={live.muted ? "Unmute" : "Mute"}
+              className={`flex h-9 w-9 items-center justify-center rounded-full ${live.muted ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-800"}`}
+            >
+              {live.muted ? <MicOff size={16} /> : <Mic size={16} />}
+            </button>
+            <button
+              type="button"
+              onClick={() => (leaveMode && !dialing ? void leave() : softphone.hangup())}
+              aria-label={dialing ? "Cancel" : leaveMode ? "Leave" : "End"}
+              className="flex h-9 items-center gap-1.5 rounded-full bg-[color:var(--ds-bad)] px-3.5 text-sm font-semibold text-white active:scale-95"
+            >
+              <PhoneOff size={15} /> {dialing ? "Cancel" : leaveMode ? "Leave" : "End"}
+            </button>
+          </div>,
+          document.body
+        )}
       {face}
       <h1 className="mt-4 truncate text-[26px] font-semibold leading-tight text-gray-900">
         {contactId ? (

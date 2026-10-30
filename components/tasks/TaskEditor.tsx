@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, Flag, Link2, MapPin, Trash2, X } from "lucide-react";
+import { Bell, Flag, Link2, MapPin, Search, Trash2, UserRound, X } from "lucide-react";
 import Modal from "@/components/Modal";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import type { PlaceDTO } from "@/lib/places-shared";
@@ -66,6 +66,10 @@ export default function TaskEditor({
   const [high, setHigh] = useState(false);
   const [assignees, setAssignees] = useState<string[]>([meId]);
   const [links, setLinks] = useState<TaskLink[]>([]);
+  // "Link a client" open: a name search that attaches the task to a client
+  // or lead (2026-10-30 request). Pages that open the editor with a client
+  // (contact, job, call screens) arrive with the link already in `links`.
+  const [linking, setLinking] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   // Where (optional): a saved place or a typed address makes the task a
   // stop on the route for its due day; "how long" is the stop's length
@@ -121,6 +125,7 @@ export default function TaskEditor({
     setHigh(init.high);
     setAssignees(init.assignees);
     setLinks(init.links);
+    setLinking(false);
     setShowNotes(Boolean(init.notes));
     setPlaceId(task?.placeId ?? "");
     setAddress(task?.address ?? "");
@@ -212,7 +217,7 @@ export default function TaskEditor({
       placeId: showWhere && placeId ? placeId : null,
       address: showWhere ? (placeId ? places?.find((p) => p.id === placeId)?.address ?? address.trim() : address.trim()) || null : null,
       estimatedMinutes: showWhere && minutes !== "" ? minutes : null,
-      ...(isNew ? linkIds(prefill?.links ?? links) : linkIds(links)),
+      ...linkIds(links),
       ...(isNew ? { assigneeIds: assignees } : canAssign ? { assigneeId: assignees[0] } : {}),
     };
     const res = isNew
@@ -259,6 +264,7 @@ export default function TaskEditor({
   };
 
   const labelCls = "mb-1 block text-xs font-medium text-[color:var(--ds-ink-2)]";
+  const hasClient = links.some((l) => l.kind === "contact");
 
   return (
     <Modal open={open} onClose={() => void requestClose()} size="md" dismissible={!busy}>
@@ -531,9 +537,8 @@ export default function TaskEditor({
           </div>
         )}
 
-        {links.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Link2 size={13} className="text-[color:var(--ds-muted)]" aria-hidden />
+        <div className="flex flex-wrap items-center gap-1.5">
+            {links.length > 0 && <Link2 size={13} className="text-[color:var(--ds-muted)]" aria-hidden />}
             {links.map((l) => (
               <span
                 key={`${l.kind}-${l.id}`}
@@ -550,7 +555,25 @@ export default function TaskEditor({
                 </button>
               </span>
             ))}
-          </div>
+            {!hasClient && !linking && (
+              <button
+                type="button"
+                onClick={() => setLinking(true)}
+                className="inline-flex items-center gap-1 text-[13px] font-medium text-[color:var(--ds-primary)] hover:underline"
+              >
+                <UserRound size={13} aria-hidden />
+                Link a client
+              </button>
+            )}
+        </div>
+        {linking && (
+          <ClientLinkSearch
+            onCancel={() => setLinking(false)}
+            onPick={(hit) => {
+              setLinks((cur) => [...cur.filter((l) => l.kind !== "contact"), { kind: "contact", id: hit.id, label: hit.label, href: `/app/contacts/${hit.id}` }]);
+              setLinking(false);
+            }}
+          />
         )}
 
         {error && (
@@ -584,5 +607,93 @@ export default function TaskEditor({
         </div>
       </form>
     </Modal>
+  );
+}
+
+/* ───────────────── Link a client ───────────────── */
+
+type ClientHit = { id: string; label: string; sub: string };
+
+/** Type a name, pick the client or lead the task is about — the header's search, clients only. */
+function ClientLinkSearch({ onPick, onCancel }: { onPick: (hit: ClientHit) => void; onCancel: () => void }) {
+  const [q, setQ] = useState("");
+  const [hits, setHits] = useState<ClientHit[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 2) {
+      setHits([]);
+      return;
+    }
+    let stale = false;
+    setSearching(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/app/search?q=${encodeURIComponent(term)}`, { cache: "no-store" });
+        const j = (await res.json()) as { results?: Array<{ href: string; label: string; sub?: string; group: string }> };
+        if (stale) return;
+        setHits(
+          (j.results ?? [])
+            .filter((r) => r.group === "Clients")
+            .map((r) => ({ id: r.href.split("/").pop() ?? "", label: r.label, sub: r.sub ?? "" }))
+            .filter((r) => r.id)
+        );
+      } catch {
+        if (!stale) setHits([]);
+      } finally {
+        if (!stale) setSearching(false);
+      }
+    }, 200);
+    return () => {
+      stale = true;
+      clearTimeout(t);
+    };
+  }, [q]);
+
+  return (
+    <div>
+      <div className="relative">
+        <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--ds-muted)]" aria-hidden />
+        <input
+          autoFocus
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search your clients and leads"
+          aria-label="Client"
+          autoComplete="off"
+          className={`${inputCls} pl-9 pr-9`}
+        />
+        <button
+          type="button"
+          onClick={onCancel}
+          aria-label="Cancel"
+          className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-[color:var(--ds-muted)] hover:bg-[color:var(--ds-surface-2)]"
+        >
+          <X size={14} />
+        </button>
+      </div>
+      {q.trim().length >= 2 && (
+        <ul className="mt-2 max-h-48 overflow-y-auto rounded-[12px] border border-[color:var(--ds-line)]">
+          {hits.map((h) => (
+            <li key={h.id}>
+              <button
+                type="button"
+                onClick={() => onPick(h)}
+                className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm hover:bg-[color:var(--ds-surface-2)]"
+              >
+                <span className="min-w-0 flex-1 truncate">
+                  <span className="font-medium text-[color:var(--ds-ink)]">{h.label}</span>
+                  {h.sub && <span className="text-[color:var(--ds-muted)]"> · {h.sub}</span>}
+                </span>
+              </button>
+            </li>
+          ))}
+          {hits.length === 0 && (
+            <li className="px-3 py-2 text-sm text-[color:var(--ds-muted)]">{searching ? "Searching…" : "Nobody by that name."}</li>
+          )}
+        </ul>
+      )}
+    </div>
   );
 }

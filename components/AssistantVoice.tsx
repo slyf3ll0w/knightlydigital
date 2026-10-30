@@ -198,7 +198,9 @@ export default function AssistantVoice({
   const onLiveStatus = useCallback((s: LiveStatus, detail?: string) => {
     if (!alive.current) return;
     if (s === "connecting") {
-      setNote("Connecting…");
+      // "reconnecting" = the socket dropped mid-conversation and the live
+      // client is resuming the same session (lib/live-voice-client.ts).
+      setNote(detail === "reconnecting" ? "Reconnecting…" : "Connecting…");
       setPhaseBoth("thinking");
     } else if (s === "listening") {
       setNote("");

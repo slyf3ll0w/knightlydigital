@@ -217,6 +217,11 @@ export async function pushIncomingCall(
   targets: VoipTarget[]
 ): Promise<number> {
   const dead: string[] = [];
+  // One word per phone in the log line, so a call that "went straight to
+  // the cell" can be read: which device was pushed and what APNs/FCM said
+  // (2026-10-30: one of two iPhones reached, the other a sandbox token the
+  // production key can't push to — and the reached one never woke).
+  const outcomes: string[] = [];
   let reached = 0;
   await Promise.all(
     targets.flatMap((t) => {
@@ -230,10 +235,11 @@ export async function pushIncomingCall(
             : await sendVoipPush(token, payload, VOIP_WAKE_SECS);
         if (r === "ok") reached++;
         else if (r === "dead") dead.push(token);
+        outcomes.push(`${device}:${token.slice(0, 6)}=${r}`);
       });
     })
   );
   if (dead.length) await prisma.pushSubscription.deleteMany({ where: { endpoint: { in: dead } } }).catch(() => {});
-  console.info(`[voip] push call=${call.id} phones=${targets.reduce((n, t) => n + t.tokens.length, 0)} reached=${reached} dead=${dead.length}`);
+  console.info(`[voip] push call=${call.id} phones=${targets.reduce((n, t) => n + t.tokens.length, 0)} reached=${reached} dead=${dead.length} ${outcomes.join(" ")}`);
   return reached;
 }
