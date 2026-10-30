@@ -83,7 +83,7 @@ export const invoicesSection: HelpSection = {
           items: [
             "Amounts run from $1 to $25,000. For more, make a full invoice.",
             "It shows on **Invoices** as **Awaiting Payment** with the subject you typed, numbered in your normal sequence; the pay page says **Payment request** under the number.",
-            "Clients can pay part of it, like any invoice. Card surcharge, saved cards and bank (ACH) all work the same.",
+            "Clients can pay part of it, like any invoice. The card service fee, saved cards, gift cards and bank (ACH) all work the same.",
             "In the WorkBench phone app the share step also offers `Tap to Pay` when it's set up — see [Take a card in person](/help/tap-to-pay).",
           ],
         },
@@ -159,34 +159,36 @@ export const paymentsSection: HelpSection = {
     {
       slug: "payments-page",
       title: "Your Payments page: payments, payouts, disputes and reports",
-      summary: "Everything through your Square account in four tabs, including sales you took in the Square app, with a Record on an invoice button.",
-      keywords: ["payments page", "payments tab", "payouts tab", "disputes tab", "reports", "revenue report", "by tech", "by job type", "csv", "square pos", "square reader", "outside workbench", "record on an invoice", "reconnect square", "collected", "fees this month"],
+      summary: "Six tabs on your Square account — payments, payouts, disputes, reports, gift cards, loyalty — and the items behind every sale.",
+      keywords: ["payments page", "payments tab", "payouts tab", "disputes tab", "reports", "revenue report", "by tech", "by job type", "csv", "square pos", "square reader", "outside workbench", "record on an invoice", "reconnect square", "collected", "fees this month", "transaction details", "itemized", "order items", "gift cards tab", "loyalty tab", "in square"],
       where: { label: "Payments", href: "/app/payments" },
       roles: "Owners, admins and anyone who can see money",
       blocks: [
         {
           type: "p",
-          text: "With Square connected, **Payments** reads your Square account live each time it opens. Four numbers sit at the top — **Collected** and **Processing fees** this month, **On its way to your bank**, **Open disputes** — and under them four tabs: **Payments · Payouts · Disputes · Reports**. On a phone each tab is its own screen.",
+          text: "With Square connected, **Payments** reads your Square account live each time it opens. Four numbers sit at the top — **Collected** and **Processing fees** this month, **On its way to your bank**, **Open disputes** — and under them six tabs: **Payments · Payouts · Disputes · Reports · Gift cards · Loyalty**. On a phone each tab is its own screen.",
         },
         {
           type: "list",
           items: [
-            "**Payments**: every online payment WorkBench took, with its invoice, method, live Square status, fee and the ↺ refund button. Below it, **Square · outside WorkBench** lists sales your Square account took somewhere else in the last 90 days — the Square POS app, Tap to Pay in the Square app, a reader, Square Invoices or Square Online. They're already in your bank but not on an invoice here, so each has `Record on an invoice`: it opens Collect payment with the amount, date, method and Square reference filled in; pick the invoice and save.",
+            "**Payments**: every online payment WorkBench took, with its invoice, method, live Square status, fee and the ↺ refund button. Below it, **Square · outside WorkBench** lists sales your Square account took somewhere else in the last 90 days — the Square POS app, Tap to Pay in the Square app, a reader, Square Invoices or Square Online. They're already in your bank but not on an invoice here, so each has `Record on an invoice`: it opens Collect payment with the amount, date, method and Square reference filled in; pick the invoice and save. Tap any row (or `Details`) for the whole story: what the client paid, the service fee if there was one, Square's fee, refunds, what reached your balance, and the itemized sale as Square recorded it — the POS cart, the online order, the Square invoice. A WorkBench charge has no Square order; its items are on the invoice.",
             "**Payouts**: each transfer Square made to your bank — when it was sent, to which account, its status, the transfer fee and the amount. Open one for **What's in it**: every payment, refund, dispute and fee that made up that payout, with gross, fee and net. Links to **Instant transfer**, **Deposit schedule** and **Bank accounts** in Square sit at the bottom. See [When you get paid out](/help/payouts).",
             "**Disputes**: cases where a client's bank questioned a charge, with the reason, status, respond-by date and amount. Open one to upload evidence and send it to the bank, or accept it. See [Respond to a dispute](/help/disputes).",
             "**Reports**: money in for the last 12 days, weeks or months (`By day`, `By week`, `By month`) — collected, refunds, fees and net — plus **By tech** (who was on the job the invoice billed) and **By job type** (the price-book services on the job). `Download CSV` gives the table to your bookkeeper. Cash and check payments you recorded count too; sales taken outside WorkBench show under **No job**.",
+            "**Gift cards**: every gift card on your Square account with its state, balance and history, plus `Sell a gift card` and `Check a balance`. See [Sell and take Square gift cards](/help/gift-cards).",
+            "**Loyalty**: your Square Loyalty program — the earning rule, the rewards, every member and their points — with `Enroll a client`. See [Rewards with Square Loyalty](/help/loyalty-rewards).",
           ],
         },
         {
           type: "tip",
-          text: "`Export` at the top of the page still downloads every payment as a CSV, and `Collect payment` records a cash, check or other payment by hand — see [Record a cash, check or other payment](/help/record-cash-or-check).",
+          text: "`Export` at the top of the page still downloads every payment as a CSV, and `Collect payment` records a cash, check or other payment by hand — see [Record a cash, check or other payment](/help/record-cash-or-check). **In Square** at the bottom links to Square's own transactions list and to Square Online, the two things that stay in Square's dashboard.",
         },
         {
           type: "faq",
           items: [
             {
               q: "The page asks me to Reconnect Square.",
-              a: "You connected Square before WorkBench read payouts and disputes, so Square needs you to approve that once more. The owner presses `Reconnect Square` (on the Payments page or the Online Payments card in Settings) and signs in to Square as the first time. One click; payments keep working meanwhile and nothing else changes. Until then the Payouts and Disputes tabs stay empty.",
+              a: "You connected Square before WorkBench read payouts, disputes, order items, gift cards or loyalty, so Square needs you to approve the new permissions once — the card says which. The owner presses `Reconnect Square` (on the Payments page or the Online Payments card in Settings) and signs in to Square as the first time. One click; payments keep working meanwhile and nothing else changes. Until then the tabs that need it stay empty.",
             },
             {
               q: "A tab says Square didn't answer just now.",
@@ -207,20 +209,21 @@ export const paymentsSection: HelpSection = {
     {
       slug: "how-clients-pay",
       title: "How clients pay you online",
-      summary: "The pay page, card vs bank (ACH), saved cards, and the fees.",
-      keywords: ["pay page", "card", "credit card", "ach", "bank transfer", "fees", "processing fee", "saved card", "card on file", "no pay button", "square"],
+      summary: "The pay page: card, bank (ACH) or gift card, saved cards and autopay, and who pays the fee.",
+      keywords: ["pay page", "card", "credit card", "ach", "bank transfer", "fees", "processing fee", "saved card", "card on file", "no pay button", "pay button missing", "square", "gift card", "service fee", "autopay"],
       where: { label: "Payments", href: "/app/payments" },
       blocks: [
         {
           type: "p",
-          text: "Every invoice you send has a pay link. The client picks **Card** or **Bank transfer**, can tick a box to keep their card on file, and presses **Pay**. Once it goes through the invoice is stamped **Paid** right on the page.",
+          text: "Every invoice you send has a pay link. The client picks **Card**, **Bank transfer** or **Gift card**, can tick a box to keep their card on file, and presses **Pay**. Once it goes through the invoice is stamped **Paid** right on the page.",
         },
         {
           type: "list",
           items: [
-            `Card payments cost **${RATE_CARD}** and bank payments **${RATE_ACH}** when you pay the fee yourself. Or pass the card fee on as a service fee the client pays at checkout (see [Add a card service fee](/help/card-surcharging)). Fees come out on Square's side before the money reaches your bank; the **Payments** page shows Square's posted fee on each payment once Square reports it (see [Your Payments page](/help/payments-page)).`,
+            `Card payments cost **${RATE_CARD}** and bank payments **${RATE_ACH}** when you pay the fee yourself. Or have the client pay a **${FEE_CARD_PCT}** service fee on card payments instead and receive the full amount (see [Have clients pay the card fee](/help/card-surcharging)). Fees come out on Square's side before the money reaches your bank; the **Payments** page shows Square's posted fee on each payment once Square reports it (see [Your Payments page](/help/payments-page)).`,
             "Bank (ACH) payments show as **Processing** for a few business days. They can still bounce during that time, and if one does it's taken back off the invoice.",
-            "Clients can also save cards and pick a default for autopay in their client portal.",
+            "Clients can also save cards and pick a default for autopay in their client portal. With the service fee on, charges to a saved card — autopay included — carry it too; the client is told so when they save the card, and every receipt itemizes it.",
+            "A gift card pays what it holds, with no fee on it, and the rest can be paid another way — see [Sell and take Square gift cards](/help/gift-cards).",
           ],
         },
         {
@@ -260,7 +263,7 @@ export const paymentsSection: HelpSection = {
         },
         {
           type: "tip",
-          text: "Card surcharges are never added when you charge a saved card yourself. Client standing in front of you with their card? In the phone app use `Tap to Pay` instead — [Take a card in person](/help/tap-to-pay).",
+          text: "The card service fee is never added when you press `Charge card` yourself. It is added on the pay page, on `Tap to Pay` and on automatic recurring-plan charges — see [Have clients pay the card fee](/help/card-surcharging). Client standing in front of you with their card? In the phone app use `Tap to Pay` instead — [Take a card in person](/help/tap-to-pay).",
         },
       ],
     },
@@ -469,24 +472,169 @@ export const paymentsSection: HelpSection = {
       ],
     },
     {
+      slug: "gift-cards",
+      title: "Sell and take Square gift cards",
+      summary: "Sell digital gift cards from the Payments page and take them on any invoice or pay page.",
+      keywords: ["gift card", "gift cards", "gift certificate", "redeem", "check balance", "card number", "digital gift card", "square gift cards", "sell a gift card"],
+      where: { label: "Gift cards", href: "/app/payments?tab=giftcards" },
+      roles: "Owners and admins",
+      blocks: [
+        {
+          type: "p",
+          text: "Gift cards are Square's. Sold here, at the counter in the Square app or online, they're one pool with one balance each, and **Payments → Gift cards** lists every one on your account with its state and balance. WorkBench sells digital cards and takes any of them as payment.",
+        },
+        {
+          type: "h",
+          text: "Sell one",
+        },
+        {
+          type: "steps",
+          items: [
+            "Open **Payments → Gift cards** and press `Sell a gift card`.",
+            "Type the amount ($5 to $2,000), who it's for and the email the card number goes to. Pick the client who's paying if there is one (their email is used unless you add one), or leave it blank for a walk-up. A note goes into the email if you add one.",
+            "WorkBench makes an ordinary invoice for the amount (no sales tax) and hands you the pay link — send it, or take `Tap to Pay` in the phone app. The card waits under **Pending** until that invoice is paid: by pay link, card on file, Tap to Pay or a payment you record.",
+            "The moment the invoice is paid the card loads, the recipient's email arrives with the number, and the card reads **Active** on the tab.",
+          ],
+        },
+        {
+          type: "tip",
+          text: "Square keeps 2.5% of each load as its gift card fee. The buyer's invoice is paid like any other, with your usual processing fee or service fee.",
+        },
+        {
+          type: "h",
+          text: "Take one as payment",
+        },
+        {
+          type: "list",
+          items: [
+            "**On an invoice**: open it (Awaiting Payment or Past Due), press ⋯ → `Redeem a gift card`, type the number, see the balance and take it. The card pays as much as it holds; whatever is left on the invoice can be paid another way.",
+            "**On the pay page**: the client picks **Gift card**, types the number from their email and presses `Pay up to … with gift card`. There is no service fee on a gift card.",
+            "**Check a balance**: `Check a balance` on the Gift cards tab, or tap any card for its history — loads, uses on invoices and refunds back onto it.",
+            "A refund of a gift card payment (the ↺ button on **Payments**) goes back onto the card.",
+            "A client's own cards show on their client page under **Gift cards**.",
+          ],
+        },
+        {
+          type: "faq",
+          items: [
+            {
+              q: "It says that gift card hasn't been paid for yet.",
+              a: "The card was sold but its invoice isn't paid, so it holds nothing. Collect the invoice first — it's on **Invoices** as Awaiting Payment — and the card loads on its own.",
+            },
+            {
+              q: "The recipient didn't get the email.",
+              a: "Check the address you typed when you sold it: the sale's invoice names the recipient. Once the card is Active, open it on the Gift cards tab, copy the number and send it yourself.",
+            },
+            {
+              q: "Sell a gift card asks me to reconnect Square.",
+              a: "Gift cards need permissions your Square connection didn't have yet. The owner presses `Reconnect Square` once (on the Payments page or the Online Payments card in Settings) and signs in to Square; nothing else changes.",
+            },
+            {
+              q: "A card bought in the Square app isn't on the tab.",
+              a: "The tab shows what Square answers with — open the page again if Square didn't answer just now. Physical cards are registered in the Square app, not here; once they are, they list and redeem like any other.",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "loyalty-rewards",
+      title: "Rewards with Square Loyalty",
+      summary: "Set the program up in Square; WorkBench enrolls clients, adds points on every payment and spends rewards on invoices.",
+      keywords: ["loyalty", "rewards", "points", "square loyalty", "enroll", "reward program", "punch card", "repeat customers", "use a reward", "join rewards"],
+      where: { label: "Loyalty", href: "/app/payments?tab=loyalty" },
+      roles: "Owners and admins enroll clients, adjust points and use rewards",
+      blocks: [
+        {
+          type: "p",
+          text: "Square Loyalty is a Square subscription. You set it up once in your Square dashboard — how clients earn points (per visit or per dollar) and what the rewards are — and WorkBench runs it from there. **Payments → Loyalty** shows the earning rule, the rewards and every member with their points; a member who isn't a WorkBench client yet shows by phone number.",
+        },
+        {
+          type: "steps",
+          note: "Phone number first",
+          items: [
+            "Give the client a mobile number. Square keys rewards to the phone, so someone already in your program from the counter is matched up, not enrolled twice.",
+            "Press `Enroll a client` on the Loyalty tab, or `Enroll in rewards` in the **Rewards** card on the client's page.",
+            "Or let them join themselves: their client portal shows your program with a `Join rewards` button.",
+          ],
+        },
+        {
+          type: "h",
+          text: "Points",
+        },
+        {
+          type: "list",
+          items: [
+            "Every payment on an enrolled client's invoice — pay page, saved card, Tap to Pay, or cash and check you record — earns points by your Square rule, the same as a sale at the counter. Service fees and gift card payments don't earn.",
+            "`Adjust points` in the Rewards card on the client's page adds or removes points by hand: a plus or minus number and a reason, which shows in Square's history.",
+            "The client's balance and lifetime points are in that card and in their portal, with what each reward takes.",
+          ],
+        },
+        {
+          type: "h",
+          text: "Use a reward",
+        },
+        {
+          type: "steps",
+          items: [
+            "Open the client's unpaid invoice before any payment is taken on it and press ⋯ → `Use a reward`. The menu shows their points.",
+            "Pick a reward they have the points for and press `Put the reward on this invoice`. It becomes the invoice's discount and the points are spent at Square. An invoice that already has a discount can't take a reward — rewards don't stack.",
+          ],
+        },
+        {
+          type: "faq",
+          items: [
+            {
+              q: "A reward is greyed out, or it says to redeem it in the Square app.",
+              a: "Only rewards that take money off the whole sale — an amount or a percent — go on a WorkBench invoice. A reward on one specific item is redeemed in the Square app. Otherwise the client doesn't have enough points yet.",
+            },
+            {
+              q: "Enroll says to set up a loyalty program in Square first.",
+              a: "There's no active Square Loyalty program on your account yet. Create one in your Square dashboard; WorkBench picks it up within a few hours, and the Loyalty tab shows it.",
+            },
+            {
+              q: "The tab says Square shows the program as inactive.",
+              a: "Your Square Loyalty subscription is paused or lapsed. Points and rewards wait until it's active in Square again.",
+            },
+            {
+              q: "The Loyalty tab asks me to reconnect Square.",
+              a: "Loyalty needs permissions your Square connection didn't have yet. The owner presses `Reconnect Square` once and signs in to Square; payments keep working meanwhile.",
+            },
+          ],
+        },
+      ],
+    },
+    {
       slug: "card-surcharging",
-      title: "Add a card service fee (surcharge)",
-      summary: "Pass the card fee on to clients who pay by card, and receive the full invoice amount.",
-      keywords: ["surcharge", "service fee", "convenience fee", "card fee", "pass fees"],
+      title: "Have clients pay the card fee (service fee)",
+      summary: "Turn on the service fee and clients who pay by card cover the processing fee, so the full invoice amount reaches you.",
+      keywords: ["surcharge", "service fee", "convenience fee", "card fee", "pass fees", "processing fee", "who pays the fee", "company-paid", "autopay fee", "enable surcharging"],
       where: { label: "Payments settings", href: "/app/settings" },
       roles: "Owners and admins",
       blocks: [
         {
+          type: "p",
+          text: `Two ways to pay for card processing. **Company-paid**: you absorb Square's fee, **${RATE_CARD}** per card payment. **Service fee**: the client pays **${FEE_CARD_PCT}** on top of a card payment and the invoice amount reaches you in full. The switch lives in WorkBench, and the \`Create a Square account\` link in Settings → Online Payments follows it, so a new Square account lands on the matching Square rate plan.`,
+        },
+        {
           type: "steps",
           items: [
             "Go to **Settings → Payments & accounting**.",
-            `Turn on **Enable surcharging** and set the **Surcharge rate** (0–10%). The standard service fee is **${FEE_CARD_PCT}**, which is what a new account starts with.`,
-            "Save. Clients who pay by card see the surcharge and a note that paying by bank avoids it.",
+            `Turn on **Enable surcharging**. The **Surcharge rate** starts at **${FEE_CARD_PCT}**, the standard service fee; anything from 0% to 10% is allowed.`,
+            "Save. From then on the fee is added wherever a card is charged: the pay page (with a note that paying by bank avoids it), `Tap to Pay`, and automatic charges to a saved card — recurring plans and autopay. It's itemized on the pay page, on every receipt and in the payment's **Details** on the Payments page.",
+          ],
+        },
+        {
+          type: "list",
+          items: [
+            "Never added to bank transfers (ACH), gift cards, cash or check, or to `Charge card` pressed by you on an invoice.",
+            "Clients see it before they commit: on the pay page under the total, in the keep-my-card checkbox, and on **Payment methods** in their portal.",
+            "Turning it off stops it everywhere at once, including the next autopay charge.",
           ],
         },
         {
           type: "warn",
-          text: "Surcharges only apply to cards the client pays with on the pay page. Surcharge rules vary by state, so check yours before turning it on.",
+          text: "Surcharge rules vary by state and by card network, so check yours before turning it on.",
         },
       ],
     },
