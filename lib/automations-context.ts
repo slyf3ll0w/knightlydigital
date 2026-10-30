@@ -19,6 +19,8 @@ import { customFieldKey, WEEKDAYS, type AutomationCtx, type EntityType } from ".
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
 
+import { reportPath } from "./photos-shared";
+
 export function baseUrl(): string {
   return (process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com").replace(/\/+$/, "");
 }
@@ -167,12 +169,14 @@ function invoiceCtx(i: InvoiceRow, now: Date): AutomationCtx {
     invoice_status: i.status, invoice_kind: i.kind, due_date: dayStr(i.dueDate), due_in_days: daysUntil(i.dueDate, now), pay_link: `${baseUrl()}/pay/${i.publicToken}`,
   };
 }
-function jobCtx(j: JobRow, tz: string, now: Date): AutomationCtx {
+function jobCtx(j: JobRow, tz: string, now: Date, hubToken?: string): AutomationCtx {
   const total = money(j.lineItems.reduce((s, li) => s + Number(li.quantity) * Number(li.unitPrice), 0));
   return {
     job_number: j.jobNumber, job_title: j.title, job_address: j.address ?? "", job_total: total, total, job_status: j.status,
     job_scheduled: whenLabel(tz, j.scheduledAt, j.scheduledAnytime), days_until_job: daysUntil(j.scheduledAt, now),
     crew: j.assignments.map((a) => a.user.name).join(", "), job_recurring: Boolean(j.subscriptionId),
+    // The client's work report (Gallery plan) — a page once the job is done, nothing while it is open.
+    job_report_link: hubToken && j.status !== "ACTIVE" ? `${baseUrl()}${reportPath(hubToken, j.id)}` : "",
   };
 }
 function appointmentCtx(a: AppointmentRow, tz: string, now: Date): AutomationCtx {
@@ -234,7 +238,7 @@ export async function loadContext(companyId: string, entityType: EntityType, raw
       const d = opts.days ?? (j.completedAt ? daysSince(j.completedAt, now) : daysSince(j.createdAt, now));
       return {
         ...empty,
-        ctx: { ...base(j.contact, d), ...jobCtx(j, tz, now) },
+        ctx: { ...base(j.contact, d), ...jobCtx(j, tz, now, j.contact.hubToken) },
         contact: j.contact, job: j, jobId: j.id, jobTitle: j.title, assignedUserId: j.assignments[0]?.userId ?? j.contact.assignedToId, link: `/app/jobs/${j.id}`, label: `${name(j.contact)} — job #${j.jobNumber}`,
       };
     }

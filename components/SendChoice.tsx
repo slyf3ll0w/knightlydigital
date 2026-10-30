@@ -52,6 +52,12 @@ export type SendChoiceOptions = {
    * zone when omitted.
    */
   timeZone?: string;
+  /**
+   * One optional extra tick under the channels ("Include the work report",
+   * Gallery plan). The result carries it as `extra`. Its presence opens the
+   * sheet even when there is only one way to reach the client.
+   */
+  extra?: { label: string; info?: string; defaultOn?: boolean };
 };
 
 const TEXT_INFO = "Goes out from your business line, with the same link. The client can reply by text and it lands in Messages.";
@@ -59,6 +65,8 @@ const TEXT_INFO = "Goes out from your business line, with the same link. The cli
 export type SendChoiceResult = SendChannels & {
   /** Set when the sender picked a time: company-zone wall clock. */
   later?: { date: string; time: string };
+  /** The `extra` tick, when one was offered. */
+  extra?: boolean;
 };
 
 type Pending = { opts: SendChoiceOptions; resolve: (c: SendChoiceResult | null) => void };
@@ -69,6 +77,7 @@ export function useSendChoice() {
   const [later, setLater] = useState(false);
   const [laterDate, setLaterDate] = useState("");
   const [laterTime, setLaterTime] = useState("09:00");
+  const [extraOn, setExtraOn] = useState(false);
   const resolved = useRef(false);
   const times = useMemo(() => slotTimeOptions(15, 7 * 60), []);
 
@@ -83,11 +92,12 @@ export function useSendChoice() {
     // question to ask. A way that is open but NOT ticked (a quote's Text)
     // is one, even on its own — nothing goes out that way unasked.
     const oneWayAndChosen = !(canEmail && canText) && picked.email === canEmail && picked.text === canText;
-    if (oneWayAndChosen && !opts.allowLater) return Promise.resolve(picked);
+    if (oneWayAndChosen && !opts.allowLater && !opts.extra) return Promise.resolve(picked);
     return new Promise((resolve) => {
       resolved.current = false;
       setPick(picked);
       setLater(false);
+      setExtraOn(Boolean(opts.extra?.defaultOn));
       setLaterDate(tomorrowISO(opts.timeZone));
       setLaterTime("09:00");
       setPending({ opts, resolve });
@@ -138,6 +148,16 @@ export function useSendChoice() {
               <p className="text-sm text-[color:var(--ds-muted)]">No email or textable phone on file yet — add one before the send time.</p>
             )}
           </div>
+
+          {pending.opts.extra && (
+            <label className="flex cursor-pointer items-center gap-3 rounded-[12px] border border-[color:var(--ds-line)] bg-[color:var(--ds-surface)] px-3.5 py-3">
+              <input type="checkbox" checked={extraOn} onChange={(e) => setExtraOn(e.target.checked)} className="h-4 w-4 accent-[color:var(--ds-primary)]" data-send-extra />
+              <span className="flex items-center gap-1 text-sm font-semibold text-[color:var(--ds-ink)]">
+                {pending.opts.extra.label}
+                {pending.opts.extra.info && <InfoTip>{pending.opts.extra.info}</InfoTip>}
+              </span>
+            </label>
+          )}
 
           {pending.opts.allowLater && (
             <div className="rounded-[12px] border border-[color:var(--ds-line)] bg-[color:var(--ds-surface)] px-3.5 py-3">
@@ -191,7 +211,8 @@ export function useSendChoice() {
               disabled={nothingPicked || !laterReady}
               onClick={() => {
                 hapticImpact("LIGHT");
-                finish(later ? { ...pick, later: { date: laterDate, time: laterTime } } : pick);
+                const withExtra = pending.opts.extra ? { ...pick, extra: extraOn } : pick;
+                finish(later ? { ...withExtra, later: { date: laterDate, time: laterTime } } : withExtra);
               }}
               className="btn-primary disabled:opacity-50"
             >

@@ -339,6 +339,21 @@ export function invoiceLinkText({
   return `Hi ${firstName}, ${companyName} sent you invoice #${invoiceNumber} for $${total.toFixed(2)}. ${payable ? "View & pay" : "View"}: ${payUrl} ${OPT_OUT}`;
 }
 
+/** Work completed report (Gallery plan) — the link to the client's hub report page. */
+export function jobReportText({
+  companyName,
+  firstName,
+  jobTitle,
+  reportUrl,
+}: {
+  companyName: string;
+  firstName: string;
+  jobTitle: string;
+  reportUrl: string;
+}): string {
+  return `Hi ${firstName}, ${companyName} has finished ${jobTitle}. Here's your work report with photos: ${reportUrl} ${OPT_OUT}`;
+}
+
 /**
  * Quote link — texted when the sender ticks Text on Send to Client (David
  * 2026-10-03). Plain and transactional: the client asked for this quote.

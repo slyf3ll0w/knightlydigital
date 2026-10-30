@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { reportError } from "@/lib/report-error";
 import { isManager, jobScope, viaContactScope, type Actor } from "@/lib/permissions";
 import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
-import { deleteObject, isBlobStorageConfigured, jobPhotoKey, putObject } from "@/lib/blob-storage";
+import { randomUUID } from "node:crypto";
+import { deleteObject, getObjectBytes, isBlobStorageConfigured, jobPhotoKey, putObject, signedGetUrl, wantsBytes } from "@/lib/blob-storage";
 import { fireAutomations } from "@/lib/automations-server";
 import { checkFeature } from "@/lib/plan-gate";
 import { galleryPreviewFor } from "@/lib/gallery-preview";
@@ -14,6 +15,7 @@ import {
   QUOTE_STAGE,
   defaultClientVisible,
   isPhotoStage,
+  pairable,
   photoSrc,
   type PhotoStage,
   type PhotoView,
@@ -26,13 +28,16 @@ import {
  * needs the job join. Routes:
  *
  *   POST   /api/app/photos                 multipart: file, thumb?, jobId | quoteId, type, caption, takenAt, lat, lng, accuracy, clientKey
- *   PATCH  /api/app/photos/[id]            { caption?, type?, clientVisible?, siteUse?, alt? }
+ *   PATCH  /api/app/photos/[id]            { caption?, type?, clientVisible?, siteUse?, alt?, pairWith?: id | null }
  *   DELETE /api/app/photos/[id]
  *   GET    /api/job-photos/[id][?size=thumb]  the bytes (signed-in member of the company)
  *
  * The older /api/app/jobs/[id]/photos routes stay and call the same code.
  * Gate: a photo on a QUOTE is a Gallery feature (checkFeature "gallery");
  * job photos stay free as they always were (decision 1, 2026-10-30).
+ * Before/after pairs (phase B) are Gallery too: `pairWith` on an upload or
+ * a PATCH links one Before (or Estimate) shot with one After on the same
+ * job — both rows carry the same pairId; `pairWith: null` unpairs.
  */
 
 /** Who may see which photo rows. Techs: their jobs' photos; sales: their leads'. */
@@ -98,6 +103,8 @@ export type UploadInput = {
   lng: number | null;
   accuracy: number | null;
   clientKey: string | null;
+  /** A Before shot this upload is the After of ("match this angle"). */
+  pairWith: string | null;
 };
 
 const num = (v: FormDataEntryValue | null): number | null => {
@@ -146,6 +153,8 @@ export async function parseUpload(
   const hasPoint = lat !== null && lng !== null && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
   const rawKey = formData.get("clientKey");
   const clientKey = typeof rawKey === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(rawKey) ? rawKey : null;
+  const rawPair = formData.get("pairWith");
+  const pairWith = typeof rawPair === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(rawPair) ? rawPair : null;
 
   return {
     ok: true,
@@ -160,6 +169,7 @@ export async function parseUpload(
       lng: hasPoint ? lng : null,
       accuracy: hasPoint ? num(formData.get("accuracy")) : null,
       clientKey,
+      pairWith,
     },
   };
 }
@@ -172,7 +182,7 @@ export async function parseUpload(
 export async function storePhoto(
   actor: Actor,
   input: UploadInput
-): Promise<{ ok: true; photo: PhotoView; status: 200 | 201 } | { ok: false; response: NextResponse }> {
+): Promise<{ ok: true; photo: PhotoView; also: PhotoView[]; status: 200 | 201 } | { ok: false; response: NextResponse }> {
   const companyId = actor.companyId;
 
   if (input.clientKey) {
@@ -180,7 +190,7 @@ export async function storePhoto(
       where: { clientKey: input.clientKey, companyId },
       select: PHOTO_VIEW_SELECT,
     });
-    if (existing) return { ok: true, photo: toPhotoView(existing), status: 200 };
+    if (existing) return { ok: true, photo: toPhotoView(existing), also: [], status: 200 };
   }
 
   // Photos are the one real storage cost a preview account could rack up.
@@ -279,18 +289,133 @@ export async function storePhoto(
     }
   }
 
-  const photo = await prisma.jobPhoto.update({
-    where: { id: created.id },
-    data: {
-      url: photoSrc(created.id),
-      ...(storageKey ? { storageKey, data: null } : {}),
-      ...(thumbKey ? { thumbKey } : {}),
-    },
-    select: PHOTO_VIEW_SELECT,
-  });
+  let photo = toPhotoView(
+    await prisma.jobPhoto.update({
+      where: { id: created.id },
+      data: {
+        url: photoSrc(created.id),
+        ...(storageKey ? { storageKey, data: null } : {}),
+        ...(thumbKey ? { thumbKey } : {}),
+      },
+      select: PHOTO_VIEW_SELECT,
+    })
+  );
   if (jobId) fireAutomations(companyId, "job.photo_added", jobId);
 
-  return { ok: true, photo: toPhotoView(photo), status: 201 };
+  // "Match this angle": the shot was taken as the After of a given Before.
+  // A pairing that can't be made (the Before was deleted or paired meanwhile,
+  // the plan lapsed) never loses the photo — it just stands alone.
+  let also: PhotoView[] = [];
+  if (input.pairWith && jobId) {
+    const paired = await setPair(actor, photo.id, input.pairWith);
+    if (paired.ok) {
+      photo = paired.photo;
+      also = paired.also;
+    }
+  }
+
+  return { ok: true, photo, also, status: 201 };
+}
+
+/**
+ * Pair this photo with another on the same job (one Before or Estimate, one
+ * After), or `null` to take it out of its pair. Pairs are a Gallery-plan
+ * feature. Returns the photo plus every other row whose pairId changed, so
+ * the grid can repaint without a reload.
+ */
+export async function setPair(
+  actor: Actor,
+  photoId: string,
+  withId: string | null
+): Promise<{ ok: true; photo: PhotoView; also: PhotoView[] } | { ok: false; response: NextResponse }> {
+  const companyId = actor.companyId;
+  if (!(await galleryPreviewFor(companyId))) return { ok: false, response: err("Before-and-after pairs aren't available yet.", 403) };
+  const gate = await checkFeature(companyId, "gallery");
+  if (!gate.ok) return { ok: false, response: gate.response };
+
+  const row = await prisma.jobPhoto.findFirst({ where: { id: photoId, ...photoScope(actor) }, select: PHOTO_VIEW_SELECT });
+  if (!row) return { ok: false, response: err("Photo not found.", 404) };
+  const photo = toPhotoView(row);
+
+  if (withId === null) {
+    if (!photo.pairId) return { ok: true, photo, also: [] };
+    const others = await prisma.jobPhoto.findMany({ where: { pairId: photo.pairId, id: { not: photo.id } }, select: { id: true } });
+    await prisma.jobPhoto.updateMany({ where: { pairId: photo.pairId }, data: { pairId: null } });
+    const fresh = await prisma.jobPhoto.findMany({ where: { id: { in: [photo.id, ...others.map((o) => o.id)] } }, select: PHOTO_VIEW_SELECT });
+    const views = fresh.map(toPhotoView);
+    return { ok: true, photo: views.find((v) => v.id === photo.id) ?? { ...photo, pairId: null }, also: views.filter((v) => v.id !== photo.id) };
+  }
+
+  const otherRow = await prisma.jobPhoto.findFirst({ where: { id: withId, ...photoScope(actor) }, select: PHOTO_VIEW_SELECT });
+  if (!otherRow) return { ok: false, response: err("That photo isn't on this job anymore.", 404) };
+  const other = toPhotoView(otherRow);
+  const check = pairable(photo, other);
+  if (!check.ok) return { ok: false, response: err(check.why, 400) };
+
+  const pairId = photo.pairId ?? other.pairId ?? randomUUID();
+  await prisma.jobPhoto.updateMany({ where: { id: { in: [photo.id, other.id] } }, data: { pairId } });
+  const fresh = await prisma.jobPhoto.findMany({ where: { id: { in: [photo.id, other.id] } }, select: PHOTO_VIEW_SELECT });
+  const views = fresh.map(toPhotoView);
+  return { ok: true, photo: views.find((v) => v.id === photo.id)!, also: views.filter((v) => v.id !== photo.id) };
+}
+
+/**
+ * Answer a request for a photo's bytes, once the caller has decided the
+ * requester may see it. Two storage paths, one URL: a photo in R2 answers
+ * with a redirect to a short-lived presigned URL (bytes go browser↔R2); a
+ * photo still in Postgres streams from the row. A script's fetch() (CORS
+ * mode) can't follow the redirect, so it gets the bytes through us
+ * (wantsBytes). `thumb` asks for the 400 px copy when there is one.
+ */
+export async function photoResponse(
+  req: NextRequest,
+  photo: { id: string; data: Uint8Array | null; mimeType: string | null; storageKey: string | null; thumbKey: string | null },
+  wantThumb: boolean
+): Promise<NextResponse> {
+  const key = wantThumb && photo.thumbKey ? photo.thumbKey : photo.storageKey;
+  const mime = wantThumb && photo.thumbKey ? "image/jpeg" : photo.mimeType;
+
+  if (key && isBlobStorageConfigured()) {
+    try {
+      if (wantsBytes(req.headers)) {
+        const bytes = await getObjectBytes(key);
+        if (bytes && mime) {
+          return new NextResponse(bytes, {
+            headers: { "Content-Type": mime, "Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff" },
+          });
+        }
+      }
+      const url = await signedGetUrl(key);
+      // Cache shorter than the signature's own lifetime, or a browser could
+      // reuse a cached redirect to a URL that has already expired.
+      return NextResponse.redirect(url, { status: 302, headers: { "Cache-Control": "private, max-age=300" } });
+    } catch (e) {
+      reportError("[job-photos] signing failed", { photoId: photo.id, error: e });
+      // Fall through: a photo mid-migration may still have its bytes here.
+    }
+  }
+
+  if (!photo.data || !photo.mimeType) return new NextResponse(null, { status: 404 });
+  return new NextResponse(Buffer.from(photo.data), {
+    headers: { "Content-Type": photo.mimeType, "Cache-Control": "private, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff" },
+  });
+}
+
+/**
+ * The stored bytes of one photo (R2, or the row while a photo is still in
+ * Postgres) — for the report PDF, which embeds images rather than linking
+ * them. Null when neither place has them.
+ */
+export async function readPhotoBytes(photo: { storageKey: string | null; data: Uint8Array | null; mimeType: string | null }): Promise<Buffer | null> {
+  if (photo.storageKey && isBlobStorageConfigured()) {
+    try {
+      const bytes = await getObjectBytes(photo.storageKey);
+      if (bytes) return Buffer.from(bytes);
+    } catch (e) {
+      reportError("[photos] read failed", { key: photo.storageKey, error: e });
+    }
+  }
+  return photo.data ? Buffer.from(photo.data) : null;
 }
 
 export type PhotoPatch = {
@@ -299,11 +424,15 @@ export type PhotoPatch = {
   clientVisible?: boolean;
   siteUse?: boolean;
   alt?: string | null;
+  /** Another photo's id to pair with; null to unpair. */
+  pairWith?: string | null;
 };
 
 /** Read a PATCH body into the fields a caller may change. Unknown keys are ignored. */
 export function parsePatch(body: Record<string, unknown>): PhotoPatch {
   const patch: PhotoPatch = {};
+  if (body.pairWith === null) patch.pairWith = null;
+  else if (typeof body.pairWith === "string" && body.pairWith) patch.pairWith = body.pairWith;
   if (typeof body.caption === "string") patch.caption = body.caption.trim().slice(0, PHOTO_LIMITS.caption) || null;
   if (isPhotoStage(body.type)) patch.type = body.type;
   if (typeof body.clientVisible === "boolean") patch.clientVisible = body.clientVisible;
@@ -323,12 +452,22 @@ export async function patchPhoto(
   photoId: string,
   patch: PhotoPatch,
   jobId?: string
-): Promise<{ ok: true; photo: PhotoView } | { ok: false; response: NextResponse }> {
+): Promise<{ ok: true; photo: PhotoView; also: PhotoView[] } | { ok: false; response: NextResponse }> {
   const photo = await prisma.jobPhoto.findFirst({
     where: { id: photoId, ...(jobId ? { jobId } : {}), ...photoScope(actor) },
     select: { id: true, siteUse: true, jobId: true },
   });
   if (!photo) return { ok: false, response: err("Photo not found.", 404) };
+
+  // Pairing is its own write (two rows); the other fields follow below.
+  let also: PhotoView[] = [];
+  if (patch.pairWith !== undefined) {
+    const paired = await setPair(actor, photo.id, patch.pairWith);
+    if (!paired.ok) return paired;
+    also = paired.also;
+    const { pairWith: _p, ...rest } = patch;
+    if (!Object.keys(rest).length) return { ok: true, photo: paired.photo, also };
+  }
 
   const data: Prisma.JobPhotoUpdateInput = {};
   if (patch.caption !== undefined) data.caption = patch.caption;
@@ -351,7 +490,7 @@ export async function patchPhoto(
     const { scheduleSiteRebuild } = await import("@/lib/website");
     scheduleSiteRebuild(actor.companyId, "job photo flagged");
   }
-  return { ok: true, photo: toPhotoView(updated) };
+  return { ok: true, photo: toPhotoView(updated), also };
 }
 
 export async function deletePhoto(
