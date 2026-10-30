@@ -215,6 +215,7 @@ export default async function HubHomePage({
         </div>
       )}
 
+
       {/* Completed work — the report of each finished visit (Gallery plan) */}
       {recentWork.length > 0 && (
         <div className="anim-portal anim-delay-2 card-ledger overflow-hidden">
