@@ -527,9 +527,9 @@ export default async function ContactDetailPage({
             />
           )}
           {canSeeMoney(actor) && (
-            // Reads Square (rewards points, gift cards) — streamed so the page never waits on it
+            // Reads Square (gift cards) — streamed so the page never waits on it
             <Suspense fallback={null}>
-              <SquareClientCard contactId={contact.id} companyId={companyId} canManage={isManager(actor.role)} />
+              <SquareClientCard contactId={contact.id} companyId={companyId} />
             </Suspense>
           )}
 

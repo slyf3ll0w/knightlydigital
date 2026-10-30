@@ -1042,10 +1042,10 @@ Built 2026-10-15 on branch `square-payments` (worktree
   (`SquareStatus.inPerson`, the Settings card says Reconnect). Store
   builds, consoles and the Apple entitlement: `docs/plans/native-release-queue.md`.
   Test: `npx tsx scripts/test-quick-charge.ts`.
-- **Square products built in — transactions, gift cards, loyalty (2026-10-30,
+- **Square products built in — transactions and gift cards (2026-10-30,
   `docs/plans/square-products-2026-10-30.md`).** `SQUARE_SCOPES` gained
-  `ORDERS_READ`, `GIFTCARDS_READ/WRITE`, `LOYALTY_READ/WRITE` (one reconnect
-  per existing seller; each tab shows Reconnect in place). Seller-token
+  `ORDERS_READ`, `GIFTCARDS_READ/WRITE` (one reconnect per existing seller;
+  each tab shows Reconnect in place). Seller-token
   calls + pure mappers: `lib/square-products.ts`
   (`npx tsx scripts/test-square-products.ts`). *Transaction detail*:
   `/app/payments?payment=<square id>` (`TransactionDetail.tsx` — GetPayment,
@@ -1056,18 +1056,11 @@ Built 2026-10-15 on branch `square-payments` (worktree
   invoice is PAID (cron step `giftCards` retries) and emails the number
   (`giftCardEmail`); redeem = CreatePayment with the card as `source_id`,
   recorded as `PaymentMethod.GIFT_CARD` (invoice ⋯ → Redeem a gift card;
-  pay page method `GIFT_CARD` + `gan`); no surcharge. *Loyalty*
-  (`lib/loyalty.ts`): the program is Square's (dashboard + subscription),
-  cached on `SquareConnection.loyaltyProgramId/loyaltyStatus` (tab, Check
-  connection, cron step `loyaltyPrograms`); enroll by phone →
-  `Contact.squareLoyaltyAccountId`; `recordPayment` →
-  `accrueLoyaltyForPayment` (Calculate + Accumulate, idempotent on the
-  Payment id; surcharge and gift-card payments earn nothing); "Use a
-  reward" on an unpaid, unpaid-on invoice = CreateLoyaltyReward → the
-  invoice's discount → RedeemLoyaltyReward (failure deletes the reward);
-  hub home "Join rewards" (`/api/hub/loyalty`). Tabs `giftcards` / `loyalty`
-  on /app/payments, a Rewards & gift cards card on the contact page. Square
-  Online has no API and stays a deep link. e2e:
+  pay page method `GIFT_CARD` + `gan`); no surcharge. Tab `giftcards` on
+  /app/payments, a Gift cards card on the contact page. *Loyalty was built
+  and removed the same day* (David: it needs a Square Loyalty subscription
+  WorkBench won't promote) along with the Square Online deep link — the
+  "In Square" row list is just Square's transactions. e2e:
   `e2e/specs/square-gift-cards.spec.ts` (sandbox).
 - **"Add your bank account" nudge (2026-10-23):** `SQUARE_SCOPES` includes
   `BANK_ACCOUNTS_READ`; `refreshSquarePayoutStatus()` (lib/square-connection.ts,

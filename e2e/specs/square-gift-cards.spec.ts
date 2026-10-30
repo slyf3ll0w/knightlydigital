@@ -1,10 +1,9 @@
-// Square gift cards and loyalty through the deployed app — Square SANDBOX only
+// Square gift cards through the deployed app — Square SANDBOX only
 // (docs/plans/square-products-2026-10-30.md). Sell a gift card (a PENDING
 // Square card + an invoice), pay the invoice, watch the card ACTIVATE with the
 // amount, check its balance, redeem it on a second invoice from the staff
-// route and on a third from the public pay page. Loyalty: the sandbox seller
-// has no program, so the tab's read answers NONE (a program needs a dashboard
-// subscription). global-setup enables this file only when company A is
+// route and on a third from the public pay page. global-setup enables this
+// file only when company A is
 // connected to the sandbox test seller.
 import { test, expect } from "@playwright/test";
 import { readState } from "../env";
@@ -14,7 +13,7 @@ import { db, disconnectDb } from "../helpers/db";
 const state = readState();
 test.skip(!state.squareCardTestsEnabled, "Square sandbox not available — Square gift card specs skipped");
 
-test.describe("square gift cards + loyalty (sandbox)", () => {
+test.describe("square gift cards (sandbox)", () => {
   test.describe.configure({ mode: "serial" });
   const api = Api.forOwnerA(state);
   let contactId = "";
@@ -154,17 +153,5 @@ test.describe("square gift cards + loyalty (sandbox)", () => {
     expect(short.status).toBe(400);
     const noEmail = await api.raw("POST", "/api/app/payments/square/gift-cards", { amountCents: 2500 });
     expect(noEmail.status).toBe(400);
-  });
-
-  test("loyalty: the tab reads the program (the sandbox seller has none)", async () => {
-    const r = await api.get("/api/app/payments/square/loyalty?refresh=1");
-    expect(["NONE", "INACTIVE", "ACTIVE", "UNKNOWN"]).toContain(r.status);
-    if (r.status === "NONE") {
-      expect(r.program).toBeNull();
-      // Enrolling without a program says so plainly
-      const e = await api.raw("POST", "/api/app/payments/square/loyalty/enroll", { contactId });
-      expect(e.status).toBe(409);
-      expect((await e.json()).code).toBe("NO_PROGRAM");
-    }
   });
 });
