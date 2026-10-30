@@ -5,6 +5,10 @@ section). Decisions made 2026-10-30 (all five, recorded at the end). **Phase A
 built 2026-10-30** (branch `gallery`): generalized photo row, quote Photos
 fold, carry-over on convert, viewer, stamps, thumbnails, the `gallery` plan
 gate. Test recipes: `docs/testing/gallery-phase-a.md`. Phases B–D next.
+**Preview only (David 2026-10-30):** everything new shows up for TEST accounts
+(`Company.isTest`) only — `lib/gallery-preview.ts`. Live accounts keep the old
+job uploader (`app/platform/jobs/[id]/PhotoUpload.tsx`) and no quote fold.
+`GALLERY_OPEN=1` on Railway opens it to everyone when he calls it ready.
 
 ## Why
 

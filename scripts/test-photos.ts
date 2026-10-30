@@ -17,6 +17,7 @@ import {
   photoSrc,
   shouldStampLocation,
 } from "../lib/photos-shared";
+import { galleryPreviewOpen } from "../lib/gallery-preview";
 
 // ── Stages ──
 assert.deepEqual([...PHOTO_STAGES], ["ESTIMATE", "BEFORE", "DURING", "AFTER", "GENERAL"]);
@@ -57,5 +58,12 @@ assert.equal(photoMapUrl(32.96125, -96.65975), "https://maps.google.com/?q=32.96
 assert.equal(PHOTO_LIMITS.perTarget, 100);
 assert.ok(PHOTO_LIMITS.maxThumbBytes < PHOTO_LIMITS.maxBytes);
 assert.ok(PHOTO_LIMITS.perPick >= 5);
+
+// ── Preview switch: test accounts only, until GALLERY_OPEN=1 ──
+assert.equal(galleryPreviewOpen({ isTest: true }, {}), true);
+assert.equal(galleryPreviewOpen({ isTest: false }, {}), false);
+assert.equal(galleryPreviewOpen({ isTest: null }, {}), false);
+assert.equal(galleryPreviewOpen({ isTest: false }, { GALLERY_OPEN: "1" }), true);
+assert.equal(galleryPreviewOpen({ isTest: false }, { GALLERY_OPEN: "0" }), false);
 
 console.log("test-photos: ok");

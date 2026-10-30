@@ -25,6 +25,7 @@ import Fold from "@/components/Fold";
 import PhotoGrid from "@/components/PhotoGrid";
 import { PHOTO_VIEW_SELECT, toPhotoView } from "@/lib/photos";
 import { featureAllowedFor } from "@/lib/plan-gate";
+import { galleryPreviewFor } from "@/lib/gallery-preview";
 
 export default async function QuoteDetailPage({
   params,
@@ -56,7 +57,10 @@ export default async function QuoteDetailPage({
   if (!quote) notFound();
   // Estimate photos are a Gallery-plan feature (lib/plans.ts "gallery");
   // the fold shows the plan card instead once the gate is live.
-  const galleryOpen = await featureAllowedFor(companyId, "gallery");
+  // Preview: the fold exists only for test accounts until David opens it
+  // (lib/gallery-preview.ts); inside the preview the plan gate still applies.
+  const galleryPreview = await galleryPreviewFor(companyId);
+  const galleryOpen = galleryPreview && (await featureAllowedFor(companyId, "gallery"));
 
   // Valid through the END of the valid-until day in the company's timezone
   const companyTz = await prisma.company.findUnique({ where: { id: companyId }, select: { timezone: true } });
@@ -442,17 +446,20 @@ export default async function QuoteDetailPage({
       </div>
 
       {/* Site-visit photos: what was looked at before the price. They ride
-          onto the job when the quote converts (lib/quote-convert.ts). */}
-      <div className="mt-6">
-        <Fold title="Photos" meta={quote.photos.length > 0 ? String(quote.photos.length) : "Add"}>
-          <PhotoGrid
-            target={{ kind: "quote", id: quote.id }}
-            canSite={isManager(actor.role)}
-            photos={quote.photos.map(toPhotoView)}
-            locked={!galleryOpen}
-          />
-        </Fold>
-      </div>
+          onto the job when the quote converts (lib/quote-convert.ts).
+          Test accounts only until the Gallery work is opened. */}
+      {galleryPreview && (
+        <div className="mt-6">
+          <Fold title="Photos" meta={quote.photos.length > 0 ? String(quote.photos.length) : "Add"}>
+            <PhotoGrid
+              target={{ kind: "quote", id: quote.id }}
+              canSite={isManager(actor.role)}
+              photos={quote.photos.map(toPhotoView)}
+              locked={!galleryOpen}
+            />
+          </Fold>
+        </div>
+      )}
 
       {quote.revisions.length > 0 && (
         <div className="mt-6 ds-card p-5">
