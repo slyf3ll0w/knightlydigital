@@ -31,7 +31,6 @@ import {
   Gift,
   RefreshCw,
   Search,
-  Star,
   Tags,
   Sparkles,
   UserRound,
@@ -43,7 +42,6 @@ import {
 import {
   ADDON_LINK,
   GIFT_CARDS_LINK,
-  LOYALTY_LINK,
   QUICKBOOKS_LINK,
   SETTINGS_LINK_GROUPS,
   SETTINGS_SECTIONS,
@@ -274,7 +272,6 @@ const LINK_ICONS: Record<SettingsLink["icon"], LucideIcon> = {
   Sparkles,
   MonitorSmartphone,
   Gift,
-  Star,
 };
 
 /** Desktop rail entry for a standalone page. */
@@ -2418,13 +2415,12 @@ export default function SettingsClient({
         )}
 
         {/* Accounting — QuickBooks Online lives on its own page. Gift cards
-            and loyalty (Square products, rarely visited) moved here from the
-            Payments page's tab bar on 2026-10-30. */}
+            (Square, rarely visited) moved here from the Payments page's tab
+            bar on 2026-10-30. */}
         {show("payments") && (
         <div className="ds-card ds-divide overflow-hidden">
           <LinkRow link={QUICKBOOKS_LINK} />
           <LinkRow link={GIFT_CARDS_LINK} />
-          <LinkRow link={LOYALTY_LINK} />
         </div>
         )}
 

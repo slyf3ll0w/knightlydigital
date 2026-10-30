@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, ArrowUpRight, ChevronRight, Gift, RefreshCw, Star } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, ChevronRight, Gift, RefreshCw } from "lucide-react";
 import { InfoTip } from "@/components/ds";
 import FilterBar, { listHref } from "@/components/FilterBar";
 import { squareDashboardUrl, type SquareDashboardScreen } from "@/lib/square-links";
@@ -24,9 +24,8 @@ const TAB_OPTIONS = [
   { value: "payouts", label: "Payouts" },
   { value: "disputes", label: "Disputes" },
   { value: "reports", label: "Reports" },
-  // Gift cards and loyalty keep their ?tab= URLs but left the bar on
-  // 2026-10-30 (rarely visited): SquareProductRows below and Settings →
-  // Payments & accounting reach them.
+  // Gift cards keep their ?tab= URL but left the bar on 2026-10-30 (rarely
+  // visited): GiftCardsRow below and Settings → Payments & accounting reach them.
 ];
 
 /** Payments · Payouts · Disputes · Reports — a segmented control on phones, chips on a desk. */
@@ -142,26 +141,22 @@ export function SquareLinkRows({
   );
 }
 
-/** Gift cards and loyalty: Square products run from WorkBench, reached from rows rather than the tab bar (2026-10-30). */
-export function SquareProductRows() {
-  const rows = [
-    { href: "/app/payments?tab=giftcards", Icon: Gift, title: "Gift cards", sub: "Sell a card, check a balance, every card on your Square account" },
-    { href: "/app/payments?tab=loyalty", Icon: Star, title: "Loyalty", sub: "Your Square Loyalty program and its members" },
-  ];
+/** Gift cards: run from WorkBench on the seller's Square account, reached from this row rather than the tab bar (2026-10-30). */
+export function GiftCardsRow() {
   return (
     <div className="ds-card overflow-hidden">
-      <div className="divide-y divide-gray-100">
-        {rows.map(({ href, Icon, title, sub }) => (
-          <Link key={href} prefetch={false} href={href} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors">
-            <Icon size={16} className="shrink-0 text-gray-400" aria-hidden />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium text-gray-900">{title}</span>
-              <span className="block truncate text-xs text-gray-500">{sub}</span>
-            </span>
-            <ChevronRight size={14} className="text-gray-400" />
-          </Link>
-        ))}
-      </div>
+      <Link
+        prefetch={false}
+        href="/app/payments?tab=giftcards"
+        className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-gray-50 active:bg-gray-100"
+      >
+        <Gift size={16} className="shrink-0 text-gray-400" aria-hidden />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium text-gray-900">Gift cards</span>
+          <span className="block truncate text-xs text-gray-500">Sell a card, check a balance, every card on your Square account</span>
+        </span>
+        <ChevronRight size={14} className="text-gray-400" />
+      </Link>
     </div>
   );
 }

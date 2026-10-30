@@ -92,7 +92,7 @@ export type SettingsLink = {
   /** lib/section-colors SECTION_HUES key */
   hueKey: "services" | "contracts" | "clients" | "leads" | "forms" | "team" | "business" | "payments";
   /** lucide-react icon name */
-  icon: "Package" | "FileSignature" | "Tags" | "Filter" | "Globe" | "Users" | "Upload" | "UserRound" | "RefreshCw" | "Sparkles" | "MonitorSmartphone" | "Gift" | "Star";
+  icon: "Package" | "FileSignature" | "Tags" | "Filter" | "Globe" | "Users" | "Upload" | "UserRound" | "RefreshCw" | "Sparkles" | "MonitorSmartphone" | "Gift";
   /** Test accounts only (Company.isTest) while the page is unfinished. */
   testOnly?: boolean;
 };
@@ -196,9 +196,9 @@ export const QUICKBOOKS_LINK: SettingsLink = {
 };
 
 /**
- * Square products run from WorkBench. Rarely visited, so they live here
- * under Payments & accounting (and as rows on the Payments page) rather
- * than on the Payments tab bar (2026-10-30 request).
+ * Gift cards (Square, run from WorkBench). Rarely visited, so the door lives
+ * here under Payments & accounting (and as a row on the Payments page)
+ * rather than on the Payments tab bar (2026-10-30 request).
  */
 export const GIFT_CARDS_LINK: SettingsLink = {
   href: "/app/payments?tab=giftcards",
@@ -206,14 +206,6 @@ export const GIFT_CARDS_LINK: SettingsLink = {
   sub: "Sell a card, check a balance, every card on your Square account",
   hueKey: "payments",
   icon: "Gift",
-};
-
-export const LOYALTY_LINK: SettingsLink = {
-  href: "/app/payments?tab=loyalty",
-  label: "Loyalty",
-  sub: "Your Square Loyalty program and its members",
-  hueKey: "payments",
-  icon: "Star",
 };
 
 /**
