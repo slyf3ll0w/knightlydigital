@@ -235,6 +235,20 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
       if (Object.keys(patch).length > 0) await prisma.invoice.update({ where: { id: i.id }, data: patch });
       return `pay link emailed${texted ? " + texted" : ""}`;
     }
+    case "send_job_report": {
+      if (!loaded.jobId || !contact) return "skipped: no job";
+      if (!emailEnabled() && !(await companyCanSendSms(companyId))) return "skipped: email not configured";
+      if (await companyEmailBlocked(companyId)) return "skipped: company email blocked";
+      const { sendJobReport } = await import("./job-report");
+      const r = await sendJobReport({
+        jobId: loaded.jobId,
+        companyId,
+        channels: { email: true, text: true },
+        byUserId: await actorUserId(companyId, automation.createdById),
+      });
+      if (!r.ok) return r.status === 400 || r.status === 402 || r.status === 403 ? `skipped: ${r.error}` : `failed: ${r.error}`;
+      return `work report ${[r.emailed ? "emailed" : null, r.texted ? "texted" : null].filter(Boolean).join(" + ")}`;
+    }
     case "send_payment_reminder": {
       const i = loaded.invoice;
       if (!i || !contact) return "skipped: no invoice";

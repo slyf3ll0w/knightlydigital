@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { Camera, Eye, Globe, ImagePlus, Loader2, MapPin } from "lucide-react";
+import { Camera, Eye, Globe, ImagePlus, Link2, Loader2, MapPin, X } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
+import BeforeAfter from "@/components/BeforeAfter";
 import PhotoViewer from "@/components/PhotoViewer";
 import PlanRequired from "@/components/PlanRequired";
+import { alertSheet } from "@/components/ConfirmSheet";
+import { postJson } from "@/lib/safe-fetch";
 import { Segment, SegmentedRow } from "@/components/FilterChips";
 import { getCapacitor, nativePlatform } from "@/components/NativeShell";
 import { resizePhotoPair } from "@/lib/resize-image";
@@ -16,7 +20,10 @@ import {
   QUOTE_STAGE,
   STAGE_LABEL,
   filterMatches,
+  nextBeforeToMatch,
+  pairsOf,
   photoSrc,
+  suggestPairs,
   type PhotoFilter,
   type PhotoStage,
   type PhotoView,
@@ -33,17 +40,23 @@ export type PhotoTargetRef = { kind: "job" | "quote"; id: string };
  *
  * `locked` = the Gallery gate is live and this company isn't on it: the
  * fold shows the plan card instead (quotes only; job photos stay free).
+ * `canPair` = the Gallery-plan parts on a job (phase B): before/after
+ * pairs up top, "Pair up" when the shooting order suggests matches, and
+ * "match this angle" — an After shot opens with the next unpaired Before
+ * on screen first, then the camera, and uploads already paired.
  */
 export default function PhotoGrid({
   target,
   photos: initial,
   canSite = false,
   locked = false,
+  canPair = false,
 }: {
   target: PhotoTargetRef;
   photos: PhotoView[];
   canSite?: boolean;
   locked?: boolean;
+  canPair?: boolean;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -56,6 +69,10 @@ export default function PhotoGrid({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [open, setOpen] = useState<number | null>(null);
+  // "Match this angle": the Before the next After shot should line up with.
+  const [matching, setMatching] = useState<{ before: PhotoView; then: "camera" | "library" } | null>(null);
+  const pairNext = useRef<string | null>(null);
+  const [pairing, setPairing] = useState(false);
 
   // In the native shell the Camera plugin gives a straight-to-camera button
   // (no chooser sheet). The file input stays for "from library" — WKWebView
@@ -73,7 +90,37 @@ export default function PhotoGrid({
     );
   }
 
-  async function takePhoto() {
+  /** Merge a saved photo plus any siblings whose pair changed. */
+  function absorb(saved: PhotoView & { also?: PhotoView[] }) {
+    const { also = [], ...photo } = saved;
+    setPhotos((prev) => {
+      const next = prev.some((p) => p.id === photo.id) ? prev.map((p) => (p.id === photo.id ? photo : p)) : [...prev, photo];
+      return next.map((p) => also.find((a) => a.id === p.id) ?? p);
+    });
+  }
+
+  // An After shot on a job with an unpaired Before: show that Before first
+  // ("match this angle"), then open the camera / picker; the upload carries
+  // pairWith so the pair is made on the server with the photo.
+  function wantsAngle(then: "camera" | "library"): boolean {
+    if (!canPair || !isJob || stage !== "AFTER") return false;
+    const before = nextBeforeToMatch(photos);
+    if (!before) return false;
+    setMatching({ before, then });
+    return true;
+  }
+
+  function proceedFromAngle() {
+    const m = matching;
+    setMatching(null);
+    if (!m) return;
+    pairNext.current = m.before.id;
+    if (m.then === "camera") void takePhoto(true);
+    else inputRef.current?.click();
+  }
+
+  async function takePhoto(skipAngle = false) {
+    if (!skipAngle && wantsAngle("camera")) return;
     const camera = getCapacitor()?.Plugins?.Camera;
     if (!camera) return inputRef.current?.click();
     let photo: { base64String?: string; format?: string } | null = null;
@@ -96,6 +143,9 @@ export default function PhotoGrid({
     if (!files || files.length === 0) return;
     const list = Array.from(files).slice(0, PHOTO_LIMITS.perPick);
     setError("");
+    // Only the first shot of a pick is the After of the Before on screen.
+    const pairWith = pairNext.current;
+    pairNext.current = null;
     try {
       for (let i = 0; i < list.length; i++) {
         setBusy(list.length > 1 ? `Uploading ${i + 1} of ${list.length}…` : "Uploading…");
@@ -108,6 +158,7 @@ export default function PhotoGrid({
         form.append("type", stage);
         form.append("takenAt", stamp.takenAt.toISOString());
         form.append("clientKey", stamp.clientKey);
+        if (i === 0 && pairWith) form.append("pairWith", pairWith);
         if (stamp.lat !== null && stamp.lng !== null) {
           form.append("lat", String(stamp.lat));
           form.append("lng", String(stamp.lng));
@@ -120,8 +171,7 @@ export default function PhotoGrid({
           if (res.status !== 402) setError(data?.error ?? "Couldn't upload that photo.");
           break;
         }
-        const saved = (await res.json()) as PhotoView;
-        setPhotos((prev) => (prev.some((p) => p.id === saved.id) ? prev : [...prev, saved]));
+        absorb((await res.json()) as PhotoView & { also?: PhotoView[] });
       }
     } catch {
       setError("Couldn't process that image — try a different one.");
@@ -137,9 +187,57 @@ export default function PhotoGrid({
     BEFORE: photos.filter((p) => filterMatches("BEFORE", p.stage)).length,
     AFTER: photos.filter((p) => filterMatches("AFTER", p.stage)).length,
   };
+  const pairs = canPair && isJob ? pairsOf(photos) : [];
+  const suggestions = canPair && isJob ? suggestPairs(photos) : [];
+
+  // "Pair up": the shooting-order suggestions, made one PATCH at a time.
+  async function pairUp() {
+    setPairing(true);
+    try {
+      for (const [beforeId, afterId] of suggestions) {
+        const { ok, data } = await postJson<PhotoView & { also?: PhotoView[]; error?: string }>(`/api/app/photos/${afterId}`, { pairWith: beforeId }, "PATCH");
+        if (!ok) {
+          if (data?.error) alertSheet({ message: data.error });
+          break;
+        }
+        if (data) absorb(data);
+      }
+    } finally {
+      setPairing(false);
+      router.refresh();
+    }
+  }
 
   return (
     <div>
+      {pairs.length > 0 && (
+        <div className="px-4 pt-4" data-photo-pairs>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Before &amp; after</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {pairs.map((pair) => (
+              <button key={pair.id} type="button" onClick={() => setOpen(photos.indexOf(pair.after))} className="text-left" aria-label="Open this pair">
+                <BeforeAfter
+                  variant="auto"
+                  beforeSrc={photoSrc(pair.before.id)}
+                  afterSrc={photoSrc(pair.after.id)}
+                  beforeAlt={pair.before.caption ?? "Before"}
+                  afterAlt={pair.after.caption ?? "After"}
+                  caption={pair.after.caption ?? pair.before.caption}
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {suggestions.length > 0 && (
+        <div className="px-4 pt-3">
+          <button type="button" onClick={() => void pairUp()} disabled={pairing || !!busy} className="ds-btn ds-btn-outline ds-btn-sm disabled:opacity-50" data-pair-up>
+            {pairing ? <Loader2 size={12} className="animate-spin" /> : <Link2 size={12} />}
+            Pair up {suggestions.length === 1 ? "the before and after" : `${suggestions.length} before-and-afters`}
+          </button>
+          <span className="ml-2 text-xs text-gray-500">Matched in the order they were taken — you can change any pair in the viewer.</span>
+        </div>
+      )}
       {isJob && photos.length > 0 && (counts.BEFORE > 0 || counts.AFTER > 0) && (
         <div className="px-4 pt-4">
           <SegmentedRow>
@@ -217,7 +315,14 @@ export default function PhotoGrid({
             Take photo
           </button>
         )}
-        <button type="button" onClick={() => inputRef.current?.click()} disabled={!!busy} className="ds-btn ds-btn-outline ds-btn-sm disabled:opacity-50">
+        <button
+          type="button"
+          onClick={() => {
+            if (!wantsAngle("library")) inputRef.current?.click();
+          }}
+          disabled={!!busy}
+          className="ds-btn ds-btn-outline ds-btn-sm disabled:opacity-50"
+        >
           {busy ? <Loader2 size={12} className="animate-spin" /> : native ? <ImagePlus size={12} /> : <Camera size={12} />}
           Add photos
         </button>
@@ -233,7 +338,8 @@ export default function PhotoGrid({
           onClose={() => setOpen(null)}
           canSite={canSite}
           canRestage={isJob}
-          onPatched={(p) => setPhotos((prev) => prev.map((x) => (x.id === p.id ? p : x)))}
+          canPair={canPair && isJob}
+          onPatched={absorb}
           onDeleted={(id) => {
             setPhotos((prev) => prev.filter((x) => x.id !== id));
             setOpen((i) => (i === null ? null : Math.max(0, Math.min(i, photos.length - 2))));
@@ -241,6 +347,49 @@ export default function PhotoGrid({
           }}
         />
       )}
+
+      {matching &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="fixed inset-0 z-[95] flex flex-col bg-black text-white" role="dialog" aria-modal="true" aria-label="Match this angle" data-match-angle>
+            <div className="flex items-center justify-between px-3 pt-[max(env(safe-area-inset-top),8px)] pb-2">
+              <button type="button" onClick={() => setMatching(null)} className="rounded-full p-2 hover:bg-white/10" aria-label="Cancel">
+                <X size={22} />
+              </button>
+              <span className="text-sm font-semibold">Match this angle</span>
+              <span className="w-10" />
+            </div>
+            <div className="relative flex-1 overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={photoSrc(matching.before.id)} alt={matching.before.caption ?? "Before"} className="absolute inset-0 m-auto max-h-full max-w-full object-contain opacity-90" />
+            </div>
+            <div className="bg-black/80 px-4 pt-3 pb-[max(env(safe-area-inset-bottom),12px)] text-center">
+              <p className="text-sm text-white/80">
+                Stand where the <span className="font-semibold text-white">{STAGE_LABEL[matching.before.stage] || "Before"}</span> shot was taken
+                {matching.before.caption ? ` — “${matching.before.caption}”` : ""}. Your After pairs with it.
+              </p>
+              <div className="mt-3 flex items-center justify-center gap-2">
+                <button type="button" onClick={proceedFromAngle} className="btn-primary">
+                  <Camera size={13} />
+                  {matching.then === "camera" ? "Open camera" : "Pick the photo"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const then = matching.then;
+                    setMatching(null);
+                    if (then === "camera") void takePhoto(true);
+                    else inputRef.current?.click();
+                  }}
+                  className="rounded-lg px-3 py-2 text-sm text-white/80 hover:bg-white/10"
+                >
+                  Skip pairing
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

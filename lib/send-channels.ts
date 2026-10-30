@@ -31,7 +31,12 @@ export async function readSendChannels(req: NextRequest, defaults: SendChannels)
 export async function readSendRequest(
   req: NextRequest,
   defaults: SendChannels
-): Promise<{ channels: SendChannels; expectScheduled: boolean }> {
-  const body = (await req.json().catch(() => null)) as { expectScheduled?: unknown } | null;
-  return { channels: sendChannelsFrom(body, defaults), expectScheduled: body?.expectScheduled === true };
+): Promise<{ channels: SendChannels; expectScheduled: boolean; includeReport: boolean }> {
+  const body = (await req.json().catch(() => null)) as { expectScheduled?: unknown; includeReport?: unknown } | null;
+  return {
+    channels: sendChannelsFrom(body, defaults),
+    expectScheduled: body?.expectScheduled === true,
+    // "Include the work report" (invoices, Gallery plan): a link to the job's report in the email.
+    includeReport: body?.includeReport === true,
+  };
 }

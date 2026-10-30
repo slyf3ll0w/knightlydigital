@@ -273,7 +273,7 @@ A client-facing document, not a section buried in the invoice:
 | Phase | Scope | Size |
 |---|---|---|
 | A | **DONE 2026-10-30** — photo model generalization + backfill (`scripts/backfill-photo-owners.mjs`), quote Photos fold, carry-over on convert, viewer (`components/PhotoViewer.tsx`), PATCH caption/stage/visibility, thumbnails, capture stamps (`lib/photo-capture.ts`), `gallery` GatedFeature → JOBSITE, routes `/api/app/photos[/id]` (`lib/photos.ts`) | ~2 days |
-| B | Pairing, match this angle, BeforeAfter component, completed job report (PDF, hub page, email, send on complete, invoice checkbox) | ~3 days |
+| B | **DONE 2026-10-30** — pairs (`pairWith` on PATCH / upload, `lib/photos.ts setPair`, auto-suggest + "match this angle" in `components/PhotoGrid.tsx`, Pair / Unpair in the viewer), `components/BeforeAfter.tsx` (slider / side by side), Work completed report (`lib/job-report.ts`, `jobReportPdf` in `lib/pdf.tsx`, hub `/hub/[token]/work[/[jobId]][/pdf]` + `/hub/[token]/photos/[id]`, `Job.reportNote` / `reportSentAt`, `JobReportCard.tsx`, send-on-complete prompt in `JobActions.tsx`, "Include the work report" on the invoice send, automation action `send_job_report` + field `job_report_link`); recipes `docs/testing/gallery-phase-b.md` | ~3 days |
 | C | Gallery tab, contact property gallery, stitched share image, website Recent work, markup | ~2 days |
 | D | Atlas vision on estimate photos, Save to quote from texts, form uploads, `job.photos_missing` sweep, MMS send | ~2 days |
 

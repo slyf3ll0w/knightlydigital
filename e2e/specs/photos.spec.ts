@@ -4,6 +4,9 @@
 // when the quote converts; the serving route is tenant-scoped; the older
 // per-job routes still work. The job and quote pages have no GET route for
 // photos, so state assertions read the database.
+// Phase B: before/after pairs (PATCH pairWith, the upload's pairWith) and
+// the work completed report (note, staff PDF, the client's hub page + PDF +
+// photo route, the send).
 import { test, expect } from "@playwright/test";
 import { readState } from "../env";
 import { Api, createContact, deleteContact, runTag } from "../helpers/api";
@@ -157,5 +160,79 @@ test.describe("photos", () => {
     expect(later.status).toBe(201);
     expect((await later.json()).jobId).toBe(job.id);
     expect(await db().jobPhoto.count({ where: { jobId: job.id } })).toBe(2);
+  });
+
+  test("before/after pairs and the work completed report", async () => {
+    const job = await api.post("/api/app/jobs", { contactId, title: `${runTag} report job` });
+    const shoot = async (fields: Record<string, Field>) => {
+      const res = await upload(state.ownerA.token, "/api/app/photos", { file: png, jobId: job.id, ...fields });
+      expect(res.status).toBe(201);
+      return res.json();
+    };
+    const before = await shoot({ type: "BEFORE", takenAt: new Date(Date.now() - 60_000).toISOString() });
+    const during = await shoot({ type: "DURING" });
+
+    // "Match this angle": an After uploaded with pairWith lands already paired; the answer carries the Before too.
+    const after = await shoot({ type: "AFTER", pairWith: before.id });
+    expect(after.pairId).toBeTruthy();
+    expect(after.also.map((p: { id: string }) => p.id)).toEqual([before.id]);
+    expect(after.also[0].pairId).toBe(after.pairId);
+
+    // Pair rules: one before-ish + one after, same job, not already taken.
+    const after2 = await shoot({ type: "AFTER" });
+    await api.json("PATCH", `/api/app/photos/${after2.id}`, { pairWith: during.id }, 400);
+    await api.json("PATCH", `/api/app/photos/${after2.id}`, { pairWith: before.id }, 400); // before is taken
+    const loneBefore = await shoot({ type: "BEFORE" });
+    const paired2 = await api.json("PATCH", `/api/app/photos/${loneBefore.id}`, { pairWith: after2.id });
+    expect(paired2.pairId).toBeTruthy();
+    expect(paired2.also[0].id).toBe(after2.id);
+    // Unpair clears both halves.
+    const unpaired = await api.json("PATCH", `/api/app/photos/${after2.id}`, { pairWith: null });
+    expect(unpaired.pairId).toBeNull();
+    expect(unpaired.also[0].id).toBe(loneBefore.id);
+    expect(unpaired.also[0].pairId).toBeNull();
+    // Tenant B can't pair our photos.
+    await Api.forOwnerB(state).json("PATCH", `/api/app/photos/${after2.id}`, { pairWith: loneBefore.id }, 404);
+
+    // The report covers finished work: nothing to send while the job is open.
+    const early = await api.raw("POST", `/api/app/jobs/${job.id}/report`, { email: true, text: false });
+    expect(early.status).toBe(400);
+
+    // Complete the job, write the note, read the staff PDF.
+    await api.patch(`/api/app/jobs/${job.id}/status`, { status: "REQUIRES_INVOICING" });
+    const noted = await api.patch(`/api/app/jobs/${job.id}/report`, { note: "  Panel replaced and every circuit tested.  " });
+    expect(noted.note).toBe("Panel replaced and every circuit tested.");
+    const staffPdf = await fetch(`${state.baseUrl}/api/app/jobs/${job.id}/report/pdf`, { headers: { Cookie: `${state.cookieName}=${state.ownerA.token}` } });
+    expect(staffPdf.status).toBe(200);
+    expect(staffPdf.headers.get("content-type")).toContain("application/pdf");
+    expect((await staffPdf.arrayBuffer()).byteLength).toBeGreaterThan(1000);
+
+    // The client's side: the hub page, its PDF, and only the photos they may see.
+    const { hubToken } = await db().contact.findUniqueOrThrow({ where: { id: contactId }, select: { hubToken: true } });
+    const page = await fetch(`${state.baseUrl}/hub/${hubToken}/work/${job.id}`);
+    expect(page.status).toBe(200);
+    const html = await page.text();
+    expect(html).toContain(`${runTag} report job`);
+    expect(html).toContain("Panel replaced and every circuit tested.");
+    const hubPdf = await fetch(`${state.baseUrl}/hub/${hubToken}/work/${job.id}/pdf`);
+    expect(hubPdf.status).toBe(200);
+    expect(hubPdf.headers.get("content-type")).toContain("application/pdf");
+    const hubPhoto = (id: string) => fetch(`${state.baseUrl}/hub/${hubToken}/photos/${id}`, { redirect: "manual" });
+    expect([200, 302]).toContain((await hubPhoto(after.id)).status); // After: shown by default
+    expect([200, 302]).toContain((await hubPhoto(before.id)).status); // the Before of a shown pair
+    expect((await hubPhoto(during.id)).status).toBe(404); // hidden
+    expect((await hubPhoto(loneBefore.id)).status).toBe(404); // loose Before, hidden
+    // A stranger's token sees nothing.
+    expect((await fetch(`${state.baseUrl}/hub/not-a-token/work/${job.id}`)).status).toBe(404);
+
+    // Send: the e2e contact deliberately has no email or phone (the suite never
+    // sends real mail), so the send is refused with a plain reason — and the
+    // note typed into the sheet is kept for the next try.
+    const sent = await api.raw("POST", `/api/app/jobs/${job.id}/report`, { email: true, text: true, note: "Thanks again!" });
+    expect(sent.status).toBe(400);
+    expect(((await sent.json()) as { error: string }).error).toContain("no email or textable phone");
+    const row = await db().job.findUniqueOrThrow({ where: { id: job.id }, select: { reportNote: true, reportSentAt: true } });
+    expect(row.reportNote).toBe("Thanks again!");
+    expect(row.reportSentAt).toBeNull();
   });
 });

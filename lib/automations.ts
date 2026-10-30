@@ -294,6 +294,7 @@ export const ENTITY_FIELDS: Record<EntityType, readonly FieldDef[]> = {
     f("days_until_job", "Days until the job", "number", { help: "negative once it has passed; 0 when unscheduled" }),
     f("crew", "Crew", "text", { help: "assigned names, comma-separated" }),
     f("job_recurring", "Part of a recurring plan", "bool"),
+    f("job_report_link", "Work report link", "text", { help: "the client's report page (Gallery plan); empty while the job is open" }),
   ],
   invoice: [
     f("invoice_number", "Invoice #", "number"), f("invoice_total", "Invoice total", "number"), f("invoice_balance", "Balance owed", "number"), f("total", "Amount", "number"),
@@ -482,6 +483,7 @@ export const ACTIONS = {
   send_pay_link: { label: "Send the pay link", group: "Messaging", needs: ["invoice", "payment"], hint: "Sends the invoice's pay link (email, plus text when possible).", params: [] },
   send_payment_reminder: { label: "Send a payment reminder", group: "Messaging", needs: ["invoice", "payment"], hint: "The standard reminder email; skipped once the invoice is paid.", params: [] },
   send_appointment_reminder: { label: "Send an appointment reminder", group: "Messaging", needs: ["appointment"], hint: "The standard reminder (text when possible, else email).", params: [] },
+  send_job_report: { label: "Send the work report", group: "Messaging", needs: ["job"], hint: "The client's work completed report — photos marked for them, before-and-afters, the checklist (Gallery plan). Skipped while the job is still open.", params: [] },
   request_review: { label: "Request a review", group: "Messaging", needs: "client", hint: "Sends your review link (needs it set in Branding); once per client per job.", params: [] },
   // Records
   add_client_note: { label: "Add a note on the client", group: "Records", needs: "client", hint: "A note on the client's page, tagged with the rule's name.", params: [p("body", "Note", "template_long", { required: true, max: 1000 })] },
@@ -839,6 +841,7 @@ export function actionLabel(a: AutomationAction): string {
     case "send_pay_link": return "Send the pay link";
     case "send_payment_reminder": return "Send a payment reminder";
     case "send_appointment_reminder": return "Send an appointment reminder";
+    case "send_job_report": return "Send the work report";
     case "request_review": return "Send a review request (if a review link is set)";
     case "add_client_note": return `Add a note on the client: “${short(a.body)}”`;
     case "add_job_note": return `Add a note on the job: “${short(a.body)}”`;

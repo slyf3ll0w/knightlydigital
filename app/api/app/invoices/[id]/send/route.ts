@@ -36,8 +36,8 @@ export async function POST(
   // (components/SendChoice.tsx); no body = both.
   // `expectScheduled` comes from the "Send now" link under a scheduled draft:
   // 409 when the sweep already took it, so the client isn't emailed twice.
-  const { channels, expectScheduled } = await readSendRequest(req, SEND_DEFAULTS.invoice);
-  const result = await sendInvoice({ id, companyId: actor.companyId, scope: viaContactScope(actor), channels, expectScheduled });
+  const { channels, expectScheduled, includeReport } = await readSendRequest(req, SEND_DEFAULTS.invoice);
+  const result = await sendInvoice({ id, companyId: actor.companyId, scope: viaContactScope(actor), channels, expectScheduled, includeReport });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({ emailed: result.emailed, texted: result.texted, to: result.to, phone: result.phone });
 }

@@ -21,3 +21,15 @@ export async function galleryPreviewFor(companyId: string): Promise<boolean> {
   const company = await prisma.company.findUnique({ where: { id: companyId }, select: { isTest: true } });
   return company ? galleryPreviewOpen(company) : false;
 }
+
+/**
+ * Both switches at once, for pages: `preview` = may this company see the
+ * Gallery work at all; `open` = and does its plan include it (the
+ * Gallery-plan parts render locked when preview is on but open is off).
+ */
+export async function galleryStateFor(companyId: string): Promise<{ preview: boolean; open: boolean }> {
+  const preview = await galleryPreviewFor(companyId);
+  if (!preview) return { preview: false, open: false };
+  const { featureAllowedFor } = await import("@/lib/plan-gate");
+  return { preview: true, open: await featureAllowedFor(companyId, "gallery") };
+}

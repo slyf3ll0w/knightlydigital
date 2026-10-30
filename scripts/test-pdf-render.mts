@@ -6,7 +6,9 @@
  *   npx tsx scripts/test-pdf-render.mts [outDir]
  */
 import { renderToBuffer } from "@react-pdf/renderer";
-import { buildQuoteDocument, buildInvoiceDocument } from "../lib/pdf";
+import { buildQuoteDocument, buildInvoiceDocument, buildJobReportDocument, type ReportImages } from "../lib/pdf";
+import type { JobReport } from "../lib/job-report";
+import type { PhotoView } from "../lib/photos-shared";
 import { writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -161,11 +163,47 @@ async function main() {
     )
   );
 
+  // Work completed report (Gallery plan): pairs, singles, note, checklist,
+  // sign-off, with a 1×1 PNG standing in for the photos.
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+  const photo = (id: string, stage: PhotoView["stage"], caption: string | null, pairId: string | null): PhotoView => ({
+    id, stage, caption, takenAt: "2026-10-30T15:00:00.000Z", createdAt: "2026-10-30T15:00:00.000Z", by: "Marco Reyes",
+    lat: null, lng: null, clientVisible: true, siteUse: false, alt: null, hasThumb: false, jobId: "job1", quoteId: null, pairId,
+  });
+  const report: JobReport = {
+    job: {
+      id: "job1", jobNumber: 412, title: "Water heater replacement", description: null, status: "REQUIRES_INVOICING",
+      address: "98 Bluebonnet Trail, Arlington, TX 76010", scheduledAt: new Date("2026-10-29T14:00:00Z"),
+      completedAt: new Date("2026-10-29T17:40:00Z"), closedAt: null,
+      completionSignatureName: "Lynne Carver", completionSignedAt: new Date("2026-10-29T17:45:00Z"),
+      reportNote: "New 50-gallon unit in, expansion tank added, pressure tested to 80 psi. Call us if the pilot ever drops out.",
+      reportSentAt: null, companyId: "c1", contactId: "k1",
+      company: { ...company, legalName: null, showLegalNameOnDocs: false, timezone: "America/Chicago" },
+      contact: { ...contact, hubToken: "tok", smsOptOut: false, smsDisabled: false },
+    },
+    crew: ["Marco Reyes"],
+    checklist: [
+      { id: "c1", label: "Shut off gas and water", done: true, skipReason: null },
+      { id: "c2", label: "Install expansion tank", done: true, skipReason: null },
+      { id: "c3", label: "Haul away old unit", done: false, skipReason: "Customer kept it for scrap" },
+    ],
+    photos: [],
+    pairs: [
+      { id: "p1", before: photo("b1", "BEFORE", "Old unit, corroded fittings", "p1"), after: photo("a1", "AFTER", "New unit and expansion tank", "p1") },
+    ],
+    singles: [photo("s1", "AFTER", "Pressure test", null), photo("s2", "DURING", null, null), photo("s3", "GENERAL", "Shut-off valve", null)],
+    path: "/hub/tok/work/job1",
+  };
+  report.photos = [...report.pairs.flatMap((p) => [p.before, p.after]), ...report.singles];
+  const images: ReportImages = new Map(report.photos.map((p) => [p.id, { data: png, format: "png" as const }]));
+  const reportBuf = await renderToBuffer(buildJobReportDocument(report, null, images));
+
   for (const [name, buf] of [
     ["test-quote.pdf", quoteBuf],
     ["test-invoice.pdf", invoiceBuf],
     ["test-quote-approved.pdf", approvedQuoteBuf],
     ["test-invoice-paid.pdf", paidInvoiceBuf],
+    ["test-work-report.pdf", reportBuf],
   ] as const) {
     if (buf.subarray(0, 5).toString() !== "%PDF-") throw new Error(`${name}: not a PDF`);
     if (buf.length < 2000) throw new Error(`${name}: suspiciously small (${buf.length}B)`);

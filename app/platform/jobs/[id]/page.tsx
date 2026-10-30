@@ -31,8 +31,10 @@ import AssignTeam from "./AssignTeam";
 import PhotoGrid from "@/components/PhotoGrid";
 import PhotoUpload from "./PhotoUpload";
 import { PHOTO_VIEW_SELECT, toPhotoView } from "@/lib/photos";
-import { photoSrc } from "@/lib/photos-shared";
-import { galleryPreviewFor } from "@/lib/gallery-preview";
+import { photoSrc, reportPhotos } from "@/lib/photos-shared";
+import { galleryStateFor } from "@/lib/gallery-preview";
+import { canText, companyCanSendSms } from "@/lib/sms";
+import JobReportCard from "./JobReportCard";
 import JobChecklist from "./JobChecklist";
 import ConvertToAppointmentNotice from "./ConvertToAppointment";
 import { looksLikeAppointment } from "@/lib/appointment-hint";
@@ -125,8 +127,21 @@ export default async function JobDetailPage({
   // is simply not on the page and the margin card shows no Labor line — the
   // upsell lives on /app/timesheets, not on every job.
   const timesheetsAllowed = await featureAllowedFor(companyId, "timesheets");
-  // Gallery preview: the new photo grid + viewer only for test accounts for now.
-  const galleryPreview = await galleryPreviewFor(companyId);
+  // Gallery preview: the new photo grid + viewer only for test accounts for
+  // now; `open` = the plan allows the Gallery parts (pairs, the work report).
+  const gallery = await galleryStateFor(companyId);
+  const galleryPreview = gallery.preview;
+  const photoViews = job.photos.map(toPhotoView);
+  const reportSet = reportPhotos(photoViews);
+  const reportCounts = {
+    pairs: reportSet.pairs.length,
+    singles: reportSet.singles.length,
+    hidden: photoViews.length - reportSet.pairs.length * 2 - reportSet.singles.length,
+    checklist: checklistItems.filter((c) => c.doneAt).length,
+  };
+  // The work report can be sent where an invoice can: email, or a text from the business line.
+  const canTextClient = gallery.open && Boolean(job.contact.phone) && canText(job.contact) && (await companyCanSendSms(companyId));
+  const reportReach = gallery.open && (Boolean(job.contact.email) || canTextClient);
   const closedEntries = job.timeEntries.filter((e) => e.endedAt);
   const loggedMs = closedEntries.reduce((s, e) => s + entryMs(e), 0);
   const laborCost = timesheetsAllowed
@@ -271,6 +286,7 @@ export default async function JobDetailPage({
               canConvertToAppointment={canConvertToAppointment}
               canCloseUnbilled={showBilling}
               canInvoice={showBilling}
+              reportOffer={reportReach ? { firstName: job.contact.firstName, shown: reportCounts.pairs + reportCounts.singles } : null}
             />
           </div>
         )}
@@ -577,7 +593,7 @@ export default async function JobDetailPage({
             meta={job.photos.length > 0 ? `${job.photos.length}` : "Add"}
           >
             {galleryPreview ? (
-              <PhotoGrid target={{ kind: "job", id: job.id }} canSite={isManager(actor.role)} photos={job.photos.map(toPhotoView)} />
+              <PhotoGrid target={{ kind: "job", id: job.id }} canSite={isManager(actor.role)} photos={photoViews} canPair={gallery.open} />
             ) : (
               // Live accounts keep the uploader exactly as it was until the
               // Gallery work is opened (lib/gallery-preview.ts).
@@ -596,6 +612,25 @@ export default async function JobDetailPage({
             )}
           </Fold>
           </div>
+
+          {/* Work completed report (Gallery plan) — once the work is done */}
+          {galleryPreview && job.status !== "ACTIVE" && actor.role !== "SALES" && (
+            <div id="report" className="scroll-mt-20">
+              <Fold title="Work report" meta={job.reportSentAt ? "Sent" : "Send"} defaultOpen={!job.reportSentAt}>
+                <JobReportCard
+                  jobId={job.id}
+                  note={job.reportNote}
+                  sentAt={job.reportSentAt?.toISOString() ?? null}
+                  counts={reportCounts}
+                  contactEmail={job.contact.email}
+                  contactPhone={job.contact.phone ? fmtPhone(job.contact.phone) : null}
+                  canTextClient={canTextClient}
+                  locked={!gallery.open}
+                  tz={tz}
+                />
+              </Fold>
+            </div>
+          )}
         </div>
 
         {/* Sidebar */}

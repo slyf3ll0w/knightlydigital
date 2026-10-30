@@ -1121,6 +1121,7 @@ export function invoiceLinkEmail({
   payUrl,
   serviceNames,
   payable = true,
+  reportUrl = null,
 }: {
   brand: EmailBrand;
   companyName: string;
@@ -1130,6 +1131,8 @@ export function invoiceLinkEmail({
   payUrl: string;
   serviceNames: string[];
   payable?: boolean;
+  /** "Include the work report" on the invoice send: the job's report link (Gallery plan). */
+  reportUrl?: string | null;
 }): { subject: string; html: string } {
   const html = clientShell({
     brand,
@@ -1139,9 +1142,46 @@ export function invoiceLinkEmail({
       ${p(`Here's invoice ${invoiceNumber}.`)}
       ${ledger(serviceNames, { label: "Total", amount: total })}
       ${button(payUrl, payable ? "Pay invoice" : "View invoice", brand)}
+      ${reportUrl ? aside(`${link(reportUrl, "See the work report", linkColor(brand))} — photos and the checklist from the visit.`) : ""}
       ${aside(`Need a copy for your records? ${link(`${payUrl}/pdf`, "Download the PDF", QUIET)}.`)}`,
   });
   return { subject: `Invoice ${invoiceNumber} from ${companyName}`, html };
+}
+
+/**
+ * Work completed report (Gallery plan, phase B) — "we're done, here's what
+ * we did": the crew's note, a one-line summary of what the report holds,
+ * and the button to the client's hub page. The PDF sits under the same
+ * link. `summary` comes from reportSummaryLine (lib/photos-shared).
+ */
+export function jobReportEmail({
+  brand,
+  companyName,
+  contactFirstName,
+  jobTitle,
+  reportUrl,
+  summary,
+  note,
+}: {
+  brand: EmailBrand;
+  companyName: string;
+  contactFirstName?: string | null;
+  jobTitle: string;
+  reportUrl: string;
+  summary: string;
+  note?: string | null;
+}): { subject: string; html: string } {
+  const html = clientShell({
+    brand,
+    companyName,
+    inner: `
+      ${hello(contactFirstName)}
+      ${p(`We've finished <strong>${esc(jobTitle)}</strong>.${summary ? ` Here's your report, with ${esc(summary)}.` : " Here's your report."}`)}
+      ${note?.trim() ? p(multiline(note.trim())) : ""}
+      ${button(reportUrl, "See the report", brand)}
+      ${aside(`Want a copy for your records? ${link(`${reportUrl}/pdf`, "Download the PDF", QUIET)}.`)}`,
+  });
+  return { subject: `Work completed: ${jobTitle}`, html };
 }
 
 /**
