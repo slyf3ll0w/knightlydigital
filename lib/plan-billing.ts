@@ -82,6 +82,10 @@ const PLATFORM_SELECT = {
   id: true,
   name: true,
   suspendedAt: true,
+  // The WorkBench company's own Service fee switch: plan charges to the
+  // card on file carry it (lib/auto-charge.ts), so the Plans page says so.
+  surchargeEnabled: true,
+  surchargeRate: true,
   ...CHARGE_GATE_SELECT,
   ...PAY_CONFIG_SELECT,
 } as const;
@@ -750,9 +754,18 @@ export type PlanBillingState = {
   attention: string | null;
   /** The company's billing page in WorkBench's client hub: invoices, receipts, the card. */
   hubUrl: string | null;
+  /** Card surcharge on every plan charge (a rate, 0.035 = 3.5%), or null when WorkBench absorbs the fee. */
+  cardFeeRate: number | null;
   gatingLive: boolean;
   isTest: boolean;
 };
+
+/** The card surcharge rate a biller adds to card-on-file charges, or null when off (same rule as lib/autopay-rules.ts). */
+export function billerCardFeeRate(biller: { surchargeEnabled: boolean; surchargeRate: { toString(): string } | number | null } | null): number | null {
+  if (!biller?.surchargeEnabled || biller.surchargeRate == null) return null;
+  const rate = Number(biller.surchargeRate);
+  return Number.isFinite(rate) && rate > 0 && rate <= 0.1 ? rate : null;
+}
 
 const dateOnly = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
 
@@ -839,6 +852,7 @@ export async function planBillingState(companyId: string, gatingLive: boolean): 
       ? `Your card didn't go through on ${failing.unpaidSince!.toLocaleDateString("en-US", { month: "short", day: "numeric" })}. We'll retry — replace the card to be safe, or pay the invoice from your billing page. Plans pause ${PAYMENT_GRACE_DAYS} days after a missed renewal.`
       : null,
     hubUrl: contact ? `/hub/${contact.hubToken}` : null,
+    cardFeeRate: billerCardFeeRate(platform),
     gatingLive,
     isTest: company.isTest,
   };

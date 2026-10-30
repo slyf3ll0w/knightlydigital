@@ -787,6 +787,7 @@ export async function recordPayment(params: RecordPaymentParams) {
     sendPaymentReceipt({
       invoiceId: params.invoiceId,
       amount: params.amount,
+      surcharge: params.surchargeAmount ?? 0,
       method: params.method,
       pending: params.receiptPending ?? false,
     }).catch((e) => reportError("[payments] receipt email failed", e));
@@ -829,6 +830,8 @@ async function anchorPlanFromFirstPayment(subscriptionId: string, paidAt: Date):
 async function sendPaymentReceipt(params: {
   invoiceId: string;
   amount: number;
+  /** Card surcharge inside `amount` — the receipt itemizes it. */
+  surcharge: number;
   method: PaymentMethod;
   pending: boolean;
 }): Promise<void> {
@@ -863,6 +866,7 @@ async function sendPaymentReceipt(params: {
     contactFirstName: invoice.contact.firstName,
     invoiceNumber: invoice.invoiceNumber,
     amount: params.amount,
+    surcharge: params.surcharge,
     methodLabel: paymentMethodLabel[params.method] ?? params.method,
     remainingBalance: remaining,
     payUrl: `${baseUrl}/pay/${invoice.publicToken}`,
