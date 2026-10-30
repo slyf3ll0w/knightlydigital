@@ -88,7 +88,6 @@ const expect: [string, string][] = [
   ["sticky note on a job page", "sticky-notes"],
   ["remind me to call a client back", "tasks-and-reminders"],
   ["sell a gift card", "gift-cards"],
-  ["loyalty points rewards", "loyalty-rewards"],
   ["who pays the card fee", "card-surcharging"],
 ];
 for (const [q, slug] of expect) {

@@ -36,13 +36,10 @@ export const SQUARE_SCOPES = [
   "DISPUTES_READ", // ListDisputes: the Disputes tab (2026-10-28)
   "DISPUTES_WRITE", // accept a dispute, upload evidence (2026-10-28)
   // 2026-10-30 (docs/plans/square-products-2026-10-30.md): the itemization
-  // behind a payment, gift cards sold / checked / redeemed in WorkBench, and
-  // the seller's loyalty program (enroll, points, rewards).
+  // behind a payment and gift cards sold / checked / redeemed in WorkBench.
   "ORDERS_READ", // RetrieveOrder: the items behind a payment (transaction detail)
   "GIFTCARDS_READ", // ListGiftCards / RetrieveGiftCardFromGAN / activities
   "GIFTCARDS_WRITE", // CreateGiftCard / ACTIVATE / LOAD / link to a customer
-  "LOYALTY_READ", // RetrieveLoyaltyProgram / SearchLoyaltyAccounts
-  "LOYALTY_WRITE", // CreateLoyaltyAccount / Accumulate / Adjust / rewards
 ] as const;
 
 export function squareScopes(): string[] {

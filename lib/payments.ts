@@ -774,17 +774,13 @@ export async function recordPayment(params: RecordPaymentParams) {
   );
 
   // Square products (docs/plans/square-products-2026-10-30.md), best effort:
-  // a gift card sold through WorkBench loads once its invoice is paid, and an
-  // enrolled client earns loyalty points on what they paid. Neither can fail
-  // the recording; both are no-ops for companies without the product.
+  // a gift card sold through WorkBench loads once its invoice is paid. It
+  // can't fail the recording and is a no-op for companies without the product.
   if (result.fullyPaid) {
     import("@/lib/gift-cards")
       .then((m) => m.activateGiftCardForInvoice(params.invoiceId))
       .catch((e) => reportError("[payments] gift card activation failed", params.invoiceId, e));
   }
-  import("@/lib/loyalty")
-    .then((m) => m.accrueLoyaltyForPayment(result.payment.id))
-    .catch((e) => reportError("[payments] loyalty accrual failed", result.payment.id, e));
 
   // Push the invoice + payment to QuickBooks when the company has a
   // connection (instant no-op otherwise; never blocks or fails recording).
