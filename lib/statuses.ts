@@ -144,6 +144,7 @@ export const paymentMethodLabel: Record<string, string> = {
   PAYPAL: "PayPal",
   VENMO: "Venmo",
   ZELLE: "Zelle",
+  GIFT_CARD: "Gift card",
   OTHER: "Other",
 };
 
