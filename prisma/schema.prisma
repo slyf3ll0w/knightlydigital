@@ -1126,9 +1126,6 @@ model Contact {
   // first time a card is saved on file (Square cards belong to a customer)
   // and reused after. Square's counterpart of finixBuyerIdentityId.
   squareCustomerId     String?
-  // Square Loyalty account under the company's program (lib/loyalty.ts):
-  // set when staff enroll the client or the client joins from the hub.
-  squareLoyaltyAccountId String?
   giftCardSales        GiftCardSale[]
   // Provider SMS (Telnyx): set when the client texts STOP to our number —
   // automated texts (reminders, quote/invoice links) skip them. Telnyx also
@@ -3395,14 +3392,6 @@ model SquareConnection {
   // never checked.
   payoutStatus       String?
   payoutCheckedAt    DateTime?
-  // The seller's Square Loyalty program (lib/loyalty.ts, 2026-10-30): id of
-  // the main program and its status — ACTIVE (subscribed, rules set) |
-  // INACTIVE (program exists, subscription lapsed) | NONE (no program) |
-  // UNKNOWN (grant predates LOYALTY_READ). Refreshed on the Loyalty tab, on
-  // Check connection and in the hourly token step. null = never checked.
-  loyaltyProgramId   String?
-  loyaltyStatus      String?
-  loyaltyCheckedAt   DateTime?
   // Last successful token issue/refresh; the sweep keys off this
   refreshedAt        DateTime  @default(now())
   lastRefreshError   String?

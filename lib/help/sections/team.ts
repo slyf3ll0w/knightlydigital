@@ -178,7 +178,6 @@ export const portalSection: HelpSection = {
           items: [
             "See their open balance, next visit and anything waiting on them on **Home**.",
             "Approve quotes, pay invoices by card, bank or gift card, and save cards (and pick one for autopay).",
-            "Join your rewards program and watch their points, when you run Square Loyalty — see [Rewards with Square Loyalty](/help/loyalty-rewards).",
             "Sign agreements.",
             "Ask to reschedule a visit, and send a **New request** for more work.",
             "Message you on the **Messages** tab. Replies show up in your [inbox](/help/messages-inbox).",

@@ -7,10 +7,11 @@ export const SQUARE_BANK_ACCOUNTS_URL = "https://app.squareup.com/dashboard/bank
 
 /**
  * Dashboard screens WorkBench deliberately does NOT rebuild (2026-10-28,
- * plan § 3): instant transfer, the deposit schedule, Square Online, loyalty
- * and gift cards are Square-account settings and products, so the Payments
- * page deep-links to them instead. Paths are Square's published dashboard
- * routes as of 2026-10-28 (NOT verified against a signed-in seller from
+ * plan § 3): instant transfer and the deposit schedule are Square-account
+ * settings, so the Payments page deep-links to them instead. (Gift cards were
+ * built in on 2026-10-30; the Square Online and loyalty links were dropped the
+ * same day — loyalty needs a Square subscription WorkBench doesn't promote.)
+ * Paths are Square's published dashboard routes as of 2026-10-28 (NOT verified against a signed-in seller from
  * here — a signed-in check is owed); the dashboard sends an unknown path to
  * its home, so a stale one degrades to "open the Square dashboard", never to
  * an error page.
@@ -24,8 +25,6 @@ export const SQUARE_DASHBOARD_PATHS = {
   bankAccounts: "/dashboard/bank-accounts",
   transactions: "/dashboard/sales/transactions",
   disputes: "/dashboard/disputes",
-  onlineStore: "/dashboard/online-store",
-  loyalty: "/dashboard/loyalty",
   giftCards: "/dashboard/gift-cards",
 } as const;
 export type SquareDashboardScreen = keyof typeof SQUARE_DASHBOARD_PATHS;

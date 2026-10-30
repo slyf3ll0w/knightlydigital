@@ -159,14 +159,14 @@ export const paymentsSection: HelpSection = {
     {
       slug: "payments-page",
       title: "Your Payments page: payments, payouts, disputes and reports",
-      summary: "Six tabs on your Square account — payments, payouts, disputes, reports, gift cards, loyalty — and the items behind every sale.",
-      keywords: ["payments page", "payments tab", "payouts tab", "disputes tab", "reports", "revenue report", "by tech", "by job type", "csv", "square pos", "square reader", "outside workbench", "record on an invoice", "reconnect square", "collected", "fees this month", "transaction details", "itemized", "order items", "gift cards tab", "loyalty tab", "in square"],
+      summary: "Five tabs on your Square account — payments, payouts, disputes, reports, gift cards — and the items behind every sale.",
+      keywords: ["payments page", "payments tab", "payouts tab", "disputes tab", "reports", "revenue report", "by tech", "by job type", "csv", "square pos", "square reader", "outside workbench", "record on an invoice", "reconnect square", "collected", "fees this month", "transaction details", "itemized", "order items", "gift cards tab", "in square"],
       where: { label: "Payments", href: "/app/payments" },
       roles: "Owners, admins and anyone who can see money",
       blocks: [
         {
           type: "p",
-          text: "With Square connected, **Payments** reads your Square account live each time it opens. Four numbers sit at the top — **Collected** and **Processing fees** this month, **On its way to your bank**, **Open disputes** — and under them six tabs: **Payments · Payouts · Disputes · Reports · Gift cards · Loyalty**. On a phone each tab is its own screen.",
+          text: "With Square connected, **Payments** reads your Square account live each time it opens. Four numbers sit at the top — **Collected** and **Processing fees** this month, **On its way to your bank**, **Open disputes** — and under them five tabs: **Payments · Payouts · Disputes · Reports · Gift cards**. On a phone each tab is its own screen.",
         },
         {
           type: "list",
@@ -176,19 +176,18 @@ export const paymentsSection: HelpSection = {
             "**Disputes**: cases where a client's bank questioned a charge, with the reason, status, respond-by date and amount. Open one to upload evidence and send it to the bank, or accept it. See [Respond to a dispute](/help/disputes).",
             "**Reports**: money in for the last 12 days, weeks or months (`By day`, `By week`, `By month`) — collected, refunds, fees and net — plus **By tech** (who was on the job the invoice billed) and **By job type** (the price-book services on the job). `Download CSV` gives the table to your bookkeeper. Cash and check payments you recorded count too; sales taken outside WorkBench show under **No job**.",
             "**Gift cards**: every gift card on your Square account with its state, balance and history, plus `Sell a gift card` and `Check a balance`. See [Sell and take Square gift cards](/help/gift-cards).",
-            "**Loyalty**: your Square Loyalty program — the earning rule, the rewards, every member and their points — with `Enroll a client`. See [Rewards with Square Loyalty](/help/loyalty-rewards).",
           ],
         },
         {
           type: "tip",
-          text: "`Export` at the top of the page still downloads every payment as a CSV, and `Collect payment` records a cash, check or other payment by hand — see [Record a cash, check or other payment](/help/record-cash-or-check). **In Square** at the bottom links to Square's own transactions list and to Square Online, the two things that stay in Square's dashboard.",
+          text: "`Export` at the top of the page still downloads every payment as a CSV, and `Collect payment` records a cash, check or other payment by hand — see [Record a cash, check or other payment](/help/record-cash-or-check). **In Square** at the bottom links to Square's own transactions list.",
         },
         {
           type: "faq",
           items: [
             {
               q: "The page asks me to Reconnect Square.",
-              a: "You connected Square before WorkBench read payouts, disputes, order items, gift cards or loyalty, so Square needs you to approve the new permissions once — the card says which. The owner presses `Reconnect Square` (on the Payments page or the Online Payments card in Settings) and signs in to Square as the first time. One click; payments keep working meanwhile and nothing else changes. Until then the tabs that need it stay empty.",
+              a: "You connected Square before WorkBench read payouts, disputes, order items or gift cards, so Square needs you to approve the new permissions once — the card says which. The owner presses `Reconnect Square` (on the Payments page or the Online Payments card in Settings) and signs in to Square as the first time. One click; payments keep working meanwhile and nothing else changes. Until then the tabs that need it stay empty.",
             },
             {
               q: "A tab says Square didn't answer just now.",
@@ -532,73 +531,6 @@ export const paymentsSection: HelpSection = {
             {
               q: "A card bought in the Square app isn't on the tab.",
               a: "The tab shows what Square answers with — open the page again if Square didn't answer just now. Physical cards are registered in the Square app, not here; once they are, they list and redeem like any other.",
-            },
-          ],
-        },
-      ],
-    },
-    {
-      slug: "loyalty-rewards",
-      title: "Rewards with Square Loyalty",
-      summary: "Set the program up in Square; WorkBench enrolls clients, adds points on every payment and spends rewards on invoices.",
-      keywords: ["loyalty", "rewards", "points", "square loyalty", "enroll", "reward program", "punch card", "repeat customers", "use a reward", "join rewards"],
-      where: { label: "Loyalty", href: "/app/payments?tab=loyalty" },
-      roles: "Owners and admins enroll clients, adjust points and use rewards",
-      blocks: [
-        {
-          type: "p",
-          text: "Square Loyalty is a Square subscription. You set it up once in your Square dashboard — how clients earn points (per visit or per dollar) and what the rewards are — and WorkBench runs it from there. **Payments → Loyalty** shows the earning rule, the rewards and every member with their points; a member who isn't a WorkBench client yet shows by phone number.",
-        },
-        {
-          type: "steps",
-          note: "Phone number first",
-          items: [
-            "Give the client a mobile number. Square keys rewards to the phone, so someone already in your program from the counter is matched up, not enrolled twice.",
-            "Press `Enroll a client` on the Loyalty tab, or `Enroll in rewards` in the **Rewards** card on the client's page.",
-            "Or let them join themselves: their client portal shows your program with a `Join rewards` button.",
-          ],
-        },
-        {
-          type: "h",
-          text: "Points",
-        },
-        {
-          type: "list",
-          items: [
-            "Every payment on an enrolled client's invoice — pay page, saved card, Tap to Pay, or cash and check you record — earns points by your Square rule, the same as a sale at the counter. Service fees and gift card payments don't earn.",
-            "`Adjust points` in the Rewards card on the client's page adds or removes points by hand: a plus or minus number and a reason, which shows in Square's history.",
-            "The client's balance and lifetime points are in that card and in their portal, with what each reward takes.",
-          ],
-        },
-        {
-          type: "h",
-          text: "Use a reward",
-        },
-        {
-          type: "steps",
-          items: [
-            "Open the client's unpaid invoice before any payment is taken on it and press ⋯ → `Use a reward`. The menu shows their points.",
-            "Pick a reward they have the points for and press `Put the reward on this invoice`. It becomes the invoice's discount and the points are spent at Square. An invoice that already has a discount can't take a reward — rewards don't stack.",
-          ],
-        },
-        {
-          type: "faq",
-          items: [
-            {
-              q: "A reward is greyed out, or it says to redeem it in the Square app.",
-              a: "Only rewards that take money off the whole sale — an amount or a percent — go on a WorkBench invoice. A reward on one specific item is redeemed in the Square app. Otherwise the client doesn't have enough points yet.",
-            },
-            {
-              q: "Enroll says to set up a loyalty program in Square first.",
-              a: "There's no active Square Loyalty program on your account yet. Create one in your Square dashboard; WorkBench picks it up within a few hours, and the Loyalty tab shows it.",
-            },
-            {
-              q: "The tab says Square shows the program as inactive.",
-              a: "Your Square Loyalty subscription is paused or lapsed. Points and rewards wait until it's active in Square again.",
-            },
-            {
-              q: "The Loyalty tab asks me to reconnect Square.",
-              a: "Loyalty needs permissions your Square connection didn't have yet. The owner presses `Reconnect Square` once and signs in to Square; payments keep working meanwhile.",
             },
           ],
         },

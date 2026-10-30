@@ -11,7 +11,6 @@ import PayoutsTab from "./PayoutsTab";
 import DisputesTab from "./DisputesTab";
 import ReportsTab from "./ReportsTab";
 import GiftCardsTab from "./GiftCardsTab";
-import LoyaltyTab from "./LoyaltyTab";
 import TransactionDetail from "./TransactionDetail";
 
 /** How far back the Payments tab lists Square sales taken outside WorkBench. */
@@ -19,10 +18,10 @@ const OUTSIDE_WINDOW_DAYS = 90;
 
 /**
  * The Square-connected company's money view: the Square dashboard's
- * capabilities in WorkBench's shape (2026-10-28; gift cards, loyalty and the
+ * capabilities in WorkBench's shape (2026-10-28; gift cards and the
  * transaction detail 2026-10-30). KPI strip (collected and fees this month,
- * on its way to the bank, open disputes), then one of six tabs — Payments ·
- * Payouts · Disputes · Reports · Gift cards · Loyalty — each its own screen
+ * on its way to the bank, open disputes), then one of five tabs — Payments ·
+ * Payouts · Disputes · Reports · Gift cards — each its own screen
  * on a phone. Every Square number is read live with the seller's token and
  * tolerated to fail on its own; our own records always render.
  */
@@ -81,7 +80,6 @@ export default async function SquarePayments({
     !needPayouts || !needDisputes ? "payouts and disputes" : "",
     missingScopes.includes("ORDERS_READ") ? "the items behind a sale" : "",
     missingScopes.some((s) => s.startsWith("GIFTCARDS")) ? "gift cards" : "",
-    missingScopes.some((s) => s.startsWith("LOYALTY")) ? "loyalty" : "",
   ].filter(Boolean);
 
   // Day-by-day bars for the "Collected" card, like the dashboard's
@@ -171,17 +169,6 @@ export default async function SquarePayments({
         missingScope={missingScopes.some((s) => s.startsWith("GIFTCARDS"))}
       />
     );
-  } else if (tab === "loyalty") {
-    body = (
-      <LoyaltyTab
-        companyId={companyId}
-        sandbox={sandbox}
-        cursor={params.cursor ?? null}
-        canManage={manager}
-        canReconnect={isOwner}
-        missingScope={missingScopes.some((s) => s.startsWith("LOYALTY"))}
-      />
-    );
   } else if (params.payment) {
     body = <TransactionDetail companyId={companyId} tz={tz} paymentId={params.payment} canReconnect={isOwner} />;
   } else {
@@ -203,14 +190,13 @@ export default async function SquarePayments({
       {body}
       {tab === "payments" && !params.payment && (
         <div className="mb-8">
-          <RuledLabel info="Products and settings that belong to your Square account rather than to WorkBench — they open in Square's dashboard with the same sign-in. Gift cards and loyalty have their own tabs here now.">
+          <RuledLabel info="Products and settings that belong to your Square account rather than to WorkBench — they open in Square's dashboard with the same sign-in. Gift cards have their own tab here.">
             In Square
           </RuledLabel>
           <SquareLinkRows
             sandbox={sandbox}
             rows={[
               { screen: "transactions", title: "Transactions in Square", sub: "Square's own list — tap any payment here for the same detail" },
-              { screen: "onlineStore", title: "Square Online", sub: "Your online store, if you run one (Square has no API for it)" },
             ]}
           />
         </div>

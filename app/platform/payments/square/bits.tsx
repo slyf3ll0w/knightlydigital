@@ -12,8 +12,8 @@ import type { SellerReadFailure } from "@/lib/square-seller-reports";
  * what stays in the Square dashboard.
  */
 
-export type SquareTab = "payments" | "payouts" | "disputes" | "reports" | "giftcards" | "loyalty";
-export const SQUARE_TABS: readonly SquareTab[] = ["payments", "payouts", "disputes", "reports", "giftcards", "loyalty"];
+export type SquareTab = "payments" | "payouts" | "disputes" | "reports" | "giftcards";
+export const SQUARE_TABS: readonly SquareTab[] = ["payments", "payouts", "disputes", "reports", "giftcards"];
 
 export function parseSquareTab(v: string | undefined): SquareTab {
   return (SQUARE_TABS as readonly string[]).includes(v ?? "") ? (v as SquareTab) : "payments";
@@ -65,8 +65,8 @@ export function ReconnectCard({ what, canReconnect }: { what: string; canReconne
           <p className="mt-0.5 flex items-center gap-1.5 text-sm text-[color:var(--ds-ink)]">
             Reconnect Square to see {what}.
             <InfoTip>
-              WorkBench now reads more from your Square account — payouts, disputes, the items behind a sale, gift cards
-              and your loyalty program. Your Square connection was made before that, so Square needs you to approve it
+              WorkBench now reads more from your Square account — payouts, disputes, the items behind a sale and gift
+              cards. Your Square connection was made before that, so Square needs you to approve it
               once more — the same sign-in as the first time. Nothing else changes; payments keep working meanwhile.
             </InfoTip>
           </p>

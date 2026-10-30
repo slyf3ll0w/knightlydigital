@@ -1,27 +1,20 @@
 /**
  * Unit tests for the pure parts of the Square products build
  * (lib/square-products.ts, lib/gift-cards.ts, docs/plans/square-products-2026-10-30.md):
- * order / payment / gift card / loyalty mappers, gift card number helpers,
- * the words for accrual rules and reward tiers, and how a reward becomes an
- * invoice discount.
+ * order / payment / gift card mappers and gift card number helpers.
  *   npx tsx scripts/test-square-products.ts
  * Plain assertions, no test framework (repo has none). No database.
  */
 import assert from "node:assert/strict";
 import {
-  accrualRuleLabel,
   formatGan,
   ganTail,
   giftCardActivityDelta,
-  mapLoyaltyProgram,
   mapSellerGiftCardActivity,
   mapSellerOrder,
   mapSellerPaymentDetail,
   normalizeGan,
   productIdempotencyKey,
-  rewardDiscountFor,
-  rewardTierLabel,
-  type LoyaltyRewardTier,
 } from "../lib/square-products";
 import { giftCardAmountIssue, GIFT_CARD_MAX_CENTS, GIFT_CARD_MIN_CENTS } from "../lib/gift-cards";
 
@@ -160,65 +153,6 @@ test("idempotency keys stay within Square's 45 characters and are stable", () =>
   assert.ok(productIdempotencyKey(long).length <= 45);
   assert.equal(productIdempotencyKey(long), productIdempotencyKey(long));
   assert.equal(productIdempotencyKey("short"), "short");
-});
-
-console.log("loyalty");
-
-const program = mapLoyaltyProgram({
-  id: "prog",
-  status: "ACTIVE",
-  terminology: { one: "star", other: "stars" },
-  reward_tiers: [
-    { id: "t5", name: "$5 off", points: 50, definition: { scope: "ORDER", discount_type: "FIXED_AMOUNT", fixed_discount_money: usd(500) } },
-    { id: "t10", name: "10% off", points: 100, definition: { scope: "ORDER", discount_type: "FIXED_PERCENTAGE", percentage_discount: "10", max_discount_money: usd(2000) } },
-    { id: "tItem", name: "Free filter", points: 30, definition: { scope: "ITEM_VARIATION", discount_type: "FIXED_PERCENTAGE", percentage_discount: "100" } },
-  ],
-  accrual_rules: [
-    { accrual_type: "SPEND", points: 1, spend_data: { amount_money: usd(100) } },
-    { accrual_type: "VISIT", points: 5, visit_data: { minimum_amount_money: usd(2500) } },
-  ],
-  expiration_policy: { expiration_duration: "P1Y" },
-});
-
-test("the program maps terminology, tiers, accrual rules and expiry", () => {
-  assert.equal(program.one, "star");
-  assert.equal(program.other, "stars");
-  assert.equal(program.tiers.length, 3);
-  assert.deepEqual(program.tiers[0], { id: "t5", name: "$5 off", points: 50, scope: "ORDER", discountType: "FIXED_AMOUNT", amountCents: 500, percent: null, maxCents: null });
-  assert.deepEqual(program.tiers[1], { id: "t10", name: "10% off", points: 100, scope: "ORDER", discountType: "FIXED_PERCENTAGE", amountCents: null, percent: 10, maxCents: 2000 });
-  assert.deepEqual(program.accrual, [
-    { type: "SPEND", points: 1, perCents: 100 },
-    { type: "VISIT", points: 5, perCents: 2500 },
-  ]);
-  assert.equal(program.expiration, "P1Y");
-});
-
-test("rules and tiers in words", () => {
-  assert.equal(accrualRuleLabel(program.accrual[0], program), "1 star per $1 spent");
-  assert.equal(accrualRuleLabel(program.accrual[1], program), "5 stars per visit of $25 or more");
-  assert.equal(rewardTierLabel(program.tiers[0]), "$5 off");
-  assert.equal(rewardTierLabel(program.tiers[1]), "10% off (up to $20)");
-  assert.equal(rewardTierLabel(program.tiers[2]), "100% off one item");
-});
-
-test("a reward becomes an invoice discount: fixed capped at the subtotal, percent turned fixed when the cap bites, item tiers never", () => {
-  assert.deepEqual(rewardDiscountFor(program.tiers[0], 120), { discountType: "FIXED", discountValue: 5 });
-  assert.deepEqual(rewardDiscountFor(program.tiers[0], 3), { discountType: "FIXED", discountValue: 3 });
-  assert.deepEqual(rewardDiscountFor(program.tiers[1], 120), { discountType: "PERCENT", discountValue: 10 });
-  // 10% of $500 = $50 > the $20 cap → a fixed $20
-  assert.deepEqual(rewardDiscountFor(program.tiers[1], 500), { discountType: "FIXED", discountValue: 20 });
-  assert.equal(rewardDiscountFor(program.tiers[2], 120), null);
-  assert.equal(rewardDiscountFor(program.tiers[0], 0), null);
-  const zero: LoyaltyRewardTier = { ...program.tiers[0], amountCents: 0 };
-  assert.equal(rewardDiscountFor(zero, 120), null);
-});
-
-test("a program with nothing set maps to safe defaults", () => {
-  const p = mapLoyaltyProgram({ id: "p" });
-  assert.equal(p.status, "INACTIVE");
-  assert.equal(p.one, "point");
-  assert.deepEqual(p.tiers, []);
-  assert.deepEqual(p.accrual, []);
 });
 
 console.log(`\n${passed} passed`);

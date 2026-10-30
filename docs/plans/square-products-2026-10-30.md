@@ -1,5 +1,13 @@
 # Square products inside WorkBench: transactions, gift cards, loyalty (2026-10-30)
 
+> **Update, later on 2026-10-30:** the loyalty half and the Square Online
+> deep link were **removed** at David's request — Square Loyalty needs a
+> Square subscription WorkBench won't promote. What remains: the transaction
+> detail and gift cards. Scopes are `ORDERS_READ` + `GIFTCARDS_READ/WRITE`;
+> the schema kept `GiftCardSale` and `PaymentMethod.GIFT_CARD` and dropped
+> `Contact.squareLoyaltyAccountId` and `SquareConnection.loyalty*`. The
+> loyalty sections below describe what was built, for the record.
+
 **Status: BUILDING 2026-10-30 (branch `square-products`).** David asked which of the
 "In Square" deep links on `/app/payments` could be built natively through
 Square's API for WorkBench's clients, and chose all three that can be: the
