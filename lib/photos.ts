@@ -7,6 +7,7 @@ import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 import { deleteObject, isBlobStorageConfigured, jobPhotoKey, putObject } from "@/lib/blob-storage";
 import { fireAutomations } from "@/lib/automations-server";
 import { checkFeature } from "@/lib/plan-gate";
+import { galleryPreviewFor } from "@/lib/gallery-preview";
 import {
   PHOTO_LIMITS,
   PHOTO_MIME_TYPES,
@@ -205,6 +206,8 @@ export async function storePhoto(
   } else {
     // Estimate photos are the Gallery plan's; techs don't work quotes at all.
     if (actor.role === "TECH") return { ok: false, response: err("Forbidden", 403) };
+    // Preview: only test accounts until David opens the Gallery work.
+    if (!(await galleryPreviewFor(companyId))) return { ok: false, response: err("Photos on quotes aren't available yet.", 403) };
     const gate = await checkFeature(companyId, "gallery");
     if (!gate.ok) return { ok: false, response: gate.response };
     const quote = await prisma.quote.findFirst({
