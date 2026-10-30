@@ -19,6 +19,8 @@ import ResendContractButton from "./ResendContractButton";
 import RewardsCard from "./RewardsCard";
 import { Suspense } from "react";
 import { hubFormWords } from "@/lib/hub-form";
+import { galleryStateFor } from "@/lib/gallery-preview";
+import { hubPhotoSrc } from "@/lib/photos-shared";
 
 export default async function HubHomePage({
   params,
@@ -62,6 +64,21 @@ export default async function HubHomePage({
   if (!contact) notFound();
   // The business's chosen client hub form lends its words to the card
   const hubForm = await hubFormWords(contact.company);
+  // Completed work (Gallery plan): the latest finished visits with a report
+  const recentWork = (await galleryStateFor(contact.company.id)).open
+    ? await prisma.job.findMany({
+        where: { contactId: contact.id, status: { in: ["REQUIRES_INVOICING", "ARCHIVED"] } },
+        orderBy: [{ completedAt: "desc" }, { closedAt: "desc" }, { updatedAt: "desc" }],
+        take: 3,
+        select: {
+          id: true,
+          title: true,
+          completedAt: true,
+          closedAt: true,
+          photos: { where: { clientVisible: true }, orderBy: [{ takenAt: "asc" }, { createdAt: "asc" }], take: 1, select: { id: true, thumbKey: true } },
+        },
+      })
+    : [];
 
   const openQuotes = contact.quotes.length;
   const openBalance = contact.invoices.reduce(
@@ -204,6 +221,43 @@ export default async function HubHomePage({
       <Suspense fallback={null}>
         <RewardsCard token={token} />
       </Suspense>
+      {/* Completed work — the report of each finished visit (Gallery plan) */}
+      {recentWork.length > 0 && (
+        <div className="anim-portal anim-delay-2 card-ledger overflow-hidden">
+          <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={15} className="text-gray-400" />
+              <h2 className="font-semibold text-gray-900 text-sm">Completed work</h2>
+            </div>
+            <Link href={`${base}/work`} className="text-xs font-medium text-[color:var(--wb-ink,#0B57D8)] hover:underline">
+              See all
+            </Link>
+          </div>
+          <div className="list-settle divide-y divide-gray-50">
+            {recentWork.map((j) => {
+              const when = j.completedAt ?? j.closedAt;
+              const cover = j.photos[0];
+              return (
+                <Link key={j.id} href={`${base}/work/${j.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                  {cover ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={hubPhotoSrc(token, cover.id, cover.thumbKey ? "thumb" : "full")} alt="" className="h-11 w-11 shrink-0 rounded-md bg-gray-100 object-cover" />
+                  ) : (
+                    dateTile(when)
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-900 truncate">{j.title}</p>
+                    <p className="text-xs text-gray-500">
+                      {when ? `Completed ${when.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: tz })}` : "Completed"} · see the report
+                    </p>
+                  </div>
+                  <ChevronRight size={15} className="text-gray-400 shrink-0" />
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Agreements — signing happens via the emailed link, never inline here */}
       {contact.contracts.length > 0 && (

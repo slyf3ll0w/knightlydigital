@@ -111,3 +111,124 @@ export type PhotoView = {
   quoteId: string | null;
   pairId: string | null;
 };
+
+// ─── Before / after pairs (phase B) ───────────────────────────────────────────
+
+/** The "before" side of a pair: a Before shot, or an Estimate photo from the site visit. */
+export function isBeforeStage(stage: PhotoStage): boolean {
+  return stage === "BEFORE" || stage === "ESTIMATE";
+}
+
+export type PhotoPair = { id: string; before: PhotoView; after: PhotoView };
+
+/** Oldest first by when it was taken (a pair's two halves line up in shooting order). */
+export function byTaken(a: Pick<PhotoView, "takenAt" | "createdAt">, b: Pick<PhotoView, "takenAt" | "createdAt">): number {
+  return Date.parse(a.takenAt ?? a.createdAt) - Date.parse(b.takenAt ?? b.createdAt);
+}
+
+/** The complete pairs among these photos (a pairId with one before and one after), oldest first. */
+export function pairsOf(photos: PhotoView[]): PhotoPair[] {
+  const byPair = new Map<string, PhotoView[]>();
+  for (const p of photos) {
+    if (!p.pairId) continue;
+    byPair.set(p.pairId, [...(byPair.get(p.pairId) ?? []), p]);
+  }
+  const out: PhotoPair[] = [];
+  for (const [id, members] of byPair) {
+    const before = members.find((m) => isBeforeStage(m.stage));
+    const after = members.find((m) => m.stage === "AFTER");
+    if (before && after) out.push({ id, before, after });
+  }
+  return out.sort((x, y) => byTaken(x.after, y.after));
+}
+
+/**
+ * May these two be a pair? Same job, one before-ish and one after, and
+ * neither already paired with somebody else. Order doesn't matter.
+ */
+export function pairable(a: PhotoView, b: PhotoView): { ok: true; before: PhotoView; after: PhotoView } | { ok: false; why: string } {
+  if (a.id === b.id) return { ok: false, why: "Pick two different photos." };
+  if (!a.jobId || a.jobId !== b.jobId) return { ok: false, why: "Both photos have to be on the same job." };
+  const before = isBeforeStage(a.stage) ? a : isBeforeStage(b.stage) ? b : null;
+  const after = a.stage === "AFTER" ? a : b.stage === "AFTER" ? b : null;
+  if (!before || !after || before.id === after.id) return { ok: false, why: "A pair is one Before (or Estimate) photo and one After photo." };
+  for (const p of [a, b]) {
+    if (p.pairId && p.pairId !== (p === a ? b : a).pairId) return { ok: false, why: "That photo is already in a pair — unpair it first." };
+  }
+  return { ok: true, before, after };
+}
+
+/** Befores and afters nobody has paired yet, in shooting order. */
+export function unpaired(photos: PhotoView[]): { befores: PhotoView[]; afters: PhotoView[] } {
+  const paired = new Set(pairsOf(photos).flatMap((p) => [p.before.id, p.after.id]));
+  const loose = photos.filter((p) => !paired.has(p.id)).sort(byTaken);
+  return { befores: loose.filter((p) => isBeforeStage(p.stage)), afters: loose.filter((p) => p.stage === "AFTER") };
+}
+
+/**
+ * Auto-suggest: first loose Before with the first loose After, and so on —
+ * techs shoot befores in a walk-through order and afters in the same order.
+ * Returns [beforeId, afterId] tuples; empty when there is nothing to match.
+ */
+export function suggestPairs(photos: PhotoView[]): [string, string][] {
+  const { befores, afters } = unpaired(photos);
+  const n = Math.min(befores.length, afters.length);
+  const out: [string, string][] = [];
+  for (let i = 0; i < n; i++) out.push([befores[i].id, afters[i].id]);
+  return out;
+}
+
+/**
+ * "Match this angle": the before shot the next After should line up with —
+ * the oldest Before nobody has paired yet. Null when every before has its
+ * after (or there are none), so the camera just opens.
+ */
+export function nextBeforeToMatch(photos: PhotoView[]): PhotoView | null {
+  return unpaired(photos).befores[0] ?? null;
+}
+
+// ─── Work completed report (phase B) ──────────────────────────────────────────
+
+/**
+ * What the client gets to see. Pairs show when their AFTER is visible (the
+ * Before in a pair is there to make the After mean something — pairing IS
+ * the decision to show the comparison); every other visible photo stands
+ * alone. Hidden photos never leave the building.
+ */
+export function reportPhotos(photos: PhotoView[]): { pairs: PhotoPair[]; singles: PhotoView[] } {
+  const pairs = pairsOf(photos).filter((p) => p.after.clientVisible);
+  const inPair = new Set(pairs.flatMap((p) => [p.before.id, p.after.id]));
+  const singles = photos.filter((p) => p.clientVisible && !inPair.has(p.id)).sort(byTaken);
+  return { pairs, singles };
+}
+
+/** May the client see this one photo (directly, or as the Before of a shown pair)? */
+export function clientMaySee(photo: PhotoView, siblings: PhotoView[]): boolean {
+  if (photo.clientVisible) return true;
+  if (!photo.pairId) return false;
+  return siblings.some((s) => s.pairId === photo.pairId && s.stage === "AFTER" && s.clientVisible);
+}
+
+export const REPORT_NOTE_MAX = 1000;
+
+/** The client's report lives in their hub; the PDF sits under it. */
+export function reportPath(hubToken: string, jobId: string): string {
+  return `/hub/${hubToken}/work/${jobId}`;
+}
+
+/** A client-visible photo served through the hub (the token is the credential). */
+export function hubPhotoSrc(hubToken: string, photoId: string, size: "full" | "thumb" = "full"): string {
+  const base = `/hub/${hubToken}/photos/${photoId}`;
+  return size === "thumb" ? `${base}?size=thumb` : base;
+}
+
+/** One line for the report email / text: "4 photos and 2 before-and-after comparisons". */
+export function reportSummaryLine(counts: { pairs: number; singles: number; checklist: number }): string {
+  const bits: string[] = [];
+  if (counts.pairs > 0) bits.push(`${counts.pairs} before-and-after ${counts.pairs === 1 ? "comparison" : "comparisons"}`);
+  if (counts.singles > 0) bits.push(`${counts.singles} ${counts.singles === 1 ? "photo" : "photos"}`);
+  if (counts.checklist > 0) bits.push(`the ${counts.checklist}-item checklist`);
+  if (bits.length === 0) return "";
+  if (bits.length === 1) return bits[0];
+  return `${bits.slice(0, -1).join(", ")} and ${bits[bits.length - 1]}`;
+}

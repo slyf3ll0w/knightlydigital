@@ -193,10 +193,12 @@ export async function sendInvoice(opts: {
   channels: SendChannels;
   /** "Send now" on a scheduled draft: refuse (409) when the schedule is already gone — the sweep beat the click. */
   expectScheduled?: boolean;
+  /** "Include the work report": link the job's report (Gallery plan) in the email. Ignored when the job has none to show. */
+  includeReport?: boolean;
 }): Promise<SendResult> {
   const invoice = await prisma.invoice.findFirst({
     where: { id: opts.id, companyId: opts.companyId, ...(opts.scope ?? {}) },
-    include: { contact: true, company: true, lineItems: { orderBy: { sortOrder: "asc" } } },
+    include: { contact: true, company: true, lineItems: { orderBy: { sortOrder: "asc" } }, job: { select: { id: true, status: true } } },
   });
   if (!invoice) return { ok: false, status: 404, error: "Invoice not found." };
   if (opts.expectScheduled && !invoice.scheduledSendAt) return { ok: false, status: 409, error: JUST_WENT_OUT };
@@ -217,6 +219,14 @@ export async function sendInvoice(opts: {
   const payUrl = `${baseUrl()}/pay/${invoice.publicToken}`;
   // No online payments for this company → the link views, it doesn't pay.
   const payable = canChargeOnline(invoice.company);
+  // The work report rides along only when the client could open it (the
+  // same check the hub page makes), so the email never links a 404.
+  let reportUrl: string | null = null;
+  if (opts.includeReport && invoice.job) {
+    const { clientMayOpenReport } = await import("@/lib/job-report");
+    const { reportPath } = await import("@/lib/photos-shared");
+    if (await clientMayOpenReport(invoice.companyId, invoice.job)) reportUrl = `${baseUrl()}${reportPath(contact.hubToken, invoice.job.id)}`;
+  }
   const { subject, html } = invoiceLinkEmail({
     brand: invoice.company,
     companyName: invoice.company.name,
@@ -226,6 +236,7 @@ export async function sendInvoice(opts: {
     payUrl,
     serviceNames: invoice.lineItems.map((li) => li.name || li.description || "Service"),
     payable,
+    reportUrl,
   });
 
   const emailed =
@@ -285,6 +296,8 @@ export async function sendInvoice(opts: {
   await prisma.invoice.update({ where: { id: invoice.id }, data: { ...patch, ...CLEAR } });
   // First send only (a re-send of an issued invoice is a reminder, not a send)
   if (invoice.status === "DRAFT") fireAutomations(invoice.companyId, "invoice.sent", invoice.id);
+  // The report went with the email: the job page shows it as sent.
+  if (reportUrl && emailed && invoice.job) await prisma.job.update({ where: { id: invoice.job.id }, data: { reportSentAt: now } });
 
   return { ok: true, emailed, texted, to: contact.email, phone: texted ? contact.phone : null };
 }

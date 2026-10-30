@@ -3,8 +3,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { MoreHorizontal, CheckCircle, Receipt, Archive, RotateCcw, Trash2, Loader2, Pencil, CopyPlus, CalendarClock } from "lucide-react";
-import { confirmSheet, alertSheet } from "@/components/ConfirmSheet";
+import { confirmSheet, alertSheet, promptSheet } from "@/components/ConfirmSheet";
 import { sendOrQueue } from "@/lib/outbox";
+import { postJson } from "@/lib/safe-fetch";
+import { sentSummary } from "@/components/SendChoice";
 import { convertJobToAppointment } from "./ConvertToAppointment";
 import MenuPopover from "@/components/MenuPopover";
 
@@ -20,6 +22,7 @@ export default function JobActions({
   canConvertToAppointment = false,
   canCloseUnbilled = false,
   canInvoice = false,
+  reportOffer = null,
 }: {
   jobId: string;
   status: string;
@@ -41,6 +44,10 @@ export default function JobActions({
   // payments hidden, get no "Create Invoice" — the link would only bounce
   // them to the dashboard
   canInvoice?: boolean;
+  // Gallery plan: after Complete job, offer to send the client the work
+  // report (email / text, whichever reaches them). Null = not offered
+  // (no Gallery, or no way to reach the client).
+  reportOffer?: { firstName: string; shown: number } | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -77,11 +84,42 @@ export default function JobActions({
         return;
       }
       // The close-out checklist gate (and other validation) answers 400
-      if (!res.ok && res.data?.error) alertSheet({ message: res.data.error });
+      if (!res.ok && res.data?.error) {
+        alertSheet({ message: res.data.error });
+        return;
+      }
+      // Finished the work? Offer the client their report while the tech is
+      // still in the driveway (Gallery plan). Cancel just skips it — the
+      // job page keeps a Send report button.
+      if (res.ok && reportOffer && status === "ACTIVE" && newStatus !== "ACTIVE") await offerReport();
     } finally {
       setBusy(false);
       router.refresh();
     }
+  }
+
+  async function offerReport() {
+    if (!reportOffer) return;
+    const note = await promptSheet({
+      title: `Send ${reportOffer.firstName} the work report?`,
+      message:
+        reportOffer.shown > 0
+          ? `They get the ${reportOffer.shown === 1 ? "photo" : `${reportOffer.shown} photos`} marked for them, the checklist, and a note from you.`
+          : "No photos are marked for them yet, so they get the checklist and a note from you.",
+      placeholder: "A note to the client (optional)",
+      confirmLabel: "Send report",
+      cancelLabel: "Not now",
+    });
+    if (note === null) return;
+    const { ok, data } = await postJson<{ emailed?: boolean; texted?: boolean; to?: string | null; phone?: string | null; error?: string }>(
+      `/api/app/jobs/${jobId}/report`,
+      { email: true, text: true, note }
+    );
+    if (!ok) {
+      alertSheet({ message: data?.error ?? "Couldn't send the report." });
+      return;
+    }
+    alertSheet({ title: "Report sent", message: sentSummary(data, {}) });
   }
 
   // Closing the job: with an invoice it archives; without one it moves to

@@ -2354,6 +2354,11 @@ model Job {
   // approval). Proof-of-completion for disputes.
   completionSignatureName String?
   completionSignedAt      DateTime?
+  // Work completed report (Gallery plan, phase B): the note to the client
+  // printed on the report, and when it was last sent (email / text / with
+  // the invoice). lib/job-report.ts.
+  reportNote              String?
+  reportSentAt            DateTime?
   // Work handed to a subcontractor: nobody on the team is on it. The one way
   // a scheduled job may stand without a crew (lib/job-crew.ts insists on one
   // everywhere else), and it stays off everyone's calendar sync.
