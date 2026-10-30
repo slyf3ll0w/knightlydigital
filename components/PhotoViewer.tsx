@@ -2,17 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, Eye, EyeOff, Globe, Loader2, MapPin, Pencil, Tag, Trash2, X } from "lucide-react";
-import { confirmSheet, promptSheet } from "@/components/ConfirmSheet";
+import { ChevronLeft, ChevronRight, Eye, EyeOff, Globe, Link2, Loader2, MapPin, Pencil, Tag, Trash2, Unlink, X } from "lucide-react";
+import { alertSheet, confirmSheet, promptSheet } from "@/components/ConfirmSheet";
 import { postJson } from "@/lib/safe-fetch";
-import { JOB_STAGE_OPTIONS, STAGE_LABEL, photoMapUrl, photoSrc, type PhotoStage, type PhotoView } from "@/lib/photos-shared";
+import { JOB_STAGE_OPTIONS, STAGE_LABEL, isBeforeStage, photoMapUrl, photoSrc, unpaired, type PhotoStage, type PhotoView } from "@/lib/photos-shared";
 
 /**
  * Full-screen photo viewer (phone and desktop alike): swipe or arrow between
  * photos, pinch (or scroll-wheel) to zoom, drag to pan while zoomed. The
  * strip at the bottom carries the caption (tap to edit), the stage, who took
  * it, when, "View on map" when the shot was located, and the actions:
- * Show to client · Use on website (managers) · Delete.
+ * Stage · Pair (Gallery) · Show to client · Use on website (managers) · Delete.
+ * Pair opens a strip of the loose photos of the other kind; tapping one
+ * makes the pair (the PATCH answers both rows, `onPatched` gets each).
  */
 const ACTIVE_PILL = "bg-white text-black"; // theme-ok: the viewer is black in both themes; the chosen stage is a white pill with black ink
 
@@ -25,20 +27,24 @@ export default function PhotoViewer({
   onDeleted,
   canSite,
   canRestage,
+  canPair = false,
 }: {
   photos: PhotoView[];
   index: number;
   onIndex: (i: number) => void;
   onClose: () => void;
-  onPatched: (p: PhotoView) => void;
+  onPatched: (p: PhotoView & { also?: PhotoView[] }) => void;
   onDeleted: (id: string) => void;
   canSite: boolean;
   /** Job photos can move between Before / During / After / Photo; estimate photos stay what they are. */
   canRestage: boolean;
+  /** Before/after pairing (Gallery plan) on a job. */
+  canPair?: boolean;
 }) {
   const photo = photos[index];
   const [busy, setBusy] = useState(false);
   const [stageOpen, setStageOpen] = useState(false);
+  const [pairOpen, setPairOpen] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const pointers = useRef(new Map<number, { x: number; y: number }>());
@@ -52,6 +58,7 @@ export default function PhotoViewer({
       setZoom(1);
       setOffset({ x: 0, y: 0 });
       setStageOpen(false);
+      setPairOpen(false);
       onIndex(next);
     },
     [index, photos.length, onIndex]
@@ -128,12 +135,28 @@ export default function PhotoViewer({
   async function patch(body: Record<string, unknown>) {
     setBusy(true);
     try {
-      const { ok, data } = await postJson<PhotoView>(`/api/app/photos/${photo.id}`, body, "PATCH");
+      const { ok, data } = await postJson<PhotoView & { also?: PhotoView[]; error?: string }>(`/api/app/photos/${photo.id}`, body, "PATCH");
       if (ok && data) onPatched(data);
+      else if (data?.error) alertSheet({ message: data.error });
       return ok;
     } finally {
       setBusy(false);
     }
+  }
+
+  // Pairing: a Before (or Estimate) pairs with a loose After and vice versa.
+  const pairKind: "before" | "after" | null = !canPair || !photo.jobId ? null : isBeforeStage(photo.stage) ? "before" : photo.stage === "AFTER" ? "after" : null;
+  const loose = pairKind ? unpaired(photos) : { befores: [], afters: [] };
+  const candidates = pairKind === "before" ? loose.afters : pairKind === "after" ? loose.befores : [];
+  const partner = photo.pairId ? photos.find((p) => p.pairId === photo.pairId && p.id !== photo.id) ?? null : null;
+
+  async function pairWith(id: string) {
+    setPairOpen(false);
+    await patch({ pairWith: id });
+  }
+  async function unpair() {
+    if (!(await confirmSheet({ message: "Take this photo out of its before-and-after pair?", confirmLabel: "Unpair" }))) return;
+    await patch({ pairWith: null });
   }
 
   async function editCaption() {
@@ -267,6 +290,25 @@ export default function PhotoViewer({
           )}
         </p>
 
+        {pairOpen && pairKind && (
+          <div className="mt-3" data-pair-strip>
+            <p className="mb-1.5 text-xs text-white/70">
+              {candidates.length > 0
+                ? `Pair this ${pairKind === "before" ? "Before" : "After"} with…`
+                : `No loose ${pairKind === "before" ? "After" : "Before"} photos to pair with yet.`}
+            </p>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {candidates.map((c) => (
+                <button key={c.id} type="button" onClick={() => void pairWith(c.id)} disabled={busy} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-white/10" aria-label={c.caption ?? STAGE_LABEL[c.stage]}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={photoSrc(c.id, c.hasThumb ? "thumb" : "full")} alt={c.caption ?? STAGE_LABEL[c.stage]} className="h-full w-full object-cover" />
+                  <span className="absolute bottom-0.5 left-0.5 rounded bg-black/60 px-1 text-[9px] font-semibold">{STAGE_LABEL[c.stage]}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {stageOpen && canRestage && (
           <div className="mt-3 flex flex-wrap gap-2">
             {JOB_STAGE_OPTIONS.map((o) => (
@@ -282,12 +324,18 @@ export default function PhotoViewer({
           </div>
         )}
 
-        <div className="mt-3 grid grid-cols-4 gap-1 text-[11px]">
+        <div className={`mt-3 grid gap-1 text-[11px] ${pairKind ? "grid-cols-5" : "grid-cols-4"}`}>
           {canRestage ? (
-            <Action icon={<Tag size={18} />} label="Stage" onClick={() => setStageOpen((v) => !v)} disabled={busy} />
+            <Action icon={<Tag size={18} />} label="Stage" onClick={() => { setPairOpen(false); setStageOpen((v) => !v); }} disabled={busy} />
           ) : (
             <span />
           )}
+          {pairKind &&
+            (partner ? (
+              <Action icon={<Unlink size={18} />} label={`Paired · ${STAGE_LABEL[partner.stage] || "Photo"}`} onClick={() => void unpair()} disabled={busy} active />
+            ) : (
+              <Action icon={<Link2 size={18} />} label="Pair" onClick={() => { setStageOpen(false); setPairOpen((v) => !v); }} disabled={busy} />
+            ))}
           <Action
             icon={photo.clientVisible ? <Eye size={18} /> : <EyeOff size={18} />}
             label={photo.clientVisible ? "Client sees it" : "Hidden from client"}

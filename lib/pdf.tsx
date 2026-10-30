@@ -18,6 +18,9 @@ import { brandAccent } from "@/lib/branding";
 import { invoiceBalance } from "@/lib/payments";
 import { computeQuoteTotals } from "@/lib/quote-totals";
 import { money, shortDate, quoteDepositAmount, paymentMethodLabel } from "@/lib/statuses";
+import { loadJobReport, type JobReport } from "@/lib/job-report";
+import { readPhotoBytes } from "@/lib/photos";
+import { STAGE_LABEL } from "@/lib/photos-shared";
 
 // ─── Shared bits ──────────────────────────────────────────────────────────────
 
@@ -686,6 +689,175 @@ export async function statementPdf(
 
   const who = `${contactBits.firstName}-${contactBits.lastName}`.replace(/[^\w-]/g, "");
   return { buffer: await renderToBuffer(doc), filename: `Statement-${who}.pdf` };
+}
+
+// ─── Work completed report PDF (Gallery plan, phase B) ────────────────────────
+
+/** react-pdf embeds png / jpeg only; the uploader sends JPEG, old rows may be PNG. */
+export type PdfImage = { data: Buffer; format: "png" | "jpg" };
+export type ReportImages = Map<string, PdfImage>;
+
+/** Photos per PDF — keeps a hundred-photo job from making a 30 MB document. */
+export const REPORT_PDF_MAX_PHOTOS = 24;
+
+const report = StyleSheet.create({
+  facts: { flexDirection: "row", flexWrap: "wrap", marginTop: 14 },
+  fact: { width: "33%", marginBottom: 8, paddingRight: 10 },
+  factLabel: { fontSize: 7.5, letterSpacing: 1.2, color: MUTED, marginBottom: 2 },
+  factValue: { fontSize: 9.5 },
+  pairRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 8 },
+  pairCell: { width: 252 },
+  pairImg: { width: 252, height: 170, objectFit: "cover", borderRadius: 3, backgroundColor: "#F3F4F6" },
+  tag: { fontSize: 7.5, letterSpacing: 1.2, color: MUTED, marginBottom: 3 },
+  cap: { color: MUTED, marginTop: 3, fontSize: 8.5, lineHeight: 1.3 },
+  grid: { flexDirection: "row", flexWrap: "wrap", marginTop: 4 },
+  cell: { width: 164, marginRight: 12, marginBottom: 12 },
+  cellLast: { marginRight: 0 },
+  cellImg: { width: 164, height: 124, objectFit: "cover", borderRadius: 3, backgroundColor: "#F3F4F6" },
+  check: { flexDirection: "row", paddingVertical: 3.5, borderBottomWidth: 0.75, borderBottomColor: FAINT },
+  checkMark: { width: 16, fontFamily: "Helvetica-Bold" },
+  checkSkip: { color: MUTED, marginTop: 1, fontSize: 8.5 },
+  section: { marginTop: 18 },
+});
+
+/** Exported for scripts/test-pdf-render.mts — the route goes through jobReportPdf. */
+export function buildJobReportDocument(r: JobReport, logo: LogoSrc, images: ReportImages) {
+  const company = r.job.company;
+  const accent = brandAccent(company);
+  const tz = company.timezone ?? undefined;
+  const done = r.job.completedAt ?? r.job.closedAt;
+  const metaLines = [
+    ...(done ? [`Completed: ${shortDate(done, tz)}`] : []),
+    ...(r.job.scheduledAt ? [`Visit: ${shortDate(r.job.scheduledAt, tz)}`] : []),
+  ];
+  const img = (id: string) => images.get(id) ?? null;
+  const doneItems = r.checklist.filter((c) => c.done);
+  const skipped = r.checklist.filter((c) => !c.done && c.skipReason);
+  const address = r.job.address ?? [r.job.contact.address, cityLine(r.job.contact)].filter(Boolean).join(", ");
+  const facts = [
+    { label: "JOB", value: `#${r.job.jobNumber}` },
+    ...(address ? [{ label: "WHERE", value: address }] : []),
+    ...(r.crew.length ? [{ label: r.crew.length === 1 ? "TECHNICIAN" : "CREW", value: r.crew.join(", ") }] : []),
+    ...(r.job.completionSignedAt
+      ? [{ label: "SIGNED OFF BY", value: `${r.job.completionSignatureName ?? ""} · ${shortDate(r.job.completionSignedAt, tz)}` }]
+      : []),
+  ];
+
+  return (
+    <Document title={`Work completed — ${r.job.title} — ${company.name}`} producer="WorkBench" creator="WorkBench">
+      <Page size="LETTER" style={styles.page}>
+        <Header company={company} logo={logo} docType="Work completed" docNumber={0} metaLines={metaLines} accent={accent} docTypeColor={DOC_TYPE_INK.quote} />
+        <BillTo contact={r.job.contact} />
+        <Text style={[styles.billToName, { marginTop: 14, fontSize: 13 }]}>{r.job.title}</Text>
+        <View style={report.facts}>
+          {facts.map((f) => (
+            <View key={f.label} style={report.fact}>
+              <Text style={report.factLabel}>{f.label}</Text>
+              <Text style={report.factValue}>{f.value}</Text>
+            </View>
+          ))}
+        </View>
+        {r.job.reportNote ? (
+          <View style={report.section}>
+            <Text style={styles.sectionLabel}>A NOTE FROM {r.crew.length === 1 ? r.crew[0].toUpperCase() : "THE CREW"}</Text>
+            <Text style={styles.bodyText}>{r.job.reportNote}</Text>
+          </View>
+        ) : null}
+
+        {r.pairs.length > 0 ? (
+          <View style={report.section}>
+            <Text style={styles.sectionLabel}>BEFORE &amp; AFTER</Text>
+            {r.pairs.map((pair) => (
+              <View key={pair.id} style={report.pairRow} wrap={false}>
+                {[pair.before, pair.after].map((p) => {
+                  const src = img(p.id);
+                  return (
+                    <View key={p.id} style={report.pairCell}>
+                      <Text style={report.tag}>{(STAGE_LABEL[p.stage] || "Photo").toUpperCase()}</Text>
+                      {src ? <Image style={report.pairImg} src={src} /> : <View style={report.pairImg} />}
+                      {p.caption ? <Text style={report.cap}>{p.caption}</Text> : null}
+                    </View>
+                  );
+                })}
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        {r.singles.length > 0 ? (
+          <View style={report.section}>
+            <Text style={styles.sectionLabel}>PHOTOS</Text>
+            <View style={report.grid}>
+              {r.singles.map((p, i) => {
+                const src = img(p.id);
+                return (
+                  <View key={p.id} style={[report.cell, (i + 1) % 3 === 0 ? report.cellLast : {}]} wrap={false}>
+                    {src ? <Image style={report.cellImg} src={src} /> : <View style={report.cellImg} />}
+                    <Text style={report.cap}>
+                      {[STAGE_LABEL[p.stage] || null, p.caption].filter(Boolean).join(" · ")}
+                      {!p.caption && !STAGE_LABEL[p.stage] ? " " : ""}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
+
+        {doneItems.length > 0 || skipped.length > 0 ? (
+          <View style={report.section}>
+            <Text style={styles.sectionLabel}>WORK COMPLETED</Text>
+            {doneItems.map((c) => (
+              <View key={c.id} style={report.check} wrap={false}>
+                <Text style={[report.checkMark, { color: DOC_TYPE_INK.quote }]}>+</Text>
+                <Text style={{ flex: 1 }}>{c.label}</Text>
+              </View>
+            ))}
+            {skipped.map((c) => (
+              <View key={c.id} style={report.check} wrap={false}>
+                <Text style={[report.checkMark, { color: MUTED }]}>-</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: MUTED }}>{c.label}</Text>
+                  <Text style={report.checkSkip}>Not done: {c.skipReason}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : null}
+        <Footer text={`Work completed  ·  Job #${r.job.jobNumber}  ·  ${footerName(company)}`} />
+      </Page>
+    </Document>
+  );
+}
+
+/** The bytes of every photo the report shows (capped), as react-pdf images. */
+export async function loadReportImages(r: JobReport): Promise<ReportImages> {
+  const ids = [...r.pairs.flatMap((p) => [p.before.id, p.after.id]), ...r.singles.map((p) => p.id)].slice(0, REPORT_PDF_MAX_PHOTOS);
+  const rows = ids.length
+    ? await prisma.jobPhoto.findMany({ where: { id: { in: ids } }, select: { id: true, storageKey: true, data: true, mimeType: true } })
+    : [];
+  const out: ReportImages = new Map();
+  await Promise.all(
+    rows.map(async (row) => {
+      const format = row.mimeType === "image/png" ? "png" : row.mimeType === "image/jpeg" || row.mimeType === "image/jpg" ? "jpg" : null;
+      if (!format) return;
+      const data = await readPhotoBytes(row);
+      if (data && data.length > 0) out.set(row.id, { data, format });
+    })
+  );
+  return out;
+}
+
+export async function jobReportPdf(
+  where: import("@prisma/client").Prisma.JobWhereInput
+): Promise<{ buffer: Buffer; filename: string } | null> {
+  const r = await loadJobReport(where);
+  if (!r) return null;
+  const [logo, images] = await Promise.all([loadLogo(r.job.company), loadReportImages(r)]);
+  return {
+    buffer: await renderToBuffer(buildJobReportDocument(r, logo, images)),
+    filename: `Work-completed-${r.job.jobNumber}.pdf`,
+  };
 }
 
 /** Standard response wrapper for the four PDF routes. */

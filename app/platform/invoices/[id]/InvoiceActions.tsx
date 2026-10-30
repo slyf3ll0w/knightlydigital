@@ -59,6 +59,7 @@ export default function InvoiceActions({
   scheduled = false,
   tz,
   tapToPay = null,
+  reportJob = null,
 }: {
   invoiceId: string;
   invoiceNumber?: number;
@@ -89,6 +90,8 @@ export default function InvoiceActions({
   tz?: string;
   /** Tap to Pay in the phone app (lib/tap-to-pay.ts tapToPayOffer); null = not offered here. */
   tapToPay?: TapToPayOffer;
+  /** The finished job this invoice bills, when its work report can ride along (Gallery plan). */
+  reportJob?: { shown: number; sent: boolean } | null;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -393,6 +396,13 @@ export default function InvoiceActions({
       what: "Send the invoice",
       allowLater: status === "DRAFT",
       timeZone: tz,
+      extra: reportJob
+        ? {
+            label: "Include the work report",
+            info: `A link in the email to the job's report — ${reportJob.shown > 0 ? `the ${reportJob.shown} ${reportJob.shown === 1 ? "photo" : "photos"} marked for the client` : "the checklist and any photos you mark for the client"}, with the PDF.`,
+            defaultOn: !reportJob.sent,
+          }
+        : undefined,
     });
     if (!channels) return;
     if (channels.later) {
@@ -401,10 +411,11 @@ export default function InvoiceActions({
     }
     setBusy(true);
     try {
+      const { extra, ...rest } = channels;
       const res = await fetch(`/api/app/invoices/${invoiceId}/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(channels),
+        body: JSON.stringify({ ...rest, includeReport: extra === true }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {

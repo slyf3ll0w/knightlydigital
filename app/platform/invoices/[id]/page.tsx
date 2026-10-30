@@ -69,6 +69,17 @@ export default async function InvoiceDetailPage({
   const canTextClient =
     Boolean(invoice.contact?.phone) && canText(invoice.contact!) && (await companyCanSendSms(companyId));
 
+  // "Include the work report" on Send (Gallery plan): the finished job this
+  // invoice bills, with how many photos the client would see.
+  let reportJob: { shown: number; sent: boolean } | null = null;
+  if (invoice.job && invoice.job.status !== "ACTIVE") {
+    const { galleryStateFor } = await import("@/lib/gallery-preview");
+    if ((await galleryStateFor(companyId)).open) {
+      const shown = await prisma.jobPhoto.count({ where: { jobId: invoice.job.id, clientVisible: true } });
+      reportJob = { shown, sent: Boolean(invoice.job.reportSentAt) };
+    }
+  }
+
   // Jobber-style nudge: invoice paid but the linked job is still open
   const showCloseJobNudge =
     invoice.status === "PAID" && invoice.job && invoice.job.status !== "ARCHIVED";
@@ -165,6 +176,7 @@ export default async function InvoiceDetailPage({
           balance={balance}
           scheduled={Boolean(invoice.scheduledSendAt)}
           tz={tz}
+          reportJob={reportJob}
           reopenStatus={
             totalPaid > 0 && totalPaid >= Number(invoice.total) - 0.005
               ? "PAID"

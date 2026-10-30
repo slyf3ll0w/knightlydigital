@@ -10,12 +10,23 @@ import {
   PHOTO_STAGES,
   QUOTE_STAGE,
   STAGE_LABEL,
+  clientMaySee,
   defaultClientVisible,
   filterMatches,
+  hubPhotoSrc,
   isPhotoStage,
+  nextBeforeToMatch,
+  pairable,
+  pairsOf,
   photoMapUrl,
   photoSrc,
+  reportPath,
+  reportPhotos,
+  reportSummaryLine,
   shouldStampLocation,
+  suggestPairs,
+  unpaired,
+  type PhotoView,
 } from "../lib/photos-shared";
 import { galleryPreviewOpen } from "../lib/gallery-preview";
 
@@ -65,5 +76,92 @@ assert.equal(galleryPreviewOpen({ isTest: false }, {}), false);
 assert.equal(galleryPreviewOpen({ isTest: null }, {}), false);
 assert.equal(galleryPreviewOpen({ isTest: false }, { GALLERY_OPEN: "1" }), true);
 assert.equal(galleryPreviewOpen({ isTest: false }, { GALLERY_OPEN: "0" }), false);
+
+// ── Pairs (phase B) ──
+const t0 = Date.parse("2026-10-30T15:00:00Z");
+const mk = (id: string, stage: PhotoView["stage"], minutes: number, extra: Partial<PhotoView> = {}): PhotoView => ({
+  id,
+  stage,
+  caption: null,
+  takenAt: new Date(t0 + minutes * 60_000).toISOString(),
+  createdAt: new Date(t0 + minutes * 60_000).toISOString(),
+  by: "Tech",
+  lat: null,
+  lng: null,
+  clientVisible: defaultClientVisible(stage),
+  siteUse: false,
+  alt: null,
+  hasThumb: true,
+  jobId: "job1",
+  quoteId: null,
+  pairId: null,
+  ...extra,
+});
+const b1 = mk("b1", "BEFORE", 0);
+const b2 = mk("b2", "ESTIMATE", 1); // an estimate photo counts as a before
+const d1 = mk("d1", "DURING", 5);
+const a1 = mk("a1", "AFTER", 10);
+const a2 = mk("a2", "AFTER", 11);
+const a3 = mk("a3", "AFTER", 12);
+const g1 = mk("g1", "GENERAL", 13);
+
+// pairable: one before-ish + one after, same job, neither taken
+assert.equal(pairable(b1, a1).ok, true);
+assert.equal(pairable(a1, b2).ok, true, "order doesn't matter; estimate is a before");
+assert.equal(pairable(b1, b2).ok, false, "two befores");
+assert.equal(pairable(a1, a2).ok, false, "two afters");
+assert.equal(pairable(d1, a1).ok, false, "during is neither side");
+assert.equal(pairable(b1, { ...a1, jobId: "job2" }).ok, false, "different jobs");
+assert.equal(pairable(b1, { ...a1, jobId: null }).ok, false, "a quote-only photo has no job");
+assert.equal(pairable({ ...b1, pairId: "p9" }, a1).ok, false, "already paired elsewhere");
+assert.equal(pairable({ ...b1, pairId: "p9" }, { ...a1, pairId: "p9" }).ok, true, "re-affirming the same pair is fine");
+assert.equal(pairable(b1, b1).ok, false);
+
+// suggestPairs: shooting order, befores × afters, leftovers stay loose
+const all = [b1, b2, d1, a1, a2, a3, g1];
+assert.deepEqual(suggestPairs(all), [
+  ["b1", "a1"],
+  ["b2", "a2"],
+]);
+assert.equal(nextBeforeToMatch(all)?.id, "b1");
+assert.deepEqual(suggestPairs([a1, a2]), [], "nothing to match without a before");
+
+// pairsOf / unpaired: a pairId needs one of each to count
+const paired = [{ ...b1, pairId: "p1" }, b2, d1, { ...a1, pairId: "p1" }, a2, { ...a3, pairId: "lonely" }];
+const pairs = pairsOf(paired);
+assert.equal(pairs.length, 1);
+assert.equal(pairs[0].before.id, "b1");
+assert.equal(pairs[0].after.id, "a1");
+const loose = unpaired(paired);
+assert.deepEqual(loose.befores.map((p) => p.id), ["b2"]);
+assert.deepEqual(loose.afters.map((p) => p.id), ["a2", "a3"], "a half-pair is still loose");
+assert.equal(nextBeforeToMatch(paired)?.id, "b2");
+assert.deepEqual(suggestPairs(paired), [["b2", "a2"]]);
+
+// ── Report photos: pairs ride on the After's visibility; hidden singles never leave ──
+const rep = reportPhotos([
+  { ...b1, pairId: "p1" }, // hidden before, but its after is shown → in the pair
+  { ...a1, pairId: "p1" },
+  { ...b2, pairId: "p2" },
+  { ...a2, pairId: "p2", clientVisible: false }, // after hidden → whole pair stays home
+  a3, // visible single
+  d1, // hidden single
+  { ...g1, clientVisible: true },
+]);
+assert.deepEqual(rep.pairs.map((p) => p.id), ["p1"]);
+assert.deepEqual(rep.singles.map((p) => p.id), ["a3", "g1"]);
+assert.equal(clientMaySee({ ...b1, pairId: "p1" }, [{ ...a1, pairId: "p1" }]), true);
+assert.equal(clientMaySee({ ...b2, pairId: "p2" }, [{ ...a2, pairId: "p2", clientVisible: false }]), false);
+assert.equal(clientMaySee(d1, []), false);
+assert.equal(clientMaySee(a3, []), true);
+
+// ── Words and links ──
+assert.equal(reportSummaryLine({ pairs: 2, singles: 4, checklist: 3 }), "2 before-and-after comparisons, 4 photos and the 3-item checklist");
+assert.equal(reportSummaryLine({ pairs: 1, singles: 0, checklist: 0 }), "1 before-and-after comparison");
+assert.equal(reportSummaryLine({ pairs: 0, singles: 1, checklist: 0 }), "1 photo");
+assert.equal(reportSummaryLine({ pairs: 0, singles: 0, checklist: 0 }), "");
+assert.equal(reportPath("tok", "job1"), "/hub/tok/work/job1");
+assert.equal(hubPhotoSrc("tok", "a1"), "/hub/tok/photos/a1");
+assert.equal(hubPhotoSrc("tok", "a1", "thumb"), "/hub/tok/photos/a1?size=thumb");
 
 console.log("test-photos: ok");
