@@ -225,12 +225,14 @@ test.describe("photos", () => {
     // A stranger's token sees nothing.
     expect((await fetch(`${state.baseUrl}/hub/not-a-token/work/${job.id}`)).status).toBe(404);
 
-    // Send: the client has an email (createContact gives one); 200 when email is
-    // configured on this server, 424 when it isn't — either way nothing else breaks.
-    const sent = await api.raw("POST", `/api/app/jobs/${job.id}/report`, { email: true, text: false, note: "Thanks again!" });
-    expect([200, 424]).toContain(sent.status);
+    // Send: the e2e contact deliberately has no email or phone (the suite never
+    // sends real mail), so the send is refused with a plain reason — and the
+    // note typed into the sheet is kept for the next try.
+    const sent = await api.raw("POST", `/api/app/jobs/${job.id}/report`, { email: true, text: true, note: "Thanks again!" });
+    expect(sent.status).toBe(400);
+    expect(((await sent.json()) as { error: string }).error).toContain("no email or textable phone");
     const row = await db().job.findUniqueOrThrow({ where: { id: job.id }, select: { reportNote: true, reportSentAt: true } });
     expect(row.reportNote).toBe("Thanks again!");
-    if (sent.status === 200) expect(row.reportSentAt).not.toBeNull();
+    expect(row.reportSentAt).toBeNull();
   });
 });
