@@ -88,7 +88,7 @@ export const PAYMENT_GRACE = `${PAYMENT_GRACE_DAYS} days`;
  * billed by WorkBench itself (lib/plan-billing.ts), never by Square directly.
  */
 export const BILLING_PAGE = "**your billing page** (the link at the bottom of Settings → Plans)";
-export const BILLED_BY_LINE = `Plans are billed by WorkBench — the same way you bill a client's recurring plan — to the card on file. Every charge is a WorkBench invoice, and the invoices, receipts and the card are on ${BILLING_PAGE}.`;
+export const BILLED_BY_LINE = `Plans are billed by WorkBench — the same way you bill a client's recurring plan — to the card on file. Every charge is a WorkBench invoice, and the invoices, receipts and the card are on ${BILLING_PAGE}. Card charges carry WorkBench's ${RATES.serviceFee.cardPct} card fee, itemized on each invoice and shown on the Plans page before you confirm.`;
 
 /**
  * What a Core account sees on a Pro feature once it's locked — the one

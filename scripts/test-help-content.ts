@@ -87,6 +87,9 @@ const expect: [string, string][] = [
   ["how many users are included", "add-team-members"],
   ["sticky note on a job page", "sticky-notes"],
   ["remind me to call a client back", "tasks-and-reminders"],
+  ["sell a gift card", "gift-cards"],
+  ["loyalty points rewards", "loyalty-rewards"],
+  ["who pays the card fee", "card-surcharging"],
 ];
 for (const [q, slug] of expect) {
   const top = searchHelp(q, 3).map((h) => h.article.slug);

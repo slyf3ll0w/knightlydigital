@@ -145,7 +145,7 @@ export const jobsSection: HelpSection = {
         {
           type: "list",
           items: [
-            "**Monthly plan — auto-charge**: a flat price charged to the client's saved card every month, 3 months, 6 months or year. The first charge happens when the plan starts.",
+            "**Monthly plan — auto-charge**: a flat price charged to the client's saved card every month, 3 months, 6 months or year. The first charge happens when the plan starts. With your card service fee on, each automatic charge carries it, itemized on the receipt; the client is told when they save the card (see [Have clients pay the card fee](/help/card-surcharging)).",
             "**Bill for completed work**: a price per visit. Finished visits wait in **Ready to bill** until you press `Bill ready work`, or tick \"Bill each job automatically the moment it's completed.\"",
             "**No automatic billing**: the visits schedule themselves and you bill however you like.",
           ],
