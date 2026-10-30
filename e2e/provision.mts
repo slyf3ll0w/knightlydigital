@@ -76,9 +76,10 @@ async function upsertOwner(companyId: string, email: string, name: string) {
 const companyA = await upsertCompany(COMPANY_A_SLUG, "E2E Harness Co", {
   surchargeEnabled: true,
   surchargeRate: 0.03,
-  // The suite exercises Pro features (routes, Find-a-Time) — whitelisted
-  // like a paying tenant so the gate (PLAN_GATING=1) never fails a run.
-  planGrants: ["SHOP"],
+  // The suite exercises Pro features (routes, Find-a-Time) and Gallery ones
+  // (estimate photos) — whitelisted like a paying tenant so the gate
+  // (PLAN_GATING=1) never fails a run.
+  planGrants: ["SHOP", "JOBSITE"],
 });
 const ownerA = await upsertOwner(companyA.id, OWNER_A_EMAIL, "E2E Owner");
 

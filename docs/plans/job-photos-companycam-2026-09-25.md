@@ -1,7 +1,10 @@
 # Job photos, CompanyCam-style — 2026-09-25
 
-**Status:** PLANNED (tester suggestion), reframed 2026-10-20 as the Gallery plan
-(see the last section). Not started. Decisions in the last section still open.
+**Status:** IN PROGRESS. Reframed 2026-10-20 as the Gallery plan (see the last
+section). Decisions made 2026-10-30 (all five, recorded at the end). **Phase A
+built 2026-10-30** (branch `gallery`): generalized photo row, quote Photos
+fold, carry-over on convert, viewer, stamps, thumbnails, the `gallery` plan
+gate. Test recipes: `docs/testing/gallery-phase-a.md`. Phases B–D next.
 
 ## Why
 
@@ -265,7 +268,7 @@ A client-facing document, not a section buried in the invoice:
 
 | Phase | Scope | Size |
 |---|---|---|
-| A | Photo model generalization + backfill, quote Photos fold, carry-over on convert, viewer, PATCH caption/stage, thumbnails | ~2 days |
+| A | **DONE 2026-10-30** — photo model generalization + backfill (`scripts/backfill-photo-owners.mjs`), quote Photos fold, carry-over on convert, viewer (`components/PhotoViewer.tsx`), PATCH caption/stage/visibility, thumbnails, capture stamps (`lib/photo-capture.ts`), `gallery` GatedFeature → JOBSITE, routes `/api/app/photos[/id]` (`lib/photos.ts`) | ~2 days |
 | B | Pairing, match this angle, BeforeAfter component, completed job report (PDF, hub page, email, send on complete, invoice checkbox) | ~3 days |
 | C | Gallery tab, contact property gallery, stitched share image, website Recent work, markup | ~2 days |
 | D | Atlas vision on estimate photos, Save to quote from texts, form uploads, `job.photos_missing` sweep, MMS send | ~2 days |
@@ -273,7 +276,20 @@ A client-facing document, not a section buried in the invoice:
 Each phase ships with test recipes and goes staging → e2e green → main.
 `db:push` before deploy for phase A (nullable columns + enum values, additive).
 
-### Open decisions (David) — supersede the four above
+### Decisions (David, 2026-10-30 — all five taken as recommended)
+
+1. **Gating:** Core keeps job photos exactly as today; everything new (estimate
+   photos, pairs, the report, the feed, markup, vision) is Gallery
+   (`GatedFeature "gallery"` → plan JOBSITE; dark until `PLAN_GATING=1`;
+   Gallery stays `comingSoon` until David puts it on sale).
+2. **Photo model:** generalize `JobPhoto` (quoteId / contactId / companyId), no
+   second table.
+3. **Report:** a standalone Work completed report (phase B).
+4. **Visibility default:** AFTER shown; ESTIMATE / BEFORE / DURING / GENERAL
+   hidden until flipped (`defaultClientVisible`).
+5. **Camera:** native camera plugin + match-this-angle preview, no store build.
+
+The questions as they were asked, for the record:
 
 1. **Gating.** What stays free on Core (job photos as today, with a cap?)
    versus Gallery $29 (estimate photos, pairs, report, feed, markup, vision)?

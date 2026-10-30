@@ -332,7 +332,12 @@ export type GatedFeature =
   | "team_map"
   | "timesheets"
   | "quickbooks"
-  | "seats";
+  | "seats"
+  // Gallery ($29, id JOBSITE) — the one gate that is not Pro. Job photos as
+  // they always were stay on Core; everything the Gallery plan adds
+  // (estimate photos, pairs, the completed job report, the feed, markup,
+  // vision) sits behind this id (David 2026-10-30, decision 1).
+  | "gallery";
 
 export const GATED_FEATURES: readonly GatedFeature[] = [
   "routes",
@@ -345,6 +350,7 @@ export const GATED_FEATURES: readonly GatedFeature[] = [
   "timesheets",
   "quickbooks",
   "seats",
+  "gallery",
 ] as const;
 
 const FEATURE_LABEL: Record<GatedFeature, string> = {
@@ -361,6 +367,7 @@ const FEATURE_LABEL: Record<GatedFeature, string> = {
   timesheets: "Timesheets and labor costing",
   quickbooks: "QuickBooks Online sync",
   seats: "More than the included people",
+  gallery: "Gallery",
 };
 
 /** One line of what the feature does, for the upsell card. */
@@ -375,6 +382,8 @@ const FEATURE_BLURB: Record<GatedFeature, string> = {
   timesheets: "Clock in and out on jobs, weekly timesheets, and labor cost on every job's margin.",
   quickbooks: "Customers, invoices, payments and estimates synced to QuickBooks Online every night.",
   seats: `Core includes ${INCLUDED_SEATS} people. Add a person for ${formatCents(EXTRA_SEAT_CENTS)} a month, or go Pro for unlimited people.`,
+  gallery:
+    "Photos on the estimate and on the finished job, before-and-after pairs, a Work completed report for the client, and one gallery across every job and client.",
 };
 
 export function featureLabel(feature: GatedFeature): string {
@@ -385,9 +394,9 @@ export function featureBlurb(feature: GatedFeature): string {
   return FEATURE_BLURB[feature];
 }
 
-/** The plan that unlocks a feature. Every gated feature is Pro today. */
-export function featurePlan(_feature: GatedFeature): PlanId {
-  return "SHOP";
+/** The plan that unlocks a feature: Gallery for the photo features, Pro for everything else. */
+export function featurePlan(feature: GatedFeature): PlanId {
+  return feature === "gallery" ? "JOBSITE" : "SHOP";
 }
 
 /**

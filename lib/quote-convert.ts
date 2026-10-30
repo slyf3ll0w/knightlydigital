@@ -129,6 +129,11 @@ export async function convertQuoteToJob(tx: Prisma.TransactionClient, quote: Con
 
   await tx.quote.update({ where: { id: quote.id }, data: { jobId: created.id, status: "CONVERTED" } });
 
+  // The site-visit photos ride onto the job: an ESTIMATE photo is the job's
+  // before set (Gallery plan). They keep their quote link, so the quote page
+  // still shows what was looked at.
+  await tx.jobPhoto.updateMany({ where: { quoteId: quote.id, jobId: null }, data: { jobId: created.id } });
+
   // Recurring services on the quote become live subscriptions on the client.
   const subscriptionIds = await ensureSubscriptionsForContact(
     tx,

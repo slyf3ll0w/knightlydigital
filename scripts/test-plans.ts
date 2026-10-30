@@ -129,12 +129,18 @@ assert.equal(featureAllowed(everything, "routes", true), true);
 assert.equal(featureAllowed(paid, "routes", true), false, "Voice alone is not Pro");
 // Every Pro feature carries a gate, named and described, and is Pro.
 for (const f of GATED_FEATURES) {
-  assert.equal(featurePlan(f), "SHOP");
+  // Gallery is the one photo gate; every other gated feature is Pro.
+  assert.equal(featurePlan(f), f === "gallery" ? "JOBSITE" : "SHOP");
   assert.ok(featureLabel(f).length > 3, f);
   assert.ok(featureBlurb(f).length > 20, f);
   assert.equal(featureAllowed(bench, f, true), false, `${f} gated for Core`);
-  assert.equal(featureAllowed(granted, f, true), true, `${f} open for Pro`);
+  assert.equal(featureAllowed(granted, f, true), f !== "gallery", `${f} ${f === "gallery" ? "not opened by Pro" : "open for Pro"}`);
+  assert.equal(featureAllowed(everything, f, true), true, `${f} open on Max`);
 }
+// Gallery: its own grant opens it, Pro alone does not.
+const galleryOnly = { planGrants: ["JOBSITE"], addonActiveAt: null };
+assert.equal(featureAllowed(galleryOnly, "gallery", true), true);
+assert.equal(featureAllowed(galleryOnly, "routes", true), false, "Gallery alone is not Pro");
 // A test account passes every gate (David 2026-10-28) — Voice is not a gate.
 const tester = { planGrants: [] as string[], addonActiveAt: null, isTest: true };
 for (const f of GATED_FEATURES) assert.equal(featureAllowed(tester, f, true), true, `${f} open for a test account`);

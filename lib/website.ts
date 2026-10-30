@@ -159,7 +159,7 @@ export async function loadSiteData(slug: string): Promise<SiteData | null> {
       select: { id: true, alt: true, caption: true, kind: true, createdAt: true },
     }),
     prisma.jobPhoto.findMany({
-      where: { siteUse: true, job: { companyId: company.id } },
+      where: { siteUse: true, companyId: company.id },
       orderBy: { createdAt: "desc" },
       select: { id: true, alt: true, type: true, createdAt: true },
       take: 60,
@@ -294,7 +294,7 @@ export async function loadWebsiteSummary(companyId: string): Promise<WebsiteSumm
       select: { id: true, alt: true, caption: true, kind: true },
     }),
     prisma.jobPhoto.findMany({
-      where: { siteUse: true, job: { companyId } },
+      where: { siteUse: true, companyId },
       orderBy: { createdAt: "desc" },
       select: { id: true, alt: true, caption: true, type: true, jobId: true },
       take: 60,
@@ -333,7 +333,7 @@ export async function loadWebsiteSummary(companyId: string): Promise<WebsiteSumm
         caption: p.caption ?? "",
         kind: p.type.toLowerCase(),
         source: "job" as const,
-        jobId: p.jobId,
+        jobId: p.jobId ?? undefined,
       })),
     ],
   };
