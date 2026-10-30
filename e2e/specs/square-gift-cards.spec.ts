@@ -8,7 +8,7 @@
 // connected to the sandbox test seller.
 import { test, expect } from "@playwright/test";
 import { readState } from "../env";
-import { Api, createContact } from "../helpers/api";
+import { Api, createContact, deleteContact } from "../helpers/api";
 import { db, disconnectDb } from "../helpers/db";
 
 const state = readState();
@@ -22,9 +22,12 @@ test.describe("square gift cards + loyalty (sandbox)", () => {
   let saleInvoiceId = "";
 
   test.beforeAll(async () => {
-    contactId = await createContact(api, "gift");
+    contactId = (await createContact(api, "gift")).id;
   });
   test.afterAll(async () => {
+    // Force-delete takes the invoices and payments with it; the Square-side
+    // card and its activities stay (sandbox).
+    if (contactId) await deleteContact(api, contactId);
     await disconnectDb();
   });
 
