@@ -76,6 +76,8 @@ import {
   SECTION_LABELS,
   type SectionKey,
 } from "@/lib/section-colors";
+import { serviceFee, SERVICE_FEE_ACH_LONG, SERVICE_FEE_CARD } from "@/lib/service-fee";
+import { RATES } from "@/lib/plans";
 
 type Company = {
   /** Test account (Company.isTest): doors still being finished (Website) show only for these. */
@@ -1236,7 +1238,6 @@ export default function SettingsClient({
     // Kept as a JSON string so the flat string-diff auto-save machinery works
     sectionColors: JSON.stringify(company.sectionColors ?? {}),
     surchargeEnabled: company.surchargeEnabled,
-    surchargeRate: company.surchargeRate ? (Number(company.surchargeRate) * 100).toFixed(2) : "3.50",
     defaultDepositType: company.defaultDepositType ?? "NONE",
     defaultDepositValue: company.defaultDepositValue != null ? String(Number(company.defaultDepositValue)) : "",
     // Stored as a fraction (0.0825); shown/edited as a percent ("8.25")
@@ -1287,18 +1288,29 @@ export default function SettingsClient({
     set("sectionColors", JSON.stringify(next));
   }
 
-  // Two fields the server refuses (400) rather than quietly fixing: an empty
-  // business name and a surcharge rate outside 0–10%. While invalid they are
-  // shown inline and kept OUT of the diff — never sent, never "Saved".
-  const surchargePct = Number(form.surchargeRate);
-  const surchargeRateOk =
-    form.surchargeRate.trim() !== "" &&
-    Number.isFinite(surchargePct) &&
-    surchargePct >= 0 &&
-    surchargePct <= 10;
+  // A field the server refuses (400) rather than quietly fixing: an empty
+  // business name. While invalid it is shown inline and kept OUT of the
+  // diff — never sent, never "Saved".
   const nameError = form.name.trim() ? "" : "Business name can't be empty.";
-  const surchargeError =
-    form.surchargeEnabled && !surchargeRateOk ? "Enter a rate between 0% and 10%." : "";
+  // The Service fee switch asks before it moves (David 2026-10-31): turning
+  // it ON names the business, not WorkBench, as the one responsible for
+  // surcharging being allowed where they work; turning it OFF explains that
+  // their Square plan keeps charging the service-fee rate, which they now pay.
+  async function toggleServiceFee() {
+    const next = !form.surchargeEnabled;
+    const ok = next
+      ? await confirmSheet({
+          title: "Turn the service fee on?",
+          message: `Clients pay ${SERVICE_FEE_CARD} on card payments and ${SERVICE_FEE_ACH_LONG} on bank transfers, shown on the pay page before they pay and itemized on every receipt. Card networks and some states regulate surcharging: you're responsible for making sure it's allowed where you do business — WorkBench isn't.`,
+          confirmLabel: "I understand, turn it on",
+        })
+      : await confirmSheet({
+          title: "Turn the service fee off?",
+          message: `Your Square account is billed on the service-fee plan — ${SERVICE_FEE_CARD} per card payment, ${SERVICE_FEE_ACH_LONG} per bank transfer. With the fee off you pay that yourself on every payment, so the invoice amount no longer reaches you in full. To move your account to the company-paid plan (${RATES.companyPaid.card} card, ${RATES.companyPaid.ach} bank), message us from the Help Center.`,
+          confirmLabel: "Turn it off",
+        });
+    if (ok) set("surchargeEnabled", next);
+  }
   // Web address: lower-case letters, numbers and dashes, 3+ characters. The
   // server also refuses reserved words and addresses another company holds.
   const slugClean = slugify(form.slug);
@@ -1318,7 +1330,6 @@ export default function SettingsClient({
     for (const key of Object.keys(f) as (keyof typeof f)[]) {
       if (f[key] === savedRef.current[key]) continue;
       if (key === "name" || key === "slug") continue;
-      if (key === "surchargeRate" && !surchargeRateOk) continue;
       (changed as Record<string, unknown>)[key] = f[key];
     }
     return changed;
@@ -1404,12 +1415,7 @@ export default function SettingsClient({
 
     const payload: Record<string, unknown> = { ...changed };
     // Same transforms the old Save button applied
-    if ("surchargeRate" in payload || "surchargeEnabled" in payload) {
-      payload.surchargeEnabled = form.surchargeEnabled;
-      // Percent → fraction (3.5 → 0.035); an invalid rate never goes out
-      if (surchargeRateOk) payload.surchargeRate = Math.round(surchargePct * 100) / 10000;
-      else delete payload.surchargeRate;
-    }
+    if ("surchargeEnabled" in payload) payload.surchargeEnabled = form.surchargeEnabled;
     if ("defaultDepositType" in payload || "defaultDepositValue" in payload) {
       payload.defaultDepositType = form.defaultDepositType;
       payload.defaultDepositValue = form.defaultDepositValue;
@@ -2269,13 +2275,21 @@ export default function SettingsClient({
         {/* Online payments (Finix) */}
         {show("payments") && <PaymentsOnlineCard isOwner={isOwner} />}
 
-        {/* Surcharging */}
+        {/* Client service fee — one switch; the rates are the billing plan's (lib/service-fee.ts) */}
         {show("payments") && (
         <div className="ds-card p-5 space-y-4">
-          <SectionHeader title="Card Surcharging" hint="Pass card processing fees to your customer." />
+          <SectionHeader
+            title="Service fee"
+            hint={
+              <>
+                Clients pay the processing fee on top of what they owe: {SERVICE_FEE_CARD} on a card, {SERVICE_FEE_ACH_LONG} on a bank
+                transfer. The rates come with your billing plan — nothing to set here.
+              </>
+            }
+          />
           <label className="flex items-center gap-3 cursor-pointer">
             <div
-              onClick={() => set("surchargeEnabled", !form.surchargeEnabled)}
+              onClick={toggleServiceFee}
               className={`relative w-10 h-6 rounded-full transition-colors cursor-pointer ${
                 form.surchargeEnabled ? "bg-[color:var(--ds-primary)]" : "bg-gray-300"
               }`}
@@ -2286,32 +2300,19 @@ export default function SettingsClient({
                 }`}
               />
             </div>
-            <span className="text-sm text-gray-700">Enable surcharging</span>
+            <span className="text-sm text-gray-700">Clients pay the service fee</span>
           </label>
-          {form.surchargeEnabled && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Surcharge rate</label>
-              <div className="flex items-center gap-2">
-                <Input type="number" value={form.surchargeRate} onChange={(e) => set("surchargeRate", e.target.value)}
-                  onBlur={() => {
-                    // Out-of-range but numeric → clamp into 0–10 on blur; a
-                    // blank or non-number stays (with the error) until fixed.
-                    const n = Number(form.surchargeRate);
-                    if (form.surchargeRate.trim() === "" || !Number.isFinite(n)) return;
-                    const clamped = Math.min(10, Math.max(0, n));
-                    if (clamped !== n) set("surchargeRate", clamped.toFixed(2));
-                  }}
-                  min="0" max="10" step="0.01"
-                  aria-invalid={Boolean(surchargeError)}
-                  className={`w-24 focus:ring-2 ${surchargeError ? "border-[color:var(--ds-bad)]" : ""}`} />
-                <span className="text-sm text-gray-500">% added to card payments</span>
-              </div>
-              {surchargeError && <p className="text-xs text-[color:var(--ds-bad)] mt-1">{surchargeError}</p>}
-              <p className="text-xs text-gray-500 mt-1">
-                Example: on a $500 invoice, customer pays ${(500 * (1 + (surchargeRateOk ? surchargePct : 0) / 100)).toFixed(2)} by card
-              </p>
-            </div>
-          )}
+          <p className="text-xs text-gray-500">
+            {form.surchargeEnabled ? (
+              <>
+                On: a $500 card payment collects ${(500 + serviceFee(500, "CARD", true)).toFixed(2)} and you receive the $500. Shown on the pay page
+                before the client pays and itemized on every receipt. Never added when you press Charge card yourself, or to gift cards,
+                cash and checks.
+              </>
+            ) : (
+              <>Off: you pay the processing fee yourself at your Square billing plan&apos;s rate, and the client sees no fee.</>
+            )}
+          </p>
         </div>
         )}
 

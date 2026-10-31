@@ -4,6 +4,7 @@ import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 import { Lock } from "lucide-react";
 import CardFields, { type CardFieldsHandle } from "@/components/CardFields";
 import type { ClientPayConfig } from "@/lib/pay-config";
+import { serviceFee } from "@/lib/service-fee";
 
 /**
  * Card entry for paid service bookings: the processor's hosted fields the
@@ -22,12 +23,12 @@ const PaymentStep = forwardRef<
     amount: number;
     mode: "NONE" | "DEPOSIT" | "FULL";
     depositAmount: number | null;
-    surchargeRate: number | null;
+    serviceFeeOn: boolean;
     dark: boolean;
     accent: string;
     onReady: (ready: boolean) => void;
   }
->(function PaymentStep({ pay, amount, mode, depositAmount, surchargeRate, dark, accent, onReady }, ref) {
+>(function PaymentStep({ pay, amount, mode, depositAmount, serviceFeeOn, dark, accent, onReady }, ref) {
   const cardRef = useRef<CardFieldsHandle>(null);
   const [valid, setValid] = useState(false);
   useImperativeHandle(
@@ -42,7 +43,7 @@ const PaymentStep = forwardRef<
   );
   const muted = dark ? "text-gray-400" : "text-gray-500";
   const due = mode === "FULL" ? amount : (depositAmount ?? 0);
-  const fee = surchargeRate && surchargeRate > 0 ? Math.round(due * surchargeRate * 100) / 100 : 0;
+  const fee = serviceFee(due, "CARD", serviceFeeOn);
 
   if (!pay) {
     return (
@@ -56,7 +57,7 @@ const PaymentStep = forwardRef<
       <div className="mb-3 flex items-center justify-between gap-3">
         <p className={`text-sm font-semibold ${dark ? "text-white" : "text-gray-900"}`}>
           {mode === "FULL" ? "Pay now" : "Deposit"} · ${due.toFixed(2)}
-          {fee > 0 && <span className={`font-normal ${muted}`}> + ${fee.toFixed(2)} card fee</span>}
+          {fee > 0 && <span className={`font-normal ${muted}`}> + ${fee.toFixed(2)} service fee</span>}
         </p>
         <span className={`inline-flex items-center gap-1 text-[11px] ${muted}`}>
           <Lock size={11} /> Secure

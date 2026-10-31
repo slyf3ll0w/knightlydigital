@@ -45,7 +45,8 @@ type DepositRule = { depositType: "NONE" | "PERCENT" | "FIXED" | "FULL"; deposit
 export type BookingPaymentConfig = {
   /** The browser tokenizer config (lib/pay-config.ts); null = payments not live. */
   pay: ClientPayConfig;
-  surchargeRate: number | null;
+  /** The company's Service fee switch: the card service fee (lib/service-fee.ts) rides the charge. */
+  serviceFee: boolean;
   companyDeposit: DepositRule;
   serviceDeposits: Record<string, DepositRule>;
 };
@@ -759,7 +760,7 @@ export default function BookingStepper({
                 amount={total}
                 mode={type.paymentMode}
                 depositAmount={depositAmount}
-                surchargeRate={payment?.surchargeRate ?? null}
+                serviceFeeOn={payment?.serviceFee ?? false}
                 dark={dark}
                 accent={savedAccent}
                 onReady={setCardReady}

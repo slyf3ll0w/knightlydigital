@@ -16,7 +16,7 @@ import { createDepositInvoice } from "@/lib/deposits";
 import { convertQuoteToJob } from "@/lib/quote-convert";
 import { enterPipeline, autoAdvance, recordLeadWin, firePipelineMoves, type PipelineMove } from "@/lib/pipeline";
 import { nextQuoteNumber, withDocNumberRetry } from "@/lib/doc-numbers";
-import { acquireChargeLock, calculateSurcharge, findUnrecordedTransferForInvoice, getProcessor, recordPayment, releaseChargeLock, type ChargeResult } from "@/lib/payments";
+import { acquireChargeLock, findUnrecordedTransferForInvoice, getProcessor, recordPayment, releaseChargeLock, type ChargeResult } from "@/lib/payments";
 import { buyerIdentityData, buyerIdentityRefOf, canChargeOnline, processorMerchantRef, type ChargeGateCompany } from "@/lib/payments-gate";
 import { sendEmail, bookingConfirmedEmail, bookingTeamNoticeEmail } from "@/lib/email";
 import { sendSms, smsEnabled, canText, bookingConfirmationText } from "@/lib/sms";
@@ -24,6 +24,7 @@ import { confirmationNote } from "@/lib/booking-intake";
 import { companyNotifyAddress } from "@/lib/notify";
 import { companyManagerIds, notifyUsers } from "@/lib/push";
 import { icsAttachment } from "@/lib/ics";
+import { serviceFee } from "@/lib/service-fee";
 
 /**
  * SERVICE booking types: the customer's picks become an APPROVED quote that
@@ -229,7 +230,7 @@ export async function createServiceBooking(params: {
   if (collect && result.depositInvoice) {
     const inv = result.depositInvoice.invoice;
     const amount = result.depositInvoice.amount;
-    const surchargeAmount = company.surchargeEnabled ? calculateSurcharge(amount, company.surchargeRate == null ? 0 : Number(company.surchargeRate)) : 0;
+    const surchargeAmount = serviceFee(amount, "CARD", company.surchargeEnabled);
     if (!(await acquireChargeLock(inv.id))) {
       await unwind(result);
       return { declined: true, error: "That payment is already processing — please try again in a moment." };

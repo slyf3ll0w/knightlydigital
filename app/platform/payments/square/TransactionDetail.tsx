@@ -102,7 +102,7 @@ export default async function TransactionDetail({ companyId, tz, paymentId, canR
       <div className="ds-card mb-6 divide-y divide-gray-100 overflow-hidden">
         <Row label="Charged" value={money(p.amountCents / 100)} />
         {p.tipCents > 0 && <Row label="Tip" value={money(p.tipCents / 100)} />}
-        {ours?.surchargeAmount != null && Number(ours.surchargeAmount) > 0 && <Row label="Includes card surcharge" value={money(Number(ours.surchargeAmount))} />}
+        {ours?.surchargeAmount != null && Number(ours.surchargeAmount) > 0 && <Row label="Includes service fee" value={money(Number(ours.surchargeAmount))} />}
         <Row label="Square's fee" value={p.feeCents > 0 ? `−${money(p.feeCents / 100)}` : "not posted yet"} />
         {p.refundedCents > 0 && <Row label="Refunded" value={`−${money(p.refundedCents / 100)}`} />}
         <Row label="Net to you" value={money(Math.max(0, net) / 100)} strong />

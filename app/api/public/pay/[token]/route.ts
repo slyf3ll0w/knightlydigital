@@ -4,7 +4,6 @@ import { prisma } from "@/lib/db";
 import {
   getProcessor,
   recordPayment,
-  calculateSurcharge,
   invoiceBalance,
   acquireChargeLock,
   releaseChargeLock,
@@ -16,6 +15,7 @@ import { reviveAutopayForContact } from "@/lib/auto-charge";
 import { buyerIdentityData, buyerIdentityRefOf, canChargeOnline, processorMerchantRef } from "@/lib/payments-gate";
 import { recomputeDepositApplied } from "@/lib/deposits";
 import { suspendedResponse } from "@/lib/suspension";
+import { serviceFee } from "@/lib/service-fee";
 
 /**
  * Public online payment endpoint. Routes through the active payment processor;
@@ -116,10 +116,10 @@ export async function POST(
     }
   }
 
-  let surchargeAmount = 0;
-  if (method === "CARD" && invoice.company.surchargeEnabled) {
-    surchargeAmount = calculateSurcharge(payAmount, Number(invoice.company.surchargeRate));
-  }
+  // The client service fee (lib/service-fee.ts): fixed per billing
+  // category, on a card and on a bank transfer alike, when the company's
+  // Service fee switch is on. Recorded as the payment's surchargeAmount.
+  const surchargeAmount = serviceFee(payAmount, method === "CARD" ? "CARD" : "ACH", invoice.company.surchargeEnabled);
 
   const processor = getProcessor();
   // This company's account on the processor is ready (Finix APPROVED, or

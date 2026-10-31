@@ -1,3 +1,4 @@
+import { serviceFee } from "@/lib/service-fee";
 /**
  * Pure autopay policy: decline classification, retry schedule, and what
  * counts as "the processor didn't answer" versus "the card said no". No DB
@@ -45,25 +46,16 @@ export function nextRetryAt(params: {
   return new Date(params.now.getTime() + (RETRY_DELAY_HOURS[params.attempts] ?? 168) * 3600_000);
 }
 
-/** The widest card surcharge Settings accepts (0–10%) — anything else is a bad row, not a fee. */
-export const MAX_SURCHARGE_RATE = 0.1;
-
 /**
  * What a card-on-file (autopay) charge collects: the invoice balance plus the
  * company's card surcharge when its Service fee switch is on — the same fee
  * the client would pay for that card on the pay page (2026-10-30; before
  * this, autopay charged the bare balance and the business ate Square's fee).
- * Rounding matches lib/payments.ts calculateSurcharge. Pure: lib/payments.ts
- * imports this module, so the helper can't import it back.
+ * The fee itself is fixed per billing category (lib/service-fee.ts). Pure:
+ * lib/payments.ts imports this module, so the helper can't import it back.
  */
-export function cardOnFileCharge(params: {
-  amount: number;
-  surchargeEnabled: boolean;
-  surchargeRate: number | null | undefined;
-}): { amount: number; surcharge: number; total: number } {
+export function cardOnFileCharge(params: { amount: number; surchargeEnabled: boolean }): { amount: number; surcharge: number; total: number } {
   const amount = Math.round(params.amount * 100) / 100;
-  const rate = Number(params.surchargeRate ?? 0);
-  const usable = params.surchargeEnabled && Number.isFinite(rate) && rate > 0 && rate <= MAX_SURCHARGE_RATE && amount > 0;
-  const surcharge = usable ? Math.round(amount * rate * 100) / 100 : 0;
+  const surcharge = amount > 0 ? serviceFee(amount, "CARD", params.surchargeEnabled) : 0;
   return { amount, surcharge, total: Math.round((amount + surcharge) * 100) / 100 };
 }

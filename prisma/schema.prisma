@@ -86,8 +86,12 @@ model Company {
   sidebarLogoColor          String? // hex backdrop behind the sidebar logo panel; null = white
   sidebarLogoSize           Int? // desktop rail logo plate height in px (36–128); null = default 56
   timezone                  String            @default("America/Chicago")
-  surchargeEnabled          Boolean           @default(false)
-  surchargeRate             Decimal           @default(0.0300) @db.Decimal(5, 4)
+  // The client service fee (lib/service-fee.ts, 2026-10-31): ON for every new
+  // company — clients pay the processing fee at the service-fee plan's fixed
+  // rates (card 3.50% + 30¢, bank 0.75% $1–$8). surchargeRate is LEGACY: the
+  // rate is no longer per company and nothing reads the column.
+  surchargeEnabled          Boolean           @default(true)
+  surchargeRate             Decimal           @default(0.0350) @db.Decimal(5, 4)
   // Finix payment processing (Streamflaire Payments). The identity/merchant pair
   // comes from the hosted onboarding form; onboardingState mirrors Finix's
   // merchant onboarding_state (PROVISIONING | APPROVED | REJECTED |

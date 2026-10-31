@@ -1,4 +1,4 @@
-import { RATE_CARD, RATE_ACH, FEE_CARD_PCT } from "../plan-copy";
+import { RATE_CARD, RATE_ACH, FEE_CARD, FEE_ACH } from "../plan-copy";
 import type { HelpSection } from "../types";
 import { PRO_CHIP, proTip } from "../plan-copy";
 
@@ -219,7 +219,7 @@ export const paymentsSection: HelpSection = {
         {
           type: "list",
           items: [
-            `Card payments cost **${RATE_CARD}** and bank payments **${RATE_ACH}** when you pay the fee yourself. Or have the client pay a **${FEE_CARD_PCT}** service fee on card payments instead and receive the full amount (see [Have clients pay the card fee](/help/card-surcharging)). Fees come out on Square's side before the money reaches your bank; the **Payments** page shows Square's posted fee on each payment once Square reports it (see [Your Payments page](/help/payments-page)).`,
+            `Card payments cost **${RATE_CARD}** and bank payments **${RATE_ACH}** when you pay the fee yourself. Or have the client pay the service fee instead — **${FEE_CARD}** on a card, **${FEE_ACH}** on a bank transfer — and receive the full amount (see [The service fee](/help/card-surcharging)). New accounts start that way. Fees come out on Square's side before the money reaches your bank; the **Payments** page shows Square's posted fee on each payment once Square reports it (see [Your Payments page](/help/payments-page)).`,
             "Bank (ACH) payments show as **Processing** for a few business days. They can still bounce during that time, and if one does it's taken back off the invoice.",
             "Clients can also save cards and pick a default for autopay in their client portal. With the service fee on, charges to a saved card — autopay included — carry it too; the client is told so when they save the card, and every receipt itemizes it.",
             "A gift card pays what it holds, with no fee on it, and the rest can be paid another way — see [Sell and take Square gift cards](/help/gift-cards).",
@@ -262,7 +262,7 @@ export const paymentsSection: HelpSection = {
         },
         {
           type: "tip",
-          text: "The card service fee is never added when you press `Charge card` yourself. It is added on the pay page, on `Tap to Pay` and on automatic recurring-plan charges — see [Have clients pay the card fee](/help/card-surcharging). Client standing in front of you with their card? In the phone app use `Tap to Pay` instead — [Take a card in person](/help/tap-to-pay).",
+          text: "The service fee is never added when you press `Charge card` yourself. It is added on the pay page, on `Tap to Pay` and on automatic recurring-plan charges — see [The service fee](/help/card-surcharging). Client standing in front of you with their card? In the phone app use `Tap to Pay` instead — [Take a card in person](/help/tap-to-pay).",
         },
       ],
     },
@@ -298,7 +298,7 @@ export const paymentsSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Open the invoice in the phone app (Awaiting Payment or Past Due) and press `Tap to Pay`. The amount is the balance, plus your card surcharge if you have that turned on — the button shows the total.",
+            "Open the invoice in the phone app (Awaiting Payment or Past Due) and press `Tap to Pay`. The amount is the balance, plus the service fee when yours is on — the button shows the total.",
             "Square's screen says **Hold card here**. The client holds their card or phone to the top/back of your phone until it buzzes.",
             "Square may offer the client a text or email receipt. WorkBench records the payment, shows the approved screen and sends its usual paid email when the invoice has a client.",
           ],
@@ -539,35 +539,37 @@ export const paymentsSection: HelpSection = {
     },
     {
       slug: "card-surcharging",
-      title: "Have clients pay the card fee (service fee)",
-      summary: "Turn on the service fee and clients who pay by card cover the processing fee, so the full invoice amount reaches you.",
-      keywords: ["surcharge", "service fee", "convenience fee", "card fee", "pass fees", "processing fee", "who pays the fee", "company-paid", "autopay fee", "enable surcharging"],
+      title: "The service fee: who pays for card processing",
+      summary: "New accounts start with clients paying the service fee on card and bank payments. The rates are fixed by your billing plan.",
+      keywords: ["surcharge", "service fee", "convenience fee", "card fee", "pass fees", "processing fee", "who pays the fee", "company-paid", "autopay fee", "turn off service fee", "liability", "legal"],
       where: { label: "Payments settings", href: "/app/settings" },
       roles: "Owners and admins",
       blocks: [
         {
           type: "p",
-          text: `Two ways to pay for card processing. **Company-paid**: you absorb Square's fee, **${RATE_CARD}** per card payment. **Service fee**: the client pays **${FEE_CARD_PCT}** on top of a card payment and the invoice amount reaches you in full. The switch lives in WorkBench, and the \`Create a Square account\` link in Settings → Online Payments follows it, so a new Square account lands on the matching Square rate plan.`,
-        },
-        {
-          type: "steps",
-          items: [
-            "Go to **Settings → Payments & accounting**.",
-            `Turn on **Enable surcharging**. The **Surcharge rate** starts at **${FEE_CARD_PCT}**, the standard service fee; anything from 0% to 10% is allowed.`,
-            "Save. From then on the fee is added wherever a card is charged: the pay page (with a note that paying by bank avoids it), `Tap to Pay`, and automatic charges to a saved card — recurring plans and autopay. It's itemized on the pay page, on every receipt and in the payment's **Details** on the Payments page.",
-          ],
+          text: `Two billing plans. **Service fee**, what a new account starts on: the client pays **${FEE_CARD}** on a card payment and **${FEE_ACH}** on a bank transfer, so the invoice amount reaches you in full. **Company-paid**: you absorb Square's fee, **${RATE_CARD}** per card payment and **${RATE_ACH}** per bank transfer. The rates come with the plan — there is nothing to type in WorkBench.`,
         },
         {
           type: "list",
           items: [
-            "Never added to bank transfers (ACH), gift cards, cash or check, or to `Charge card` pressed by you on an invoice.",
-            "Clients see it before they commit: on the pay page under the total, in the keep-my-card checkbox, and on **Payment methods** in their portal.",
-            "Turning it off stops it everywhere at once, including the next autopay charge.",
+            "On the pay page the fee is its own line under the total before the client presses Pay, on a card or a bank transfer alike. A gift card carries none.",
+            "`Tap to Pay` shows it in the button's total.",
+            "Automatic charges to a saved card — recurring plans and autopay — carry it; the client is told when they save the card and on **Payment methods** in their portal.",
+            "Once paid it reads **Service fee** on the receipt, the invoice, its PDF and the payment's **Details** on the Payments page.",
+            "Never added when you press `Charge card` yourself, or to cash, check and gift card payments.",
           ],
         },
         {
-          type: "warn",
-          text: "Surcharge rules vary by state and by card network, so check yours before turning it on.",
+          type: "h",
+          text: "Turning it off or on",
+        },
+        {
+          type: "list",
+          items: [
+            `**Settings → Payments & accounting → Service fee** is one switch. Turning it off means you pay the processing fee yourself at your Square plan's rate — for an account set up on the service-fee plan that is the higher one, **${FEE_CARD}** per card payment. To move the account to the company-paid plan, message us from the Help Center.`,
+            "Turning it on asks you to confirm that surcharging is allowed where you do business. Card networks and some states regulate it, and that responsibility is yours, not WorkBench's.",
+            "The `Create a Square account` link on the Online Payments card follows the switch, so a new Square account lands on the matching plan.",
+          ],
         },
       ],
     },

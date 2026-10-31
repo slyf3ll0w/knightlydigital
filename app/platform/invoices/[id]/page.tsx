@@ -64,6 +64,8 @@ export default async function InvoiceDetailPage({
   const baseUrl = process.env.NEXTAUTH_URL ?? "";
   const publicUrl = `${baseUrl}/pay/${invoice.publicToken}`;
   const totalPaid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
+  // Service fees the client paid ride on top of the total (lib/payments invoiceBalance).
+  const feesPaid = invoice.payments.reduce((s, p) => s + Number(p.surchargeAmount ?? 0), 0);
   const balance = Math.max(0, invoiceBalance(invoice));
   // Send to Client can text the pay link from the business line
   const canTextClient =
@@ -380,6 +382,12 @@ export default async function InvoiceDetailPage({
               <span className="text-gray-900">Total</span>
               <span className="ds-num text-gray-900">{money(invoice.total)}</span>
             </div>
+            {feesPaid > 0 && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">Service fee</span>
+                <span className="ds-num text-gray-800">{money(feesPaid)}</span>
+              </div>
+            )}
             {totalPaid > 0 && (
               <div className="flex justify-between text-[color:var(--ds-good)]">
                 <span>Payments</span>
