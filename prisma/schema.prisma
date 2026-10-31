@@ -2751,6 +2751,7 @@ enum InvoiceKind {
   STANDARD
   DEPOSIT
   QUICK_CHARGE // a payment request: one amount, one line, no editor (docs/plans/checkout-tap-to-pay-2026-10-22.md)
+  STORE_ORDER // a purchase from the shop page (lib/store.ts, 2026-10-31): the paid invoice is the order
 }
 
 model Invoice {
@@ -3179,6 +3180,13 @@ model WorkItem {
   agreementTemplate    ContractTemplate?    @relation(fields: [agreementTemplateId], references: [id])
   agreementTiming      AgreementTiming      @default(ON_APPROVAL)
   isActive             Boolean              @default(true)
+  // Online store (lib/store.ts, 2026-10-31): a PRODUCT with sellOnline is on
+  // the company's shop page (/book/<slug>/shop) with its own buy link; the
+  // photo lives in blob storage under photoKey (served by
+  // /api/public/store-photos/[id]).
+  sellOnline           Boolean              @default(false)
+  photoKey             String?
+  photoMime            String?
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
 
@@ -3187,6 +3195,7 @@ model WorkItem {
 
   @@index([companyId])
   @@index([companyId, name])
+  @@index([companyId, sellOnline])
 }
 
 // ─── Subscriptions (recurring services sold to a client) ─────────────────────

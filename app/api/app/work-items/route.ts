@@ -49,6 +49,8 @@ export async function POST(req: NextRequest) {
       priceDisplay: sanitizePriceDisplay(body.priceDisplay),
       durationMinutes: sanitizeDuration(body.durationMinutes),
       checklist: sanitizeChecklist(body.checklist) ?? undefined,
+      // Online store: only a product can be sold from the shop page
+      sellOnline: type === "PRODUCT" && body.sellOnline === true,
       ...recurring.data,
       ...sanitizeDeposit(body),
     },

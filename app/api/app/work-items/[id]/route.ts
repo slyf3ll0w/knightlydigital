@@ -81,6 +81,10 @@ export async function PATCH(
       ...(body.name !== undefined && { name: String(body.name).trim() }),
       ...(body.description !== undefined && { description: body.description?.trim() || null }),
       ...(body.type !== undefined && { type: body.type === "PRODUCT" ? "PRODUCT" : "SERVICE" }),
+      // Online store: a product's shop-page listing; a service is never listed
+      ...((body.sellOnline !== undefined || body.type === "SERVICE") && {
+        sellOnline: body.type === "SERVICE" ? false : body.sellOnline === true,
+      }),
       ...(body.unitPrice !== undefined && { unitPrice: Number(body.unitPrice) || 0 }),
       ...(body.unitCost !== undefined && {
         unitCost: body.unitCost === null || body.unitCost === "" ? null : Number(body.unitCost),

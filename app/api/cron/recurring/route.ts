@@ -36,6 +36,7 @@ import { runTaskReminders } from "@/lib/tasks";
 import { runScheduledSends } from "@/lib/send-document";
 import { archiveExpiredNotes } from "@/lib/sticky-notes";
 import { runTimeBlockSeriesSweep } from "@/lib/time-block-series";
+import { runStoreOrderSweep } from "@/lib/store";
 
 /**
  * Hourly billing cron. A scheduler (Railway cron service, or an external
@@ -193,6 +194,8 @@ export async function POST(req: NextRequest) {
     // missed the payment hook) load here once their invoice is paid. No-op
     // without Square.
     await step("giftCards", () => runGiftCardActivationSweep(now));
+    // Shop orders nobody paid within the hold window are archived (lib/store.ts).
+    await step("storeOrders", () => runStoreOrderSweep(now));
     // Plan entitlement: every customer company re-derives its paid plans from
     // its series' invoices in the WorkBench account (periods end, grace runs
     // out). No-op until a company is marked WorkBench's own.

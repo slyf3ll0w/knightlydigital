@@ -538,6 +538,53 @@ export const paymentsSection: HelpSection = {
       ],
     },
     {
+      slug: "sell-products-online",
+      title: "Sell products online (your shop)",
+      summary: "Mark a product Sell online and it's on your shop page with its own buy link. The buyer pays on the pay page; the paid invoice is the order.",
+      keywords: ["shop", "store", "online store", "sell online", "products", "buy link", "ecommerce", "order", "orders", "sell products", "shop page"],
+      where: { label: "Services", href: "/app/settings/products" },
+      roles: "Owners and admins",
+      blocks: [
+        {
+          type: "p",
+          text: "Your shop is part of your business page: **/book/your-address/shop** lists every product you sell online, and each product has a page of its own to buy from. A purchase runs through the same money path as everything else — the buyer becomes a client (or is matched to one you have), an **Order** invoice carries what they bought, and they pay it on the pay page by card, bank transfer or gift card, service fee included when yours is on.",
+        },
+        {
+          type: "steps",
+          items: [
+            "Go to **Settings → Services** and add or open a **Product** (a service can't be sold this way — it's booked).",
+            "Tick **Sell online**, save, then add a photo for the shop page. The price is the product's unit price; your default sales tax applies if you have one.",
+            "Press the link button on the product's row to copy its **buy link** — text it, email it, put it on your website. **Your shop** at the top of the page is the link to everything.",
+          ],
+        },
+        {
+          type: "list",
+          items: [
+            "A buyer picks how many (up to 20), types their name and email (phone optional), and lands on the pay page. Paid, the order shows on **Invoices** and **Payments** like any invoice, in their client portal, and you get the usual payment notification.",
+            "An order nobody pays is archived after two days, so abandoned carts don't pile up on Invoices.",
+            "Nothing ships itself: the order says what and how many, and your note from the buyer. Pickup, delivery and stock counts are coming later.",
+          ],
+        },
+        {
+          type: "faq",
+          items: [
+            {
+              q: "The Sell online box isn't there.",
+              a: "The item's **Type** is Service. Only products are sold from the shop; services are booked from your booking page.",
+            },
+            {
+              q: "The photo won't upload.",
+              a: "Photos need the file storage WorkBench runs on; if the editor says it isn't set up, message us from the Help Center. PNG, JPG or WebP under 6 MB.",
+            },
+            {
+              q: "Can I put the shop on my own website?",
+              a: "Link to it, or link straight to one product's buy page. A widget you can drop into a page is on the list.",
+            },
+          ],
+        },
+      ],
+    },
+    {
       slug: "card-surcharging",
       title: "The service fee: who pays for card processing",
       summary: "New accounts start with clients paying the service fee on card and bank payments. The rates are fixed by your billing plan.",
