@@ -11,6 +11,7 @@ import { confirmSheet } from "@/components/ConfirmSheet";
 import PageTitle from "@/components/PageTitle";
 import { Chip, InfoTip } from "@/components/ds";
 import { DateField } from "@/components/DateField";
+import { SERVICE_FEE_CARD } from "@/lib/service-fee";
 
 type Frequency = "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "QUARTERLY" | "ANNUALLY";
 
@@ -103,15 +104,15 @@ export default function SubscriptionsClient({
   readyJobs = [],
   team,
   canManage,
-  surchargePct = null,
+  serviceFeeOn = false,
 }: {
   initialSubs: Sub[];
   /** Completed per-visit-series work nothing has invoiced yet. */
   readyJobs?: ReadyJob[];
   team: { id: string; name: string }[];
   canManage: boolean;
-  /** The company's card surcharge (percent) when its Service fee switch is on — autopay charges carry it. */
-  surchargePct?: number | null;
+  /** The company's Service fee switch — autopay charges carry the card service fee (lib/service-fee.ts). */
+  serviceFeeOn?: boolean;
 }) {
   const router = useRouter();
   const [subs, setSubs] = useState<Sub[]>(initialSubs);
@@ -340,7 +341,7 @@ export default function SubscriptionsClient({
                 </span>
                 <InfoTip>
                   One invoice per series, charged to the card on file.
-                  {surchargePct ? ` Your ${surchargePct}% card surcharge is added to each card charge, like on the pay page.` : ""}
+                  {serviceFeeOn ? ` The ${SERVICE_FEE_CARD} card service fee is added to each charge, like on the pay page.` : ""}
                 </InfoTip>
               </p>
               <p className="text-xs text-[color:var(--ds-muted)]">
@@ -473,7 +474,7 @@ export default function SubscriptionsClient({
                             <div className="col-span-2">
                               <label className="block text-xs text-gray-500 mb-0.5">
                                 Autopay card
-                                {surchargePct ? ` · charged with your ${surchargePct}% card surcharge` : ""}
+                                {serviceFeeOn ? ` · charged with the ${SERVICE_FEE_CARD} service fee` : ""}
                               </label>
                               <select
                                 value={editForm.savedCardId}

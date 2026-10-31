@@ -10,8 +10,8 @@ export type TapToPayOffer = {
   environment: "sandbox" | "production";
   /** The seller's charge location (the SDK authorizes against one location). */
   locationId: string;
-  /** Card surcharge the company adds (fraction, 0 when off) — applied in person too (decision 3). */
-  surchargeRate: number;
+  /** The company's Service fee switch — the card service fee (lib/service-fee.ts) applies in person too (decision 3). */
+  serviceFee: boolean;
   /** The seller's Square grant predates the in-person scope: Settings must reconnect first. */
   needsReconnect: boolean;
   /** Owners/admins may run setup (Apple ID linking, reconnect); others only pay. */

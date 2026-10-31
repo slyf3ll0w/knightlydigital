@@ -51,7 +51,6 @@ export async function tapToPayOffer(actor: Actor): Promise<TapToPayOffer> {
       squareLocationId: true,
       squareConnectedAt: true,
       surchargeEnabled: true,
-      surchargeRate: true,
       squareConnection: { select: { scopes: true } },
     },
   });
@@ -60,7 +59,7 @@ export async function tapToPayOffer(actor: Actor): Promise<TapToPayOffer> {
   return {
     environment: squareEnvironment(),
     locationId: company.squareLocationId,
-    surchargeRate: company.surchargeEnabled ? Number(company.surchargeRate) : 0,
+    serviceFee: company.surchargeEnabled,
     needsReconnect: !hasInPersonScope(company.squareConnection.scopes),
     canSetUp: isManager(actor.role),
   };

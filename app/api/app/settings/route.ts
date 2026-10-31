@@ -32,25 +32,14 @@ export async function PATCH(req: NextRequest) {
     v === undefined ? undefined : v ? String(v) : null;
 
   // Refuse, don't quietly fix: a blank name would be dropped on the floor
-  // while the client showed "Saved", and a surcharge outside 0–10% (or a
-  // NaN→null from a blank field) used to land in the column as-is.
+  // while the client showed "Saved". (The service fee rate is fixed per
+  // billing category since 2026-10-31 — lib/service-fee.ts — so a posted
+  // surchargeRate is ignored.)
   if (body.name !== undefined && !String(body.name ?? "").trim()) {
     return NextResponse.json(
       { error: "Business name can't be empty.", field: "name" },
       { status: 400 }
     );
-  }
-  if (body.surchargeRate !== undefined) {
-    const rate =
-      typeof body.surchargeRate === "number" || typeof body.surchargeRate === "string"
-        ? Number(body.surchargeRate)
-        : NaN;
-    if (!Number.isFinite(rate) || rate < 0 || rate > 0.1) {
-      return NextResponse.json(
-        { error: "Surcharge rate must be between 0% and 10%.", field: "surchargeRate" },
-        { status: 400 }
-      );
-    }
   }
 
   // Starting quote / invoice numbers: a whole number from 1 up. Refused
@@ -204,7 +193,6 @@ export async function PATCH(req: NextRequest) {
             ? (sanitizeSectionColors(body.sectionColors) as object)
             : undefined,
         surchargeEnabled: body.surchargeEnabled ?? undefined,
-        surchargeRate: body.surchargeRate !== undefined ? Number(body.surchargeRate) : undefined,
         // Default sales-tax rate as a fraction (0.0825 = 8.25%); null clears it
         defaultTaxRate:
           body.defaultTaxRate !== undefined

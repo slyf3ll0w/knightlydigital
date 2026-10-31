@@ -34,6 +34,7 @@ import {
   type ClientCompany,
   type ClientPerson,
 } from "@/components/client";
+import { serviceFee, serviceFeeLabel, SERVICE_FEE_CARD } from "@/lib/service-fee";
 
 type LineItem = {
   id: string;
@@ -126,7 +127,6 @@ export default function PayPage({
 
   const company = invoice.company;
   const accent = clientAccent(company);
-  const surchargeRate = company.surchargeEnabled ? Number(company.surchargeRate) || 0 : 0;
 
   const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
   const priorSurcharges = invoice.payments.reduce((s, p) => s + Number(p.surchargeAmount ?? 0), 0);
@@ -135,7 +135,8 @@ export default function PayPage({
   const amountValid = !partial || (parsedAmount >= 1 && parsedAmount <= balance);
   const docType = invoice.kind === "DEPOSIT" ? "Deposit invoice" : invoice.kind === "QUICK_CHARGE" ? "Payment request" : "Invoice";
   const canSplit = invoice.kind !== "DEPOSIT" && balance > 1;
-  const surcharge = method === "CARD" && company.surchargeEnabled && amountValid ? Math.round(payAmount * surchargeRate * 100) / 100 : 0;
+  // The client service fee, card or bank (lib/service-fee.ts) — a gift card carries none.
+  const surcharge = method !== "GIFT_CARD" && amountValid ? serviceFee(payAmount, method, company.surchargeEnabled) : 0;
   const chargeTotal = (amountValid ? payAmount : 0) + surcharge;
 
   // Load finix.js once (only when this company can actually charge online)
@@ -319,9 +320,9 @@ export default function PayPage({
           {invoice.tax && Number(invoice.tax) > 0 ? <TRow label="Tax" value={money(invoice.tax)} /> : null}
           {invoice.depositApplied && Number(invoice.depositApplied) > 0 ? <TRow label="Deposit applied" value={`−${money(invoice.depositApplied)}`} /> : null}
           <TRow label="Total" value={money(invoice.total)} kind="total" />
-          {priorSurcharges > 0 && <TRow label="Card surcharges" value={money(priorSurcharges)} />}
+          {priorSurcharges > 0 && <TRow label="Service fees" value={money(priorSurcharges)} />}
           {paid > 0 && <TRow label="Paid to date" value={`−${money(paid)}`} />}
-          {payable && surcharge > 0 && <TRow label={`Card surcharge (${(surchargeRate * 100).toFixed(1)}%)`} value={money(surcharge)} kind="warn" />}
+          {payable && surcharge > 0 && method !== "GIFT_CARD" && <TRow label={serviceFeeLabel(method)} value={money(surcharge)} />}
           {!isPaid && (paid > 0 || priorSurcharges > 0 || surcharge > 0 || partial) && (
             <TRow label={partial && amountValid ? "You're paying" : "Balance due"} value={money(payable ? chargeTotal : balance)} kind="due" />
           )}
@@ -482,14 +483,6 @@ export default function PayPage({
               </Choices>
             </div>
 
-            {method === "CARD" && company.surchargeEnabled && surchargeRate > 0 && (
-              <div className="mb-4">
-                <Notice tone="warn">
-                  A {(surchargeRate * 100).toFixed(1)}% card surcharge applies. Pay by bank transfer to avoid it.
-                </Notice>
-              </div>
-            )}
-
             {method === "GIFT_CARD" && (
               <div className="mb-4">
                 <Label>Gift card number</Label>
@@ -558,8 +551,8 @@ export default function PayPage({
                   <input type="checkbox" className="c-check" checked={saveCard} onChange={(e) => setSaveCard(e.target.checked)} />
                   <span>
                     Keep this card on file with {company.name} for faster payments next time. You can remove it anytime.
-                    {company.surchargeEnabled && surchargeRate > 0 && (
-                      <> Charges to a card on file, including automatic plan payments, carry the same {(surchargeRate * 100).toFixed(1)}% card surcharge.</>
+                    {company.surchargeEnabled && (
+                      <> Charges to a card on file, including automatic plan payments, carry the same {SERVICE_FEE_CARD} service fee.</>
                     )}
                   </span>
                 </label>

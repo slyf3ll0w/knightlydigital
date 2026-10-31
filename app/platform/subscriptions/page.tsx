@@ -56,12 +56,9 @@ export default async function SubscriptionsPage() {
     }),
     // Service fee switch: autopay charges carry the card surcharge, and the
     // page says so next to every "charged to the card on file".
-    prisma.company.findUnique({ where: { id: actor.companyId }, select: { surchargeEnabled: true, surchargeRate: true } }),
+    prisma.company.findUnique({ where: { id: actor.companyId }, select: { surchargeEnabled: true } }),
   ]);
-  const surchargePct =
-    company?.surchargeEnabled && company.surchargeRate != null && Number(company.surchargeRate) > 0
-      ? Math.round(Number(company.surchargeRate) * 1000) / 10
-      : null;
+  const serviceFeeOn = Boolean(company?.surchargeEnabled);
 
   return (
     <SubscriptionsClient
@@ -69,7 +66,7 @@ export default async function SubscriptionsPage() {
       readyJobs={JSON.parse(JSON.stringify(readyJobs))}
       team={team}
       canManage={isManager(actor.role)}
-      surchargePct={surchargePct}
+      serviceFeeOn={serviceFeeOn}
     />
   );
 }

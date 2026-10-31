@@ -1076,11 +1076,6 @@ export async function releaseChargeLock(invoiceId: string): Promise<void> {
     .catch((e) => reportError("[payments] charge lock release failed", invoiceId, e));
 }
 
-/** Calculate the surcharge amount for a given payment total and rate. */
-export function calculateSurcharge(amount: number, rateDecimal: number): number {
-  return Math.round(amount * rateDecimal * 100) / 100;
-}
-
 /** Display label for a saved card — "Visa •••• 4242 · exp 12/27". */
 export function savedCardLabel(card: {
   cardBrand?: string | null;

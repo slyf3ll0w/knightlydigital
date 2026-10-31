@@ -8,6 +8,7 @@ import { hapticImpact } from "@/lib/haptics";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { nativeTapToPay, newPaymentAttemptId, tapToPayError, type TapToPayPlugin, type TapToPayStatus } from "@/lib/native-tap-to-pay";
 import { tapToPayFailureText, type TapToPayOffer } from "@/lib/tap-to-pay-shared";
+import { serviceFee, SERVICE_FEE_CARD } from "@/lib/service-fee";
 
 /**
  * "Tap to Pay" — the client holds their card to the back of the tech's
@@ -49,7 +50,7 @@ export default function TapToPayButton({
   }, []);
 
   if (!plugin || !offer || amount <= 0) return null;
-  const surcharge = offer.surchargeRate > 0 ? Math.round(amount * offer.surchargeRate * 100) / 100 : 0;
+  const surcharge = serviceFee(amount, "CARD", offer.serviceFee);
   const total = Math.round((amount + surcharge) * 100) / 100;
 
   // The seller's grant predates the in-person scope: only a manager can fix
@@ -144,7 +145,7 @@ export default function TapToPayButton({
 
   return (
     <>
-      <button type="button" onClick={run} disabled={busy} className={className} title={surcharge > 0 ? `Includes the ${(offer.surchargeRate * 100).toFixed(2)}% card surcharge` : undefined}>
+      <button type="button" onClick={run} disabled={busy} className={className} title={surcharge > 0 ? `Includes the ${SERVICE_FEE_CARD} card service fee` : undefined}>
         <Nfc size={14} />
         Tap to Pay{surcharge > 0 ? ` · $${total.toFixed(2)}` : ""}
       </button>

@@ -536,7 +536,7 @@ export function buildInvoiceDocument(invoice: InvoiceForPdf, logo: LogoSrc) {
               <Text style={styles.grandText}>Total</Text>
               <Text style={styles.grandText}>{money(invoice.total)}</Text>
             </View>
-            {surcharge > 0 ? <TotalRow label="Card surcharge" value={money(surcharge)} /> : null}
+            {surcharge > 0 ? <TotalRow label="Service fee" value={money(surcharge)} /> : null}
             {paid > 0 ? <TotalRow label="Paid to date" value={money(paid)} negative /> : null}
             {paid > 0 || surcharge > 0 ? (
               <View style={[styles.grandRow, { borderTopColor: FAINT }]}>

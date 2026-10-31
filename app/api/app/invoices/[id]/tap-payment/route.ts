@@ -7,7 +7,6 @@ import {
   invoiceBalance,
   acquireChargeLock,
   releaseChargeLock,
-  calculateSurcharge,
   sendReviewRequest,
 } from "@/lib/payments";
 import { recomputeDepositApplied } from "@/lib/deposits";
@@ -15,6 +14,7 @@ import { logActivity } from "@/lib/activity";
 import { getSquarePayment, SquareError } from "@/lib/square";
 import { squareTokenForCompany } from "@/lib/square-connection";
 import { tapToPayEnabled } from "@/lib/tap-to-pay";
+import { serviceFee } from "@/lib/service-fee";
 
 /**
  * POST { paymentId } — the phone app took a Tap to Pay payment through the
@@ -97,9 +97,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // does. Anything else (a tip added on Square's screen, a changed balance)
     // is recorded as principal so the money is never lost — the row's
     // details say what happened.
-    const expectedSurcharge = invoice.company.surchargeEnabled
-      ? calculateSurcharge(balance, Number(invoice.company.surchargeRate))
-      : 0;
+    const expectedSurcharge = serviceFee(balance, "CARD", invoice.company.surchargeEnabled);
     const matchesSplit = Math.abs(chargedTotal - (balance + expectedSurcharge)) < 0.005;
     const surchargeAmount = matchesSplit ? expectedSurcharge : 0;
     const brand = payment.card_details?.card?.card_brand ?? null;

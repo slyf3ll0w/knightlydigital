@@ -190,7 +190,6 @@ export const companyTools: Tool[] = [
           arrivalWindowMinutes: { type: "number" },
           assistantName: { type: "string" },
           surchargeEnabled: { type: "boolean" },
-          surchargePercent: { type: "number", description: "e.g. 3 for a 3% card fee" },
           defaultDepositType: { type: "string", enum: ["PERCENT", "FIXED", "FULL", "NONE"] },
           defaultDepositValue: { type: "number" },
           addServiceZips: { type: "array", items: { type: "string" } },
@@ -248,13 +247,7 @@ export const companyTools: Tool[] = [
       }
       if (typeof args.surchargeEnabled === "boolean") {
         payload.surchargeEnabled = args.surchargeEnabled;
-        lines.push(args.surchargeEnabled ? "Card surcharge: ON" : "Card surcharge: OFF");
-      }
-      const surcharge = num(args.surchargePercent);
-      if (surcharge !== null) {
-        if (surcharge < 0 || surcharge > 10) return { error: "surchargePercent must be 0–10." };
-        payload.surchargeRate = surcharge / 100; // stored as a fraction
-        lines.push(`Card surcharge rate: ${surcharge}%`);
+        lines.push(args.surchargeEnabled ? "Service fee (clients pay processing): ON" : "Service fee: OFF");
       }
       const depositType = str(args.defaultDepositType, 10);
       if (["PERCENT", "FIXED", "FULL", "NONE"].includes(depositType)) {

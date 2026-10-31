@@ -977,7 +977,7 @@ export default function InvoiceActions({
               Charge {money(balance)}
             </button>
             <p className="mt-2 text-center text-[11px] text-gray-400">
-              Charged right now — no card surcharge on stored charges.
+              Charged right now — no service fee on stored charges.
             </p>
           </>
         )}

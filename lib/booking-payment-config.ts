@@ -5,7 +5,7 @@ import type { BookingPaymentConfig } from "@/app/book/[slug]/schedule/[type]/Boo
 /**
  * What the public booking page needs to take a card for a paid SERVICE
  * type: the browser tokenizer config (lib/pay-client-config.ts — public ids
- * only; merchant/onboarding ids never ride into HTML), the surcharge rate,
+ * only; merchant/onboarding ids never ride into HTML), the Service fee switch,
  * and the deposit rules so the page can show the amount before the card
  * step. Data only — it crosses the server→client boundary.
  */
@@ -13,7 +13,6 @@ export function bookingPaymentConfig(
   type: LoadedBookingType,
   company: PayConfigCompany & {
     surchargeEnabled: boolean;
-    surchargeRate: { toString(): string } | number | null;
     defaultDepositType: "NONE" | "PERCENT" | "FIXED" | "FULL";
     defaultDepositValue: { toString(): string } | number | null;
   }
@@ -21,7 +20,7 @@ export function bookingPaymentConfig(
   if (type.kind !== "SERVICE" || type.paymentMode === "NONE") return undefined;
   return {
     pay: clientPayConfig(company),
-    surchargeRate: company.surchargeEnabled && company.surchargeRate != null ? Number(company.surchargeRate) : null,
+    serviceFee: company.surchargeEnabled,
     companyDeposit: {
       depositType: company.defaultDepositType,
       depositValue: company.defaultDepositValue == null ? null : Number(company.defaultDepositValue),

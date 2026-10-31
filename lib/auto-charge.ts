@@ -87,14 +87,13 @@ export async function attemptAutoCharge(params: {
       // The company's Service fee switch: a card on file pays the same card
       // surcharge the client would on the pay page (disclosed when the card
       // was saved — pay page, hub, the Plans page).
-      company: { select: { surchargeEnabled: true, surchargeRate: true } },
+      company: { select: { surchargeEnabled: true } },
     },
   });
   if (!sub) return "no_card";
   const fee = cardOnFileCharge({
     amount: params.amount,
     surchargeEnabled: sub.company.surchargeEnabled,
-    surchargeRate: sub.company.surchargeRate == null ? null : Number(sub.company.surchargeRate),
   });
 
   // Pinned card → default card → legacy mirror. A pinned card that was

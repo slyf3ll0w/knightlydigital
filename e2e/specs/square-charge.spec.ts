@@ -134,9 +134,10 @@ test.describe("card charges (Square sandbox)", () => {
     // processorRef is the Square payment id — never a Finix TR… transfer.
     expect(payment!.processorRef).toBeTruthy();
     expect(payment!.processorRef).not.toMatch(/^TR/);
-    // Company A surcharges 3%: the client paid 103.00 total, 3.00 of it surcharge.
-    expect(Number(payment!.surchargeAmount)).toBeCloseTo(3, 2);
-    expect(Number(payment!.amount)).toBeCloseTo(103, 2);
+    // Company A's Service fee switch is on: the card service fee is fixed at
+    // 3.50% + 30¢ (lib/service-fee.ts) — 103.80 total, 3.80 of it the fee.
+    expect(Number(payment!.surchargeAmount)).toBeCloseTo(3.8, 2);
+    expect(Number(payment!.amount)).toBeCloseTo(103.8, 2);
 
     // Card on file: a Square card (ccof:…) under the contact's Square customer.
     const card = await db().savedCard.findFirst({ where: { contactId, isDefault: true } });
@@ -182,10 +183,10 @@ test.describe("card charges (Square sandbox)", () => {
     const dbSub = await db().subscription.findUnique({ where: { id: sub.id } });
     expect(dbSub!.anchoredAt).not.toBeNull();
     // Company A's 3% service fee rides the card-on-file charge too (2026-10-30):
-    // $12.34 principal + $0.37 surcharge = $12.71 on the card, itemized.
+    // $12.34 principal + $0.73 service fee (3.50% + 30¢) = $13.07 on the card, itemized.
     expect(invoice!.payments).toHaveLength(1);
-    expect(Number(invoice!.payments[0].amount)).toBeCloseTo(12.71, 2);
-    expect(Number(invoice!.payments[0].surchargeAmount)).toBeCloseTo(0.37, 2);
-    expect(Number(invoice!.surcharge)).toBeCloseTo(0.37, 2);
+    expect(Number(invoice!.payments[0].amount)).toBeCloseTo(13.07, 2);
+    expect(Number(invoice!.payments[0].surchargeAmount)).toBeCloseTo(0.73, 2);
+    expect(Number(invoice!.surcharge)).toBeCloseTo(0.73, 2);
   });
 });

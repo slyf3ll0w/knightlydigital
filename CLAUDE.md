@@ -1000,10 +1000,18 @@ Built 2026-10-15 on branch `square-payments` (worktree
   card; ACH 0.75%, $1 min, $8 max. Every marketing page, llms.txt, the Help
   Center, `processingFees()` defaults (ACH now clamped by
   `WORKBENCH_ACH_FEE_MIN/MAX_CENTS`) and the Settings surcharge default
-  (3.50) read from there — never type a rate into a page. NOT built: the
-  in-app "surcharge" is still a company-chosen card percentage (0–10%, no
-  30¢ part, no ACH fee); making the service fee a fixed schedule with the
-  ACH part is a product change for later.
+  (3.50) read from there — never type a rate into a page. **The client
+  service fee is that fixed schedule (2026-10-31, `lib/service-fee.ts`,
+  `npx tsx scripts/test-autopay-fee.ts`):** `Company.surchargeEnabled`
+  (ON by default for new companies) means the client pays 3.50% + 30¢ on a
+  card and 0.75% ($1–$8) on a bank transfer — pay page, Tap to Pay, booking
+  checkout, autopay and WorkBench's own plan charges all compute from it;
+  `Company.surchargeRate` is a legacy column nobody reads and Settings has
+  no rate field. The switch confirms both ways (on = the business owns the
+  legality of surcharging; off = they pay the service-fee plan's rate
+  themselves). Staff `Charge card`, gift cards, cash and checks never carry
+  it. Recorded as `Payment.surchargeAmount` / `Invoice.surcharge`, shown as
+  "Service fee" on the invoice page, PDF, receipt and transaction detail.
 - **Tests:** `npx tsx scripts/test-square.ts` (state, secret box, webhook
   signature, idempotency, location pick, decline wording, the gate per
   processor, the default processor, the sign-up link, static tokens).

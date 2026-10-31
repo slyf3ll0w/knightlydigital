@@ -9,6 +9,7 @@ import { Button, Card, Chip, Hint, InfoTip } from "@/components/ds";
 import { toast } from "@/lib/toast";
 import { FREE_PLAN_NAME, formatCents, type BillingCadence, type BillingProduct } from "@/lib/plans";
 import type { PlanBillingState, PlanCardState } from "@/lib/plan-billing";
+import { serviceFeeCents, SERVICE_FEE_CARD } from "@/lib/service-fee";
 
 /**
  * The Plans page body (server page: ./page.tsx). One read model
@@ -32,11 +33,10 @@ type Sheet =
 
 const monthLabel = (cents: number) => `${formatCents(cents)}/mo`;
 
-/** "plus a 3.5% card fee ($1.23)" — the biller's card surcharge on one charge, or "" when WorkBench absorbs it. */
-function cardFeeNote(rate: number | null, cents: number): string {
-  if (!rate || cents <= 0) return "";
-  const fee = Math.round(cents * rate);
-  return ` plus a ${(rate * 100).toFixed(1).replace(/\.0$/, "")}% card fee (${formatCents(fee)})`;
+/** "plus the 3.50% + 30¢ card service fee ($1.53)" — on one charge, or "" when WorkBench absorbs it. */
+function cardFeeNote(on: boolean, cents: number): string {
+  if (!on || cents <= 0) return "";
+  return ` plus the ${SERVICE_FEE_CARD} card service fee (${formatCents(serviceFeeCents(cents, "CARD"))})`;
 }
 
 function perTerm(plan: PlanCardState, cadence: BillingCadence): string {
@@ -234,7 +234,7 @@ export default function PlansClient({ initial, isOwner }: { initial: PlanBilling
           )}
         </div>
         <p className="ds-small mt-2">
-          Billed by WorkBench{s.cardFeeRate ? `, plus a ${(s.cardFeeRate * 100).toFixed(1).replace(/\.0$/, "")}% card fee on each charge` : ""}. Invoices, receipts and this card are on{" "}
+          Billed by WorkBench{s.cardFee ? `, plus the ${SERVICE_FEE_CARD} card service fee on each charge` : ""}. Invoices, receipts and this card are on{" "}
           {s.hubUrl ? (
             <a href={s.hubUrl} className="ds-link" target="_blank" rel="noreferrer">
               your billing page
@@ -422,7 +422,7 @@ function ActionSheet({
     title = swap ? `Switch ${plan.name} to ${cadence === "ANNUAL" ? "annual" : "monthly"}` : `Add ${plan.name}`;
     const setup = state.setupFee.due && (plan.product === "DISPATCH" || plan.product === "FULL_SHOP");
     const termCents = cadence === "ANNUAL" ? plan.annualCents : plan.monthlyCents;
-    summary = `${perTerm(plan, cadence)}${cardFeeNote(state.cardFeeRate, termCents)}${setup ? ` plus a one-time ${formatCents(state.setupFee.cents)} setup for your phone number` : ""}. ${
+    summary = `${perTerm(plan, cadence)}${cardFeeNote(state.cardFee, termCents)}${setup ? ` plus a one-time ${formatCents(state.setupFee.cents)} setup for your phone number` : ""}. ${
       swap ? "The new term starts today; what you already paid for runs out on its own." : "Starts today; cancel any time and it runs to the end of what you paid for."
     }`;
     cta = swap ? "Switch" : `Start ${plan.name}`;
@@ -431,13 +431,13 @@ function ActionSheet({
     done = swap ? `${plan.name} switched` : `${plan.name} is on`;
   } else if (sheet?.kind === "seat") {
     title = "Add a person";
-    summary = `${monthLabel(state.seats.priceCents)} per extra person${cardFeeNote(state.cardFeeRate, state.seats.priceCents)}, billed monthly. You can remove it any time.`;
+    summary = `${monthLabel(state.seats.priceCents)} per extra person${cardFeeNote(state.cardFee, state.seats.priceCents)}, billed monthly. You can remove it any time.`;
     cta = "Add a person";
     action = "seat-add";
     done = "Added a person";
   } else if (sheet?.kind === "card") {
     title = state.card ? "Replace your card" : "Add a card";
-    const feeLine = state.cardFeeRate ? ` Card charges carry a ${(state.cardFeeRate * 100).toFixed(1).replace(/\.0$/, "")}% card fee, itemized on each invoice.` : "";
+    const feeLine = state.cardFee ? ` Card charges carry the ${SERVICE_FEE_CARD} card service fee, itemized on each invoice.` : "";
     summary =
       (state.card
         ? `Every plan moves to the new card; ${state.card.brand ?? "the old card"} •••• ${state.card.last4 ?? ""} is removed.`
