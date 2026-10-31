@@ -108,7 +108,9 @@ export async function createStoreOrder(params: {
   if (!product) throw new StoreError("That product isn't for sale right now.", 404);
   const qIssue = storeQuantityIssue(params.quantity);
   if (qIssue) throw new StoreError(qIssue);
-  const bIssue = storeBuyerIssue(params.buyer);
+  // A client ordering from their hub is already on file — no email demanded
+  // (the receipt goes wherever their record says); a stranger needs one.
+  const bIssue = params.contactId ? null : storeBuyerIssue(params.buyer);
   if (bIssue) throw new StoreError(bIssue);
 
   const quantity = Math.floor(params.quantity);
