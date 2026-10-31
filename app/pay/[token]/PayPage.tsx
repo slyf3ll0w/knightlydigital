@@ -133,7 +133,7 @@ export default function PayPage({
   const parsedAmount = Math.round((Number(amountText) || 0) * 100) / 100;
   const payAmount = partial ? parsedAmount : balance;
   const amountValid = !partial || (parsedAmount >= 1 && parsedAmount <= balance);
-  const docType = invoice.kind === "DEPOSIT" ? "Deposit invoice" : invoice.kind === "QUICK_CHARGE" ? "Payment request" : "Invoice";
+  const docType = invoice.kind === "DEPOSIT" ? "Deposit invoice" : invoice.kind === "QUICK_CHARGE" ? "Payment request" : invoice.kind === "STORE_ORDER" ? "Order" : "Invoice";
   const canSplit = invoice.kind !== "DEPOSIT" && balance > 1;
   // The client service fee, card or bank (lib/service-fee.ts) — a gift card carries none.
   const surcharge = method !== "GIFT_CARD" && amountValid ? serviceFee(payAmount, method, company.surchargeEnabled) : 0;

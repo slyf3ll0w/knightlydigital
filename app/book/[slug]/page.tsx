@@ -6,6 +6,8 @@ import ScheduleMenu from "./schedule/ScheduleMenu";
 import ItemView, { type ItemSearchParams } from "./ItemView";
 import EstimateMenu from "./estimate/EstimateMenu";
 import { publicEstimatorsFor } from "@/lib/estimator-server";
+import { storeProducts } from "@/lib/store";
+import ShopRow from "./shop/ShopRow";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -24,7 +26,9 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
   if (!page) notFound();
   // Published estimate forms sit under the booking items (lib/estimator-public.ts)
   const estimateTools = await publicEstimatorsFor(page.company.id);
-  if (page.menu.length === 1 && estimateTools.length === 0) {
+  // Products sold online (lib/store.ts) get one Shop row under the items
+  const products = await storeProducts(page.company.id);
+  if (page.menu.length === 1 && estimateTools.length === 0 && products.length === 0) {
     const item = await loadBookingItem(slug, page.menu[0].slug, { preview });
     if (item) return <ItemView companySlug={slug} itemSlug={item.pub.slug} searchParams={sp} loaded={item} home />;
   }
@@ -36,11 +40,16 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
           Preview — this is your booking page as customers see it.
         </div>
       )}
-      {(page.menu.length > 0 || estimateTools.length === 0) && <ScheduleMenu companySlug={slug} types={page.menu} appearance={appearance} />}
+      {(page.menu.length > 0 || (estimateTools.length === 0 && products.length === 0)) && <ScheduleMenu companySlug={slug} types={page.menu} appearance={appearance} />}
       {estimateTools.length > 0 && (
         <div className={page.menu.length > 0 ? "mt-6" : ""}>
           {page.menu.length > 0 && <p className={`mb-2 text-xs font-semibold uppercase tracking-wide ${appearance.dark ? "text-gray-500" : "text-gray-400"}`}>Instant estimates</p>}
           <EstimateMenu companySlug={slug} tools={estimateTools} appearance={appearance} />
+        </div>
+      )}
+      {products.length > 0 && (
+        <div className={page.menu.length > 0 || estimateTools.length > 0 ? "mt-6" : ""}>
+          <ShopRow companySlug={slug} count={products.length} appearance={appearance} />
         </div>
       )}
     </ScheduleFrame>

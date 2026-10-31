@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import SectionHeader from "@/components/SectionHeader";
 import { money } from "@/lib/statuses";
-import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Package } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Package, Link2 } from "lucide-react";
+import { toast } from "@/lib/toast";
+import ProductPhoto from "./ProductPhoto";
 import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
@@ -33,6 +35,8 @@ type WorkItem = {
   depositValue: number | string | null;
   checklist: string[] | null;
   isActive: boolean;
+  sellOnline: boolean;
+  photoKey: string | null;
 };
 
 type Template = { id: string; name: string };
@@ -53,6 +57,7 @@ type FormState = {
   depositType: DepositType;
   depositValue: string;
   checklist: string; // one task per line
+  sellOnline: boolean;
 };
 
 const emptyForm: FormState = {
@@ -71,6 +76,7 @@ const emptyForm: FormState = {
   depositType: "NONE",
   depositValue: "",
   checklist: "",
+  sellOnline: false,
 };
 
 const INTERVAL_LABEL: Record<RecurringInterval, string> = {
@@ -89,6 +95,7 @@ function itemTraits(item: WorkItem): string[] {
   const parts: string[] = [];
   if (item.recurringInterval) parts.push(`Bills every ${INTERVAL_LABEL[item.recurringInterval]}`);
   if (item.requiresAgreement) parts.push("Agreement");
+  if (item.type === "PRODUCT" && item.sellOnline) parts.push("Sold online");
   if (item.durationMinutes !== null)
     parts.push(
       `Bookable, ${
@@ -113,11 +120,22 @@ function itemTraits(item: WorkItem): string[] {
 export default function ProductsClient({
   initialItems,
   templates,
+  companySlug,
 }: {
   initialItems: WorkItem[];
   templates: Template[];
+  /** The company's web address — the shop page and buy links are built from it (lib/store.ts). */
+  companySlug: string;
 }) {
   const [items, setItems] = useState<WorkItem[]>(initialItems);
+  // The shop's absolute URL for copying; the origin is only known in the browser
+  const [origin, setOrigin] = useState("");
+  useEffect(() => setOrigin(window.location.origin), []);
+  const shopUrl = `${origin}/book/${companySlug}/shop`;
+  const buyLink = (id: string) => `${shopUrl}/${id}`;
+  function copy(url: string) {
+    navigator.clipboard.writeText(url).then(() => toast("Link copied"), () => toast("Couldn't copy — select and copy the link"));
+  }
   const activeItems = items.filter((i) => i.isActive !== false);
   const archivedItems = items.filter((i) => i.isActive === false);
   const [editingId, setEditingId] = useState<string | "new" | null>(null);
@@ -148,6 +166,7 @@ export default function ProductsClient({
       depositType: item.depositType ?? "NONE",
       depositValue: item.depositValue != null ? String(Number(item.depositValue)) : "",
       checklist: Array.isArray(item.checklist) ? item.checklist.join("\n") : "",
+      sellOnline: item.sellOnline === true,
     });
     setEditingId(item.id);
     setError("");
@@ -184,6 +203,7 @@ export default function ProductsClient({
         .split("\n")
         .map((t) => t.trim())
         .filter(Boolean),
+      sellOnline: form.type === "PRODUCT" && form.sellOnline,
     };
 
     const { ok, data } =
@@ -327,6 +347,34 @@ export default function ProductsClient({
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)] bg-white"
         />
       </div>
+      {/* Online store: the product on the shop page with a buy link (lib/store.ts) */}
+      {form.type === "PRODUCT" && (
+        <div className="border-t border-[color:var(--ds-line-strong)] pt-3 space-y-3">
+          <label className="flex cursor-pointer items-start gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={form.sellOnline}
+              onChange={(e) => setForm((f) => ({ ...f, sellOnline: e.target.checked }))}
+              className="mt-0.5 accent-[color:var(--ds-primary)]"
+            />
+            <span>
+              Sell online
+              <span className="block text-xs text-gray-500">
+                Listed on your shop page with its own buy link. Buyers pay by card or bank, and the paid invoice is the order.
+              </span>
+            </span>
+          </label>
+          {editingId && editingId !== "new" ? (
+            <ProductPhoto
+              itemId={editingId}
+              photoKey={items.find((i) => i.id === editingId)?.photoKey ?? null}
+              onChange={(photoKey) => setItems((list) => list.map((i) => (i.id === editingId ? { ...i, photoKey } : i)))}
+            />
+          ) : (
+            <p className="text-xs text-gray-500">Save the product, then add a photo for the shop page.</p>
+          )}
+        </div>
+      )}
       {/* Time on site — drives job end-time autofill + online booking slots */}
       {form.type === "SERVICE" && (
         <div className="border-t border-[color:var(--ds-line-strong)] pt-3">
@@ -565,6 +613,18 @@ export default function ProductsClient({
         <PageTitle info="Your price book. These items autocomplete on quotes and invoices.">Services</PageTitle>
       </div>
 
+      {activeItems.some((i) => i.type === "PRODUCT" && i.sellOnline) && (
+        <p className="mb-4 text-sm text-gray-600">
+          Your shop:{" "}
+          <a href={shopUrl || `/book/${companySlug}/shop`} target="_blank" rel="noreferrer" className="ds-link break-all">
+            {shopUrl || `/book/${companySlug}/shop`}
+          </a>
+          <button type="button" onClick={() => copy(shopUrl)} className="ds-link ml-2 text-xs">
+            Copy
+          </button>
+        </p>
+      )}
+
       {/* Remove / reactivate errors — the editor row shows its own copy */}
       {error && editingId === null && (
         <div role="alert" className="form-error mb-4">
@@ -646,6 +706,11 @@ export default function ProductsClient({
                           <p className="text-[10px] text-gray-400">cost {money(item.unitCost)}</p>
                         )}
                         <div className="mt-2 flex justify-end gap-1.5">
+                          {item.type === "PRODUCT" && item.sellOnline && (
+                            <button onClick={() => copy(buyLink(item.id))} className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors active:bg-gray-200" aria-label={`Copy the buy link for ${item.name}`} title="Copy buy link">
+                              <Link2 size={14} />
+                            </button>
+                          )}
                           <button
                             onClick={() => startEdit(item)}
                             className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors active:bg-gray-200"
@@ -696,6 +761,11 @@ export default function ProductsClient({
                       {item.unitCost !== null ? money(item.unitCost) : "—"}
                     </span>
                     <div className="flex items-center justify-end gap-1">
+                      {item.type === "PRODUCT" && item.sellOnline && (
+                        <button onClick={() => copy(buyLink(item.id))} className="p-1.5 text-gray-400 hover:text-[color:var(--ds-primary)] rounded-lg transition-colors" aria-label={`Copy the buy link for ${item.name}`} title="Copy buy link">
+                          <Link2 size={14} />
+                        </button>
+                      )}
                       <button
                         onClick={() => startEdit(item)}
                         className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"

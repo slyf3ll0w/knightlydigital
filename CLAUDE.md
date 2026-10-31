@@ -1050,6 +1050,25 @@ Built 2026-10-15 on branch `square-payments` (worktree
   (`SquareStatus.inPerson`, the Settings card says Reconnect). Store
   builds, consoles and the Apple entitlement: `docs/plans/native-release-queue.md`.
   Test: `npx tsx scripts/test-quick-charge.ts`.
+- **Online store, lane 1 (2026-10-31, `docs/plans/online-store-2026-10-31.md`).**
+  A PRODUCT with `WorkItem.sellOnline` is on the business's shop page
+  (`/book/<slug>/shop`, `app/book/[slug]/shop/*`) with its own buy page
+  (`…/shop/<itemId>`), reached from a Shop row on `/book/<slug>` and copied
+  from Settings → Services (link button per product, "Your shop" line).
+  `lib/store.ts`: `createStoreOrder` (buyer matched to a contact by phone /
+  email, else made with leadSource "Online store"; an
+  `InvoiceKind.STORE_ORDER` invoice, qty × unit price + the company's
+  default sales tax, AWAITING_PAYMENT, due today) → the pay page does the
+  rest (card / bank / gift card, service fee). The paid invoice IS the
+  order. `runStoreOrderSweep` (cron step `storeOrders`) archives unpaid
+  orders after `STORE_ORDER_HOLD_HOURS` (48). Rules are pure in
+  `lib/store-rules.ts` (`npx tsx scripts/test-store.ts`). Photos:
+  `WorkItem.photoKey` in blob storage via `POST/DELETE
+  /api/app/work-items/[id]/photo`, served by `/api/public/store-photos/[id]`
+  (no R2 = no photos, the editor says so). Public POST
+  `/api/public/store/[slug]` carries the booking form's spam guards. Not
+  built (lanes 2–3): cart, pickup / shipping, stock, variants, the embed
+  widget and a block on the WorkBench-built client sites.
 - **Square products built in — transactions and gift cards (2026-10-30,
   `docs/plans/square-products-2026-10-30.md`).** `SQUARE_SCOPES` gained
   `ORDERS_READ`, `GIFTCARDS_READ/WRITE` (one reconnect per existing seller;

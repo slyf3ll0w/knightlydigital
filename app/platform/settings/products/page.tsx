@@ -9,7 +9,7 @@ export default async function ProductsPage() {
   const actor = await requirePageActor((a) => isManager(a.role));
   const companyId = actor.companyId;
 
-  const [items, templates] = await Promise.all([
+  const [items, templates, company] = await Promise.all([
     // All items, including archived ones — the client splits them so archived
     // services can be reactivated instead of being gone forever.
     prisma.workItem.findMany({
@@ -21,12 +21,14 @@ export default async function ProductsPage() {
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
+    prisma.company.findUnique({ where: { id: companyId }, select: { slug: true } }),
   ]);
 
   return (
     <ProductsClient
       initialItems={JSON.parse(JSON.stringify(items))}
       templates={templates}
+      companySlug={company?.slug ?? ""}
     />
   );
 }
