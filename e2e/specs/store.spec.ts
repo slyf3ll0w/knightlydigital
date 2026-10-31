@@ -68,7 +68,7 @@ test.describe("online store (lane 1)", () => {
   });
 
   test("a client ordering from their hub gets an Order invoice that pays like any other", async ({ page }) => {
-    const res = await api.raw("POST", `/api/public/store/${slug}`, { itemId, quantity: 2, hubToken, note: "Leave it by the door", elapsedMs: 9000 });
+    const res = await api.raw("POST", `/api/public/store/${slug}`, { itemId, quantity: 2, hubToken, email: "e2e-store-buyer@example.com", note: "Leave it by the door", elapsedMs: 9000 });
     expect(res.status, await res.text().catch(() => "")).toBe(201);
     const data = await res.json();
     expect(data.payUrl).toMatch(/^\/pay\//);
