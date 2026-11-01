@@ -179,6 +179,12 @@ export default async function GiftCardsTab({
       <TabBack tab="payments" label="Payments" />
       <div className="mb-6">
         <GiftCardActions canSell={canSell} contacts={contacts} />
+        {/* The fee, on the screen (David 2026-10-31): Square takes it from every load, so the business sees it before selling a card */}
+        <p className="mt-3 text-xs text-gray-500">
+          <span className="font-medium text-gray-700">Square&apos;s gift card fee:</span> Square keeps <span className="numeral-ledger font-medium text-gray-700">2.5%</span> of every amount loaded onto a card, on
+          top of the normal processing fee on the buyer&apos;s payment (or your client&apos;s service fee when yours is on). A $100 card costs about $2.50 in
+          gift card fee. Redeeming a card costs nothing.
+        </p>
       </div>
 
       {waiting.length > 0 && (
