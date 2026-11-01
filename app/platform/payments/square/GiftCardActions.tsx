@@ -160,7 +160,9 @@ export default function GiftCardActions({ canSell, contacts }: { canSell: boolea
                 <label className="block text-xs text-gray-500 mb-1">A note in the email (optional)</label>
                 <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={2} className={field} placeholder="Happy birthday!" />
               </div>
-              <p className="text-[11px] text-gray-400">Square keeps 2.5% of each load as its gift card fee. The buyer&apos;s invoice carries no sales tax.</p>
+              <p className="text-[11px] text-gray-400">
+                Square keeps 2.5% of each load as its gift card fee — about {money((amountCents > 0 ? amountCents : 0) / 100 * 0.025)} on this card — on top of the processing fee on the buyer&apos;s payment. The buyer&apos;s invoice carries no sales tax.
+              </p>
             </div>
             {error && (
               <p role="alert" className="mt-3 text-sm text-[color:var(--ds-bad)]">
