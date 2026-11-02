@@ -146,11 +146,24 @@ export default function PhotoGrid({
     // Only the first shot of a pick is the After of the Before on screen.
     const pairWith = pairNext.current;
     pairNext.current = null;
+    // One bad file (or one refused upload) doesn't stop the rest: the others
+    // go up and the message says which ones didn't.
+    const failed: Array<{ name: string; why: string }> = [];
+    let pairNote = "";
     try {
       for (let i = 0; i < list.length; i++) {
         setBusy(list.length > 1 ? `Uploading ${i + 1} of ${list.length}…` : "Uploading…");
         const file = list[i];
-        const [stamp, { full, thumb }] = await Promise.all([stampFor(file, fromCamera), resizePhotoPair(file)]);
+        const name = file.name && file.name !== "photo.jpg" ? file.name : `photo ${i + 1}`;
+        let prepared: { stamp: Awaited<ReturnType<typeof stampFor>>; full: Blob; thumb: Blob };
+        try {
+          const [stamp, { full, thumb }] = await Promise.all([stampFor(file, fromCamera), resizePhotoPair(file)]);
+          prepared = { stamp, full, thumb };
+        } catch {
+          failed.push({ name, why: "couldn't be read — try a different one" });
+          continue;
+        }
+        const { stamp, full, thumb } = prepared;
         const form = new FormData();
         form.append("file", new File([full], "photo.jpg", { type: "image/jpeg" }));
         form.append("thumb", new File([thumb], "thumb.jpg", { type: "image/jpeg" }));
@@ -164,15 +177,27 @@ export default function PhotoGrid({
           form.append("lng", String(stamp.lng));
           if (stamp.accuracy !== null) form.append("accuracy", String(stamp.accuracy));
         }
-        const res = await fetch("/api/app/photos", { method: "POST", body: form });
+        const res = await fetch("/api/app/photos", { method: "POST", body: form }).catch(() => null);
+        if (!res) {
+          failed.push({ name, why: "no connection" });
+          continue;
+        }
         if (!res.ok) {
           const data = await res.json().catch(() => null);
-          // A plan refusal (402) already became a toast (PlanGateToast).
-          if (res.status !== 402) setError(data?.error ?? "Couldn't upload that photo.");
-          break;
+          // A plan refusal (402) already became a toast (PlanGateToast) — and
+          // every later file would be refused the same way.
+          if (res.status === 402) break;
+          failed.push({ name, why: typeof data?.error === "string" ? data.error : "" });
+          continue;
         }
-        absorb((await res.json()) as PhotoView & { also?: PhotoView[] });
+        const saved = (await res.json()) as PhotoView & { also?: PhotoView[]; note?: string };
+        if (saved.note) pairNote = saved.note;
+        absorb(saved);
       }
+      if (failed.length > 0) {
+        const words = failed.map((f) => (f.why ? `${f.name} (${f.why})` : f.name)).join(", ");
+        setError(list.length === 1 ? `Couldn't upload that photo${failed[0].why ? ` — ${failed[0].why}` : "."}` : `${list.length - failed.length} of ${list.length} uploaded. Didn't go up: ${words}.`);
+      } else if (pairNote) setError(pairNote);
     } catch {
       setError("Couldn't process that image — try a different one.");
     } finally {

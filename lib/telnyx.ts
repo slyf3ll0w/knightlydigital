@@ -135,6 +135,21 @@ async function call<T>(
   }
 }
 
+/** The platform account's prepaid balance (GET /v2/balance; Telnyx answers strings). */
+export async function getTelnyxBalance(): Promise<{ balance: number; availableCredit: number; creditLimit: number; currency: string }> {
+  const r = await call<{ data?: { balance?: string; available_credit?: string; credit_limit?: string; currency?: string } }>("GET", "/balance");
+  const num = (v: string | undefined) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+  return {
+    balance: num(r.data?.balance),
+    availableCredit: num(r.data?.available_credit),
+    creditLimit: num(r.data?.credit_limit),
+    currency: r.data?.currency ?? "USD",
+  };
+}
+
 /** Same request, raw body back — the credential token endpoint answers a bare JWT, not JSON. */
 async function callText(method: "POST", path: string): Promise<string> {
   const key = process.env.TELNYX_API_KEY;

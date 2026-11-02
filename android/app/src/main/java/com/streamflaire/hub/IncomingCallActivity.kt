@@ -1,9 +1,11 @@
 package com.streamflaire.hub
 
+import android.Manifest
 import android.app.Activity
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -12,6 +14,9 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.net.Uri
+import android.provider.Settings
+import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -31,8 +36,20 @@ import org.json.JSONObject
  *
  * Drawn in code (no layout XML, no theme dependencies): brand blue, the
  * caller big, two round buttons.
+ *
+ * It is also the one place a call can ask for the microphone: the page
+ * never calls getUserMedia in the app and a service has no window for a
+ * prompt, so Answer here (tapped, or forwarded from the notification's
+ * Answer via EXTRA_ANSWER when RECORD_AUDIO is missing) shows the system
+ * prompt first and answers once it is done — either way, so the caller is
+ * never left on ringback; a denied microphone is shown under the timer.
  */
 class IncomingCallActivity : Activity(), VoipEngine.Listener {
+
+    companion object {
+        private const val TAG = "voip-screen"
+        private const val REQ_MIC = 71
+    }
 
     private lateinit var engine: VoipEngine
     private var callId: String = ""
@@ -41,6 +58,8 @@ class IncomingCallActivity : Activity(), VoipEngine.Listener {
     private lateinit var who: TextView
     private lateinit var sub: TextView
     private lateinit var state: TextView
+    private lateinit var micHint: TextView
+    private var askingMic = false
     private lateinit var ringingRow: LinearLayout
     private lateinit var liveRow: LinearLayout
     private lateinit var muteBtn: Button
@@ -67,7 +86,10 @@ class IncomingCallActivity : Activity(), VoipEngine.Listener {
         setContentView(buildUi())
         engine.addListener(this)
         // The page may have answered / the call may have ended before this screen drew.
-        main.post { syncFromEngine() }
+        main.post {
+            syncFromEngine()
+            if (takeAnswerRequest(intent)) answerTapped()
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -75,6 +97,61 @@ class IncomingCallActivity : Activity(), VoipEngine.Listener {
         setIntent(intent)
         readIntent(intent)
         syncFromEngine()
+        if (takeAnswerRequest(intent)) answerTapped()
+    }
+
+    /** The notification's Answer landed here (no microphone yet): consume it so a re-delivery doesn't answer twice. */
+    private fun takeAnswerRequest(i: Intent?): Boolean {
+        if (i == null || !i.getBooleanExtra(CallService.EXTRA_ANSWER, false)) return false
+        i.removeExtra(CallService.EXTRA_ANSWER)
+        return engine.current(callId)?.answered == false
+    }
+
+    private fun micGranted(): Boolean = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+
+    /** Answer: the microphone prompt first when it is missing, then the engine — whatever the prompt said. */
+    private fun answerTapped() {
+        if (callId.isEmpty()) return
+        if (micGranted()) {
+            engine.answer(callId)
+            return
+        }
+        if (askingMic) return
+        askingMic = true
+        showLive()
+        state.text = "Microphone…"
+        try {
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_MIC)
+        } catch (t: Throwable) {
+            Log.w(TAG, "mic prompt failed", t)
+            askingMic = false
+            engine.answer(callId)
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != REQ_MIC) return
+        askingMic = false
+        val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+        engine.micPermissionChanged(granted)
+        // Answer either way: the caller has waited long enough. Denied = the
+        // hint below the timer, and the engine's trace says so.
+        if (connectedAt == 0L) state.text = "Connecting…"
+        engine.answer(callId)
+        refreshMicHint(!granted)
+    }
+
+    private fun refreshMicHint(denied: Boolean) {
+        micHint.visibility = if (denied) View.VISIBLE else View.GONE
+    }
+
+    private fun openAppSettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).setData(Uri.parse("package:$packageName")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (t: Throwable) {
+            Log.w(TAG, "app settings unavailable", t)
+        }
     }
 
     override fun onDestroy() {
@@ -147,6 +224,15 @@ class IncomingCallActivity : Activity(), VoipEngine.Listener {
             setPadding(0, dp(18), 0, 0)
             text = "Incoming call"
         }
+        micHint = TextView(this).apply {
+            text = "Microphone is off — they can't hear you. Tap to allow it in Settings."
+            setTextColor(Color.parseColor("#FFD6D8"))
+            textSize = 14f
+            gravity = Gravity.CENTER
+            setPadding(dp(12), dp(10), dp(12), 0)
+            visibility = View.GONE
+            setOnClickListener { openAppSettings() }
+        }
         val spacer = View(this).also { it.layoutParams = LinearLayout.LayoutParams(0, 0, 1f) }
 
         ringingRow = LinearLayout(this).apply {
@@ -154,7 +240,7 @@ class IncomingCallActivity : Activity(), VoipEngine.Listener {
             gravity = Gravity.CENTER
         }
         val decline = roundButton("Decline", Color.parseColor("#E5484D")).apply { setOnClickListener { engine.end(callId, "declined"); finishSoon() } }
-        val answer = roundButton("Answer", Color.parseColor("#30A46C")).apply { setOnClickListener { engine.answer(callId) } }
+        val answer = roundButton("Answer", Color.parseColor("#30A46C")).apply { setOnClickListener { answerTapped() } }
         ringingRow.addView(decline, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(12) })
         ringingRow.addView(answer, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(12) })
 
@@ -185,6 +271,7 @@ class IncomingCallActivity : Activity(), VoipEngine.Listener {
         root.addView(who)
         root.addView(sub)
         root.addView(state)
+        root.addView(micHint)
         root.addView(spacer)
         root.addView(ringingRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
         root.addView(liveRow, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
@@ -205,6 +292,7 @@ class IncomingCallActivity : Activity(), VoipEngine.Listener {
         muted = r.muted
         speaker = engine.speakerOn
         refreshToggles()
+        if (r.answered) refreshMicHint(engine.micRefused || !micGranted())
     }
 
     private fun showLive() {
@@ -263,6 +351,7 @@ class IncomingCallActivity : Activity(), VoipEngine.Listener {
                 finishSoon()
             }
             "muteChanged" -> { muted = data.optBoolean("muted", muted); refreshToggles() }
+            "micState" -> if (answered) refreshMicHint(!data.optBoolean("granted", true))
             "speakerChanged" -> { speaker = data.optBoolean("on", speaker); refreshToggles() }
             "holdChanged" -> state.text = if (data.optBoolean("held")) "On hold" else if (connectedAt > 0) state.text else "Connecting…"
         }

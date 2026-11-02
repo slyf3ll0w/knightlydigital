@@ -4,6 +4,7 @@ import type { PublicBookingType } from "@/lib/booking-runtime";
 import { durationLabel } from "@/lib/booking-types";
 import type { ScheduleAppearance } from "./shell";
 import { embedAccent, embedWash } from "@/lib/embed-style";
+import { withEmbedQuery } from "@/lib/embed-query";
 
 import { KIND_ICON } from "@/lib/booking-icons";
 
@@ -13,11 +14,14 @@ export default function ScheduleMenu({
   types,
   appearance,
   hrefBase = `/book/${companySlug}`,
+  hrefQuery = "",
 }: {
   companySlug: string;
   types: PublicBookingType[];
   appearance: ScheduleAppearance;
   hrefBase?: string;
+  /** Inside an embed: the frame's own query (?theme/?match…, lib/embed-query.ts) every row carries along. */
+  hrefQuery?: string;
 }) {
   const { dark, accent: savedAccent, transparent } = appearance;
   // Saved accent, or the host website's once an embed matches it (lib/embed-style.ts)
@@ -52,7 +56,7 @@ export default function ScheduleMenu({
         return (
           <Link
             key={t.id}
-            href={`${hrefBase}/${t.slug}`}
+            href={withEmbedQuery(`${hrefBase}/${t.slug}`, hrefQuery)}
             className={`${card} flex items-center gap-4 rounded-lg p-4 transition-opacity hover:opacity-90 ${dark ? "border-white/10" : ""}`}
             style={transparent ? { borderColor: embedWash(savedAccent, 33) } : undefined}
           >

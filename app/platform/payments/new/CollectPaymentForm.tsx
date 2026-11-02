@@ -39,6 +39,8 @@ export type CollectPaymentPrefill = {
   method?: string;
   referenceNumber?: string;
   details?: string;
+  /** The Square payment this record is (links the row to the sale, so it never double-counts). */
+  squarePaymentId?: string;
 };
 
 export default function CollectPaymentForm({
@@ -92,6 +94,7 @@ export default function CollectPaymentForm({
       referenceNumber: referenceNumber || null,
       details: details || null,
       emailReceipt,
+      squarePaymentId: prefill?.squarePaymentId ?? null,
     });
 
     setLoading(false);

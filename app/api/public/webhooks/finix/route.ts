@@ -10,6 +10,7 @@ import {
 import { estimateProcessingCostCents } from "@/lib/platform-costs";
 import { queueQuickBooksUnwind, queueQuickBooksPaymentRefresh } from "@/lib/quickbooks";
 import { notifyUsers } from "@/lib/push";
+import { logActivity } from "@/lib/activity";
 import type { Refund } from "@prisma/client";
 
 /**
@@ -149,6 +150,16 @@ async function handleTransfer(transferId: string) {
     include: { invoice: { select: { invoiceNumber: true, subscriptionId: true } } },
   });
   if (!payment) return;
+
+  // The row goes (every balance reads payments); the ledger keeps the trail on the invoice's activity
+  logActivity({
+    companyId: payment.companyId,
+    userName: "Finix",
+    entityType: "invoice",
+    entityId: payment.invoiceId,
+    action: "payment_returned",
+    detail: `${Number(payment.amount).toFixed(2)} ${payment.method} payment ${transfer.id} was returned by the bank — removed from invoice #${payment.invoice?.invoiceNumber ?? ""}`,
+  });
 
   await prisma.$transaction(async (tx) => {
     await tx.payment.delete({ where: { id: payment.id } });

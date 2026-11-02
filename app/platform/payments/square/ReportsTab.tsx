@@ -101,7 +101,7 @@ export default function ReportsTab({
           Money in · last 12 {report.period === "day" ? "days" : report.period === "week" ? "weeks" : "months"}
         </RuledLabel>
         {squareFailure && <SquareUnavailable failure={squareFailure} what="Square's own sales" />}
-        {squareTruncated && <p className="mb-3 text-xs text-gray-500">Square listed more sales than this report walked; the most recent 500 are counted.</p>}
+        {squareTruncated && <p className="mb-3 text-xs text-gray-500">Square listed more sales than this report walked; the most recent 2,000 are counted.</p>}
         <div className="ds-card overflow-hidden">
           {!any ? (
             <EmptyState compact title="Nothing collected in this range" body="Payments show here by the day they were paid." />

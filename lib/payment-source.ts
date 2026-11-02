@@ -12,7 +12,19 @@
  * Anything else is refused on the Square path. Pure, no imports — shared by
  * the route and its unit test.
  */
+import { createHash } from "crypto";
+
 export type PaymentSourceKind = "CARD" | "ACH";
+
+/**
+ * The payment-token half of a Square idempotency key: the same one-time
+ * token always yields the same key (a retry replays Square's original
+ * answer), a different token a different one. No token (never valid for a
+ * Square charge, refused upstream) hashes to a fixed word.
+ */
+export function squareIdempotencySuffix(token: unknown): string {
+  return createHash("sha1").update(typeof token === "string" ? token : "no-token").digest("hex").slice(0, 12);
+}
 
 export function squareSourceKind(token: unknown): PaymentSourceKind | null {
   if (typeof token !== "string") return null;

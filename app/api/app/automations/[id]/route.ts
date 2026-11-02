@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { checkFeature } from "@/lib/plan-gate";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
-import { compileAutomation, specFromJson } from "@/lib/automations";
+import { compileAutomation, specFromJson, stepsChanged } from "@/lib/automations";
 import { AUTOMATION_SELECT, automationShape as shape, cancelAutomationJobs, mintWebhookToken } from "@/lib/automations-server";
 
 async function load(id: string, companyId: string) {
@@ -23,13 +23,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     prisma.automationRun.findMany({ where: { automationId: row.id, NOT: { status: "skipped", detail: "conditions not met" } }, orderBy: { createdAt: "desc" }, take: 50 }),
     prisma.automationJob.count({ where: { automationId: row.id, status: "waiting" } }),
   ]);
-  return NextResponse.json({ ...shape(row), recentRuns: runs, waiting });
+  return NextResponse.json({ ...shape(row, waiting), recentRuns: runs });
 }
 
 /**
  * PATCH — { name?, description?, isActive?, spec? }; a new spec replaces the
  * old whole. Pausing cancels runs parked at a wait step (they'd otherwise
- * wake up and act for a rule the owner switched off).
+ * wake up and act for a rule the owner switched off); so does an edit that
+ * changes the STEPS (stepsChanged) — a rename, a new description or a
+ * trigger tweak leaves them waiting.
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getActor();
@@ -59,7 +61,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const c = compileAutomation(body.spec);
     if (!c.ok) return NextResponse.json({ error: c.errors.join(" "), errors: c.errors }, { status: 400 });
     data.spec = c.compiled.spec;
-    specChanged = JSON.stringify(c.compiled.spec) !== JSON.stringify(specFromJson(row.spec));
+    specChanged = stepsChanged(specFromJson(row.spec), c.compiled.spec);
     if (c.compiled.spec.trigger.event === "webhook.received") {
       if (!row.webhookToken) data.webhookToken = mintWebhookToken();
     }
@@ -68,8 +70,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const updated = await prisma.automation.update({ where: { id: row.id }, data, select: AUTOMATION_SELECT });
   // A paused rule, or one whose steps changed, must not wake parked runs
   // into the old plan
-  if (data.isActive === false || specChanged) await cancelAutomationJobs(row.id, data.isActive === false ? "the rule was paused" : "the rule changed");
-  return NextResponse.json(shape(updated));
+  if (data.isActive === false || specChanged) await cancelAutomationJobs(row.id, data.isActive === false ? "the rule was paused" : "the rule's steps changed");
+  const waiting = await prisma.automationJob.count({ where: { automationId: row.id, status: "waiting" } });
+  return NextResponse.json(shape(updated, waiting));
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

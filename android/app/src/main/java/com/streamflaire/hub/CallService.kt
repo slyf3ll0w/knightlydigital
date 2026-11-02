@@ -55,6 +55,8 @@ class CallService : Service() {
         const val EXTRA_LABEL = "label"
         const val EXTRA_NUMBER = "number"
         const val EXTRA_STATUS = "status"
+        /** On the IncomingCallActivity intent: Answer was tapped on the notification; the screen asks for the mic, then answers. */
+        const val EXTRA_ANSWER = "answer"
 
         fun incoming(ctx: Context, callId: String, label: String, number: String?) =
             start(ctx, Intent(ctx, CallService::class.java).setAction(ACTION_INCOMING)
@@ -121,19 +123,22 @@ class CallService : Service() {
                 currentCallId = callId
                 currentLabel = intent.getStringExtra(EXTRA_LABEL) ?: "Incoming call"
                 currentNumber = intent.getStringExtra(EXTRA_NUMBER)
-                foreground(incomingNotification(callId ?: "", currentLabel, currentNumber), ringing = true)
+                foreground(incomingNotification(callId ?: "", currentLabel, currentNumber), mic = false)
                 startRinging()
+                // Android 14+ with the full-screen switch off: no call screen over the
+                // lock, just the heads-up — say so in the trace, the phone looks "silent".
+                if (!engine.canUseFullScreenIntent()) engine.trace("ring-no-fullscreen", "mic=${engine.micGranted()}", callId)
             }
             ACTION_ONGOING -> {
                 stopRinging()
                 currentCallId = callId
                 currentLabel = intent.getStringExtra(EXTRA_LABEL) ?: currentLabel
-                foreground(ongoingNotification(callId ?: "", currentLabel, intent.getStringExtra(EXTRA_STATUS) ?: "On a call"), ringing = false)
+                foreground(ongoingNotification(callId ?: "", currentLabel, intent.getStringExtra(EXTRA_STATUS) ?: "On a call"), mic = true)
             }
             ACTION_ANSWER -> {
                 stopRinging()
                 // Keep the service in the foreground while the engine connects the leg; it re-posts ongoing().
-                foreground(ongoingNotification(callId ?: "", currentLabel, "Connecting…"), ringing = false)
+                foreground(ongoingNotification(callId ?: "", currentLabel, "Connecting…"), mic = true)
                 if (callId != null) engine.answer(callId)
             }
             ACTION_DECLINE -> {
@@ -147,7 +152,7 @@ class CallService : Service() {
                 stopRinging()
                 // A service started without an action (or to stop) must still
                 // call startForeground once or Android raises; post then drop.
-                if (!inForeground) foreground(ongoingNotification("", currentLabel, "Call ended"), ringing = false)
+                if (!inForeground) foreground(ongoingNotification("", currentLabel, "Call ended"), mic = false)
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 inForeground = false
                 stopSelf()
@@ -161,20 +166,39 @@ class CallService : Service() {
         super.onDestroy()
     }
 
-    /** startForeground with the right type for the moment: phoneCall while ringing, + microphone once answered. */
-    private fun foreground(n: Notification, ringing: Boolean) {
+    /**
+     * startForeground with the right type for the moment: phoneCall while
+     * ringing (mic = false), + microphone once answered (mic = true: the
+     * service is asked to capture). The microphone type is what lets
+     * a backgrounded process keep capturing (Android 14+ throws
+     * SecurityException when RECORD_AUDIO was never granted, or when the
+     * while-in-use rules refuse it) — falling back to phoneCall alone keeps
+     * the service alive but the call has NO outbound audio, so the fallback
+     * is never silent: it is logged, traced and raised to the engine
+     * (micState event; the call screen shows it).
+     */
+    private fun foreground(n: Notification, mic: Boolean) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val phone = ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL
-                val mic = ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                val micType = ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                val engine = VoipEngine.get(applicationContext)
+                // Asking for the microphone type without the permission is a
+                // guaranteed SecurityException on 14+; say why instead of throwing.
+                val wantMic = mic && engine.micGranted()
+                if (mic && !wantMic) {
+                    Log.e(TAG, "RECORD_AUDIO not granted: foreground service on phoneCall type only — no outbound audio")
+                    engine.foregroundMicRefused("permission-missing")
+                }
                 try {
-                    startForeground(NOTIFICATION_ID, n, if (ringing) phone else phone or mic)
+                    startForeground(NOTIFICATION_ID, n, if (wantMic) phone or micType else phone)
                 } catch (e: SecurityException) {
-                    // Android 14+: the microphone type needs a while-in-use grant the
-                    // moment of the call may not have — the call still works on the
-                    // phoneCall type alone, which is what matters for ringing.
-                    Log.w(TAG, "foreground type fell back", e)
-                    try { startForeground(NOTIFICATION_ID, n, phone) } catch (e2: SecurityException) { startForeground(NOTIFICATION_ID, n) }
+                    Log.e(TAG, "startForeground(${if (wantMic) "phoneCall|microphone" else "phoneCall"}) refused: ${e.message}", e)
+                    if (wantMic) engine.foregroundMicRefused("security: ${e.message ?: "?"}")
+                    try { startForeground(NOTIFICATION_ID, n, phone) } catch (e2: SecurityException) {
+                        Log.e(TAG, "startForeground(phoneCall) refused too: ${e2.message}", e2)
+                        startForeground(NOTIFICATION_ID, n)
+                    }
                 }
             } else startForeground(NOTIFICATION_ID, n)
             inForeground = true
@@ -190,12 +214,23 @@ class CallService : Service() {
         else PendingIntent.getService(this, code, i, flags)
     }
 
-    private fun screenIntent(callId: String, label: String, number: String?, code: Int): PendingIntent {
+    private fun screenIntent(callId: String, label: String, number: String?, code: Int, answer: Boolean = false): PendingIntent {
         val i = Intent(this, IncomingCallActivity::class.java)
             .putExtra(EXTRA_CALL_ID, callId).putExtra(EXTRA_LABEL, label).putExtra(EXTRA_NUMBER, number)
+            .putExtra(EXTRA_ANSWER, answer)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         return PendingIntent.getActivity(this, code, i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
+
+    /**
+     * The notification's Answer: straight to the engine when the microphone
+     * is granted; otherwise through the call screen, the one place with a
+     * window to show the RECORD_AUDIO prompt (a service cannot), which
+     * answers once the prompt is done.
+     */
+    private fun answerIntent(callId: String, label: String, number: String?): PendingIntent =
+        if (VoipEngine.get(applicationContext).micGranted()) pi(ACTION_ANSWER, callId, 3)
+        else screenIntent(callId, label, number, 5, answer = true)
 
     private fun person(label: String) = Person.Builder().setName(label.ifBlank { "Incoming call" }).setImportant(true).build()
 
@@ -213,7 +248,7 @@ class CallService : Service() {
             .setOnlyAlertOnce(false)
             .setContentIntent(screen)
             .setFullScreenIntent(screen, true)
-            .setStyle(NotificationCompat.CallStyle.forIncomingCall(person(label), pi(ACTION_DECLINE, callId, 2), pi(ACTION_ANSWER, callId, 3)))
+            .setStyle(NotificationCompat.CallStyle.forIncomingCall(person(label), pi(ACTION_DECLINE, callId, 2), answerIntent(callId, label, number)))
         return b.build()
     }
 

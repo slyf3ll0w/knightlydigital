@@ -69,6 +69,7 @@ async function fcmAccessToken(sa: ServiceAccount): Promise<string> {
 
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
+    signal: AbortSignal.timeout(15_000),
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
@@ -103,6 +104,7 @@ export async function sendVoipFcm(
   const accessToken = await fcmAccessToken(fcmAccount);
   const res = await fetch(`https://fcm.googleapis.com/v1/projects/${fcmAccount.project_id}/messages:send`, {
     method: "POST",
+    signal: AbortSignal.timeout(15_000),
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       message: {
@@ -129,6 +131,7 @@ async function sendFcm(
     `https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`,
     {
       method: "POST",
+      signal: AbortSignal.timeout(15_000),
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",

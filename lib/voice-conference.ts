@@ -47,6 +47,38 @@ export const MAX_PARTICIPANTS = 4;
 /** How long an added number rings before it counts as no answer (a supplier's voicemail would pick up at ~25 s). */
 export const PARTICIPANT_RING_SECS = 30;
 
+/**
+ * The longest any invite rings — a woken phone (VOIP_WAKE_SECS 35 s + 5 s)
+ * or a dialed number (PARTICIPANT_RING_SECS 30 s) — plus slack for a late
+ * webhook. A row still "ringing" past createdAt + this has rung out: the
+ * in-process timer (scheduleInviteExpiry) is only the fast path and does not
+ * survive a deploy, so the stale-call sweep closes such rows too.
+ */
+export const PARTICIPANT_RING_DEADLINE_MS = 90_000;
+
+/** When a ringing participant row counts as rung out whatever the timer did. */
+export function participantRingDeadline(createdAt: Date | string): Date {
+  return new Date(time(createdAt) + PARTICIPANT_RING_DEADLINE_MS);
+}
+
+/** Still "ringing" past its deadline → the sweep marks it no_answer. */
+export function inviteRangOut(p: Pick<ParticipantLite, "status" | "createdAt">, now: Date): boolean {
+  if (p.status !== "ringing" || !p.createdAt) return false;
+  return now.getTime() >= participantRingDeadline(p.createdAt).getTime();
+}
+
+/**
+ * A "pending:" conference claim older than this never got released (the
+ * process died between the claim and the create): the sweep clears it so
+ * the next Add can start afresh instead of answering "try again" forever.
+ */
+export const PENDING_CONFERENCE_MAX_MS = 60_000;
+
+export function pendingConferenceStale(conferenceId: string | null | undefined, updatedAt: Date | string, now: Date): boolean {
+  if (!conferenceId || !conferenceId.startsWith("pending:")) return false;
+  return now.getTime() - time(updatedAt) >= PENDING_CONFERENCE_MAX_MS;
+}
+
 /** A Telnyx call_control_id we actually hold (not a "pending:" claim token). */
 export const isRealLegId = (id: string | null | undefined): id is string => Boolean(id && !id.startsWith("pending:"));
 

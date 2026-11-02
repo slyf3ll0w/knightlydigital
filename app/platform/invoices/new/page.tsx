@@ -25,6 +25,7 @@ export default async function NewInvoicePage({
     prisma.contact.findMany({
       where: { companyId, ...contactScope(actor), status: { in: ["LEAD", "ACTIVE"] }, placeholder: false },
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      take: 1500, // the picker searches client-side; a bigger book needs a server search
     }),
     prisma.workItem.findMany({
       where: { companyId, isActive: true },

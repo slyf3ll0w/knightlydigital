@@ -168,8 +168,10 @@ export function declineMessage(code: string | null | undefined): string {
     case "CARD_DECLINED_VERIFICATION_REQUIRED":
       return "The card was declined. Please try another payment method.";
     case "INSUFFICIENT_FUNDS":
-    case "INSUFFICIENT_PERMISSIONS":
       return "The payment was declined for insufficient funds.";
+    case "INSUFFICIENT_PERMISSIONS":
+      // The SELLER's Square grant can't take this payment (scope / location) — not the card
+      return "This business's payment setup needs attention — please contact them to pay another way.";
     case "CVV_FAILURE":
       return "The security code didn't match. Please check it and try again.";
     case "ADDRESS_VERIFICATION_FAILURE":

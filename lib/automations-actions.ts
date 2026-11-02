@@ -19,7 +19,8 @@ import { isPrivateIp } from "./website-check";
 import { isQuickBooksConfigured, pushInvoice, pushEstimate, pushPayment } from "./quickbooks";
 import { meteredOneShot } from "./atlas-oneshot";
 import { quoteDepositAmount, money as moneyLabel } from "./statuses";
-import { AUTOMATION_LIMITS, ATLAS_TEXT_FIELD, renderAction, type CompiledAutomation, type AutomationAction } from "./automations";
+import { AUTOMATION_LIMITS, ATLAS_TEXT_FIELD, renderAction, textDeferUntil, type CompiledAutomation, type AutomationAction, type Step } from "./automations";
+import { inSmsQuietHours } from "./reminder-stage";
 import { baseUrl, money, type Loaded } from "./automations-context";
 
 /**
@@ -79,6 +80,33 @@ async function textGate(companyId: string, contact: NonNullable<Loaded["contact"
   const sent = await prisma.smsSend.count({ where: { companyId, contactId: contact.id, createdAt: { gte: new Date(Date.now() - DAY) } } });
   if (sent >= MAX_TEXTS_PER_CONTACT_PER_DAY) return `skipped: client already texted ${MAX_TEXTS_PER_CONTACT_PER_DAY}× today`;
   return null;
+}
+
+/** Steps that can put a text on the client's phone. */
+const TEXTING_STEPS = new Set(["text_client", "send_pay_link", "send_appointment_reminder", "send_job_report"]);
+
+/**
+ * Would this step text the client right now, inside the company's quiet
+ * hours (9 PM–8 AM local — the rule Help promises and the built-in
+ * reminders keep)? Then the engine parks the run and comes back at 8 AM
+ * instead of sending, or skipping, the text. Returns the moment to resume,
+ * or null to run the step now: not a texting step, not quiet, nobody to
+ * text (the step will email or skip on its own), or an appointment
+ * reminder for a start that 8 AM would miss — that one emails now, the way
+ * lib/reminders.ts does during quiet hours.
+ */
+export async function textHoldUntil(step: Step, loaded: Loaded, now: Date): Promise<Date | null> {
+  if (!TEXTING_STEPS.has(step.type)) return null;
+  const { company, contact } = loaded;
+  const until = textDeferUntil(now, company.timezone ?? "America/Chicago");
+  if (!until) return null;
+  if (!contact?.phone || !canText(contact)) return null;
+  if (step.type === "send_appointment_reminder") {
+    const a = loaded.appointment;
+    if (!a || a.status !== "SCHEDULED" || a.scheduledAt.getTime() <= until.getTime() + HOUR) return null;
+  }
+  if (!(await companyCanSendSms(company.id))) return null;
+  return until;
 }
 
 async function safeWebhookHost(url: string): Promise<string | null> {
@@ -163,6 +191,8 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
       if (!contact) return "skipped: no client";
       const gate = await textGate(companyId, contact);
       if (gate) return gate;
+      // The engine parks a quiet-hours text until 8 AM (textHoldUntil); this is the backstop
+      if (inSmsQuietHours(now, tz)) return "skipped: quiet hours (no texts 9 PM–8 AM)";
       // The business line is registered for service texts only: marketing wording would put its campaign at risk.
       const flagged = marketingPhrase(rendered.body, company.name);
       if (flagged) return `skipped: "${flagged}" reads as marketing to the carriers, and this number is registered for service texts only — send it by email instead`;
@@ -228,7 +258,8 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
       const emailed = await sendEmail({ companyId, to: contact.email, subject, html, replyTo: company.email || undefined, fromName: company.name });
       if (!emailed) return "failed: email send failed";
       let texted = false;
-      if (contact.phone && canText(contact) && (await companyCanSendSms(companyId))) {
+      // Quiet hours: the engine normally parks the whole step until 8 AM; if it got here anyway, email only
+      if (contact.phone && canText(contact) && !inSmsQuietHours(now, tz) && (await companyCanSendSms(companyId))) {
         texted = await sendSms({ companyId, contactId: contact.id, to: contact.phone, text: invoiceLinkText({ companyName: company.name, firstName: contact.firstName, invoiceNumber: i.invoiceNumber, total: Number(i.total), payUrl, payable }) });
       }
       const patch = { ...(i.status === "DRAFT" ? { status: "AWAITING_PAYMENT" as const, issuedAt: now } : {}), ...(i.dueDate ? {} : { dueDate: dueDateFromTerms(now, contact.paymentTermsDays) }) };
@@ -243,7 +274,8 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
       const r = await sendJobReport({
         jobId: loaded.jobId,
         companyId,
-        channels: { email: true, text: true },
+        // Quiet hours: the engine parks a step that would text (textHoldUntil); the backstop is email only
+        channels: { email: true, text: !inSmsQuietHours(now, tz) },
         byUserId: await actorUserId(companyId, automation.createdById),
       });
       if (!r.ok) return r.status === 400 || r.status === 402 || r.status === 403 ? `skipped: ${r.error}` : `failed: ${r.error}`;
@@ -281,7 +313,8 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
         companyName: company.name, firstName: contact.firstName, serviceName: a.title, kind: a.type as MeetingKind, windowLabel, timeLabel,
         address: a.type === "IN_PERSON" ? a.address : null, phone: a.type === "PHONE_CALL" ? contact.phone : null, meetingLink: a.type === "VIDEO_CALL" ? a.meetingLink : null, stage,
       };
-      if (contact.phone && canText(contact) && (await companyCanSendSms(companyId))) {
+      // Quiet hours: a start 8 AM can still make is parked by the engine (textHoldUntil); a nearer one emails now, like lib/reminders.ts
+      if (contact.phone && canText(contact) && !inSmsQuietHours(now, tz) && (await companyCanSendSms(companyId))) {
         const ok = await sendSms({ companyId, contactId: contact.id, to: contact.phone, text: appointmentReminderText(args) });
         if (ok) return `reminder texted (${stage})`;
       }

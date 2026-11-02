@@ -53,7 +53,7 @@ assert.equal(DISPATCH_FAIR_USE_TEXTS, 3_000);
 assert.equal(DISPATCH_FAIR_USE_MINUTES, 3_000);
 assert.ok(PLANS.DISPATCH.includes.some((s) => /unlimited talk and text/i.test(s)));
 assert.ok(FAIR_USE_SENTENCE.includes("3,000 texts and 3,000 minutes"));
-assert.ok(FAIR_USE_SENTENCE.includes("3¢"));
+assert.ok(FAIR_USE_SENTENCE.includes("pauses until the 1st"));
 assert.ok(!PLANS.DISPATCH.includes.some((s) => /\d+ texts/.test(s)), "no fixed allowance on the card");
 assert.ok(FULL_SHOP.monthlyCents < separatelyMonthlyCents());
 // … and after Gallery joins, still a discount on all three.

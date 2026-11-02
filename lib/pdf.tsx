@@ -714,6 +714,10 @@ const report = StyleSheet.create({
   cell: { width: 164, marginRight: 12, marginBottom: 12 },
   cellLast: { marginRight: 0 },
   cellImg: { width: 164, height: 124, objectFit: "cover", borderRadius: 3, backgroundColor: "#F3F4F6" },
+  // A photo the PDF can't draw (react-pdf renders png/jpg only; a webp or gif
+  // from an older upload is skipped): the slot says so instead of sitting grey.
+  missing: { alignItems: "center", justifyContent: "center", padding: 10 },
+  missingText: { color: MUTED, fontSize: 8, textAlign: "center", lineHeight: 1.3 },
   check: { flexDirection: "row", paddingVertical: 3.5, borderBottomWidth: 0.75, borderBottomColor: FAINT },
   checkMark: { width: 16, fontFamily: "Helvetica-Bold" },
   checkSkip: { color: MUTED, marginTop: 1, fontSize: 8.5 },
@@ -774,7 +778,13 @@ export function buildJobReportDocument(r: JobReport, logo: LogoSrc, images: Repo
                   return (
                     <View key={p.id} style={report.pairCell}>
                       <Text style={report.tag}>{(STAGE_LABEL[p.stage] || "Photo").toUpperCase()}</Text>
-                      {src ? <Image style={report.pairImg} src={src} /> : <View style={report.pairImg} />}
+                      {src ? (
+                        <Image style={report.pairImg} src={src} />
+                      ) : (
+                        <View style={[report.pairImg, report.missing]}>
+                          <Text style={report.missingText}>Photo not shown here — see it in your online report</Text>
+                        </View>
+                      )}
                       {p.caption ? <Text style={report.cap}>{p.caption}</Text> : null}
                     </View>
                   );
@@ -792,7 +802,13 @@ export function buildJobReportDocument(r: JobReport, logo: LogoSrc, images: Repo
                 const src = img(p.id);
                 return (
                   <View key={p.id} style={[report.cell, (i + 1) % 3 === 0 ? report.cellLast : {}]} wrap={false}>
-                    {src ? <Image style={report.cellImg} src={src} /> : <View style={report.cellImg} />}
+                    {src ? (
+                      <Image style={report.cellImg} src={src} />
+                    ) : (
+                      <View style={[report.cellImg, report.missing]}>
+                        <Text style={report.missingText}>Photo not shown here — see it in your online report</Text>
+                      </View>
+                    )}
                     <Text style={report.cap}>
                       {[STAGE_LABEL[p.stage] || null, p.caption].filter(Boolean).join(" · ")}
                       {!p.caption && !STAGE_LABEL[p.stage] ? " " : ""}

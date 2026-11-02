@@ -8,7 +8,6 @@ import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } fro
 import { freeGroups } from "@/lib/wb-free";
 import {
   ANNUAL_MONTHS,
-  DISPATCH_OVERAGE_CENTS,
   DISPATCH_SETUP_CENTS,
   EXTRA_SEAT_CENTS,
   FAIR_USE_MINUTES_LABEL,
@@ -19,7 +18,6 @@ import {
   PLANS,
   annualCents,
   formatCents,
-  formatUnitCents,
   separatelyMonthlyCents,
 } from "@/lib/plans";
 
@@ -175,8 +173,8 @@ export default function WBPricing() {
             <p className="mt-6 border-t border-gray-100 pt-4 text-[12.5px] leading-relaxed text-gray-500">
               Plus {formatCents(DISPATCH_SETUP_CENTS)} once to buy the number and register it with
               the carriers. Unlimited means normal business use: up to {FAIR_USE_TEXTS_LABEL} texts
-              and {FAIR_USE_MINUTES_LABEL} minutes a month, then{" "}
-              {formatUnitCents(DISPATCH_OVERAGE_CENTS)} each.
+              and {FAIR_USE_MINUTES_LABEL} minutes a month; past that the line pauses until the
+              1st (incoming keeps working).
             </p>
           </div>
 

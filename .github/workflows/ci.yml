@@ -36,6 +36,15 @@ jobs:
       - name: Prisma client
         run: npx prisma generate
 
+      # Deploys push the schema with --accept-data-loss: refuse a change that
+      # would DROP a table or column unless the commit says [allow-drop]
+      # (scripts/check-schema-drops.mjs). Compared against origin/main.
+      - name: Schema drop guard
+        run: |
+          git fetch --no-tags --depth=1 origin main
+          git show origin/main:prisma/schema.prisma > /tmp/base.prisma || true
+          node scripts/check-schema-drops.mjs /tmp/base.prisma
+
       - name: Type-check
         run: npx tsc --noEmit -p tsconfig.json
 

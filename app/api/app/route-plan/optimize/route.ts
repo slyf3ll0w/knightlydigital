@@ -14,6 +14,7 @@ import {
 import { driveMatrix, kmToMiles, roundGapMinutes, routeMinutes, samePoint, solveStopOrder, type IndexPrecedence } from "@/lib/routing";
 import { notifyClientOfMove } from "@/lib/schedule-notify";
 import { rescheduleReminderStamps } from "@/lib/reminder-stage";
+import { fireAutomations } from "@/lib/automations-server";
 import { DEFAULT_JOB_DURATION_MINUTES } from "@/lib/scheduling";
 import {
   DAY_KEYS,
@@ -716,6 +717,9 @@ export async function POST(req: NextRequest) {
       })
     );
     applied = true;
+    // After commit — a stop whose arrival changed is a reschedule, the same
+    // event a drag on the calendar fires (jobs/[id] and appointments/[id] PATCH)
+    for (const p of movedStops) fireAutomations(actor.companyId, p.kind === "job" ? "job.scheduled" : "appointment.rescheduled", p.id);
 
     if (body.notify === true) {
       for (const p of movedStops) {

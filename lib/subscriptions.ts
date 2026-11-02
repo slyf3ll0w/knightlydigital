@@ -185,6 +185,7 @@ async function settleGeneratedInvoice(opts: {
   amount: number;
   chargeDescription: string;
   paymentDetails: string;
+  quietClient?: boolean;
 }): Promise<"charged" | "billed"> {
   // Every engine invoice in SEND mode passes through here once, post-commit — that is its "sent"
   fireAutomations(opts.companyId, "invoice.sent", opts.invoiceId);
@@ -195,6 +196,7 @@ async function settleGeneratedInvoice(opts: {
     amount: opts.amount,
     chargeDescription: opts.chargeDescription,
     paymentDetails: opts.paymentDetails,
+    quietClient: opts.quietClient,
   });
   if (outcome === "charged") return "charged";
   // "failed" already emailed the client its own payment-issue note — don't
@@ -254,7 +256,7 @@ async function settleGeneratedInvoice(opts: {
  * sits unpaid and the normal reminder/dunning flow picks it up — never a
  * second charge.
  */
-async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafted" | "charged"> {
+async function generateCycle(sub: DueSub, now: Date, settle: { quietClient?: boolean } = {}): Promise<"billed" | "drafted" | "charged"> {
   // Standalone recurring-job series never reach here (the sweep filters on
   // nextRunDate), but guard anyway — billing math needs a cadence.
   const interval = sub.interval;
@@ -373,6 +375,7 @@ async function generateCycle(sub: DueSub, now: Date): Promise<"billed" | "drafte
   // external call, so a slow or crashed charge leaves an unpaid invoice for
   // dunning instead of rolling back a billed cycle.
   return settleGeneratedInvoice({
+    quietClient: settle.quietClient,
     companyId: sub.companyId,
     subscriptionId: sub.id,
     contact: sub.contact,
@@ -803,7 +806,9 @@ export async function runMonthlyConsolidations(
  */
 export async function billSubscriptionNow(
   id: string,
-  companyId: string
+  companyId: string,
+  /** `checkout`: the customer is watching (a plan purchase) — a decline shows on the page, no dunning email. */
+  opts: { checkout?: boolean } = {}
 ): Promise<"billed" | "drafted" | "charged" | "empty" | null> {
   const sub = await prisma.subscription.findFirst({
     where: { id, companyId },
@@ -827,7 +832,7 @@ export async function billSubscriptionNow(
     await prisma.subscription.update({ where: { id }, data: { nextRunDate: now } });
     sub.nextRunDate = now;
   }
-  const outcome = await generateCycle({ ...sub }, now);
+  const outcome = await generateCycle({ ...sub }, now, { quietClient: opts.checkout });
   // Billing now bills the UPCOMING cycle early — it must not re-anchor every
   // future cycle to today. The cycle advanced the cursor from "now"; move it
   // to one interval past the original date instead, keeping the anchor day.

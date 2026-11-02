@@ -201,8 +201,8 @@ true }` so the next device isn't walled for the hold window. API routes
 are not gated. `ONE_ACTIVE_DEVICE=0` turns it off,
 `ONE_ACTIVE_DEVICE_EXEMPT` lists exempt emails; Pro / Max companies
 (`exemptPlan`, the unlimited-seat plans), superadmins and the e2e owners
-(`e2e-*@workbenchfsm.com`) are always exempt. The seat limit itself
-is not enforced yet. Plan + recipes: `docs/plans/one-active-device-2026-10-02.md`;
+(`e2e-*@workbenchfsm.com`) are always exempt. The seat limit is enforced
+by `lib/seats.ts` once `PLAN_GATING=1` (on since 2026-11-02). Plan + recipes: `docs/plans/one-active-device-2026-10-02.md`;
 test `scripts/test-active-device.ts`.
 
 **Ways in (all four end in `lib/signup.ts` `createCompanySignup`):**
@@ -1172,7 +1172,7 @@ How the Finix flow hangs together:
 ```
 AUTH_SECRET=     # generate: openssl rand -base64 32
 DATABASE_URL=    # PostgreSQL connection string from Railway
-NEXTAUTH_URL=    # deployed URL (e.g. https://jobflow.streamflaremedia.com or https://streamflaremedia.com)
+NEXTAUTH_URL=    # deployed URL (production https://workbenchfsm.com; staging its Railway hostname) — also the canonical host (lib/canonical-host.ts)
 CRON_SECRET=     # shared secret for the recurring-billing cron (generate: openssl rand -base64 32)
 UNIVERSAL_INVITE_CODE=    # optional shared tester invite code; unset or "off" = none (no built-in default since 2026-11-01)
 CANONICAL_HOST_ALIASES=   # optional, comma-separated: extra hostnames (behind the same edge) that may serve the app besides NEXTAUTH_URL's; every other Host is sent to the canonical one (lib/canonical-host.ts)
@@ -1604,7 +1604,7 @@ Railway detects Next.js automatically and runs `next start`. GitHub remote: `htt
 | `staging` | staging | https://streamflaire-staging.up.railway.app | its own Postgres (empty at birth; `db:predeploy` builds the schema) |
 | `main` | production | https://workbenchfsm.com | production |
 
-Both run Finix in **sandbox** mode. Staging has its own `AUTH_SECRET`,
+Production runs Square in production mode, staging Square in sandbox (Finix only with `PAYMENT_PROCESSOR=finix`). Staging has its own `AUTH_SECRET`,
 `CRON_SECRET` and `SUPERADMIN_PASSWORD` (rotated at creation), its own hourly
 cron service pointed at the staging URL, and otherwise a copy of production's
 variables (Resend, Telnyx, Mapbox, R2, Sentry — so real emails send from

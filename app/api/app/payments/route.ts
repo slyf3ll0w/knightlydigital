@@ -5,6 +5,8 @@ import { getActor, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import { recordPayment, invoiceBalance } from "@/lib/payments";
 import type { PaymentMethod } from "@prisma/client";
 import { inPreview, previewBlockedError } from "@/lib/preview";
+import { getSquarePayment, SquareError } from "@/lib/square";
+import { squareTokenForCompany, SquareNotConnectedError } from "@/lib/square-connection";
 
 const validMethods = [
   "CARD",
@@ -32,7 +34,7 @@ export async function POST(req: NextRequest) {
   const companyId = actor.companyId;
 
   const body = await req.json();
-  const { invoiceId, amount, method, referenceNumber, details, paidAt, emailReceipt } = body;
+  const { invoiceId, amount, method, referenceNumber, details, paidAt, emailReceipt, squarePaymentId } = body;
 
   if (!invoiceId || !amount || amount <= 0) {
     return NextResponse.json({ error: "Invoice and a positive amount are required." }, { status: 400 });
@@ -59,6 +61,28 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+  // "Record on an invoice" from the Payments tab names the Square sale this
+  // record IS. It becomes the row's processorRef so the sale stops counting
+  // as "outside WorkBench", can't be recorded twice, and the reports see
+  // one payment (readiness review 2026-11-02, #2). Verified at Square first.
+  let processorRef: string | null = null;
+  if (typeof squarePaymentId === "string" && squarePaymentId) {
+    if (!/^[A-Za-z0-9_-]{8,80}$/.test(squarePaymentId)) return NextResponse.json({ error: "That Square payment id doesn't look right." }, { status: 400 });
+    const dup = await prisma.payment.findFirst({ where: { companyId, processorRef: squarePaymentId }, select: { invoiceId: true } });
+    if (dup) return NextResponse.json({ error: "That Square sale is already recorded on an invoice." }, { status: 409 });
+    try {
+      const { token } = await squareTokenForCompany(companyId);
+      const sq = await getSquarePayment(token, squarePaymentId);
+      if (sq.status !== "COMPLETED") return NextResponse.json({ error: "That Square payment hasn't completed." }, { status: 400 });
+      processorRef = sq.id;
+    } catch (err) {
+      if (err instanceof SquareNotConnectedError) return NextResponse.json({ error: "Connect Square first." }, { status: 400 });
+      if (err instanceof SquareError && err.status === 404) return NextResponse.json({ error: "Square has no payment with that id on this account." }, { status: 404 });
+      reportError("[payments] square lookup failed", squarePaymentId, err);
+      return NextResponse.json({ error: "Square didn't answer — try again in a moment." }, { status: 424 });
+    }
+  }
+
   const balance = invoiceBalance(invoice);
   if (Number(amount) > balance + 0.005) {
     return NextResponse.json(
@@ -75,6 +99,7 @@ export async function POST(req: NextRequest) {
       method: method as PaymentMethod,
       referenceNumber: referenceNumber || null,
       details: details || null,
+      processorRef,
       paidAt: paidAt
         ? new Date(paidAt.length === 10 ? `${paidAt}T12:00:00` : paidAt)
         : undefined,

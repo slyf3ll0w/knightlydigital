@@ -44,6 +44,11 @@ export async function PATCH(
   });
   if (!invoice) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
 
+  // A gift card sale's invoice IS the card's price: editing it would load
+  // the card for more (or less) than was paid for
+  if (await prisma.giftCardSale.findUnique({ where: { invoiceId: invoice.id }, select: { id: true } })) {
+    return NextResponse.json({ error: "This invoice sells a gift card and can't be edited — deactivate the card and sell a new one instead." }, { status: 400 });
+  }
   if (invoice.status === "PAID") {
     return NextResponse.json(
       { error: "Paid invoices are locked — re-open the invoice first to make changes." },

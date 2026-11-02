@@ -159,6 +159,7 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
           <p className="mt-1 text-xs text-gray-500">
             {a.runs === 0 ? "Hasn't fired yet" : `Fired ${a.runs}×`}
             {a.lastRunAt && ` · last ${ago(a.lastRunAt)}`}
+            {(a.waiting ?? 0) > 0 && ` · ${a.waiting} waiting`}
             {a.description && ` · ${a.description}`}
           </p>
         </Link>
@@ -196,6 +197,7 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
           <span className="shrink-0 text-right text-[11px] tabular-nums text-gray-400">
             {a.runs > 0 ? `${a.runs}×` : "—"}
             {a.lastRunAt && <span className="block">{ago(a.lastRunAt)}</span>}
+            {(a.waiting ?? 0) > 0 && <span className="block text-[color:var(--ds-warn)]">{a.waiting} waiting</span>}
           </span>
           <ChevronRight size={16} className="shrink-0 text-gray-300" />
         </button>
@@ -320,7 +322,7 @@ export default function AutomationsClient({ automations: initial, recentRuns }: 
               <button type="button" disabled={busy === detail.id || detail.broken} onClick={() => void setActive(detail, !detail.isActive)} className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold ${detail.isActive ? "bg-gray-100 text-gray-800" : "btn-primary"}`}>
                 {detail.isActive ? <><Pause size={14} /> Pause</> : <><Play size={14} /> Resume</>}
               </button>
-              <span className="text-xs text-gray-500">{detail.runs === 0 ? "Hasn't fired yet" : `Fired ${detail.runs}×${detail.lastRunAt ? ` · ${ago(detail.lastRunAt)}` : ""}`}</span>
+              <span className="text-xs text-gray-500">{detail.runs === 0 ? "Hasn't fired yet" : `Fired ${detail.runs}×${detail.lastRunAt ? ` · ${ago(detail.lastRunAt)}` : ""}`}{(detail.waiting ?? 0) > 0 && ` · ${detail.waiting} waiting`}</span>
               <button type="button" disabled={busy === detail.id} onClick={() => void remove(detail)} aria-label="Delete" className="ml-auto rounded-full p-2 text-[color:var(--ds-bad)] active:bg-[color:var(--ds-bad-soft)]"><Trash2 size={16} /></button>
             </div>
 

@@ -155,6 +155,44 @@ assert.equal(clientMaySee({ ...b2, pairId: "p2" }, [{ ...a2, pairId: "p2", clien
 assert.equal(clientMaySee(d1, []), false);
 assert.equal(clientMaySee(a3, []), true);
 
+// ── A stranded pairId (its partner was deleted) is a single again ──
+{
+  const mk = (id: string, stage: PhotoView["stage"], pairId: string | null): PhotoView => ({
+    id,
+    stage,
+    caption: null,
+    takenAt: null,
+    createdAt: "2026-10-30T10:00:00Z",
+    by: null,
+    lat: null,
+    lng: null,
+    clientVisible: true,
+    siteUse: false,
+    alt: null,
+    hasThumb: false,
+    jobId: "job1",
+    quoteId: null,
+    pairId,
+  });
+  const strandedBefore = mk("b1", "BEFORE", "pair-gone"); // its After was deleted
+  const looseAfter = mk("a1", "AFTER", null);
+  const otherBefore = mk("b2", "BEFORE", "pair-live");
+  const otherAfter = mk("a2", "AFTER", "pair-live");
+  // Without the job's photos the old rule holds (a pairId means "in a pair")
+  assert.equal(pairable(strandedBefore, looseAfter).ok, false);
+  // With them, nobody else carries that pairId → it may be paired again
+  const ok = pairable(strandedBefore, looseAfter, [strandedBefore, looseAfter, otherBefore, otherAfter]);
+  assert.equal(ok.ok, true);
+  if (ok.ok) assert.equal(ok.before.id, "b1");
+  // A real pair is still protected
+  const taken = pairable(otherBefore, looseAfter, [strandedBefore, looseAfter, otherBefore, otherAfter]);
+  assert.equal(taken.ok, false);
+  if (!taken.ok) assert.match(taken.why, /already in a pair/);
+  // The grid never shows a stranded half as a pair, and offers it as loose
+  assert.deepEqual(pairsOf([strandedBefore, looseAfter, otherBefore, otherAfter]).map((p) => p.id), ["pair-live"]);
+  assert.deepEqual(unpaired([strandedBefore, looseAfter, otherBefore, otherAfter]).befores.map((p) => p.id), ["b1"]);
+}
+
 // ── Words and links ──
 assert.equal(reportSummaryLine({ pairs: 2, singles: 4, checklist: 3 }), "2 before-and-after comparisons, 4 photos and the 3-item checklist");
 assert.equal(reportSummaryLine({ pairs: 1, singles: 0, checklist: 0 }), "1 before-and-after comparison");

@@ -120,6 +120,7 @@ export async function completeSquareConnect(params: { companyId: string; code: s
     );
   }
 
+  const previous = await prisma.company.findUnique({ where: { id: params.companyId }, select: { squareMerchantId: true } });
   const written = await writeConnection({
     companyId: params.companyId,
     merchantId: tokens.merchant_id,
@@ -129,9 +130,37 @@ export async function completeSquareConnect(params: { companyId: string; code: s
     merchant,
     location,
   });
+  // A DIFFERENT Square account than before: every card on file and Square
+  // customer id belonged to the old merchant and would decline (or vault
+  // under a stranger) from here on — forget them and tell the owners
+  // (readiness review 2026-11-02, #9). Reconnecting the same account keeps everything.
+  if (previous?.squareMerchantId && previous.squareMerchantId !== tokens.merchant_id) {
+    await forgetCardsOfOldMerchant(params.companyId, previous.squareMerchantId, tokens.merchant_id).catch((e) =>
+      reportError("[square] old-merchant card cleanup failed", params.companyId, e)
+    );
+  }
   // Somewhere to pay out to? Best effort — never fails the connect.
   await refreshSquarePayoutStatus(params.companyId).catch(() => {});
   return written;
+}
+
+async function forgetCardsOfOldMerchant(companyId: string, oldMerchantId: string, newMerchantId: string): Promise<void> {
+  const [cards, contacts] = await prisma.$transaction([
+    prisma.savedCard.deleteMany({ where: { companyId, instrumentRef: { startsWith: "ccof:" } } }),
+    prisma.contact.updateMany({ where: { companyId, squareCustomerId: { not: null } }, data: { squareCustomerId: null, processorCustomerRef: null, savedCardLabel: null } }),
+  ]);
+  console.info(`[square] company ${companyId} moved from merchant ${oldMerchantId} to ${newMerchantId}: ${cards.count} cards on file and ${contacts.count} Square customers forgotten`);
+  if (cards.count === 0) return;
+  const owners = await prisma.user.findMany({ where: { companyId, role: "OWNER", isActive: true }, select: { id: true } });
+  await notifyUsers(
+    owners.map((o) => o.id),
+    {
+      title: "Cards on file were cleared",
+      body: `You connected a different Square account, so ${cards.count} saved client card${cards.count === 1 ? "" : "s"} from the old one can't be charged any more. Clients on autopay will get a pay link until they save a card again.`,
+      url: "/app/settings",
+      tag: "square-merchant-changed",
+    }
+  ).catch(() => {});
 }
 
 /** The one writer of a connection: the SquareConnection row and the
@@ -269,9 +298,15 @@ async function refreshConnection(conn: ConnectionRow): Promise<string> {
   try {
     tokens = await square.refreshSquareToken(openSecret(conn.refreshTokenEnc, SECRET_SCOPE));
   } catch (err) {
-    const dead =
-      err instanceof square.SquareError &&
-      (err.authDead || err.status === 400 || err.code === "invalid_grant");
+    // Only the GRANT being dead tears the connection down. A bad or rotated
+    // SQUARE_APPLICATION_SECRET makes Square answer 401 unauthorized_client /
+    // invalid_client for EVERY seller at once — that is our misconfiguration,
+    // not a revocation, and must not delete every connection on the next
+    // sweep (readiness review 2026-11-02, #12).
+    const code = err instanceof square.SquareError ? err.code : null;
+    const ourConfig = code === "invalid_client" || code === "unauthorized_client" || code === "UNAUTHORIZED_CLIENT";
+    const dead = err instanceof square.SquareError && !ourConfig && (err.code === "invalid_grant" || err.authDead);
+    if (ourConfig) reportError("[square] token refresh refused the APPLICATION credentials — check SQUARE_APPLICATION_ID/SECRET", err, { companyId: conn.companyId });
     await prisma.squareConnection
       .update({
         where: { id: conn.id },

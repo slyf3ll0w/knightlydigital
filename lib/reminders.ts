@@ -79,8 +79,11 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
   // are right even for companies no one has opened today). An invoice due
   // today is not late — see lib/due-dates.ts.
   // Ids first so each flipped invoice can fire its invoice.past_due automation
+  // Shop orders are never "overdue": an unpaid one is an abandoned cart that
+  // the store sweep archives after its hold (lib/store.ts) — no flip, no
+  // reminder emails to a shopper who walked away.
   const toFlip = await prisma.invoice.findMany({
-    where: { status: "AWAITING_PAYMENT", dueDate: pastDueFilter(now) },
+    where: { status: "AWAITING_PAYMENT", dueDate: pastDueFilter(now), kind: { not: "STORE_ORDER" } },
     select: { id: true, companyId: true },
   });
   const flipped = await prisma.invoice.updateMany({
@@ -99,6 +102,8 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
     where: {
       status: { in: ["AWAITING_PAYMENT", "PAST_DUE"] },
       dueDate: { not: null, lte: now },
+      // An unpaid shop order is an abandoned cart, not a debt (lib/store.ts)
+      kind: { not: "STORE_ORDER" },
       // Archived clients are closed out — no dunning
       contact: { is: { email: { not: null }, status: { not: "ARCHIVED" } } },
       company: { is: { suspendedAt: null } },
@@ -209,8 +214,13 @@ export async function runDueReminders(now: Date = new Date()): Promise<ReminderS
       if (ok) {
         summary.sent++;
       } else {
+        // The provider refused or was down: give the claim back so the next
+        // tick retries this stage instead of burning it (readiness review
+        // 2026-11-02, S6). A stage is still only ever sent once — the claim
+        // is re-taken atomically before the next attempt.
         summary.errors++;
-        reportError("[reminders] send failed after claim for invoice", inv.id, stage.type);
+        reportError("[reminders] send failed after claim for invoice — claim released for retry", inv.id, stage.type);
+        await prisma.paymentReminder.deleteMany({ where: { invoiceId: inv.id, type: stage.type } }).catch(() => {});
       }
     } catch (err) {
       summary.errors++;
@@ -333,8 +343,10 @@ export async function runQuoteFollowUps(
       if (ok) {
         summary.sent++;
       } else {
+        // Give the claim back so the next tick retries (S6)
         summary.errors++;
-        reportError("[reminders] follow-up send failed after claim for quote", quote.id, stage.type);
+        reportError("[reminders] follow-up send failed after claim for quote — claim released for retry", quote.id, stage.type);
+        await prisma.quoteReminder.deleteMany({ where: { quoteId: quote.id, type: stage.type } }).catch(() => {});
       }
     } catch (err) {
       summary.errors++;
@@ -572,8 +584,15 @@ export async function runAppointmentReminders(
       if (ok) {
         summary.sent++;
       } else {
+        // Give the claim back so the next tick in the window retries (S6)
         summary.errors++;
-        console.error("[reminders] send failed after claim for appointment", appt.id, stage);
+        reportError("[reminders] send failed after claim for appointment — claim released for retry", appt.id, stage);
+        await prisma.appointment
+          .update({
+            where: { id: appt.id },
+            data: stage === "hour" ? { reminderHourSentAt: null, reminderDaySentAt: appt.reminderDaySentAt } : { reminderDaySentAt: null },
+          })
+          .catch(() => {});
       }
     } catch (err) {
       summary.errors++;

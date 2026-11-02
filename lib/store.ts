@@ -133,9 +133,15 @@ export async function createStoreOrder(params: {
       let contact = params.contactId
         ? await tx.contact.findFirst({ where: { id: params.contactId, companyId: company.id }, select: { id: true, email: true, phone: true } })
         : await tx.contact.findFirst({
+            // Only a real, current record: a `placeholder` (a number the team
+            // once texted, no name, no email) or an ARCHIVED contact matched on
+            // the phone would swallow the order — the typed name and email are
+            // discarded and the receipt has nowhere to go.
             where: {
               companyId: company.id,
-              OR: [...(phoneDigits(phone) ? [{ phoneDigits: phoneDigits(phone) }] : []), { email: { equals: email, mode: "insensitive" as const } }],
+              placeholder: false,
+              status: { not: "ARCHIVED" },
+              OR: [...(phoneDigits(phone) ? [{ phoneDigits: phoneDigits(phone) }] : []), ...(email ? [{ email: { equals: email, mode: "insensitive" as const } }] : [])],
             },
             select: { id: true, email: true, phone: true },
           });
@@ -145,7 +151,7 @@ export async function createStoreOrder(params: {
         // who merely typed a client's email must NOT be able to write a phone
         // number onto that client's record (security audit 2026-11-01) — the
         // texts and calls meant for the client would go to the stranger.
-        const fill = params.contactId ? { ...(!contact.email ? { email } : {}), ...(!contact.phone && phone ? { phone } : {}) } : {};
+        const fill = params.contactId ? { ...(!contact.email && email ? { email } : {}), ...(!contact.phone && phone ? { phone } : {}) } : {};
         if (Object.keys(fill).length > 0) contact = await tx.contact.update({ where: { id: contact.id }, data: fill, select: { id: true, email: true, phone: true } });
       } else {
         contact = await tx.contact.create({
@@ -195,8 +201,13 @@ export async function createStoreOrder(params: {
 export async function runStoreOrderSweep(now = new Date()): Promise<number> {
   try {
     const cutoff = new Date(now.getTime() - STORE_ORDER_HOLD_HOURS * 3600_000);
+    // Both open states: the reminders sweep used to flip an unpaid order to
+    // PAST_DUE the morning after it was placed, which this match on
+    // AWAITING_PAYMENT alone never caught — abandoned carts lived forever
+    // (readiness review 2026-11-02, #3). Store orders are now kept out of
+    // the past-due flip and the payment reminders too (lib/reminders.ts).
     const r = await prisma.invoice.updateMany({
-      where: { kind: "STORE_ORDER", status: "AWAITING_PAYMENT", issuedAt: { lt: cutoff }, payments: { none: {} } },
+      where: { kind: "STORE_ORDER", status: { in: ["AWAITING_PAYMENT", "PAST_DUE"] }, issuedAt: { lt: cutoff }, payments: { none: {} } },
       data: { status: "ARCHIVED" },
     });
     return r.count;

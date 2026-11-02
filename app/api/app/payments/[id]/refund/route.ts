@@ -10,6 +10,7 @@ import { squareTokenForMerchant } from "@/lib/square-connection";
 import { queueQuickBooksPaymentRefresh } from "@/lib/quickbooks";
 import { logActivity } from "@/lib/activity";
 import { fireAutomations } from "@/lib/automations-server";
+import { releaseGiftCardForBouncedPayment } from "@/lib/gift-cards";
 import { isFinixPayment } from "@/lib/payment-ref";
 
 /**
@@ -165,6 +166,10 @@ export async function POST(
     });
 
     fireAutomations(actor.companyId, "payment.refunded", id);
+
+    // The money for a gift card went back → the card must not stay spendable
+    // (readiness review 2026-11-02, #5; a no-op for every other invoice)
+    await releaseGiftCardForBouncedPayment(payment.invoiceId).catch((e) => reportError("[refund] gift card release failed", payment.invoiceId, e));
 
     // QuickBooks still has the pre-refund amount. Payments carry no updatedAt,
     // so the nightly sweep can't spot this on its own — push the corrected

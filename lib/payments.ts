@@ -17,6 +17,7 @@ import { reportError } from "@/lib/report-error";
  */
 
 import { createHash } from "crypto";
+import { squareIdempotencySuffix } from "@/lib/payment-source";
 import { fireAutomations } from "./automations-server";
 import { prisma } from "@/lib/db";
 import { recomputeDepositApplied } from "@/lib/deposits";
@@ -409,7 +410,10 @@ class SquareProcessor implements PaymentProcessor {
 
   private declined(err: unknown, fallback: string): ChargeResult {
     if (err instanceof square.SquareError) {
-      if (err.authDead) {
+      if (err.authDead || err.code === "INSUFFICIENT_PERMISSIONS") {
+        // A dead grant, or a grant that lacks the scope / location for this
+        // charge: the seller's setup, never the card — autopay falls back to
+        // the pay link instead of burning attempts and emailing "declined".
         return { success: false, error: "Online payments are not enabled for this business.", code: "not_enabled", transient: false };
       }
       if (square.isTransientSquareError(err)) {
@@ -441,10 +445,15 @@ class SquareProcessor implements PaymentProcessor {
       const { locationId, currency } = await this.locationFor(params.merchantRef);
       const cents = square.dollarsToCents(params.amount);
       const scope = params.idempotencyScope ?? params.metadata?.invoiceId ?? "inv";
-      // One attempt per scope+amount+minute, like Finix: a double-click never
-      // double charges, a genuine retry after a decline gets a fresh id.
-      const minute = Math.floor(Date.now() / 60000);
-      const idem = `${scope}-${cents}-${minute}`;
+      // One attempt per scope + amount + payment token. A one-time token
+      // (cnon:/bauth:) is spent by the first attempt, so a retry with the
+      // SAME token — a double-click, or "try again" after a timeout that
+      // Square actually processed — replays Square's original answer, never
+      // a second charge; a different card is a different token and a fresh
+      // id. The old key kept the minute instead, so a retry a minute after a
+      // timeout double-charged and two cards inside one minute collided
+      // (readiness review 2026-11-02, #7 and #20).
+      const idem = `${scope}-${cents}-${squareIdempotencySuffix(params.token)}`;
 
       let customerId = params.buyer?.identityRef ?? null;
       let sourceId = params.token;
@@ -909,6 +918,15 @@ export async function recomputeInvoiceStatus(
 
   const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
   const fullyPaid = paid > 0 && invoiceBalance(invoice) <= 0.005;
+
+  // Invoice.surcharge mirrors the service fees actually collected: the sum
+  // of the payments' surcharges, so a refund, a deleted record or a bounced
+  // transfer brings it down (QuickBooks and the CSV read this column; it
+  // used to only ever go up — readiness review 2026-11-02, #10).
+  const collectedSurcharge = Math.round(invoice.payments.reduce((s, p) => s + Number(p.surchargeAmount ?? 0), 0) * 100) / 100;
+  if (Math.abs(Number(invoice.surcharge ?? 0) - collectedSurcharge) > 0.005) {
+    await tx.invoice.update({ where: { id: invoiceId }, data: { surcharge: collectedSurcharge } });
+  }
 
   if (fullyPaid) {
     const lastPaidAt = invoice.payments.reduce<Date | null>(
