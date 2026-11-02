@@ -8,6 +8,11 @@
 import assert from "node:assert/strict";
 import {
   MAX_PARTICIPANTS,
+  PARTICIPANT_RING_DEADLINE_MS,
+  PENDING_CONFERENCE_MAX_MS,
+  inviteRangOut,
+  participantRingDeadline,
+  pendingConferenceStale,
   actorLeg,
   canAddParticipant,
   handOffAfterLeave,
@@ -137,6 +142,24 @@ const p = (over: Partial<ParticipantLite> & { id: string }): ParticipantLite => 
   assert.equal(isRealLegId("abc"), true);
   assert.equal(isRealLegId("pending:x"), false);
   assert.equal(isRealLegId(null), false);
+}
+
+// ── invites that rang out while nobody was watching (the stale sweep) ───────
+{
+  const made = new Date("2026-10-28T10:00:00Z");
+  assert.equal(participantRingDeadline(made).getTime(), made.getTime() + PARTICIPANT_RING_DEADLINE_MS);
+  assert.ok(PARTICIPANT_RING_DEADLINE_MS >= 40_000, "covers a woken phone (35 s + 5 s) and a dialed number (30 s)");
+  const ringing = { status: "ringing", createdAt: made };
+  assert.equal(inviteRangOut(ringing, new Date(made.getTime() + 30_000)), false, "still within the ring");
+  assert.equal(inviteRangOut(ringing, new Date(made.getTime() + PARTICIPANT_RING_DEADLINE_MS)), true, "past the deadline");
+  assert.equal(inviteRangOut({ status: "ringing", createdAt: made.toISOString() }, new Date(made.getTime() + 600_000)), true, "string dates too");
+  assert.equal(inviteRangOut({ status: "joined", createdAt: made }, new Date(made.getTime() + 600_000)), false, "only ringing rows");
+  assert.equal(inviteRangOut({ status: "ringing" }, new Date(made.getTime() + 600_000)), false, "no createdAt, no verdict");
+  // A conference claim the process died holding is released after a minute.
+  assert.equal(pendingConferenceStale("pending:c1", made, new Date(made.getTime() + PENDING_CONFERENCE_MAX_MS)), true);
+  assert.equal(pendingConferenceStale("pending:c1", made, new Date(made.getTime() + 10_000)), false, "a claim in flight is left alone");
+  assert.equal(pendingConferenceStale("conf-real", made, new Date(made.getTime() + 600_000)), false, "a real conference is never a stale claim");
+  assert.equal(pendingConferenceStale(null, made, new Date(made.getTime() + 600_000)), false);
 }
 
 // ── client_state carries the participant ────────────────────────────────────

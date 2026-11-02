@@ -142,6 +142,9 @@ export default function PublicEstimateForm({
       /* ignore */
     }
     const onMsg = (e: MessageEvent) => {
+      // Only the page that embeds us may say where the lead came from (its
+      // origin can't be known up front, so the source window is the check).
+      if (window.parent === window || e.source !== window.parent) return;
       const d = e.data as { type?: string; href?: string } | null;
       if (d && d.type === "jobflow:page" && typeof d.href === "string" && /^https?:\/\//.test(d.href)) setPage(d.href.slice(0, 300));
     };

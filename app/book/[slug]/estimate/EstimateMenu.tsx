@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Calculator, ChevronRight } from "lucide-react";
 import type { ScheduleAppearance } from "../schedule/shell";
 import { embedAccent, embedWash } from "@/lib/embed-style";
+import { withEmbedQuery } from "@/lib/embed-query";
 
 export type EstimateMenuItem = { id: string; slug: string; heading: string; description: string | null; showPrice: "exact" | "range" | "hidden" };
 
@@ -11,11 +12,14 @@ export default function EstimateMenu({
   tools,
   appearance,
   hrefBase = `/book/${companySlug}`,
+  hrefQuery = "",
 }: {
   companySlug: string;
   tools: EstimateMenuItem[];
   appearance: ScheduleAppearance;
   hrefBase?: string;
+  /** Inside an embed: the frame's own query (?theme/?match…, lib/embed-query.ts) every row carries along. */
+  hrefQuery?: string;
 }) {
   if (tools.length === 0) return null;
   const { dark, accent: savedAccent, transparent } = appearance;
@@ -27,7 +31,7 @@ export default function EstimateMenu({
       {tools.map((t) => (
         <Link
           key={t.id}
-          href={`${hrefBase}/estimate/${t.slug}`}
+          href={withEmbedQuery(`${hrefBase}/estimate/${t.slug}`, hrefQuery)}
           className={`${card} flex items-center gap-4 rounded-lg p-4 transition-opacity hover:opacity-90 ${dark ? "border-white/10" : ""}`}
           style={transparent ? { borderColor: embedWash(savedAccent, 33) } : undefined}
         >

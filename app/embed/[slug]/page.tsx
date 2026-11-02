@@ -7,6 +7,7 @@ import EmbedAutoResize from "./EmbedAutoResize";
 import EmbedScheduleShell from "./schedule/EmbedScheduleShell";
 import EstimateMenu from "@/app/book/[slug]/estimate/EstimateMenu";
 import { publicEstimatorsFor } from "@/lib/estimator-server";
+import { embedQuery } from "@/lib/embed-query";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -25,13 +26,17 @@ export default async function EmbedBookingPage({ params, searchParams }: { param
   const page = await loadBookingPage(slug, { overrides: sp });
   if (!page) notFound();
   const estimateTools = await publicEstimatorsFor(page.company.id);
+  // Every in-frame link keeps the placement's own query (?theme / ?match=0 …)
+  const hrefQuery = embedQuery(sp as Record<string, string | string[] | undefined>);
+  // A renamed business: snippets copied with an earlier slug filter the resize message on it
+  const previousSlugs = [page.company.slug, ...(page.company.previousSlugs ?? [])];
   if (page.menu.length === 1 && estimateTools.length === 0) {
     const item = await loadBookingItem(slug, page.menu[0].slug, { overrides: sp });
     if (item) {
       return (
         <>
           {/* legacy resize key: the default form's snippet listens for the bare company slug */}
-          <EmbedAutoResize slug={slug} />
+          <EmbedAutoResize slug={slug} previousSlugs={previousSlugs} />
           <ItemView companySlug={slug} itemSlug={item.pub.slug} searchParams={sp} loaded={item} embed />
         </>
       );
@@ -39,12 +44,14 @@ export default async function EmbedBookingPage({ params, searchParams }: { param
   }
   return (
     <EmbedScheduleShell appearance={page.appearance}>
-      <EmbedAutoResize slug={slug} />
-      {(page.menu.length > 0 || estimateTools.length === 0) && <ScheduleMenu companySlug={slug} types={page.menu} appearance={page.appearance} hrefBase={`/embed/${slug}`} />}
+      <EmbedAutoResize slug={slug} previousSlugs={previousSlugs} />
+      {(page.menu.length > 0 || estimateTools.length === 0) && (
+        <ScheduleMenu companySlug={slug} types={page.menu} appearance={page.appearance} hrefBase={`/embed/${slug}`} hrefQuery={hrefQuery} />
+      )}
       {estimateTools.length > 0 && (
         <div className={page.menu.length > 0 ? "mt-6" : ""}>
           {page.menu.length > 0 && <p className={`mb-2 text-xs font-semibold uppercase tracking-wide ${page.appearance.dark ? "text-gray-500" : "text-gray-400"}`}>Instant estimates</p>}
-          <EstimateMenu companySlug={slug} tools={estimateTools} appearance={page.appearance} hrefBase={`/embed/${slug}`} />
+          <EstimateMenu companySlug={slug} tools={estimateTools} appearance={page.appearance} hrefBase={`/embed/${slug}`} hrefQuery={hrefQuery} />
         </div>
       )}
     </EmbedScheduleShell>

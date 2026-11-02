@@ -147,6 +147,25 @@ const rateLimits: { match: (path: string) => boolean; max: number; windowMs: num
     name: "site-chat",
   },
   {
+    // The embedded estimator prices live: one POST to …/calc per answer
+    // change, so a visitor working through a form makes dozens. The route
+    // keeps its own per-IP budget (400 per 10 min) — this just keeps it out
+    // of the strangers' bucket below, where the 11th change was a 429.
+    match: (p) => p.startsWith("/api/public/estimate/"),
+    max: 600,
+    windowMs: 60 * 60_000,
+    name: "public-estimate",
+  },
+  {
+    // Booking and request submits: an office or a household behind one NAT
+    // books more than ten times an hour on a busy day. Still cold inbound,
+    // so bounded; the captcha + honeypot do the spam work.
+    match: (p) => p.startsWith("/api/public/schedule/") || p.startsWith("/api/public/book/"),
+    max: 30,
+    windowMs: 60 * 60_000,
+    name: "public-booking",
+  },
+  {
     // Cold inbound from strangers: booking forms, lead webhooks, applications
     match: (p) => p.startsWith("/api/public/"),
     max: 10,
