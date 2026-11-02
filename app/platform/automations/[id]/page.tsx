@@ -24,7 +24,8 @@ export default async function AutomationPage({ params }: { params: Promise<{ id:
     take: 20,
     select: { id: true, automationId: true, event: true, entityType: true, entityId: true, status: true, detail: true, createdAt: true },
   });
-  const s = automationShape(row) as ReturnType<typeof automationShape> & { webhookUrl?: string | null };
+  const waiting = await prisma.automationJob.count({ where: { automationId: row.id, status: "waiting" } });
+  const s = automationShape(row, waiting) as ReturnType<typeof automationShape> & { webhookUrl?: string | null };
   const initial: Row = { ...s, lastRunAt: s.lastRunAt ? new Date(s.lastRunAt).toISOString() : null, updatedAt: new Date(s.updatedAt).toISOString(), webhookUrl: s.webhookUrl ?? null };
   return <Builder initial={initial} initialRuns={runs.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }))} />;
 }

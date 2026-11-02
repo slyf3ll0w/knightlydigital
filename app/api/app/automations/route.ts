@@ -3,7 +3,7 @@ import { checkFeature } from "@/lib/plan-gate";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { AUTOMATION_LIMITS, compileAutomation } from "@/lib/automations";
-import { AUTOMATION_SELECT, automationShape as shape, mintWebhookToken } from "@/lib/automations-server";
+import { AUTOMATION_SELECT, automationShape as shape, mintWebhookToken, waitingCounts } from "@/lib/automations-server";
 
 /**
  * Automations (docs/plans/automations-builder-2026-09-24.md). Managers only.
@@ -20,7 +20,8 @@ export async function GET() {
   if (!gate.ok) return gate.response;
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const rows = await prisma.automation.findMany({ where: { companyId: actor.companyId }, select: AUTOMATION_SELECT, orderBy: [{ isActive: "desc" }, { name: "asc" }] });
-  return NextResponse.json(rows.map(shape));
+  const waiting = await waitingCounts(rows.map((r) => r.id));
+  return NextResponse.json(rows.map((r) => shape(r, waiting.get(r.id) ?? 0)));
 }
 
 export async function POST(req: NextRequest) {

@@ -37,6 +37,7 @@ import {
   type TemplatePart,
   type Value,
 } from "./estimator";
+import { inSmsQuietHours, smsQuietHoursEnd } from "./reminder-stage";
 
 export const AUTOMATION_LIMITS = {
   /** Real actions per rule (filters and waits don't count). */
@@ -914,6 +915,51 @@ export function renderAction(compiled: CompiledAutomation, index: number, ctx: A
   const evalCtx: EvalCtx = { vars: vars(compiled, ctx), priceBook: EMPTY_BOOK };
   for (const [key, parts] of Object.entries(compiled.templates[index] ?? {})) out[key] = renderTemplate(parts, evalCtx);
   return out;
+}
+
+// ── engine rules (pure, so scripts/test-automations.ts covers them) ──────────
+
+/** Fields that read the clock, not the record: a filter on them can pass later even when nothing about the record changes. */
+export const TIME_FIELDS: ReadonlySet<string> = new Set(["now_hour", "now_weekday", "today"]);
+
+/**
+ * Sweep triggers re-read their candidates every hour, so a miss on the
+ * leading filter is only final when it is about the RECORD. One that reads
+ * the clock ("only between 9 and 17", "only on a weekday") is a timing miss:
+ * the engine must leave the record eligible and look again next tick instead
+ * of keeping a "conditions not met" claim that retires it for good (an
+ * invoice that crossed day 7 at the 02:00 tick never got its 9-to-5 text).
+ * Event triggers fire once at the moment of the event, so for them every
+ * miss is final.
+ */
+export function sweepMissIsTransient(compiled: CompiledAutomation): boolean {
+  if (TRIGGERS[compiled.spec.trigger.event].kind !== "sweep") return false;
+  const first = compiled.spec.steps[0];
+  const node = first?.type === "filter" ? compiled.filters[0] : null;
+  if (!node) return false;
+  for (const name of identifiersIn(node)) if (TIME_FIELDS.has(name)) return true;
+  return false;
+}
+
+/**
+ * Whether an edit changes what a parked run would do when it wakes: the
+ * steps, or the kind of record they run on. A rename, a new description,
+ * a pause/resume, or a trigger tweak that keeps the same record kind (5
+ * days → 7 days) leaves runs waiting at a wait step alone.
+ */
+export function stepsChanged(prev: AutomationSpec | null, next: AutomationSpec): boolean {
+  if (!prev) return true;
+  if (triggerEntity(prev.trigger) !== triggerEntity(next.trigger)) return true;
+  return JSON.stringify(prev.steps) !== JSON.stringify(next.steps);
+}
+
+/**
+ * When a text step that lands in the company's quiet hours (9 PM–8 AM local,
+ * the same rule the built-in reminders follow) should run instead: 8 AM that
+ * morning or the next. null = not quiet, send now.
+ */
+export function textDeferUntil(now: Date, timeZone: string): Date | null {
+  return inSmsQuietHours(now, timeZone) ? smsQuietHoursEnd(now, timeZone) : null;
 }
 
 // ── Atlas's reference card ───────────────────────────────────────────────────

@@ -746,11 +746,14 @@ export function TestModal({ open, onClose, result, loading }: { open: boolean; o
 
 /* ── run history + webhook url (builder side column) ────────────────────── */
 
-export function RunHistory({ runs, onRefresh, loading }: { runs: Run[]; onRefresh?: () => void; loading?: boolean }) {
+export function RunHistory({ runs, onRefresh, loading, waiting = 0 }: { runs: Run[]; onRefresh?: () => void; loading?: boolean; waiting?: number }) {
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Run history</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+          Run history
+          {waiting > 0 && <span className="ml-2 normal-case tracking-normal text-[color:var(--ds-warn)]">{waiting} waiting</span>}
+        </p>
         {onRefresh && (
           <button type="button" onClick={onRefresh} className="text-[11px] text-gray-500 hover:text-gray-800">{loading ? "…" : "Refresh"}</button>
         )}

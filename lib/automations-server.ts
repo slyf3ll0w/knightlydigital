@@ -19,6 +19,7 @@ import {
   renderAction,
   specFromJson,
   stepLabel,
+  sweepMissIsTransient,
   triggerEntity,
   TRIGGERS,
   type AutomationSpec,
@@ -28,7 +29,7 @@ import {
   type TriggerName,
 } from "./automations";
 import { baseUrl, loadContext, type Loaded } from "./automations-context";
-import { runAction, type AutomationRow } from "./automations-actions";
+import { runAction, textHoldUntil, type AutomationRow } from "./automations-actions";
 
 /**
  * The engine behind automations (lib/automations.ts has the spec, this
@@ -59,8 +60,20 @@ import { runAction, type AutomationRow } from "./automations-actions";
 
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
+/** A run still "running" this long after it started was cut off (a restart mid-run); the reaper closes it. */
+const STUCK_RUN_MS = 30 * 60_000;
 
 export { loadContext } from "./automations-context";
+
+/** "8:00 AM" in the company's zone, for a run line. */
+function clockLabel(at: Date, tz: string): string {
+  return at.toLocaleTimeString("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit" });
+}
+
+/** Did any action in these run lines actually do something (not skip, wait, or fail)? */
+function linesActed(lines: string[]): boolean {
+  return lines.some((l) => l.split(" · ").some((seg) => /^[a-z_]+: /.test(seg) && !/^[a-z_]+: (skipped|waiting|failed)/.test(seg)));
+}
 
 // ── firing ───────────────────────────────────────────────────────────────────
 
@@ -81,6 +94,7 @@ async function runSteps(
   lines: string[]
 ): Promise<{ status: RunStatus; lines: string[]; waitUntil?: Date; nextStep?: number }> {
   let failed = false;
+  let skipped = false;
   for (let i = start; i < compiled.spec.steps.length; i++) {
     const step = compiled.spec.steps[i];
     if (step.type === "filter") {
@@ -100,17 +114,28 @@ async function runSteps(
       lines.push(`waiting ${step.amount} ${step.unit}`);
       return { status: "waiting", lines, waitUntil: new Date(now.getTime() + ms), nextStep: i + 1 };
     }
+    // A text inside quiet hours is parked like a wait step and this SAME
+    // step runs again at 8 AM (nextStep: i), on a fresh reload of the record
+    const hold = await textHoldUntil(step, loaded, now).catch(() => null);
+    if (hold) {
+      lines.push(`${step.type}: waiting for ${clockLabel(hold, loaded.company.timezone ?? "America/Chicago")} — no texts 9 PM–8 AM`);
+      return { status: "waiting", lines, waitUntil: hold, nextStep: i };
+    }
     try {
       const r = await runAction(automation, compiled, i, loaded, now);
       lines.push(`${step.type}: ${r}`);
       if (r.startsWith("failed")) failed = true;
+      else if (r.startsWith("skipped")) skipped = true;
     } catch (err) {
       failed = true;
       lines.push(`${step.type}: failed — ${err instanceof Error ? err.message : "error"}`);
       reportError(`[automations] ${automation.name} step ${i} threw`, err);
     }
   }
-  return { status: failed ? "failed" : "ok", lines };
+  // A run whose every action stepped aside did nothing: say so instead of a green "ok"
+  if (failed) return { status: "failed", lines };
+  if (skipped && !linesActed(lines)) return { status: "skipped", lines };
+  return { status: "ok", lines };
 }
 
 /** Run one automation against one entity once. Returns the run status. */
@@ -136,26 +161,44 @@ async function fireOne(
   now: Date,
   payload: Record<string, unknown> | null = null
 ): Promise<RunStatus> {
-  const already = await prisma.automationRun.findFirst({ where: { automationId: automation.id, entityId, event }, select: { id: true } });
-  if (already) return "skipped";
   // Claim the (automation, entity, event) slot BEFORE doing anything, so an
-  // overlapping sweep tick sees the row and steps aside instead of sending
-  // the client a second email
-  const run = await prisma.automationRun.create({ data: { automationId: automation.id, companyId: automation.companyId, event, entityType, entityId, status: "running", detail: "" } });
+  // overlapping delivery (a double-submit, a webhook retry landing on a cron
+  // tick) sees the row and steps aside instead of sending the client a
+  // second email. AutomationRun has no unique key, so the check-then-insert
+  // runs under a transaction-scoped advisory lock on the same key: two
+  // attempts milliseconds apart serialize, and the second finds the claim.
+  const run = await prisma.$transaction(async (tx) => {
+    const key = `${automation.id}:${event}:${entityId}`;
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${key}))`;
+    const already = await tx.automationRun.findFirst({ where: { automationId: automation.id, entityId, event }, select: { id: true } });
+    if (already) return null;
+    return tx.automationRun.create({ data: { automationId: automation.id, companyId: automation.companyId, event, entityType, entityId, status: "running", detail: "" } });
+  });
+  if (!run) return "skipped";
   const record = (status: RunStatus, detail: string) => prisma.automationRun.update({ where: { id: run.id }, data: { status, detail: detail.slice(0, 1000) } });
+  // A sweep looks at its candidates again next hour, so a miss that is about
+  // the clock (the daily cap, a "only between 9 and 17" filter) must not
+  // retire the record: the claim is withdrawn and the sweep tries again.
+  // Event triggers keep their one-shot claim either way.
+  const isSweep = TRIGGERS[event].kind === "sweep";
+  const withdraw = () => prisma.automationRun.delete({ where: { id: run.id } }).catch(() => {});
 
   const okToday = await prisma.automationRun.count({ where: { companyId: automation.companyId, status: "ok", createdAt: { gte: new Date(now.getTime() - DAY) } } });
   if (okToday >= AUTOMATION_LIMITS.dailyRuns) {
-    await record("skipped", `daily cap of ${AUTOMATION_LIMITS.dailyRuns} runs reached`);
+    if (isSweep) await withdraw();
+    else await record("skipped", `daily cap of ${AUTOMATION_LIMITS.dailyRuns} runs reached`);
     return "skipped";
   }
 
   // The leading filter is the common "doesn't apply" case — the claim row is
   // kept (it is the dedupe key) but marked quietly; a broken expression is
-  // recorded as failed so the owner can see it
+  // recorded as failed so the owner can see it. A sweep whose filter reads
+  // the clock gets no claim at all: the record stays eligible for the next
+  // tick (sweepMissIsTransient).
   const verdict = evaluateWhen(compiled, loaded.ctx);
   if (!verdict.fire) {
-    await record(verdict.error ? "failed" : "skipped", verdict.error ? `condition error: ${verdict.error}` : "conditions not met");
+    if (!verdict.error && sweepMissIsTransient(compiled)) await withdraw();
+    else await record(verdict.error ? "failed" : "skipped", verdict.error ? `condition error: ${verdict.error}` : "conditions not met");
     return "skipped";
   }
   const start = compiled.spec.steps[0]?.type === "filter" ? 1 : 0;
@@ -459,6 +502,15 @@ const AUTOMATION_ROW_SELECT = { id: true, companyId: true, name: true, createdBy
 export async function runAutomationSweeps(now = new Date()): Promise<{ automations: number; fired: number; errors: number }> {
   // Bell-feed notices older than the feed window are dead weight
   await prisma.automationNotice.deleteMany({ where: { createdAt: { lt: new Date(now.getTime() - 30 * DAY) } } }).catch(() => {});
+  // Reaper: a run the server died under (a deploy mid-run) stays "running"
+  // forever otherwise. It keeps its claim — whatever it sent before the cut
+  // must not be sent again — but the log says what happened.
+  await prisma.automationRun
+    .updateMany({
+      where: { status: "running", createdAt: { lt: new Date(now.getTime() - STUCK_RUN_MS) } },
+      data: { status: "failed", detail: "failed: the run was cut off (the server restarted while it was running); steps it had not reached did not run" },
+    })
+    .catch((err) => reportError("[automations] reaper failed", err));
   const sweepNames = (Object.keys(TRIGGERS) as TriggerName[]).filter((t) => TRIGGERS[t].kind === "sweep");
   const rows = await prisma.automation.findMany({
     where: { isActive: true, OR: sweepNames.map((e) => ({ spec: { path: ["trigger", "event"], equals: e } })) },
@@ -501,7 +553,13 @@ function isoWeek(y: number, m: number, d: number): string {
   return `${date.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
-/** Hourly: "every day at 8am" / "every Monday at 7am" rules whose hour is now, in the company's zone. */
+/**
+ * Hourly: "every day at 8am" / "every Monday at 7am" rules whose hour has
+ * come, in the company's zone. Tolerant of a late or skipped cron tick: the
+ * rule fires on the first tick at or after its hour that day (the day/week
+ * key is the dedupe, so it still fires once), instead of only on the tick
+ * whose hour matches exactly.
+ */
 export async function runScheduledAutomations(now = new Date()): Promise<{ automations: number; fired: number; errors: number }> {
   const rows = await prisma.automation.findMany({ where: { isActive: true, spec: { path: ["trigger", "event"], equals: "schedule.tick" } }, select: AUTOMATION_ROW_SELECT });
   let fired = 0;
@@ -513,10 +571,12 @@ export async function runScheduledAutomations(now = new Date()): Promise<{ autom
     if (!sc) continue;
     const tz = row.company.timezone ?? "America/Chicago";
     const p = zonedParts(tz, now);
-    if (p.hour !== sc.hour) continue;
+    if (p.hour < sc.hour) continue;
     if (sc.every === "week" && p.weekday !== (sc.weekday ?? 1)) continue;
     const key = sc.every === "week" ? isoWeek(p.y, p.m, p.d) : `${p.y}-${String(p.m).padStart(2, "0")}-${String(p.d).padStart(2, "0")}`;
     const entityId = `${row.companyId}:${key}`;
+    // Already fired (or decided) for this day/week: skip the context load, fireOne would only refuse the claim
+    if (await prisma.automationRun.findFirst({ where: { automationId: row.id, event: "schedule.tick", entityId }, select: { id: true } })) continue;
     try {
       const loaded = await loadContext(row.companyId, "company", entityId, now);
       if (!loaded) continue;
@@ -732,8 +792,15 @@ export function webhookUrlFor(token: string | null | undefined): string | null {
   return token ? `${baseUrl()}/api/public/automations/${token}` : null;
 }
 
+/** Runs parked at a wait step (or a quiet-hours text), per automation, for the list and the builder. */
+export async function waitingCounts(automationIds: string[]): Promise<Map<string, number>> {
+  if (automationIds.length === 0) return new Map();
+  const rows = await prisma.automationJob.groupBy({ by: ["automationId"], where: { automationId: { in: automationIds }, status: "waiting" }, _count: { _all: true } });
+  return new Map(rows.map((r) => [r.automationId, r._count._all]));
+}
+
 /** API shape for a stored automation (routes + pages). */
-export function automationShape(r: { id: string; name: string; description: string | null; spec: unknown; isActive: boolean; runs: number; lastRunAt: Date | null; updatedAt: Date; webhookToken?: string | null }) {
+export function automationShape(r: { id: string; name: string; description: string | null; spec: unknown; isActive: boolean; runs: number; lastRunAt: Date | null; updatedAt: Date; webhookToken?: string | null }, waiting = 0) {
   const spec = specFromJson(r.spec);
   return {
     id: r.id,
@@ -743,6 +810,8 @@ export function automationShape(r: { id: string; name: string; description: stri
     runs: r.runs,
     lastRunAt: r.lastRunAt,
     updatedAt: r.updatedAt,
+    /** Runs parked at a wait step, waking later. */
+    waiting,
     spec,
     entity: spec ? triggerEntity(spec.trigger) : null,
     summary: spec ? describeAutomation(spec) : null,

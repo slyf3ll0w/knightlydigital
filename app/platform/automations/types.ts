@@ -8,6 +8,8 @@ export type Row = {
   isActive: boolean;
   runs: number;
   lastRunAt: string | null;
+  /** Runs parked at a wait step (or a quiet-hours text), waking later. */
+  waiting?: number;
   updatedAt: string;
   spec: AutomationSpec | null;
   summary: Described | null;

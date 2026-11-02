@@ -8,6 +8,7 @@ import { KIND_META } from "@/lib/booking-types";
 import { isSlotRace, notifyBooking, SlotTakenError, verifySlotPick, withinCutoff } from "@/lib/booking-submit";
 import { resolveArrivalWindowMinutes } from "@/lib/arrival-window";
 import { rescheduleReminderStamps } from "@/lib/reminder-stage";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * Customer self-serve for an online booking, keyed by the unguessable
@@ -133,6 +134,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       windowEnd: prevWindowEnd,
       event: "cancelled",
     });
+    // Same event the in-app Cancel fires (appointments/[id] PATCH)
+    fireAutomations(company.id, "appointment.cancelled", appt.id);
     return NextResponse.json({ success: true, status: "CANCELLED" });
   }
 
@@ -201,6 +204,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       previousStart: prevStart,
       previousWindowEnd: prevWindowEnd,
     });
+    fireAutomations(company.id, "appointment.rescheduled", appt.id);
     return NextResponse.json({
       success: true,
       start: slot.start.toISOString(),
