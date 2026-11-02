@@ -218,7 +218,7 @@ export default function CallScreenLive({
   const [pad, setPad] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const [muted, setMuted] = useState<Set<string>>(() => new Set());
+  const [muted, setMuted] = useState<Set<string>>(() => new Set(initialPeople.participants.filter((p) => p.muted).map((p) => p.id)));
   const [peopleError, setPeopleError] = useState("");
   /** "End for everyone" asks for a second tap within a few seconds. */
   const [confirmEnd, setConfirmEnd] = useState(false);
@@ -243,7 +243,12 @@ export default function CallScreenLive({
         const res = await fetch(`/api/app/line/softphone/call?id=${encodeURIComponent(callId)}`, { cache: "no-store" });
         const j = (await res.json()) as { call?: { status: Status; answeredAt: string | null; people?: CallPeopleView } | null };
         if (stop || !j.call) return;
-        if (j.call.people) setPeople(j.call.people);
+        if (j.call.people) {
+          setPeople(j.call.people);
+          // The server remembers who is muted (lib/voice.ts): follow it so a
+          // reload or a second viewer shows the same state
+          setMuted(new Set(j.call.people.participants.filter((p) => p.muted).map((p) => p.id)));
+        }
         if (j.call.status !== row.status || j.call.answeredAt !== row.answeredAt) {
           setRow({ status: j.call.status, answeredAt: j.call.answeredAt });
           if (!LIVE.has(j.call.status)) router.refresh();

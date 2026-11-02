@@ -158,11 +158,25 @@ async function handleTransfer(transferId: string) {
     entityType: "invoice",
     entityId: payment.invoiceId,
     action: "payment_returned",
-    detail: `${Number(payment.amount).toFixed(2)} ${payment.method} payment ${transfer.id} was returned by the bank — removed from invoice #${payment.invoice?.invoiceNumber ?? ""}`,
+    detail: `${Number(payment.amount).toFixed(2)} ${payment.method} payment ${transfer.id} was returned by the bank — marked returned on invoice #${payment.invoice?.invoiceNumber ?? ""}`,
   });
 
   await prisma.$transaction(async (tx) => {
-    await tx.payment.delete({ where: { id: payment.id } });
+    await tx.payment.update({
+      where: { id: payment.id },
+      data: {
+        // The row stays as the ledger entry (readiness review 2026-11-02, S2):
+        // amount 0 so every balance reopens, the original amount and the
+        // date on the row, the fee and cost estimates cleared
+        amount: 0,
+        surchargeAmount: null,
+        feeCents: payment.feeCents == null ? null : 0,
+        estCostCents: payment.estCostCents == null ? null : 0,
+        returnedAt: new Date(),
+        returnedAmount: payment.amount,
+        details: `${payment.details ?? "Online payment"} · Returned by the bank`,
+      },
+    });
     await recomputeInvoiceStatus(tx, payment.invoiceId);
     // A subscription invoice reopened this way would otherwise sit with no
     // retry booked (the successful charge cleared autoChargeNextAt) — autopay

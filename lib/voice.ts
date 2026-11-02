@@ -437,6 +437,7 @@ const participantSelect = {
   addedByUserId: true,
   joinedAt: true,
   leftAt: true,
+  muted: true,
   createdAt: true,
 } as const;
 
@@ -452,6 +453,7 @@ type ParticipantRow = {
   addedByUserId: string;
   joinedAt: Date | null;
   leftAt: Date | null;
+  muted: boolean;
   createdAt: Date;
 };
 
@@ -1652,6 +1654,8 @@ export type ParticipantView = {
   number: string | null;
   joinedAt: string | null;
   leftAt: string | null;
+  /** Muted in the mix — the same for every viewer and across reloads (persisted 2026-11-02). */
+  muted: boolean;
 };
 
 export type CallPeopleView = {
@@ -1673,6 +1677,7 @@ const participantView = (p: ParticipantRow): ParticipantView => ({
   number: p.number,
   joinedAt: p.joinedAt?.toISOString() ?? null,
   leftAt: p.leftAt?.toISOString() ?? null,
+  muted: p.muted,
 });
 
 /** The call screen's view of who is on a call (GET /api/app/line/softphone/call). */
@@ -2099,6 +2104,8 @@ export async function muteParticipant(companyId: string, callId: string, actor: 
     const detail = err instanceof TelnyxError ? err.detail : "unknown error";
     throw new VoiceError(`Telnyx couldn't ${mute ? "mute" : "unmute"} them: ${detail}`, 424);
   }
+  // Remembered on the row, so a reload and every other viewer see the same state
+  await prisma.callParticipant.update({ where: { id: row.id }, data: { muted: mute } }).catch((e) => reportError("[voice] mute state save failed", row.id, e));
   return { muted: mute };
 }
 

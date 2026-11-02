@@ -42,6 +42,8 @@ export type PlanSeriesLike = {
   /** What the price-book item sells (WorkItem.planProduct); null = not a plan series. */
   product: string | null;
   createdAt: Date;
+  /** When the series bills next (a deferred downgrade starts here). */
+  nextRunAt?: Date | null;
   invoices: readonly PlanInvoiceLike[];
 };
 
@@ -63,6 +65,8 @@ export type PlanRow = {
   priceCents: number;
   quantity: number;
   startedAt: Date;
+  /** The series' next billing date (a PENDING row waiting to start shows it). */
+  nextRunAt: Date | null;
 };
 
 export function addInterval(date: Date, interval: SeriesInterval | null): Date {
@@ -117,6 +121,7 @@ export function reduceSeries(s: PlanSeriesLike, now: Date = new Date()): PlanRow
     priceCents: Math.round(s.unitPrice * 100) * (qty || 1),
     quantity: qty || 1,
     startedAt: s.createdAt,
+    nextRunAt: s.nextRunAt ?? null,
   };
 }
 
@@ -133,24 +138,35 @@ export function sumEntitlements(rows: readonly Pick<PlanRow, "product" | "entitl
   return { paidPlans: order.filter((p) => plans.has(p)), paidSeats: seats };
 }
 
+/** A deferred downgrade bills this long before the bigger plan runs out, so the gates never flicker in between. */
+export const DOWNGRADE_LEAD_MS = 2 * 60 * 60_000;
+
 /**
  * Which live plan series a new product makes redundant. Buying Max ends the
  * Voice / Pro series it covers (they run to the end of what was paid);
- * buying the same product on a new term ends the old term's series; buying
- * Voice or Pro while on Max is nothing to do.
+ * buying the same product on a new term ends the old term's series. Buying
+ * Voice or Pro while on Max is a DOWNGRADE: Max runs to the end of what was
+ * paid and the smaller plan starts then (`startAt`, nothing charged today) —
+ * in-app since 2026-11-02; it used to answer "already on it".
  */
 export function planChange(
-  rows: readonly Pick<PlanRow, "id" | "product" | "cadence" | "entitled" | "status">[],
-  want: { product: BillingProduct; cadence: BillingCadence }
-): { cancel: string[]; already: boolean } {
+  rows: readonly Pick<PlanRow, "id" | "product" | "cadence" | "entitled" | "status" | "paidThrough">[],
+  want: { product: BillingProduct; cadence: BillingCadence },
+  now: Date = new Date()
+): { cancel: string[]; already: boolean; startAt: Date | null } {
   const live = rows.filter((r) => r.entitled && r.status !== "CANCELLED" && r.product !== "SEAT");
   const same = live.find((r) => r.product === want.product);
-  if (same && same.cadence === want.cadence) return { cancel: [], already: true };
-  if (same) return { cancel: [same.id], already: false };
+  if (same && same.cadence === want.cadence) return { cancel: [], already: true, startAt: null };
+  if (same) return { cancel: [same.id], already: false, startAt: null };
   if (want.product === "FULL_SHOP") {
     const covered = live.filter((r) => productPlans(want.product).includes(r.product as PlanId));
-    return { cancel: covered.map((r) => r.id), already: false };
+    return { cancel: covered.map((r) => r.id), already: false, startAt: null };
   }
-  if (live.some((r) => r.product === "FULL_SHOP")) return { cancel: [], already: true };
-  return { cancel: [], already: false };
+  // On Max (live, or cancelled but still paid up): the smaller plan waits for it
+  const max = rows.find((r) => r.product === "FULL_SHOP" && r.entitled);
+  if (max && productPlans("FULL_SHOP").includes(want.product as PlanId)) {
+    const at = max.paidThrough ? new Date(Math.max(now.getTime(), max.paidThrough.getTime() - DOWNGRADE_LEAD_MS)) : now;
+    return { cancel: max.status === "CANCELLED" ? [] : [max.id], already: false, startAt: at.getTime() > now.getTime() ? at : null };
+  }
+  return { cancel: [], already: false, startAt: null };
 }

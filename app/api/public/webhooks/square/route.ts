@@ -126,10 +126,24 @@ async function handlePayment(merchantId: string, paymentId: string) {
     entityType: "invoice",
     entityId: row.invoiceId,
     action: "payment_returned",
-    detail: `$${Number(row.amount).toFixed(2)} ${row.method} payment ${payment.id} was returned by the bank (${payment.status}) — removed from invoice #${row.invoice?.invoiceNumber ?? ""}${row.surchargeAmount ? `, incl. $${Number(row.surchargeAmount).toFixed(2)} service fee` : ""}`,
+    detail: `${Number(row.amount).toFixed(2)} ${row.method} payment ${payment.id} was returned by the bank (${payment.status}) — marked returned on invoice #${row.invoice?.invoiceNumber ?? ""}${row.surchargeAmount ? `, incl. ${Number(row.surchargeAmount).toFixed(2)} service fee` : ""}`,
   });
   await prisma.$transaction(async (tx) => {
-    await tx.payment.delete({ where: { id: row.id } });
+    await tx.payment.update({
+      where: { id: row.id },
+      data: {
+        // The row stays as the ledger entry (readiness review 2026-11-02, S2):
+        // amount 0 so every balance reopens, the original amount and the
+        // date on the row, the fee and cost estimates cleared
+        amount: 0,
+        surchargeAmount: null,
+        feeCents: row.feeCents == null ? null : 0,
+        estCostCents: row.estCostCents == null ? null : 0,
+        returnedAt: new Date(),
+        returnedAmount: row.amount,
+        details: `${row.details ?? "Online payment"} · Returned by the bank`,
+      },
+    });
     await recomputeInvoiceStatus(tx, row.invoiceId);
     if (row.invoice?.subscriptionId && row.details?.startsWith("Auto-charged")) {
       await tx.invoice.update({

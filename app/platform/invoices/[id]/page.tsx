@@ -450,9 +450,10 @@ export default async function InvoiceDetailPage({
                     paidAtLabel: shortDate(p.paidAt, tz),
                     referenceNumber: p.referenceNumber ?? "",
                     details: p.details ?? "",
+                    returnedAmount: p.returnedAt ? Number(p.returnedAmount ?? 0) : null,
                   }}
                   canDelete={isManager(actor.role) && !holdsMoney}
-                  canRefund={isManager(actor.role) && online}
+                  canRefund={isManager(actor.role) && online && !p.returnedAt}
                   isOnline={online}
                 />
               );

@@ -298,6 +298,9 @@ function PlanCardView({
   const failing = Boolean(sub?.failing);
   const isMax = plan.product === "FULL_SHOP";
   const maxOn = state.plans.find((p) => p.product === "FULL_SHOP")?.on;
+  const maxEnds = state.plans.find((p) => p.product === "FULL_SHOP")?.subscription?.chargedThrough ?? null;
+  // A downgrade from Max already queued: this plan starts the day Max runs out
+  const waiting = Boolean(sub && sub.status === "PENDING" && sub.startsAt && !sub.entitled);
   const shown = more ? plan.includes : plan.includes.slice(0, 4);
   const setupDue = state.setupFee.due && (plan.product === "DISPATCH" || isMax);
   const partOfMax = !isMax && maxOn && plan.on;
@@ -306,12 +309,28 @@ function PlanCardView({
   if (!plan.sellable) status = { tone: "warn", text: "Coming soon" };
   else if (failing) status = { tone: "bad", text: "Card failing" };
   else if (ending) status = { tone: "warn", text: `Ends ${shortDate(sub!.canceledAt)}` };
+  else if (waiting) status = { tone: "primary", text: `Starts ${shortDate(sub!.startsAt)}` };
   else if (plan.on && plan.source === "grant") status = { tone: "good", text: "Included" };
   else if (plan.on && plan.source === "livery") status = { tone: "good", text: "On · previous billing" };
   else if (plan.on) status = { tone: "good", text: "On" };
 
   let action: React.ReactNode = null;
   if (!plan.sellable) action = null;
+  else if (waiting)
+    action = (
+      <Button variant="ghost" size="sm" disabled={!canAct || busy !== null} loading={busy === `cancel${sub!.id}`} onClick={onCancel}>
+        Don't switch
+      </Button>
+    );
+  else if (partOfMax && !state.plans.some((p) => p.product !== "FULL_SHOP" && p.subscription?.status === "PENDING" && p.subscription.startsAt))
+    action = (
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="ds-small">Part of Max</span>
+        <Button variant="outline" size="sm" disabled={!canAct || !plan.available[cadence] || busy !== null} onClick={onAdd}>
+          Switch down to {plan.name}
+        </Button>
+      </div>
+    );
   else if (partOfMax) action = <span className="ds-small">Part of Max</span>;
   else if (plan.on && plan.source === "grant") action = <span className="ds-small">Included with your account</span>;
   else if (plan.on && plan.source === "livery") action = <span className="ds-small">Billed through our previous system</span>;
@@ -419,16 +438,20 @@ function ActionSheet({
   if (sheet?.kind === "subscribe") {
     const { plan, cadence } = sheet;
     const swap = plan.subscription?.entitled;
-    title = swap ? `Switch ${plan.name} to ${cadence === "ANNUAL" ? "annual" : "monthly"}` : `Add ${plan.name}`;
-    const setup = state.setupFee.due && (plan.product === "DISPATCH" || plan.product === "FULL_SHOP");
+    const maxCard = state.plans.find((p) => p.product === "FULL_SHOP");
+    const downgrade = plan.product !== "FULL_SHOP" && Boolean(maxCard?.on) && !swap;
+    title = downgrade ? `Switch down to ${plan.name}` : swap ? `Switch ${plan.name} to ${cadence === "ANNUAL" ? "annual" : "monthly"}` : `Add ${plan.name}`;
+    const setup = !downgrade && state.setupFee.due && (plan.product === "DISPATCH" || plan.product === "FULL_SHOP");
     const termCents = cadence === "ANNUAL" ? plan.annualCents : plan.monthlyCents;
-    summary = `${perTerm(plan, cadence)}${cardFeeNote(state.cardFee, termCents)}${setup ? ` plus a one-time ${formatCents(state.setupFee.cents)} setup for your phone number` : ""}. ${
-      swap ? "The new term starts today; what you already paid for runs out on its own." : "Starts today; cancel any time and it runs to the end of what you paid for."
-    }`;
-    cta = swap ? "Switch" : `Start ${plan.name}`;
+    summary = downgrade
+      ? `Nothing is charged today. Max keeps working until ${maxCard?.subscription?.chargedThrough ? shortDate(maxCard.subscription.chargedThrough) : "the end of what you paid for"}; ${plan.name} then starts at ${perTerm(plan, cadence)}${cardFeeNote(state.cardFee, termCents)} and Max ends.`
+      : `${perTerm(plan, cadence)}${cardFeeNote(state.cardFee, termCents)}${setup ? ` plus a one-time ${formatCents(state.setupFee.cents)} setup for your phone number` : ""}. ${
+          swap ? "The new term starts today; what you already paid for runs out on its own." : "Starts today; cancel any time and it runs to the end of what you paid for."
+        }`;
+    cta = downgrade ? "Switch down" : swap ? "Switch" : `Start ${plan.name}`;
     action = "subscribe";
     body = { product: plan.product as BillingProduct, cadence };
-    done = swap ? `${plan.name} switched` : `${plan.name} is on`;
+    done = downgrade ? `${plan.name} starts when Max ends` : swap ? `${plan.name} switched` : `${plan.name} is on`;
   } else if (sheet?.kind === "seat") {
     title = "Add a person";
     summary = `${monthLabel(state.seats.priceCents)} per extra person${cardFeeNote(state.cardFee, state.seats.priceCents)}, billed monthly. You can remove it any time.`;

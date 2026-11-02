@@ -103,7 +103,7 @@ export default async function CallScreenPage({ params }: { params: Promise<{ id:
             telnyxCallId: true,
             addedByUserId: true,
             joinedAt: true,
-            leftAt: true,
+            leftAt: true, muted: true,
             createdAt: true,
           },
         },

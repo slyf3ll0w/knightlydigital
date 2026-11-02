@@ -673,6 +673,9 @@ export default async function PaymentsDashboardPage({
                         {p.refunds.length > 0 && (
                           <span className="text-[color:var(--ds-warn)]"> · refunded</span>
                         )}
+                        {p.returnedAt && (
+                          <span className="text-[color:var(--ds-bad)]"> · returned by the bank ({money(Number(p.returnedAmount ?? 0))})</span>
+                        )}
                       </p>
                     </div>
                     <span className="hidden lg:block text-sm text-gray-500">
@@ -685,6 +688,7 @@ export default async function PaymentsDashboardPage({
                     <span className="flex shrink-0 items-center justify-end gap-0.5">
                       {isManager(actor.role) &&
                         isOnlinePayment(p.processorRef) &&
+                        !p.returnedAt &&
                         Number(p.amount) > 0 && (
                           <RefundAction paymentId={p.id} amount={Number(p.amount)} />
                         )}
