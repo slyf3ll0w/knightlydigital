@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
         telnyxCallId: true,
         addedByUserId: true,
         joinedAt: true,
-        leftAt: true,
+        leftAt: true, muted: true,
         createdAt: true,
       },
     },

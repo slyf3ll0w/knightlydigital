@@ -32,6 +32,8 @@ export default function PaymentRow({
     paidAtLabel: string;
     referenceNumber: string;
     details: string;
+    /** A bank transfer the bank sent back: what had been credited (the row now carries $0). */
+    returnedAmount?: number | null;
   };
   canDelete: boolean;
   /** Online (processor) payments only — sends money back via the processor. */
@@ -211,6 +213,11 @@ export default function PaymentRow({
           {payment.referenceNumber && ` · Ref: ${payment.referenceNumber}`}
           {payment.details && ` · ${payment.details}`}
         </p>
+        {payment.returnedAmount != null && (
+          <p className="mt-0.5 text-xs font-medium text-[color:var(--ds-bad)]">
+            Returned by the bank — {money(payment.returnedAmount)} came back off this invoice; the row stays as the record.
+          </p>
+        )}
         {error && <p className="text-xs text-[color:var(--ds-bad)] mt-0.5">{error}</p>}
       </div>
       {/* Hover-revealed at a desk, always visible on touch — phones have no

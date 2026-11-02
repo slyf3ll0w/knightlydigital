@@ -267,6 +267,7 @@ async function collectFindings(now: Date): Promise<{
   const recentProcessorPayments = await prisma.payment.findMany({
     where: {
       processorRef: { not: null },
+      returnedAt: null,
       createdAt: { gte: new Date(now.getTime() - 7 * 86400_000) },
     },
     select: {

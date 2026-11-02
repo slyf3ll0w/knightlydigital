@@ -344,6 +344,7 @@ function toSeriesLike(s: SeriesRecord): PlanSeriesLike {
     unitPrice: Number(s.unitPrice),
     product: s.workItem?.planProduct ?? null,
     createdAt: s.createdAt,
+    nextRunAt: s.nextRunDate ?? null,
     invoices: s.invoices.map((i) => ({
       status: i.status,
       issuedAt: i.issuedAt,
@@ -580,6 +581,11 @@ export async function subscribe(params: { companyId: string; product: BillingPro
   const item = items[product];
   if (!item) throw new PlanBillingError(`${productName(product)} isn't available yet.`, 409, "NOT_AVAILABLE");
 
+  // A downgrade from Max (planChange.startAt): the new series is made now
+  // and bills when Max runs out — nothing is charged today, Max keeps
+  // working until its paid date, then the smaller plan takes over.
+  const deferred = change.startAt && change.startAt.getTime() > Date.now() ? change.startAt : null;
+
   const sub = await prisma.subscription.create({
     data: {
       companyId: platform.id,
@@ -590,12 +596,22 @@ export async function subscribe(params: { companyId: string; product: BillingPro
       unitPrice: productPriceCents(product, cadence) / 100,
       quantity: 1,
       interval: cadence === "ANNUAL" ? "ANNUAL" : "MONTHLY",
-      nextRunDate: noonToday(),
+      nextRunDate: deferred ?? noonToday(),
       invoiceMode: "SEND",
       savedCardId: card.id,
     },
     select: { id: true },
   });
+
+  if (deferred) {
+    // Max ends at its paid date (nothing to charge today); the cron bills the
+    // new series at nextRunDate and the entitlement sweep switches it on
+    const toEnd = change.cancel;
+    if (toEnd.length) await prisma.subscription.updateMany({ where: { id: { in: toEnd }, companyId: platform.id, contactId }, data: { status: "CANCELLED" } });
+    await winBillingLead(platform.id, contactId);
+    await syncPlanEntitlements(companyId);
+    return;
+  }
 
   try {
     // The plan first, the one-time setup fee after: a declined plan charge
@@ -765,6 +781,8 @@ export type SubscriptionSummary = {
   entitled: boolean;
   chargedThrough: string | null;
   canceledAt: string | null;
+  /** A plan waiting to start (a downgrade from Max): the day it bills and switches on. */
+  startsAt: string | null;
   priceCents: number;
   failing: boolean;
 };
@@ -820,6 +838,7 @@ function summarize(r: PlanRow): SubscriptionSummary {
     entitled: r.entitled,
     chargedThrough: dateOnly(r.paidThrough),
     canceledAt: r.status === "CANCELLED" ? dateOnly(r.paidThrough) : null,
+    startsAt: r.status === "PENDING" && r.nextRunAt && r.nextRunAt.getTime() > Date.now() ? dateOnly(r.nextRunAt) : null,
     priceCents: r.priceCents,
     failing: r.failing,
   };

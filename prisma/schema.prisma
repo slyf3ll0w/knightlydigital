@@ -2922,6 +2922,10 @@ model Payment {
   cardBrand       String? // VISA / MASTERCARD / AMERICAN_EXPRESS ... from the Finix payment instrument
   cardType        String? // CREDIT / DEBIT — drives the interchange cost estimate
   estCostCents    Int? // estimated buy-rate cost (interchange + Finix margin); trued up monthly via FinixCostSnapshot
+  // A bank transfer the bank sent back: the row stays as the ledger entry with amount 0 (every
+  // balance reads amount), returnedAmount = what had been credited, returnedAt = when (2026-11-02)
+  returnedAt      DateTime?
+  returnedAmount  Decimal?      @db.Decimal(10, 2)
   paidAt          DateTime      @default(now())
   createdAt       DateTime      @default(now())
 
@@ -3797,6 +3801,8 @@ model CallParticipant {
   joinedAt      DateTime?
   leftAt        DateTime?
   hangupCause   String?
+  // Muted in the conference mix (lib/voice.ts muteParticipant) — shared by every viewer of the call screen
+  muted         Boolean   @default(false)
   createdAt     DateTime  @default(now())
 
   @@index([callId])

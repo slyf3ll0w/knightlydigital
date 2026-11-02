@@ -105,13 +105,25 @@ assert.deepEqual(sumEntitlements([reduceSeries(series({ product: "FULL_SHOP", un
 });
 
 // ── What a new plan replaces ──
-const pro = { id: "p", product: "SHOP" as const, cadence: "MONTHLY" as const, entitled: true, status: "ACTIVE" as const };
-const voice = { id: "v", product: "DISPATCH" as const, cadence: "MONTHLY" as const, entitled: true, status: "ACTIVE" as const };
-assert.deepEqual(planChange([pro], { product: "SHOP", cadence: "MONTHLY" }), { cancel: [], already: true });
-assert.deepEqual(planChange([pro], { product: "SHOP", cadence: "ANNUAL" }), { cancel: ["p"], already: false }, "new term ends the old series");
-assert.deepEqual(planChange([pro, voice], { product: "FULL_SHOP", cadence: "MONTHLY" }), { cancel: ["p", "v"], already: false });
-assert.deepEqual(planChange([{ ...pro, id: "m", product: "FULL_SHOP" }], { product: "DISPATCH", cadence: "MONTHLY" }), { cancel: [], already: true });
-assert.deepEqual(planChange([{ ...pro, status: "CANCELLED" }], { product: "SHOP", cadence: "MONTHLY" }), { cancel: [], already: false }, "a cancelled series doesn't block a new one");
-assert.deepEqual(planChange([], { product: "DISPATCH", cadence: "MONTHLY" }), { cancel: [], already: false });
+const pro = { id: "p", product: "SHOP" as const, cadence: "MONTHLY" as const, entitled: true, status: "ACTIVE" as const, paidThrough: new Date("2026-11-30T12:00:00Z") };
+const voice = { id: "v", product: "DISPATCH" as const, cadence: "MONTHLY" as const, entitled: true, status: "ACTIVE" as const, paidThrough: new Date("2026-11-30T12:00:00Z") };
+assert.deepEqual(planChange([pro], { product: "SHOP", cadence: "MONTHLY" }), { cancel: [], already: true, startAt: null });
+assert.deepEqual(planChange([pro], { product: "SHOP", cadence: "ANNUAL" }), { cancel: ["p"], already: false, startAt: null }, "new term ends the old series");
+assert.deepEqual(planChange([pro, voice], { product: "FULL_SHOP", cadence: "MONTHLY" }), { cancel: ["p", "v"], already: false, startAt: null });
+{
+  // Max → Voice is a downgrade: Max is ended (runs to its paid date), Voice starts shortly before that, nothing today
+  const t0 = new Date("2026-11-02T12:00:00Z");
+  const max = { ...pro, id: "m", product: "FULL_SHOP" as const, paidThrough: new Date("2026-11-20T12:00:00Z") };
+  const down = planChange([max], { product: "DISPATCH", cadence: "MONTHLY" }, t0);
+  assert.deepEqual({ cancel: down.cancel, already: down.already }, { cancel: ["m"], already: false });
+  assert.equal(down.startAt?.toISOString(), "2026-11-20T10:00:00.000Z", "starts two hours before Max runs out");
+  const ending = planChange([{ ...max, status: "CANCELLED" as const }], { product: "SHOP", cadence: "MONTHLY" }, t0);
+  assert.deepEqual(ending.cancel, [], "an already-cancelled Max is not cancelled again");
+  assert.equal(ending.startAt?.toISOString(), "2026-11-20T10:00:00.000Z");
+  const past = planChange([{ ...max, paidThrough: new Date("2026-11-02T13:00:00Z") }], { product: "SHOP", cadence: "MONTHLY" }, t0);
+  assert.equal(past.startAt, null, "a Max running out within the lead time starts the new plan now");
+}
+assert.deepEqual(planChange([{ ...pro, status: "CANCELLED" }], { product: "SHOP", cadence: "MONTHLY" }), { cancel: [], already: false, startAt: null }, "a cancelled series doesn't block a new one");
+assert.deepEqual(planChange([], { product: "DISPATCH", cadence: "MONTHLY" }), { cancel: [], already: false, startAt: null });
 
 console.log("test-plan-entitlement: ok");

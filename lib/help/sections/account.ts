@@ -269,6 +269,7 @@ export const settingsSection: HelpSection = {
           items: [
             "**Monthly → annual (or back):** flip the toggle at the top and the plan's card offers `Switch to annual` / `Switch to monthly`. Confirm in the sheet. The new term starts today and is charged today; what you already paid for simply runs out at its date. Nothing is prorated or credited back — switch close to your renewal date if you want the least overlap.",
             `**${PRO} → ${MAX}:** press \`Switch to ${MAX}\` on the ${MAX} card. The same way: ${MAX} starts today, and your ${PRO} (and ${VOICE}) plan runs out at the date you had already paid to. The ${PRO} (and ${VOICE}) card then reads **Part of ${MAX}**.`,
+            `**${MAX} → ${PRO} or ${VOICE}:** press \`Switch down to ${PRO}\` (or ${VOICE}) on that card. Nothing is charged today: ${MAX} keeps working until the date you paid to, the smaller plan starts then and bills from that day, and the card reads **Starts <date>** meanwhile. \`Don't switch\` calls it off.`,
           ],
         },
         {
