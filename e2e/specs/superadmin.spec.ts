@@ -63,8 +63,16 @@ test.describe("platform console", () => {
     await link.click();
     await expect(page).toHaveURL(new RegExp(`/superadmin/company/${state.ownerA.companyId}`));
     for (const tab of ["Overview", "Team", "Money", "Usage", "Controls"]) {
-      await page.getByRole("link", { name: tab, exact: true }).click();
-      await expect(page.getByRole("link", { name: tab, exact: true })).toHaveAttribute("aria-current", "page");
+      const link = page.getByRole("link", { name: tab, exact: true });
+      // A click that lands while the previous tab is still rendering is
+      // swallowed by the re-render (three reruns in a row on 2026-11-02 sat
+      // on Usage after clicking Controls): click, wait for the URL to carry
+      // the tab, and click again when it didn't.
+      await expect(async () => {
+        await link.click();
+        await expect(page).toHaveURL(new RegExp(`[?&]tab=${tab.toLowerCase()}(&|$)`), { timeout: 4_000 });
+      }).toPass({ timeout: 30_000 });
+      await expect(link).toHaveAttribute("aria-current", "page");
     }
     await expect(page.getByRole("heading", { name: /^Console history/, level: 2 })).toBeVisible();
 
