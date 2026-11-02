@@ -92,6 +92,7 @@ export default function PayPage({
   invoice,
   balance,
   pay,
+  giftCards = false,
   preview = false,
   demo = false,
 }: {
@@ -99,6 +100,8 @@ export default function PayPage({
   balance: number;
   /** The browser tokenizer config (lib/pay-config.ts); null = no online payment. */
   pay: ClientPayConfig;
+  /** The Gift card method is offered (lib/gift-cards-preview.ts — test accounts only while suspended). */
+  giftCards?: boolean;
   preview?: boolean;
   demo?: boolean;
 }) {
@@ -474,7 +477,7 @@ export default function PayPage({
                   <Building2 size={16} />
                   Bank transfer
                 </Choice>
-                {(square || demo) && (
+                {giftCards && (square || demo) && (
                   <Choice on={method === "GIFT_CARD"} onClick={() => setMethod("GIFT_CARD")}>
                     <Gift size={16} />
                     Gift card

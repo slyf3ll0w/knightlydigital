@@ -1070,6 +1070,14 @@ Built 2026-10-15 on branch `square-payments` (worktree
   `/api/public/store/[slug]` carries the booking form's spam guards. Not
   built (lanes 2–3): cart, pickup / shipping, stock, variants, the embed
   widget and a block on the WorkBench-built client sites.
+- **Gift cards are SUSPENDED for live accounts (David 2026-11-02: may
+  never ship).** Everything below still exists and works, but only for test
+  accounts (`Company.isTest`) — `lib/gift-cards-preview.ts giftCardsOpen`
+  gates the Gift cards screen and row, Settings link (`testOnly`), the
+  invoice ⋯ Redeem, the pay page's Gift card method, the client-page card
+  and every `/api/app/payments/square/gift-cards/*` + invoice gift-card
+  route (404 otherwise); the Help guide is written but `hidden`.
+  `GIFT_CARDS_OPEN=1` on Railway opens it to everyone again.
 - **Square products built in — transactions and gift cards (2026-10-30,
   `docs/plans/square-products-2026-10-30.md`).** `SQUARE_SCOPES` gained
   `ORDERS_READ`, `GIFTCARDS_READ/WRITE` (one reconnect per existing seller;

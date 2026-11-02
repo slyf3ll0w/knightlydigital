@@ -83,7 +83,7 @@ export const invoicesSection: HelpSection = {
           items: [
             "Amounts run from $1 to $25,000. For more, make a full invoice.",
             "It shows on **Invoices** as **Awaiting Payment** with the subject you typed, numbered in your normal sequence; the pay page says **Payment request** under the number.",
-            "Clients can pay part of it, like any invoice. The card service fee, saved cards, gift cards and bank (ACH) all work the same.",
+            "Clients can pay part of it, like any invoice. The card service fee, saved cards and bank (ACH) all work the same.",
             "In the WorkBench phone app the share step also offers `Tap to Pay` when it's set up — see [Take a card in person](/help/tap-to-pay).",
           ],
         },
@@ -159,8 +159,8 @@ export const paymentsSection: HelpSection = {
     {
       slug: "payments-page",
       title: "Your Payments page: payments, payouts, disputes and reports",
-      summary: "Four tabs on your Square account — payments, payouts, disputes, reports — the items behind every sale, and a door to gift cards.",
-      keywords: ["payments page", "payments tab", "payouts tab", "disputes tab", "reports", "revenue report", "by tech", "by job type", "csv", "square pos", "square reader", "outside workbench", "record on an invoice", "reconnect square", "collected", "fees this month", "transaction details", "itemized", "order items", "gift cards tab", "in square"],
+      summary: "Four tabs on your Square account — payments, payouts, disputes, reports — and the items behind every sale.",
+      keywords: ["payments page", "payments tab", "payouts tab", "disputes tab", "reports", "revenue report", "by tech", "by job type", "csv", "square pos", "square reader", "outside workbench", "record on an invoice", "reconnect square", "collected", "fees this month", "transaction details", "itemized", "order items", "in square"],
       where: { label: "Payments", href: "/app/payments" },
       roles: "Owners, admins and anyone who can see money",
       blocks: [
@@ -175,7 +175,6 @@ export const paymentsSection: HelpSection = {
             "**Payouts**: each transfer Square made to your bank — when it was sent, to which account, its status, the transfer fee and the amount. Open one for **What's in it**: every payment, refund, dispute and fee that made up that payout, with gross, fee and net. Links to **Instant transfer**, **Deposit schedule** and **Bank accounts** in Square sit at the bottom. See [When you get paid out](/help/payouts).",
             "**Disputes**: cases where a client's bank questioned a charge, with the reason, status, respond-by date and amount. Open one to upload evidence and send it to the bank, or accept it. See [Respond to a dispute](/help/disputes).",
             "**Reports**: money in for the last 12 days, weeks or months (`By day`, `By week`, `By month`) — collected, refunds, fees and net — plus **By tech** (who was on the job the invoice billed) and **By job type** (the price-book services on the job). `Download CSV` gives the table to your bookkeeper. Cash and check payments you recorded count too; sales taken outside WorkBench show under **No job**.",
-            "**Gift cards** (the row under the Payments tab, and under **Settings → Payments & accounting**): every gift card on your Square account with its state, balance and history, plus `Sell a gift card` and `Check a balance`. See [Sell and take Square gift cards](/help/gift-cards).",
           ],
         },
         {
@@ -187,7 +186,7 @@ export const paymentsSection: HelpSection = {
           items: [
             {
               q: "The page asks me to Reconnect Square.",
-              a: "You connected Square before WorkBench read payouts, disputes, order items or gift cards, so Square needs you to approve the new permissions once — the card says which. The owner presses `Reconnect Square` (on the Payments page or the Online Payments card in Settings) and signs in to Square as the first time. One click; payments keep working meanwhile and nothing else changes. Until then the tabs that need it stay empty.",
+              a: "You connected Square before WorkBench read payouts, disputes or order items, so Square needs you to approve the new permissions once — the card says which. The owner presses `Reconnect Square` (on the Payments page or the Online Payments card in Settings) and signs in to Square as the first time. One click; payments keep working meanwhile and nothing else changes. Until then the tabs that need it stay empty.",
             },
             {
               q: "A tab says Square didn't answer just now.",
@@ -208,8 +207,8 @@ export const paymentsSection: HelpSection = {
     {
       slug: "how-clients-pay",
       title: "How clients pay you online",
-      summary: "The pay page: card, bank (ACH) or gift card, saved cards and autopay, and who pays the fee.",
-      keywords: ["pay page", "card", "credit card", "ach", "bank transfer", "fees", "processing fee", "saved card", "card on file", "no pay button", "pay button missing", "square", "gift card", "service fee", "autopay"],
+      summary: "The pay page: card or bank (ACH), saved cards and autopay, and who pays the fee.",
+      keywords: ["pay page", "card", "credit card", "ach", "bank transfer", "fees", "processing fee", "saved card", "card on file", "no pay button", "pay button missing", "square", "service fee", "autopay"],
       where: { label: "Payments", href: "/app/payments" },
       blocks: [
         {
@@ -222,7 +221,6 @@ export const paymentsSection: HelpSection = {
             `Card payments cost **${RATE_CARD}** and bank payments **${RATE_ACH}** when you pay the fee yourself. Or have the client pay the service fee instead — **${FEE_CARD}** on a card, **${FEE_ACH}** on a bank transfer — and receive the full amount (see [The service fee](/help/card-surcharging)). New accounts start that way. Fees come out on Square's side before the money reaches your bank; the **Payments** page shows Square's posted fee on each payment once Square reports it (see [Your Payments page](/help/payments-page)).`,
             "Bank (ACH) payments show as **Processing** for a few business days. They can still bounce during that time, and if one does it's taken back off the invoice.",
             "Clients can also save cards and pick a default for autopay in their client portal. With the service fee on, charges to a saved card — autopay included — carry it too; the client is told so when they save the card, and every receipt itemizes it.",
-            "A gift card pays what it holds, with no fee on it, and the rest can be paid another way — see [Sell and take Square gift cards](/help/gift-cards).",
           ],
         },
         {
@@ -272,7 +270,7 @@ export const paymentsSection: HelpSection = {
       summary: "In the phone app, the client holds their card or phone to the back of yours. No reader.",
       keywords: ["tap to pay", "tap-to-pay", "contactless", "nfc", "in person", "on site", "card reader", "apple pay", "google pay", "square reader", "take a card"],
       where: { label: "Online Payments", href: "/app/settings" },
-      roles: "Anyone who can see money can take a payment; owners and admins set it up",
+      roles: "Owners and admins — they set up the phone and take the payments",
       blocks: [
         {
           type: "p",
@@ -472,6 +470,8 @@ export const paymentsSection: HelpSection = {
     },
     {
       slug: "gift-cards",
+      // Suspended for live accounts (lib/gift-cards-preview.ts): the guide stays written but out of every reader
+      hidden: true,
       title: "Sell and take Square gift cards",
       summary: "Sell digital gift cards from the Payments page and take them on any invoice or pay page.",
       keywords: ["gift card", "gift cards", "gift certificate", "redeem", "check balance", "card number", "digital gift card", "square gift cards", "sell a gift card"],
@@ -603,7 +603,7 @@ export const paymentsSection: HelpSection = {
             "`Tap to Pay` shows it in the button's total.",
             "Automatic charges to a saved card — recurring plans and autopay — carry it; the client is told when they save the card and on **Payment methods** in their portal.",
             "Once paid it reads **Service fee** on the receipt, the invoice, its PDF and the payment's **Details** on the Payments page.",
-            "Never added when you press `Charge card` yourself, or to cash, check and gift card payments.",
+            "Never added when you press `Charge card` yourself, or to cash and check payments.",
           ],
         },
         {

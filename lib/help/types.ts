@@ -51,6 +51,8 @@ export interface HelpArticle {
   plan?: string;
   /** Who can do it, when it isn't everyone (e.g. "Owners and admins"). */
   roles?: string;
+  /** Written but withheld from every reader (pages, Atlas, the text export) — a feature that is off for live accounts. */
+  hidden?: boolean;
   blocks: HelpBlock[];
 }
 

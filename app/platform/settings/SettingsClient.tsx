@@ -2421,7 +2421,7 @@ export default function SettingsClient({
         {show("payments") && (
         <div className="ds-card ds-divide overflow-hidden">
           <LinkRow link={QUICKBOOKS_LINK} />
-          <LinkRow link={GIFT_CARDS_LINK} />
+          {visibleLink(GIFT_CARDS_LINK) && <LinkRow link={GIFT_CARDS_LINK} />}
         </div>
         )}
 

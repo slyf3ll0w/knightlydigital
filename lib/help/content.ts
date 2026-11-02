@@ -20,7 +20,7 @@ import { phoneSection, textingSection } from "./sections/phone";
 import { portalSection, reportsSection, teamSection } from "./sections/team";
 import { mobileSection, settingsSection } from "./sections/account";
 
-export const HELP_SECTIONS: HelpSection[] = [
+const ALL_SECTIONS: HelpSection[] = [
   startSection,
   clientsSection,
   leadsSection,
@@ -41,6 +41,9 @@ export const HELP_SECTIONS: HelpSection[] = [
   settingsSection,
   mobileSection,
 ];
+
+/** What every reader sees: a guide marked `hidden` (a feature switched off for live accounts) is written but withheld. */
+export const HELP_SECTIONS: HelpSection[] = ALL_SECTIONS.map((s) => ({ ...s, articles: s.articles.filter((a) => !a.hidden) }));
 
 /** The chips under the search box: the questions people ask most. */
 export const POPULAR_SLUGS = [

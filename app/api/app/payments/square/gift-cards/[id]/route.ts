@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActor, canSeeMoney, isManager } from "@/lib/permissions";
+import { giftCardsOpenFor, GIFT_CARDS_CLOSED_MESSAGE } from "@/lib/gift-cards-preview";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { prisma } from "@/lib/db";
 import { activateGiftCardForInvoice, GiftCardError, removeGiftCard } from "@/lib/gift-cards";
@@ -19,6 +20,7 @@ import { sellerFailureStatus } from "@/lib/square-seller-reports";
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await giftCardsOpenFor(actor.companyId))) return NextResponse.json({ error: GIFT_CARDS_CLOSED_MESSAGE }, { status: 404 });
   if (!canSeeMoney(actor)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await params;
   const [card, activities] = await Promise.all([
@@ -36,6 +38,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await giftCardsOpenFor(actor.companyId))) return NextResponse.json({ error: GIFT_CARDS_CLOSED_MESSAGE }, { status: 404 });
   if (actor.role !== "OWNER") return NextResponse.json({ error: "Only the account owner can load a card paid for by hand." }, { status: 403 });
   if (await inPreview(actor.companyId)) return NextResponse.json(previewBlockedError("Gift cards"), { status: 403 });
   const body = (await req.json().catch(() => null)) as { action?: unknown } | null;
@@ -53,6 +56,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await giftCardsOpenFor(actor.companyId))) return NextResponse.json({ error: GIFT_CARDS_CLOSED_MESSAGE }, { status: 404 });
   if (!isManager(actor.role)) return NextResponse.json({ error: "Only owners and admins can deactivate gift cards." }, { status: 403 });
   if (await inPreview(actor.companyId)) return NextResponse.json(previewBlockedError("Gift cards"), { status: 403 });
   const { id } = await params;

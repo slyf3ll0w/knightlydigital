@@ -87,7 +87,7 @@ const expect: [string, string][] = [
   ["how many users are included", "add-team-members"],
   ["sticky note on a job page", "sticky-notes"],
   ["remind me to call a client back", "tasks-and-reminders"],
-  ["sell a gift card", "gift-cards"],
+  // "sell a gift card" → gift-cards is withheld while the feature is suspended (HelpArticle.hidden)
   ["who pays the card fee", "card-surcharging"],
   ["turn off the service fee", "card-surcharging"],
   ["sell products online", "sell-products-online"],

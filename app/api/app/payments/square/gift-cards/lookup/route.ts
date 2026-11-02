@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActor, canSeeMoney } from "@/lib/permissions";
+import { giftCardsOpenFor, GIFT_CARDS_CLOSED_MESSAGE } from "@/lib/gift-cards-preview";
 import { GiftCardError, lookupGiftCard } from "@/lib/gift-cards";
 
 /**
@@ -11,6 +12,7 @@ import { GiftCardError, lookupGiftCard } from "@/lib/gift-cards";
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await giftCardsOpenFor(actor.companyId))) return NextResponse.json({ error: GIFT_CARDS_CLOSED_MESSAGE }, { status: 404 });
   if (!canSeeMoney(actor)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const body = (await req.json().catch(() => null)) as { gan?: unknown } | null;
   try {
