@@ -44,16 +44,28 @@ test.describe("signup doors", () => {
     await context.close();
   });
 
-  test("the shared tester code is live", async () => {
-    // Workbench123 (UNIVERSAL_INVITE_CODE) is what testers are handed: it
-    // skips review and underwriting. If it's rotated on Railway, rotate it
-    // here too — a red test means testers are hitting the KYC gate.
-    const res = await fetch(`${state.baseUrl}/api/app/invite-check`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: "Workbench123" }),
-    });
-    expect(res.status).toBe(200);
-    expect((await res.json()).valid).toBe(true);
+  test("the retired built-in tester code is dead; a configured shared code works", async () => {
+    // Until the 2026-11-01 security audit "Workbench123" was the built-in
+    // default shared code — a brand-name word in a public repository that
+    // skipped review and underwriting. There is no default any more: the
+    // shared code is whatever UNIVERSAL_INVITE_CODE says on the deployment,
+    // and nothing else opens a company. E2E_UNIVERSAL_INVITE_CODE (CI env)
+    // names the deployment's code when one is set.
+    const check = async (code: string) => {
+      const res = await fetch(`${state.baseUrl}/api/app/invite-check`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      expect(res.status).toBe(200);
+      return (await res.json()).valid as boolean;
+    };
+    const configured = process.env.E2E_UNIVERSAL_INVITE_CODE;
+    if (configured && configured.replace(/\s+/g, "").toLowerCase() === "workbench123") {
+      expect(await check("Workbench123")).toBe(true);
+      return;
+    }
+    expect(await check("Workbench123")).toBe(false);
+    if (configured) expect(await check(configured)).toBe(true);
   });
 });
