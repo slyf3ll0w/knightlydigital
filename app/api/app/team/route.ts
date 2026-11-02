@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getActor, isManager, canSell, canManageRole, roleLabel, type Role } from "@/lib/permissions";
 import { emailWhere, normalizeEmail } from "@/lib/user-email";
 import { findOrAdoptAccountByEmail } from "@/lib/account";
+import { isProvisionalPassword, replaceProvisionalPassword } from "@/lib/team-login";
 import { sendEmail, teamAddedEmail } from "@/lib/email";
 import { fireAutomations } from "@/lib/automations-server";
 import { seatRefusal } from "@/lib/seats";
@@ -145,6 +146,16 @@ export async function POST(req: NextRequest) {
   });
   fireAutomations(actor.companyId, "team.member_added", user.id);
 
+  // A login some OTHER manager opened with a password of their choosing,
+  // never changed by the person: that manager must not be able to sign in
+  // here as them (lib/team-login.ts). The password goes; the person gets a
+  // set-your-password link.
+  let passwordReset = false;
+  if (account && isProvisionalPassword(account)) {
+    await replaceProvisionalPassword({ accountId: account.id, userId: user.id, email: account.email, name: user.name });
+    passwordReset = true;
+  }
+
   // Heads-up to the attached person — best effort, the membership is live.
   if (account) {
     try {
@@ -163,5 +174,5 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ...user, attached: Boolean(account) }, { status: 201 });
+  return NextResponse.json({ ...user, attached: Boolean(account), passwordReset }, { status: 201 });
 }

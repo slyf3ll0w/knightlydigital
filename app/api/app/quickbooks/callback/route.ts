@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { connectCompany, syncCompany, verifyState } from "@/lib/quickbooks";
+import { loginUrlReturningTo } from "@/lib/login-return";
 
 /**
  * Intuit redirects back here after the consent screen with ?code, ?state,
@@ -58,9 +59,16 @@ export async function GET(req: NextRequest) {
   const verified = verifyState(state);
   if (!verified) return landing(req, signedIn, "bad_state");
   const { companyId, userId } = verified;
+  // Finished only by the signed-in manager who started it (security audit
+  // 2026-11-01 — see the Square callback). No session → sign in and come
+  // straight back with code, state and realmId intact.
+  if (!actor) {
+    const base = process.env.NEXTAUTH_URL ?? req.nextUrl.origin;
+    return NextResponse.redirect(new URL(loginUrlReturningTo(`${req.nextUrl.pathname}${req.nextUrl.search}`), base));
+  }
   // A session for a different account means the link was replayed into
   // somebody else's browser — refuse rather than connect it.
-  if (actor && (actor.id !== userId || actor.companyId !== companyId)) {
+  if (actor.id !== userId || actor.companyId !== companyId) {
     return landing(req, signedIn, "bad_state");
   }
   // The person who pressed Connect must still be an active manager of the

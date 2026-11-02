@@ -48,7 +48,8 @@ export async function ensureAccountForUser(user: LinkableUser) {
   if (!account) {
     try {
       account = await prisma.account.create({
-        data: { email, passwordHash: user.passwordHash, lastActiveUserId: user.id },
+        // A legacy row's hash was the person's own choice (lib/team-login.ts)
+        data: { email, passwordHash: user.passwordHash, lastActiveUserId: user.id, passwordChangedAt: user.passwordHash ? new Date() : null },
       });
     } catch {
       // Lost a create race — the winner's row is the account.

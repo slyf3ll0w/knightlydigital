@@ -19,11 +19,16 @@ import { prisma } from "@/lib/db";
  * environment; set it to "off" to disable the shared code entirely.
  */
 
-const DEFAULT_UNIVERSAL_CODE = "Workbench123";
-
-/** The shared tester code, or null when it's switched off. */
+/**
+ * The shared tester code, or null when it's switched off. There is NO
+ * built-in default any more (security audit 2026-11-01): the old fallback
+ * was a brand-name word in a public repository, so anyone could open a
+ * company with review and underwriting skipped. Set UNIVERSAL_INVITE_CODE
+ * in the environment to hand testers a code; unset or "off" = no shared
+ * code, minted WB-XXXX-XXXX codes only.
+ */
 export function universalInviteCode(): string | null {
-  const raw = (process.env.UNIVERSAL_INVITE_CODE ?? DEFAULT_UNIVERSAL_CODE).trim();
+  const raw = (process.env.UNIVERSAL_INVITE_CODE ?? "").trim();
   if (!raw || raw.toLowerCase() === "off") return null;
   return raw;
 }

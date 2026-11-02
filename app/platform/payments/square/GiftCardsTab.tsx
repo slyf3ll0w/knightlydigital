@@ -10,6 +10,8 @@ import { ReconnectCard, RuledLabel, SquareUnavailable, TabBack } from "./bits";
 import { giftCardActivityLabel, giftCardState } from "./labels";
 import GiftCardActions from "./GiftCardActions";
 import GiftCardRemoveButton from "./GiftCardRemoveButton";
+import GiftCardActivateButton from "./GiftCardActivateButton";
+import { GIFT_CARD_STATE_AWAITING_OWNER } from "@/lib/gift-cards";
 
 /**
  * Gift cards tab (Square, 2026-10-30): every card on the seller's Square
@@ -25,6 +27,7 @@ export default async function GiftCardsTab({
   giftCardId,
   cursor,
   canSell,
+  canActivate = false,
   canReconnect,
   missingScope,
   showAll = false,
@@ -34,6 +37,8 @@ export default async function GiftCardsTab({
   giftCardId: string | null;
   cursor: string | null;
   canSell: boolean;
+  /** OWNER — may load a card whose invoice was marked paid by hand. */
+  canActivate?: boolean;
   canReconnect: boolean;
   missingScope: boolean;
   /** ?all=1 — list deactivated cards too (hidden by default). */
@@ -77,7 +82,8 @@ export default async function GiftCardsTab({
               <span>{g.type === "PHYSICAL" ? "Plastic card" : "Digital card"}</span>
               {g.createdAt && <span>· made {shortDate(g.createdAt, tz)}</span>}
             </p>
-            {g.gan && (
+            {/* The full number spends the balance anywhere: owners and admins only */}
+            {canSell && g.gan && (
               <p className="mt-3 text-sm text-gray-700">
                 Number <span className="numeral-ledger select-all font-medium tracking-wider text-gray-900">{formatGan(g.gan)}</span>
               </p>
@@ -189,28 +195,42 @@ export default async function GiftCardsTab({
 
       {waiting.length > 0 && (
         <div className="mb-8">
-          <RuledLabel info="Gift cards sold here whose invoice hasn't been paid yet. The card loads itself the moment the invoice is paid — by pay link, card on file, Tap to Pay or a payment you record — and the number is emailed to the recipient.">
-            Waiting to be paid
+          <RuledLabel info="Gift cards sold here that aren't loaded yet. A card loads itself when its invoice is paid by card, card on file, Tap to Pay or a bank transfer that has cleared. One paid by a payment you typed in (cash, check) waits for the owner to load it. The number is emailed to the recipient when it loads.">
+            Waiting to load
           </RuledLabel>
           <div className="ds-card overflow-hidden">
             <div className="divide-y divide-gray-100">
-              {waiting.map((s) => (
-                <Link key={s.id} prefetch={false} href={`/app/invoices/${s.invoiceId}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50">
-                  <Gift size={16} className="shrink-0 text-gray-400" />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {money(s.amountCents / 100)} gift card{s.recipientName ? ` for ${s.recipientName}` : ""}
-                      {s.contact ? ` · ${s.contact.firstName} ${s.contact.lastName}` : ""}
-                    </p>
-                    <p className="text-xs text-gray-500 truncate">
-                      Invoice #{s.invoice.invoiceNumber} · {shortDate(s.createdAt, tz)}
-                      {s.state === "FAILED" && <span className="text-[color:var(--ds-bad)]"> · Square refused the load: {s.lastError ?? "retrying"}</span>}
-                    </p>
+              {waiting.map((s) => {
+                const awaitingOwner = s.state === GIFT_CARD_STATE_AWAITING_OWNER;
+                const clearing = s.state === "PENDING" && s.invoice.status === "PAID";
+                return (
+                  <div key={s.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50">
+                    <Link prefetch={false} href={`/app/invoices/${s.invoiceId}`} className="flex min-w-0 flex-1 items-center gap-3">
+                      <Gift size={16} className="shrink-0 text-gray-400" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {money(s.amountCents / 100)} gift card{s.recipientName ? ` for ${s.recipientName}` : ""}
+                          {s.contact ? ` · ${s.contact.firstName} ${s.contact.lastName}` : ""}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">
+                          Invoice #{s.invoice.invoiceNumber} · {shortDate(s.createdAt, tz)}
+                          {s.state === "FAILED" && <span className="text-[color:var(--ds-bad)]"> · Square refused the load: {s.lastError ?? "retrying"}</span>}
+                          {awaitingOwner && <span className="text-[color:var(--ds-warn)]"> · marked paid by hand — the owner loads it once the money is in hand</span>}
+                          {clearing && <span> · bank transfer clearing</span>}
+                        </p>
+                      </div>
+                    </Link>
+                    {awaitingOwner && canActivate ? (
+                      <GiftCardActivateButton giftCardId={s.squareGiftCardId} amountCents={s.amountCents} />
+                    ) : (
+                      <Chip tone={s.state === "FAILED" ? "bad" : "warn"}>
+                        {s.state === "FAILED" ? "Needs attention" : awaitingOwner ? "Needs the owner" : clearing ? "Clearing" : "Unpaid"}
+                      </Chip>
+                    )}
+                    <ChevronRight size={14} className="hidden text-gray-400 lg:block" />
                   </div>
-                  <Chip tone={s.state === "FAILED" ? "bad" : "warn"}>{s.state === "FAILED" ? "Needs attention" : "Unpaid"}</Chip>
-                  <ChevronRight size={14} className="hidden text-gray-400 lg:block" />
-                </Link>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>

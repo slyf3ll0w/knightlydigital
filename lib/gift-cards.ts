@@ -5,9 +5,10 @@ import { logActivity } from "@/lib/activity";
 import { nextInvoiceNumber, withDocNumberRetry } from "@/lib/doc-numbers";
 import { dueDateFromTerms } from "@/lib/due-dates";
 import { acquireChargeLock, getProcessor, invoiceBalance, recordPayment, releaseChargeLock } from "@/lib/payments";
-import { createSquarePayment, SquareError, declineMessage } from "@/lib/square";
+import { createSquarePayment, getSquarePayment, SquareError, declineMessage } from "@/lib/square";
 import { squareTokenForCompany } from "@/lib/square-connection";
 import { sendEmail, giftCardEmail } from "@/lib/email";
+import { notifyUsers } from "@/lib/push";
 import {
   createSquareGiftCard,
   deactivateSquareGiftCard,
@@ -47,6 +48,36 @@ export const GIFT_CARD_MIN_CENTS = 500;
 /** Square's own cap on a US gift card balance. */
 export const GIFT_CARD_MAX_CENTS = 200_000;
 export const MAX_ACTIVATION_ATTEMPTS = 6;
+
+/**
+ * When the card may actually be loaded (security audit 2026-11-01). The
+ * card is a bearer credential worth real money the moment it is ACTIVE and
+ * the number is emailed, so "the invoice shows PAID" is not enough:
+ *  - a bank transfer (ACH) is recorded PAID while it is still PENDING at
+ *    Square and can bounce days later → wait for Square's COMPLETED (the
+ *    webhook calls back in; the hourly sweep re-checks);
+ *  - a payment somebody TYPED IN (cash, check — no processorRef) is a
+ *    claim, not money: an admin could sell a card to themselves and record
+ *    "cash" → the OWNER confirms it (Gift cards → Load it), or an owner
+ *    recording the payment counts as the confirmation.
+ * Pure — `scripts/test-security-nov.ts`.
+ */
+export type GiftCardSettlement = "settled" | "pending_ach" | "needs_owner";
+export const GIFT_CARD_STATE_AWAITING_OWNER = "AWAITING_OWNER";
+
+export function classifyGiftCardPayments(
+  payments: { method: string; processorRef: string | null; squareStatus?: string | null }[],
+  ownerApproved: boolean
+): GiftCardSettlement {
+  let manual = false;
+  let pending = false;
+  for (const p of payments) {
+    if (!p.processorRef) manual = true;
+    else if (p.method === "ACH" && p.squareStatus !== "COMPLETED") pending = true;
+  }
+  if (manual && !ownerApproved) return "needs_owner";
+  return pending ? "pending_ach" : "settled";
+}
 
 export class GiftCardError extends Error {
   constructor(
@@ -187,11 +218,19 @@ export async function sellGiftCard(params: {
 
 /**
  * The invoice behind a sale is PAID → activate the card and email the
- * number. Called by recordPayment (best effort) and the cron retry. Safe to
- * call twice: Square's idempotency key is the sale id, and an ACTIVE row is
- * skipped.
+ * number, once the money is real (`classifyGiftCardPayments`). Called by
+ * recordPayment (best effort, with whoever recorded the payment), the
+ * Square webhook when a bank transfer settles, the owner's "Load it" and
+ * the cron retry. Safe to call twice: Square's idempotency key is the sale
+ * id, and an ACTIVE row is skipped. "held" = waiting on the owner.
  */
-export async function activateGiftCardForInvoice(invoiceId: string): Promise<"activated" | "skipped" | "failed"> {
+export async function activateGiftCardForInvoice(
+  invoiceId: string,
+  opts: {
+    /** A manual payment counts as confirmed when this user is an active OWNER of the company. */
+    approvedByUserId?: string | null;
+  } = {}
+): Promise<"activated" | "skipped" | "held" | "failed"> {
   const sale = await prisma.giftCardSale.findUnique({
     where: { invoiceId },
     select: {
@@ -216,8 +255,60 @@ export async function activateGiftCardForInvoice(invoiceId: string): Promise<"ac
       company: { select: { name: true, email: true, phone: true, logoUrl: true, brandColor: true, documentColor: true, brandColorSecondary: true, squareLocationId: true } },
     },
   });
-  if (!sale || sale.state === "ACTIVE" || sale.invoice.status !== "PAID" || !sale.company.squareLocationId) return "skipped";
+  if (!sale || sale.state === "ACTIVE" || sale.state === "DEACTIVATED" || sale.invoice.status !== "PAID" || !sale.company.squareLocationId) return "skipped";
   if (sale.attempts >= MAX_ACTIVATION_ATTEMPTS) return "skipped";
+
+  // Is the money real yet? Bank transfers are asked about at Square; a
+  // typed-in payment needs an owner behind it.
+  let ownerApproved = false;
+  if (opts.approvedByUserId) {
+    const approver = await prisma.user.findFirst({
+      where: { id: opts.approvedByUserId, companyId: sale.companyId, isActive: true, role: "OWNER" },
+      select: { id: true },
+    });
+    ownerApproved = Boolean(approver);
+  }
+  const withStatus: { method: string; processorRef: string | null; squareStatus?: string | null }[] = [];
+  for (const p of sale.invoice.payments) {
+    if (p.processorRef && p.method === "ACH") {
+      try {
+        const { token } = await squareTokenForCompany(sale.companyId);
+        const sq = await getSquarePayment(token, p.processorRef);
+        withStatus.push({ method: p.method, processorRef: p.processorRef, squareStatus: sq.status });
+      } catch (err) {
+        // Can't confirm it settled → treat as still pending; the sweep asks again
+        reportError("[gift-cards] could not read ACH status", sale.id, err);
+        withStatus.push({ method: p.method, processorRef: p.processorRef, squareStatus: null });
+      }
+    } else {
+      withStatus.push({ method: p.method, processorRef: p.processorRef });
+    }
+  }
+  const settlement = classifyGiftCardPayments(withStatus, ownerApproved);
+  if (settlement === "pending_ach") return "skipped";
+  if (settlement === "needs_owner") {
+    if (sale.state !== GIFT_CARD_STATE_AWAITING_OWNER) {
+      await prisma.giftCardSale.update({ where: { id: sale.id }, data: { state: GIFT_CARD_STATE_AWAITING_OWNER } });
+      logActivity({
+        companyId: sale.companyId,
+        entityType: "invoice",
+        entityId: invoiceId,
+        action: "gift_card_held",
+        detail: `Gift card ${ganTail(sale.gan)} ($${(sale.amountCents / 100).toFixed(2)}) waits for the owner's OK — invoice #${sale.invoice.invoiceNumber} was paid by a recorded (not processed) payment`,
+      });
+      const owners = await prisma.user.findMany({ where: { companyId: sale.companyId, role: "OWNER", isActive: true }, select: { id: true } });
+      await notifyUsers(
+        owners.map((o) => o.id),
+        {
+          title: "A gift card needs your OK",
+          body: `$${(sale.amountCents / 100).toFixed(2)} gift card on invoice #${sale.invoice.invoiceNumber} was marked paid by hand. Load it once the money is in hand.`,
+          url: "/app/payments?tab=giftcards",
+          tag: `gift-card-held-${sale.id}`,
+        }
+      ).catch((e) => reportError("[gift-cards] owner notice failed", sale.id, e));
+    }
+    return "held";
+  }
 
   const instruments = sale.invoice.payments.map((p) => (p.processorRef && p.method !== "GIFT_CARD" ? p.processorRef : `wb:${p.id}`)).slice(0, 10);
   const loaded = await loadSquareGiftCard(sale.companyId, {
@@ -265,7 +356,11 @@ export async function activateGiftCardForInvoice(invoiceId: string): Promise<"ac
   return "activated";
 }
 
-/** Hourly: activations Square refused (or that never ran) on paid invoices. */
+/**
+ * Hourly: activations Square refused (or that never ran) on paid invoices,
+ * and bank transfers that have settled since. Sales waiting on the owner
+ * are not here — the owner's "Load it" is the only way on for those.
+ */
 export async function runGiftCardActivationSweep(now: Date = new Date()): Promise<{ checked: number; activated: number; errors: number }> {
   void now;
   const due = await prisma.giftCardSale.findMany({
@@ -277,14 +372,60 @@ export async function runGiftCardActivationSweep(now: Date = new Date()): Promis
   const out = { checked: due.length, activated: 0, errors: 0 };
   for (const row of due) {
     try {
-      if ((await activateGiftCardForInvoice(row.invoiceId)) === "activated") out.activated++;
-      else out.errors++;
+      const r = await activateGiftCardForInvoice(row.invoiceId);
+      if (r === "activated") out.activated++;
+      else if (r === "failed") out.errors++;
     } catch (err) {
       out.errors++;
       reportError("[gift-cards] sweep failed", row.invoiceId, err);
     }
   }
   return out;
+}
+
+/**
+ * The payment that bought a card came back (a bank transfer returned, a
+ * charge cancelled at Square): an ACTIVE card is deactivated at Square so
+ * the balance can't be spent against money that never arrived, and a sale
+ * still waiting goes back to waiting on its (now reopened) invoice. Called
+ * by the Square webhook's FAILED / CANCELED branch.
+ */
+export async function releaseGiftCardForBouncedPayment(invoiceId: string): Promise<"deactivated" | "reset" | "skipped" | "failed"> {
+  const sale = await prisma.giftCardSale.findUnique({
+    where: { invoiceId },
+    select: { id: true, companyId: true, squareGiftCardId: true, gan: true, amountCents: true, state: true, invoice: { select: { invoiceNumber: true } }, company: { select: { squareLocationId: true } } },
+  });
+  if (!sale) return "skipped";
+  if (sale.state === GIFT_CARD_STATE_AWAITING_OWNER || sale.state === "FAILED") {
+    await prisma.giftCardSale.update({ where: { id: sale.id }, data: { state: "PENDING" } });
+    return "reset";
+  }
+  if (sale.state !== "ACTIVE" || !sale.company.squareLocationId) return "skipped";
+  const done = await deactivateSquareGiftCard(sale.companyId, { giftCardId: sale.squareGiftCardId, locationId: sale.company.squareLocationId, idempotencyKey: `gcx-bounce:${sale.id}` });
+  if (!done.ok) {
+    reportError("[gift-cards] could not deactivate card after bounced payment", sale.id, done.message);
+    return "failed";
+  }
+  await prisma.giftCardSale.update({ where: { id: sale.id }, data: { state: "DEACTIVATED", lastError: "Payment returned by the bank — card deactivated" } });
+  logActivity({
+    companyId: sale.companyId,
+    userName: "Square",
+    entityType: "invoice",
+    entityId: invoiceId,
+    action: "gift_card_deactivated",
+    detail: `Gift card ${ganTail(sale.gan)} deactivated — the $${(sale.amountCents / 100).toFixed(2)} payment on invoice #${sale.invoice.invoiceNumber} was returned`,
+  });
+  const owners = await prisma.user.findMany({ where: { companyId: sale.companyId, role: "OWNER", isActive: true }, select: { id: true } });
+  await notifyUsers(
+    owners.map((o) => o.id),
+    {
+      title: "Gift card deactivated",
+      body: `The payment for the $${(sale.amountCents / 100).toFixed(2)} gift card on invoice #${sale.invoice.invoiceNumber} was returned, so the card was switched off.`,
+      url: "/app/payments?tab=giftcards",
+      tag: `gift-card-bounced-${sale.id}`,
+    }
+  ).catch((e) => reportError("[gift-cards] bounce notice failed", sale.id, e));
+  return "deactivated";
 }
 
 export type GiftCardLookup = { id: string; gan: string; tail: string; state: string; balanceCents: number };

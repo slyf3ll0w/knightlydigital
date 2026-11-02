@@ -80,7 +80,11 @@ export default function GiftCardActions({ canSell, contacts }: { canSell: boolea
     setCheckError(null);
     setFound(null);
     try {
-      const res = await fetch(`/api/app/payments/square/gift-cards/lookup?gan=${encodeURIComponent(gan)}`);
+      const res = await fetch("/api/app/payments/square/gift-cards/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gan }),
+      });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         setCheckError(data?.error ?? GENERIC_ERROR);

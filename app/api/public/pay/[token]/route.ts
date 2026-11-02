@@ -16,6 +16,7 @@ import { buyerIdentityData, buyerIdentityRefOf, canChargeOnline, processorMercha
 import { recomputeDepositApplied } from "@/lib/deposits";
 import { suspendedResponse } from "@/lib/suspension";
 import { serviceFee } from "@/lib/service-fee";
+import { billingMethodFor } from "@/lib/payment-source";
 
 /**
  * Public online payment endpoint. Routes through the active payment processor;
@@ -29,7 +30,9 @@ export async function POST(
   { params }: { params: Promise<{ token: string }> }
 ) {
   const { token } = await params;
-  const { method, paymentToken, saveCard, amount: requestedAmount, gan } = await req.json();
+  const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
+  if (!body) return NextResponse.json({ error: "Missing payment details." }, { status: 400 });
+  const { method, paymentToken, saveCard, amount: requestedAmount, gan } = body;
 
   // A Square gift card (docs/plans/square-products-2026-10-30.md): the card
   // pays min(its balance, the invoice balance) through Square, recorded as a
@@ -116,12 +119,23 @@ export async function POST(
     }
   }
 
+  const processor = getProcessor();
+
+  // Which billing category this really is (lib/payment-source.ts; security
+  // audit 2026-11-01): on Square the TOKEN says card or bank and the word
+  // the page sent is ignored — a card nonce labelled "ACH" used to pay the
+  // $1–$8 bank fee on a card charge. Finix tokens carry no type, so the
+  // declared word stands there (and must still be CARD or ACH).
+  const billing = billingMethodFor({ processor: processor.name, token: paymentToken, declared: method });
+  if (!billing) {
+    return NextResponse.json({ error: "Missing payment details. Please re-enter your card or bank information." }, { status: 400 });
+  }
+  const isCard = billing === "CARD";
+
   // The client service fee (lib/service-fee.ts): fixed per billing
   // category, on a card and on a bank transfer alike, when the company's
   // Service fee switch is on. Recorded as the payment's surchargeAmount.
-  const surchargeAmount = serviceFee(payAmount, method === "CARD" ? "CARD" : "ACH", invoice.company.surchargeEnabled);
-
-  const processor = getProcessor();
+  const surchargeAmount = serviceFee(payAmount, billing, invoice.company.surchargeEnabled);
   // This company's account on the processor is ready (Finix APPROVED, or
   // Square connected) — lib/payments-gate.ts is the one rule.
   const merchantApproved = canChargeOnline(invoice.company);
@@ -165,7 +179,7 @@ export async function POST(
           { success: false as const, error: "Online payments are not enabled yet. Record this payment manually." }
         : await processor.charge({
             amount: payAmount + surchargeAmount,
-            method: method === "CARD" ? "card" : "ach",
+            method: isCard ? "card" : "ach",
             surcharge: surchargeAmount,
             description: `Invoice #${invoice.invoiceNumber} — ${invoice.company.name}`,
             metadata: { invoiceId: invoice.id, companyId: invoice.companyId },
@@ -173,7 +187,7 @@ export async function POST(
             merchantRef: processorMerchantRef(invoice.company),
             // Square only vaults when asked (the token becomes a card on file
             // before the charge); Finix vaults regardless.
-            vault: saveCard === true && method === "CARD" && Boolean(invoice.contact),
+            vault: saveCard === true && isCard && Boolean(invoice.contact),
             buyer: {
               identityRef: invoice.contact ? buyerIdentityRefOf(invoice.contact) : null,
               firstName: invoice.contact?.firstName,
@@ -212,7 +226,7 @@ export async function POST(
     // instrument at Finix, so persisting the ref is all "saving" means. Enables
     // subscription auto-charge and staff "charge card on file". Never fails the
     // payment. Cards only — ACH debits can bounce days later.
-    if (saveCard === true && method === "CARD" && result.instrumentRef && invoice.contact) {
+    if (saveCard === true && isCard && result.instrumentRef && invoice.contact) {
       await addSavedCard({
         companyId: invoice.companyId,
         contactId: invoice.contact.id,
@@ -234,7 +248,7 @@ export async function POST(
       companyId: invoice.companyId,
       invoiceId: invoice.id,
       amount: payAmount + surchargeAmount,
-      method: method === "CARD" ? "CARD" : "ACH",
+      method: billing,
       processorRef: result.transactionId,
       surchargeAmount: surchargeAmount > 0 ? surchargeAmount : null,
       cardBrand: result.cardBrand,

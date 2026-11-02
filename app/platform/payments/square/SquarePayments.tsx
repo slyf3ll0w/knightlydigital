@@ -165,6 +165,7 @@ export default async function SquarePayments({
         giftCardId={params.giftcard ?? null}
         cursor={params.cursor ?? null}
         canSell={manager}
+        canActivate={isOwner}
         canReconnect={isOwner}
         missingScope={missingScopes.some((s) => s.startsWith("GIFTCARDS"))}
       />
