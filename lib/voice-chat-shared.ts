@@ -4,13 +4,93 @@
  * the speech endpoints are app/api/app/assistant/{speak,transcribe}.
  */
 
-const YES = /^(yes|yeah|yep|yup|sure|ok(ay)?|confirm|do it|go ahead|send it|sounds good|please do|affirmative|correct|that's right|absolutely)\b/i;
+// A bare yes is one or more of these phrases and nothing else (plus a
+// "please" / "thanks" tail). Longest first so "sounds good" wins over "sounds".
+const YES_PHRASES = [
+  "that is right", "that's right", "let's do it", "lets do it", "yes please", "go ahead", "go for it", "sounds good",
+  "please do", "send it", "do it", "i confirm", "confirmed", "confirm", "affirmative", "absolutely", "correct",
+  "yes", "yeah", "yep", "yup", "sure", "okay", "ok", "perfect", "fine", "great",
+];
+const YES_TAILS = ["thank you", "thanks", "please"];
 const NO = /^(no|nope|nah|cancel|skip|don't|do not|stop that|never ?mind|leave it|not now|negative)\b/i;
 const STOP = /^(stop|that's all|that is all|goodbye|bye|done|i'm done|im done|exit|quit|end|thanks,? that's all|thank you,? that's all)\b/i;
 
-/** A spoken "yes" to the card Atlas just read out. */
+/**
+ * A spoken "yes" to the card Atlas just read out — and ONLY a yes. "Yes,
+ * but change the subject" / "yes, Monday" / "yeah and also…" are
+ * instructions that happen to open with a yes: they must reach the model,
+ * not confirm the card as it stands (2026-11-02). So the whole utterance
+ * has to be made of affirmative phrases ("yeah do it", "sure, go ahead",
+ * "yes please"); any other word — a clause after a comma, "but", "and",
+ * "except", a day, a name — means it isn't a bare confirmation.
+ */
 export function isAffirmative(t: string): boolean {
-  return YES.test(t.trim());
+  const words = t
+    .toLowerCase()
+    .replace(/[’`]/g, "'")
+    .replace(/[^a-z' ]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.length === 0 || words.length > 8) return false;
+  const phrases = words.join(" ");
+  let at = 0;
+  let core = 0;
+  while (at < phrases.length) {
+    const rest = phrases.slice(at);
+    const hit = [...YES_PHRASES, ...YES_TAILS].find((p) => rest === p || rest.startsWith(`${p} `));
+    if (!hit) return false;
+    if (YES_PHRASES.includes(hit)) core++;
+    at += hit.length + 1;
+  }
+  return core > 0;
+}
+
+/** The least a card needs to be picked for a spoken confirmation. */
+export type ConfirmableCard = { id: string; kind: string; endpoint: string; state: string; batch?: unknown };
+
+/**
+ * Which cards a spoken "yes" applies to: the ones staged in the LATEST
+ * assistant turn that still has a card waiting — not every pending card in
+ * the history. Questions asked between the staging and the yes land as
+ * messages without cards, so they don't hide the cards; but an older draft
+ * the user already moved past ("email Sarah Friday" → "no, Monday" → "yes")
+ * is never swept up with the one they just approved.
+ */
+export function latestPendingTurn<T extends { state: string }>(messages: { proposals?: T[] }[]): { index: number; cards: T[] } {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const cards = (messages[i].proposals ?? []).filter((p) => p.state === "pending");
+    if (cards.length > 0) return { index: i, cards };
+  }
+  return { index: -1, cards: [] };
+}
+
+/**
+ * Two drafts of the same kind aimed at the same record ("email Sarah",
+ * "update this job") — the endpoint carries the record's id. Cards that
+ * create something new (no id in the endpoint) and batch cards never
+ * supersede anything: they could be aimed at anyone.
+ */
+export function supersedeKey(p: { kind: string; endpoint: string; batch?: unknown }): string | null {
+  if (p.batch) return null;
+  const path = p.endpoint.split("?")[0];
+  const hasRecordId = path.split("/").some((s) => /^[a-z0-9]{20,}$/i.test(s));
+  return hasRecordId ? `${p.kind}:${path}` : null;
+}
+
+/**
+ * The pending cards in `older` (cards already in the chat — never the fresh
+ * ones themselves; text-mode ids repeat between turns, so ids can't tell
+ * them apart) that a fresh batch of cards replaces.
+ */
+export function supersededBy<T extends ConfirmableCard>(older: T[], fresh: ConfirmableCard[]): T[] {
+  const keys = new Set(fresh.map(supersedeKey).filter((k): k is string => k !== null));
+  if (keys.size === 0) return [];
+  return older.filter((p) => {
+    if (p.state !== "pending") return false;
+    const k = supersedeKey(p);
+    return k !== null && keys.has(k);
+  });
 }
 
 /** A spoken "no". */

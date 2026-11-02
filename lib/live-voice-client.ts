@@ -203,8 +203,18 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
   // drops under us — or Google says goAway — a new socket with a fresh
   // token picks the same conversation up where it was.
   let resumeHandle: string | null = null;
+  // The budget is per STRETCH, not per session: Google's goAway comes round
+  // every ten minutes or so, and a cap on the whole session ended every
+  // long conversation at ~40 min (2026-11-02). A reconnect that comes more
+  // than RECONNECT_WINDOW_MS after the previous one starts the count over,
+  // so only a flapping connection (3 drops in 5 min) gives up.
   let reconnects = 0;
+  let lastReconnectAt = 0;
   const MAX_RECONNECTS = 3;
+  const RECONNECT_WINDOW_MS = 5 * 60_000;
+  // How long the first socket may take to answer `setup` before the caller
+  // falls back to the turns engine.
+  const SETUP_TIMEOUT_MS = 15_000;
   let inSeconds = 0;
   let outSeconds = 0;
   let nextPlayAt = 0;
@@ -358,12 +368,16 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     }
   }, 60_000);
 
-  const stop = (reason = "stop") => {
+  // `quiet`: the session never got going (setup failed) — release everything
+  // but don't announce an "ended" session the screen never saw start; the
+  // caller is about to fall back to the turns engine.
+  const stop = (reason = "stop", quiet = false) => {
     if (closed) return;
     closed = true;
     clearInterval(usageTimer);
     if (speakTimer) clearTimeout(speakTimer);
     hush();
+    if (unmuteTimer) clearTimeout(unmuteTimer);
     try { tap.port.onmessage = null; source.disconnect(); tap.disconnect(); } catch { /* fine */ }
     stream.getTracks().forEach((t) => t.stop());
     try { sink.el.pause(); sink.el.srcObject = null; } catch { /* fine */ }
@@ -375,7 +389,24 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     // The 2026-10-27 "conversation abruptly ended" report had a bare
     // "stopped" line and no socket close — the diary now says who ended it.
     voiceLog("live: stopped", `${reason} ${since()}`);
-    ev.onStatus("ended", reason);
+    if (!quiet) ev.onStatus("ended", reason);
+  };
+
+  // The first connection resolves `startLiveSession` only once Gemini has
+  // answered `setup` — a socket that opens and then closes before
+  // setupComplete (an outage after the token was minted) used to leave the
+  // screen idle with no fallback (2026-11-02). Now it rejects, and the
+  // caller's catch runs the turns engine.
+  let settleSetup: { resolve: () => void; reject: (err: Error) => void } | null = null;
+  const firstSetup = new Promise<void>((resolve, reject) => {
+    settleSetup = { resolve, reject };
+  });
+  const setupFailed = (why: string) => {
+    const s = settleSetup;
+    settleSetup = null;
+    if (!s) return false;
+    s.reject(new Error(why));
+    return true;
   };
 
   // The socket. `openSocket` runs once for the first connection and again
@@ -390,19 +421,21 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     sock.onerror = () => {
       if (ws !== sock) return;
       voiceLog("live: socket error", since());
-      if (!closed && !setupDone && reconnects === 0) ev.onError("The live connection failed.");
+      // onclose follows and decides (first socket → reject the start; a
+      // resume → another resume or the end of the session).
     };
     sock.onclose = (e) => {
       if (closed || ws !== sock) return;
       voiceLog("live: socket closed", `${e.code} ${e.reason} ${since()}`);
       const why = e.reason ? ` (${e.reason})` : "";
       if (!setupDone && reconnects === 0) {
-        ev.onError(`Couldn't start the live session${why}.`);
-        stop(`socket closed ${e.code}${why}`);
+        // Never got going: tear down quietly and let startLiveSession reject.
+        stop(`socket closed ${e.code}${why} before setup`, true);
+        setupFailed(`The live connection closed before it started${why}.`);
         return;
       }
       // Google dropped a session we can resume: pick it back up.
-      if (resumeHandle && reconnects < MAX_RECONNECTS) {
+      if (resumeHandle && reconnectBudgetLeft()) {
         void resume(`socket closed ${e.code}${why}`);
         return;
       }
@@ -411,9 +444,14 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     sock.onmessage = onMessage;
   };
 
+  const reconnectBudgetLeft = () => {
+    if (lastReconnectAt && Date.now() - lastReconnectAt > RECONNECT_WINDOW_MS) reconnects = 0;
+    return reconnects < MAX_RECONNECTS;
+  };
   const resume = async (reason: string) => {
     if (closed) return;
     reconnects++;
+    lastReconnectAt = Date.now();
     setupDone = false;
     hush();
     voiceLog("live: reconnect", `${reconnects}/${MAX_RECONNECTS} after ${reason}`);
@@ -444,6 +482,9 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
     if ("setupComplete" in msg) {
       setupDone = true;
       voiceLog(reconnects ? "live: resumed" : "live: setup complete", since());
+      const s = settleSetup;
+      settleSetup = null;
+      s?.resolve();
       ev.onStatus("listening");
       return;
     }
@@ -540,6 +581,17 @@ export async function startLiveSession(ev: LiveEvents): Promise<LiveHandle> {
   };
 
   openSocket(tokenData, null);
+  const setupTimer = setTimeout(() => {
+    if (closed || setupDone) return;
+    voiceLog("live: setup timeout", since());
+    stop("setup timed out", true);
+    setupFailed("The live session didn't answer in time.");
+  }, SETUP_TIMEOUT_MS);
+  try {
+    await firstSetup;
+  } finally {
+    clearTimeout(setupTimer);
+  }
 
   return {
     stop,

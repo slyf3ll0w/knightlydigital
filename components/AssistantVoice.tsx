@@ -45,6 +45,8 @@ export type RecordedExchange = { index: number; confirmOrdinary: () => Promise<v
 type Phase = "listening" | "thinking" | "speaking" | "idle" | "blocked";
 
 const NATURAL_KEY = "wb-atlas-voice-natural";
+/** Longest a live tool call may take before the model is told it failed. */
+const TOOL_TIMEOUT_MS = 60_000;
 
 /** JSON with object keys sorted, so {a,b} and {b,a} compare equal. */
 function stableJson(v: unknown): string {
@@ -162,6 +164,12 @@ export default function AssistantVoice({
 
   // ── live engine state ──
   const liveRef = useRef<LiveHandle | null>(null);
+  // Which startLive() call is current: callbacks from an older session (a
+  // voice change restarted it) must not touch the screen or the ref.
+  const liveSeq = useRef(0);
+  // Counts tool calls within a session; with liveSeq it gives every live
+  // tool call its own id, which the route folds into its card ids.
+  const liveCallSeq = useRef(0);
   const turnUser = useRef("");
   const turnProposals = useRef<Proposal[]>([]);
 
@@ -211,6 +219,11 @@ export default function AssistantVoice({
       setNote(detail ? `Looking up ${detail.replace(/_/g, " ")}…` : "Looking that up…");
       setPhaseBoth("thinking");
     } else if (s === "ended") {
+      // The session is gone for good (Google closed it, the reconnect budget
+      // ran out, a voice change): drop the handle so the next tap on the orb
+      // starts a fresh one. Leaving it set made the orb dead until Done →
+      // reopen (2026-11-02).
+      liveRef.current = null;
       setNote(detail?.startsWith("socket closed") ? "The connection dropped — tap the mic to start again." : "The conversation ended — tap the mic to start again.");
       setPhaseBoth("idle");
     }
@@ -270,11 +283,22 @@ export default function AssistantVoice({
           return { alreadyDone: true, note: "That was already applied a moment ago — do not do it again. Tell the user it's done and move on to the next step." };
         }
       }
-      const res = await fetch("/api/app/assistant/live/tool", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: toolName, args }),
-      });
+      // A tool that hangs would hang the whole conversation (Gemini waits for
+      // the function response), so the fetch is capped; the model gets an
+      // error it can say out loud instead.
+      let res: Response;
+      try {
+        res = await fetch("/api/app/assistant/live/tool", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: toolName, args, callId: `${liveSeq.current}-${++liveCallSeq.current}` }),
+          signal: typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(TOOL_TIMEOUT_MS) : undefined,
+        });
+      } catch (err) {
+        const timedOut = (err as { name?: string })?.name === "TimeoutError" || (err as { name?: string })?.name === "AbortError";
+        voiceLog("live: tool fetch failed", `${toolName} ${timedOut ? "timed out" : (err as Error)?.message ?? err}`);
+        return { error: timedOut ? "That took too long — tell the user, and offer to try again or try something smaller." : "Couldn't reach the server — tell the user to check the connection." };
+      }
       const data = (await res.json().catch(() => ({}))) as { result?: Record<string, unknown>; proposals?: Proposal[]; error?: string };
       if (!res.ok) {
         voiceLog("live: tool route failed", `${toolName} ${res.status} ${data.error ?? ""}`);
@@ -301,11 +325,18 @@ export default function AssistantVoice({
   );
 
   const startLive = useCallback(async () => {
+    const seq = ++liveSeq.current;
+    liveCallSeq.current = 0;
+    // Callbacks of a session that was replaced (voice change) are dropped.
+    const current = () => alive.current && liveSeq.current === seq;
     try {
       const handle = await startLiveSession({
-        onStatus: onLiveStatus,
+        onStatus: (s, detail) => {
+          if (!current()) return;
+          onLiveStatus(s, detail);
+        },
         onCaption: (role, text, final) => {
-          if (!alive.current) return;
+          if (!current()) return;
           if (role === "user") {
             setInterim(text);
             if (!utteranceOpen.current) {
@@ -324,7 +355,7 @@ export default function AssistantVoice({
           }
         },
         onTurnComplete: () => {
-          if (!alive.current) return;
+          if (!current()) return;
           utteranceOpen.current = false;
           // Flush whatever happened this turn — words, or just cards staged
           // behind a silent turn or one that got interrupted — so a later
@@ -336,7 +367,7 @@ export default function AssistantVoice({
         onToolCall,
         onError: (message) => {
           voiceLog("live: error", message);
-          if (!alive.current) return;
+          if (!current()) return;
           setNote(message);
         },
         onUsage: (inSeconds, outSeconds) => {
@@ -348,12 +379,13 @@ export default function AssistantVoice({
           }).catch(() => undefined);
         },
       });
-      if (!alive.current) {
-        handle.stop();
+      if (!current()) {
+        handle.stop(alive.current ? "replaced" : "screen closed");
         return;
       }
       liveRef.current = handle;
     } catch (err) {
+      if (!current()) return;
       const message = (err as Error)?.message ?? "";
       if (/NotAllowed|denied|blocked/i.test(message) || (err as { name?: string })?.name === "NotAllowedError") {
         voiceLog("live: blocked", message);
