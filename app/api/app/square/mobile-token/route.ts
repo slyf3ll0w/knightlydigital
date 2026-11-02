@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getActor, canSeeMoney } from "@/lib/permissions";
+import { getActor, isManager } from "@/lib/permissions";
 import { limit } from "@/lib/rate-limit";
+import { logActivity } from "@/lib/activity";
 import { squareEnvironment } from "@/lib/square";
 import { squareTokenForCompany, SquareNotConnectedError } from "@/lib/square-connection";
 import { requestIsNativeShell, tapToPayEnabled } from "@/lib/tap-to-pay";
@@ -22,7 +23,13 @@ import { hasInPersonScope } from "@/lib/tap-to-pay-shared";
 export async function GET() {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!canSeeMoney(actor)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  // Owners and admins only (security audit 2026-11-01): this token is the
+  // seller's whole Square grant — refunds, disputes, cards on file, the bank
+  // account — so it goes to the roles WorkBench already trusts with those,
+  // never to a User-role member who can merely take a payment.
+  if (!isManager(actor.role)) {
+    return NextResponse.json({ error: "Only owners and admins can set up Tap to Pay on a phone." }, { status: 403 });
+  }
   if (!tapToPayEnabled()) return NextResponse.json({ error: "Tap to Pay isn't available yet." }, { status: 404 });
   if (!(await requestIsNativeShell()) && process.env.TAP_TO_PAY_ALLOW_WEB !== "1") {
     return NextResponse.json({ error: "Tap to Pay only works in the WorkBench phone app." }, { status: 403 });
@@ -49,6 +56,16 @@ export async function GET() {
       return NextResponse.json({ error: "Square has no charge location for this account." }, { status: 409 });
     }
     console.log(`[tap-to-pay] token issued company=${actor.companyId} user=${actor.id}`);
+    // On the company's own record too, so an owner can see who set up a phone and when.
+    logActivity({
+      companyId: actor.companyId,
+      userId: actor.id,
+      userName: actor.name,
+      entityType: "payment",
+      entityId: actor.companyId,
+      action: "tap_to_pay_device_authorized",
+      detail: "Square Tap to Pay set up on a phone (seller token issued to the app)",
+    });
     return NextResponse.json(
       {
         accessToken: token,

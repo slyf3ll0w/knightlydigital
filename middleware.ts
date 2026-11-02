@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { limit, clientIp } from "@/lib/rate-limit";
 import { SUPERADMIN_COOKIE, verifySuperadminSessionToken } from "@/lib/superadmin-session";
 import { APPLE_USER_COOKIE } from "@/lib/sign-in-options";
+import { hostVerdict } from "@/lib/canonical-host";
 
 // Per-IP limits on abuse-prone endpoints: { max requests, window }
 // `methods` narrows the rule (default: every non-GET/HEAD method).
@@ -176,6 +177,21 @@ const agencyMoved: Record<string, string> = {
 
 export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
+
+  // ── One hostname (lib/canonical-host.ts) ───────────────────────────────────
+  // Everything below — the rate limits above all — assumes the request came
+  // through the deployment's own hostname (production: Cloudflare, which
+  // stamps the real visitor address). A request for the hosting provider's
+  // hostname underneath is sent to the real one before anything is read.
+  {
+    const verdict = hostVerdict({
+      requestHost: req.headers.get("host"),
+      method: req.method,
+      pathAndQuery: `${path}${req.nextUrl.search}`,
+    });
+    if (verdict.kind === "redirect") return NextResponse.redirect(verdict.location, 308);
+    if (verdict.kind === "refuse") return new NextResponse("Misdirected request", { status: 421 });
+  }
 
   // Sign in with Apple answers with a cross-site form POST (response_mode=
   // form_post is mandatory once the name/email scopes are requested), and

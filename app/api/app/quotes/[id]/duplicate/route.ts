@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, viaContactScope } from "@/lib/permissions";
 import { nextQuoteNumber, withDocNumberRetry } from "@/lib/doc-numbers";
@@ -32,6 +33,8 @@ export async function POST(
         data: {
           companyId,
           contactId: source.contactId,
+          // The client link: a real random token, not the schema's cuid default
+          publicToken: randomBytes(24).toString("hex"),
           quoteNumber,
           title: source.title,
           status: "DRAFT",

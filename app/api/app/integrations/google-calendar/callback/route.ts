@@ -1,9 +1,9 @@
 import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { connectUser, syncUserGoogleCalendar, verifyState } from "@/lib/google-calendar";
 import { pullUserGoogleCalendar } from "@/lib/google-calendar-pull";
+import { loginUrlReturningTo } from "@/lib/login-return";
 
 /**
  * Google redirects back here after consent with ?code and ?state.
@@ -47,14 +47,18 @@ export async function GET(req: NextRequest) {
 
   const userId = verifyState(state);
   if (!userId) return landing(req, signedIn, "bad_state");
+  // Finished only by the signed-in person who started it (security audit
+  // 2026-11-01 — see the Square callback). No session → sign in and come
+  // straight back with code and state intact.
+  if (!actor) {
+    const base = process.env.NEXTAUTH_URL ?? req.nextUrl.origin;
+    return NextResponse.redirect(new URL(loginUrlReturningTo(`${req.nextUrl.pathname}${req.nextUrl.search}`), base));
+  }
   // A session that isn't the one the state was minted for means the link was
   // replayed into somebody else's browser — refuse rather than connect it.
-  if (actor && actor.id !== userId) return landing(req, signedIn, "bad_state");
+  if (actor.id !== userId) return landing(req, signedIn, "bad_state");
 
-  // Without a session we still need the company the connection belongs to.
-  const companyId =
-    actor?.companyId ??
-    (await prisma.user.findUnique({ where: { id: userId }, select: { companyId: true } }))?.companyId;
+  const companyId = actor.companyId;
   if (!companyId) return landing(req, signedIn, "bad_state");
 
   try {

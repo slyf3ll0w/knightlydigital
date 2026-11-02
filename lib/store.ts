@@ -141,7 +141,11 @@ export async function createStoreOrder(params: {
           });
       if (params.contactId && !contact) throw new StoreError("Client not found.", 404);
       if (contact) {
-        const fill = { ...(!contact.email ? { email } : {}), ...(!contact.phone && phone ? { phone } : {}) };
+        // A signed-in hub client filling their own blanks is fine. A stranger
+        // who merely typed a client's email must NOT be able to write a phone
+        // number onto that client's record (security audit 2026-11-01) — the
+        // texts and calls meant for the client would go to the stranger.
+        const fill = params.contactId ? { ...(!contact.email ? { email } : {}), ...(!contact.phone && phone ? { phone } : {}) } : {};
         if (Object.keys(fill).length > 0) contact = await tx.contact.update({ where: { id: contact.id }, data: fill, select: { id: true, email: true, phone: true } });
       } else {
         contact = await tx.contact.create({

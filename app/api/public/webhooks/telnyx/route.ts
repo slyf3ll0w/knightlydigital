@@ -199,6 +199,8 @@ async function landInboundSms(
       const created = await prisma.contact.create({
         data: {
           companyId,
+          // A real random hub token, not the schema's cuid default (audit 2026-11-01)
+          hubToken: crypto.randomBytes(24).toString("hex"),
           firstName: prettyDigits(digits),
           lastName: "",
           phone: fromE164,

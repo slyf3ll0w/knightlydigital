@@ -105,11 +105,21 @@ export async function limit(key: string, max: number, windowMs: number): Promise
  * rate-limit key. cf-connecting-ip / x-real-ip carry the real client.
  */
 export function clientIp(headers: Headers): string {
+  // Cloudflare overwrites this header on every proxied request, so behind it
+  // the value is the visitor's, whatever they typed. Off Cloudflare (staging)
+  // the hosting proxy APPENDS to x-forwarded-for: the LAST entry is what the
+  // proxy itself saw, the first is whatever the caller sent. The middleware
+  // sends every request for a non-canonical hostname away first
+  // (lib/canonical-host.ts), so a caller can't reach this off-Cloudflare in
+  // production and hand-pick their bucket.
   const cf = headers.get("cf-connecting-ip");
   if (cf) return cf.trim();
+  const fwd = headers.get("x-forwarded-for");
+  if (fwd) {
+    const parts = fwd.split(",").map((p) => p.trim()).filter(Boolean);
+    if (parts.length) return parts[parts.length - 1];
+  }
   const real = headers.get("x-real-ip");
   if (real) return real.trim();
-  const fwd = headers.get("x-forwarded-for");
-  if (fwd) return fwd.split(",")[0].trim();
   return "unknown";
 }

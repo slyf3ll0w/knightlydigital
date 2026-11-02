@@ -1,5 +1,6 @@
 import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { clientIp, limit } from "@/lib/rate-limit";
 import { notifyTeamOfClientMessage, portalThreadContactInclude } from "@/lib/portal-messages";
@@ -90,6 +91,9 @@ export async function POST(req: NextRequest) {
       created = await prisma.contact.create({
         data: {
           companyId,
+          // The hub link is this person's whole portal login: a real random
+          // token, never the schema's cuid default (audit 2026-11-01)
+          hubToken: randomBytes(24).toString("hex"),
           ...splitName(name),
           email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null,
           phone: parsed?.phone ?? null,

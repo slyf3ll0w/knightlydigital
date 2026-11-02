@@ -104,7 +104,8 @@ async function createInTransaction(
         ? owner.account.id
         : (
             await tx.account.create({
-              data: { email: owner.newLogin.email, passwordHash: owner.newLogin.hash },
+              // The person chose this password themselves (lib/team-login.ts)
+              data: { email: owner.newLogin.email, passwordHash: owner.newLogin.hash, passwordChangedAt: new Date() },
             })
           ).id;
     const ownerEmail = "account" in owner ? owner.account.email : owner.newLogin.email;

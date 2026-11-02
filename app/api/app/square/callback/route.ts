@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor } from "@/lib/permissions";
 import { completeSquareConnect, SquareConnectError, verifySquareState } from "@/lib/square-connection";
+import { loginUrlReturningTo } from "@/lib/login-return";
 
 /**
  * Square redirects the seller back here after the consent screen with
@@ -50,9 +51,19 @@ export async function GET(req: NextRequest) {
   const verified = verifySquareState(state);
   if (!verified) return landing(req, signedIn, "bad_state");
   const { companyId, userId } = verified;
+  // The exchange is finished only by the signed-in owner who started it
+  // (security audit 2026-11-01): a signed state alone let an owner hand a
+  // Square seller a consent link that attached THEIR Square account to the
+  // owner's company. No session here (the phone app hands consent to the
+  // system browser) → sign in first and come straight back, code and state
+  // intact; Square's code is good for five minutes.
+  if (!actor) {
+    const base = process.env.NEXTAUTH_URL ?? req.nextUrl.origin;
+    return NextResponse.redirect(new URL(loginUrlReturningTo(`${req.nextUrl.pathname}${req.nextUrl.search}`), base));
+  }
   // A session for a different account means the link was replayed into
   // somebody else's browser — refuse rather than connect it.
-  if (actor && (actor.id !== userId || actor.companyId !== companyId)) {
+  if (actor.id !== userId || actor.companyId !== companyId) {
     return landing(req, signedIn, "bad_state");
   }
   const user = await prisma.user.findUnique({

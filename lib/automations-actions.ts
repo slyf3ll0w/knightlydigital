@@ -488,7 +488,11 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
       const url = String(step.url);
       const problem = await safeWebhookHost(url);
       if (problem) return `skipped: ${problem}`;
-      const body = JSON.stringify({ event: compiled.spec.trigger.event, entityType: compiled.entity, link: `${baseUrl()}${loaded.link}`, fields: loaded.ctx, automation: { id: automation.id, name: automation.name }, sentAt: now.toISOString() });
+      // The context carries links that embed the client's hub token (the
+      // job report) for the OTHER steps — a reply or an email to the client.
+      // A third-party URL never gets that bearer credential (audit 2026-11-01).
+      const fields = Object.fromEntries(Object.entries(loaded.ctx).filter(([k]) => !/hub/i.test(k) && k !== "job_report_link"));
+      const body = JSON.stringify({ event: compiled.spec.trigger.event, entityType: compiled.entity, link: `${baseUrl()}${loaded.link}`, fields, automation: { id: automation.id, name: automation.name }, sentAt: now.toISOString() });
       if (Buffer.byteLength(body) > AUTOMATION_LIMITS.webhookBodyBytes) return "skipped: payload too large";
       const ctl = new AbortController();
       const timer = setTimeout(() => ctl.abort(), AUTOMATION_LIMITS.webhookTimeoutMs);

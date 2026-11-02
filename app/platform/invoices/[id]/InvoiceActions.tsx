@@ -278,7 +278,11 @@ export default function InvoiceActions({
     setGiftError("");
     setGiftFound(null);
     try {
-      const res = await fetch(`/api/app/payments/square/gift-cards/lookup?gan=${encodeURIComponent(giftGan)}`);
+      const res = await fetch("/api/app/payments/square/gift-cards/lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gan: giftGan }),
+      });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         setGiftError(data?.error ?? GENERIC_ERROR);

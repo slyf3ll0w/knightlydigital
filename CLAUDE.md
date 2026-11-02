@@ -215,7 +215,8 @@ test `scripts/test-active-device.ts`.
 | `/app/register` | own page | Invite-only; also "New company" for a signed-in account. |
 
 An **invite code** (a minted `WB-XXXX-XXXX`, or the shared tester code
-`UNIVERSAL_INVITE_CODE` — default `Workbench123`) IS the approval: no human
+`UNIVERSAL_INVITE_CODE` — no built-in default since the 2026-11-01 security
+audit: unset = no shared code) IS the approval: no human
 review (`accessPendingAt` null) and no Finix underwriting
 (`paymentsWaived`), landing on the dashboard instead of `/app/activate`.
 Every door takes one, and an owner already stuck at the gate can redeem one
@@ -1165,6 +1166,8 @@ AUTH_SECRET=     # generate: openssl rand -base64 32
 DATABASE_URL=    # PostgreSQL connection string from Railway
 NEXTAUTH_URL=    # deployed URL (e.g. https://jobflow.streamflaremedia.com or https://streamflaremedia.com)
 CRON_SECRET=     # shared secret for the recurring-billing cron (generate: openssl rand -base64 32)
+UNIVERSAL_INVITE_CODE=    # optional shared tester invite code; unset or "off" = none (no built-in default since 2026-11-01)
+CANONICAL_HOST_ALIASES=   # optional, comma-separated: extra hostnames (behind the same edge) that may serve the app besides NEXTAUTH_URL's; every other Host is sent to the canonical one (lib/canonical-host.ts)
 PAYMENT_PROCESSOR=square  # unset = square (the platform processor, SQUARE_* below); "finix" (FINIX_* below) or "manual" (no money moves) to override
 # Square — developer.squareup.com → Developer Console → the WorkBench app.
 # Sandbox and production have DIFFERENT ids/secrets; the host, the web SDK

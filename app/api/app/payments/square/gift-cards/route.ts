@@ -23,7 +23,9 @@ export async function GET(req: NextRequest) {
     const { status, body } = sellerFailureStatus(read);
     return NextResponse.json({ ...body, sales }, { status });
   }
-  return NextResponse.json({ giftCards: read.data.giftCards, cursor: read.data.cursor, sales });
+  // The full card number spends the balance anywhere: owners and admins only
+  const giftCards = isManager(actor.role) ? read.data.giftCards : read.data.giftCards.map((g) => ({ ...g, gan: null }));
+  return NextResponse.json({ giftCards, cursor: read.data.cursor, sales });
 }
 
 export async function POST(req: NextRequest) {

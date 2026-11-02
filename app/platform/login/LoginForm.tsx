@@ -8,6 +8,7 @@ import TurnstileWidget, { TurnstileHandle, captchaEnabled } from "@/components/T
 import { Input } from "@/components/Input";
 import SocialSignInButtons, { OrDivider, socialErrorMessage, useSocialSignInOffered } from "@/components/SocialSignInButtons";
 import type { SocialSignIn } from "@/lib/sign-in-options";
+import { DEFAULT_LOGIN_RETURN, safeLoginReturn } from "@/lib/login-return";
 
 // Human-readable copy for the ?error= code NextAuth redirects back with —
 // the password path's codes, then the social paths' (lib/social-login.ts
@@ -43,6 +44,9 @@ export default function LoginForm({ social }: { social: SocialSignIn }) {
   const [loading, setLoading] = useState(false);
   const [csrfToken, setCsrfToken] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
+  // Where to land after signing in: the dashboard, or an OAuth callback that
+  // sent the person here to finish a Connect (lib/login-return.ts).
+  const [returnTo, setReturnTo] = useState(DEFAULT_LOGIN_RETURN);
   const captchaRef = useRef<TurnstileHandle>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
@@ -76,7 +80,7 @@ export default function LoginForm({ social }: { social: SocialSignIn }) {
     redirected.current = true;
     getSession().then((fresh) => {
       if (fresh?.user?.companyId) {
-        window.location.replace("/app/dashboard");
+        window.location.replace(safeLoginReturn(new URLSearchParams(window.location.search).get("callbackUrl")));
       } else {
         signOut({ redirect: false }).catch(() => {});
       }
@@ -89,6 +93,7 @@ export default function LoginForm({ social }: { social: SocialSignIn }) {
   useEffect(() => {
     getCsrfToken().then((t) => setCsrfToken(t ?? ""));
     const params = new URLSearchParams(window.location.search);
+    setReturnTo(safeLoginReturn(params.get("callbackUrl")));
     const code = params.get("error");
     if (code) {
       setError(errorMessage(code));
@@ -193,7 +198,7 @@ export default function LoginForm({ social }: { social: SocialSignIn }) {
                 below is untouched: it stays a native POST. */}
             {offered.any && (
               <>
-                <SocialSignInButtons social={social} callbackUrl="/app/dashboard" onError={setError} />
+                <SocialSignInButtons social={social} callbackUrl={returnTo} onError={setError} />
                 <OrDivider className="my-5" />
               </>
             )}
@@ -215,7 +220,7 @@ export default function LoginForm({ social }: { social: SocialSignIn }) {
               className="space-y-4"
             >
               <input type="hidden" name="csrfToken" value={csrfToken} />
-              <input type="hidden" name="callbackUrl" value="/app/dashboard" />
+              <input type="hidden" name="callbackUrl" value={returnTo} />
               <input type="hidden" name="captchaToken" value={captchaToken} />
               <div>
                 <label

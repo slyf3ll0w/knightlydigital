@@ -45,7 +45,7 @@ test.describe("square gift cards (sandbox)", () => {
     saleInvoiceId = sale.invoiceId;
 
     // Not loaded until it is paid
-    const before = await api.get(`/api/app/payments/square/gift-cards/lookup?gan=${gan}`);
+    const before = await api.post(`/api/app/payments/square/gift-cards/lookup`, { gan });
     expect(before.giftCard.state).toBe("PENDING");
     expect(before.giftCard.balanceCents).toBe(0);
 
@@ -53,7 +53,7 @@ test.describe("square gift cards (sandbox)", () => {
     const list = await api.get("/api/app/payments/square/gift-cards");
     expect(list.sales.some((s: { invoiceId: string; state: string }) => s.invoiceId === saleInvoiceId && s.state === "PENDING")).toBe(true);
 
-    // Pay the invoice in cash (any payment counts) → the hook activates the card
+    // Pay the invoice in cash as the OWNER (an owner recording a typed-in payment stands behind it) → the hook activates the card
     const pay = await api.raw("POST", "/api/app/payments", { invoiceId: saleInvoiceId, amount: 25, method: "CASH" });
     expect(pay.ok, `record payment → ${pay.status}`).toBe(true);
 
@@ -65,7 +65,7 @@ test.describe("square gift cards (sandbox)", () => {
     expect(row?.state, row?.lastError ?? "").toBe("ACTIVE");
     expect(row?.activatedAt).not.toBeNull();
 
-    const after = await api.get(`/api/app/payments/square/gift-cards/lookup?gan=${gan}`);
+    const after = await api.post(`/api/app/payments/square/gift-cards/lookup`, { gan });
     expect(after.giftCard.state).toBe("ACTIVE");
     expect(after.giftCard.balanceCents).toBe(2500);
 
@@ -94,7 +94,7 @@ test.describe("square gift cards (sandbox)", () => {
     expect(paid!.payments[0].processorRef).toBeTruthy();
     expect(Number(paid!.payments[0].surchargeAmount ?? 0)).toBe(0);
 
-    const balance = await api.get(`/api/app/payments/square/gift-cards/lookup?gan=${gan}`);
+    const balance = await api.post(`/api/app/payments/square/gift-cards/lookup`, { gan });
     expect(balance.giftCard.balanceCents).toBe(1500);
   });
 
@@ -147,7 +147,7 @@ test.describe("square gift cards (sandbox)", () => {
   });
 
   test("a wrong number and a bad amount are refused", async () => {
-    const miss = await api.raw("GET", `/api/app/payments/square/gift-cards/lookup?gan=1234567890123456`);
+    const miss = await api.raw("POST", `/api/app/payments/square/gift-cards/lookup`, { gan: "1234567890123456" });
     expect(miss.status).toBe(404);
     const short = await api.raw("POST", "/api/app/payments/square/gift-cards", { amountCents: 100, recipientEmail: "x@example.com" });
     expect(short.status).toBe(400);
