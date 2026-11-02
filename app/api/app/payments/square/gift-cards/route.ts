@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActor, canSeeMoney, isManager } from "@/lib/permissions";
+import { giftCardsOpenFor, GIFT_CARDS_CLOSED_MESSAGE } from "@/lib/gift-cards-preview";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { GiftCardError, giftCardsOverview, sellGiftCard } from "@/lib/gift-cards";
 import { sellerFailureStatus } from "@/lib/square-seller-reports";
@@ -16,6 +17,7 @@ import { sellerFailureStatus } from "@/lib/square-seller-reports";
 export async function GET(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await giftCardsOpenFor(actor.companyId))) return NextResponse.json({ error: GIFT_CARDS_CLOSED_MESSAGE }, { status: 404 });
   if (!canSeeMoney(actor)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const sp = req.nextUrl.searchParams;
   const { read, sales } = await giftCardsOverview(actor.companyId, { cursor: sp.get("cursor"), customerId: sp.get("customerId") });
@@ -31,6 +33,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await giftCardsOpenFor(actor.companyId))) return NextResponse.json({ error: GIFT_CARDS_CLOSED_MESSAGE }, { status: 404 });
   if (!isManager(actor.role)) return NextResponse.json({ error: "Only owners and admins can sell gift cards." }, { status: 403 });
   if (await inPreview(actor.companyId)) return NextResponse.json(previewBlockedError("Gift cards"), { status: 403 });
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;

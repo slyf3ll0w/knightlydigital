@@ -38,6 +38,7 @@ import { squareEnvironment } from "@/lib/square";
 import { squareStatusForCompany } from "@/lib/square-connection";
 import { isOnlinePayment } from "@/lib/payment-ref";
 import SquarePayments from "./square/SquarePayments";
+import { giftCardsOpenFor } from "@/lib/gift-cards-preview";
 
 /**
  * Payments dashboard — the company's money view for online processing:
@@ -131,6 +132,7 @@ export default async function PaymentsDashboardPage({
           sandbox={squareEnvironment() === "sandbox"}
           missingScopes={status.connected ? status.missingScopes : []}
           isOwner={actor.role === "OWNER"}
+          giftCards={await giftCardsOpenFor(actor.companyId)}
           params={params}
         />
       </div>

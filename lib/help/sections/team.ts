@@ -28,6 +28,10 @@ export const teamSection: HelpSection = {
           text: "New team members don't get an invite email. Text or tell them their sign-in. (Someone who already has a WorkBench login joins with their existing password and gets an email heads-up.)",
         },
         {
+          type: "tip",
+          text: "The starting password is theirs to change. Until they set their own (Settings → My Profile, or Forgot password), it only works at your company: if another business later adds the same email to its team, that password is dropped and they get an email to set a new one — so nobody can sign in to someone else's company with a password a manager typed.",
+        },
+        {
           type: "h",
           text: "Per-person settings",
         },
@@ -177,7 +181,7 @@ export const portalSection: HelpSection = {
           type: "list",
           items: [
             "See their open balance, next visit and anything waiting on them on **Home**.",
-            "Approve quotes, pay invoices by card, bank or gift card, and save cards (and pick one for autopay).",
+            "Approve quotes, pay invoices by card or bank, and save cards (and pick one for autopay).",
             "Sign agreements.",
             "Ask to reschedule a visit, and send a **New request** for more work.",
             "Message you on the **Messages** tab. Replies show up in your [inbox](/help/messages-inbox).",

@@ -31,6 +31,7 @@ export default async function SquarePayments({
   sandbox,
   missingScopes,
   isOwner,
+  giftCards = false,
   params,
 }: {
   actor: Actor;
@@ -39,10 +40,14 @@ export default async function SquarePayments({
   /** Scopes the stored grant lacks (SquareStatus.missingScopes). */
   missingScopes: string[];
   isOwner: boolean;
+  /** Gift cards are open for this company (lib/gift-cards-preview.ts — test accounts only while suspended). */
+  giftCards?: boolean;
   params: { tab?: string; page?: string; payout?: string; dispute?: string; period?: string; payment?: string; giftcard?: string; cursor?: string; all?: string };
 }) {
   const companyId = actor.companyId;
-  const tab = parseSquareTab(params.tab);
+  const parsedTab = parseSquareTab(params.tab);
+  // A gift cards link on an account without them lands on Payments
+  const tab = parsedTab === "giftcards" && !giftCards ? "payments" : parsedTab;
   const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
   const period: ReportPeriod = isReportPeriod(params.period) ? params.period : "month";
   const now = new Date();
@@ -79,7 +84,7 @@ export default async function SquarePayments({
   const whatIsMissing = [
     !needPayouts || !needDisputes ? "payouts and disputes" : "",
     missingScopes.includes("ORDERS_READ") ? "the items behind a sale" : "",
-    missingScopes.some((s) => s.startsWith("GIFTCARDS")) ? "gift cards" : "",
+    giftCards && missingScopes.some((s) => s.startsWith("GIFTCARDS")) ? "gift cards" : "",
   ].filter(Boolean);
 
   // Day-by-day bars for the "Collected" card, like the dashboard's
@@ -202,7 +207,7 @@ export default async function SquarePayments({
           />
         </div>
       )}
-      {tab === "payments" && !params.payment && (
+      {giftCards && tab === "payments" && !params.payment && (
         <div className="mb-8">
           <RuledLabel info="Gift cards sold and redeemed through WorkBench on your Square account. Rarely needed, so the door lives here and under Settings → Payments & accounting rather than on the tab bar.">
             Gift cards

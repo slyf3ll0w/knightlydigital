@@ -6,6 +6,7 @@ import { recomputeDepositApplied } from "@/lib/deposits";
 import { clientPayConfig, PAY_CONFIG_SELECT } from "@/lib/pay-client-config";
 import ViewBeacon from "@/components/ViewBeacon";
 import PayPage from "./PayPage";
+import { giftCardsOpen } from "@/lib/gift-cards-preview";
 
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -126,9 +127,11 @@ export default async function PublicPayPage({
   // carries public ids only (lib/pay-client-config.ts).
   const gate = await prisma.invoice.findFirst({
     where: { publicToken: token },
-    select: { company: { select: PAY_CONFIG_SELECT } },
+    select: { company: { select: { ...PAY_CONFIG_SELECT, isTest: true } } },
   });
   const pay = gate ? clientPayConfig(gate.company) : null;
+  // Gift cards: test accounts only while suspended (lib/gift-cards-preview.ts)
+  const giftCards = gate ? giftCardsOpen(gate.company) : false;
 
   return (
     <>
@@ -137,6 +140,7 @@ export default async function PublicPayPage({
         invoice={JSON.parse(JSON.stringify(invoice))}
         balance={balance}
         pay={pay}
+        giftCards={giftCards}
         preview={preview === "1"}
       />
     </>

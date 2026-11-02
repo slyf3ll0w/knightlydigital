@@ -1,6 +1,7 @@
 import { fmtPhone } from "@/lib/format";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { giftCardsOpenFor } from "@/lib/gift-cards-preview";
 import { requirePageActor, canSell, canSeeMoney, contactScope, seesAllLeads, isManager } from "@/lib/permissions";
 import Link from "next/link";
 import SectionHeader from "@/components/SectionHeader";
@@ -526,8 +527,8 @@ export default async function ContactDetailPage({
               pay={clientPayConfig(contact.company)}
             />
           )}
-          {canSeeMoney(actor) && (
-            // Reads Square (gift cards) — streamed so the page never waits on it
+          {canSeeMoney(actor) && (await giftCardsOpenFor(companyId)) && (
+            // Reads Square (gift cards; test accounts only while suspended) — streamed so the page never waits on it
             <Suspense fallback={null}>
               <SquareClientCard contactId={contact.id} companyId={companyId} />
             </Suspense>

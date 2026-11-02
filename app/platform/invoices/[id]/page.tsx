@@ -20,6 +20,7 @@ import RunAutomationMenu from "@/components/RunAutomationMenu";
 import { getProcessor, invoiceBalance } from "@/lib/payments";
 import { canChargeOnline } from "@/lib/payments-gate";
 import { clientPayConfig, PAY_CONFIG_SELECT } from "@/lib/pay-client-config";
+import { giftCardsOpenFor } from "@/lib/gift-cards-preview";
 import { tapToPayOffer } from "@/lib/tap-to-pay";
 import type { ClientPayConfig } from "@/lib/pay-config";
 import { activityFor } from "@/lib/activity";
@@ -127,7 +128,8 @@ export default async function InvoiceDetailPage({
   // Square products (docs/plans/square-products-2026-10-30.md): a gift card
   // can pay any open balance once this company runs on Square.
   const onSquare = payCfg?.processor === "square";
-  const giftCards = onSquare && balance > 0 && invoice.status !== "PAID" && invoice.status !== "ARCHIVED";
+  const giftCards =
+    onSquare && balance > 0 && invoice.status !== "PAID" && invoice.status !== "ARCHIVED" && (await giftCardsOpenFor(actor.companyId));
 
   // One-shot confetti (per user) on the first open after a processor-verified
   // (card/ACH) payment marked it PAID — manual cash/check entries don't celebrate.

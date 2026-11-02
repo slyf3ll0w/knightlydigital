@@ -201,6 +201,8 @@ export const QUICKBOOKS_LINK: SettingsLink = {
  * rather than on the Payments tab bar (2026-10-30 request).
  */
 export const GIFT_CARDS_LINK: SettingsLink = {
+  // Suspended for live accounts (lib/gift-cards-preview.ts): test accounts only
+  testOnly: true,
   href: "/app/payments?tab=giftcards",
   label: "Gift cards",
   sub: "Sell a card, check a balance, every card on your Square account",

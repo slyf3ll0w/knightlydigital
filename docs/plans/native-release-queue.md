@@ -12,6 +12,26 @@ waiting* — not how to build.
 > **2026-09-24:** day-of checklist for this Play release (with what is
 > deliberately left for versionCode 5) is `android-1.3-release-2026-09-25.md`.
 
+## Capacitor 8.4.3 — both shells (security audit 2026-11-01; rides the next build, no code of ours changes)
+
+`@capacitor/core`, `@capacitor/android`, `@capacitor/ios` and `@capacitor/cli`
+moved from 8.4.1 to 8.4.3 in package.json on 2026-11-02 (main 5d40af3f).
+8.4.1 carries GHSA-rvm3-566m-v7fv (critical): the webview's navigation
+guard ignored the path, so a link to `/_capacitor_http_interceptor_…` on
+the app's own origin could make the native layer fetch an attacker URL and
+run its script with the shell's cookies and plugins. The web side is already
+on 8.4.3 (the installed node_modules decide what `npx cap sync` copies), but
+the fix only reaches phones through a store build:
+
+- **iOS** (build 14, waiting on the Tap to Pay entitlement): `npm ci` on the
+  Mac, `npx cap sync ios`, then `pod install` is not used (CapApp-SPM) — open
+  the workspace, confirm the Capacitor package resolves to 8.4.3, archive.
+- **Android** (versionCode 6): `npm ci`, `npx cap sync android`, rebuild the
+  AAB; the Gradle project reads `@capacitor/android` from node_modules.
+
+Nothing in `ios/**` or `android/**` is edited for this; it is purely the
+dependency version that the next build picks up.
+
 ## Tap to Pay — iOS build 14 + Android versionCode 6 (tree ready 2026-10-22; Mac steps: mobile-app-runbook-mac.md § RELEASE 1.4 — build 14; pbxproj bumped to build 14 on 2026-10-23 because build 13 was never uploaded)
 
 Square's Mobile Payments SDK inside both shells so a tech takes a card by
