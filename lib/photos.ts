@@ -182,7 +182,7 @@ export async function parseUpload(
 export async function storePhoto(
   actor: Actor,
   input: UploadInput
-): Promise<{ ok: true; photo: PhotoView; also: PhotoView[]; status: 200 | 201 } | { ok: false; response: NextResponse }> {
+): Promise<{ ok: true; photo: PhotoView; also: PhotoView[]; note?: string; status: 200 | 201 } | { ok: false; response: NextResponse }> {
   const companyId = actor.companyId;
 
   if (input.clientKey) {
@@ -304,17 +304,27 @@ export async function storePhoto(
 
   // "Match this angle": the shot was taken as the After of a given Before.
   // A pairing that can't be made (the Before was deleted or paired meanwhile,
-  // the plan lapsed) never loses the photo — it just stands alone.
+  // the plan lapsed) never loses the photo — it just stands alone, and the
+  // answer says so (`note`) instead of the grid silently showing a single.
   let also: PhotoView[] = [];
+  let note: string | undefined;
   if (input.pairWith && jobId) {
     const paired = await setPair(actor, photo.id, input.pairWith);
     if (paired.ok) {
       photo = paired.photo;
       also = paired.also;
+    } else {
+      const why = await paired.response
+        .clone()
+        .json()
+        .then((j: unknown) => (j && typeof j === "object" && typeof (j as { error?: unknown }).error === "string" ? (j as { error: string }).error : ""))
+        .catch(() => "");
+      note = `Saved, but it couldn't be paired with the Before${why ? `: ${why}` : "."}`;
+      console.warn(`[photos] match-this-angle pairing failed for ${photo.id} with ${input.pairWith}: ${why || paired.response.status}`);
     }
   }
 
-  return { ok: true, photo, also, status: 201 };
+  return { ok: true, photo, also, note, status: 201 };
 }
 
 /**
@@ -349,7 +359,9 @@ export async function setPair(
   const otherRow = await prisma.jobPhoto.findFirst({ where: { id: withId, ...photoScope(actor) }, select: PHOTO_VIEW_SELECT });
   if (!otherRow) return { ok: false, response: err("That photo isn't on this job anymore.", 404) };
   const other = toPhotoView(otherRow);
-  const check = pairable(photo, other);
+  // The job's other photos tell a real pair from a pairId whose partner was deleted
+  const siblingRows = photo.jobId ? await prisma.jobPhoto.findMany({ where: { jobId: photo.jobId }, select: PHOTO_VIEW_SELECT }) : [];
+  const check = pairable(photo, other, siblingRows.map(toPhotoView));
   if (!check.ok) return { ok: false, response: err(check.why, 400) };
 
   const pairId = photo.pairId ?? other.pairId ?? randomUUID();
@@ -500,11 +512,14 @@ export async function deletePhoto(
 ): Promise<{ ok: true } | { ok: false; response: NextResponse }> {
   const photo = await prisma.jobPhoto.findFirst({
     where: { id: photoId, ...(jobId ? { jobId } : {}), ...photoScope(actor) },
-    select: { id: true, storageKey: true, thumbKey: true, siteUse: true },
+    select: { id: true, storageKey: true, thumbKey: true, siteUse: true, pairId: true },
   });
   if (!photo) return { ok: false, response: err("Photo not found.", 404) };
 
   await prisma.jobPhoto.delete({ where: { id: photo.id } });
+  // Half of a before/after pair is gone: the other half is a single again
+  // (a stranded pairId made the viewer offer Pair and the server refuse it).
+  if (photo.pairId) await prisma.jobPhoto.updateMany({ where: { pairId: photo.pairId }, data: { pairId: null } });
 
   // Drop the objects too, or deleted photos bill forever as orphans nothing
   // points at. The row is already gone, so a failure here is logged rather

@@ -554,7 +554,14 @@ export default function CallScreenLive({
               // iPhone: speakerphone (the system call screen has the same switch).
               <Control icon={Volume2} label="Speaker" on={!!sp.speaker} disabled={dialing} onClick={() => softphone.toggleSpeaker()} />
             )}
-            <Control icon={UserPlus} label="Add" on={addOpen} disabled={dialing || !people.canAdd.ok} onClick={() => setAddOpen(true)} title={people.canAdd.ok ? "Add a person — a teammate, a client, or a number" : people.canAdd.reason} />
+            <Control
+              icon={UserPlus}
+              label="Add"
+              on={addOpen}
+              disabled={dialing || held || !people.canAdd.ok}
+              onClick={() => setAddOpen(true)}
+              title={held ? "Resume the call first, then add someone" : people.canAdd.ok ? "Add a person — a teammate, a client, or a number" : people.canAdd.reason}
+            />
             <Control icon={Grid3x3} label="Keypad" on={pad} disabled={dialing} onClick={() => setPad((v) => !v)} title="Keypad — touch-tones for phone menus" />
             <Control icon={StickyNote} label="Note" on={noteOpen} onClick={() => setNoteOpen(true)} title="Stick a note on Home while you talk" />
           </div>

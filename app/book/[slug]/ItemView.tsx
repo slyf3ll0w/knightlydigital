@@ -77,7 +77,7 @@ export default async function ItemView({
   if (embed) {
     return (
       <EmbedScheduleShell appearance={appearance}>
-        <EmbedAutoResize slug={`${companySlug}/${pub.slug}`} />
+        <EmbedAutoResize slug={company.slug} previousSlugs={[companySlug, ...(company.previousSlugs ?? [])]} path={pub.slug} />
         {previewNote}
         {body}
       </EmbedScheduleShell>

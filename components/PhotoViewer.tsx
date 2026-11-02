@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, Eye, EyeOff, Globe, Link2, Loader2, MapPin, Pencil, Tag, Trash2, Unlink, X } from "lucide-react";
 import { alertSheet, confirmSheet, promptSheet } from "@/components/ConfirmSheet";
 import { postJson } from "@/lib/safe-fetch";
-import { JOB_STAGE_OPTIONS, STAGE_LABEL, isBeforeStage, photoMapUrl, photoSrc, unpaired, type PhotoStage, type PhotoView } from "@/lib/photos-shared";
+import { JOB_STAGE_OPTIONS, STAGE_LABEL, clientMaySee, isBeforeStage, photoMapUrl, photoSrc, unpaired, type PhotoStage, type PhotoView } from "@/lib/photos-shared";
 
 /**
  * Full-screen photo viewer (phone and desktop alike): swipe or arrow between
@@ -338,7 +338,8 @@ export default function PhotoViewer({
             ))}
           <Action
             icon={photo.clientVisible ? <Eye size={18} /> : <EyeOff size={18} />}
-            label={photo.clientVisible ? "Client sees it" : "Hidden from client"}
+            // A hidden Before still shows when its paired After is shown (clientMaySee) — say so, not "hidden"
+            label={photo.clientVisible ? "Client sees it" : clientMaySee(photo, photos) ? "Shown with its pair" : "Hidden from client"}
             onClick={() => void toggleClient()}
             disabled={busy}
             active={photo.clientVisible}

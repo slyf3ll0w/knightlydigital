@@ -81,7 +81,7 @@ export default async function EstimateView({
   if (embed) {
     return (
       <EmbedScheduleShell appearance={appearance}>
-        <EmbedAutoResize slug={`${companySlug}/estimate/${toolSlug}`} />
+        <EmbedAutoResize slug={company.slug} previousSlugs={[companySlug, ...(company.previousSlugs ?? [])]} path={`estimate/${toolSlug}`} />
         {previewNote}
         {form}
       </EmbedScheduleShell>

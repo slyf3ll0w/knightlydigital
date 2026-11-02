@@ -18,11 +18,29 @@
     return;
   }
 
-  var script = document.currentScript;
-  if (!script) {
-    var all = document.querySelectorAll('script[src*="/embed.js"]');
-    script = all[all.length - 1];
+  // Our own URL tells us where the forms live. Without currentScript (a
+  // loader that eval'd us, an old browser) the fallback only accepts a
+  // script whose path IS /embed.js — another vendor's "…/widget/embed.js"
+  // would otherwise be taken for ours and every frame would point at them.
+  function isOurs(s) {
+    try {
+      return new URL(s.src, location.href).pathname === "/embed.js";
+    } catch (e) {
+      return false;
+    }
   }
+  var script = document.currentScript;
+  if (!script || !script.src) {
+    script = null;
+    var all = document.querySelectorAll('script[src*="/embed.js"]');
+    for (var si = all.length - 1; si >= 0; si--) {
+      if (isOurs(all[si])) {
+        script = all[si];
+        break;
+      }
+    }
+  }
+  if (!script) return;
   var ORIGIN;
   try {
     ORIGIN = new URL(script.src, location.href).origin;

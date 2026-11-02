@@ -59,7 +59,9 @@ import { aiEnabled } from "@/lib/ai";
 import { VOIP_WAKE_SECS, phoneCredentialsOfLogin, pushIncomingCall, voipRegisteredSoftphone, voipTargetsFor } from "@/lib/voip";
 import {
   MAX_PARTICIPANTS,
+  PARTICIPANT_RING_DEADLINE_MS,
   PARTICIPANT_RING_SECS,
+  PENDING_CONFERENCE_MAX_MS,
   actorLeg,
   canAddParticipant,
   handOffAfterLeave,
@@ -922,7 +924,9 @@ async function bridgeLegs(call: CallRow): Promise<void> {
       // conference instead of a bridge — the fallback if Telnyx will not
       // promote a bridged pair on the first Add (plan, spike 0). Costs a
       // conference participant-minute on every app call, hence opt-in.
-      ok = await startConference(call);
+      // A refused answerer join falls back to the plain bridge (startConference
+      // re-bridges the pair itself), so the call still connects.
+      ok = (await startConference(call)) !== "none";
     } else {
       ok = await callAction(call.agentCallId, "bridge", {
         call_control_id: call.telnyxCallId,
@@ -1604,6 +1608,10 @@ export async function setHoldMusic(companyId: string, callId: string, on: boolea
       const detail = err instanceof TelnyxError ? err.detail : "unknown error";
       throw new VoiceError(`Telnyx couldn't ${on ? "hold" : "resume"} the call: ${detail}`, 424);
     }
+    // Hold → Add → Resume: the hold that started while the call was still a
+    // bridge is a looping playback on the customer leg, which the conference
+    // unhold does not touch — stop it too (a no-op when nothing is playing).
+    if (!on) await callAction(call.telnyxCallId, "playback_stop").catch((e) => reportError("[voice] resume playback_stop failed:", e));
     return { held: on };
   }
   if (on) await callAction(call.telnyxCallId, "playback_start", { audio_url: holdMusicUrl(), loop: "infinity" });
@@ -1689,13 +1697,18 @@ function requireOnCall(call: CallRow, actor: { id: string; role: string }): void
 /**
  * Create the conference from the customer leg and join the answerer's leg.
  * `Call.conferenceId` is claimed first (a "pending:" token), so two Adds at
- * once make one conference. False when the claim was taken or a leg is gone;
- * throws when Telnyx refuses (the claim is released).
+ * once make one conference. "conference" when both legs are in it;
+ * "rebridged" when the answerer's join was refused and the pair was put
+ * back together as a plain bridge (undoConference); "none" when the claim
+ * was taken or a leg is gone. Throws when Telnyx refuses the create (the
+ * claim is released).
  */
-async function startConference(call: Pick<Call, "id" | "telnyxCallId" | "agentCallId">): Promise<boolean> {
-  if (!isRealLegId(call.telnyxCallId) || !isRealLegId(call.agentCallId)) return false;
+type ConferenceStart = "conference" | "rebridged" | "none";
+
+async function startConference(call: Pick<Call, "id" | "telnyxCallId" | "agentCallId">): Promise<ConferenceStart> {
+  if (!isRealLegId(call.telnyxCallId) || !isRealLegId(call.agentCallId)) return "none";
   const claimed = await prisma.call.updateMany({ where: { id: call.id, conferenceId: null }, data: { conferenceId: `pending:${call.id}` } });
-  if (claimed.count === 0) return false;
+  if (claimed.count === 0) return "none";
   let conf: { id: string };
   try {
     conf = await createConference({
@@ -1709,32 +1722,74 @@ async function startConference(call: Pick<Call, "id" | "telnyxCallId" | "agentCa
     throw err;
   }
   await prisma.call.update({ where: { id: call.id }, data: { conferenceId: conf.id } });
-  const ok = await conferenceAction(conf.id, "join", {
-    call_control_id: call.agentCallId,
-    start_conference_on_enter: true,
-    client_state: encodeState({ callId: call.id, leg: "agent", stage: "conference" }),
-    command_id: `${call.id}:conference:agent`,
-  });
-  console.info(`[voice] conference ${conf.id} for call=${call.id} (answerer joined=${ok})`);
-  return ok;
+  let ok = false;
+  try {
+    ok = await conferenceAction(conf.id, "join", {
+      call_control_id: call.agentCallId,
+      start_conference_on_enter: true,
+      client_state: encodeState({ callId: call.id, leg: "agent", stage: "conference" }),
+      command_id: `${call.id}:conference:agent`,
+    });
+  } catch (err) {
+    reportError(`[voice] answerer join of conference ${conf.id} (call=${call.id}) failed:`, err);
+  }
+  if (!ok) {
+    // The customer is already in the conference and the answerer is not: left
+    // like this they would talk to dead air. Put the pair back together and
+    // release the lock so the Add fails cleanly (and a retry starts afresh).
+    const rebridged = await undoConference(call, conf.id);
+    return rebridged ? "rebridged" : "none";
+  }
+  console.info(`[voice] conference ${conf.id} for call=${call.id} (answerer joined)`);
+  return "conference";
 }
+
+/**
+ * The answerer's leg never made it into the conference: take the customer
+ * leg back out, re-bridge the two legs and forget the conference. Every step
+ * is best effort — the legs may already be gone — and the lock is always
+ * released, so the call is never stuck on a half-made conference.
+ */
+async function undoConference(call: Pick<Call, "id" | "telnyxCallId" | "agentCallId">, conferenceId: string): Promise<boolean> {
+  let bridged = false;
+  if (isRealLegId(call.telnyxCallId) && isRealLegId(call.agentCallId)) {
+    await conferenceAction(conferenceId, "leave", { call_control_id: call.telnyxCallId }).catch((e) => reportError("[voice] conference undo leave failed:", e));
+    bridged = await callAction(call.agentCallId, "bridge", {
+      call_control_id: call.telnyxCallId,
+      client_state: encodeState({ callId: call.id, leg: "agent", stage: "bridged" }),
+    }).catch((e) => {
+      reportError("[voice] conference undo re-bridge failed:", e);
+      return false;
+    });
+    console.warn(`[voice] conference ${conferenceId} for call=${call.id} undone (re-bridged=${bridged})`);
+  }
+  await prisma.call.updateMany({ where: { id: call.id, conferenceId }, data: { conferenceId: null } }).catch(() => {});
+  return bridged;
+}
+
+/** What the sheet shows when the first Add could not open the call up. */
+export const ADD_FAILED_MESSAGE = "Couldn't add them — the call stayed as it was.";
 
 /** The call's conference id, creating it from the bridged pair on the first Add. */
 async function promoteToConference(call: CallRow): Promise<string> {
   const current = call.conferenceId ?? "";
   if (current && !current.startsWith("pending:")) return current;
   if (current.startsWith("pending:")) throw new VoiceError("Setting the call up — try again in a second.", 409);
+  let started: ConferenceStart = "none";
   try {
-    await startConference(call);
+    started = await startConference(call);
   } catch (err) {
     const detail = err instanceof TelnyxError ? err.detail : err instanceof Error ? err.message : "unknown error";
     reportError(`[voice] promoting call ${call.id} to a conference failed:`, err);
     throw new VoiceError(`Telnyx couldn't open the call up for more people: ${detail}`, 424);
   }
+  // The answerer's leg could not be joined: the pair is bridged again (or was
+  // already gone) and nobody gets dialed — the sheet says so.
+  if (started === "rebridged") throw new VoiceError(ADD_FAILED_MESSAGE, 424);
   const fresh = await prisma.call.findUnique({ where: { id: call.id }, select: { conferenceId: true } });
-  if (isRealLegId(fresh?.conferenceId)) return fresh.conferenceId;
+  if (isRealLegId(fresh?.conferenceId)) return fresh.conferenceId; // ours, or another Add's that won the claim and finished
   if (fresh?.conferenceId) throw new VoiceError("Setting the call up — try again in a second.", 409);
-  throw new VoiceError("The call couldn't be opened up for more people.", 424);
+  throw new VoiceError(ADD_FAILED_MESSAGE, 424);
 }
 
 export type AddTarget = { userId?: string | null; contactId?: string | null; to?: string | null };
@@ -1795,9 +1850,22 @@ export async function addParticipant(companyId: string, callId: string, actor: {
   }
 
   await promoteToConference(call);
-  const row = await prisma.callParticipant.create({
-    data: { callId: call.id, kind, userId, contactId, number, label, addedByUserId: actor.id, status: "ringing" },
-    select: participantSelect,
+  // The seat is claimed under a row lock on the call: two Adds at once both
+  // read "3 of 4" above, so the count is taken again where only one can.
+  const row = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT "id" FROM "Call" WHERE "id" = ${call.id} FOR UPDATE`;
+    const seatedNow = await tx.callParticipant.findMany({
+      where: { callId: call.id, status: { in: ["ringing", "joined"] } },
+      select: { id: true, kind: true, status: true, userId: true, telnyxCallId: true, number: true },
+    });
+    const canNow = canAddParticipant(call, seatedNow);
+    if (!canNow.ok) throw new VoiceError(canNow.reason, 409);
+    if (userId && seatedNow.some((p) => p.userId === userId)) throw new VoiceError(`${label.split(" ")[0]} is already on the call.`, 409);
+    if (number && seatedNow.some((p) => p.number === number)) throw new VoiceError(`${label} is already on the call.`, 409);
+    return tx.callParticipant.create({
+      data: { callId: call.id, kind, userId, contactId, number, label, addedByUserId: actor.id, status: "ringing" },
+      select: participantSelect,
+    });
   });
   try {
     if (kind === "team") await ringTeamInvite(call, row, actor.name);
@@ -2113,9 +2181,21 @@ export async function voicemailUrl(call: Pick<Call, "voicemailRecordingId" | "cu
 
 /* ───────────────────────── Housekeeping ───────────────────────── */
 
-/** Hourly: close rows whose hangup webhook never arrived; downgrade empty voicemails. */
-export async function runStaleCallSweep(now = new Date()): Promise<{ closed: number; emptied: number }> {
-  const out = { closed: 0, emptied: 0 };
+/**
+ * Hourly: close rows whose hangup webhook never arrived; downgrade empty
+ * voicemails; close Add-a-person invites still ringing past their deadline
+ * (the in-process timer died with a deploy, or a pushed phone never woke);
+ * release a "pending:" conference claim the process died holding.
+ */
+export async function runStaleCallSweep(now = new Date()): Promise<{ closed: number; emptied: number; rangOut: number; unclaimed: number }> {
+  const out = { closed: 0, emptied: 0, rangOut: 0, unclaimed: 0 };
+  out.rangOut = await closeRungOutInvites(now);
+  const unclaimed = await prisma.call.updateMany({
+    where: { conferenceId: { startsWith: "pending:" }, updatedAt: { lt: new Date(now.getTime() - PENDING_CONFERENCE_MAX_MS) } },
+    data: { conferenceId: null },
+  });
+  out.unclaimed = unclaimed.count;
+  if (unclaimed.count > 0) console.warn(`[voice] stale sweep released ${unclaimed.count} pending conference claim(s)`);
   const rows = await prisma.call.findMany({
     where: {
       OR: [
@@ -2156,6 +2236,38 @@ export async function runStaleCallSweep(now = new Date()): Promise<{ closed: num
     }
   }
   return out;
+}
+
+/**
+ * Participants still "ringing" past createdAt + PARTICIPANT_RING_DEADLINE_MS
+ * (lib/voice-conference.ts): the fast path is the in-process timer in
+ * scheduleInviteExpiry / Telnyx's own dial timeout, and this is what runs
+ * when either was lost. Their legs are dropped, the row reads no answer, and
+ * the seat is free again.
+ */
+async function closeRungOutInvites(now: Date): Promise<number> {
+  const rows = await prisma.callParticipant.findMany({
+    where: { status: "ringing", createdAt: { lt: new Date(now.getTime() - PARTICIPANT_RING_DEADLINE_MS) } },
+    select: { id: true, callId: true, kind: true, telnyxCallId: true },
+    take: 200,
+  });
+  let n = 0;
+  for (const row of rows) {
+    const closed = await prisma.callParticipant.updateMany({
+      where: { id: row.id, status: "ringing" },
+      data: { status: "no_answer", leftAt: now, hangupCause: "timeout" },
+    });
+    if (closed.count === 0) continue;
+    if (voiceEnabled()) {
+      if (isRealLegId(row.telnyxCallId)) await callAction(row.telnyxCallId, "hangup").catch(() => {});
+      const legs = await prisma.callLeg.findMany({ where: { callId: row.callId, participantId: row.id, endedAt: null }, select: { telnyxCallId: true } });
+      for (const l of legs) await callAction(l.telnyxCallId, "hangup").catch(() => {});
+    }
+    await prisma.callLeg.updateMany({ where: { callId: row.callId, participantId: row.id, endedAt: null }, data: { endedAt: now, hangupCause: "timeout" } });
+    console.info(`[voice] invite ${row.id} (${row.kind}) on call=${row.callId} rang out (sweep)`);
+    n++;
+  }
+  return n;
 }
 
 /** The Calls page was opened: everything finished is now seen. */

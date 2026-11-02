@@ -17,5 +17,5 @@ export async function POST(req: NextRequest) {
   if (!parsed.ok) return parsed.response;
   const stored = await storePhoto(actor, parsed.input);
   if (!stored.ok) return stored.response;
-  return NextResponse.json({ ...stored.photo, also: stored.also }, { status: stored.status });
+  return NextResponse.json({ ...stored.photo, also: stored.also, ...(stored.note ? { note: stored.note } : {}) }, { status: stored.status });
 }

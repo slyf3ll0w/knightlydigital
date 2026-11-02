@@ -144,16 +144,22 @@ export function pairsOf(photos: PhotoView[]): PhotoPair[] {
 
 /**
  * May these two be a pair? Same job, one before-ish and one after, and
- * neither already paired with somebody else. Order doesn't matter.
+ * neither already paired with somebody else. Order doesn't matter. With the
+ * job's `siblings`, a pairId nobody else on the job carries (its partner was
+ * deleted) counts as unpaired — the viewer offers Pair for such a photo, and
+ * the server must not refuse it forever.
  */
-export function pairable(a: PhotoView, b: PhotoView): { ok: true; before: PhotoView; after: PhotoView } | { ok: false; why: string } {
+export function pairable(a: PhotoView, b: PhotoView, siblings: PhotoView[] = []): { ok: true; before: PhotoView; after: PhotoView } | { ok: false; why: string } {
   if (a.id === b.id) return { ok: false, why: "Pick two different photos." };
   if (!a.jobId || a.jobId !== b.jobId) return { ok: false, why: "Both photos have to be on the same job." };
   const before = isBeforeStage(a.stage) ? a : isBeforeStage(b.stage) ? b : null;
   const after = a.stage === "AFTER" ? a : b.stage === "AFTER" ? b : null;
   if (!before || !after || before.id === after.id) return { ok: false, why: "A pair is one Before (or Estimate) photo and one After photo." };
   for (const p of [a, b]) {
-    if (p.pairId && p.pairId !== (p === a ? b : a).pairId) return { ok: false, why: "That photo is already in a pair — unpair it first." };
+    const other = p === a ? b : a;
+    if (!p.pairId || p.pairId === other.pairId) continue;
+    const partnered = siblings.some((s) => s.id !== p.id && s.id !== other.id && s.pairId === p.pairId);
+    if (partnered || siblings.length === 0) return { ok: false, why: "That photo is already in a pair — unpair it first." };
   }
   return { ok: true, before, after };
 }
