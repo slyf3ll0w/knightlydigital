@@ -45,7 +45,7 @@ test.describe("square gift cards (sandbox)", () => {
     saleInvoiceId = sale.invoiceId;
 
     // Not loaded until it is paid
-    const before = await api.post(`/api/app/payments/square/gift-cards/lookup`, { gan });
+    const before = await api.post(`/api/app/payments/square/gift-cards/lookup`, { gan }, 200);
     expect(before.giftCard.state).toBe("PENDING");
     expect(before.giftCard.balanceCents).toBe(0);
 
@@ -65,7 +65,7 @@ test.describe("square gift cards (sandbox)", () => {
     expect(row?.state, row?.lastError ?? "").toBe("ACTIVE");
     expect(row?.activatedAt).not.toBeNull();
 
-    const after = await api.post(`/api/app/payments/square/gift-cards/lookup`, { gan });
+    const after = await api.post(`/api/app/payments/square/gift-cards/lookup`, { gan }, 200);
     expect(after.giftCard.state).toBe("ACTIVE");
     expect(after.giftCard.balanceCents).toBe(2500);
 
@@ -94,7 +94,7 @@ test.describe("square gift cards (sandbox)", () => {
     expect(paid!.payments[0].processorRef).toBeTruthy();
     expect(Number(paid!.payments[0].surchargeAmount ?? 0)).toBe(0);
 
-    const balance = await api.post(`/api/app/payments/square/gift-cards/lookup`, { gan });
+    const balance = await api.post(`/api/app/payments/square/gift-cards/lookup`, { gan }, 200);
     expect(balance.giftCard.balanceCents).toBe(1500);
   });
 
