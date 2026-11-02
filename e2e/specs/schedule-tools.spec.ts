@@ -298,7 +298,13 @@ test.describe("schedule tools", () => {
 
   test("stops that aren't clients: a place, an errand before a job, a task with a place, lunch slotted by Optimize", async () => {
     const day = daysFrom(9);
-    const at = (h: number) => new Date(day.getTime() + h * 3600_000).toISOString();
+    // dayStart is 15:00 UTC — 10 AM Chicago in daylight time but 9 AM in
+    // standard time, and with a 9 AM start the optimizer's walk had every
+    // stop finished before the 11:30 lunch window opened (no lunch slotted,
+    // red on roughly four random dates in ten). Pin the jobs to 10 AM LOCAL.
+    const localHour = Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", hour: "numeric", hour12: false }).format(day));
+    const shiftMs = (10 - localHour) * 3600_000;
+    const at = (h: number) => new Date(day.getTime() + shiftMs + h * 3600_000).toISOString();
     const place = await api.post("/api/app/places", { name: `${runTag} Ferguson`, kind: "SUPPLY", address: "3100 W Plano Pkwy, Plano, TX 75075" });
     const a = await api.post("/api/app/jobs", {
       contactId, title: `${runTag} errand A`, address: "6000 W Plano Pkwy, Plano, TX 75093",
