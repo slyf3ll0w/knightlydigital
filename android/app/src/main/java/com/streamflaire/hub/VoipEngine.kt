@@ -1,10 +1,16 @@
 package com.streamflaire.hub
 
+import android.Manifest
+import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.PackageManager
+import android.media.AudioManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.webkit.CookieManager
+import androidx.core.content.ContextCompat
 import com.getcapacitor.CapConfig
 import com.google.firebase.messaging.FirebaseMessaging
 import com.telnyx.webrtc.sdk.Call
@@ -62,7 +68,13 @@ import java.util.UUID
  * mirrors state on its call card and forwards taps here; it never touches
  * WebRTC in the app. Events to it (queued until the bridge exists):
  * voipToken, engineState, incomingCall, callAnswered, callActive,
- * callEnded, muteChanged, holdChanged, speakerChanged.
+ * callEnded, muteChanged, holdChanged, speakerChanged, and micState
+ * ({ granted, reason? } — the microphone permission changed, or the
+ * foreground service was refused the microphone type: the page's card can
+ * show it; today it learns the state from requestMic()'s answer).
+ *
+ * Permissions are the plugin's job (VoipPlugin.kt asks through Capacitor;
+ * IncomingCallActivity asks on Answer); this engine only reads them.
  *
  * A call for another company on the same login: the ready route answers
  * `switch` with that membership, and the engine re-registers with a token
@@ -77,6 +89,15 @@ class VoipEngine private constructor(private val app: Context) {
         private const val TAG = "voip"
         private const val UNCLAIMED_TIMEOUT_MS = 45_000L
         private const val CONNECT_RETRY_WINDOW_MS = 8_000L
+        /**
+         * How old a pushed call may be before it is ignored. FCM already
+         * drops the message after lib/voip.ts's VOIP_WAKE_SECS (35 s) — the
+         * ttl on the send — so this only catches one that sat in the
+         * process, and it has to forgive a phone clock that runs minutes
+         * ahead of the server's (a 60 s window dropped every call on a fast
+         * clock: `sentAt` is the server's Date.now()).
+         */
+        private const val PUSH_STALE_MS = 5 * 60_000L
 
         @Volatile
         private var instance: VoipEngine? = null
@@ -235,14 +256,67 @@ class VoipEngine private constructor(private val app: Context) {
         emit("voipToken", "token" to t)
     }
 
+    // ── Permissions (read here; asked by VoipPlugin / IncomingCallActivity) ──
+
+    /** RECORD_AUDIO as the system has it right now. */
+    fun micGranted(): Boolean =
+        ContextCompat.checkSelfPermission(app, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+
+    /**
+     * Android 14+: whether this app may show the full-screen incoming-call
+     * activity over the lock screen. Apps that are not the phone app have
+     * the switch OFF by default — the call then rings as a heads-up
+     * notification only (Settings → Notifications → Full-screen
+     * notifications turns it on). Always true below 14.
+     */
+    fun canUseFullScreenIntent(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return true
+        return try {
+            (app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).canUseFullScreenIntent()
+        } catch (_: Throwable) {
+            true
+        }
+    }
+
+    /** The foreground service could not take the microphone type on this call (CallService). */
+    @Volatile
+    var micRefused: Boolean = false
+        private set
+
+    /** register() finished its permission pass: a breadcrumb so the server log explains a silent phone. */
+    fun notePermissions(mic: Boolean, notifications: String) = main.post {
+        trace("permissions", "mic=$mic notifications=$notifications fullScreen=${canUseFullScreenIntent()}")
+    }
+
+    /** A permission prompt ended (plugin or call screen): tell the page, and give the service its microphone type back. */
+    fun micPermissionChanged(granted: Boolean) = main.post {
+        trace("mic-permission", if (granted) "granted" else "denied")
+        if (granted) {
+            micRefused = false
+            // A call already up was started on the phoneCall type alone; re-post
+            // so startForeground runs again with the microphone type too.
+            for (r in calls.values) if (r.answered) CallService.ongoing(app, r.callId, r.label, if (r.connected) "On a call" else "Connecting…")
+        }
+        emit("micState", "granted" to granted, "reason" to (if (granted) null else "denied"))
+    }
+
+    /** CallService: startForeground refused the microphone type — the call will have no outbound audio. */
+    fun foregroundMicRefused(detail: String) = main.post {
+        if (micRefused) return@post // once per call: the service re-posts its notification on every state change
+        micRefused = true
+        trace("fgs-mic-refused", "mic=${micGranted()} $detail", calls.keys.firstOrNull())
+        emit("micState", "granted" to false, "reason" to (if (micGranted()) "foreground" else "denied"))
+    }
+
     // ── A push ────────────────────────────────────────────────────────────────
 
     /** WbMessagingService: a call is coming in (the data message from lib/voip.ts). */
     fun onPush(callId: String, label: String, number: String?, sentAt: Long?) = main.post {
         val age = if (sentAt != null && sentAt > 0) System.currentTimeMillis() - sentAt else -1
         trace("push", "age=${age}ms client=${if (client == null) "none" else if (client?.isSocketConnected() == true) "connected" else "dead"} ready=$clientReady", callId)
-        // A message that sat in FCM past the wake window would ring for a call long over.
-        if (age > 60_000) {
+        // A message that sat past the wake window would ring for a call long
+        // over; the unclaimed timeout ends anything FCM let through late.
+        if (age > PUSH_STALE_MS) {
             trace("push-stale", "age=${age}ms", callId)
             return@post
         }
@@ -568,7 +642,7 @@ class VoipEngine private constructor(private val app: Context) {
         val r = calls[callId] ?: return@post
         if (r.answered) return@post
         r.answered = true
-        trace("answer", "sdk=${r.sdk != null} ready=$clientReady", callId)
+        trace("answer", "sdk=${r.sdk != null} ready=$clientReady mic=${micGranted()}", callId)
         CallService.ongoing(app, callId, r.label, "Connecting…")
         // No INVITE yet (pushed call, engine still registering): attach() answers it on arrival.
         if (r.sdk != null) accept(r)
@@ -648,9 +722,30 @@ class VoipEngine private constructor(private val app: Context) {
         r.sdk?.let { bySdk.remove(it.callId) }
         if (calls.isEmpty()) {
             speakerOn = false
+            micRefused = false
             CallService.stop(app)
+            // The SDK leaves AudioManager in MODE_IN_COMMUNICATION, so every
+            // sound the WebView made afterwards came out of the earpiece.
+            // Now, and again once the SDK's own teardown has run.
+            restoreAudioRoute()
+            main.postDelayed({ if (calls.isEmpty()) restoreAudioRoute() }, 600)
         } else {
             calls.values.firstOrNull()?.let { CallService.ongoing(app, it.callId, it.label, if (it.connected) "On a call" else "Connecting…") }
+        }
+    }
+
+    /** Back to ordinary media audio: normal mode, speakerphone off, no pinned communication device. */
+    @Suppress("DEPRECATION")
+    private fun restoreAudioRoute() {
+        try {
+            val am = app.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                try { am.clearCommunicationDevice() } catch (_: Throwable) {}
+            }
+            if (am.isSpeakerphoneOn) am.isSpeakerphoneOn = false
+            if (am.mode != AudioManager.MODE_NORMAL) am.mode = AudioManager.MODE_NORMAL
+        } catch (t: Throwable) {
+            Log.w(TAG, "audio restore failed", t)
         }
     }
 
