@@ -14,6 +14,9 @@ import { estimateProcessingCostCents } from "@/lib/platform-costs";
 import { queueQuickBooksUnwind, queueQuickBooksPaymentRefresh } from "@/lib/quickbooks";
 import { notifyUsers } from "@/lib/push";
 import { activateGiftCardForInvoice, releaseGiftCardForBouncedPayment } from "@/lib/gift-cards";
+import { adoptSquarePayment } from "@/lib/square-adopt";
+import { mapSellerPayment } from "@/lib/square-seller-reports";
+import { logActivity } from "@/lib/activity";
 import type { Refund } from "@prisma/client";
 
 /**
@@ -89,9 +92,21 @@ export async function POST(req: NextRequest) {
 }
 
 async function handlePayment(merchantId: string, paymentId: string) {
-  const { token } = await squareTokenForMerchant(merchantId);
+  const { token, conn } = await squareTokenForMerchant(merchantId);
   const payment = await getSquarePayment(token, paymentId); // re-fetch = verification
-  if (payment.status === "COMPLETED") return handlePaymentSettled(payment.id);
+  if (payment.status === "COMPLETED") {
+    // Money that moved for one of this seller's invoices but never got a
+    // row (the request that charged it died before recording — lib/square-adopt.ts)
+    const known = await prisma.payment.findFirst({ where: { processorRef: payment.id }, select: { id: true } });
+    if (!known && payment.reference_id) {
+      const r = await adoptSquarePayment({ companyId: conn.companyId, payment: mapSellerPayment(payment), source: "webhook" }).catch((e) => {
+        reportError("[square webhook] adopt failed", payment.id, e);
+        return "skipped" as const;
+      });
+      if (r === "adopted") console.info(`[square webhook] adopted unrecorded payment ${payment.id} for company ${conn.companyId}`);
+    }
+    return handlePaymentSettled(payment.id);
+  }
   if (payment.status !== "FAILED" && payment.status !== "CANCELED") return;
 
   // An accepted ACH debit we recorded can fail days later (insufficient
@@ -103,6 +118,16 @@ async function handlePayment(merchantId: string, paymentId: string) {
   });
   if (!row) return;
 
+  // The row goes (every balance reads payments), so the ledger keeps the
+  // trail on the invoice's activity instead (readiness review 2026-11-02, S2)
+  logActivity({
+    companyId: row.companyId,
+    userName: "Square",
+    entityType: "invoice",
+    entityId: row.invoiceId,
+    action: "payment_returned",
+    detail: `$${Number(row.amount).toFixed(2)} ${row.method} payment ${payment.id} was returned by the bank (${payment.status}) — removed from invoice #${row.invoice?.invoiceNumber ?? ""}${row.surchargeAmount ? `, incl. $${Number(row.surchargeAmount).toFixed(2)} service fee` : ""}`,
+  });
   await prisma.$transaction(async (tx) => {
     await tx.payment.delete({ where: { id: row.id } });
     await recomputeInvoiceStatus(tx, row.invoiceId);

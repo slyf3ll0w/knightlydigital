@@ -1,4 +1,5 @@
 import { RATES, RATES_SENTENCE } from "@/lib/plans";
+import { SERVICE_FEE_CARD } from "@/lib/service-fee";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AnimateIn } from "@/components/AnimateIn";
@@ -120,7 +121,11 @@ const pricingFaq = [
     a: (
       <p>
         Pay for {ANNUAL_MONTHS} months up front and get 12, on any add-on. You can start
-        monthly and switch to annual later; the remaining month is credited.
+        monthly and switch to annual later: the yearly term starts the day you switch and the
+        monthly one runs out on its own — nothing is prorated or credited back. Plans renew
+        automatically until you cancel, and cancelling ends the plan at the end of the term
+        you paid for. Plan charges are card payments and carry the same card service fee
+        your clients pay ({SERVICE_FEE_CARD}); the exact total is shown before you confirm.
       </p>
     ),
   },
@@ -165,9 +170,9 @@ const pricingFaq = [
         <Link href="/apply" className="font-semibold text-[#0B57D8] hover:underline">
           Get started here
         </Link>{" "}
-        — a person reviews every application, and we onboard approved companies personally.
-        At signup, a short payment-verification form (standard KYC) activates your account.
-        Add-ons are switched on from Settings afterwards, or we set them up with you.
+        — you're in the app the same day. To take payments, connect your own Square account
+        from Settings (a few minutes, no paperwork with us). Add-ons are switched on from
+        Settings → Plans afterwards, or we set them up with you.
       </p>
     ),
   },

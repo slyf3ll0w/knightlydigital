@@ -249,7 +249,7 @@ export async function activateGiftCardForInvoice(
           status: true,
           invoiceNumber: true,
           contact: { select: { firstName: true, email: true } },
-          payments: { select: { id: true, processorRef: true, method: true }, orderBy: { paidAt: "desc" } },
+          payments: { select: { id: true, processorRef: true, method: true, amount: true, surchargeAmount: true }, orderBy: { paidAt: "desc" } },
         },
       },
       company: { select: { name: true, email: true, phone: true, logoUrl: true, brandColor: true, documentColor: true, brandColorSecondary: true, squareLocationId: true } },

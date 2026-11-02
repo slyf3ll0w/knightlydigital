@@ -1,4 +1,5 @@
-import { FAIR_USE_MINUTES_LABEL, FAIR_USE_TEXTS_LABEL, INCLUDED_SEATS } from "@/lib/plans";
+import { ANNUAL_MONTHS, FAIR_USE_MINUTES_LABEL, FAIR_USE_TEXTS_LABEL, INCLUDED_SEATS } from "@/lib/plans";
+import { SERVICE_FEE_CARD } from "@/lib/service-fee";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AnimateIn } from "@/components/AnimateIn";
@@ -51,6 +52,8 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
     paragraphs: [
       `The core WorkBench software is free for up to ${INCLUDED_SEATS} users; extra users and optional add-ons are paid monthly subscriptions, priced on our pricing page. Where online payment processing is offered, payments are processed by our payment partner — currently Square (Block, Inc.) — through the Square account you create and connect to WorkBench, under Square's own terms and seller agreement. Your eligibility, account approval, funding holds, payouts, chargebacks, and reserves are governed by Square's seller agreement and the applicable card-network rules, not by us.`,
       "Processing fees are disclosed during payment setup and on our pricing page. You are responsible for configuring your own prices, taxes, and any card surcharge in accordance with the laws and card-network rules that apply to your business, and for the goods and services you sell to your customers.",
+      `Paid plans. Plan prices are listed on our pricing page and charged to the card you keep on file with us, monthly or yearly (a yearly term is ${ANNUAL_MONTHS} months' price for 12 months). The first charge is made when you subscribe and the plan renews automatically at the end of each term until you cancel. Plan charges are processed as card payments and carry the same card service fee our customers' clients pay (${SERVICE_FEE_CARD}), shown on the Plans page before you confirm. Cancelling ends the plan at the end of the term already paid for; we do not prorate or refund the unused part of a term, and switching terms or plans starts the new one right away without crediting the old. A one-time setup fee applies to the Voice plan's business number, as shown at checkout.`,
+      `Fair use on Voice. "Unlimited" talk and text on the Voice plan means up to ${FAIR_USE_TEXTS_LABEL} outbound texts and ${FAIR_USE_MINUTES_LABEL} minutes of talk a calendar month for normal business use. Past that, texting or calling from the business number pauses until the 1st of the next month; incoming calls and texts keep working and your own cell is unaffected.`,
       "Money you collect from your clients flows through the payment processor to the bank account you provide during setup; it is never held in a Streamflaire bank account. You are responsible for any refunds, disputes, and chargebacks arising from your transactions.",
     ],
   },

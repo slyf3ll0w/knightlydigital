@@ -10,7 +10,8 @@ import { isWorkBenchPayment, listSquarePayments, type SellerPayment, type Seller
  */
 
 /** Pages of ListPayments we are willing to walk for one window (100 each). */
-const MAX_SQUARE_PAGES = 5;
+// 20 pages × 100 = the newest 2,000 sales; Reports says so when even that is cut short
+const MAX_SQUARE_PAGES = 20;
 
 export type SquareWindow = {
   /** Every Square payment in the window (all products), newest first. */

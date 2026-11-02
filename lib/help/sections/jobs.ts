@@ -280,7 +280,7 @@ export const scheduleSection: HelpSection = {
         },
         {
           type: "p",
-          text: "**Quiet hours.** Automatic reminder texts never go out between 9 PM and 8 AM in your time zone; a reminder that lands then goes by email instead. This only applies to the automatic reminders. Anything you send yourself — an invoice, a quote, a text from a client's thread, a confirmation — goes out right away, whatever the hour.",
+          text: "**Quiet hours.** Automatic reminder texts never go out between 9 PM and 8 AM in your time zone; a reminder that lands then goes by email instead. Texts sent by your automations wait too: the run shows **waiting for 8:00 AM** and goes then (an automation appointment reminder that can't wait emails instead). Anything you send yourself — an invoice, a quote, a text from a client's thread, a confirmation — goes out right away, whatever the hour.",
         },
       ],
     },

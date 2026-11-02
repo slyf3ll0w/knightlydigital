@@ -51,6 +51,7 @@ export class EmailDomainError extends Error {
 
 async function resend(path: string, init?: RequestInit): Promise<Record<string, unknown>> {
   const res = await fetch(`https://api.resend.com${path}`, {
+    signal: AbortSignal.timeout(15_000),
     ...init,
     headers: {
       Authorization: `Bearer ${RESEND_API_KEY}`,

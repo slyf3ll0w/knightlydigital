@@ -92,7 +92,7 @@ export default async function UsageTab({ company }: { company: CompanyCore }) {
     <>
       <SectionTitle
         className="mt-8"
-        info="The meters the tenant sees. Every account gets a free monthly token allowance refilled on the 1st; the paid plan is a bigger allowance anchored on its billing day. A whitelisted account is unmetered. 1 token = 0.01¢ of our Gemini cost. Change any of this on Controls."
+        info="The meters the tenant sees. Every account gets a free monthly token allowance refilled on the 1st; the paid plan is a bigger allowance anchored on its billing day. A whitelisted account is unmetered. 1 token = 0.01¢ of our model cost (COST_AI_* on Railway — set to the rates of the model Atlas runs on). Change any of this on Controls."
       >
         Atlas
       </SectionTitle>

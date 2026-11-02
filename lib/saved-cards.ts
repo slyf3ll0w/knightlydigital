@@ -103,6 +103,24 @@ export async function addSavedCard(params: {
   return { ok: true, card, created: true };
 }
 
+/**
+ * A card the client (or staff for them) just added to FIX a failing autopay:
+ * make it the default AND re-point every live series pinned to another of
+ * their cards at it. Plan series are always pinned (lib/plan-billing.ts), so
+ * without this the dunning email's "update your card" added a card that
+ * nothing ever charged and the renewal kept declining on the old one
+ * (readiness review 2026-11-02, #1). Returns how many series moved.
+ */
+export async function adoptCardForAutopay(contactId: string, cardId: string): Promise<number> {
+  const ok = await setDefaultSavedCard(contactId, cardId);
+  if (!ok) return 0;
+  const moved = await prisma.subscription.updateMany({
+    where: { contactId, status: { in: ["ACTIVE", "PAUSED"] }, OR: [{ savedCardId: null }, { savedCardId: { not: cardId } }] },
+    data: { savedCardId: cardId },
+  });
+  return moved.count;
+}
+
 /** Make one card the default (clears the flag on the others). */
 export async function setDefaultSavedCard(contactId: string, cardId: string): Promise<boolean> {
   const card = await prisma.savedCard.findFirst({ where: { id: cardId, contactId } });

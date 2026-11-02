@@ -163,6 +163,7 @@ interface TokenResponse {
 async function requestTokens(body: URLSearchParams): Promise<TokenResponse> {
   const res = await fetch(OAUTH_TOKEN_URL, {
     method: "POST",
+    signal: AbortSignal.timeout(20_000),
     headers: {
       Authorization: basicAuthHeader(),
       "Content-Type": "application/x-www-form-urlencoded",
@@ -230,6 +231,7 @@ export async function disconnectCompany(companyId: string): Promise<void> {
   try {
     await fetch(OAUTH_REVOKE_URL, {
       method: "POST",
+      signal: AbortSignal.timeout(20_000),
       headers: {
         Authorization: basicAuthHeader(),
         "Content-Type": "application/json",
@@ -341,6 +343,7 @@ async function qboRequest(
   const url = `${apiBaseUrl()}/v3/company/${connection.realmId}/${path}${sep}minorversion=${MINOR_VERSION}`;
   const res = await fetch(url, {
     method,
+    signal: AbortSignal.timeout(30_000),
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: "application/json",

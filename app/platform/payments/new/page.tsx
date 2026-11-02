@@ -20,16 +20,19 @@ export default async function NewPaymentPage({
     method?: string;
     reference?: string;
     note?: string;
+    /** The Square payment this record IS (Payments tab → Record on an invoice): stored as the row's processorRef. */
+    square?: string;
   }>;
 }) {
   const actor = await requirePageActor(canSeeMoney);
   const companyId = actor.companyId;
 
-  const { invoiceId, contactId, amount, paidAt, method, reference, note } = await searchParams;
+  const { invoiceId, contactId, amount, paidAt, method, reference, note, square } = await searchParams;
   const prefillAmount = amount && /^\d+(\.\d{1,2})?$/.test(amount) && Number(amount) > 0 ? Number(amount).toFixed(2) : undefined;
   const prefill =
-    prefillAmount || paidAt || method || reference || note
+    prefillAmount || paidAt || method || reference || note || square
       ? {
+          squarePaymentId: square && /^[A-Za-z0-9_-]{8,80}$/.test(square) ? square : undefined,
           amount: prefillAmount,
           paidAt: paidAt && /^\d{4}-\d{2}-\d{2}$/.test(paidAt) ? paidAt : undefined,
           method: method && ["CARD", "ACH", "CASH", "CHECK", "CASH_APP", "PAYPAL", "VENMO", "ZELLE", "OTHER"].includes(method) ? method : undefined,

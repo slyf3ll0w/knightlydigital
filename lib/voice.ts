@@ -46,6 +46,7 @@ import { autoAdvance } from "@/lib/pipeline";
 import { fireAutomations } from "@/lib/automations-server";
 import { alertTelnyxFunds } from "@/lib/ops-alert";
 import { hasAddon } from "@/lib/addon";
+import { checkFairUse, FAIR_USE_CALL_MESSAGE } from "@/lib/fair-use";
 import { defaultVoicemailGreeting, isRealLineNumber } from "@/lib/business-line-shared";
 import { callEnding } from "@/lib/call-ending";
 import { fmtPhone } from "@/lib/format";
@@ -1415,6 +1416,8 @@ export async function startOutboundCall(
   if (!company) throw new VoiceError("Company not found.", 404);
   if (!hasAddon(company)) throw new VoiceError("Calling from your business line is part of the Voice plan.", 402);
   if (!isRealLineNumber(company.lineNumber)) throw new VoiceError("Get a business line first (Settings → Phone & texting).", 409);
+  // The Voice plan's monthly fair-use ceiling on talk minutes (lib/fair-use.ts)
+  if (!(await checkFairUse(companyId, "minutes")).ok) throw new VoiceError(FAIR_USE_CALL_MESSAGE, 402);
   if (!company.lineVoiceAppAt && !(await ensureVoiceRouting(companyId))) {
     throw new VoiceError("Your line isn't on the voice app yet — try again in a minute.", 503);
   }

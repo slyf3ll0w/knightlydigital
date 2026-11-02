@@ -195,8 +195,13 @@ export async function createStoreOrder(params: {
 export async function runStoreOrderSweep(now = new Date()): Promise<number> {
   try {
     const cutoff = new Date(now.getTime() - STORE_ORDER_HOLD_HOURS * 3600_000);
+    // Both open states: the reminders sweep used to flip an unpaid order to
+    // PAST_DUE the morning after it was placed, which this match on
+    // AWAITING_PAYMENT alone never caught — abandoned carts lived forever
+    // (readiness review 2026-11-02, #3). Store orders are now kept out of
+    // the past-due flip and the payment reminders too (lib/reminders.ts).
     const r = await prisma.invoice.updateMany({
-      where: { kind: "STORE_ORDER", status: "AWAITING_PAYMENT", issuedAt: { lt: cutoff }, payments: { none: {} } },
+      where: { kind: "STORE_ORDER", status: { in: ["AWAITING_PAYMENT", "PAST_DUE"] }, issuedAt: { lt: cutoff }, payments: { none: {} } },
       data: { status: "ARCHIVED" },
     });
     return r.count;

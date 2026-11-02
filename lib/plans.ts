@@ -111,7 +111,7 @@ export const PLANS: Record<PlanId, Plan> = {
       "Calls ring in the app first, then your cell",
       "Browser dialer, hold, voicemail, and a full call log",
       "Text clients from the line; automatic texts send from it too",
-      "Atlas call notes after every call",
+      "Atlas call notes after a call (uses your Atlas tokens — every account gets a free monthly allowance; Pro and Max include more)",
       "Unlimited talk and text for normal business use",
     ],
   },
@@ -193,7 +193,7 @@ export const FAIR_USE_MINUTES_LABEL = DISPATCH_FAIR_USE_MINUTES.toLocaleString("
  * FAQ, Help, Settings → Voice and the Terms all print, so the promise can
  * never be worded two ways.
  */
-export const FAIR_USE_SENTENCE = `Unlimited covers normal business use in the US and Canada: up to ${FAIR_USE_TEXTS_LABEL} texts and ${FAIR_USE_MINUTES_LABEL} minutes a month per company. Past that, each text or minute is ${formatUnitCents(DISPATCH_OVERAGE_CENTS)}.`;
+export const FAIR_USE_SENTENCE = `Unlimited covers normal business use in the US and Canada: up to ${FAIR_USE_TEXTS_LABEL} texts and ${FAIR_USE_MINUTES_LABEL} minutes a month per company. Past that, texting or calling from the business number pauses until the 1st of the next month (incoming keeps working, and your own cell is never affected).`;
 /** The second half: what a WorkBench line is not for. */
 export const FAIR_USE_FORBIDDEN = "Auto-dialers, bulk or marketing blasts, and call-center use aren't allowed on a WorkBench line.";
 

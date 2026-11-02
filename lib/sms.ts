@@ -28,6 +28,7 @@ import { reportError } from "@/lib/report-error";
 import { prisma } from "@/lib/db";
 import { phoneDigits } from "@/lib/phone";
 import { recordSmsSent, smsSegmentCount, usageDay } from "@/lib/usage";
+import { checkFairUse } from "@/lib/fair-use";
 
 export { canText, smsConsentLabel, SMS_TERMS_URL } from "@/lib/sms-consent";
 
@@ -148,6 +149,12 @@ export async function sendSms({
   if (!sender) return false;
   const { from } = sender;
   if (!(await underDailyCap(companyId))) return false;
+  // The Voice plan's monthly fair-use ceiling (lib/fair-use.ts) — the line
+  // pauses for the rest of the month past it; owners were warned at 80%
+  if (!(await checkFairUse(companyId, "texts")).ok) {
+    console.warn(`[sms] fair-use ceiling reached for company ${companyId}`);
+    return false;
+  }
   try {
     const res = await fetch("https://api.telnyx.com/v2/messages", {
       method: "POST",

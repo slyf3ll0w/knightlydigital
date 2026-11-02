@@ -28,6 +28,7 @@ import {
   FULL_SHOP,
   INCLUDED_SEATS,
   PLANS,
+  PLAN_IDS,
   PLAN_HOLDER_SELECT,
   annualCents,
   hasPlan,
@@ -205,9 +206,13 @@ export async function ensureBillingContact(companyId: string): Promise<string | 
   const emails = Array.from(new Set([owner?.email, company.email].map((e) => (e ?? "").trim().toLowerCase()).filter(Boolean)));
   const digits = Array.from(new Set([digitsOf(owner?.phone), digitsOf(company.phone)].filter(Boolean)));
 
+  // Never a contact that already IS another customer company
+  // (Company.billingContactId is unique — an owner with two companies on
+  // one email hit a constraint error and could not buy a plan for the
+  // second; readiness review 2026-11-02, #6). That company gets its own row.
   const byEmail = emails.length
     ? await prisma.contact.findMany({
-        where: { companyId: platform.id, placeholder: false, OR: emails.map((e) => ({ email: { equals: e, mode: "insensitive" as const } })) },
+        where: { companyId: platform.id, placeholder: false, billedCompany: { is: null }, OR: emails.map((e) => ({ email: { equals: e, mode: "insensitive" as const } })) },
         orderBy: [{ status: "asc" }, { createdAt: "asc" }],
         select: { id: true, status: true, pipelineStageId: true, companyName: true, email: true, phone: true, kind: true },
       })
@@ -215,7 +220,7 @@ export async function ensureBillingContact(companyId: string): Promise<string | 
   const byPhone =
     !byEmail.length && digits.length
       ? await prisma.contact.findMany({
-          where: { companyId: platform.id, placeholder: false, phoneDigits: { in: digits } },
+          where: { companyId: platform.id, placeholder: false, billedCompany: { is: null }, phoneDigits: { in: digits } },
           orderBy: [{ status: "asc" }, { createdAt: "asc" }],
           select: { id: true, status: true, pipelineStageId: true, companyName: true, email: true, phone: true, kind: true },
         })
@@ -227,9 +232,9 @@ export async function ensureBillingContact(companyId: string): Promise<string | 
   let contactId: string;
   if (found) {
     contactId = found.id;
-    if (found.status === "LEAD") {
-      await recordLeadWin(prisma, platform.id, found).catch((e) => reportError("[plan-billing] lead win failed", e));
-    }
+    // A LEAD is won when they BUY a plan (subscribe), not when they merely
+    // sign up for the free plan — the board used to mark every signup
+    // "Converted" (readiness review 2026-11-02).
     await prisma.contact.update({
       where: { id: found.id },
       data: {
@@ -593,25 +598,65 @@ export async function subscribe(params: { companyId: string; product: BillingPro
   });
 
   try {
-    if (setupFeeDue(company, product)) await chargeSetupFee(platform, company, contactId, sub.id);
-    const outcome = await billSubscriptionNow(sub.id, platform.id);
+    // The plan first, the one-time setup fee after: a declined plan charge
+    // used to leave a paid setup fee with no plan behind it (readiness
+    // review 2026-11-02, #8). The first attempt is a checkout, not a
+    // renewal — the customer sees the decline on the page, so no dunning
+    // email goes out and the outage case is named as such.
+    const outcome = await billSubscriptionNow(sub.id, platform.id, { checkout: true });
     if (outcome !== "charged") {
       const open = await prisma.invoice.findFirst({
         where: { subscriptionId: sub.id, status: { in: ["AWAITING_PAYMENT", "PAST_DUE"] } },
         select: { id: true, autoChargeLastError: true },
       });
       if (open) await prisma.invoice.update({ where: { id: open.id }, data: { status: "ARCHIVED" } }).catch(() => {});
+      // attemptAutoCharge writes "Processor unavailable …" when Square never judged the card
+      if (/^Processor unavailable/i.test(open?.autoChargeLastError ?? "")) {
+        throw new PlanBillingError("Our card processor didn't answer — nothing was charged. Please try again in a minute.", 424, "PROCESSOR_DOWN");
+      }
       throw new PlanBillingError(open?.autoChargeLastError || "The card didn't go through.", 402, "CARD_DECLINED");
     }
+    if (setupFeeDue(company, product)) await chargeSetupFee(platform, company, contactId, sub.id);
   } catch (err) {
     await prisma.subscription.update({ where: { id: sub.id }, data: { status: "CANCELLED" } }).catch(() => {});
     throw err;
   }
 
-  if (change.cancel.length) {
-    await prisma.subscription.updateMany({ where: { id: { in: change.cancel }, companyId: platform.id, contactId }, data: { status: "CANCELLED" } });
+  // Every other series on this plan's products goes — the entitled ones the
+  // change computed, and any PENDING one started by hand with no card that
+  // would otherwise keep invoicing the customer twice (readiness review
+  // 2026-11-02, #15).
+  const others = await prisma.subscription.findMany({
+    where: { companyId: platform.id, contactId, id: { not: sub.id }, status: { not: "CANCELLED" }, workItem: { planProduct: { in: planProductsCoveredBy(product) } } },
+    select: { id: true },
+  });
+  const toCancel = Array.from(new Set([...change.cancel, ...others.map((o) => o.id)]));
+  if (toCancel.length) {
+    await prisma.subscription.updateMany({ where: { id: { in: toCancel }, companyId: platform.id, contactId }, data: { status: "CANCELLED" } });
+    await prisma.invoice.updateMany({
+      where: { subscriptionId: { in: toCancel }, status: { in: ["AWAITING_PAYMENT", "PAST_DUE"] }, payments: { none: {} } },
+      data: { status: "ARCHIVED" },
+    });
   }
+  // Bought a plan → the WorkBench lead is won
+  await winBillingLead(platform.id, contactId);
   await syncPlanEntitlements(companyId);
+}
+
+/** The plan products a purchase of `product` replaces: itself and every product whose plans it includes (Max covers Voice and Pro). */
+function planProductsCoveredBy(product: BillingProduct): BillingProduct[] {
+  const mine = new Set<string>(productPlans(product));
+  const candidates: BillingProduct[] = [...PLAN_IDS, "FULL_SHOP"];
+  return candidates.filter((p) => {
+    const plans = productPlans(p);
+    return plans.length > 0 && plans.every((x) => mine.has(x));
+  });
+}
+
+async function winBillingLead(platformId: string, contactId: string): Promise<void> {
+  const contact = await prisma.contact.findUnique({ where: { id: contactId }, select: { id: true, status: true, pipelineStageId: true } });
+  if (!contact || contact.status !== "LEAD") return;
+  await recordLeadWin(prisma, platformId, contact).catch((e) => reportError("[plan-billing] lead win failed", e));
 }
 
 async function ownSeries(platformId: string, contactId: string, rowId: string) {

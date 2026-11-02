@@ -6,6 +6,36 @@ things that only exist in Railway/GitHub settings rather than in this repo.
 Companion to the deploy flow in `CLAUDE.md` → Deployment. Started 2026-09-30
 (Phase 0 of `docs/plans/production-readiness-2026-09-30.md`).
 
+## Restore drill (do once before the first paying cohort, then quarterly)
+
+Backups exist (Railway native, daily); a backup nobody has ever restored is
+a hope, not a plan. The drill restores a production backup into STAGING so
+nothing touches production:
+
+1. Railway → production `Postgres` → **Backups** → pick the latest daily →
+   **Restore** → choose *restore into a new volume/service* (never "in
+   place" on production). Name it `postgres-restore-test`.
+2. Railway → staging `Streamflaire` → Variables → set `DATABASE_URL` to the
+   new service's `DATABASE_URL` reference; redeploy staging (`db:predeploy`
+   runs against the restored copy — that is the real test of the schema push).
+3. Check: `https://streamflaire-staging.up.railway.app/api/health` → `ok`;
+   sign in to the console at `/superadmin` with the superadmin account that
+   exists in the backup; open a few companies' invoices and payments; run the
+   e2e suite against staging if time allows.
+4. Note the time from "Restore" to "health ok" here: ______ (target < 30 min).
+5. Put staging's `DATABASE_URL` back to its own Postgres; delete
+   `postgres-restore-test`.
+
+Off-Railway copy (do monthly until automated): Railway Postgres →
+**Data** tab → the connection string → from a laptop
+`pg_dump "$DATABASE_PUBLIC_URL" -Fc -f workbench-$(date +%F).dump` and keep
+it in the company Google Drive. A restore from that file is
+`pg_restore -d "$NEW_DATABASE_URL" --no-owner workbench-YYYY-MM-DD.dump`.
+
+CI refuses a schema change that would DROP a table or column on deploy
+(`scripts/check-schema-drops.mjs`, `[allow-drop]` in the commit message
+overrides it on purpose) — the mechanical half of "additive only" below.
+
 ## The moving parts
 
 | Piece | Where | Notes |

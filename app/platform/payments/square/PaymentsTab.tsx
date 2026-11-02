@@ -205,6 +205,7 @@ export default async function PaymentsTab({
                     paidAt: day,
                     method: p.sourceType === "BANK_ACCOUNT" ? "ACH" : p.sourceType === "CASH" ? "CASH" : "CARD",
                     reference: p.referenceId ?? p.id,
+                    square: p.id,
                     note: `Square · ${squareProductLabel(p.squareProduct)}`,
                   });
                   return (

@@ -63,6 +63,11 @@ export function sellerFailure(err: unknown): SellerReadFailure {
       message: "Reconnect Square to let WorkBench read this.",
     };
   }
+  // A revoked / expired grant reads like a missing scope to the page: the
+  // answer is the same Reconnect card, not "Square didn't answer"
+  if (err instanceof SquareError && err.authDead) {
+    return { ok: false, transient: false, missingScopes: true, notConnected: false, message: "The Square connection has expired — reconnect it in Settings." };
+  }
   if (isTransientSquareError(err)) {
     return {
       ok: false,

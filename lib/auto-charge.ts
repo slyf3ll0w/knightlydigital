@@ -73,6 +73,8 @@ export async function attemptAutoCharge(params: {
   amount: number;
   chargeDescription: string;
   paymentDetails: string;
+  /** A checkout the customer is watching (a plan purchase): a decline is shown on the page, so no dunning email. */
+  quietClient?: boolean;
 }): Promise<AutoChargeOutcome> {
   const processor = getProcessor();
   if (!processor.live) return "not_live";
@@ -179,6 +181,7 @@ export async function attemptAutoCharge(params: {
       cardLabel,
       error: result.error,
       code: result.code,
+      quietClient: params.quietClient,
     }).catch((e) => reportError("[auto-charge] failure handling failed", params.invoiceId, e));
     return "failed";
   } finally {
@@ -254,6 +257,7 @@ async function handleAutoChargeFailure(params: {
   cardLabel: string | null;
   error: string;
   code?: string | null;
+  quietClient?: boolean;
 }): Promise<void> {
   const now = new Date();
   const invoice = await prisma.invoice.findUnique({
@@ -337,7 +341,7 @@ async function handleAutoChargeFailure(params: {
   // The client hears once, on the first failure: their card declined, with a
   // link to fix it (and the pay link as the manual fallback). Retries stay
   // silent — the escalating invoice reminders take over if it stays unpaid.
-  if (attempts === 1 && invoice.contact?.email) {
+  if (attempts === 1 && !params.quietClient && invoice.contact?.email) {
     const baseUrl = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
     const { subject, html } = autopayFailedEmail({
       brand: invoice.company,

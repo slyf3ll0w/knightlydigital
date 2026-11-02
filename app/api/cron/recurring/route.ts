@@ -37,6 +37,8 @@ import { runScheduledSends } from "@/lib/send-document";
 import { archiveExpiredNotes } from "@/lib/sticky-notes";
 import { runTimeBlockSeriesSweep } from "@/lib/time-block-series";
 import { runStoreOrderSweep } from "@/lib/store";
+import { adoptUnrecordedSquarePayments } from "@/lib/square-adopt";
+import { runTelnyxBalanceWatch } from "@/lib/telnyx-balance";
 
 /**
  * Hourly billing cron. A scheduler (Railway cron service, or an external
@@ -196,6 +198,8 @@ export async function POST(req: NextRequest) {
     await step("giftCards", () => runGiftCardActivationSweep(now));
     // Shop orders nobody paid within the hold window are archived (lib/store.ts).
     await step("storeOrders", () => runStoreOrderSweep(now));
+    // Square payments taken for an invoice but never recorded (lib/square-adopt.ts)
+    await step("squareMatch", () => adoptUnrecordedSquarePayments(now));
     // Plan entitlement: every customer company re-derives its paid plans from
     // its series' invoices in the WorkBench account (periods end, grace runs
     // out). No-op until a company is marked WorkBench's own.
@@ -209,6 +213,8 @@ export async function POST(req: NextRequest) {
     // campaign and advance it (create campaign, bind number, mark active).
     // No-op without Telnyx keys or with nothing pending.
     await step("lineRegistrations", () => runLineRegistrationSweep());
+    // The platform's Telnyx prepaid balance (lib/telnyx-balance.ts)
+    await step("telnyxBalance", () => runTelnyxBalanceWatch());
     // Every line can still receive texts: its number on the right messaging
     // profile, that profile's webhook pointing here. Heals and logs drift.
     await step("textingRoutes", () => runTextingRouteSweep());

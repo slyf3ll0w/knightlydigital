@@ -9,7 +9,6 @@ import {
   VOICE_FAIR_USE_FORBIDDEN,
   VOICE_FAIR_USE_MINUTES,
   VOICE_FAIR_USE_TEXTS,
-  VOICE_OVERAGE,
 } from "../plan-copy";
 
 const VOICE = `${PLANS.DISPATCH.name} plan`;
@@ -232,7 +231,7 @@ export const phoneSection: HelpSection = {
           type: "list",
           items: [
             "Talk and text are unlimited for normal business use in the US and Canada.",
-            `Fair use is ${VOICE_FAIR_USE_TEXTS} texts and ${VOICE_FAIR_USE_MINUTES} minutes a month per company. A busy three-truck shop uses a few hundred of each. Past the ceiling, each text or minute is ${VOICE_OVERAGE}.`,
+            `Fair use is ${VOICE_FAIR_USE_TEXTS} texts and ${VOICE_FAIR_USE_MINUTES} minutes a month per company. A busy three-truck shop uses a few hundred of each. Past the ceiling, texting or calling from the business number pauses until the 1st of the next month — incoming calls and texts keep working, your own cell is unaffected, and the owners get a heads-up at 80%.`,
             `${VOICE_FAIR_USE_FORBIDDEN} The carriers register your number for conversations with your own clients, and a line used another way can be paused.`,
             "Toll-free numbers are free for callers, but every incoming minute counts toward fair use.",
             "Carrier registration fees for texting are covered by your plan.",

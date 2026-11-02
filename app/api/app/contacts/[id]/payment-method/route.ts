@@ -7,7 +7,7 @@ import * as finix from "@/lib/finix";
 import { SquareError, declineMessage } from "@/lib/square";
 import { squareVaultCard } from "@/lib/square-cards";
 import { CHARGE_GATE_SELECT, canChargeOnline } from "@/lib/payments-gate";
-import { addSavedCard, removeSavedCard, setDefaultSavedCard } from "@/lib/saved-cards";
+import { addSavedCard, adoptCardForAutopay, removeSavedCard, setDefaultSavedCard } from "@/lib/saved-cards";
 import { reviveAutopayForContact } from "@/lib/auto-charge";
 
 /**
@@ -92,6 +92,8 @@ export async function POST(
         expYear: vaulted.expYear,
       });
       if (!added.ok) return NextResponse.json({ error: added.error }, { status: 400 });
+      // The new card is what autopay charges from now on (plan renewals are pinned to a card)
+      await adoptCardForAutopay(contact.id, added.card.id).catch((e) => reportError("[contacts] card adopt failed", e));
       await reviveAutopayForContact(contact.id).catch((e) => reportError("[contacts] autopay revive failed", e));
       return NextResponse.json({ saved: true, label: added.card.label, cardId: added.card.id });
     } catch (err) {

@@ -18,7 +18,9 @@ import { isBillingProduct, productPlans, type BillingCadence, type BillingProduc
  * trials, a comped price). `npx tsx scripts/test-plan-entitlement.ts`.
  */
 
-export const PAYMENT_GRACE_DAYS = 7;
+// Covers autopay's whole retry ladder (+1, +3, +7 days = day 11, lib/autopay-rules.ts)
+// so a soft decline that clears on the last retry never switches the plan off in between.
+export const PAYMENT_GRACE_DAYS = 12;
 
 export type SeriesInterval = "MONTHLY" | "QUARTERLY" | "SEMIANNUAL" | "ANNUAL";
 export type SeriesStatus = "ACTIVE" | "PAUSED" | "CANCELLED";

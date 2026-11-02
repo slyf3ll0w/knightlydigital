@@ -9,6 +9,7 @@ import { linkCallsToContact } from "@/lib/voice";
 import { collectContactMediaPurge } from "@/lib/message-media";
 import { pauseSubscriptionsForContact } from "@/lib/subscriptions";
 import { queueQuickBooksInvoiceUnwind } from "@/lib/quickbooks";
+import { isOnlinePayment } from "@/lib/payment-ref";
 
 export async function PATCH(
   req: NextRequest,
@@ -296,9 +297,19 @@ export async function DELETE(
     prisma.invoice.findMany({ where: { contactId: id, companyId }, select: { id: true } }),
     prisma.payment.findMany({
       where: { companyId, OR: [{ contactId: id }, { invoice: { contactId: id } }] },
-      select: { id: true, invoiceId: true },
+      select: { id: true, invoiceId: true, processorRef: true, amount: true },
     }),
   ]);
+  // Money that moved through the processor is a ledger, not bookkeeping the
+  // manager can redo: the invoice delete refuses it, so must this (readiness
+  // review 2026-11-02, B3). Refund first; a refunded charge (amount zero) no
+  // longer blocks. Archive the client instead if the history should stay.
+  if (billedPayments.some((p) => isOnlinePayment(p.processorRef) && Number(p.amount) > 0.005)) {
+    return NextResponse.json(
+      { error: "This client has payments that were processed online. Refund them first, or archive the client instead — deleting would erase records of money that actually moved." },
+      { status: 400 }
+    );
+  }
 
   // FK-safe order: quotes/invoices/appointments reference jobs/requests, so
   // they go first; line items, payments, assignments etc. cascade. Records
