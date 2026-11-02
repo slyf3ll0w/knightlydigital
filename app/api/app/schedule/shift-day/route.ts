@@ -6,6 +6,7 @@ import { findScheduleConflicts } from "@/lib/schedule-conflicts";
 import { notifyClientOfMove } from "@/lib/schedule-notify";
 import { rescheduleReminderStamps } from "@/lib/reminder-stage";
 import { wallTimeToUtc } from "@/lib/booking-engine";
+import { fireAutomations } from "@/lib/automations-server";
 
 /**
  * POST /api/app/schedule/shift-day — "Rain delay": move a whole day's work
@@ -171,6 +172,9 @@ export async function POST(req: NextRequest) {
       moved.push({ kind: "appointment", id: a.id, previousStart: a.scheduledAt.toISOString(), previousAnytime: a.scheduledAnytime });
     }
   });
+
+  // After commit — the same events a single drag fires (jobs/[id] and appointments/[id] PATCH)
+  for (const m of moved) fireAutomations(companyId, m.kind === "job" ? "job.scheduled" : "appointment.rescheduled", m.id);
 
   // Heads-up on the destination day (non-blocking, same as a single drag)
   const conflicts = new Set<string>();

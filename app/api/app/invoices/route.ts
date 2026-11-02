@@ -170,7 +170,7 @@ export async function POST(req: NextRequest) {
 
   // Wrapped so a concurrent invoice create in the same company re-derives the
   // number instead of 500ing and losing everything the user typed.
-  const { invoice, archivedJob, leadMove, subscriptionIds } = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
+  const { invoice, archivedJob, leadMove, subscriptionIds, completedAppointmentId } = await withDocNumberRetry(() => prisma.$transaction(async (tx) => {
     const invoiceNumber = await nextInvoiceNumber(tx, companyId);
 
     // A final invoice for a job nets any deposit already paid on the job's quote,
@@ -277,11 +277,13 @@ export async function POST(req: NextRequest) {
 
     // Invoicing an appointment means the work happened there and then — the
     // appointment is done (same stamp the Complete button sets).
+    let completedAppointmentId: string | null = null;
     if (appointmentId && scopedAppt?.status === "SCHEDULED") {
       await tx.appointment.update({
         where: { id: appointmentId },
         data: { status: "COMPLETED", completedAt: new Date() },
       });
+      completedAppointmentId = appointmentId;
     }
 
     // Billing a lead closes them: active client, off the pipeline board
@@ -311,11 +313,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return { invoice: created, archivedJob, leadMove, subscriptionIds };
+    return { invoice: created, archivedJob, leadMove, subscriptionIds, completedAppointmentId };
   }));
 
   // After commit — the invoice itself is a DRAFT here (invoice.sent fires from the send route)
   if (archivedJob && jobId) fireAutomations(companyId, "job.archived", jobId);
+  // Same event the Complete button fires (appointments/[id] PATCH)
+  if (completedAppointmentId) fireAutomations(companyId, "appointment.completed", completedAppointmentId);
   for (const sid of subscriptionIds) fireAutomations(companyId, "subscription.started", sid);
   firePipelineMoves(companyId, [leadMove]);
 

@@ -110,6 +110,7 @@ export default function Builder({ initial, initialRuns, atlasFirst = false }: { 
   const [runs, setRuns] = useState<Run[]>(initialRuns);
   const [runsLoading, setRunsLoading] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState<string | null>(initial?.webhookUrl ?? null);
+  const [waiting, setWaiting] = useState<number>(initial?.waiting ?? 0);
   const nameRef = useRef<HTMLInputElement>(null);
 
   const spec = useMemo(() => toSpec(st), [st]);
@@ -274,9 +275,10 @@ export default function Builder({ initial, initialRuns, atlasFirst = false }: { 
     setRunsLoading(true);
     try {
       const r = await fetch(`/api/app/automations/${initial.id}`);
-      const j = (await r.json()) as { recentRuns?: Run[]; webhookUrl?: string | null };
+      const j = (await r.json()) as { recentRuns?: Run[]; webhookUrl?: string | null; waiting?: number };
       if (Array.isArray(j.recentRuns)) setRuns(j.recentRuns.map((x) => ({ ...x, createdAt: typeof x.createdAt === "string" ? x.createdAt : new Date(x.createdAt).toISOString() })));
       if (j.webhookUrl) setWebhookUrl(j.webhookUrl);
+      if (typeof j.waiting === "number") setWaiting(j.waiting);
     } catch {
       /* stays as it was */
     }
@@ -445,7 +447,7 @@ export default function Builder({ initial, initialRuns, atlasFirst = false }: { 
         </div>
       )}
       {isWebhook && <WebhookUrl url={webhookUrl} />}
-      {initial && <RunHistory runs={runs} onRefresh={refreshRuns} loading={runsLoading} />}
+      {initial && <RunHistory runs={runs} onRefresh={refreshRuns} loading={runsLoading} waiting={waiting} />}
     </aside>
   );
 
@@ -502,7 +504,7 @@ export default function Builder({ initial, initialRuns, atlasFirst = false }: { 
         {initial && isActive && !dirty && (
           <button type="button" onClick={() => void toggleActive()} className="btn-tool-line mt-4 inline-flex h-10 w-full items-center justify-center gap-1.5 px-3 text-sm"><Pause size={14} /> Pause</button>
         )}
-        {initial && <div className="mt-6"><RunHistory runs={runs} onRefresh={refreshRuns} loading={runsLoading} /></div>}
+        {initial && <div className="mt-6"><RunHistory runs={runs} onRefresh={refreshRuns} loading={runsLoading} waiting={waiting} /></div>}
         <p className="mt-4 text-center text-[11px] text-gray-400">{atlas.available ? `Change it by telling ${atlas.name} what should be different, or edit the cards on a desktop.` : "Edit the cards on a desktop."}</p>
       </div>
 

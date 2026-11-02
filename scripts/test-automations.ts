@@ -16,10 +16,14 @@ import {
   fieldsFor,
   filterExpr,
   renderAction,
+  stepsChanged,
+  sweepMissIsTransient,
+  textDeferUntil,
   triggerEntity,
   TRIGGER_NAMES,
   TRIGGERS,
   type AutomationCtx,
+  type AutomationSpec,
   type FilterStep,
 } from "../lib/automations";
 
@@ -231,6 +235,71 @@ const baseCtx: AutomationCtx = {
   assert.ok(actionAllowedFor("send_quote_link", "quote") && !actionAllowedFor("send_quote_link", "job"));
   assert.ok(actionAllowedFor("notify_team", "webhook") && !actionAllowedFor("email_client", "expense"));
   console.log(`ok 7: catalog integrity (${TRIGGER_NAMES.length} triggers, ${ACTION_TYPES.length} actions)`);
+}
+
+// 8. the no-consume rule: a sweep whose leading filter reads the clock leaves the record eligible; everything else is final
+{
+  const compile = (trigger: Record<string, unknown>, filter?: FilterStep) => {
+    const c = compileAutomation({ trigger, steps: [...(filter ? [filter] : []), { type: "notify_team", to: "managers", title: "t" }] });
+    assert.ok(c.ok, !c.ok ? c.errors.join("; ") : "");
+    return c.ok ? c.compiled : (undefined as never);
+  };
+  const hours: FilterStep = { type: "filter", match: "all", rules: [{ field: "now_hour", op: "between_hours", value: [9, 17] }] };
+  const weekday: FilterStep = { type: "filter", match: "all", rules: [{ field: "now_weekday", op: "weekday" }] };
+  const mixed: FilterStep = { type: "filter", match: "all", rules: [{ field: "invoice_balance", op: "gt", value: 100 }, { field: "now_hour", op: "between_hours", value: [9, 17] }] };
+  const record: FilterStep = { type: "filter", match: "all", rules: [{ field: "invoice_balance", op: "gt", value: 100 }] };
+  const expr: FilterStep = { type: "filter", match: "all", rules: [], expr: "today != \"\" and invoice_balance > 0" };
+  assert.ok(sweepMissIsTransient(compile({ event: "invoice.overdue", days: 7 }, hours)), "sweep + hours window = transient");
+  assert.ok(sweepMissIsTransient(compile({ event: "invoice.overdue", days: 7 }, weekday)), "sweep + weekday = transient");
+  assert.ok(sweepMissIsTransient(compile({ event: "invoice.overdue", days: 7 }, mixed)), "sweep + mixed clock/record filter = transient");
+  assert.ok(sweepMissIsTransient(compile({ event: "invoice.overdue", days: 7 }, expr)), "advanced expression reading today = transient");
+  assert.ok(!sweepMissIsTransient(compile({ event: "invoice.overdue", days: 7 }, record)), "sweep + record-only filter = final");
+  assert.ok(!sweepMissIsTransient(compile({ event: "invoice.overdue", days: 7 })), "sweep with no filter never misses");
+  assert.ok(!sweepMissIsTransient(compile({ event: "invoice.paid" }, hours)), "event trigger + hours window = final (one-shot)");
+  assert.ok(!sweepMissIsTransient(compile({ event: "schedule.tick", schedule: { every: "day", hour: 8 } }, weekday)), "schedule trigger = final (the day key is the dedupe)");
+  console.log("ok 8: sweep no-consume rule");
+}
+
+// 9. steps-changed comparison: only the steps (or the record kind) cancel parked runs
+{
+  const base: AutomationSpec = { version: 2, trigger: { event: "quote.unanswered", days: 5 }, steps: [{ type: "email_client", subject: "s", body: "b" }, { type: "wait", amount: 2, unit: "days" }, { type: "notify_team", to: "managers", title: "t" }] };
+  const clone = (): AutomationSpec => JSON.parse(JSON.stringify(base));
+  assert.ok(!stepsChanged(base, clone()), "identical = unchanged");
+  const days = clone(); days.trigger.days = 7;
+  assert.ok(!stepsChanged(base, days), "trigger days tweak keeps parked runs");
+  const otherQuoteEvent = clone(); otherQuoteEvent.trigger = { event: "quote.sent" };
+  assert.ok(!stepsChanged(base, otherQuoteEvent), "another trigger on the same record kind keeps parked runs");
+  const body = clone(); (body.steps[0] as unknown as { body: string }).body = "changed";
+  assert.ok(stepsChanged(base, body), "an action's text changed");
+  const wait = clone(); (wait.steps[1] as unknown as { amount: number }).amount = 3;
+  assert.ok(stepsChanged(base, wait), "a wait's length changed");
+  const fewer = clone(); fewer.steps.pop();
+  assert.ok(stepsChanged(base, fewer), "a step removed");
+  const reordered = clone(); reordered.steps = [reordered.steps[2], reordered.steps[1], reordered.steps[0]];
+  assert.ok(stepsChanged(base, reordered), "steps reordered");
+  const entity = clone(); entity.trigger = { event: "job.completed" }; entity.steps = [{ type: "notify_team", to: "managers", title: "t" }];
+  assert.ok(stepsChanged({ ...base, steps: entity.steps }, entity), "a different record kind cancels even with the same steps");
+  assert.ok(stepsChanged(null, base), "no previous spec = changed");
+  console.log("ok 9: steps-changed comparison");
+}
+
+// 10. quiet-hours deferral: a text at 9 PM–8 AM company-local waits for 8 AM that morning or the next
+{
+  const tz = "America/Chicago";
+  const chicago = (iso: string) => new Date(iso); // ISO strings below carry the Chicago offset
+  assert.equal(textDeferUntil(chicago("2026-09-24T14:00:00-05:00"), tz), null, "2 PM sends now");
+  assert.equal(textDeferUntil(chicago("2026-09-24T08:00:00-05:00"), tz), null, "8:00 AM sends now");
+  assert.equal(textDeferUntil(chicago("2026-09-24T20:59:00-05:00"), tz), null, "8:59 PM sends now");
+  assert.equal(textDeferUntil(chicago("2026-09-24T21:00:00-05:00"), tz)?.toISOString(), chicago("2026-09-25T08:00:00-05:00").toISOString(), "9 PM waits for 8 AM tomorrow");
+  assert.equal(textDeferUntil(chicago("2026-09-24T23:30:00-05:00"), tz)?.toISOString(), chicago("2026-09-25T08:00:00-05:00").toISOString(), "11:30 PM waits for 8 AM tomorrow");
+  assert.equal(textDeferUntil(chicago("2026-09-25T02:00:00-05:00"), tz)?.toISOString(), chicago("2026-09-25T08:00:00-05:00").toISOString(), "2 AM waits for 8 AM today");
+  assert.equal(textDeferUntil(chicago("2026-09-25T07:59:00-05:00"), tz)?.toISOString(), chicago("2026-09-25T08:00:00-05:00").toISOString(), "7:59 AM waits a minute");
+  // month end + a different zone
+  assert.equal(textDeferUntil(new Date("2026-09-30T22:00:00-04:00"), "America/New_York")?.toISOString(), new Date("2026-10-01T08:00:00-04:00").toISOString(), "9/30 10 PM New York waits for 10/1 8 AM");
+  // the hold resolves: at the deferred moment it is no longer quiet
+  const held = textDeferUntil(chicago("2026-09-24T22:00:00-05:00"), tz)!;
+  assert.equal(textDeferUntil(held, tz), null, "the wake-up time itself is not quiet");
+  console.log("ok 10: quiet-hours deferral time math");
 }
 
 console.log("all automation tests passed");

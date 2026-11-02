@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/db";
 import { requirePageActor, isManager } from "@/lib/permissions";
-import { AUTOMATION_SELECT, automationShape } from "@/lib/automations-server";
+import { AUTOMATION_SELECT, automationShape, waitingCounts } from "@/lib/automations-server";
 import { featureAllowedFor } from "@/lib/plan-gate";
 import PlanRequired from "@/components/PlanRequired";
 import AutomationsClient from "./AutomationsClient";
@@ -30,8 +30,9 @@ export default async function AutomationsPage() {
       select: { id: true, automationId: true, event: true, entityType: true, entityId: true, status: true, detail: true, createdAt: true },
     }),
   ]);
+  const waiting = await waitingCounts(rows.map((r) => r.id));
   const automations: Row[] = rows.map((r) => {
-    const s = automationShape(r) as ReturnType<typeof automationShape> & { webhookUrl?: string | null };
+    const s = automationShape(r, waiting.get(r.id) ?? 0) as ReturnType<typeof automationShape> & { webhookUrl?: string | null };
     return { ...s, lastRunAt: s.lastRunAt ? new Date(s.lastRunAt).toISOString() : null, updatedAt: new Date(s.updatedAt).toISOString(), webhookUrl: s.webhookUrl ?? null };
   });
   return <AutomationsClient automations={automations} recentRuns={recent.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }))} />;
