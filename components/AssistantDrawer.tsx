@@ -35,6 +35,7 @@ import { micPlatform, requestMicrophone, type MicState } from "@/lib/voice-chat-
 import { primeLiveAudio } from "@/lib/live-voice-client";
 import { takeMicGrant } from "@/lib/voice-launch";
 import { voiceLogLines } from "@/lib/voice-log";
+import { latestPendingTurn, supersededBy } from "@/lib/voice-chat-shared";
 import { hapticImpact, hapticNotify } from "@/lib/haptics";
 import { money } from "@/lib/statuses";
 import { useMeasuredHeight } from "@/lib/use-measured-height";
@@ -106,6 +107,29 @@ function loadHistory(key: string): Msg[] {
   } catch {
     return [];
   }
+}
+
+/**
+ * A fresh batch of cards replaces older drafts of the same kind aimed at
+ * the same record ("email Sarah Friday" → "no, Monday": the Friday card is
+ * dismissed the moment the Monday card lands), so a later "yes" — or a
+ * Confirm all — can never send both (2026-11-02). Per message, since
+ * text-mode card ids repeat between turns.
+ */
+function dismissSuperseded(list: Msg[], fresh: CardProposal[]): Msg[] {
+  if (fresh.length === 0) return list;
+  const at = Date.now();
+  let changed = false;
+  const out = list.map((m) => {
+    const gone = new Set(supersededBy(m.proposals ?? [], fresh).map((p) => p.id));
+    if (gone.size === 0) return m;
+    changed = true;
+    return {
+      ...m,
+      proposals: m.proposals?.map((p) => (gone.has(p.id) && p.state === "pending" ? { ...p, state: "dismissed" as const, settledAt: at, resultNote: "Replaced by a newer card" } : p)),
+    };
+  });
+  return changed ? out : list;
 }
 
 function fmtTokens(n: number): string {
@@ -442,7 +466,7 @@ export default function AssistantDrawer({
           ...(opts.depth ? { autoDepth: opts.depth } : {}),
           ...(data.recap ? { recap: data.recap } : {}),
         };
-        persist([...next, reply]);
+        persist([...dismissSuperseded(next, reply.proposals ?? []), reply]);
         outcome = { index: next.length, msg: reply };
         // A tool moved the work to a page (the Estimates builder): go there and get out of the way
         if (data.navigate && /^\/app\//.test(data.navigate)) {
@@ -466,12 +490,12 @@ export default function AssistantDrawer({
   /** Live voice: a spoken exchange already happened out loud — put it (and
    *  any cards it staged) in the chat without another model call. */
   function recordExchange(userText: string, replyText: string, proposals: Proposal[]): RecordedExchange {
-    const base = messagesRef.current;
     const reply: Msg = {
       role: "assistant",
       content: replyText,
       proposals: proposals.map((p) => ({ ...p, state: "pending" as const })),
     };
+    const base = dismissSuperseded(messagesRef.current, reply.proposals ?? []);
     // No words from the user this turn (Atlas kept going after a tool) → just
     // Atlas's message, not a fake "(spoken)" user bubble.
     const next: Msg[] = userText && userText !== "(spoken)" ? [...base, { role: "user", content: userText }, reply] : [...base, reply];
@@ -542,14 +566,17 @@ export default function AssistantDrawer({
       .map((card) => ({ msgIdx, card }))
   );
 
-  /** Spoken yes: confirm every ordinary card still waiting anywhere in the
-   *  chat — not just the last turn's, since people ask a question or two
-   *  before saying "go ahead" (David's 2026-10-23 report). Reads the live
+  /** Spoken yes: confirm the ordinary cards of the LATEST reply that still
+   *  has one waiting. People ask a question or two before saying "go ahead"
+   *  (David's 2026-10-23 report) — those replies carry no cards, so they
+   *  don't hide the ones staged just before. But a yes never reaches back
+   *  past that turn: an older draft the user moved on from stays put (and
+   *  is dismissed by its replacement, see dismissSuperseded) instead of
+   *  going out with the one they just approved (2026-11-02). Reads the live
    *  list, so it works from the socket's callbacks too. */
   async function confirmOrdinaryPending(opts?: { hold?: (card: CardProposal) => boolean }): Promise<{ confirmed: number; failed: number; needsTap: number; applied: string[]; failures: { title: string; why: string }[]; held: string[] }> {
-    const waiting: PlacedCard[] = messagesRef.current.flatMap((m, msgIdx) =>
-      (m.proposals ?? []).filter((p) => p.state === "pending").map((card) => ({ msgIdx, card }))
-    );
+    const latest = latestPendingTurn(messagesRef.current);
+    const waiting: PlacedCard[] = latest.cards.map((card) => ({ msgIdx: latest.index, card }));
     const applied: string[] = [];
     const failures: { title: string; why: string }[] = [];
     const held: string[] = [];
