@@ -4,12 +4,12 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { MessageCircle, X } from "lucide-react";
-import WBContactForm from "@/components/wb/WBContactForm";
+import WBEmbedForm from "@/components/wb/WBEmbedForm";
 
 /**
  * The floating "Contact us" button on the marketing site (replaced the live
- * website chat, 2026-10-01). Opens a small panel with the contact form;
- * submissions land in the WorkBench inbox and /superadmin/contact. Hidden
+ * website chat, 2026-10-01). Opens a small panel with WorkBench's own website
+ * form (the embed, 2026-11-03) — submissions land in the WorkBench company's leads. Hidden
  * on /contact, which carries the same form on the page.
  */
 export default function WBContactButton() {
@@ -52,7 +52,7 @@ export default function WBContactButton() {
             </div>
           </div>
           <div className="overflow-y-auto px-4 py-4">
-            <WBContactForm compact />
+            <WBEmbedForm />
           </div>
         </div>
       )}

@@ -12,7 +12,7 @@ const CONTACT_INBOX = process.env.APPLICATION_INBOX ?? "info@streamflaire.com";
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
 /**
- * The marketing site's "Contact us" form (components/wb/WBContactForm.tsx):
+ * The marketing site's old "Contact us" form (removed 2026-11-03; the site now embeds WorkBench's own website form). Kept so old submissions and the console inbox still work —
  * stores a ContactSubmission for /superadmin/contact and emails the inbox.
  * Captcha-gated (action "contact"), 5 per hour per IP on top of the public
  * middleware bucket, and a hidden `website` honeypot that answers OK and
