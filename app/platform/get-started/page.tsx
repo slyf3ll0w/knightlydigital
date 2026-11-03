@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { ChevronLeft } from "lucide-react";
 import ApplyForm from "@/components/ApplyForm";
 import { socialSignInFor } from "@/lib/sign-in-options";
-import { paymentsGateEnabled } from "@/lib/payments-gate";
+import { paymentsGateEnabled, paymentsSetupGateEnabled } from "@/lib/payments-gate";
 
 export const metadata: Metadata = {
   title: "Get started",
@@ -17,10 +17,10 @@ export const metadata: Metadata = {
  * used to eject people out of WorkBench to finish signing up, and an invite
  * code they'd been given had nowhere to go once they got there.
  *
- * Same form as /apply (components/ApplyForm.tsx), in the app's skin: enter a
- * code and it's a four-field signup straight to the dashboard; leave it empty
- * and it's the full application (ending at payment verification while
- * payments onboarding is open — lib/payments-gate.ts).
+ * Same form as /apply (components/ApplyForm.tsx), in the app's skin. The
+ * short form opens the account and lands on the payment-setup step
+ * (/app/setup/payments — who pays the card fee, connect Square); an invite
+ * code skips that step and lands on the dashboard (lib/payments-gate.ts).
  */
 export default async function AppGetStartedPage() {
   const ua = (await headers()).get("user-agent");
@@ -42,6 +42,7 @@ export default async function AppGetStartedPage() {
           social={socialSignInFor(ua)}
           appearance="app"
           verifyPayments={paymentsGateEnabled()}
+          setupPayments={paymentsSetupGateEnabled()}
         />
         <p className="mt-8 text-center text-sm text-gray-500">
           Already have an account?{" "}

@@ -46,6 +46,7 @@ export default async function ControlsTab({ company }: { company: CompanyCore })
           }}
           onboardingState={company.finixOnboardingState}
           paymentsWaived={company.paymentsWaived}
+          paymentsRequiredAt={company.paymentsRequiredAt ? fullDate(company.paymentsRequiredAt) : null}
           onboardingOpen={paymentsOnboardingOpen()}
         />
         <PlanControl

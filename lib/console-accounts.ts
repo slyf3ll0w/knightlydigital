@@ -19,7 +19,7 @@ import type { Devices } from "@/components/console/DeviceIcons";
 export type Tone = "primary" | "secondary" | "good" | "warn" | "bad" | "neutral";
 
 export type AccountStatus = {
-  key: "live" | "pending" | "kyc-action" | "kyc-pending" | "kyc-rejected" | "suspended";
+  key: "live" | "pending" | "setup" | "kyc-action" | "kyc-pending" | "kyc-rejected" | "suspended";
   label: string;
   tone: Tone;
 };
@@ -28,9 +28,16 @@ export function accountStatus(c: {
   suspendedAt: Date | null;
   accessPendingAt: Date | null;
   finixOnboardingState: string | null;
+  /** Held at the payment-setup step (lib/payments-gate.ts paymentsSetupRequired) — Square sign-ups since 2026-11-03. */
+  paymentsRequiredAt?: Date | null;
+  squareConnectedAt?: Date | null;
+  paymentsWaived?: boolean;
 }): AccountStatus {
   if (c.suspendedAt) return { key: "suspended", label: "Suspended", tone: "bad" };
   if (c.accessPendingAt) return { key: "pending", label: "Pending review", tone: "warn" };
+  if (c.paymentsRequiredAt && !c.squareConnectedAt && !c.paymentsWaived) {
+    return { key: "setup", label: "Setting up payments", tone: "neutral" };
+  }
   if (c.finixOnboardingState === "UPDATE_REQUESTED") return { key: "kyc-action", label: "KYC action needed", tone: "warn" };
   if (c.finixOnboardingState === "REJECTED") return { key: "kyc-rejected", label: "KYC rejected", tone: "bad" };
   if (c.finixOnboardingState === "PROVISIONING") return { key: "kyc-pending", label: "KYC pending", tone: "neutral" };
@@ -109,6 +116,9 @@ export async function loadAccounts(days: number): Promise<AccountsData> {
           suspendedAt: true,
           accessPendingAt: true,
           finixOnboardingState: true,
+          paymentsRequiredAt: true,
+          squareConnectedAt: true,
+          paymentsWaived: true,
           planGrants: true,
           addonActiveAt: true,
           lineNumber: true,

@@ -992,6 +992,40 @@ Built 2026-10-15 on branch `square-payments` (worktree
   (Block, Inc.) as the processor. Superadmin `PaymentsControl` shows the
   Square connection (read-only) and keeps the Finix waiver UI for
   `PAYMENT_PROCESSOR=finix`.
+- **Payment setup is part of signing up (David 2026-11-03,
+  `docs/plans/onboarding-square-setup-2026-11-03.md`):** the sign-up form
+  (`components/ApplyForm.tsx`, `/apply` + `/app/get-started`) is seven
+  fields + "how did you hear about us" (→ `Company.referralSource`); the
+  Finix-era screening questions are gone from the form (the API still
+  accepts them). No human review: `AccessApplication` books APPROVED on
+  arrival, `accessPendingAt` is never set, the owner gets `welcomeEmail`,
+  the inbox gets "New WorkBench sign-up" (button → the company's console
+  page). `createCompanySignup({ requirePayments })` stamps
+  `Company.paymentsRequiredAt` when `paymentsSetupGateEnabled()` (Square +
+  credentials) and the sign-up carried no invite code; the platform layout
+  then redirects to **`/app/setup/payments`** (standalone, light) until
+  `paymentsSetupRequired(company)` is false — Square connected, console
+  waiver (`paymentsWaived`, the same `waive-payments` action; the
+  `PaymentsControl` card offers it for held companies), or a test account.
+  The step (`SetupPaymentsClient.tsx`): **1 ·** who pays the card fee — the
+  two models side by side with rates and a `feeExample()` $500 worked
+  example (`POST /api/app/setup/payments { serviceFee }` →
+  `surchargeEnabled`; a new company starts with neither lit even though the
+  column defaults true), **2 ·** `Connect Square` + "No Square account yet?
+  Create one" on the chosen model's link, a folded "Have an invite code?"
+  (`/api/app/activate/invite` waives), re-checks `/api/app/settings/payments`
+  on focus/visibility (consent finishes in another tab or the system
+  browser). The Square callback lands on the step (`?square=<outcome>`,
+  copy in `lib/square-outcomes.ts`) while `paymentsRequiredAt` is set, else
+  on Settings. Home's Get started checklist (`lib/get-started.ts`,
+  `payments: "ask"`) gains "Set up online payments" (→ the step; older
+  companies use it as a door, nothing held) and "Link your bank account in
+  Square" (payoutStatus VERIFIED/UNKNOWN). Settings → Online Payments lists
+  BOTH sign-up links with a "Your setting" chip on the one matching the
+  Service fee switch, plus "Walk me through it" → the step. Console:
+  Accounts status "Setting up payments"; Sign-ups page is a feed (Reject
+  still suspends). e2e `signup-doors` clicks "Have an invite code?" first.
+  Unit: `scripts/test-onboarding.ts`, `scripts/test-get-started.ts`.
 - **Processing rates (David 2026-10-22):** two models, one source —
   `lib/plans.ts` `PROCESSING_RATES` / `RATES` / `RATES_SENTENCE` /
   `RATES_SHORT` (+ `lib/help/plan-copy.ts` RATE_CARD / RATE_ACH / FEE_CARD /

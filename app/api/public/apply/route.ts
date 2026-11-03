@@ -5,31 +5,41 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
 import { prisma } from "@/lib/db";
 import { verifyCaptcha } from "@/lib/captcha";
-import { sendEmail, newApplicationEmail } from "@/lib/email";
+import { sendEmail, newApplicationEmail, welcomeEmail } from "@/lib/email";
 import { checkInviteCode } from "@/lib/invites";
 import { normalizeEmail } from "@/lib/user-email";
 import { findOrAdoptAccountByEmail } from "@/lib/account";
 import { createCompanySignup, InviteClaimedError, PlaceholderClaimedError } from "@/lib/signup";
 import { isValidTimezone } from "@/lib/timezone";
+import { paymentsGateEnabled, paymentsSetupGateEnabled } from "@/lib/payments-gate";
 
-// Where new-application notifications land (a person reads every one).
+// Where new sign-up notices land.
 const APPLICATION_INBOX = process.env.APPLICATION_INBOX ?? "info@streamflaire.com";
 
 /**
- * Self-serve onboarding intake from /apply — step 1 of the signup flow.
- * One POST does all of it: records the AccessApplication AND opens the
- * account (Account + Company + OWNER membership), so the client can sign in
- * and continue straight to Finix underwriting at /app/activate.
+ * Self-serve sign-up from /apply and /app/get-started. One POST does all of
+ * it: records the AccessApplication (the record of what they told us) AND
+ * opens the account (Account + Company + OWNER membership), so the client
+ * can sign in and go straight to the payment-setup step
+ * (/app/setup/payments — who pays the card fee, connect Square), which the
+ * platform layout holds them at until Square is connected
+ * (lib/payments-gate.ts paymentsSetupRequired).
  *
- * The application still gets human review at /superadmin/applications — the
- * company just isn't held for it: it opens in pending-approval mode
- * (Company.accessPendingAt, banner in the app) and gets suspended if the
- * review says no.
+ * Nobody reviews sign-ups by hand any more (2026-11-03): the application
+ * books APPROVED on arrival and the company never carries accessPendingAt.
+ * The console's Sign-ups page is a feed; Reject (and Suspend on the company
+ * page) still close an account. The owner gets a welcome email; the inbox
+ * gets a "new sign-up" notice.
  *
- * The unlisted /invite page posts here too, with `inviteCode` set. The public
- * /apply form never sends one. A valid code IS the approval: no pending
- * state, application booked APPROVED, and Finix underwriting waived — the
- * business gets in without card processing and lands on the dashboard.
+ * The unlisted /invite page posts here too, with `inviteCode` set; the
+ * public form sends one only when someone opened the folded field. A valid
+ * code waives the payment-setup step (paymentsWaived — and, on Finix, the
+ * underwriting gate): the business lands on the dashboard and connects
+ * Square from Settings whenever it likes.
+ *
+ * The Finix-era fields (teamSize, city, state, paymentsToday, monthlyVolume,
+ * yearsInBusiness, entityType, website, message) are still accepted and
+ * stored when sent — the form no longer asks them.
  *
  * Google path: a visitor who signed in with Google first arrives here holding
  * a company-less session (lib/social-login.ts). No email or password is
@@ -55,6 +65,7 @@ export async function POST(req: NextRequest) {
     entityType,
     website,
     message,
+    referralSource,
     password,
     inviteCode,
     captchaToken,
@@ -129,15 +140,16 @@ export async function POST(req: NextRequest) {
     String(entityType ?? "").length > 40 ||
     String(website ?? "").length > 200 ||
     String(message ?? "").length > 2000 ||
+    String(referralSource ?? "").length > 200 ||
     String(inviteCode ?? "").length > 40
   ) {
     return NextResponse.json({ error: "Input too long." }, { status: 400 });
   }
 
-  // Invite code (only the /invite page sends one) — a typo should surface,
-  // not silently open a pending-review, underwriting-gated account the
-  // invitee didn't want. The universal tester code checks out with a null
-  // id (nothing to claim) and opens the company the same way.
+  // Invite code — a typo should surface, not silently open an account held
+  // at payment setup that the invitee didn't want. The universal tester code
+  // checks out with a null id (nothing to claim) and opens the company the
+  // same way.
   let invite: { id: string | null } | null = null;
   if (typeof inviteCode === "string" && inviteCode.trim()) {
     const check = await checkInviteCode(inviteCode);
@@ -185,10 +197,11 @@ export async function POST(req: NextRequest) {
     };
   }
 
-  // A code is the approval: the application books as decided and the company
-  // opens without the pending banner AND without the underwriting gate (the
-  // invitee lands on the dashboard, not /app/activate). No code = PENDING
-  // review, account open with accessPendingAt, held at /app/activate.
+  // No human review: every application books APPROVED on arrival (the row
+  // is the record of what they told us). On Finix, with onboarding open, a
+  // code-less sign-up is still held at /app/activate for underwriting; on
+  // Square it is held at the payment-setup step instead (requirePayments).
+  const referral = typeof referralSource === "string" && referralSource.trim() ? referralSource.trim() : null;
   const application = await prisma.accessApplication.create({
     data: {
       name,
@@ -206,8 +219,9 @@ export async function POST(req: NextRequest) {
       yearsInBusiness: yearsInBusiness || null,
       entityType: entityType || null,
       website: website || null,
-      message: message || null,
-      ...(invite ? { status: "APPROVED" as const, decidedAt: new Date() } : {}),
+      message: message || (referral ? `Heard about us: ${referral}` : null),
+      status: "APPROVED",
+      decidedAt: new Date(),
     },
   });
 
@@ -220,8 +234,10 @@ export async function POST(req: NextRequest) {
       timezone: isValidTimezone(body.timezone) ? body.timezone : null,
       owner,
       inviteId: invite?.id ?? null,
-      accessPending: !invite,
+      accessPending: false,
       paymentsWaived: Boolean(invite),
+      requirePayments: !invite,
+      referralSource: referral,
       applicationId: application.id,
     });
   } catch (e) {
@@ -245,7 +261,9 @@ export async function POST(req: NextRequest) {
     throw e;
   }
 
-  // Best-effort notify — the application is saved either way.
+  // Best-effort notices — the company exists by now, and a mail-provider
+  // blip must not turn that into a 500 the form reads as "try again" (the
+  // retry would then hit the already-applied check above).
   const notification = newApplicationEmail({
     name: application.name,
     email: application.email,
@@ -260,15 +278,25 @@ export async function POST(req: NextRequest) {
     yearsInBusiness: application.yearsInBusiness,
     entityType: application.entityType,
     website: application.website,
-    message: application.message,
+    message: referral ? null : application.message,
+    referral,
+    companyId: created.companyId,
   });
-  // The company exists by now — a mail-provider blip must not turn that into
-  // a 500 the form reads as "try again" (the retry would then hit the
-  // already-applied check above).
   try {
     await sendEmail({ to: APPLICATION_INBOX, ...notification });
   } catch (e) {
-    reportError("[apply] application notice failed", e);
+    reportError("[apply] sign-up notice failed", e);
+  }
+  // Welcome the owner. `setupPayments` names the step they were just sent to.
+  const welcome = welcomeEmail({
+    name: String(name).trim(),
+    companyName,
+    setupPayments: !invite && (paymentsSetupGateEnabled() || paymentsGateEnabled()),
+  });
+  try {
+    await sendEmail({ to: email, ...welcome });
+  } catch (e) {
+    reportError("[apply] welcome email failed", e);
   }
 
   // userId = the new OWNER membership; the signed-in (Google) form re-points

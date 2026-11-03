@@ -23,6 +23,7 @@ export const COMPANY_SELECT = {
   finixOnboardingState: true, squareMerchantId: true, squareConnectedAt: true,
   finixSandboxApproved: true,
   paymentsWaived: true,
+  paymentsRequiredAt: true,
   referralSource: true,
   teamSize: true,
   currentSoftware: true,

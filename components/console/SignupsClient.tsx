@@ -63,11 +63,12 @@ export default function SignupsClient({ tab, applications, invites }: { tab: Tab
         title="Sign-ups"
         info={
           <>
-            Applications: self-serve sign-ups open their account immediately in pending mode — approving keeps the
-            account and emails the good news; rejecting suspends it. Finix underwriting is still the hard gate for
-            payments, so approve anyone who looks like a real business. Invite codes: every code authorizes exactly
-            one company sign-up with no review and underwriting waived; they are entered on the unlisted /invite page
-            (the copy-link button builds that URL) or at /app/register.
+            Sign-ups: a self-serve account opens the moment the form is sent and is held at the payment-setup step
+            until its Square account is connected — nothing to approve here any more (rows since 2026-11-03 arrive
+            Approved; rejecting one still suspends the company, and Suspend on the company page does the same with
+            a reason). Older rows from the review era can still be approved. Invite codes: every code authorizes
+            exactly one company sign-up that skips the payment-setup step; they are entered on the unlisted /invite
+            page (the copy-link button builds that URL), at /app/register, or on the step itself.
           </>
         }
       />

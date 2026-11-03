@@ -3,14 +3,15 @@ import { reportError } from "@/lib/report-error";
 import { prisma } from "@/lib/db";
 import { RESERVED_SLUGS, slugWhere, slugify } from "@/lib/company-slug";
 import { pricebookForIndustry } from "@/lib/pricebooks";
+import { paymentsSetupGateEnabled } from "@/lib/payments-gate";
 
 /**
  * Company creation shared by the two ways in:
  *  - /api/app/register — invite-code signup (and "New company" attach)
- *  - /api/public/apply — self-serve onboarding (application + account in one
- *    step; the company opens in pending-approval mode and is held at the
- *    /app/activate underwriting gate) — also serves the unlisted /invite
- *    page, where an invite code skips both
+ *  - /api/public/apply — self-serve onboarding (account + company in one
+ *    step; on Square the company is then held at /app/setup/payments until
+ *    it connects a Square account, `requirePayments`) — also serves the
+ *    unlisted /invite page, where an invite code skips that
  *
  * Both paths seed the same defaults (branding, starter price book) and land
  * sign-in in the new company. Keeping this in one place stops the two signup
@@ -53,6 +54,15 @@ export async function createCompanySignup(opts: {
    * is done, which is exactly what an invite code is meant to skip.
    */
   paymentsWaived?: boolean;
+  /**
+   * Hold the new company at /app/setup/payments until it connects a Square
+   * account (Company.paymentsRequiredAt — lib/payments-gate.ts
+   * paymentsSetupRequired). Only ever stamped when Square is the live
+   * processor; a waived (invite-code) company is never stamped.
+   */
+  requirePayments?: boolean;
+  /** "How did you hear about us?" from the sign-up form → Company.referralSource. */
+  referralSource?: string | null;
   /** Link this AccessApplication to the new company (and the invite, if any). */
   applicationId?: string | null;
   /**
@@ -87,6 +97,8 @@ async function createInTransaction(
 ) {
   const { companyName, industry, owner, inviteId, accessPending, applicationId, paymentsWaived, timezone } =
     opts;
+  const requirePayments = Boolean(opts.requirePayments) && !paymentsWaived && paymentsSetupGateEnabled();
+  const referralSource = opts.referralSource?.trim().slice(0, 200) || null;
   const result = await prisma.$transaction(async (tx) => {
     // Claim the invite atomically — a pre-check outside the transaction can
     // race a concurrent signup on the same code; the updateMany count settles it.
@@ -145,6 +157,8 @@ async function createInTransaction(
         ...(timezone ? { timezone } : {}),
         accessPendingAt: accessPending ? new Date() : null,
         paymentsWaived: Boolean(paymentsWaived),
+        paymentsRequiredAt: requirePayments ? new Date() : null,
+        ...(referralSource ? { referralSource } : {}),
         // WorkBench default branding, seeded as real values so every surface
         // (app accent, client pages, emails) starts on-brand until the
         // company customizes: blue primary, orange secondary, white docs.

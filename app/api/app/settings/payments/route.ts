@@ -54,7 +54,9 @@ export async function GET() {
       prisma.company.findUnique({ where: { id: actor.companyId }, select: { surchargeEnabled: true } }),
     ]);
     // The sign-up link follows the company's processing model (Service fee
-    // on = the client pays it), because Square's partner links set the rate plan.
+    // on = the client pays it), because Square's partner links set the rate
+    // plan. Both links ride along too (`signupUrls`) so the card can show
+    // the other option instead of hiding it behind the switch (2026-11-03).
     const signupModel = company?.surchargeEnabled ? "serviceFee" : "companyPaid";
     return NextResponse.json({
       available: true,
@@ -63,6 +65,7 @@ export async function GET() {
       square: status,
       signupUrl: squareSignupUrl(signupModel),
       signupModel,
+      signupUrls: { serviceFee: squareSignupUrl("serviceFee"), companyPaid: squareSignupUrl("companyPaid") },
       tapToPay: tapToPayEnabled(),
     });
   }

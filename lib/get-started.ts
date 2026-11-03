@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { paymentsSetupGateEnabled } from "@/lib/payments-gate";
 
 /**
  * The Get started checklist on Home (app/platform/dashboard/GetStartedCard.tsx).
@@ -50,6 +51,17 @@ export type GetStartedFacts = {
   people: number;
   /** Users seen from the iPhone/Android app (0 when mobileAppSeenAt is set — that stamp wins). */
   onPhone: number;
+  /**
+   * Online payments (Square, 2026-11-03). `payments: "skip"` leaves the two
+   * payment steps off the list: the processor isn't Square, or the company
+   * is waived / a test account and will never connect. Otherwise
+   * squareConnectedAt ticks "Set up online payments" and payoutStatus
+   * ticks "Link your bank account" (VERIFIED, or UNKNOWN for an older grant
+   * we can't read; null = never checked yet).
+   */
+  payments: "skip" | "ask";
+  squareConnectedAt: Date | null;
+  payoutStatus: string | null;
 };
 
 export async function loadGetStarted(companyId: string): Promise<GetStarted | null> {
@@ -62,9 +74,15 @@ export async function loadGetStarted(companyId: string): Promise<GetStarted | nu
       businessHours: true,
       bookingLinkSharedAt: true,
       mobileAppSeenAt: true,
+      paymentsWaived: true,
+      isTest: true,
+      squareConnectedAt: true,
+      squareConnection: { select: { payoutStatus: true } },
     },
   });
   if (!company || company.getStartedHiddenAt) return null;
+  const payments: GetStartedFacts["payments"] =
+    paymentsSetupGateEnabled() && !company.paymentsWaived && !company.isTest ? "ask" : "skip";
 
   const [services, clients, quotes, jobs, people, onPhone] = await Promise.all([
     prisma.workItem.count({ where: { companyId, isActive: true } }),
@@ -87,7 +105,17 @@ export async function loadGetStarted(companyId: string): Promise<GetStarted | nu
         }),
   ]);
 
-  const result = buildGetStarted({ ...company, services, clients, quotes, jobs, people, onPhone });
+  const result = buildGetStarted({
+    ...company,
+    payments,
+    payoutStatus: company.squareConnection?.payoutStatus ?? null,
+    services,
+    clients,
+    quotes,
+    jobs,
+    people,
+    onPhone,
+  });
   // Finished is finished: every tick is a live count, so deleting the only
   // client later would otherwise bring the card back to Home. The same stamp
   // Hide writes; Settings → Company → Show on Home clears it.
@@ -100,7 +128,32 @@ export function buildGetStarted(f: GetStartedFacts): GetStarted {
   const { services, clients, quotes, jobs, people } = f;
   const onPhone = f.mobileAppSeenAt ? 1 : f.onPhone;
   const company = f;
+  const connected = f.squareConnectedAt != null;
+  const paymentItems: GetStartedItem[] =
+    f.payments === "skip"
+      ? []
+      : [
+          {
+            key: "payments",
+            title: connected ? "Online payments are on" : "Set up online payments",
+            sub: connected
+              ? "Square is connected — clients can pay every invoice, quote deposit and booking online."
+              : "Pick who pays the card fee and connect your Square account.",
+            href: "/app/setup/payments",
+            done: connected,
+          },
+          {
+            key: "bank",
+            title: "Link your bank account in Square",
+            sub: "Square pays you out to it. Until then, money waits in your Square balance.",
+            href: "/app/settings?s=payments",
+            // VERIFIED, or UNKNOWN (an older grant we can't read) — PENDING,
+            // NONE and "never checked" all still need the person.
+            done: connected && (f.payoutStatus === "VERIFIED" || f.payoutStatus === "UNKNOWN"),
+          },
+        ];
   const items: GetStartedItem[] = [
+    ...paymentItems,
     {
       key: "services",
       title: services > 0 ? "Review your prices" : "Add your services",

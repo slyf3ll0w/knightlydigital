@@ -5,10 +5,12 @@
 //     webview and hands every other path (the marketing site's /apply
 //     included) to the system browser — so the in-app "Get started" link has
 //     to point at an /app path, or the app ejects people to finish signing up.
-//  2. Every signup door takes an invite code. A code waives the application
-//     review AND Finix underwriting; when /apply had no field for one,
-//     testers handed the shared code filled out the whole application and
-//     landed on the KYC gate anyway.
+//  2. Every signup door takes an invite code. A code waives the payment-setup
+//     step (and, in the Finix era, review + underwriting); when /apply had
+//     no field for one, testers handed the shared code filled out the whole
+//     application and landed on the KYC gate anyway. Since 2026-11-03 the
+//     field is folded behind "Have an invite code?" and opens on its own
+//     when the link carries ?code=.
 import { test, expect } from "@playwright/test";
 import { readState } from "../env";
 
@@ -28,7 +30,12 @@ test.describe("signup doors", () => {
       const res = await page.goto(`${state.baseUrl}${path}`);
       expect(res!.status()).toBe(200);
       expect(new URL(page.url()).pathname).toBe(path);
+      await expect(page.locator("#apply-invite-code")).toHaveCount(0);
+      await page.getByRole("button", { name: /have an invite code/i }).click();
       await expect(page.locator("#apply-invite-code")).toBeVisible();
+      // A link that carries the code opens the field already filled in.
+      await page.goto(`${state.baseUrl}${path}?code=WB-TEST-0000`);
+      await expect(page.locator("#apply-invite-code")).toHaveValue("WB-TEST-0000");
       await context.close();
     });
   }

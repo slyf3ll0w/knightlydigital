@@ -1,5 +1,6 @@
 import { getProcessor } from "@/lib/payments";
 import { finixConfigured, finixEnvironment } from "@/lib/finix";
+import { squareConfigured } from "@/lib/square";
 
 /**
  * The payment-verification gate: WorkBench is monetized by processing fees, so
@@ -51,6 +52,49 @@ export function paymentsOnboardingOpen(): boolean {
 
 export function paymentsGateEnabled(): boolean {
   return paymentsOnboardingOpen() && getProcessor().name === "finix" && finixConfigured();
+}
+
+// ─── Square: payment setup is part of signing up (2026-11-03) ───────────────
+
+/** The Company columns the setup gate reads (spread into selects). */
+export const PAYMENTS_SETUP_SELECT = {
+  paymentsRequiredAt: true,
+  paymentsWaived: true,
+  isTest: true,
+  squareMerchantId: true,
+  squareConnectedAt: true,
+} as const;
+
+export type PaymentsSetupCompany = {
+  paymentsRequiredAt: Date | string | null;
+  paymentsWaived: boolean;
+  isTest: boolean;
+  squareMerchantId: string | null;
+  squareConnectedAt: Date | string | null;
+};
+
+/**
+ * Does signing up end at the payment-setup step? True when Square is the
+ * live processor with app credentials on the server — then every self-serve
+ * company is stamped `paymentsRequiredAt` at creation and held at
+ * /app/setup/payments until it connects a Square account. Off (Finix,
+ * manual, or no Square credentials) = nothing is stamped, nothing is held.
+ */
+export function paymentsSetupGateEnabled(): boolean {
+  return getProcessor().name === "square" && squareConfigured();
+}
+
+/**
+ * Is THIS company held at /app/setup/payments right now? Only companies the
+ * sign-up stamped (never the ones from before), and never once Square is
+ * connected, the console waived payments (invite codes, comps), or the
+ * account is a test account. The platform layout redirects on true.
+ */
+export function paymentsSetupRequired(company: PaymentsSetupCompany): boolean {
+  if (!paymentsSetupGateEnabled()) return false;
+  if (!company.paymentsRequiredAt) return false;
+  if (company.paymentsWaived || company.isTest) return false;
+  return !(company.squareMerchantId && company.squareConnectedAt != null);
 }
 
 /**

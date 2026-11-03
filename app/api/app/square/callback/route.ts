@@ -22,15 +22,19 @@ import { loginUrlReturningTo } from "@/lib/login-return";
  */
 export const dynamic = "force-dynamic";
 
-function landing(req: NextRequest, signedIn: boolean, outcome: string) {
+/** Where the outcome lands: Settings → Online Payments, or the payment-setup
+ *  step for a company still being held there (sign-up, 2026-11-03). */
+type LandingPage = "/app/settings" | "/app/setup/payments";
+
+function landing(req: NextRequest, signedIn: boolean, outcome: string, page: LandingPage = "/app/settings") {
   // Behind Railway's proxy req.nextUrl.origin is the internal host —
   // NEXTAUTH_URL is the real public origin.
   const base = process.env.NEXTAUTH_URL ?? req.nextUrl.origin;
-  const url = new URL(signedIn ? "/app/settings" : "/app/login", base);
+  const url = new URL(signedIn ? page : "/app/login", base);
   if (signedIn) {
     url.searchParams.set("square", outcome);
   } else {
-    url.searchParams.set("callbackUrl", `/app/settings?square=${outcome}`);
+    url.searchParams.set("callbackUrl", `${page}?square=${outcome}`);
   }
   return NextResponse.redirect(url);
 }
@@ -66,22 +70,28 @@ export async function GET(req: NextRequest) {
   if (actor.id !== userId || actor.companyId !== companyId) {
     return landing(req, signedIn, "bad_state");
   }
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { companyId: true, role: true, isActive: true, name: true },
-  });
+  const [user, company] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { companyId: true, role: true, isActive: true, name: true },
+    }),
+    prisma.company.findUnique({ where: { id: companyId }, select: { paymentsRequiredAt: true } }),
+  ]);
   if (!user || user.companyId !== companyId || !user.isActive || user.role !== "OWNER") {
     return landing(req, signedIn, "unauthorized");
   }
+  // A company still in the sign-up's payment-setup step started this from
+  // there — send the outcome back to it rather than to Settings.
+  const page: LandingPage = company?.paymentsRequiredAt ? "/app/setup/payments" : "/app/settings";
 
   try {
     const result = await completeSquareConnect({ companyId, code });
     console.log(`[square] company ${companyId} connected by ${user.name ?? userId}${result.businessName ? ` (${result.businessName})` : ""}`);
   } catch (err) {
-    if (err instanceof SquareConnectError) return landing(req, signedIn, err.code);
+    if (err instanceof SquareConnectError) return landing(req, signedIn, err.code, page);
     reportError("[square] connect failed", err);
-    return landing(req, signedIn, "exchange_failed");
+    return landing(req, signedIn, "exchange_failed", page);
   }
 
-  return landing(req, signedIn, "connected");
+  return landing(req, signedIn, "connected", page);
 }

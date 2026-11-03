@@ -654,6 +654,8 @@ export function newApplicationEmail({
   entityType,
   website,
   message,
+  referral,
+  companyId,
 }: {
   name: string;
   email: string;
@@ -669,6 +671,10 @@ export function newApplicationEmail({
   entityType: string | null;
   website: string | null;
   message: string | null;
+  /** "How did you hear about us?" (the short sign-up form, 2026-11-03). */
+  referral?: string | null;
+  /** The company the sign-up opened — the button goes to its console page. */
+  companyId?: string | null;
 }): { subject: string; html: string } {
   const rows: [string, string | null][] = [
     ["Business", companyName],
@@ -676,6 +682,7 @@ export function newApplicationEmail({
     ["Email", email],
     ["Phone", phone],
     ["Trade", industry],
+    ["Heard about us", referral ?? null],
     ["Team size", teamSize],
     ["Location", [city, state].filter(Boolean).join(", ") || null],
     ["Takes payment today", paymentsToday],
@@ -686,12 +693,55 @@ export function newApplicationEmail({
   ];
   const html = wbShell({
     inner: `
-      ${p(`${esc(companyName)} applied for WorkBench access.`)}
+      ${p(`${esc(companyName)} signed up for WorkBench.`)}
       ${facts(rows.filter((r): r is [string, string] => Boolean(r[1])).map(([label, v]) => ({ label, value: esc(v) })))}
       ${message?.trim() ? p(multiline(message.trim())) : ""}
-      ${wbBtn(`${APP_URL}/superadmin/applications`, "Review the application")}`,
+      ${
+        companyId
+          ? wbBtn(`${APP_URL}/superadmin/company/${encodeURIComponent(companyId)}`, "Open in the console")
+          : wbBtn(`${APP_URL}/superadmin/applications`, "Review the application")
+      }`,
   });
-  return { subject: `New WorkBench application: ${companyName}`, html };
+  return { subject: `New WorkBench sign-up: ${companyName}`, html };
+}
+
+/**
+ * Welcome, to the owner the moment their account opens (2026-11-03 — until
+ * then sign-up sent the client nothing). What to do first, and where the
+ * app is. `setupPayments` = they were sent to the payment-setup step, so
+ * finishing it is the first item.
+ */
+export function welcomeEmail({
+  name,
+  companyName,
+  setupPayments,
+}: {
+  name: string | null;
+  companyName: string;
+  setupPayments: boolean;
+}): { subject: string; html: string } {
+  const steps = [
+    ...(setupPayments
+      ? [
+          "<strong>Finish setting up payments</strong> — pick who pays the card fee and connect your Square account. That is what lets clients pay you online.",
+        ]
+      : []),
+    "<strong>Check your price book</strong> under Settings → Services, so quotes and invoices fill themselves in.",
+    "<strong>Add a client and send a quote</strong> — they approve it online and it becomes a job on your calendar.",
+    "<strong>Get the app</strong> on your phone for calls, texts and the day's jobs.",
+  ];
+  const html = wbShell({
+    inner: `
+      ${hello(name)}
+      ${p(`${esc(companyName)} is open on WorkBench. A few things to do first:`)}
+      <ol style="margin:0 0 20px;padding-left:20px;color:${TEXT};font-size:15px;line-height:1.6;font-family:${FONT};">${steps
+        .map((s) => `<li style="margin:0 0 8px;">${s}</li>`)
+        .join("")}</ol>
+      ${wbBtn(`${APP_URL}/app/dashboard`, "Open WorkBench")}
+      ${aside(`The Help Center at <a href="${APP_URL}/help" style="color:${WB_BLUE};">workbenchfsm.com/help</a> walks through every feature, and Atlas inside the app can do most of the setup for you. Questions? Reply to this email.`)}`,
+    footNote: `Sent because an account for ${esc(companyName)} was opened with this address.`,
+  });
+  return { subject: `Welcome to WorkBench, ${companyName}`, html };
 }
 
 /** Platform notification — a tenant filed a bug report or suggestion. */

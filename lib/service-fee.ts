@@ -43,3 +43,23 @@ export function serviceFeeLabel(method: ServiceFeeMethod): string {
 
 /** One quiet sentence for places that disclose the fee without selling it. */
 export const SERVICE_FEE_SENTENCE = `A ${SERVICE_FEE_CARD} service fee applies to card payments and ${SERVICE_FEE_ACH} to bank transfers.`;
+
+/** The two processing models a company chooses between (Company.surchargeEnabled). */
+export type FeeModel = "serviceFee" | "companyPaid";
+
+/**
+ * What a card payment of `amount` dollars looks like under each model — the
+ * worked example on the payment-setup step and the Settings card. Service
+ * fee: the client pays the fee on top (same cents as the pay page) and the
+ * business receives the amount. Company-paid: the client pays the amount
+ * and Square's company-paid fee comes out of it.
+ */
+export function feeExample(model: FeeModel, amount = 500): { clientPays: number; youReceive: number } {
+  const cents = Math.round(amount * 100);
+  if (model === "serviceFee") {
+    return { clientPays: (cents + serviceFeeCents(cents, "CARD")) / 100, youReceive: cents / 100 };
+  }
+  const r = PROCESSING_RATES.companyPaid;
+  const feeCents = Math.round((cents * r.cardBps) / 10_000) + r.cardFixedCents;
+  return { clientPays: cents / 100, youReceive: (cents - feeCents) / 100 };
+}

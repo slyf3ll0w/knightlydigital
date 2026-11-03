@@ -76,7 +76,8 @@ import {
   SECTION_LABELS,
   type SectionKey,
 } from "@/lib/section-colors";
-import { serviceFee, SERVICE_FEE_ACH_LONG, SERVICE_FEE_CARD } from "@/lib/service-fee";
+import { serviceFee, SERVICE_FEE_ACH, SERVICE_FEE_ACH_LONG, SERVICE_FEE_CARD } from "@/lib/service-fee";
+import { SQUARE_OUTCOME } from "@/lib/square-outcomes";
 import { RATES } from "@/lib/plans";
 
 type Company = {
@@ -341,18 +342,8 @@ type SquareCardStatus =
       payout?: "VERIFIED" | "PENDING" | "NONE" | "UNKNOWN" | null;
     };
 
-/** What the Square callback's ?square= outcome means to the owner. */
-const SQUARE_OUTCOME: Record<string, { tone: "good" | "bad"; text: string }> = {
-  connected: { tone: "good", text: "Square is connected — clients can now pay by card or bank from their pay links." },
-  denied: { tone: "bad", text: "Square access was declined, so nothing was connected." },
-  already_connected_elsewhere: { tone: "bad", text: "That Square account is already connected to another WorkBench company." },
-  no_location: { tone: "bad", text: "That Square account has no active location that can take card payments." },
-  exchange_failed: { tone: "bad", text: "Square didn't accept the connection. Please try again." },
-  merchant_lookup_failed: { tone: "bad", text: "Connected, but Square's business details couldn't be read. Try Check connection." },
-  bad_state: { tone: "bad", text: "That connection link had expired. Start again from this card." },
-  unauthorized: { tone: "bad", text: "Only the account owner can connect Square." },
-  missing_params: { tone: "bad", text: "Square sent us back without a code. Please try again." },
-};
+// What the Square callback's ?square= outcome means to the owner lives in
+// lib/square-outcomes.ts (shared with the payment-setup step).
 
 function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
   const [status, setStatus] = useState<{
@@ -363,6 +354,8 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
     signupUrl?: string | null;
     /** Which link that is: the client-paid service fee one, or the company-paid one. */
     signupModel?: "companyPaid" | "serviceFee";
+    /** Both links, so the card can show the other model too. */
+    signupUrls?: { serviceFee: string | null; companyPaid: string | null };
     environment?: "sandbox" | "live" | "production";
     started?: boolean;
     state?: string | null;
@@ -601,29 +594,58 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
             <p className="text-sm text-gray-600">
               Connect the Square account that should receive your payments. You&apos;ll sign in to
               Square and approve WorkBench; card and bank details are handled by Square and never
-              touch WorkBench. No Square account yet? Create one with the button, then come back and connect it.
+              touch WorkBench. No Square account yet? Create one with the link that matches who pays
+              the card fee, then come back and connect it.
             </p>
             {error && <p className="text-xs text-[color:var(--ds-bad)]">{error}</p>}
             {isOwner ? (
-              <div className="btn-row">
-                <a href="/api/app/square/connect" className="btn-primary">
-                  Connect Square
-                </a>
-                {status.signupUrl && (
-                  <a href={status.signupUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary">
-                    Create a Square account <ArrowUpRight size={11} />
+              <>
+                <div className="btn-row">
+                  <a href="/api/app/square/connect" className="btn-primary">
+                    Connect Square
                   </a>
+                  <Link prefetch={false} href="/app/setup/payments" className="btn-secondary">
+                    Walk me through it
+                  </Link>
+                </div>
+                {/* Both sign-up links, the one matching the Service fee switch
+                    first — the other option stays visible instead of hiding
+                    behind the switch (David 2026-11-03). */}
+                {(status.signupUrls?.serviceFee || status.signupUrls?.companyPaid || status.signupUrl) && (
+                  <ul className="ds-divide rounded-lg border border-gray-200 text-sm">
+                    {(
+                      [
+                        { model: "serviceFee", label: "Your clients pay a service fee at checkout", rate: `${SERVICE_FEE_CARD} card · ${SERVICE_FEE_ACH} bank` },
+                        { model: "companyPaid", label: "You pay the processing fee", rate: `${RATES.companyPaid.card} card · ${RATES.companyPaid.achShort} bank` },
+                      ] as { model: "serviceFee" | "companyPaid"; label: string; rate: string }[]
+                    )
+                      .sort((a, b) => Number(b.model === status.signupModel) - Number(a.model === status.signupModel))
+                      .map((o) => {
+                        const url = status.signupUrls?.[o.model] ?? (o.model === status.signupModel ? status.signupUrl : null);
+                        if (!url) return null;
+                        const current = o.model === status.signupModel;
+                        return (
+                          <li key={o.model} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5">
+                            <span className="min-w-0 flex-1">
+                              <span className="block font-medium text-gray-800">
+                                {o.label}
+                                {current && <Chip tone="good">Your setting</Chip>}
+                              </span>
+                              <span className="block text-xs text-gray-500">{o.rate}</span>
+                            </span>
+                            <a href={url} target="_blank" rel="noopener noreferrer" className="btn-secondary btn-sm">
+                              Create a Square account <ArrowUpRight size={11} />
+                            </a>
+                          </li>
+                        );
+                      })}
+                  </ul>
                 )}
-                {status.signupUrl && (
-                  <span className="flex items-center justify-center text-xs text-gray-500 sm:justify-start">
-                    <InfoTip label="Which sign-up link is this?">
-                      {status.signupModel === "serviceFee"
-                        ? "Square's sign-up for businesses whose clients pay a service fee at checkout (your Service fee switch is on), so the account lands on WorkBench's rates for that. Want to pay the fee yourself instead? Turn the service fee off on this page first, then create the account."
-                        : "Square's sign-up for businesses that pay the processing fee themselves (your Service fee switch is off), so the account lands on WorkBench's rates for that. Want clients to pay a service fee at checkout instead? Turn it on on this page first, then create the account."}
-                    </InfoTip>
-                  </span>
-                )}
-              </div>
+                <p className="text-xs text-gray-500">
+                  Square&apos;s sign-up link sets the rate plan the new account lands on, so use the one that matches
+                  the <span className="font-medium">Service fee</span> switch below — switch it first if you want the other.
+                </p>
+              </>
             ) : (
               <p className="text-xs text-gray-500">Only the account owner can connect Square.</p>
             )}

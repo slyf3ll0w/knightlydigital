@@ -109,6 +109,14 @@ model Company {
   squareLocationId          String?
   squareConnectedAt         DateTime?
   squareConnection          SquareConnection?
+  // Payment setup is part of signing up (2026-11-03, David): stamped when a
+  // company opens through the self-serve doors on Square, and the app is
+  // held at /app/setup/payments (pick who pays the card fee, connect Square)
+  // until squareConnectedAt is set or the console waives payments
+  // (paymentsWaived). Null = never held: invite-code sign-ups, test
+  // accounts, and every company from before the stamp existed.
+  // lib/payments-gate.ts paymentsSetupRequired.
+  paymentsRequiredAt        DateTime?
   giftCardSales             GiftCardSale[]
   // Payment verification is mandatory: new companies are held at /app/activate
   // until Finix underwriting approves them. This flag exempts a company from

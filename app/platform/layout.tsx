@@ -9,7 +9,7 @@ import { voiceConfigured } from "@/lib/telnyx";
 import { SOFTPHONE_ROLES } from "@/lib/softphone";
 import { isNativeShellUserAgent } from "@/lib/sign-in-options";
 import { prisma } from "@/lib/db";
-import { paymentsGateStatus } from "@/lib/payments-gate";
+import { PAYMENTS_SETUP_SELECT, paymentsGateStatus, paymentsSetupRequired } from "@/lib/payments-gate";
 import { atlasAccess, ATLAS_ACCESS_SELECT, ATLAS_PRICING } from "@/lib/assistant-access";
 import { GATED_FEATURES, PLAN_HOLDER_SELECT, featureAllowed, type GatedFeature } from "@/lib/plans";
 import AppShell from "@/components/AppShell";
@@ -75,7 +75,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             assistantName: true,
             ...ATLAS_ACCESS_SELECT,
             finixOnboardingState: true,
-            paymentsWaived: true,
+            // paymentsWaived + the payment-setup step's columns (Square): held
+            // at /app/setup/payments until connected — lib/payments-gate.ts.
+            ...PAYMENTS_SETUP_SELECT,
             suspendedAt: true,
             accessPendingAt: true,
             lineVoiceAppAt: true,
@@ -106,7 +108,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // do the auth pages a signed-in person can still open (Forgot password,
   // the signup door): a reset form inside the app's sidebar reads as a
   // broken app page.
-  const standalone = new Set(["/app/activate", "/app/forgot-password", "/app/get-started"]);
+  const standalone = new Set(["/app/activate", "/app/setup/payments", "/app/forgot-password", "/app/get-started"]);
   if (standalone.has(path)) {
     return (
       <>
@@ -124,6 +126,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // cleared) and underwriting APPROVED. REJECTED locks the account.
   if (gate === "rejected" || gate === "activate") {
     redirect("/app/activate");
+  }
+  // ── Payment setup is part of signing up (Square, 2026-11-03) ──────────────
+  // A self-serve company is stamped at sign-up and comes back to the setup
+  // step (who pays the card fee, connect Square) until Square is connected or
+  // the console waives it. The step itself is in `standalone` above, so no
+  // loop; API routes are untouched (the step's own calls need them).
+  if (company && !company.suspendedAt && paymentsSetupRequired(company)) {
+    redirect("/app/setup/payments");
   }
   // Atlas paywall state (lib/assistant-access.ts) — the drawer shows the
   // spent-meter notice for "locked", chat for "free"/"plan"/"full", nothing for "off".

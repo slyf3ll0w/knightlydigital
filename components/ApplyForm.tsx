@@ -13,41 +13,24 @@ import { browserTimezone } from "@/lib/timezone";
 import { CORE_FREE_LINE } from "@/lib/help/plan-copy";
 import IndustrySelect, { industryValue } from "@/components/IndustrySelect";
 
-const TEAM_SIZES = ["Just me", "2–5", "6–15", "16+"];
-const PAYMENTS_TODAY = [
-  "Card — through Square, Stripe, or similar",
-  "Card — through my current software",
-  "Mostly cash or check",
-  "Mix of everything",
-];
-const MONTHLY_VOLUMES = ["Under $5k", "$5k – $20k", "$20k – $75k", "$75k+"];
-const YEARS_IN_BUSINESS = ["Less than 1 year", "1–3 years", "3–10 years", "10+ years"];
-const ENTITY_TYPES = [
-  "LLC or corporation",
-  "Sole proprietor",
-  "Partnership",
-  "Not registered yet",
-];
-
 /**
- * Step 1 of onboarding — the application form. One submit does everything:
- * records the application AND opens the account, then signs the new owner in
- * and sends them straight to payment verification (Finix underwriting) at
- * /app/activate. A person still reviews the application afterward — the
- * account runs in pending-approval mode until then.
+ * The sign-up form. One submit opens the account (login + company + owner),
+ * signs the new owner in and sends them to the payment-setup step
+ * (/app/setup/payments: who pays the card fee, connect Square) — the last
+ * part of signing up, after which they're in. Nobody reviews sign-ups by
+ * hand any more (2026-11-03): the seven screening questions the old
+ * application asked (team size, city, volume, years, structure…) only ever
+ * fed that review and Finix underwriting, and Square does its own KYC, so
+ * the form is the seven things we actually need plus "how did you hear
+ * about us".
  *
- * The questions are payment-intent screening: every company must pass Finix
- * underwriting, so this form's job is to predict (a) is this a real business
- * and (b) will they actually run card volume.
- *
- * INVITE CODE: a code — a minted WB-XXXX-XXXX or the shared tester code — IS
- * the approval: no review, no underwriting. It used to have nowhere to go on
- * this form, so anyone handed the tester code and pointed at "Get started"
- * filled out the whole application and landed on the KYC gate anyway. The
- * field is here now: once a code checks out the screening questions fold away
- * (nothing downstream reads them) and the signup lands on the dashboard
- * instead of /app/activate. The unlisted /invite page is still the short,
- * code-only door (components/InviteSignupForm.tsx) — same endpoint.
+ * INVITE CODE: a code — a minted WB-XXXX-XXXX or the shared tester code —
+ * waives the payment-setup step (and, in the Finix era, review +
+ * underwriting): the company lands straight on the dashboard. The field is
+ * folded behind "Have an invite code?" so the ordinary sign-up never sees
+ * it; a link that carries ?code= opens it filled in. The unlisted /invite
+ * page is still the short, code-only door (components/InviteSignupForm.tsx)
+ * — same endpoint.
  *
  * Two skins, one form (`appearance`): "site" is the marketing card at /apply;
  * "app" is the in-app door at /app/get-started, which exists so the mobile
@@ -64,12 +47,15 @@ export default function ApplyForm({
   social = NO_SOCIAL_SIGN_IN,
   appearance = "site",
   verifyPayments = false,
+  setupPayments = false,
 }: {
   /** Which social buttons this visitor gets, and how they run (lib/sign-in-options.ts). */
   social?: SocialSignIn;
   appearance?: "site" | "app";
   /** Finix underwriting follows signup (lib/payments-gate.ts paymentsGateEnabled). Off = no verification step. */
   verifyPayments?: boolean;
+  /** Square: the payment-setup step follows signup (lib/payments-gate.ts paymentsSetupGateEnabled). */
+  setupPayments?: boolean;
 }) {
   const inApp = appearance === "app";
   const selfUrl = inApp ? "/app/get-started" : "/apply";
@@ -87,6 +73,8 @@ export default function ApplyForm({
   const [captchaToken, setCaptchaToken] = useState("");
   const captchaRef = useRef<TurnstileHandle>(null);
   const [inviteCode, setInviteCode] = useState("");
+  // The code field stays folded until asked for (or a ?code= link opens it).
+  const [codeOpen, setCodeOpen] = useState(false);
   // Unchecked by default: consent to WorkBench's OWN sales & support texts
   // (the platform line's opt-in, cited in its toll-free verification).
   const [smsConsent, setSmsConsent] = useState(false);
@@ -101,20 +89,13 @@ export default function ApplyForm({
     phone: "",
     companyName: "",
     industry: "",
-    teamSize: "",
-    city: "",
-    state: "",
-    paymentsToday: "",
-    monthlyVolume: "",
-    yearsInBusiness: "",
-    entityType: "",
-    website: "",
-    message: "",
+    referralSource: "",
   });
 
-  // A good code skips review AND underwriting, so the screening questions —
-  // all of which only ever feed those two decisions — come off the form.
+  // A good code waives the payment-setup step (and the Finix gate).
   const waived = codeState === "valid";
+  // What follows the form: the payment-setup step, the Finix verification, or straight in.
+  const nextStep: "setup" | "verify" | "none" = waived ? "none" : setupPayments ? "setup" : verifyPayments ? "verify" : "none";
 
   function set(field: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -132,7 +113,10 @@ export default function ApplyForm({
   // the first client render match.
   useEffect(() => {
     const code = new URLSearchParams(window.location.search).get("code");
-    if (code) setInviteCode(code.trim());
+    if (code) {
+      setInviteCode(code.trim());
+      setCodeOpen(true);
+    }
   }, []);
 
   // Debounced pre-flight, so a code that isn't going to work says so before
@@ -200,9 +184,9 @@ export default function ApplyForm({
       }
 
       setDone(true);
-      // A code waives underwriting, and a closed onboarding has no gate —
-      // either way there's nothing to send them to.
-      const landing = waived || !verifyPayments ? "/app/dashboard" : "/app/activate";
+      // A code waives the next step; otherwise the payment-setup step (Square)
+      // or the Finix verification, whichever this deployment runs.
+      const landing = nextStep === "setup" ? "/app/setup/payments" : nextStep === "verify" ? "/app/activate" : "/app/dashboard";
 
       if (attachMode) {
         // Already signed in (Google) — re-point the session at the new company.
@@ -246,13 +230,13 @@ export default function ApplyForm({
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-md bg-blue-50">
           <CheckCircle2 className="h-5 w-5 text-[#0B57D8]" strokeWidth={2} />
         </div>
-        <h2 className={`mx-auto mt-5 max-w-md ${headingClass}`}>
-          {waived ? "Your account is open." : "Your account is created."}
-        </h2>
+        <h2 className={`mx-auto mt-5 max-w-md ${headingClass}`}>Your account is open.</h2>
         <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-gray-600">
-          {waived || !verifyPayments
-            ? "Signing you in and taking you to WorkBench."
-            : "Signing you in and taking you to payment verification — complete it and you're in."}
+          {nextStep === "setup"
+            ? "Signing you in. Next: a quick payment setup, then you're in."
+            : nextStep === "verify"
+              ? "Signing you in and taking you to payment verification — complete it and you're in."
+              : "Signing you in and taking you to WorkBench."}
         </p>
         <Loader2 className="mx-auto mt-5 h-5 w-5 animate-spin text-gray-400" />
       </div>
@@ -329,9 +313,7 @@ export default function ApplyForm({
       onSubmit={handleSubmit}
       className={inApp ? "" : "rounded-md border border-gray-200 bg-white p-6 sm:p-10"}
     >
-      <h2 className={headingClass}>
-        {waived ? "Open your account" : "Tell us about your business"}
-      </h2>
+      <h2 className={headingClass}>Create your account</h2>
       <p className="mt-2 text-[15px] leading-relaxed text-gray-600">
         {attachMode ? (
           <>
@@ -340,25 +322,19 @@ export default function ApplyForm({
             opens your business on that login.{" "}
           </>
         ) : (
-          <>This creates your account — </>
+          <>This opens your account on the spot. </>
         )}
-        {waived ? (
+        {nextStep === "setup" ? (
           <>
-            your code skips the application review{verifyPayments && " and the payment-verification step"},
-            so you&apos;ll land straight on your dashboard.
+            Next you&apos;ll pick how card fees work and connect your Square account — that&apos;s what
+            lets clients pay you online, and it takes a couple of minutes.
           </>
-        ) : !verifyPayments ? (
-          <>
-            you&apos;ll land straight on your dashboard. A person also reviews every
-            application within a business day; your account keeps working while
-            that happens.
-          </>
+        ) : nextStep === "verify" ? (
+          <>Complete the short payment-verification step that follows and you&apos;re in.</>
+        ) : waived ? (
+          <>Your code skips payment setup, so you&apos;ll land straight on your dashboard.</>
         ) : (
-          <>
-            complete the short payment-verification step that follows and
-            you&apos;re in. A person also reviews every application within a
-            business day; your account keeps working while that happens.
-          </>
+          <>You&apos;ll land straight on your dashboard.</>
         )}
       </p>
 
@@ -377,37 +353,7 @@ export default function ApplyForm({
         </div>
       )}
 
-      {/* The code goes first: it decides how much of this form there is. */}
-      <div className="mt-6">
-        <label htmlFor="apply-invite-code" className={labelClass}>
-          Invite code <span className="font-normal text-gray-400">(optional)</span>
-        </label>
-        <input
-          id="apply-invite-code"
-          type="text"
-          maxLength={40}
-          value={inviteCode}
-          onChange={(e) => setInviteCode(e.target.value)}
-          className={`${inputClass} font-mono tracking-wide`}
-          placeholder="If someone gave you one"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-        />
-        {codeState === "checking" && (
-          <p className="mt-1.5 flex items-center gap-1.5 text-[13px] text-gray-400">
-            <Loader2 size={13} className="animate-spin" /> Checking…
-          </p>
-        )}
-        {codeState === "valid" && (
-          <p className="mt-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-green-700">
-            <Ticket size={13} /> Code accepted — no application review, no payment verification.
-          </p>
-        )}
-        {codeState === "invalid" && <p className="mt-1.5 text-[13px] text-red-600">{codeError}</p>}
-      </div>
-
-      <div className="mt-5 grid gap-5 sm:grid-cols-2">
+      <div className="mt-6 grid gap-5 sm:grid-cols-2">
         <div>
           <label className={labelClass}>Your name</label>
           <input
@@ -500,7 +446,7 @@ export default function ApplyForm({
               </span>
             </label>
         </div>
-        {/* Industry seeds the starter price book, so it's asked either way. */}
+        {/* Industry seeds the starter price book. */}
         <IndustrySelect
           value={form.industry}
           other={otherIndustry}
@@ -509,153 +455,60 @@ export default function ApplyForm({
           inputClass={inputClass}
           labelClass={labelClass}
         />
-        {/* ── Screening questions — they feed the review and underwriting,
-            and a code decides both, so they fold away when one checks out. */}
-        {!waived && (
+        <div>
+          <label className={labelClass}>
+            How did you hear about us? <span className="font-normal text-gray-400">(optional)</span>
+          </label>
+          <input
+            type="text"
+            maxLength={200}
+            value={form.referralSource}
+            onChange={(e) => set("referralSource", e.target.value)}
+            className={inputClass}
+            placeholder="A friend, Google, a Facebook group…"
+          />
+        </div>
+      </div>
+
+      {/* The invite code, folded away: a code from us skips the payment-setup
+          step. Opens on its own when a link carries ?code=. */}
+      <div className="mt-5">
+        {!codeOpen ? (
+          <button
+            type="button"
+            onClick={() => setCodeOpen(true)}
+            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-gray-500 hover:text-gray-800"
+          >
+            <Ticket size={14} className="text-gray-400" /> Have an invite code?
+          </button>
+        ) : (
           <>
-            <div>
-              <label className={labelClass}>Team size</label>
-              <select
-                required
-                value={form.teamSize}
-                onChange={(e) => set("teamSize", e.target.value)}
-                className={`${inputClass} bg-white`}
-              >
-                <option value="" disabled>
-                  Select…
-                </option>
-                {TEAM_SIZES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>City</label>
-              <input
-                type="text"
-                required
-                maxLength={80}
-                value={form.city}
-                onChange={(e) => set("city", e.target.value)}
-                className={inputClass}
-                placeholder="Allen"
-              />
-            </div>
-            <div>
-              <label className={labelClass}>State</label>
-              <input
-                type="text"
-                required
-                maxLength={40}
-                value={form.state}
-                onChange={(e) => set("state", e.target.value)}
-                className={inputClass}
-                placeholder="TX"
-              />
-            </div>
-            <div>
-              <label className={labelClass}>How do you take payment today?</label>
-              <select
-                required
-                value={form.paymentsToday}
-                onChange={(e) => set("paymentsToday", e.target.value)}
-                className={`${inputClass} bg-white`}
-              >
-                <option value="" disabled>
-                  Select…
-                </option>
-                {PAYMENTS_TODAY.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>Roughly how much do you invoice per month?</label>
-              <select
-                required
-                value={form.monthlyVolume}
-                onChange={(e) => set("monthlyVolume", e.target.value)}
-                className={`${inputClass} bg-white`}
-              >
-                <option value="" disabled>
-                  Select…
-                </option>
-                {MONTHLY_VOLUMES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>How long have you been in business?</label>
-              <select
-                required
-                value={form.yearsInBusiness}
-                onChange={(e) => set("yearsInBusiness", e.target.value)}
-                className={`${inputClass} bg-white`}
-              >
-                <option value="" disabled>
-                  Select…
-                </option>
-                {YEARS_IN_BUSINESS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass}>Business structure</label>
-              <select
-                required
-                value={form.entityType}
-                onChange={(e) => set("entityType", e.target.value)}
-                className={`${inputClass} bg-white`}
-              >
-                <option value="" disabled>
-                  Select…
-                </option>
-                {ENTITY_TYPES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="sm:col-span-2">
-              <label className={labelClass}>
-                Website or social page{" "}
-                <span className="font-normal text-gray-400">
-                  (optional — the fastest way for us to verify you)
-                </span>
-              </label>
-              <input
-                type="text"
-                maxLength={200}
-                value={form.website}
-                onChange={(e) => set("website", e.target.value)}
-                className={inputClass}
-                placeholder="acmehvac.com, Google Business, Facebook…"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <label className={labelClass}>
-                Anything else? <span className="font-normal text-gray-400">(optional)</span>
-              </label>
-              <textarea
-                maxLength={2000}
-                rows={3}
-                value={form.message}
-                onChange={(e) => set("message", e.target.value)}
-                className={inputClass}
-                placeholder="How you heard about WorkBench, what you're using today…"
-              />
-            </div>
+            <label htmlFor="apply-invite-code" className={labelClass}>
+              Invite code <span className="font-normal text-gray-400">(optional)</span>
+            </label>
+            <input
+              id="apply-invite-code"
+              type="text"
+              maxLength={40}
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+              className={`${inputClass} font-mono tracking-wide`}
+              placeholder="If someone gave you one"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            {codeState === "checking" && (
+              <p className="mt-1.5 flex items-center gap-1.5 text-[13px] text-gray-400">
+                <Loader2 size={13} className="animate-spin" /> Checking…
+              </p>
+            )}
+            {codeState === "valid" && (
+              <p className="mt-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-green-700">
+                <Ticket size={13} /> Code accepted — you&apos;ll skip payment setup and land on your dashboard.
+              </p>
+            )}
+            {codeState === "invalid" && <p className="mt-1.5 text-[13px] text-red-600">{codeError}</p>}
           </>
         )}
       </div>
@@ -680,20 +533,14 @@ export default function ApplyForm({
         {attachMode ? "Open my business" : "Create my account"}
       </button>
       <p className="mt-4 text-[13px] text-gray-400">
-        {waived ? (
-          <>
-            {CORE_FREE_LINE}{" "}
-            {verifyPayments
-              ? "Taking card payments online stays switched off on a code account until the business is verified."
+        {CORE_FREE_LINE}{" "}
+        {waived
+          ? "Online card and bank payments switch on whenever you connect Square from Settings."
+          : nextStep === "setup"
+            ? "Payments run through your own Square account — WorkBench never sees card numbers."
+            : nextStep === "verify"
+              ? "Card and bank payments switch on when the underwriter approves you."
               : "Online card and bank payments are coming soon."}
-          </>
-        ) : (
-          <>
-            {CORE_FREE_LINE} A person
-            reads every application; until yours is approved your account is
-            provisional, and it closes if we can&apos;t approve it.
-          </>
-        )}
       </p>
     </form>
   );
