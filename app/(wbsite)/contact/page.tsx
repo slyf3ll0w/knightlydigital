@@ -89,7 +89,7 @@ export default function WBContactPage() {
             Tell us a little about your business and what you need. We reply by email,
             or by phone if you leave a number.
           </p>
-          <div className="mt-7 rounded-[1.5rem] border border-gray-200 bg-white p-5 sm:p-7">
+          <div className="mt-7">
             <WBEmbedForm />
           </div>
         </div>
