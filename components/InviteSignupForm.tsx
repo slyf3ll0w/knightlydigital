@@ -288,11 +288,10 @@ export default function InviteSignupForm({
           />
         </div>
         <div>
-          <label className={labelClass}>
-            Phone <span className="font-normal text-gray-400">(optional)</span>
-          </label>
+          <label className={labelClass}>Phone</label>
           <input
             type="tel"
+            required
             maxLength={30}
             value={form.phone}
             onChange={(e) => set("phone", e.target.value)}

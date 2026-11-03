@@ -79,6 +79,26 @@ export default function SetupPaymentsClient({
   const [codeBusy, setCodeBusy] = useState(false);
   const [codeError, setCodeError] = useState("");
   const notice = squareOutcomeNotice(outcome);
+  // They've opened Square's sign-up: from then on "Finish setup" is the main
+  // button. Remembered per browser so a reload (or coming back from Square's
+  // tab) keeps the emphasis; purely cosmetic, so a missing store is fine.
+  const SIGNUP_KEY = "wb-square-signup-started";
+  const [signupStarted, setSignupStarted] = useState(false);
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(SIGNUP_KEY) === "1") setSignupStarted(true);
+    } catch {
+      // storage blocked — the button order just stays as on first load
+    }
+  }, []);
+  function markSignupStarted() {
+    setSignupStarted(true);
+    try {
+      window.localStorage.setItem(SIGNUP_KEY, "1");
+    } catch {
+      // ignore
+    }
+  }
 
   // Square's consent can finish in another tab or, in the phone app, in the
   // system browser. Whenever this screen comes back into view, ask whether
@@ -206,8 +226,8 @@ export default function SetupPaymentsClient({
             </div>
             <h1 className="mt-4 text-2xl font-extrabold text-gray-900">Set up getting paid</h1>
             <p className="mt-3 text-[15px] leading-relaxed text-gray-600">
-              Every quote, invoice and booking in WorkBench can be paid by card or bank, through your own Square account.
-              Two quick choices and <span className="font-semibold text-gray-900">{companyName}</span> is ready.
+              Every quote, invoice and booking in WorkBench can be paid by card or bank, through a Square account that is
+              yours. Three quick steps and <span className="font-semibold text-gray-900">{companyName}</span> is ready.
             </p>
 
             {notice && notice.tone === "bad" && (
@@ -281,41 +301,58 @@ export default function SetupPaymentsClient({
               </div>
             )}
 
-            {/* ── 2. Connect Square ── */}
+            {/* ── 2. Create the Square account (on the chosen model's partner
+                link — the link sets the rate plan, so this is the only door;
+                David 2026-11-03: no "connect an existing account" here) ── */}
             <h2 className={`mt-7 text-[13px] font-bold uppercase tracking-wide ${choice ? "text-gray-500" : "text-gray-300"}`}>
-              2 · Connect your Square account
+              2 · Create your Square account
             </h2>
             {choice ? (
               <>
                 <p className="mt-2 text-[14px] leading-relaxed text-gray-600">
-                  You&apos;ll sign in to Square and approve WorkBench. Card and bank details are handled by Square and never
-                  touch WorkBench.
+                  Your money goes to a Square account made for your business, on WorkBench&apos;s{" "}
+                  {choice === "serviceFee" ? "service-fee" : "company-paid"} rates. Square&apos;s sign-up is free and takes a
+                  few minutes: your business details, the owner&apos;s identity and the bank account to pay you out to. It
+                  opens in a new tab — come back here when you&apos;re done.
                 </p>
-                <a href="/api/app/square/connect" className={`${primaryBtn} mt-4`}>
-                  Connect Square <ArrowRight size={15} />
-                </a>
-                {signupUrls[choice] && (
-                  <>
-                    <a href={signupUrls[choice]!} target="_blank" rel="noopener noreferrer" className={`${secondaryBtn} mt-3`}>
-                      No Square account yet? Create one <ArrowUpRight size={13} />
-                    </a>
-                    <p className="mt-2 text-[12.5px] leading-relaxed text-gray-500">
-                      Opens Square&apos;s free sign-up on WorkBench&apos;s{" "}
-                      {choice === "serviceFee" ? "service-fee" : "company-paid"} rates in a new tab — a few minutes, and
-                      Square asks for your business details, the owner&apos;s identity and the bank account to pay you out
-                      to. When you&apos;re done, come back here and press Connect Square.
-                    </p>
-                  </>
+                {signupUrls[choice] ? (
+                  <a
+                    href={signupUrls[choice]!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={markSignupStarted}
+                    className={`${signupStarted ? secondaryBtn : primaryBtn} mt-4`}
+                  >
+                    {signupStarted ? "Open Square's sign-up again" : "Create your Square account"} <ArrowUpRight size={14} />
+                  </a>
+                ) : (
+                  <p className="mt-3 text-[13px] text-[color:var(--ds-bad)]">Square&apos;s sign-up link isn&apos;t set up on this server yet.</p>
                 )}
+              </>
+            ) : (
+              <p className="mt-2 text-[14px] text-gray-400">Pick who pays the card fee first.</p>
+            )}
+
+            {/* ── 3. Link the new account to WorkBench (OAuth) ── */}
+            <h2 className={`mt-7 text-[13px] font-bold uppercase tracking-wide ${choice ? "text-gray-500" : "text-gray-300"}`}>
+              3 · Finish setup
+            </h2>
+            {choice ? (
+              <>
+                <p className="mt-2 text-[14px] leading-relaxed text-gray-600">
+                  Done with Square&apos;s sign-up? Sign in to your new Square account once more to approve WorkBench, and
+                  you&apos;re in. Card and bank details stay with Square and never touch WorkBench.
+                </p>
+                <a href="/api/app/square/connect" className={`${signupStarted ? primaryBtn : secondaryBtn} mt-4`}>
+                  Finish setup <ArrowRight size={15} />
+                </a>
                 {sandbox && (
                   <p className="mt-2 text-[12px] text-gray-400">
                     Sandbox: keep the test seller&apos;s Square dashboard open in another tab while you approve.
                   </p>
                 )}
               </>
-            ) : (
-              <p className="mt-2 text-[14px] text-gray-400">Pick who pays the card fee first.</p>
-            )}
+            ) : null}
 
             {required && (
               <div className="mt-7 border-t border-gray-200 pt-5">

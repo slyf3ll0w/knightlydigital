@@ -1011,8 +1011,11 @@ Built 2026-10-15 on branch `square-payments` (worktree
   two models side by side with rates and a `feeExample()` $500 worked
   example (`POST /api/app/setup/payments { serviceFee }` →
   `surchargeEnabled`; a new company starts with neither lit even though the
-  column defaults true), **2 ·** `Connect Square` + "No Square account yet?
-  Create one" on the chosen model's link, a folded "Have an invite code?"
+  column defaults true), **2 ·** `Create your Square account` = the chosen
+  model's partner link (the ONLY door — David 2026-11-03: no "connect an
+  existing account" on the step, since the link sets the rate plan),
+  **3 ·** `Finish setup` = the OAuth connect (primary once the sign-up link
+  was opened; localStorage `wb-square-signup-started`), a folded "Have an invite code?"
   (`/api/app/activate/invite` waives), re-checks `/api/app/settings/payments`
   on focus/visibility (consent finishes in another tab or the system
   browser). The Square callback lands on the step (`?square=<outcome>`,

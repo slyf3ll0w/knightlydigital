@@ -28,7 +28,8 @@ closes), `plan-gating-square-billing-2026-10-28.md`, `universal-invite-code-2026
 ## What shipped
 
 **Sign-up (`components/ApplyForm.tsx`, `POST /api/public/apply`).** Seven
-fields (name, email, password, business, phone + SMS consent, industry) and
+fields (name, email, password, business, phone — required, so a stalled
+sign-up can be called — + SMS consent, industry) and
 "How did you hear about us?" → `Company.referralSource` (+ the inbox
 notice). The invite code is folded behind "Have an invite code?" and opens
 itself on `?code=`. No review: `AccessApplication` books APPROVED on
@@ -55,10 +56,13 @@ and light like `/app/activate`:
    neither lit (the column's default is not a decision); the service-fee
    card carries the surcharge-legality line. "You can change this any time
    in Settings."
-2. **Connect your Square account** — `Connect Square` (OAuth) and "No
-   Square account yet? Create one" on the chosen model's link
-   (`squareSignupUrl(model)`), with what Square will ask for and "come back
-   here and press Connect Square". The screen re-checks
+2. **Create your Square account** — the chosen model's partner link
+   (`squareSignupUrl(model)`) is the only door (David, same day, after a
+   first pass that led with "Connect Square": the link sets the rate plan,
+   so there is no "connect an existing account" on the step), with what
+   Square will ask for and "come back here when you're done".
+3. **Finish setup** — the OAuth connect, which becomes the main button once
+   the sign-up link was opened. The screen re-checks
    `/api/app/settings/payments` on focus/visibility, so consent finished in
    another tab or the phone's system browser moves it on.
 

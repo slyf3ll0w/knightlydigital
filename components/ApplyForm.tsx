@@ -326,8 +326,8 @@ export default function ApplyForm({
         )}
         {nextStep === "setup" ? (
           <>
-            Next you&apos;ll pick how card fees work and connect your Square account — that&apos;s what
-            lets clients pay you online, and it takes a couple of minutes.
+            Next you&apos;ll pick how card fees work and create your Square account on WorkBench&apos;s
+            rates — that&apos;s what lets clients pay you online, and it takes a few minutes.
           </>
         ) : nextStep === "verify" ? (
           <>Complete the short payment-verification step that follows and you&apos;re in.</>
@@ -418,11 +418,12 @@ export default function ApplyForm({
           />
         </div>
         <div>
-          <label className={labelClass}>
-            Phone <span className="font-normal text-gray-400">(optional)</span>
-          </label>
+          {/* Required (David 2026-11-03): if a sign-up stalls at payment
+              setup, this is how we reach out to help. */}
+          <label className={labelClass}>Phone</label>
           <input
             type="tel"
+            required
             maxLength={30}
             value={form.phone}
             onChange={(e) => set("phone", e.target.value)}

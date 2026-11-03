@@ -109,12 +109,14 @@ export async function POST(req: NextRequest) {
 
   const email = sessionAccount ? sessionAccount.email : normalizeEmail(body.email);
 
-  if (!name || !email || !companyName || (!sessionAccount && !password)) {
+  // Phone is required (David 2026-11-03): a sign-up that stalls at payment
+  // setup is one we want to be able to call.
+  if (!name || !email || !companyName || !String(phone ?? "").trim() || (!sessionAccount && !password)) {
     return NextResponse.json(
       {
         error: sessionAccount
-          ? "Name and business name are required."
-          : "Name, email, business name, and password are required.",
+          ? "Name, business name and phone are required."
+          : "Name, email, business name, phone, and password are required.",
       },
       { status: 400 }
     );

@@ -52,7 +52,7 @@ const setupSteps = [
     icon: ShieldCheck,
     step: "Step 2",
     title: "Set up getting paid",
-    body: `Pick who pays the card fee — your client at checkout (${RATES.serviceFee.card} per card payment) or you (${RATES.companyPaid.card}) — and connect your Square account. No Square yet? Creating one takes a few minutes.`,
+    body: `Pick who pays the card fee — your client at checkout (${RATES.serviceFee.card} per card payment) or you (${RATES.companyPaid.card}) — then create your Square account on WorkBench's rates for it. A few minutes, and your money goes straight to your own Square account.`,
   },
   {
     icon: Wrench,
