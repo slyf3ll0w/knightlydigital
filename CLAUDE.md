@@ -1569,7 +1569,7 @@ up one of two ways:
 - **Railway cron service (recommended):** add a new service in the Railway project
   with an hourly cron schedule (`0 * * * *`) whose command is:
   `curl -fsS -X POST "$CRON_TARGET/api/cron/recurring" -H "Authorization: Bearer $CRON_SECRET"`
-  with `CRON_TARGET=http://streamflaire.railway.internal:8080` (Railway private
+  with `CRON_TARGET=http://${{Streamflaire.RAILWAY_PRIVATE_DOMAIN}}:8080` (Railway private
   network — no Cloudflare 100 s cutoff; the app listens on `::` for it,
   `next start -H ::`). `$NEXTAUTH_URL` works too but loses the result past 100 s.
 - **External pinger:** point cron-job.org (or a GitHub Action) at the same URL/header hourly.
