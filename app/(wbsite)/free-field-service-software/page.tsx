@@ -363,7 +363,7 @@ export default function FreePage() {
 
       <WBCta
         title={`Free for ${seats} users. Full access, not a trial.`}
-        body="Tell us about your business and your account opens today. A person reviews every application and onboards your company personally."
+        body="Create your account, pick who pays the card fee, connect your Square account, and you are in — about five minutes, no waiting on anyone."
         secondary={{ label: "See it for your trade", href: "/trades" }}
       />
     </>

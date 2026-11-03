@@ -587,14 +587,14 @@ export const paymentsSection: HelpSection = {
     {
       slug: "card-surcharging",
       title: "The service fee: who pays for card processing",
-      summary: "New accounts start with clients paying the service fee on card and bank payments. The rates are fixed by your billing plan.",
-      keywords: ["surcharge", "service fee", "convenience fee", "card fee", "pass fees", "processing fee", "who pays the fee", "company-paid", "autopay fee", "turn off service fee", "liability", "legal"],
+      summary: "You pick who pays for card processing at sign-up: your client, as a service fee at checkout, or you. The rates are fixed.",
+      keywords: ["surcharge", "service fee", "convenience fee", "card fee", "pass fees", "processing fee", "who pays the fee", "company-paid", "autopay fee", "turn off service fee", "liability", "legal", "who pays the card fee", "payment setup"],
       where: { label: "Payments settings", href: "/app/settings" },
       roles: "Owners and admins",
       blocks: [
         {
           type: "p",
-          text: `Two billing plans. **Service fee**, what a new account starts on: the client pays **${FEE_CARD}** on a card payment and **${FEE_ACH}** on a bank transfer, so the invoice amount reaches you in full. **Company-paid**: you absorb Square's fee, **${RATE_CARD}** per card payment and **${RATE_ACH}** per bank transfer. The rates come with the plan — there is nothing to type in WorkBench.`,
+          text: `Two billing plans, and you pick one on the payment-setup screen when you sign up (see [Turn on online payments](/help/activate-payments)). **Service fee**: the client pays **${FEE_CARD}** on a card payment and **${FEE_ACH}** on a bank transfer, so the invoice amount reaches you in full. **Company-paid**: you absorb Square's fee, **${RATE_CARD}** per card payment and **${RATE_ACH}** per bank transfer, and your client sees no fee. The screen shows what a $500 card payment looks like under each. The rates come with the plan — there is nothing to type in WorkBench.`,
         },
         {
           type: "list",
@@ -613,9 +613,9 @@ export const paymentsSection: HelpSection = {
         {
           type: "list",
           items: [
-            `**Settings → Payments & accounting → Service fee** is one switch. Turning it off means you pay the processing fee yourself at your Square plan's rate — for an account set up on the service-fee plan that is the higher one, **${FEE_CARD}** per card payment. To move the account to the company-paid plan, message us from the Help Center.`,
-            "Turning it on asks you to confirm that surcharging is allowed where you do business. Card networks and some states regulate it, and that responsibility is yours, not WorkBench's.",
-            "The `Create a Square account` link on the Online Payments card follows the switch, so a new Square account lands on the matching plan.",
+            `**Settings → Payments & accounting → Service fee** is one switch — the same choice as on the payment-setup screen. Turning it off means you pay the processing fee yourself at your Square plan's rate — for an account set up on the service-fee plan that is the higher one, **${FEE_CARD}** per card payment. To move the account to the company-paid plan, message us from the Help Center.`,
+            "Choosing the service fee (on the setup screen or with the switch) means confirming that surcharging is allowed where you do business. Card networks and some states regulate it, and that responsibility is yours, not WorkBench's.",
+            "Square's sign-up link sets the rate plan a new Square account lands on, so create the account from the link for the model you chose: the payment-setup screen offers the matching one, and the Online Payments card in Settings lists both with **Your setting** on the one that matches the switch.",
           ],
         },
       ],

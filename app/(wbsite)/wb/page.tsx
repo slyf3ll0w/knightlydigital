@@ -98,12 +98,12 @@ const faqItems = [
     q: "How does getting started work?",
     a: (
       <p>
-        Because WorkBench moves real money, every company on it is verified.
-        Tell us about your business, then complete a short payment-verification
-        form (the same KYC check every payments provider runs) and your account
-        opens. A person also reviews every application within a business day,
-        and most companies are quoting and scheduling the same day they sign
-        up. If you would rather talk first, call{" "}
+        Create your account, then set up getting paid: pick who pays the card
+        fee and connect your Square account (Square runs the same KYC check
+        every payments provider does, and creating an account there takes a
+        few minutes if you have none). The app opens the moment it is
+        connected, and most companies are quoting and scheduling the same day
+        they sign up. If you would rather talk first, call{" "}
         <a href={WB_PHONE.href} className="font-semibold text-[#0B57D8] hover:underline">
           {WB_PHONE.display}
         </a>

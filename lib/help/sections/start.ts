@@ -10,8 +10,8 @@ export const startSection: HelpSection = {
     {
       slug: "activate-payments",
       title: "Turn on online payments (connect Square)",
-      summary: "Connect your Square account once and clients can pay invoices by card or bank straight from their pay links.",
-      keywords: ["square", "connect square", "online payments", "turn on payments", "pay button", "card payments", "ach", "bank payments", "activate", "verify", "verification", "square account", "bank account", "link bank", "payout account"],
+      summary: "Sign-up ends with a short payment setup: pick who pays the card fee and connect Square, and clients can pay from their pay links.",
+      keywords: ["square", "connect square", "online payments", "turn on payments", "pay button", "card payments", "ach", "bank payments", "activate", "verify", "verification", "square account", "bank account", "link bank", "payout account", "set up payments", "payment setup", "sign up", "create a square account", "who pays the card fee"],
       where: { label: "Settings → Payments & accounting", href: "/app/settings" },
       roles: "Account owner",
       blocks: [
@@ -20,20 +20,24 @@ export const startSection: HelpSection = {
           text: "Card and bank (ACH) payments in WorkBench run through your own **Square** account. Connect it once and every invoice pay link, quote deposit and client-portal payment goes straight to Square, then pays out to your bank on Square's schedule. Only the **account owner** can connect it, and there is no application or waiting period on our side.",
         },
         {
+          type: "p",
+          text: "**Signing up ends on the payment-setup screen**, and the app opens the moment Square is connected. It's two choices on one page, and a new account comes back to it until it's done. The same screen is `Walk me through it` on the Online Payments card and **Set up online payments** on the Home checklist, so an account that was opened with an invite code can do it later.",
+        },
+        {
           type: "steps",
           note: "A couple of minutes, owner only",
           items: [
-            "Go to **Settings → Payments & accounting → Online Payments**.",
-            "No Square account yet? Press `Create a Square account` on the card. It opens Square's sign-up on WorkBench's rates — the link matches your **Service fee** switch on this page (off: you pay the processing fee; on: your client pays it at checkout), so set that first. Free, a few minutes; then come back to this card.",
+            "**Who pays the card fee?** Pick one of the two cards. **Your client pays a service fee** — added at checkout and shown before they pay, so the full invoice amount reaches you. **You pay the processing fee** — your clients see no fee and Square's fee comes out of each payment. Each card shows its rates and what a $500 payment looks like; see [The service fee](/help/card-surcharging). You can change this later under **Settings → Payments & accounting → Service fee**.",
+            "No Square account yet? Press `No Square account yet? Create one`. It opens Square's free sign-up on WorkBench's rates for the model you just picked, in a new tab — a few minutes; Square asks for your business details, the owner's identity and the bank account to pay you out to. Then come back to WorkBench.",
             "Press `Connect Square` and sign in to Square.",
             "Approve the access Square lists. WorkBench needs to take payments, issue refunds, keep cards on file for your clients, and read your payouts and disputes so they show on the Payments page; it never sees card numbers.",
-            "You land back in Settings with **Connected to** your business name. From that moment pay links show a **Pay** button.",
-            "Link the bank account Square should pay you out to. Until you do, clients can pay but the money sits in your Square balance — the card (and Home) show **Add your bank account to Square** with a button that opens the right page in Square: Settings → Account & Settings → Banking → Bank Accounts → Add Bank Account. Square verifies it (instantly through your bank login, or within a couple of business days) and emails a confirmation link to open within 24 hours. The reminder leaves on its own once Square confirms it, or press `I've added it — check again`.",
+            "You land back on **Square is connected** with your business name — press `Open WorkBench`. From that moment pay links show a **Pay** button. (Connecting from Settings instead lands you back on the Online Payments card with **Connected to** your business name.)",
+            "Link the bank account Square should pay you out to. Until you do, clients can pay but the money sits in your Square balance — the Home checklist, the Online Payments card and a reminder on Home all say **Add your bank account to Square** with a button that opens the right page in Square: Settings → Account & Settings → Banking → Bank Accounts → Add Bank Account. Square verifies it (instantly through your bank login, or within a couple of business days) and emails a confirmation link to open within 24 hours. The reminder leaves on its own once Square confirms it, or press `I've added it — check again`.",
           ],
         },
         {
           type: "p",
-          text: "The card shows the Square business and location your money goes to. `Check connection` confirms Square still accepts the link; `Disconnect` removes it, and pay links stop offering online payment until you connect again.",
+          text: "The Online Payments card in Settings shows the Square business and location your money goes to. `Check connection` confirms Square still accepts the link; `Disconnect` removes it, and pay links stop offering online payment until you connect again. Before you connect, the card lists both of Square's sign-up links — one per fee model — with **Your setting** on the one that matches your Service fee switch.",
         },
         {
           type: "tip",
@@ -49,6 +53,14 @@ export const startSection: HelpSection = {
             {
               q: "Why can't my clients see a Pay button?",
               a: "Square isn't connected yet, or it was disconnected. Open **Settings → Payments & accounting** and press `Connect Square`. You can still record cash, check and other payments with `Collect payment` in the meantime.",
+            },
+            {
+              q: "I signed up and WorkBench keeps bringing me back to the payment-setup screen.",
+              a: "That's the last step of signing up: the app opens once your Square account is connected. Pick who pays the card fee, then `Connect Square` (or create a Square account first). Only the account owner can do it — a teammate who signs in before then sees a note to ask the owner. Have an invite code from us? `Have an invite code?` on that screen skips the step, and you connect Square later from Settings.",
+            },
+            {
+              q: "I connected Square in another tab (or on my phone it opened the browser) and the screen didn't move on.",
+              a: "Come back to the WorkBench tab or app — the screen checks again whenever it comes into view. If it still says to connect, refresh it.",
             },
             {
               q: "Square sent me back and the card says the connection didn't complete.",
@@ -82,6 +94,8 @@ export const startSection: HelpSection = {
           type: "steps",
           note: "Go top to bottom",
           items: [
+            "**Set up online payments**: pick who pays the card fee and connect your Square account — done already if you did it when you signed up. See [Turn on online payments](/help/activate-payments).",
+            "**Link your bank account in Square**: Square pays you out to it; until then money waits in your Square balance. The step ticks itself once Square confirms the account.",
             "**Add your services** (or **Review your prices** if your price book came pre-loaded): Settings → Services, so quotes, jobs and invoices fill themselves in.",
             "**Fill in your business details**: phone, address, logo and brand color under Settings → Company. They go on your booking page and every document. The timezone there decides what \"today\" means on your schedule.",
             "**Set your business hours**: they live in Settings → Booking & forms. Booking and scheduling use them to know when you're open. Times you're busy every week inside those hours (lunch, a standing appointment) go under **Repeating blocks** right below.",
