@@ -25,7 +25,7 @@
   align-items: center;
   gap: 10px;
   max-width: 100%;
-  padding: 11px 16px 13px 14px;
+  padding: 11px 16px 9px 14px;
   border-radius: 999px;
   background: var(--ds-surface, #fff);
   border: 1px solid var(--ds-line, #e7ebf1);
@@ -57,7 +57,11 @@
 .wb-moment-icon > *:nth-child(6) { animation-delay: 450ms; }
 .wb-moment-icon > *:nth-child(n + 7) { animation-delay: 540ms; }
 
+/* The running bar underlines the text (a bar along the pill's bottom edge
+   would be clipped to a sliver by the rounded corners). */
 .wb-moment-text {
+  position: relative;
+  padding-bottom: 5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -69,6 +73,8 @@
   right: 0;
   bottom: 0;
   height: 2px;
+  border-radius: 2px;
+  overflow: hidden;
   background: var(--ds-line, #e7ebf1);
 }
 .wb-moment-bar > span {

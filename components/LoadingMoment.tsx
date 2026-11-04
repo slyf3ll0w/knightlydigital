@@ -51,9 +51,11 @@ export default function LoadingMoment() {
     <div className="wb-moment" role="status" aria-live="off">
       <div className="wb-moment-card" key={moment.text}>
         <Icon className="wb-moment-icon" size={22} strokeWidth={2} aria-hidden />
-        <span className="wb-moment-text">{moment.text}</span>
-        <span className="wb-moment-bar" aria-hidden>
-          <span />
+        <span className="wb-moment-text">
+          {moment.text}
+          <span className="wb-moment-bar" aria-hidden>
+            <span />
+          </span>
         </span>
       </div>
     </div>
