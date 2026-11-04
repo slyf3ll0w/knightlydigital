@@ -312,6 +312,14 @@ export async function POST(req: NextRequest) {
           }))
       );
     }
+    // This invoice IS the new plan's first bill: link it, so paying it
+    // anchors the plan (lib/payments.ts anchorPlanFromFirstPayment) and the
+    // next bill lands one interval after the day the client paid, not after
+    // the day the invoice was drafted (ticket 2026-10-30). One link per
+    // invoice; a second recurring line keeps its signup-day cursor.
+    if (subscriptionIds.length > 0) {
+      await tx.invoice.update({ where: { id: created.id }, data: { subscriptionId: subscriptionIds[0] } });
+    }
 
     return { invoice: created, archivedJob, leadMove, subscriptionIds, completedAppointmentId };
   }));

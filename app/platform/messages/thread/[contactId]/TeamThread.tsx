@@ -7,7 +7,7 @@ import EmptyState from "@/components/EmptyState";
 import Monogram from "@/components/Monogram";
 import CallLink from "@/components/CallLink";
 import { hapticImpact } from "@/lib/haptics";
-import { useMeasuredHeight } from "@/lib/use-measured-height";
+import { useMeasuredHeight, usePublishComposerHeight } from "@/lib/use-measured-height";
 import { resizeForMms } from "@/lib/resize-image";
 import { useFileDrop } from "@/lib/use-file-drop";
 import { usePasteFiles } from "@/lib/use-paste-files";
@@ -150,6 +150,7 @@ export default function TeamThread({
   // Phones: the composer floats over the thread, so the list pads its
   // bottom by the composer's live height (it grows with the draft).
   const [composerRef, composerH] = useMeasuredHeight();
+  usePublishComposerHeight(composerH);
   const stickToBottomRef = useRef(true);
   // First pin jumps; later arrivals glide (iMessage)
   const instantPinRef = useRef(true);

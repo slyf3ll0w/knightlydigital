@@ -382,7 +382,9 @@ export async function deactivateSquareGiftCard(
           type: "DEACTIVATE",
           location_id: params.locationId,
           gift_card_id: params.giftCardId,
-          deactivate_activity_details: { reason: "UNKNOWN_REASON" },
+          // SUSPICIOUS_ACTIVITY is the only reason a seller may write; UNKNOWN_REASON and
+          // CHARGEBACK_DEACTIVATE are read-only and Square refuses them (ticket 2026-10-31).
+          deactivate_activity_details: { reason: "SUSPICIOUS_ACTIVITY" },
         },
       },
       timeoutMs: 25_000,

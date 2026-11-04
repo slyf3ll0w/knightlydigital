@@ -2971,7 +2971,10 @@ export default function AppShell({
           {/* Themed like any card: theme-fixed only pinned the white ground,
               so in dark mode the ink still flipped to near-white on it. */}
           {teaserVisible && (
-            <div className="atlas-teaser-pop fixed bottom-[92px] right-6 z-40 hidden w-[264px] rounded-2xl rounded-br-md border border-gray-200 bg-white p-3.5 pr-8 shadow-xl lg:block">
+            <div
+              className="atlas-teaser-pop fixed right-6 z-40 hidden w-[264px] rounded-2xl rounded-br-md border border-gray-200 bg-white p-3.5 pr-8 shadow-xl lg:block"
+              style={{ bottom: "calc(var(--page-composer-h, 0px) + 92px)" }}
+            >
               <button
                 type="button"
                 onClick={() => {
@@ -3001,8 +3004,14 @@ export default function AppShell({
           )}
           {/* Desktop launcher: one capsule. The mark opens the chat; the mic
               beside it starts a voice session. Replaced the accent mic badge
-              that rode on the mark's shoulder (David 2026-10-24: "not a fan"). */}
-          <div className="fixed z-40 hidden lg:flex items-center gap-0.5 rounded-full bg-white p-1.5 shadow-lg ring-1 ring-black/[0.06] lg:bottom-6 lg:right-6">
+              that rode on the mark's shoulder (David 2026-10-24: "not a fan").
+              On a page with a bottom composer (Team Chat, a thread) it rides
+              above it — --page-composer-h, lib/use-measured-height.ts — so it
+              never covers Send (Edan 2026-11-03). */}
+          <div
+            className="fixed z-40 hidden lg:flex items-center gap-0.5 rounded-full bg-white p-1.5 shadow-lg ring-1 ring-black/[0.06] lg:right-6"
+            style={{ bottom: "calc(var(--page-composer-h, 0px) + 1.5rem)" }}
+          >
             <button
               type="button"
               onClick={() => {

@@ -23,7 +23,7 @@ import Avatar from "@/components/Avatar";
 import Modal from "@/components/Modal";
 import EmptyState from "@/components/EmptyState";
 import { hapticImpact } from "@/lib/haptics";
-import { useMeasuredHeight } from "@/lib/use-measured-height";
+import { useMeasuredHeight, usePublishComposerHeight } from "@/lib/use-measured-height";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import MenuPopover from "@/components/MenuPopover";
 import MessageMedia, { type ThreadMedia } from "@/components/MessageMedia";
@@ -212,6 +212,7 @@ export default function ChatClient({
   // Phones: the composer floats over the thread, so the list pads its
   // bottom by the composer's live height (it grows with the draft).
   const [composerRef, composerH] = useMeasuredHeight();
+  usePublishComposerHeight(composerH);
   const stickToBottomRef = useRef(true);
   // First pin after opening a thread jumps; later arrivals glide (iMessage)
   const instantPinRef = useRef(true);

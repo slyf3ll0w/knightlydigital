@@ -1,23 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import { Download, FileText, ImageOff, Loader2, Paperclip } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { Download, FileText, ImageOff, Loader2, Paperclip, X } from "lucide-react";
 
 /** One attachment as the thread JSON carries it (lib/message-media.ts threadMedia). */
 export type ThreadMedia = { id: string; type: string; url: string; expired?: boolean };
 
 /**
  * The pictures and clips on a message bubble — the same block on the team
- * thread and the client hub. Pictures open full size in a new tab; video and
+ * thread and the client hub. Pictures open full size in an in-app viewer
+ * (a new tab handed the picture to the phone app's outside browser, which
+ * has no sign-in cookie, so it showed nothing — ticket 2026-11-04); video and
  * audio play inline; anything else is a download link. Every item carries a
  * Save button: the phone's share sheet (Save Image / Save to Files) where
  * the browser has one, else a plain download. Photos are kept for a week
  * (lib/message-media.ts MESSAGE_MEDIA_DAYS); an expired one says so.
  */
 export default function MessageMedia({ media, className = "" }: { media: ThreadMedia[]; className?: string }) {
+  const [viewing, setViewing] = useState<ThreadMedia | null>(null);
   if (media.length === 0) return null;
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
+      {viewing && <FullSizeView media={viewing} onClose={() => setViewing(null)} />}
       {media.map((m) =>
         m.expired ? (
           <span key={m.id} className="inline-flex items-center gap-1.5 rounded-lg bg-black/10 px-2.5 py-1.5 text-xs opacity-80">
@@ -26,7 +31,19 @@ export default function MessageMedia({ media, className = "" }: { media: ThreadM
         ) : (
           <div key={m.id} className="group relative w-fit max-w-full">
             {m.type.startsWith("image/") ? (
-              <a href={m.url} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-xl" title="Open full size">
+              <a
+                href={m.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block overflow-hidden rounded-xl"
+                title="Open full size"
+                onClick={(e) => {
+                  // ⌘/Ctrl/middle-click on a desk still opens a tab; a plain tap stays in the app.
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+                  e.preventDefault();
+                  setViewing(m);
+                }}
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element -- the bytes come from our own API, not an optimizable asset */}
                 <img src={m.url} alt="" className="block max-h-72 w-auto max-w-full object-contain" loading="lazy" />
               </a>
@@ -50,6 +67,55 @@ export default function MessageMedia({ media, className = "" }: { media: ThreadM
         )
       )}
     </div>
+  );
+}
+
+/**
+ * A picture full screen, inside the app: black in both themes, the photo fit
+ * to the screen, Close and Save in the corners (clear of the notch). Tap the
+ * backdrop or press Escape to close. Portaled to <body> so no thread layout
+ * (the phone chat's fixed z-[60] sheet) can clip it.
+ */
+function FullSizeView({ media, onClose }: { media: ThreadMedia; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={noun(media.type)}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element -- the bytes come from our own API, not an optimizable asset */}
+      <img src={media.url} alt="" className="max-h-full max-w-full object-contain" />
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close"
+        className="absolute left-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25"
+        style={{ top: "max(0.75rem, env(safe-area-inset-top))" }}
+      >
+        <X size={20} />
+      </button>
+      <div className="absolute right-3" style={{ top: "max(0.75rem, env(safe-area-inset-top))" }}>
+        <SaveButton media={media} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25 disabled:opacity-60" />
+      </div>
+    </div>,
+    document.body
   );
 }
 
@@ -78,7 +144,10 @@ function isHandheld(): boolean {
 }
 
 /** Save to the device: the share sheet on phones that have one (Save Image / Files), a download everywhere else. */
-function SaveButton({ media }: { media: ThreadMedia }) {
+const SAVE_ON_BUBBLE =
+  "absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white opacity-90 shadow transition-opacity hover:opacity-100 disabled:opacity-60 lg:opacity-0 lg:group-hover:opacity-100 lg:focus:opacity-100";
+
+function SaveButton({ media, className = SAVE_ON_BUBBLE }: { media: ThreadMedia; className?: string }) {
   const [busy, setBusy] = useState(false);
   async function save() {
     if (busy) return;
@@ -116,7 +185,7 @@ function SaveButton({ media }: { media: ThreadMedia }) {
       type="button"
       onClick={save}
       disabled={busy}
-      className="absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-black/55 text-white opacity-90 shadow transition-opacity hover:opacity-100 disabled:opacity-60 lg:opacity-0 lg:group-hover:opacity-100 lg:focus:opacity-100"
+      className={className}
       title={`Save ${noun(media.type).toLowerCase()} to this device`}
       aria-label={`Save ${noun(media.type).toLowerCase()}`}
     >

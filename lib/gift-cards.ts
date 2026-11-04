@@ -401,7 +401,7 @@ export async function releaseGiftCardForBouncedPayment(invoiceId: string): Promi
     return "reset";
   }
   if (sale.state !== "ACTIVE" || !sale.company.squareLocationId) return "skipped";
-  const done = await deactivateSquareGiftCard(sale.companyId, { giftCardId: sale.squareGiftCardId, locationId: sale.company.squareLocationId, idempotencyKey: `gcx-bounce:${sale.id}` });
+  const done = await deactivateSquareGiftCard(sale.companyId, { giftCardId: sale.squareGiftCardId, locationId: sale.company.squareLocationId, idempotencyKey: `gcx2-bounce:${sale.id}` });
   if (!done.ok) {
     reportError("[gift-cards] could not deactivate card after bounced payment", sale.id, done.message);
     return "failed";
@@ -567,7 +567,7 @@ export async function removeGiftCard(params: { companyId: string; giftCardId: st
   });
   let state = card.state;
   if (card.state !== "DEACTIVATED") {
-    const done = await deactivateSquareGiftCard(company.id, { giftCardId: card.id, locationId: company.squareLocationId, idempotencyKey: `gcx:${card.id}` });
+    const done = await deactivateSquareGiftCard(company.id, { giftCardId: card.id, locationId: company.squareLocationId, idempotencyKey: `gcx2:${card.id}` });
     if (done.ok) state = "DEACTIVATED";
     else if (card.state !== "PENDING" || done.transient) throw fromFailure(done);
     else console.warn(`[gift-cards] Square would not deactivate pending card ${card.id}: ${done.message}`);
