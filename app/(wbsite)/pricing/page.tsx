@@ -367,7 +367,7 @@ export default function WBPricingPage() {
                 </p>
                 <p
                   className="mt-4 text-5xl font-extrabold leading-none text-gray-900"
-                  style={{ fontFamily: '"Nunito", sans-serif' }}
+                  style={{ fontFamily: 'var(--font-nunito), "Nunito", sans-serif' }}
                 >
                   $0
                 </p>
@@ -405,7 +405,7 @@ export default function WBPricingPage() {
                   </div>
                   <p
                     className="mt-4 text-5xl font-extrabold leading-none text-white"
-                    style={{ fontFamily: '"Nunito", sans-serif' }}
+                    style={{ fontFamily: 'var(--font-nunito), "Nunito", sans-serif' }}
                   >
                     {planPrice}
                     <span className="text-xl font-bold text-blue-200">/month</span>

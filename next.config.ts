@@ -9,6 +9,14 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_RAILWAY_ENVIRONMENT_NAME: process.env.RAILWAY_ENVIRONMENT_NAME ?? "",
   },
+  // Keep visited pages in the client router for 30 s so Back and tab hops
+  // are instant instead of a full round trip (the per-request floor is
+  // ~250 ms from Texas, more on LTE; mobile perf 2026-11-04). Safe because
+  // every successful save purges the cache first: lib/router-cache.ts,
+  // hooked into the fetch wrapper in components/AppShell.tsx.
+  experimental: {
+    staleTimes: { dynamic: 30, static: 300 },
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },

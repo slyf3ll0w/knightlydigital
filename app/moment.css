@@ -1,0 +1,101 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Loading moment (components/LoadingMoment.tsx): the pill that floats over
+   a page skeleton while the next page loads. A tool icon draws itself in
+   the company's primary color, one line in a tech's voice, a running bar.
+   Colors come from the ds tokens so it is dark-safe and brand-aware.
+   Fixed to the viewport (the skeleton root is pulsing, so the pill lives
+   beside it, not inside it) and never catches a tap.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.wb-moment {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 38vh;
+  z-index: 30;
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
+}
+
+.wb-moment-card {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  padding: 11px 16px 13px 14px;
+  border-radius: 999px;
+  background: var(--ds-surface, #fff);
+  border: 1px solid var(--ds-line, #e7ebf1);
+  box-shadow: var(--ds-shadow-float, 0 12px 32px rgba(10, 19, 40, 0.14));
+  color: var(--ds-ink, #0a1328);
+  font-family: var(--ds-font-stack, var(--font-lexend), "Lexend", system-ui, sans-serif);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  animation: wb-moment-in 220ms var(--ds-ease, ease-out) both;
+}
+
+.wb-moment-icon {
+  flex: none;
+  color: var(--ds-primary, #0b57d8);
+}
+
+/* Each stroke of the icon draws on in turn, like a pen. */
+.wb-moment-icon > * {
+  stroke-dasharray: 120;
+  stroke-dashoffset: 120;
+  animation: wb-moment-draw 0.8s var(--ds-ease, ease-out) forwards;
+}
+.wb-moment-icon > *:nth-child(2) { animation-delay: 90ms; }
+.wb-moment-icon > *:nth-child(3) { animation-delay: 180ms; }
+.wb-moment-icon > *:nth-child(4) { animation-delay: 270ms; }
+.wb-moment-icon > *:nth-child(5) { animation-delay: 360ms; }
+.wb-moment-icon > *:nth-child(6) { animation-delay: 450ms; }
+.wb-moment-icon > *:nth-child(n + 7) { animation-delay: 540ms; }
+
+.wb-moment-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wb-moment-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--ds-line, #e7ebf1);
+}
+.wb-moment-bar > span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -40%;
+  width: 40%;
+  border-radius: 2px;
+  background: var(--ds-primary, #0b57d8);
+  animation: wb-moment-run 1.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes wb-moment-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes wb-moment-draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes wb-moment-run {
+  from { left: -40%; }
+  to { left: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-moment-card { animation: none; }
+  .wb-moment-icon > * { animation: none; stroke-dashoffset: 0; }
+  .wb-moment-bar > span { animation: none; left: 0; width: 100%; opacity: 0.5; }
+}

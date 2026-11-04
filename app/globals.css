@@ -30,7 +30,7 @@
      .app-ui specificity so this wins on h1/h2 inside the app. */
   .numeral-ledger,
   .app-ui .numeral-ledger {
-    font-family: "Lexend", var(--font-body);
+    font-family: var(--font-lexend), "Lexend", var(--font-body);
     font-variant-numeric: lining-nums tabular-nums;
     letter-spacing: 0;
   }
@@ -385,11 +385,12 @@
 
 :root {
   /* Typography: Inter for UI text, Lexend for marketing display headings.
-     (These vars were previously referenced but never defined, so the site
-     fell back to browser default fonts.) */
-  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+     The --font-lexend/--font-inter/--font-nunito vars are set on <html> by
+     next/font (lib/fonts.ts, self-hosted woff2); the literal names stay as
+     fallbacks for anything rendered outside that tree. */
+  --font-body: var(--font-inter), "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
-  --font-sans: "Lexend", var(--font-body);
+  --font-sans: var(--font-lexend), "Lexend", var(--font-body);
 
   /* Marketing site colors */
   --background: #ffffff;
@@ -1652,7 +1653,7 @@ html[data-mode="dark"] .app-ui .card-tool {
    house spring, and re-pops when the number changes (callers key the span
    by value). Also worn by the top-bar chat count. */
 .rail-count {
-  font-family: "Lexend", var(--font-body);
+  font-family: var(--font-lexend), "Lexend", var(--font-body);
   font-variant-numeric: lining-nums tabular-nums;
   font-size: 11.5px;
   font-weight: 700;
@@ -2102,7 +2103,7 @@ html[data-mode="dark"] .app-ui .card-tool {
    this scope on 2026-09-30: it wears the app's .app-ui .ds kit now.)
    ═══════════════════════════════════════════════════════════════════════ */
 .wb-site h1, .wb-site h2, .wb-site h3, .wb-site h4 {
-  font-family: "Nunito", var(--font-body);
+  font-family: var(--font-nunito), "Nunito", var(--font-body);
   letter-spacing: -0.02em;
 }
 /* Flat button: darkens a touch on hover, nothing moves. (.wb-btn-tool is
@@ -2986,7 +2987,7 @@ html[data-mode="dark"] .app-ui .wb-map-skeleton {
 }
 .wb-launch-word {
   margin: 0;
-  font-family: "Lexend", var(--font-body);
+  font-family: var(--font-lexend), "Lexend", var(--font-body);
   font-weight: 700;
   font-size: 28px;
   letter-spacing: -0.01em;

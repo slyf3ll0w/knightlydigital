@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./ds.css";
+import "./moment.css";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -13,6 +14,7 @@ export const viewport: Viewport = {
   interactiveWidget: "resizes-content",
 };
 import { SessionProviderWrapper } from "@/components/SessionProviderWrapper";
+import { fontVariables } from "@/lib/fonts";
 
 export const metadata: Metadata = {
   title: {
@@ -43,7 +45,7 @@ export default function RootLayout({
     // before hydration; without this React 19 flags the mismatch (#418) and
     // "repairs" the element — wiping data-mode and kicking the app back to
     // light theme. Attribute-level suppression, children still validated.
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={fontVariables} suppressHydrationWarning>
       <head>
         <meta name="theme-color" content="#0A1428" />
         {/* Theme stamp — runs before paint so there's no light/dark flash.
@@ -78,12 +80,7 @@ new MutationObserver(function(){if(!document.documentElement.dataset.mode)apply(
 }catch(e){}})();`,
           }}
         />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Lexend:wght@300..800&family=Inter:wght@400;500;600;700&family=Nunito:wght@700;800&display=swap"
-          rel="stylesheet"
-        />
+        {/* Fonts are self-hosted (lib/fonts.ts); next/font adds their preloads. */}
       </head>
       <body>
         <SessionProviderWrapper>{children}</SessionProviderWrapper>

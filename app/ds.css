@@ -21,8 +21,8 @@
 
 .ds {
   /* type */
-  --ds-font-stack: var(--ds-font, "Lexend", system-ui, -apple-system, "Segoe UI", sans-serif);
-  --ds-num-font: "Inter", system-ui, sans-serif;
+  --ds-font-stack: var(--ds-font, var(--font-lexend), "Lexend", system-ui, -apple-system, "Segoe UI", sans-serif);
+  --ds-num-font: var(--font-inter), "Inter", system-ui, sans-serif;
 
   /* brand roles (AppShell injects the -l/-d pairs from the company's colors) */
   --ds-primary: var(--ds-primary-l, #0B57D8);

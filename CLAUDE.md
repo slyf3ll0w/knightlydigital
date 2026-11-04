@@ -39,6 +39,22 @@ good/warn/bad status colors, explanations in an InfoTip (never subtext),
 phones get their own simpler tree. First page on it: the dashboard
 (2026-09-25, staging, awaiting David's review).
 
+Mobile feel (2026-11-04): every `loading.tsx` floats `components/LoadingMoment`
+(a random tool icon + one-liner from `lib/loading-moments.ts`, styles in
+`app/moment.css`) beside its pulsing skeleton, as a sibling in a fragment so
+the pulse never dims it; new lines go in that list, short and in a tech's
+voice. The three typefaces are self-hosted with `next/font/local`
+(`lib/fonts.ts`, `app/fonts/*.woff2`); CSS uses `var(--font-lexend)` /
+`var(--font-inter)` / `var(--font-nunito)` with the literal names as
+fallbacks. Never re-add the Google Fonts `<link>` to `app/layout.tsx`. The
+client router keeps visited pages for 30 s (`next.config.ts`
+`experimental.staleTimes`) so Back and tab hops are instant; every successful
+non-GET `/api/app/*` call purges that cache first (`lib/router-cache.ts`,
+hooked into `hookNavRecountOnSave` in `components/AppShell.tsx`), which is
+what keeps a save followed by Back from showing stale data. A route handler
+that changes what another page shows must be under `/api/app/` for that to
+hold.
+
 ## Help Center upkeep (required, David 2026-09-28)
 
 The Help Center documents every user-facing feature: guides in
@@ -1620,7 +1636,9 @@ or booking: `test-money` (refund split, deposit credit, due dates),
 `test-plans` (catalog, gates, seats), `test-plan-entitlement` (plan series +
 invoices → entitlement, grace, term switches),
 `test-sms-keywords`, `test-route-plan`, `test-booking-engine`,
-`test-job-crew`, `test-calendar-sync`, `test-business-line`, `test-voice`. The Playwright suite in `e2e/` runs
+`test-job-crew`, `test-calendar-sync`, `test-business-line`, `test-voice`,
+`test-loading-moments` (loading-pill copy + the Next internals
+`lib/router-cache.ts` relies on). The Playwright suite in `e2e/` runs
 against the deployed app (see `e2e/README.md`) and is the post-deploy check.
 
 ## Database setup (Railway)

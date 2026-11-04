@@ -1,3 +1,5 @@
+import LoadingMoment from "@/components/LoadingMoment";
+
 /**
  * Route-level loading skeletons so navigation shows the page's real shape
  * instead of a blank flash. Used from each section's loading.tsx.
@@ -6,12 +8,16 @@
  * `DetailPageSkeleton` (a record's page: title bar, tall main card beside a
  * sidebar card on desktop, one column on phones) and `PagePlaceholder` (the
  * neutral fallback for everything else — title + three card blocks). All
- * colour themselves from the kit tokens so they are dark-safe.
+ * colour themselves from the kit tokens so they are dark-safe. Each floats
+ * the LoadingMoment pill (a different line and tool every time) beside the
+ * pulsing skeleton, as a sibling so the pulse never dims the pill.
  */
 
 export function DetailPageSkeleton({ sidebar = true }: { sidebar?: boolean }) {
   const line = (w: string, h = "h-3.5") => <div className={`${h} ${w} bg-[color:var(--ds-line)] rounded-lg`} />;
   return (
+    <>
+    <LoadingMoment />
     <div className="p-4 lg:p-8 max-w-6xl mx-auto animate-pulse">
       {/* back link + title row + action buttons */}
       <div className="h-3.5 w-20 bg-[color:var(--ds-line)] rounded-lg mb-3" />
@@ -79,11 +85,14 @@ export function DetailPageSkeleton({ sidebar = true }: { sidebar?: boolean }) {
         )}
       </div>
     </div>
+    </>
   );
 }
 
 export function PagePlaceholder() {
   return (
+    <>
+    <LoadingMoment />
     <div className="p-4 lg:p-8 max-w-6xl mx-auto animate-pulse">
       <div className="h-7 w-44 bg-[color:var(--ds-line-strong)] rounded-lg mb-6" />
       <div className="space-y-4 lg:space-y-6">
@@ -99,6 +108,7 @@ export function PagePlaceholder() {
         ))}
       </div>
     </div>
+    </>
   );
 }
 
@@ -112,6 +122,8 @@ export function ListPageSkeleton({
   rows?: number;
 }) {
   return (
+    <>
+    <LoadingMoment />
     <div className="p-4 lg:p-8 max-w-6xl mx-auto animate-pulse">
       <div className="flex items-center justify-between mb-6">
         <div className="h-7 w-36 bg-[color:var(--ds-line-strong)] rounded-lg" />
@@ -153,5 +165,6 @@ export function ListPageSkeleton({
         </div>
       </div>
     </div>
+    </>
   );
 }

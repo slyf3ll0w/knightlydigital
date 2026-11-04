@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { SIGN_OUT_FAILED, useAppSignOut } from "@/lib/sign-out";
+import { purgeRouterCache } from "@/lib/router-cache";
 import { resolvePushOpen } from "@/lib/push-open";
 import {
   Home,
@@ -201,6 +202,9 @@ let lastNavCountsAt = 0;
  * load; a burst of saves collapses into one recount.
  */
 const NAV_RECOUNT_SKIP = /^\/api\/app\/(nav-counts|notifications|presence|assistant|voice|softphone|telemetry)/;
+// Background writes that change no page: a purge after each would only
+// throw away the 30 s page cache (lib/router-cache.ts) for nothing.
+const CACHE_PURGE_SKIP = /^\/api\/app\/(location|push|offline|notes|chat\/typing|line\/softphone\/presence)/;
 let navFetchHooked = false;
 function hookNavRecountOnSave() {
   if (navFetchHooked || typeof window === "undefined") return;
@@ -218,6 +222,9 @@ function hookNavRecountOnSave() {
           pending
             .then((r) => {
               if (!r.ok) return;
+              // Before the caller's own `.then` can navigate: forget cached
+              // pages so the next one is fetched fresh (lib/router-cache.ts).
+              if (!CACHE_PURGE_SKIP.test(url.pathname)) purgeRouterCache();
               if (timer) clearTimeout(timer);
               timer = setTimeout(() => window.dispatchEvent(new CustomEvent("wb:nav-counts")), 400);
             })
