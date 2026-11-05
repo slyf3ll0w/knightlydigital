@@ -319,5 +319,68 @@ export const startSection: HelpSection = {
         },
       ],
     },
+    {
+      slug: "free-invoice-estimate-tools",
+      title: "The free invoice and estimate generators",
+      summary: "Make an invoice or estimate PDF on workbenchfsm.com/tools with no account, and bring it into a new WorkBench account with one click.",
+      keywords: ["free invoice generator", "free estimate generator", "invoice template", "estimate template", "invoice maker", "quote generator", "pdf", "tools", "free tools", "get paid online", "draft", "invoice came with me", "sign up with an invoice", "logo", "template by trade"],
+      roles: "Anyone — no account needed",
+      blocks: [
+        {
+          type: "p",
+          text: "The **free tools** on the WorkBench website make a professional invoice or estimate in your browser and download it as a PDF. There is no account to open, no email address to hand over and no watermark, and you can make as many as you like. The PDF is rendered by the same engine that prints real WorkBench invoices and quotes, so it looks exactly like one. Every trade has a template page with its usual line items already filled in (open **Templates by trade** on the tools page); the prices on those are starting points for you to edit, not ours.",
+        },
+        {
+          type: "steps",
+          items: [
+            "Open [workbenchfsm.com/tools](/tools) and pick the **invoice generator** or the **estimate generator**, or a trade template.",
+            "**Your business**: name (the only required field), contact details, `Add your logo` (a PNG or JPG) and a **Color** for the header rule and total.",
+            "**Bill to** / **Prepared for**: the client's name and address.",
+            "**Details**: the document number, the date, and the due date (invoice) or the valid-through date (estimate).",
+            "**Line items**: what you did, quantity and price, with an optional description under each. On an estimate, tick **Optional for the client** on anything they can leave off.",
+            "**Tax, discount and message**: sales tax as a percent, a discount as a percent or an amount, a deposit on an estimate, and the note printed at the bottom.",
+            "Press `Download PDF`. The preview on the right is what you get.",
+          ],
+        },
+        {
+          type: "tip",
+          text: "The page saves what you type in that browser, so a refresh or a closed tab doesn't lose it. `Start over` clears it. Nothing is stored on our side unless you choose to open an account with it.",
+        },
+        { type: "h", text: "Bringing it into WorkBench" },
+        {
+          type: "p",
+          text: "Beside the download is `Get paid online` (on an estimate, `Send it for e-signature`). It opens the sign-up form with your business name, email and phone already filled in, and the document comes with you: the moment the account opens, the invoice is in **Invoices** as a draft (an estimate is in **Quotes** — WorkBench calls estimates quotes), the client is saved under **Clients**, your logo is the company logo, and the tax rate you used is the default sales tax. A new account goes through the payment-setup screen first — see [Turn on online payments](/help/activate-payments) — and the invoice is waiting when you land in the app.",
+        },
+        {
+          type: "list",
+          items: [
+            "Open the invoice and press `Send to client` to email or text a pay link, or open the quote and send it for approval and signature — see [Send an invoice](/help/send-an-invoice) and [Create and send a quote](/help/create-and-send-a-quote).",
+            "The document gets your account's next number, not the number typed on the website, so your numbering stays in one sequence. Everything else — lines, prices, discount, tax, deposit, message — comes across as typed.",
+            "The link that carries the document in works for two weeks and once. If it expires, make the PDF again and press the button again.",
+          ],
+        },
+        {
+          type: "faq",
+          items: [
+            {
+              q: "I pressed Get paid online but I already have a WorkBench account.",
+              a: "The button opens a new company. To use the document in an existing account, sign in and make the invoice or quote there; the free tool has no way to add to an account that already exists. (A signed-in Google login with no company yet can use it: the company opens on that login.)",
+            },
+            {
+              q: "The PDF says Estimate but the app says Quote.",
+              a: "Same thing. The website uses the word most people search for; inside WorkBench a quote is what the client approves and signs, and it converts to the job and the invoice.",
+            },
+            {
+              q: "My logo won't upload.",
+              a: "Use a PNG or JPG. Large files are shrunk automatically, but a very large or unusual format is refused — export it from your design tool at around 600 pixels wide.",
+            },
+            {
+              q: "Can clients pay the PDF?",
+              a: "Not from the PDF itself — it's a document. Paying by card or bank transfer from a link needs the invoice in a WorkBench account with Square connected, which is what `Get paid online` sets up.",
+            },
+          ],
+        },
+      ],
+    },
   ],
 };
