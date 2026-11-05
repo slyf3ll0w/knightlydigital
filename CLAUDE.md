@@ -1285,17 +1285,22 @@ PLATFORM_ALERT_EMAIL=          # optional: who gets platform alerts (Telnyx out 
 LINE_REGISTRATION_REVIEW=      # "1": every FIRST texting registration also waits for superadmin approval (re-files always do)
 TELNYX_ALLOW_UNREGISTERED=     # "1" on staging: a line may text before its campaign clears (verified numbers only)
 TELNYX_VOICE_APP_ID=           # Call Control application id (scripts/telnyx-voice-setup.ts, one per environment); unset = plain call forwarding
-# AI. Gemini runs every one-shot feature (drafting, call notes, estimator
-# builder, lib/ai.ts askAI). Atlas chat runs on Claude when ANTHROPIC_API_KEY
-# is set (lib/ai-claude.ts; default claude-haiku-5-5) and falls back to Gemini
-# mid-turn on an outage, so keep both keys. Any claude-* or gemini-* id works
-# in AI_MODEL_ASSISTANT; Claude pricing to meter Atlas tokens goes in COST_AI_*.
+# AI (2026-11-05: Claude first). With ANTHROPIC_API_KEY set, every text
+# feature runs on Claude (lib/ai.ts → lib/ai-claude.ts; default
+# claude-haiku-5-5): Atlas chat, one-shot drafting, call notes, the estimator
+# builder, grounded lookups (Claude's web_search tool). Gemini is the fallback
+# for a failed Claude call and the ONLY engine for speech — Live voice, speak
+# (TTS), audio transcription — so keep both keys. Make the Anthropic key
+# INSIDE a workspace (an org-level key 400s: "not scoped to a workspace"), or
+# set ANTHROPIC_WORKSPACE_ID and the header is sent.
 GEMINI_API_KEY=
 ANTHROPIC_API_KEY=
-AI_MODEL_ASSISTANT=            # optional override, e.g. claude-sonnet-5-5
-COST_AI_IN_PER_M_CENTS=        # Haiku 5.5: 10 (Gemini 2.5 Flash default 30)
-COST_AI_OUT_PER_M_CENTS=       # Haiku 5.5: 50 (default 250)
-COST_AI_CACHED_PER_M_CENTS=    # Haiku 5.5: 1 (default 7.5)
+ANTHROPIC_WORKSPACE_ID=        # optional: only for a key the console made outside a workspace
+AI_MODEL=                      # one-shot/drafting override (claude-* or gemini-*)
+AI_MODEL_ASSISTANT=            # Atlas override, e.g. claude-sonnet-5-5
+COST_AI_IN_PER_M_CENTS=        # defaults = Haiku 5.5: 10 / 50 / 1; Sonnet 5.5: 200 / 1000 / 20; Opus 5.5: 400 / 2000 / 20
+COST_AI_OUT_PER_M_CENTS=
+COST_AI_CACHED_PER_M_CENTS=
 # Live voice (Talk to Atlas): Gemini Live carries the conversation (speech in
 # and out over one socket, tools run on our server through
 # /api/app/assistant/live/tool), minted per session by /live/token.
@@ -1647,7 +1652,8 @@ invoices → entitlement, grace, term switches),
 `test-sms-keywords`, `test-route-plan`, `test-booking-engine`,
 `test-job-crew`, `test-calendar-sync`, `test-business-line`, `test-voice`,
 `test-loading-moments` (loading-pill copy + the Next internals
-`lib/router-cache.ts` relies on). The Playwright suite in `e2e/` runs
+`lib/router-cache.ts` relies on), `test-ai-claude` (the Gemini-shape ↔
+Messages API translation and the one-shot request shapes). The Playwright suite in `e2e/` runs
 against the deployed app (see `e2e/README.md`) and is the post-deploy check.
 
 ## Database setup (Railway)

@@ -11,6 +11,7 @@ import { isNativeShellUserAgent } from "@/lib/sign-in-options";
 import { prisma } from "@/lib/db";
 import { PAYMENTS_SETUP_SELECT, paymentsGateStatus, paymentsSetupRequired } from "@/lib/payments-gate";
 import { atlasAccess, ATLAS_ACCESS_SELECT, ATLAS_PRICING } from "@/lib/assistant-access";
+import { aiEnabled } from "@/lib/ai";
 import { GATED_FEATURES, PLAN_HOLDER_SELECT, featureAllowed, type GatedFeature } from "@/lib/plans";
 import AppShell from "@/components/AppShell";
 import NativeShell from "@/components/NativeShell";
@@ -206,7 +207,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         sectionColors={company?.sectionColors}
         teamCount={teamCount}
         needsTour={!!user && !user.tourCompletedAt}
-        aiEnabled={Boolean(process.env.GEMINI_API_KEY) && !!atlas && atlas.level !== "off"}
+        aiEnabled={aiEnabled() && !!atlas && atlas.level !== "off"}
         atlas={atlas ?? undefined}
         atlasPricing={ATLAS_PRICING}
         assistantName={company?.assistantName}

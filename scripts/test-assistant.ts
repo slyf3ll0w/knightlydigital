@@ -203,11 +203,13 @@ console.log("ok 2: tech limited to schedule + job + field tools");
   )!;
   assert.equal(current.used, 5000);
   assert.equal(current.remaining, ATLAS_PLAN_TOKENS - 5000);
-  // pricing: a typical 3-round turn (~40k in, 1.5k out) is a couple of cents → a few hundred tokens
+  // pricing: a typical 3-round turn (~40k in, half of it cached, 1.5k out) on the
+  // default engine (Claude Haiku 5.5, lib/platform-costs.ts) is a fraction of a
+  // cent → a few dozen Atlas tokens; a dearer AI_MODEL* raises it through COST_AI_*
   const cents = turnCostCents({ tokensIn: 40_000, tokensOut: 1_500, tokensCached: 20_000 });
-  assert.ok(cents > 0.5 && cents < 5, `turn cost in a sane range: ${cents}`);
+  assert.ok(cents > 0.1 && cents < 2, `turn cost in a sane range: ${cents}`);
   const tokens = centsToAtlasTokens(cents);
-  assert.ok(tokens >= 50 && tokens <= 500, `tokens per turn sane: ${tokens}`);
+  assert.ok(tokens >= 10 && tokens <= 200, `tokens per turn sane: ${tokens}`);
   assert.equal(centsToAtlasTokens(0), 0, "no cost, no tokens");
   assert.equal(centsToAtlasTokens(0.0001), 1, "rounds up — no free turns");
   console.log(`ok 5d: plan periods + pricing (sample turn ≈ ${cents.toFixed(2)}¢ = ${tokens} tokens)`);
