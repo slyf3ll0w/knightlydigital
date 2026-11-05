@@ -1304,6 +1304,15 @@ ATLAS_VOICE=                   # prebuilt voice name, default Achird
 LIVE_AUDIO_IN_CENTS_PER_MIN=   # metering into Atlas tokens; defaults 0.5 in / 1.8 out (Gemini's list prices)
 LIVE_AUDIO_OUT_CENTS_PER_MIN=
 AI_MODEL_ASSISTANT_VOICE=      # the fallback turn-based voice engine's model (default = AI_MODEL_ASSISTANT)
+# Marketing-site analytics, all optional (/superadmin/traffic; 2026-11-05).
+# Page views: Cloudflare Web Analytics — the beacon loads on (wbsite) pages only.
+NEXT_PUBLIC_CF_BEACON_TOKEN=   # the site token from Cloudflare → Analytics & Logs → Web Analytics (manual snippet)
+CLOUDFLARE_API_TOKEN=          # read it back (lib/cloudflare-analytics.ts): Account Analytics: Read + Account Settings: Read
+CLOUDFLARE_ACCOUNT_ID=
+CLOUDFLARE_WEB_ANALYTICS_SITE_TAG= # optional; otherwise matched from the beacon token
+# Search: Google Search Console (lib/search-console.ts, lib/search-index.ts) — a service account added as a user on the property.
+GSC_SERVICE_ACCOUNT_JSON=      # the key file, JSON or base64
+GSC_SITE_URL=                  # default sc-domain:workbenchfsm.com
 ```
 
 - **Atlas conversation reports** (2026-10-23): the flag at the top of the

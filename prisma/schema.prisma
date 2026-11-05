@@ -4086,3 +4086,19 @@ enum ToolDraftKind {
   INVOICE
   QUOTE
 }
+
+// ─── Google's index, one row per sitemap URL (lib/search-index.ts) ─────────
+// Filled a few pages an hour by the cron's `searchIndex` step through the
+// Search Console URL Inspection API; read on /superadmin/traffic. Not a
+// company-owned table.
+model SearchIndexStatus {
+  url             String    @id
+  verdict         String? // PASS | NEUTRAL | FAIL | VERDICT_UNSPECIFIED
+  coverageState   String? // Google's sentence: "Submitted and indexed", "Crawled - currently not indexed", …
+  indexingState   String?
+  robotsTxtState  String?
+  pageFetchState  String?
+  googleCanonical String?
+  lastCrawlTime   DateTime?
+  checkedAt       DateTime
+}
