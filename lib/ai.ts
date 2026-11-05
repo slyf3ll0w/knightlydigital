@@ -1,15 +1,22 @@
 import { reportError } from "@/lib/report-error";
 /**
- * Minimal Gemini REST wrapper — the AI counterpart to lib/email.ts's
- * sendEmail(): one fetch, env-gated, no SDK. No GEMINI_API_KEY means AI
- * features quietly report themselves unavailable (aiEnabled() gates UI).
+ * The app's one door to a language model — the AI counterpart to
+ * lib/email.ts's sendEmail(): env-gated, soft failure (null, never a thrown
+ * 500), every call metered.
  *
- * Model comes from AI_MODEL so upgrading is a Railway variable change, not a
- * deploy. Default is the cheapest tier — fine for structured drafting work.
+ * Engines (2026-11-05): with ANTHROPIC_API_KEY set, every text feature runs
+ * on Claude (lib/ai-claude.ts; default claude-haiku-5-5) — Atlas chat, the
+ * one-shots behind drafting, call notes and the estimator builder, and the
+ * web-grounded lookups. Gemini (this file's REST calls) is the fallback when
+ * a Claude call fails and the ONLY engine for speech: Live voice, speak,
+ * audio transcription (Claude has no audio API). Both keys can be on the
+ * box; AI_MODEL / AI_MODEL_ASSISTANT name a model (claude-* or gemini-*) so
+ * a switch is a Railway variable change, not a deploy.
  *
- * Privacy note: callers must only send business facts (trade, city, service
- * names/prices). Never client data or PII — the free Gemini tier may use
- * inputs for training.
+ * Privacy note: the Anthropic API does not train on inputs. The Gemini free
+ * tier may, so askAI callers keep to business facts (trade, city, service
+ * names/prices) — never client data or PII — because a fallback can land
+ * there.
  */
 
 import { currentUsageCompany, recordAiUsage } from "@/lib/usage";
@@ -35,7 +42,21 @@ function meterUsage(companyId: string | null | undefined, u?: UsageMetadata) {
 }
 
 export function aiEnabled(): boolean {
+  return Boolean(process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY);
+}
+
+/** Only Gemini can hear (Live voice, speak, audio transcription) — those routes gate on this, not aiEnabled(). */
+export function geminiEnabled(): boolean {
   return Boolean(process.env.GEMINI_API_KEY);
+}
+
+/** The model every Claude path uses unless an env override names another. Lives here (not in
+ *  lib/ai-claude.ts) so callers can read it without loading the SDK. */
+export const CLAUDE_DEFAULT_MODEL = "claude-haiku-5-5";
+
+/** The model a caller gets when it names none: Claude when the key is on the box, else the Gemini drafting tier. */
+export function defaultModel(): string {
+  return process.env.AI_MODEL || (process.env.ANTHROPIC_API_KEY ? CLAUDE_DEFAULT_MODEL : DEFAULT_MODEL);
 }
 
 export type AskAIOptions = {
@@ -77,9 +98,26 @@ const FALLBACK_MODEL = "gemini-2.5-flash-lite";
 export async function askAI(
   opts: AskAIOptions & { model?: string; _no503Retry?: boolean }
 ): Promise<string | null> {
+  const model = opts.model || defaultModel();
+  if (/^claude-/.test(model)) {
+    // Claude takes the call (lib/ai-claude.ts) unless the input is one it can't
+    // hear (audio → null before any request); a failed call finishes on Gemini
+    // when that key is there, on the drafting tier.
+    const { askAIClaude } = await import("@/lib/ai-claude");
+    const text = await askAIClaude(opts, model);
+    if (text !== null) return text;
+    return askGemini({ ...opts, model: DEFAULT_MODEL });
+  }
+  return askGemini({ ...opts, model });
+}
+
+/** The Gemini REST call behind askAI. */
+async function askGemini(
+  opts: AskAIOptions & { model: string; _no503Retry?: boolean }
+): Promise<string | null> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return null;
-  const model = opts.model || process.env.AI_MODEL || DEFAULT_MODEL;
+  const model = opts.model;
 
   const parts: Record<string, unknown>[] = [{ text: opts.prompt }];
   if (opts.imageBase64 && opts.imageMime) {
@@ -111,13 +149,13 @@ export async function askAI(
     if (!res.ok) {
       reportError("askAI: Gemini error", res.status, (await res.text()).slice(0, 500));
       // out of quota on this model → one shot on the fallback model
-      if (res.status === 429 && model !== FALLBACK_MODEL && !opts.model) {
-        return askAI({ ...opts, model: FALLBACK_MODEL });
+      if (res.status === 429 && model !== FALLBACK_MODEL) {
+        return askGemini({ ...opts, model: FALLBACK_MODEL });
       }
       // model transiently overloaded → one retry after a beat (same as aiChat)
       if (res.status === 503 && !opts._no503Retry) {
         await new Promise((r) => setTimeout(r, 1500));
-        return askAI({ ...opts, model, _no503Retry: true });
+        return askGemini({ ...opts, model, _no503Retry: true });
       }
       return null;
     }
@@ -153,6 +191,10 @@ export async function askAIJson<T>(opts: Omit<AskAIOptions, "json">): Promise<T 
     try {
       return JSON.parse(text) as T;
     } catch {
+      // Claude has no JSON response mode — the instruction holds almost always,
+      // but a stray sentence or code fence around the object is not a failure.
+      const loose = extractJsonObject<T>(text);
+      if (loose !== null) return loose;
       reportError("askAIJson: unparseable response", text.slice(0, 300));
     }
   }
@@ -203,6 +245,9 @@ export type AIPart =
   // Gemini ignores it.
   | { functionCall: { name: string; args: Record<string, unknown> }; thoughtSignature?: string; id?: string }
   | { functionResponse: { name: string; response: Record<string, unknown> }; id?: string }
+  // Inline media on a USER turn (the estimator's photo fill-in). Gemini takes
+  // it as is; Claude gets an image block (lib/ai-claude.ts).
+  | { inlineData: { mimeType: string; data: string } }
   // Claude's thinking blocks, replayed verbatim when a turn continues after
   // tool results (lib/ai-claude.ts); stripped before anything reaches Gemini.
   | { thinking: string; signature: string; redacted?: boolean };
@@ -226,6 +271,9 @@ export type AIChatOptions = {
   systemVolatile?: string;
   contents: AIContent[];
   tools?: AIFunctionDecl[];
+  /** "none": the tools stay declared (a history full of their calls needs the
+   *  definitions) but the model must answer in text — the forced last round. */
+  toolChoice?: "auto" | "none";
   model?: string; // overrides AI_MODEL for this call
   maxOutputTokens?: number;
   temperature?: number;
@@ -249,7 +297,7 @@ export type AIChatOptions = {
  * functionResponse contents, and calls again. Null on unconfigured/failure.
  */
 export async function aiChat(opts: AIChatOptions): Promise<AIPart[] | null> {
-  const model = opts.model || process.env.AI_MODEL || DEFAULT_MODEL;
+  const model = opts.model || defaultModel();
   // Claude models take the other door (lib/ai-claude.ts); same contract.
   if (/^claude-/.test(model)) {
     const { aiChatClaude } = await import("@/lib/ai-claude");
@@ -285,6 +333,7 @@ export async function aiChat(opts: AIChatOptions): Promise<AIPart[] | null> {
     ...(opts.tools && opts.tools.length > 0
       ? { tools: [{ functionDeclarations: opts.tools }] }
       : {}),
+    ...(opts.toolChoice === "none" ? { toolConfig: { functionCallingConfig: { mode: "NONE" } } } : {}),
     generationConfig: {
       temperature: opts.temperature ?? 0.3,
       maxOutputTokens: opts.maxOutputTokens ?? 1024,

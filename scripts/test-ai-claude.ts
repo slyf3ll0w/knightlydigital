@@ -1,14 +1,26 @@
 /**
- * lib/ai-claude.ts — the Gemini-shape ↔ Messages API translation Atlas rides
- * on when AI_MODEL_ASSISTANT is a claude-* model.
+ * lib/ai-claude.ts — the Gemini-shape ↔ Messages API translation every text
+ * feature rides on when ANTHROPIC_API_KEY is set (Atlas chat, one-shots,
+ * drafting, grounded lookups).
  *
  *   DATABASE_URL=postgresql://u:p@localhost:5432/unused npx tsx scripts/test-ai-claude.ts
  *
- * Pure checks always run. With ANTHROPIC_API_KEY set, one live round trip
- * (a tool call + its result) runs against claude-haiku-5-5 as well.
+ * Pure checks always run. With ANTHROPIC_API_KEY set, one live tool round
+ * trip and one live one-shot run against claude-haiku-5-5 as well.
  */
 import assert from "node:assert";
-import { effortFor, fromClaudeContent, toClaudeMessages, toClaudeTools, aiChatClaude } from "../lib/ai-claude";
+import {
+  JSON_ONLY_RULE,
+  aiChatClaude,
+  askAIClaude,
+  claudeAskParams,
+  claudeChatParams,
+  effortFor,
+  fromClaudeContent,
+  imageBlock,
+  toClaudeMessages,
+  toClaudeTools,
+} from "../lib/ai-claude";
 import type { AIContent } from "../lib/ai";
 
 // 1. history → messages: ids kept, thinking replayed, empty text dropped, first turn is the user's
@@ -78,7 +90,67 @@ import type { AIContent } from "../lib/ai";
   console.log("ok 3: reply parts, tool schemas, effort");
 }
 
-// 4. live: one tool round trip on Haiku (needs ANTHROPIC_API_KEY)
+// 4. images: a user turn's inlineData becomes an image block; a type Claude can't take is left out
+{
+  assert.deepEqual(imageBlock("image/JPG", "abc"), { type: "image", source: { type: "base64", media_type: "image/jpeg", data: "abc" } });
+  assert.equal(imageBlock("image/heic", "abc"), null, "heic is not a Claude image type");
+  const m = toClaudeMessages([
+    { role: "user", parts: [{ text: "What's in this photo?" }, { inlineData: { mimeType: "image/png", data: "iVBOR" } }] },
+  ]);
+  const blocks = m[0].content as { type: string }[];
+  assert.deepEqual(blocks.map((b) => b.type), ["text", "image"]);
+  const skipped = toClaudeMessages([{ role: "user", parts: [{ text: "hi" }, { inlineData: { mimeType: "audio/webm", data: "x" } }] }]);
+  assert.deepEqual((skipped[0].content as { type: string }[]).map((b) => b.type), ["text"], "audio inlineData dropped");
+  console.log("ok 4: inline images");
+}
+
+// 5. chat params: cached stable system block, volatile after it, tool_choice none keeps the tools declared
+{
+  const base = {
+    system: "STABLE",
+    systemVolatile: "Right now: Thursday",
+    contents: [{ role: "user" as const, parts: [{ text: "hi" }] }],
+    tools: [{ name: "a", description: "A" }],
+    maxOutputTokens: 2048,
+    thinkingBudget: 0,
+  };
+  const p = claudeChatParams(base, "claude-haiku-5-5")!;
+  assert.equal(p.model, "claude-haiku-5-5");
+  assert.equal(p.max_tokens, 2048);
+  const sys = p.system as { text: string; cache_control?: unknown }[];
+  assert.equal(sys.length, 2);
+  assert.deepEqual(sys[0].cache_control, { type: "ephemeral" }, "breakpoint on the stable half");
+  assert.equal(sys[1].cache_control, undefined, "volatile half after the breakpoint");
+  assert.equal(p.tool_choice, undefined, "auto by default");
+  assert.deepEqual(p.output_config, { effort: "low" });
+  assert.equal("temperature" in p, false, "no sampling params on the 5.5 models");
+  const last = claudeChatParams({ ...base, toolChoice: "none" }, "claude-haiku-5-5")!;
+  assert.deepEqual(last.tool_choice, { type: "none" });
+  assert.equal(last.tools?.length, 1, "tools stay declared on the forced last round");
+  assert.equal(claudeChatParams({ ...base, contents: [] }, "claude-haiku-5-5"), null, "nothing to send → null");
+  console.log("ok 5: chat params");
+}
+
+// 6. one-shot params: JSON rule, web_search tool, image first, audio hands off to Gemini
+{
+  const plain = claudeAskParams({ prompt: "Draft a reminder", system: "Be brief" }, "claude-haiku-5-5")!;
+  assert.equal(plain.system, "Be brief");
+  assert.equal(plain.max_tokens, 8192);
+  assert.deepEqual(plain.output_config, { effort: "low" });
+  assert.equal(plain.tools, undefined);
+  const json = claudeAskParams({ prompt: "x", json: true }, "claude-haiku-5-5")!;
+  assert.equal(json.system, JSON_ONLY_RULE);
+  const search = claudeAskParams({ prompt: "price of a water heater", useSearch: true }, "claude-haiku-5-5")!;
+  assert.deepEqual(search.tools, [{ type: "web_search_20260209", name: "web_search", max_uses: 5 }]);
+  const img = claudeAskParams({ prompt: "Which brand colors?", imageBase64: "AAAA", imageMime: "image/png" }, "claude-haiku-5-5")!;
+  const content = img.messages[0].content as { type: string }[];
+  assert.deepEqual(content.map((b) => b.type), ["image", "text"], "image before the question");
+  assert.equal(claudeAskParams({ prompt: "transcribe", audioBase64: "AAAA", audioMime: "audio/webm" }, "claude-haiku-5-5"), null, "audio → Gemini");
+  assert.equal(claudeAskParams({ prompt: "x", imageBase64: "AAAA", imageMime: "image/heic" }, "claude-haiku-5-5"), null, "heic → Gemini");
+  console.log("ok 6: one-shot params");
+}
+
+// 7. live: one tool round trip + one one-shot on Haiku (needs ANTHROPIC_API_KEY)
 (async () => {
   if (!process.env.ANTHROPIC_API_KEY) {
     console.log("(live test skipped — set ANTHROPIC_API_KEY)");
@@ -110,5 +182,9 @@ import type { AIContent } from "../lib/ai";
   assert.ok(second, "second call answered");
   const text = second!.map((p) => ("text" in p ? p.text : "")).join("");
   assert.ok(/71/.test(text), `answer uses the tool result: ${text}`);
-  console.log(`ok 4: live round trip on ${model} — "${text.trim().slice(0, 80)}" (usage ${JSON.stringify(usage)})`);
+  console.log(`ok 7a: live round trip on ${model} — "${text.trim().slice(0, 80)}" (usage ${JSON.stringify(usage)})`);
+
+  const json = await askAIClaude({ prompt: "Give the number of days in a week as {\"days\": n}.", json: true, maxOutputTokens: 200, companyId: null }, model);
+  assert.ok(json && /"days"\s*:\s*7/.test(json), `one-shot JSON came back: ${json}`);
+  console.log(`ok 7b: live one-shot on ${model} — ${json!.trim().slice(0, 60)}`);
 })().then(() => console.log("\nAll Claude adapter tests passed."));

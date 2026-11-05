@@ -1,5 +1,5 @@
 import { prisma } from "./db";
-import { aiChat, aiEnabled, extractJsonObject, type AIPart } from "./ai";
+import { aiChat, aiEnabled, CLAUDE_DEFAULT_MODEL, extractJsonObject, type AIPart } from "./ai";
 import { atlasAccess, ATLAS_ACCESS_SELECT, meterToClient, type AtlasAccess } from "./assistant-access";
 import {
   centsToAtlasTokens,
@@ -20,8 +20,10 @@ import type { Actor } from "./permissions";
  * answer out, priced from real usage and debited after the fact.
  */
 
-const MODEL_DEFAULT = "gemini-2.5-flash";
-const MODEL_FALLBACK = "gemini-flash-lite-latest";
+// Claude when the key is on the box (the same engine as the chat drawer), else Gemini Flash.
+const MODEL_DEFAULT = process.env.ANTHROPIC_API_KEY ? CLAUDE_DEFAULT_MODEL : "gemini-2.5-flash";
+// Second engine for a failed call: Gemini lite when that key exists (a separate quota), else Sonnet.
+const MODEL_FALLBACK = process.env.GEMINI_API_KEY ? "gemini-flash-lite-latest" : "claude-sonnet-5-5";
 
 export type OneShotResult =
   | { ok: true; text: string; atlasTokens: number; access: AtlasAccess }
@@ -105,8 +107,8 @@ export async function meteredOneShot(
     usage.tokensCached += u.tokensCached;
   };
   const userParts: AIPart[] = [{ text: opts.prompt }];
-  // Gemini inline-image part — kept outside the chat-shaped AIPart union on purpose (history never carries images)
-  if (opts.image) userParts.push({ inlineData: { mimeType: opts.image.mime, data: opts.image.base64 } } as unknown as AIPart);
+  // The photo rides as an inlineData part: Gemini takes it as is, Claude gets an image block (lib/ai-claude.ts).
+  if (opts.image) userParts.push({ inlineData: { mimeType: opts.image.mime, data: opts.image.base64 } });
   const contents = [{ role: "user" as const, parts: userParts }];
   const primary = process.env.AI_MODEL_ASSISTANT || MODEL_DEFAULT;
   let model = primary;

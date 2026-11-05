@@ -30,11 +30,13 @@ export function platformPricingConfirmed(): boolean {
 
 export function unitPrices() {
   return {
-    // Gemini 2.5 Flash paid tier: ~$0.30/M input, ~$2.50/M output, cached
-    // input billed at 25% of input price.
-    aiInCentsPerMTokens: num(process.env.COST_AI_IN_PER_M_CENTS, 30),
-    aiOutCentsPerMTokens: num(process.env.COST_AI_OUT_PER_M_CENTS, 250),
-    aiCachedCentsPerMTokens: num(process.env.COST_AI_CACHED_PER_M_CENTS, 7.5),
+    // Claude Haiku 5.5, the default engine (lib/ai.ts): $0.10/M input,
+    // $0.50/M output, cache reads $0.01/M. Override when AI_MODEL* names a
+    // dearer model — Sonnet 5.5: 200 / 1000 / 20; Opus 5.5: 400 / 2000 / 20.
+    // (Gemini 2.5 Flash, the fallback, was 30 / 250 / 7.5.)
+    aiInCentsPerMTokens: num(process.env.COST_AI_IN_PER_M_CENTS, 10),
+    aiOutCentsPerMTokens: num(process.env.COST_AI_OUT_PER_M_CENTS, 50),
+    aiCachedCentsPerMTokens: num(process.env.COST_AI_CACHED_PER_M_CENTS, 1),
     // Resend $20/mo ÷ 50k emails ≈ 0.04¢ each.
     emailCents: num(process.env.COST_EMAIL_CENTS, 0.04),
     // Telnyx US SMS ~0.4¢/segment + ~0.3¢ carrier pass-through.

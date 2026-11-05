@@ -4,6 +4,7 @@ import { type Actor, roleLabel } from "../permissions";
 import {
   aiChat,
   AI_THOUGHT_SIGNATURE_SENTINEL,
+  CLAUDE_DEFAULT_MODEL,
   type AIContent,
   type AIPart,
 } from "../ai";
@@ -70,18 +71,17 @@ const MAX_TOOL_ROUNDS = 12;
 const MAX_CALLS_PER_ROUND = 24;
 /** Default display name for the assistant; companies can rename it in Settings. */
 export const DEFAULT_ASSISTANT_NAME = "Atlas";
-// Reasoning quality matters more here than in one-shot drafting — default to
-// full Flash. 2.5-flash: the newer 3.x flash tiers allow only ~5 free
-// requests/min, too few for multi-tool turns; once the key moves to the paid
-// tier, set AI_MODEL_ASSISTANT=gemini-3.5-flash in Railway (no deploy).
-// 2026-10-22: with an Anthropic key on the box, Atlas runs on Claude Haiku
-// 5.5 (lib/ai-claude.ts) — cheaper per token than 2.5 Flash and a far better
-// tool-user. AI_MODEL_ASSISTANT still overrides (any claude-* or gemini-*
-// id), and the Gemini fallback below still catches a Claude outage mid-turn.
-const ASSISTANT_MODEL_DEFAULT = process.env.ANTHROPIC_API_KEY ? "claude-haiku-5-5" : "gemini-2.5-flash";
-// Per-model free-tier quotas are separate buckets — when the primary 429s,
-// finishing the turn on lite beats erroring at the user.
-const ASSISTANT_MODEL_FALLBACK = "gemini-flash-lite-latest";
+// With an Anthropic key on the box, Atlas runs on Claude (lib/ai-claude.ts;
+// Haiku 5.5 by default — a far better tool-user than 2.5 Flash at a lower
+// price per token). AI_MODEL_ASSISTANT overrides with any claude-* or
+// gemini-* id (claude-sonnet-5-5 for sharper reasoning at ~20× the price).
+// Without the key, Gemini 2.5 Flash: the 3.x flash tiers allow only ~5 free
+// requests/min, too few for multi-tool turns.
+const ASSISTANT_MODEL_DEFAULT = process.env.ANTHROPIC_API_KEY ? CLAUDE_DEFAULT_MODEL : "gemini-2.5-flash";
+// When the primary fails mid-turn (a 429, an outage), finishing the turn on
+// a second engine beats erroring at the user: Gemini's lite tier when that
+// key is on the box (a separate quota bucket entirely), otherwise Sonnet.
+const ASSISTANT_MODEL_FALLBACK = process.env.GEMINI_API_KEY ? "gemini-flash-lite-latest" : "claude-sonnet-5-5";
 // Thinking budget per model call (2.5-generation models only). Multi-step
 // tool work — pick the right tool, chain lookups, compute a bulk edit — is
 // measurably better with a little thinking; 0 turns it off for pure latency.
@@ -428,8 +428,10 @@ export async function runAssistant(
       thinkingBudget: opts.voice ? 0 : round === 0 ? THINKING_BUDGET : THINKING_BUDGET_FOLLOWUP,
       companyId: actor.companyId, // meter every round's tokens to the tenant
       onUsage,
-      // last round: no tools, force it to answer with what it has
-      ...(round === MAX_TOOL_ROUNDS ? { tools: [] } : {}),
+      // last round: the tools stay declared (the history is full of their
+      // calls and the API needs the definitions) but the model must answer in
+      // text with what it has
+      ...(round === MAX_TOOL_ROUNDS ? { toolChoice: "none" as const } : {}),
     };
     // primary model, then the fallback's separate free-tier quota bucket —
     // and once the primary fails, stay on the fallback for the whole turn
