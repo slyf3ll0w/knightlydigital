@@ -37,6 +37,7 @@ import { runScheduledSends } from "@/lib/send-document";
 import { archiveExpiredNotes } from "@/lib/sticky-notes";
 import { runTimeBlockSeriesSweep } from "@/lib/time-block-series";
 import { runStoreOrderSweep } from "@/lib/store";
+import { runToolDraftSweep } from "@/lib/tool-drafts";
 import { adoptUnrecordedSquarePayments } from "@/lib/square-adopt";
 import { runTelnyxBalanceWatch } from "@/lib/telnyx-balance";
 
@@ -198,6 +199,8 @@ export async function POST(req: NextRequest) {
     await step("giftCards", () => runGiftCardActivationSweep(now));
     // Shop orders nobody paid within the hold window are archived (lib/store.ts).
     await step("storeOrders", () => runStoreOrderSweep(now));
+    // Free-tool documents nobody signed up with (lib/tool-drafts.ts).
+    await step("toolDrafts", () => runToolDraftSweep(now));
     // Square payments taken for an invoice but never recorded (lib/square-adopt.ts)
     await step("squareMatch", () => adoptUnrecordedSquarePayments(now));
     // Plan entitlement: every customer company re-derives its paid plans from

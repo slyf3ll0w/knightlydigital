@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BarChart3,
   Building2,
   Inbox,
   Library,
@@ -44,7 +45,14 @@ const GROUPS: { key: string; label: string; items: Item[] }[] = [
       { href: "/superadmin/contact", label: "Contact form", icon: Mail, badge: "contact" },
     ],
   },
-  { key: "money", label: "Money", items: [{ href: "/superadmin/profitability", label: "Profitability", icon: TrendingUp }] },
+  {
+    key: "money",
+    label: "Money",
+    items: [
+      { href: "/superadmin/profitability", label: "Profitability", icon: TrendingUp },
+      { href: "/superadmin/traffic", label: "Traffic", icon: BarChart3 },
+    ],
+  },
   {
     key: "product",
     label: "Product",

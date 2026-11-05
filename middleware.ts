@@ -166,6 +166,15 @@ const rateLimits: { match: (path: string) => boolean; max: number; windowMs: num
     name: "public-booking",
   },
   {
+    // The free invoice / estimate generator (/tools/*): a PDF render per
+    // download and a draft per "Get paid online" click. Interactive, so
+    // looser than the strangers' bucket; the routes keep their own limits.
+    match: (p) => p.startsWith("/api/public/tools/"),
+    max: 80,
+    windowMs: 60 * 60_000,
+    name: "tools",
+  },
+  {
     // Cold inbound from strangers: booking forms, lead webhooks, applications
     match: (p) => p.startsWith("/api/public/"),
     max: 10,

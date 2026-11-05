@@ -44,7 +44,7 @@ export default function WBFeaturePage({
   ctaBody = (
     <>
       {INCLUDED_SEATS} users included, flat-priced add-ons when the crew needs more.
-      Apply, and we&apos;ll onboard your company personally.
+      Your account opens the day you sign up.
     </>
   ),
 }: {

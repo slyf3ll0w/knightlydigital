@@ -22,6 +22,9 @@ import { featureByTitle } from "../lib/wb-features";
 import { FREE_PAGE_PATH } from "../lib/wb-free";
 import { WB_SHOTS } from "../lib/wb-site";
 import { TRADES, freePlanFaq } from "../lib/wb-trades";
+import { ALTERNATIVES, ALTERNATIVES_PATH } from "../lib/wb-alternatives";
+import { FREE_PAGES } from "../lib/wb-free-pages";
+import { TOOLS, TOOLS_PATH, TRADE_TEMPLATES, templatePath, toolPath } from "../lib/wb-tools";
 
 let failed = 0;
 function check(ok: boolean, msg: string) {
@@ -113,7 +116,40 @@ check(urls.has("https://workbenchfsm.com/trades"), "sitemap: missing /trades");
 check(urls.has(`https://workbenchfsm.com${FREE_PAGE_PATH}`), `sitemap: missing ${FREE_PAGE_PATH}`);
 for (const t of TRADES) check(urls.has(`https://workbenchfsm.com/trades/${t.slug}`), `sitemap: missing /trades/${t.slug}`);
 
+for (const a of ALTERNATIVES) check(urls.has(`https://workbenchfsm.com${ALTERNATIVES_PATH}/${a.slug}`), `sitemap: missing ${ALTERNATIVES_PATH}/${a.slug}`);
+for (const p of FREE_PAGES) check(urls.has(`https://workbenchfsm.com${p.path}`), `sitemap: missing ${p.path}`);
+check(urls.has(`https://workbenchfsm.com${TOOLS_PATH}`), `sitemap: missing ${TOOLS_PATH}`);
+for (const tool of TOOLS) {
+  check(urls.has(`https://workbenchfsm.com${toolPath(tool)}`), `sitemap: missing ${toolPath(tool)}`);
+  for (const t of TRADES) check(urls.has(`https://workbenchfsm.com${templatePath(tool, t)}`), `sitemap: missing ${templatePath(tool, t)}`);
+}
+// Every trade page has a matching invoice/estimate template, so the two never drift.
+for (const t of TRADES) check(Boolean(TRADE_TEMPLATES[t.slug]), `lib/wb-tools.ts: no template for trade ${t.slug}`);
+for (const slug of Object.keys(TRADE_TEMPLATES)) check(TRADES.some((t) => t.slug === slug), `lib/wb-tools.ts: template ${slug} has no trade page`);
+for (const p of FREE_PAGES) {
+  check(p.shot in WB_SHOTS, `free page ${p.path}: unknown phone shot`);
+  for (const title of p.features) {
+    try {
+      featureByTitle(title);
+    } catch {
+      check(false, `free page ${p.path}: feature "${title}" is not in lib/wb-features.ts`);
+    }
+  }
+}
+for (const a of ALTERNATIVES) {
+  for (const title of a.keeps) {
+    try {
+      featureByTitle(title);
+    } catch {
+      check(false, `alternative ${a.slug}: feature "${title}" is not in lib/wb-features.ts`);
+    }
+  }
+}
+
 const llms = llmsTxt();
+for (const a of ALTERNATIVES) check(llms.includes(`https://workbenchfsm.com${ALTERNATIVES_PATH}/${a.slug}`), `llms.txt: missing ${ALTERNATIVES_PATH}/${a.slug}`);
+for (const p of FREE_PAGES) check(llms.includes(`https://workbenchfsm.com${p.path}`), `llms.txt: missing ${p.path}`);
+for (const tool of TOOLS) check(llms.includes(`https://workbenchfsm.com${toolPath(tool)}`), `llms.txt: missing ${toolPath(tool)}`);
 check(llms.includes(`https://workbenchfsm.com${FREE_PAGE_PATH}`), `llms.txt: missing ${FREE_PAGE_PATH}`);
 for (const t of TRADES) check(llms.includes(`https://workbenchfsm.com/trades/${t.slug}`), `llms.txt: missing /trades/${t.slug}`);
 

@@ -4032,3 +4032,55 @@ model StickyNotePlacement {
 
   @@id([noteId, userId])
 }
+
+// ─── Marketing site: first-party conversion events (/api/site/event) ────────
+// Page views are Cloudflare Web Analytics' job; this table holds only the
+// moments that matter for attribution — a Get started click, a sign-up, a
+// free-tool download — with the UTM tags and referrer the visitor arrived
+// with (captured once per browser session by components/wb/WBAnalytics).
+// No names, emails or IPs: visitorId is a random first-party id. Read at
+// /superadmin/traffic.
+model SiteEvent {
+  id          String   @id @default(cuid())
+  name        String // cta_click | signup | tool_pdf | tool_draft | ...
+  label       String? // which CTA / tool, or the companyId for a sign-up
+  path        String // site path the event happened on
+  referrer    String?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmContent  String?
+  utmTerm     String?
+  visitorId   String?
+  createdAt   DateTime @default(now())
+
+  @@index([name, createdAt])
+  @@index([createdAt])
+}
+
+// ─── Free tools: a document built on /tools/* that a sign-up carries in ─────
+// The invoice or estimate generator stores the visitor's draft here when
+// they choose "Get paid online"; /apply?draft=<id> pre-fills the form and
+// lib/tool-drafts.ts claimToolDraft turns it into a real Invoice or Quote
+// (plus the client as a Contact, and the logo as the company's) the moment
+// the company is created. Unclaimed drafts expire (lib/tool-drafts.ts).
+model ToolDraft {
+  id        String        @id @default(cuid())
+  kind      ToolDraftKind
+  data      Json // lib/tool-doc.ts ToolDoc, sanitized
+  logoData  Bytes?
+  logoMime  String?
+  ip        String?
+  companyId String?
+  claimedAt DateTime?
+  invoiceId String?
+  quoteId   String?
+  createdAt DateTime      @default(now())
+
+  @@index([createdAt])
+}
+
+enum ToolDraftKind {
+  INVOICE
+  QUOTE
+}

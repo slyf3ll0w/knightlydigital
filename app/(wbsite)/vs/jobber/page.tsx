@@ -54,7 +54,7 @@ const rows: CompareRow[] = [
   },
   {
     label: "Onboarding",
-    workbench: "Every company is reviewed and onboarded personally — invite-only while the team scales up support.",
+    workbench: "Self-serve: the account opens the day you sign up. Card and bank payments switch on once you connect Square, which takes a few minutes.",
     competitor: "Self-serve signup with a free trial period.",
   },
 ];
@@ -77,8 +77,8 @@ const differentiators: FeatureItem[] = [
   },
   {
     icon: Users,
-    title: "Personal onboarding",
-    body: "Because WorkBench moves real money, every company is reviewed by a person and onboarded directly — most are quoting and scheduling the same day they're approved.",
+    title: "Open today, quoting this afternoon",
+    body: "The sign-up takes a few minutes and the account opens on the spot. Most companies are quoting and scheduling the same day; payments switch on once Square is connected.",
   },
 ];
 
@@ -100,9 +100,10 @@ const faq = [
     q: "Can I switch from Jobber to WorkBench?",
     a: (
       <p>
-        There's no automated Jobber importer today — set up starts with a
-        conversation during onboarding, where the team helps get your
-        clients and price book into WorkBench.
+        There&apos;s no automated Jobber importer today. Export your client
+        list from Jobber as a spreadsheet and import it; the price book is
+        rebuilt by hand or with Atlas, and the team is a call away if you
+        want help.
       </p>
     ),
   },

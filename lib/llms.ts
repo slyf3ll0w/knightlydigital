@@ -9,6 +9,9 @@ import { RATES_SHORT } from "@/lib/plans";
 import { HELP_SECTIONS, helpCenterMarkdown } from "./help/search";
 import { FREE_PAGE_PATH } from "./wb-free";
 import { TRADES } from "./wb-trades";
+import { ALTERNATIVES, ALTERNATIVES_PATH } from "./wb-alternatives";
+import { FREE_PAGES } from "./wb-free-pages";
+import { TOOLS, TOOLS_PATH, toolPath } from "./wb-tools";
 import {
   ATLAS_FREE,
   ATLAS_FULL,
@@ -56,6 +59,12 @@ ${summary()}
 - [Pricing](${BASE}/pricing): ${CORE} (free), the ${VOICE}, ${PRO}, ${MAX} and ${GALLERY} add-ons, Atlas Full, processing rates, and FAQ.
 - [The free plan](${BASE}${FREE_PAGE_PATH}): What "free, not a trial" means — full access for ${SEATS_INCLUDED} users, no card, no clock — what is in ${CORE}, and the three optional things that cost money.
 - [Get started](${BASE}/apply): How a company signs up and gets onboarded.
+${FREE_PAGES.map((p) => `- [${p.title}](${BASE}${p.path}): ${p.description}`).join("\n")}
+
+## Free tools (no account needed)
+
+- [Free tools](${BASE}${TOOLS_PATH}): Invoice and estimate generators with templates for every trade; the PDF downloads free with no account, email or watermark.
+${TOOLS.map((t) => `- [${t.title}](${BASE}${toolPath(t)}): ${t.description}`).join("\n")}
 
 ## Feature deep-dives
 
@@ -84,6 +93,8 @@ ${TRADES.map((t) => `- [${t.name}](${BASE}/trades/${t.slug}): ${t.description}`)
 - [WorkBench vs. Jobber](${BASE}/vs/jobber): Pricing model and feature comparison.
 - [WorkBench vs. Housecall Pro](${BASE}/vs/housecall-pro): Pricing model and feature comparison.
 - [WorkBench vs. ServiceTitan](${BASE}/vs/servicetitan): Pricing model and feature comparison, including who each platform fits best.
+- [Alternatives](${BASE}${ALTERNATIVES_PATH}): Why companies switch, what they keep, what they give up, and what it costs side by side.
+${ALTERNATIVES.map((a) => `- [${a.name} alternative](${BASE}${ALTERNATIVES_PATH}/${a.slug}): ${a.description}`).join("\n")}
 
 ## Policies
 

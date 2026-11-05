@@ -12,6 +12,7 @@ import { saveCredential } from "@/lib/save-credential";
 import { browserTimezone } from "@/lib/timezone";
 import { CORE_FREE_LINE } from "@/lib/help/plan-copy";
 import IndustrySelect, { industryValue } from "@/components/IndustrySelect";
+import { getAttribution, trackSiteEvent } from "@/lib/site-track";
 
 /**
  * The sign-up form. One submit opens the account (login + company + owner),
@@ -48,6 +49,8 @@ export default function ApplyForm({
   appearance = "site",
   verifyPayments = false,
   setupPayments = false,
+  initial,
+  draftId,
 }: {
   /** Which social buttons this visitor gets, and how they run (lib/sign-in-options.ts). */
   social?: SocialSignIn;
@@ -56,6 +59,10 @@ export default function ApplyForm({
   verifyPayments?: boolean;
   /** Square: the payment-setup step follows signup (lib/payments-gate.ts paymentsSetupGateEnabled). */
   setupPayments?: boolean;
+  /** Fields filled in ahead of time (a free-tool draft: lib/tool-drafts.ts draftPrefill). */
+  initial?: { companyName?: string; email?: string; phone?: string };
+  /** The free-tool draft to carry into the new account (/apply?draft=…). */
+  draftId?: string;
 }) {
   const inApp = appearance === "app";
   const selfUrl = inApp ? "/app/get-started" : "/apply";
@@ -84,10 +91,10 @@ export default function ApplyForm({
   const [codeError, setCodeError] = useState("");
   const [form, setForm] = useState({
     name: "",
-    email: "",
+    email: initial?.email ?? "",
     password: "",
-    phone: "",
-    companyName: "",
+    phone: initial?.phone ?? "",
+    companyName: initial?.companyName ?? "",
     industry: "",
     referralSource: "",
   });
@@ -160,6 +167,7 @@ export default function ApplyForm({
     e.preventDefault();
     setError("");
     setLoading(true);
+    trackSiteEvent("apply_submit");
     try {
       const res = await fetch("/api/public/apply", {
         method: "POST",
@@ -172,6 +180,9 @@ export default function ApplyForm({
           captchaToken,
           timezone: browserTimezone(),
           smsConsent,
+          // How this visitor arrived (UTM / referrer) and the free-tool draft, if any
+          attribution: getAttribution(),
+          draftId: draftId || undefined,
         }),
       });
       const data = await res.json();
@@ -184,6 +195,7 @@ export default function ApplyForm({
       }
 
       setDone(true);
+      trackSiteEvent("signup", data.companyId ?? undefined);
       // A code waives the next step; otherwise the payment-setup step (Square)
       // or the Finix verification, whichever this deployment runs.
       const landing = nextStep === "setup" ? "/app/setup/payments" : nextStep === "verify" ? "/app/activate" : "/app/dashboard";

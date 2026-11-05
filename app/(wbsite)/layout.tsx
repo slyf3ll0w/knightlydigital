@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import WBNav from "@/components/wb/WBNav";
 import WBFooter from "@/components/wb/WBFooter";
 import WBContactButton from "@/components/wb/WBContactButton";
+import WBAnalytics from "@/components/wb/WBAnalytics";
 import { APP_STORE_URL, PLAY_STORE_URL, WB_EMAIL, WB_FACEBOOK_URL, WB_PHONE } from "@/lib/wb-site";
 import {
   DISPATCH_SETUP_CENTS,
@@ -153,8 +154,16 @@ const websiteJsonLd = {
 export default function WBSiteLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // Cloudflare Web Analytics (page views, no cookies). Set the site's beacon
+  // token in NEXT_PUBLIC_CF_BEACON_TOKEN; unset = no script. Conversions are
+  // our own (components/wb/WBAnalytics → /api/site/event → /superadmin/traffic).
+  const cfToken = process.env.NEXT_PUBLIC_CF_BEACON_TOKEN;
   return (
     <div className="wb-site min-h-screen bg-white text-gray-900">
+      {cfToken && (
+        <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon={JSON.stringify({ token: cfToken })} />
+      )}
+      <WBAnalytics />
       <script
         type="application/ld+json"
         // eslint-disable-next-line react/no-danger

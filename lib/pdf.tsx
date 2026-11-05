@@ -344,7 +344,9 @@ export type QuoteForPdf = {
 };
 
 /** Exported for scripts/test-pdf-render.mts — routes go through quotePdf. */
-export function buildQuoteDocument(quote: QuoteForPdf, logo: LogoSrc) {
+/** `label` renames the document ("Estimate" on the free generator); the app always says Quote. */
+export function buildQuoteDocument(quote: QuoteForPdf, logo: LogoSrc, opts: { label?: string } = {}) {
+  const label = opts.label ?? "Quote";
   const accent = brandAccent(quote.company);
   const tz = quote.company.timezone ?? undefined;
 
@@ -374,9 +376,9 @@ export function buildQuoteDocument(quote: QuoteForPdf, logo: LogoSrc) {
   ];
 
   return (
-    <Document title={`Quote #${quote.quoteNumber} — ${quote.company.name}`} producer="WorkBench" creator="WorkBench">
+    <Document title={`${label} #${quote.quoteNumber} — ${quote.company.name}`} producer="WorkBench" creator="WorkBench">
       <Page size="LETTER" style={styles.page}>
-        <Header company={quote.company} logo={logo} docType="Quote" docNumber={quote.quoteNumber} metaLines={metaLines} accent={accent} docTypeColor={DOC_TYPE_INK.quote} />
+        <Header company={quote.company} logo={logo} docType={label} docNumber={quote.quoteNumber} metaLines={metaLines} accent={accent} docTypeColor={DOC_TYPE_INK.quote} />
         {stamped ? <Stamp text="APPROVED" ink={DOC_TYPE_INK.quote} /> : null}
         <BillTo contact={quote.contact} />
         {quote.title ? (
@@ -418,7 +420,7 @@ export function buildQuoteDocument(quote: QuoteForPdf, logo: LogoSrc) {
           </View>
         ) : null}
         {quote.disclaimer ? <Text style={styles.disclaimer}>{quote.disclaimer}</Text> : null}
-        <Footer text={`Quote #${quote.quoteNumber}  ·  ${footerName(quote.company)}`} />
+        <Footer text={`${label} #${quote.quoteNumber}  ·  ${footerName(quote.company)}`} />
       </Page>
     </Document>
   );

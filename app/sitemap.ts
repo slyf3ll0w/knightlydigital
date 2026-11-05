@@ -2,6 +2,9 @@ import type { MetadataRoute } from "next";
 import { HELP_SECTIONS } from "@/lib/help/content";
 import { FREE_PAGE_PATH } from "@/lib/wb-free";
 import { TRADES } from "@/lib/wb-trades";
+import { ALTERNATIVES, ALTERNATIVES_PATH } from "@/lib/wb-alternatives";
+import { FREE_PAGES } from "@/lib/wb-free-pages";
+import { TOOLS, TOOLS_PATH, templatePath, toolPath } from "@/lib/wb-tools";
 
 const BASE = "https://workbenchfsm.com";
 
@@ -38,6 +41,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly" as const,
       priority: 0.6,
     })),
+    { url: `${BASE}${ALTERNATIVES_PATH}`, changeFrequency: "monthly", priority: 0.7 },
+    ...ALTERNATIVES.map((a) => ({
+      url: `${BASE}${ALTERNATIVES_PATH}/${a.slug}`,
+      changeFrequency: "monthly" as const,
+      priority: 0.7,
+    })),
+    ...FREE_PAGES.map((p) => ({ url: `${BASE}${p.path}`, changeFrequency: "monthly" as const, priority: 0.8 })),
+    { url: `${BASE}${TOOLS_PATH}`, changeFrequency: "monthly", priority: 0.8 },
+    ...TOOLS.map((t) => ({ url: `${BASE}${toolPath(t)}`, changeFrequency: "monthly" as const, priority: 0.8 })),
+    ...TOOLS.flatMap((t) =>
+      TRADES.map((trade) => ({ url: `${BASE}${templatePath(t, trade)}`, changeFrequency: "monthly" as const, priority: 0.6 })),
+    ),
     { url: `${BASE}/apply`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE}/help`, changeFrequency: "weekly", priority: 0.7 },
     ...HELP_SECTIONS.map((s) => ({

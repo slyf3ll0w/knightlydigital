@@ -11,6 +11,7 @@ import { socialSignInFor } from "@/lib/sign-in-options";
 import { ClipboardList, ShieldCheck, Wrench } from "lucide-react";
 import { paymentsGateEnabled, paymentsSetupGateEnabled } from "@/lib/payments-gate";
 import { RATES } from "@/lib/plans";
+import { draftPrefill } from "@/lib/tool-drafts";
 
 export const metadata: Metadata = {
   title: "Get started",
@@ -84,8 +85,11 @@ const plainSteps = [
   },
 ];
 
-export default async function WBApplyPage() {
+export default async function WBApplyPage({ searchParams }: { searchParams: Promise<{ draft?: string }> }) {
   const ua = (await headers()).get("user-agent");
+  // A free-tool document on its way in (lib/tool-drafts.ts): pre-fill the
+  // business details; the apply API claims the draft once the company exists.
+  const draft = await draftPrefill((await searchParams).draft);
   const verifyPayments = paymentsGateEnabled();
   const setupPayments = !verifyPayments && paymentsSetupGateEnabled();
   const steps = verifyPayments ? verifySteps : setupPayments ? setupSteps : plainSteps;
@@ -138,7 +142,18 @@ export default async function WBApplyPage() {
       {/* ── Application form ── */}
       <section className="mx-auto max-w-3xl px-5 pb-20 sm:px-8">
         <AnimateIn>
-          <ApplyForm social={socialSignInFor(ua)} verifyPayments={verifyPayments} setupPayments={setupPayments} />
+          {draft && (
+            <p className="mb-4 rounded-xl border border-[#0B57D8]/20 bg-blue-50/60 px-4 py-3 text-[14px] text-gray-700">
+              Your {draft.kind === "estimate" ? "estimate" : "invoice"} is coming with you. It will be waiting in the account the moment it opens.
+            </p>
+          )}
+          <ApplyForm
+            social={socialSignInFor(ua)}
+            verifyPayments={verifyPayments}
+            setupPayments={setupPayments}
+            initial={draft ? { companyName: draft.companyName, email: draft.email, phone: draft.phone } : undefined}
+            draftId={draft?.id}
+          />
         </AnimateIn>
       </section>
 

@@ -12,6 +12,8 @@ import { findOrAdoptAccountByEmail } from "@/lib/account";
 import { createCompanySignup, InviteClaimedError, PlaceholderClaimedError } from "@/lib/signup";
 import { isValidTimezone } from "@/lib/timezone";
 import { paymentsGateEnabled, paymentsSetupGateEnabled } from "@/lib/payments-gate";
+import { claimToolDraft } from "@/lib/tool-drafts";
+import { describeAttribution, recordSiteEvent, sanitizeAttribution } from "@/lib/site-events";
 
 // Where new sign-up notices land.
 const APPLICATION_INBOX = process.env.APPLICATION_INBOX ?? "info@streamflaire.com";
@@ -70,7 +72,11 @@ export async function POST(req: NextRequest) {
     inviteCode,
     captchaToken,
     smsConsent,
+    draftId,
   } = body;
+  // Where this sign-up came from (components/wb/WBAnalytics → lib/site-track).
+  const attribution = sanitizeAttribution(body.attribution);
+  const attributionLine = describeAttribution(attribution);
 
   if (!(await verifyCaptcha(captchaToken))) {
     return NextResponse.json(
@@ -221,7 +227,7 @@ export async function POST(req: NextRequest) {
       yearsInBusiness: yearsInBusiness || null,
       entityType: entityType || null,
       website: website || null,
-      message: message || (referral ? `Heard about us: ${referral}` : null),
+      message: [message || (referral ? `Heard about us: ${referral}` : null), attributionLine ? `Landed from: ${attributionLine}` : null].filter(Boolean).join("\n") || null,
       status: "APPROVED",
       decidedAt: new Date(),
     },
@@ -263,6 +269,12 @@ export async function POST(req: NextRequest) {
     throw e;
   }
 
+  // A document built on /tools/* comes along as the first invoice or quote
+  // (and the client as a contact, the logo as the company's). Best effort.
+  const carried = typeof draftId === "string" ? await claimToolDraft(draftId, created.companyId, created.userId) : null;
+  // The conversion, with its UTM / referrer, for /superadmin/traffic.
+  void recordSiteEvent({ name: "signup", label: created.companyId, path: attribution.landing ?? "/apply", ...attribution });
+
   // Best-effort notices — the company exists by now, and a mail-provider
   // blip must not turn that into a 500 the form reads as "try again" (the
   // retry would then hit the already-applied check above).
@@ -303,5 +315,5 @@ export async function POST(req: NextRequest) {
 
   // userId = the new OWNER membership; the signed-in (Google) form re-points
   // its session at it (useSession().update({ switchToUserId })).
-  return NextResponse.json({ success: true, userId: created.userId });
+  return NextResponse.json({ success: true, userId: created.userId, companyId: created.companyId, carried: carried ?? undefined });
 }

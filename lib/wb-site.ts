@@ -26,6 +26,12 @@ export const WB_TRADE_PHOTOS = {
   cleaning: { src: "https://images.unsplash.com/photo-1646980241033-cd7abda2ee88?w=900&q=75&fit=crop", alt: "A house cleaner carrying a caddy and broom up the stairs" },
   pressure: { src: "https://images.unsplash.com/photo-1707897283727-31befe824066?w=900&q=75&fit=crop", alt: "A man pressure washing a driveway" },
   pool: { src: "https://images.unsplash.com/photo-1774109556498-652c0458d4af?w=900&q=75&fit=crop", alt: "A pool tech cleaning a swimming pool with a long pole" },
+  lights: { src: "https://images.unsplash.com/photo-1670868685735-04f5a31547dc?w=900&q=75&fit=crop", alt: "A house covered in Christmas lights and decorations at night" },
+  windows: { src: "https://images.unsplash.com/photo-1763026227930-ec2c91d4e7f2?w=900&q=75&fit=crop", alt: "A man cleaning a storefront window with a squeegee" },
+  junk: { src: "https://images.unsplash.com/photo-1781425009053-2baffa997d8c?w=900&q=75&fit=crop", alt: "A white pickup truck loaded with black trash bags" },
+  painting: { src: "https://images.unsplash.com/photo-1742900280861-32bed068938b?w=900&q=75&fit=crop", alt: "A painter on a ladder painting a wall" },
+  landscaping: { src: "https://images.unsplash.com/photo-1734079692079-aae7e24a7035?w=900&q=75&fit=crop", alt: "Hands pressing fresh green sod into the ground" },
+  snow: { src: "https://images.unsplash.com/photo-1773826594849-a08a4ab8860b?w=900&q=75&fit=crop", alt: "A man operating a snow blower during a snowfall" },
 } as const;
 
 export const WB_DAY_PHOTOS = {

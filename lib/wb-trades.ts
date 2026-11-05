@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Bug, Droplets, Fan, Hammer, Home, Leaf, Plug, Sparkles, SprayCan, Warehouse, Waves, Zap } from "lucide-react";
+import { AppWindow, Bug, Droplets, Fan, Hammer, Home, Leaf, Lightbulb, PaintRoller, Plug, Shovel, Snowflake, Sparkles, SprayCan, Truck, Warehouse, Waves, Zap } from "lucide-react";
 import { WB_DAY_PHOTOS, WB_PHOTOS, WB_SHOTS, WB_TRADE_PHOTOS } from "@/lib/wb-site";
 
 /**
@@ -611,6 +611,294 @@ export const TRADES: Trade[] = [
       {
         q: "Does it ask for reviews?",
         a: "Yes. After a payment lands, WorkBench asks the client for a review and links to your Google listing.",
+      },
+    ],
+  },
+  {
+    slug: "christmas-lights",
+    name: "Christmas lights",
+    noun: "a Christmas light installation company",
+    eyebrow: "For Christmas light installers",
+    icon: Lightbulb,
+    photo: WB_TRADE_PHOTOS.lights,
+    shot: "schedule",
+    chip: { title: "Install + takedown booked", sub: "Deposit paid · January visit set" },
+    headline: ["Christmas light software for a season", "that is over in eight weeks."],
+    intro:
+      "A quote from a photo of the house, a deposit that holds the install date, a takedown visit already on the January calendar, and next year's customer list ready in October. WorkBench FSM is field service management software for seasonal crews, and the core of it is free.",
+    description:
+      "Free Christmas light installation software: quotes with e-signature and deposits, install and takedown scheduled as a pair, card payments, automatic reminders, and a client list that rebooks itself next season. The core plan is free for a small team, not a trial.",
+    steps: [
+      {
+        title: "Quote from the driveway or the photo",
+        body: "Price the roofline, the trees, and the wreaths as line items from your price book, with the extras as toggles the homeowner picks. They sign on their phone and pay the deposit that holds the date.",
+      },
+      {
+        title: "Install and takedown, scheduled together",
+        body: "Book the install and the January takedown as one series, so the second visit is never forgotten. The crew sees both on the calendar, and the client gets a reminder before each.",
+      },
+      {
+        title: "Next season starts from this one",
+        body: "Every client, every roofline measurement, and every photo stays on the job. In October, send last year's list a rebook link and the season fills itself.",
+      },
+    ],
+    features: ["Quotes with e-signature", "Deposits up front", "Recurring visit series", "Jobs with notes & photos", "Automatic notifications", "Card & ACH built in"],
+    faq: [
+      {
+        q: "Can I take a deposit when they accept the quote?",
+        a: "Yes. A quote can require a deposit at signing, by card or bank transfer, and the install date is only confirmed once it lands. The balance is invoiced after the install.",
+      },
+      {
+        q: "How do I keep track of takedowns in January?",
+        a: "Book the install and the takedown as a two-visit series when the quote is accepted. Both land on the calendar with the client's details, and the takedown reminder goes out on its own.",
+      },
+      {
+        q: "Can I rebook last year's customers?",
+        a: "Yes. Clients, their jobs, and their photos stay in the account between seasons. Text or email last year's list a booking link in the fall, or let Atlas draft the message for you.",
+      },
+      {
+        q: "Does it work for a crew that only runs part of the year?",
+        a: "Yes. There is no monthly bill on the core plan, so an account that sits idle from February to October costs nothing. Add extra users for the season and remove them after.",
+      },
+    ],
+  },
+  {
+    slug: "window-cleaning",
+    name: "Window cleaning",
+    noun: "a window cleaning company",
+    eyebrow: "For window cleaning companies",
+    icon: AppWindow,
+    photo: WB_TRADE_PHOTOS.windows,
+    shot: "schedule",
+    chip: { title: "Quarterly series · 4 visits", sub: "Card on file · autopay" },
+    headline: ["Window cleaning software for the route", "and the repeat customers."],
+    intro:
+      "Residential routes that repeat every quarter, storefronts that pay monthly, and a card on file so nobody chases a check. WorkBench FSM is field service management software built for window cleaners, and the core of it is free.",
+    description:
+      "Free window cleaning software: online booking, recurring visit series, route-friendly scheduling, saved cards with autopay, one-click invoicing, and review requests after each clean. The core plan is free for a small team, not a trial.",
+    steps: [
+      {
+        title: "Book once, repeat forever",
+        body: "A new customer picks a time on your booking page. Turn that first visit into a quarterly or monthly series, and every future visit lands on the calendar in the same slot.",
+      },
+      {
+        title: "Run the day in order",
+        body: "The day view shows every stop in sequence with the address and the notes (gate code, the dog, which windows are extra). Drag a stop to move it, and the client is told automatically.",
+      },
+      {
+        title: "Paid without asking",
+        body: "Storefronts and recurring homes keep a card on file. The invoice sends itself after each visit and the card is charged, or the client pays from the link if they prefer.",
+      },
+    ],
+    features: ["Online booking", "Recurring visit series", "Scheduling & dispatch", "Saved cards & autopay", "One-click invoicing", "Review requests"],
+    faq: [
+      {
+        q: "Can I set a customer up to repeat every three months?",
+        a: "Yes. Any job can become a visit series on whatever interval you choose: monthly, quarterly, twice a year. Each visit shows on the calendar and can be moved on its own without touching the rest.",
+      },
+      {
+        q: "Can commercial accounts be billed monthly?",
+        a: "Yes. A storefront can be billed per visit, on a monthly schedule, or on a saved card that charges automatically after each clean. All three run from the same job.",
+      },
+      {
+        q: "Does it help me plan a route?",
+        a: "The day view lists stops in order with addresses, and you can drag them into the sequence that makes sense. The optional Pro add-on includes Route Manager, which orders a day for you.",
+      },
+      {
+        q: "Will it ask customers for a review?",
+        a: "Yes. After a payment lands, WorkBench asks the client for a review and links to your Google listing, which is where most new window cleaning customers come from.",
+      },
+    ],
+  },
+  {
+    slug: "junk-removal",
+    name: "Junk removal",
+    noun: "a junk removal company",
+    eyebrow: "For junk removal companies",
+    icon: Truck,
+    photo: WB_TRADE_PHOTOS.junk,
+    shot: "jobs",
+    chip: { title: "Half-load quote · accepted", sub: "Paid on the spot by card" },
+    headline: ["Junk removal software for same-day jobs", "and paid-on-the-spot pickups."],
+    intro:
+      "A booking from the website for this afternoon, a quote on the spot from the photos, and a card payment before the truck pulls away. WorkBench FSM is field service management software built for haulers, and the core of it is free.",
+    description:
+      "Free junk removal software: online booking with same-day slots, on-site quotes with e-signature, photos on every job, card payments from the driveway, review requests, and a client list that brings repeat business. The core plan is free for a small team, not a trial.",
+    steps: [
+      {
+        title: "Booked while you are on another job",
+        body: "The booking page shows real open slots, including later today. The request lands on the schedule with the address, the photos the customer uploaded, and a description of the pile.",
+      },
+      {
+        title: "Quote in the driveway",
+        body: "Look at the load, pick the size from your price book, add the mattress or the fridge as line items, and they sign on your phone. The accepted quote becomes the job with no retyping.",
+      },
+      {
+        title: "Paid before the truck leaves",
+        body: "Send the invoice from the phone and the customer pays by card on the spot, or tap to pay in person. The before-and-after photos stay on the job for the dispute that never comes.",
+      },
+    ],
+    features: ["Online booking", "Quotes with e-signature", "Jobs with notes & photos", "Card & ACH built in", "Review requests", "Lead pipeline"],
+    faq: [
+      {
+        q: "Can customers book a same-day pickup?",
+        a: "Yes. The booking page shows your real availability including today's open slots, and the booking lands on the calendar with the confirmation already sent.",
+      },
+      {
+        q: "Can I quote by load size?",
+        a: "Yes. Put your load sizes in the price book, quote the one that fits, and add single-item charges as line items. Optional extras are toggles the customer switches on before signing.",
+      },
+      {
+        q: "Can I take payment on the spot?",
+        a: "Yes. Send the invoice from your phone and the customer pays from the link, or take a card in person. The job is marked paid the moment it lands.",
+      },
+      {
+        q: "What about realtors and property managers who call every month?",
+        a: "They live in your client list with every past job, photo, and invoice. A property manager with several addresses is one client with many jobs, and they can see all of it in the client portal.",
+      },
+    ],
+  },
+  {
+    slug: "painting",
+    name: "Painting",
+    noun: "a painting company",
+    eyebrow: "For painting contractors",
+    icon: PaintRoller,
+    photo: WB_TRADE_PHOTOS.painting,
+    shot: "quotes",
+    chip: { title: "Interior quote · 3 rooms", sub: "Deposit paid · starts Monday" },
+    headline: ["Painting contractor software for multi-day jobs", "and estimates that close."],
+    intro:
+      "An estimate with the trim and the ceilings as options the homeowner picks, a deposit before you buy paint, a three-day job on the calendar, and the final invoice paid when the tape comes off. WorkBench FSM is field service management software built for painters, and the core of it is free.",
+    description:
+      "Free painting contractor software: estimates with e-signature and optional add-ons, deposits before the job, multi-day scheduling, progress photos, one-click invoicing with card and ACH payments, and a client portal. The core plan is free for a small team, not a trial.",
+    steps: [
+      {
+        title: "Estimate with the options built in",
+        body: "Price the walls, then add the trim, the ceilings, and the second coat as toggles the client switches on or off. They see the total change, sign on their phone, and pay the deposit.",
+      },
+      {
+        title: "A job that runs three days",
+        body: "Schedule the job across the days it takes, with the crew on each one. Photos of the prep and the progress go on the job from the phone, so the office can answer the client without calling you.",
+      },
+      {
+        title: "Final walk-through, final invoice",
+        body: "Convert the accepted estimate to the invoice in one click, less the deposit already paid. The client pays by card or bank transfer from the link, and WorkBench asks for the review.",
+      },
+    ],
+    features: ["Quotes with e-signature", "Deposits up front", "Scheduling & dispatch", "Jobs with notes & photos", "One-click invoicing", "Client hub"],
+    faq: [
+      {
+        q: "Can an estimate offer options like trim or ceilings?",
+        a: "Yes. Optional line items are toggles the client switches on or off before they sign, so one estimate covers walls-only through the full repaint. The accepted version becomes the job.",
+      },
+      {
+        q: "Can I schedule a job that takes several days?",
+        a: "Yes. A job can span as many days as it takes, with the crew assigned per day. Move one day and the rest stay put, and the client is told about the change automatically.",
+      },
+      {
+        q: "How does the deposit come off the final invoice?",
+        a: "Automatically. When the estimate converts to the invoice, the deposit already paid is shown and subtracted, so the client sees the balance and nothing else.",
+      },
+      {
+        q: "Can the client see progress photos?",
+        a: "Photos on the job are yours by default. Share the ones you want through the client portal, where the client also sees the estimate, the invoice, and the payments.",
+      },
+    ],
+  },
+  {
+    slug: "landscaping",
+    name: "Landscaping",
+    noun: "a landscaping company",
+    eyebrow: "For landscaping companies",
+    icon: Shovel,
+    photo: WB_TRADE_PHOTOS.landscaping,
+    shot: "schedule",
+    chip: { title: "Crew of 3 · clocked in", sub: "Paver patio · day 2 of 4" },
+    headline: ["Landscaping software for installs, maintenance,", "and the crew that does both."],
+    intro:
+      "A paver patio quoted with options and a deposit, a weekly maintenance route that bills itself, and a crew clocking in from the truck so you know what each job really cost. WorkBench FSM is field service management software built for landscapers, and the core of it is free.",
+    description:
+      "Free landscaping business software: quotes with e-signature and deposits for installs, recurring maintenance series with autopay, crew scheduling, clock-in with timesheets, job profitability, and a client portal. The core plan is free for a small team, not a trial.",
+    steps: [
+      {
+        title: "Installs quoted with options",
+        body: "Price the patio from your price book, add the lighting and the planting as toggles the client picks, and they sign on their phone. The deposit lands before the materials are ordered.",
+      },
+      {
+        title: "Maintenance that runs itself",
+        body: "Set a weekly or biweekly series per property and every visit lands on the calendar. The client keeps a card on file, the invoice goes out after each visit, and the card is charged.",
+      },
+      {
+        title: "Know what the job cost",
+        body: "The crew clocks in on the job from the phone. Hours and materials roll up against the quote, so you can see which installs make money and which maintenance accounts need a price change.",
+      },
+    ],
+    features: ["Quotes with e-signature", "Deposits up front", "Recurring visit series", "Time tracking & timesheets", "Job profitability", "Saved cards & autopay"],
+    faq: [
+      {
+        q: "Can I run maintenance and installs in the same account?",
+        a: "Yes. A maintenance account is a visit series that repeats on its own schedule; an install is a one-off job with a quote, a deposit, and as many days as it needs. Both share the client, the crew, and the calendar.",
+      },
+      {
+        q: "Can the crew clock in without the office?",
+        a: "Yes. Each person clocks in and out on the job from the phone app. Hours show on the timesheet and against the job, and the team map shows who is where.",
+      },
+      {
+        q: "Can I see whether a job made money?",
+        a: "Yes. Every job shows labor hours and materials against the quoted price, so the margin on each install and each maintenance route is visible without a spreadsheet.",
+      },
+      {
+        q: "Can clients be charged automatically after each visit?",
+        a: "Yes. A client can keep a card on file, and the invoice for each visit in a series charges it automatically. The client gets the receipt, and you get the deposit without the follow-up call.",
+      },
+    ],
+  },
+  {
+    slug: "snow-removal",
+    name: "Snow removal",
+    noun: "a snow removal company",
+    eyebrow: "For snow removal companies",
+    icon: Snowflake,
+    photo: WB_TRADE_PHOTOS.snow,
+    shot: "clients",
+    chip: { title: "Seasonal contract signed", sub: "Per-push billing · card on file" },
+    headline: ["Snow removal software for 4 a.m. dispatch", "and contracts that bill themselves."],
+    intro:
+      "Seasonal contracts signed in October, a route the crew sees on their phones before dawn, a text to every client when their driveway is done, and per-push or seasonal billing that runs on the card on file. WorkBench FSM is field service management software built for snow contractors, and the core of it is free.",
+    description:
+      "Free snow removal software: seasonal agreements with e-signature, per-push or flat seasonal billing with autopay, early-morning dispatch, automatic client notifications, and a property list with the notes the plow driver needs. The core plan is free for a small team, not a trial.",
+    steps: [
+      {
+        title: "Contracts signed before the first flake",
+        body: "Send the seasonal agreement in the fall with the price, the trigger depth, and the terms. The client signs on their phone and puts a card on file, so the season is set before it starts.",
+      },
+      {
+        title: "Dispatch from bed",
+        body: "When the snow comes, put the route on the calendar and every driver sees their stops, in order, with the gate codes and the where-to-pile notes. Move a stop and the driver sees it instantly.",
+      },
+      {
+        title: "Bill per push or per season",
+        body: "Per-push accounts are invoiced after each visit and charged to the card on file. Seasonal accounts are billed on the schedule in the contract. Clients get a text when their property is cleared.",
+      },
+    ],
+    features: ["Agreements & contracts", "Recurring billing, three ways", "Saved cards & autopay", "Scheduling & dispatch", "Automatic notifications", "Team map"],
+    faq: [
+      {
+        q: "Can I bill some clients per push and others per season?",
+        a: "Yes. Billing is set per client: per visit, on a fixed schedule, or charged automatically to a saved card. A seasonal contract and a per-push neighbor can be on the same route.",
+      },
+      {
+        q: "Do clients get told when their driveway is cleared?",
+        a: "Yes. Marking the stop done sends the client a text or email automatically, so the phone stops ringing at 5 a.m.",
+      },
+      {
+        q: "Can I keep the plow notes for each property?",
+        a: "Yes. Every property has notes and photos the driver sees on the stop: where to pile the snow, the drainage grate to avoid, the gate code. They carry over to every storm.",
+      },
+      {
+        q: "What does the account cost in the summer?",
+        a: "Nothing on the core plan. There is no monthly bill, so a snow-only company pays nothing between seasons and keeps every client and contract for the next one.",
       },
     ],
   },

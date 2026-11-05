@@ -8,7 +8,7 @@ import { WB_PHONE } from "@/lib/wb-site";
  */
 export default function WBCta({
   title = "Ready to get started?",
-  body = "Tell us about your business and your account opens today. A person reviews every application and onboards your company personally.",
+  body = "Tell us about your business and your account opens today. Bring your client list, set your prices, and send the first quote this afternoon.",
   secondary = { label: "How the pricing works", href: "/pricing" },
 }: {
   title?: React.ReactNode;

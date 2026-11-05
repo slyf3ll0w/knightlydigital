@@ -5,6 +5,9 @@ import { APP_STORE_URL, WB_EMAIL, WB_EMAIL_HREF, WB_FACEBOOK_URL, WB_PHONE } fro
 import { INCLUDED_SEATS } from "@/lib/plans";
 import { FREE_PAGE_PATH } from "@/lib/wb-free";
 import { TRADES } from "@/lib/wb-trades";
+import { ALTERNATIVES, ALTERNATIVES_PATH } from "@/lib/wb-alternatives";
+import { FREE_PAGES } from "@/lib/wb-free-pages";
+import { TOOLS, TOOLS_PATH, toolPath } from "@/lib/wb-tools";
 
 const columns: {
   heading: string;
@@ -17,8 +20,13 @@ const columns: {
       { label: "Features", href: "/features" },
       { label: "Pricing", href: "/pricing" },
       { label: "The free plan", href: FREE_PAGE_PATH },
+      ...FREE_PAGES.map((p) => ({ label: p.eyebrow, href: p.path })),
       { label: "iPhone app", href: APP_STORE_URL, external: true },
     ],
+  },
+  {
+    heading: "Free tools",
+    links: [...TOOLS.map((t) => ({ label: `${t.noun[0].toUpperCase()}${t.noun.slice(1)} generator`, href: toolPath(t) })), { label: "Templates by trade", href: TOOLS_PATH }],
   },
   {
     heading: "For your trade",
@@ -41,6 +49,7 @@ const columns: {
       { label: "vs. Jobber", href: "/vs/jobber" },
       { label: "vs. Housecall Pro", href: "/vs/housecall-pro" },
       { label: "vs. ServiceTitan", href: "/vs/servicetitan" },
+      ...ALTERNATIVES.map((a) => ({ label: `${a.name} alternative`, href: `${ALTERNATIVES_PATH}/${a.slug}` })),
     ],
   },
   {
