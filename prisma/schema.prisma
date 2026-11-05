@@ -118,6 +118,7 @@ model Company {
   // lib/payments-gate.ts paymentsSetupRequired.
   paymentsRequiredAt        DateTime?
   giftCardSales             GiftCardSale[]
+  toolDrafts                ToolDraft[]
   // Payment verification is mandatory: new companies are held at /app/activate
   // until Finix underwriting approves them. This flag exempts a company from
   // that gate (test accounts, comped users) — flipped only from the superadmin
@@ -4072,6 +4073,7 @@ model ToolDraft {
   logoMime  String?
   ip        String?
   companyId String?
+  company   Company?      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   claimedAt DateTime?
   invoiceId String?
   quoteId   String?
