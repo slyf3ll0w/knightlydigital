@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Download, ImagePlus, Loader2, Plus, Trash2, X } from "lucide-react";
-import DocPreview from "@/components/tools/DocPreview";
+import DocPreview from "@/components/wb/tools/DocPreview";
 import { trackSiteEvent } from "@/lib/site-track";
 import {
   DEFAULT_ACCENT,

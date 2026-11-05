@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import ToolPage from "@/components/tools/ToolPage";
+import ToolPage from "@/components/wb/tools/ToolPage";
 import { TRADES, tradeBySlug } from "@/lib/wb-trades";
 import { TOOLS, templatePath, toolByTemplateSlug } from "@/lib/wb-tools";
 

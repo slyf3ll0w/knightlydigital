@@ -3,7 +3,7 @@ import { TRADES, type Trade } from "@/lib/wb-trades";
 
 /**
  * The free tools on the marketing site (/tools): one generator engine
- * (components/tools/DocGenerator.tsx), two documents, and a template page
+ * (components/wb/tools/DocGenerator.tsx), two documents, and a template page
  * per trade that opens the generator pre-filled with that trade's usual
  * line items. The sample prices here are illustrative starting points a
  * visitor edits — not WorkBench prices (scripts/test-wb-site.ts scans for

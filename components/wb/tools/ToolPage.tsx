@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
-import DocGenerator from "@/components/tools/DocGenerator";
+import DocGenerator from "@/components/wb/tools/DocGenerator";
 import WBCta from "@/components/wb/WBCta";
 import WBFaq from "@/components/wb/WBFaq";
 import WBFaqJsonLd from "@/components/wb/WBFaqJsonLd";

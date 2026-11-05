@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import ToolPage from "@/components/tools/ToolPage";
+import ToolPage from "@/components/wb/tools/ToolPage";
 import { TOOLS, toolBySlug, toolPath } from "@/lib/wb-tools";
 
 /** /tools/invoice-generator and /tools/estimate-generator. */
