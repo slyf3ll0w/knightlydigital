@@ -159,11 +159,15 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
         const failed =
           s.invoices.failed +
           s.payments.failed +
+          (s.refunds?.failed ?? 0) +
           (s.quotes?.failed ?? 0) +
           (s.expenses?.failed ?? 0);
         const parts = [
           `${s.invoices.pushed} invoice${s.invoices.pushed === 1 ? "" : "s"}`,
           `${s.payments.pushed} payment${s.payments.pushed === 1 ? "" : "s"}`,
+          ...((s.refunds?.pushed ?? 0) > 0
+            ? [`${s.refunds.pushed} refund${s.refunds.pushed === 1 ? "" : "s"}`]
+            : []),
           `${s.quotes?.pushed ?? 0} quote${(s.quotes?.pushed ?? 0) === 1 ? "" : "s"}`,
           `${s.expenses?.pushed ?? 0} expense${(s.expenses?.pushed ?? 0) === 1 ? "" : "s"}`,
         ];
@@ -273,10 +277,13 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
               <li>Clients become QuickBooks customers (matched by name, no duplicates)</li>
               <li>Sent and paid invoices appear with their line items, discounts, and tax</li>
               <li>Payments are applied against the right invoice automatically</li>
+              <li>Refunds become refund receipts; deleted or archived invoices come off the books</li>
             </ul>
             <p className="text-xs text-gray-500 mt-2">
               Invoice lines bill against a single &ldquo;WorkBench Services&rdquo; item in your
-              books — ask your accountant if they want it mapped differently.
+              books — ask your accountant if they want it mapped differently. To keep the same
+              invoice numbers in QuickBooks, turn on <strong>Custom transaction numbers</strong>{" "}
+              there under Settings → Sales.
             </p>
           </div>
           <button
@@ -357,8 +364,8 @@ export default function QuickBooksSettingsClient({ configured }: { configured: b
             {syncMessage && <p className="text-sm text-[color:var(--ds-good)]">{syncMessage}</p>}
             {syncError && <p className="text-sm text-[color:var(--ds-bad)]">{syncError}</p>}
             <p className="text-xs text-gray-500">
-              New payments push to QuickBooks as they&apos;re recorded, and everything else sweeps
-              in nightly — Sync now just does it immediately.
+              Invoices, payments and refunds push to QuickBooks as they happen, and everything
+              else sweeps in within the hour — Sync now just does it immediately.
             </p>
           </div>
 

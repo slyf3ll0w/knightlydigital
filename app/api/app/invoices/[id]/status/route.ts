@@ -6,6 +6,7 @@ import { invoiceBalance } from "@/lib/payments";
 import { logActivity } from "@/lib/activity";
 import { dueDateFromTerms } from "@/lib/due-dates";
 import { fireAutomations } from "@/lib/automations-server";
+import { queueQuickBooksInvoiceSync } from "@/lib/quickbooks";
 
 export async function PATCH(
   req: NextRequest,
@@ -77,6 +78,9 @@ export async function PATCH(
           : { paidAt: null }),
     },
   });
+  // Marked sent → QuickBooks gets the invoice now; archived → voided there;
+  // reopened → restored. Never blocks the status change.
+  queueQuickBooksInvoiceSync({ companyId, invoiceId: id });
   if (status !== "PAID" && status !== "ARCHIVED") {
     // Un-paying clears everyone's seen-it rows so a genuine re-payment
     // celebrates again for the whole team

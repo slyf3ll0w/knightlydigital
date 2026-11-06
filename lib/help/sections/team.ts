@@ -265,15 +265,17 @@ export const reportsSection: HelpSection = {
           items: [
             "Go to **Settings → Payments & accounting → QuickBooks Online**.",
             "Press `Connect to QuickBooks` and sign in to your QuickBooks company. On your phone the sign-in opens in your browser; when it says **QuickBooks connected**, close it and come back to the app.",
-            "That's it. WorkBench syncs every night, and you can press `Sync now` any time.",
+            "That's it. Invoices, payments and refunds go over as they happen, everything else within the hour, and you can press `Sync now` any time.",
           ],
         },
         {
           type: "list",
           items: [
-            "Sync is **one way**, from WorkBench to QuickBooks: clients (matched by name), sent and paid invoices, payments, and expenses.",
-            "Invoice lines post to one item called **WorkBench Services**.",
-            "Refunds, deletions and returned bank payments update QuickBooks too.",
+            "Sync is **one way**, from WorkBench to QuickBooks: clients (matched by name), sent and paid invoices, payments, refunds, quotes and expenses.",
+            "Invoice lines post to one item called **WorkBench Services**; card surcharges post to **Card Processing Surcharges**.",
+            "A refund becomes a **Refund receipt** in QuickBooks. The payment keeps its full amount, so the deposit and the refund each match a line on your bank feed.",
+            "Deleting an invoice or payment removes it from QuickBooks. Archiving an unpaid invoice **voids** it there (the number stays, the amounts go to zero); reopening it puts the amounts back. A returned bank payment comes off too.",
+            "Want the same invoice numbers in QuickBooks? Turn on **Custom transaction numbers** there, under Settings → Sales. Otherwise QuickBooks numbers them itself.",
           ],
         },
         {

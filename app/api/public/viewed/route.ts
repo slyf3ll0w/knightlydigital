@@ -9,6 +9,7 @@ import { autoSendQuoteAgreements } from "@/lib/agreements";
 import { autoAdvance } from "@/lib/pipeline";
 import { logActivity } from "@/lib/activity";
 import { dueDateFromTerms } from "@/lib/due-dates";
+import { queueQuickBooksInvoiceSync } from "@/lib/quickbooks";
 
 /**
  * POST — view beacon for the public client pages (/quote, /pay, /contract,
@@ -168,6 +169,7 @@ export async function POST(req: NextRequest) {
         becameSent = claim.count > 0;
         if (becameSent) {
           fireAutomations(invoice.companyId, "invoice.sent", invoice.id);
+          queueQuickBooksInvoiceSync({ companyId: invoice.companyId, invoiceId: invoice.id });
           logActivity({
             companyId: invoice.companyId,
             entityType: "invoice",

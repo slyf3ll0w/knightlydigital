@@ -14,6 +14,7 @@ import { reportError } from "@/lib/report-error";
 import type { SendChannels } from "@/lib/send-channels";
 import { parseDue } from "@/lib/tasks";
 import { quoteExpired } from "@/lib/quote-expiry";
+import { queueQuickBooksInvoiceSync } from "@/lib/quickbooks";
 
 /**
  * The one way a quote or an invoice goes out to a client — used by the Send
@@ -294,6 +295,8 @@ export async function sendInvoice(opts: {
     ...(dueDate ? { dueDate } : {}),
   };
   await prisma.invoice.update({ where: { id: invoice.id }, data: { ...patch, ...CLEAR } });
+  // Sent = real to the bookkeeper too: QuickBooks gets it now (no-op unless connected).
+  queueQuickBooksInvoiceSync({ companyId: invoice.companyId, invoiceId: invoice.id });
   // First send only (a re-send of an issued invoice is a reminder, not a send)
   if (invoice.status === "DRAFT") fireAutomations(invoice.companyId, "invoice.sent", invoice.id);
   // The report went with the email: the job page shows it as sent.
