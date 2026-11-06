@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { stickAfterScroll, usePinOnMediaLoad } from "@/lib/chat-pin";
 import Link from "next/link";
 import { ArrowLeft, ImagePlus, Loader2, Phone, RotateCcw, SendHorizonal } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
@@ -152,6 +153,7 @@ export default function TeamThread({
   const [composerRef, composerH] = useMeasuredHeight();
   usePublishComposerHeight(composerH);
   const stickToBottomRef = useRef(true);
+  const lastScrollTopRef = useRef(0);
   // First pin jumps; later arrivals glide (iMessage)
   const instantPinRef = useRef(true);
   // Ids already on screen — only messages that arrive later spring in
@@ -206,6 +208,8 @@ export default function TeamThread({
       if (el) el.scrollTop = el.scrollHeight;
     });
   }, []);
+  // Photos load after the pin and push the newest bubbles down: follow them.
+  usePinOnMediaLoad(scrollRef, pinToBottom);
 
   // Track the visual viewport on phones: when the keyboard takes space,
   // shrink the conversation to what's actually visible and re-pin.
@@ -284,7 +288,8 @@ export default function TeamThread({
   function onScroll() {
     const el = scrollRef.current;
     if (!el) return;
-    stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    stickToBottomRef.current = stickAfterScroll(el, lastScrollTopRef.current, stickToBottomRef.current);
+    lastScrollTopRef.current = el.scrollTop;
   }
 
   // Typing heartbeat, only where someone is listening (the website widget).

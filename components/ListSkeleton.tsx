@@ -9,7 +9,7 @@ import LoadingMoment from "@/components/LoadingMoment";
  * sidebar card on desktop, one column on phones) and `PagePlaceholder` (the
  * neutral fallback for everything else — title + three card blocks). All
  * colour themselves from the kit tokens so they are dark-safe. Each floats
- * the LoadingMoment pill (a different line and tool every time) beside the
+ * the LoadingMoment bar (a thin brand-color line across the top) beside the
  * pulsing skeleton, as a sibling so the pulse never dims the pill.
  */
 

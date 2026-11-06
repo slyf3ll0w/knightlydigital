@@ -39,11 +39,11 @@ good/warn/bad status colors, explanations in an InfoTip (never subtext),
 phones get their own simpler tree. First page on it: the dashboard
 (2026-09-25, staging, awaiting David's review).
 
-Mobile feel (2026-11-04): every `loading.tsx` floats `components/LoadingMoment`
-(a random tool icon + one-liner from `lib/loading-moments.ts`, styles in
-`app/moment.css`) beside its pulsing skeleton, as a sibling in a fragment so
-the pulse never dims it; new lines go in that list, short and in a tech's
-voice. The three typefaces are self-hosted with `next/font/local`
+Mobile feel (2026-11-04): every `loading.tsx` renders `components/LoadingMoment`
+beside its pulsing skeleton — since 2026-11-06 (ticket #2lyand, David picked
+it over the old icon + one-liner pill) a CSS-only 3 px bar in the company
+primary across the top (`app/moment.css`, hidden for the first 150 ms so fast
+pages never flash it). The three typefaces are self-hosted with `next/font/local`
 (`lib/fonts.ts`, `app/fonts/*.woff2`); CSS uses `var(--font-lexend)` /
 `var(--font-inter)` / `var(--font-nunito)` with the literal names as
 fallbacks. Never re-add the Google Fonts `<link>` to `app/layout.tsx`. The

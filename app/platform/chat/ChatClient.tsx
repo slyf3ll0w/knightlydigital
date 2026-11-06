@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { stickAfterScroll, usePinOnMediaLoad } from "@/lib/chat-pin";
 import {
   ArrowLeft,
   Check,
@@ -214,6 +215,7 @@ export default function ChatClient({
   const [composerRef, composerH] = useMeasuredHeight();
   usePublishComposerHeight(composerH);
   const stickToBottomRef = useRef(true);
+  const lastScrollTopRef = useRef(0);
   // First pin after opening a thread jumps; later arrivals glide (iMessage)
   const instantPinRef = useRef(true);
   // Last-seen messages per channel — threads open instantly from cache while
@@ -323,6 +325,8 @@ export default function ChatClient({
       });
     }
   }, []);
+  // Photos load after the pin and push the newest bubbles down: follow them.
+  usePinOnMediaLoad(scrollRef, pinToBottom);
 
   // Track the visual viewport while a conversation is open: when the keyboard
   // takes space, shrink the overlay to what's actually visible and re-pin the
@@ -351,7 +355,8 @@ export default function ChatClient({
   function onScroll() {
     const el = scrollRef.current;
     if (!el) return;
-    stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    stickToBottomRef.current = stickAfterScroll(el, lastScrollTopRef.current, stickToBottomRef.current);
+    lastScrollTopRef.current = el.scrollTop;
   }
 
   function pingTyping() {
