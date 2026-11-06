@@ -322,13 +322,13 @@ export const startSection: HelpSection = {
     {
       slug: "free-invoice-estimate-tools",
       title: "The free invoice and estimate generators",
-      summary: "Make an invoice or estimate PDF on workbenchfsm.com/tools with no account, and bring it into a new WorkBench account with one click.",
-      keywords: ["free invoice generator", "free estimate generator", "invoice template", "estimate template", "invoice maker", "quote generator", "pdf", "tools", "free tools", "get paid online", "draft", "invoice came with me", "sign up with an invoice", "logo", "template by trade"],
+      summary: "Make an invoice or estimate at workbenchfsm.com/tools with no account, download or email it, and bring it into WorkBench with one click.",
+      keywords: ["free invoice generator", "free estimate generator", "invoice template", "estimate template", "invoice maker", "quote generator", "pdf", "tools", "free tools", "get paid online", "draft", "invoice came with me", "sign up with an invoice", "logo", "template by trade", "email it", "email the invoice", "send the invoice", "viewed", "verification code", "report it"],
       roles: "Anyone — no account needed",
       blocks: [
         {
           type: "p",
-          text: "The **free tools** on the WorkBench website make a professional invoice or estimate in your browser and download it as a PDF. There is no account to open, no email address to hand over and no watermark, and you can make as many as you like. The PDF is rendered by the same engine that prints real WorkBench invoices and quotes, so it looks exactly like one. Every trade has a template page with its usual line items already filled in (open **Templates by trade** on the tools page); the prices on those are starting points for you to edit, not ours.",
+          text: "The **free tools** on the WorkBench website make a professional invoice or estimate in your browser. Download it as a PDF, or email it to the client straight from the page and see when they open it. There is no account to open and no watermark, and you can make as many PDFs as you like. The PDF is rendered by the same engine that prints real WorkBench invoices and quotes, so it looks exactly like one. Every trade has a template page with its usual line items already filled in (open **Templates by trade** on the tools page); the prices on those are starting points for you to edit, not ours.",
         },
         {
           type: "steps",
@@ -339,12 +339,38 @@ export const startSection: HelpSection = {
             "**Details**: the document number, the date, and the due date (invoice) or the valid-through date (estimate).",
             "**Line items**: what you did, quantity and price, with an optional description under each. On an estimate, tick **Optional for the client** on anything they can leave off.",
             "**Tax, discount and message**: sales tax as a percent, a discount as a percent or an amount, a deposit on an estimate, and the note printed at the bottom.",
-            "Press `Download PDF`. The preview on the right is what you get.",
+            "Press `Download PDF`. The preview on the right is what you get. Or press `Email it` to send it to the client from the page — see below.",
           ],
         },
         {
           type: "tip",
-          text: "The page saves what you type in that browser, so a refresh or a closed tab doesn't lose it. `Start over` clears it. Nothing is stored on our side unless you choose to open an account with it.",
+          text: "The page saves what you type in that browser, so a refresh or a closed tab doesn't lose it. `Start over` clears it. Nothing is stored on our side unless you email the document or open an account with it.",
+        },
+        { type: "h", text: "Emailing it to the client" },
+        {
+          type: "p",
+          text: "`Email it` sends the document to your client from the page, with a **View** button that opens it in their browser and a PDF link under it. The email comes from **your business name via WorkBench**, and when the client replies, the reply lands in your inbox. The first time, the page checks that the email address is really yours — we send a six-digit code, you type it in, and that browser remembers you for a month.",
+        },
+        {
+          type: "steps",
+          items: [
+            "Fill in the document (your business name and one priced line are the minimum) and press `Email it`.",
+            "**Your email**: the address the client will reply to. Press `Send me a code`, open the code email, and type the six digits. You do this once per browser, not per invoice.",
+            "**To**: the client's address (filled in from **Bill to** when you typed one there). `Add another address` sends it to a second person; **Send a copy to me** puts you on the email too.",
+            "Press `Send the invoice`. The page confirms who it went to, and **See what they see** opens the client's copy.",
+          ],
+        },
+        {
+          type: "p",
+          text: "Under the buttons, **Emailed from here** lists every document you sent from that browser with a **Viewed** stamp once the client opens it (and **Not opened yet** until then). The client's copy stays online for 60 days; the PDF is always on it.",
+        },
+        {
+          type: "list",
+          items: [
+            "The free tool sends up to **five documents a day**, to up to **two addresses** each. The email itself is a fixed letter — your name, the total, the View button — so the only thing you write is the document.",
+            "Every client copy carries a small **Report it** link. A client who says they never asked for the document stops that email address from sending through the free tool, so send only to people who expect it.",
+            "A WorkBench account has no sending limit, and its emails carry a **Pay** button and automatic reminders — that is what `Get paid online` sets up, with the document and the client already in the account.",
+          ],
         },
         { type: "h", text: "Bringing it into WorkBench" },
         {
@@ -375,8 +401,20 @@ export const startSection: HelpSection = {
               a: "Use a PNG or JPG. Large files are shrunk automatically, but a very large or unusual format is refused — export it from your design tool at around 600 pixels wide.",
             },
             {
+              q: "Why do I have to enter a code before I can email it?",
+              a: "The email goes out under your business name with replies to your address, so the page makes sure the address is yours first. It is one code per browser, good for a month — not one per invoice. If the code hasn't arrived in a minute, check spam, then press `Use a different email` and try again; a code expires after ten minutes.",
+            },
+            {
+              q: "The client says the email never came.",
+              a: "Ask them to check spam for an email from your business name via WorkBench, and check **Emailed from here** on the tool page: if the row says **Viewed**, someone opened it. Open **See what they see** and send the client that link directly, or download the PDF and attach it yourself.",
+            },
+            {
+              q: "I've sent today's five. Now what?",
+              a: "Download the PDF and send it from your own email, or press `Get paid online`: a free WorkBench account sends as many as you like, each with a pay link and reminders, and this document comes with you.",
+            },
+            {
               q: "Can clients pay the PDF?",
-              a: "Not from the PDF itself — it's a document. Paying by card or bank transfer from a link needs the invoice in a WorkBench account with Square connected, which is what `Get paid online` sets up.",
+              a: "Not from the PDF, and not from the emailed copy either — both are documents with no payment button. Paying by card or bank transfer from a link needs the invoice in a WorkBench account with Square connected, which is what `Get paid online` sets up.",
             },
           ],
         },

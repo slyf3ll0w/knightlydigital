@@ -63,6 +63,8 @@ async function main() {
   assert.deepEqual(toolsFrom(), { address: "invoices@tools.workbenchfsm.com", display: "WorkBench Tools" });
   process.env.TOOLS_EMAIL_FROM = "invoices@tools.workbenchfsm.com";
   assert.deepEqual(toolsFrom(), { address: "invoices@tools.workbenchfsm.com", display: "WorkBench" }, "a bare address gets the default display name");
+  process.env.TOOLS_EMAIL_FROM = '"WorkBench <invoices@tools.workbenchfsm.com>"';
+  assert.deepEqual(toolsFrom(), { address: "invoices@tools.workbenchfsm.com", display: "WorkBench" }, "a value pasted with its quotes on still parses");
   process.env.TOOLS_EMAIL_FROM = "not-an-address";
   assert.equal(toolsFrom(), null, "a malformed From is refused");
 
