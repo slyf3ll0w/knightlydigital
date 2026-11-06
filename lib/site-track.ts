@@ -19,7 +19,7 @@ export type SiteAttribution = {
   utmTerm?: string;
 };
 
-export type SiteEventName = "cta_click" | "signup" | "apply_submit" | "tool_pdf" | "tool_draft" | "tool_open";
+export type SiteEventName = "cta_click" | "signup" | "apply_submit" | "tool_pdf" | "tool_draft" | "tool_open" | "tool_email";
 
 const ATTR_KEY = "wb_attr";
 const VISITOR_KEY = "wb_vid";

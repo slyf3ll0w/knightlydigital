@@ -1318,7 +1318,39 @@ CLOUDFLARE_WEB_ANALYTICS_SITE_TAG= # optional; otherwise matched from the beacon
 # Search: Google Search Console (lib/search-console.ts, lib/search-index.ts) — a service account added as a user on the property.
 GSC_SERVICE_ACCOUNT_JSON=      # the key file, JSON or base64
 GSC_SITE_URL=                  # default sc-domain:workbenchfsm.com
+# Free tools (/tools) — "Email it" on the invoice / estimate generator (lib/tool-send.ts).
+# Dark until set. Its OWN Resend-verified subdomain, so a spam wave there can never
+# touch tenant mail: verify tools.workbenchfsm.com in Resend, publish its DNS, then
+TOOLS_EMAIL_FROM=              # e.g. "WorkBench <invoices@tools.workbenchfsm.com>"
 ```
+
+## Free tools: emailing a document (2026-11-05, lib/tool-send.ts)
+
+The free generator (/tools/*) can email the invoice or estimate to the
+client, with no account. Design, in order of what holds the spam risk in:
+the sender verifies their address first (`POST /api/public/tools/email/start`
+sends a 6-digit code, `…/verify` checks it and sets the signed 30-day
+`wb_tool_sender` cookie; `ToolSender`), every send is capped
+(`SENDS_PER_DAY` 5 per sender, `RECIPIENTS_PER_SEND` 2, a per-recipient
+throttle across all senders, Turnstile action `tools` on the code and on
+the send), the copy is a fixed template (`toolDocumentEmail`: the only
+free text is the document itself), it goes out from `TOOLS_EMAIL_FROM`
+(its own subdomain) as "<business> via WorkBench" with reply-to the sender,
+and the hosted page's **Report it** (`/t/<token>/report`, a button, never
+the GET) blocks the sender and emails the operator. Each send is a
+`ToolSend`: the document JSON + logo bytes, the recipients, and the hosted
+copy at `/t/<token>` (rendered from the JSON by `DocPreview`; PDF at
+`/t/<token>/pdf`, logo at `/t/<token>/logo`; noindex, robots disallows
+`/t/`, pinned light). `SentViewBeacon` stamps `viewedAt` after the tab is
+visible for a moment (the sender's own cookie never counts), and the
+sender's tool page lists their sends with the Viewed stamp plus the one
+pitch that is theirs alone (a Pay online button needs a free account — the
+client's page sells nothing, David 2026-11-05). After the first send the
+sender becomes a `ConsoleLead` (source `free_tool`) on /superadmin/leads;
+signing up from that browser links the company and wins the card
+(`linkSenderToCompany`, apply API) and pre-fills the apply form's email.
+Sends expire after `SENT_TTL_DAYS` 60 (cron step `toolSends`). Unit:
+`npx tsx scripts/test-tool-send.ts`. Traffic page counts `tool_email`.
 
 - **Atlas conversation reports** (2026-10-23): the flag at the top of the
   Atlas chat / "Report a problem" on the voice screen → `POST

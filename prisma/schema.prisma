@@ -119,6 +119,7 @@ model Company {
   paymentsRequiredAt        DateTime?
   giftCardSales             GiftCardSale[]
   toolDrafts                ToolDraft[]
+  toolSenders               ToolSender[]
   // Payment verification is mandatory: new companies are held at /app/activate
   // until Finix underwriting approves them. This flag exempts a company from
   // that gate (test accounts, comped users) — flipped only from the superadmin
@@ -242,10 +243,10 @@ model Company {
   // company PAYS for through WorkBench's own Square account, derived from its
   // the company's paid recurring series in the WorkBench account (lib/plan-billing.ts; Max writes all three). hasPlan() reads it
   // next to planGrants; never edit it by hand — syncCompanyEntitlements does.
-  paidPlans                 String[]    @default([])
+  paidPlans                 String[]          @default([])
   // Extra people paid for a month at a time: the count of ACTIVE SEAT
   // subscriptions. Core's limit is INCLUDED_SEATS + paidSeats (lib/plans.ts seatLimit).
-  paidSeats                 Int         @default(0)
+  paidSeats                 Int               @default(0)
   // The one-time Voice setup fee (DISPATCH_SETUP_CENTS), charged with the
   // first Voice / Max subscription; null = not charged yet (grants never pay it).
   dispatchSetupPaidAt       DateTime?
@@ -253,8 +254,8 @@ model Company {
   // plans are recurring series on that contact, billed like any client's
   // (lib/plan-billing.ts ensureBillingContact — found by the owner's email /
   // phone at sign-up, else made).
-  billingContactId          String?     @unique
-  billingContact            Contact?    @relation("CompanyBillingContact", fields: [billingContactId], references: [id], onDelete: SetNull)
+  billingContactId          String?           @unique
+  billingContact            Contact?          @relation("CompanyBillingContact", fields: [billingContactId], references: [id], onDelete: SetNull)
   // ── Business line (lib/business-line.ts) — the tenant's own local number,
   // bought through Telnyx, carrying their automated texts AND a forwarded
   // business phone line. Texts send from it only once MessagingRegistration
@@ -502,92 +503,92 @@ model AccountIdentity {
 }
 
 model User {
-  id                 String    @id @default(cuid())
-  email              String
-  name               String
+  id                     String    @id @default(cuid())
+  email                  String
+  name                   String
   // Legacy (pre-Account) login hash — Account.passwordHash is authoritative.
   // Kept nullable so old rows keep signing in until the backfill/first-login
   // lazily creates their Account (lib/account.ts).
-  passwordHash       String?
-  role               Role      @default(TECH)
-  companyId          String?
-  company            Company?  @relation(fields: [companyId], references: [id])
-  accountId          String?
-  account            Account?  @relation(fields: [accountId], references: [id])
-  phone              String?
-  isActive           Boolean   @default(true)
+  passwordHash           String?
+  role                   Role      @default(TECH)
+  companyId              String?
+  company                Company?  @relation(fields: [companyId], references: [id])
+  accountId              String?
+  account                Account?  @relation(fields: [accountId], references: [id])
+  phone                  String?
+  isActive               Boolean   @default(true)
   // Accepts online-booking slots: this user's free time feeds the public slot
   // picker and tentative appointments land on them. Off by default — owners
   // opt team members in from the Team page.
-  bookable           Boolean   @default(false)
+  bookable               Boolean   @default(false)
   // Per-member weekly working hours (same JSON shape as Company.businessHours);
   // null = works the company's business hours. Feeds Find a Time, online
   // booking availability, and the route optimizer's default day start.
-  workingHours       Json?
+  workingHours           Json?
   // Appointment purposes / job titles this person typed, newest first:
   // { appointment: string[], job: string[] } (lib/recent-titles.ts)
-  recentTitles       Json?
+  recentTitles           Json?
   // Atlas's voice + accent as this person likes it (lib/atlas-voices.ts),
   // so the pick follows them between devices; null = the company default.
-  atlasVoice         String?
-  atlasAccent        String?
+  atlasVoice             String?
+  atlasAccent            String?
   // Online scheduling extras (Team page): a personal video-meeting room
   // pasted into video-call confirmations, and where this member starts the
   // day (geocoded like Company.address) so the first drive of the day is
   // measured from home instead of the shop. All null = shop pin.
-  meetingLink        String?
-  startAddress       String?
-  startLat           Float?
-  startLng           Float?
-  startGeocodedAt    DateTime?
+  meetingLink            String?
+  startAddress           String?
+  startLat               Float?
+  startLng               Float?
+  startGeocodedAt        DateTime?
   // Where the day ends (the return leg Optimize costs): the shop, back where
   // it started (startAddress, else the shop), or wherever the last stop is.
-  dayEndsAt          DayEnd    @default(SHOP)
+  dayEndsAt              DayEnd    @default(SHOP)
   // Profile picture (small client-resized square; same bytes-in-DB pattern
   // as Company.logoData — move to R2 with job photos when volume grows)
-  avatarData         Bytes?
-  avatarMime         String?
-  avatarUpdatedAt    DateTime?
+  avatarData             Bytes?
+  avatarMime             String?
+  avatarUpdatedAt        DateTime?
   // First-visit guided tour; null = hasn't seen it (fires on next dashboard visit)
-  tourCompletedAt    DateTime?
+  tourCompletedAt        DateTime?
   // Plain-text signature appended to client email messages (Settings → My
   // Profile); null = auto-generated from name + company details at send time
-  emailSignature     String?   @db.Text
+  emailSignature         String?   @db.Text
   // Team chat: last time this user opened the chat (drives the unread badge)
-  chatLastSeenAt     DateTime?
+  chatLastSeenAt         DateTime?
   // Internal labor cost per hour — feeds job labor costing from time entries.
   // Never shown to techs (pricing gate); null = don't cost this user's time.
-  hourlyCost         Decimal?  @db.Decimal(10, 2)
+  hourlyCost             Decimal?  @db.Decimal(10, 2)
   // Softphone (lib/softphone.ts): business-line calls ring in the browser
   // while this person is signed in on a computer. Off = cell only.
-  softphoneEnabled   Boolean   @default(true)
+  softphoneEnabled       Boolean   @default(true)
   // Last heartbeat from a registered softphone; online = within the last
   // ~75 s (SOFTPHONE_PRESENCE_MS). Cleared when the tab closes cleanly.
-  softphoneSeenAt    DateTime?
+  softphoneSeenAt        DateTime?
   // Presence for the platform console (lib/presence.ts): stamped by
   // POST /api/app/presence (components/PresenceBeacon.tsx), a beat every
   // 20 s while the page is visible — a hidden tab or backgrounded phone app
   // sends none — so "online" = seen within the last few minutes.
   // lastSeenVia = "web" | "ios" | "android" from the
   // user agent (the native shell tags itself in capacitor.config.ts).
-  lastSeenAt         DateTime?
-  lastSeenVia        String?
+  lastSeenAt             DateTime?
+  lastSeenVia            String?
   // Stamped by the NextAuth jwt callback on every fresh sign-in (not on a
   // token refresh or a company switch).
-  lastSignInAt       DateTime?
-  signInCount        Int       @default(0)
+  lastSignInAt           DateTime?
+  signInCount            Int       @default(0)
   // One active device per login (lib/active-device.ts): the device whose
   // presence beat last held the lock, when, and a readable label for the
   // other device's "in use on …" screen. A beat from a different device
   // inside the online window is turned away until it takes over.
-  activeDeviceId     String?
-  activeDeviceAt     DateTime?
-  activeDeviceLabel  String?
+  activeDeviceId         String?
+  activeDeviceAt         DateTime?
+  activeDeviceLabel      String?
   // Team-side notification emails (new request, client message, booking…)
   // when this person also gets the push (lib/notify.ts). null = automatic:
   // no email while a device of theirs has push on; true = always email too;
   // false = never email. Set from My Profile.
-  emailAlerts        Boolean?
+  emailAlerts            Boolean?
   // Per-user Telnyx telephony credential (under Company.lineSipConnectionId);
   // sipUsername is what Call Control dials (sip:<username>@sip.telnyx.com).
   // One credential per device kind: the browser's, the iPhone app's and
@@ -600,8 +601,8 @@ model User {
   sipUsernameIos         String?
   sipCredentialIdAndroid String?
   sipUsernameAndroid     String?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
   assignments          JobAssignment[]
   notes                JobNote[]
@@ -2549,56 +2550,56 @@ enum PhotoType {
 // scripts/backfill-photo-owners.mjs) so a client's property gallery and the
 // company feed never need the job join.
 model JobPhoto {
-  id         String    @id @default(cuid())
-  jobId      String?
-  job        Job?      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  quoteId    String?
-  quote      Quote?    @relation(fields: [quoteId], references: [id], onDelete: SetNull)
-  contactId  String?
-  contact    Contact?  @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  companyId  String?
-  company    Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id            String    @id @default(cuid())
+  jobId         String?
+  job           Job?      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  quoteId       String?
+  quote         Quote?    @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  contactId     String?
+  contact       Contact?  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  companyId     String?
+  company       Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   // Who took it, when, and where (one-shot browser geolocation at capture).
-  userId     String?
-  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  takenAt    DateTime?
-  lat        Float?
-  lng        Float?
-  accuracy   Float?
+  userId        String?
+  user          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  takenAt       DateTime?
+  lat           Float?
+  lng           Float?
+  accuracy      Float?
   // Upload idempotency: the phone mints one key per shot, so a retried
   // upload (flaky signal) can never make two rows.
-  clientKey  String?   @unique
+  clientKey     String?   @unique
   // 400 px JPEG beside the full-size object (R2 only) for grids and feeds.
-  thumbKey   String?
+  thumbKey      String?
   // May the client see it (hub, report, gallery link)? AFTER shots default on,
   // everything else off until a tech flips it (decision 4, 2026-10-30).
-  clientVisible Boolean @default(false)
+  clientVisible Boolean   @default(false)
   // Before/after pair: both rows carry the same pairId.
-  pairId     String?
-  tags       String[]  @default([])
+  pairId        String?
+  tags          String[]  @default([])
   // Markup (phase C): the original is never touched; the marked-up JPEG is a
   // second object and the strokes are kept so it can be reopened.
-  markedKey  String?
-  markup     Json?
-  url        String
-  caption    String?
-  type       PhotoType @default(GENERAL)
+  markedKey     String?
+  markup        Json?
+  url           String
+  caption       String?
+  type          PhotoType @default(GENERAL)
   // Bytes live in R2 when object storage is configured (storageKey set, data
   // null); otherwise they fall back to the `data` column, which is how every
   // photo was stored before R2. Both are served through /api/job-photos/[id].
   // sizeBytes is recorded either way so the nightly storage rollup can still
   // measure a company's footprint once the bytes leave Postgres.
-  data       Bytes?
-  storageKey String?
-  sizeBytes  Int?
-  mimeType   String?
-  createdAt  DateTime  @default(now())
+  data          Bytes?
+  storageKey    String?
+  sizeBytes     Int?
+  mimeType      String?
+  createdAt     DateTime  @default(now())
   // "Use on website" (job page): the photo joins the company's public site
   // data (GET /api/public/site/[slug]) and is served without auth through
   // /api/public/site-photos/[id]. The owner confirms the client's property
   // may be shown when flagging it. `alt` is the image's alt text there.
-  siteUse    Boolean   @default(false)
-  alt        String?
+  siteUse       Boolean   @default(false)
+  alt           String?
 
   @@index([jobId])
   @@index([quoteId])
@@ -3724,17 +3725,17 @@ enum CallStatus {
 // agentCallId is the owner's-cell leg. Voicemails are Telnyx recordings —
 // we keep the id and fetch a fresh download URL when someone presses play.
 model Call {
-  id                   String        @id @default(cuid())
+  id                   String            @id @default(cuid())
   companyId            String
-  company              Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company              Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   contactId            String?
-  contact              Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  contact              Contact?          @relation(fields: [contactId], references: [id], onDelete: SetNull)
   // Outbound: who placed it. Inbound: null (the company cell answered, not a user).
   userId               String?
-  user                 User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user                 User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
   // Who picked up in the app (softphone); null when the cell answered or nobody did.
   answeredByUserId     String?
-  answeredBy           User?         @relation("AnsweredCalls", fields: [answeredByUserId], references: [id], onDelete: SetNull)
+  answeredBy           User?             @relation("AnsweredCalls", fields: [answeredByUserId], references: [id], onDelete: SetNull)
   // How the team side of the call was reached: "cell" (tier 1 whisper +
   // press 1) or "app" (browser softphone). Null until a leg is dialed.
   via                  String?
@@ -3742,11 +3743,11 @@ model Call {
   // a retried webhook can't ring everyone twice (lib/voice.ts).
   appRingAt            DateTime?
   direction            CallDirection
-  status               CallStatus    @default(RINGING)
+  status               CallStatus        @default(RINGING)
   customerNumber       String // E.164 of the far party
   customerDigits       String? // last 10, for contact matching (lib/phone.ts)
   agentNumber          String? // E.164 cell that rang / placed it
-  telnyxCallId         String?       @unique // customer leg call_control_id
+  telnyxCallId         String?           @unique // customer leg call_control_id
   agentCallId          String? // owner's-cell leg call_control_id
   customerLegId        String? // Telnyx call_leg_id of the customer leg (recordings filter)
   hangupCause          String?
@@ -3776,8 +3777,8 @@ model Call {
   // (lib/voice.ts promoteToConference): the two original legs move from
   // the bridge into a conference and every added person is a CallParticipant.
   conferenceId         String?
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
   legs                 CallLeg[]
   participants         CallParticipant[]
   tasks                Task[]
@@ -3822,23 +3823,23 @@ model CallParticipant {
 // when an app leg is answered its id is copied there too, so the rest of the
 // state machine never has to know how many browsers rang.
 model CallLeg {
-  id           String    @id @default(cuid())
-  callId       String
-  call         Call      @relation(fields: [callId], references: [id], onDelete: Cascade)
-  userId       String?
-  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  telnyxCallId String    @unique // call_control_id of this SIP leg
+  id            String    @id @default(cuid())
+  callId        String
+  call          Call      @relation(fields: [callId], references: [id], onDelete: Cascade)
+  userId        String?
+  user          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  telnyxCallId  String    @unique // call_control_id of this SIP leg
   // "browser" (a registered tab, rung at once), "ios" (the iPhone app) or
   // "android" (the Android app) — a phone is dialed once its push woke it;
   // its own credential either way.
-  device       String?
+  device        String?
   // Set when this leg rings a teammate being ADDED to a live call
   // (CallParticipant.kind "team"); the leg that answers becomes the
   // participant's telnyxCallId and the rest are hung up.
   participantId String?
-  endedAt      DateTime?
-  hangupCause  String?
-  createdAt    DateTime  @default(now())
+  endedAt       DateTime?
+  hangupCause   String?
+  createdAt     DateTime  @default(now())
 
   @@index([callId])
 }
@@ -4085,6 +4086,52 @@ model ToolDraft {
 enum ToolDraftKind {
   INVOICE
   QUOTE
+}
+
+// ─── Free tools: emailing a document (lib/tool-send.ts) ─────────────────────
+// A visitor who wants the generator to EMAIL the invoice proves the address
+// first (a 6-digit code), then every send is a ToolSend: the document, who
+// it went to, and the hosted copy at /t/<token> the email links to. Senders
+// are capped per day, recipients per send, and one abuse report from a
+// recipient blocks the sender. Rows expire (SENT_TTL_DAYS) on the hourly cron.
+model ToolSender {
+  id            String     @id @default(cuid())
+  email         String     @unique // normalized lowercase
+  verifiedAt    DateTime?
+  codeHash      String?
+  codeExpiresAt DateTime?
+  codeAttempts  Int        @default(0)
+  blockedAt     DateTime?
+  blockedReason String?
+  ip            String?
+  consoleLeadId String? // the /superadmin/leads card made after the first send
+  companyId     String? // set when the sender opens an account
+  company       Company?   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt     DateTime   @default(now())
+  lastSeenAt    DateTime   @default(now())
+  sends         ToolSend[]
+
+  @@index([createdAt])
+}
+
+model ToolSend {
+  id         String        @id @default(cuid())
+  token      String        @unique // /t/<token>
+  senderId   String
+  sender     ToolSender    @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  kind       ToolDraftKind
+  data       Json // lib/tool-doc.ts ToolDoc, sanitized
+  logoData   Bytes?
+  logoMime   String?
+  recipients String[]
+  sentAt     DateTime      @default(now())
+  expiresAt  DateTime
+  viewedAt   DateTime?
+  viewCount  Int           @default(0)
+  reportedAt DateTime?
+
+  @@index([senderId, sentAt])
+  @@index([expiresAt])
 }
 
 // ─── Google's index, one row per sitemap URL (lib/search-index.ts) ─────────

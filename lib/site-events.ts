@@ -8,7 +8,7 @@ import type { SiteAttribution } from "@/lib/site-track";
  * no email, no IP, no user agent.
  */
 
-export const SITE_EVENT_NAMES = new Set(["cta_click", "signup", "apply_submit", "tool_pdf", "tool_draft", "tool_open"]);
+export const SITE_EVENT_NAMES = new Set(["cta_click", "signup", "apply_submit", "tool_pdf", "tool_draft", "tool_open", "tool_email"]);
 
 export type SiteEventInput = SiteAttribution & {
   name: string;

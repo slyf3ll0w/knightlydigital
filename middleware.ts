@@ -185,7 +185,7 @@ const rateLimits: { match: (path: string) => boolean; max: number; windowMs: num
     // Client-facing PDF downloads render with @react-pdf on the request
     // thread — hundreds of ms of CPU each, reachable by anyone with a link.
     // A GET rule, unlike everything above.
-    match: (p) => /^\/(pay|quote)\/[^/]+\/pdf$/.test(p),
+    match: (p) => /^\/(pay|quote|t)\/[^/]+\/pdf$/.test(p),
     max: 30,
     windowMs: 60 * 60_000,
     name: "public-pdf",
@@ -492,5 +492,6 @@ export const config = {
     "/api/hub/:path*",
     "/pay/:token/pdf",
     "/quote/:token/pdf",
+    "/t/:token/pdf",
   ],
 };

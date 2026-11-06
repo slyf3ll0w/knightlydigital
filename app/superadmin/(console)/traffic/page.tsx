@@ -106,6 +106,7 @@ export default async function TrafficPage({
   const signups = events.filter((e) => e.name === "signup");
   const pdfs = events.filter((e) => e.name === "tool_pdf");
   const drafts = events.filter((e) => e.name === "tool_draft");
+  const emails = events.filter((e) => e.name === "tool_email");
 
   // ── The joined page table ──
   const clicksByPath = new Map(
@@ -328,7 +329,7 @@ export default async function TrafficPage({
         <Stat
           label="Tool PDFs"
           value={n(pdfs.length)}
-          foot={`${n(drafts.length)} went to sign-up`}
+          foot={`${n(emails.length)} emailed · ${n(drafts.length)} went to sign-up`}
         />
         <Stat
           label="Indexed pages"

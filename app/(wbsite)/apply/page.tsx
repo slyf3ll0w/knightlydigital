@@ -12,6 +12,7 @@ import { ClipboardList, ShieldCheck, Wrench } from "lucide-react";
 import { paymentsGateEnabled, paymentsSetupGateEnabled } from "@/lib/payments-gate";
 import { RATES } from "@/lib/plans";
 import { draftPrefill } from "@/lib/tool-drafts";
+import { senderFromCookie } from "@/lib/tool-send";
 
 export const metadata: Metadata = {
   title: "Get started",
@@ -90,6 +91,9 @@ export default async function WBApplyPage({ searchParams }: { searchParams: Prom
   // A free-tool document on its way in (lib/tool-drafts.ts): pre-fill the
   // business details; the apply API claims the draft once the company exists.
   const draft = await draftPrefill((await searchParams).draft);
+  // No draft, but this browser verified an address to email a free-tool
+  // document (lib/tool-send.ts): start the form with it.
+  const toolSender = draft ? null : await senderFromCookie((await headers()).get("cookie")).catch(() => null);
   const verifyPayments = paymentsGateEnabled();
   const setupPayments = !verifyPayments && paymentsSetupGateEnabled();
   const steps = verifyPayments ? verifySteps : setupPayments ? setupSteps : plainSteps;
@@ -151,7 +155,7 @@ export default async function WBApplyPage({ searchParams }: { searchParams: Prom
             social={socialSignInFor(ua)}
             verifyPayments={verifyPayments}
             setupPayments={setupPayments}
-            initial={draft ? { companyName: draft.companyName, email: draft.email, phone: draft.phone } : undefined}
+            initial={draft ? { companyName: draft.companyName, email: draft.email, phone: draft.phone } : toolSender ? { email: toolSender.email } : undefined}
             draftId={draft?.id}
           />
         </AnimateIn>

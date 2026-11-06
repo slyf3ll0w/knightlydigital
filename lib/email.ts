@@ -176,12 +176,15 @@ function clientShell({
   companyName,
   inner,
   signoff = "Thanks,",
+  footNote,
 }: {
   brand: EmailBrand;
   companyName: string;
   inner: string;
   /** First line of the sign-off; "" drops it (the name still signs). */
   signoff?: string;
+  /** Trusted markup for a second quiet footer line (the free tools' report link). */
+  footNote?: string;
 }): string {
   const logo = brand.logoUrl
     ? `<img src="${esc(absUrl(brand.logoUrl))}" alt="${esc(companyName)}" style="display:block;max-height:40px;max-width:180px;margin:0 0 24px;border:0;" />`
@@ -193,7 +196,7 @@ function clientShell({
     ${logo}
     ${inner}
     <p style="margin:6px 0 0;color:${TEXT};font-size:15px;line-height:1.6;font-family:${FONT};">${sign}</p>
-    <p style="margin:36px 0 0;color:#9CA3AF;font-size:12px;font-family:${FONT};">Sent with <a href="https://workbenchfsm.com" style="color:#9CA3AF;text-decoration:underline;">WorkBench</a></p>
+    <p style="margin:36px 0 0;color:#9CA3AF;font-size:12px;line-height:1.5;font-family:${FONT};">Sent with <a href="https://workbenchfsm.com" style="color:#9CA3AF;text-decoration:underline;">WorkBench</a>${footNote ? `<br />${footNote}` : ""}</p>
   </div>
 </div>`;
 }
@@ -304,11 +307,19 @@ export async function sendEmail({
   companyId,
   pageBackground = "#ffffff",
   attachments,
+  from: fromOverride,
+  cc,
 }: {
   to: string;
   subject: string;
   html: string;
   replyTo?: string;
+  /** A complete From ("Name <addr@domain>") on a Resend-verified domain, in
+   *  place of EMAIL_FROM — the free tools send from their own subdomain
+   *  (lib/tool-send.ts). Wins over fromName and the custom-domain lookup. */
+  from?: string;
+  /** Carbon copies (the free tools' "send me a copy"). */
+  cc?: string[];
   /** File attachments (base64 content) — .ics calendar invites, PDFs. */
   attachments?: { filename: string; content: string }[];
   /** Display name shown as the sender (e.g. the tenant company's name). Falls back to EMAIL_FROM. */
@@ -364,7 +375,7 @@ ${html}
       /* platform address fallback */
     }
   }
-  const from = cleanName ? `"${cleanName}" <${fromAddress}>` : fromAddress === FROM_ADDRESS ? FROM : fromAddress;
+  const from = fromOverride ?? (cleanName ? `"${cleanName}" <${fromAddress}>` : fromAddress === FROM_ADDRESS ? FROM : fromAddress);
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -382,6 +393,7 @@ ${html}
         html,
         text,
         ...(replyTo ? { reply_to: [replyTo] } : {}),
+        ...(cc && cc.length ? { cc } : {}),
         ...(attachments && attachments.length ? { attachments } : {}),
       }),
     });
@@ -852,6 +864,80 @@ export function superadminLoginCodeEmail({ code }: { code: string }): {
       ${aside("If you didn't just try to sign in, someone has your password. Change it now.")}`,
   });
   return { subject: "Your WorkBench console sign-in code", html };
+}
+
+/* ------------------------------------------------------------------ */
+/* Free tools (lib/tool-send.ts) — sent from TOOLS_EMAIL_FROM          */
+/* ------------------------------------------------------------------ */
+
+/** The code that proves a free-tool sender owns their address. */
+export function toolVerifyCodeEmail({ code }: { code: string }): { subject: string; html: string } {
+  const html = wbShell({
+    inner: `
+      ${p("Here's your code for the free invoice and estimate generator. It works once and expires in 10 minutes.")}
+      ${wbCode(code, 6)}
+      ${aside("Enter it on the page you were on to email your document from there.")}`,
+    footNote: "You're getting this because this address was typed into the free generator at workbenchfsm.com/tools. If that wasn't you, there's nothing to do.",
+  });
+  return { subject: `${code} is your WorkBench code`, html };
+}
+
+/**
+ * The document itself, to the sender's client. Signed by the business (the
+ * sender), not WorkBench: logo when they added one, their accent on the
+ * button, their phone under the sign-off. Fixed copy — the only free text
+ * a stranger controls is on the document behind the link.
+ */
+export function toolDocumentEmail({
+  kind,
+  number,
+  businessName,
+  businessPhone,
+  clientFirstName,
+  serviceNames,
+  total,
+  dueAt,
+  accent,
+  logoUrl,
+  viewUrl,
+  senderEmail,
+}: {
+  kind: "invoice" | "estimate";
+  number: number;
+  businessName: string;
+  businessPhone: string | null;
+  clientFirstName: string | null;
+  serviceNames: string[];
+  total: number;
+  /** YYYY-MM-DD: the due date (invoice) or the valid-through date (estimate). */
+  dueAt: string | null;
+  accent: string;
+  logoUrl: string | null;
+  viewUrl: string;
+  senderEmail: string;
+}): { subject: string; html: string } {
+  const word = kind === "estimate" ? "estimate" : "invoice";
+  const Word = kind === "estimate" ? "Estimate" : "Invoice";
+  const brand: EmailBrand = { brandColor: accent, logoUrl, phone: businessPhone };
+  const due = dueAt ? new Date(dueAt + "T12:00:00") : null;
+  const dueLine =
+    due && !Number.isNaN(due.getTime())
+      ? kind === "estimate"
+        ? `This estimate is good through ${longDate(due)}.`
+        : `It's due ${longDate(due)}.`
+      : "";
+  const html = clientShell({
+    brand,
+    companyName: businessName,
+    inner: `
+      ${hello(clientFirstName)}
+      ${p(`Here's ${word} ${number} from ${esc(businessName)}.${dueLine ? " " + esc(dueLine) : ""}`)}
+      ${ledger(serviceNames, { label: "Total", amount: total })}
+      ${button(viewUrl, `View ${word}`, brand)}
+      ${aside(`Need a copy for your records? ${link(`${viewUrl}/pdf`, "Download the PDF", QUIET)}. Questions? Reply to this email and it reaches ${esc(businessName)} at ${esc(senderEmail)}.`)}`,
+    footNote: `${esc(businessName)} made this with WorkBench's free ${word} generator. Didn't expect it? ${link(`${viewUrl}/report`, "Report it", "#9CA3AF")}.`,
+  });
+  return { subject: `${Word} ${number} from ${businessName}`, html };
 }
 
 /**

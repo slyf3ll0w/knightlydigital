@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, Download, ImagePlus, Loader2, Plus, Trash2, X } from "lucide-react";
+import { ArrowRight, Download, ImagePlus, Loader2, Mail, Plus, Trash2, X } from "lucide-react";
 import DocPreview from "@/components/wb/tools/DocPreview";
+import EmailPanel, { type EmailSession } from "@/components/wb/tools/EmailPanel";
 import { trackSiteEvent } from "@/lib/site-track";
 import {
   DEFAULT_ACCENT,
@@ -26,7 +27,10 @@ import {
  * online": POST /api/public/tools/draft, then /apply?draft=<id>, and the
  * document is waiting in the new account). The draft autosaves to
  * localStorage per page so a reload never loses work. No email gate: the
- * download is the product; the account is the offer beside it.
+ * download is the product; the account is the offer beside it. "Email it"
+ * (EmailPanel, lib/tool-send.ts) sends the document to the client from a
+ * verified address and shows when they open it — it appears only when the
+ * server says emailing is switched on (GET /api/public/tools/email/session).
  */
 
 const ACCENTS = ["#0B57D8", "#F86A0A", "#15803D", "#7C3AED", "#0F172A"];
@@ -90,6 +94,8 @@ export default function DocGenerator({ initial, storageKey }: Props) {
   const [busy, setBusy] = useState<"pdf" | "draft" | null>(null);
   const [error, setError] = useState("");
   const [downloaded, setDownloaded] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailSession, setEmailSession] = useState<EmailSession | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const isEstimate = doc.kind === "estimate";
   const word = isEstimate ? "estimate" : "invoice";
@@ -112,6 +118,20 @@ export default function DocGenerator({ initial, storageKey }: Props) {
       /* storage full or blocked: the page still works */
     }
   }, [doc, logo, restored, storageKey]);
+
+  // Whether emailing is on, and who this browser already verified as.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/public/tools/email/session", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((s: EmailSession | null) => {
+        if (!cancelled && s) setEmailSession(s);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const totals = useMemo(() => docTotals(doc), [doc]);
   const ready = docReady(doc);
@@ -204,6 +224,16 @@ export default function DocGenerator({ initial, storageKey }: Props) {
   }
 
   const sendLabel = isEstimate ? "Send it for e-signature" : "Get paid online";
+  const canEmail = Boolean(emailSession?.enabled);
+
+  function openEmail() {
+    if (!ready.ok) {
+      setError(ready.reason);
+      return;
+    }
+    setError("");
+    setEmailOpen(true);
+  }
 
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-start">
@@ -388,17 +418,40 @@ export default function DocGenerator({ initial, storageKey }: Props) {
               {busy === "pdf" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" strokeWidth={2.5} />}
               Download PDF
             </button>
+            {canEmail && (
+              <button type="button" onClick={openEmail} disabled={busy !== null} data-wb-event={`tool_email_open_${doc.kind}`} aria-expanded={emailOpen} className="wb-pill flex-1 justify-center border border-gray-300 bg-white text-gray-900 hover:border-gray-900 disabled:opacity-60">
+                <Mail className="h-4 w-4" strokeWidth={2.5} />
+                Email it
+              </button>
+            )}
             <button type="button" onClick={() => void getPaidOnline()} disabled={busy !== null} data-wb-event={`tool_signup_${doc.kind}`} className="wb-pill wb-pill-orange flex-1 justify-center disabled:opacity-60">
               {busy === "draft" ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" strokeWidth={2.5} />}
               {sendLabel}
             </button>
           </div>
           <p className="mt-3 text-[12.5px] leading-relaxed text-gray-500">
-            The PDF is free, with no watermark and no sign-up.{" "}
+            The PDF is free, with no watermark and no sign-up.{canEmail ? ` Email it sends the ${word} to your client from here and shows you when they open it.` : ""}{" "}
             <strong className="font-semibold text-gray-700">{sendLabel}</strong> opens a free WorkBench account with this {word} already in it, so
             {isEstimate ? " the client can approve and sign it on their phone" : " the client can pay it by card or bank transfer from a link"}.
           </p>
         </div>
+
+        {emailSession?.enabled && (
+          <EmailPanel
+            doc={doc}
+            logo={logo}
+            open={emailOpen}
+            onClose={() => setEmailOpen(false)}
+            session={emailSession}
+            onSession={setEmailSession}
+            ready={ready}
+            onGetPaid={() => void getPaidOnline()}
+            onSenderEmail={(email) => {
+              if (!doc.business.email.trim()) patchParty("business", { email });
+            }}
+            path={typeof window !== "undefined" ? window.location.pathname : "/tools"}
+          />
+        )}
 
         {downloaded && (
           <div className="mt-4 rounded-2xl border border-[#0B57D8]/20 bg-blue-50/60 p-4">

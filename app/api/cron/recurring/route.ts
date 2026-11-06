@@ -38,6 +38,7 @@ import { archiveExpiredNotes } from "@/lib/sticky-notes";
 import { runTimeBlockSeriesSweep } from "@/lib/time-block-series";
 import { runStoreOrderSweep } from "@/lib/store";
 import { runToolDraftSweep } from "@/lib/tool-drafts";
+import { runToolSendSweep } from "@/lib/tool-send";
 import { runSearchIndexSweep } from "@/lib/search-index";
 import { adoptUnrecordedSquarePayments } from "@/lib/square-adopt";
 import { runTelnyxBalanceWatch } from "@/lib/telnyx-balance";
@@ -202,6 +203,8 @@ export async function POST(req: NextRequest) {
     await step("storeOrders", () => runStoreOrderSweep(now));
     // Free-tool documents nobody signed up with (lib/tool-drafts.ts).
     await step("toolDrafts", () => runToolDraftSweep(now));
+    // Emailed free-tool documents past their 60 days, and addresses that never verified (lib/tool-send.ts).
+    await step("toolSends", () => runToolSendSweep(now));
     // Which sitemap pages Google has indexed, a few URLs an hour through
     // Search Console's URL Inspection API (lib/search-index.ts). No-op
     // without GSC_SERVICE_ACCOUNT_JSON.

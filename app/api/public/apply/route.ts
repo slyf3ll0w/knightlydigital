@@ -13,6 +13,7 @@ import { createCompanySignup, InviteClaimedError, PlaceholderClaimedError } from
 import { isValidTimezone } from "@/lib/timezone";
 import { paymentsGateEnabled, paymentsSetupGateEnabled } from "@/lib/payments-gate";
 import { claimToolDraft } from "@/lib/tool-drafts";
+import { linkSenderToCompany, senderFromCookie } from "@/lib/tool-send";
 import { describeAttribution, recordSiteEvent, sanitizeAttribution } from "@/lib/site-events";
 
 // Where new sign-up notices land.
@@ -272,6 +273,9 @@ export async function POST(req: NextRequest) {
   // A document built on /tools/* comes along as the first invoice or quote
   // (and the client as a contact, the logo as the company's). Best effort.
   const carried = typeof draftId === "string" ? await claimToolDraft(draftId, created.companyId, created.userId) : null;
+  // A verified free-tool sender (lib/tool-send.ts) now has an account: remember it, win the lead card.
+  const toolSender = await senderFromCookie(req.headers.get("cookie")).catch(() => null);
+  if (toolSender) void linkSenderToCompany(toolSender.id, created.companyId);
   // The conversion, with its UTM / referrer, for /superadmin/traffic.
   void recordSiteEvent({ name: "signup", label: created.companyId, path: attribution.landing ?? "/apply", ...attribution });
 
