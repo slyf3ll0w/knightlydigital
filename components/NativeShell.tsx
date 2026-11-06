@@ -134,6 +134,29 @@ export default function NativeShell({ userId }: { userId?: string | null } = {})
       document.documentElement.classList.remove("kb-open");
     }, pushKb);
 
+    // Ticket #txii6p (2026-11-04, "keyboard is janky", page jumps on focus):
+    // the scrollTo above only ran once the keyboard had finished opening, so
+    // WebKit's reveal-scroll showed for the whole animation and then snapped
+    // back. In the app shell the window itself never scrolls (<main> does),
+    // so undo a window scroll the frame it happens while the keyboard is up.
+    let snapFrame = 0;
+    const holdWindow = () => {
+      if (snapFrame || window.scrollY === 0) return;
+      if (!document.documentElement.classList.contains("kb-open")) return;
+      if (!document.querySelector(".app-main")) return;
+      snapFrame = requestAnimationFrame(() => {
+        snapFrame = 0;
+        if (window.scrollY !== 0) window.scrollTo(0, 0);
+      });
+    };
+    window.addEventListener("scroll", holdWindow, { passive: true });
+    kbHandles.push({
+      remove: () => {
+        window.removeEventListener("scroll", holdWindow);
+        if (snapFrame) cancelAnimationFrame(snapFrame);
+      },
+    });
+
     // Android hardware back: walk history, minimize at the root instead of
     // killing the webview.
     let backHandle: Handle | undefined;
