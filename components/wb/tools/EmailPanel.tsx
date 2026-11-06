@@ -280,7 +280,7 @@ export default function EmailPanel({ doc, logo, open, onClose, session, onSessio
                 <input value={to} onChange={(e) => setTo(e.target.value)} type="email" inputMode="email" className={INPUT} placeholder="client@example.com" />
               </label>
               {to2 === null ? (
-                <button type="button" onClick={() => setTo2("")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-gray-600 hover:text-gray-900">
+                <button type="button" onClick={() => setTo2("")} className="flex items-center gap-1.5 text-[13px] font-semibold text-gray-600 hover:text-gray-900">
                   <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
                   Add another address
                 </button>
@@ -295,7 +295,7 @@ export default function EmailPanel({ doc, logo, open, onClose, session, onSessio
                   </div>
                 </label>
               )}
-              <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-gray-600">
+              <label className="flex w-fit cursor-pointer items-center gap-2 text-[13px] font-semibold text-gray-600">
                 <input type="checkbox" checked={copyMe} onChange={(e) => setCopyMe(e.target.checked)} className="h-4 w-4 rounded border-gray-300" />
                 Send a copy to me
               </label>
