@@ -29,6 +29,10 @@ export const dynamic = "force-dynamic";
  * search clicks and index status from Google Search Console, and our own
  * conversion events (SiteEvent), joined per page. Each source is optional;
  * an unconfigured one shows what to set instead of a blank.
+ *
+ * Layout follows the other console pages (profitability): the section
+ * title sits above a padding-free card, every cell carries its own
+ * padding, numbers use .ds-num, rows divide with .ds-divide.
  */
 
 const RANGES = [7, 30, 90] as const;
@@ -65,6 +69,36 @@ function source(r: {
 
 const n = (v: number) => Math.round(v).toLocaleString("en-US");
 const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
+
+/** "2026-11-05" → "Wed, Nov 5". */
+function dayLabel(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+const regionNames =
+  typeof Intl.DisplayNames === "function"
+    ? new Intl.DisplayNames(["en"], { type: "region" })
+    : null;
+
+/** Cloudflare reports countries as ISO codes ("US"); show the name. */
+function countryLabel(code: string): string {
+  if (!code) return "Unknown";
+  try {
+    return regionNames?.of(code.toUpperCase()) ?? code;
+  } catch {
+    return code;
+  }
+}
+
+const cap = (s: string) =>
+  s ? s.charAt(0).toUpperCase() + s.slice(1) : "Unknown";
 
 export default async function TrafficPage({
   searchParams,
@@ -191,483 +225,530 @@ export default async function TrafficPage({
     hint: string;
     rows: Row[];
     col: string;
+    count?: string;
+    empty?: string;
   }[] = [
     {
+      title: "Referrers",
+      hint: "Where visits to the marketing pages start, from Cloudflare. Outside sites only; our own pages, sign-in and local addresses are left out.",
+      rows: (cf?.byReferer ?? [])
+        .slice(0, 15)
+        .map((r) => ({ key: r.key || "(direct)", count: r.visits })),
+      col: "Site",
+      count: "Visits",
+      empty: cf ? "No outside referrers yet." : "Cloudflare not connected.",
+    },
+    {
+      title: "Countries",
+      hint: "Where visitors are, from Cloudflare.",
+      rows: (cf?.byCountry ?? [])
+        .slice(0, 10)
+        .map((r) => ({ key: countryLabel(r.key), count: r.visits })),
+      col: "Country",
+      count: "Visits",
+      empty: cf ? "Nothing yet." : "Cloudflare not connected.",
+    },
+    {
+      title: "Devices",
+      hint: "Phone, desktop or tablet, from Cloudflare.",
+      rows: (cf?.byDevice ?? []).map((r) => ({
+        key: cap(r.key),
+        count: r.visits,
+      })),
+      col: "Device",
+      count: "Visits",
+      empty: cf ? "Nothing yet." : "Cloudflare not connected.",
+    },
+    {
       title: "Sign-ups by source",
-      hint: "UTM source / medium, else the referrer",
+      hint: "UTM source / medium when the link carried one, else the referrer, else direct.",
       rows: tally(signups, source),
       col: "Source",
+      count: "Sign-ups",
     },
     {
       title: "Get started clicks by source",
-      hint: "UTM, referrer, or direct",
+      hint: "UTM, referrer, or direct.",
       rows: tally(clicks, source),
       col: "Source",
+      count: "Clicks",
     },
     {
       title: "Campaigns",
-      hint: "utm_campaign on any event",
+      hint: "utm_campaign on any event we recorded.",
       rows: tally(
         events.filter((e) => e.utmCampaign),
         (e) => e.utmCampaign,
       ),
       col: "Campaign",
+      count: "Events",
     },
     {
-      title: "Free tool downloads by page",
-      hint: "PDFs rendered",
+      title: "Free tool downloads",
+      hint: "PDFs rendered by the free invoice and estimate generators, by page.",
       rows: tally(pdfs, (e) => e.path),
       col: "Page",
+      count: "PDFs",
     },
     {
       title: "Other CTA clicks",
-      hint: "Log in, call, tool buttons",
+      hint: "Log in, call and tool buttons; Get started has its own column above.",
       rows: tally(
         events.filter(
           (e) => e.name === "cta_click" && e.label !== "get_started",
         ),
         (e) => e.label,
       ),
-      col: "Label",
+      col: "Button",
+      count: "Clicks",
     },
     {
       title: "Every event",
-      hint: "By name",
+      hint: "Everything we recorded ourselves, by name.",
       rows: tally(events, (e) => e.name),
       col: "Event",
+      count: "Count",
     },
   ];
+
+  const rise = (i: number) => ({ "--ds-i": i }) as React.CSSProperties;
+  const th = "px-3 py-2.5 font-medium";
+  const td = "px-3 py-2.5";
 
   return (
     <DsPage>
       <PageHeader
+        eyebrow={`Last ${days} days`}
         title="Traffic"
-        info="The marketing site in one place: visits from Cloudflare, search from Google, and the clicks and sign-ups we record ourselves, joined per page."
+        info="The marketing site in one place: visits from Cloudflare, search from Google, and the clicks and sign-ups we record ourselves, joined per page. Cloudflare's numbers are sampled estimates, so they come in multiples of ten."
         actions={
-          <div className="flex gap-1">
+          <nav className="flex gap-1" aria-label="Range">
             {RANGES.map((d) => (
               <Link
                 key={d}
+                prefetch={false}
                 href={`/superadmin/traffic?days=${d}`}
-                className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${d === days ? "bg-[var(--ds-primary)] text-white" : "text-[var(--ds-ink-2)] hover:bg-[var(--ds-surface-2)]"}`}
+                className={`ds-btn ds-btn-sm ${d === days ? "ds-btn-soft" : "ds-btn-ghost"}`}
+                aria-current={d === days ? "page" : undefined}
               >
-                {d}d
+                {d} d
               </Link>
             ))}
-          </div>
+          </nav>
         }
       />
 
       {(!cloudflareAnalyticsConfigured() || !searchConsoleConfigured()) && (
-        <Card className="mb-4">
-          <SectionTitle info="Each source is optional; set the variables on the production app service and this page fills in on the next load.">
+        <>
+          <SectionTitle
+            className="mt-6"
+            info="Each source is optional; set the variables on the production app service and this page fills in on the next load."
+          >
             Connect the sources
           </SectionTitle>
-          <ul className="mt-2 space-y-2 text-[13.5px] text-[var(--ds-ink-2)]">
-            {!cloudflareAnalyticsConfigured() && (
-              <li>
-                <strong>Cloudflare Web Analytics</strong> (visits, page views,
-                referrers, countries, devices): set{" "}
-                <code>CLOUDFLARE_API_TOKEN</code> (an API token with Account
-                Analytics: Read and Account Settings: Read) and{" "}
-                <code>CLOUDFLARE_ACCOUNT_ID</code>. The site is matched from the
-                beacon token already in <code>NEXT_PUBLIC_CF_BEACON_TOKEN</code>
-                .
-              </li>
-            )}
-            {!searchConsoleConfigured() && (
-              <li>
-                <strong>Google Search Console</strong> (search clicks,
-                impressions, queries, index status): set{" "}
-                <code>GSC_SERVICE_ACCOUNT_JSON</code> to a Google
-                service-account key (JSON or base64) that has been added as a
-                user on the <code>{GSC_SITE_URL}</code> property, and optionally{" "}
-                <code>GSC_SITE_URL</code>.
-              </li>
-            )}
-          </ul>
-        </Card>
+          <Card className="p-5">
+            <ul className="space-y-3 text-[13.5px] text-[color:var(--ds-ink-2)]">
+              {!cloudflareAnalyticsConfigured() && (
+                <li>
+                  <strong className="text-[color:var(--ds-ink)]">
+                    Cloudflare Web Analytics
+                  </strong>{" "}
+                  (visits, page views, referrers, countries, devices): set{" "}
+                  <code>CLOUDFLARE_API_TOKEN</code> (an API token with Account
+                  Analytics: Read and Account Settings: Read) and{" "}
+                  <code>CLOUDFLARE_ACCOUNT_ID</code>. The site is matched from
+                  the beacon token already in{" "}
+                  <code>NEXT_PUBLIC_CF_BEACON_TOKEN</code>.
+                </li>
+              )}
+              {!searchConsoleConfigured() && (
+                <li>
+                  <strong className="text-[color:var(--ds-ink)]">
+                    Google Search Console
+                  </strong>{" "}
+                  (search clicks, impressions, queries, index status): set{" "}
+                  <code>GSC_SERVICE_ACCOUNT_JSON</code> to a Google
+                  service-account key (JSON or base64) that has been added as
+                  a user on the <code>{GSC_SITE_URL}</code> property, and
+                  optionally <code>GSC_SITE_URL</code>.
+                </li>
+              )}
+            </ul>
+          </Card>
+        </>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <Stat
+          className="ds-rise"
+          style={rise(1)}
           label="Visits"
+          info={`Cloudflare's estimate of visits to the marketing pages${cf && !cf.scoped ? " (Cloudflare refused the page filter, so this is the whole domain)" : ""}. Sampled, so multiples of ten.`}
           value={cf ? n(cf.visits) : "—"}
-          foot={
-            cf
-              ? `${n(cf.pageViews)} page views · Cloudflare estimate${cf.scoped ? "" : " (whole domain)"}`
-              : "Cloudflare not connected"
-          }
+          foot={cf ? `${n(cf.pageViews)} page views` : "not connected"}
         />
         <Stat
+          className="ds-rise"
+          style={rise(2)}
           label="Search clicks"
+          info="Clicks from Google search results, from Search Console. Google reports about two days behind."
           value={gsc ? n(totalClicks) : "—"}
-          foot={
-            gsc
-              ? `${n(totalImpr)} impressions · Google`
-              : "Search Console not connected"
-          }
+          foot={gsc ? `${n(totalImpr)} impressions` : "not connected"}
         />
         <Stat
-          label="Get started clicks"
+          className="ds-rise"
+          style={rise(3)}
+          label="Get started"
+          info="Clicks on any Get started button on the marketing site, recorded by our own code."
           value={n(clicks.length)}
           foot={
             cf && cf.visits
               ? `${pct(clicks.length / cf.visits)} of visits`
-              : `${days} days`
+              : "clicks"
           }
         />
         <Stat
+          className="ds-rise"
+          style={rise(4)}
           label="Sign-ups"
+          info="Applications submitted on /apply in the range."
           value={n(signups.length)}
           foot={
             clicks.length
               ? `${pct(signups.length / clicks.length)} of clicks`
-              : "—"
+              : "applications"
           }
         />
         <Stat
+          className="ds-rise"
+          style={rise(5)}
           label="Tool PDFs"
+          info="PDFs rendered by the free invoice and estimate generators, and how many of those visitors went on to the sign-up form with their draft."
           value={n(pdfs.length)}
           foot={`${n(emails.length)} emailed · ${n(drafts.length)} went to sign-up`}
         />
         <Stat
-          label="Indexed pages"
+          className="ds-rise"
+          style={rise(6)}
+          label="Indexed"
+          info="Sitemap pages Google has indexed, checked a few pages an hour through Search Console's URL Inspection API."
           value={indexRows.length ? `${indexed} / ${indexRows.length}` : "—"}
           foot={
             indexRows.length
               ? `${notIndexed.length} not indexed`
-              : "checked by the hourly cron"
+              : "not checked yet"
           }
           tone={notIndexed.length ? "bad" : undefined}
         />
       </div>
 
-      <Card className="mt-6">
-        <SectionTitle
-          info={`Marketing pages only, every source side by side. Views and visits are Cloudflare's estimate (sampled, so multiples of ten); ${hasSearch ? "search is Google's; " : ""}Get started and sign-ups are ours.`}
-        >
-          Pages
-        </SectionTitle>
-        {pageRows.length === 0 ? (
-          <p className="mt-2 text-[13.5px] text-[var(--ds-muted)]">
-            Nothing yet.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="mt-2 w-full min-w-[640px] text-[13px]">
-              <thead className="text-left text-[11.5px] font-bold uppercase tracking-wide text-[var(--ds-muted)]">
-                <tr>
-                  <th className="py-1.5 font-bold">Page</th>
-                  <th className="py-1.5 text-right font-bold">Views</th>
-                  <th className="py-1.5 text-right font-bold">Visits</th>
+      <SectionTitle
+        className="mt-8"
+        info={`Marketing pages only, every source side by side. Views and visits are Cloudflare's estimate; ${hasSearch ? "search clicks, impressions and position are Google's; " : ""}Get started and sign-ups are ours.`}
+      >
+        Pages
+      </SectionTitle>
+      <Card className="ds-rise overflow-x-auto" style={rise(7)}>
+        <table className="w-full min-w-[720px] text-[13.5px]">
+          <thead>
+            <tr className="ds-label border-b border-[color:var(--ds-line)] text-left">
+              <th className="px-4 py-2.5 font-medium">Page</th>
+              <th className={`${th} text-right`}>Views</th>
+              <th className={`${th} text-right`}>Visits</th>
+              {hasSearch && (
+                <>
+                  <th className={`${th} text-right`}>Search clicks</th>
+                  <th className={`${th} text-right`}>Impressions</th>
+                  <th className={`${th} text-right`}>Position</th>
+                </>
+              )}
+              <th className={`${th} text-right`}>Get started</th>
+              <th className={`${th} text-right`}>Sign-ups</th>
+              {hasIndex && <th className={th}>Google index</th>}
+            </tr>
+          </thead>
+          <tbody className="ds-divide">
+            {pageRows.length === 0 && (
+              <tr>
+                <td colSpan={9} className="ds-small px-4 py-8 text-center">
+                  Nothing yet.
+                </td>
+              </tr>
+            )}
+            {pageRows.map((r) => (
+              <tr
+                key={r.path}
+                className="transition-colors hover:bg-[color:var(--ds-surface-2)]"
+              >
+                <td className="max-w-[360px] truncate px-4 py-2.5">
+                  <a
+                    href={`https://workbenchfsm.com${r.path}`}
+                    target="_blank"
+                    rel="noopener"
+                    className="font-medium text-[color:var(--ds-ink)] hover:text-[color:var(--ds-primary)]"
+                  >
+                    {r.path}
+                  </a>
+                </td>
+                <td className={`ds-num ${td} text-right`}>
+                  {cf ? n(r.pageViews) : "—"}
+                </td>
+                <td className={`ds-num ${td} text-right`}>
+                  {cf ? n(r.visits) : "—"}
+                </td>
+                {hasSearch && (
+                  <>
+                    <td className={`ds-num ${td} text-right`}>{n(r.clicks)}</td>
+                    <td className={`ds-num ${td} text-right`}>
+                      {n(r.impressions)}
+                    </td>
+                    <td className={`ds-num ${td} text-right`}>
+                      {r.position != null ? r.position.toFixed(1) : "—"}
+                    </td>
+                  </>
+                )}
+                <td className={`ds-num ${td} text-right`}>{n(r.getStarted)}</td>
+                <td
+                  className={`ds-num ${td} text-right font-semibold`}
+                  style={
+                    r.signups ? { color: "var(--ds-good)" } : undefined
+                  }
+                >
+                  {n(r.signups)}
+                </td>
+                {hasIndex && (
+                  <td className={td}>
+                    <Chip
+                      tone={
+                        r.index.ok === true
+                          ? "good"
+                          : r.index.ok === false
+                            ? "bad"
+                            : "neutral"
+                      }
+                    >
+                      {r.index.text}
+                    </Chip>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      <div className="mt-8 grid items-start gap-x-6 gap-y-8 lg:grid-cols-2">
+        <section>
+          <SectionTitle
+            info={`The last 14 days. Visits are Cloudflare's estimate${hasSearch ? ", search clicks Google's (about two days behind)" : ""}, the rest ours.`}
+          >
+            By day
+          </SectionTitle>
+          <Card className="overflow-x-auto">
+            <table className="w-full text-[13.5px]">
+              <thead>
+                <tr className="ds-label border-b border-[color:var(--ds-line)] text-left">
+                  <th className="px-4 py-2.5 font-medium">Day</th>
+                  <th className={`${th} text-right`}>Visits</th>
                   {hasSearch && (
-                    <>
-                      <th className="py-1.5 text-right font-bold">
-                        Search clicks
-                      </th>
-                      <th className="py-1.5 text-right font-bold">
-                        Impressions
-                      </th>
-                      <th className="py-1.5 text-right font-bold">Position</th>
-                    </>
+                    <th className={`${th} text-right`}>Search</th>
                   )}
-                  <th className="py-1.5 text-right font-bold">Get started</th>
-                  <th className="py-1.5 text-right font-bold">Sign-ups</th>
-                  {hasIndex && (
-                    <th className="py-1.5 pl-3 font-bold">Google index</th>
-                  )}
+                  <th className={`${th} text-right`}>Get started</th>
+                  <th className={`${th} text-right`}>Sign-ups</th>
                 </tr>
               </thead>
-              <tbody>
-                {pageRows.map((r) => (
-                  <tr key={r.path} className="border-t border-[var(--ds-line)]">
-                    <td className="max-w-[320px] truncate py-1.5 pr-3">
-                      <a
-                        href={`https://workbenchfsm.com${r.path}`}
-                        target="_blank"
-                        rel="noopener"
-                        className="hover:underline"
-                      >
-                        {r.path}
-                      </a>
+              <tbody className="ds-divide">
+                {dayRows.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="ds-small px-4 py-8 text-center">
+                      Nothing yet.
                     </td>
-                    <td className="py-1.5 text-right tabular-nums">
-                      {cf ? n(r.pageViews) : "—"}
+                  </tr>
+                )}
+                {dayRows.map((r) => (
+                  <tr key={r.d}>
+                    <td className="whitespace-nowrap px-4 py-2.5 font-medium text-[color:var(--ds-ink)]">
+                      {dayLabel(r.d)}
                     </td>
-                    <td className="py-1.5 text-right tabular-nums">
+                    <td className={`ds-num ${td} text-right`}>
                       {cf ? n(r.visits) : "—"}
                     </td>
                     {hasSearch && (
-                      <>
-                        <td className="py-1.5 text-right tabular-nums">
-                          {n(r.clicks)}
-                        </td>
-                        <td className="py-1.5 text-right tabular-nums">
-                          {n(r.impressions)}
-                        </td>
-                        <td className="py-1.5 text-right tabular-nums">
-                          {r.position != null ? r.position.toFixed(1) : "—"}
-                        </td>
-                      </>
-                    )}
-                    <td className="py-1.5 text-right tabular-nums">
-                      {n(r.getStarted)}
-                    </td>
-                    <td className="py-1.5 text-right tabular-nums font-semibold">
-                      {n(r.signups)}
-                    </td>
-                    {hasIndex && (
-                      <td className="py-1.5 pl-3">
-                        <Chip
-                          tone={
-                            r.index.ok === true
-                              ? "good"
-                              : r.index.ok === false
-                                ? "bad"
-                                : "neutral"
-                          }
-                        >
-                          {r.index.text}
-                        </Chip>
+                      <td className={`ds-num ${td} text-right`}>
+                        {n(r.search)}
                       </td>
                     )}
+                    <td className={`ds-num ${td} text-right`}>
+                      {n(r.getStarted)}
+                    </td>
+                    <td
+                      className={`ds-num ${td} text-right font-semibold`}
+                      style={
+                        r.signups ? { color: "var(--ds-good)" } : undefined
+                      }
+                    >
+                      {n(r.signups)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        )}
-      </Card>
-
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <Card>
-          <SectionTitle
-            info={`Last 14 days. Visits are Cloudflare's estimate${hasSearch ? ", search clicks Google's (about two days behind)" : ""}, the rest ours.`}
-          >
-            By day
-          </SectionTitle>
-          <table className="mt-2 w-full text-[13px]">
-            <thead className="text-left text-[11.5px] font-bold uppercase tracking-wide text-[var(--ds-muted)]">
-              <tr>
-                <th className="py-1.5 font-bold">Day</th>
-                <th className="py-1.5 text-right font-bold">Visits</th>
-                {hasSearch && (
-                  <th className="py-1.5 text-right font-bold">Search clicks</th>
-                )}
-                <th className="py-1.5 text-right font-bold">Get started</th>
-                <th className="py-1.5 text-right font-bold">Sign-ups</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dayRows.map((r) => (
-                <tr key={r.d} className="border-t border-[var(--ds-line)]">
-                  <td className="py-1.5">{r.d}</td>
-                  <td className="py-1.5 text-right tabular-nums">
-                    {cf ? n(r.visits) : "—"}
-                  </td>
-                  {hasSearch && (
-                    <td className="py-1.5 text-right tabular-nums">
-                      {n(r.search)}
-                    </td>
-                  )}
-                  <td className="py-1.5 text-right tabular-nums">
-                    {n(r.getStarted)}
-                  </td>
-                  <td className="py-1.5 text-right tabular-nums font-semibold">
-                    {n(r.signups)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
+          </Card>
+        </section>
 
         {gsc && (
-          <Card>
-            <SectionTitle info="What people typed into Google to find the site. From Search Console.">
+          <section>
+            <SectionTitle info="What people typed into Google to find the site, from Search Console.">
               Search queries
             </SectionTitle>
-            {gsc.queries.length === 0 ? (
-              <p className="mt-2 text-[13.5px] text-[var(--ds-muted)]">
-                Nothing yet.
-              </p>
-            ) : (
-              <table className="mt-2 w-full text-[13px]">
-                <thead className="text-left text-[11.5px] font-bold uppercase tracking-wide text-[var(--ds-muted)]">
-                  <tr>
-                    <th className="py-1.5 font-bold">Query</th>
-                    <th className="py-1.5 text-right font-bold">Clicks</th>
-                    <th className="py-1.5 text-right font-bold">Impr.</th>
-                    <th className="py-1.5 text-right font-bold">CTR</th>
-                    <th className="py-1.5 text-right font-bold">Pos.</th>
+            <Card className="overflow-x-auto">
+              <table className="w-full text-[13.5px]">
+                <thead>
+                  <tr className="ds-label border-b border-[color:var(--ds-line)] text-left">
+                    <th className="px-4 py-2.5 font-medium">Query</th>
+                    <th className={`${th} text-right`}>Clicks</th>
+                    <th className={`${th} text-right`}>Impressions</th>
+                    <th className={`${th} text-right`}>CTR</th>
+                    <th className={`${th} text-right`}>Position</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="ds-divide">
+                  {gsc.queries.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="ds-small px-4 py-8 text-center">
+                        Nothing yet.
+                      </td>
+                    </tr>
+                  )}
                   {gsc.queries.slice(0, 25).map((q) => (
-                    <tr
-                      key={q.key}
-                      className="border-t border-[var(--ds-line)]"
-                    >
-                      <td className="max-w-[260px] truncate py-1.5 pr-3">
+                    <tr key={q.key}>
+                      <td className="max-w-[260px] truncate px-4 py-2.5 font-medium text-[color:var(--ds-ink)]">
                         {q.key}
                       </td>
-                      <td className="py-1.5 text-right tabular-nums">
-                        {n(q.clicks)}
-                      </td>
-                      <td className="py-1.5 text-right tabular-nums">
+                      <td className={`ds-num ${td} text-right`}>{n(q.clicks)}</td>
+                      <td className={`ds-num ${td} text-right`}>
                         {n(q.impressions)}
                       </td>
-                      <td className="py-1.5 text-right tabular-nums">
-                        {pct(q.ctr)}
-                      </td>
-                      <td className="py-1.5 text-right tabular-nums">
+                      <td className={`ds-num ${td} text-right`}>{pct(q.ctr)}</td>
+                      <td className={`ds-num ${td} text-right`}>
                         {q.position.toFixed(1)}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            )}
-          </Card>
+            </Card>
+          </section>
         )}
 
         {searchConsoleConfigured() && (
-          <Card>
-            <SectionTitle info="Sitemap pages Google has not indexed, with its reason. Checked a few pages an hour by the cron.">
+          <section>
+            <SectionTitle info="Sitemap pages Google has not indexed, with its reason. A few pages are checked each hour by the cron.">
               Not indexed
             </SectionTitle>
-            {indexRows.length === 0 ? (
-              <p className="mt-2 text-[13.5px] text-[var(--ds-muted)]">
-                No pages checked yet; the first batch lands within the hour.
-              </p>
-            ) : notIndexed.length === 0 ? (
-              <p className="mt-2 text-[13.5px] text-[var(--ds-muted)]">
-                Every checked page is indexed.
-              </p>
-            ) : (
-              <table className="mt-2 w-full text-[13px]">
-                <thead className="text-left text-[11.5px] font-bold uppercase tracking-wide text-[var(--ds-muted)]">
-                  <tr>
-                    <th className="py-1.5 font-bold">Page</th>
-                    <th className="py-1.5 font-bold">Google says</th>
-                    <th className="py-1.5 text-right font-bold">Last crawl</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {notIndexed.map((r) => (
-                    <tr
-                      key={r.url}
-                      className="border-t border-[var(--ds-line)]"
-                    >
-                      <td className="max-w-[240px] truncate py-1.5 pr-3">
-                        {r.path}
-                      </td>
-                      <td className="py-1.5 pr-3">
-                        {r.coverageState ?? r.verdict}
-                      </td>
-                      <td className="py-1.5 text-right tabular-nums">
-                        {r.lastCrawlTime
-                          ? r.lastCrawlTime.toISOString().slice(0, 10)
-                          : "never"}
-                      </td>
+            <Card className="overflow-x-auto">
+              {indexRows.length === 0 ? (
+                <p className="ds-small px-4 py-8 text-center">
+                  No pages checked yet; the first batch lands within the hour.
+                </p>
+              ) : notIndexed.length === 0 ? (
+                <p className="ds-small px-4 py-8 text-center">
+                  Every checked page is indexed.
+                </p>
+              ) : (
+                <table className="w-full text-[13.5px]">
+                  <thead>
+                    <tr className="ds-label border-b border-[color:var(--ds-line)] text-left">
+                      <th className="px-4 py-2.5 font-medium">Page</th>
+                      <th className={th}>Google says</th>
+                      <th className={`${th} text-right`}>Last crawl</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-            {gsc && gsc.sitemaps.length > 0 && (
-              <p className="mt-3 text-[12.5px] text-[var(--ds-muted)]">
-                Sitemap:{" "}
-                {gsc.sitemaps
-                  .map(
-                    (s) =>
-                      `${s.path.replace(/^https?:\/\/[^/]+/, "")} · ${s.submitted} submitted, ${s.indexed} indexed${s.errors ? `, ${s.errors} errors` : ""}, last read ${s.lastDownloaded ? s.lastDownloaded.slice(0, 10) : "never"}`,
-                  )
-                  .join(" · ")}
-              </p>
-            )}
-          </Card>
+                  </thead>
+                  <tbody className="ds-divide">
+                    {notIndexed.map((r) => (
+                      <tr key={r.url}>
+                        <td className="max-w-[240px] truncate px-4 py-2.5 font-medium text-[color:var(--ds-ink)]">
+                          {r.path}
+                        </td>
+                        <td className={td}>{r.coverageState ?? r.verdict}</td>
+                        <td className={`ds-num ${td} whitespace-nowrap text-right`}>
+                          {r.lastCrawlTime
+                            ? dayLabel(r.lastCrawlTime.toISOString().slice(0, 10))
+                            : "never"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {gsc && gsc.sitemaps.length > 0 && (
+                <p className="ds-small border-t border-[color:var(--ds-line)] px-4 py-3">
+                  {gsc.sitemaps
+                    .map(
+                      (s) =>
+                        `${s.path.replace(/^https?:\/\/[^/]+/, "")}: ${s.submitted} submitted, ${s.indexed} indexed${s.errors ? `, ${s.errors} errors` : ""}, last read ${s.lastDownloaded ? dayLabel(s.lastDownloaded.slice(0, 10)) : "never"}`,
+                    )
+                    .join(" · ")}
+                </p>
+              )}
+            </Card>
+          </section>
         )}
 
-        <Card>
-          <SectionTitle info="Where visits to the marketing pages start, from Cloudflare. Outside sites only; sign-in and local addresses are left out.">
-            Referrers
-          </SectionTitle>
-          {!cf ? (
-            <p className="mt-2 text-[13.5px] text-[var(--ds-muted)]">
-              Cloudflare not connected.
-            </p>
-          ) : (
-            <TwoCol
-              rows={cf.byReferer
-                .slice(0, 15)
-                .map((r) => ({ key: r.key || "(direct)", count: r.visits }))}
-              col="Site"
-            />
-          )}
-          {cf && (
-            <div className="mt-4 grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-[11.5px] font-bold uppercase tracking-wide text-[var(--ds-muted)]">
-                  Countries
-                </p>
-                <TwoCol
-                  rows={cf.byCountry
-                    .slice(0, 6)
-                    .map((r) => ({ key: r.key, count: r.visits }))}
-                  col=""
-                />
-              </div>
-              <div>
-                <p className="text-[11.5px] font-bold uppercase tracking-wide text-[var(--ds-muted)]">
-                  Devices
-                </p>
-                <TwoCol
-                  rows={cf.byDevice.map((r) => ({
-                    key: r.key,
-                    count: r.visits,
-                  }))}
-                  col=""
-                />
-              </div>
-            </div>
-          )}
-        </Card>
-
         {smallTables.map((t) => (
-          <Card key={t.title}>
+          <section key={t.title}>
             <SectionTitle info={t.hint}>{t.title}</SectionTitle>
-            {t.rows.length === 0 ? (
-              <p className="mt-2 text-[13.5px] text-[var(--ds-muted)]">
-                Nothing yet.
-              </p>
-            ) : (
-              <TwoCol rows={t.rows} col={t.col} />
-            )}
-          </Card>
+            <Card className="overflow-x-auto">
+              {t.rows.length === 0 ? (
+                <p className="ds-small px-4 py-8 text-center">
+                  {t.empty ?? "Nothing yet."}
+                </p>
+              ) : (
+                <TwoCol rows={t.rows} col={t.col} count={t.count ?? "Count"} />
+              )}
+            </Card>
+          </section>
         ))}
       </div>
     </DsPage>
   );
 }
 
-function TwoCol({ rows, col }: { rows: Row[]; col: string }) {
+function TwoCol({
+  rows,
+  col,
+  count,
+}: {
+  rows: Row[];
+  col: string;
+  count: string;
+}) {
+  const max = Math.max(1, ...rows.map((r) => r.count));
   return (
-    <table className="mt-2 w-full text-[13.5px]">
-      {col && (
-        <thead className="text-left text-[11.5px] font-bold uppercase tracking-wide text-[var(--ds-muted)]">
-          <tr>
-            <th className="py-1.5 font-bold">{col}</th>
-            <th className="py-1.5 text-right font-bold">Count</th>
-          </tr>
-        </thead>
-      )}
-      <tbody>
+    <table className="w-full text-[13.5px]">
+      <thead>
+        <tr className="ds-label border-b border-[color:var(--ds-line)] text-left">
+          <th className="px-4 py-2.5 font-medium">{col}</th>
+          <th className="w-28 px-3 py-2.5 text-right font-medium">{count}</th>
+        </tr>
+      </thead>
+      <tbody className="ds-divide">
         {rows.map((r) => (
-          <tr key={r.key} className="border-t border-[var(--ds-line)]">
-            <td className="max-w-[360px] truncate py-1.5 pr-3">{r.key}</td>
-            <td className="py-1.5 text-right tabular-nums">{n(r.count)}</td>
+          <tr key={r.key}>
+            <td className="px-4 py-2.5">
+              <span className="block max-w-[360px] truncate font-medium text-[color:var(--ds-ink)]">
+                {r.key}
+              </span>
+              <span className="mt-1.5 block h-1 w-full max-w-[200px] overflow-hidden rounded-full bg-[color:var(--ds-line)]">
+                <span
+                  className="block h-full rounded-full bg-[color:var(--ds-primary)]"
+                  style={{ width: `${Math.max(3, Math.round((r.count / max) * 100))}%` }}
+                />
+              </span>
+            </td>
+            <td className="ds-num px-3 py-2.5 text-right align-top">
+              {n(r.count)}
+            </td>
           </tr>
         ))}
       </tbody>
