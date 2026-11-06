@@ -72,7 +72,7 @@ const columns: {
 export default function WBFooter() {
   return (
     <footer className="border-t border-gray-200 bg-white">
-      <div className="mx-auto grid max-w-6xl gap-12 px-5 py-16 sm:px-8 lg:grid-cols-[minmax(220px,1.1fr)_repeat(5,minmax(0,1fr))] lg:gap-10">
+      <div className="mx-auto grid max-w-6xl gap-12 px-5 py-16 sm:px-8 lg:grid-cols-[minmax(200px,1.1fr)_repeat(3,minmax(0,1fr))] lg:gap-8 xl:grid-cols-[minmax(220px,1.1fr)_repeat(6,minmax(0,1fr))]">
         <div className="max-w-xs">
           <Image
             src="/workbench-wordmark.png"

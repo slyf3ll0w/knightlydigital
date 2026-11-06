@@ -413,18 +413,19 @@ export default function DocGenerator({ initial, storageKey }: Props) {
               {error}
             </p>
           )}
-          <div className="mt-3 flex flex-col gap-2.5 sm:flex-row">
-            <button type="button" onClick={() => void downloadPdf()} disabled={busy !== null} data-wb-event={`tool_download_${doc.kind}`} className="wb-pill wb-pill-primary flex-1 justify-center disabled:opacity-60">
+          {/* Download + Email share a row; the sign-up button takes the row below (three pills in one row overflowed the card). */}
+          <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+            <button type="button" onClick={() => void downloadPdf()} disabled={busy !== null} data-wb-event={`tool_download_${doc.kind}`} className="wb-pill wb-pill-primary justify-center disabled:opacity-60">
               {busy === "pdf" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" strokeWidth={2.5} />}
               Download PDF
             </button>
             {canEmail && (
-              <button type="button" onClick={openEmail} disabled={busy !== null} data-wb-event={`tool_email_open_${doc.kind}`} aria-expanded={emailOpen} className="wb-pill flex-1 justify-center border border-gray-300 bg-white text-gray-900 hover:border-gray-900 disabled:opacity-60">
+              <button type="button" onClick={openEmail} disabled={busy !== null} data-wb-event={`tool_email_open_${doc.kind}`} aria-expanded={emailOpen} className="wb-pill justify-center border border-gray-300 bg-white text-gray-900 hover:border-gray-900 disabled:opacity-60">
                 <Mail className="h-4 w-4" strokeWidth={2.5} />
                 Email it
               </button>
             )}
-            <button type="button" onClick={() => void getPaidOnline()} disabled={busy !== null} data-wb-event={`tool_signup_${doc.kind}`} className="wb-pill wb-pill-orange flex-1 justify-center disabled:opacity-60">
+            <button type="button" onClick={() => void getPaidOnline()} disabled={busy !== null} data-wb-event={`tool_signup_${doc.kind}`} className={`wb-pill wb-pill-orange justify-center disabled:opacity-60 ${canEmail ? "sm:col-span-2" : ""}`}>
               {busy === "draft" ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" strokeWidth={2.5} />}
               {sendLabel}
             </button>
