@@ -45,7 +45,8 @@ const APP_URL = (process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com").replace
 
 /** The From for every free-tool email: its own subdomain, so abuse can never touch tenant mail. */
 export function toolsFrom(): { address: string; display: string } | null {
-  const raw = process.env.TOOLS_EMAIL_FROM?.trim();
+  // A value pasted into a dashboard with its quotes still on is the same value.
+  const raw = process.env.TOOLS_EMAIL_FROM?.trim().replace(/^"(.*)"$/, "$1").trim();
   if (!raw) return null;
   const m = raw.match(/^(?:"?([^"<]*)"?\s*)?<([^>]+)>$/);
   const address = (m ? m[2] : raw).trim();
