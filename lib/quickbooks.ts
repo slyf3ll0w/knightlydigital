@@ -19,11 +19,21 @@ import { reportError } from "@/lib/report-error";
  *    its payments come off first, then the invoice
  *    (`queueQuickBooksInvoiceUnwind`); the QBO customer stays, since QBO
  *    won't delete a customer with history and accountants want the name
- *  - payment refunded → the QBO payment is rewritten with the reduced amount,
- *    or deleted if it refunded to zero (`queueQuickBooksPaymentRefresh`)
+ *  - payment refunded → the QBO payment keeps what the client actually paid
+ *    and a RefundReceipt books the money going back out, so the deposit and
+ *    the refund each match a bank-feed line (`queueQuickBooksPaymentRefresh`,
+ *    `pushRefund`); a refund the processor later rejects comes back off
+ *  - invoice archived with nothing paid on it → the QBO invoice is VOIDED,
+ *    not deleted: archiving shelves the paper here, so the number and the
+ *    record stay in QuickBooks with the amounts at zero and it stops being
+ *    a receivable; reopening restores the lines (`pushInvoice`)
  * All of these are fire-and-forget and never block (or fail) the user's
  * action; failures are logged and the record simply stays in QuickBooks.
  * Deleting rather than voiding mirrors what the user did here.
+ *
+ * Invoices also push the moment they change hands — marked sent, edited,
+ * archived, reopened, opened by the client (`queueQuickBooksInvoiceSync`) —
+ * so a bookkeeper watching QuickBooks sees it in seconds, not at the sweep.
  *
  * Connection lifecycle: OAuth2 against Intuit. Access tokens last 1 hour
  * (auto-refreshed here), refresh tokens roll for ~100 days — an idle
@@ -43,6 +53,8 @@ import { reportError } from "@/lib/report-error";
  *    invoice has tax); QBO Automated Sales Tax may recalculate it.
  *  - Card surcharges live on the Payment row here, not the invoice, so they
  *    are noted in the QBO payment memo rather than booked as income.
+ *  - Invoice numbers only match in QuickBooks when the company has "Custom
+ *    transaction numbers" on (Settings → Sales); otherwise QBO numbers them.
  */
 
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes } from "crypto";
@@ -398,6 +410,18 @@ function qboDelete(connection: QuickBooksConnection, entity: string, id: string,
   });
 }
 
+/**
+ * Void (not delete) a QBO transaction: the amounts go to zero and "Voided"
+ * lands on the memo, but the record and its number stay as the paper trail.
+ * Same fresh-SyncToken rule as delete.
+ */
+function qboVoid(connection: QuickBooksConnection, entity: string, id: string, syncToken: string) {
+  return qboRequest(connection, "POST", `${entity}?operation=void`, {
+    Id: id,
+    SyncToken: syncToken,
+  });
+}
+
 /** QBO's URL path for each entity type we map. */
 const QBO_ENTITY_PATH: Record<QuickBooksEntityType, string> = {
   CUSTOMER: "customer",
@@ -405,6 +429,7 @@ const QBO_ENTITY_PATH: Record<QuickBooksEntityType, string> = {
   PAYMENT: "payment",
   ESTIMATE: "estimate",
   PURCHASE: "purchase",
+  REFUND: "refundreceipt",
 };
 
 /** Run a QBO SQL-ish query; returns the entity array (possibly empty). */
@@ -446,6 +471,8 @@ async function saveSyncRecord(params: {
   qboId: string;
   qboSyncToken?: string | null;
   localUpdatedAt?: Date | null;
+  /** When WorkBench voided the QBO record; omitted = not voided (clears a prior void). */
+  voidedAt?: Date | null;
 }) {
   const data = {
     qboId: params.qboId,
@@ -453,6 +480,7 @@ async function saveSyncRecord(params: {
     status: "SYNCED" as const,
     error: null,
     localUpdatedAt: params.localUpdatedAt ?? null,
+    voidedAt: params.voidedAt ?? null,
     lastSyncedAt: new Date(),
   };
   return prisma.quickBooksSyncRecord.upsert({
@@ -680,10 +708,74 @@ async function ensureSurchargeItem(connection: QuickBooksConnection): Promise<st
 
 // ─── Entity push: Invoice ────────────────────────────────────────────────────
 
+type InvoiceSyncRecord = NonNullable<Awaited<ReturnType<typeof getSyncRecord>>>;
+
+/**
+ * An invoice archived here is shelved — "wrong invoice, client bailed" — so
+ * QuickBooks has to stop counting it as money owed, or the bookkeeper's
+ * receivables carry a balance WorkBench stopped chasing long ago.
+ *
+ * Rules, cheapest first:
+ *  - never pushed → nothing to void, and nothing to push: a shelved invoice
+ *    is not a receivable (returns null, and the sweep doesn't retry it)
+ *  - already voided, or nothing changed since → done
+ *  - money was recorded against it → the paid part is real, so the QBO
+ *    invoice stays exactly as it is (voiding would unapply the payment)
+ *  - otherwise → VOID it in QuickBooks. Void, not delete: archiving keeps
+ *    the paper trail here, so the number and the record stay there too,
+ *    with the amounts at zero. Reopening pushes the lines back
+ *    (`pushInvoice`'s update path), which clears `voidedAt`.
+ */
+async function voidArchivedInvoice(
+  connection: QuickBooksConnection,
+  invoice: { id: string; updatedAt: Date },
+  record: InvoiceSyncRecord | null
+): Promise<string | null> {
+  if (!record?.qboId) return null;
+  if (
+    record.status === "SYNCED" &&
+    record.localUpdatedAt &&
+    invoice.updatedAt <= record.localUpdatedAt
+  ) {
+    return record.qboId;
+  }
+  const base = { connection, entityType: "INVOICE" as const, localId: invoice.id, qboId: record.qboId };
+  if (record.voidedAt) {
+    await saveSyncRecord({ ...base, qboSyncToken: record.qboSyncToken, localUpdatedAt: invoice.updatedAt, voidedAt: record.voidedAt });
+    return record.qboId;
+  }
+  const paid = await prisma.payment.count({ where: { invoiceId: invoice.id } });
+  if (paid > 0) {
+    await saveSyncRecord({ ...base, qboSyncToken: record.qboSyncToken, localUpdatedAt: invoice.updatedAt });
+    return record.qboId;
+  }
+  const remote = await fetchQboEntity(connection, "invoice", record.qboId);
+  if (!remote) {
+    // Gone from QuickBooks already — nothing to void, nothing to remember.
+    await prisma.quickBooksSyncRecord.delete({ where: { id: record.id } }).catch(() => {});
+    return null;
+  }
+  const result = await qboVoid(
+    connection,
+    "invoice",
+    record.qboId,
+    String(remote.SyncToken ?? record.qboSyncToken ?? "0")
+  );
+  const voided = result.Invoice as { SyncToken?: string } | undefined;
+  await saveSyncRecord({
+    ...base,
+    qboSyncToken: voided?.SyncToken ?? null,
+    localUpdatedAt: invoice.updatedAt,
+    voidedAt: new Date(),
+  });
+  return record.qboId;
+}
+
 /**
  * Push one invoice (create or sparse update). Drafts are skipped — QBO only
- * hears about invoices once they're real. Returns the QBO invoice id, or
- * null when the invoice isn't syncable yet (draft / no client).
+ * hears about invoices once they're real; archived ones are voided over
+ * there (see voidArchivedInvoice). Returns the QBO invoice id, or null when
+ * the invoice isn't syncable (draft / no client / archived and never sent).
  */
 export async function pushInvoice(
   connection: QuickBooksConnection,
@@ -698,6 +790,7 @@ export async function pushInvoice(
   if (!invoice.contactId) return null; // no client to bill against
 
   const record = await getSyncRecord(connection.companyId, "INVOICE", invoiceId);
+  if (invoice.status === "ARCHIVED") return voidArchivedInvoice(connection, invoice, record);
   if (
     record?.qboId &&
     record.status === "SYNCED" &&
@@ -763,6 +856,8 @@ export async function pushInvoice(
 
   let result: QboEntity;
   if (record?.qboId) {
+    // Also the reopen path: a voided invoice gets its lines written back,
+    // and saveSyncRecord below clears voidedAt.
     const current = await qboGet(connection, `invoice/${record.qboId}`);
     const existing = current.Invoice as QboEntity;
     result = await qboPost(connection, "invoice", {
@@ -919,6 +1014,43 @@ export async function pushEstimate(
 // ─── Entity push: Purchase (our Expense) ─────────────────────────────────────
 
 /**
+ * The bank (or, failing that, credit-card) account money moves through for
+ * pushed expenses and refund receipts — prefers one named like "Checking".
+ * Resolved once and cached on the connection; bookkeepers can re-point a
+ * transaction inside QBO.
+ */
+async function ensurePaymentAccount(connection: QuickBooksConnection): Promise<string> {
+  if (connection.paymentAccountId) return connection.paymentAccountId;
+
+  const banks = await qboQuery(
+    connection,
+    "Account",
+    "select Id, Name from Account where AccountType = 'Bank' maxresults 20"
+  );
+  const cards =
+    banks.length > 0
+      ? []
+      : await qboQuery(
+          connection,
+          "Account",
+          "select Id, Name from Account where AccountType = 'Credit Card' maxresults 20"
+        );
+  const pay = banks.find((a) => /check/i.test(String(a.Name))) ?? banks[0] ?? cards[0];
+  if (!pay) {
+    throw new Error(
+      "No bank or credit-card account found in this QuickBooks company — add one in QuickBooks first."
+    );
+  }
+  const paymentAccountId = (pay as unknown as { Id: string }).Id;
+  await prisma.quickBooksConnection.update({
+    where: { id: connection.id },
+    data: { paymentAccountId },
+  });
+  connection.paymentAccountId = paymentAccountId;
+  return paymentAccountId;
+}
+
+/**
  * Resolve (once) the two accounts an expense Purchase needs: the expense
  * account its line posts to and the bank/credit account it's paid from.
  * Our Expense model has no vendor or payment method, so this is deliberately
@@ -928,11 +1060,9 @@ export async function pushEstimate(
 async function ensureExpenseAccounts(
   connection: QuickBooksConnection
 ): Promise<{ expenseAccountId: string; paymentAccountId: string }> {
-  if (connection.expenseAccountId && connection.paymentAccountId) {
-    return {
-      expenseAccountId: connection.expenseAccountId,
-      paymentAccountId: connection.paymentAccountId,
-    };
+  const paymentAccountId = await ensurePaymentAccount(connection);
+  if (connection.expenseAccountId) {
+    return { expenseAccountId: connection.expenseAccountId, paymentAccountId };
   }
 
   let expenseAccountId = connection.expenseAccountId;
@@ -965,36 +1095,11 @@ async function ensureExpenseAccounts(
     }
   }
 
-  let paymentAccountId = connection.paymentAccountId;
-  if (!paymentAccountId) {
-    const banks = await qboQuery(
-      connection,
-      "Account",
-      "select Id, Name from Account where AccountType = 'Bank' maxresults 20"
-    );
-    const cards =
-      banks.length > 0
-        ? []
-        : await qboQuery(
-            connection,
-            "Account",
-            "select Id, Name from Account where AccountType = 'Credit Card' maxresults 20"
-          );
-    const pay = banks.find((a) => /check/i.test(String(a.Name))) ?? banks[0] ?? cards[0];
-    if (!pay) {
-      throw new Error(
-        "No bank or credit-card account found in this QuickBooks company — add one in QuickBooks first."
-      );
-    }
-    paymentAccountId = (pay as unknown as { Id: string }).Id;
-  }
-
   await prisma.quickBooksConnection.update({
     where: { id: connection.id },
-    data: { expenseAccountId, paymentAccountId },
+    data: { expenseAccountId },
   });
   connection.expenseAccountId = expenseAccountId;
-  connection.paymentAccountId = paymentAccountId;
   return { expenseAccountId, paymentAccountId };
 }
 
@@ -1071,10 +1176,17 @@ export async function pushExpense(
 /**
  * Push one payment, applied against its (already synced) invoice.
  *
+ * QuickBooks gets what the client actually paid. A refund here decrements
+ * `Payment.amount` (every balance reads it), so the refunds are added back:
+ * the QBO payment is the deposit the bank saw, and each refund is its own
+ * RefundReceipt (pushRefund) the bank also saw. Shrinking the payment instead
+ * — what this did before — left the bookkeeper a deposit that matched
+ * nothing and an outflow QuickBooks had never heard of.
+ *
  * Payments have no updatedAt, so a synced record short-circuits — the sweep
- * has no way to notice a change on its own. The one thing that DOES change a
- * payment is a refund, and that path calls in here with force:true to rewrite
- * the QBO payment with the reduced amount (see queueQuickBooksPaymentRefresh).
+ * has no way to notice a change on its own. The refund path calls in here
+ * with force:true to re-assert the amount (which also repairs a payment the
+ * old behaviour shrank; see queueQuickBooksPaymentRefresh).
  */
 export async function pushPayment(
   connection: QuickBooksConnection,
@@ -1083,12 +1195,21 @@ export async function pushPayment(
 ): Promise<string | null> {
   const payment = await prisma.payment.findFirst({
     where: { id: paymentId, companyId: connection.companyId },
-    include: { invoice: { select: { id: true, contactId: true, invoiceNumber: true, status: true } } },
+    include: {
+      invoice: { select: { id: true, contactId: true, invoiceNumber: true, status: true } },
+      refunds: { select: { amount: true } },
+    },
   });
   if (!payment) throw new Error("Payment not found");
 
   const record = await getSyncRecord(connection.companyId, "PAYMENT", paymentId);
   if (record?.qboId && record.status === "SYNCED" && !opts.force) return record.qboId;
+
+  const refunded = money(payment.refunds.reduce((s, r) => s + Number(r.amount), 0));
+  const paidAmount = money(Number(payment.amount) + refunded);
+  // Nothing was ever kept (a bank transfer the bank sent back) — QBO rejects
+  // a zero payment, and the unwind path is what removes one already there.
+  if (paidAmount <= 0) return null;
 
   // Updating an existing QBO payment needs its current SyncToken; ours goes
   // stale the moment anyone edits it in QuickBooks, so read it back first. If
@@ -1111,18 +1232,19 @@ export async function pushPayment(
     money(payment.surchargeAmount) > 0
       ? `includes $${money(payment.surchargeAmount).toFixed(2)} card surcharge`
       : "",
+    refunded > 0 ? `$${refunded.toFixed(2)} since refunded — see the refund receipt` : "",
   ].filter(Boolean);
 
   const result = await qboPost(connection, "payment", {
     ...(existing ?? {}),
     CustomerRef: { value: customerId },
-    TotalAmt: money(payment.amount),
+    TotalAmt: paidAmount,
     TxnDate: dateOnly(payment.paidAt),
     ...(payment.referenceNumber ? { PaymentRefNum: payment.referenceNumber.slice(0, 21) } : {}),
     PrivateNote: memoBits.join(" · ").slice(0, 4000),
     Line: [
       {
-        Amount: money(payment.amount),
+        Amount: paidAmount,
         LinkedTxn: [{ TxnId: qboInvoiceId, TxnType: "Invoice" }],
       },
     ],
@@ -1138,6 +1260,110 @@ export async function pushPayment(
     localUpdatedAt: payment.createdAt,
   });
   return qboPayment.Id;
+}
+
+// ─── Entity push: RefundReceipt (our Refund) ─────────────────────────────────
+
+/**
+ * How a refund splits across the two things it gave back: the card
+ * surcharge (its own item, so fee income comes down with it) and the
+ * services the rest of it paid for. `amount` already includes the surcharge
+ * portion, the way Payment.amount does.
+ */
+export function refundReceiptSplit(
+  amount: Prisma.Decimal | number,
+  surchargeAmount: Prisma.Decimal | number | null | undefined
+): { services: number; surcharge: number } {
+  const total = money(amount);
+  const surcharge = Math.min(Math.max(money(surchargeAmount), 0), Math.max(total, 0));
+  return { services: money(total - surcharge), surcharge };
+}
+
+/**
+ * Push one refund as a QBO RefundReceipt: the money going back out, from
+ * the same bank account expenses are paid from, against the items the
+ * invoice billed. The QBO payment stays at the full amount (pushPayment),
+ * so the bookkeeper matches the deposit AND the refund to their bank feed
+ * and income comes down by exactly what was returned.
+ *
+ * Refund rows never change, so a synced record is final; a row that
+ * disappears (the processor rejected the refund after it was recorded) is
+ * caught by unwindOrphanRefunds. Tax is not refunded line-by-line — the
+ * receipt is NON-taxable, the way the surcharge and deposit lines are.
+ */
+export async function pushRefund(
+  connection: QuickBooksConnection,
+  refundId: string
+): Promise<string | null> {
+  const refund = await prisma.refund.findFirst({
+    where: { id: refundId, companyId: connection.companyId },
+    include: {
+      payment: {
+        select: {
+          method: true,
+          invoice: { select: { id: true, contactId: true, invoiceNumber: true } },
+        },
+      },
+    },
+  });
+  if (!refund) throw new Error("Refund not found");
+
+  const record = await getSyncRecord(connection.companyId, "REFUND", refundId);
+  if (record?.qboId && record.status === "SYNCED") return record.qboId;
+
+  const invoice = refund.payment.invoice;
+  if (!invoice.contactId) return null;
+  const split = refundReceiptSplit(refund.amount, refund.surchargeAmount);
+  if (split.services <= 0 && split.surcharge <= 0) return null;
+
+  const customerId = await ensureCustomer(connection, invoice.contactId);
+  const lines: QboEntity[] = [];
+  if (split.services > 0) {
+    lines.push({
+      DetailType: "SalesItemLineDetail",
+      Amount: split.services,
+      Description: `Refund — invoice #${invoice.invoiceNumber}`,
+      SalesItemLineDetail: {
+        ItemRef: { value: await ensureDefaultItem(connection) },
+        TaxCodeRef: { value: "NON" },
+      },
+    });
+  }
+  if (split.surcharge > 0) {
+    lines.push({
+      DetailType: "SalesItemLineDetail",
+      Amount: split.surcharge,
+      Description: "Refunded card processing surcharge",
+      SalesItemLineDetail: {
+        ItemRef: { value: await ensureSurchargeItem(connection) },
+        TaxCodeRef: { value: "NON" },
+      },
+    });
+  }
+  const depositAccountId = await ensurePaymentAccount(connection);
+
+  const method = refund.payment.method.toLowerCase().replace(/_/g, " ");
+  const result = await qboPost(connection, "refundreceipt", {
+    CustomerRef: { value: customerId },
+    DepositToAccountRef: { value: depositAccountId },
+    TxnDate: dateOnly(refund.createdAt),
+    ...(refund.reversalRef ? { PaymentRefNum: refund.reversalRef.slice(0, 21) } : {}),
+    PrivateNote: `WorkBench refund of a ${method} payment on invoice #${invoice.invoiceNumber}${
+      refund.reversalRef ? ` (${refund.reversalRef})` : ""
+    }`.slice(0, 4000),
+    Line: lines,
+  });
+
+  const receipt = result.RefundReceipt as { Id: string; SyncToken?: string };
+  await saveSyncRecord({
+    connection,
+    entityType: "REFUND",
+    localId: refundId,
+    qboId: receipt.Id,
+    qboSyncToken: receipt.SyncToken,
+    localUpdatedAt: refund.createdAt,
+  });
+  return receipt.Id;
 }
 
 // ─── Unwind: money that stopped existing here has to stop existing there ─────
@@ -1183,6 +1409,35 @@ export async function unwindQboEntity(
 }
 
 /**
+ * Refund receipts whose Refund row is gone: the processor rejected the
+ * refund after it was recorded (the webhook restores the payment and drops
+ * the row), or the payment itself was deleted and its refunds cascaded. The
+ * missing row can't tell anyone, so the two sides are compared. Returns how
+ * many receipts came off.
+ */
+export async function unwindOrphanRefunds(connection: QuickBooksConnection): Promise<number> {
+  const records = await prisma.quickBooksSyncRecord.findMany({
+    where: { companyId: connection.companyId, entityType: "REFUND" },
+    select: { localId: true },
+  });
+  if (records.length === 0) return 0;
+  const alive = new Set(
+    (
+      await prisma.refund.findMany({
+        where: { id: { in: records.map((r) => r.localId) } },
+        select: { id: true },
+      })
+    ).map((r) => r.id)
+  );
+  let removed = 0;
+  for (const r of records) {
+    if (alive.has(r.localId)) continue;
+    if ((await unwindQboEntity(connection, "REFUND", r.localId)) === "deleted") removed++;
+  }
+  return removed;
+}
+
+/**
  * Fire-and-forget unwind, for the request paths that delete money records.
  * Never throws and never blocks the delete itself — a failure lands in the
  * log and the record stays in QuickBooks until someone reconciles, which is
@@ -1203,6 +1458,8 @@ export function queueQuickBooksUnwind(params: {
       if (outcome === "deleted") {
         console.log(`[quickbooks] removed ${params.entityType} ${params.localId} from QuickBooks`);
       }
+      // A deleted payment takes its refunds with it (cascade) — their receipts too.
+      if (params.entityType === "PAYMENT") await unwindOrphanRefunds(connection);
     } catch (err) {
       reportError("[quickbooks] unwind failed", params, err);
     }
@@ -1232,6 +1489,7 @@ export function queueQuickBooksInvoiceUnwind(params: {
         await unwindQboEntity(connection, "PAYMENT", paymentId);
       }
       await unwindQboEntity(connection, "INVOICE", params.invoiceId);
+      await unwindOrphanRefunds(connection);
     } catch (err) {
       reportError("[quickbooks] invoice unwind failed", params, err);
     }
@@ -1239,12 +1497,13 @@ export function queueQuickBooksInvoiceUnwind(params: {
 }
 
 /**
- * A payment's amount changed here (a refund) — make QuickBooks agree.
- *
- * Payments carry no updatedAt, so the nightly sweep can't notice this on its
- * own; the refund route calls it directly. A payment refunded to zero is
- * removed outright, since QBO rejects a zero-amount payment and a $0 payment
- * wouldn't mean anything anyway.
+ * The refunds on a payment changed — one was recorded, or one the processor
+ * rejected came back off — so make QuickBooks agree. The QBO payment is
+ * re-asserted at what the client actually paid (which also repairs one an
+ * earlier version shrank), every surviving Refund row gets its receipt, and
+ * the receipt of any row that is gone comes off. Payments carry no
+ * updatedAt, so the sweep can't see this on its own; the refund route and
+ * the processor webhooks call it directly.
  */
 export function queueQuickBooksPaymentRefresh(params: {
   companyId: string;
@@ -1259,15 +1518,25 @@ export function queueQuickBooksPaymentRefresh(params: {
 
       const payment = await prisma.payment.findFirst({
         where: { id: params.paymentId, companyId: params.companyId },
-        select: { amount: true },
+        select: { amount: true, refunds: { select: { id: true, amount: true } } },
       });
       if (!payment) return;
 
-      if (money(payment.amount) <= 0) {
+      const paid = money(Number(payment.amount) + payment.refunds.reduce((s, r) => s + Number(r.amount), 0));
+      if (paid <= 0) {
         await unwindQboEntity(connection, "PAYMENT", params.paymentId);
       } else {
         await pushPayment(connection, params.paymentId, { force: true });
+        for (const refund of payment.refunds) {
+          try {
+            await pushRefund(connection, refund.id);
+          } catch (err) {
+            await saveSyncError(connection, "REFUND", refund.id, err);
+            reportError("[quickbooks] refund receipt failed", { refundId: refund.id }, err);
+          }
+        }
       }
+      await unwindOrphanRefunds(connection);
     } catch (err) {
       reportError("[quickbooks] payment refresh failed", params, err);
     }
@@ -1279,6 +1548,7 @@ export function queueQuickBooksPaymentRefresh(params: {
 export interface SyncSummary {
   invoices: { pushed: number; failed: number; skipped: number };
   payments: { pushed: number; failed: number };
+  refunds: { pushed: number; failed: number };
   quotes: { pushed: number; failed: number; skipped: number };
   expenses: { pushed: number; failed: number };
   done: boolean; // false = batch cap hit, another run will continue
@@ -1298,6 +1568,7 @@ export async function syncCompany(companyId: string): Promise<SyncSummary> {
   const summary: SyncSummary = {
     invoices: { pushed: 0, failed: 0, skipped: 0 },
     payments: { pushed: 0, failed: 0 },
+    refunds: { pushed: 0, failed: 0 },
     quotes: { pushed: 0, failed: 0, skipped: 0 },
     expenses: { pushed: 0, failed: 0 },
     done: true,
@@ -1306,10 +1577,13 @@ export async function syncCompany(companyId: string): Promise<SyncSummary> {
   try {
     // Candidate invoices: every non-draft invoice, filtered against sync
     // records in memory (the set of records is at most the set of invoices).
+    // An archived invoice QuickBooks never heard of stays that way (plan
+    // billing and gift cards archive plenty) — only one it knows needs the
+    // void or the reopen.
     const [invoices, invoiceRecords] = await Promise.all([
       prisma.invoice.findMany({
         where: { companyId, status: { not: "DRAFT" } },
-        select: { id: true, updatedAt: true },
+        select: { id: true, updatedAt: true, status: true },
         orderBy: { createdAt: "asc" },
       }),
       prisma.quickBooksSyncRecord.findMany({
@@ -1319,6 +1593,7 @@ export async function syncCompany(companyId: string): Promise<SyncSummary> {
     const recordByInvoice = new Map(invoiceRecords.map((r) => [r.localId, r]));
     const dueInvoices = invoices.filter((inv) => {
       const r = recordByInvoice.get(inv.id);
+      if (inv.status === "ARCHIVED" && !r?.qboId) return false;
       return !(
         r?.qboId &&
         r.status === "SYNCED" &&
@@ -1370,6 +1645,42 @@ export async function syncCompany(companyId: string): Promise<SyncSummary> {
         summary.payments.failed++;
         await saveSyncError(connection, "PAYMENT", p.id, err);
       }
+    }
+
+    // Refunds → Refund receipts. Rows never change, so anything without a
+    // synced record is due; then receipts whose row is gone come off.
+    const [refunds, refundRecords] = await Promise.all([
+      prisma.refund.findMany({
+        where: { companyId },
+        select: { id: true },
+        orderBy: { createdAt: "asc" },
+      }),
+      prisma.quickBooksSyncRecord.findMany({
+        where: { companyId, entityType: "REFUND", status: "SYNCED" },
+        select: { localId: true },
+      }),
+    ]);
+    const syncedRefunds = new Set(refundRecords.map((r) => r.localId));
+    for (const r of refunds) {
+      if (syncedRefunds.has(r.id)) continue;
+      if (budget-- <= 0) {
+        summary.done = false;
+        break;
+      }
+      try {
+        const id = await pushRefund(connection, r.id);
+        if (id) summary.refunds.pushed++;
+      } catch (err) {
+        if (isConnectionLevelError(err)) throw err;
+        summary.refunds.failed++;
+        await saveSyncError(connection, "REFUND", r.id, err);
+      }
+    }
+    try {
+      await unwindOrphanRefunds(connection);
+    } catch (err) {
+      if (isConnectionLevelError(err)) throw err;
+      reportError("[quickbooks] orphan refund sweep failed", { companyId }, err);
     }
 
     // Quotes → Estimates (same never-synced-or-edited-since filter as invoices)
@@ -1493,6 +1804,30 @@ export function queueQuickBooksPaymentSync(params: {
   })();
 }
 
+/**
+ * Fire-and-forget push of one invoice the moment it changes hands — marked
+ * sent, edited, archived, reopened, opened by the client — so QuickBooks
+ * shows it in seconds instead of at the next sweep. A failure lands on the
+ * invoice's sync record (the settings page lists it) and the sweep retries.
+ */
+export function queueQuickBooksInvoiceSync(params: { companyId: string; invoiceId: string }): void {
+  void (async () => {
+    let connection: QuickBooksConnection | null = null;
+    try {
+      connection = await prisma.quickBooksConnection.findUnique({
+        where: { companyId: params.companyId },
+      });
+      if (!connection || !connection.autoSync) return;
+      await pushInvoice(connection, params.invoiceId);
+    } catch (err) {
+      if (connection && !isConnectionLevelError(err)) {
+        await saveSyncError(connection, "INVOICE", params.invoiceId, err).catch(() => {});
+      }
+      reportError("[quickbooks] background invoice sync failed", params, err);
+    }
+  })();
+}
+
 /** Nightly cron sweep: full sync for every auto-sync connection. */
 export async function runQuickBooksNightlySync(): Promise<{
   companies: number;
@@ -1509,8 +1844,8 @@ export async function runQuickBooksNightlySync(): Promise<{
   for (const { companyId } of connections) {
     try {
       const s = await syncCompany(companyId);
-      pushed += s.invoices.pushed + s.payments.pushed + s.quotes.pushed + s.expenses.pushed;
-      failed += s.invoices.failed + s.payments.failed + s.quotes.failed + s.expenses.failed;
+      pushed += s.invoices.pushed + s.payments.pushed + s.refunds.pushed + s.quotes.pushed + s.expenses.pushed;
+      failed += s.invoices.failed + s.payments.failed + s.refunds.failed + s.quotes.failed + s.expenses.failed;
     } catch (err) {
       failed++;
       reportError(`[quickbooks] nightly sync failed for company ${companyId}`, err);

@@ -3440,6 +3440,7 @@ enum QuickBooksEntityType {
   PAYMENT
   ESTIMATE // our Quote
   PURCHASE // our Expense
+  REFUND // our Refund → QBO RefundReceipt
 }
 
 enum QuickBooksSyncStatus {
@@ -3537,6 +3538,9 @@ model QuickBooksSyncRecord {
   error          String?
   localUpdatedAt DateTime?
   lastSyncedAt   DateTime             @default(now())
+  // Set when WorkBench voided the QBO transaction (an invoice archived here
+  // with nothing paid on it); cleared by the push that restores it on reopen.
+  voidedAt       DateTime?
 
   @@unique([companyId, entityType, localId])
   @@index([connectionId])

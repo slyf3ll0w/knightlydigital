@@ -8,7 +8,7 @@ import { computeQuoteTotals } from "@/lib/quote-totals";
 import { paidDepositTotal } from "@/lib/deposits";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { isPastDue } from "@/lib/due-dates";
-import { queueQuickBooksInvoiceUnwind } from "@/lib/quickbooks";
+import { queueQuickBooksInvoiceSync, queueQuickBooksInvoiceUnwind } from "@/lib/quickbooks";
 import { CLEAR } from "@/lib/send-document";
 import { isOnlinePayment } from "@/lib/payment-ref";
 
@@ -188,6 +188,9 @@ export async function PATCH(
       },
     });
   });
+
+  // A sent invoice's new lines reach QuickBooks now, not at the next sweep.
+  queueQuickBooksInvoiceSync({ companyId, invoiceId: invoice.id });
 
   return NextResponse.json(updated);
 }
