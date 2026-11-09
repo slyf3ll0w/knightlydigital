@@ -186,7 +186,7 @@ export const paymentsSection: HelpSection = {
           items: [
             {
               q: "The page asks me to Reconnect Square.",
-              a: "You connected Square before WorkBench read payouts, disputes or order items, so Square needs you to approve the new permissions once — the card says which. The owner presses `Reconnect Square` (on the Payments page or the Online Payments card in Settings) and signs in to Square as the first time. One click; payments keep working meanwhile and nothing else changes. Until then the tabs that need it stay empty.",
+              a: "You connected Square before WorkBench read payouts, disputes or order items, so Square needs you to approve the new permissions once — the card says which. The owner presses `Reconnect Square` (on the Payments page or the Online Payments card in Settings) and signs in to Square as the first time. One click; payments keep working meanwhile and nothing else changes. Until then the tabs that need it stay empty. On the phone, Square opens in your browser: sign in to WorkBench there if it asks, approve, then come back to the app — the card updates on its own.",
             },
             {
               q: "A tab says Square didn't answer just now.",
@@ -283,7 +283,7 @@ export const paymentsSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Connect Square first (Settings → Payments & accounting → Online Payments). If the card there says **Reconnect Square to turn on Tap to Pay**, press `Reconnect Square` — Square needs one extra permission for in-person payments.",
+            "Connect Square first (Settings → Payments & accounting → Online Payments). If the card there says **Reconnect Square to turn on Tap to Pay**, press `Reconnect Square` — Square needs one extra permission for in-person payments. On the phone, Square opens in your browser; sign in to WorkBench there if it asks, approve, and come back to the app.",
             "On the phone app, open the same card: **Tap to Pay on this phone** → `Set up`.",
             "Allow **location** when asked. Square requires it for every in-person payment.",
             "iPhone only: Apple shows its Tap to Pay terms — sign in with your Apple ID and accept. Done when the card says **Ready**.",
@@ -418,7 +418,7 @@ export const paymentsSection: HelpSection = {
           items: [
             {
               q: "The Payouts tab is empty and asks me to Reconnect Square.",
-              a: "You connected Square before WorkBench read payouts. The owner presses `Reconnect Square` and signs in to Square once more; the tab fills in straight after. Payments keep working meanwhile.",
+              a: "You connected Square before WorkBench read payouts. The owner presses `Reconnect Square` and signs in to Square once more; the tab fills in straight after. Payments keep working meanwhile. On the phone, Square opens in your browser — approve there and come back to the app.",
             },
           ],
         },
@@ -458,7 +458,7 @@ export const paymentsSection: HelpSection = {
           items: [
             {
               q: "The Disputes tab is empty and asks me to Reconnect Square.",
-              a: "You connected Square before WorkBench read disputes. The owner presses `Reconnect Square` and signs in to Square once more; the tab fills in straight after. Until then, Square's emails are your notice of a new case.",
+              a: "You connected Square before WorkBench read disputes. The owner presses `Reconnect Square` and signs in to Square once more; the tab fills in straight after. Until then, Square's emails are your notice of a new case. On the phone, Square opens in your browser — approve there and come back to the app.",
             },
             {
               q: "The upload button isn't there.",
@@ -527,7 +527,7 @@ export const paymentsSection: HelpSection = {
             },
             {
               q: "Sell a gift card asks me to reconnect Square.",
-              a: "Gift cards need permissions your Square connection didn't have yet. The owner presses `Reconnect Square` once (on the Payments page or the Online Payments card in Settings) and signs in to Square; nothing else changes.",
+              a: "Gift cards need permissions your Square connection didn't have yet. The owner presses `Reconnect Square` once (on the Payments page or the Online Payments card in Settings) and signs in to Square; nothing else changes. On the phone, Square opens in your browser — approve there and come back to the app.",
             },
             {
               q: "A card bought in the Square app isn't in the list.",

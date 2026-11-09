@@ -29,7 +29,7 @@ export const startSection: HelpSection = {
           items: [
             "**Who pays the card fee?** Pick one of the two cards. **Your client pays a service fee** — added at checkout and shown before they pay, so the full invoice amount reaches you. **You pay the processing fee** — your clients see no fee and Square's fee comes out of each payment. Each card shows its rates and what a $500 payment looks like; see [The service fee](/help/card-surcharging). You can change this later under **Settings → Payments & accounting → Service fee**.",
             "**Create your Square account.** Press `Create your Square account`. It opens Square's free sign-up on WorkBench's rates for the model you just picked, in a new tab — a few minutes; Square asks for your business details, the owner's identity and the bank account to pay you out to. Your money goes to this account, so it's yours, made for your business. Then come back to WorkBench.",
-            "**Finish setup.** Press `Finish setup` and sign in to the Square account you just made.",
+            "**Finish setup.** Press `Finish setup` and sign in to the Square account you just made. On the phone this opens in your browser rather than inside the app; if it asks you to sign in to WorkBench first, do that and it carries on.",
             "Approve the access Square lists. WorkBench needs to take payments, issue refunds, keep cards on file for your clients, and read your payouts and disputes so they show on the Payments page; it never sees card numbers.",
             "You land back on **Square is connected** with your business name — press `Open WorkBench`. From that moment pay links show a **Pay** button. (Connecting from Settings instead lands you back on the Online Payments card with **Connected to** your business name.)",
             "Link the bank account Square should pay you out to. Until you do, clients can pay but the money sits in your Square balance — the Home checklist, the Online Payments card and a reminder on Home all say **Add your bank account to Square** with a button that opens the right page in Square: Settings → Account & Settings → Banking → Bank Accounts → Add Bank Account. Square verifies it (instantly through your bank login, or within a couple of business days) and emails a confirmation link to open within 24 hours. The reminder leaves on its own once Square confirms it, or press `I've added it — check again`.",
@@ -45,7 +45,7 @@ export const startSection: HelpSection = {
         },
         {
           type: "tip",
-          text: "Connected Square a while ago? The Payments page and the Online Payments card may ask you once to **Reconnect Square** so WorkBench can read your payouts and disputes. It's the same sign-in as the first time, one click, and nothing else changes — payments keep working meanwhile.",
+          text: "Connected Square a while ago? The Payments page and the Online Payments card may ask you once to **Reconnect Square** so WorkBench can read your payouts and disputes. It's the same sign-in as the first time, one click, and nothing else changes — payments keep working meanwhile. On the phone, Square opens in your browser; sign in to WorkBench there if it asks, approve, then come back to the app.",
         },
         {
           type: "faq",
