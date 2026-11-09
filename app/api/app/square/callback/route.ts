@@ -26,10 +26,20 @@ export const dynamic = "force-dynamic";
  *  step for a company still being held there (sign-up, 2026-11-03). */
 type LandingPage = "/app/settings" | "/app/setup/payments";
 
-function landing(req: NextRequest, signedIn: boolean, outcome: string, page: LandingPage = "/app/settings") {
+/** Where the outcome lands. A flow the phone app started (`native` in the
+ *  signed state) ran in the system browser, so it ends on /square-connected
+ *  — a plain page outside /app that says what happened and sends the owner
+ *  back to the app (the app's Settings re-reads the connection on focus).
+ *  /app/* would be claimed by the shells as an App Link mid-redirect. */
+function landing(req: NextRequest, signedIn: boolean, outcome: string, page: LandingPage = "/app/settings", native = false) {
   // Behind Railway's proxy req.nextUrl.origin is the internal host —
   // NEXTAUTH_URL is the real public origin.
   const base = process.env.NEXTAUTH_URL ?? req.nextUrl.origin;
+  if (native) {
+    const url = new URL("/square-connected", base);
+    url.searchParams.set("square", outcome);
+    return NextResponse.redirect(url);
+  }
   const url = new URL(signedIn ? page : "/app/login", base);
   if (signedIn) {
     url.searchParams.set("square", outcome);
@@ -43,16 +53,18 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const actor = await getActor();
   const signedIn = !!actor;
+  const state = sp.get("state");
+  // Verified early so even a Deny or a missing code lands in the right place.
+  const verified = state ? verifySquareState(state) : null;
+  const native = verified?.native ?? false;
 
   if (sp.get("error")) {
     // Seller pressed Deny (access_denied) or Square errored out
-    return landing(req, signedIn, "denied");
+    return landing(req, signedIn, "denied", "/app/settings", native);
   }
   const code = sp.get("code");
-  const state = sp.get("state");
-  if (!code || !state) return landing(req, signedIn, "missing_params");
+  if (!code || !state) return landing(req, signedIn, "missing_params", "/app/settings", native);
 
-  const verified = verifySquareState(state);
   if (!verified) return landing(req, signedIn, "bad_state");
   const { companyId, userId } = verified;
   // The exchange is finished only by the signed-in owner who started it
@@ -68,7 +80,7 @@ export async function GET(req: NextRequest) {
   // A session for a different account means the link was replayed into
   // somebody else's browser — refuse rather than connect it.
   if (actor.id !== userId || actor.companyId !== companyId) {
-    return landing(req, signedIn, "bad_state");
+    return landing(req, signedIn, "bad_state", "/app/settings", native);
   }
   const [user, company] = await Promise.all([
     prisma.user.findUnique({
@@ -78,7 +90,7 @@ export async function GET(req: NextRequest) {
     prisma.company.findUnique({ where: { id: companyId }, select: { paymentsRequiredAt: true } }),
   ]);
   if (!user || user.companyId !== companyId || !user.isActive || user.role !== "OWNER") {
-    return landing(req, signedIn, "unauthorized");
+    return landing(req, signedIn, "unauthorized", "/app/settings", native);
   }
   // A company still in the sign-up's payment-setup step started this from
   // there — send the outcome back to it rather than to Settings.
@@ -88,10 +100,10 @@ export async function GET(req: NextRequest) {
     const result = await completeSquareConnect({ companyId, code });
     console.log(`[square] company ${companyId} connected by ${user.name ?? userId}${result.businessName ? ` (${result.businessName})` : ""}`);
   } catch (err) {
-    if (err instanceof SquareConnectError) return landing(req, signedIn, err.code, page);
+    if (err instanceof SquareConnectError) return landing(req, signedIn, err.code, page, native);
     reportError("[square] connect failed", err);
-    return landing(req, signedIn, "exchange_failed", page);
+    return landing(req, signedIn, "exchange_failed", page, native);
   }
 
-  return landing(req, signedIn, "connected", page);
+  return landing(req, signedIn, "connected", page, native);
 }

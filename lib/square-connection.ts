@@ -29,32 +29,45 @@ export const STALE_AFTER_MS = 8 * 86_400_000;
 
 // ─── OAuth state (signed, self-contained; same shape as QuickBooks) ──────────
 
-export type SquareOAuthState = { companyId: string; userId: string };
+export type SquareOAuthState = {
+  companyId: string;
+  userId: string;
+  /** Started from the phone app: consent runs in the system browser, so the
+   *  callback lands on /square-connected (outside the app) instead of Settings. */
+  native: boolean;
+};
 
-/** state = companyId.userId.expiresAtMs.hmac — the state IS the identity at
- *  the callback (the native shell opens consent in the system browser, which
- *  has no WorkBench session), so the callback re-checks the user instead. */
-export function buildSquareState(companyId: string, userId: string, now = Date.now()): string {
+/** Flag segment of a native state. Dotted-free so it splits cleanly. */
+const NATIVE_FLAG = "n";
+
+/** state = companyId.userId.expiresAtMs[.n].hmac — the state IS the identity
+ *  at the callback (the native shell opens consent in the system browser,
+ *  which has no WorkBench session), so the callback re-checks the user
+ *  instead. The optional `n` segment marks a native start (2026-11-09). */
+export function buildSquareState(companyId: string, userId: string, now = Date.now(), opts: { native?: boolean } = {}): string {
   const expiresAt = now + STATE_TTL_MS;
-  const sig = signMessage(`${companyId}.${userId}.${expiresAt}`, SECRET_SCOPE);
-  return `${companyId}.${userId}.${expiresAt}.${sig}`;
+  const body = opts.native ? `${companyId}.${userId}.${expiresAt}.${NATIVE_FLAG}` : `${companyId}.${userId}.${expiresAt}`;
+  return `${body}.${signMessage(body, SECRET_SCOPE)}`;
 }
 
 export function verifySquareState(state: string, now = Date.now()): SquareOAuthState | null {
   const parts = state.split(".");
-  if (parts.length !== 4) return null;
-  const [companyId, userId, expiresRaw, sig] = parts;
+  if (parts.length !== 4 && parts.length !== 5) return null;
+  const native = parts.length === 5;
+  if (native && parts[3] !== NATIVE_FLAG) return null;
+  const [companyId, userId, expiresRaw] = parts;
+  const sig = parts[parts.length - 1];
   const expiresAt = Number(expiresRaw);
   if (!companyId || !userId || !Number.isFinite(expiresAt) || expiresAt < now) return null;
-  const expected = signMessage(`${companyId}.${userId}.${expiresAt}`, SECRET_SCOPE);
+  const expected = signMessage(parts.slice(0, -1).join("."), SECRET_SCOPE);
   if (sig.length !== expected.length) return null;
   let diff = 0;
   for (let i = 0; i < sig.length; i++) diff |= sig.charCodeAt(i) ^ expected.charCodeAt(i);
-  return diff === 0 ? { companyId, userId } : null;
+  return diff === 0 ? { companyId, userId, native } : null;
 }
 
-export function squareAuthorizeUrlFor(companyId: string, userId: string): string {
-  return square.buildSquareAuthorizeUrl({ state: buildSquareState(companyId, userId) });
+export function squareAuthorizeUrlFor(companyId: string, userId: string, opts: { native?: boolean } = {}): string {
+  return square.buildSquareAuthorizeUrl({ state: buildSquareState(companyId, userId, Date.now(), opts) });
 }
 
 // ─── Connect ────────────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ import { postJson } from "@/lib/safe-fetch";
 import { RATES } from "@/lib/plans";
 import { feeExample, SERVICE_FEE_ACH, SERVICE_FEE_CARD, type FeeModel as Model } from "@/lib/service-fee";
 import { squareOutcomeNotice } from "@/lib/square-outcomes";
+import ConnectSquareButton from "@/components/ConnectSquareButton";
 import { SQUARE_BANK_ACCOUNTS_URL } from "@/lib/square-links";
 
 const EXAMPLE = 500;
@@ -343,9 +344,9 @@ export default function SetupPaymentsClient({
                   Done with Square&apos;s sign-up? Sign in to your new Square account once more to approve WorkBench, and
                   you&apos;re in. Card and bank details stay with Square and never touch WorkBench.
                 </p>
-                <a href="/api/app/square/connect" className={`${signupStarted ? primaryBtn : secondaryBtn} mt-4`}>
+                <ConnectSquareButton className={`${signupStarted ? primaryBtn : secondaryBtn} mt-4`}>
                   Finish setup <ArrowRight size={15} />
-                </a>
+                </ConnectSquareButton>
                 {sandbox && (
                   <p className="mt-2 text-[12px] text-gray-400">
                     Sandbox: keep the test seller&apos;s Square dashboard open in another tab while you approve.

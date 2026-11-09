@@ -6,6 +6,7 @@ import { InfoTip } from "@/components/ds";
 import { nativeTapToPay, tapToPayError, type TapToPayPlugin, type TapToPayStatus } from "@/lib/native-tap-to-pay";
 import { tapToPayFailureText } from "@/lib/tap-to-pay-shared";
 import { GENERIC_ERROR } from "@/lib/safe-fetch";
+import ConnectSquareButton from "@/components/ConnectSquareButton";
 
 /**
  * Settings → Online Payments → "Tap to Pay on this phone". Lives under the
@@ -118,9 +119,9 @@ export default function TapToPaySetupCard({
         <div className="btn-row">
           {!inPerson ? (
             isOwner ? (
-              <a href="/api/app/square/connect" className="btn-secondary">
+              <ConnectSquareButton className="btn-secondary">
                 <RefreshCw size={11} /> Reconnect Square
-              </a>
+              </ConnectSquareButton>
             ) : (
               <span className="text-xs text-gray-500">Only the account owner can reconnect Square.</span>
             )
