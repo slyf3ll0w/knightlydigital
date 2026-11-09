@@ -66,11 +66,25 @@ test("sealSecret round-trips and is scoped", () => {
 test("state verifies, binds company + user, and expires", () => {
   const now = 1_700_000_000_000;
   const state = buildSquareState("cmp_1", "usr_1", now);
-  assert.deepEqual(verifySquareState(state, now + 60_000), { companyId: "cmp_1", userId: "usr_1" });
+  assert.deepEqual(verifySquareState(state, now + 60_000), { companyId: "cmp_1", userId: "usr_1", native: false });
   assert.equal(verifySquareState(state, now + 11 * 60_000), null, "expired after 10 min");
   assert.equal(verifySquareState(state.replace("cmp_1", "cmp_2"), now), null, "tampered company");
   assert.equal(verifySquareState(state.slice(0, -2) + "zz", now), null, "tampered signature");
   assert.equal(verifySquareState("garbage", now), null);
+});
+
+test("a native state carries the flag under the signature", () => {
+  const now = 1_700_000_000_000;
+  const state = buildSquareState("cmp_1", "usr_1", now, { native: true });
+  assert.equal(state.split(".").length, 5);
+  assert.deepEqual(verifySquareState(state, now + 60_000), { companyId: "cmp_1", userId: "usr_1", native: true });
+  // The flag is signed: bolting it onto a web state, or stripping it, fails.
+  const web = buildSquareState("cmp_1", "usr_1", now);
+  const webParts = web.split(".");
+  assert.equal(verifySquareState([...webParts.slice(0, 3), "n", webParts[3]].join("."), now), null, "flag added");
+  const nativeParts = state.split(".");
+  assert.equal(verifySquareState([...nativeParts.slice(0, 3), nativeParts[4]].join("."), now), null, "flag stripped");
+  assert.equal(verifySquareState([...nativeParts.slice(0, 3), "x", nativeParts[4]].join("."), now), null, "unknown flag");
 });
 
 test("authorize URL carries our scopes, state and redirect", () => {

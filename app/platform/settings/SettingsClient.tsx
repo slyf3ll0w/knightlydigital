@@ -1,6 +1,7 @@
 "use client";
 
 import TapToPaySetupCard from "@/components/TapToPaySetupCard";
+import ConnectSquareButton from "@/components/ConnectSquareButton";
 
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import { NETWORK_ERROR } from "@/lib/safe-fetch";
@@ -396,9 +397,24 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
         return s;
       });
     }, 20000);
+    // In the phone app, Square's consent runs in a browser sheet over the
+    // app — the callback never reloads this page, so pick the connection up
+    // on the way back (same as the QuickBooks card).
+    let timers: ReturnType<typeof setTimeout>[] = [];
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      load();
+      timers.forEach(clearTimeout);
+      timers = [4000, 12000].map((ms) => setTimeout(load, ms));
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
     return () => {
       cancelled = true;
       clearInterval(t);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+      timers.forEach(clearTimeout);
     };
   }, []);
 
@@ -565,9 +581,9 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
                   {isOwner && (
                     <>
                       {" "}
-                      <a href="/api/app/square/connect" className="font-semibold underline">
+                      <ConnectSquareButton className="font-semibold underline" onError={setError}>
                         Reconnect Square
-                      </a>
+                      </ConnectSquareButton>
                     </>
                   )}
                 </span>
@@ -601,9 +617,9 @@ function PaymentsOnlineCard({ isOwner }: { isOwner: boolean }) {
             {isOwner ? (
               <>
                 <div className="btn-row">
-                  <a href="/api/app/square/connect" className="btn-primary">
+                  <ConnectSquareButton className="btn-primary" onError={setError}>
                     Connect Square
-                  </a>
+                  </ConnectSquareButton>
                   <Link prefetch={false} href="/app/setup/payments" className="btn-secondary">
                     Walk me through it
                   </Link>

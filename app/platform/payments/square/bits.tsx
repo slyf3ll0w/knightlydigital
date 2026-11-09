@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, ChevronRight, Gift, RefreshCw } from "lucide-react";
 import { InfoTip } from "@/components/ds";
+import ConnectSquareButton from "@/components/ConnectSquareButton";
 import FilterBar, { listHref } from "@/components/FilterBar";
 import { squareDashboardUrl, type SquareDashboardScreen } from "@/lib/square-links";
 import type { SellerReadFailure } from "@/lib/square-seller-reports";
@@ -72,9 +73,9 @@ export function ReconnectCard({ what, canReconnect }: { what: string; canReconne
           </p>
         </div>
         {canReconnect ? (
-          <a href="/api/app/square/connect" className="btn-primary">
+          <ConnectSquareButton className="btn-primary">
             <RefreshCw size={14} /> Reconnect Square
-          </a>
+          </ConnectSquareButton>
         ) : (
           <span className="text-xs text-[color:var(--ds-muted)]">Ask the owner to reconnect Square in Settings.</span>
         )}
