@@ -247,6 +247,7 @@ export async function POST(req: NextRequest) {
       paymentsWaived: Boolean(invite),
       requirePayments: !invite,
       referralSource: referral,
+      phone: String(phone ?? "").trim() || null,
       applicationId: application.id,
     });
   } catch (e) {

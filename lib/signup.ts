@@ -61,6 +61,12 @@ export async function createCompanySignup(opts: {
    * processor; a waived (invite-code) company is never stamped.
    */
   requirePayments?: boolean;
+  /**
+   * The phone typed on the sign-up form → the OWNER membership (User.phone),
+   * which the sign-up's lead / client row in the WorkBench account reads
+   * (lib/plan-billing.ts ensureBillingContact) — so a stalled sign-up can be called.
+   */
+  phone?: string | null;
   /** "How did you hear about us?" from the sign-up form → Company.referralSource. */
   referralSource?: string | null;
   /** Link this AccessApplication to the new company (and the invite, if any). */
@@ -99,6 +105,7 @@ async function createInTransaction(
     opts;
   const requirePayments = Boolean(opts.requirePayments) && !paymentsWaived && paymentsSetupGateEnabled();
   const referralSource = opts.referralSource?.trim().slice(0, 200) || null;
+  const ownerPhone = opts.phone?.trim().slice(0, 30) || null;
   const result = await prisma.$transaction(async (tx) => {
     // Claim the invite atomically — a pre-check outside the transaction can
     // race a concurrent signup on the same code; the updateMany count settles it.
@@ -141,6 +148,7 @@ async function createInTransaction(
       name: ownerName,
       accountId,
       role: "OWNER" as const,
+      ...(ownerPhone ? { phone: ownerPhone } : {}),
       // A brand-new company IS its owner: they take the bookings until
       // there's a team to share them with (off by default for members
       // added later — owners opt those in from the Team page).
@@ -219,7 +227,8 @@ async function createInTransaction(
   });
   // The new company is also a client of the WorkBench company (lib/plan-billing.ts
   // ensureBillingContact): a lead David already has, matched by the owner's
-  // email / phone, becomes the client; otherwise one is made. Best effort.
+  // email / phone, is linked; otherwise one is made — a LEAD on the board
+  // until they connect Square. Best effort.
   await import("@/lib/plan-billing")
     .then((m) => m.ensureBillingContact(result.companyId))
     .catch((e) => reportError("[signup] billing contact failed", e));

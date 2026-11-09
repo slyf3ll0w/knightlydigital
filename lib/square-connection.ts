@@ -141,6 +141,11 @@ export async function completeSquareConnect(params: { companyId: string; code: s
   }
   // Somewhere to pay out to? Best effort — never fails the connect.
   await refreshSquarePayoutStatus(params.companyId).catch(() => {});
+  // Payments are set up: this company's lead in the WorkBench account is
+  // converted to a client (lib/plan-billing.ts convertSignupLead). Best effort.
+  await import("@/lib/plan-billing")
+    .then((m) => m.convertSignupLead(params.companyId))
+    .catch((e) => reportError("[square] sign-up lead conversion failed", params.companyId, e));
   return written;
 }
 

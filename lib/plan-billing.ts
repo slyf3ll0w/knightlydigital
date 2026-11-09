@@ -11,7 +11,7 @@ import { attemptAutoCharge, reviveAutopayForContact } from "@/lib/auto-charge";
 import { billSubscriptionNow } from "@/lib/subscriptions";
 import { nextInvoiceNumber } from "@/lib/doc-numbers";
 import { dueDateFromTerms } from "@/lib/due-dates";
-import { recordLeadWin } from "@/lib/pipeline";
+import { enterPipeline, recordLeadWin } from "@/lib/pipeline";
 import {
   PAYMENT_GRACE_DAYS,
   planChange,
@@ -184,8 +184,8 @@ const digitsOf = (phone: string | null | undefined) => {
  * The contact in the WorkBench company that IS this customer. Looks for one
  * first — the owner's sign-in email, the company's email, then the phone
  * digits — so a lead David already had (from /apply, the leads board, a
- * call) becomes the client instead of a duplicate; a lead found this way is
- * won (the board moves it to Converted). Nothing found = a new client. Null
+ * call) is linked instead of a duplicate. Lead or client follows payments
+ * (settleSignupLead): a LEAD until Square is connected. Nothing found = a new row. Null
  * when there is no WorkBench company yet, or for the WorkBench company itself.
  */
 export async function ensureBillingContact(companyId: string): Promise<string | null> {
@@ -193,7 +193,7 @@ export async function ensureBillingContact(companyId: string): Promise<string | 
   if (!platform || platform.id === companyId) return null;
   const company = await prisma.company.findUnique({
     where: { id: companyId },
-    select: { id: true, name: true, email: true, phone: true, billingContactId: true, billingContact: { select: { id: true, companyId: true } } },
+    select: { id: true, name: true, email: true, phone: true, squareMerchantId: true, billingContactId: true, billingContact: { select: { id: true, companyId: true } } },
   });
   if (!company) return null;
   if (company.billingContact && company.billingContact.companyId === platform.id) return company.billingContact.id;
@@ -229,23 +229,24 @@ export async function ensureBillingContact(companyId: string): Promise<string | 
   const found = pick(byEmail) ?? pick(byPhone);
 
   const [first, ...rest] = (owner?.name ?? company.name).trim().split(/\s+/);
+  const phone = owner?.phone?.trim() || company.phone?.trim() || null;
   let contactId: string;
   if (found) {
     contactId = found.id;
-    // A LEAD is won when they BUY a plan (subscribe), not when they merely
-    // sign up for the free plan — the board used to mark every signup
-    // "Converted" (readiness review 2026-11-02).
+    // Linking never decides lead vs client by itself — settleSignupLead
+    // below does, from whether they've set up payments (2026-11-09).
     await prisma.contact.update({
       where: { id: found.id },
       data: {
         kind: "CLIENT",
-        status: "ACTIVE",
         ...(found.companyName ? {} : { companyName: company.name }),
         ...(found.email || !emails[0] ? {} : { email: emails[0] }),
-        ...(found.phone || !owner?.phone ? {} : { phone: owner.phone, phoneDigits: digitsOf(owner.phone) || null }),
+        ...(found.phone || !phone ? {} : { phone, phoneDigits: digitsOf(phone) || null }),
       },
     });
   } else {
+    // A sign-up that hasn't set up payments is a LEAD on the WorkBench
+    // board (David 2026-11-09); one already on Square is a client.
     const made = await prisma.contact.create({
       data: {
         companyId: platform.id,
@@ -253,9 +254,9 @@ export async function ensureBillingContact(companyId: string): Promise<string | 
         lastName: rest.join(" "),
         companyName: company.name,
         email: emails[0] || null,
-        phone: owner?.phone ?? company.phone ?? null,
+        phone,
         phoneDigits: digits[0] || null,
-        status: "ACTIVE",
+        status: company.squareMerchantId ? "ACTIVE" : "LEAD",
         kind: "CLIENT",
         leadSource: "WorkBench sign-up",
       },
@@ -264,7 +265,56 @@ export async function ensureBillingContact(companyId: string): Promise<string | 
     contactId = made.id;
   }
   await prisma.company.update({ where: { id: companyId }, data: { billingContactId: contactId } });
+  await settleSignupLead(platform.id, contactId, Boolean(company.squareMerchantId)).catch((e) =>
+    reportError("[plan-billing] sign-up lead placement failed", e)
+  );
   return contactId;
+}
+
+/**
+ * Lead or client, for a customer company's row in the WorkBench account
+ * (David 2026-11-09: "if they sign up and don't set up payments, they go to
+ * leads and get converted if they set up Square"):
+ *  - payments set up (Square connected) → won: the card moves to Converted
+ *    and the contact is an ACTIVE client (lib/pipeline.ts recordLeadWin);
+ *  - not yet → a LEAD card on the board (a lost/archived lead comes back).
+ * An ACTIVE client is never demoted. Buying a plan wins the lead too
+ * (winBillingLead).
+ */
+async function settleSignupLead(platformId: string, contactId: string, paying: boolean): Promise<void> {
+  const contact = await prisma.contact.findUnique({ where: { id: contactId }, select: { id: true, status: true, pipelineStageId: true } });
+  if (!contact) return;
+  if (paying) {
+    if (contact.status === "ACTIVE" && !contact.pipelineStageId) return;
+    const moved = await recordLeadWin(prisma, platformId, contact);
+    // A lost (archived, off-board) lead isn't on the board for recordLeadWin to move.
+    if (!moved && contact.status !== "ACTIVE") {
+      await prisma.contact.update({ where: { id: contact.id }, data: { status: "ACTIVE", wonAt: new Date(), lostAt: null, lostReason: null } });
+    }
+    return;
+  }
+  if (contact.status === "ACTIVE") return;
+  if (contact.status === "ARCHIVED") {
+    await prisma.contact.update({ where: { id: contact.id }, data: { status: "LEAD", lostAt: null, lostReason: null } });
+  }
+  await enterPipeline(prisma, platformId, contact.id);
+}
+
+/**
+ * A customer company just connected Square (lib/square-connection.ts
+ * completeSquareConnect): its lead in the WorkBench account is converted.
+ * Best effort — never fails the connect.
+ */
+export async function convertSignupLead(companyId: string): Promise<void> {
+  const platform = await platformCompany();
+  if (!platform || platform.id === companyId) return;
+  const linked = await prisma.company.findUnique({ where: { id: companyId }, select: { billingContact: { select: { id: true, companyId: true } } } });
+  if (linked?.billingContact?.companyId === platform.id) {
+    await settleSignupLead(platform.id, linked.billingContact.id, true);
+    return;
+  }
+  // Not linked yet: linking now sees the Square connection and settles it as won.
+  await ensureBillingContact(companyId);
 }
 
 // ── The plans as price-book items of the WorkBench company ──
