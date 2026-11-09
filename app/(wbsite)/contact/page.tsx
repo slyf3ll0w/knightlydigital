@@ -100,21 +100,23 @@ export default function WBContactPage() {
           <div>
             <h2 className="text-2xl font-extrabold sm:text-3xl">Want to see it before you sign up?</h2>
             <p className="mt-4 text-[15.5px] leading-relaxed text-gray-600">
-              Call and we will walk you through the software on a screen share, using
-              your trade and your kind of jobs. If it is not a fit, we will tell you.
+              Book a call and we will walk you through the software on a screen share,
+              using your trade and your kind of jobs, and set your company up with you.
+              If it is not a fit, we will tell you.
             </p>
             <p className="mt-4 text-[15.5px] leading-relaxed text-gray-600">
-              If you are ready to start, the sign-up takes a few minutes. Every
-              application is reviewed by a person, and approved companies are onboarded
-              personally.
+              If you are ready to start, the sign-up takes a few minutes and your
+              account opens today.
             </p>
-            <Link
-              href="/apply"
-              className="wb-pill wb-pill-primary mt-6"
-            >
-              Get started
-              <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-            </Link>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Link href="/book-a-call" className="wb-pill wb-pill-primary">
+                Book a call
+                <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+              </Link>
+              <Link href="/apply" className="wb-pill wb-pill-outline">
+                Get started
+              </Link>
+            </div>
           </div>
           <div className="rounded-[1.5rem] border border-gray-200 bg-[#F6F8FB] p-7">
             <div className="flex items-center gap-3">
@@ -124,7 +126,7 @@ export default function WBContactPage() {
             <ul className="mt-4 space-y-3 text-[14.5px] leading-relaxed text-gray-600">
               <li>You reach the people who build and support WorkBench, not a call center.</li>
               <li>If nobody picks up, leave your name and trade and we call you back.</li>
-              <li>Applications are reviewed by a person within one business day.</li>
+              <li>Booked calls come with a confirmation email and a link to reschedule.</li>
             </ul>
           </div>
         </div>

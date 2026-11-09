@@ -56,6 +56,7 @@ const columns: {
     heading: "Company",
     links: [
       { label: "Get started", href: "/apply" },
+      { label: "Book a call", href: "/book-a-call" },
       { label: "Log in", href: "/app/login" },
       { label: "Help Center", href: "/help" },
       { label: "Contact", href: "/contact" },

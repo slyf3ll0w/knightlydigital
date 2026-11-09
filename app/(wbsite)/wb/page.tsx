@@ -28,7 +28,6 @@ import {
   Landmark,
   MapPin,
   Mic,
-  Phone,
   Smartphone,
   WifiOff,
 } from "lucide-react";
@@ -211,10 +210,10 @@ export default function WBHomePage() {
                 Get started
                 <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
               </Link>
-              <a href={WB_PHONE.href} className="wb-pill wb-pill-outline">
-                <Phone className="h-4 w-4 text-[#F86A0A]" strokeWidth={2.25} aria-hidden />
-                Call {WB_PHONE.display}
-              </a>
+              <Link href="/book-a-call" className="wb-pill wb-pill-outline">
+                <CalendarDays className="h-4 w-4 text-[#F86A0A]" strokeWidth={2.25} aria-hidden />
+                Book a call
+              </Link>
             </div>
             <p className="mt-5 text-[13.5px] font-semibold text-gray-500">
               No credit card. No trial clock. Not a trial.

@@ -21,7 +21,17 @@ declare global {
   }
 }
 
-export default function WBEmbedForm() {
+/**
+ * `path` is the item on WorkBench's own booking page: "contact-us" (the
+ * message form, default) or "phone-call" (the setup-call calendar, /book-a-call).
+ */
+export default function WBEmbedForm({
+  path = "contact-us",
+  title = "Contact us — WorkBench",
+}: {
+  path?: string;
+  title?: string;
+}) {
   useEffect(() => {
     if (window.WorkBenchEmbed) {
       window.WorkBenchEmbed.scan();
@@ -34,5 +44,5 @@ export default function WBEmbedForm() {
     document.body.appendChild(s);
   }, []);
 
-  return <div data-workbench-form="work-bench" data-path="contact-us" data-title="Contact us — WorkBench" />;
+  return <div data-workbench-form="work-bench" data-path={path} data-title={title} />;
 }

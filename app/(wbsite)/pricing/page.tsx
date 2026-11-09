@@ -462,8 +462,8 @@ export default function WBPricingPage() {
               Questions about pricing?
             </h2>
             <p className="mt-2 text-[15px] text-gray-500">
-              Call {WB_PHONE.display} and we will walk through it with you, or
-              sign up and your account opens today.
+              Book a call and we will walk through it with you, or sign up and
+              your account opens today. Or call {WB_PHONE.display}.
             </p>
           </AnimateIn>
           <AnimateIn delay={120} className="flex flex-wrap items-center gap-4">
@@ -475,10 +475,10 @@ export default function WBPricingPage() {
               <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
             </Link>
             <Link
-              href="/features"
+              href="/book-a-call"
               className="wb-pill wb-pill-outline"
             >
-              See every feature
+              Book a call
             </Link>
           </AnimateIn>
         </div>

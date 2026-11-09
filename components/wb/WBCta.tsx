@@ -34,13 +34,16 @@ export default function WBCta({
               </Link>
             )}
           </div>
-          <a
-            href={WB_PHONE.href}
-            className="inline-flex items-center gap-2 text-[15px] font-semibold text-white/90 hover:text-white"
-          >
-            <Phone className="h-4 w-4 text-[#FF8B33]" strokeWidth={2.25} aria-hidden />
-            Or call us at {WB_PHONE.display}
-          </a>
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-semibold text-white/90">
+            <a href={WB_PHONE.href} className="inline-flex items-center gap-2 hover:text-white">
+              <Phone className="h-4 w-4 text-[#FF8B33]" strokeWidth={2.25} aria-hidden />
+              Or call us at {WB_PHONE.display}
+            </a>
+            <span className="text-white/40" aria-hidden>·</span>
+            <Link href="/book-a-call" className="underline decoration-white/30 underline-offset-4 hover:text-white hover:decoration-white">
+              Book a call
+            </Link>
+          </p>
         </div>
       </div>
     </section>
