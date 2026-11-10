@@ -170,7 +170,7 @@ model Company {
   // Granularity of the even time-slot picker when staff schedule jobs/appointments
   // in-app (minutes). Resolved through lib/scheduling.ts, which is structured so a
   // future route-management system and per-service-type overrides can refine it.
-  schedulingIntervalMinutes Int               @default(30)
+  schedulingIntervalMinutes Int               @default(15)
   industry                  String? // onboarding answer; drives starter price book + future industry defaults
   // AI setup wizard: stamped when the owner applies OR dismisses it — hides
   // the dashboard card either way (the Settings entry stays available)

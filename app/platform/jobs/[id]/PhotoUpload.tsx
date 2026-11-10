@@ -8,6 +8,7 @@ import { resizePhotoFile } from "@/lib/resize-image";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { getCapacitor, nativePlatform } from "@/components/NativeShell";
 import { postJson } from "@/lib/safe-fetch";
+import { PHOTO_LIMITS } from "@/lib/photos-shared";
 
 type Photo = { id: string; url: string; caption: string | null; type: string; siteUse?: boolean; alt?: string | null };
 
@@ -68,7 +69,7 @@ export default function PhotoUpload({ jobId, photos, canSite = false }: { jobId:
     setBusy(true);
     setError("");
     try {
-      for (const file of Array.from(files).slice(0, 10)) {
+      for (const file of Array.from(files).slice(0, PHOTO_LIMITS.perPick)) {
         const { blob, filename } = await resizePhotoFile(file);
         const formData = new FormData();
         formData.append("file", new File([blob], filename, { type: "image/jpeg" }));

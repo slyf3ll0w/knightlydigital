@@ -66,8 +66,12 @@ export const PHOTO_LIMITS = {
   /** Per job or per quote. Far past documenting real work and still bounded. */
   perTarget: 100,
   caption: 300,
-  /** Files per pick in the browser (keeps one tap from uploading a camera roll). */
-  perPick: 10,
+  /**
+   * Files per pick in the browser. Was 10 and the rest were dropped without a
+   * word (ticket 2026-11-10: "I can only upload 10 photos at a time"); now a
+   * whole job's worth — perTarget is the real bound, enforced by the server.
+   */
+  perPick: 100,
 } as const;
 
 export const PHOTO_MIME_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"] as const;

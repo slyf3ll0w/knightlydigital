@@ -141,7 +141,9 @@ export default function PhotoGrid({
 
   async function onFiles(files: FileList | File[] | null, fromCamera = false) {
     if (!files || files.length === 0) return;
-    const list = Array.from(files).slice(0, PHOTO_LIMITS.perPick);
+    const all = Array.from(files);
+    const list = all.slice(0, PHOTO_LIMITS.perPick);
+    const leftOut = all.length - list.length;
     setError("");
     // Only the first shot of a pick is the After of the Before on screen.
     const pairWith = pairNext.current;
@@ -197,7 +199,8 @@ export default function PhotoGrid({
       if (failed.length > 0) {
         const words = failed.map((f) => (f.why ? `${f.name} (${f.why})` : f.name)).join(", ");
         setError(list.length === 1 ? `Couldn't upload that photo${failed[0].why ? ` — ${failed[0].why}` : "."}` : `${list.length - failed.length} of ${list.length} uploaded. Didn't go up: ${words}.`);
-      } else if (pairNote) setError(pairNote);
+      } else if (leftOut > 0) setError(`${list.length} uploaded. ${leftOut} more didn't go up — up to ${PHOTO_LIMITS.perPick} photos at a time.`);
+      else if (pairNote) setError(pairNote);
     } catch {
       setError("Couldn't process that image — try a different one.");
     } finally {

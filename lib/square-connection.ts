@@ -308,13 +308,45 @@ export class SquareNotConnectedError extends Error {
   }
 }
 
+/**
+ * The stored tokens can't be decrypted — they were sealed under an older
+ * AUTH_SECRET (lib/secret-box.ts derives the key from it). Rotating the
+ * secret on 2026-11-05 left three connections unreadable and the Payments
+ * page said only "Square couldn't complete that." Only a fresh sign-in can
+ * mend it, so this reads as "reconnect", and the row is kept: a misconfigured
+ * secret must not tear down every connection.
+ */
+export class SquareTokenUnreadableError extends SquareNotConnectedError {
+  constructor() {
+    super("WorkBench can't read its saved Square sign-in — reconnect Square in Settings.");
+    this.name = "SquareTokenUnreadableError";
+  }
+}
+
+function tokenUnreadable(stored: string): boolean {
+  try {
+    openSecret(stored, SECRET_SCOPE);
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+function openToken(stored: string): string {
+  try {
+    return openSecret(stored, SECRET_SCOPE);
+  } catch {
+    throw new SquareTokenUnreadableError();
+  }
+}
+
 /** Refresh in place. Returns the new plaintext access token. A dead grant
  *  (Square says revoked/unauthorized) tears the connection down so every
  *  gate flips to "not connected" instead of failing charge after charge. */
 async function refreshConnection(conn: ConnectionRow): Promise<string> {
   let tokens: square.SquareTokenResponse;
   try {
-    tokens = await square.refreshSquareToken(openSecret(conn.refreshTokenEnc, SECRET_SCOPE));
+    tokens = await square.refreshSquareToken(openToken(conn.refreshTokenEnc));
   } catch (err) {
     // Only the GRANT being dead tears the connection down. A bad or rotated
     // SQUARE_APPLICATION_SECRET makes Square answer 401 unauthorized_client /
@@ -374,12 +406,12 @@ async function tokenFor(conn: ConnectionRow | null): Promise<{ token: string; co
       // Refresh hiccup but the current token is still valid — use it; the
       // sweep will retry the refresh next hour.
       if (conn.expiresAt.getTime() > Date.now() + 60_000) {
-        return { token: openSecret(conn.accessTokenEnc, SECRET_SCOPE), conn };
+        return { token: openToken(conn.accessTokenEnc), conn };
       }
       throw err;
     }
   }
-  return { token: openSecret(conn.accessTokenEnc, SECRET_SCOPE), conn };
+  return { token: openToken(conn.accessTokenEnc), conn };
 }
 
 /** The seller's access token by company. Throws SquareNotConnectedError. */
@@ -563,6 +595,8 @@ export type SquareStatus =
        *  expiresAt, but someone should look. */
       stale: boolean;
       lastRefreshError: string | null;
+      /** The saved tokens can't be decrypted (sealed under an older AUTH_SECRET) — only a reconnect mends it. */
+      unreadable: boolean;
       /** The grant carries PAYMENTS_WRITE_IN_PERSON — Tap to Pay in the phone app can authorize. */
       inPerson: boolean;
       /**
@@ -594,6 +628,7 @@ export async function squareStatusForCompany(companyId: string): Promise<SquareS
       refreshedAt: true,
       expiresAt: true,
       lastRefreshError: true,
+      accessTokenEnc: true,
       scopes: true,
       payoutStatus: true,
       payoutCheckedAt: true,
@@ -611,6 +646,7 @@ export async function squareStatusForCompany(companyId: string): Promise<SquareS
     expiresAt: conn.expiresAt,
     stale: Date.now() - conn.refreshedAt.getTime() > STALE_AFTER_MS,
     lastRefreshError: conn.lastRefreshError,
+    unreadable: tokenUnreadable(conn.accessTokenEnc),
     inPerson: hasInPersonScope(conn.scopes),
     missingScopes: scopesMissingFrom(conn.scopes),
     payout: (conn.payoutStatus as square.SquarePayoutStatus | null) ?? null,

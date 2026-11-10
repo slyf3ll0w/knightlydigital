@@ -1289,7 +1289,7 @@ export default function SettingsClient({
     onMyWayTemplate: company.onMyWayTemplate ?? "",
     timezone: company.timezone ?? "America/Chicago",
     assistantName: company.assistantName ?? "",
-    schedulingIntervalMinutes: String(company.schedulingIntervalMinutes ?? 30),
+    schedulingIntervalMinutes: String(company.schedulingIntervalMinutes ?? 15),
     legalName: company.legalName ?? "",
     showLegalNameOnDocs: company.showLegalNameOnDocs,
     slug: company.slug,

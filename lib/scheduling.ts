@@ -11,7 +11,9 @@
  * back to a sane default.
  */
 
-export const DEFAULT_SLOT_INTERVAL_MINUTES = 30;
+// 15 since 2026-11-10 (ticket: "Can't do 15 minute time slots only 30" — the
+// Settings choice existed but every company sat on the old 30 default).
+export const DEFAULT_SLOT_INTERVAL_MINUTES = 15;
 
 /** End-time autofill for a job whose services carry no price-book duration. */
 export const DEFAULT_JOB_DURATION_MINUTES = 60;
