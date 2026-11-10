@@ -8,12 +8,16 @@ import WBFaqJsonLd from "@/components/wb/WBFaqJsonLd";
 import { FREE_PLAN_NAME, INCLUDED_SEATS } from "@/lib/plans";
 import { ALTERNATIVES, ALTERNATIVES_PATH } from "@/lib/wb-alternatives";
 import { FREE_PAGE_PATH } from "@/lib/wb-free";
+import WBAgentLink from "@/components/wb/WBAgentLink";
 
 export const metadata: Metadata = {
   title: "Free alternatives to Jobber, Housecall Pro and ServiceTitan",
   description:
     "Looking for a free alternative to Jobber, Housecall Pro or ServiceTitan? WorkBench FSM is free field service management software for home-service companies: booking, scheduling, quotes with e-signature, invoicing, card and ACH payments and a client portal. Honest page-by-page comparisons.",
-  alternates: { canonical: `https://workbenchfsm.com${ALTERNATIVES_PATH}` },
+  alternates: {
+    canonical: `https://workbenchfsm.com${ALTERNATIVES_PATH}`,
+    types: { "text/markdown": `https://workbenchfsm.com${ALTERNATIVES_PATH}.md` },
+  },
 };
 
 const faq = [
@@ -76,6 +80,8 @@ export default function AlternativesPage() {
           </p>
         </AnimateIn>
       </section>
+
+      <WBAgentLink href={`${ALTERNATIVES_PATH}.md`} what="these pages" />
 
       <WBCta />
     </>

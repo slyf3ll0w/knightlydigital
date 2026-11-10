@@ -13,46 +13,16 @@ import Link from "next/link";
 import { Banknote, Bot, Rocket, Users } from "lucide-react";
 import WBComparePage from "@/components/wb/WBComparePage";
 import type { FeatureItem } from "@/lib/wb-features";
-import type { CompareRow } from "@/components/wb/WBCompareTable";
+import { VS_PAGES } from "@/lib/wb-vs";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "https://workbenchfsm.com/vs/servicetitan", types: { "text/markdown": "https://workbenchfsm.com/vs/servicetitan.md" } },
   title: "WorkBench vs. ServiceTitan",
   description:
     "How WorkBench compares to ServiceTitan for home-service scheduling, dispatch, invoicing, and payments — free core software for small and growing teams, versus ServiceTitan's enterprise platform.",
 };
 
-const rows: CompareRow[] = [
-  {
-    label: "Pricing model",
-    workbench: `Free core software with full access for ${seats} users, not a trial, funded by processing when a client pays through it (${RATES_SHORT}). Optional flat-priced add-ons per company from ${voicePrice} a month; unlimited users come with the ${PLANS.SHOP.name} add-on at ${proPrice}.`,
-    competitor: "An enterprise platform with custom quotes, typically involving implementation and onboarding fees on top of subscription pricing. Contact ServiceTitan for a quote.",
-  },
-  {
-    label: "Target company size",
-    workbench: "Built for small and growing home-service teams — a few techs up through a full crew.",
-    competitor: "Built primarily for larger, established home-service businesses with dedicated office staff.",
-  },
-  {
-    label: "Setup & onboarding",
-    workbench: "A short application and KYC form; a person reviews and onboards your company directly, typically the same or next business day.",
-    competitor: "Typically involves a sales process and a structured implementation, reflecting the platform's depth and enterprise focus.",
-  },
-  {
-    label: "Payments",
-    workbench: "Card and ACH built in at one flat, published rate, about what you pay for online card payments anywhere — the difference is there's no subscription underneath it. The pricing page has the exact numbers.",
-    competitor: "Offers integrated payment processing as part of its platform.",
-  },
-  {
-    label: "AI assistant",
-    workbench: `Atlas — talk to it hands-free or type; it schedules, quotes, invoices, and messages on request, always with a confirmation step. ${freeTokens} free tokens every month; Atlas Full is ${planPrice}/month for ${planTokens}.`,
-    competitor: "Has invested in AI capabilities across its platform; check their current offering for scope.",
-  },
-  {
-    label: "Mobile app",
-    workbench: "Native iPhone app with offline schedule viewing on the job site.",
-    competitor: "Has dedicated mobile apps as part of its platform.",
-  },
-];
+const { rows, intro } = VS_PAGES["servicetitan"];
 
 const differentiators: FeatureItem[] = [
   {
@@ -128,7 +98,7 @@ export default function VsServiceTitanPage() {
           WorkBench vs. ServiceTitan: <span className="text-[#0B57D8]">built for smaller teams</span>, not enterprise budgets.
         </>
       }
-      intro="ServiceTitan and WorkBench both run home-service operations, but at different scales. ServiceTitan is a deep enterprise platform with custom pricing and implementation; WorkBench is free software for small and growing teams, funded by a flat percentage of the payments you process."
+      intro={intro}
       rows={rows}
       fairPoint={{
         title: "ServiceTitan is the deeper platform for larger operations.",

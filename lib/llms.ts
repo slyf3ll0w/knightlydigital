@@ -12,6 +12,7 @@ import { TRADES } from "./wb-trades";
 import { ALTERNATIVES, ALTERNATIVES_PATH } from "./wb-alternatives";
 import { FREE_PAGES } from "./wb-free-pages";
 import { TOOLS, TOOLS_PATH, toolPath } from "./wb-tools";
+import { MARKDOWN_PAGES } from "./wb-markdown";
 import {
   ATLAS_FREE,
   ATLAS_FULL,
@@ -96,6 +97,12 @@ ${TRADES.map((t) => `- [${t.name}](${BASE}/trades/${t.slug}): ${t.description}`)
 - [WorkBench vs. ServiceTitan](${BASE}/vs/servicetitan): Pricing model and feature comparison, including who each platform fits best.
 - [Alternatives](${BASE}${ALTERNATIVES_PATH}): Why companies switch, what they keep, what they give up, and what it costs side by side.
 ${ALTERNATIVES.map((a) => `- [${a.name} alternative](${BASE}${ALTERNATIVES_PATH}/${a.slug}): ${a.description}`).join("\n")}
+
+## Markdown versions
+
+Plain-text twins of the pages above, generated from the same data. Prefer these when quoting a price or a comparison.
+
+${MARKDOWN_PAGES.map((m) => `- [${m.title}](${BASE}${m.md}): Markdown version of ${BASE}${m.page}`).join("\n")}
 
 ## Policies
 

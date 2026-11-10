@@ -4,6 +4,7 @@ import { AnimateIn } from "@/components/AnimateIn";
 import WBSplitHero from "@/components/wb/WBSplitHero";
 import WBCta from "@/components/wb/WBCta";
 import WBFaq from "@/components/wb/WBFaq";
+import WBAgentLink from "@/components/wb/WBAgentLink";
 import WBFaqJsonLd from "@/components/wb/WBFaqJsonLd";
 import WBTestimonials from "@/components/wb/WBTestimonials";
 import { featureByTitle } from "@/lib/wb-features";
@@ -237,6 +238,8 @@ export default function WBAlternativePage({ alt }: { alt: Alternative }) {
           </div>
         </div>
       </section>
+
+      <WBAgentLink href={`${ALTERNATIVES_PATH}/${alt.slug}.md`} what="this page" />
 
       <WBCta title="Free to start. Full access, not a trial." body={<>Your account opens today. Bring your client list, set your prices, and send the first quote this afternoon.</>} />
     </>
