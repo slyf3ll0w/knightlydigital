@@ -189,7 +189,7 @@ export default async function PaymentsTab({
           ) : (
             <>
               <div className="divide-y divide-gray-100">
-                <div className="hidden lg:grid grid-cols-[110px_1fr_150px_90px_110px_170px] gap-4 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
+                <div className="hidden lg:grid grid-cols-[110px_1fr_130px_90px_110px_190px] gap-4 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
                   <span>Date</span>
                   <span>Taken with</span>
                   <span>Method</span>
@@ -211,7 +211,7 @@ export default async function PaymentsTab({
                   return (
                     <div
                       key={p.id}
-                      className="flex flex-wrap lg:grid lg:grid-cols-[110px_1fr_150px_90px_110px_170px] gap-x-4 gap-y-1.5 items-center px-4 py-2.5"
+                      className="flex flex-wrap lg:grid lg:grid-cols-[110px_1fr_130px_90px_110px_190px] gap-x-4 gap-y-1.5 items-center px-4 py-2.5"
                     >
                       <span className="text-sm text-gray-500 w-20 lg:w-auto shrink-0">{shortDate(p.createdAt, tz)}</span>
                       <div className="flex-1 lg:flex-none min-w-0">
@@ -225,6 +225,15 @@ export default async function PaymentsTab({
                           {p.note || p.referenceId || `Square ${p.id.slice(0, 8)}`}
                           <span className="lg:hidden"> · {paymentSourceLabel(p)}</span>
                           {p.refundedCents > 0 && <span className="text-[color:var(--ds-warn)]"> · {money(p.refundedCents / 100)} refunded</span>}
+                          {/* Receipt rides the second line: beside the button it spilled over Amount (ticket 2026-11-10). */}
+                          {p.receiptUrl && (
+                            <span className="hidden lg:inline">
+                              {" · "}
+                              <a href={p.receiptUrl} target="_blank" rel="noopener noreferrer" className="font-medium hover:text-gray-700 hover:underline">
+                                Receipt
+                              </a>
+                            </span>
+                          )}
                         </p>
                       </div>
                       <span className="hidden lg:block text-sm text-gray-500 truncate">{paymentSourceLabel(p)}</span>
@@ -232,17 +241,7 @@ export default async function PaymentsTab({
                         {p.feeCents > 0 ? money(p.feeCents / 100) : ""}
                       </span>
                       <span className="numeral-ledger text-sm font-semibold text-gray-900 text-right">{money(net)}</span>
-                      <span className="flex w-full lg:w-auto items-center justify-end gap-2">
-                        {p.receiptUrl && (
-                          <a
-                            href={p.receiptUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="hidden lg:inline text-xs font-medium text-gray-500 hover:text-gray-700"
-                          >
-                            Receipt
-                          </a>
-                        )}
+                      <span className="flex w-full lg:w-auto items-center justify-end">
                         <Link prefetch={false} href={`/app/payments/new?${q.toString()}`} className="ds-btn ds-btn-outline ds-btn-sm">
                           <Plus size={13} />
                           Record on an invoice
@@ -252,7 +251,7 @@ export default async function PaymentsTab({
                   );
                 })}
               </div>
-              <div className="flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5 lg:grid lg:grid-cols-[110px_1fr_150px_90px_110px_170px]">
+              <div className="flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5 lg:grid lg:grid-cols-[110px_1fr_130px_90px_110px_190px]">
                 <span className="text-xs font-medium text-gray-500 lg:col-span-4">
                   {outside.length} {outside.length === 1 ? "sale" : "sales"}
                   {win.truncated ? " · showing the most recent" : ""}

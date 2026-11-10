@@ -38,6 +38,7 @@ import { SCHEDULE_WARNING_TEXT, type ScheduleWarning } from "@/lib/send-later-sh
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
 import TapToPayButton from "@/components/TapToPayButton";
 import type { TapToPayOffer } from "@/lib/tap-to-pay-shared";
+import PdfLink from "@/components/PdfLink";
 
 type SavedCardOption = { id: string; label: string; isDefault: boolean };
 
@@ -641,15 +642,14 @@ export default function InvoiceActions({
               <Copy size={14} className="text-gray-400" />
               {copied ? "Copied!" : "Copy payment link"}
             </button>
-            <a
+            <PdfLink
               href={`/api/app/invoices/${invoiceId}/pdf`}
-              target="_blank"
-              rel="noopener noreferrer"
+              fallbackName="invoice.pdf"
               className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
             >
               <FileDown size={14} className="text-gray-400" />
               Download PDF
-            </a>
+            </PdfLink>
             {canChargeCard && status !== "AWAITING_PAYMENT" && status !== "PAST_DUE" && (
               <button
                 onClick={openChargeDialog}

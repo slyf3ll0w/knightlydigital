@@ -11,6 +11,7 @@ import { hapticImpact } from "@/lib/haptics";
 import { postJson } from "@/lib/safe-fetch";
 import { showSendRitual } from "@/lib/send-ritual";
 import { REPORT_NOTE_MAX } from "@/lib/photos-shared";
+import PdfLink from "@/components/PdfLink";
 
 /**
  * The Work completed report card on a finished job (Gallery plan, phase B):
@@ -146,9 +147,9 @@ export default function JobReportCard({
           {busy === "send" ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
           {sentAt ? "Send again" : "Send report"}
         </button>
-        <a href={`/api/app/jobs/${jobId}/report/pdf`} target="_blank" rel="noreferrer" className="ds-btn ds-btn-outline">
+        <PdfLink href={`/api/app/jobs/${jobId}/report/pdf`} fallbackName="work-report.pdf" className="ds-btn ds-btn-outline">
           <FileDown size={13} /> Preview PDF
-        </a>
+        </PdfLink>
         {sentLabel && <span className="text-xs text-gray-500">Sent {sentLabel}</span>}
         {!reach && <span className="text-xs text-gray-500">Add an email or a textable phone to the client to send it.</span>}
       </div>

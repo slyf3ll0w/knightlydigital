@@ -31,6 +31,7 @@ import InfoTip from "@/components/ds/InfoTip";
 import { useSendChoice, sentSummary, type SendChoiceResult } from "@/components/SendChoice";
 import { SCHEDULE_WARNING_TEXT, type ScheduleWarning } from "@/lib/send-later-shared";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
+import PdfLink from "@/components/PdfLink";
 
 type AgreementState = {
   signed: boolean;
@@ -467,15 +468,14 @@ export default function QuoteActions({
               <Copy size={14} className="text-gray-400" />
               {copied ? "Copied!" : "Copy client link"}
             </button>
-            <a
+            <PdfLink
               href={`/api/app/quotes/${quoteId}/pdf`}
-              target="_blank"
-              rel="noopener noreferrer"
+              fallbackName="quote.pdf"
               className="flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700 hover:bg-gray-50"
             >
               <FileDown size={14} className="text-gray-400" />
               Download PDF
-            </a>
+            </PdfLink>
             <button
               onClick={duplicateQuote}
               disabled={busy}
