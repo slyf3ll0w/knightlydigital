@@ -7,262 +7,280 @@ import { isOnlinePayment } from "@/lib/payment-ref";
 import { Chip } from "@/components/ds";
 import EmptyState from "@/components/EmptyState";
 import Pager from "@/components/Pager";
+import { listHref } from "@/components/FilterBar";
 import RefundAction from "../RefundAction";
-import { RuledLabel, SquareUnavailable } from "./bits";
+import { SquareUnavailable } from "./bits";
 import { paymentSourceLabel, squarePaymentStatus, squareProductLabel } from "./labels";
 import type { SquareWindow } from "./data";
 
 const PAGE_SIZE = 25;
 
+type Tone = "primary" | "secondary" | "good" | "warn" | "bad" | "neutral";
+
+export type PaymentsFilter = "all" | "workbench" | "outside" | "refunded";
+const FILTERS: { value: PaymentsFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "workbench", label: "Through WorkBench" },
+  { value: "outside", label: "Outside WorkBench" },
+  { value: "refunded", label: "Refunded" },
+];
+export function parsePaymentsFilter(v: string | undefined): PaymentsFilter {
+  return FILTERS.some((f) => f.value === v) ? (v as PaymentsFilter) : "all";
+}
+
+/** One line of the table, from either side. */
+type Txn = {
+  key: string;
+  at: Date;
+  /** What it is worth now (after refunds), cents. */
+  amountCents: number;
+  refundedCents: number;
+  status: { label: string; tone: Tone };
+  who: string;
+  sub: string;
+  method: string;
+  /** Where the row opens. */
+  href: string;
+  outside: boolean;
+  /** Our Payment id when a manager may refund it here. */
+  refundId: string | null;
+  /** Outside sales: record it on an invoice, prefilled. */
+  recordHref: string | null;
+  receiptUrl: string | null;
+};
+
+function refundStatus(refundedCents: number, grossCents: number): { label: string; tone: Tone } | null {
+  if (refundedCents <= 0) return null;
+  return refundedCents >= grossCents ? { label: "Refunded", tone: "neutral" } : { label: "Partly refunded", tone: "warn" };
+}
+
+const COLS = "lg:grid-cols-[150px_minmax(0,1fr)_170px_110px_150px]";
+
 /**
- * Payments tab (Square): WorkBench's own online payments with their LIVE
- * Square status and the fee Square posted, then every sale the seller's
- * Square account took outside WorkBench in the last 90 days — marked, with
- * "Record on an invoice" prefilled so the books match the bank.
+ * Payments tab (Square), one table like Stripe's (2026-11-10 redesign; it was
+ * two — "Through WorkBench" and "Square · outside WorkBench"): WorkBench's
+ * online payments with their LIVE Square status and fee, and every sale the
+ * seller's Square account took elsewhere in the window, marked "Outside
+ * WorkBench" with "Add to invoice" prefilled so the books match the bank.
+ * All / Outside / Refunded cover the Square window; Through WorkBench pages
+ * through every payment we ever took.
  */
 export default async function PaymentsTab({
   companyId,
   actor,
   tz,
   page,
+  filter,
   window: win,
   windowDays,
+  keep,
 }: {
   companyId: string;
   actor: Actor;
   tz: string;
   page: number;
+  filter: PaymentsFilter;
   window: SquareWindow;
   windowDays: number;
+  /** Query params the filter chips and pager carry (the volume range). */
+  keep: Record<string, string | undefined>;
 }) {
-  const where = { companyId, processorRef: { not: null } };
-  const [payments, paymentsCount] = await Promise.all([
+  const manager = isManager(actor.role);
+  const from = new Date(Date.now() - windowDays * 86_400_000);
+  const where =
+    filter === "workbench"
+      ? { companyId, processorRef: { not: null } }
+      : { companyId, processorRef: { not: null }, paidAt: { gte: from } };
+  const [ours, oursCount] = await Promise.all([
     prisma.payment.findMany({
       where,
       orderBy: { paidAt: "desc" },
-      take: PAGE_SIZE,
-      skip: (page - 1) * PAGE_SIZE,
+      ...(filter === "workbench" ? { take: PAGE_SIZE, skip: (page - 1) * PAGE_SIZE } : {}),
       include: {
         invoice: { select: { id: true, invoiceNumber: true } },
         contact: { select: { firstName: true, lastName: true } },
-        refunds: { select: { id: true } },
+        refunds: { select: { amount: true } },
       },
     }),
-    prisma.payment.count({ where }),
+    filter === "workbench" ? prisma.payment.count({ where }) : Promise.resolve(0),
   ]);
-  const pageTotal = payments.reduce((s, p) => s + Number(p.amount), 0);
-  const manager = isManager(actor.role);
 
-  const stamp = (ref: string | null) => {
-    const live = ref ? win.byId.get(ref) : undefined;
-    if (!live) return <span className="hidden lg:block" />;
-    const s = squarePaymentStatus(live.status);
-    return (
-      <span>
-        <Chip tone={s.tone}>{s.label}</Chip>
-      </span>
-    );
-  };
-  const feeOf = (ref: string | null, feeCents: number | null) => {
-    const live = ref ? win.byId.get(ref) : undefined;
-    const cents = live && live.feeCents > 0 ? live.feeCents : feeCents;
-    return cents != null && cents > 0 ? money(cents / 100) : "";
-  };
+  const oursTxns: Txn[] = ours.map((p) => {
+    const live = p.processorRef ? win.byId.get(p.processorRef) : undefined;
+    const amountCents = Math.round(Number(p.amount) * 100);
+    const refundedCents = p.refunds.reduce((s, r) => s + Math.round(Number(r.amount) * 100), 0);
+    const status: { label: string; tone: Tone } =
+      refundStatus(refundedCents, amountCents + refundedCents) ?? (live ? squarePaymentStatus(live.status) : { label: "Paid", tone: "good" });
+    return {
+      key: p.id,
+      at: p.paidAt,
+      amountCents,
+      refundedCents,
+      status,
+      who: p.contact ? `${p.contact.firstName} ${p.contact.lastName}`.trim() : "—",
+      sub: p.invoice ? `Invoice #${p.invoice.invoiceNumber}` : "Payment",
+      method: live ? paymentSourceLabel(live) : p.method === "ACH" ? "Bank" : "Card",
+      href: live ? `/app/payments?payment=${encodeURIComponent(live.id)}` : `/app/invoices/${p.invoiceId}`,
+      outside: false,
+      refundId: manager && isOnlinePayment(p.processorRef) && amountCents > 0 ? p.id : null,
+      recordHref: null,
+      receiptUrl: live?.receiptUrl ?? null,
+    };
+  });
 
-  const outside = win.outside;
-  const outsideTotal = outside.reduce((s, p) => s + (p.totalCents - p.refundedCents), 0) / 100;
+  const outsideTxns: Txn[] =
+    filter === "workbench"
+      ? []
+      : win.outside.map((p) => {
+          const net = p.totalCents - p.refundedCents;
+          const day = new Date(p.createdAt).toLocaleDateString("en-CA", { timeZone: tz });
+          const q = new URLSearchParams({
+            amount: (net / 100).toFixed(2),
+            paidAt: day,
+            method: p.sourceType === "BANK_ACCOUNT" ? "ACH" : p.sourceType === "CASH" ? "CASH" : "CARD",
+            reference: p.referenceId ?? p.id,
+            square: p.id,
+            note: `Square · ${squareProductLabel(p.squareProduct)}`,
+          });
+          return {
+            key: `sq:${p.id}`,
+            at: new Date(p.createdAt),
+            amountCents: net,
+            refundedCents: p.refundedCents,
+            status: refundStatus(p.refundedCents, p.totalCents) ?? squarePaymentStatus(p.status),
+            who: squareProductLabel(p.squareProduct),
+            sub: p.note || p.referenceId || `Square ${p.id.slice(0, 8)}`,
+            method: paymentSourceLabel(p),
+            href: `/app/payments?payment=${encodeURIComponent(p.id)}`,
+            outside: true,
+            refundId: null,
+            recordHref: `/app/payments/new?${q.toString()}`,
+            receiptUrl: p.receiptUrl,
+          };
+        });
+
+  let rows: Txn[];
+  let total: number;
+  if (filter === "workbench") {
+    rows = oursTxns;
+    total = oursCount;
+  } else {
+    let all = [...oursTxns, ...outsideTxns].sort((a, b) => b.at.getTime() - a.at.getTime());
+    if (filter === "outside") all = all.filter((t) => t.outside);
+    if (filter === "refunded") all = all.filter((t) => t.refundedCents > 0);
+    total = all.length;
+    rows = all.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  }
+  const outsideCount = outsideTxns.length;
 
   return (
-    <>
-      <div className="mb-8">
-        <RuledLabel
-          info={
-            <>
-              Payments clients made through WorkBench — pay links, saved cards, Tap to Pay. Status and fee come from
-              Square as it sees them right now; a fee shows once Square posts it, usually within a day.
-            </>
-          }
-        >
-          Through WorkBench
-        </RuledLabel>
-        <div className="ds-card overflow-hidden">
-          {payments.length === 0 ? (
-            <EmptyState
-              art="invoices"
-              hue="var(--ds-primary)"
-              title="No online payments yet"
-              body="When a client pays an invoice from their pay link, it shows up here with its live Square status."
-              showPlusIcon={false}
-            />
-          ) : (
-            <>
-              <div className="divide-y divide-gray-100">
-                <div className="hidden lg:grid grid-cols-[110px_1fr_90px_130px_90px_110px_56px] gap-4 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
-                  <span>Date</span>
-                  <span>Client</span>
-                  <span>Method</span>
-                  <span>Status</span>
-                  <span className="text-right">Fee</span>
-                  <span className="text-right">Amount</span>
-                  <span></span>
-                </div>
-                {payments.map((p) => (
-                  <div
-                    key={p.id}
-                    className="relative flex lg:grid lg:grid-cols-[110px_1fr_90px_130px_90px_110px_56px] gap-4 items-center px-4 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-                  >
-                    {/* The whole row opens the invoice (stretched link); the actions at the end sit above it. */}
-                    <span className="text-sm text-gray-500 w-20 lg:w-auto shrink-0">{shortDate(p.paidAt, tz)}</span>
-                    <div className="flex-1 lg:flex-none min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        <Link prefetch={false} href={`/app/invoices/${p.invoiceId}`} className="after:absolute after:inset-0 after:content-['']">
-                          {p.contact ? `${p.contact.firstName} ${p.contact.lastName}` : "—"}
-                        </Link>
-                      </p>
-                      <p className="text-xs text-gray-500 truncate">
-                        Invoice #{p.invoice?.invoiceNumber}
-                        <span className="lg:hidden"> · {p.method === "ACH" ? "Bank" : "Card"}</span>
-                        {p.refunds.length > 0 && <span className="text-[color:var(--ds-warn)]"> · refunded</span>}
-                      </p>
-                    </div>
-                    <span className="hidden lg:block text-sm text-gray-500">{p.method === "ACH" ? "Bank" : "Card"}</span>
-                    {stamp(p.processorRef)}
-                    <span className="numeral-ledger hidden lg:block text-sm text-gray-500 text-right">{feeOf(p.processorRef, p.feeCents)}</span>
-                    <span className="numeral-ledger text-sm font-semibold text-gray-900 text-right">{money(Number(p.amount))}</span>
-                    <span className="relative z-10 flex shrink-0 items-center justify-end gap-0.5">
-                      {manager && isOnlinePayment(p.processorRef) && Number(p.amount) > 0 && (
-                        <RefundAction paymentId={p.id} amount={Number(p.amount)} />
-                      )}
-                      {p.processorRef && win.byId.has(p.processorRef) && (
-                        <Link
-                          prefetch={false}
-                          href={`/app/payments?payment=${encodeURIComponent(p.processorRef)}`}
-                          className="text-xs font-medium text-gray-500 hover:text-gray-700 px-1"
-                          title="Square's detail: fee, receipt, refunds"
-                        >
-                          Details
-                        </Link>
-                      )}
-                      <ChevronRight size={14} className="text-gray-400 shrink-0 hidden lg:block" />
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5 lg:grid lg:grid-cols-[110px_1fr_90px_130px_90px_110px_56px]">
-                <span className="text-xs font-medium text-gray-500 lg:col-span-5">
-                  {payments.length} {payments.length === 1 ? "payment" : "payments"}
-                </span>
-                <span className="numeral-ledger text-sm font-bold text-gray-900 text-right">{money(pageTotal)}</span>
-                <span className="hidden lg:block" />
-              </div>
-            </>
-          )}
+    <div className="mb-8">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div role="group" aria-label="Show" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 py-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {FILTERS.map((f) => {
+            const active = f.value === filter;
+            return (
+              <Link
+                key={f.value}
+                prefetch={false}
+                scroll={false}
+                href={listHref("/app/payments", {}, { ...keep, show: f.value === "all" ? undefined : f.value })}
+                aria-current={active ? "true" : undefined}
+                className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  active
+                    ? "border-[color:var(--ds-primary)] bg-[color:var(--ds-primary-soft)] text-[color:var(--ds-ink)]"
+                    : "border-[color:var(--ds-line-strong)] text-[color:var(--ds-muted)] hover:text-[color:var(--ds-ink)]"
+                }`}
+              >
+                {f.label}
+                {f.value === "outside" && outsideCount > 0 && <span className="ml-1 text-[color:var(--ds-muted)]">{outsideCount}</span>}
+              </Link>
+            );
+          })}
         </div>
-        <Pager basePath="/app/payments" page={page} pageSize={PAGE_SIZE} total={paymentsCount} />
+        <p className="text-xs text-[color:var(--ds-muted)]">{filter === "workbench" ? "Every payment through WorkBench" : `Last ${windowDays} days`}</p>
       </div>
 
-      <div className="mb-8">
-        <RuledLabel
-          info={
-            <>
-              Sales your Square account took somewhere other than WorkBench — the Square POS app, Square Online,
-              Square Invoices, a reader — in the last {windowDays} days. They are already in your bank, but not on an
-              invoice here. Record each one on the invoice it paid so the client&apos;s balance and your reports are
-              right; the amount, date and Square reference are filled in for you.
-            </>
-          }
-        >
-          Square · outside WorkBench
-        </RuledLabel>
-        {win.failure && <SquareUnavailable failure={win.failure} what="these sales" />}
-        <div className="ds-card overflow-hidden">
-          {outside.length === 0 ? (
-            <EmptyState
-              compact
-              title={win.failure ? "Couldn't read Square just now" : "Nothing taken outside WorkBench"}
-              body={
-                win.failure
-                  ? "Sales from the Square POS app or Square Online will list here once Square answers."
-                  : `Every Square sale in the last ${windowDays} days came through WorkBench.`
-              }
-            />
-          ) : (
-            <>
-              <div className="divide-y divide-gray-100">
-                <div className="hidden lg:grid grid-cols-[110px_1fr_130px_90px_110px_190px] gap-4 px-4 py-2 text-xs font-medium text-gray-500 bg-gray-50">
-                  <span>Date</span>
-                  <span>Taken with</span>
-                  <span>Method</span>
-                  <span className="text-right">Fee</span>
-                  <span className="text-right">Amount</span>
-                  <span></span>
+      {win.failure && filter !== "workbench" && <SquareUnavailable failure={win.failure} what="sales taken outside WorkBench" />}
+
+      <div className="ds-card overflow-hidden">
+        {rows.length === 0 ? (
+          <EmptyState
+            art="invoices"
+            hue="var(--ds-primary)"
+            title={filter === "refunded" ? "No refunds" : filter === "outside" ? "Nothing taken outside WorkBench" : "No payments yet"}
+            body={
+              filter === "outside"
+                ? "Sales from the Square POS app, Square Online or a reader show here so you can put them on an invoice."
+                : "When a client pays from their pay link, a saved card or Tap to Pay, it shows here with its live Square status."
+            }
+            showPlusIcon={false}
+          />
+        ) : (
+          <div className="divide-y divide-[color:var(--ds-line)]">
+            <div className={`hidden ${COLS} gap-4 bg-[color:var(--ds-surface-2)] px-4 py-2 text-xs font-medium text-[color:var(--ds-muted)] lg:grid`}>
+              <span>Amount</span>
+              <span>Description</span>
+              <span>Method</span>
+              <span>Date</span>
+              <span />
+            </div>
+            {rows.map((t) => (
+              <div
+                key={t.key}
+                className={`relative flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 transition-colors hover:bg-[color:var(--ds-surface-2)] lg:grid ${COLS} lg:gap-4 lg:py-2.5`}
+              >
+                {/* Amount + status: first on a desk (Stripe's order), at the right on a phone. */}
+                <div className="order-2 ml-auto flex shrink-0 flex-col items-end gap-1 lg:order-none lg:ml-0 lg:flex-row lg:items-center lg:gap-2">
+                  <span className="numeral-ledger text-sm font-semibold text-[color:var(--ds-ink)]">{money(t.amountCents / 100)}</span>
+                  <Chip tone={t.status.tone}>{t.status.label}</Chip>
                 </div>
-                {outside.map((p) => {
-                  const net = (p.totalCents - p.refundedCents) / 100;
-                  const day = new Date(p.createdAt).toLocaleDateString("en-CA", { timeZone: tz });
-                  const q = new URLSearchParams({
-                    amount: net.toFixed(2),
-                    paidAt: day,
-                    method: p.sourceType === "BANK_ACCOUNT" ? "ACH" : p.sourceType === "CASH" ? "CASH" : "CARD",
-                    reference: p.referenceId ?? p.id,
-                    square: p.id,
-                    note: `Square · ${squareProductLabel(p.squareProduct)}`,
-                  });
-                  return (
-                    <div
-                      key={p.id}
-                      className="flex flex-wrap lg:grid lg:grid-cols-[110px_1fr_130px_90px_110px_190px] gap-x-4 gap-y-1.5 items-center px-4 py-2.5"
-                    >
-                      <span className="text-sm text-gray-500 w-20 lg:w-auto shrink-0">{shortDate(p.createdAt, tz)}</span>
-                      <div className="flex-1 lg:flex-none min-w-0">
-                        <p className="flex items-center gap-2 text-sm font-medium text-gray-900 truncate">
-                          <Link prefetch={false} href={`/app/payments?payment=${encodeURIComponent(p.id)}`} className="hover:underline" title="Items, fee, receipt">
-                            {squareProductLabel(p.squareProduct)}
-                          </Link>
-                          <Chip tone="secondary">Outside WorkBench</Chip>
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">
-                          {p.note || p.referenceId || `Square ${p.id.slice(0, 8)}`}
-                          <span className="lg:hidden"> · {paymentSourceLabel(p)}</span>
-                          {p.refundedCents > 0 && <span className="text-[color:var(--ds-warn)]"> · {money(p.refundedCents / 100)} refunded</span>}
-                          {/* Receipt rides the second line: beside the button it spilled over Amount (ticket 2026-11-10). */}
-                          {p.receiptUrl && (
-                            <span className="hidden lg:inline">
-                              {" · "}
-                              <a href={p.receiptUrl} target="_blank" rel="noopener noreferrer" className="font-medium hover:text-gray-700 hover:underline">
-                                Receipt
-                              </a>
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                      <span className="hidden lg:block text-sm text-gray-500 truncate">{paymentSourceLabel(p)}</span>
-                      <span className="numeral-ledger hidden lg:block text-sm text-gray-500 text-right">
-                        {p.feeCents > 0 ? money(p.feeCents / 100) : ""}
+                <div className="order-1 min-w-0 flex-1 lg:order-none">
+                  <p className="flex min-w-0 items-center gap-2 text-sm font-medium text-[color:var(--ds-ink)]">
+                    {/* The whole row opens the detail (stretched link); the actions sit above it. */}
+                    <Link prefetch={false} href={t.href} className="truncate after:absolute after:inset-0 after:content-['']">
+                      {t.who}
+                    </Link>
+                    {t.outside && <span className="shrink-0 text-[11px] font-normal text-[color:var(--ds-muted)]">Outside WorkBench</span>}
+                  </p>
+                  <p className="truncate text-xs text-[color:var(--ds-muted)]">
+                    {t.sub}
+                    <span className="lg:hidden">
+                      {" · "}
+                      {t.method} · {shortDate(t.at, tz)}
+                    </span>
+                    {t.receiptUrl && (
+                      <span className="relative z-10 hidden lg:inline">
+                        {" · "}
+                        <a href={t.receiptUrl} target="_blank" rel="noopener noreferrer" className="hover:text-[color:var(--ds-ink)] hover:underline">
+                          Receipt
+                        </a>
                       </span>
-                      <span className="numeral-ledger text-sm font-semibold text-gray-900 text-right">{money(net)}</span>
-                      <span className="flex w-full lg:w-auto items-center justify-end">
-                        <Link prefetch={false} href={`/app/payments/new?${q.toString()}`} className="ds-btn ds-btn-outline ds-btn-sm">
-                          <Plus size={13} />
-                          Record on an invoice
-                        </Link>
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex items-center justify-between gap-4 border-t-2 border-double border-gray-300 bg-gray-50/60 px-4 py-2.5 lg:grid lg:grid-cols-[110px_1fr_130px_90px_110px_190px]">
-                <span className="text-xs font-medium text-gray-500 lg:col-span-4">
-                  {outside.length} {outside.length === 1 ? "sale" : "sales"}
-                  {win.truncated ? " · showing the most recent" : ""}
+                    )}
+                  </p>
+                </div>
+                <span className="hidden truncate text-sm text-[color:var(--ds-muted)] lg:block">{t.method}</span>
+                <span className="hidden text-sm text-[color:var(--ds-muted)] lg:block">{shortDate(t.at, tz)}</span>
+                <span
+                  className={`relative z-10 order-3 items-center justify-end gap-1 lg:order-none lg:flex ${
+                    t.recordHref ? "flex w-full lg:w-auto" : t.refundId ? "flex" : "hidden"
+                  }`}
+                >
+                  {t.refundId && <RefundAction paymentId={t.refundId} amount={t.amountCents / 100} />}
+                  {t.recordHref && (
+                    <Link prefetch={false} href={t.recordHref} className="ds-btn ds-btn-outline ds-btn-sm" title="Record this sale on the invoice it paid">
+                      <Plus size={13} />
+                      Add to invoice
+                    </Link>
+                  )}
+                  <ChevronRight size={14} className="hidden shrink-0 text-[color:var(--ds-faint)] lg:block" />
                 </span>
-                <span className="numeral-ledger text-sm font-bold text-gray-900 text-right">{money(outsideTotal)}</span>
-                <span className="hidden lg:block" />
               </div>
-            </>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
-    </>
+      <Pager basePath="/app/payments" params={{ ...keep, show: filter === "all" ? undefined : filter }} page={page} pageSize={PAGE_SIZE} total={total} />
+    </div>
   );
 }

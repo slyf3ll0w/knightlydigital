@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, ChevronRight, Gift, RefreshCw } from "lucide-react";
 import { InfoTip } from "@/components/ds";
 import ConnectSquareButton from "@/components/ConnectSquareButton";
-import FilterBar, { listHref } from "@/components/FilterBar";
+import { listHref } from "@/components/FilterBar";
 import { squareDashboardUrl, type SquareDashboardScreen } from "@/lib/square-links";
 import type { SellerReadFailure } from "@/lib/square-seller-reports";
 
@@ -29,17 +29,78 @@ const TAB_OPTIONS = [
   // visited): GiftCardsRow below and Settings → Payments & accounting reach them.
 ];
 
-/** Payments · Payouts · Disputes · Reports — a segmented control on phones, chips on a desk. */
-export function SquareTabs({ tab, openDisputes }: { tab: SquareTab; openDisputes: number }) {
-  const options = TAB_OPTIONS.map((o) =>
-    o.value === "disputes" && openDisputes > 0 ? { ...o, label: `Disputes · ${openDisputes}`, mobile: `Disputes ${openDisputes}` } : o
-  );
+/**
+ * Payments · Payouts · Disputes · Reports as an underline tab bar (Stripe's
+ * shape, 2026-11-10 redesign), scrolling sideways on a phone; Square's own
+ * dashboard and gift cards sit at its right end.
+ */
+export function SquareTabs({
+  tab,
+  openDisputes,
+  sandbox,
+  giftCards,
+  keep = {},
+}: {
+  tab: SquareTab;
+  openDisputes: number;
+  sandbox: boolean;
+  giftCards: boolean;
+  /** Query params that survive a tab change (the volume range). */
+  keep?: Record<string, string | undefined>;
+}) {
   return (
-    <FilterBar
-      options={options}
-      value={tab === "payments" ? "" : tab}
-      href={(v) => listHref("/app/payments", {}, { tab: v || undefined })}
-    />
+    <div className="mb-5 flex items-end justify-between gap-4 border-b border-[color:var(--ds-line)]">
+      <nav aria-label="Payments sections" className="-mb-px flex min-w-0 gap-5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {TAB_OPTIONS.map((o) => {
+          const active = (tab === "payments" ? "" : tab) === o.value;
+          return (
+            <Link
+              key={o.value || "payments"}
+              prefetch={false}
+              scroll={false}
+              href={listHref("/app/payments", {}, { ...keep, tab: o.value || undefined })}
+              aria-current={active ? "page" : undefined}
+              className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 pb-2.5 pt-1 text-sm font-medium transition-colors ${
+                active
+                  ? "border-[color:var(--ds-primary)] text-[color:var(--ds-ink)]"
+                  : "border-transparent text-[color:var(--ds-muted)] hover:text-[color:var(--ds-ink)]"
+              }`}
+            >
+              {o.label}
+              {o.value === "disputes" && openDisputes > 0 && (
+                <span className="rounded-full bg-[color:var(--ds-bad-soft)] px-1.5 text-[11px] font-semibold text-[color:var(--ds-bad)]">{openDisputes}</span>
+              )}
+            </Link>
+          );
+        })}
+      </nav>
+      <div className="hidden shrink-0 items-center gap-4 pb-2.5 text-xs font-medium text-[color:var(--ds-muted)] sm:flex">
+        {giftCards && (
+          <Link prefetch={false} href="/app/payments?tab=giftcards" className="inline-flex items-center gap-1 hover:text-[color:var(--ds-ink)]">
+            <Gift size={13} /> Gift cards
+          </Link>
+        )}
+        <a href={squareLink("transactions", sandbox)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 hover:text-[color:var(--ds-ink)]">
+          Square dashboard <ArrowUpRight size={13} />
+        </a>
+      </div>
+    </div>
+  );
+}
+
+/** Phones: the two links the tab bar carries at its right end on a desk. */
+export function SquarePhoneLinks({ sandbox, giftCards }: { sandbox: boolean; giftCards: boolean }) {
+  return (
+    <div className="mb-8 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-[color:var(--ds-muted)] sm:hidden">
+      {giftCards && (
+        <Link prefetch={false} href="/app/payments?tab=giftcards" className="inline-flex items-center gap-1.5">
+          <Gift size={14} /> Gift cards
+        </Link>
+      )}
+      <a href={squareLink("transactions", sandbox)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1">
+        Square dashboard <ArrowUpRight size={14} />
+      </a>
+    </div>
   );
 }
 
@@ -57,19 +118,21 @@ export function RuledLabel({ children, info, action }: { children: React.ReactNo
 }
 
 /** The grant predates a scope this tab reads with — one reconnect fixes every tab. */
-export function ReconnectCard({ what, canReconnect }: { what: string; canReconnect: boolean }) {
+export function ReconnectCard({ what, canReconnect, lost = false }: { what: string; canReconnect: boolean; lost?: boolean }) {
   return (
     <div className="ds-card mb-6 overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-6">
         <div className="min-w-0">
           <p className="text-[13px] font-medium text-[color:var(--ds-primary)]">Square</p>
           <p className="mt-0.5 flex items-center gap-1.5 text-sm text-[color:var(--ds-ink)]">
-            Reconnect Square to see {what}.
+            {lost ? "WorkBench lost its Square sign-in — reconnect Square to see payments, payouts and disputes." : `Reconnect Square to see ${what}.`}
+            {!lost && (
             <InfoTip>
               WorkBench now reads more from your Square account — payouts, disputes, the items behind a sale and gift
               cards. Your Square connection was made before that, so Square needs you to approve it
               once more — the same sign-in as the first time. Nothing else changes; payments keep working meanwhile.
             </InfoTip>
+            )}
           </p>
         </div>
         {canReconnect ? (
