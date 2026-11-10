@@ -45,6 +45,8 @@ export const WB_EMAIL_HREF = `mailto:${WB_EMAIL}`;
 
 export const APP_STORE_URL = "https://apps.apple.com/app/workbench-fsm/id6789991103";
 export const WB_FACEBOOK_URL = "https://www.facebook.com/WorkBenchFSM";
+export const WB_INSTAGRAM_URL = "https://www.instagram.com/workbenchfsm/";
+export const WB_TIKTOK_URL = "https://www.tiktok.com/@workbenchfsm";
 export const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.streamflaire.hub";
 
 /**

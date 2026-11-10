@@ -68,6 +68,26 @@ export default function WBTestimonials() {
             className="absolute -bottom-16 left-[8%] hidden h-[70px] w-[110px] rotate-[20deg] lg:block"
           />
         </AnimateIn>
+        {/* Edan on an install, walking through the job on his phone. Has sound, so it
+            lives here rather than with the silent clips in WBInAction. */}
+        <AnimateIn className="mx-auto mt-14 max-w-4xl">
+          <figure>
+            <div className="overflow-hidden rounded-[1.5rem] bg-[#0A1428] shadow-[0_24px_60px_rgba(10,20,40,0.18)] ring-1 ring-gray-200/70">
+              <video
+                className="aspect-video w-full"
+                src="/video/knight-light-edan.mp4"
+                poster="/video/knight-light-edan-poster.jpg"
+                controls
+                preload="none"
+                playsInline
+                aria-label="Edan from Knight Light Christmas Lighting on running installs with WorkBench"
+              />
+            </div>
+            <figcaption className="mt-4 text-center text-[14.5px] text-gray-600">
+              <span className="font-extrabold text-gray-900">Edan</span>, Owner, Knight Light Christmas Lighting
+            </figcaption>
+          </figure>
+        </AnimateIn>
         <div className="mt-14 grid gap-6 md:grid-cols-2">
           {shown.map((t, i) => (
             <AnimateIn key={t.company} delay={i * 120}>

@@ -5,7 +5,7 @@ import WBNav from "@/components/wb/WBNav";
 import WBFooter from "@/components/wb/WBFooter";
 import WBContactButton from "@/components/wb/WBContactButton";
 import WBAnalytics from "@/components/wb/WBAnalytics";
-import { APP_STORE_URL, PLAY_STORE_URL, WB_EMAIL, WB_FACEBOOK_URL, WB_PHONE } from "@/lib/wb-site";
+import { APP_STORE_URL, PLAY_STORE_URL, WB_EMAIL, WB_FACEBOOK_URL, WB_INSTAGRAM_URL, WB_PHONE, WB_TIKTOK_URL } from "@/lib/wb-site";
 import {
   DISPATCH_SETUP_CENTS,
   FAIR_USE_MINUTES_LABEL,
@@ -113,7 +113,7 @@ const softwareAppJsonLd = {
     telephone: WB_PHONE.e164,
     email: WB_EMAIL,
   },
-  sameAs: [APP_STORE_URL, PLAY_STORE_URL, WB_FACEBOOK_URL],
+  sameAs: [APP_STORE_URL, PLAY_STORE_URL, WB_FACEBOOK_URL, WB_INSTAGRAM_URL, WB_TIKTOK_URL],
 };
 
 // Who makes it and what this site is, so brand searches ("WorkBench FSM")
@@ -135,7 +135,7 @@ const organizationJsonLd = {
     availableLanguage: "English",
   },
   address: { "@type": "PostalAddress", addressRegion: "TX", addressCountry: "US" },
-  sameAs: [APP_STORE_URL, PLAY_STORE_URL, WB_FACEBOOK_URL, "https://streamflaire.com"],
+  sameAs: [APP_STORE_URL, PLAY_STORE_URL, WB_FACEBOOK_URL, WB_INSTAGRAM_URL, WB_TIKTOK_URL, "https://streamflaire.com"],
 };
 
 const websiteJsonLd = {
