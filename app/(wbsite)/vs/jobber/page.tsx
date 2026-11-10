@@ -13,51 +13,16 @@ import Link from "next/link";
 import { Banknote, Bot, PenLine, Users } from "lucide-react";
 import WBComparePage from "@/components/wb/WBComparePage";
 import type { FeatureItem } from "@/lib/wb-features";
-import type { CompareRow } from "@/components/wb/WBCompareTable";
+import { VS_PAGES } from "@/lib/wb-vs";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "https://workbenchfsm.com/vs/jobber", types: { "text/markdown": "https://workbenchfsm.com/vs/jobber.md" } },
   title: "WorkBench vs. Jobber",
   description:
     "How WorkBench compares to Jobber for home-service scheduling, quoting, invoicing, and payments — free core software with a flat processing fee, versus Jobber's per-user monthly plans.",
 };
 
-const rows: CompareRow[] = [
-  {
-    label: "Pricing model",
-    workbench: `Free core software with full access for ${seats} users, not a trial. Optional flat-priced add-ons per company, from ${voicePrice} a month: ${PLANS.DISPATCH.name} (a business phone line), ${PLANS.SHOP.name} (unlimited users and the ops tools, ${proPrice}), and ${PLANS.JOBSITE.name} (job photos, coming soon). WorkBench also earns on processing when a client pays through it (${RATES_SHORT}), and nothing is charged if you never process a payment.`,
-    competitor: "A monthly subscription with multiple pricing tiers, typically priced per user. Check jobber.com for current plans.",
-  },
-  {
-    label: "Seats / users",
-    workbench: `${seats} included free, ${seatPrice} a month each after that, or unlimited with the ${PLANS.SHOP.name} add-on — owner, admin, sales, and tech roles on every plan.`,
-    competitor: "Higher tiers generally unlock more users; adding seats can move you to a higher tier.",
-  },
-  {
-    label: "Payments",
-    workbench: "Card and ACH built in at one flat rate across invoices, quotes, and bookings, about what Jobber Payments charges — the difference is there's no subscription underneath it. The pricing page has the exact numbers and a side-by-side estimate.",
-    competitor: "Offers built-in payment processing (Jobber Payments) with its own published rates — compare directly on their site.",
-  },
-  {
-    label: "Client portal",
-    workbench: "A no-login, magic-link hub: invoices, agreements, messaging, and request-more-work in one place.",
-    competitor: "Offers a client hub with similar self-serve capabilities.",
-  },
-  {
-    label: "AI assistant",
-    workbench: `Atlas — a built-in assistant you can talk to hands-free (or type to) that schedules, quotes, invoices, and messages on your behalf, always with a confirmation step. ${freeTokens} free tokens every month; Atlas Full is ${planPrice}/month for ${planTokens}.`,
-    competitor: "Has been rolling out AI features; check their current feature list for scope.",
-  },
-  {
-    label: "Mobile app",
-    workbench: "Native iPhone app on the App Store, with offline schedule viewing on the job site.",
-    competitor: "Has native iOS and Android apps with field-service functionality.",
-  },
-  {
-    label: "Onboarding",
-    workbench: "Self-serve: the account opens the day you sign up. Card and bank payments switch on once you connect Square, which takes a few minutes.",
-    competitor: "Self-serve signup with a free trial period.",
-  },
-];
+const { rows, intro } = VS_PAGES["jobber"];
 
 const differentiators: FeatureItem[] = [
   {
@@ -133,7 +98,7 @@ export default function VsJobberPage() {
           WorkBench vs. Jobber: <span className="text-[#0B57D8]">free core software</span>, one flat fee.
         </>
       }
-      intro={`Jobber and WorkBench both run scheduling, quoting, invoicing, and payments for home-service teams. The difference is the pricing model: Jobber is a per-user monthly subscription; WorkBench is free core software (full access for ${seats} users, not a trial) with flat-priced optional add-ons, funded mostly by a flat percentage of the payments you process through it.`}
+      intro={intro}
       rows={rows}
       fairPoint={{
         title: "Jobber has been at this since 2011 and it shows.",

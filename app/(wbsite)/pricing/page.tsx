@@ -7,6 +7,7 @@ import WBSplitHero, { WB_SHOTS } from "@/components/wb/WBSplitHero";
 import WBTestimonials from "@/components/wb/WBTestimonials";
 import WBScribble from "@/components/wb/WBScribble";
 import WBFaq from "@/components/wb/WBFaq";
+import WBAgentLink from "@/components/wb/WBAgentLink";
 import WBPricing from "@/components/wb/WBPricing";
 import WBSavings from "@/components/wb/WBSavings";
 import { BENCHMARK } from "@/lib/wb-savings";
@@ -180,6 +181,7 @@ const pricingFaq = [
 
 export const metadata: Metadata = {
   title: "Pricing",
+  alternates: { canonical: "https://workbenchfsm.com/pricing", types: { "text/markdown": "https://workbenchfsm.com/pricing.md" } },
   description: `WorkBench FSM's core is free: full access for ${INCLUDED_SEATS} users, not a trial, funded by payment processing (${RATES.companyPaid.card} per card transaction, or a service fee your client pays). Optional add-ons from ${formatCents(dispatch.monthlyCents)} a month: ${dispatch.name} (business phone line), ${shop.name} (unlimited users and the ops tools), and ${jobsite.name} (job photos, coming soon).`,
 };
 
@@ -213,6 +215,7 @@ export default function WBPricingPage() {
         <AnimateIn>
           <WBPricing />
         </AnimateIn>
+        <WBAgentLink href="/pricing.md" what="this pricing" />
       </section>
 
       {/* ── How it's free ── */}

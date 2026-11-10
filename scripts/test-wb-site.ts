@@ -23,6 +23,10 @@ import { FREE_PAGE_PATH } from "../lib/wb-free";
 import { WB_SHOTS } from "../lib/wb-site";
 import { TRADES, freePlanFaq } from "../lib/wb-trades";
 import { ALTERNATIVES, ALTERNATIVES_PATH } from "../lib/wb-alternatives";
+import { MARKDOWN_PAGES, alternativeMarkdown, alternativesMarkdown, pricingMarkdown, vsMarkdown } from "../lib/wb-markdown";
+import { VS_LIST } from "../lib/wb-vs";
+import { ANNUAL_MONTHS, DISPATCH_SETUP_CENTS, EXTRA_SEAT_CENTS, FULL_SHOP, PLANS, RATES, formatCents } from "../lib/plans";
+import { existsSync } from "node:fs";
 import { FREE_PAGES } from "../lib/wb-free-pages";
 import { TOOLS, TOOLS_PATH, TRADE_TEMPLATES, templatePath, toolPath } from "../lib/wb-tools";
 
@@ -152,6 +156,39 @@ for (const p of FREE_PAGES) check(llms.includes(`https://workbenchfsm.com${p.pat
 for (const tool of TOOLS) check(llms.includes(`https://workbenchfsm.com${toolPath(tool)}`), `llms.txt: missing ${toolPath(tool)}`);
 check(llms.includes(`https://workbenchfsm.com${FREE_PAGE_PATH}`), `llms.txt: missing ${FREE_PAGE_PATH}`);
 for (const t of TRADES) check(llms.includes(`https://workbenchfsm.com/trades/${t.slug}`), `llms.txt: missing /trades/${t.slug}`);
+
+// ── 4. Markdown twins for AI agents (lib/wb-markdown.ts) ───────────────────
+// Each twin has a route file, is listed in llms.txt, and the pricing one
+// carries every number the pricing page shows.
+for (const m of MARKDOWN_PAGES) {
+  check(existsSync(join("app", "(wbsite)", ...m.md.slice(1).split("/"), "route.ts")), `markdown: no route file for ${m.md}`);
+  check(llms.includes(`https://workbenchfsm.com${m.md}`), `llms.txt: missing ${m.md}`);
+}
+const pricingMd = pricingMarkdown();
+for (const [what, value] of [
+  ["company-paid card rate", RATES.companyPaid.card],
+  ["company-paid ACH rate", RATES.companyPaid.ach],
+  ["service-fee card rate", RATES.serviceFee.card],
+  ["service-fee ACH rate", RATES.serviceFee.ach],
+  ["Voice price", `${formatCents(PLANS.DISPATCH.monthlyCents)}/month`],
+  ["Pro price", `${formatCents(PLANS.SHOP.monthlyCents)}/month`],
+  ["Gallery price", `${formatCents(PLANS.JOBSITE.monthlyCents)}/month`],
+  ["Max price", `${formatCents(FULL_SHOP.monthlyCents)}/month`],
+  ["Pro annual price", formatCents(PLANS.SHOP.monthlyCents * ANNUAL_MONTHS)],
+  ["extra-seat price", formatCents(EXTRA_SEAT_CENTS)],
+  ["Voice setup fee", formatCents(DISPATCH_SETUP_CENTS)],
+] as const) {
+  check(pricingMd.includes(value), `pricing.md: missing the ${what} (${value})`);
+}
+for (const text of [pricingMd, alternativesMarkdown(), ...VS_LIST.map(vsMarkdown), ...ALTERNATIVES.map(alternativeMarkdown)]) {
+  const title = text.split("\n")[0];
+  check(title.startsWith("# "), `markdown: "${title.slice(0, 40)}" does not start with a title`);
+  check(!/undefined|NaN|\[object /.test(text), `markdown: "${title}" printed a missing value`);
+}
+for (const v of VS_LIST) {
+  const md = vsMarkdown(v);
+  for (const r of v.rows) check(md.includes(`**${r.label}**`), `vs/${v.slug}.md: missing the "${r.label}" row`);
+}
 
 if (failed) {
   console.error(`\n${failed} marketing-site check(s) failed`);

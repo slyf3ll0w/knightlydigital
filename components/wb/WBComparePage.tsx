@@ -7,6 +7,8 @@ import WBScribble from "@/components/wb/WBScribble";
 import WBTestimonials from "@/components/wb/WBTestimonials";
 import { WB_TRADE_PHOTOS } from "@/lib/wb-site";
 import WBCta from "@/components/wb/WBCta";
+import WBAgentLink from "@/components/wb/WBAgentLink";
+import { VS_LIST } from "@/lib/wb-vs";
 import WBFaq, { FaqItem } from "./WBFaq";
 import WBCompareTable, { CompareRow } from "./WBCompareTable";
 import type { FeatureItem } from "@/lib/wb-features";
@@ -42,6 +44,7 @@ export default function WBComparePage({
   differentiators: FeatureItem[];
   faq: FaqItem[];
 }) {
+  const vs = VS_LIST.find((v) => v.name === competitorName);
   return (
     <>
       {/* Hero */}
@@ -154,6 +157,8 @@ export default function WBComparePage({
           </div>
         </div>
       </section>
+
+      {vs && <WBAgentLink href={`/vs/${vs.slug}.md`} what="this comparison" />}
 
       <WBCta
         title="Free to start. Pay as the crew grows."

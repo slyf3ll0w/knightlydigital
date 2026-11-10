@@ -16,7 +16,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title: alt.savingsId ? `Free ${alt.name} alternative` : `${alt.name} alternative for small shops`,
     description: alt.description,
-    alternates: { canonical: `https://workbenchfsm.com${ALTERNATIVES_PATH}/${alt.slug}` },
+    alternates: {
+      canonical: `https://workbenchfsm.com${ALTERNATIVES_PATH}/${alt.slug}`,
+      types: { "text/markdown": `https://workbenchfsm.com${ALTERNATIVES_PATH}/${alt.slug}.md` },
+    },
   };
 }
 
