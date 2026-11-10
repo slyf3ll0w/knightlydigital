@@ -70,7 +70,7 @@ export default function VolumeChart({ points }: { points: VolumePoint[] }) {
         ref={ref}
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
-        className="block h-44 w-full overflow-visible touch-pan-y"
+        className="block h-44 w-full overflow-visible touch-pan-y lg:h-64"
         role="img"
         aria-label="Gross volume by day, this period and the previous one"
         onPointerMove={(e) => onMove(e.clientX)}
