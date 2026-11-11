@@ -82,6 +82,7 @@ export const COMPANY_DELETE_KEEPS = [
   "AssistantTurn",
   "SmsSend",
   "AccessApplication", // SetNull
+  "CompanyRequest", // SetNull — the request stays as the record of who asked
   // cascade from their parent (message / estimator / connection)
   "PortalMessageMedia",
   "EstimatorBuild",
