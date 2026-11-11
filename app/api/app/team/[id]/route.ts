@@ -159,7 +159,7 @@ export async function PATCH(
   // go (the jobs show Unassigned / NEEDS_CREW so a dispatcher re-places
   // them), and every visit series that still lists them as default crew
   // drops them so the generator stops assigning a person who's gone.
-  let deactivation: { unassignedJobs: number; series: { id: string; name: string }[] } | null = null;
+  let deactivation: { unassignedJobs: number; unassignedAppointments: number; series: { id: string; name: string }[] } | null = null;
   if (data.isActive === false && target.isActive) {
     const now = new Date();
     const unassigned = await prisma.jobAssignment.deleteMany({
@@ -168,6 +168,24 @@ export async function PATCH(
         job: { companyId: actor.companyId, status: "ACTIVE", scheduledAt: { gte: now } },
       },
     });
+    // Their upcoming appointments too. Left on a deactivated person, an
+    // estimate vanished from the Team day board (columns are active people),
+    // online booking stopped counting it as busy and could sell the hour
+    // again, and the client still got reminders for a visit nobody was on.
+    // Another person on it takes the lead; otherwise it shows Unassigned.
+    const upcoming = { companyId: actor.companyId, status: "SCHEDULED" as const, scheduledAt: { gte: now } };
+    const led = await prisma.appointment.findMany({
+      where: { ...upcoming, assignedToId: target.id },
+      select: { id: true, extraAssignees: { select: { id: true, userId: true }, orderBy: { id: "asc" } } },
+    });
+    for (const a of led) {
+      const next = a.extraAssignees.find((x) => x.userId !== target.id);
+      await prisma.$transaction([
+        ...(next ? [prisma.appointmentAssignee.delete({ where: { id: next.id } })] : []),
+        prisma.appointment.update({ where: { id: a.id }, data: { assignedToId: next?.userId ?? null } }),
+      ]);
+    }
+    const extras = await prisma.appointmentAssignee.deleteMany({ where: { userId: target.id, appointment: upcoming } });
     const series = await prisma.subscription.findMany({
       where: {
         companyId: actor.companyId,
@@ -184,6 +202,7 @@ export async function PATCH(
     }
     deactivation = {
       unassignedJobs: unassigned.count,
+      unassignedAppointments: led.length + extras.count,
       series: series.map((s) => ({ id: s.id, name: s.name })),
     };
   }

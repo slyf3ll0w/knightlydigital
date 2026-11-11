@@ -685,8 +685,16 @@ export async function runVisitReminders(
         // (Crew heads-up moved to runTechHeadsUp — it has its own stamp so
         // techs hear about remindClient=false jobs too, with action buttons.)
       } else {
+        // Give the claim back so the next tick retries, as appointments do —
+        // one provider hiccup used to burn the visit's reminder for good.
         summary.errors++;
-        console.error("[reminders] send failed after claim for job visit", job.id, stage);
+        reportError("[reminders] send failed after claim for job visit — claim released for retry", job.id, stage);
+        await prisma.job
+          .updateMany({
+            where: { id: job.id },
+            data: stage === "hour" ? { reminderHourSentAt: null, reminderDaySentAt: job.reminderDaySentAt } : { reminderDaySentAt: null },
+          })
+          .catch(() => {});
       }
     } catch (err) {
       summary.errors++;

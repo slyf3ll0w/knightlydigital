@@ -419,12 +419,19 @@ export async function locateTarget(address: string | null | undefined, companyId
 export async function slotsForType(
   type: LoadedBookingType,
   company: BookingCompany,
-  opts: { address?: string | null; durationMinutes?: number; now?: Date; maxShownPerDay?: number | null }
+  opts: {
+    address?: string | null;
+    durationMinutes?: number;
+    now?: Date;
+    maxShownPerDay?: number | null;
+    /** Rescheduling: this booking's own hold doesn't block the times around it. */
+    excludeAppointmentId?: string | null;
+  }
 ): Promise<{ slots: Slot[]; driveAware: boolean; members: EngineMember[]; rules: EngineRules }> {
   const now = opts.now ?? new Date();
   const meta = KIND_META[type.kind];
   const target = meta.needsAddress ? await locateTarget(opts.address, company.id) : null;
-  const members = await loadPoolWithBusy(type, now, horizonEnd(type, now), { locate: Boolean(target) });
+  const members = await loadPoolWithBusy(type, now, horizonEnd(type, now), { locate: Boolean(target), excludeAppointmentId: opts.excludeAppointmentId });
   const rules = rulesFor(type, company, { target, durationMinutes: opts.durationMinutes, maxShownPerDay: opts.maxShownPerDay });
   return { slots: generateSlots(rules, members, now), driveAware: Boolean(target), members, rules };
 }

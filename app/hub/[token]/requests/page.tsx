@@ -21,6 +21,7 @@ export default async function HubRequestsPage({
   const contact = await prisma.contact.findUnique({
     where: { hubToken: token },
     select: {
+      company: { select: { timezone: true } },
       requests: {
         orderBy: { createdAt: "desc" },
         take: 50,
@@ -36,6 +37,8 @@ export default async function HubRequestsPage({
     },
   });
   if (!contact) notFound();
+  // Dates in the company's zone — the server clock is UTC, and an evening visit read as the next day
+  const tz = contact.company.timezone;
 
   const requests = contact.requests;
   const base = `/hub/${token}`;
@@ -58,7 +61,7 @@ export default async function HubRequestsPage({
     if (activeJob) {
       return activeJob.scheduledAt
         ? {
-            label: `Scheduled · ${shortDate(activeJob.scheduledAt)}`,
+            label: `Scheduled · ${shortDate(activeJob.scheduledAt, tz)}`,
             tone: "border-green-600/30 bg-green-600/[0.06] text-green-700",
           }
         : {

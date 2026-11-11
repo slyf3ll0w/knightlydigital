@@ -63,7 +63,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
     const { slots } = await slotsForType(
       type,
       company,
-      { address: meta.needsAddress ? appt.address : null, now }
+      {
+        address: meta.needsAddress ? appt.address : null,
+        now,
+        // The comment above was only a wish: the sweep counted this booking
+        // as busy, hiding the times next to it (and the whole day at a
+        // per-day cap) that the save below would have accepted.
+        excludeAppointmentId: appt.id,
+        durationMinutes: appt.scheduledEnd ? Math.round((appt.scheduledEnd.getTime() - appt.scheduledAt.getTime()) / 60000) : undefined,
+      }
     );
     days = groupSlotsByDay(company.timezone, slots.filter((s) => s.start.getTime() !== appt.scheduledAt.getTime()));
   }

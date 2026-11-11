@@ -262,10 +262,13 @@ export function generateSlots(rules: EngineRules, members: EngineMember[], now: 
   const step = rules.stepMinutes > 0 ? rules.stepMinutes : 30;
   const slots: Slot[] = [];
 
+  const today = localParts(rules.timezone, now);
   for (let dayOffset = 0; dayOffset <= rules.horizonDays; dayOffset++) {
-    // Walk days by adding 24h, then read the local Y/M/D — immune to DST
-    // days being 23/25 hours long.
-    const probe = new Date(now.getTime() + dayOffset * 86400000);
+    // Walk the company's calendar days: local noon of today + N. (Adding
+    // 24 h to "now" was NOT immune to 23/25-hour days — loaded just after
+    // midnight it listed the fall-back Sunday twice, and just before
+    // midnight it skipped the spring-forward Sunday.)
+    const probe = wallTimeToUtc(rules.timezone, today.y, today.m, today.d + dayOffset, 12 * 60);
     const { y, m, d, day } = localParts(rules.timezone, probe);
     const ranges = rules.hours[DAY_KEYS[day]] ?? [];
     const daySlots: Slot[] = [];

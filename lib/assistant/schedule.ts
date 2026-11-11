@@ -1,4 +1,5 @@
 import { prisma } from "../db";
+import { wallTimeToUtc } from "../booking-engine";
 import {
   canSell,
   isManager,
@@ -76,10 +77,16 @@ export const scheduleTools: Tool[] = [
       // Generous TZ pad — widen OUTWARD: earliest local midnight on Earth is
       // UTC+14, latest local end-of-day is UTC-12. (Inverting these produces an
       // empty window and "nothing scheduled" answers for single-day queries.)
-      const start = new Date(`${str(args.from, 10)}T00:00:00+14:00`);
-      const end = new Date(`${str(args.to, 10)}T23:59:59-12:00`);
-      if (end.getTime() - start.getTime() > 33 * 86400000) return { error: "Range too wide — max 31 days." };
       const tz = await companyTz(actor.companyId);
+      // The company's own days, midnight to midnight. (This was a padded UTC
+      // window that was never narrowed back: "what's on today?" also returned
+      // all of yesterday and half of tomorrow, and with the 40-row cap a busy
+      // yesterday pushed today's later visits out of the answer.)
+      const [fy, fm, fd] = str(args.from, 10).split("-").map(Number);
+      const [ty, tm, td] = str(args.to, 10).split("-").map(Number);
+      const start = wallTimeToUtc(tz, fy, fm, fd, 0);
+      const end = new Date(wallTimeToUtc(tz, ty, tm, td + 1, 0).getTime() - 1);
+      if (end.getTime() - start.getTime() > 33 * 86400000) return { error: "Range too wide — max 31 days." };
       const [jobs, appts] = await Promise.all([
         prisma.job.findMany({
           where: {
@@ -215,7 +222,7 @@ export const scheduleTools: Tool[] = [
       const job = await prisma.job.findFirst({
         where: { companyId: actor.companyId, jobNumber: n ?? -1, ...jobScope(actor) },
         select: {
-          id: true, title: true, outsourced: true,
+          id: true, title: true, outsourced: true, scheduledAt: true, scheduledEnd: true, scheduledAnytime: true,
           assignments: { select: { userId: true } },
           contact: { select: { firstName: true, lastName: true, companyName: true } },
         },
@@ -226,7 +233,7 @@ export const scheduleTools: Tool[] = [
       let whenLabel = "";
       const fullEdit = isManager(actor.role) || actor.role === "USER";
       if (str(args.date, 10)) {
-        const sched = await schedulePayload(actor.companyId, args.date, args.time, args.durationMinutes);
+        const sched = await schedulePayload(actor.companyId, args.date, args.time, args.durationMinutes, job);
         if ("error" in sched) return sched;
         Object.assign(payload, sched.fields);
         whenLabel = sched.label;
@@ -585,7 +592,7 @@ export const scheduleTools: Tool[] = [
           ...appointmentScope(actor), status: "SCHEDULED",
         },
         select: {
-          id: true, title: true,
+          id: true, title: true, scheduledAt: true, scheduledEnd: true, scheduledAnytime: true,
           contact: { select: { firstName: true, lastName: true, companyName: true } },
         },
       });
@@ -594,7 +601,7 @@ export const scheduleTools: Tool[] = [
       const lines: string[] = [];
       let whenLabel = "";
       if (str(args.date, 10)) {
-        const sched = await schedulePayload(actor.companyId, args.date, args.time, args.durationMinutes);
+        const sched = await schedulePayload(actor.companyId, args.date, args.time, args.durationMinutes, appt);
         if ("error" in sched) return sched;
         Object.assign(payload, sched.fields);
         whenLabel = sched.label;

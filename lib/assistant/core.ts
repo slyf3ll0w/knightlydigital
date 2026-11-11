@@ -1,6 +1,7 @@
 import { prisma } from "../db";
 import { type Actor, contactScope } from "../permissions";
 import { wallTimeToUtc } from "../booking-engine";
+import { zonedParts } from "../timezone";
 import type { AIFunctionDecl } from "../ai";
 import { matchPriceBook } from "../price-book-match";
 
@@ -170,18 +171,31 @@ export async function schedulePayload(
   companyId: string,
   dateArg: unknown,
   timeArg: unknown,
-  durationArg: unknown
+  durationArg: unknown,
+  /**
+   * The record being MOVED (update_job / update_appointment). What the model
+   * leaves out is kept from it: no duration = the same length (a 4-hour job
+   * moved to Thursday used to become 1 hour), no time on a timed item = the
+   * same time of day (it used to become "anytime", which also drops the
+   * client reminders).
+   */
+  existing?: { scheduledAt: Date | null; scheduledEnd: Date | null; scheduledAnytime: boolean } | null
 ): Promise<{ error: string } | { fields: Record<string, unknown>; label: string }> {
   const d = day(dateArg);
   if (!d) return { error: "date must be YYYY-MM-DD" };
   const tz = await companyTz(companyId);
   const [y, m, dd] = str(dateArg, 10).split("-").map(Number);
   const time = str(timeArg, 5);
-  const anytime = !/^\d{2}:\d{2}$/.test(time);
-  const minutes = anytime ? 12 * 60 : Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+  const timeGiven = /^\d{2}:\d{2}$/.test(time);
+  const wasTimed = Boolean(existing?.scheduledAt) && !existing!.scheduledAnytime;
+  const kept = !timeGiven && wasTimed ? zonedParts(tz, existing!.scheduledAt as Date) : null;
+  const anytime = !timeGiven && !kept;
+  const minutes = timeGiven ? Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5)) : kept ? (kept.hour % 24) * 60 + kept.minute : 12 * 60;
   const start = wallTimeToUtc(tz, y, m, dd, minutes);
   const dur = num(durationArg);
-  const durationMin = dur && dur >= 15 && dur <= 600 ? dur : 60;
+  const keptLength =
+    wasTimed && existing!.scheduledEnd ? Math.round((existing!.scheduledEnd.getTime() - (existing!.scheduledAt as Date).getTime()) / 60000) : 0;
+  const durationMin = dur && dur >= 15 && dur <= 600 ? dur : keptLength >= 15 ? keptLength : 60;
   return {
     label: fmtWhen(tz, start, anytime),
     fields: {
