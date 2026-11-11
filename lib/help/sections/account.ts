@@ -93,8 +93,8 @@ export const settingsSection: HelpSection = {
     {
       slug: "notifications",
       title: "Turn on notifications",
-      summary: "Get pushes for new leads, bookings, payments, messages and calls on each device.",
-      keywords: ["notifications", "push", "alerts", "bell", "not getting notifications", "add to home screen", "email me too", "notification emails", "stop emails", "email these notifications", "notification card", "quote approved"],
+      summary: "Get pushes for new leads, bookings, payments, messages and calls on each device, and choose which alerts reach you and how.",
+      keywords: ["notifications", "push", "alerts", "bell", "not getting notifications", "add to home screen", "email me too", "notification emails", "stop emails", "email these notifications", "notification card", "quote approved", "notification settings", "turn off notifications", "mute", "too many notifications", "team chat notifications", "email alerts", "customize notifications"],
       where: { label: "My Profile", href: "/app/settings/profile" },
       blocks: [
         {
@@ -119,11 +119,34 @@ export const settingsSection: HelpSection = {
         },
         {
           type: "h",
+          text: "Choose what reaches you",
+        },
+        {
+          type: "p",
+          text: "**My Profile → Notifications** has a row for each kind of alert and three switches on each: **Push** (your phones and browsers), **Bell** (the list in the app) and **Email** (to the address you sign in with). Push and Bell start on and Email starts off. A switch saves the moment you flip it. Your switches are yours alone — nobody else's change — and if your login belongs to more than one company, each company has its own.",
+        },
+        {
+          type: "list",
+          items: [
+            "**New requests, leads and bookings**: website forms, online bookings, bookings waiting for your OK.",
+            "**Client messages**: texts, hub messages and website chat.",
+            "**Team chat**, **Tasks** (someone gave you a task, task reminders) and **Up next** (before your next job or appointment).",
+            "**Payments received** and **Payment problems**: failed payments and refunds, autopay stopped, gift cards that need you.",
+            "**Quotes approved**, **A client opened something** (a quote, invoice or email you sent) and **Sending documents** (sent, or couldn't be sent).",
+            "**Missed calls and voicemail** and **Automation alerts** (from your automations' Notify step).",
+          ],
+        },
+        {
+          type: "tip",
+          text: "Alerts about your account itself — online payments approved, Square disconnected, texting approved, business line limits — always come through by push and in the bell. They have no switch.",
+        },
+        {
+          type: "h",
           text: "Emails too, or push only",
         },
         {
           type: "p",
-          text: "New requests, client messages and bookings also go to your company's notification inbox by email. Once a device of yours has notifications on, that email is skipped so you don't hear the same thing twice. **My Profile → Email me too** changes this for you: `Only when push is off` (the default), `Always`, or `Never`. To stop these emails for the whole company — a team that reads them on their phones — switch off **Email these notifications** under **Settings → Company → Business info → Notifications inbox**; pushes and the bell carry on.",
+          text: "Separate from the **Email** switches above (which write to you personally), new requests, client messages and bookings also go to your company's notification inbox by email. Once a device of yours has notifications on, that email is skipped so you don't hear the same thing twice. **My Profile → Email me too** changes this for you: `Only when push is off` (the default), `Always`, or `Never`. To stop these emails for the whole company — a team that reads them on their phones — switch off **Email these notifications** under **Settings → Company → Business info → Notifications inbox**; pushes and the bell carry on.",
         },
         {
           type: "faq",
@@ -131,6 +154,14 @@ export const settingsSection: HelpSection = {
             {
               q: "I turned on notifications and the emails stopped.",
               a: "That's the default: push replaces the email once a phone or browser of yours has notifications on. Pick `Always` under My Profile → Email me too to get both.",
+            },
+            {
+              q: "I get too many notifications. Can I turn some off?",
+              a: "Yes. Open My Profile → Notifications and switch off Push (or Bell, or both) on the alerts you don't want — Team chat at night, say. Everyone on the team sets their own.",
+            },
+            {
+              q: "I want an email for payment problems but not for everything.",
+              a: "Turn on Email only on the Payment problems row under My Profile → Notifications. Each row is separate.",
             },
             {
               q: "Why does a notification start with a company name?",

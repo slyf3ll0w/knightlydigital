@@ -71,7 +71,7 @@ export const jobsSection: HelpSection = {
         {
           type: "list",
           items: [
-            "**Photos**: tag them Photo, Before or After (up to 100 per job).",
+            "**Photos**: tag them Photo, Before or After (up to 100 per job, and you can pick them all at once).",
             "**Checklist**: tick items off, or skip one with a reason.",
             "**Notes & Activity**: notes for the team and a history of everything that happened.",
             "`Collect signature` for the client's sign-off on the finished work.",
