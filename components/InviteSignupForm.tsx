@@ -147,22 +147,22 @@ export default function InviteSignupForm({
   const labelClass = "mb-1.5 block text-[13.5px] font-semibold text-gray-800";
 
   // Signed in with a company already — this code would open a SECOND one,
-  // which lives in the app's switcher (New company), not here.
+  // which support opens (avatar menu → Request a company), not this form.
   if (signedIn && !attachMode) {
     return (
       <div className="rounded-3xl border border-gray-200 bg-white px-6 py-12 text-center sm:px-12">
         <h2 className="mx-auto max-w-md text-2xl font-extrabold">You&apos;re already signed in.</h2>
         <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-gray-600">
-          Signed in as <span className="font-semibold">{session?.user?.email}</span>. To use an
-          invite code for another company, open WorkBench, tap your profile
-          picture and choose New company.
+          Signed in as <span className="font-semibold">{session?.user?.email}</span>. To add another
+          company to your login, open WorkBench, tap your profile picture and
+          choose Request a company. Support opens it for you.
         </p>
         <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <a
-            href="/app/register"
+            href="/app/request-company"
             className="wb-btn-tool inline-flex items-center rounded-lg bg-[#0B57D8] px-6 py-3 text-[15px] font-bold text-white"
           >
-            Add a company
+            Request a company
           </a>
           <button
             type="button"

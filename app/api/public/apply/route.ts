@@ -11,6 +11,7 @@ import { normalizeEmail } from "@/lib/user-email";
 import { findOrAdoptAccountByEmail } from "@/lib/account";
 import { createCompanySignup, InviteClaimedError, PlaceholderClaimedError } from "@/lib/signup";
 import { isValidTimezone } from "@/lib/timezone";
+import { accountHasCompany, HAS_COMPANY_MESSAGE } from "@/lib/company-requests";
 import { paymentsGateEnabled, paymentsSetupGateEnabled } from "@/lib/payments-gate";
 import { claimToolDraft } from "@/lib/tool-drafts";
 import { linkSenderToCompany, senderFromCookie } from "@/lib/tool-send";
@@ -188,6 +189,11 @@ export async function POST(req: NextRequest) {
       : false;
     if (!valid) {
       return NextResponse.json({ error: GENERIC }, { status: 400 });
+    }
+    // Password checked out, so saying why is safe: an existing owner asks
+    // support for the next company (lib/company-requests.ts).
+    if (await accountHasCompany(existing.id)) {
+      return NextResponse.json({ error: HAS_COMPANY_MESSAGE, code: "REQUEST_COMPANY" }, { status: 409 });
     }
     owner = { account: { id: existing.id, email: existing.email }, ownerName: String(name).trim() };
   } else {

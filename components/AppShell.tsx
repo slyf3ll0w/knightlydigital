@@ -1000,8 +1000,9 @@ function MembershipRows({
         </button>
       ))}
       <div className="my-1 border-t border-gray-100" />
+      {/* Extra companies are opened by support now (lib/company-requests.ts). */}
       <Link prefetch={false}
-        href="/app/register"
+        href="/app/request-company"
         onClick={() => {
           hapticImpact("LIGHT");
           onClose();
@@ -1015,7 +1016,7 @@ function MembershipRows({
           <Plus size={16} />
         </span>
         <span className={`font-medium text-gray-700 ${compact ? "text-sm" : "text-[15px]"}`}>
-          New company
+          Request a company
         </span>
       </Link>
       <div className="my-1 border-t border-gray-100" />
