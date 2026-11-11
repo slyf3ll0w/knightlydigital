@@ -34,6 +34,7 @@ import { getActiveFieldDefs } from "@/lib/contact-fields";
 import { invoiceBalance } from "@/lib/payments";
 import { clientPayConfig } from "@/lib/pay-client-config";
 import RunAutomationMenu from "@/components/RunAutomationMenu";
+import PdfLink from "@/components/PdfLink";
 
 export default async function ContactDetailPage({
   params,
@@ -508,14 +509,11 @@ export default async function ContactDetailPage({
               )}
             </dl>
             {canSeeMoney(actor) && (
-              <a
+              <PdfLink
                 href={`/api/app/contacts/${contact.id}/statement-pdf`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3 inline-block text-xs font-medium text-[color:var(--ds-primary)] hover:underline"
-              >
+                className="mt-3 inline-block text-xs font-medium text-[color:var(--ds-primary)] hover:underline" fallbackName="statement.pdf">
                 Download statement (PDF)
-              </a>
+              </PdfLink>
             )}
           </div>
 

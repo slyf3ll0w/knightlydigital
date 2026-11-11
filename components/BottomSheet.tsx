@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
+import { useSheetDrag } from "@/lib/use-sheet-drag";
 
 /** Backdrop taps inside this long after opening are the opening gesture's own echo, not a dismissal. */
 const BACKDROP_GRACE_MS = 350;
@@ -59,6 +60,9 @@ export default function BottomSheet({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  // Pull the sheet down to close it, like More and Create
+  const { sheetRef, dragY, dragging, dragHandlers } = useSheetDrag(open, onClose);
+
   if (!mounted) return null;
 
   return (
@@ -75,7 +79,12 @@ export default function BottomSheet({
         aria-hidden
       />
       <div
-        className={`absolute inset-x-0 bottom-0 sheet-material rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${
+        ref={sheetRef}
+        {...dragHandlers}
+        style={open && dragY > 0 ? { transform: `translateY(${dragY}px)` } : undefined}
+        className={`absolute inset-x-0 bottom-0 sheet-material rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] ${
+          dragging ? "" : "transition-transform duration-300"
+        } [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] ${
           /* open = NO transform: iOS kills backdrop-filter on transformed elements */
           shown ? "" : "translate-y-full"
         }`}

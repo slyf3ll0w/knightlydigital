@@ -9,6 +9,7 @@ import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { nativeTapToPay, newPaymentAttemptId, tapToPayError, type TapToPayPlugin, type TapToPayStatus } from "@/lib/native-tap-to-pay";
 import { tapToPayFailureText, type TapToPayOffer } from "@/lib/tap-to-pay-shared";
 import { serviceFee, SERVICE_FEE_CARD } from "@/lib/service-fee";
+import { money } from "@/lib/statuses";
 
 /**
  * "Tap to Pay" — the client holds their card to the back of the tech's
@@ -147,7 +148,7 @@ export default function TapToPayButton({
     <>
       <button type="button" onClick={run} disabled={busy} className={className} title={surcharge > 0 ? `Includes the ${SERVICE_FEE_CARD} card service fee` : undefined}>
         <Nfc size={14} />
-        Tap to Pay{surcharge > 0 ? ` · $${total.toFixed(2)}` : ""}
+        Tap to Pay{surcharge > 0 ? ` · ${money(total)}` : ""}
       </button>
       <ChargeOverlay phase={phase} onDismiss={() => setPhase(null)} />
     </>

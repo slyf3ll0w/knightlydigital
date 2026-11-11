@@ -12,6 +12,7 @@ import { confirmSheet } from "@/components/ConfirmSheet";
 import PageTitle from "@/components/PageTitle";
 import { InfoTip } from "@/components/ds";
 import { DateField } from "@/components/DateField";
+import { shareAppFile } from "@/components/PdfLink";
 
 /** Business expense log (owners/admins): record transactions by date and
  *  export any period as CSV for the bookkeeper. */
@@ -216,7 +217,11 @@ export default function ExpensesClient({
     const params = new URLSearchParams({ format: "csv" });
     if (exportFrom) params.set("from", exportFrom);
     if (exportTo) params.set("to", exportTo);
-    window.open(`/api/app/expenses?${params.toString()}`, "_blank");
+    const href = `/api/app/expenses?${params.toString()}`;
+    // The phone app has no session in the outside browser a new tab opens
+    void shareAppFile(href, "expenses.csv", "text/csv").then((handled) => {
+      if (!handled) window.open(href, "_blank");
+    });
   }
 
   return (

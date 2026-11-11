@@ -39,11 +39,12 @@ export default function SharePanel({ toolId, toolName, companyName, companyIndus
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const res = await fetch(`/api/app/estimators/${toolId}/share`);
-      const data = (await res.json().catch(() => null)) as (ShareState & { error?: string }) | null;
+      // A dropped connection must end the loading state too, not hang it
+      const res = await fetch(`/api/app/estimators/${toolId}/share`).catch(() => null);
+      const data = res ? ((await res.json().catch(() => null)) as (ShareState & { error?: string }) | null) : null;
       if (cancelled) return;
       setBusy(null);
-      if (!res.ok || !data) {
+      if (!res?.ok || !data) {
         setError(data?.error ?? GENERIC_ERROR);
         return;
       }

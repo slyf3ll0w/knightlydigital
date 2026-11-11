@@ -1054,6 +1054,7 @@ function CompanySwitcherSheet({ open, onClose }: { open: boolean; onClose: () =>
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
+  const { sheetRef, scrollRef, dragY, dragging, dragHandlers } = useSheetDrag(open, onClose);
   return (
     <>
       <div
@@ -1064,13 +1065,18 @@ function CompanySwitcherSheet({ open, onClose }: { open: boolean; onClose: () =>
         aria-hidden
       />
       <div
-        className={`sheet-material fixed inset-x-0 bottom-0 z-50 flex max-h-[75dvh] flex-col rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] lg:hidden ${
+        ref={sheetRef}
+        {...dragHandlers}
+        style={open && dragY > 0 ? { transform: `translateY(${dragY}px)` } : undefined}
+        className={`sheet-material fixed inset-x-0 bottom-0 z-50 flex max-h-[75dvh] flex-col rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] ${
+          dragging ? "" : "transition-transform duration-300"
+        } [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] lg:hidden ${
           open ? "" : "pointer-events-none translate-y-full"
         }`}
       >
         <div className="mx-auto mt-2.5 h-1 w-9 shrink-0 rounded-full bg-gray-300" />
         <p className="px-5 pb-1 pt-3 text-[13px] font-semibold text-gray-500">Your companies</p>
-        <div className="overflow-y-auto px-1.5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        <div ref={scrollRef} className="overflow-y-auto px-1.5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           <MembershipRows
             memberships={memberships}
             switching={switching}

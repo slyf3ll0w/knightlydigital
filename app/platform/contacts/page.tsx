@@ -15,6 +15,7 @@ import EntityRowActions from "@/components/EntityRowActions";
 import CallLink from "@/components/CallLink";
 import { contactSearchWhere } from "@/lib/contact-search";
 import Monogram from "@/components/Monogram";
+import PdfLink from "@/components/PdfLink";
 
 // Leads live on the Leads board now — this page is clients (searching still
 // finds leads so the header search never dead-ends). Contacts = business
@@ -120,15 +121,14 @@ export default async function ContactsPage({
                 <Upload size={15} />
                 <span className="hidden sm:inline">Import</span>
               </Link>
-              <a
+              <PdfLink
                 href="/api/app/export/clients"
-                aria-label="Export CSV"
+                ariaLabel="Export CSV"
                 title="Download all clients as CSV"
-                className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] btn-tool-line bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold transition-colors sm:w-auto sm:px-4"
-              >
+                className="flex h-10 w-10 items-center justify-center gap-1.5 rounded-[10px] btn-tool-line bg-white text-gray-700 hover:bg-gray-50 text-sm font-semibold transition-colors sm:w-auto sm:px-4" mime="text/csv" newTab={false} fallbackName="export.csv">
                 <Download size={15} />
                 <span className="hidden sm:inline">Export</span>
-              </a>
+              </PdfLink>
             </>
           )}
           {/* Phones create from the tab-bar FAB (the form has the Contact option) */}

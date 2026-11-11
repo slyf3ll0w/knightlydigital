@@ -9,7 +9,9 @@ import { hapticImpact } from "@/lib/haptics";
  * its list while that is scrolled to the top — carries the sheet with the
  * finger; let go past ~a quarter of its height (or with a flick) and it
  * closes, otherwise it springs back. `scrollRef` is optional: a sheet with
- * no scrolling list takes the pull from anywhere on it.
+ * no scrolling list takes the pull from anywhere on it. Shared by every
+ * phone sheet since 2026-11-11 (Notifications, BottomSheet, Modal, the
+ * company switcher) — a sheet that shows a grab handle can be pulled down.
  */
 export function useSheetDrag(open: boolean, onClose: () => void) {
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -20,6 +22,20 @@ export function useSheetDrag(open: boolean, onClose: () => void) {
     if (!open) setDragY(0);
   }, [open]);
   const onTouchStart = (e: React.TouchEvent) => {
+    // Not from a control that uses the drag itself (a signature pad, a
+    // slider, a text field's caret, a reorder handle), and not from inside
+    // an inner list that is scrolled down — that pull scrolls the list.
+    const target = e.target as HTMLElement | null;
+    if (target?.closest?.("canvas, input, textarea, select, [contenteditable='true'], [draggable='true'], [data-no-sheet-drag]")) {
+      drag.current = null;
+      return;
+    }
+    for (let el = target; el && el !== sheetRef.current; el = el.parentElement) {
+      if (el.scrollTop > 0) {
+        drag.current = null;
+        return;
+      }
+    }
     drag.current = { x0: e.touches[0].clientX, y0: e.touches[0].clientY, t0: Date.now(), live: false };
   };
   const onTouchMove = (e: React.TouchEvent) => {

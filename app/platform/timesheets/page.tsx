@@ -11,6 +11,7 @@ import EmptyState from "@/components/EmptyState";
 import { Chip } from "@/components/ds";
 import { featureAllowedFor } from "@/lib/plan-gate";
 import PlanRequired from "@/components/PlanRequired";
+import PdfLink from "@/components/PdfLink";
 
 /**
  * Weekly timesheets. Techs see their own hours; owners/admins see the whole
@@ -136,14 +137,13 @@ export default async function TimesheetsPage({
           >
             <ChevronRight size={16} />
           </Link>
-          <a
+          <PdfLink
             href={`/api/app/export/timesheets?from=${toParam(weekStart)}&to=${toParam(weekLastDay)}`}
             title="Download this week as CSV"
-            className="ml-1 flex items-center gap-1.5 px-3 py-1.5 btn-tool-line text-xs font-medium rounded-lg"
-          >
+            className="ml-1 flex items-center gap-1.5 px-3 py-1.5 btn-tool-line text-xs font-medium rounded-lg" mime="text/csv" newTab={false} fallbackName="export.csv">
             <Download size={13} />
             Export
-          </a>
+          </PdfLink>
         </div>
       </div>
 

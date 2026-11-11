@@ -1,4 +1,4 @@
-import Link from "next/link";
+import SignOutButton from "./SignOutButton";
 
 /**
  * Landing page for suspended companies — deliberately does NOT use
@@ -22,12 +22,7 @@ export default function SuspendedPage() {
           </a>
           .
         </p>
-        <Link
-          href="/api/auth/signout"
-          className="ds-btn ds-btn-primary mt-6"
-        >
-          Sign out
-        </Link>
+        <SignOutButton />
       </div>
     </div>
   );

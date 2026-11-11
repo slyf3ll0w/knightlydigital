@@ -64,7 +64,7 @@ export function toolFacts(t: Pick<Tool, "spec">, atlasName: string): string[] {
     `${t.spec.inputs.length} question${t.spec.inputs.length === 1 ? "" : "s"}`,
     tiers && tiers.type === "select" ? `${tiers.options.length} packages` : null,
     t.spec.inputs.some((i) => i.type === "map") ? "map measure" : null,
-    t.spec.minimumTotal ? `$${Math.round(t.spec.minimumTotal)} minimum` : null,
+    t.spec.minimumTotal ? `$${Math.round(t.spec.minimumTotal).toLocaleString("en-US")} minimum` : null,
     t.spec.inputs.some((i) => i.askAtlas) ? `${atlasName} assesses` : null,
   ].filter((x): x is string => Boolean(x));
 }

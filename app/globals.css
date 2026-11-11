@@ -797,7 +797,7 @@ html[data-mode="dark"] .app-ui .menu-sheet > div + :is(button, a) {
 }
 @keyframes sheetDown {
   from {
-    transform: none;
+    transform: translateY(var(--sheet-drag, 0px));
   }
   to {
     transform: translateY(100%);

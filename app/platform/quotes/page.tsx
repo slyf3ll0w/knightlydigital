@@ -14,6 +14,7 @@ import Monogram from "@/components/Monogram";
 import MobileSearch from "@/components/MobileSearch";
 import Pager from "@/components/Pager";
 import type { QuoteStatus } from "@prisma/client";
+import PdfLink from "@/components/PdfLink";
 
 const statusFilters = [
   { value: "", label: "All", mobile: "All quotes" },
@@ -146,14 +147,13 @@ export default async function QuotesPage({
         </PageTitle>
         {/* Phones create from the tab-bar FAB */}
         <div className="hidden lg:flex items-center gap-2">
-          <a
+          <PdfLink
             href="/api/app/export/quotes"
             title="Download all quotes as CSV"
-            className="ds-btn ds-btn-outline ds-btn-sm"
-          >
+            className="ds-btn ds-btn-outline ds-btn-sm" mime="text/csv" newTab={false} fallbackName="export.csv">
             <Download size={14} />
             Export
-          </a>
+          </PdfLink>
           <Link
             href="/app/quotes/new"
             className="ds-btn ds-btn-primary ds-btn-sm"

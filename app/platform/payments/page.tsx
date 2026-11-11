@@ -39,6 +39,7 @@ import { squareStatusForCompany } from "@/lib/square-connection";
 import { isOnlinePayment } from "@/lib/payment-ref";
 import SquarePayments from "./square/SquarePayments";
 import { giftCardsOpenFor } from "@/lib/gift-cards-preview";
+import PdfLink from "@/components/PdfLink";
 
 /**
  * Payments dashboard — the company's money view for online processing:
@@ -116,10 +117,10 @@ export default async function PaymentsDashboardPage({
           </PageTitle>
           {/* Phones create from the tab-bar FAB */}
           <div className="hidden lg:flex items-center gap-2">
-            <a href="/api/app/export/payments" title="Download all payments as CSV" className="ds-btn ds-btn-outline ds-btn-sm">
+            <PdfLink href="/api/app/export/payments" title="Download all payments as CSV" className="ds-btn ds-btn-outline ds-btn-sm" mime="text/csv" newTab={false} fallbackName="export.csv">
               <Download size={14} />
               Export
-            </a>
+            </PdfLink>
             <Link href="/app/payments/new" className="btn-primary">
               <Plus size={15} />
               Collect payment
@@ -373,14 +374,13 @@ export default async function PaymentsDashboardPage({
         </PageTitle>
         {/* Phones create from the tab-bar FAB */}
         <div className="hidden lg:flex items-center gap-2">
-          <a
+          <PdfLink
             href="/api/app/export/payments"
             title="Download all payments as CSV"
-            className="ds-btn ds-btn-outline ds-btn-sm"
-          >
+            className="ds-btn ds-btn-outline ds-btn-sm" mime="text/csv" newTab={false} fallbackName="export.csv">
             <Download size={14} />
             Export
-          </a>
+          </PdfLink>
           <Link
             href="/app/payments/new"
             className="btn-primary"

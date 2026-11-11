@@ -258,6 +258,10 @@ export default function NativeShell({ userId }: { userId?: string | null } = {})
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey) return;
       const anchor = (e.target as HTMLElement | null)?.closest?.("a[href]");
       if (!anchor) return;
+      // The app's own file links (PdfLink, chat photos) handle the tap
+      // themselves with the session. This listener runs first (capture), so
+      // without the opt-out it opened the signed-out outside browser as well.
+      if (anchor.hasAttribute("data-in-app")) return;
       const href = anchor.getAttribute("href");
       if (!href || href.startsWith("mailto:") || href.startsWith("tel:")) return; // OS handles these
       let url: URL;

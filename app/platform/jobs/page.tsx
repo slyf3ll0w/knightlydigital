@@ -15,6 +15,7 @@ import FilterBar, { listHref } from "@/components/FilterBar";
 import { pickSort, JOB_SORTS, jobOrderBy } from "@/lib/list-sort";
 import Pager from "@/components/Pager";
 import type { JobStatus } from "@prisma/client";
+import PdfLink from "@/components/PdfLink";
 
 const statusFilters = [
   { value: "", label: "All", mobile: "All" },
@@ -116,14 +117,13 @@ export default async function JobsPage({
         {/* Phones create from the tab-bar FAB — a second button here just
             crowded the header */}
         <div className="hidden lg:flex items-center gap-2">
-          <a
+          <PdfLink
             href="/api/app/export/jobs"
             title="Download all jobs as CSV"
-            className="ds-btn ds-btn-outline ds-btn-sm"
-          >
+            className="ds-btn ds-btn-outline ds-btn-sm" mime="text/csv" newTab={false} fallbackName="export.csv">
             <Download size={14} />
             Export
-          </a>
+          </PdfLink>
           {canCreate && (
             <Link
               href="/app/jobs/new"

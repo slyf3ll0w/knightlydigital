@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useSheetDrag } from "@/lib/use-sheet-drag";
 
 /**
  * THE dialog surface — one primitive instead of fifteen hand-rolled
@@ -88,6 +89,21 @@ export default function Modal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, dismissible, onClose]);
 
+  // Phones show the card as a bottom sheet with a grab handle: pull it down
+  // to close, like every other sheet. Touch only, so a desk is untouched;
+  // dialogs that must finish (dismissible={false}) don't take the pull.
+  const { sheetRef, scrollRef, dragY, dragging, dragHandlers } = useSheetDrag(open && dismissible, onClose);
+  // Where the finger let go, so the slide-down exit starts there (sheetDown
+  // in globals.css reads --sheet-drag) instead of jumping back to the top.
+  const letGoAt = useRef(0);
+  if (open) letGoAt.current = dragY;
+  // The card's offset under the finger; held for the one render between
+  // onClose and the exit animation so it doesn't flick back up.
+  const offset = open ? dragY : phase === "open" ? letGoAt.current : 0;
+  // Only a card that has been pulled gets the spring-back transition
+  const pulled = useRef(false);
+  if (dragY > 0) pulled.current = true;
+
   if (phase === "closed") return null;
   const card =
     cardClassName ??
@@ -114,7 +130,22 @@ export default function Modal({
     >
       {/* A wheel at the end of the card's scroll stays in the card instead of
           scrolling the page behind the scrim. */}
-      <div className={`modal-card ${card}`} style={{ overscrollBehavior: "contain" }} onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={(el) => {
+          // The card is the sheet and, on phones, its own scrolling area
+          sheetRef.current = el;
+          scrollRef.current = el;
+        }}
+        {...(dismissible ? dragHandlers : {})}
+        className={`modal-card ${card}`}
+        style={{
+          overscrollBehavior: "contain",
+          ...(offset > 0 ? { transform: `translateY(${offset}px)` } : {}),
+          ...(pulled.current ? { transition: dragging ? "none" : "transform 0.25s cubic-bezier(0.32, 0.72, 0, 1)" } : {}),
+          ["--sheet-drag" as string]: `${phase === "closing" ? letGoAt.current : 0}px`,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         {phase === "closing" ? lastChildren.current : children}
       </div>
     </div>

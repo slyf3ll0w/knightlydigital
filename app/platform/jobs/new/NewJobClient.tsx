@@ -11,7 +11,7 @@ import BackLink from "@/components/BackLink";
 import PageTitle from "@/components/PageTitle";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
-import { localInputToISO } from "@/lib/statuses";
+import { localInputToISO, money } from "@/lib/statuses";
 import SlotTimePicker, { SlotTimeSelect } from "@/components/SlotTimePicker";
 import ContactPicker from "@/components/ContactPicker";
 import SuggestedTimes from "@/components/SuggestedTimes";
@@ -461,13 +461,12 @@ function NewJobForm({ actorId }: { actorId: string }) {
               <div className="ml-auto w-56 flex justify-between text-sm font-bold">
                 <span className="text-gray-900">Total price</span>
                 <span className="text-gray-900">
-                  $
-                  {lineItems
-                    .reduce(
+                  {money(
+                    lineItems.reduce(
                       (s, li) => s + (parseFloat(li.quantity) || 0) * (parseFloat(li.unitPrice) || 0),
                       0
                     )
-                    .toFixed(2)}
+                  )}
                 </span>
               </div>
             </div>

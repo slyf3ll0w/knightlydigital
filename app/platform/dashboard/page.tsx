@@ -789,7 +789,13 @@ export default async function DashboardPage() {
                 href={s.href}
                 className={`min-w-0 px-3.5 py-4 active:opacity-70 ${i > 0 ? "border-l border-[color:var(--ds-line)]" : ""}`}
               >
-                <p className="truncate text-[20px] font-semibold leading-none tracking-[-0.02em]" style={s.bad ? { color: "var(--ds-bad)" } : undefined}>
+                {/* Never clipped (a cut-off amount reads as a different one): long figures step down */}
+                <p
+                  className={`whitespace-nowrap font-semibold leading-none tracking-[-0.02em] ${
+                    s.value.length > 9 ? "text-[14px]" : s.value.length > 7 ? "text-[17px]" : "text-[20px]"
+                  }`}
+                  style={s.bad ? { color: "var(--ds-bad)" } : undefined}
+                >
                   <CountUp value={s.value} />
                 </p>
                 <p className="ds-small mt-1.5 truncate text-[11.5px]">{s.label}</p>

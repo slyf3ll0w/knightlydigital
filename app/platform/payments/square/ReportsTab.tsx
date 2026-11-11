@@ -6,6 +6,7 @@ import { money } from "@/lib/statuses";
 import type { PaymentsReport, ReportPeriod, ReportTotals } from "@/lib/payments-reports";
 import type { SellerReadFailure } from "@/lib/square-seller-reports";
 import { RuledLabel, SquareUnavailable } from "./bits";
+import PdfLink from "@/components/PdfLink";
 
 /**
  * Reports tab: money in for the last 12 days / weeks / months in the
@@ -81,10 +82,10 @@ export default function ReportsTab({
             </FilterChip>
           ))}
         </div>
-        <a href={csvHref} className="ds-btn ds-btn-outline ds-btn-sm" title="Download this report as CSV">
+        <PdfLink href={csvHref} className="ds-btn ds-btn-outline ds-btn-sm" title="Download this report as CSV" mime="text/csv" newTab={false} fallbackName="export.csv">
           <Download size={14} />
           Download CSV
-        </a>
+        </PdfLink>
       </div>
 
       <div className="mb-8">

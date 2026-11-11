@@ -16,6 +16,7 @@ import MobileSearch from "@/components/MobileSearch";
 import Monogram from "@/components/Monogram";
 import Pager from "@/components/Pager";
 import type { InvoiceStatus } from "@prisma/client";
+import PdfLink from "@/components/PdfLink";
 
 const statusFilters = [
   { value: "", label: "All", mobile: "All" },
@@ -162,14 +163,13 @@ export default async function InvoicesPage({
         </PageTitle>
         {/* Phones create from the tab-bar FAB (Invoice + Payment both live there) */}
         <div className="hidden lg:flex items-center gap-2">
-          <a
+          <PdfLink
             href="/api/app/export/invoices"
             title="Download all invoices as CSV"
-            className="ds-btn ds-btn-outline ds-btn-sm"
-          >
+            className="ds-btn ds-btn-outline ds-btn-sm" mime="text/csv" newTab={false} fallbackName="export.csv">
             <Download size={14} />
             Export
-          </a>
+          </PdfLink>
           <Link
             href="/app/payments/new"
             className="ds-btn ds-btn-outline ds-btn-sm"

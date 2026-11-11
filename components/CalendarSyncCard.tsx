@@ -95,12 +95,17 @@ export default function CalendarSyncCard() {
   const [copied, setCopied] = useState(false);
   const [notice, setNotice] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
 
+  // A failed load says so with a way to retry — the card used to sit on
+  // "Loading…" forever, with no button to act on.
+  const [feedFailed, setFeedFailed] = useState(false);
   const loadFeed = useCallback(async () => {
+    setFeedFailed(false);
     try {
       const res = await fetch("/api/app/profile/calendar-feed");
       if (res.ok) setFeed(await res.json());
+      else setFeedFailed(true);
     } catch {
-      // leave the card in its loading state; a retry happens on next action
+      setFeedFailed(true);
     }
   }, []);
   const loadGoogle = useCallback(async () => {
@@ -336,9 +341,17 @@ export default function CalendarSyncCard() {
             </div>
           </div>
         )}
-        {!feed && (
+        {!feed && !feedFailed && (
           <p className="mt-3 text-xs text-gray-500 flex items-center gap-1.5">
             <Loader2 size={12} className="animate-spin" /> Loading…
+          </p>
+        )}
+        {!feed && feedFailed && (
+          <p className="mt-3 text-xs text-gray-600 flex items-center gap-2">
+            Couldn&apos;t load your calendar link.
+            <button type="button" onClick={loadFeed} className="font-semibold text-[color:var(--ds-primary)] underline underline-offset-2">
+              Try again
+            </button>
           </p>
         )}
       </div>

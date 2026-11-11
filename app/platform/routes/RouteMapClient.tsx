@@ -241,6 +241,9 @@ const PANEL_W = 380;
 
 type SheetSnap = "peek" | "half" | "full";
 
+/** Names and job titles are typed by people — never raw into a popup's HTML. */
+const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
 function initials(name: string): string {
   return name
     .split(/\s+/)
@@ -823,7 +826,7 @@ export default function RouteMapClient({
         const late = stop?.scheduledEnd ? new Date(stop.scheduledEnd).getTime() < now : false;
         const ago = t.positionAt ? Math.max(0, Math.round((now - new Date(t.positionAt).getTime()) / 60000)) : null;
         const icon = L.divIcon({
-          html: `<div class="route-live${late ? " route-live-late" : ""}" style="--tech:${color}"><span>${initials(t.name)}</span></div>`,
+          html: `<div class="route-live${late ? " route-live-late" : ""}" style="--tech:${color}"><span>${esc(initials(t.name))}</span></div>`,
           className: "",
           iconSize: [34, 34],
           iconAnchor: [17, 17],
@@ -831,7 +834,7 @@ export default function RouteMapClient({
         L.marker([t.lat, t.lng], { icon, zIndexOffset: 1000, keyboard: false })
           .addTo(layer)
           .bindPopup(
-            `<p class="route-live-name">${t.name}</p><p class="route-live-line">${t.jobTitle ? `At ${t.jobTitle} since ${fmtTime(t.startedAt, tz)}` : "Clocked in"}</p>${
+            `<p class="route-live-name">${esc(t.name)}</p><p class="route-live-line">${t.jobTitle ? `At ${esc(t.jobTitle)} since ${fmtTime(t.startedAt, tz)}` : "Clocked in"}</p>${
               late ? `<p class="route-live-late-note">Running past the planned end</p>` : ""
             }${ago !== null ? `<p class="route-live-seen">seen ${ago === 0 ? "just now" : `${ago} min ago`}</p>` : ""}`,
             { className: "route-live-pop", closeButton: false, offset: [0, -14], maxWidth: 240 }

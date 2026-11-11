@@ -153,7 +153,11 @@ export default function KpiStrip({
                   {k.mobileLabel ?? k.label}
                 </p>
                 <p
-                  className={`numeral-ledger truncate text-base font-semibold ${
+                  // Never clipped: "$12,34…" reads as a different amount. A
+                  // long figure steps the type down instead.
+                  className={`numeral-ledger whitespace-nowrap font-semibold ${
+                    String(k.value).length > 11 ? "text-[12px]" : String(k.value).length > 9 ? "text-[13.5px]" : "text-base"
+                  } ${
                     k.tone === "danger" ? "text-red-700" : "text-gray-900"
                   }`}
                 >

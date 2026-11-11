@@ -33,6 +33,7 @@ export default function MessageMedia({ media, className = "" }: { media: ThreadM
             {m.type.startsWith("image/") ? (
               <a
                 href={m.url}
+                data-in-app=""
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block overflow-hidden rounded-xl"
