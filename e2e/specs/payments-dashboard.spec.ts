@@ -28,7 +28,7 @@ for (const [name, viewport] of [
     // and recover on their own (superadmin.spec.ts filters them the same
     // way); the recovery re-render can leave a "reading 'parentNode'" behind.
     page.on("pageerror", (e) => {
-      if (/Minified React error #4(18|19|22|23|25)/.test(e.message) || /reading 'parentNode'/.test(e.message)) return;
+      if (/Minified React error #4(18|19|22|23|25)\b/.test(e.message) || /reading 'parentNode'/.test(e.message)) return;
       errors.push(e.message);
     });
     // A link tapped while that recovery re-render runs can be swallowed: tap
