@@ -852,6 +852,78 @@ export function applicationApprovedEmail({
   return { subject: `${companyName} is approved on WorkBench`, html };
 }
 
+/** Platform notification — someone asked support for another company on their login. */
+export function newCompanyRequestEmail({
+  requesterName,
+  requesterEmail,
+  currentCompanies,
+  companyName,
+  industry,
+  note,
+}: {
+  requesterName: string;
+  requesterEmail: string;
+  currentCompanies: string[];
+  companyName: string;
+  industry: string | null;
+  note: string | null;
+}): { subject: string; html: string } {
+  const html = wbShell({
+    inner: `
+      ${p(`${esc(requesterName)} asked for a new company on their WorkBench login.`)}
+      ${facts([
+        { label: "New company", value: `<strong>${esc(companyName)}</strong>` },
+        ...(industry ? [{ label: "Trade", value: esc(industry) }] : []),
+        { label: "Login", value: esc(requesterEmail) },
+        ...(currentCompanies.length ? [{ label: "Already has", value: esc(currentCompanies.join(", ")) }] : []),
+      ])}
+      ${note ? p(multiline(note)) : ""}
+      ${wbBtn(`${APP_URL}/superadmin/signups?tab=companies`, "Approve or decline")}`,
+  });
+  return { subject: `Company request: ${companyName}`, html };
+}
+
+/** The requested (or support-made) company is open on their login. */
+export function companyReadyEmail({
+  name,
+  companyName,
+  url,
+}: {
+  name: string | null;
+  companyName: string;
+  url: string;
+}): { subject: string; html: string } {
+  const html = wbShell({
+    inner: `
+      ${hello(name)}
+      ${p(`${esc(companyName)} is open on your WorkBench login. Switch to it from the picture at the top of the app, or use the button below. Your first step there is connecting Square so clients can pay online.`)}
+      ${wbBtn(url.startsWith("http") ? url : `${APP_URL}${url}`, `Open ${esc(companyName)}`)}
+      ${aside("Questions? Reply to this email.")}`,
+    footNote: `Sent because a company was added to the WorkBench login at this address.`,
+  });
+  return { subject: `${companyName} is ready on WorkBench`, html };
+}
+
+/** Support declined a company request. */
+export function companyRequestDeclinedEmail({
+  name,
+  companyName,
+  reason,
+}: {
+  name: string | null;
+  companyName: string;
+  reason: string | null;
+}): { subject: string; html: string } {
+  const html = wbShell({
+    inner: `
+      ${hello(name)}
+      ${p(`We didn't open ${esc(companyName)} on your WorkBench login.`)}
+      ${reason ? p(multiline(reason)) : ""}
+      ${aside("Reply to this email if you have questions or want to talk it through.")}`,
+  });
+  return { subject: `About your request for ${companyName}`, html };
+}
+
 /** Platform-console sign-in code — the email second factor for superadmins. */
 export function superadminLoginCodeEmail({ code }: { code: string }): {
   subject: string;

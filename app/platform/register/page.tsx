@@ -55,6 +55,9 @@ export default function RegisterPage() {
     if (status !== "authenticated") return;
     const now = session?.user?.companyId ?? null;
     if (seenCompany.current === null && now) window.location.href = "/app/dashboard";
+    // Arriving WITH a company (an old "New company" link or bookmark): more
+    // companies are requested from support now (lib/company-requests.ts).
+    if (seenCompany.current === undefined && now) window.location.replace("/app/request-company");
     seenCompany.current = now;
   }, [status, session?.user?.companyId]);
 

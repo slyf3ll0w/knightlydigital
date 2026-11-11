@@ -376,6 +376,7 @@ model Company {
   googleCalendars       GoogleCalendarConnection[]
   inviteCode            InviteCode?
   application           AccessApplication?
+  companyRequest        CompanyRequest?
   clientMessages        ClientMessage[]
   feedbackTickets       FeedbackTicket[]
   portalMessages        PortalMessage[]
@@ -477,8 +478,45 @@ model Account {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  users      User[]
-  identities AccountIdentity[]
+  users           User[]
+  identities      AccountIdentity[]
+  companyRequests CompanyRequest[]
+}
+
+// A signed-in person asking WorkBench support for another company on their
+// login (avatar menu → Request a company). Nobody opens a second company by
+// themselves any more (2026-11-11): support approves it in the console
+// (Sign-ups → Company requests), which opens the company on this Account
+// with the requester as OWNER. The same console card can also open one
+// directly for any login, no request needed.
+model CompanyRequest {
+  id          String               @id @default(cuid())
+  accountId   String
+  account     Account              @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  // The membership that asked — the name they go by, and where the
+  // "it's ready" push lands. Plain string: memberships come and go.
+  requestedByUserId String?
+  requesterName     String
+  companyName String
+  industry    String?
+  note        String?
+  timezone    String?
+  status      CompanyRequestStatus @default(PENDING)
+  decidedAt   DateTime?
+  decidedBy   String? // superadmin name
+  companyId   String?              @unique
+  company     Company?             @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  createdAt   DateTime             @default(now())
+
+  @@index([status, createdAt])
+  @@index([accountId])
+}
+
+enum CompanyRequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  CANCELLED
 }
 
 // A third-party sign-in (Google today, Apple next) bound to an Account. The

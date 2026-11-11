@@ -9,13 +9,16 @@ import { normalizeEmail } from "@/lib/user-email";
 import { ensureAccountForUser, findOrAdoptAccountByEmail } from "@/lib/account";
 import { createCompanySignup, InviteClaimedError, PlaceholderClaimedError } from "@/lib/signup";
 import { isValidTimezone } from "@/lib/timezone";
+import { accountHasCompany, HAS_COMPANY_MESSAGE } from "@/lib/company-requests";
 
 /**
  * POST — create a company. Three ways in, all invite-gated:
  *
  * 1. Fresh signup: creates the Account (login) + Company + OWNER membership.
- * 2. Signed-in user ("New company" in the switcher): attaches a new Company +
- *    OWNER membership to their existing Account — no email/password asked.
+ * 2. Signed-in user with NO company yet (a Google sign-in that never opened
+ *    one): attaches the Company + OWNER membership to that Account. A
+ *    session that already runs a company is refused — more companies are
+ *    requested from support (lib/company-requests.ts).
  * 3. Signed-out but the email already has an Account: the typed password must
  *    match that login; the new company then attaches to it instead of failing
  *    the old "email already exists" way.
@@ -43,8 +46,18 @@ export async function POST(req: NextRequest) {
   if (session?.user?.id) {
     const current = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { id: true, name: true, email: true, passwordHash: true, accountId: true },
+      select: { id: true, name: true, email: true, passwordHash: true, accountId: true, companyId: true },
     });
+    // Extra companies on a login go through support now (2026-11-11,
+    // lib/company-requests.ts): a session that already runs a company asks
+    // from the avatar menu instead of opening one here. A company-less
+    // session (Google sign-in that never finished) still opens its first.
+    if (current?.companyId) {
+      return NextResponse.json(
+        { error: "New companies are opened by WorkBench support. Use Request a company in the menu under your picture.", code: "REQUEST_COMPANY" },
+        { status: 403 }
+      );
+    }
     const owned = current ? await ensureAccountForUser(current) : null;
     // A password reset evicts every older session (lib/permissions.ts) —
     // here too, or an evicted cookie could still open a company.
@@ -110,6 +123,9 @@ export async function POST(req: NextRequest) {
           },
           { status: 400 }
         );
+      }
+      if (await accountHasCompany(existing.id)) {
+        return NextResponse.json({ error: HAS_COMPANY_MESSAGE, code: "REQUEST_COMPANY" }, { status: 409 });
       }
       account = existing;
       ownerName = String(yourName).trim();

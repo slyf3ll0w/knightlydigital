@@ -8,6 +8,7 @@ import { Button, Card, Chip, DsPage, PageHeader, SectionTitle } from "@/componen
 import { Input, Select } from "@/components/Input";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { fullDate } from "@/lib/console-format";
+import CompanyRequestsPanel, { type CompanyRequestRow } from "./CompanyRequestsPanel";
 
 /**
  * Sign-ups: applications to decide, and invite codes to mint or revoke.
@@ -52,10 +53,22 @@ export type Invite = {
   applicationCompany: string | null;
 };
 
-type TabKey = "applications" | "invites";
+type TabKey = "applications" | "companies" | "invites";
 
-export default function SignupsClient({ tab, applications, invites }: { tab: TabKey; applications: Application[]; invites: Invite[] }) {
-  const pending = applications.filter((a) => a.status === "PENDING").length;
+export default function SignupsClient({
+  tab,
+  applications,
+  invites,
+  companyRequests,
+}: {
+  tab: TabKey;
+  applications: Application[];
+  invites: Invite[];
+  companyRequests: CompanyRequestRow[];
+}) {
+  const pendingApps = applications.filter((a) => a.status === "PENDING").length;
+  const pendingCompanies = companyRequests.filter((r) => r.status === "PENDING").length;
+  const pending = pendingApps + pendingCompanies;
   return (
     <DsPage>
       <PageHeader
@@ -63,19 +76,21 @@ export default function SignupsClient({ tab, applications, invites }: { tab: Tab
         title="Sign-ups"
         info={
           <>
-            Sign-ups: a self-serve account opens the moment the form is sent and is held at the payment-setup step
+            Company requests: someone who already has a login asking for another company (avatar menu → Request
+            a company) — nobody opens a second company by themselves; Approve opens it on their login. Sign-ups: a self-serve account opens the moment the form is sent and is held at the payment-setup step
             until its Square account is connected — nothing to approve here any more (rows since 2026-11-03 arrive
             Approved; rejecting one still suspends the company, and Suspend on the company page does the same with
             a reason). Older rows from the review era can still be approved. Invite codes: every code authorizes
             exactly one company sign-up that skips the payment-setup step; they are entered on the unlisted /invite
-            page (the copy-link button builds that URL), at /app/register, or on the step itself.
+            page (the copy-link button builds that URL), at /app/register (company-less logins only), or on the step itself.
           </>
         }
       />
       <nav className="mt-6 flex gap-1" aria-label="Sections">
         {(
           [
-            ["applications", `Applications${pending > 0 ? ` · ${pending}` : ""}`],
+            ["applications", `Applications${pendingApps > 0 ? ` · ${pendingApps}` : ""}`],
+            ["companies", `Company requests${pendingCompanies > 0 ? ` · ${pendingCompanies}` : ""}`],
             ["invites", "Invite codes"],
           ] as const
         ).map(([key, label]) => (
@@ -84,7 +99,13 @@ export default function SignupsClient({ tab, applications, invites }: { tab: Tab
           </Link>
         ))}
       </nav>
-      {tab === "applications" ? <ApplicationsPanel applications={applications} /> : <InvitesPanel invites={invites} />}
+      {tab === "applications" ? (
+        <ApplicationsPanel applications={applications} />
+      ) : tab === "companies" ? (
+        <CompanyRequestsPanel requests={companyRequests} />
+      ) : (
+        <InvitesPanel invites={invites} />
+      )}
     </DsPage>
   );
 }
