@@ -96,7 +96,7 @@ export default async function InvoicesPage({
           : { status: { not: "ARCHIVED" as InvoiceStatus } }),
     ...search,
   };
-  const [invoices, listCount, pastDue, awaiting, draft] = await Promise.all([
+  const [invoices, listCount, pastDue, awaiting, draft, openForBalance] = await Promise.all([
     prisma.invoice.findMany({
       where: listWhere,
       include: { contact: true, payments: true },
@@ -120,13 +120,22 @@ export default async function InvoicesPage({
       _count: true,
       _sum: { total: true },
     }),
+    // What is still OWED on the open invoices — the same balance the
+    // dashboard's Outstanding and Insights show. The tiles used to sum full
+    // totals, so a $1,000 invoice with $600 paid read $1,000 here, $400 there.
+    prisma.invoice.findMany({
+      where: { companyId, ...scope, status: { in: ["PAST_DUE", "AWAITING_PAYMENT"] } },
+      select: { status: true, total: true, payments: { select: { amount: true, surchargeAmount: true } } },
+    }),
   ]);
+  const owedBy = (status: "PAST_DUE" | "AWAITING_PAYMENT") =>
+    openForBalance.filter((i) => i.status === status).reduce((s, i) => s + Math.max(0, invoiceBalance(i)), 0);
 
   const kpis = [
     {
       label: `Past due (${pastDue._count})`,
       mobileLabel: "Past due",
-      value: money(Number(pastDue._sum.total) || 0),
+      value: money(owedBy("PAST_DUE")),
       href: "/app/invoices?status=PAST_DUE",
       zero: pastDue._count === 0,
       tone: pastDue._count > 0 ? ("danger" as const) : undefined,
@@ -134,7 +143,7 @@ export default async function InvoicesPage({
     {
       label: `Awaiting payment (${awaiting._count})`,
       mobileLabel: "Awaiting",
-      value: money(Number(awaiting._sum.total) || 0),
+      value: money(owedBy("AWAITING_PAYMENT")),
       href: "/app/invoices?status=AWAITING_PAYMENT",
       zero: awaiting._count === 0,
     },
@@ -150,8 +159,7 @@ export default async function InvoicesPage({
   // Ledger foot: totals for the rows currently shown
   const pageTotal = invoices.reduce((s, i) => s + Number(i.total), 0);
   const pageBalance = invoices.reduce(
-    (s, i) =>
-      s + Math.max(0, Number(i.total) - i.payments.reduce((p, x) => p + Number(x.amount), 0)),
+    (s, i) => s + Math.max(0, invoiceBalance(i)),
     0
   );
 

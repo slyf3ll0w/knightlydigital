@@ -2,7 +2,7 @@ import { prisma } from "../db";
 import { canSell, canSeeMoney, isManager, viaContactScope, jobScope } from "../permissions";
 import { isQuickBooksConfigured } from "../quickbooks";
 import { featureAllowedFor } from "../plan-gate";
-import { getProcessor } from "../payments";
+import { getProcessor, invoiceBalance } from "../payments";
 import { type Tool, str, num, day, money, clientName, companyTz, fmtWhen, stage } from "./core";
 import { isOnlinePayment } from "../payment-ref";
 
@@ -56,12 +56,12 @@ export const moneyExtraTools: Tool[] = [
     run: async (actor, args, ctx) => {
       const inv = await prisma.invoice.findFirst({
         where: { companyId: actor.companyId, invoiceNumber: num(args.invoiceNumber) ?? -1 },
-        select: { id: true, invoiceNumber: true, status: true, total: true, subject: true, payments: { select: { amount: true } }, contact: { select: { id: true, firstName: true, lastName: true, companyName: true, savedCards: { select: { id: true, label: true, isDefault: true } } } } },
+        select: { id: true, invoiceNumber: true, status: true, total: true, subject: true, payments: { select: { amount: true, surchargeAmount: true } }, contact: { select: { id: true, firstName: true, lastName: true, companyName: true, savedCards: { select: { id: true, label: true, isDefault: true } } } } },
       });
       if (!inv) return { error: `No invoice #${args.invoiceNumber}.` };
       if (!inv.contact) return { error: "This invoice has no client." };
       if (inv.status === "PAID" || inv.status === "ARCHIVED") return { error: `Invoice #${inv.invoiceNumber} is ${inv.status.toLowerCase()}.` };
-      const balance = Math.max(0, Number(inv.total) - inv.payments.reduce((s, p) => s + Number(p.amount), 0));
+      const balance = Math.max(0, invoiceBalance(inv));
       if (balance <= 0) return { error: "Nothing left to charge." };
       const cardId = str(args.cardId, 40);
       const card = cardId ? inv.contact.savedCards.find((c) => c.id === cardId) : inv.contact.savedCards.find((c) => c.isDefault) ?? inv.contact.savedCards[0];

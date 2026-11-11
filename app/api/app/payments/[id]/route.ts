@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { PaymentMethod } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSeeMoney, isManager, viaContactScope } from "@/lib/permissions";
-import { recomputeInvoiceStatus } from "@/lib/payments";
+import { invoiceBalance, recomputeInvoiceStatus } from "@/lib/payments";
 import { queueQuickBooksUnwind } from "@/lib/quickbooks";
 import { logActivity } from "@/lib/activity";
 import { isOnlinePayment } from "@/lib/payment-ref";
@@ -43,6 +43,16 @@ export async function PATCH(
     amount = Number(body.amount);
     if (!amount || amount <= 0) {
       return NextResponse.json({ error: "Amount must be greater than zero." }, { status: 400 });
+    }
+  }
+  // Same ceiling as recording a payment: a correction can't put more on the
+  // invoice than it bills ("5000" typed for a $500 check added $4,500 of
+  // revenue that never existed to every report).
+  if (amount !== undefined && amount > Number(payment.amount)) {
+    const inv = await prisma.invoice.findUnique({ where: { id: payment.invoiceId }, include: { payments: true } });
+    const ceiling = inv ? Math.round((invoiceBalance(inv) + Number(payment.amount)) * 100) / 100 : null;
+    if (ceiling !== null && amount > ceiling + 0.005) {
+      return NextResponse.json({ error: `That's more than this invoice bills. The most this payment can be is $${ceiling.toFixed(2)}.` }, { status: 400 });
     }
   }
   if (body.method !== undefined && !validMethods.includes(body.method)) {

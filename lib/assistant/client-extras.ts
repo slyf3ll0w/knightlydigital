@@ -1,4 +1,5 @@
 import { prisma } from "../db";
+import { invoiceBalance } from "../payments";
 import { getActiveFieldDefs } from "../contact-fields";
 import { canText } from "../sms-consent";
 import { companyCanSendSms } from "../sms";
@@ -221,12 +222,12 @@ export const clientExtraTools: Tool[] = [
       const open = await prisma.invoice.findMany({
         where: { contactId: contact.id, companyId: actor.companyId, status: { in: ["AWAITING_PAYMENT", "PAST_DUE"] } },
         orderBy: { dueDate: "asc" },
-        select: { invoiceNumber: true, subject: true, status: true, total: true, dueDate: true, issuedAt: true, payments: { select: { amount: true } } },
+        select: { invoiceNumber: true, subject: true, status: true, total: true, dueDate: true, issuedAt: true, payments: { select: { amount: true, surchargeAmount: true } } },
       });
       const now = Date.now();
       let owed = 0;
       const rows = open.map((i) => {
-        const balance = Math.max(0, Number(i.total) - i.payments.reduce((s, p) => s + Number(p.amount), 0));
+        const balance = Math.max(0, invoiceBalance(i));
         owed += balance;
         const ageDays = i.dueDate ? Math.floor((now - i.dueDate.getTime()) / 86400000) : null;
         return { n: i.invoiceNumber, subject: i.subject, status: i.status, balance: money(balance), due: i.dueDate?.toISOString().slice(0, 10) ?? null, daysPastDue: ageDays !== null && ageDays > 0 ? ageDays : 0 };

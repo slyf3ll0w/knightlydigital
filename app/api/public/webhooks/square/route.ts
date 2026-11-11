@@ -117,6 +117,9 @@ async function handlePayment(merchantId: string, paymentId: string) {
     include: { invoice: { select: { invoiceNumber: true, subscriptionId: true } } },
   });
   if (!row) return;
+  // Square can deliver this more than once; the first delivery did the work.
+  // A repeat used to wipe the returned amount and burn another autopay retry.
+  if (row.returnedAt) return;
 
   // The row goes (every balance reads payments), so the ledger keeps the
   // trail on the invoice's activity instead (readiness review 2026-11-02, S2)

@@ -3,6 +3,7 @@ import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, viaContactScope } from "@/lib/permissions";
 import { nextQuoteNumber, withDocNumberRetry } from "@/lib/doc-numbers";
+import { computeQuoteTotals } from "@/lib/quote-totals";
 
 /**
  * POST — duplicate a quote into a fresh DRAFT: same client, line items,
@@ -26,6 +27,18 @@ export async function POST(
   });
   if (!source) return NextResponse.json({ error: "Quote not found." }, { status: 404 });
 
+  // Totals from the lines the copy actually carries. The source's stored
+  // totals leave out optional items its client declined, but the copy starts
+  // with every optional item included — it listed $1,500 of work under a
+  // $1,000 total.
+  const subtotal = Math.round(source.lineItems.reduce((s, li) => s + Number(li.total), 0) * 100) / 100;
+  const totals = computeQuoteTotals({
+    subtotal,
+    discountType: source.discountType,
+    discountValue: source.discountValue == null ? null : Number(source.discountValue),
+    taxRate: source.taxRate == null ? null : Number(source.taxRate),
+  });
+
   const created = await withDocNumberRetry(() =>
     prisma.$transaction(async (tx) => {
       const quoteNumber = await nextQuoteNumber(tx, companyId);
@@ -38,13 +51,13 @@ export async function POST(
           quoteNumber,
           title: source.title,
           status: "DRAFT",
-          subtotal: source.subtotal,
+          subtotal,
           discountType: source.discountType,
           discountValue: source.discountValue,
-          discount: source.discount,
+          discount: totals.discount,
           taxRate: source.taxRate,
-          tax: source.tax,
-          total: source.total,
+          tax: totals.tax,
+          total: totals.total,
           depositType: source.depositType,
           depositValue: source.depositValue,
           clientMessage: source.clientMessage,

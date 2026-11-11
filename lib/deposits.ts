@@ -296,7 +296,8 @@ export async function recomputeDepositApplied(tx: Tx, quoteId: string): Promise<
   // netTotal + surcharges (inlined — importing lib/payments here would cycle).
   const paid = final.payments.reduce((s, p) => s + Number(p.amount), 0);
   const surcharges = final.payments.reduce((s, p) => s + Number(p.surchargeAmount ?? 0), 0);
-  const fullyPaid = paid > 0 && paid >= netTotal + surcharges - 0.005;
+  // Covered by payments, or entirely by the deposit credit (net $0)
+  const fullyPaid = (paid > 0 || applied > 0) && paid >= netTotal + surcharges - 0.005;
 
   await tx.invoice.update({
     where: { id: final.id },

@@ -32,7 +32,8 @@ export async function PATCH(
   if (!invoice) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
 
   const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
-  const covered = paid > 0 && invoiceBalance(invoice) <= 0.005;
+  // Covered by payments, or entirely by a deposit credit (a $0 final invoice)
+  const covered = (paid > 0 || Number(invoice.depositApplied ?? 0) > 0) && invoiceBalance(invoice) <= 0.005;
 
   if (status === "PAID" && !covered) {
     return NextResponse.json(

@@ -229,6 +229,10 @@ export async function POST(req: NextRequest) {
         tax,
         depositApplied: depositApplied > 0 ? depositApplied : null,
         total: netTotal,
+        // The deposit already paid for all of it ("full payment upfront"):
+        // nothing is owed, so it is born PAID. A $0 invoice can take no
+        // payment, and it used to sit Awaiting payment, then Past due, forever.
+        ...(depositApplied > 0 && netTotal <= 0.005 ? { status: "PAID" as const, paidAt: new Date() } : {}),
         notes: notes || null,
         clientMessage: typeof clientMessage === "string" && clientMessage ? clientMessage : null,
         issuedAt,

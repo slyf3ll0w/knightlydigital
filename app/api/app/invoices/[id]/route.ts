@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 import { getActor, isManager, canSeeMoney, viaContactScope } from "@/lib/permissions";
 import { intQuantity, unitPriceValue, resolveLineItemCosts } from "@/lib/work-items";
 import { computeQuoteTotals } from "@/lib/quote-totals";
-import { paidDepositTotal } from "@/lib/deposits";
+import { paidDepositTotal, recomputeDepositApplied } from "@/lib/deposits";
 import { inPreview, previewBlockedError } from "@/lib/preview";
 import { isPastDue } from "@/lib/due-dates";
 import { queueQuickBooksInvoiceSync, queueQuickBooksInvoiceUnwind } from "@/lib/quickbooks";
@@ -107,7 +107,10 @@ export async function PATCH(
     });
     quoteIdForDeposit = q?.id ?? null;
   }
-  const paidDeposits = quoteIdForDeposit ? await paidDepositTotal(prisma, quoteIdForDeposit) : 0;
+  // A deposit invoice is never netted against deposits — its quote's "paid
+  // deposits" are its OWN payments, and editing a partly paid one used to
+  // subtract them from its total (a $500 deposit with $200 paid became $300).
+  const paidDeposits = quoteIdForDeposit && invoice.kind !== "DEPOSIT" ? await paidDepositTotal(prisma, quoteIdForDeposit) : 0;
   const depositApplied = Math.min(paidDeposits, gross);
   const netTotal = Math.round((gross - depositApplied) * 100) / 100;
 
@@ -260,6 +263,13 @@ export async function DELETE(
   } catch (e) {
     reportError("[invoice delete] failed", { invoiceId: invoice.id, error: e });
     return NextResponse.json({ error: "Couldn't delete this invoice. Please try again." }, { status: 500 });
+  }
+  // A deleted deposit is no longer a credit: take it back off the final
+  // invoice, or "Deposit applied" stays and the client is under-billed.
+  if (invoice.kind === "DEPOSIT" && invoice.quoteId) {
+    await recomputeDepositApplied(prisma, invoice.quoteId).catch((e) =>
+      reportError("[invoice delete] deposit credit recompute failed", { invoiceId: invoice.id, error: e })
+    );
   }
 
   // Mirror the removal into QuickBooks (payments first — see the helper).

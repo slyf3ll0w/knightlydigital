@@ -90,6 +90,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
   try {
     const fresh = await prisma.invoice.findUniqueOrThrow({ where: { id: invoice.id }, include: { payments: true } });
+    // Checked again under the lock: Square's webhook can record this same
+    // payment while we were asking Square about it (the check above ran
+    // before the lock), and a second row would double the money collected.
+    const landed = fresh.payments.find((p) => p.processorRef === payment.id);
+    if (landed) {
+      return NextResponse.json({ success: true, amount: Number(landed.amount), fullyPaid: fresh.status === "PAID", duplicate: true });
+    }
     const balance = Math.max(0, invoiceBalance(fresh));
     const chargedTotal = payment.amount_money.amount / 100;
     // The page charged balance + the company's card surcharge; when Square's

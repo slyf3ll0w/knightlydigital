@@ -715,7 +715,10 @@ export async function recordPayment(params: RecordPaymentParams) {
     await tx.invoice.update({
       where: { id: invoice.id },
       data: fullyPaid
-        ? { status: "PAID", paidAt: params.paidAt ?? new Date(), ...issueStamp, ...clearSendLater }
+        ? // Paid by any route ends a booked autopay retry. Left set, a later
+          // refund that reopened the invoice let the hourly retry sweep charge
+          // the card on file for the refunded amount.
+          { status: "PAID", paidAt: params.paidAt ?? new Date(), autoChargeNextAt: null, ...issueStamp, ...clearSendLater }
         : invoice.status === "DRAFT"
           ? { status: "AWAITING_PAYMENT", ...issueStamp, ...clearSendLater }
           : {},
@@ -917,7 +920,8 @@ export async function recomputeInvoiceStatus(
   if (!invoice) return;
 
   const paid = invoice.payments.reduce((s, p) => s + Number(p.amount), 0);
-  const fullyPaid = paid > 0 && invoiceBalance(invoice) <= 0.005;
+  // Covered by payments — or entirely by a deposit credit (a $0 final invoice)
+  const fullyPaid = (paid > 0 || Number(invoice.depositApplied ?? 0) > 0) && invoiceBalance(invoice) <= 0.005;
 
   // Invoice.surcharge mirrors the service fees actually collected: the sum
   // of the payments' surcharges, so a refund, a deleted record or a bounced
@@ -950,6 +954,10 @@ export async function recomputeInvoiceStatus(
       data: {
         status: isPastDue(invoice.dueDate) ? "PAST_DUE" : "AWAITING_PAYMENT",
         paidAt: null,
+        // A refund or a corrected record reopened it: that is not a reason to
+        // charge the card again (a bounced autopay re-books its own retry
+        // after this, in the processor webhooks).
+        autoChargeNextAt: null,
       },
     });
     // Reopening clears everyone's seen-it rows so a genuine re-payment

@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { invoiceBalance } from "../payments";
 import { prisma } from "../db";
 import { apptForUser } from "@/lib/appointment-people";
 import {
@@ -353,13 +354,12 @@ export const recordsTools: Tool[] = [
             prisma.invoice.findMany({
               where, ...page,
               orderBy: sort.startsWith("amount") ? { total: dir } : dateKey === "dueDate" ? { dueDate: dir } : { createdAt: dir },
-              select: { invoiceNumber: true, subject: true, status: true, total: true, dueDate: true, issuedAt: true, paidAt: true, contact: { select: nameSel }, payments: { select: { amount: true } } },
+              select: { invoiceNumber: true, subject: true, status: true, total: true, dueDate: true, issuedAt: true, paidAt: true, contact: { select: nameSel }, payments: { select: { amount: true, surchargeAmount: true } } },
             }),
           ]);
           let owing = 0;
           const out = rows.map((i) => {
-            const paid = i.payments.reduce((s, p) => s + Number(p.amount), 0);
-            const balance = Math.max(0, Number(i.total) - paid);
+            const balance = Math.max(0, invoiceBalance(i));
             if (i.status === "AWAITING_PAYMENT" || i.status === "PAST_DUE") owing += balance;
             return { n: i.invoiceNumber, subject: i.subject, status: i.status, total: money(i.total), balance: money(balance), client: i.contact ? clientName(i.contact) : null, issued: iso(i.issuedAt), due: iso(i.dueDate), paid: iso(i.paidAt) };
           });
@@ -565,8 +565,8 @@ export const recordsTools: Tool[] = [
           break;
         }
         case "outstanding": {
-          const rows = await prisma.invoice.findMany({ where: { companyId, ...viaContactScope(actor), status: { in: ["AWAITING_PAYMENT", "PAST_DUE"] }, OR: [{ dueDate: { gte, lt } }, { issuedAt: { gte, lt } }] }, select: { total: true, status: true, dueDate: true, issuedAt: true, contact: { select: nameSel }, payments: { select: { amount: true } } } });
-          rows.forEach((i) => add(label(i, i.dueDate ?? i.issuedAt ?? new Date(), i.status), Math.max(0, Number(i.total) - i.payments.reduce((s, p) => s + Number(p.amount), 0))));
+          const rows = await prisma.invoice.findMany({ where: { companyId, ...viaContactScope(actor), status: { in: ["AWAITING_PAYMENT", "PAST_DUE"] }, OR: [{ dueDate: { gte, lt } }, { issuedAt: { gte, lt } }] }, select: { total: true, status: true, dueDate: true, issuedAt: true, contact: { select: nameSel }, payments: { select: { amount: true, surchargeAmount: true } } } });
+          rows.forEach((i) => add(label(i, i.dueDate ?? i.issuedAt ?? new Date(), i.status), Math.max(0, invoiceBalance(i))));
           break;
         }
         case "quotes_value":
