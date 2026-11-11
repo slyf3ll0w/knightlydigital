@@ -19,6 +19,7 @@ import {
   Zap,
 } from "lucide-react";
 import { hapticImpact } from "@/lib/haptics";
+import { useSheetDrag } from "@/lib/use-sheet-drag";
 import type { FeedKind } from "@/lib/toast";
 
 /**
@@ -267,6 +268,9 @@ export default function NotificationsSheet({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  // Phones: pull the sheet down to close it, like More and Create
+  const { sheetRef, scrollRef, dragY, dragging, dragHandlers } = useSheetDrag(open, onClose);
+
   function dismissOne(id: string) {
     const d = loadDismissed(storageKey);
     saveDismissed(storageKey, { ...d, ids: [...d.ids, id] });
@@ -293,7 +297,12 @@ export default function NotificationsSheet({
       {/* Phone: bottom sheet. Desktop: the same panel anchored under the
           bell, fading up instead of sliding from the bottom of a monitor. */}
       <div
-        className={`sheet-material fixed inset-x-0 bottom-0 z-50 flex max-h-[80dvh] flex-col rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] transition-[transform,opacity] duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] lg:inset-x-auto lg:bottom-auto lg:right-4 lg:top-[64px] lg:w-[380px] lg:max-h-[70vh] lg:rounded-2xl lg:shadow-xl lg:ring-1 lg:ring-black/5 ${
+        ref={sheetRef}
+        {...dragHandlers}
+        style={open && dragY > 0 ? { transform: `translateY(${dragY}px)` } : undefined}
+        className={`sheet-material fixed inset-x-0 bottom-0 z-50 flex max-h-[80dvh] flex-col rounded-t-3xl shadow-[0_-8px_30px_rgba(28,25,23,0.18)] ${
+          dragging ? "" : "transition-[transform,opacity] duration-300"
+        } [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] lg:inset-x-auto lg:bottom-auto lg:right-4 lg:top-[64px] lg:w-[380px] lg:max-h-[70vh] lg:rounded-2xl lg:shadow-xl lg:ring-1 lg:ring-black/5 ${
           open
             ? "lg:translate-y-0"
             : "pointer-events-none translate-y-full opacity-100 lg:translate-y-1.5 lg:opacity-0"
@@ -312,7 +321,7 @@ export default function NotificationsSheet({
             </button>
           )}
         </div>
-        <div className="overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        <div ref={scrollRef} className="overscroll-contain overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           {items === null && !error && (
             <div className="flex items-center justify-center gap-2.5 py-10 text-sm text-gray-400">
               <Loader2 size={16} className="animate-spin" />

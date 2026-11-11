@@ -64,12 +64,15 @@ export type BoardCard = {
   searchBlob: string;
 };
 
-/** A lead marked lost: off the board, listed under the header's Lost button. */
+/** A lead off the board — marked lost, or archived from its own page — listed under the header's Lost & archived button. */
 export type LostLead = {
   id: string;
   name: string;
   companyName: string | null;
-  lostAt: string;
+  /** Null = archived from the lead's own page, never marked lost */
+  lostAt: string | null;
+  /** When it left the board (lostAt, or the archive's last change) */
+  offAt: string;
   lostReason: string | null;
   /** They had worked with the company before — restoring keeps them an active client */
   repeat: boolean;
@@ -386,11 +389,11 @@ export default function LeadsBoardClient({
             type="button"
             onClick={() => setShowLost(true)}
             className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Leads marked lost"
+            title="Leads marked lost or archived"
           >
             <Archive size={15} />
             <span>
-              Lost{lost.length > 0 && <span className="ml-1 text-gray-400 numeral-ledger">{lost.length}</span>}
+              Lost &amp; archived{lost.length > 0 && <span className="ml-1 text-gray-400 numeral-ledger">{lost.length}</span>}
             </span>
           </button>
           {manager && (
@@ -731,15 +734,15 @@ export default function LeadsBoardClient({
       <Modal open={showLost} onClose={() => setShowLost(false)} size="md">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="flex items-center gap-1 text-base font-semibold text-[color:var(--ds-ink)]">
-            <span>Lost leads</span>
-            <InfoTip>Restore puts them back in the first stage. Lost leads also sit under Contacts → Lost leads.</InfoTip>
+            <span>Lost &amp; archived leads</span>
+            <InfoTip>Restore puts them back in the first stage. Lost leads also sit under Clients → Lost leads, archived ones under Clients → Archived.</InfoTip>
           </h2>
           <button type="button" onClick={() => setShowLost(false)} className="rounded-full p-1.5 text-[color:var(--ds-faint)] hover:bg-[color:var(--ds-surface-2)] hover:text-[color:var(--ds-ink-2)]" aria-label="Close">
             <X size={16} />
           </button>
         </div>
         {lost.length === 0 ? (
-          <p className="py-8 text-center text-sm text-[color:var(--ds-muted)]">Nothing lost yet. Drop a card on Lost, or use its menu, and it lands here.</p>
+          <p className="py-8 text-center text-sm text-[color:var(--ds-muted)]">Nothing here yet. Drop a card on Lost, use its menu, or archive a lead, and it lands here.</p>
         ) : (
           <div className="divide-y divide-[color:var(--ds-line)] max-h-[60vh] overflow-y-auto -mx-1 px-1">
             {lost.map((l) => (
@@ -751,7 +754,8 @@ export default function LeadsBoardClient({
                     {l.repeat && <span className="ml-1.5 text-xs font-normal text-[color:var(--ds-faint)]">client</span>}
                   </span>
                   <span className="block truncate text-xs text-[color:var(--ds-muted)]">
-                    {new Date(l.lostAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    {l.lostAt ? "Lost " : "Archived "}
+                    {new Date(l.offAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                     {l.lostReason ? ` · ${l.lostReason}` : ""}
                   </span>
                 </Link>
