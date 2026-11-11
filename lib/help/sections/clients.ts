@@ -168,7 +168,7 @@ export const leadsSection: HelpSection = {
         },
         {
           type: "p",
-          text: "Lost leads are not gone. Press `Lost` at the top of the board to see them with the date and reason, open one, or press `Restore` to put it back in the first stage. They are also under **Contacts → Lost leads**.",
+          text: "Lost leads are not gone, and neither is a lead you archived from its own page. Press `Lost & archived` at the top of the board to see them with the date and reason, open one, or press `Restore` to put it back in the first stage. Lost leads are also under **Clients → Lost leads**, archived ones under **Clients → Archived**.",
         },
         {
           type: "h",

@@ -57,20 +57,40 @@ export default async function LeadsPage() {
           select: { id: true, name: true },
         })
       : Promise.resolve([]),
-    // Lost leads: off the board (lostAt set), newest first. Marked lost on
-    // the board, archived if they were a lead; a repeat client stays ACTIVE.
+    // Off the board, newest first. Lost leads (lostAt set — archived if they
+    // were a lead, a repeat client stays ACTIVE), plus leads archived from
+    // their own page: those never got lostAt, so they left the board and
+    // showed up nowhere on this page. An archived contact that never became
+    // a client and has no work or billing on it was a lead.
     prisma.contact.findMany({
-      where: { companyId, lostAt: { not: null }, pipelineStageId: null, ...contactScope(actor) },
-      orderBy: { lostAt: "desc" },
+      where: {
+        companyId,
+        pipelineStageId: null,
+        placeholder: false,
+        ...contactScope(actor),
+        OR: [
+          { lostAt: { not: null } },
+          {
+            status: "ARCHIVED",
+            kind: "CLIENT",
+            timesWon: 0,
+            wonAt: null,
+            jobs: { none: {} },
+            invoices: { none: {} },
+          },
+        ],
+      },
+      orderBy: { updatedAt: "desc" },
       take: LOST_SHOWN,
-      select: { id: true, firstName: true, lastName: true, companyName: true, lostAt: true, lostReason: true, status: true, timesWon: true },
+      select: { id: true, firstName: true, lastName: true, companyName: true, lostAt: true, lostReason: true, status: true, timesWon: true, updatedAt: true },
     }),
   ]);
   const lost: LostLead[] = lostRows.map((c) => ({
     id: c.id,
     name: `${c.firstName} ${c.lastName}`.trim(),
     companyName: c.companyName,
-    lostAt: c.lostAt!.toISOString(),
+    lostAt: c.lostAt ? c.lostAt.toISOString() : null,
+    offAt: (c.lostAt ?? c.updatedAt).toISOString(),
     lostReason: c.lostReason,
     repeat: c.status === "ACTIVE" || c.timesWon > 0,
   }));

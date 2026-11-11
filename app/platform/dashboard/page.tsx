@@ -174,7 +174,26 @@ export default async function DashboardPage() {
       : Promise.resolve([]),
     seePerformance
       ? prisma.job.findMany({
-          where: { companyId, status: "ACTIVE", scheduledAt: { gte: startOfWeek, lt: endOfWeek } },
+          // Every job on this week's calendar, the finished ones too: a job
+          // that was done, invoiced and paid on Monday turns ARCHIVED, and
+          // counting only ACTIVE made the week's total shrink as work got
+          // done. An archived job counts when work or billing happened on
+          // it; one that was simply called off does not.
+          where: {
+            companyId,
+            scheduledAt: { gte: startOfWeek, lt: endOfWeek },
+            OR: [
+              { status: { in: ["ACTIVE", "REQUIRES_INVOICING"] } },
+              {
+                status: "ARCHIVED",
+                OR: [
+                  { completedAt: { not: null } },
+                  { consolidatedInvoiceId: { not: null } },
+                  { invoice: { is: { status: { not: "ARCHIVED" } } } },
+                ],
+              },
+            ],
+          },
           include: { lineItems: true },
         })
       : Promise.resolve([]),
