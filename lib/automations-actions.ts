@@ -83,7 +83,8 @@ async function textGate(companyId: string, contact: NonNullable<Loaded["contact"
 }
 
 /** Steps that can put a text on the client's phone. */
-const TEXTING_STEPS = new Set(["text_client", "send_pay_link", "send_appointment_reminder", "send_job_report"]);
+// portal_message counts: the client is told about it by text (notifyClientOfReply).
+const TEXTING_STEPS = new Set(["text_client", "send_pay_link", "send_appointment_reminder", "send_job_report", "portal_message"]);
 
 /**
  * Would this step text the client right now, inside the company's quiet

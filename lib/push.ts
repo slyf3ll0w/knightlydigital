@@ -223,8 +223,11 @@ export async function notifyUsers(
 ): Promise<void> {
   if (userIds.length === 0) return;
   try {
+    // Active people only: a deactivated teammate is still a member of their
+    // chats and the lead on old appointments, and kept getting client names
+    // and chat lines on their phone after they were let go.
     const everyone = await prisma.user.findMany({
-      where: { id: { in: userIds } },
+      where: { id: { in: userIds }, isActive: true },
       select: { id: true, accountId: true, companyId: true, email: true, isActive: true, company: { select: { name: true } } },
     });
     if (everyone.length === 0) return;

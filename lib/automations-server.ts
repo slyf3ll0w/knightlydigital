@@ -250,6 +250,8 @@ function triggerMatches(spec: AutomationSpec, meta: FireMeta | undefined): boole
  * so a rule fires on every occurrence; everything else fires once per record.
  */
 const REPEATABLE_EVENTS = new Set<TriggerName>([
+  // A repeat client can be won (or lost) again on their next request
+  "lead.won", "lead.lost",
   "lead.contact_made", "lead.no_answer", "lead.stage_changed", "client.note_added", "client.field_changed", "client.archived", "client.reactivated",
   "job.scheduled", "job.assigned", "job.on_my_way", "job.photo_added", "job.note_added", "job.archived", "appointment.rescheduled",
   "invoice.partially_paid", "invoice.past_due", "quote.changes_requested", "contract.sent", "team.clock_in", "team.clock_out",

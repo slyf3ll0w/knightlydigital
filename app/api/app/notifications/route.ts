@@ -322,7 +322,7 @@ export async function GET() {
 
   const notes = notices
     .filter((n) => {
-      if (n.automationId) return true;
+      if (n.automationId) return bellOn("automations");
       const entity = entities.get(n.id) ?? null;
       if (liveHrefs.has(n.url) || (entity && liveEntities.has(entity))) return false;
       return !handled(entity);

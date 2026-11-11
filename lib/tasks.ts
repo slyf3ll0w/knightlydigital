@@ -397,8 +397,16 @@ export async function runTaskReminders(now: Date = new Date()): Promise<TaskRemi
       summary.sent++;
 
       // Email when push can't reach them (same rule as the other team emails)
+      // — unless their Tasks → Email switch is on: notifyUser just emailed
+      // them, and this would be a second email for the same reminder.
       const who = task.assignee;
-      if (emailEnabled() && who.email) {
+      const switchEmailed = Boolean(
+        await prisma.notificationPreference.findFirst({
+          where: { userId: who.id, event: "tasks", channel: "email", enabled: true },
+          select: { userId: true },
+        })
+      );
+      if (emailEnabled() && who.email && !switchEmailed) {
         const pushOn = who.emailAlerts === null ? await hasPushDevice(who.id, who.accountId) : false;
         if (reminderEmailWanted({ emailAlerts: who.emailAlerts, pushOn, companyEmailOff: task.company.notifyEmailOff })) {
           const { subject, html } = taskReminderEmail({

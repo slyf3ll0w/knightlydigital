@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { phoneDigits } from "@/lib/phone";
+import { namePlaceholder } from "@/lib/placeholder-contact";
 import { verifyCaptcha } from "@/lib/captcha";
 import { sendEmail, newRequestEmail, quoteLinkEmail } from "@/lib/email";
 import { companyNotifyAddress } from "@/lib/notify";
@@ -134,7 +135,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
               companyId: company.id,
               OR: [...(phoneDigits(phone) ? [{ phoneDigits: phoneDigits(phone) }] : []), ...(email ? [{ email: { equals: email, mode: "insensitive" as const } }] : [])],
             },
+            // A real record wins over a texted-number placeholder with the same phone
+            orderBy: { placeholder: "asc" },
           });
+      // A number that only ever texted in: this form is who they are
+      if (contact?.placeholder && !hubContact) contact = await namePlaceholder(tx, contact, { firstName, lastName, email, address });
       if (contact && hubContact) {
         // Keep the record current with anything the form asked for that was missing
         const fill = { ...(!contact.email && email ? { email } : {}), ...(!contact.phone && phone ? { phone } : {}), ...(!contact.address && address ? { address } : {}) };

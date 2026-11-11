@@ -7,7 +7,7 @@ import {
   portalThreadContactInclude,
 } from "@/lib/portal-messages";
 import { classifySmsKeyword } from "@/lib/sms-keywords";
-import { inboundSenderDigits } from "@/lib/phone";
+import { inboundSenderDigits, phoneDigits } from "@/lib/phone";
 import { linkCallsToContact } from "@/lib/voice";
 import { defaultLeadAssignee } from "@/lib/permissions";
 import { telnyxWebhookConfigured, verifyTelnyxSignature } from "@/lib/telnyx-webhook";
@@ -163,8 +163,12 @@ async function landInboundSms(
   externalId: string | null = null
 ): Promise<void> {
   try {
+    // A short code (5–6 digits) has no phoneDigits on its contact row — the
+    // mirror in lib/db.ts keeps that column for real numbers only — so every
+    // text from one used to miss this lookup and open a new thread. Short
+    // codes are found by the sender string itself.
     const candidates = await prisma.contact.findMany({
-      where: { phoneDigits: digits, ...(companyId ? { companyId } : {}) },
+      where: { ...(phoneDigits(fromE164) ? { phoneDigits: digits } : { phone: fromE164 }), ...(companyId ? { companyId } : {}) },
       orderBy: { updatedAt: "desc" },
       select: { id: true, companyId: true },
       take: 25,

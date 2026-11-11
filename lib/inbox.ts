@@ -28,7 +28,7 @@ const LIMIT = 100;
 
 export async function loadInbox(actor: Actor): Promise<InboxRow[]> {
   const scope = { companyId: actor.companyId, ...viaContactScope(actor) };
-  const [latest, unread] = await Promise.all([
+  const [recent, unread] = await Promise.all([
     prisma.portalMessage.groupBy({
       by: ["contactId"],
       where: scope,
@@ -42,6 +42,20 @@ export async function loadInbox(actor: Actor): Promise<InboxRow[]> {
       _count: { _all: true },
     }),
   ]);
+  // A conversation with unread messages is always listed, however old: the
+  // Messages badge counts every unread text, and one sitting in a thread
+  // past the newest 100 lit the badge with nothing in the list to open.
+  const listed = new Set(recent.map((g) => g.contactId));
+  const buried = unread.map((u) => u.contactId).filter((id) => !listed.has(id)).slice(0, LIMIT);
+  const extra =
+    buried.length > 0
+      ? await prisma.portalMessage.groupBy({
+          by: ["contactId"],
+          where: { ...scope, contactId: { in: buried } },
+          _max: { createdAt: true },
+        })
+      : [];
+  const latest = [...recent, ...extra];
   if (latest.length === 0) return [];
 
   const rows = await prisma.portalMessage.findMany({

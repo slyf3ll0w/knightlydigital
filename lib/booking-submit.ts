@@ -31,6 +31,7 @@ import {
 import { KIND_META } from "@/lib/booking-types";
 import { confirmationNote } from "@/lib/booking-intake";
 import { phoneDigits } from "@/lib/phone";
+import { namePlaceholder } from "@/lib/placeholder-contact";
 
 /**
  * The write side of online scheduling: turn a validated slot pick into a
@@ -115,12 +116,18 @@ export async function upsertBookingContact(
   }
   // Same person however they typed it: digits-only phone, case-insensitive email
   const digits = phoneDigits(c.phone);
-  const existing = await tx.contact.findFirst({
+  const found = await tx.contact.findFirst({
     where: {
       companyId,
       OR: [...(digits ? [{ phoneDigits: digits }] : []), ...(c.email ? [{ email: { equals: c.email, mode: "insensitive" as const } }] : [])],
     },
+    // A real record wins over a texted-number placeholder with the same phone
+    orderBy: { placeholder: "asc" },
   });
+  // A number that only ever texted in: this booking is who they are
+  const existing = found?.placeholder
+    ? await namePlaceholder(tx, found, { firstName: c.firstName, lastName: c.lastName, email: c.email, address: c.address })
+    : found;
   if (existing) {
     return c.smsConsent && (existing.phone || c.phone) && (!existing.smsConsentAt || existing.smsDisabled)
       ? tx.contact.update({

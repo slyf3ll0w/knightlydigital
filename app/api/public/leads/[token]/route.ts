@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { phoneDigits } from "@/lib/phone";
+import { namePlaceholder } from "@/lib/placeholder-contact";
 import { defaultLeadAssignee } from "@/lib/permissions";
 import { sendEmail, newRequestEmail } from "@/lib/email";
 import { companyNotifyAddress } from "@/lib/notify";
@@ -106,8 +107,13 @@ export async function POST(
           companyId: company.id,
           OR: [...(phoneDigits(phone) ? [{ phoneDigits: phoneDigits(phone) }] : []), ...(email ? [{ email: { equals: email, mode: "insensitive" as const } }] : [])],
         },
+        // A real record wins over a texted-number placeholder with the same phone
+        orderBy: { placeholder: "asc" },
       });
-      const newLead = !contact;
+      // A number that only ever texted in: this form is who they are
+      const named = Boolean(contact?.placeholder);
+      if (contact?.placeholder) contact = await namePlaceholder(tx, contact, { firstName, lastName, email, address, leadSource: source });
+      const newLead = !contact || named;
       if (!contact) {
         contact = await tx.contact.create({
           data: {
