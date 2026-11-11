@@ -173,10 +173,10 @@ export function annualCents(monthlyCents: number): number {
   return monthlyCents * ANNUAL_MONTHS;
 }
 
-/** "$25" / "$20.83" — a price as marketing writes it. */
+/** "$25" / "$20.83" / "$1,090" — a price as marketing writes it. */
 export function formatCents(cents: number): string {
   const whole = Math.round(cents) % 100 === 0;
-  return whole ? `$${Math.round(cents) / 100}` : `$${(cents / 100).toFixed(2)}`;
+  return `$${(Math.round(cents) / 100).toLocaleString("en-US", { minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: whole ? 0 : 2 })}`;
 }
 
 /** "3¢" / "$1.50" — a per-unit price. */

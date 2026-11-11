@@ -64,6 +64,8 @@ assert.ok(
 // ── Formatting ──
 assert.equal(formatCents(2_500), "$25");
 assert.equal(formatCents(2_083), "$20.83");
+assert.equal(formatCents(109_000), "$1,090");
+assert.equal(formatCents(123_456), "$1,234.56");
 assert.equal(formatUnitCents(3), "3¢");
 assert.equal(formatUnitCents(150), "$1.50");
 

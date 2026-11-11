@@ -122,7 +122,7 @@ const servicetitan: VsPage = {
     },
     {
       label: "Setup & onboarding",
-      workbench: "A short application and KYC form; a person reviews and onboards your company directly, typically the same or next business day.",
+      workbench: "Self-serve: the account opens the day you sign up, with no sales call or implementation project. Card and bank payments switch on once you connect Square, which takes a few minutes.",
       competitor: "Typically involves a sales process and a structured implementation, reflecting the platform's depth and enterprise focus.",
     },
     {
