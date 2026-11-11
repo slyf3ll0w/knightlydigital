@@ -273,7 +273,7 @@ export async function POST(req: NextRequest) {
         if (rep) ids.add(rep.id);
       }
       for (const extra of extraNotifyIds) ids.add(extra);
-      await notifyUsers([...ids], push);
+      await notifyUsers([...ids], push, { event: "views" });
     }
   } catch (err) {
     reportError("[viewed] beacon failed:", err);

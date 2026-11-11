@@ -304,7 +304,7 @@ export async function activateGiftCardForInvoice(
           body: `$${(sale.amountCents / 100).toFixed(2)} gift card on invoice #${sale.invoice.invoiceNumber} was marked paid by hand. Load it once the money is in hand.`,
           url: "/app/payments?tab=giftcards",
           tag: `gift-card-held-${sale.id}`,
-        }
+        }, { event: "payment_problems" }
       ).catch((e) => reportError("[gift-cards] owner notice failed", sale.id, e));
     }
     return "held";
@@ -423,7 +423,7 @@ export async function releaseGiftCardForBouncedPayment(invoiceId: string): Promi
       body: `The payment for the $${(sale.amountCents / 100).toFixed(2)} gift card on invoice #${sale.invoice.invoiceNumber} was returned, so the card was switched off.`,
       url: "/app/payments?tab=giftcards",
       tag: `gift-card-bounced-${sale.id}`,
-    }
+    }, { event: "payment_problems" }
   ).catch((e) => reportError("[gift-cards] bounce notice failed", sale.id, e));
   return "deactivated";
 }

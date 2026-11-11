@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
         body: "Your subscription's renewal charge didn't go through — premium features are paused.",
         url: "/app/settings/addon",
         tag: "addon-failed",
-      }
+      }, { event: "payment_problems" }
     ).catch((e) => reportError("[livery-webhook] owner notify failed", e));
     return NextResponse.json({ received: true, matched: true });
   }

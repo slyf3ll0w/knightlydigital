@@ -230,7 +230,7 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
   try {
     await notifyUsers(
       await requestNotifyUserIds(company.id, out.contact.assignedToId),
-      webLeadPushPayload({ contactId: out.contact.id, contactName, requestId: out.request.id, title: out.request.title, shown: outOfArea ? "outside your service area" : shown, phone: customer.phone })
+      webLeadPushPayload({ contactId: out.contact.id, contactName, requestId: out.request.id, title: out.request.title, shown: outOfArea ? "outside your service area" : shown, phone: customer.phone }), { event: "requests" }
     );
   } catch (err) {
     reportError("[estimate-form] push failed:", err);

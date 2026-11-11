@@ -129,7 +129,7 @@ export async function expireApprovalBookings(now: Date): Promise<{ expired: numb
         // the notice never showed. An appointment notice is news and stays.
         url: `/app/appointments/${appt.id}`,
         tag: `appointment-${appt.id}`,
-      });
+      }, { event: "requests" });
     } catch (err) {
       reportError("[approval-bookings] expire failed for appointment", appt.id, err);
     }
@@ -159,7 +159,7 @@ export async function expireApprovalBookings(now: Date): Promise<{ expired: numb
               : "Clients picked times and are waiting to hear back. Accept or decline them from their requests.",
           url: "/app/requests",
           tag: `approvals-${company.id}`,
-        });
+        }, { event: "requests" });
         nudged += 1;
       } catch (err) {
         reportError("[approval-bookings] nudge failed for company", company.id, err);

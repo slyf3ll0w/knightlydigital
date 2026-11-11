@@ -972,6 +972,33 @@ export function portalMessageTeamEmail({
  * Task reminder to the assignee — the email twin of the "Reminder: …" push,
  * sent only when push can't reach them (lib/tasks.ts reminderEmailWanted).
  */
+/**
+ * One alert to a team member's own address, for an event they turned email on
+ * for under My Profile → Notifications (lib/notification-events.ts) — the
+ * same words as the push, with a button to the thing it is about.
+ */
+export function alertEmail({
+  companyName,
+  title,
+  body,
+  url,
+}: {
+  companyName: string;
+  title: string;
+  body?: string | null;
+  /** In-app path; made absolute here. */
+  url?: string | null;
+}): { subject: string; html: string } {
+  const html = wbShell({
+    inner: `
+      ${p(`<strong>${esc(title)}</strong>`)}
+      ${body?.trim() ? p(multiline(body.trim())) : ""}
+      ${url ? wbBtn(absUrl(url), "Open in WorkBench") : ""}`,
+    footNote: `Sent to you at ${esc(companyName)} because you turned on email for this alert. Change it under Settings, My Profile, Notifications.`,
+  });
+  return { subject: title, html };
+}
+
 export function taskReminderEmail({
   companyName,
   title,

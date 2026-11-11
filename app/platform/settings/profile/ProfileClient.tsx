@@ -14,6 +14,7 @@ import { AppLockToggleCard } from "@/components/AppLock";
 import CalendarSyncCard from "@/components/CalendarSyncCard";
 import SoftphoneToggleCard from "@/components/SoftphoneToggleCard";
 import EmailAlertsCard from "@/components/EmailAlertsCard";
+import NotificationsCard from "@/components/NotificationsCard";
 import AppearanceCard from "@/components/AppearanceCard";
 import Avatar from "@/components/Avatar";
 import AvatarCropModal from "@/components/AvatarCropModal";
@@ -417,6 +418,8 @@ export default function ProfileClient({
       {dialog}
 
       <PushToggleCard />
+
+      <NotificationsCard />
 
       <EmailAlertsCard initial={emailAlerts} pushOn={pushOn} isOwner={isOwner} />
 

@@ -100,7 +100,7 @@ export async function notifyTeamOfClientMessage(
     body: preview(body, 140),
     url: `/app/messages/thread/${contact.id}`,
     tag: `portal-thread-${contact.id}`,
-  });
+  }, { event: "client_messages" });
 
   // Website chat is a live conversation, not an inbox item: the push is the
   // whole notification, never an email.

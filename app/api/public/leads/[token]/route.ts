@@ -163,7 +163,7 @@ export async function POST(
     // lead leaves the first column (app/api/app/notifications/route.ts).
     url: `/app/leads?lead=${result.contact.id}`,
     tag: `request-${result.request.id}`,
-  });
+  }, { event: "requests" });
 
   const notifyTo = await companyNotifyAddress(company.id, company.email);
   if (notifyTo) {

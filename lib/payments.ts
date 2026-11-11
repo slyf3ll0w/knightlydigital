@@ -779,7 +779,7 @@ export async function recordPayment(params: RecordPaymentParams) {
       body: `$${params.amount.toFixed(2)} · ${params.method.toLowerCase().replace(/_/g, " ")}`,
       url: `/app/invoices/${params.invoiceId}`,
       tag: `payment-${params.invoiceId}`,
-    }
+    }, { event: "payments" }
   );
 
   // Square products (docs/plans/square-products-2026-10-30.md), best effort:

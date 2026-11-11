@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, canSeeMoney, contactScope, viaContactScope } from "@/lib/permissions";
 import { pastDueFilter } from "@/lib/due-dates";
+import { preferenceMap, type NotificationEvent } from "@/lib/notification-events";
 import { kindForUrl } from "@/lib/toast";
 
 /**
@@ -77,6 +78,14 @@ export async function GET() {
     select: { id: true },
   });
   const firstStageId = firstStage?.id ?? null;
+
+  // The person's Bell switches (My Profile → Notifications): a live row for an
+  // event they turned off stays out of the list. Pushes already skip writing
+  // a notice for them (lib/push.ts notifyUsers).
+  const bell = preferenceMap(
+    await prisma.notificationPreference.findMany({ where: { userId: actor.id, channel: "bell" }, select: { event: true, channel: true, enabled: true } })
+  );
+  const bellOn = (event: NotificationEvent) => bell[event].bell;
 
   const [requests, leads, bookings, payments, pastDue, clientMessages, notices] = await Promise.all([
     sell
@@ -199,6 +208,7 @@ export async function GET() {
   // Live rows link where the matching push does (lib/payments.ts → the
   // invoice, lib/booking-submit.ts → the request or the appointment), so the
   // bell never shows one event as two rows with two destinations.
+  const EVENT_OF = { request: "requests", lead: "requests", booking: "requests", payment: "payments", invoice: "payment_problems", message: "client_messages" } as const;
   const live = [
     ...requests.map((r) => ({
       id: `req-${r.id}`,
@@ -254,7 +264,7 @@ export async function GET() {
       href: `/app/messages/thread/${m.contactId}`,
       entity: `thread:${m.contactId}`,
     })),
-  ];
+  ].filter((row) => bellOn(EVENT_OF[row.kind]));
   // Every push is recorded as a notice (lib/push.ts notifyUsers), so the bell
   // keeps what a card said after it is gone. A notice about something the
   // feed already shows live (the request, the lead, the message) is dropped

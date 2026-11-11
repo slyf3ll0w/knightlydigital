@@ -127,7 +127,7 @@ export async function GET(
         body: "Email opened just now.",
         url: `/app/messages/${message.id}`,
         tag: `doc-view-message-${message.id}`,
-      });
+      }, { event: "views" });
     }
   } catch (err) {
     reportError("[open-pixel] failed:", err);

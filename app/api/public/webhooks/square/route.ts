@@ -174,7 +174,7 @@ async function handlePayment(merchantId: string, paymentId: string) {
       body: `A $${Number(row.amount).toFixed(2)} online payment was returned by the bank. The invoice is open again.`,
       url: `/app/invoices/${row.invoiceId}`,
       tag: `payment-failed-${row.invoiceId}`,
-    }
+    }, { event: "payment_problems" }
   );
 }
 
@@ -276,6 +276,6 @@ async function handleRefundFailed(refund: Refund) {
       body: `A $${refundAmount.toFixed(2)} refund couldn't be completed, so the payment was restored. Try the refund again.`,
       url: `/app/invoices/${payment.invoiceId}`,
       tag: `refund-failed-${payment.id}`,
-    }
+    }, { event: "payment_problems" }
   );
 }

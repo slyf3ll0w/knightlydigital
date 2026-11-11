@@ -466,7 +466,7 @@ export async function runScheduledSends(now: Date = new Date()): Promise<Schedul
             body: how || undefined,
             url,
             tag: `scheduled-send-${job.kind}-${job.id}`,
-          });
+          }, { event: "documents" });
         }
       } else {
         summary.failed++;
@@ -480,7 +480,7 @@ export async function runScheduledSends(now: Date = new Date()): Promise<Schedul
             body: scheduledFailureBody(result.error, row?.status),
             url,
             tag: `scheduled-send-${job.kind}-${job.id}`,
-          });
+          }, { event: "documents" });
         }
       }
     } catch (err) {
@@ -494,7 +494,7 @@ export async function runScheduledSends(now: Date = new Date()): Promise<Schedul
           body: "Something went wrong partway through the send. Open it to check whether it went out, and send it again if not.",
           url,
           tag: `scheduled-send-${job.kind}-${job.id}`,
-        }).catch((e) => reportError("[send-later] failure notice failed for", job.kind, job.id, e));
+        }, { event: "documents" }).catch((e) => reportError("[send-later] failure notice failed for", job.kind, job.id, e));
       }
     }
   }

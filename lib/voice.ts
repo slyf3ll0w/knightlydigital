@@ -1391,7 +1391,7 @@ async function notifyTeam(companyId: string, payload: { title: string; body: str
     });
     await notifyUsers(
       users.map((u) => u.id),
-      payload
+      payload, { event: "calls" }
     );
   } catch (err) {
     reportError("[voice] push failed:", err);

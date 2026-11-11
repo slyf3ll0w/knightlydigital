@@ -236,7 +236,7 @@ async function bookProcessorDown(invoiceId: string, companyId: string, error: st
         body: `The payment processor hasn't answered for ${days} days. Send the client the pay link, and check Online Payments in Settings.`,
         url: `/app/invoices/${invoiceId}`,
         tag: `autopay-processor-${invoiceId}`,
-      }
+      }, { event: "payment_problems" }
     ).catch((e) => reportError("[auto-charge] processor-down push failed", e));
     return;
   }
@@ -334,7 +334,7 @@ async function handleAutoChargeFailure(params: {
         body: `${clientName ? `${clientName} · ` : ""}$${params.amount.toFixed(2)} — ${params.error}`,
         url: `/app/invoices/${params.invoiceId}`,
         tag: `autopay-${params.invoiceId}`,
-      }
+      }, { event: "payment_problems" }
     ).catch((e) => reportError("[auto-charge] owner notify failed", e));
   }
 
@@ -507,7 +507,7 @@ async function giveUpNoCard(
       body: `${clientName ? `${clientName} · ` : ""}$${balance.toFixed(2)} — no card on file`,
       url: `/app/invoices/${inv.id}`,
       tag: `autopay-${inv.id}`,
-    }
+    }, { event: "payment_problems" }
   ).catch((e) => reportError("[auto-charge] owner notify failed", e));
 }
 

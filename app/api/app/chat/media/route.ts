@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     body: text ? (text.length > 140 ? `${text.slice(0, 139)}…` : text) : `Sent a ${mediaNoun(contentType).toLowerCase()}`,
     url: "/app/chat",
     tag: `chat-${channel.id}`,
-  });
+  }, { event: "team_chat" });
 
   return NextResponse.json(serializeMessage(message), { status: 201 });
 }

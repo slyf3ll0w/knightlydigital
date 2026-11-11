@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     body: request.title,
     url: `/app/requests/${request.id}`,
     tag: `request-${request.id}`,
-  });
+  }, { event: "requests" });
 
   // Notify the company inbox; reply goes straight to the customer
   const notifyTo = await companyNotifyAddress(contact.companyId, contact.company.email);

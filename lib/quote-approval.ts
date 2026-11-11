@@ -127,7 +127,7 @@ export async function finishQuoteApproval(
       body: deposit && deposit.outstanding > 0 ? `${total} · deposit invoice sent` : total,
       url: `/app/quotes/${quote.id}`,
       tag: `quote-approved-${quote.id}`,
-    });
+    }, { event: "quotes" });
   }
 
   fireAutomations(quote.companyId, "quote.approved", quote.id);

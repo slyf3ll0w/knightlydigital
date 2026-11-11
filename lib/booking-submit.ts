@@ -324,7 +324,7 @@ export async function notifyBooking(input: BookingNoticeInput): Promise<void> {
       body: `${contactName} — ${type.name}, ${label}`,
       url: detailUrl.replace(APP_URL, ""),
       tag: `appointment-${appointment.id}`,
-    });
+    }, { event: "requests" });
   } catch (err) {
     reportError("[booking] push failed:", err);
   }

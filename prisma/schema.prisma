@@ -618,6 +618,7 @@ model User {
   chatThreadStates     ChatThreadState[]
   chatChannelMembers   ChatChannelMember[]
   pushSubscriptions    PushSubscription[]
+  notificationPreferences NotificationPreference[]
   passwordResetTokens  PasswordResetToken[]
   emailChangeTokens    EmailChangeToken[]
   superadminLoginCodes SuperadminLoginCode[]
@@ -720,6 +721,23 @@ model SuperadminLoginCode {
 // One row per browser/device a user turned notifications on for (a user can
 // have several: phone app + desktop browser). Dead endpoints are pruned when
 // the push service answers 404/410 on send.
+// One switch on My Profile → Notifications (lib/notification-events.ts):
+// does this person want this event on this channel? No row = the default
+// (push and bell on, email off). Per membership, like PushSubscription.
+model NotificationPreference {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// lib/notification-events.ts NotificationEvent key
+  event     String
+  /// push | bell | email
+  channel   String
+  enabled   Boolean
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, event, channel])
+}
+
 model PushSubscription {
   id        String   @id @default(cuid())
   userId    String

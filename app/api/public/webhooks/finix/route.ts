@@ -219,7 +219,7 @@ async function handleTransfer(transferId: string) {
       body: `A $${Number(payment.amount).toFixed(2)} online payment was returned by the bank. The invoice is open again.`,
       url: `/app/invoices/${payment.invoiceId}`,
       tag: `payment-failed-${payment.invoiceId}`,
-    }
+    }, { event: "payment_problems" }
   );
 }
 
@@ -294,6 +294,6 @@ async function handleReversalFailed(refund: Refund) {
       body: `A $${refundAmount.toFixed(2)} refund couldn't be completed, so the payment was restored. Try the refund again.`,
       url: `/app/invoices/${payment.invoiceId}`,
       tag: `refund-failed-${payment.id}`,
-    }
+    }, { event: "payment_problems" }
   );
 }

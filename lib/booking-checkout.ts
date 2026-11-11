@@ -340,7 +340,7 @@ export async function createServiceBooking(params: {
       body: `${contactName} — ${title}, ${label}${paidNote ? ` · ${paidNote}` : ""}`,
       url: `/app/jobs/${result.job.id}`,
       tag: `job-${result.job.id}`,
-    });
+    }, { event: "requests" });
   } catch (err) {
     reportError("[booking] push failed:", err);
   }

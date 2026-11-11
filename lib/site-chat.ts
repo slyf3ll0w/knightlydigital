@@ -122,5 +122,5 @@ export async function markVisitorLeft(contactId: string): Promise<void> {
     body: "They closed the page without leaving a number, so a reply will only reach them if they come back.",
     url: `/app/messages/thread/${contact.id}`,
     tag: `portal-thread-${contact.id}`,
-  });
+  }, { event: "client_messages" });
 }

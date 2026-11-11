@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
     body: text.length > 140 ? `${text.slice(0, 139)}…` : text,
     url: "/app/chat",
     tag: `chat-${channel.id}`,
-  });
+  }, { event: "team_chat" });
 
   return NextResponse.json(serializeMessage(message), { status: 201 });
 }

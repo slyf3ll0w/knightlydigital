@@ -284,7 +284,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     body: result.request.title,
     url: `/app/requests/${result.request.id}`,
     tag: `request-${result.request.id}`,
-  });
+  }, { event: "requests" });
 
   // Notify the company inbox; reply goes straight to the customer
   const notifyTo = await companyNotifyAddress(company.id, company.email);

@@ -14,6 +14,7 @@ import { reportError } from "@/lib/report-error";
 import crypto from "crypto";
 import webpush from "web-push";
 import { prisma } from "@/lib/db";
+import { defaultPreference, type NotificationChannel, type NotificationEvent } from "@/lib/notification-events";
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
@@ -212,19 +213,38 @@ export async function notifyUsers(
      * that write their own row (automations) or for pure attention pings.
      */
     record?: boolean;
+    /**
+     * Which alert this is (lib/notification-events.ts): each person's
+     * switches on My Profile decide push, bell and email for it. Omitted =
+     * an account alert, which always goes out by push and bell.
+     */
+    event?: NotificationEvent;
   } = {}
 ): Promise<void> {
   if (userIds.length === 0) return;
   try {
-    const targets = await prisma.user.findMany({
+    const everyone = await prisma.user.findMany({
       where: { id: { in: userIds } },
-      select: { id: true, accountId: true, companyId: true, company: { select: { name: true } } },
+      select: { id: true, accountId: true, companyId: true, email: true, isActive: true, company: { select: { name: true } } },
     });
-    if (targets.length === 0) return;
+    if (everyone.length === 0) return;
+    // Each person's switches for this event; no stored row = the default.
+    const prefs = opts.event
+      ? await prisma.notificationPreference.findMany({
+          where: { userId: { in: everyone.map((t) => t.id) }, event: opts.event },
+          select: { userId: true, channel: true, enabled: true },
+        })
+      : [];
+    const wants = (userId: string, channel: NotificationChannel) =>
+      opts.event ? (prefs.find((r) => r.userId === userId && r.channel === channel)?.enabled ?? defaultPreference(channel)) : channel !== "email";
+    const targets = everyone.filter((t) => wants(t.id, "push"));
+    const bellTargets = everyone.filter((t) => wants(t.id, "bell"));
+    const emailTargets = everyone.filter((t) => t.isActive && t.email && wants(t.id, "email"));
+    if (emailTargets.length > 0) await emailAlert(emailTargets, payload);
     if (opts.record !== false && payload.url && payload.url.startsWith("/app")) {
       await prisma.automationNotice
         .createMany({
-          data: targets
+          data: bellTargets
             .filter((t) => t.companyId)
             .map((t) => ({
               companyId: t.companyId as string,
@@ -236,7 +256,7 @@ export async function notifyUsers(
         })
         .catch((err) => reportError("[push] notice write failed:", err));
     }
-    if (!configured && !fcmAccount) return;
+    if (targets.length === 0 || (!configured && !fcmAccount)) return;
 
     const accountIds = [
       ...new Set(targets.map((t) => t.accountId).filter((a): a is string => Boolean(a))),
@@ -327,8 +347,33 @@ export async function notifyUsers(
   }
 }
 
-export async function notifyUser(userId: string, payload: PushPayload): Promise<void> {
-  return notifyUsers([userId], payload);
+export async function notifyUser(userId: string, payload: PushPayload, opts: { event?: NotificationEvent } = {}): Promise<void> {
+  return notifyUsers([userId], payload, opts);
+}
+
+/** The email channel: one message per person to their sign-in address. Never throws. */
+async function emailAlert(
+  people: { id: string; email: string; companyId: string | null; company: { name: string } | null }[],
+  payload: PushPayload
+): Promise<void> {
+  try {
+    // Imported here: lib/email is heavy and most pushes never email.
+    const { alertEmail, emailEnabled, sendEmail } = await import("@/lib/email");
+    if (!emailEnabled()) return;
+    for (const person of people) {
+      const { subject, html } = alertEmail({
+        companyName: person.company?.name ?? "WorkBench",
+        title: payload.title,
+        body: payload.body,
+        url: payload.url?.startsWith("/") ? `/app/open?u=${person.id}&to=${encodeURIComponent(payload.url)}` : payload.url,
+      });
+      await sendEmail({ companyId: person.companyId, to: person.email, subject, html }).catch((err) =>
+        reportError("[push] alert email failed:", err)
+      );
+    }
+  } catch (err) {
+    reportError("[push] alert email failed:", err);
+  }
 }
 
 /**

@@ -770,7 +770,7 @@ export async function runTechHeadsUp(now: Date = new Date()): Promise<Appointmen
           url: `/app/jobs/${job.id}`,
           tag: `visit-${job.id}`,
           ...(actions.length > 0 ? { actions } : {}),
-        }
+        }, { event: "reminders" }
       );
       summary.sent++;
     } catch (err) {
@@ -839,7 +839,7 @@ export async function runAppointmentTechHeadsUp(now: Date = new Date()): Promise
         body: `${appt.title} — ${how}`,
         url: `/app/appointments/${appt.id}`,
         tag: `appt-${appt.id}`,
-      });
+      }, { event: "reminders" });
       summary.sent++;
     } catch (err) {
       summary.errors++;

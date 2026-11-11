@@ -328,7 +328,7 @@ export async function notifyTaskAssigned(task: { id: string; title: string; assi
     body: due ? `${task.title} · ${due}` : task.title,
     url: `/app/tasks?task=${task.id}`,
     tag: `task-${task.id}`,
-  });
+  }, { event: "tasks" });
 }
 
 export interface TaskReminderSummary {
@@ -393,7 +393,7 @@ export async function runTaskReminders(now: Date = new Date()): Promise<TaskRemi
         body: dueText ?? undefined,
         url: `/app/tasks?task=${task.id}`,
         tag: `task-${task.id}`,
-      });
+      }, { event: "tasks" });
       summary.sent++;
 
       // Email when push can't reach them (same rule as the other team emails)
