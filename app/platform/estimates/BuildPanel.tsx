@@ -11,7 +11,7 @@ import { fileToAssistPhoto, type AssistPhoto } from "@/lib/image-downscale";
 import { readTrackedBuild, setPanelShowing, trackBuild, untrackBuild } from "@/lib/build-tracker";
 import { confirmCancelBuild } from "@/components/BuildProgressBar";
 import { hapticNotify } from "@/lib/haptics";
-import type { BuildAnswer, BuildDraft, BuildPlan, BuildQuestion, BuildSample } from "@/lib/estimator-build";
+import type { BuildAnswer, BuildDraft, BuildMarket, BuildPlan, BuildQuestion, BuildSample } from "@/lib/estimator-build";
 
 /**
  * The Estimates builder: a sentence in, a saved tool out, with the tool
@@ -39,10 +39,10 @@ type Ev =
   | { samples: BuildSample[] }
   | { questions: BuildQuestion[]; tokens: number }
   | { ask: string; tokens: number }
-  | { done: true; tool: BuiltTool; changes: string[]; samples: BuildSample[]; placeholders: string[]; warnings: string[]; tokens: number }
+  | { done: true; tool: BuiltTool; changes: string[]; samples: BuildSample[]; placeholders: string[]; warnings: string[]; tokens: number; market?: BuildMarket }
   | { error: string; tokens: number; atlasLocked?: boolean };
 
-type Finished = { tool: BuiltTool; changes: string[]; samples: BuildSample[]; placeholders: string[]; warnings: string[]; tokens: number };
+type Finished = { tool: BuiltTool; changes: string[]; samples: BuildSample[]; placeholders: string[]; warnings: string[]; tokens: number; market?: BuildMarket };
 /** GET /api/app/estimators/build/[id] */
 type BuildState = { id: string; status: "running" | "questions" | "done" | "error" | "cancelled"; prompt: string; events: Ev[] };
 
@@ -81,6 +81,15 @@ const CONTROL_WORD: Record<string, string> = {
 };
 
 /** One sample price tile: counts up when the number lands. */
+/** "https://www.example.com/a/b" → "example.com" ("" when it isn't a URL). */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
 function SampleTile({ s, pending }: { s: BuildSample | null; pending: boolean }) {
   const shown = useCountUp(s?.subtotal ?? null);
   return (
@@ -231,7 +240,7 @@ export default function BuildPanel({
           setCurrent(null);
           setSamples(ev.samples);
           hapticNotify("SUCCESS");
-          const fin = { tool: ev.tool, changes: ev.changes, samples: ev.samples, placeholders: ev.placeholders, warnings: ev.warnings, tokens: ev.tokens };
+          const fin = { tool: ev.tool, changes: ev.changes, samples: ev.samples, placeholders: ev.placeholders, warnings: ev.warnings, tokens: ev.tokens, market: ev.market };
           setFinished(fin);
           onBuilt(ev.tool, { changes: ev.changes, samples: ev.samples, placeholders: ev.placeholders, tokens: ev.tokens });
         } else if ("samples" in ev) {
@@ -656,6 +665,12 @@ export default function BuildPanel({
                 {finished.placeholders.length > 0 && (
                   <div className="mb-3">
                     <RatesToConfirm compact items={finished.placeholders} />
+                    {finished.market && (
+                      <p className="mt-1.5 text-[11px] text-gray-500">
+                        Market estimates come from a web lookup of going rates{finished.market.where ? ` around ${finished.market.where}` : ""}
+                        {finished.market.sources.length > 0 ? ` (${finished.market.sources.map(hostOf).filter(Boolean).slice(0, 3).join(", ")})` : ""} and trade averages.
+                      </p>
+                    )}
                   </div>
                 )}
                 {finished.changes.length > 0 && (

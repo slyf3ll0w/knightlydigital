@@ -63,6 +63,8 @@ export type BuildDraft = {
   packages: string[] | null;
 };
 
+export type BuildMarket = { where: string; sources: string[] };
+
 export type BuildSample = { label: string; subtotal: number | null; lines: number; error?: string; hours?: number };
 
 /** One thing Atlas wants to know before building — asked the way a colleague would, with example answers. */
@@ -76,7 +78,7 @@ export type BuildEvent =
   | { samples: BuildSample[] }
   | { questions: BuildQuestion[]; tokens: number }
   | { ask: string; tokens: number }
-  | { done: true; tool: Record<string, unknown>; changes: string[]; samples: BuildSample[]; placeholders: string[]; warnings: string[]; tokens: number }
+  | { done: true; tool: Record<string, unknown>; changes: string[]; samples: BuildSample[]; placeholders: string[]; warnings: string[]; tokens: number; /** Where guessed numbers came from: a web lookup of going rates (its pages), when one ran. */ market?: BuildMarket }
   | { error: string; tokens: number; atlasLocked?: boolean };
 
 /** Spec attempts per build: the first draft plus two fix rounds. */
@@ -113,7 +115,8 @@ const strs = (v: unknown, max: number, len = 120): string[] => (Array.isArray(v)
 /** The owner's answers as prompt text (blank answers become placeholders downstream). */
 function answersText(answers: BuildAnswer[]): string {
   if (answers.length === 0) return "";
-  return `\n\nYou asked the owner these questions before building; their answers:\n${answers.map((a) => `Q: ${a.question}\nA: ${a.answer.trim() || "(no answer — use a sensible placeholder and list it under placeholders)"}`).join("\n")}`;
+  return `\n\nYou asked the owner these questions before building; their answers:\n${answers.map((a) => `Q: ${a.question}\nA: ${a.answer.trim() || "(no answer — use a sensible placeholder and list it under placeholders)"}`).join("\n")}
+These answers fill in NUMBERS; they do not narrow the tool. A rate given for the most common option ("6 ft wood privacy is $35 a foot") prices that option — the tool still asks everything the trade's playbook asks (the other materials, heights, sizes, add-ons, difficulty) and prices the options the owner didn't mention from the MARKET NUMBERS, scaled to sit sensibly beside the rates they did give, each listed under placeholders.`;
 }
 
 function planSystem(assistantName: string, answered: boolean, brief: string, hasImage: boolean, cold = false, market: string | null = null): string {
@@ -535,5 +538,6 @@ export async function* buildEstimator(
     select: ESTIMATOR_SELECT,
   });
   await snapshotEstimator(created, "Created with Atlas", { id: actor.id, name: actor.name });
-  yield { done: true, tool: summaryOf(created)!, changes: [], samples, placeholders, warnings, tokens };
+  const lookedUp: BuildMarket | undefined = market?.searched && placeholders.length > 0 ? { where: market.where, sources: market.sources } : undefined;
+  yield { done: true, tool: summaryOf(created)!, changes: [], samples, placeholders, warnings, tokens, ...(lookedUp ? { market: lookedUp } : {}) };
 }
