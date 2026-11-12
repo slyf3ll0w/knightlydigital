@@ -14,6 +14,8 @@ import {
 } from "../estimator";
 import { checkSpec, ESTIMATOR_SELECT, estimatorSummary, loadPriceBook, publicEstimatePath, runStoredEstimator } from "../estimator-server";
 import { describePublicConfig, publicSlugFrom, sanitizePublicConfig, type EstimatorPublicConfig } from "../estimator-public";
+import { guessTrade } from "../estimator-playbook";
+import { loadMarket, marketRules, marketText } from "../estimator-market";
 
 /** What Atlas says when the company is off Pro (lib/plans.ts featureAllowed "estimator"). Quotes themselves stay free. */
 const ESTIMATOR_GATE_NOTE = "The Estimator is part of the Pro plan — not on this account. Quotes still work without it.";
@@ -276,8 +278,14 @@ const manageEstimator: Tool = {
 
     if (action === "guide") {
       const book = await loadPriceBook(actor.companyId);
+      // The trade's going rates (baseline only — no web lookup from chat), so a
+      // rate the owner never gave is a market estimate rather than a feeling.
+      const co = await prisma.company.findUnique({ where: { id: actor.companyId }, select: { industry: true, city: true, state: true } });
+      const trade = guessTrade(`${str(args.request, 400)} ${str(args.name, 80)}`) ?? (co?.industry ? guessTrade(co.industry) : null);
+      const market = trade ? await loadMarket({ tradeKey: trade.key, tradeName: trade.name, description: "", city: co?.city ?? null, state: co?.state ?? null, companyId: actor.companyId, search: false }) : null;
       return {
         guide: ESTIMATOR_GUIDE,
+        ...(market ? { marketNumbers: `${marketText(market)}\n\n${marketRules(market)}` } : {}),
         priceBook: book.slice(0, 80).map((b) => `${b.name}: $${b.unitPrice.toFixed(2)}`),
         priceBookNote: book.length > 80 ? `${book.length - 80} more — use get_price_book` : undefined,
         limits: ESTIMATOR_LIMITS,

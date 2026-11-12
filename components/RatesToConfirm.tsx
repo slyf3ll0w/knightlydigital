@@ -17,7 +17,9 @@ export default function RatesToConfirm({ items, onDone, onOpenPricing, compact =
       <div className="flex items-start justify-between gap-3 px-4 py-3">
         <div>
           <p className="text-sm font-semibold text-gray-900">Rates to confirm</p>
-          <p className="mt-0.5 text-xs text-gray-500">Atlas used a typical number where you didn&apos;t give one. Set yours, then tick it off.</p>
+          <p className="mt-0.5 text-xs text-gray-500">
+            {items.length === 1 ? "This number isn't yours yet" : `These ${items.length} numbers aren't yours yet`} — where you didn&apos;t give a rate, the tool runs on a market estimate. Set your own, then tick it off.
+          </p>
         </div>
         {onOpenPricing && (
           <button type="button" onClick={onOpenPricing} className="shrink-0 text-xs font-medium text-gray-700 underline-offset-2 hover:underline">

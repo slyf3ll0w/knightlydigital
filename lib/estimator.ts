@@ -1903,7 +1903,7 @@ export type SpecAudit = {
   /** Worth knowing; shown to the owner, never blocks. */
   warnings: string[];
   /** Each sample's outcome, in spec order. */
-  samples: { label: string; subtotal: number | null; lines: number; error?: string }[];
+  samples: { label: string; subtotal: number | null; lines: number; error?: string; /** Labor hours the sample books (0 when no line says). */ hours?: number }[];
 };
 
 /**
@@ -1944,7 +1944,7 @@ export function auditSpec(compiled: CompiledSpec, priceBook: PriceBookEntry[]): 
       errors.push(`Sample "${smp.label}" failed: ${r.errors[0]}`);
       continue;
     }
-    samples.push({ label: smp.label, subtotal: r.total, lines: r.lines.length });
+    samples.push({ label: smp.label, subtotal: r.total, lines: r.lines.length, ...(r.hours > 0 ? { hours: r.hours } : {}) });
     if (r.total <= 0) errors.push(`Sample "${smp.label}" priced at $0 — a real job never costs nothing.`);
     const key = smp.label.toLowerCase();
     if (/small|minimum|basic/.test(key)) bySize.small = r.total;

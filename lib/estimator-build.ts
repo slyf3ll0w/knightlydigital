@@ -6,6 +6,8 @@ import { checkSpec, ESTIMATOR_SELECT, estimatorSummary, snapshotEstimator, type 
 import { loadBusinessContext, loadToolStats, toolStatsText } from "./estimator-context";
 import { sanitizePublicConfig, type EstimatorPublicConfig } from "./estimator-public";
 import { ESTIMATOR_PRINCIPLES, guessTrade, playbookByKey, playbookText, PLAYBOOK_INDEX, preferMapInput } from "./estimator-playbook";
+import { marketCheck } from "./estimator-benchmarks";
+import { loadMarket, marketRules, marketText, type MarketRead } from "./estimator-market";
 
 /**
  * The Estimates page's builder (docs/plans/ai-estimators-2026-09-19.md,
@@ -22,6 +24,20 @@ import { ESTIMATOR_PRINCIPLES, guessTrade, playbookByKey, playbookText, PLAYBOOK
  *           model's own small/typical/large samples run green and in order
  *   fix   → compile/audit errors go back to the model (at most 2 rounds)
  *   save  → create, or snapshot + update; the tool is live
+ *
+ * Starting from nothing (2026-11-12, David: "I gave it like no information
+ * and it did a pretty bad job"): when Workbench knows no rate of this
+ * business's and the owner named none, every number used to be the model's
+ * guess. Now, for a COLD build:
+ *   market → lib/estimator-market.ts: one web lookup of what the work goes
+ *            for near them + the trade's baseline (lib/estimator-benchmarks.ts)
+ *   ask    → up to three quick questions (their main rate, their crew's
+ *            pace, one more driver) with the market's numbers as tap-able
+ *            answers; skipping is fine — a skipped one becomes a market
+ *            estimate listed under "rates to confirm"
+ *   check  → the tool's typical sample is priced against the typical job's
+ *            going range; far off = sent back to the model like any audit
+ *            error (a warning only when the rates are the owner's own)
  *
  * Everything the model returns passes through the same gates a manual save
  * does — the model never writes to the database, this file does. Missing
@@ -47,7 +63,7 @@ export type BuildDraft = {
   packages: string[] | null;
 };
 
-export type BuildSample = { label: string; subtotal: number | null; lines: number; error?: string };
+export type BuildSample = { label: string; subtotal: number | null; lines: number; error?: string; hours?: number };
 
 /** One thing Atlas wants to know before building — asked the way a colleague would, with example answers. */
 export type BuildQuestion = { question: string; why: string; suggestions: string[] };
@@ -71,7 +87,25 @@ const THINK_DRAFT = 8192;
 const THINK_FIX = 4096;
 const THINK_CHANGE = 6144;
 
-type PlanReply = { tradeKey?: unknown; trade?: unknown; drivers?: unknown; questions?: unknown; packages?: unknown; ask?: unknown; note?: unknown; askOwner?: unknown };
+type PlanReply = { tradeKey?: unknown; trade?: unknown; drivers?: unknown; questions?: unknown; packages?: unknown; ask?: unknown; note?: unknown; askOwner?: unknown; ratesKnown?: unknown };
+
+/** The owner's words carry a price or a rate ("$4 a foot", "85/hr", "2.50 per sq ft"). */
+const NAMES_A_RATE_RE = /\$\s?\d|\d\s?(dollars|bucks)\b|\d\s*(\/|per|an?)\s*(hr|hour|ft|foot|sq|square|yard|visit|room|window|load|ton|zone|each|job|day|man)/i;
+
+/**
+ * Nothing to price from: Workbench knows no rate of this business's, and the
+ * owner's words (and price sheet, and answers) give none. Pure —
+ * scripts/test-estimator-benchmarks.ts.
+ */
+export function isColdBuild(o: { ratesOnFile: number; prompt: string; hasImage: boolean; answers: BuildAnswer[] }): boolean {
+  if (o.ratesOnFile > 0 || o.hasImage) return false;
+  if (NAMES_A_RATE_RE.test(o.prompt)) return false;
+  return !o.answers.some((a) => /\d/.test(a.answer));
+}
+
+/** Questions before a build: two normally, three when starting from nothing. */
+const MAX_QUESTIONS = 2;
+const MAX_QUESTIONS_COLD = 3;
 type Draft = { name?: unknown; description?: unknown; spec?: unknown; question?: unknown };
 
 const strs = (v: unknown, max: number, len = 120): string[] => (Array.isArray(v) ? v.map((x) => (typeof x === "string" ? x.trim().slice(0, len) : "")).filter(Boolean).slice(0, max) : []);
@@ -82,15 +116,19 @@ function answersText(answers: BuildAnswer[]): string {
   return `\n\nYou asked the owner these questions before building; their answers:\n${answers.map((a) => `Q: ${a.question}\nA: ${a.answer.trim() || "(no answer — use a sensible placeholder and list it under placeholders)"}`).join("\n")}`;
 }
 
-function planSystem(assistantName: string, answered: boolean, brief: string, hasImage: boolean): string {
+function planSystem(assistantName: string, answered: boolean, brief: string, hasImage: boolean, cold = false, market: string | null = null): string {
   return `You are ${assistantName}, a veteran estimator inside Workbench, a field-service app. An owner describes how they price a kind of job. Before any tool is built, PLAN it the way a pro would. Answer with ONLY a JSON object:
-{"tradeKey": "one key from the list below, or null", "trade": "human name of the trade / job", "drivers": ["what moves the price, most important first — 3 to 6"], "questions": [{"label": "the question as a homeowner would read it", "control": "slider | stepper | field | map | cards | packages | multi | counts | toggle"}], "packages": null, "note": "one sentence on the pricing shape (per sq ft, flat menu, hourly, tiers…)", "askOwner": [], "ask": null}
+{"tradeKey": "one key from the list below, or null", "trade": "human name of the trade / job", "drivers": ["what moves the price, most important first — 3 to 6"], "questions": [{"label": "the question as a homeowner would read it", "control": "slider | stepper | field | map | cards | packages | multi | counts | toggle"}], "packages": null, "note": "one sentence on the pricing shape (per sq ft, flat menu, hourly, tiers…)", "ratesKnown": true, "askOwner": [], "ask": null}
+
+"ratesKnown": true when the owner's words, their price sheet, their price book or their past quotes give the MAIN rate(s) this tool prices with; false when you would have to guess them.
 
 "packages": null unless THIS business sells tiers — the owner said packages / tiers / levels / good-better-best, or the price book and past quotes show tiered services. Then 2–4 tier names. A per-unit, hourly, flat-menu or repair job gets null. Never invent tiers.
 ${
   answered
     ? `The owner has ALREADY answered your questions (they're in the message). Do not ask again — "askOwner" must be []. Anything still unknown becomes a placeholder.`
-    : `"askOwner": almost always []. The owner wants a tool, not a questionnaire; a missing rate becomes a placeholder they confirm later (that path exists and works). Ask ONLY when both are true: (1) the description is SPECIFIC and names a thing whose price drives the whole tool but leaves it open (e.g. "cedar or chain link" with no rate per material), and (2) neither the price book nor their past quotes show it. At most 2 questions, each {"question": "short and specific", "why": "one clause on what it changes", "suggestions": ["2–4 example answers"]}. NEVER ask about: the minimum, whether they sell packages, the unit, extras, anything a homeowner answers on the form (sizes, counts, choices), or anything you can decide as a pro. A BROAD description ("a tool for my pressure washing jobs", "something for lawn care") gets NO questions — build the trade's standard tool from the playbook and the business's own rates. Each suggestion must be a COMPLETE answer to the whole question that the owner could give as-is — alternatives to pick between, never one suggestion per part.`
+    : cold
+      ? `"askOwner": THIS BUSINESS HAS NO RATES ON FILE and the owner named none — a tool built now would run on guesses. Ask 2 or 3 quick questions (never more than 3), each {"question": "short and specific", "why": "one clause on what it changes", "suggestions": ["2–4 example answers"]}: (1) what they charge for the most common version of this job, in the trade's own unit; (2) how fast they work — crew size and how much they get done in a day (or how long the common job takes); (3) ONLY if it moves the price a lot: one more number (the next most common option's rate, or their minimum). Suggestions are COMPLETE answers the owner could give as-is, with real numbers taken from the MARKET NUMBERS below (low end, middle, high end) — never one suggestion per part. The owner may skip any question; a skipped one becomes a market estimate they confirm later. NEVER ask about anything a homeowner answers on the form (sizes, counts, choices), whether they sell packages, or anything you can decide as a pro. (The "decide, don't interview" principle below still holds for everything except these numbers.)`
+      : `"askOwner": almost always []. The owner wants a tool, not a questionnaire; a missing rate becomes a placeholder they confirm later (that path exists and works). Ask ONLY when both are true: (1) the description is SPECIFIC and names a thing whose price drives the whole tool but leaves it open (e.g. "cedar or chain link" with no rate per material), and (2) neither the price book nor their past quotes show it. At most 2 questions, each {"question": "short and specific", "why": "one clause on what it changes", "suggestions": ["2–4 example answers"]}. NEVER ask about: the minimum, whether they sell packages, the unit, extras, anything a homeowner answers on the form (sizes, counts, choices), or anything you can decide as a pro. A BROAD description ("a tool for my pressure washing jobs", "something for lawn care") gets NO questions — build the trade's standard tool from the playbook and the business's own rates. Each suggestion must be a COMPLETE answer to the whole question that the owner could give as-is — alternatives to pick between, never one suggestion per part.`
 }
 Set "ask" to ONE short question ONLY when you genuinely cannot tell what job the tool is for.
 You already know this business (below). Never ask for a rate the price book or their past quotes already show — use it. If the description is vague about the trade, the business's trade tells you.
@@ -106,7 +144,7 @@ Trades you know (tradeKey — name):
 ${PLAYBOOK_INDEX}
 
 The business:
-${brief}`;
+${brief}${market ? `\n\n${market}` : ""}`;
 }
 
 function draftSystem(
@@ -114,7 +152,8 @@ function draftSystem(
   current: { name: string; description: string | null; spec: EstimatorSpec } | null,
   playbook: string | null,
   assistantName: string,
-  hasImage: boolean
+  hasImage: boolean,
+  market: MarketRead | null = null
 ): string {
   return `You are ${assistantName}, building an ESTIMATE TOOL for a field-service business inside Workbench. The owner describes how they price a kind of job in plain words; you return a tool a homeowner can answer in a minute and a pro would trust. Answer with ONLY a JSON object, no prose:
 {"name": "short tool name", "description": "one line (≤ 160 chars) on when to use it", "spec": { ...the spec... }}
@@ -134,7 +173,7 @@ ${hasImage ? `- The owner attached a PHOTO of their price sheet / rate card / ol
 - Rates the owner never gave, that the business data doesn't show either (and they didn't answer when asked): use a sensible placeholder and list it in "placeholders". Never stop to ask for a rate at this stage.
 - "samples": small / typical / large, every required question answered with realistic values (a map input is a number of ft or sq ft; a counts input is a table {"value": n}).
 - Every question is answered by the person (or by Atlas fill-in when the owner turns that on) — a condition / access / scope question is a plain "cards" choice with a good "help" line, never "askAtlas".
-${playbook ? `\n${playbook}\n` : ""}
+${playbook ? `\n${playbook}\n` : ""}${market ? `\n${marketText(market)}\n\n${marketRules(market)}\n` : ""}
 ${ESTIMATOR_GUIDE}
 
 ${business}`;
@@ -259,16 +298,37 @@ export async function* buildEstimator(
     }
   }
 
+  // ── market: what the work goes for, when there is nothing else to price from ──
+  const preTrade = guessTrade(prompt) ?? (biz.industry ? guessTrade(biz.industry) : null);
+  const cold = !currentRow && isColdBuild({ ratesOnFile: biz.ratesOnFile, prompt, hasImage: Boolean(image), answers });
+  const place = [biz.city, biz.state].map((s) => (s ?? "").trim()).filter(Boolean).join(", ");
+  const readMarket = (tradeKey: string | null, tradeName: string, search: boolean) =>
+    loadMarket({ tradeKey, tradeName, description: prompt, city: biz.city, state: biz.state, companyId: actor.companyId, search }).catch(() => null);
+  const lookingUp = { phase: "plan" as const, message: place ? `Checking what this work goes for around ${place}…` : "Checking what this work goes for…" };
+  let market: MarketRead | null = null;
+  let marketKey: string | null = null;
+  let searched = false;
+  if (cold) {
+    yield lookingUp;
+    if (await stop()) return;
+    market = await readMarket(preTrade?.key ?? null, preTrade?.name ?? biz.industry ?? "home service", true);
+    marketKey = preTrade?.key ?? null;
+    searched = true;
+    if (await stop()) return;
+  }
+
   // ── plan (new tools only — a change already has its shape) ────────────────
   let plan: BuildPlan | null = null;
   let planKey: string | null = null;
+  /** The plan's own read: do the owner's words / business data give the main rates? */
+  let ratesKnown = !cold;
   if (!currentRow) {
     yield { phase: "plan", message: "Working out what drives the price…" };
     if (await stop()) return;
     const watch = abortOnCancel(stop);
     const res = await meteredOneShot(actor, {
       kind: "estimator-plan",
-      system: planSystem(opts.assistantName, answered, biz.brief, Boolean(image)),
+      system: planSystem(opts.assistantName, answered, biz.brief, Boolean(image), cold, market ? marketText(market) : null),
       prompt: `The owner's description:\n${prompt || "(see the attached price sheet)"}${answersText(answers)}`,
       maxOutputTokens: 2000,
       temperature: 0.2,
@@ -301,7 +361,7 @@ export async function* buildEstimator(
             };
           })
           .filter((q) => q.question)
-          .slice(0, 2);
+          .slice(0, cold ? MAX_QUESTIONS_COLD : MAX_QUESTIONS);
         if (qs.length > 0) {
           yield { questions: qs, tokens };
           return;
@@ -315,6 +375,7 @@ export async function* buildEstimator(
         .filter((q) => q.label)
         .slice(0, 16);
       planKey = typeof reply.tradeKey === "string" ? reply.tradeKey : null;
+      if (reply.ratesKnown === false) ratesKnown = false;
       plan = {
         trade: typeof reply.trade === "string" && reply.trade.trim() ? reply.trade.trim().slice(0, 60) : playbookByKey(planKey)?.name ?? guessTrade(prompt)?.name ?? "Custom pricing",
         drivers: strs(reply.drivers, 6, 80),
@@ -327,7 +388,23 @@ export async function* buildEstimator(
   }
 
   const trade = playbookByKey(planKey) ?? guessTrade(prompt) ?? (currentSpec ? guessTrade(`${currentRow!.name} ${currentRow!.description ?? ""}`) : null) ?? (biz.industry ? guessTrade(biz.industry) : null);
-  const system = draftSystem(biz.text, currentRow && currentSpec ? { name: currentRow.name, description: currentRow.description, spec: currentSpec } : null, trade ? playbookText(trade) : null, opts.assistantName, Boolean(image));
+  // The market read for the trade the plan settled on. A business with rates
+  // on file that has none for THIS job (the plan says so) gets the lookup
+  // now; everyone else gets the trade's baseline, which costs nothing. A
+  // change to an existing tool never searches.
+  const tradeLabel = trade?.name ?? plan?.trade ?? biz.industry ?? "home service";
+  if (!currentRow && !ratesKnown && !searched) {
+    yield lookingUp;
+    if (await stop()) return;
+    market = await readMarket(trade?.key ?? null, tradeLabel, true);
+    marketKey = trade?.key ?? null;
+    if (await stop()) return;
+  } else if (!market || marketKey !== (trade?.key ?? null)) {
+    market = await readMarket(trade?.key ?? null, tradeLabel, false);
+  }
+  /** The numbers are the model's (not the owner's): a typical job priced far off the going range goes back for a fix. */
+  const guessing = !currentRow && (cold || !ratesKnown);
+  const system = draftSystem(biz.text, currentRow && currentSpec ? { name: currentRow.name, description: currentRow.description, spec: currentSpec } : null, trade ? playbookText(trade) : null, opts.assistantName, Boolean(image), market);
   // A change to a tool that has quoted real jobs: Atlas sees how it has been doing
   const statsText = currentRow ? toolStatsText(await loadToolStats(actor.companyId, currentRow.id), currentRow.name) : "";
   let userPrompt = currentRow ? `The owner's change request:\n${prompt || "(see the attached price sheet)"}${answersText(answers)}${statsText ? `\n\n${statsText}` : ""}` : `The owner's description:\n${prompt || "(see the attached price sheet)"}${answersText(answers)}${plan ? `\n\nThe plan (follow it, then make it real):\n${JSON.stringify(plan)}` : ""}`;
@@ -388,8 +465,17 @@ export async function* buildEstimator(
     yield { phase: "test", message: "Pricing a small, a typical and a large job…" };
     audit = auditSpec(check.compiled, check.book);
     yield { samples: audit.samples };
+    // Does the typical job come out anywhere near what it goes for? Guessed
+    // numbers that miss are an error (fixed below); the owner's own are theirs
+    // to keep, so the same finding is only a note on the finish card.
+    const off = market?.typical ? marketCheck(audit.samples, market.typical, market.where) : [];
+    if (off.length > 0) {
+      if (guessing) audit.errors.push(...off);
+      else audit.warnings.push(...off);
+    }
+    const marketFix = guessing && off.length > 0 ? `\nFor the market findings: re-derive those rates and "hours" from the MARKET NUMBERS, and if the Typical job sample isn't that exact job, make it that job.` : "";
     if (audit.errors.length > 0 && round < MAX_ROUNDS) {
-      userPrompt = `${userPrompt}\n\nYour spec compiled and ran, but a pro would send it back:\n- ${audit.errors.join("\n- ")}\nFix the spec (or the samples) and return the corrected FULL JSON object:\n${JSON.stringify({ name: draft.name, description: draft.description, spec: check.compiled.spec })}`;
+      userPrompt = `${userPrompt}\n\nYour spec compiled and ran, but a pro would send it back:\n- ${audit.errors.join("\n- ")}${marketFix}\nFix the spec (or the samples) and return the corrected FULL JSON object:\n${JSON.stringify({ name: draft.name, description: draft.description, spec: check.compiled.spec })}`;
       draft = null;
       compiled = null;
       continue;

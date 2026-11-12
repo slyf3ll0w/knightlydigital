@@ -93,6 +93,7 @@ function SampleTile({ s, pending }: { s: BuildSample | null; pending: boolean })
       ) : (
         <p className="mt-0.5 text-lg font-bold tabular-nums tracking-tight text-gray-900">{shown === null ? <span className="text-sm font-medium text-gray-400">{pending ? "pricing…" : "—"}</span> : moneyExact(shown)}</p>
       )}
+      {s?.hours ? <p className="text-[11px] tabular-nums text-gray-500">{s.hours} h of labor</p> : null}
     </div>
   );
 }
