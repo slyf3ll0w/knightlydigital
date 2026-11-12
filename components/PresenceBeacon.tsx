@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Loader2, MonitorSmartphone } from "lucide-react";
 import { SIGN_OUT_FAILED, presenceGate, signOutInFlight, useAppSignOut } from "@/lib/sign-out";
 import { useSoftphone } from "@/lib/softphone-client";
@@ -164,7 +165,10 @@ export default function PresenceBeacon() {
 
   // Never over a ringing or live call: Answer / Hang up must stay reachable.
   if (!busy || onCall) return null;
-  return (
+  // Drawn inside the app frame so the button wears the company's color
+  // (the brand variables live on .app-ui, not on <body>) — ticket #blslfj.
+  const host = document.querySelector<HTMLElement>(".app-ui") ?? document.body;
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -211,6 +215,7 @@ export default function PresenceBeacon() {
           </p>
         )}
       </div>
-    </div>
+    </div>,
+    host
   );
 }

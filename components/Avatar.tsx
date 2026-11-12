@@ -73,6 +73,11 @@ export default function Avatar({
           width={size}
           height={size}
           className={`absolute inset-0 h-full w-full object-cover ${loaded ? "" : "opacity-0"}`}
+          // A cached photo can finish before React attaches onLoad (server-
+          // rendered pages): it then sat at opacity-0 for good, initials showing.
+          ref={(el) => {
+            if (el?.complete && el.naturalWidth > 0 && !loaded) setLoaded(true);
+          }}
           onLoad={() => setLoaded(true)}
           onError={() => setFailed(true)}
         />

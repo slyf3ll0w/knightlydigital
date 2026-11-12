@@ -141,6 +141,25 @@ function ColorField({
 }) {
   const [text, setText] = useState(value);
   useEffect(() => setText(value), [value]);
+  // The browser's picker (and its eyedropper) fires on every pointer move.
+  // Each one used to re-render this whole page and re-theme the app, which
+  // made the picker stutter and jump — so the swatch tracks the pointer
+  // locally and the form hears about it once the pointer rests (#1wgiwi).
+  const [picking, setPicking] = useState<string | null>(null);
+  const pickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestChange = useRef(onChange);
+  latestChange.current = onChange;
+  useEffect(() => () => { if (pickTimer.current) clearTimeout(pickTimer.current); }, []);
+  function pick(raw: string) {
+    const v = raw.toUpperCase();
+    setPicking(v);
+    setText(v);
+    if (pickTimer.current) clearTimeout(pickTimer.current);
+    pickTimer.current = setTimeout(() => {
+      latestChange.current(v);
+      setPicking(null);
+    }, 150);
+  }
   const invalid = text !== "" && !HEX_RE.test(text);
 
   function commitText(raw: string) {
@@ -160,8 +179,8 @@ function ColorField({
       <div className="flex items-center gap-2">
         <input
           type="color"
-          value={value || fallback}
-          onChange={(e) => onChange(e.target.value.toUpperCase())}
+          value={picking ?? (value || fallback)}
+          onChange={(e) => pick(e.target.value)}
           className="h-10 w-12 shrink-0 rounded-lg border border-gray-300 cursor-pointer p-1"
         />
         <input
