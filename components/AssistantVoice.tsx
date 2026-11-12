@@ -258,6 +258,11 @@ export default function AssistantVoice({
         return {
           confirmed: r.confirmed,
           applied: r.applied,
+          // It asked "want me to go ahead and confirm?" about a form it had
+          // just made (ticket #13jazl): say outright that nothing is waiting.
+          ...(r.confirmed > 0 && r.failed === 0 && r.needsTap === 0 && r.held.length === 0
+            ? { done: true, sayNext: "This is DONE and saved — nothing is waiting. Tell the user it's done, in the past tense. Do NOT ask whether to confirm it or go ahead." }
+            : {}),
           ...(r.held.length > 0
             ? { heldForApproval: r.held, sent: false, holdNote: "NOT SENT — these go to a client and are still waiting. Never tell the user it was sent. Read the message to them word for word and ask; when they then say yes, call confirm_cards again and report what it says." }
             : {}),
@@ -345,11 +350,13 @@ export default function AssistantVoice({
             }
             if (final) {
               setHeard(text);
-              setInterim("");
+              // Their words stay up until Atlas answers: clearing them here
+              // flashed "Listening — just talk." between the two (#v71l37).
               turnUser.current = text;
               utteranceOpen.current = false;
             }
           } else {
+            setInterim("");
             setSaid(text);
             if (final) lastAtlas.current = text;
           }
@@ -363,6 +370,9 @@ export default function AssistantVoice({
           const said = lastAtlas.current;
           lastAtlas.current = "";
           flushExchange(said);
+          // The next reply starts from a clean line, not a flash of this one.
+          setInterim("");
+          setSaid("");
         },
         onToolCall,
         onError: (message) => {
@@ -623,6 +633,10 @@ export default function AssistantVoice({
   }
 
   const hasCards = cards.length > 0;
+  // The words under the orb live in a box of fixed height that follows the
+  // newest line: the orb is centred with them, so a caption growing line by
+  // line (or "You said" coming and going) used to shove it up and down.
+  const statusBox = useRef<HTMLDivElement>(null);
   const status =
     phase === "listening"
       ? interim || (engine === "live" ? "Listening — just talk." : "Listening…")
@@ -631,6 +645,10 @@ export default function AssistantVoice({
         : phase === "speaking"
           ? said
           : note || "Tap the mic to talk";
+  useEffect(() => {
+    const el = statusBox.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [status]);
 
   return (
     <div className="atlas-voice-in absolute inset-0 z-20 flex flex-col bg-paper-plain pt-[env(safe-area-inset-top)]" role="dialog" aria-label={`Talk to ${name}`}>
@@ -740,9 +758,17 @@ export default function AssistantVoice({
             </span>
           </button>
 
-          <p className={`max-w-[320px] leading-relaxed text-gray-800 ${hasCards ? "mt-3 min-h-0 text-[13px]" : "mt-6 min-h-[3.5rem] text-[15px]"}`}>{status}</p>
-          {heard && phase !== "listening" && !hasCards && (
-            <p className="mt-2 max-w-[320px] text-[12px] text-gray-400">You said: “{heard}”</p>
+          {hasCards ? (
+            <p className="mt-3 min-h-0 max-w-[320px] text-[13px] leading-relaxed text-gray-800">{status}</p>
+          ) : (
+            <>
+              <div ref={statusBox} className="mt-6 h-[6.25rem] w-full max-w-[320px] shrink-0 overflow-hidden">
+                <p className="text-[15px] leading-relaxed text-gray-800">{status}</p>
+              </div>
+              <p className={`mt-2 h-[18px] w-full max-w-[320px] shrink-0 truncate text-[12px] text-gray-400 ${heard && phase !== "listening" ? "" : "invisible"}`}>
+                You said: “{heard}”
+              </p>
+            </>
           )}
 
           {/* The cards Atlas staged, right here on the talk screen: say "yes"
