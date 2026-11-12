@@ -23,6 +23,11 @@ export type BusinessContext = {
   book: PriceBookEntry[];
   /** The company's stated trade, for playbook matching when the description is vague. */
   industry: string | null;
+  /** Where the business is — the market lookup's "near …". */
+  city: string | null;
+  state: string | null;
+  /** Price-book items + distinct priced quote lines: 0 = Workbench knows no rate of theirs at all. */
+  ratesOnFile: number;
 };
 
 const money = (n: number) => `$${n.toFixed(2)}`;
@@ -124,7 +129,7 @@ export async function loadBusinessContext(companyId: string, opts: { excludeEsti
     .filter(Boolean)
     .join("\n");
 
-  return { text, brief, book, industry: company?.industry ?? null };
+  return { text, brief, book, industry: company?.industry ?? null, city: company?.city ?? null, state: company?.state ?? null, ratesOnFile: items.length + charged.length };
 }
 
 // ── win rate per tool (the feedback nobody gives an owner on their pricing) ──
