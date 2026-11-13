@@ -163,7 +163,7 @@ export const portalSection: HelpSection = {
       slug: "client-portal",
       title: "Give clients their portal",
       summary: "Clients see visits, quotes, invoices and messages in one place, with no password to remember.",
-      keywords: ["portal", "client hub", "customer portal", "portal link", "magic link", "client login", "request reschedule"],
+      keywords: ["portal", "client hub", "customer portal", "portal link", "magic link", "client login", "portal login page", "login button", "website login", "request reschedule"],
       where: { label: "Clients", href: "/app/contacts" },
       blocks: [
         {
@@ -188,8 +188,16 @@ export const portalSection: HelpSection = {
           ],
         },
         {
+          type: "h",
+          text: "A client login button for your website",
+        },
+        {
           type: "p",
-          text: "Clients can always get a fresh link from your portal login page by entering their email. `Reset link` turns off old links if one was shared by mistake.",
+          text: "Your portal login page is one link for every client: workbenchfsm.com/portal/ followed by your company's web address. A client types their email there and gets their own portal link, with no password. Copy it from **Settings → Booking & forms → Client login for your website**, or from `Copy client login page` at the bottom of any client's **Client portal** card, and put it behind a \"Client login\" button on your site.",
+        },
+        {
+          type: "p",
+          text: "Clients can always get a fresh link from that page. `Reset link` turns off old links if one was shared by mistake.",
         },
         {
           type: "tip",

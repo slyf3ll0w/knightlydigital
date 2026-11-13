@@ -113,7 +113,7 @@ export const companyTools: Tool[] = [
     decl: {
       name: "get_company_settings",
       description:
-        "How the company is configured: business hours, service-area ZIPs, arrival window, online-booking status and which services are bookable, bookable team members, timezone, review link, web forms.",
+        "How the company is configured: business hours, service-area ZIPs, arrival window, online-booking status and which services are bookable, bookable team members, timezone, review link, web forms, and the public web addresses: bookingPageUrl and clientPortalLoginUrl (ONE sign-in page for every client, made for a \"Client login\" button on the owner's website; the client types their email and gets their own portal link, no password).",
       parameters: { type: "object", properties: {} },
     },
     allowed: (a) => isManager(a.role),
@@ -124,7 +124,7 @@ export const companyTools: Tool[] = [
           select: {
             timezone: true, businessHours: true, serviceZips: true,
             arrivalWindowMinutes: true, reviewLink: true, industry: true,
-            assistantName: true, phone: true, email: true, website: true,
+            assistantName: true, phone: true, email: true, website: true, slug: true,
           },
         }),
         prisma.user.findMany({
@@ -150,6 +150,8 @@ export const companyTools: Tool[] = [
         businessPhone: company.phone,
         businessEmail: company.email,
         website: company.website,
+        bookingPageUrl: `${siteBase()}/book/${company.slug}`,
+        clientPortalLoginUrl: `${siteBase()}/portal/${company.slug}`,
         timezone: company.timezone,
         businessHours: company.businessHours,
         serviceZipCount: company.serviceZips.length,

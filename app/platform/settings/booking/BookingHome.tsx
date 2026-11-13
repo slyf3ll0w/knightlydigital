@@ -184,12 +184,15 @@ export default function BookingHome({
   const router = useRouter();
   const pageUrl = `${baseUrl}/book/${companySlug}`;
   const itemUrl = (t: ItemRow) => `${pageUrl}/${t.slug}`;
+  // One sign-in page for every client (app/portal/[slug]): they type their
+  // email and get their own portal link. Made for a "Client login" button.
+  const portalLoginUrl = `${baseUrl}/portal/${companySlug}`;
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const sharedRef = useRef(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
-  const [open, setOpen] = useState<"look" | "rules" | "embed" | "hub" | null>(null);
+  const [open, setOpen] = useState<"look" | "rules" | "embed" | "hub" | "portal" | null>(null);
   const [tick, setTick] = useState(0); // bumps the thumbnail after item changes
 
   // ── Client hub form ───────────────────────────────────────────────────────
@@ -311,7 +314,8 @@ export default function BookingHome({
       await navigator.clipboard.writeText(text);
       // The Get started checklist's "Share your booking page" ticks on the
       // first copy of any booking link or the embed snippet (lib/get-started.ts)
-      if (!sharedRef.current) {
+      // — not the client login link, which isn't the booking page
+      if (!sharedRef.current && key !== "portal") {
         sharedRef.current = true;
         void postJson("/api/app/setup/flag", { key: "bookingLinkShared" });
       }
@@ -341,7 +345,7 @@ export default function BookingHome({
     </button>
   );
 
-  const disclosureRow = (key: "look" | "rules" | "embed" | "hub", title: string, meta: string) => (
+  const disclosureRow = (key: "look" | "rules" | "embed" | "hub" | "portal", title: string, meta: string) => (
     <button type="button" onClick={() => setOpen(open === key ? null : key)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left lg:px-5" aria-expanded={open === key}>
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-medium text-gray-900">{title}</span>
@@ -418,6 +422,29 @@ export default function BookingHome({
                       {copied === "embed" ? <Check size={14} className="text-[color:var(--ds-good)]" /> : <Copy size={14} />}
                     </button>
                     <InfoTip align="end">{"Paste it into your site’s HTML where the form should go. It sizes itself and picks up your website’s font, colors and button shape so it fits in; your saved look is used when it can’t read the site. Add data-match=\"off\" to the div to keep your saved look."}</InfoTip>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!previewMode && (
+            <div>
+              {disclosureRow("portal", "Client login for your website", portalLoginUrl.replace(/^https?:\/\//, ""))}
+              {open === "portal" && (
+                <div className="space-y-2.5 px-4 pb-4 lg:px-5">
+                  <p className="text-xs text-gray-500">
+                    One link for every client. They type their email and get their own portal link, with no password. Put it behind a “Client login” button on your website.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <a href={portalLoginUrl} target="_blank" rel="noopener noreferrer" className="ds-btn ds-btn-outline ds-btn-sm">
+                      <ExternalLink size={14} />
+                      Open
+                    </a>
+                    <button type="button" onClick={() => copy(portalLoginUrl, "portal")} className="ds-btn ds-btn-outline ds-btn-sm">
+                      {copied === "portal" ? <Check size={14} className="text-[color:var(--ds-good)]" /> : <Link2 size={14} />}
+                      {copied === "portal" ? "Copied" : "Copy link"}
+                    </button>
                   </div>
                 </div>
               )}

@@ -54,6 +54,7 @@ export default async function ContactDetailPage({
         company: {
           select: {
             name: true,
+            slug: true,
             phone: true,
             website: true,
             logoUrl: true,
@@ -705,6 +706,7 @@ export default async function ContactDetailPage({
           <PortalAccessCard
             contactId={contact.id}
             hubUrl={hubUrl}
+            portalLoginUrl={`${baseUrl}/portal/${contact.company.slug}`}
             hasEmail={!!contact.email}
             lastVisitLabel={contact.hubLastVisitAt ? shortDate(contact.hubLastVisitAt, tz) : null}
             canReset={isManager(actor.role)}
