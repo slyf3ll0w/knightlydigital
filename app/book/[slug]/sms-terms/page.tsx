@@ -22,7 +22,7 @@ export default async function BusinessSmsTermsPage({ params }: { params: Promise
       slug={slug}
       title="Text Message Terms"
       sections={(p) => {
-        const reach = [p.phone ? `call ${fmtPhone(p.phone)}` : null, p.email ? `email ${p.email}` : null].filter(Boolean).join(" or ");
+        const reach = [p.phone ? `call ${fmtPhone(p.phone)}` : null, p.shownEmail ? `email ${p.shownEmail}` : null].filter(Boolean).join(" or ");
         return [
           {
             heading: "The program",

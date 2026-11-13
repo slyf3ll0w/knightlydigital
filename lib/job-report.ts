@@ -39,7 +39,7 @@ export const REPORT_SELECT = {
   contactId: true,
   company: {
     select: {
-      name: true, legalName: true, showLegalNameOnDocs: true, phone: true, email: true,
+      name: true, legalName: true, showLegalNameOnDocs: true, phone: true, email: true, hideEmail: true,
       address: true, city: true, state: true, zip: true,
       logoData: true, logoMime: true, logoUrl: true,
       brandColor: true, brandColorSecondary: true, documentColor: true, timezone: true,

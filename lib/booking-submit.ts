@@ -1,4 +1,5 @@
 import { reportError } from "@/lib/report-error";
+import { publicEmail } from "@/lib/public-email";
 import { randomBytes } from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -49,6 +50,7 @@ export type BookingCompanyRow = BookingCompany & {
   name: string;
   slug: string;
   email: string | null;
+  hideEmail: boolean;
   serviceZips: string[];
   brandColor: string | null;
   brandColorSecondary: string | null;
@@ -431,7 +433,7 @@ export async function notifyBooking(input: BookingNoticeInput): Promise<void> {
         .join("\n"),
       location: appointment.address ?? extras.meetingLink ?? null,
       organizerName: company.name,
-      organizerEmail: company.email,
+      organizerEmail: publicEmail(company),
       status: event === "cancelled" ? "CANCELLED" : approval ? "TENTATIVE" : "CONFIRMED",
       sequence: event === "rescheduled" ? 1 : event === "cancelled" ? 2 : 0,
     });

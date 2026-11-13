@@ -85,7 +85,7 @@ type Company = {
   /** Test account (Company.isTest): doors still being finished (Website) show only for these. */
   isTest?: boolean;
   id: string; name: string; legalName: string | null; showLegalNameOnDocs: boolean; slug: string; phone: string | null;
-  email: string | null; notifyEmail?: string | null; notifyEmailOff?: boolean; address: string | null; city: string | null;
+  email: string | null; hideEmail?: boolean; notifyEmail?: string | null; notifyEmailOff?: boolean; address: string | null; city: string | null;
   state: string | null; zip: string | null; website: string | null;
   about: string | null;
   logoUrl: string | null; brandColor: string | null; brandColorSecondary: string | null;
@@ -1274,6 +1274,7 @@ export default function SettingsClient({
     name: company.name,
     phone: company.phone ?? "",
     email: company.email ?? "",
+    hideEmail: company.hideEmail ?? false,
     notifyEmail: company.notifyEmail ?? "",
     notifyEmailOff: company.notifyEmailOff ?? false,
     address: company.address ?? "",
@@ -1831,10 +1832,24 @@ export default function SettingsClient({
               <Input type="email" value={form.email} onChange={(e) => set("email", e.target.value)}
                 className="w-full focus:ring-2" />
               <p className="mt-1 text-xs text-gray-500">
-                Clients see this on quotes, invoices, and your booking page, and their replies to the emails
-                we send for you land here. It started as the email you signed up with — change it if that
-                one&apos;s personal.
+                {form.hideEmail
+                  ? "Hidden from clients. Their replies to the emails we send for you still land here."
+                  : "Clients see this on quotes, invoices, and your booking page, and their replies to the emails we send for you land here. It started as the email you signed up with — change it if that one's personal."}
               </p>
+              <label className="mt-3 flex items-center gap-3 cursor-pointer">
+                <div
+                  onClick={() => set("hideEmail", !form.hideEmail)}
+                  role="switch"
+                  aria-checked={form.hideEmail}
+                  className={`relative w-10 h-6 shrink-0 rounded-full transition-colors cursor-pointer ${
+                    form.hideEmail ? "bg-[color:var(--ds-primary)]" : "bg-gray-300"
+                  }`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${form.hideEmail ? "translate-x-5" : "translate-x-1"}`} />
+                </div>
+                <span className="text-sm text-gray-700">Keep my email off client pages</span>
+                <InfoTip>Your booking page, client login, quotes, invoices, PDFs and website stop showing it. Clients can still reply to the emails we send for you, and replies still reach you. While a texting registration is under review and you have no website of your own, carriers require it on your booking page, so it shows there until you&apos;re approved.</InfoTip>
+              </label>
             </div>
           </div>
           <div>

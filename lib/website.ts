@@ -21,6 +21,7 @@
 import { reportError } from "@/lib/report-error";
 import { prisma } from "@/lib/db";
 import { resolvePublicCompany } from "@/lib/public-company";
+import { publicEmail } from "@/lib/public-email";
 import { sanitizeBusinessHours, type BusinessHours } from "@/lib/business-hours";
 import { listPublicBookingTypes, menuTypes } from "@/lib/booking-runtime";
 import { sanitizeBrief, publicBrief, emptyBrief, briefGaps, type WebsiteBrief, type BriefGap } from "@/lib/website-brief";
@@ -198,7 +199,7 @@ export async function loadSiteData(slug: string): Promise<SiteData | null> {
       slug: company.slug,
       phone: company.phone,
       linePhone,
-      email: company.email,
+      email: publicEmail(company),
       address: company.address,
       city: company.city,
       state: company.state,
@@ -351,6 +352,7 @@ export const SITE_COMPANY_FIELDS: ReadonlySet<string> = new Set([
   "phone",
   "lineNumber",
   "email",
+  "hideEmail", // the site data prints publicEmail(company)
   "address",
   "city",
   "state",

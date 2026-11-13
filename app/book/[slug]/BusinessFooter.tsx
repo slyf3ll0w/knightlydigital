@@ -50,9 +50,9 @@ export default async function BusinessFooter({ slug, dark = false, variant = "sl
         {fmtPhone(p.phone)}
       </a>
     ) : null,
-    p.email ? (
-      <a key="mail" href={`mailto:${p.email}`} className={link}>
-        {p.email}
+    p.shownEmail ? (
+      <a key="mail" href={`mailto:${p.shownEmail}`} className={link}>
+        {p.shownEmail}
       </a>
     ) : null,
     p.website ? (

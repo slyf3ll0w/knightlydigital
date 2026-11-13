@@ -125,6 +125,7 @@ export async function PATCH(req: NextRequest) {
         ...(slugData ?? {}),
         phone: opt(body.phone),
         email: opt(body.email),
+        hideEmail: typeof body.hideEmail === "boolean" ? body.hideEmail : undefined,
         notifyEmail: opt(body.notifyEmail),
         notifyEmailOff: typeof body.notifyEmailOff === "boolean" ? body.notifyEmailOff : undefined,
         address: opt(body.address),

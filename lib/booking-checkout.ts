@@ -1,4 +1,5 @@
 import { reportError } from "@/lib/report-error";
+import { publicEmail } from "@/lib/public-email";
 import { randomBytes } from "crypto";
 import * as Sentry from "@sentry/nextjs";
 import { Prisma } from "@prisma/client";
@@ -415,7 +416,7 @@ export async function createServiceBooking(params: {
             description: [`Arrival window: ${label}`, note].filter(Boolean).join("\n"),
             location: customer.address,
             organizerName: company.name,
-            organizerEmail: company.email,
+            organizerEmail: publicEmail(company),
           }),
         ],
       });
