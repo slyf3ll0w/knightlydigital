@@ -144,21 +144,52 @@ function fmtPrice(cents: number): string {
   return money(cents / 100);
 }
 
-/** Render /app/... paths in assistant text as real links. */
+/** Render /app/... paths and full web addresses in assistant text as real
+ *  links. A web address stops before trailing sentence punctuation. */
 function Linkified({ text }: { text: string }) {
-  const parts = text.split(/(\/app\/[a-z0-9\-/?=&]*)/g);
+  const parts = text.split(/(https?:\/\/[^\s<>"')\]]*[^\s<>"')\].,;:!?]|\/app\/[a-z0-9\-/?=&]*)/g);
+  const cls = "font-medium text-green-700 underline underline-offset-2 break-all";
   return (
     <>
       {parts.map((part, i) =>
         part.startsWith("/app/") ? (
-          <Link key={i} href={part} className="font-medium text-green-700 underline underline-offset-2">
+          <Link key={i} href={part} className={cls}>
             {part}
           </Link>
+        ) : /^https?:\/\//.test(part) ? (
+          <a key={i} href={part} target="_blank" rel="noopener noreferrer" className={cls}>
+            {part}
+          </a>
         ) : (
           <Fragment key={i}>{part}</Fragment>
         )
       )}
     </>
+  );
+}
+
+/** One tap copies an Atlas reply — the phone can't drag-select while a
+ *  press-and-hold belongs to Suggest a change. */
+function CopyReply({ text }: { text: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        navigator.clipboard
+          ?.writeText(text)
+          .then(() => {
+            setDone(true);
+            setTimeout(() => setDone(false), 1500);
+          })
+          .catch(() => {});
+      }}
+      className="-my-1 -ml-1 flex items-center gap-1 rounded-md px-1 py-1 text-gray-400 hover:text-gray-600"
+      aria-label="Copy reply"
+    >
+      {done ? <Check size={11} /> : <Copy size={11} />}
+      {done ? "Copied" : "Copy"}
+    </button>
   );
 }
 
@@ -936,7 +967,7 @@ export default function AssistantDrawer({
                 {/* No text-white here — the accent bridge puts the readable
                     on-accent ink on bg-green-600 (light brand colors get dark
                     ink); hardcoding white broke light-brand companies */}
-                <p className="whitespace-pre-wrap text-sm font-medium">{m.content}</p>
+                <p data-selectable="" className="whitespace-pre-wrap text-sm font-medium">{m.content}</p>
               </div>
             ) : (
               <div key={i} className="mr-4 space-y-2">
@@ -944,15 +975,20 @@ export default function AssistantDrawer({
                     pattern) — only his action cards get containers. */}
                 <div className="px-0.5 py-1">
                   {m.content && (
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
+                    <p data-selectable="" className="whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
                       <Linkified text={m.content} />
                     </p>
                   )}
-                  {typeof m.tokens === "number" && (
-                    <p className="mt-1 flex items-center gap-1 text-[10px] text-gray-400">
-                      <Coins size={10} />
-                      {fmtTokens(m.tokens)} tokens
-                    </p>
+                  {(m.content || typeof m.tokens === "number") && (
+                    <div className="mt-1 flex items-center gap-3 text-[10px] text-gray-400">
+                      {m.content && <CopyReply text={m.content} />}
+                      {typeof m.tokens === "number" && (
+                        <span className="flex items-center gap-1">
+                          <Coins size={10} />
+                          {fmtTokens(m.tokens)} tokens
+                        </span>
+                      )}
+                    </div>
                   )}
                 </div>
                 {(m.proposals?.filter((p) => p.state === "pending" && !p.danger && !p.money).length ?? 0) >= 2 && (
