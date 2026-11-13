@@ -14,12 +14,15 @@ import { confirmSheet } from "@/components/ConfirmSheet";
 export default function PortalAccessCard({
   contactId,
   hubUrl,
+  portalLoginUrl,
   hasEmail,
   lastVisitLabel,
   canReset = false,
 }: {
   contactId: string;
   hubUrl: string;
+  /** /portal/<company-slug> — the one sign-in page for every client (for the owner's website) */
+  portalLoginUrl?: string;
   hasEmail: boolean;
   /** shortDate of Contact.hubLastVisitAt — null until the client first opens their hub */
   lastVisitLabel?: string | null;
@@ -31,6 +34,7 @@ export default function PortalAccessCard({
   const [resetting, setResetting] = useState(false);
   const [sent, setSent] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [loginCopied, setLoginCopied] = useState(false);
   const [error, setError] = useState("");
 
   async function resetLink() {
@@ -61,6 +65,13 @@ export default function PortalAccessCard({
     await navigator.clipboard.writeText(hubUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  }
+
+  async function copyLoginPage() {
+    if (!portalLoginUrl) return;
+    await navigator.clipboard.writeText(portalLoginUrl);
+    setLoginCopied(true);
+    setTimeout(() => setLoginCopied(false), 1500);
   }
 
   async function emailAccess() {
@@ -135,6 +146,14 @@ export default function PortalAccessCard({
         )}
       </div>
       {error && <p className="mt-2 text-xs text-[color:var(--ds-bad)]">{error}</p>}
+      {portalLoginUrl && (
+        <p className="mt-3 border-t border-gray-100 pt-3 text-xs text-gray-500">
+          For your website, one link for every client:{" "}
+          <button type="button" onClick={copyLoginPage} className="font-medium text-[color:var(--ds-primary)] hover:underline">
+            {loginCopied ? "Copied!" : "Copy client login page"}
+          </button>
+        </p>
+      )}
     </div>
   );
 }
