@@ -80,6 +80,9 @@ export function toPortableSpec(spec: EstimatorSpec, book: PriceBookEntry[]): Por
     ...(spec.quoteTitle ? { quoteTitle: inline(spec.quoteTitle) } : {}),
     ...(spec.clientMessage ? { clientMessage: inline(spec.clientMessage) } : {}),
     placeholders: confirm.slice(0, ESTIMATOR_LIMITS.placeholders),
+    // Someone else's rate card: every number arrives as one to set, with no date and no market note of theirs.
+    ...(spec.rates && spec.rates.length > 0 ? { rates: spec.rates.map((r) => ({ id: r.id, label: r.label, value: r.value, ...(r.unit ? { unit: r.unit } : {}), kind: r.kind, source: "guess" as const, ...(r.note ? { note: r.note } : {}) })) } : {}),
+    market: undefined,
   };
   if (errors.length > 0) return { ok: false, errors };
   const c = compileSpec(out);
@@ -117,6 +120,8 @@ export function scrubCompanyName(spec: EstimatorSpec, companyName: string): Esti
     })) as EstimatorSpec["inputs"],
     lines: spec.lines.map((l) => ({ ...l, name: fix(l.name) as string, ...(l.description !== undefined ? { description: fix(l.description) } : {}) })),
     ...(spec.discounts ? { discounts: spec.discounts.map((d) => ({ ...d, label: fix(d.label) as string })) } : {}),
+    ...(spec.rates ? { rates: spec.rates.map((r) => ({ ...r, label: fix(r.label) as string, ...(r.note !== undefined ? { note: fix(r.note) } : {}) })) } : {}),
+    ...(spec.flags ? { flags: spec.flags.map((f) => ({ ...f, text: fix(f.text) as string })) } : {}),
     ...(spec.assist?.instructions ? { assist: { ...spec.assist, instructions: fix(spec.assist.instructions) } } : {}),
   };
 }

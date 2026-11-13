@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { checkFeature } from "@/lib/plan-gate";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, isManager } from "@/lib/permissions";
-import { specFromJson, type EstimatorSpec } from "@/lib/estimator";
+import { specFromJson, stampRates, type EstimatorSpec } from "@/lib/estimator";
 import { checkSpec, ESTIMATOR_SELECT, estimatorSummary, publicSlugTaken, snapshotEstimator } from "@/lib/estimator-server";
 import { publicConfigAfterSpec } from "@/lib/estimator-build";
 import { PUBLIC_SLUG_RE, publicSlugFrom, sanitizePublicConfig } from "@/lib/estimator-public";
@@ -64,7 +64,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.spec !== undefined) {
     const check = await checkSpec(actor.companyId, body.spec);
     if (!check.ok) return NextResponse.json({ error: check.errors.join(" "), errors: check.errors }, { status: 400 });
-    data.spec = check.compiled.spec;
+    // Date the rate card: a number changed by hand is the owner's now; one that didn't change keeps its date.
+    data.spec = stampRates(specFromJson(row.spec), check.compiled.spec, new Date().toISOString().slice(0, 10), body.source === "atlas" ? "builder" : "owner");
   }
   if (typeof body.isPublic === "boolean") data.isPublic = body.isPublic;
   if (typeof body.publicSlug === "string") {

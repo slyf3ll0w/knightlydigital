@@ -38,7 +38,10 @@ export const ESTIMATOR_LIMITS = {
   presets: 8,
   includes: 8,
   placeholders: 12,
-  samples: 3,
+  /** small / typical / large + up to two "tiny" jobs that test the minimum. */
+  samples: 5,
+  rates: 60,
+  flags: 12,
   /** Alternatives one variants request may price (package tiers). */
   variants: 12,
 } as const;
@@ -56,6 +59,12 @@ export type EstimatorOption = {
   includes?: string[];
   /** Package pickers: the "Most popular" badge. */
   recommended?: boolean;
+  /**
+   * Expression over OTHER inputs: the option is only offered when truthy —
+   * how one answer limits another ("8 ft" only for privacy styles). A hidden
+   * option can't be picked; a pick that becomes hidden is cleared.
+   */
+  showWhen?: string;
 };
 
 /** A quick-pick on a number question ("Two-car — 500 sq ft"). */
@@ -111,7 +120,48 @@ export type EstimatorInput =
   | (EstimatorInputBase & { type: "toggle"; default?: boolean })
   | (EstimatorInputBase & { type: "text"; placeholder?: string; default?: string; required?: boolean });
 
-export type EstimatorVariable = { id: string; expr: string };
+export type EstimatorVariable = { id: string; expr: string; /** Plain words for the editor ("Price per foot at the chosen height"). */ label?: string };
+
+/**
+ * One number the business prices with, named in plain words so the owner can
+ * check it against their own price sheet — the tool's rate card. Rates are
+ * constants: expressions read them by id, the owner edits the value (never a
+ * formula). `kind` says what the number is:
+ *   price  — dollars the customer pays (per unit, each, flat)
+ *   factor — a multiplier or percent on a price (height, difficulty, rush)
+ *   time   — person-hours (crew pace) — schedules the job; never a price unless the tool bills labor by the hour
+ *   cost   — what it costs the business (margin only, never shown to clients)
+ * `source` says whose number it is: the owner's (their words, price sheet,
+ * price book, or confirmed in the app), a market estimate, or a guess with
+ * nothing behind it. Anything not the owner's is listed as a rate to confirm.
+ */
+export type EstimatorRate = {
+  id: string;
+  label: string;
+  value: number;
+  /** "per ft", "each", "per sq ft", "×", "%", "person-hours per ft". */
+  unit?: string;
+  kind: "price" | "factor" | "time" | "cost";
+  source: "owner" | "market" | "guess";
+  /** The going range this estimate came from, when it is one. */
+  low?: number;
+  high?: number;
+  /** What the number stands for or how it scales ("Priced at 6 ft — the height most people buy"). */
+  note?: string;
+  /** YYYY-MM-DD the value was last set or confirmed (stamped by the app). */
+  updatedAt?: string;
+};
+
+/**
+ * Something to check before the price is final — a site condition the
+ * customer wasn't sure of, a code or approval that applies. When it applies
+ * the run lists `text` for the business (and the request it becomes), and the
+ * customer sees it as "we'll confirm". It never changes the price.
+ */
+export type EstimatorFlag = { id: string; when?: string; text: string };
+
+/** Where the tool's market estimates came from. */
+export type EstimatorMarket = { where?: string; asOf: string; searched?: boolean; sources?: string[] };
 
 export type EstimatorLine = {
   id: string;
@@ -173,6 +223,8 @@ export type EstimatorSpec = {
   /** One or two sentences shown above the inputs. */
   intro?: string;
   inputs: EstimatorInput[];
+  /** The rate card: every number the owner prices with, by name (see EstimatorRate). */
+  rates?: EstimatorRate[];
   variables: EstimatorVariable[];
   lines: EstimatorLine[];
   /** Discount rules — the ones that apply add up to one discount on the quote. */
@@ -190,8 +242,19 @@ export type EstimatorSpec = {
    * card until the owner clears them in the editor. Never shown to visitors.
    */
   placeholders?: string[];
-  /** Small / typical / large jobs the builder proved the math on. */
+  /** Small / typical / large jobs the builder proved the math on, plus "Tiny" ones that test the minimum. */
   samples?: EstimatorSample[];
+  /**
+   * How labor hours relate to the price. "in_price": the prices are installed
+   * prices with labor inside them, and `hours` only schedules the job.
+   * "billed": labor is its own line(s), hours × an hourly rate. Stated so the
+   * two are never stacked.
+   */
+  labor?: "in_price" | "billed";
+  /** Things to confirm before the price is final (see EstimatorFlag). */
+  flags?: EstimatorFlag[];
+  /** Where the market estimates on the rate card came from. */
+  market?: EstimatorMarket;
 };
 
 export type PriceBookEntry = {
@@ -242,6 +305,10 @@ export type EstimatorRun =
       title?: string;
       clientMessage?: string;
       warnings: string[];
+      /** Things to confirm before the price is final (the spec's flags that applied). */
+      flags: string[];
+      /** Dollars the "Minimum job charge" line added (0 when the work cleared the minimum). */
+      minimumApplied: number;
     }
   | {
       ok: false;
@@ -936,6 +1003,7 @@ export type CompiledSpec = {
   /** Price-book names the spec depends on (workItemName + price()/cost()). */
   priceBookNames: string[];
   discounts: { rule: EstimatorDiscount; when: Node | null; percent: Node | null; amount: Node | null }[];
+  flags: { rule: EstimatorFlag; when: Node | null }[];
 };
 
 export type CompileResult = { ok: true; compiled: CompiledSpec } | { ok: false; errors: string[] };
@@ -999,6 +1067,7 @@ export function compileSpec(raw: unknown): CompileResult {
           .map((x) => s(x, 80))
           .filter(Boolean)
           .slice(0, ESTIMATOR_LIMITS.includes);
+        const optShow = s(oo.showWhen, ESTIMATOR_LIMITS.exprLen + 1);
         return {
           value,
           label: label || value,
@@ -1006,6 +1075,7 @@ export function compileSpec(raw: unknown): CompileResult {
           ...(blurb ? { blurb } : {}),
           ...(includes.length > 0 ? { includes } : {}),
           ...(oo.recommended === true ? { recommended: true } : {}),
+          ...(optShow ? { showWhen: optShow } : {}),
         };
       })
       .filter((op) => op.value);
@@ -1152,8 +1222,85 @@ export function compileSpec(raw: unknown): CompileResult {
     }
   }
 
+  // An option's showWhen follows the same rules: other inputs only, never the price book.
+  for (const inp of inputs) {
+    if (inp.type !== "select" && inp.type !== "multi" && inp.type !== "counts") continue;
+    const gated = inp.options.filter((o) => o.showWhen);
+    if (gated.length === 0) continue;
+    for (const o of gated) {
+      const where = `Input "${inp.id}" option "${o.label}"`;
+      try {
+        const node = parseExpr(o.showWhen!);
+        for (const name of identifiersIn(node)) {
+          if (name === inp.id) errors.push(`${where}: showWhen can't read its own question`);
+          else if (!seen.has(name)) errors.push(`${where}: showWhen uses unknown input "${name}" (only inputs, not variables or rates)`);
+        }
+        if (priceBookRefsIn(node).size > 0) errors.push(`${where}: showWhen can't read the price book`);
+      } catch (e) {
+        errors.push(`${where}: showWhen ${(e as Error).message}`);
+      }
+    }
+    if (inp.type === "select" && inp.default) {
+      const d = inp.options.find((o) => o.value === inp.default);
+      if (d?.showWhen) errors.push(`Input "${inp.id}": the default "${inp.default}" is an option that isn't always offered — drop the default or pick one that always shows`);
+    }
+  }
+
   const known = new Set(seen);
   const priceBookNames = new Set<string>();
+
+  // rates: named constants the owner checks against their own price sheet
+  const rates: EstimatorRate[] = [];
+  const rawRates = Array.isArray(r.rates) ? r.rates : [];
+  if (rawRates.length > ESTIMATOR_LIMITS.rates) errors.push(`At most ${ESTIMATOR_LIMITS.rates} rates`);
+  for (const rr of rawRates.slice(0, ESTIMATOR_LIMITS.rates)) {
+    const o = (rr ?? {}) as Record<string, unknown>;
+    const label = clip(o.label, 100);
+    const id = s(o.id, 40) || toIdentifier(label);
+    if (!label) {
+      errors.push(`Rate "${id || "?"}" needs a label in plain words (the owner reads it: "Cedar privacy fence, 6 ft tall")`);
+      continue;
+    }
+    if (!ID_RE.test(id)) {
+      errors.push(`Rate id "${id}" must be letters, digits and underscores, starting with a letter`);
+      continue;
+    }
+    if (KEYWORDS.has(id) || (FUNCTIONS as readonly string[]).includes(id) || id === "subtotal" || id === "quote_total" || id === "labor_hours") {
+      errors.push(`Rate id "${id}" is a reserved word`);
+      continue;
+    }
+    if (known.has(id)) {
+      errors.push(`Duplicate id "${id}" (a rate can't reuse an input or another rate's id)`);
+      continue;
+    }
+    const value = optNum(o.value);
+    if (value === undefined || value < 0 || value > 10_000_000) {
+      errors.push(`Rate "${label}": value must be a number (0 or more)`);
+      continue;
+    }
+    const kind = o.kind === "factor" || o.kind === "time" || o.kind === "cost" ? o.kind : o.kind === "price" || o.kind === undefined || o.kind === null ? "price" : null;
+    if (kind === null) {
+      errors.push(`Rate "${label}": kind must be price, factor, time or cost`);
+      continue;
+    }
+    const source = o.source === "owner" || o.source === "market" ? o.source : "guess";
+    const low = optNum(o.low), high = optNum(o.high);
+    const range = low !== undefined && high !== undefined && low >= 0 && high >= low;
+    const note = clip(o.note, 160);
+    const updatedAt = typeof o.updatedAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(o.updatedAt.trim()) ? o.updatedAt.trim() : undefined;
+    rates.push({
+      id,
+      label,
+      value,
+      ...(s(o.unit, 30) ? { unit: s(o.unit, 30) } : {}),
+      kind,
+      source,
+      ...(range ? { low, high } : {}),
+      ...(note ? { note } : {}),
+      ...(updatedAt ? { updatedAt } : {}),
+    });
+    known.add(id);
+  }
 
   // variables (evaluated in order; may only read inputs + earlier variables)
   const variables: { id: string; node: Node }[] = [];
@@ -1173,7 +1320,7 @@ export function compileSpec(raw: unknown): CompileResult {
       continue;
     }
     if (known.has(id)) {
-      errors.push(`Duplicate id "${id}" (variables can't reuse an input id)`);
+      errors.push(`Duplicate id "${id}" (variables can't reuse an input or rate id)`);
       continue;
     }
     try {
@@ -1181,7 +1328,8 @@ export function compileSpec(raw: unknown): CompileResult {
       for (const name of identifiersIn(node)) if (!known.has(name)) errors.push(`Variable "${id}": unknown name "${name}"`);
       priceBookRefsIn(node).forEach((p) => priceBookNames.add(p));
       variables.push({ id, node });
-      variableSrc.push({ id, expr });
+      const vLabel = clip(o.label, 100);
+      variableSrc.push({ id, expr, ...(vLabel ? { label: vLabel } : {}) });
       known.add(id);
     } catch (e) {
       errors.push(`Variable "${id}": ${(e as Error).message}`);
@@ -1322,11 +1470,46 @@ export function compileSpec(raw: unknown): CompileResult {
   if (!assist && inputs.some((i) => i.askAtlas)) assist = {};
   if (assist && !inputs.some((i) => i.type !== "text")) errors.push("assist needs at least one number/select/toggle input for Atlas to fill in");
 
-  // placeholders: human lines, never formulas
+  // placeholders: human lines, never formulas (cut at a word, never mid-word — "set you")
   const placeholders = (Array.isArray(r.placeholders) ? r.placeholders : [])
-    .map((p) => s(p, 160))
+    .map((p) => clip(p, 240))
     .filter(Boolean)
     .slice(0, ESTIMATOR_LIMITS.placeholders);
+
+  // flags: things to confirm before the price is final
+  const flags: CompiledSpec["flags"] = [];
+  const flagSrc: EstimatorFlag[] = [];
+  const rawFlags = Array.isArray(r.flags) ? r.flags : [];
+  if (rawFlags.length > ESTIMATOR_LIMITS.flags) errors.push(`At most ${ESTIMATOR_LIMITS.flags} flags`);
+  const flagIds = new Set<string>();
+  rawFlags.slice(0, ESTIMATOR_LIMITS.flags).forEach((rf, idx) => {
+    const o = (rf ?? {}) as Record<string, unknown>;
+    const text = clip(o.text, 200);
+    if (!text) {
+      errors.push(`Flag ${idx + 1} needs "text" — what to confirm, in plain words`);
+      return;
+    }
+    let id = s(o.id, 40) || toIdentifier(text).slice(0, 30) || `flag_${idx + 1}`;
+    while (flagIds.has(id)) id = `${id}_${idx + 1}`;
+    flagIds.add(id);
+    const when = s(o.when, ESTIMATOR_LIMITS.exprLen + 1) || undefined;
+    const rule: EstimatorFlag = { id, text, ...(when ? { when } : {}) };
+    flagSrc.push(rule);
+    flags.push({ rule, when: compileExpr(`Flag "${text.slice(0, 40)}" when`, when) });
+  });
+
+  const labor = r.labor === "in_price" || r.labor === "billed" ? r.labor : undefined;
+  if (r.labor !== undefined && r.labor !== null && !labor) errors.push(`"labor" must be "in_price" (prices already include labor; hours only schedule the job) or "billed" (labor is its own line, hours × a rate)`);
+
+  let market: EstimatorMarket | undefined;
+  if (r.market && typeof r.market === "object") {
+    const m = r.market as Record<string, unknown>;
+    const asOf = typeof m.asOf === "string" && /^\d{4}-\d{2}-\d{2}$/.test(m.asOf.trim()) ? m.asOf.trim() : "";
+    if (asOf) {
+      const sources = (Array.isArray(m.sources) ? m.sources : []).map((x) => s(x, 200)).filter((x) => /^https?:\/\//i.test(x)).slice(0, 5);
+      market = { asOf, ...(s(m.where, 80) ? { where: s(m.where, 80) } : {}), ...(m.searched === true ? { searched: true } : {}), ...(sources.length > 0 ? { sources } : {}) };
+    }
+  }
 
   // samples: {label, inputs} — inputs keep only known ids and simple values
   const samples: EstimatorSample[] = [];
@@ -1360,6 +1543,7 @@ export function compileSpec(raw: unknown): CompileResult {
     version: 1,
     intro: s(r.intro, ESTIMATOR_LIMITS.textLen) || undefined,
     inputs,
+    ...(rates.length > 0 ? { rates } : {}),
     variables: variableSrc,
     lines: lines.map((l) => l.rule),
     ...(discountSrc.length > 0 ? { discounts: discountSrc } : {}),
@@ -1369,11 +1553,14 @@ export function compileSpec(raw: unknown): CompileResult {
     assist,
     ...(placeholders.length > 0 ? { placeholders } : {}),
     ...(samples.length > 0 ? { samples } : {}),
+    ...(labor ? { labor } : {}),
+    ...(flagSrc.length > 0 ? { flags: flagSrc } : {}),
+    ...(market ? { market } : {}),
   };
 
   return {
     ok: true,
-    compiled: { spec, variables, lines, discounts, quoteTitle, clientMessage, priceBookNames: Array.from(priceBookNames) },
+    compiled: { spec, variables, lines, discounts, flags, quoteTitle, clientMessage, priceBookNames: Array.from(priceBookNames) },
   };
 }
 
@@ -1485,6 +1672,11 @@ function lenientValue(inp: EstimatorInput, v: unknown): Value {
  * than silently vanishing. Client-safe: the forms call it on every change.
  */
 export function visibleInputIds(spec: EstimatorSpec, raw: Record<string, unknown>): Set<string> {
+  return formState(spec, raw).visible;
+}
+
+/** The lenient read both visibility checks share: which questions show, and every input's best-effort value. */
+function formState(spec: Pick<EstimatorSpec, "inputs">, raw: Record<string, unknown>): { visible: Set<string>; vars: Record<string, Value> } {
   const vars: Record<string, Value> = {};
   for (const inp of spec.inputs) vars[inp.id] = lenientValue(inp, raw[inp.id]);
   const visible = new Set<string>();
@@ -1500,7 +1692,69 @@ export function visibleInputIds(spec: EstimatorSpec, raw: Record<string, unknown
     if (show) visible.add(inp.id);
     else vars[inp.id] = neutralValue(inp);
   }
-  return visible;
+  return { visible, vars };
+}
+
+/** Does any option of this question depend on another answer? */
+export function hasGatedOptions(inp: EstimatorInput): boolean {
+  return (inp.type === "select" || inp.type === "multi" || inp.type === "counts") && inp.options.some((o) => o.showWhen);
+}
+
+/**
+ * Which options each question OFFERS for these answers (option.showWhen) —
+ * only questions with a gated option are listed; every other question offers
+ * all of its options. Like showWhen on a question, a condition that can't be
+ * evaluated fails open. Client-safe: the forms call it on every change to
+ * hide options that don't fit and to clear a pick that stopped fitting.
+ */
+export function offeredOptions(spec: Pick<EstimatorSpec, "inputs">, raw: Record<string, unknown>): Record<string, Set<string>> {
+  const out: Record<string, Set<string>> = {};
+  if (!spec.inputs.some(hasGatedOptions)) return out;
+  const { vars } = formState(spec, raw);
+  for (const inp of spec.inputs) {
+    if (!hasGatedOptions(inp) || (inp.type !== "select" && inp.type !== "multi" && inp.type !== "counts")) continue;
+    const offered = new Set<string>();
+    for (const o of inp.options) {
+      let show = true;
+      if (o.showWhen) {
+        try {
+          show = truthy(evaluate(parseExpr(o.showWhen), { vars, priceBook: NO_BOOK }));
+        } catch {
+          show = true;
+        }
+      }
+      if (show) offered.add(o.value);
+    }
+    out[inp.id] = offered;
+  }
+  return out;
+}
+
+/**
+ * Form values with every pick that is no longer offered removed (a select
+ * goes back to unanswered, a multi / counts just loses that item). Returns
+ * the SAME object when nothing changed, so a form can call it after every
+ * change without looping.
+ */
+export function dropUnofferedPicks<T extends Record<string, unknown>>(spec: Pick<EstimatorSpec, "inputs">, values: T): T {
+  if (!spec.inputs.some(hasGatedOptions)) return values;
+  let cur = values;
+  // a cleared pick can un-offer another question's option: settle in a few passes
+  for (let pass = 0; pass < 4; pass++) {
+    const offered = offeredOptions(spec, cur);
+    let next: Record<string, unknown> | null = null;
+    for (const inp of spec.inputs) {
+      const ok = offered[inp.id];
+      if (!ok) continue;
+      const v = cur[inp.id];
+      if (inp.type === "select" && typeof v === "string" && v !== "" && !ok.has(v)) (next ??= { ...cur })[inp.id] = "";
+      else if (inp.type === "multi" && Array.isArray(v) && v.some((x) => !ok.has(String(x)))) (next ??= { ...cur })[inp.id] = v.filter((x) => ok.has(String(x)));
+      else if (inp.type === "counts" && v && typeof v === "object" && !Array.isArray(v) && Object.keys(v).some((k) => !ok.has(k))) (next ??= { ...cur })[inp.id] = Object.fromEntries(Object.entries(v as Record<string, number>).filter(([k]) => ok.has(k)));
+    }
+    if (!next) break;
+    cur = next as T;
+  }
+  return cur;
 }
 
 /** Coerce raw (form / model) values into typed values, applying defaults. Hidden inputs (showWhen false) read as untouched. */
@@ -1511,6 +1765,10 @@ export function coerceInputs(
   const values: Record<string, Value> = {};
   const problems: InputProblem[] = [];
   const visible = visibleInputIds(spec, raw);
+  const offered = offeredOptions(spec, raw);
+  /** Is this option on the table for these answers? (true for every option of a question with no gated ones) */
+  const offers = (id: string, value: string) => !offered[id] || offered[id].has(value);
+  const notOffered = (inp: { id: string; label: string; options: EstimatorOption[] }, value: string) => `${inp.label}: "${inp.options.find((o) => o.value === value)?.label ?? value}" isn't available with the other answers`;
   for (const inp of spec.inputs) {
     if (!visible.has(inp.id)) {
       values[inp.id] = neutralValue(inp);
@@ -1539,12 +1797,14 @@ export function coerceInputs(
       case "select": {
         if (missing) {
           if (inp.default) values[inp.id] = inp.default;
-          else if (inp.required) problems.push({ id: inp.id, message: `Choose a ${inp.label.toLowerCase()}` });
+          // a question with nothing on offer for these answers can't be required of anyone
+          else if (inp.required && !(offered[inp.id] && offered[inp.id].size === 0)) problems.push({ id: inp.id, message: `Choose a ${inp.label.toLowerCase()}` });
           else values[inp.id] = "";
           break;
         }
         const hit = matchOption(inp, v);
         if (!hit) problems.push({ id: inp.id, message: `${inp.label}: "${String(v)}" is not an option` });
+        else if (!offers(inp.id, hit)) problems.push({ id: inp.id, message: notOffered(inp, hit) });
         else values[inp.id] = hit;
         break;
       }
@@ -1554,9 +1814,10 @@ export function coerceInputs(
           if (String(item ?? "").trim() === "") continue;
           const hit = matchOption(inp, item);
           if (!hit) problems.push({ id: inp.id, message: `${inp.label}: "${String(item)}" is not an option` });
+          else if (!offers(inp.id, hit)) problems.push({ id: inp.id, message: notOffered(inp, hit) });
           else if (!picks.includes(hit)) picks.push(hit);
         }
-        if (picks.length === 0 && inp.default?.length) picks.push(...inp.default);
+        if (picks.length === 0 && inp.default?.length) picks.push(...inp.default.filter((d) => offers(inp.id, d)));
         if (picks.length === 0 && inp.required) problems.push({ id: inp.id, message: `Pick at least one option for ${inp.label.toLowerCase()}` });
         values[inp.id] = picks;
         break;
@@ -1564,6 +1825,7 @@ export function coerceInputs(
       case "counts": {
         const { table, unknown } = countsTable(inp, missing ? {} : v);
         for (const u of unknown) problems.push({ id: inp.id, message: `${inp.label}: "${u}" is not an item` });
+        for (const k of Object.keys(table)) if (!offers(inp.id, k)) problems.push({ id: inp.id, message: notOffered(inp, k) });
         if (inp.required && Object.keys(table).length === 0) problems.push({ id: inp.id, message: `${inp.label}: count at least one item` });
         values[inp.id] = table;
         break;
@@ -1616,6 +1878,8 @@ export function runCompiled(
     priceBook: new Map(priceBook.map((p) => [p.name.trim().toLowerCase(), p])),
   };
   const warnings: string[] = [];
+  // the rate card: plain constants, read by id
+  for (const rate of spec.rates ?? []) ctx.vars[rate.id] = rate.value;
 
   try {
     for (const v of compiled.variables) ctx.vars[v.id] = evaluate(v.node, ctx);
@@ -1679,8 +1943,10 @@ export function runCompiled(
     // The minimum tops up the lines the client is committing to. A job of
     // only optional add-ons has nothing to top up (the add-ons would sit on
     // top of the minimum, not inside it).
+    let minimumApplied = 0;
     if (spec.minimumTotal && lines.some((l) => !l.isOptional) && subtotal < spec.minimumTotal) {
       const diff = cents(spec.minimumTotal - subtotal);
+      minimumApplied = diff;
       lines.push({
         name: "Minimum job charge",
         description: `Brings the job up to our $${spec.minimumTotal.toFixed(2)} minimum`,
@@ -1712,6 +1978,12 @@ export function runCompiled(
     const total = cents(subtotal - discount);
     ctx.vars.quote_total = total;
     ctx.vars.labor_hours = Math.round(hoursTotal * 100) / 100;
+    // things to confirm before the price is final — never part of the math
+    const flags: string[] = [];
+    for (const f of compiled.flags) {
+      if (f.when && !truthy(evaluate(f.when, ctx))) continue;
+      if (!flags.includes(f.rule.text)) flags.push(f.rule.text);
+    }
     return {
       ok: true,
       lines,
@@ -1724,6 +1996,8 @@ export function runCompiled(
       title: compiled.quoteTitle ? renderTemplate(compiled.quoteTitle, ctx) : undefined,
       clientMessage: compiled.clientMessage ? renderTemplate(compiled.clientMessage, ctx) : undefined,
       warnings,
+      flags,
+      minimumApplied,
     };
   } catch (e) {
     return { ok: false, errors: [(e as Error).message] };
@@ -1897,25 +2171,266 @@ export function explainRun(compiled: CompiledSpec, rawInputs: Record<string, unk
 
 // ── quality audit (the builder's gate beyond "it compiles") ──────────────────
 
+export type AuditSample = {
+  label: string;
+  subtotal: number | null;
+  lines: number;
+  error?: string;
+  /** Labor hours the sample books (0 when no line says). */
+  hours?: number;
+  /** A "Tiny job" sample — there to show what the smallest jobs come to. */
+  tiny?: boolean;
+  /** Dollars the minimum job charge added on this sample (absent when the work cleared it). */
+  minimumApplied?: number;
+};
+
 export type SpecAudit = {
   /** Must be fixed before the tool is saved (fed back to the model). */
   errors: string[];
   /** Worth knowing; shown to the owner, never blocks. */
   warnings: string[];
   /** Each sample's outcome, in spec order. */
-  samples: { label: string; subtotal: number | null; lines: number; error?: string; /** Labor hours the sample books (0 when no line says). */ hours?: number }[];
+  samples: AuditSample[];
 };
+
+const TINY_RE = /\b(tiny|smallest)\b/i;
+
+/** Visit every node of an expression. */
+function walkExpr(n: Node, visit: (n: Node) => void): void {
+  visit(n);
+  switch (n.k) {
+    case "un":
+      walkExpr(n.a, visit);
+      break;
+    case "bin":
+      walkExpr(n.a, visit);
+      walkExpr(n.b, visit);
+      break;
+    case "tern":
+      walkExpr(n.c, visit);
+      walkExpr(n.a, visit);
+      walkExpr(n.b, visit);
+      break;
+    case "call":
+      n.args.forEach((a) => walkExpr(a, visit));
+      break;
+    case "arr":
+      n.items.forEach((a) => walkExpr(a, visit));
+      break;
+    case "obj":
+      n.entries.forEach((e) => walkExpr(e.v, visit));
+      break;
+  }
+}
+
+const strLit = (n: Node | undefined): string | null => (n && n.k === "lit" && typeof n.v === "string" ? n.v : null);
+const numLit = (n: Node | undefined): number | null => (n && n.k === "lit" && typeof n.v === "number" ? n.v : null);
+const sameText = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+
+/** Every expression of a compiled spec with a plain-words name for where it sits. */
+function specExpressions(compiled: CompiledSpec): { where: string; node: Node; role: "price" | "hours" | "cost" | "logic" }[] {
+  const out: { where: string; node: Node; role: "price" | "hours" | "cost" | "logic" }[] = [];
+  const tpl = (where: string, parts: TemplatePart[] | null) => {
+    for (const p of parts ?? []) if ("expr" in p) out.push({ where, node: p.expr, role: "logic" });
+  };
+  const tryParse = (where: string, src: string | undefined) => {
+    if (!src) return;
+    try {
+      out.push({ where, node: parseExpr(src), role: "logic" });
+    } catch {
+      /* compileSpec already reported it */
+    }
+  };
+  for (const i of compiled.spec.inputs) {
+    tryParse(`Question "${i.label}" showWhen`, i.showWhen);
+    if (i.type === "select" || i.type === "multi" || i.type === "counts") for (const o of i.options) tryParse(`"${i.label}" option "${o.label}" showWhen`, o.showWhen);
+  }
+  for (const v of compiled.variables) out.push({ where: `Variable "${v.id}"`, node: v.node, role: "logic" });
+  for (const l of compiled.lines) {
+    const w = `Line "${l.rule.name}"`;
+    if (l.when) out.push({ where: `${w} when`, node: l.when, role: "logic" });
+    if (l.quantity) out.push({ where: `${w} quantity`, node: l.quantity, role: "price" });
+    if (l.unitPrice) out.push({ where: `${w} unitPrice`, node: l.unitPrice, role: "price" });
+    if (l.hours) out.push({ where: `${w} hours`, node: l.hours, role: "hours" });
+    if (l.unitCost) out.push({ where: `${w} unitCost`, node: l.unitCost, role: "cost" });
+    tpl(`${w} name`, l.name);
+    tpl(`${w} description`, l.description);
+  }
+  for (const d of compiled.discounts) {
+    const w = `Discount "${d.rule.label}"`;
+    if (d.when) out.push({ where: `${w} when`, node: d.when, role: "logic" });
+    if (d.percent) out.push({ where: `${w} percent`, node: d.percent, role: "price" });
+    if (d.amount) out.push({ where: `${w} amount`, node: d.amount, role: "price" });
+  }
+  for (const f of compiled.flags) if (f.when) out.push({ where: `Flag "${f.rule.text.slice(0, 40)}" when`, node: f.when, role: "logic" });
+  tpl("quoteTitle", compiled.quoteTitle);
+  tpl("clientMessage", compiled.clientMessage);
+  return out;
+}
+
+/**
+ * Formulas that name a choice the question doesn't have. A line that waits on
+ * `style == 'Cedar'` when the option is "Cedar privacy" never fires, and a
+ * price table with no row for one option quietly prices it as something else
+ * — the two commonest ways a tool quotes the wrong number without any error.
+ */
+function choiceProblems(compiled: CompiledSpec, strict: boolean): { errors: string[]; warnings: string[] } {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const byId = new Map(compiled.spec.inputs.map((i) => [i.id, i]));
+  const optionsOf = (id: string) => {
+    const i = byId.get(id);
+    return i && (i.type === "select" || i.type === "multi" || i.type === "counts") ? i : null;
+  };
+  const isOption = (inp: { options: EstimatorOption[] }, v: string) => inp.options.some((o) => sameText(o.value, v));
+  const choices = (inp: { options: EstimatorOption[] }) => inp.options.map((o) => `'${o.value}'`).join(", ");
+  for (const { where, node } of specExpressions(compiled)) {
+    walkExpr(node, (n) => {
+      if (n.k === "bin" && (n.op === "==" || n.op === "!=")) {
+        const pair: [Node, Node][] = [[n.a, n.b], [n.b, n.a]];
+        for (const [idSide, litSide] of pair) {
+          const lit = strLit(litSide);
+          if (idSide.k !== "id" || lit === null || lit.trim() === "") continue;
+          const inp = optionsOf(idSide.name);
+          if (inp && inp.type === "select" && !isOption(inp, lit)) errors.push(`${where}: compares "${inp.label}" to '${lit}', which is not one of its options (${choices(inp)}) — it can never match.`);
+        }
+      }
+      if (n.k === "call" && (n.fn === "has" || n.fn === "qty") && n.args[0]?.k === "id") {
+        const inp = optionsOf(n.args[0].name);
+        const lit = strLit(n.args[1]);
+        if (inp && inp.type !== "select" && lit !== null && !isOption(inp, lit)) errors.push(`${where}: ${n.fn}(${n.args[0].name}, '${lit}') names an item "${inp.label}" doesn't have (${choices(inp)}) — it is always 0.`);
+      }
+      if (n.k === "call" && n.fn === "lookup" && n.args[0]?.k === "id" && n.args[1]?.k === "obj") {
+        const inp = optionsOf(n.args[0].name);
+        if (!inp || inp.type !== "select") return;
+        const keys = n.args[1].entries.map((e) => e.key);
+        for (const k of keys) if (!isOption(inp, k)) errors.push(`${where}: the lookup on "${inp.label}" has a row for '${k}', which is not one of its options (${choices(inp)}).`);
+        const missing = inp.options.filter((o) => !keys.some((k) => sameText(k, o.value)));
+        if (missing.length > 0) {
+          const names = missing.map((o) => `'${o.value}'`).join(", ");
+          if (n.args.length < 3) errors.push(`${where}: the lookup on "${inp.label}" has no row for ${names} and no default — picking it would fail.`);
+          else (strict ? errors : warnings).push(`${where}: the lookup on "${inp.label}" has no row for ${names}, so ${missing.length === 1 ? "it is" : "they are"} priced by the default. Give every option its own row (or say it doesn't vary).`);
+        }
+      }
+    });
+  }
+  return { errors, warnings };
+}
+
+/**
+ * Hours and price kept apart. With labor "in_price" (or unsaid) the prices
+ * already carry the labor, so a crew-time rate reaching a price would charge
+ * for the same hours twice.
+ */
+function laborProblems(compiled: CompiledSpec, strict: boolean): string[] {
+  const { spec } = compiled;
+  const out: string[] = [];
+  const timeRates = new Map((spec.rates ?? []).filter((r) => r.kind === "time").map((r) => [r.id, r]));
+  const hasHours = spec.lines.some((l) => l.hours);
+  if (strict && hasHours && !spec.labor) out.push(`Say how labor hours relate to the price: "labor": "in_price" when the prices are installed prices that already include labor (hours then only say how long to book the job), or "billed" when labor is its own line priced by the hour. Never both.`);
+  if (spec.labor === "billed" || timeRates.size === 0) return out;
+  const varNodes = new Map(compiled.variables.map((v) => [v.id, v.node]));
+  const reach = (node: Node, seen = new Set<string>()): Set<string> => {
+    for (const name of identifiersIn(node)) {
+      if (seen.has(name)) continue;
+      seen.add(name);
+      const v = varNodes.get(name);
+      if (v) reach(v, seen);
+    }
+    return seen;
+  };
+  for (const l of compiled.lines) {
+    for (const node of [l.unitPrice, l.quantity]) {
+      if (!node) continue;
+      const hit = Array.from(reach(node)).find((id) => timeRates.has(id));
+      if (hit) {
+        out.push(`Line "${l.rule.name}": its price uses "${timeRates.get(hit)!.label}", which is crew time. The prices here already include labor ("labor": "in_price"), so that would charge the hours twice — keep time rates in "hours" only, or set "labor": "billed" and price labor as its own line.`);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+/** Dollar figures left as bare numbers in the formulas, where the owner can't see or check them. */
+function unnamedRates(compiled: CompiledSpec): string[] {
+  const out: string[] = [];
+  const selects = new Set(compiled.spec.inputs.filter((i) => i.type === "select").map((i) => i.id));
+  for (const l of compiled.lines) {
+    const lit = numLit(l.unitPrice ?? undefined);
+    if (lit !== null && lit > 0 && !l.rule.workItemName) out.push(`Line "${l.rule.name}" is priced with a bare number (${lit}). Put it on the rate card — a "rates" entry with a plain label, the unit and where the number came from — and use its id as the unitPrice, so the owner can check it against their price sheet.`);
+  }
+  for (const { where, node, role } of specExpressions(compiled)) {
+    if (role === "hours" || where.startsWith("Question") || where.includes("showWhen")) continue;
+    walkExpr(node, (n) => {
+      if (n.k !== "call" || n.fn !== "lookup" || n.args[0]?.k !== "id" || n.args[1]?.k !== "obj" || !selects.has(n.args[0].name)) return;
+      // 0 and 1 are "no charge" / "no adjustment", not a price anyone needs to check
+      const bare = n.args[1].entries.filter((e) => numLit(e.v) !== null && numLit(e.v) !== 0 && numLit(e.v) !== 1);
+      if (bare.length > 0) out.push(`${where}: the table has bare numbers (${bare.map((e) => `${e.key}: ${numLit(e.v)}`).slice(0, 4).join(", ")}${bare.length > 4 ? ", …" : ""}). Make each one a "rates" entry named for its option ("Cedar privacy fence, 6 ft tall") and put the rate ids in the table.`);
+    });
+  }
+  return out;
+}
+
+/** Every piece of text a person reads, with where it sits. */
+function proseOf(spec: EstimatorSpec): { where: string; text: string }[] {
+  const out: { where: string; text: string }[] = [];
+  const add = (where: string, text: string | undefined) => {
+    if (text) out.push({ where, text });
+  };
+  add("The intro", spec.intro);
+  for (const i of spec.inputs) {
+    add(`Question "${i.label}"`, i.label);
+    add(`The help under "${i.label}"`, i.help);
+    if (i.type === "select" || i.type === "multi" || i.type === "counts") {
+      for (const o of i.options) {
+        add(`Option "${o.label}"`, o.label);
+        add(`The blurb on "${o.label}"`, o.blurb);
+      }
+    }
+  }
+  for (const l of spec.lines) {
+    add(`Line "${l.name}"`, l.name);
+    add(`The description of "${l.name}"`, l.description);
+  }
+  for (const r of spec.rates ?? []) {
+    add(`Rate "${r.label}"`, r.label);
+    add(`The note on rate "${r.label}"`, r.note);
+  }
+  for (const f of spec.flags ?? []) add("A flag", f.text);
+  (spec.placeholders ?? []).forEach((p, idx) => add(`Placeholder ${idx + 1}`, p));
+  add("The client message", spec.clientMessage);
+  return out;
+}
+
+/** Text that was cut off or left half-written. */
+function copyProblems(spec: EstimatorSpec): string[] {
+  const out: string[] = [];
+  for (const { where, text } of proseOf(spec)) {
+    const t = text.trim();
+    if (t.endsWith("…") || t.endsWith("...")) out.push(`${where} is cut off ("…${t.slice(-40)}") — it ran past the length limit. Rewrite it shorter so it ends as a whole sentence.`);
+    else if ((t.match(/\(/g) ?? []).length !== (t.match(/\)/g) ?? []).length) out.push(`${where} has an unclosed bracket ("${t.slice(0, 60)}").`);
+    else if (/\b(a|an|the|of|and|or|with|per|by)$/i.test(t) && t.split(/\s+/).length > 3) out.push(`${where} stops mid-sentence ("…${t.slice(-40)}"). Finish it.`);
+  }
+  return out;
+}
 
 /**
  * What makes a tool worth using, checked in code: descriptions on every
- * line, sensible controls, and the builder's own small / typical / large
- * samples running green and in order. Pure — the builder loop and the
- * manual editor's Check both call it.
+ * line, sensible controls, formulas that only name choices the questions
+ * really have, hours and price kept apart, and the builder's own small /
+ * typical / large (and tiny) samples running green and in order. Pure — the
+ * builder loop and the manual editor's Check both call it. `strict` is the
+ * builder's bar: every dollar figure named on the rate card, the labor model
+ * stated, a tiny job to test the minimum, no cut-off copy.
  */
-export function auditSpec(compiled: CompiledSpec, priceBook: PriceBookEntry[]): SpecAudit {
+export function auditSpec(compiled: CompiledSpec, priceBook: PriceBookEntry[], opts: { strict?: boolean } = {}): SpecAudit {
   const { spec } = compiled;
+  const strict = opts.strict === true;
   const errors: string[] = [];
   const warnings: string[] = [];
+  /** A finding the builder must fix and a hand editor is only told about. */
+  const builderMust = (msg: string) => (strict ? errors : warnings).push(msg);
 
   if (!spec.inputs.some((i) => i.type !== "text")) errors.push("The tool needs at least one question that changes the price (a number, choice, map or yes/no).");
   for (const l of spec.lines) {
@@ -1935,27 +2450,131 @@ export function auditSpec(compiled: CompiledSpec, priceBook: PriceBookEntry[]): 
   if (spec.inputs.length > 6 && !spec.inputs.some((i) => i.section)) warnings.push("More than six questions in one wall — group them into sections.");
   if (!spec.minimumTotal) warnings.push("No minimum job charge — most trades set one so tiny jobs still pay for the trip.");
 
-  const samples: SpecAudit["samples"] = [];
+  const choice = choiceProblems(compiled, strict);
+  errors.push(...choice.errors);
+  warnings.push(...choice.warnings);
+  errors.push(...laborProblems(compiled, strict));
+  unnamedRates(compiled).forEach(builderMust);
+  copyProblems(spec).forEach(builderMust);
+  if (strict) for (const v of spec.variables) if (!v.label) errors.push(`Variable "${v.id}" needs a "label" in plain words (what the number is: "Price per foot at the chosen height") — the owner sees it in the editor.`);
+  // a rate nothing reads is a number the owner would set for nothing
+  const read = new Set<string>();
+  for (const { node } of specExpressions(compiled)) identifiersIn(node, read);
+  for (const r of spec.rates ?? []) if (!read.has(r.id)) builderMust(`Rate "${r.label}" isn't used by any formula — use it or remove it.`);
+
+  const samples: AuditSample[] = [];
   const bySize: Record<string, number> = {};
   for (const smp of spec.samples ?? []) {
+    const tiny = TINY_RE.test(smp.label);
     const r = runCompiled(compiled, smp.inputs, priceBook);
     if (!r.ok) {
-      samples.push({ label: smp.label, subtotal: null, lines: 0, error: r.errors[0] });
+      samples.push({ label: smp.label, subtotal: null, lines: 0, error: r.errors[0], ...(tiny ? { tiny } : {}) });
       errors.push(`Sample "${smp.label}" failed: ${r.errors[0]}`);
       continue;
     }
-    samples.push({ label: smp.label, subtotal: r.total, lines: r.lines.length, ...(r.hours > 0 ? { hours: r.hours } : {}) });
+    samples.push({ label: smp.label, subtotal: r.total, lines: r.lines.length, ...(r.hours > 0 ? { hours: r.hours } : {}), ...(tiny ? { tiny } : {}), ...(r.minimumApplied > 0 ? { minimumApplied: r.minimumApplied } : {}) });
     if (r.total <= 0) errors.push(`Sample "${smp.label}" priced at $0 — a real job never costs nothing.`);
     const key = smp.label.toLowerCase();
-    if (/small|minimum|basic/.test(key)) bySize.small = r.total;
+    if (tiny) bySize.tiny = Math.max(bySize.tiny ?? 0, r.total);
+    else if (/small|minimum|basic/.test(key)) bySize.small = r.total;
     else if (/typical|average|medium|standard/.test(key)) bySize.typical = r.total;
     else if (/large|big|premium|max/.test(key)) bySize.large = r.total;
   }
-  if ((spec.samples?.length ?? 0) < 2) errors.push('Give at least two samples ("Small job", "Typical job", "Large job") with every required question answered, so the math is proven before saving.');
+  if (samples.filter((s) => !s.tiny).length < 2) errors.push('Give at least two samples ("Small job", "Typical job", "Large job") with every required question answered, so the math is proven before saving.');
+  if (strict && spec.minimumTotal && !samples.some((s) => s.tiny)) errors.push(`Add one or two "Tiny job" samples (labels starting "Tiny job: …", e.g. "Tiny job: one gate only", "Tiny job: shortest run") — the smallest jobs a customer could ask for — so the owner sees what the $${spec.minimumTotal} minimum does to them.`);
+  if (bySize.tiny !== undefined && bySize.small !== undefined && bySize.tiny > bySize.small) errors.push(`A "tiny" sample ($${bySize.tiny.toFixed(2)}) prices above the "small" one ($${bySize.small.toFixed(2)}) — check the math or the samples.`);
   if (bySize.small !== undefined && bySize.typical !== undefined && bySize.small > bySize.typical) errors.push(`The "small" sample ($${bySize.small.toFixed(2)}) prices above the "typical" one ($${bySize.typical.toFixed(2)}) — check the math or the samples.`);
   if (bySize.typical !== undefined && bySize.large !== undefined && bySize.typical > bySize.large) errors.push(`The "typical" sample ($${bySize.typical.toFixed(2)}) prices above the "large" one ($${bySize.large.toFixed(2)}) — check the math or the samples.`);
 
-  return { errors: Array.from(new Set(errors)).slice(0, 20), warnings: Array.from(new Set(warnings)).slice(0, 8), samples };
+  return { errors: Array.from(new Set(errors)).slice(0, 20), warnings: Array.from(new Set(warnings)).slice(0, 10), samples };
+}
+
+// ── the rate card (what the owner checks against their own price sheet) ──────
+
+const rateMoney = (n: number): string => (Number.isInteger(n) ? `$${n.toLocaleString("en-US")}` : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+
+/** A rate's value the way a price list prints it: "$42 per ft", "×1.4", "0.17 person-hours per ft". */
+export function rateValueText(r: Pick<EstimatorRate, "value" | "unit" | "kind">): string {
+  const unit = (r.unit ?? "").trim();
+  if (r.kind === "price" || r.kind === "cost") return `${rateMoney(r.value)}${unit ? ` ${unit}` : ""}`;
+  if (r.kind === "factor") return unit === "%" ? `${r.value}%` : `×${r.value}${unit && unit !== "×" && unit !== "x" ? ` ${unit}` : ""}`;
+  return `${r.value}${unit ? ` ${unit}` : " person-hours"}`;
+}
+
+/** The rates that aren't the owner's own yet — market estimates and guesses. */
+export function ratesToConfirm(spec: Pick<EstimatorSpec, "rates">): EstimatorRate[] {
+  return (spec.rates ?? []).filter((r) => r.source !== "owner");
+}
+
+/** One plain line per rate still to confirm — the build's finish card and the publish warning read these. */
+export function rateConfirmLines(spec: Pick<EstimatorSpec, "rates" | "market">): string[] {
+  const where = spec.market?.where ? ` for ${spec.market.where}` : "";
+  return ratesToConfirm(spec).map((r) => {
+    const range = r.low !== undefined && r.high !== undefined && r.kind !== "factor" && r.kind !== "time" ? ` (${rateMoney(r.low)}–${rateMoney(r.high)})` : "";
+    return `${r.label}: ${rateValueText(r)} — ${r.source === "market" ? `market estimate${where}${range}` : "placeholder, nothing to go on"}`;
+  });
+}
+
+/** Everything the owner still has to confirm, as lines: rate-card entries first, then the older free-text placeholders. */
+export function confirmLines(spec: Pick<EstimatorSpec, "rates" | "market" | "placeholders">): string[] {
+  return [...rateConfirmLines(spec), ...(spec.placeholders ?? [])];
+}
+
+/**
+ * Date-stamp the rate card on a save. A rate whose value is unchanged keeps
+ * its date — and stays the owner's once it is theirs (a rebuild can't turn a
+ * confirmed number back into an estimate). A new or changed value is dated
+ * today; `by: "owner"` (a hand edit) also makes it the owner's.
+ */
+export function stampRates(before: Pick<EstimatorSpec, "rates"> | null, after: EstimatorSpec, today: string, by: "owner" | "builder"): EstimatorSpec {
+  if (!after.rates || after.rates.length === 0) return after;
+  const old = new Map((before?.rates ?? []).map((r) => [r.id, r]));
+  const rates = after.rates.map((r): EstimatorRate => {
+    const o = old.get(r.id);
+    if (o && o.value === r.value) {
+      const source = o.source === "owner" ? "owner" : r.source;
+      // confirming an estimate as-is is a decision too: date it
+      const confirmedNow = source === "owner" && o.source !== "owner";
+      const updatedAt = confirmedNow ? today : o.updatedAt ?? r.updatedAt ?? today;
+      return { ...r, source, updatedAt };
+    }
+    return { ...r, source: by === "owner" ? "owner" : r.source, updatedAt: today };
+  });
+  return { ...after, rates };
+}
+
+// ── number questions: one control each ───────────────────────────────────────
+
+/** How a number question is answered — exactly one control, never three. */
+export type NumberMode = { mode: "chips"; stops: { label: string; value: number }[] } | { mode: "slider" | "stepper" | "field" };
+
+const MAX_CHIP_STOPS = 8;
+
+/**
+ * The single control a number question renders. A small fixed set of real
+ * values (heights of 4 / 5 / 6 ft) is a row of chips — whether the builder
+ * wrote it as presets that cover the whole range or as a short slider —
+ * because a slider and a text box beside them only disagree with the chips.
+ * Otherwise the declared control stands; presets then are shortcuts above it.
+ */
+export function numberMode(inp: Extract<EstimatorInput, { type: "number" }>): NumberMode {
+  const presets = inp.presets ?? [];
+  const unit = inp.unit ? ` ${inp.unit}` : "";
+  const label = (v: number) => presets.find((p) => p.value === v)?.label ?? `${v.toLocaleString("en-US", { maximumFractionDigits: 2 })}${unit}`;
+  if (inp.control !== "stepper" && inp.min !== undefined && inp.max !== undefined && inp.max > inp.min) {
+    const step = inp.step ?? (inp.control === "slider" ? undefined : 1);
+    if (step !== undefined && step > 0) {
+      const count = Math.floor((inp.max - inp.min) / step + 1e-9) + 1;
+      if (count >= 2 && count <= MAX_CHIP_STOPS) {
+        const stops = Array.from({ length: count }, (_, k) => Math.round((inp.min! + k * step) * 1000) / 1000);
+        // presets that sit off the grid still count as real values
+        for (const p of presets) if (!stops.includes(p.value) && p.value >= inp.min && p.value <= inp.max) stops.push(p.value);
+        stops.sort((a, b) => a - b);
+        if (stops.length <= MAX_CHIP_STOPS) return { mode: "chips", stops: stops.map((v) => ({ value: v, label: label(v) })) };
+      }
+    }
+  }
+  return { mode: inp.control ?? "field" };
 }
 
 /**
@@ -1996,16 +2615,41 @@ spec = {
         {value: "premium", label: "Premium", blurb: "Sealed for two years", includes: ["Everything in Plus", "Penetrating sealant"]}
       ] },
     { id: "extras", label: "Also clean", type: "multi", options: ["Sidewalk", "Patio", "Fence"], section: "Extras" },   // several picks → has(extras, 'Fence'), count(extras)
-    { id: "fence_ft", label: "Fence length", type: "number", unit: "ft", control: "stepper", step: 10, showWhen: "has(extras, 'Fence')", section: "Extras" },  // only asked when it matters
+    { id: "fence_ft", label: "Fence length", type: "number", unit: "ft", control: "stepper", step: 10, showWhen: "has(extras, 'Fence')", section: "Extras" },  // a follow-up, only asked when it matters
+    { id: "fence_kind", label: "What is the fence made of?", type: "select", style: "cards", options: [{value: "wood", label: "Wood"}, {value: "vinyl", label: "Vinyl"}, {value: "unsure", label: "Not sure"}], showWhen: "has(extras, 'Fence')", section: "Extras" },
+    { id: "stains", label: "Oil or rust stains?", type: "select", style: "cards", options: [{value: "no", label: "No"}, {value: "yes", label: "Yes"}, {value: "unsure", label: "Not sure", blurb: "We'll check when we arrive"}], default: "no", section: "The driveway" },
+    { id: "sealer", label: "Sealer finish", type: "select", style: "cards", showWhen: "package == 'premium'", section: "Your package",
+      options: [{value: "clear", label: "Clear"}, {value: "wet", label: "Wet look"}, {value: "tinted", label: "Tinted", showWhen: "sqft <= 2000"}] },   // an OPTION's showWhen: only offered when it fits the other answers
     { id: "notes", label: "Anything else?", type: "text" }          // text inputs are for descriptions/assist only
   ],
-  variables: [ { id: "rate", expr: "tier(sqft, [[500, 0.30], [2000, 0.22]], 0.18)" } ],   // evaluated in order
+  rates: [                         // THE RATE CARD — every number the owner prices with, in plain words. Expressions read a rate by its id.
+    { id: "r_small", label: "Driveway cleaning, up to 500 sq ft", value: 0.30, unit: "per sq ft", kind: "price", source: "owner" },
+    { id: "r_mid", label: "Driveway cleaning, 500–2,000 sq ft", value: 0.22, unit: "per sq ft", kind: "price", source: "owner" },
+    { id: "r_big", label: "Driveway cleaning, over 2,000 sq ft", value: 0.18, unit: "per sq ft", kind: "price", source: "owner" },
+    { id: "r_two_story", label: "Two-story surcharge", value: 15, unit: "%", kind: "factor", source: "owner", note: "Added to the cleaning price for ladder work" },
+    { id: "r_walks", label: "Walkways and porch", value: 95, unit: "flat", kind: "price", source: "owner" },
+    { id: "r_sealant", label: "Penetrating sealant", value: 0.45, unit: "per sq ft", kind: "price", source: "market", low: 0.35, high: 0.75 },
+    { id: "r_stain", label: "Stain treatment", value: 45, unit: "flat", kind: "price", source: "guess" },
+    { id: "r_fence_wood", label: "Fence wash, wood", value: 1.25, unit: "per ft", kind: "price", source: "guess" },
+    { id: "r_fence_vinyl", label: "Fence wash, vinyl", value: 0.90, unit: "per ft", kind: "price", source: "guess" },
+    { id: "t_clean", label: "Cleaning pace", value: 600, unit: "sq ft per person-hour", kind: "time", source: "market", note: "Only sets how long the job is booked for" }
+  ],
+  variables: [                     // formulas, evaluated in order; each has a plain "label"
+    { id: "rate", label: "Cleaning price per sq ft for this size", expr: "tier(sqft, [[500, r_small], [2000, r_mid]], r_big)" },
+    { id: "fence_rate", label: "Fence wash price per ft for this fence", expr: "lookup(fence_kind, {wood: r_fence_wood, vinyl: r_fence_vinyl, unsure: r_fence_wood}, r_fence_wood)" }   // every option has its own row; the default only covers the question being hidden (a hidden question reads as unanswered)
+  ],
   lines: [
-    { name: "Driveway cleaning", description: "Pressure wash of the whole driveway, with a degreaser on oil and rust stains", quantity: "sqft", unitPrice: "rate", workItemName: "Driveway Cleaning", group: "Cleaning", hours: "sqft / 600", unitCost: "0.06" },
-    { name: "Two-story surcharge", description: "Ladder work on a two-story home", when: "stories == '2'", quantity: "1", unitPrice: "pct(sqft * rate, 15)", group: "Cleaning" },
-    { name: "Walkways and porch", description: "Included in the Plus and Premium packages", when: "package != 'basic'", quantity: "1", unitPrice: "95", group: "Package" },
-    { name: "Penetrating sealant", description: "Penetrating sealer over the clean driveway — two years of protection against stains and weather", when: "package == 'premium'", quantity: "sqft", unitPrice: "0.45", group: "Package", hours: "sqft / 1200" },
-    { name: "Fence wash", description: "Soft wash of both sides of the fence to lift dirt, algae and mildew", when: "has(extras, 'Fence')", quantity: "fence_ft", unitPrice: "1.25", group: "Extras" }
+    { name: "Driveway cleaning", description: "Pressure wash of the whole driveway, with a degreaser on oil and rust stains", quantity: "sqft", unitPrice: "rate", workItemName: "Driveway Cleaning", group: "Cleaning", hours: "sqft / t_clean", unitCost: "0.06" },
+    { name: "Two-story surcharge", description: "Ladder work on a two-story home", when: "stories == '2'", quantity: "1", unitPrice: "pct(sqft * rate, r_two_story)", group: "Cleaning" },
+    { name: "Stain treatment", description: "Degreaser and rust remover worked into the stained areas before the wash", when: "stains == 'yes'", quantity: "1", unitPrice: "r_stain", group: "Cleaning" },
+    { name: "Walkways and porch", description: "Included in the Plus and Premium packages", when: "package != 'basic'", quantity: "1", unitPrice: "r_walks", group: "Package" },
+    { name: "Penetrating sealant, {sealer} finish", description: "Penetrating sealer over the clean driveway — two years of protection against stains and weather", when: "package == 'premium'", quantity: "sqft", unitPrice: "r_sealant", group: "Package", hours: "sqft / 1200" },
+    { name: "Fence wash", description: "Soft wash of both sides of the fence to lift dirt, algae and mildew", when: "has(extras, 'Fence')", quantity: "fence_ft", unitPrice: "fence_rate", group: "Extras" }
+  ],
+  labor: "in_price",               // the prices above already include labor; "hours" only say how long to book. ("billed" = labor is its own line, hours × an hourly rate.)
+  flags: [                         // things to confirm before the price is final — listed for the business on the estimate, never part of the math
+    { when: "stains == 'unsure'", text: "Stains not confirmed — check the driveway on arrival; stain treatment may apply" },
+    { when: "has(extras, 'Fence') and fence_kind == 'unsure'", text: "Fence material not confirmed — priced as wood" }
   ],
   discounts: [                     // money off, as ONE discount on the quote (never a negative line); [] when the business gives none
     { label: "Bundle discount", when: "count(extras) >= 2", percent: "10" }
@@ -2014,27 +2658,42 @@ spec = {
   quoteTitle: "Pressure washing — {sqft} sq ft",
   clientMessage: "Thanks for the chance to quote your driveway!",
   assist: null,                    // or { instructions: "what to look for, what to assume when unsure, what never to guess" } to enable the metered photo / description fill-in step
-  placeholders: ["Fence wash: $1.25/ft — placeholder, the owner never gave a fence rate"],   // ONLY rates you had to guess; [] when none
-  samples: [                       // small / typical / large jobs — every required question answered; the builder runs them
-    { label: "Small job", inputs: { sqft: 300, stories: "1", package: "basic", extras: [] } },
-    { label: "Typical job", inputs: { sqft: 550, stories: "1", package: "plus", extras: ["Sidewalk"] } },
-    { label: "Large job", inputs: { sqft: 1200, stories: "2", package: "premium", extras: ["Sidewalk", "Fence"], fence_ft: 120 } }
+  placeholders: [],                // almost always [] — a guessed NUMBER is a rate with source "market" or "guess", not a line here. Only for an assumption that isn't one number.
+  samples: [                       // small / typical / large jobs + one or two TINY ones — every required question answered; the builder runs them
+    { label: "Tiny job: one-car pad only", inputs: { sqft: 150, stories: "1", package: "basic", extras: [], stains: "no" } },
+    { label: "Small job", inputs: { sqft: 300, stories: "1", package: "basic", extras: [], stains: "no" } },
+    { label: "Typical job", inputs: { sqft: 550, stories: "1", package: "plus", extras: ["Sidewalk"], stains: "yes" } },
+    { label: "Large job", inputs: { sqft: 1200, stories: "2", package: "premium", sealer: "wet", extras: ["Sidewalk", "Fence"], fence_ft: 120, fence_kind: "wood", stains: "yes" } }
   ]
 }
 
 Rules:
 - ids: letters/digits/underscores, unique. Inputs are referenced by id inside expressions and {templates}.
 - Input types: number, select (one of), multi (several — the value is a LIST of option values), counts (items AND how many of each — the value is a TABLE {optionValue: count}; qty(windows, 'picture') is one item's count, total(windows) all of them, has()/count() work too; use it for windows by type, trees by size, junk items, fixtures, rooms by size), map, toggle, text. type "map" = the customer draws on a satellite map: measure "length" (a fence line; the value is FEET) or "area" (lawn, roof, driveway, patio; the value is SQUARE FEET) — use it whenever a size is the main price driver (fencing, lawn care, roofing, paving, irrigation, sealcoating) instead of asking them to guess a number. Pictures on options/questions are added by the owner in the editor, never by you. "section" groups questions under a heading (the website form shows one section per step); "showWhen" (an expression over OTHER inputs, no variables/price book) hides a question until it matters — a hidden question reads as untouched (its default). Complex trades (roofing, remodels, HVAC, moving) want 2–4 sections and showWhen branches instead of one wall of questions.
-- Number questions: "control" = "slider" (a size with a sensible max — set min/max/step), "stepper" (a count: windows, rooms, gates) or "field" (default). Add 2–5 "presets" whenever a homeowner wouldn't know the number cold ("Two-car — 550 sq ft"). Always give a "unit".
+- ONE CONTROL PER QUESTION. When the real answers are a small fixed set (fence heights 4 / 6 / 8 ft, ceiling heights, pipe sizes, stories, bedrooms 1–5) ask it as a select with style "cards" — the option values can be numbers-as-text ("6"), they still work in arithmetic and tier(). A number question is for a truly continuous amount: "control" = "slider" (a size with a sensible max — set min/max/step), "stepper" (a count: windows, rooms) or "field" (default), with 2–5 "presets" as shortcuts only when a homeowner wouldn't know the number cold ("Two-car — 550 sq ft"). Never presets that cover every allowed value — that is a select. Always give a "unit".
+- WHEN ONE ANSWER LIMITS ANOTHER, say so on the options: an option's "showWhen" (an expression over other inputs) offers it only when it fits — {value: "8", label: "8 ft", showWhen: "style == 'cedar' or style == 'vinyl'"}. Impossible combinations must not be pickable (no 3 ft privacy fence, no 20-year shingle on a metal roof, no 1-ton unit for a 4,000 sq ft house). Samples may only use combinations that are offered. Works on select, multi and counts options.
+- YES / NO the customer may not know (rocky ground, asbestos, HOA approval, what is under the carpet, whether a permit is needed): not a toggle — a "cards" select Yes / No / Not sure, and a "flags" rule for "unsure" so the business checks before the price is final. A toggle is only for things the customer certainly knows or wants (add haul-away? pets in the home?).
+- A YES / NO or add-on whose price depends on how much or what kind needs its follow-up questions, shown with showWhen: "Tear out the old fence?" → how many feet, and what it is made of. Never price such an add-on flat or assume it matches the main quantity.
 - Select questions: "style" = "cards" (2–6 choices with a one-line "blurb" each) or "packages" (2–4 good/better/best tiers; each option needs "blurb" + "includes" bullets, mark ONE "recommended"; the form prints each tier's live price). Lines then switch on the tier: when: "package == 'premium'". Packages ONLY when this business sells tiers — the owner said so (packages / tiers / levels / good-better-best) or their price book and quotes show tiered services. A per-unit, hourly, flat-menu or repair job gets one clear price and NO package picker. Never invent tiers.
 - Every line needs a "description" the CLIENT reads on the quote: what the service is and what it includes, in plain words ("Pressure wash of the whole driveway, with a degreaser on oil stains"). NEVER the math — no "{sqft} sq ft at {rate|money}", no rates, no formulas; the quote already prints quantity × price on its own columns. A line that links a price-book item may leave description out and inherit the item's. Give every line a "group" heading for the breakdown ("Labor", "Materials", "Add-ons", "Package") — 2–4 groups.
-- "hours" on a line = an expression for the labor hours that line takes when it applies ("sqft / 600", "2.5") — the tool then says how long to book the job for; it never changes the price. Give it on the lines that take time; skip it on parts and fees.
+- "rates" = THE RATE CARD. Every number the business prices with is an entry: {id, label, value, unit, kind, source, low?, high?, note?}. The owner reads and edits these by label and never sees a formula, so NO dollar figure, multiplier or crew pace is written as a bare number inside an expression or a lookup table — each is a rate, read by id. (Structural numbers are fine bare: tier break points, a count, a unit conversion.)
+  · "label" is plain words naming exactly what the number buys, including what it is priced AT: "Cedar privacy fence, 6 ft tall" — never "base", never "at 4 ft" for something nobody buys at 4 ft. Set each option's rate at the version most customers actually buy, so the owner can hold it against their price sheet.
+  · "kind": "price" (dollars the customer pays), "factor" (a multiplier or percent on a price — give it a label like "8 ft height, added to the 6 ft price" and unit "×" or "%"), "time" (person-hours or a crew pace — scheduling), "cost" (the business's own cost).
+  · "source": "owner" when the number is theirs (their words, price sheet, price book, what they charged); "market" when you took it from the MARKET NUMBERS (then give low/high); "guess" when nothing backs it. Never mark a number "owner" that they didn't give.
+  · Every option that can vary along a dimension has its scaling on the card: either a rate per combination that is sold (cedar 6 ft, cedar 8 ft), or a base rate plus a labelled factor rate — the SAME way for every option. If an option doesn't vary, its "note" says so ("One height only").
+  · An add-on whose cost depends on the main choice (a gate in cedar vs chain link, trim in oak vs MDF, a fixture by finish) is priced per option or per option group — separate rates and a lookup() — never one price for all.
+- Give every variable a "label" in plain words ("Price per foot for the chosen style and height").
+- "labor": REQUIRED when any line has "hours". "in_price" = the prices are installed prices that already include labor; hours then only say how long to book the job and time rates appear ONLY in "hours". "billed" = labor is charged as its own line (hours × an hourly rate). Never both — an installed per-unit price plus a labor line charges the same hours twice.
+- "hours" on a line = an expression for the labor hours that line takes when it applies ("sqft / t_clean", "2.5") — the tool then says how long to book the job for; it never changes the price. Give it on the lines that take time; skip it on parts and fees.
+- When an add-on takes up part of a measured quantity (gates in a fence line, doors and windows in a wall, an island in a floor) decide which it is and make the form say it: either deduct it in the formula (quantity: "max(0, fence_ft - gate_ft)") and tell the customer to measure the whole line including openings, or tell them in the question's "help" to leave openings out. Never leave it unsaid — that is how a customer pays for the same footage twice.
+- "flags": things to confirm before the price is final — {when, text}. Use them for every "Not sure" answer, for codes and approvals that apply (pool barrier code, permits, HOA, utility locates the customer must arrange), and for anything priced on an assumption. The business sees them on the estimate and the request; they never change the price.
 - "unitCost" on a line = an expression for the business's cost per unit (materials + labor) so the runner shows the margin; a linked price-book item brings its own cost. Never shown to clients.
 - "discounts": money off is a DISCOUNT RULE, never a negative line (negative prices are clamped to $0). Each rule: label (the client reads it), optional when, and percent (of the non-optional subtotal) OR amount (dollars). The rules that apply add up to one discount on the quote. Use it for bundles ("10% off when you add gutters"), first-time / cash / senior discounts, seasonal promos.
 - RECURRING services (weekly mowing, monthly pool service, quarterly pest): the price book decides. Link the line with workItemName to a price-book service marked recurring — the quote line then carries the billing cadence and conversion sets up the subscription. If no such item exists, the line is a per-visit price: say "per visit" in the line name or description and make the frequency question change the per-visit rate, never multiply visits into one lump sum.
 - "askAtlas": true on a question means Atlas answers it from the customer's description and photo at run time (a metered call — the business pays tokens per estimate; the person can always override). Use it ONLY when a human estimator would have to LOOK at the job to answer and the price truly depends on it: condition (light / moderate / heavy), access difficulty, hazard near a house or power line, scope of damage. Give such a question "help" that says exactly what to look for. Never on sizes the customer can measure or draw, never on choices the customer makes (material, package), never more than 3 per tool. A simple per-unit or flat-rate trade never needs it.
-- "placeholders": when the owner did not give a rate you need, do NOT stop to ask — use a reasonable US-market placeholder, and list it here in plain words so the owner sets it. Ask a question ONLY when you cannot tell what job the tool is for. [] when nothing was guessed.
-- "samples": 2–3 realistic jobs (labels containing "small", "typical", "large") with every required question answered; the builder runs them and rejects a tool whose small job prices above its typical one.
+- When the owner did not give a rate you need, do NOT stop to ask — use the market's number (or, with nothing to go on, a sensible guess) as a rate with source "market" / "guess"; the app lists those for the owner as rates to confirm. "placeholders" is only for an assumption that isn't a single number; normally []. Ask a question ONLY when you cannot tell what job the tool is for.
+- "samples": realistic jobs with every required question answered — "Small job", "Typical job", "Large job", plus one or two labelled "Tiny job: …" (the smallest things a customer could ask for: one gate only, the shortest run, a single window) so the owner sees what the minimum does to them. The builder runs them all and rejects a tool whose small job prices above its typical one.
+- "minimumTotal" is what it costs to show up at all: the trip, setup, disposal, the smallest crew for the shortest visit, any locate or permit run. Set it from that, not from a round number — for install trades it is usually well above a service call.
 - Line unitPrice/quantity/when/hours/unitCost are EXPRESSIONS (strings). name/description/quoteTitle/clientMessage are TEMPLATES: {expr}, {expr|money}, {expr|int}. quoteTitle/clientMessage may also use {subtotal} (before discounts), {quote_total} (after) and {labor_hours}.
 - Choice answers are TEXT. "3" + "2" adds (5) when both read as numbers, and a yes/no select answered "no" / "none" / "0" is FALSE in a condition — but prefer a toggle for yes/no and compare choices explicitly (stories == '2').
 - workItemName links a line to a price-book item (exact name): it brings the item's cost, id and — when unitPrice is omitted — its price. price("Name") / cost("Name") read the price book inside any expression. Names must exist in the price book (get_price_book) — never invent items; create them with create_service first.
@@ -2042,8 +2701,9 @@ Rules:
 - Lines with quantity <= 0 or a false "when" are skipped. minimumTotal adds a "Minimum job charge" top-up line when needed (only against the non-optional lines).
 - Expression language: + - * / % ; comparisons == != < <= > >= ; and/or/not (or && || !) ; cond ? a : b ; strings in quotes; lists [a, b]; tables {small: 100, large: 200}.
   Functions: min max round(x, decimals) floor ceil abs sqrt if(c, a, b) clamp(x, lo, hi) pct(amount, percent) roundTo(x, step) tier(x, [[upTo, value], ...], else) lookup(key, {k: v}, default) price("Name") cost("Name") len(text) contains(text, part) lower(text) number(x) has(picks, value) count(picks) sum(list) join(picks, ", ").
+- lookup() on a select: one row per option (the keys are the option VALUES, exactly), plus a default when the question can be hidden by showWhen — a hidden question reads as "" and a lookup with no row for it fails. Compare choices to their exact option values too: a line waiting on style == 'Cedar' never fires when the value is 'cedar_privacy'.
 - lookup() on a multi: sum the picks' prices with a variable per pick, e.g. has(rooms, 'kitchen') * 250 + has(rooms, 'bath') * 180 (has() is 1/0 in arithmetic).
-- Never guess a business's prices. Use the rates the user gave, or the price book. If they gave none, ask (one message, everything at once) — or use a clearly-named placeholder and SAY it's a placeholder.
+- Never pass a guess off as the business's price. Use the rates the user gave, or the price book. If they gave none, ask (one message, everything at once) — or use a rate marked source "market" / "guess" and SAY which numbers are estimates.
 - Keep it as simple as the pricing really is: a flat-rate business needs one select and two lines, not twelve inputs.
 - The owner can also edit labels, rates and formulas by hand (Estimates → Edit) and roll back to any earlier version — every save is kept. So when they want a rate changed, a small 'update' with the new spec is right; they are never stuck with your version.
 - Use action 'test' with sample inputs before staging create/update — fix anything it reports.`;
@@ -2056,7 +2716,7 @@ function rateText(expr: string | undefined): string {
 }
 
 function optionsKey(i: EstimatorInput): string {
-  return i.type === "select" || i.type === "multi" || i.type === "counts" ? i.options.map((o) => `${o.value}=${o.label}${o.image ? "*" : ""}`).join("|") : "";
+  return i.type === "select" || i.type === "multi" || i.type === "counts" ? i.options.map((o) => `${o.value}=${o.label}${o.image ? "*" : ""}${o.showWhen ? `?${o.showWhen}` : ""}`).join("|") : "";
 }
 
 /** Human lines: `Rate for "Sealant": $0.45 → $0.50`, `Added question "Fence length"`. Empty = the rules are the same. */
@@ -2083,14 +2743,29 @@ export function describeSpecChanges(from: EstimatorSpec, to: EstimatorSpec): str
   }
   for (const o of from.inputs) if (!toInputs.has(o.id)) out.push(`Removed question "${o.label}"`);
 
-  const fromVars = new Map(from.variables.map((v) => [v.id, v.expr]));
-  const toVars = new Map(to.variables.map((v) => [v.id, v.expr]));
-  for (const [id, expr] of toVars) {
-    const prev = fromVars.get(id);
-    if (prev === undefined) out.push(`Added variable ${id} = ${expr}`);
-    else if (prev !== expr) out.push(`Variable ${id}: ${prev} → ${expr}`);
+  // the rate card: what the owner would notice — a number, a new entry, a number that became theirs
+  const fromRates = new Map((from.rates ?? []).map((r) => [r.id, r]));
+  const toRates = new Map((to.rates ?? []).map((r) => [r.id, r]));
+  for (const r of to.rates ?? []) {
+    const o = fromRates.get(r.id);
+    if (!o) out.push(`Added rate "${r.label}": ${rateValueText(r)}`);
+    else if (o.value !== r.value || (o.unit ?? "") !== (r.unit ?? "")) out.push(`Rate "${r.label}": ${rateValueText(o)} → ${rateValueText(r)}`);
+    else if (o.label !== r.label) out.push(`Renamed rate "${o.label}" → "${r.label}"`);
+    else if (o.source !== "owner" && r.source === "owner") out.push(`Rate "${r.label}" confirmed at ${rateValueText(r)}`);
   }
-  for (const id of fromVars.keys()) if (!toVars.has(id)) out.push(`Removed variable ${id}`);
+  for (const o of from.rates ?? []) if (!toRates.has(o.id)) out.push(`Removed rate "${o.label}"`);
+
+  // formulas: named by their plain label when they have one, never dumped as code
+  const fromVars = new Map(from.variables.map((v) => [v.id, v]));
+  const toVars = new Map(to.variables.map((v) => [v.id, v]));
+  const varName = (v: EstimatorVariable) => (v.label ? `"${v.label}"` : v.id);
+  for (const v of to.variables) {
+    const prev = fromVars.get(v.id);
+    const short = (prev?.expr.length ?? 0) <= 40 && v.expr.length <= 40;
+    if (prev === undefined) out.push(v.label ? `Added formula ${varName(v)}` : `Added variable ${v.id} = ${v.expr}`);
+    else if (prev.expr !== v.expr) out.push(v.label ? (short ? `Formula ${varName(v)}: ${prev.expr} → ${v.expr}` : `Changed formula ${varName(v)}`) : `Variable ${v.id}: ${prev.expr} → ${v.expr}`);
+  }
+  for (const v of from.variables) if (!toVars.has(v.id)) out.push(v.label ? `Removed formula ${varName(v)}` : `Removed variable ${v.id}`);
 
   const fromLines = new Map(from.lines.map((l) => [l.id, l]));
   const toLines = new Map(to.lines.map((l) => [l.id, l]));
@@ -2133,6 +2808,14 @@ export function describeSpecChanges(from: EstimatorSpec, to: EstimatorSpec): str
   if ((from.intro ?? "") !== (to.intro ?? "")) out.push("Intro text changed");
   if ((from.quoteTitle ?? "") !== (to.quoteTitle ?? "")) out.push("Quote title changed");
   if ((from.clientMessage ?? "") !== (to.clientMessage ?? "")) out.push("Client message changed");
+  if ((from.labor ?? "") !== (to.labor ?? "") && to.labor) out.push(to.labor === "in_price" ? "Labor is inside the prices; hours only schedule the job" : "Labor is billed as its own line");
+  const flagKey = (s: EstimatorSpec) => (s.flags ?? []).map((f) => `${f.when ?? ""}|${f.text}`).join("\n");
+  if (flagKey(from) !== flagKey(to)) {
+    const had = new Set((from.flags ?? []).map((f) => f.text));
+    const added = (to.flags ?? []).filter((f) => !had.has(f.text));
+    if (added.length > 0) for (const f of added.slice(0, 4)) out.push(`Now flags for review: "${f.text}"`);
+    else out.push("Review flags changed");
+  }
   if (Boolean(from.assist) !== Boolean(to.assist)) out.push(to.assist ? "Atlas fill-in turned on" : "Atlas fill-in turned off");
   else if (from.assist && to.assist && (from.assist.instructions ?? "") !== (to.assist.instructions ?? "")) out.push("Atlas fill-in guidance changed");
   return out;
@@ -2179,9 +2862,12 @@ export function askAtlasInputs(spec: EstimatorSpec): EstimatorInput[] {
 /** Is every visible, required input answered? (drives the live running total). `ignore` = inputs priced as variants instead. */
 export function inputsComplete(spec: EstimatorSpec, values: Record<string, unknown>, ignore?: Set<string>): boolean {
   const visible = visibleInputIds(spec, values);
+  const offered = offeredOptions(spec, values);
   return spec.inputs.every((i) => {
     if (!visible.has(i.id) || i.type === "toggle") return true;
     if (ignore?.has(i.id)) return true;
+    // nothing on offer for these answers → nothing to answer
+    if (offered[i.id] && offered[i.id].size === 0) return true;
     if (!("required" in i) || i.required === false) return true;
     const v = values[i.id];
     if (Array.isArray(v)) return v.length > 0;

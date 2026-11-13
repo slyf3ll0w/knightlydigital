@@ -170,7 +170,8 @@ export default function QuoteEditor({
       setDiscountValue(r.discount.toFixed(2));
       setAdjust(true);
     }
-    if (r.hours && r.hours > 0) setNotes((n) => (n ? n : `Estimated labor: ${r.hours} h${r.toolId ? " (from the estimate tool)" : ""}`));
+    const fromTool = [r.hours && r.hours > 0 ? `Estimated labor: ${r.hours} h${r.toolId ? " (from the estimate tool)" : ""}` : "", r.flags && r.flags.length > 0 ? `Confirm before the price is final:\n${r.flags.map((f) => `• ${f}`).join("\n")}` : ""].filter(Boolean).join("\n\n");
+    if (fromTool) setNotes((n) => (n ? n : fromTool));
   }
 
   // Onsite flow: the Estimate page (or a settings Try-it) stashed its result and opened us with ?fromTool=1

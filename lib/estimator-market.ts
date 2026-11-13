@@ -23,6 +23,8 @@ export type MarketRead = {
   rates: BenchmarkRate[];
   labor: string;
   typical: TypicalJob | null;
+  /** The trade's usual minimum job charge, when the baseline has one. */
+  minimum?: { low: number; high: number } | null;
   /** Pages the search read; empty for a baseline-only read. */
   sources: string[];
   searched: boolean;
@@ -85,7 +87,7 @@ function cleanSources(raw: unknown): string[] {
 export function mergeMarket(where: string, searched: RawRead | null, baseline: ReturnType<typeof benchmarkFor>): MarketRead | null {
   const found = searched ? cleanRates(searched.rates) : [];
   const names = new Set(found.map((x) => x.what.toLowerCase()));
-  const rates = [...found, ...(baseline?.rates ?? []).filter((x) => !names.has(x.what.toLowerCase()))].slice(0, 12);
+  const rates = [...found, ...(baseline?.rates ?? []).filter((x) => !names.has(x.what.toLowerCase()))].slice(0, 28);
   // The search was asked to price the baseline's own typical job, so a sane
   // answer replaces the baseline's range (it is local) but keeps its wording:
   // the tool's "typical" sample is written to match that description.
@@ -93,7 +95,7 @@ export function mergeMarket(where: string, searched: RawRead | null, baseline: R
   const typical = baseline?.typical ? (looked ? { ...looked, job: baseline.typical.job } : baseline.typical) : looked;
   const labor = baseline?.labor || (searched ? str(searched.labor, 400) : "");
   if (rates.length === 0 && !typical) return null;
-  return { where, rates, labor, typical, sources: searched ? cleanSources(searched.sources) : [], searched: found.length > 0 };
+  return { where, rates, labor, typical, minimum: baseline?.minimum ?? null, sources: searched ? cleanSources(searched.sources) : [], searched: found.length > 0 };
 }
 
 export async function loadMarket(opts: {
@@ -139,6 +141,7 @@ export function marketText(m: MarketRead): string {
     m.rates.length > 0 ? `Going rates (customer price, low–high):\n${m.rates.map((x) => `- ${x.what}: ${money(x.low)}–${money(x.high)} per ${x.unit}`).join("\n")}` : null,
     m.labor ? `How long it takes: ${m.labor}` : null,
     m.typical ? `The typical job: ${m.typical.job} — sells for ${money(m.typical.low)}–${money(m.typical.high)}${m.typical.hoursHigh > 0 ? ` and takes ${m.typical.hoursLow}–${m.typical.hoursHigh} person-hours` : ""}.` : null,
+    m.minimum ? `Minimum job charge businesses in this trade set: ${money(m.minimum.low)}–${money(m.minimum.high)}.` : null,
   ]
     .filter(Boolean)
     .join("\n");
@@ -148,7 +151,8 @@ export function marketText(m: MarketRead): string {
 export function marketRules(m: MarketRead): string {
   return `How to use the MARKET NUMBERS:
 - The owner's own words, their price sheet, their price book and what they've charged on quotes ALWAYS win. Market numbers only fill a rate nobody gave you.
-- A rate you take from the market is set near the MIDDLE of its range, and goes in "placeholders" worded for the owner: "<what>: $<your number> per <unit> — market estimate${m.where ? ` for ${m.where}` : ""} ($<low>–$<high>); set yours". One line per guessed rate, most important first.
-- "hours" are PERSON-hours (crew size × time on site). Derive them from "How long it takes", not from a feeling — and when you had to assume the pace, add ONE placeholder for it: "Labor time: about <n> person-hours per <unit> — estimate; set your crew's pace".
+- A rate you take from the market is set near the MIDDLE of its range and goes on the rate card as {source: "market", low, high} — the range you took it from, for exactly the thing the rate's label names. The app tells the owner it is a market estimate${m.where ? ` for ${m.where}` : ""} with today's date; do NOT also write it under "placeholders". A number with no market row behind it is source "guess".
+- "hours" are PERSON-hours (crew size × time on site). Derive them from "How long it takes", not from a feeling — the pace is a rate of kind "time" (source "market" unless the owner gave it), read only by "hours" expressions.
+- When the market gives a minimum job charge and the owner gave none, set "minimumTotal" inside that range.
 - When a typical job is given, your "Typical job" sample must BE that job (same size, same options), so its total and hours can be checked against the range. If the owner's own rates put it outside the range, keep their rates.`;
 }

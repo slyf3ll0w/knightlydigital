@@ -152,7 +152,7 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
             depositType: deposit > 0 ? "FIXED" : "NONE",
             depositValue: deposit > 0 ? deposit : null,
             clientMessage: result.clientMessage?.slice(0, 2000) || null,
-            notes: result.hours > 0 ? `Estimated labor: ${result.hours} h (from the ${row.name} tool)` : null,
+            notes: [result.hours > 0 ? `Estimated labor: ${result.hours} h (from the ${row.name} tool)` : null, result.flags.length > 0 ? `Confirm before the price is final:\n${result.flags.map((f) => `• ${f}`).join("\n")}` : null].filter(Boolean).join("\n\n") || null,
             sentAt: send ? new Date() : null,
             lineItems: {
               create: result.lines.map((l, i) => {
@@ -192,6 +192,7 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
               config.showPrice === "hidden" ? " (not shown to the client)" : config.showPrice === "range" ? ` (shown as ${shown})` : " (shown to the client)"
             }${taxRate ? ", before tax" : ""}`,
             result.hours > 0 ? `Estimated labor: ${result.hours} h` : null,
+            result.flags.length > 0 ? `Confirm before the price is final:\n${result.flags.map((f) => `  • ${f}`).join("\n")}` : null,
             quote ? `Quote #${quote.quoteNumber} created automatically (${send ? "sent for approval" : "draft"})${quote.deposit > 0 ? ` — deposit $${quote.deposit.toFixed(2)}` : ""}.` : null,
             outOfArea ? `Outside your service area — ${customer.address ? `the address ${customer.address} ` : ""}isn't in your service ZIPs. No quote was created.` : null,
             customer.address && !outOfArea ? `Address: ${customer.address}` : null,

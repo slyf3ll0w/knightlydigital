@@ -18,10 +18,11 @@ import { confirmSheet } from "@/components/ConfirmSheet";
 import { QuickMenu, type MenuAnchor, type QuickAction } from "@/components/QuickMenu";
 import { moneyExact } from "@/components/EstimatorControls";
 import RatesToConfirm, { confirmGuessedRates } from "@/components/RatesToConfirm";
+import RateCard from "@/components/RateCard";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { money, shortDate } from "@/lib/statuses";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
-import type { EstimatorSpec } from "@/lib/estimator";
+import { confirmLines, type EstimatorSpec } from "@/lib/estimator";
 import { sanitizePublicConfig, type EstimatorPublicConfig } from "@/lib/estimator-public";
 import type { ToolStats } from "@/lib/estimator-context";
 import BuildPanel, { type BuiltTool } from "../BuildPanel";
@@ -228,7 +229,9 @@ export default function ToolClient({
   }, []);
 
   const spec = tool.spec;
+  // the older free-text list (ticked off one by one) and everything still to confirm, rate card included
   const placeholders = spec?.placeholders ?? [];
+  const toConfirm = spec ? confirmLines(spec) : [];
   const facts = spec ? toolFacts({ spec }, atlas.name) : ["no longer compiles"];
   const hostedUrl = tool.isPublic && tool.publicSlug ? `${baseUrl}/book/${companySlug}/estimate/${tool.publicSlug}` : "";
   const published = Boolean(tool.isPublic && tool.publicSlug);
@@ -236,16 +239,23 @@ export default function ToolClient({
 
   // Overview: the sample jobs priced by the live rules (free dry runs)
   const [samplePrices, setSamplePrices] = useState<Record<string, number | null>>({});
+  /** Dollars the minimum job charge added to a sample (absent = the work cleared it). */
+  const [sampleMinimum, setSampleMinimum] = useState<Record<string, number>>({});
   useEffect(() => {
     if (!spec || !spec.samples?.length || section !== "overview") return;
     let cancelled = false;
     (async () => {
       const out: Record<string, number | null> = {};
+      const mins: Record<string, number> = {};
       for (const s of spec.samples ?? []) {
-        const { data } = await postJson<{ ok?: boolean; subtotal?: number }>(`/api/app/estimators/${tool.id}/run?dry=1`, { inputs: valuesToForm(spec, s.inputs) });
-        out[s.label] = data && data.ok && typeof data.subtotal === "number" ? data.subtotal : null;
+        const { data } = await postJson<{ ok?: boolean; subtotal?: number; total?: number; minimumApplied?: number }>(`/api/app/estimators/${tool.id}/run?dry=1`, { inputs: valuesToForm(spec, s.inputs) });
+        out[s.label] = data && data.ok && typeof data.subtotal === "number" ? data.total ?? data.subtotal : null;
+        if (data && data.ok && typeof data.minimumApplied === "number" && data.minimumApplied > 0) mins[s.label] = data.minimumApplied;
       }
-      if (!cancelled) setSamplePrices(out);
+      if (!cancelled) {
+        setSamplePrices(out);
+        setSampleMinimum(mins);
+      }
     })();
     return () => {
       cancelled = true;
@@ -299,8 +309,20 @@ export default function ToolClient({
       go("website");
       return;
     }
-    if (!(await confirmGuessedRates(placeholders))) return;
+    if (!(await confirmGuessedRates(toConfirm))) return;
     if (await patch({ isPublic: true }, "publish")) go("website");
+  }
+
+  /** The rate card: a typed number (or "Looks right" on an estimate) makes that rate the owner's. The server dates it. */
+  async function setRate(id: string, value: number) {
+    if (!spec?.rates) return;
+    const next = { ...spec, rates: spec.rates.map((r) => (r.id === id ? { ...r, value, source: "owner" as const } : r)) };
+    await patch({ spec: next }, "rates");
+  }
+
+  async function setMinimum(value: number) {
+    if (!spec) return;
+    await patch({ spec: { ...spec, minimumTotal: value > 0 ? value : undefined } }, "rates");
   }
 
   /** Overview: tick a rate off — the spec minus that line, saved as a manual edit. */
@@ -542,6 +564,7 @@ export default function ToolClient({
                 </div>
               )}
 
+              {spec && (spec.rates?.length ?? 0) > 0 && manager && <RateCard spec={spec} busy={busy === "rates"} onSet={(id, v) => void setRate(id, v)} onSetMinimum={(v) => void setMinimum(v)} />}
               {placeholders.length > 0 && manager && <RatesToConfirm items={placeholders} onDone={(i) => void confirmRate(i)} onOpenPricing={() => go("advanced", "pricing")} />}
 
               {stats && stats.quotes > 0 && (
@@ -573,13 +596,36 @@ export default function ToolClient({
                 <div className="ds-card overflow-hidden">
                   <SectionHeader className="px-4 pt-4 sm:px-5" title="What it prices" hint="Sample jobs, priced by today's rules." />
                   <dl className="mt-3 grid grid-cols-1 divide-y divide-gray-100 border-t border-gray-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-                    {spec.samples.map((s) => (
+                    {spec.samples.filter((s) => !/\b(tiny|smallest)\b/i.test(s.label)).map((s) => (
                       <div key={s.label} className="flex items-baseline justify-between gap-3 px-4 py-3 sm:block sm:px-5">
                         <dt className="text-xs font-medium text-gray-500">{s.label}</dt>
                         <dd className="numeral-ledger text-lg font-semibold tabular-nums text-gray-900 sm:mt-0.5">{s.label in samplePrices ? (samplePrices[s.label] === null ? <span className="text-sm font-medium text-gray-400">didn&apos;t run</span> : moneyExact(samplePrices[s.label] as number)) : <span className="text-sm font-medium text-gray-400">…</span>}</dd>
                       </div>
                     ))}
                   </dl>
+                  {/* the smallest jobs: what the minimum does to them */}
+                  {spec.samples.some((s) => /\b(tiny|smallest)\b/i.test(s.label)) && (
+                    <div className="border-t border-gray-100 px-4 py-3 sm:px-5">
+                      <p className="text-xs font-medium text-gray-500">The smallest jobs{spec.minimumTotal ? ` — your minimum is ${moneyExact(spec.minimumTotal)}` : ""}</p>
+                      <ul className="mt-1.5 space-y-1">
+                        {spec.samples
+                          .filter((s) => /\b(tiny|smallest)\b/i.test(s.label))
+                          .map((s) => {
+                            const price = samplePrices[s.label];
+                            const min = sampleMinimum[s.label];
+                            return (
+                              <li key={s.label} className="flex items-baseline justify-between gap-3 text-sm">
+                                <span className="min-w-0 text-gray-700">{s.label.replace(/^tiny job:?\s*/i, "").replace(/^./, (c) => c.toUpperCase())}</span>
+                                <span className="shrink-0 text-right tabular-nums text-gray-900">
+                                  {!(s.label in samplePrices) ? "…" : price === null ? "didn't run" : moneyExact(price as number)}
+                                  {typeof price === "number" && min ? <span className="block text-xs text-gray-500">{moneyExact(price - min)} of work, topped up to the minimum</span> : null}
+                                </span>
+                              </li>
+                            );
+                          })}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -762,7 +808,7 @@ export default function ToolClient({
               tool={{ id: tool.id, name: tool.name, usesAtlas: tool.usesAtlas, assessed, isPublic: tool.isPublic, publicSlug: tool.publicSlug, publicConfig: tool.publicConfig, publicViews: tool.publicViews, publicCalcs: tool.publicCalcs, submissions: tool.submissions }}
               companySlug={companySlug}
               baseUrl={baseUrl}
-              placeholders={placeholders}
+              placeholders={toConfirm}
               hasServiceZips={hasServiceZips}
               taxRate={taxRate}
               onDirty={setPanelDirty}

@@ -70,18 +70,40 @@ export const PLAYBOOK: TradePlaybook[] = [
     mapMeasure: "length",
     name: "Fence installation",
     keywords: ["fence", "fencing", "gate", "privacy fence", "chain link", "vinyl fence", "picket"],
-    drivers: ["linear feet (map length)", "material and style", "height", "gates (count and width)", "removal of an old fence", "terrain / rock / slope"],
+    drivers: ["linear feet (map length)", "material and style", "height (which heights exist depends on the style)", "gates (count, width, and the fence style they match)", "corners and end posts", "removal of an old fence (its length and what it is made of)", "terrain / rock / slope"],
     questions: [
-      "Fence line — map length (ft)",
-      "Material — cards with blurb: cedar privacy, vinyl privacy, chain link, wrought iron / aluminum, picket",
-      "Height — cards 4 ft / 6 ft / 8 ft",
-      "Gates — stepper: walk gates; stepper: double drive gates",
-      "Tear out an old fence? — toggle → stepper feet to remove",
-      "Ground — cards: normal / rocky / steep (surcharge per ft)",
+      "Fence line — map length (ft). Help text: trace the WHOLE line including where gates go; gate openings are taken out of the footage automatically",
+      "Style — cards with blurb: cedar privacy, vinyl privacy, chain link, ornamental iron / steel / aluminum (common around pools), picket; plus ranch rail and pipe rail where the business works rural or acreage lots. Offer the styles this business sells",
+      "Height — cards, with each height's showWhen tied to the style: privacy styles (cedar, vinyl) 6 ft and 8 ft; chain link 4 / 5 / 6 ft; ornamental 4 / 5 / 6 ft; ranch rail, pipe rail and picket 4 / 5 ft. Never a slider; never a height the style isn't built in",
+      "Privacy build (showWhen a wood privacy style) — cards: side-by-side / board-on-board; multi upgrades: cap and trim, steel posts instead of wood. Each moves the per-ft price a lot",
+      "Stain or seal (showWhen cedar / wood) — cards: none / stain and seal, priced per ft",
+      "Gates — counts: walk gate (3–4 ft), single drive gate (about 8 ft), double drive gate (10–16 ft)",
+      "Corners and ends — stepper: how many corners and ends the line has (each is a braced or terminal post)",
+      "Is this fence around a pool? — cards yes / no. Yes: heights under 4 ft are not offered, gates are priced self-closing and self-latching, and a flag says to check the local pool barrier code",
+      "Tear out an old fence? — cards yes / no → follow-ups shown on yes: feet of old fence (stepper; it may not match the new line) and what it is made of (cards: wood / chain link / other or not sure)",
+      "Ground — cards: normal / rocky or steep / not sure (not sure → flag to check on site)",
+      "Before we finalize — cards each, yes / no / not sure, flag unless clearly fine: HOA approval needed? Property line or survey known?",
     ],
-    lines: ["Fence: per-ft by material × height factor (group Materials & labor)", "Gates: each by type", "Removal & haul-away: per ft", "Surcharges: terrain per ft", "Permit / survey as optional"],
+    lines: [
+      "Fence: per ft of fence actually built = traced length minus the gate openings; one rate per style AT THE HEIGHT IT IS USUALLY SOLD (privacy at 6 ft, chain link / ranch / pipe at 4 ft, ornamental at 5 ft), plus a labelled factor rate for each other height that style comes in",
+      "Privacy upgrades: board-on-board, cap and trim, steel posts — each a per-ft adder",
+      "Stain and seal: per ft",
+      "Gates: each, priced by gate type AND by fence group — wood / vinyl gates and metal / chain-link gates are different prices; pool gates carry the self-closing hardware",
+      "Corners and end posts: each",
+      "Removal & haul-away: per ft of OLD fence, by what it is made of (chain link set in concrete costs more to pull than old wood)",
+      "Surcharges: rocky or steep ground per ft",
+      "Permit / survey as optional",
+    ],
     packages: ["Standard", "Premium (post caps, kickboard, stained)", "Deluxe (steel posts, lattice top)"],
-    gotchas: ["Height changes material cost — multiply, don't add", "Minimums are real (short runs still need a crew day)", "Corners and end posts — a per-ft rate already absorbs them; don't ask"],
+    gotchas: [
+      "Height changes material cost — multiply, don't add — and every style needs its own height scaling on the rate card, not just some of them",
+      "Gate width is not fence: deduct the openings from the footage (walk 4 ft, single drive 8 ft, double drive 12 ft) so nobody pays for that stretch twice",
+      "One gate price for every style is wrong — a chain-link gate and a cedar or vinyl gate are far apart",
+      "The minimum is real and usually $1,000 or more: a short run still costs a trip, a utility locate (the contractor arranges the 811 locate — it belongs in the minimum, never a customer question), concrete and haul-off",
+      "Corners and ends cost posts, bracing and time — pure per-ft pricing prices a straight run and a five-corner run the same",
+      "Installed per-ft prices already include labor: labor is \"in_price\", and crew pace only sets how long to book",
+      "Cedar prices move often — mark cedar rates you didn't get from the owner as market estimates so they get rechecked",
+    ],
   },
   {
     key: "roofing",
@@ -457,6 +479,7 @@ export function playbookText(t: TradePlaybook): string {
       : []),
     ...(t.packages ? [`Packages SOME businesses in this trade sell (only if THIS owner sells tiers — never invent them): ${t.packages.join(" / ")}.`] : []),
     `Gotchas:\n${t.gotchas.map((g) => `- ${g}`).join("\n")}`,
+    `Where this playbook says "toggle" for something a homeowner may not know for sure (ground, access, what is behind a wall), the general rule wins: Yes / No / Not sure cards plus a flag. Every rate this playbook mentions belongs on the rate card.`,
   ].join("\n");
 }
 
@@ -465,7 +488,15 @@ export const ESTIMATOR_PRINCIPLES = `HOW A GOOD ESTIMATOR THINKS
 - Ask only what changes the price, in the order a pro would ask it: the size first, then the material or level, then the extras, then the things that make the job harder.
 - Homeowners don't know numbers cold. Offer presets ("Two-car — 550 sq ft"), sliders with sane ranges, steppers for counts, and the map for anything you can draw.
 - Packages ONLY when this business sells that way: the owner said tiers / packages / levels / good-better-best, or their price book and past quotes show tiered services (Basic / Plus / Premium, Standard / Deep). A per-unit trade, a flat menu, an hourly trade, a repair — those get ONE clear number. Never invent tiers so the tool has tiers; a fake "Premium" nobody sells makes the tool wrong.
-- Every quote line explains itself in its description: what was counted, the rate, the unit. The client reads the quote without the owner in the room.
+- Every quote line explains itself in its description: what the work is and what was chosen. The client reads the quote without the owner in the room.
+- One control per question. A small fixed set of real values is tap cards; a slider or a typed number is only for an amount that is truly continuous. Never the same question three ways.
+- Answers constrain each other. When a choice rules out others (a style that only comes in certain heights, a system too small for the house, a finish one material can't take), the options that don't fit aren't offered — and the form gets shorter for it.
+- Every number is on the rate card in the owner's language, priced at the version people actually buy, with its scaling stated the same way for every option. An owner should be able to hold the rate card against their own price sheet and tick each line.
+- An add-on is priced for what it goes with. If the same add-on costs more in one material, size or grade than another, it has a rate for each.
+- Nothing is counted twice: an opening inside a measured length or area is either deducted or the customer is told exactly how to measure; labor is either inside the installed price or its own line, never both.
+- Customers don't always know. A site-condition question offers "Not sure", prices the common case, and flags the estimate for the business to confirm. A yes that needs "how much" or "what kind" asks it right there.
+- Flag what has to be confirmed before the price is final: codes that apply, approvals, property lines, anything assumed.
+- The minimum is what it costs to show up. Test it: price the tiniest jobs a customer could ask for and look at what they come to.
 - Group lines under 2–4 headings ("Labor", "Materials", "Add-ons", "Package") so the breakdown reads like a real quote.
 - Never leave the owner at a dead end: when a rate is missing, use a reasonable placeholder and list it under "placeholders" so they can set it. Only ask a question when you truly can't tell what the tool is for.
 - Decide, don't interview. The owner came to build, not to fill in a form: anything a seasoned estimator in this trade would simply decide (the unit, a sensible minimum, which extras to offer, how to group the lines) you decide. A question is for a hole in a SPECIFIC description that only the owner can fill and that changes the price a lot — never for a broad one ("a tool for my lawn care business"), which you build from the trade's standard shape and the business's own rates.

@@ -1,12 +1,12 @@
 import { prisma } from "./db";
 import type { Actor } from "./permissions";
 import { meteredOneShot, oneShotJson } from "./atlas-oneshot";
-import { auditSpec, describeSpecChanges, ESTIMATOR_GUIDE, ESTIMATOR_LIMITS, specFromJson, type EstimatorSpec, type SpecAudit } from "./estimator";
+import { auditSpec, confirmLines, describeSpecChanges, ESTIMATOR_GUIDE, ESTIMATOR_LIMITS, specFromJson, stampRates, type EstimatorSpec, type SpecAudit } from "./estimator";
 import { checkSpec, ESTIMATOR_SELECT, estimatorSummary, snapshotEstimator, type EstimatorRow } from "./estimator-server";
 import { loadBusinessContext, loadToolStats, toolStatsText } from "./estimator-context";
 import { sanitizePublicConfig, type EstimatorPublicConfig } from "./estimator-public";
 import { ESTIMATOR_PRINCIPLES, guessTrade, playbookByKey, playbookText, PLAYBOOK_INDEX, preferMapInput } from "./estimator-playbook";
-import { marketCheck } from "./estimator-benchmarks";
+import { marketCheck, minimumCheck } from "./estimator-benchmarks";
 import { loadMarket, marketRules, marketText, type MarketRead } from "./estimator-market";
 
 /**
@@ -65,7 +65,7 @@ export type BuildDraft = {
 
 export type BuildMarket = { where: string; sources: string[] };
 
-export type BuildSample = { label: string; subtotal: number | null; lines: number; error?: string; hours?: number };
+export type BuildSample = { label: string; subtotal: number | null; lines: number; error?: string; hours?: number; /** A "Tiny job" sample (tests the minimum). */ tiny?: boolean; /** Dollars the minimum job charge added. */ minimumApplied?: number };
 
 /** One thing Atlas wants to know before building — asked the way a colleague would, with example answers. */
 export type BuildQuestion = { question: string; why: string; suggestions: string[] };
@@ -125,8 +125,8 @@ const strs = (v: unknown, max: number, len = 120): string[] => (Array.isArray(v)
 /** The owner's answers as prompt text (blank answers become placeholders downstream). */
 function answersText(answers: BuildAnswer[]): string {
   if (answers.length === 0) return "";
-  return `\n\nYou asked the owner these questions before building; their answers:\n${answers.map((a) => `Q: ${a.question}\nA: ${a.answer.trim() || "(no answer — use a sensible placeholder and list it under placeholders)"}`).join("\n")}
-These answers fill in NUMBERS; they do not narrow the tool. A rate given for the most common option ("6 ft wood privacy is $35 a foot") prices that option — the tool still asks everything the trade's playbook asks (the other materials, heights, sizes, add-ons, difficulty) and prices the options the owner didn't mention from the MARKET NUMBERS, scaled to sit sensibly beside the rates they did give, each listed under placeholders.`;
+  return `\n\nYou asked the owner these questions before building; their answers:\n${answers.map((a) => `Q: ${a.question}\nA: ${a.answer.trim() || "(no answer — use the market's number and mark that rate source \"market\", or \"guess\" with nothing to go on)"}`).join("\n")}
+These answers fill in NUMBERS; they do not narrow the tool. A rate given for the most common option ("6 ft wood privacy is $35 a foot") prices that option (source "owner") — the tool still asks everything the trade's playbook asks (the other materials, heights, sizes, add-ons, difficulty) and prices the options the owner didn't mention from the MARKET NUMBERS, scaled to sit sensibly beside the rates they did give, each a rate with source "market".`;
 }
 
 function planSystem(assistantName: string, answered: boolean, brief: string, hasImage: boolean, cold = false, market: string | null = null): string {
@@ -170,7 +170,8 @@ function draftSystem(
 ): string {
   return `You are ${assistantName}, building an ESTIMATE TOOL for a field-service business inside Workbench. The owner describes how they price a kind of job in plain words; you return a tool a homeowner can answer in a minute and a pro would trust. Answer with ONLY a JSON object, no prose:
 {"name": "short tool name", "description": "one line (≤ 160 chars) on when to use it", "spec": { ...the spec... }}
-${current ? `\nThis is a CHANGE to an existing tool. Current tool (JSON):\n${JSON.stringify({ name: current.name, description: current.description, spec: current.spec })}\nApply the owner's change and return the FULL updated tool. Keep ids of unchanged inputs/lines/variables so their history reads cleanly; keep the name unless they ask to rename; keep samples valid (update them if a question changed); drop a placeholder from "placeholders" once the owner has given that rate.\n` : ""}
+${current ? `\nThis is a CHANGE to an existing tool. Current tool (JSON):\n${JSON.stringify({ name: current.name, description: current.description, spec: current.spec })}\nApply the owner's change and return the FULL updated tool. Keep ids of unchanged inputs/lines/variables/rates so their history reads cleanly; keep the name unless they ask to rename; keep samples valid (update them if a question changed). A rate the owner gives in this request becomes source "owner"; never change the VALUE of a rate the owner didn't ask you to change, and never turn a source "owner" rate back into an estimate.
+If this tool was built before the rate card existed (no "rates", numbers written inside formulas, a "placeholders" list): bring it up to the current rules as part of this change — move every number onto the rate card with a plain label, keeping each value EXACTLY as it is (a number its "placeholders" list calls an estimate is source "market" or "guess"; the rest are the owner's), then empty "placeholders", give variables labels, state "labor", and add the tiny samples. Fix anything in it that breaks the rules below (three controls on one question, options that don't fit each other, one add-on price for every material) even if the owner didn't mention it — say nothing, just return the corrected tool.\n` : ""}
 ${ESTIMATOR_PRINCIPLES}
 
 Design rules for a GOOD tool:
@@ -183,8 +184,9 @@ ${hasImage ? `- The owner attached a PHOTO of their price sheet / rate card / ol
 - Money off is a "discounts" rule (bundle, cash, first-time, seasonal), never a negative line. A recurring service (weekly / monthly / quarterly) links the recurring price-book item; without one, price PER VISIT and say so.
 - "assist" (Atlas fill-in from a photo / description) is a SEPARATE switch the owner turns on later on the tool's page. Leave "assist" null and never set "askAtlas" on your own — the ONLY exception is when the owner's words ask for photo / description fill-in: then set "assist": {"instructions": "..."} and WRITE the instructions: 2–4 plain sentences telling Atlas what to look for in the photo or words, what to assume when it can't tell (typical sizes and counts for this trade, the middle option for condition), and the one or two things it must never guess. On a change, keep the tool's existing "assist" as it is unless the owner asks to change it.
 - You know this business (below): its trade, its price book, what it has actually charged on quotes, the services it books. USE IT. A rate the owner didn't say but the business data shows is a REAL rate, not a placeholder — take it from the price book (link the line with workItemName, exact name) or from what they've charged. When the tool sells a listed service, link it. Match their vocabulary and their existing tools' naming.
-- Rates the owner never gave, that the business data doesn't show either (and they didn't answer when asked): use a sensible placeholder and list it in "placeholders". Never stop to ask for a rate at this stage.
-- "samples": small / typical / large, every required question answered with realistic values (a map input is a number of ft or sq ft; a counts input is a table {"value": n}).
+- Rates the owner never gave, that the business data doesn't show either (and they didn't answer when asked): take the market's number (source "market", with its low/high) or, with nothing to go on, a sensible one (source "guess"). Never stop to ask for a rate at this stage.
+- EVERY number goes on the rate card ("rates") under a plain label; formulas read rates by id. The owner will check that card line by line against their own price sheet — if a number isn't on it, they can't.
+- "samples": small / typical / large plus one or two "Tiny job: …", every required question answered with realistic values (a map input is a number of ft or sq ft; a counts input is a table {"value": n}; a choice is its option VALUE) and only combinations the form actually offers.
 - Every question is answered by the person (or by Atlas fill-in when the owner turns that on) — a condition / access / scope question is a plain "cards" choice with a good "help" line, never "askAtlas".
 ${playbook ? `\n${playbook}\n` : ""}${market ? `\n${marketText(market)}\n\n${marketRules(market)}\n` : ""}
 ${ESTIMATOR_GUIDE}
@@ -489,7 +491,7 @@ export async function* buildEstimator(
     yield { draft: draftPreview(draft, check.compiled.spec) };
 
     yield { phase: "test", message: "Pricing a small, a typical and a large job…" };
-    audit = auditSpec(check.compiled, check.book);
+    audit = auditSpec(check.compiled, check.book, { strict: true });
     yield { samples: audit.samples };
     // Does the typical job come out anywhere near what it goes for? Guessed
     // numbers that miss are an error (fixed below); the owner's own are theirs
@@ -498,6 +500,12 @@ export async function* buildEstimator(
     if (off.length > 0) {
       if (guessing) audit.errors.push(...off);
       else audit.warnings.push(...off);
+    }
+    // The same for the minimum: a guessed one far under the trade's goes back; the owner's own is only noted.
+    const lowMin = market?.minimum ? minimumCheck(check.compiled.spec.minimumTotal, market.minimum, market.where) : [];
+    if (lowMin.length > 0) {
+      if (guessing) audit.errors.push(...lowMin);
+      else audit.warnings.push(...lowMin);
     }
     const marketFix = guessing && off.length > 0 ? `\nFor the market findings: re-derive those rates and "hours" from the MARKET NUMBERS, and if the Typical job sample isn't that exact job, make it that job.` : "";
     if (audit.errors.length > 0 && round < MAX_ROUNDS) {
@@ -529,7 +537,21 @@ export async function* buildEstimator(
   } else if (!currentSpec?.assist) {
     spec = { ...spec, assist: null, inputs: spec.inputs.map((i) => (i.askAtlas ? { ...i, askAtlas: undefined } : i)) };
   }
-  const placeholders = spec.placeholders ?? [];
+  // Date the rate card (a number that didn't change keeps its date and stays the owner's once it is theirs), and
+  // record where its market estimates came from so the owner knows what region and day they are for.
+  const today = new Date().toISOString().slice(0, 10);
+  spec = stampRates(currentSpec, spec, today, "builder");
+  const usesMarket = (spec.rates ?? []).some((r) => r.source === "market");
+  if (usesMarket && market && !(currentSpec?.market && currentRow)) {
+    spec = { ...spec, market: { asOf: today, ...(market.where ? { where: market.where } : {}), ...(market.searched ? { searched: true } : {}), ...(market.sources.length > 0 ? { sources: market.sources } : {}) } };
+  } else if (currentSpec?.market && usesMarket) {
+    spec = { ...spec, market: currentSpec.market };
+  } else if (!usesMarket && spec.market) {
+    const { market: _gone, ...rest } = spec;
+    void _gone;
+    spec = rest;
+  }
+  const placeholders = confirmLines(spec);
   const description = typeof draft.description === "string" ? draft.description.trim().slice(0, 200) || null : null;
 
   if (currentRow) {

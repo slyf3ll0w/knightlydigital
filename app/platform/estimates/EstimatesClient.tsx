@@ -78,7 +78,7 @@ function ToolStamp({ t }: { t: Tool }) {
 
 /** One ledger row — hoisted so a parent re-render (opening the runner, the builder) never remounts it and drops an open menu. */
 function ToolRow({ t, manager, atlasName, tz, onRun }: { t: Tool; manager: boolean; atlasName: string; tz: string; onRun: (t: Tool) => void }) {
-  const placeholders = t.spec.placeholders?.length ?? 0;
+  const placeholders = (t.spec.placeholders?.length ?? 0) + (t.spec.rates ?? []).filter((r) => r.source !== "owner").length;
   const facts = toolFacts(t, atlasName);
   const missing = t.missingItems?.length ?? 0;
   const sub = [t.description || facts.join(" · "), placeholders > 0 && manager ? `${placeholders} rate${placeholders === 1 ? "" : "s"} to confirm` : null, missing > 0 && manager ? `can't run — ${missing === 1 ? "a price-book item is" : `${missing} price-book items are`} missing` : null].filter(Boolean).join(" · ");

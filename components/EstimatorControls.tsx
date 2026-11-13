@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Minus, Plus } from "lucide-react";
 import { inputCls } from "@/components/Input";
 import { textOn } from "@/lib/branding";
-import type { EstimatorInput, EstimatorOption } from "@/lib/estimator";
+import { numberMode, type EstimatorInput, type EstimatorOption } from "@/lib/estimator";
 
 /**
  * The controls an estimate tool renders — shared by the in-app runner
@@ -139,7 +139,12 @@ export function PriceHero({ theme, label, amount, text, sub, size = "xl", exact 
   );
 }
 
-// ── number: presets / slider / stepper / field ───────────────────────────────
+/** The options a question offers right now (`offered` = lib/estimator offeredOptions for this input; absent = all of them). */
+function offeredOf<T extends { options: EstimatorOption[] }>(inp: T, offered?: Set<string>): EstimatorOption[] {
+  return offered ? inp.options.filter((o) => offered.has(o.value)) : inp.options;
+}
+
+// ── number: ONE control — chips, a slider, a stepper or a field ──────────────
 
 type NumberInput = Extract<EstimatorInput, { type: "number" }>;
 
@@ -155,6 +160,29 @@ export function NumberControl({ inp, value, onChange, theme, required }: { inp: 
     const next = Math.max(inp.min ?? 0, Math.min(inp.max ?? Number.POSITIVE_INFINITY, cur + d * step));
     onChange(String(next));
   };
+  // One control per question. A small fixed set of values is a row of chips
+  // and nothing else — a slider and a text box beside them only disagreed
+  // with the chips (slider at 3 ft, box empty, no chip lit).
+  const mode = numberMode(inp);
+  if (mode.mode === "chips") {
+    return (
+      <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={inp.label}>
+        {mode.stops.map((p) => {
+          const on = num !== null && num === p.value;
+          return (
+            <button key={p.value} type="button" role="radio" aria-checked={on} onClick={() => onChange(on && !required ? "" : String(p.value))} className={chip(on)} style={on ? { backgroundColor: theme.accent, borderColor: theme.accent, color: theme.onAccent } : undefined}>
+              {p.label}
+            </button>
+          );
+        })}
+        {/* the browser's required check needs a real field */}
+        {required && <input type="text" value={value} required readOnly tabIndex={-1} aria-hidden className="sr-only" onChange={() => undefined} />}
+      </div>
+    );
+  }
+  const sliding = mode.mode === "slider" && inp.max !== undefined;
+  // an unanswered slider shows a faded track and "Slide to set", not a thumb that looks like an answer
+  const shown = num ?? inp.default ?? min;
   return (
     <div className="space-y-2">
       {inp.presets && inp.presets.length > 0 && (
@@ -169,25 +197,28 @@ export function NumberControl({ inp, value, onChange, theme, required }: { inp: 
           })}
         </div>
       )}
-      {inp.control === "slider" && inp.max !== undefined ? (
+      {sliding ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <input
             type="range"
             min={min}
             max={inp.max}
             step={step}
-            value={num ?? inp.default ?? min}
+            value={shown}
             onChange={(e) => onChange(e.target.value)}
+            onPointerDown={() => {
+              if (num === null) onChange(String(shown));
+            }}
             aria-label={inp.label}
-            className="h-2 min-w-[10rem] flex-1 cursor-pointer appearance-none rounded-full"
-            style={{ accentColor: theme.accent, background: `linear-gradient(to right, ${theme.accent} ${(((num ?? inp.default ?? min) - min) / (inp.max - min)) * 100}%, ${wash(theme, theme.dark ? 25 : 14)} 0)` }}
+            className={`h-2 min-w-[10rem] flex-1 cursor-pointer appearance-none rounded-full ${num === null ? "opacity-50" : ""}`}
+            style={{ accentColor: theme.accent, background: `linear-gradient(to right, ${theme.accent} ${num === null ? 0 : ((shown - min) / (inp.max! - min)) * 100}%, ${wash(theme, theme.dark ? 25 : 14)} 0)` }}
           />
-          <div className="flex w-32 shrink-0 items-center gap-1.5">
-            <input type="number" inputMode="decimal" value={value} min={inp.min} max={inp.max} step="any" required={required} onChange={(e) => onChange(e.target.value)} className={`${theme.input} !px-2 !py-2 text-right tabular-nums`} aria-label={`${inp.label} (number)`} />
-            {inp.unit && <span className={`shrink-0 text-xs ${theme.faint}`}>{inp.unit}</span>}
-          </div>
+          <output className={`w-28 shrink-0 text-right text-sm font-semibold tabular-nums ${num === null ? theme.faint : theme.ink}`} aria-live="polite">
+            {num === null ? "Slide to set" : `${fmtNum(num)}${inp.unit ? ` ${inp.unit}` : ""}`}
+          </output>
+          {required && <input type="text" value={value} required readOnly tabIndex={-1} aria-hidden className="sr-only" onChange={() => undefined} />}
         </div>
-      ) : inp.control === "stepper" ? (
+      ) : mode.mode === "stepper" ? (
         <div className={`inline-flex h-12 items-stretch overflow-hidden rounded-xl border ${theme.border}`}>
           <button type="button" onClick={() => bump(-1)} disabled={num !== null && inp.min !== undefined && num <= inp.min} className={`flex w-12 items-center justify-center ${theme.muted} hover:bg-black/5 disabled:opacity-30`} aria-label={`Fewer ${inp.unit ?? ""}`}>
             <Minus size={16} />
@@ -206,13 +237,13 @@ export function NumberControl({ inp, value, onChange, theme, required }: { inp: 
           {inp.unit && <span className={`shrink-0 text-sm ${theme.faint}`}>{inp.unit}</span>}
         </div>
       )}
-      {inp.control === "slider" && inp.max !== undefined && (
+      {sliding && (
         <div className={`flex justify-between text-[11px] ${theme.faint}`}>
           <span>
             {fmtNum(min)} {inp.unit}
           </span>
           <span>
-            {fmtNum(inp.max)} {inp.unit}
+            {fmtNum(inp.max ?? min)} {inp.unit}
           </span>
         </div>
       )}
@@ -225,8 +256,10 @@ export function NumberControl({ inp, value, onChange, theme, required }: { inp: 
 type SelectInput = Extract<EstimatorInput, { type: "select" }>;
 
 /** `tierPrices` = live price label per option value (package tiers); undefined = still pricing, null = can't price yet. */
-export function ChoiceControl({ inp, value, onChange, theme, required, tierPrices }: { inp: SelectInput; value: string; onChange: (v: string) => void; theme: ControlTheme; required: boolean; tierPrices?: Record<string, string | null> }) {
+export function ChoiceControl({ inp: full, value, onChange, theme, required, tierPrices, offered }: { inp: SelectInput; value: string; onChange: (v: string) => void; theme: ControlTheme; required: boolean; tierPrices?: Record<string, string | null>; /** Option values on offer for the current answers (absent = all). */ offered?: Set<string> }) {
+  const inp = offered ? { ...full, options: offeredOf(full, offered) } : full;
   const style = inp.style ?? (inp.options.some((o) => o.image) ? "cards" : "list");
+  if (inp.options.length === 0) return <p className={`text-sm ${theme.faint}`}>Nothing to choose here with the answers above.</p>;
   if (style === "list") {
     return (
       <select value={value} required={required} onChange={(e) => onChange(e.target.value)} className={`${theme.input} ${theme.dark ? "[&>option]:text-gray-900" : ""}`} aria-label={inp.label}>
@@ -314,7 +347,8 @@ export function ChoiceControl({ inp, value, onChange, theme, required, tierPrice
 
 type MultiInput = Extract<EstimatorInput, { type: "multi" }>;
 
-export function MultiControl({ inp, value, onToggle, theme }: { inp: MultiInput; value: string[]; onToggle: (v: string) => void; theme: ControlTheme }) {
+export function MultiControl({ inp: full, value, onToggle, theme, offered }: { inp: MultiInput; value: string[]; onToggle: (v: string) => void; theme: ControlTheme; offered?: Set<string> }) {
+  const inp = offered ? { ...full, options: offeredOf(full, offered) } : full;
   const hasImages = inp.options.some((o) => o.image || o.blurb);
   if (hasImages) {
     return (
@@ -356,7 +390,8 @@ export function MultiControl({ inp, value, onToggle, theme }: { inp: MultiInput;
 
 type CountsInput = Extract<EstimatorInput, { type: "counts" }>;
 
-export function CountsControl({ inp, value, onChange, theme }: { inp: CountsInput; value: Record<string, number>; onChange: (v: Record<string, number>) => void; theme: ControlTheme }) {
+export function CountsControl({ inp: full, value, onChange, theme, offered }: { inp: CountsInput; value: Record<string, number>; onChange: (v: Record<string, number>) => void; theme: ControlTheme; offered?: Set<string> }) {
+  const inp = offered ? { ...full, options: offeredOf(full, offered) } : full;
   const cap = inp.max ?? 999;
   const set = (key: string, n: number) => {
     const next = { ...value };

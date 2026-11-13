@@ -1668,6 +1668,103 @@ Tests: `scripts/test-estimator.ts` §16, `test-estimator-public.ts` §10,
 10. Share a tool anonymously whose intro names the company → the listing's
     words say "our team".
 
+## Accuracy round — the rate card, answers that limit each other, nothing counted twice (BUILT 2026-11-13)
+
+David and Chrome Claude reviewed a fence tool the builder made (ticket
+`cmwf5v6e…`, Steadfast Outdoor Living Co.) and listed 14 general problems and
+8 fence ones. Everything is fixed in the builder and the engine, not in that
+one tool. The change request that started it also failed twice with "Atlas
+couldn't answer" — the model spent its whole 16k output budget thinking;
+draft calls now get 32k (streamed on Claude) and one leaner retry.
+
+**Engine (`lib/estimator.ts`)**
+
+- `rates` — the rate card. Every number a tool prices with is a named
+  constant `{id, label, value, unit, kind: price|factor|time|cost, source:
+  owner|market|guess, low?, high?, note?, updatedAt?}`. Formulas read rates
+  by id; the owner edits values by label and never sees a formula.
+  `stampRates()` dates a rate when its value changes (or when an estimate is
+  confirmed as-is) and never lets a rebuild turn an owner's number back into
+  an estimate. `spec.market {where, asOf, sources}` records where the market
+  estimates came from. `placeholders` stays for old tools and for assumptions
+  that aren't one number.
+- `option.showWhen` — an option is only offered when it fits the other
+  answers. `offeredOptions()` / `dropUnofferedPicks()` drive both forms;
+  `coerceInputs` refuses a combination that isn't offered.
+- `flags [{when, text}]` — things to confirm before the price is final. The
+  run returns them; the runner, the web form ("We'll confirm before the price
+  is final"), the request details and the quote's internal notes show them.
+- `labor: "in_price" | "billed"` — stated per tool. With `in_price` a
+  crew-time rate that reaches a line's price is an audit error.
+- `numberMode()` — one control per number question. A small fixed set of
+  values (≤ 8 stops) renders as chips only; a slider no longer carries a
+  text box, and an unanswered slider says "Slide to set".
+- Samples: up to 5, with "Tiny job: …" ones that show what the minimum does.
+  The run reports `minimumApplied`.
+- `auditSpec(…, {strict})` — always: a comparison / `has()` / `qty()` /
+  `lookup()` row naming a choice the question doesn't have, a lookup with no
+  row for an option and no default, hours charged twice. Strict (the
+  builder): bare dollar figures in formulas, lookup rows missing for an
+  option, no `labor` when lines have hours, no tiny sample when there is a
+  minimum, unlabelled variables, unused rates, cut-off or half-written copy.
+  Prose that runs past its limit is cut at a word with "…" (was mid-word:
+  "set you").
+
+**Builder (`lib/estimator-build.ts`, `-playbook.ts`, `-market.ts`,
+`-benchmarks.ts`)**
+
+- The guide and principles carry the rules: one control per question,
+  options that depend on answers, rates priced at the version people buy with
+  scaling stated the same way for every option, add-ons priced for what they
+  go with, openings deducted or the measuring rule stated, Yes / No / Not
+  sure + a flag for site conditions, follow-up questions on a yes, the
+  minimum as the cost of showing up. The guide's own example is unit-tested
+  against the strict audit.
+- A change to a tool built before the rate card moves its numbers onto the
+  card (values unchanged) and fixes what breaks the rules.
+- Fencing playbook rewritten: heights per style (privacy 6 / 8, chain link
+  4 / 5 / 6, ornamental 4 / 5 / 6, ranch and pipe rail 4 / 5), ornamental
+  iron, board-on-board / cap and trim / steel posts, stain and seal, single
+  drive gate, gates priced by fence group, gate openings deducted, corners
+  and ends, pool barrier (flag + min 4 ft + self-closing gates), tear-out by
+  length and material, HOA and property-line flags, 811 inside the minimum.
+- Fencing baseline: 22 rate rows and a minimum of $900–$1,500;
+  `minimumCheck()` sends a guessed minimum under the range back for a fix
+  (a note only when the minimum is the owner's).
+
+**UI**
+
+- `components/RateCard.tsx` on the tool's Overview and Advanced → Pricing:
+  grouped What you charge / Adjustments / Crew time / Your costs, each row
+  with whose number it is, the going range, region and date. Type a number or
+  press Looks right. Minimum job charge sits at the bottom.
+- Overview "What it prices" lists the smallest jobs and what the minimum adds.
+- Web form: a live "Estimate so far" on forms that show the price before
+  contact details (`live: true` calc calls don't bump the counter).
+- Editor: "Variables" is "Formulas", each with a plain label.
+
+### Accuracy round Test (owed)
+
+1. On Steadfast's "Ranch & pipe fence estimator" → Ask Atlas, resubmit the
+   five-point change. It should finish (no "couldn't answer"), and the tool
+   comes back with Your rates on the Overview.
+2. Try it: height is one row of chips; pick Cedar privacy → only 6 and 8 ft
+   show; pick Ranch rail → 4 and 5 ft. Switch style with a height picked that
+   no longer fits → the height clears.
+3. Add a walk gate on chain link, then on cedar → different gate prices. The
+   fence line's quantity is the traced length less the gate openings.
+4. Answer "Not sure" on ground → the result lists it under "Confirm before
+   this price is final"; create the quote → it is in the internal notes.
+5. Overview → Your rates: type your cedar price → "Yours · set <today>".
+   Press Looks right on a market estimate. The count on the Estimates list
+   drops.
+6. Overview → What it prices → The smallest jobs shows a tiny job topped up
+   to the minimum.
+7. Publish as a web form (price shown right away): "Estimate so far" updates
+   as you answer.
+8. Build a tool for a different trade from one sentence (roofing, house
+   cleaning): it has a rate card, a labor rule and a tiny job too.
+
 ## Later
 - **Smarter still (proposed 2026-09-22, not built)** — the upgrade-worthy
   layer on top of the Library:
