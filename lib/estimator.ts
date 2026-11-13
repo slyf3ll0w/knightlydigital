@@ -31,7 +31,8 @@ export const ESTIMATOR_LIMITS = {
   lines: 100,
   options: 60,
   discounts: 12,
-  exprLen: 500,
+  // room for a price table with a named rate per option (rate ids are long)
+  exprLen: 1500,
   textLen: 300,
   templateLen: 400,
   perCompany: 40,
@@ -656,6 +657,8 @@ const isTable = (v: Value): v is CountsTable => v !== null && typeof v === "obje
 
 export type EvalCtx = {
   vars: Record<string, Value>;
+  /** Choice questions: option value (lower-cased) → label, for templates (see renderTemplate). */
+  labels?: Record<string, Record<string, string>>;
   /** Lower-cased name → entry. */
   priceBook: Map<string, PriceBookEntry>;
 };
@@ -976,8 +979,21 @@ export function formatValue(v: Value, fmt: "auto" | "money" | "int" | "text" = "
 }
 
 export function renderTemplate(parts: TemplatePart[], ctx: EvalCtx): string {
+  // A bare {choice} prints the option's LABEL, not its value — a quote line reads
+  // "Cedar privacy fence", never "cedar_privacy fence". Values that read as
+  // numbers print as they are ("{height} ft" stays "6 ft").
+  const shown = (p: Extract<TemplatePart, { expr: Node }>): string => {
+    const v = evaluate(p.expr, ctx);
+    const labels = p.expr.k === "id" ? ctx.labels?.[p.expr.name] : undefined;
+    if (labels && p.fmt === "auto") {
+      const one = (x: Value) => (typeof x === "string" && !numish(x) ? labels[x.trim().toLowerCase()] ?? x : formatValue(x, "auto"));
+      if (typeof v === "string") return one(v);
+      if (Array.isArray(v)) return v.map(one).join(", ");
+    }
+    return formatValue(v, p.fmt);
+  };
   return parts
-    .map((p) => ("text" in p ? p.text : formatValue(evaluate(p.expr, ctx), p.fmt)))
+    .map((p) => ("text" in p ? p.text : shown(p)))
     .join("")
     .replace(/\s+/g, " ")
     .trim();
@@ -1240,10 +1256,6 @@ export function compileSpec(raw: unknown): CompileResult {
         errors.push(`${where}: showWhen ${(e as Error).message}`);
       }
     }
-    if (inp.type === "select" && inp.default) {
-      const d = inp.options.find((o) => o.value === inp.default);
-      if (d?.showWhen) errors.push(`Input "${inp.id}": the default "${inp.default}" is an option that isn't always offered — drop the default or pick one that always shows`);
-    }
   }
 
   const known = new Set(seen);
@@ -1292,7 +1304,7 @@ export function compileSpec(raw: unknown): CompileResult {
       id,
       label,
       value,
-      ...(s(o.unit, 30) ? { unit: s(o.unit, 30) } : {}),
+      ...(s(o.unit, 30) ? { unit: s(o.unit, 30).toLowerCase() === "per each" ? "each" : s(o.unit, 30) } : {}),
       kind,
       source,
       ...(range ? { low, high } : {}),
@@ -1796,7 +1808,8 @@ export function coerceInputs(
       }
       case "select": {
         if (missing) {
-          if (inp.default) values[inp.id] = inp.default;
+          // a default that isn't on offer for these answers is no default at all
+          if (inp.default && offers(inp.id, inp.default)) values[inp.id] = inp.default;
           // a question with nothing on offer for these answers can't be required of anyone
           else if (inp.required && !(offered[inp.id] && offered[inp.id].size === 0)) problems.push({ id: inp.id, message: `Choose a ${inp.label.toLowerCase()}` });
           else values[inp.id] = "";
@@ -1878,6 +1891,9 @@ export function runCompiled(
     priceBook: new Map(priceBook.map((p) => [p.name.trim().toLowerCase(), p])),
   };
   const warnings: string[] = [];
+  const labels: Record<string, Record<string, string>> = {};
+  for (const inp of spec.inputs) if (inp.type === "select" || inp.type === "multi") labels[inp.id] = Object.fromEntries(inp.options.map((o) => [o.value.trim().toLowerCase(), o.label]));
+  ctx.labels = labels;
   // the rate card: plain constants, read by id
   for (const rate of spec.rates ?? []) ctx.vars[rate.id] = rate.value;
 
@@ -2274,7 +2290,7 @@ function specExpressions(compiled: CompiledSpec): { where: string; node: Node; r
  * price table with no row for one option quietly prices it as something else
  * — the two commonest ways a tool quotes the wrong number without any error.
  */
-function choiceProblems(compiled: CompiledSpec, strict: boolean): { errors: string[]; warnings: string[] } {
+function choiceProblems(compiled: CompiledSpec): { errors: string[]; warnings: string[] } {
   const errors: string[] = [];
   const warnings: string[] = [];
   const byId = new Map(compiled.spec.inputs.map((i) => [i.id, i]));
@@ -2308,8 +2324,12 @@ function choiceProblems(compiled: CompiledSpec, strict: boolean): { errors: stri
         const missing = inp.options.filter((o) => !keys.some((k) => sameText(k, o.value)));
         if (missing.length > 0) {
           const names = missing.map((o) => `'${o.value}'`).join(", ");
-          if (n.args.length < 3) errors.push(`${where}: the lookup on "${inp.label}" has no row for ${names} and no default — picking it would fail.`);
-          else (strict ? errors : warnings).push(`${where}: the lookup on "${inp.label}" has no row for ${names}, so ${missing.length === 1 ? "it is" : "they are"} priced by the default. Give every option its own row (or say it doesn't vary).`);
+          // When options are offered only with certain other answers, a table may rightly list just
+          // the ones that can occur where it is used (the heights a privacy fence comes in) — the
+          // samples and the form prove those paths, so this is a note, not a defect.
+          const gated = inp.options.some((o) => o.showWhen);
+          if (n.args.length < 3) (gated ? warnings : errors).push(`${where}: the lookup on "${inp.label}" has no row for ${names} and no default — picking it would fail.`);
+          else if (!gated) warnings.push(`${where}: the lookup on "${inp.label}" has no row for ${names}, so ${missing.length === 1 ? "it is" : "they are"} priced by the default. Give every option its own row (or say it doesn't vary).`);
         }
       }
     });
@@ -2450,7 +2470,7 @@ export function auditSpec(compiled: CompiledSpec, priceBook: PriceBookEntry[], o
   if (spec.inputs.length > 6 && !spec.inputs.some((i) => i.section)) warnings.push("More than six questions in one wall — group them into sections.");
   if (!spec.minimumTotal) warnings.push("No minimum job charge — most trades set one so tiny jobs still pay for the trip.");
 
-  const choice = choiceProblems(compiled, strict);
+  const choice = choiceProblems(compiled);
   errors.push(...choice.errors);
   warnings.push(...choice.warnings);
   errors.push(...laborProblems(compiled, strict));
@@ -2489,6 +2509,36 @@ export function auditSpec(compiled: CompiledSpec, priceBook: PriceBookEntry[], o
   return { errors: Array.from(new Set(errors)).slice(0, 20), warnings: Array.from(new Set(warnings)).slice(0, 10), samples };
 }
 
+/**
+ * The old tool's typical job, answered again on the changed tool: the same
+ * answers for every question that survived the change, with the questions
+ * the change added left untouched (add-ons off) — or, when one of those must
+ * be answered, filled from whichever of the new tool's samples lands closest. `was` / `now` are the two totals; null when the old tool has no
+ * runnable typical sample or its answers no longer fit the new questions.
+ * Comparing these catches a rate carried over wrongly even when the new
+ * tool's samples were rewritten to describe different jobs.
+ */
+export function replayTypical(before: CompiledSpec, after: CompiledSpec, priceBook: PriceBookEntry[]): { label: string; was: number; now: number } | null {
+  const sized = (before.spec.samples ?? []).filter((s) => !TINY_RE.test(s.label));
+  const old = sized.find((s) => /typical|average|medium|standard/i.test(s.label)) ?? sized[Math.floor((sized.length - 1) / 2)];
+  if (!old) return null;
+  const wasRun = runCompiled(before, old.inputs, priceBook);
+  if (!wasRun.ok || wasRun.total <= 0) return null;
+  const kept = new Set(after.spec.inputs.map((i) => i.id));
+  const carry = Object.fromEntries(Object.entries(old.inputs).filter(([id]) => kept.has(id)));
+  if (Object.keys(carry).length === 0) return null;
+  // New questions left untouched (add-ons off) is the like-for-like job. Only when a new question
+  // must be answered do the new tool's samples supply the rest — the one that lands closest.
+  const bare = runCompiled(after, carry, priceBook);
+  if (bare.ok) return { label: old.label, was: wasRun.total, now: bare.total };
+  let now: number | null = null;
+  for (const base of (after.spec.samples ?? []).filter((s) => !TINY_RE.test(s.label))) {
+    const r = runCompiled(after, { ...base.inputs, ...carry }, priceBook);
+    if (r.ok && (now === null || Math.abs(r.total - wasRun.total) < Math.abs(now - wasRun.total))) now = r.total;
+  }
+  return now === null ? null : { label: old.label, was: wasRun.total, now };
+}
+
 // ── the rate card (what the owner checks against their own price sheet) ──────
 
 const rateMoney = (n: number): string => (Number.isInteger(n) ? `$${n.toLocaleString("en-US")}` : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
@@ -2511,13 +2561,48 @@ export function rateConfirmLines(spec: Pick<EstimatorSpec, "rates" | "market">):
   const where = spec.market?.where ? ` for ${spec.market.where}` : "";
   return ratesToConfirm(spec).map((r) => {
     const range = r.low !== undefined && r.high !== undefined && r.kind !== "factor" && r.kind !== "time" ? ` (${rateMoney(r.low)}–${rateMoney(r.high)})` : "";
-    return `${r.label}: ${rateValueText(r)} — ${r.source === "market" ? `market estimate${where}${range}` : "placeholder, nothing to go on"}`;
+    return `${r.label}: ${rateValueText(r)} — ${r.source === "market" ? `market estimate${where}${range}` : "an estimate, not your number yet"}`;
   });
 }
 
 /** Everything the owner still has to confirm, as lines: rate-card entries first, then the older free-text placeholders. */
 export function confirmLines(spec: Pick<EstimatorSpec, "rates" | "market" | "placeholders">): string[] {
   return [...rateConfirmLines(spec), ...(spec.placeholders ?? [])];
+}
+
+/**
+ * Keep "Yours" honest. A builder may only call a rate the owner's when it
+ * could have come from them: `trust` (their price book, quotes or price sheet
+ * were in front of it), or the number itself appears in what the owner wrote
+ * (`said` — the request and their answers). Anything else it marked "owner"
+ * becomes a market estimate (when it carries a range) or a plain estimate, so
+ * the owner is asked to confirm it instead of being told it is theirs.
+ */
+export function honestSources(spec: EstimatorSpec, opts: { trust: boolean; said: string }): EstimatorSpec {
+  if (opts.trust || !spec.rates || spec.rates.length === 0) return spec;
+  const said = opts.said.replace(/,(?=\d{3})/g, "");
+  const named = (value: number): boolean => {
+    const forms = new Set([String(value), value.toFixed(2)]);
+    // a small whole number turns up everywhere ("6 ft", "2 gates") — it only counts as a price with a $ in front
+    const needsDollar = Number.isInteger(value) && value < 20;
+    for (const f of forms) {
+      for (let at = said.indexOf(f); at >= 0; at = said.indexOf(f, at + 1)) {
+        const before = said[at - 1] ?? " ";
+        const after = said[at + f.length] ?? " ";
+        if (/[\d.]/.test(before) || /\d/.test(after) || (after === "." && /\d/.test(said[at + f.length + 1] ?? ""))) continue;
+        if (needsDollar && before !== "$") continue;
+        return true;
+      }
+    }
+    return false;
+  };
+  let changed = false;
+  const rates = spec.rates.map((r): EstimatorRate => {
+    if (r.source !== "owner" || named(r.value)) return r;
+    changed = true;
+    return { ...r, source: r.low !== undefined && r.high !== undefined ? "market" : "guess" };
+  });
+  return changed ? { ...spec, rates } : spec;
 }
 
 /**
@@ -2694,7 +2779,7 @@ Rules:
 - When the owner did not give a rate you need, do NOT stop to ask — use the market's number (or, with nothing to go on, a sensible guess) as a rate with source "market" / "guess"; the app lists those for the owner as rates to confirm. "placeholders" is only for an assumption that isn't a single number; normally []. Ask a question ONLY when you cannot tell what job the tool is for.
 - "samples": realistic jobs with every required question answered — "Small job", "Typical job", "Large job", plus one or two labelled "Tiny job: …" (the smallest things a customer could ask for: one gate only, the shortest run, a single window) so the owner sees what the minimum does to them. The builder runs them all and rejects a tool whose small job prices above its typical one.
 - "minimumTotal" is what it costs to show up at all: the trip, setup, disposal, the smallest crew for the shortest visit, any locate or permit run. Set it from that, not from a round number — for install trades it is usually well above a service call.
-- Line unitPrice/quantity/when/hours/unitCost are EXPRESSIONS (strings). name/description/quoteTitle/clientMessage are TEMPLATES: {expr}, {expr|money}, {expr|int}. quoteTitle/clientMessage may also use {subtotal} (before discounts), {quote_total} (after) and {labor_hours}.
+- Line unitPrice/quantity/when/hours/unitCost are EXPRESSIONS (strings). name/description/quoteTitle/clientMessage are TEMPLATES: {expr}, {expr|money}, {expr|int}. A bare {choice_id} prints the picked option's LABEL (so keep option labels the way they should read on a quote: "Cedar privacy", not "CEDAR"); a value that is a number-as-text prints as the number. quoteTitle/clientMessage may also use {subtotal} (before discounts), {quote_total} (after) and {labor_hours}.
 - Choice answers are TEXT. "3" + "2" adds (5) when both read as numbers, and a yes/no select answered "no" / "none" / "0" is FALSE in a condition — but prefer a toggle for yes/no and compare choices explicitly (stories == '2').
 - workItemName links a line to a price-book item (exact name): it brings the item's cost, id and — when unitPrice is omitted — its price. price("Name") / cost("Name") read the price book inside any expression. Names must exist in the price book (get_price_book) — never invent items; create them with create_service first.
 - Quantity may be fractional (2.5 hours): it folds into one unit at the extended price automatically.

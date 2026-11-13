@@ -5,7 +5,7 @@
  * Needs a placeholder DATABASE_URL (the builder module imports Prisma; never queried).
  */
 import assert from "node:assert/strict";
-import { BENCHMARKS, benchmarkFor, marketCheck, minimumCheck, regionFactor, typicalSample } from "../lib/estimator-benchmarks";
+import { BENCHMARKS, benchmarkFor, driftCheck, marketCheck, minimumCheck, regionFactor, typicalSample } from "../lib/estimator-benchmarks";
 import { cleanRates, cleanTypical, marketRules, marketText, mergeMarket } from "../lib/estimator-market";
 import { PLAYBOOK } from "../lib/estimator-playbook";
 
@@ -147,6 +147,17 @@ test("minimumCheck: the $600 fence minimum from the ticket reads low; $1,000 and
   const whats = fence.rates.map((x) => x.what).join(" | ");
   for (const want of ["Walk gate, wood or vinyl", "Walk gate, chain link", "Single drive gate", "Ornamental", "Ranch rail", "Pipe rail", "Board-on-board", "Stain and seal", "Corner or end post", "chain link removal"]) assert.ok(whats.toLowerCase().includes(want.toLowerCase()), want);
   assert.match(marketText(mergeMarket("Dallas, TX", null, fence)!), /Minimum job charge businesses in this trade set: \$900–\$1,500/);
+});
+
+test("driftCheck: a change that moves the typical job is caught; one that holds it is not", () => {
+  // the real case: cedar '$30 at 4 ft' relabelled '6 ft tall' without re-basing → the 150 ft typical job fell from $6,725 to $4,925
+  const before = [{ label: "Small job", subtotal: 900 }, { label: "Typical job", subtotal: 6725 }, { label: "Large job", subtotal: 22475 }];
+  const dropped = driftCheck(before, [{ label: "Tiny job: one gate", subtotal: 900 }, { label: "Small job", subtotal: 900 }, { label: "Typical job", subtotal: 4925 }]);
+  assert.match(dropped[0], /\$6,725 before this change and \$4,925 after \(−27%\)/);
+  assert.match(driftCheck(before, [{ label: "Typical job", subtotal: 9000 }])[0], /\+34%/);
+  assert.deepEqual(driftCheck(before, [{ label: "Typical job", subtotal: 6557 }]), []);
+  assert.deepEqual(driftCheck([], [{ label: "Typical job", subtotal: 6557 }]), []);
+  assert.deepEqual(driftCheck(before, [{ label: "Typical job", subtotal: null }]), []);
 });
 
 async function builderTests() {

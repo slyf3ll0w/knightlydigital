@@ -26,6 +26,8 @@ import {
   rateValueText,
   confirmLines,
   stampRates,
+  honestSources,
+  replayTypical,
   ESTIMATOR_GUIDE,
   type EvalCtx,
   type PriceBookEntry,
@@ -90,7 +92,7 @@ assert.throws(() => parseExpr("1 +"), /Unexpected end/);
 assert.throws(() => parseExpr("(1 + 2"), /Expected "\)"/);
 assert.throws(() => parseExpr("'unterminated"), /Unterminated/);
 assert.throws(() => parseExpr("a; b"), /Unexpected/);
-assert.throws(() => parseExpr("x".repeat(600)), /longer than/);
+assert.throws(() => parseExpr("x".repeat(1600)), /longer than/);
 assert.throws(() => ev("'a' * 2"), /must be a number/);
 console.log("ok 2: expression errors");
 
@@ -827,6 +829,8 @@ console.log("ok 16: choice arithmetic, yes/no words, discounts, hours, cost");
 
     // gate openings are deducted (150 ft − one 4 ft walk gate), the gate is priced for the style, nothing is counted twice
     const typ = runCompiled(fc.compiled, { ft: 150, style: "cedar", height: "6", gates: { walk: 1 }, rocky: "no" }, []);
+    // the quote line names the choice by its LABEL ("Cedar privacy"), never the raw value ("cedar"); a number-as-text prints as the number
+    assert.ok(typ.ok && typ.lines[0].name === "Cedar privacy fence, 6 ft tall", typ.ok ? typ.lines[0].name : "");
     assert.ok(typ.ok && typ.lines[0].quantity === 146 && typ.lines[0].unitPrice === 42 && typ.lines[1].unitPrice === 450 && typ.total === 146 * 42 + 450, JSON.stringify(typ));
     const chainGate = runCompiled(fc.compiled, { ft: 150, style: "chain", height: "4", gates: { walk: 1 }, rocky: "no" }, []);
     assert.ok(chainGate.ok && chainGate.lines[1].unitPrice === 250);
@@ -861,6 +865,15 @@ console.log("ok 16: choice arithmetic, yes/no words, discounts, hours, cost");
     // a later Atlas rebuild can't turn a confirmed number back into an estimate
     const rebuilt = stampRates(confirmed, { ...confirmed, rates: confirmed.rates!.map((r) => (r.id === "r_cedar" ? { ...r, source: "market" as const } : r)) }, "2027-01-05", "builder");
     assert.ok(rebuilt.rates![0].source === "owner" && rebuilt.rates![0].updatedAt === "2026-12-20");
+    // "Yours" stays honest: a number the builder calls the owner's must be in the owner's own words, unless their data was in front of it
+    const claimed = { ...fs, rates: fs.rates!.map((r) => ({ ...r, source: "owner" as const })) };
+    const honest = honestSources(claimed, { trust: false, said: "cedar is $42 a foot and chain link 22 per ft, walk gates are 1,300 no wait 450" });
+    const src = (id: string) => honest.rates!.find((r) => r.id === id)!.source;
+    assert.ok(src("r_cedar") === "owner" && src("r_chain") === "owner" && src("g_walk_wood") === "owner" && src("g_drive_wood") === "owner");
+    assert.ok(src("g_walk_chain") === "market" && src("f_8") === "guess" && src("r_rock") === "guess" && src("t_cedar") === "guess", JSON.stringify(honest.rates!.map((r) => [r.id, r.source])));
+    assert.equal(honestSources(claimed, { trust: true, said: "" }), claimed);
+    // 42 inside "142" or "42.50" is not the owner saying 42
+    assert.equal(honestSources(claimed, { trust: false, said: "142 ft at $42.50" }).rates![0].source, "market");
     const dsc = describeSpecChanges(built, edited);
     assert.ok(dsc.some((x) => x === 'Rate "Cedar privacy fence, 6 ft tall": $42 per ft → $45 per ft'), dsc.join(" | "));
   }
@@ -876,7 +889,7 @@ console.log("ok 16: choice arithmetic, yes/no words, discounts, hours, cost");
   const noRow = compileSpec({ ...fence, variables: fence.variables.map((v) => (v.id === "base" ? { ...v, expr: "lookup(style, {cedar: r_cedar}, r_chain)" } : v)) });
   assert.ok(noRow.ok);
   if (noRow.ok) {
-    assert.ok(auditSpec(noRow.compiled, [], { strict: true }).errors.some((e) => /no row for 'chain'.*priced by the default/.test(e)));
+    assert.ok(auditSpec(noRow.compiled, [], { strict: true }).warnings.some((e) => /no row for 'chain'.*priced by the default/.test(e)));
     assert.ok(auditSpec(noRow.compiled, []).warnings.some((e) => /no row for 'chain'/.test(e)));
   }
 
@@ -925,6 +938,32 @@ console.log("ok 16: choice arithmetic, yes/no words, discounts, hours, cost");
     assert.match(strict, /Add one or two "Tiny job" samples/);
     assert.match(strict, /Variable "base" needs a "label"/);
   }
+  // a change that re-bases a rate wrongly is caught by replaying the old typical job on the new tool — even when the new samples describe other jobs
+  if (lc.ok) {
+    const migrated = (cedar: number) =>
+      compileSpec({
+        inputs: [
+          { id: "fence_ft", type: "map", label: "Draw where the fence will run", measure: "length", required: true },
+          { id: "fence_style", type: "select", label: "Style", style: "cards", options: [{ label: "Cedar privacy", value: "Cedar privacy fence" }, { label: "Ranch rail", value: "Ranch rail fence" }], required: true },
+          { id: "height", type: "select", label: "Height", style: "cards", options: [{ value: "4", label: "4 ft", showWhen: "fence_style == 'Ranch rail fence'" }, { value: "6", label: "6 ft", showWhen: "fence_style == 'Cedar privacy fence'" }], required: true },
+          { id: "gates", type: "counts", label: "Gates", options: [{ label: "Walk gate", value: "walk" }] },
+          { id: "stain", type: "toggle", label: "Stain and seal?" },
+        ],
+        rates: [{ id: "r_cedar", label: "Cedar privacy fence, 6 ft tall", value: cedar, unit: "per ft", kind: "price", source: "guess" }, { id: "r_ranch", label: "Ranch rail fence, 4 ft tall", value: 26, unit: "per ft", kind: "price", source: "guess" }, { id: "r_gate", label: "Walk gate", value: 425, unit: "each", kind: "price", source: "guess" }, { id: "r_stain", label: "Stain and seal", value: 7, unit: "per ft", kind: "price", source: "guess" }],
+        variables: [{ id: "base", label: "Price per foot", expr: "lookup(fence_style, {'Cedar privacy fence': r_cedar, 'Ranch rail fence': r_ranch})" }],
+        lines: [{ name: "{fence_style}", description: "Fence along the traced line", quantity: "fence_ft", unitPrice: "base" }, { name: "Walk gate", description: "Walk gate", quantity: "qty(gates, 'walk')", unitPrice: "r_gate" }, { name: "Stain and seal", description: "Stain and seal", when: "stain", quantity: "fence_ft", unitPrice: "r_stain" }],
+        // the new samples describe OTHER jobs (ranch rail; a stained cedar job) — comparing sample totals alone would miss the change
+        samples: [{ label: "Small job", inputs: { fence_ft: 40, fence_style: "Ranch rail fence", height: "4", gates: {} } }, { label: "Typical job", inputs: { fence_ft: 250, fence_style: "Ranch rail fence", height: "4", gates: { walk: 1 } } }, { label: "Large job", inputs: { fence_ft: 300, fence_style: "Cedar privacy fence", height: "6", gates: { walk: 1 }, stain: true } }],
+      });
+    const wrong = migrated(30); // "$30 at 4 ft" relabelled "6 ft tall" and never re-based
+    const right = migrated(42);
+    assert.ok(wrong.ok && right.ok, [wrong, right].map((x) => (x.ok ? "" : x.errors.join(" | "))).join(""));
+    if (wrong.ok && right.ok) {
+      assert.deepEqual(replayTypical(lc.compiled, wrong.compiled, []), { label: "Typical job", was: 6725, now: 4925 });
+      // new add-ons stay off, so the stain a new sample includes is not mistaken for a price change
+      assert.deepEqual(replayTypical(lc.compiled, right.compiled, []), { label: "Typical job", was: 6725, now: 6725 });
+    }
+  }
   // text past the limit is cut at a word with an ellipsis (never "set you"), and the builder is sent back to shorten it
   const long = compileSpec({ ...fence, placeholders: [`${"Labor time is an estimate for every style we build and install here ".repeat(4)}so set your own`] });
   assert.ok(long.ok && long.compiled.spec.placeholders![0].endsWith("…") && !/\S…$/.test(long.compiled.spec.placeholders![0].replace(/\w+…$/, "")));
@@ -934,7 +973,16 @@ console.log("ok 16: choice arithmetic, yes/no words, discounts, hours, cost");
   const selfGate = compileSpec({ ...fence, inputs: fence.inputs.map((i) => (i.id === "height" ? { ...i, options: [{ value: "4", label: "4 ft", showWhen: "height == '6'" }, { value: "6", label: "6 ft" }] } : i)) });
   assert.ok(!selfGate.ok && selfGate.errors.some((e) => /can't read its own question/.test(e)));
   const gatedDefault = compileSpec({ ...fence, inputs: fence.inputs.map((i) => (i.id === "height" ? { ...i, default: "8" } : i)) });
-  assert.ok(!gatedDefault.ok && gatedDefault.errors.some((e) => /isn't always offered/.test(e)));
+  // a default on an option that is only sometimes offered is allowed — it just isn't a default when it isn't on offer
+  assert.ok(gatedDefault.ok, gatedDefault.ok ? "" : gatedDefault.errors.join(" | "));
+  if (gatedDefault.ok) {
+    const onOffer = runCompiled(gatedDefault.compiled, { ft: 100, style: "cedar", gates: {}, rocky: "no" }, []);
+    assert.ok(onOffer.ok && /8 ft tall/.test(onOffer.lines[0].name), JSON.stringify(onOffer));
+    const notOnOffer = runCompiled(gatedDefault.compiled, { ft: 100, style: "chain", gates: {}, rocky: "no" }, []);
+    assert.ok(!notOnOffer.ok && notOnOffer.inputProblems === true && /Choose a height/.test(notOnOffer.errors[0]), JSON.stringify(notOnOffer));
+    // the form drops the default the moment it stops fitting
+    assert.equal(dropUnofferedPicks(gatedDefault.compiled.spec, { style: "chain", height: "8" }).height, "");
+  }
   const badLabor = compileSpec({ ...fence, labor: "extra" });
   assert.ok(!badLabor.ok && badLabor.errors.some((e) => /"labor" must be/.test(e)));
   const dupRate = compileSpec({ ...fence, rates: [...fence.rates, { id: "ft", label: "Clash", value: 1, kind: "price", source: "owner" }] });

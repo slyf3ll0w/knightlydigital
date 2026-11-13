@@ -1722,6 +1722,25 @@ draft calls now get 32k (streamed on Claude) and one leaner retry.
   against the strict audit.
 - A change to a tool built before the rate card moves its numbers onto the
   card (values unchanged) and fixes what breaks the rules.
+- Found by running the builder for real against staging (new tool + the
+  ticket's change request on the ticket's tool), fixed in code:
+  - `honestSources()` — a rate is only "Yours" when a price sheet was read,
+    an older tool had nothing left to confirm, or the number is in the
+    owner's words / price book / past quotes. The model had marked the old
+    market estimates as the owner's.
+  - `replayTypical()` + `driftCheck()` — the old tool's typical job is
+    answered again on the changed tool; a move of more than 12% goes back to
+    the model once, then stands as a note. The model had relabelled "$30 at
+    4 ft" as "6 ft tall" without re-basing it (−27% on every cedar quote).
+  - The build keeps the best draft that compiled and ran: a fix round that
+    comes back worse no longer ends in "couldn't get the rules to add up".
+  - A default on an option that isn't always offered is allowed (it just
+    isn't a default when it isn't on offer); formulas may be 1,500
+    characters (a price table with a named rate per option is long); a
+    lookup may list only the options that can occur where it is used when
+    the question's options are gated.
+  - A bare `{choice}` in a quote line prints the option's label, not its
+    value ("Cedar privacy", not "cedar_privacy").
 - Fencing playbook rewritten: heights per style (privacy 6 / 8, chain link
   4 / 5 / 6, ornamental 4 / 5 / 6, ranch and pipe rail 4 / 5), ornamental
   iron, board-on-board / cap and trim / steel posts, stain and seal, single

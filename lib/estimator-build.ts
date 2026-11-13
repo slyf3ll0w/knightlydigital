@@ -1,12 +1,12 @@
 import { prisma } from "./db";
 import type { Actor } from "./permissions";
 import { meteredOneShot, oneShotJson } from "./atlas-oneshot";
-import { auditSpec, confirmLines, describeSpecChanges, ESTIMATOR_GUIDE, ESTIMATOR_LIMITS, specFromJson, stampRates, type EstimatorSpec, type SpecAudit } from "./estimator";
+import { auditSpec, confirmLines, describeSpecChanges, ESTIMATOR_GUIDE, ESTIMATOR_LIMITS, honestSources, replayTypical, specFromJson, stampRates, type CompiledSpec, type EstimatorSpec, type SpecAudit } from "./estimator";
 import { checkSpec, ESTIMATOR_SELECT, estimatorSummary, snapshotEstimator, type EstimatorRow } from "./estimator-server";
 import { loadBusinessContext, loadToolStats, toolStatsText } from "./estimator-context";
 import { sanitizePublicConfig, type EstimatorPublicConfig } from "./estimator-public";
 import { ESTIMATOR_PRINCIPLES, guessTrade, playbookByKey, playbookText, PLAYBOOK_INDEX, preferMapInput } from "./estimator-playbook";
-import { marketCheck, minimumCheck } from "./estimator-benchmarks";
+import { driftCheck, marketCheck, minimumCheck } from "./estimator-benchmarks";
 import { loadMarket, marketRules, marketText, type MarketRead } from "./estimator-market";
 
 /**
@@ -430,6 +430,24 @@ export async function* buildEstimator(
   let draft: Draft | null = null;
   let compiled: Awaited<ReturnType<typeof checkSpec>> | null = null;
   let audit: SpecAudit | null = null;
+  /**
+   * The best draft that compiled and ran so far (fewest audit findings). A
+   * fix round can come back worse than what it was fixing — not JSON, no
+   * longer compiling, cut off — and that must not cost the owner a tool
+   * that already worked: the build falls back to this one.
+   */
+  let best: { draft: Draft; check: Extract<Awaited<ReturnType<typeof checkSpec>>, { ok: true }>; audit: SpecAudit } | null = null;
+  /** What the tool's own samples came to BEFORE this change (changes only) — the yardstick for driftCheck. */
+  let beforeSamples: SpecAudit["samples"] | null = null;
+  let beforeCompiled: CompiledSpec | null = null;
+  if (currentRow) {
+    const was = await checkSpec(actor.companyId, currentRow.spec);
+    if (was.ok) {
+      beforeCompiled = was.compiled;
+      beforeSamples = auditSpec(was.compiled, was.book).samples;
+    }
+  }
+  let driftAsked = false;
   /** Set once a call came back with no answer (see THINK_LEAN). */
   let lean = false;
   /** The round before this one ended without an answer, so this one is a second attempt, not a fix. */
@@ -507,7 +525,19 @@ export async function* buildEstimator(
       if (guessing) audit.errors.push(...lowMin);
       else audit.warnings.push(...lowMin);
     }
+    // A change that moved the typical job's price: asked about once (it may be what the owner wanted), then only noted.
+    if (beforeSamples) {
+      // the old typical job's own answers, priced by the new rules — falls back to comparing the samples when they no longer fit
+      const replay = beforeCompiled ? replayTypical(beforeCompiled, check.compiled, check.book) : null;
+      const drift = replay ? driftCheck([{ label: "Typical job", subtotal: replay.was }], [{ label: "Typical job", subtotal: replay.now }]) : driftCheck(beforeSamples, audit.samples);
+      if (drift.length > 0) {
+        if (!driftAsked) audit.errors.push(...drift);
+        else audit.warnings.push(...drift);
+        driftAsked = true;
+      }
+    }
     const marketFix = guessing && off.length > 0 ? `\nFor the market findings: re-derive those rates and "hours" from the MARKET NUMBERS, and if the Typical job sample isn't that exact job, make it that job.` : "";
+    if (!best || audit.errors.length < best.audit.errors.length) best = { draft, check, audit };
     if (audit.errors.length > 0 && round < MAX_ROUNDS) {
       userPrompt = `${userPrompt}\n\nYour spec compiled and ran, but a pro would send it back:\n- ${audit.errors.join("\n- ")}${marketFix}\nFix the spec (or the samples) and return the corrected FULL JSON object:\n${JSON.stringify({ name: draft.name, description: draft.description, spec: check.compiled.spec })}`;
       draft = null;
@@ -518,6 +548,12 @@ export async function* buildEstimator(
     break;
   }
 
+  // Out of rounds (or the last one went wrong): keep the best draft that ran.
+  if (best && (!draft || !compiled || !compiled.ok || (audit && best.audit.errors.length < audit.errors.length))) {
+    draft = best.draft;
+    compiled = best.check;
+    audit = best.audit;
+  }
   if (!draft || !compiled || !compiled.ok) {
     yield { error: `${opts.assistantName} couldn't get the rules to add up after ${MAX_ROUNDS} tries. Try describing the pricing in a bit more detail (rates, units, extras).`, tokens };
     return;
@@ -540,6 +576,11 @@ export async function* buildEstimator(
   // Date the rate card (a number that didn't change keeps its date and stays the owner's once it is theirs), and
   // record where its market estimates came from so the owner knows what region and day they are for.
   const today = new Date().toISOString().slice(0, 10);
+  // "Yours" only where the number could be the owner's: a price sheet was in front of the model, an older tool had
+  // nothing left to confirm, or the number is in their own words, their price book or what they've charged (biz.text
+  // lists those). stampRates then restores what was already theirs.
+  const legacyConfirmed = Boolean(currentSpec && !(currentSpec.rates?.length ?? 0) && (currentSpec.placeholders?.length ?? 0) === 0);
+  spec = honestSources(spec, { trust: Boolean(image) || legacyConfirmed, said: `${prompt}\n${answers.map((a) => a.answer).join("\n")}\n${biz.text}` });
   spec = stampRates(currentSpec, spec, today, "builder");
   const usesMarket = (spec.rates ?? []).some((r) => r.source === "market");
   if (usesMarket && market && !(currentSpec?.market && currentRow)) {

@@ -46,7 +46,7 @@ function whose(r: EstimatorRate, spec: EstimatorSpec): string {
     const asOf = fmtDate(spec.market?.asOf ?? r.updatedAt);
     return `Market estimate${where}${range}${asOf ? ` · as of ${asOf}` : ""}`;
   }
-  return "Placeholder — nothing to go on, set yours";
+  return "An estimate, not your number yet — set yours";
 }
 
 function RateRow({ rate, spec, busy, onSet }: { rate: EstimatorRate; spec: EstimatorSpec; busy: boolean; onSet?: (id: string, value: number) => void }) {
