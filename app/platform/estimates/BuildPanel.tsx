@@ -391,7 +391,9 @@ export default function BuildPanel({
   }, [draft, plan]);
   const packages = draft?.packages ?? plan?.packages ?? null;
   const title = finished?.tool.name ?? draft?.name ?? null;
-  const sampleSlots: (BuildSample | null)[] = samples && samples.length > 0 ? samples.slice(0, 3) : [null, null, null];
+  // the three headline tiles are the small / typical / large jobs; "Tiny job" samples (they test the minimum) show on the tool's Overview
+  const sized = samples ? samples.filter((s) => !s.tiny) : [];
+  const sampleSlots: (BuildSample | null)[] = sized.length > 0 ? sized.slice(0, 3) : [null, null, null];
   const pricing = current?.key === "test" || (Boolean(draft) && !samples);
 
   const submitAnswers = (skip: boolean) => {

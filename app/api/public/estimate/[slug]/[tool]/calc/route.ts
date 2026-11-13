@@ -32,7 +32,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     return NextResponse.json({ error: "Too many requests — please try again in a few minutes." }, { status: 429 });
   }
 
-  const body = (await req.json().catch(() => ({}))) as { inputs?: unknown; variants?: unknown };
+  const body = (await req.json().catch(() => ({}))) as { inputs?: unknown; variants?: unknown; live?: unknown };
   const inputs = (body.inputs && typeof body.inputs === "object" && !Array.isArray(body.inputs) ? body.inputs : {}) as Record<string, unknown>;
   const book = await loadPriceBook(pub.company.id);
   const config = pub.config.reveal === "after_contact" ? { ...pub.config, showPrice: "hidden" as const } : pub.config;
@@ -52,7 +52,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     return NextResponse.json({ error: PUBLIC_RUN_FAILED }, { status: 424 });
   }
 
-  if (!pub.previewing) void prisma.estimator.update({ where: { id: pub.row.id }, data: { publicCalcs: { increment: 1 } } }).catch(() => {});
+  // the running total while answering re-prices on every change — only a pressed "See my estimate" counts
+  if (!pub.previewing && body.live !== true) void prisma.estimator.update({ where: { id: pub.row.id }, data: { publicCalcs: { increment: 1 } } }).catch(() => {});
 
   return NextResponse.json({ ok: true, estimate: shapeEstimate(result, config, pub.spec.minimumTotal) });
 }

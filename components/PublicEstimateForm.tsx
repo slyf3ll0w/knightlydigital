@@ -10,7 +10,7 @@ import TurnstileWidget from "@/components/TurnstileWidget";
 import { embedAccent, embedOnAccent } from "@/lib/embed-style";
 import { smsConsentLabel, businessSmsTermsUrl, businessPrivacyUrl } from "@/lib/sms-consent";
 import type { ScheduleAppearance } from "@/app/book/[slug]/schedule/shell";
-import { sectionsOf, visibleInputIds, formDefaults, inputsComplete, type EstimatorInput, type EstimatorSpec, type FormValue } from "@/lib/estimator";
+import { sectionsOf, visibleInputIds, formDefaults, inputsComplete, offeredOptions, dropUnofferedPicks, type EstimatorInput, type EstimatorSpec, type FormValue } from "@/lib/estimator";
 import { defaultSuccessMessage, estimateLabel, type EstimatorPublicConfig, type PublicEstimate, type PublicVariant } from "@/lib/estimator-public";
 import { Breakdown, ChoiceControl, CountsControl, MultiControl, NumberControl, PriceHero, StepRail, ToggleRow, pickedIncludes, publicTheme, wash } from "@/components/EstimatorControls";
 import { fileToAssistPhoto, type AssistPhoto } from "@/lib/image-downscale";
@@ -96,6 +96,12 @@ export default function PublicEstimateForm({
   const [step, setStep] = useState<"inputs" | "details" | "done">(contactFirst ? "details" : "inputs");
   const [values, setValues] = useState<FormValues>(() => formDefaults(spec));
   const visible = useMemo(() => visibleInputIds(spec, values), [spec, values]);
+  // options that only fit some answers: offer what fits, and clear a pick that stopped fitting
+  const offered = useMemo(() => offeredOptions(spec, values), [spec, values]);
+  useEffect(() => {
+    const next = dropUnofferedPicks(spec, values);
+    if (next !== values) setValues(next);
+  }, [spec, values]);
   const sections = useMemo(() => sectionsOf(inputs, visible), [inputs, visible]);
   const [sectionIdx, setSectionIdx] = useState(0);
   useEffect(() => {
@@ -191,6 +197,34 @@ export default function PublicEstimateForm({
       clearTimeout(t);
     };
   }, [packageInput, values, spec, apiBase, previewQs, config.showPrice, config.reveal]);
+
+  // The running total while answering — only on forms that show the price before contact details.
+  const [liveLabel, setLiveLabel] = useState<string | null>(null);
+  useEffect(() => {
+    if (!instant || step !== "inputs" || !inputsComplete(spec, values)) {
+      setLiveLabel(null);
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(`${apiBase}/calc${previewQs}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ inputs: values, live: true }),
+        });
+        const data = (await res.json().catch(() => null)) as { estimate?: PublicEstimate } | null;
+        if (cancelled) return;
+        setLiveLabel(res.ok && data?.estimate && data.estimate.mode !== "hidden" ? estimateLabel(data.estimate) : null);
+      } catch {
+        if (!cancelled) setLiveLabel(null);
+      }
+    }, 450);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [instant, step, values, spec, apiBase, previewQs]);
 
   const card = transparent ? "bg-transparent" : dark ? "bg-[#101410] border border-white/10 rounded-lg p-6 shadow-sm" : "card-ledger p-6 shadow-sm";
   const ink = theme.ink;
@@ -370,6 +404,19 @@ export default function PublicEstimateForm({
           </div>
         )}
         {e.mode === "exact" && !compact && <Breakdown theme={theme} lines={e.lines} subtotal={e.subtotal} discounts={e.discounts} total={e.total} taxNote={taxNote || undefined} />}
+        {e.confirm && e.confirm.length > 0 && !compact && (
+          <div className={`rounded-xl border p-4 ${rowBox}`}>
+            <p className={`text-xs font-semibold ${muted}`}>We&apos;ll confirm before the price is final</p>
+            <ul className="mt-2 space-y-1">
+              {e.confirm.map((line) => (
+                <li key={line} className={`flex items-start gap-2 text-sm ${theme.muted}`}>
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: accent }} aria-hidden />
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {(config.disclaimer || (taxNote && (e.mode !== "exact" || compact))) && <p className={`text-xs ${muted}`}>{[config.disclaimer, e.mode !== "exact" || compact ? taxNote : ""].filter(Boolean).join(" ")}</p>}
       </div>
     );
@@ -491,7 +538,7 @@ export default function PublicEstimateForm({
               {inp.type === "number" && <NumberControl inp={inp} theme={theme} value={typeof v === "string" ? v : ""} required={required} onChange={(val) => setVal(inp.id, val)} />}
               {inp.type === "select" && (
                 <>
-                  <ChoiceControl inp={inp} theme={theme} value={typeof v === "string" ? v : ""} required={required} onChange={(val) => setVal(inp.id, val)} tierPrices={inp.style === "packages" && packageInput?.id === inp.id ? tierPrices : undefined} />
+                  <ChoiceControl inp={inp} theme={theme} value={typeof v === "string" ? v : ""} required={required} onChange={(val) => setVal(inp.id, val)} tierPrices={inp.style === "packages" && packageInput?.id === inp.id ? tierPrices : undefined} offered={offered[inp.id]} />
                   {(inp.style === "cards" || inp.style === "packages" || inp.options.some((o) => o.image)) && (
                     <input type="text" value={typeof v === "string" ? v : ""} required={required} readOnly tabIndex={-1} aria-hidden className="sr-only" onChange={() => undefined} />
                   )}
@@ -499,13 +546,13 @@ export default function PublicEstimateForm({
               )}
               {inp.type === "multi" && (
                 <>
-                  <MultiControl inp={inp} theme={theme} value={Array.isArray(v) ? v : []} onToggle={(val) => toggleMulti(inp.id, val)} />
+                  <MultiControl inp={inp} theme={theme} value={Array.isArray(v) ? v : []} onToggle={(val) => toggleMulti(inp.id, val)} offered={offered[inp.id]} />
                   {required && Array.isArray(v) && v.length === 0 && <p className={`mt-1 text-xs ${muted}`}>Pick at least one</p>}
                 </>
               )}
               {inp.type === "counts" && (
                 <>
-                  <CountsControl inp={inp} theme={theme} value={v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, number>) : {}} onChange={(val) => setVal(inp.id, val)} />
+                  <CountsControl inp={inp} theme={theme} value={v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, number>) : {}} onChange={(val) => setVal(inp.id, val)} offered={offered[inp.id]} />
                   {required && !(v && typeof v === "object" && !Array.isArray(v) && Object.values(v as Record<string, number>).some((x) => x > 0)) && <p className={`mt-1 text-xs ${muted}`}>Count at least one</p>}
                 </>
               )}
@@ -520,6 +567,12 @@ export default function PublicEstimateForm({
 
         {/* details-first forms send from the last question — the captcha rides here */}
         {contactFirst && last && !preview && <TurnstileWidget onToken={setCaptchaToken} action="booking" />}
+        {liveLabel && (
+          <div className={`flex items-baseline justify-between gap-3 rounded-xl border px-4 py-3 ${rowBox}`} aria-live="polite">
+            <span className={`text-xs font-medium ${muted}`}>Estimate so far</span>
+            <span className={`text-lg font-bold tabular-nums tracking-tight ${ink}`}>{liveLabel}</span>
+          </div>
+        )}
         <div className="flex gap-2">
           {multiStep && sectionIdx > 0 && (
             <button type="button" onClick={() => setSectionIdx(sectionIdx - 1)} className={secondary} aria-label="Back">

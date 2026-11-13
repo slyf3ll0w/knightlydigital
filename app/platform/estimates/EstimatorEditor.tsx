@@ -6,6 +6,7 @@ import { fileToJpegBlob } from "@/lib/image-downscale";
 import { Input, Select, Textarea } from "@/components/Input";
 import EstimatorRunner from "@/components/EstimatorRunner";
 import RatesToConfirm from "@/components/RatesToConfirm";
+import RateCard from "@/components/RateCard";
 import { confirmSheet } from "@/components/ConfirmSheet";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
@@ -76,6 +77,8 @@ function NumField({ value, onCommit, placeholder, className = "w-28", prefix }: 
 
 const iconBtn = "rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30";
 const mono = "font-mono text-[13px]";
+/** A formula with no plain label yet: its id, readable ("price_per_ft" → "Price per ft"). */
+const humanId = (id: string) => id.replace(/_+/g, " ").trim().replace(/^./, (c) => c.toUpperCase());
 const pill = "shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600";
 const fieldLabel = "mb-1 block text-xs font-medium text-gray-600";
 
@@ -703,6 +706,8 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
             ))}
           </datalist>
 
+          {(spec.rates?.length ?? 0) > 0 && <RateCard spec={spec} onSet={(id, v) => touch((s) => (s.rates = (s.rates ?? []).map((r) => (r.id === id ? { ...r, value: v, source: "owner" as const } : r))))} />}
+
           {spec.placeholders && spec.placeholders.length > 0 && <RatesToConfirm items={spec.placeholders} onDone={(k) => touch((s) => (s.placeholders = (s.placeholders ?? []).filter((_, m) => m !== k)))} />}
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -718,13 +723,14 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
               onToggle={() => setOpenVars((o) => !o)}
               header={
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium text-gray-900">Variables</span>
-                  <span className="block truncate text-xs text-gray-500">{spec.variables.length === 0 ? "None — name a rate once, reuse it in every line" : spec.variables.map((v) => v.id).join(", ")}</span>
+                  <span className="block text-sm font-medium text-gray-900">Formulas</span>
+                  <span className="block truncate text-xs text-gray-500">{spec.variables.length === 0 ? "None — a calculation worked out once and reused in the lines" : spec.variables.map((v) => v.label || humanId(v.id)).join(", ")}</span>
                 </span>
               }
             >
               {spec.variables.map((v, i) => (
-                <div key={i} className="flex items-center gap-2">
+                <div key={i} className="flex flex-wrap items-center gap-2">
+                  <Input value={v.label ?? ""} onChange={(e) => setVar(i, { label: e.target.value || undefined })} maxLength={100} className="w-full" placeholder="What this works out, in plain words" aria-label="What this formula works out" />
                   <Input value={v.id} onChange={(e) => setVar(i, { id: e.target.value.replace(/[^A-Za-z0-9_]/g, "_") })} maxLength={40} className={`w-28 ${mono}`} placeholder="name" />
                   <span className="text-gray-400">=</span>
                   <Input value={v.expr} onChange={(e) => setVar(i, { expr: e.target.value })} maxLength={ESTIMATOR_LIMITS.exprLen} className={`min-w-0 flex-1 ${mono}`} placeholder="tier(sqft, [[500, 0.30]], 0.22)" />
@@ -734,7 +740,7 @@ export default function EstimatorEditor({ tool, section, onSaved }: { tool: Edit
                 </div>
               ))}
               <button type="button" disabled={spec.variables.length >= ESTIMATOR_LIMITS.variables} onClick={addVar} className="inline-flex items-center gap-1 text-xs font-medium text-gray-700 hover:underline disabled:opacity-50">
-                <Plus size={12} /> Add variable
+                <Plus size={12} /> Add formula
               </button>
             </Row>
             <Row

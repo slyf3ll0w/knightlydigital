@@ -9,7 +9,7 @@ import { Textarea } from "@/components/Input";
 import { useAssistant } from "@/components/AssistantContext";
 import { Breakdown, ChoiceControl, CountsControl, MultiControl, NumberControl, PriceHero, ToggleRow, moneyExact, pickedIncludes, useAppControlTheme, wash, useCountUp } from "@/components/EstimatorControls";
 import { postJson } from "@/lib/safe-fetch";
-import { askAtlasInputs, formDefaults, inputsComplete, sectionsOf, visibleInputIds, type EstimatorResultLine, type EstimatorSpec, type FormValue, type PriceDriver } from "@/lib/estimator";
+import { askAtlasInputs, dropUnofferedPicks, formDefaults, inputsComplete, offeredOptions, sectionsOf, visibleInputIds, type EstimatorResultLine, type EstimatorSpec, type FormValue, type PriceDriver } from "@/lib/estimator";
 import { fileToAssistPhoto, type AssistPhoto } from "@/lib/image-downscale";
 import type { LatLngTuple } from "@/components/MapMeasure";
 
@@ -52,11 +52,13 @@ export type EstimatorApply = {
   discountLabel?: string;
   /** Labor hours across the lines — lands in the quote's internal notes */
   hours?: number;
+  /** Things to confirm before the price is final — land in the quote's internal notes with the hours */
+  flags?: string[];
   /** The saved tool the lines came from (absent for unsaved previews) — stamped on the quote */
   toolId?: string;
 };
 
-type RunOk = { ok: true; lines: EstimatorResultLine[]; subtotal: number; discount: number; discounts: { label: string; amount: number }[]; total: number; hours: number; cost: number | null; title?: string; clientMessage?: string; warnings: string[]; drivers?: PriceDriver[] };
+type RunOk = { ok: true; lines: EstimatorResultLine[]; subtotal: number; discount: number; discounts: { label: string; amount: number }[]; total: number; hours: number; cost: number | null; title?: string; clientMessage?: string; warnings: string[]; /** Things to confirm before the price is final. */ flags?: string[]; drivers?: PriceDriver[] };
 
 /** What the result carries onto a quote (Add to quote / Create quote). */
 function applyPayload(result: RunOk): Omit<EstimatorApply, "toolId"> {
@@ -66,6 +68,7 @@ function applyPayload(result: RunOk): Omit<EstimatorApply, "toolId"> {
     clientMessage: result.clientMessage,
     ...(result.discount > 0 ? { discount: result.discount, discountLabel: result.discounts.map((d) => d.label).join(" + ") } : {}),
     ...(result.hours > 0 ? { hours: result.hours } : {}),
+    ...(result.flags && result.flags.length > 0 ? { flags: result.flags } : {}),
   };
 }
 type RunReply = Partial<RunOk> & { ok?: boolean; error?: string; errors?: string[]; variants?: Record<string, number | null> };
@@ -170,6 +173,13 @@ export function EstimatorRunnerPanel({
   const tool = useMemo(() => estimators.find((e) => e.id === selectedId) ?? null, [estimators, selectedId]);
   const spec = tool?.spec ?? null;
   const visible = useMemo(() => (spec ? visibleInputIds(spec, values) : new Set<string>()), [spec, values]);
+  // options that only fit some answers (an 8 ft height on a privacy style): offer what fits, and clear a pick that stopped fitting
+  const offered = useMemo(() => (spec ? offeredOptions(spec, values) : {}), [spec, values]);
+  useEffect(() => {
+    if (!spec) return;
+    const next = dropUnofferedPicks(spec, values);
+    if (next !== values) setValues(next);
+  }, [spec, values]);
   const sections = useMemo(() => (spec ? sectionsOf(spec.inputs, visible) : []), [spec, visible]);
   const assessed = useMemo(() => (spec ? askAtlasInputs(spec) : []), [spec]);
   // the first visible package question prices its tiers side by side
@@ -447,10 +457,10 @@ export function EstimatorRunnerPanel({
                         />
                       )}
                       {inp.type === "select" && (
-                        <ChoiceControl inp={inp} theme={theme} value={typeof v === "string" ? v : ""} required={required} onChange={(val) => setVal(inp.id, val)} tierPrices={inp.style === "packages" && packageInput?.id === inp.id ? tierPrices : undefined} />
+                        <ChoiceControl inp={inp} theme={theme} value={typeof v === "string" ? v : ""} required={required} onChange={(val) => setVal(inp.id, val)} tierPrices={inp.style === "packages" && packageInput?.id === inp.id ? tierPrices : undefined} offered={offered[inp.id]} />
                       )}
-                      {inp.type === "multi" && <MultiControl inp={inp} theme={theme} value={Array.isArray(v) ? v : []} onToggle={(val) => toggleMulti(inp.id, val)} />}
-                      {inp.type === "counts" && <CountsControl inp={inp} theme={theme} value={v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, number>) : {}} onChange={(val) => setVal(inp.id, val)} />}
+                      {inp.type === "multi" && <MultiControl inp={inp} theme={theme} value={Array.isArray(v) ? v : []} onToggle={(val) => toggleMulti(inp.id, val)} offered={offered[inp.id]} />}
+                      {inp.type === "counts" && <CountsControl inp={inp} theme={theme} value={v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, number>) : {}} onChange={(val) => setVal(inp.id, val)} offered={offered[inp.id]} />}
                       {inp.type === "text" && <Textarea value={typeof v === "string" ? v : ""} rows={2} placeholder={inp.placeholder} required={required} onChange={(e) => setVal(inp.id, e.target.value)} className="w-full" />}
                       {inp.askAtlas && !filled && <p className="mt-1.5 text-xs text-gray-500">{atlas.name} assesses this from your description — or answer it yourself.</p>}
                       {inp.help && <p className="mt-1.5 text-xs text-gray-500">{inp.help}</p>}
@@ -507,6 +517,19 @@ export function EstimatorRunnerPanel({
                   <li key={d.id} className="flex items-baseline justify-between gap-3 text-sm">
                     <span className="min-w-0 truncate text-gray-700">{d.label}</span>
                     <span className={`shrink-0 tabular-nums font-semibold ${d.delta < 0 ? "text-gray-500" : "text-gray-900"}`}>{d.text}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {result.flags && result.flags.length > 0 && (
+            <div className="rounded-xl border border-gray-200 p-4">
+              <p className="text-xs font-semibold text-gray-500">Confirm before this price is final</p>
+              <ul className="mt-2 space-y-1.5">
+                {result.flags.map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-sm text-gray-800">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: theme.accent }} aria-hidden />
+                    {f}
                   </li>
                 ))}
               </ul>

@@ -18,6 +18,15 @@ import {
   auditSpec,
   inputsComplete,
   explainRun,
+  runCompiled,
+  numberMode,
+  offeredOptions,
+  dropUnofferedPicks,
+  ratesToConfirm,
+  rateValueText,
+  confirmLines,
+  stampRates,
+  ESTIMATOR_GUIDE,
   type EvalCtx,
   type PriceBookEntry,
 } from "../lib/estimator";
@@ -734,4 +743,214 @@ console.log("\nestimator: all green");
   }
 }
 console.log("ok 16: choice arithmetic, yes/no words, discounts, hours, cost");
+// ── 17: the accuracy round (2026-11-13) — one control per question, options that
+// depend on answers, the rate card, labor vs price, flags, tiny jobs, cut-off copy.
+// The regression case is the fence tool the builder really made (ticket cmwf5v6e…).
+{
+  // (a) the height question: presets 4/5/6 + a 3–6 slider + a text box → ONE row of chips
+  const height = { id: "height", label: "How tall should the fence be?", type: "number" as const, unit: "ft", min: 3, max: 6, step: 1, control: "slider" as const, presets: [{ label: "4 ft", value: 4 }, { label: "5 ft", value: 5 }, { label: "6 ft", value: 6 }] };
+  const hm = numberMode(height);
+  assert.ok(hm.mode === "chips" && hm.stops.map((s) => s.value).join() === "3,4,5,6" && hm.stops[1].label === "4 ft" && hm.stops[0].label === "3 ft");
+  // a real size stays a slider; a count stays a stepper; a bare field stays a field
+  assert.equal(numberMode({ id: "sqft", label: "Size", type: "number", min: 100, max: 5000, control: "slider" }).mode, "slider");
+  assert.equal(numberMode({ id: "n", label: "Windows", type: "number", min: 0, max: 5, control: "stepper" }).mode, "stepper");
+  assert.equal(numberMode({ id: "x", label: "Hours", type: "number" }).mode, "field");
+
+  // (b) options that depend on an earlier answer
+  const fence = {
+    inputs: [
+      { id: "ft", label: "Fence length", type: "map", measure: "length" },
+      { id: "style", label: "Style", type: "select", style: "cards", options: [{ value: "cedar", label: "Cedar privacy" }, { value: "chain", label: "Chain link" }] },
+      { id: "height", label: "Height", type: "select", style: "cards", options: [
+        { value: "4", label: "4 ft", showWhen: "style == 'chain'" },
+        { value: "5", label: "5 ft", showWhen: "style == 'chain'" },
+        { value: "6", label: "6 ft" },
+        { value: "8", label: "8 ft", showWhen: "style == 'cedar'" },
+      ] },
+      { id: "gates", label: "Gates", type: "counts", options: [{ value: "walk", label: "Walk gate" }, { value: "drive", label: "Double drive gate" }] },
+      { id: "rocky", label: "Rocky or steep ground?", type: "select", style: "cards", options: [{ value: "no", label: "No" }, { value: "yes", label: "Yes" }, { value: "unsure", label: "Not sure" }], default: "no" },
+      { id: "pool", label: "Around a pool?", type: "toggle" },
+    ],
+    rates: [
+      { id: "r_cedar", label: "Cedar privacy fence, 6 ft tall", value: 42, unit: "per ft", kind: "price", source: "market", low: 28, high: 55 },
+      { id: "r_chain", label: "Chain link fence, 4 ft tall", value: 22, unit: "per ft", kind: "price", source: "owner" },
+      { id: "f_8", label: "8 ft height, on the 6 ft price", value: 1.4, unit: "×", kind: "factor", source: "guess" },
+      { id: "f_5", label: "5 ft height, on the 4 ft price", value: 1.15, unit: "×", kind: "factor", source: "guess" },
+      { id: "f_6c", label: "6 ft height, on the 4 ft chain link price", value: 1.3, unit: "×", kind: "factor", source: "guess" },
+      { id: "g_walk_wood", label: "Walk gate, wood", value: 450, unit: "each", kind: "price", source: "market", low: 300, high: 650 },
+      { id: "g_walk_chain", label: "Walk gate, chain link", value: 250, unit: "each", kind: "price", source: "market", low: 175, high: 400 },
+      { id: "g_drive_wood", label: "Double drive gate, wood", value: 1300, unit: "each", kind: "price", source: "guess" },
+      { id: "g_drive_chain", label: "Double drive gate, chain link", value: 900, unit: "each", kind: "price", source: "guess" },
+      { id: "r_rock", label: "Rocky or steep ground", value: 6, unit: "per ft", kind: "price", source: "guess" },
+      { id: "t_cedar", label: "Crew time, cedar privacy", value: 0.17, unit: "person-hours per ft", kind: "time", source: "market" },
+    ],
+    variables: [
+      { id: "base", label: "Price per foot for the style", expr: "lookup(style, {cedar: r_cedar, chain: r_chain})" },
+      { id: "hf", label: "Height adjustment", expr: "style == 'cedar' ? (height == '8' ? f_8 : 1) : lookup(height, {'4': 1, '5': f_5, '6': f_6c, '8': 1}, 1)" },
+      { id: "gate_ft", label: "Feet of gate openings", expr: "qty(gates, 'walk') * 4 + qty(gates, 'drive') * 12" },
+    ],
+    lines: [
+      { name: "{style} fence, {height} ft tall", description: "Fence built along the traced line, less the gate openings", quantity: "max(0, ft - gate_ft)", unitPrice: "base * hf", group: "Fence", hours: "ft * t_cedar" },
+      { name: "Walk gate", description: "Walk gate matched to the fence", quantity: "qty(gates, 'walk')", unitPrice: "lookup(style, {cedar: g_walk_wood, chain: g_walk_chain})", group: "Gates" },
+      { name: "Double drive gate", description: "Double drive gate matched to the fence", quantity: "qty(gates, 'drive')", unitPrice: "lookup(style, {cedar: g_drive_wood, chain: g_drive_chain})", group: "Gates" },
+      { name: "Rocky or steep ground", description: "Extra digging on rocky or steep ground", when: "rocky == 'yes'", quantity: "ft", unitPrice: "r_rock", group: "Extras" },
+    ],
+    labor: "in_price",
+    flags: [
+      { when: "rocky == 'unsure'", text: "Ground not confirmed — check for rock or slope on site" },
+      { when: "pool", text: "Pool barrier: check the local pool code (height, self-closing gates)" },
+    ],
+    minimumTotal: 1000,
+    samples: [
+      { label: "Tiny job: one walk gate, 10 ft", inputs: { ft: 10, style: "chain", height: "4", gates: { walk: 1 }, rocky: "no" } },
+      { label: "Small job", inputs: { ft: 60, style: "chain", height: "4", gates: {}, rocky: "no" } },
+      { label: "Typical job", inputs: { ft: 150, style: "cedar", height: "6", gates: { walk: 1 }, rocky: "no" } },
+      { label: "Large job", inputs: { ft: 300, style: "cedar", height: "8", gates: { walk: 1, drive: 1 }, rocky: "yes" } },
+    ],
+  };
+  const fc = compileSpec(fence);
+  assert.ok(fc.ok, fc.ok ? "" : fc.errors.join(" | "));
+  if (fc.ok) {
+    const fs = fc.compiled.spec;
+    // what's offered follows the style; a pick that stops fitting is cleared
+    assert.deepEqual(Array.from(offeredOptions(fs, { style: "cedar" }).height), ["6", "8"]);
+    assert.deepEqual(Array.from(offeredOptions(fs, { style: "chain" }).height), ["4", "5", "6"]);
+    assert.equal(offeredOptions(fs, {}).gates, undefined);
+    const picked = { ft: "100", style: "chain", height: "8", gates: {}, rocky: "no", pool: false };
+    const cleared = dropUnofferedPicks(fs, picked);
+    assert.equal(cleared.height, "");
+    const fine = { ...picked, height: "5" };
+    assert.equal(dropUnofferedPicks(fs, fine), fine); // unchanged → the same object (no re-render loop)
+    // the server refuses an impossible combination outright
+    const impossible = runCompiled(fc.compiled, { ft: 100, style: "cedar", height: "4", gates: {}, rocky: "no" }, []);
+    assert.ok(!impossible.ok && impossible.inputProblems === true && /isn't available/.test(impossible.errors[0]), JSON.stringify(impossible));
+
+    // gate openings are deducted (150 ft − one 4 ft walk gate), the gate is priced for the style, nothing is counted twice
+    const typ = runCompiled(fc.compiled, { ft: 150, style: "cedar", height: "6", gates: { walk: 1 }, rocky: "no" }, []);
+    assert.ok(typ.ok && typ.lines[0].quantity === 146 && typ.lines[0].unitPrice === 42 && typ.lines[1].unitPrice === 450 && typ.total === 146 * 42 + 450, JSON.stringify(typ));
+    const chainGate = runCompiled(fc.compiled, { ft: 150, style: "chain", height: "4", gates: { walk: 1 }, rocky: "no" }, []);
+    assert.ok(chainGate.ok && chainGate.lines[1].unitPrice === 250);
+    // hours schedule the job and never touch the price
+    assert.ok(typ.ok && typ.hours === 25.5 && typ.flags.length === 0 && typ.minimumApplied === 0);
+    // "Not sure" prices the common case and flags the estimate; so does the pool
+    const unsure = runCompiled(fc.compiled, { ft: 150, style: "cedar", height: "6", gates: {}, rocky: "unsure", pool: true }, []);
+    assert.ok(unsure.ok && unsure.flags.length === 2 && /Ground not confirmed/.test(unsure.flags[0]) && unsure.lines.every((l) => l.name !== "Rocky or steep ground"));
+    // the tiniest job shows what the minimum does
+    const tiny = runCompiled(fc.compiled, fence.samples[0].inputs, []);
+    assert.ok(tiny.ok && tiny.total === 1000 && tiny.minimumApplied === 1000 - (6 * 22 + 250), JSON.stringify(tiny));
+
+    // the builder's bar passes, and the tiny sample is reported with the top-up
+    const audit = auditSpec(fc.compiled, [], { strict: true });
+    assert.deepEqual(audit.errors, []);
+    const t = audit.samples.find((s) => s.tiny)!;
+    assert.ok(t && t.subtotal === 1000 && t.minimumApplied === 618);
+
+    // the rate card: what's still an estimate, as plain lines, and how a save dates it
+    assert.equal(ratesToConfirm(fs).length, 10);
+    assert.equal(rateValueText(fs.rates![0]), "$42 per ft");
+    assert.equal(rateValueText(fs.rates![2]), "×1.4");
+    assert.match(confirmLines({ ...fs, market: { asOf: "2026-11-13", where: "Dallas, TX" } })[0], /^Cedar privacy fence, 6 ft tall: \$42 per ft — market estimate for Dallas, TX \(\$28–\$55\)$/);
+    const built = stampRates(null, fs, "2026-11-13", "builder");
+    assert.ok(built.rates!.every((r) => r.updatedAt === "2026-11-13") && built.rates![0].source === "market");
+    // the owner types their cedar price a month later: that one becomes theirs and is dated; the rest keep their dates
+    const edited = stampRates(built, { ...built, rates: built.rates!.map((r) => (r.id === "r_cedar" ? { ...r, value: 45 } : r)) }, "2026-12-20", "owner");
+    assert.ok(edited.rates![0].source === "owner" && edited.rates![0].updatedAt === "2026-12-20" && edited.rates![1].updatedAt === "2026-11-13");
+    // "Looks right" on an estimate confirms it as-is, dated the day it was confirmed
+    const confirmed = stampRates(edited, { ...edited, rates: edited.rates!.map((r) => (r.id === "g_walk_wood" ? { ...r, source: "owner" as const } : r)) }, "2026-12-21", "owner");
+    assert.ok(confirmed.rates!.find((r) => r.id === "g_walk_wood")!.updatedAt === "2026-12-21");
+    // a later Atlas rebuild can't turn a confirmed number back into an estimate
+    const rebuilt = stampRates(confirmed, { ...confirmed, rates: confirmed.rates!.map((r) => (r.id === "r_cedar" ? { ...r, source: "market" as const } : r)) }, "2027-01-05", "builder");
+    assert.ok(rebuilt.rates![0].source === "owner" && rebuilt.rates![0].updatedAt === "2026-12-20");
+    const dsc = describeSpecChanges(built, edited);
+    assert.ok(dsc.some((x) => x === 'Rate "Cedar privacy fence, 6 ft tall": $42 per ft → $45 per ft'), dsc.join(" | "));
+  }
+
+  // (c) formulas that name a choice the question doesn't have
+  const typo = compileSpec({ ...fence, lines: [...fence.lines, { name: "Cap and trim", description: "Cap and trim along the top", when: "style == 'Cedar privacy'", quantity: "ft", unitPrice: "r_rock" }] });
+  assert.ok(typo.ok);
+  if (typo.ok) assert.ok(auditSpec(typo.compiled, []).errors.some((e) => /compares "Style" to 'Cedar privacy'.*can never match/.test(e)));
+  const badQty = compileSpec({ ...fence, variables: fence.variables.map((v) => (v.id === "gate_ft" ? { ...v, expr: "qty(gates, 'walk gate') * 4" } : v)) });
+  assert.ok(badQty.ok);
+  if (badQty.ok) assert.ok(auditSpec(badQty.compiled, []).errors.some((e) => /qty\(gates, 'walk gate'\).*always 0/.test(e)));
+  // a price table with no row for an option: fails with no default, and with one it is priced as something else
+  const noRow = compileSpec({ ...fence, variables: fence.variables.map((v) => (v.id === "base" ? { ...v, expr: "lookup(style, {cedar: r_cedar}, r_chain)" } : v)) });
+  assert.ok(noRow.ok);
+  if (noRow.ok) {
+    assert.ok(auditSpec(noRow.compiled, [], { strict: true }).errors.some((e) => /no row for 'chain'.*priced by the default/.test(e)));
+    assert.ok(auditSpec(noRow.compiled, []).warnings.some((e) => /no row for 'chain'/.test(e)));
+  }
+
+  // (d) crew time reaching a price when the prices already include labor = the hours charged twice
+  const stacked = compileSpec({ ...fence, lines: [...fence.lines, { name: "Installation labor", description: "Crew labor to build the fence", quantity: "ft * t_cedar", unitPrice: "r_rock", group: "Labor" }] });
+  assert.ok(stacked.ok);
+  if (stacked.ok) assert.ok(auditSpec(stacked.compiled, []).errors.some((e) => /Installation labor.*crew time.*twice/.test(e)));
+  const billed = compileSpec({ ...fence, labor: "billed", lines: [...fence.lines, { name: "Installation labor", description: "Crew labor to build the fence", quantity: "ft * t_cedar", unitPrice: "r_rock", group: "Labor" }] });
+  assert.ok(billed.ok);
+  if (billed.ok) assert.ok(!auditSpec(billed.compiled, []).errors.some((e) => /twice/.test(e)));
+
+  // (e) the real tool from the ticket: three controls on height, bare numbers in the formulas, no labor rule, no tiny job
+  const legacy = {
+    inputs: [
+      { id: "fence_ft", type: "map", label: "Draw where the fence will run", measure: "length", required: true },
+      { id: "fence_style", type: "select", label: "What style of fence do you want?", style: "cards", options: [{ label: "Cedar privacy", value: "Cedar privacy fence" }, { label: "Ranch rail", value: "Ranch rail fence" }], required: true },
+      height,
+      { id: "gates", type: "counts", label: "Gates", options: [{ label: "Walk gate (3-4 ft wide)", value: "walk" }, { label: "Double drive gate (10-16 ft wide)", value: "drive" }] },
+    ],
+    variables: [
+      { id: "base", expr: "lookup(fence_style, {'Cedar privacy fence': 30, 'Ranch rail fence': 26}, 26)" },
+      { id: "hf", expr: "tier(height, [[4, 1], [5, 1.2]], 1.4)" },
+      { id: "hpf", expr: "lookup(fence_style, {'Cedar privacy fence': 0.17, 'Ranch rail fence': 0.15}, 0.15)" },
+    ],
+    lines: [
+      { name: "{fence_style}, {height} ft tall", group: "Fence", hours: "fence_ft * hpf", quantity: "fence_ft", unitPrice: "base * hf", description: "Installation of the chosen fence along the traced line" },
+      { name: "Walk gate, 3-4 ft wide", group: "Gates", quantity: "qty(gates, 'walk')", unitPrice: "425", description: "Single walk gate hung on posts" },
+    ],
+    minimumTotal: 600,
+    placeholders: ["Labor time: about 0.17 person-hours per ft for cedar privacy, 0.2 for vinyl privacy, 0.15 for ranch rail, 0.22 for pipe, 0.12 for chain link — estimate; set you"],
+    samples: [{ label: "Small job", inputs: { fence_ft: 40, fence_style: "Ranch rail fence", height: 4, gates: {} } }, { label: "Typical job", inputs: { fence_ft: 150, fence_style: "Cedar privacy fence", height: 6, gates: { walk: 1 } } }],
+  };
+  const lc = compileSpec(legacy);
+  assert.ok(lc.ok, lc.ok ? "" : lc.errors.join(" | "));
+  if (lc.ok) {
+    // it still runs exactly as before — old tools are untouched until someone changes them
+    const r = runCompiled(lc.compiled, { fence_ft: 150, fence_style: "Cedar privacy fence", height: 6, gates: { walk: 1 } }, []);
+    assert.ok(r.ok && r.total === 150 * 42 + 425);
+    // a hand edit is only told; the builder is made to fix it
+    const loose = auditSpec(lc.compiled, []);
+    assert.deepEqual(loose.errors, []);
+    const strict = auditSpec(lc.compiled, [], { strict: true }).errors.join("\n");
+    assert.match(strict, /Line "Walk gate, 3-4 ft wide" is priced with a bare number \(425\)/);
+    assert.match(strict, /the table has bare numbers \(Cedar privacy fence: 30, Ranch rail fence: 26\)/);
+    assert.match(strict, /Say how labor hours relate to the price/);
+    assert.match(strict, /Add one or two "Tiny job" samples/);
+    assert.match(strict, /Variable "base" needs a "label"/);
+  }
+  // text past the limit is cut at a word with an ellipsis (never "set you"), and the builder is sent back to shorten it
+  const long = compileSpec({ ...fence, placeholders: [`${"Labor time is an estimate for every style we build and install here ".repeat(4)}so set your own`] });
+  assert.ok(long.ok && long.compiled.spec.placeholders![0].endsWith("…") && !/\S…$/.test(long.compiled.spec.placeholders![0].replace(/\w+…$/, "")));
+  if (long.ok) assert.ok(auditSpec(long.compiled, [], { strict: true }).errors.some((e) => /Placeholder 1 is cut off/.test(e)));
+
+  // compile refuses what can't work: an option gated on itself, a default that isn't always offered, a bad labor value
+  const selfGate = compileSpec({ ...fence, inputs: fence.inputs.map((i) => (i.id === "height" ? { ...i, options: [{ value: "4", label: "4 ft", showWhen: "height == '6'" }, { value: "6", label: "6 ft" }] } : i)) });
+  assert.ok(!selfGate.ok && selfGate.errors.some((e) => /can't read its own question/.test(e)));
+  const gatedDefault = compileSpec({ ...fence, inputs: fence.inputs.map((i) => (i.id === "height" ? { ...i, default: "8" } : i)) });
+  assert.ok(!gatedDefault.ok && gatedDefault.errors.some((e) => /isn't always offered/.test(e)));
+  const badLabor = compileSpec({ ...fence, labor: "extra" });
+  assert.ok(!badLabor.ok && badLabor.errors.some((e) => /"labor" must be/.test(e)));
+  const dupRate = compileSpec({ ...fence, rates: [...fence.rates, { id: "ft", label: "Clash", value: 1, kind: "price", source: "owner" }] });
+  assert.ok(!dupRate.ok && dupRate.errors.some((e) => /Duplicate id "ft"/.test(e)));
+
+  // the guide's own example is held to the builder's bar — the model is never taught a spec the audit rejects
+  const m = ESTIMATOR_GUIDE.match(/spec = (\{[\s\S]*?\n\})\n\nRules:/);
+  assert.ok(m, "guide example not found");
+  const example = new Function(`return (${m![1]});`)();
+  const gc = compileSpec(example);
+  assert.ok(gc.ok, gc.ok ? "" : gc.errors.join(" | "));
+  if (gc.ok) {
+    const ga = auditSpec(gc.compiled, [{ id: "w1", name: "Driveway Cleaning", unitPrice: 0.3, unitCost: 0.05 }], { strict: true });
+    assert.deepEqual(ga.errors, []);
+    assert.deepEqual(ga.warnings, []);
+  }
+}
+console.log("ok 17: one control, answer-dependent options, rate card, labor vs price, flags, tiny jobs, copy");
 console.log("\nestimator: all green");

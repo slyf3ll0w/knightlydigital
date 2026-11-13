@@ -218,23 +218,29 @@ export function publicInputs(spec: EstimatorSpec): PublicEstimatorInput[] {
 export type PublicEstimateLine = { name: string; description: string; quantity: number; unitPrice: number; total: number; isOptional: boolean; group?: string; recurringInterval?: string | null };
 
 /** The estimate as the visitor sees it, shaped by showPrice. `total` = after the discount, before tax. */
-export type PublicEstimate =
+export type PublicEstimate = (
   | { mode: "exact"; lines: PublicEstimateLine[]; subtotal: number; discount: number; discounts: { label: string; amount: number }[]; total: number; title?: string }
   | { mode: "range"; low: number; high: number; title?: string }
-  | { mode: "hidden"; title?: string };
+  | { mode: "hidden"; title?: string }
+) & {
+  /** Things the business will confirm before the price is final (the tool's flags that applied). */
+  confirm?: string[];
+};
 
 export function shapeEstimate(
-  result: { lines: EstimatorResultLine[]; subtotal: number; total?: number; discount?: number; discounts?: { label: string; amount: number }[]; title?: string },
+  result: { lines: EstimatorResultLine[]; subtotal: number; total?: number; discount?: number; discounts?: { label: string; amount: number }[]; title?: string; flags?: string[] },
   config: Pick<EstimatorPublicConfig, "showPrice" | "rangePct">,
   minimumTotal?: number
 ): PublicEstimate {
   const total = result.total ?? result.subtotal;
-  if (config.showPrice === "hidden") return { mode: "hidden", title: result.title };
+  const confirm = result.flags && result.flags.length > 0 ? { confirm: result.flags.slice(0, 8) } : {};
+  if (config.showPrice === "hidden") return { mode: "hidden", title: result.title, ...confirm };
   if (config.showPrice === "range") {
     const { low, high } = estimateRange(total, config.rangePct, minimumTotal);
-    return { mode: "range", low, high, title: result.title };
+    return { mode: "range", low, high, title: result.title, ...confirm };
   }
   return {
+    ...confirm,
     mode: "exact",
     lines: result.lines.map((l) => ({
       name: l.name,

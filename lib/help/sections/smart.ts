@@ -294,6 +294,56 @@ export const estimatorSection: HelpSection = {
       ],
     },
     {
+      slug: "estimate-tool-rates",
+      title: "Check a tool's rates against your price sheet",
+      summary: "Every number a tool prices with is listed in plain words. Set your own, and see which ones are still estimates.",
+      plan: PRO_CHIP,
+      keywords: ["rates", "rate card", "your rates", "rates to confirm", "market estimate", "placeholder", "minimum job charge", "labor hours", "crew time", "prices changed"],
+      where: { label: "Estimates", href: "/app/estimates" },
+      roles: "Owners and admins",
+      blocks: [
+        proLine("Estimate tools"),
+        {
+          type: "p",
+          text: "Open a tool from **Estimates**. **Your rates** on its Overview lists every number the tool uses, named for what it buys, like \"Cedar privacy fence, 6 ft tall — $42 per ft\". You never need to read a formula.",
+        },
+        {
+          type: "steps",
+          items: [
+            "Go down the list with your own price sheet next to you.",
+            "Type your number over any that is off. It saves when you leave the box and becomes **Yours**, with today's date.",
+            "For a number that is already right, press `Looks right`.",
+            "Set the **Minimum job charge** at the bottom, then look at **The smallest jobs** under **What it prices** to see what that minimum does to a tiny job.",
+          ],
+        },
+        {
+          type: "p",
+          text: "Where you didn't give a rate, the tool runs on a **Market estimate**. Each one shows the going range, the area it is for, and the day it was looked up, so you know when to recheck it. A **Placeholder** has nothing behind it, so set those first.",
+        },
+        {
+          type: "p",
+          text: "**Crew time** has its own heading. It only sets how long a job is booked for. When your prices are installed prices, the hours are never added on top.",
+        },
+        {
+          type: "faq",
+          items: [
+            {
+              q: "Why does an estimate say \"Confirm before this price is final\"?",
+              a: "The customer answered \"Not sure\" to something, or a rule like a pool code or HOA approval applies. The price uses the usual case. The list also goes on the request and in the quote's internal notes.",
+            },
+            {
+              q: "A customer can't pick an option they want.",
+              a: "Options that don't fit the other answers are hidden, like a fence height that a style isn't built in. Ask Atlas to change which options go together.",
+            },
+            {
+              q: "My older tool doesn't show Your rates.",
+              a: "Tools built before this still work the same. Ask Atlas for any change on the tool's **Ask Atlas** page and it moves the numbers onto the rate card, keeping every price as it is.",
+            },
+          ],
+        },
+      ],
+    },
+    {
       slug: "run-an-estimate-onsite",
       title: "Price a job onsite and measure from the map",
       summary: "Answer the tool's questions, measure on a satellite map, and turn the result into a quote.",

@@ -5,7 +5,7 @@
  * Needs a placeholder DATABASE_URL (the builder module imports Prisma; never queried).
  */
 import assert from "node:assert/strict";
-import { BENCHMARKS, benchmarkFor, marketCheck, regionFactor, typicalSample } from "../lib/estimator-benchmarks";
+import { BENCHMARKS, benchmarkFor, marketCheck, minimumCheck, regionFactor, typicalSample } from "../lib/estimator-benchmarks";
 import { cleanRates, cleanTypical, marketRules, marketText, mergeMarket } from "../lib/estimator-market";
 import { PLAYBOOK } from "../lib/estimator-playbook";
 
@@ -117,7 +117,7 @@ test("mergeMarket: search first, baseline fills in, typical keeps the baseline's
   assert.equal(m.searched, true);
   assert.equal(m.rates[0].low, 32); // the searched row replaced the same-named baseline row
   assert.equal(m.rates.filter((x) => x.what === "Wood privacy fence, 6 ft").length, 1);
-  assert.ok(m.rates.some((x) => x.what === "Walk gate"));
+  assert.ok(m.rates.some((x) => x.what === "Walk gate, wood or vinyl"));
   assert.equal(m.typical!.job, baseline!.typical.job);
   assert.equal(m.typical!.low, 5000);
   assert.deepEqual(m.sources, ["https://example.com/fence-costs"]);
@@ -134,6 +134,19 @@ test("mergeMarket: search first, baseline fills in, typical keeps the baseline's
   assert.match(text, /\$32–\$46 per ft/);
   assert.match(marketRules(m), /market estimate for Allen, TX/);
   assert.doesNotMatch(marketRules(alone), /market estimate for/);
+});
+
+test("minimumCheck: the $600 fence minimum from the ticket reads low; $1,000 and the owner-free case are handled", () => {
+  const fence = benchmarkFor("fencing", "TX")!;
+  assert.ok(fence.minimum && fence.minimum.low >= 900);
+  assert.match(minimumCheck(600, fence.minimum, "Dallas, TX")[0], /\$600.*around Dallas, TX.*LOW/);
+  assert.deepEqual(minimumCheck(1000, fence.minimum), []);
+  assert.match(minimumCheck(undefined, fence.minimum)[0], /no minimum job charge/);
+  assert.deepEqual(minimumCheck(100, null), []);
+  // gates are priced by what they match, and the styles the ticket asked for are on the sheet
+  const whats = fence.rates.map((x) => x.what).join(" | ");
+  for (const want of ["Walk gate, wood or vinyl", "Walk gate, chain link", "Single drive gate", "Ornamental", "Ranch rail", "Pipe rail", "Board-on-board", "Stain and seal", "Corner or end post", "chain link removal"]) assert.ok(whats.toLowerCase().includes(want.toLowerCase()), want);
+  assert.match(marketText(mergeMarket("Dallas, TX", null, fence)!), /Minimum job charge businesses in this trade set: \$900–\$1,500/);
 });
 
 async function builderTests() {

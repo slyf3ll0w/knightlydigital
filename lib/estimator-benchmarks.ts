@@ -33,6 +33,8 @@ export type TradeBenchmark = {
   /** How fast the work goes, in person-hours. */
   labor: string;
   typical: TypicalJob;
+  /** What businesses in the trade set as their minimum job charge — the cost of showing up at all. */
+  minimum?: { low: number; high: number };
 };
 
 const r = (what: string, unit: string, low: number, high: number): BenchmarkRate => ({ what, unit, low, high });
@@ -53,12 +55,28 @@ export const BENCHMARKS: Record<string, TradeBenchmark> = {
     rates: [
       r("Wood privacy fence, 6 ft", "ft", 28, 55),
       r("Vinyl privacy fence, 6 ft", "ft", 35, 65),
+      r("Wood privacy fence, 8 ft (about 1.3–1.5× the 6 ft price)", "ft", 38, 75),
+      r("Board-on-board upgrade over side-by-side", "ft", 5, 12),
+      r("Cap and trim", "ft", 3, 8),
+      r("Steel posts instead of wood", "ft", 3, 8),
+      r("Stain and seal, both sides", "ft", 4, 10),
       r("Chain link, 4 ft", "ft", 15, 30),
-      r("Aluminum / ornamental, 4–5 ft", "ft", 35, 70),
-      r("Walk gate", "each", 250, 600),
-      r("Double drive gate", "each", 700, 1800),
-      r("Old fence removal and haul-away", "ft", 3, 7),
+      r("Ornamental iron / steel / aluminum, 5 ft", "ft", 35, 70),
+      r("Ranch rail (wood, 3–4 rail), 4 ft", "ft", 14, 30),
+      r("Pipe rail (welded steel), 4–5 ft", "ft", 30, 65),
+      r("Walk gate, wood or vinyl", "each", 300, 650),
+      r("Walk gate, chain link", "each", 175, 400),
+      r("Walk gate, ornamental metal", "each", 400, 900),
+      r("Single drive gate (about 8 ft), wood or vinyl", "each", 550, 1200),
+      r("Double drive gate (10–16 ft), wood or vinyl", "each", 800, 1900),
+      r("Double drive gate (10–16 ft), chain link or pipe", "each", 500, 1400),
+      r("Self-closing, self-latching pool gate hardware", "gate", 75, 250),
+      r("Corner or end post (braced), added to the per-ft price", "each", 40, 120),
+      r("Old wood fence removal and haul-away", "ft", 3, 7),
+      r("Old chain link removal with concrete footings", "ft", 5, 11),
+      r("Rocky or steep ground", "ft", 4, 12),
     ],
+    minimum: { low: 900, high: 1500 },
     labor: "A three-person crew builds 120–180 ft of wood privacy fence a day: 0.13–0.22 person-hours per foot (chain link is faster, rocky ground slower). A gate adds 1.5–3 person-hours.",
     typical: t("150 ft of 6 ft wood privacy fence with one walk gate, normal ground, no tear-out", 4500, 8500, 20, 36),
   },
@@ -258,6 +276,7 @@ export function benchmarkFor(tradeKey: string | null | undefined, state?: string
     labor: base.labor,
     rates: base.rates.map((x) => ({ ...x, low: tidy(x.low * f), high: tidy(x.high * f) })),
     typical: { ...base.typical, low: tidy(base.typical.low * f), high: tidy(base.typical.high * f) },
+    ...(base.minimum ? { minimum: { low: tidy(base.minimum.low * f), high: tidy(base.minimum.high * f) } } : {}),
   };
 }
 
@@ -298,4 +317,18 @@ export function marketCheck(samples: CheckSample[], typical: TypicalJob | null |
     else if (s.hours < typical.hoursLow * HOURS_SLACK.under) out.push(`The "${s.label}" sample books ${s.hours} hours of labor; that job normally takes ${span}. The "hours" expressions are too low (hours are PERSON-hours: crew size × time on site).`);
   }
   return out;
+}
+
+/**
+ * Is the tool's minimum job charge in the trade's range? A minimum well under
+ * it means the smallest jobs lose money once the trip, setup and disposal are
+ * counted. One sentence for the model (and, on the owner's own numbers, a
+ * note) — empty when it is fine or there is nothing to compare.
+ */
+export function minimumCheck(minimumTotal: number | undefined, range: { low: number; high: number } | null | undefined, where = ""): string[] {
+  if (!range) return [];
+  const place = where ? ` around ${where}` : "";
+  if (!minimumTotal) return [`There is no minimum job charge; businesses in this trade${place} usually set one at ${usd(range.low)}–${usd(range.high)}.`];
+  if (minimumTotal < range.low * 0.8) return [`The minimum job charge is ${usd(minimumTotal)}; businesses in this trade${place} usually set ${usd(range.low)}–${usd(range.high)} once the trip, setup, materials run and haul-off are counted. That looks LOW.`];
+  return [];
 }
