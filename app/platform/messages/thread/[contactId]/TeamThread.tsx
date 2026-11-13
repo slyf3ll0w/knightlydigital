@@ -618,7 +618,11 @@ export default function TeamThread({
                       }`}
                     >
                       {m.media && m.media.length > 0 && <MessageMedia media={m.media} className={m.body ? "mb-1.5" : ""} />}
-                      {m.body && <Linkified text={m.body} />}
+                      {m.body && (
+                        <span data-selectable="">
+                          <Linkified text={m.body} />
+                        </span>
+                      )}
                       <span className={`ml-2 inline-block translate-y-px text-[10px] ${mine ? "text-white/60" : "text-gray-400"}`}>
                         {m.pending ? "Sending…" : `${viaTag}${timeLabel(m.createdAt, tz)}`}
                       </span>

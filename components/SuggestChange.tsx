@@ -35,7 +35,11 @@ export type SuggestHereDetail = { target?: Element | null; x: number; y: number 
 // row instead — and typing fields keep the browser's own menu and selection.
 const HOLD_MS = 450;
 const HOLD_MOVE_PX = 10;
+// [data-selectable]: text people copy (chat bubbles, Atlas replies) — a
+// touch hold there is the phone's own select/Copy, not Suggest a change.
+// Right-click (desktop) still opens Suggest a change everywhere.
 const OWNS_GESTURE = "[data-holds], [role=menu], [data-wb-suggest]";
+const TOUCH_SELECTABLE = "[data-selectable]";
 const EDITABLE = "input, textarea, select, [contenteditable=''], [contenteditable=true]";
 
 // ── Diagnostics ring — installed once per page load ──────────────────────────
@@ -480,7 +484,8 @@ export default function SuggestChange() {
       // Android fires contextmenu for a long press too: the hold timer owns
       // that one, this just keeps the browser's own menu from opening.
       if (Date.now() - lastTouchAt < 1000) {
-        e.preventDefault();
+        // …except on copyable text, where it's the phone's own selection
+        if (!(e.target instanceof Element && e.target.closest(TOUCH_SELECTABLE))) e.preventDefault();
         return;
       }
       // Shift + right-click keeps the browser's menu (inspect, copy link)
@@ -493,6 +498,7 @@ export default function SuggestChange() {
       clear();
       const t = e.touches[0];
       if (!t || e.touches.length > 1 || skip(e.target)) return;
+      if (e.target instanceof Element && e.target.closest(TOUCH_SELECTABLE)) return;
       start = { x: t.clientX, y: t.clientY, target: e.target as Element };
       timer = window.setTimeout(() => {
         timer = null;
