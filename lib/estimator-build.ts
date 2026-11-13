@@ -88,6 +88,16 @@ const THINK_PLAN = 1024;
 const THINK_DRAFT = 8192;
 const THINK_FIX = 4096;
 const THINK_CHANGE = 6144;
+/** After a call that thought its whole budget away and wrote nothing: a lighter level for the retry. */
+const THINK_LEAN = 2048;
+/**
+ * Room for one draft call — thinking AND the spec share it. 16k was too
+ * little: a long change request had the model think to the cap and return
+ * no answer at all ("Atlas couldn't answer that just now"), twice running.
+ */
+const DRAFT_MAX_TOKENS = 32_000;
+/** Deadline for one draft call. Keep it under STALE_MS in estimator-build-jobs.ts — a row untouched that long reads as interrupted. */
+const DRAFT_TIMEOUT_MS = 210_000;
 
 type PlanReply = { tradeKey?: unknown; trade?: unknown; drivers?: unknown; questions?: unknown; packages?: unknown; ask?: unknown; note?: unknown; askOwner?: unknown; ratesKnown?: unknown };
 
@@ -418,25 +428,38 @@ export async function* buildEstimator(
   let draft: Draft | null = null;
   let compiled: Awaited<ReturnType<typeof checkSpec>> | null = null;
   let audit: SpecAudit | null = null;
+  /** Set once a call came back with no answer (see THINK_LEAN). */
+  let lean = false;
+  /** The round before this one ended without an answer, so this one is a second attempt, not a fix. */
+  let retrying = false;
 
   for (let round = 1; round <= MAX_ROUNDS; round++) {
-    yield { phase: round === 1 ? "draft" : "fix", message: round === 1 ? (currentRow ? "Working out the change…" : "Writing the questions and pricing rules…") : `Fixing what didn't add up (round ${round})…` };
+    yield { phase: round === 1 ? "draft" : "fix", message: round === 1 ? (currentRow ? "Working out the change…" : "Writing the questions and pricing rules…") : retrying ? "That needed more room — trying again…" : `Fixing what didn't add up (round ${round})…` };
+    retrying = false;
     if (await stop()) return;
     const watch = abortOnCancel(stop);
     const res = await meteredOneShot(actor, {
       kind: "estimator-build",
       system,
       prompt: userPrompt,
-      maxOutputTokens: 16000,
+      maxOutputTokens: DRAFT_MAX_TOKENS,
       temperature: 0.2,
-      thinkingBudget: round === 1 ? (currentRow ? THINK_CHANGE : THINK_DRAFT) : THINK_FIX,
-      timeoutMs: 170_000,
+      thinkingBudget: lean ? THINK_LEAN : round === 1 ? (currentRow ? THINK_CHANGE : THINK_DRAFT) : THINK_FIX,
+      timeoutMs: DRAFT_TIMEOUT_MS,
       ...(image ? { image } : {}),
       signal: watch.signal,
     });
     watch.done();
     if (watch.signal.aborted) return;
     if (!res.ok) {
+      tokens += res.atlasTokens ?? 0;
+      // The model thought its whole budget away and wrote nothing: one more
+      // try on the next round, thinking less. Anything else ends the build.
+      if (res.empty && !lean && round < MAX_ROUNDS) {
+        lean = true;
+        retrying = true;
+        continue;
+      }
       yield { error: res.error, tokens, atlasLocked: res.atlasLocked };
       return;
     }

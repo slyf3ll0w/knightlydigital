@@ -27,7 +27,17 @@ const MODEL_FALLBACK = process.env.GEMINI_API_KEY ? "gemini-flash-lite-latest" :
 
 export type OneShotResult =
   | { ok: true; text: string; atlasTokens: number; access: AtlasAccess }
-  | { ok: false; status: number; error: string; access?: AtlasAccess; atlasLocked?: boolean };
+  | {
+      ok: false;
+      status: number;
+      error: string;
+      access?: AtlasAccess;
+      atlasLocked?: boolean;
+      /** What the failed call still cost (a model that answered with nothing is billed by the provider all the same). */
+      atlasTokens?: number;
+      /** The model replied but wrote no answer — it spent its whole output budget thinking. Worth one leaner retry. */
+      empty?: boolean;
+    };
 
 function lockedMessage(access: Extract<AtlasAccess, { level: "locked" }>, name: string): string {
   const when = new Date(access.resetsAt).toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -170,6 +180,8 @@ export async function meteredOneShot(
       status: 424,
       error: `${name} couldn't answer that just now — please try again.`,
       access: accessAfterDebit(access, debit),
+      atlasTokens,
+      ...(parts ? { empty: true } : {}),
     };
   }
   return { ok: true, text, atlasTokens, access: accessAfterDebit(access, debit) };

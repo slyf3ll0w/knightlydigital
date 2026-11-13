@@ -23,7 +23,7 @@ export type BuildStatus = "running" | "questions" | "done" | "error" | "cancelle
 class BuildCancelled extends Error {}
 
 /** A "running" row nobody has touched for this long was interrupted (deploy, restart). */
-const STALE_MS = 4 * 60 * 1000;
+const STALE_MS = 5 * 60 * 1000;
 /** Builds waiting on the owner's answers stay resumable this long. */
 const QUESTIONS_KEEP_MS = 2 * 60 * 60 * 1000;
 
