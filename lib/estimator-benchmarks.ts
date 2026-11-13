@@ -319,6 +319,25 @@ export function marketCheck(samples: CheckSample[], typical: TypicalJob | null |
   return out;
 }
 
+/** How far the typical job may move across a change before the builder is asked about it. */
+export const DRIFT_SLACK = 0.12;
+
+/**
+ * Did a CHANGE to a tool move what the typical job costs? Rewriting a tool
+ * (new questions, numbers moved onto the rate card) is where a rate gets
+ * re-based wrongly — a price that was "per ft at 4 ft" relabelled "6 ft tall"
+ * quietly drops every 6 ft quote. One sentence for the model, and for the
+ * owner if it stands; empty when the price held or there is nothing to compare.
+ */
+export function driftCheck(before: CheckSample[], after: CheckSample[]): string[] {
+  const was = typicalSample(before);
+  const now = typicalSample(after);
+  if (!was || !now || was.subtotal === null || now.subtotal === null || was.subtotal <= 0) return [];
+  const move = (now.subtotal - was.subtotal) / was.subtotal;
+  if (Math.abs(move) <= DRIFT_SLACK) return [];
+  return [`The typical job priced ${usd(was.subtotal)} before this change and ${usd(now.subtotal)} after (${move > 0 ? "+" : "−"}${Math.round(Math.abs(move) * 100)}%). Unless the owner asked for prices to change, or the typical job itself now includes more, a rate was carried over wrongly — a price stated at one size, height or grade must be re-based when its label names another. Keep the "Typical job" sample the same job as before and make it come to the same price.`];
+}
+
 /**
  * Is the tool's minimum job charge in the trade's range? A minimum well under
  * it means the smallest jobs lose money once the trip, setup and disposal are
