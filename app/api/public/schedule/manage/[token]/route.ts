@@ -27,7 +27,7 @@ async function loadByToken(token: string) {
       bookingType: { include: bookingTypeInclude },
       company: {
         select: {
-          id: true, name: true, slug: true, email: true, timezone: true, businessHours: true, serviceZips: true,
+          id: true, name: true, slug: true, email: true, hideEmail: true, timezone: true, businessHours: true, serviceZips: true,
           arrivalWindowMinutes: true, bookingDriveLimitMinutes: true, lat: true, lng: true, suspendedAt: true,
           brandColor: true, brandColorSecondary: true, documentColor: true, logoUrl: true,
         },

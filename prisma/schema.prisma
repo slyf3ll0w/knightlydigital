@@ -31,6 +31,12 @@ model Company {
   // page, and the Reply-To of every client email. Signup seeds it with the
   // owner's login; Settings → Business Info edits it.
   email                     String?
+  // Settings → Business Info "Keep my email off client pages" (David
+  // 2026-11-13): `email` is never PRINTED to clients — pages, PDFs, calendar
+  // invites, site data — but stays the Reply-To so replies still arrive.
+  // Overridden while a texting registration needs it on the booking page
+  // (lib/public-email.ts, lib/business-profile.ts businessDetailsForced).
+  hideEmail                 Boolean           @default(false)
   // Optional separate inbox for the company's own notifications (new requests,
   // bookings, client messages). Null = `email`. Lets an owner who signed up
   // with a personal address show clients a work one and still get alerts

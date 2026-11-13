@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { publicEmail } from "@/lib/public-email";
 import { loadBookingItem, type LoadedItem } from "@/lib/booking-public";
 import { bookingPaymentConfig } from "@/lib/booking-payment-config";
 import { decodePrefill } from "@/lib/booking-prefill";
@@ -53,7 +54,7 @@ export default async function ItemView({
     <BookingStepper
       companySlug={companySlug}
       type={pub}
-      company={{ name: company.name, timezone: company.timezone, phone: company.phone, email: company.email, menuHref, offerSms: offersSmsConsent(company) }}
+      company={{ name: company.name, timezone: company.timezone, phone: company.phone, email: publicEmail(company), menuHref, offerSms: offersSmsConsent(company) }}
       appearance={appearance}
       payment={bookingPaymentConfig(type, company)}
       hostedUrl={`${APP_URL}/book/${companySlug}/${pub.slug}`}

@@ -7,6 +7,7 @@ import { hubBrandVars } from "@/lib/hub-brand";
 import { companyMeta } from "@/lib/client-meta";
 import { loadBookingPage } from "@/lib/booking-public";
 import { fmtPhone } from "@/lib/format";
+import { publicEmail } from "@/lib/public-email";
 import ForceLightTheme from "@/components/ForceLightTheme";
 import PortalLoginForm from "./PortalLoginForm";
 
@@ -44,14 +45,16 @@ const PERKS = [
 
 export default async function PortalLoginPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const company = await prisma.company.findFirst({
+  const found = await prisma.company.findFirst({
     where: slugWhere(slug),
     select: {
-      name: true, slug: true, logoUrl: true, phone: true, email: true,
+      name: true, slug: true, logoUrl: true, phone: true, email: true, hideEmail: true,
       brandColor: true, documentColor: true, brandColorSecondary: true,
     },
   });
-  if (!company) notFound();
+  if (!found) notFound();
+  // From here on `company.email` is what clients may see (null when hidden)
+  const company = { ...found, email: publicEmail(found) };
 
   // Booking page reachable with something on it → new customers can ask for work
   const booking = await loadBookingPage(company.slug).catch(() => null);

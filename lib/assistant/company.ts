@@ -124,7 +124,7 @@ export const companyTools: Tool[] = [
           select: {
             timezone: true, businessHours: true, serviceZips: true,
             arrivalWindowMinutes: true, reviewLink: true, industry: true,
-            assistantName: true, phone: true, email: true, website: true, slug: true,
+            assistantName: true, phone: true, email: true, hideEmail: true, website: true, slug: true,
           },
         }),
         prisma.user.findMany({
@@ -149,6 +149,7 @@ export const companyTools: Tool[] = [
         assistantName: company.assistantName ?? "Atlas (default)",
         businessPhone: company.phone,
         businessEmail: company.email,
+        businessEmailHiddenFromClients: company.hideEmail,
         website: company.website,
         bookingPageUrl: `${siteBase()}/book/${company.slug}`,
         clientPortalLoginUrl: `${siteBase()}/portal/${company.slug}`,
@@ -170,7 +171,7 @@ export const companyTools: Tool[] = [
     decl: {
       name: "update_company_settings",
       description:
-        "Stage changes to company settings: business name, phone, email, address/city/state/zip, website, review link, brand colors (brandColor = primary for headers, brandColorSecondary = accent for buttons; #rrggbb), timezone (IANA, e.g. America/Chicago), arrival window minutes, the assistant's display name (assistantName), card surcharge (surchargeEnabled + surchargePercent, e.g. 3 for 3%), the company-default deposit on new quotes (defaultDepositType PERCENT/FIXED/FULL/NONE + defaultDepositValue), the online-booking service area (addServiceZips / removeServiceZips — 5-digit ZIPs), and the LOOK of the public booking page (bookingTheme light/dark/transparent, bookingFont = a Google Font name, bookingFontSize sm/md/lg, bookingAccent #rrggbb or 'brand', bookingTitle, bookingDescription, bookingShowBusinessDetails). Only include what should change. Confirmation card required.",
+        "Stage changes to company settings: business name, phone, email (hideEmail = keep it off client pages), address/city/state/zip, website, review link, brand colors (brandColor = primary for headers, brandColorSecondary = accent for buttons; #rrggbb), timezone (IANA, e.g. America/Chicago), arrival window minutes, the assistant's display name (assistantName), card surcharge (surchargeEnabled + surchargePercent, e.g. 3 for 3%), the company-default deposit on new quotes (defaultDepositType PERCENT/FIXED/FULL/NONE + defaultDepositValue), the online-booking service area (addServiceZips / removeServiceZips — 5-digit ZIPs), and the LOOK of the public booking page (bookingTheme light/dark/transparent, bookingFont = a Google Font name, bookingFontSize sm/md/lg, bookingAccent #rrggbb or 'brand', bookingTitle, bookingDescription, bookingShowBusinessDetails). Only include what should change. Confirmation card required.",
       parameters: {
         type: "object",
         properties: {
@@ -191,6 +192,7 @@ export const companyTools: Tool[] = [
           timezone: { type: "string" },
           arrivalWindowMinutes: { type: "number" },
           assistantName: { type: "string" },
+          hideEmail: { type: "boolean", description: "true = keep the business email off everything clients see (booking page, client login, quotes, invoices, PDFs, website); replies still reach them" },
           surchargeEnabled: { type: "boolean" },
           defaultDepositType: { type: "string", enum: ["PERCENT", "FIXED", "FULL", "NONE"] },
           defaultDepositValue: { type: "number" },
@@ -246,6 +248,10 @@ export const companyTools: Tool[] = [
         }
         payload.brandColorSecondary = brandColorSecondary;
         lines.push(`Secondary brand color: ${brandColorSecondary}`);
+      }
+      if (typeof args.hideEmail === "boolean") {
+        payload.hideEmail = args.hideEmail;
+        lines.push(args.hideEmail ? "Business email: kept off client pages (replies still reach you)" : "Business email: shown to clients again");
       }
       if (typeof args.surchargeEnabled === "boolean") {
         payload.surchargeEnabled = args.surchargeEnabled;

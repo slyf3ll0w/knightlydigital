@@ -91,6 +91,31 @@ export const settingsSection: HelpSection = {
       ],
     },
     {
+      slug: "hide-business-email",
+      title: "Keep your email off client pages",
+      summary: "Stop showing your business email to clients while their replies still reach you.",
+      keywords: ["hide email", "business email", "private email", "email public", "don't show email", "remove email", "contact email", "personal email"],
+      where: { label: "Business info", href: "/app/settings?s=company" },
+      roles: "Owners and admins",
+      blocks: [
+        {
+          type: "steps",
+          items: [
+            "Go to **Settings → Company → Business info**.",
+            "Under **Business email**, switch on **Keep my email off client pages**.",
+          ],
+        },
+        {
+          type: "p",
+          text: "Your email then stops showing on your booking page and its privacy and text-terms pages, your client login page, quotes, invoices, the pay page, PDFs, calendar invites, and a website the WorkBench studio built for you (it rebuilds on its own). Clients still reach you by phone, and when they reply to an email WorkBench sent for you, the reply still lands in your business email.",
+        },
+        {
+          type: "tip",
+          text: "While a texting registration is under review and you have no website of your own, carriers check your booking page for your email, so it stays there until you're approved. Add your own website under **Website** in Business info and it's hidden right away.",
+        },
+      ],
+    },
+    {
       slug: "notifications",
       title: "Turn on notifications",
       summary: "Get pushes for new leads, bookings, payments, messages and calls on each device, and choose which alerts reach you and how.",

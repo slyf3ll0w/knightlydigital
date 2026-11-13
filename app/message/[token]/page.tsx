@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { publicEmail } from "@/lib/public-email";
 import { prisma } from "@/lib/db";
 import { brandHeader, brandAccent, shade, textOn } from "@/lib/branding";
 import { companyMeta } from "@/lib/client-meta";
@@ -41,6 +42,7 @@ export default async function PublicMessagePage({
         select: {
           name: true,
           email: true,
+          hideEmail: true,
           phone: true,
           logoUrl: true,
           brandColor: true,
@@ -115,7 +117,7 @@ export default async function PublicMessagePage({
           </div>
           <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
             <ReplyBox
-              email={message.company.email}
+              email={publicEmail(message.company)}
               phone={message.company.phone}
               subject={message.subject}
               companyName={message.company.name}

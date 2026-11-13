@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { slugWhere } from "@/lib/company-slug";
 import { sanitizeBookingPage } from "@/lib/booking-page";
 import { listPublicBookingTypes, menuTypes } from "@/lib/booking-runtime";
+import { publicEmail } from "@/lib/public-email";
 
 /**
  * The business's public identity as WorkBench hosts it: /book/<slug> is the
@@ -17,7 +18,10 @@ export type BusinessProfile = {
   name: string;
   slug: string;
   phone: string | null;
+  /** The real address — the registration pre-flight (profileGaps) reads it. Pages print `shownEmail`. */
   email: string | null;
+  /** What pages may show: null when the owner hides it, unless details are forced (lib/public-email.ts). */
+  shownEmail: string | null;
   address: string | null;
   city: string | null;
   state: string | null;
@@ -66,7 +70,7 @@ export async function loadBusinessProfile(slug: string): Promise<BusinessProfile
   const company = await prisma.company.findFirst({
     where: slugWhere(slug),
     select: {
-      id: true, name: true, slug: true, phone: true, email: true, address: true, city: true, state: true, zip: true, website: true, about: true, industry: true, logoUrl: true,
+      id: true, name: true, slug: true, phone: true, email: true, hideEmail: true, address: true, city: true, state: true, zip: true, website: true, about: true, industry: true, logoUrl: true,
       bookingPage: true,
       messagingRegistration: { select: { status: true, website: true } },
     },
@@ -79,10 +83,11 @@ export async function loadBusinessProfile(slug: string): Promise<BusinessProfile
     if (t.services.length) for (const s of t.services) names.add(s.name.trim());
     else names.add(t.name.trim());
   }
-  const { bookingPage, messagingRegistration, ...rest } = company;
+  const { bookingPage, messagingRegistration, hideEmail, ...rest } = company;
   const detailsForced = businessDetailsForced(messagingRegistration?.status, company.website, messagingRegistration?.website);
   const showDetails = detailsForced || sanitizeBookingPage(bookingPage).showBusinessDetails === true;
-  return { ...rest, services: [...names].filter(Boolean).slice(0, 12), showDetails, detailsForced };
+  const shownEmail = publicEmail({ email: company.email, hideEmail }, { forced: detailsForced });
+  return { ...rest, shownEmail, services: [...names].filter(Boolean).slice(0, 12), showDetails, detailsForced };
 }
 
 export async function loadBusinessProfileById(companyId: string): Promise<BusinessProfile | null> {

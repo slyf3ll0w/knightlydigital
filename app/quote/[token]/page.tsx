@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { publicEmail } from "@/lib/public-email";
 import { prisma } from "@/lib/db";
 import { companyMeta } from "@/lib/client-meta";
 import ViewBeacon from "@/components/ViewBeacon";
@@ -69,6 +70,7 @@ export default async function PublicQuotePage({
           timezone: true,
           phone: true,
           email: true,
+          hideEmail: true,
           address: true,
           city: true,
           state: true,
@@ -96,6 +98,8 @@ export default async function PublicQuotePage({
   });
 
   if (!quote) notFound();
+  // "Keep my email off client pages" — swap before it serializes into the HTML
+  quote.company.email = publicEmail(quote.company);
 
   return (
     <>

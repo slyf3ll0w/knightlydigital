@@ -95,6 +95,8 @@ type CompanyForPdf = {
   showLegalNameOnDocs?: boolean;
   phone: string | null;
   email: string | null;
+  /** "Keep my email off client pages" — the letterhead leaves the email out */
+  hideEmail?: boolean;
   address: string | null;
   city: string | null;
   state: string | null;
@@ -122,7 +124,7 @@ type ContactForPdf = {
 } | null;
 
 const companySelect = {
-  name: true, legalName: true, showLegalNameOnDocs: true, phone: true, email: true, address: true, city: true, state: true, zip: true,
+  name: true, legalName: true, showLegalNameOnDocs: true, phone: true, email: true, hideEmail: true, address: true, city: true, state: true, zip: true,
   logoData: true, logoMime: true, logoUrl: true,
   brandColor: true, brandColorSecondary: true, documentColor: true,
   timezone: true,
@@ -182,8 +184,8 @@ function Header({
           <Text style={styles.companyName}>{company.name}</Text>
           <Text style={styles.companyMeta}>
             {[company.address, cityLine(company)].filter(Boolean).join("\n")}
-            {(company.address || cityLine(company)) && (company.phone || company.email) ? "\n" : ""}
-            {[company.phone, company.email].filter(Boolean).join("  ·  ")}
+            {(company.address || cityLine(company)) && (company.phone || (!company.hideEmail && company.email)) ? "\n" : ""}
+            {[company.phone, company.hideEmail ? null : company.email].filter(Boolean).join("  ·  ")}
           </Text>
         </View>
         <View>

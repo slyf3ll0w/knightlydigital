@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { publicEmail } from "@/lib/public-email";
 import { prisma } from "@/lib/db";
 import { companyMeta } from "@/lib/client-meta";
 import { invoiceBalance } from "@/lib/payments";
@@ -81,6 +82,7 @@ export default async function PublicPayPage({
           name: true,
           phone: true,
           email: true,
+          hideEmail: true,
           address: true,
           city: true,
           state: true,
@@ -113,6 +115,8 @@ export default async function PublicPayPage({
   });
 
   if (!invoice) notFound();
+  // "Keep my email off client pages" — swap before it serializes into the HTML
+  invoice.company.email = publicEmail(invoice.company);
 
   // The server charge path bills the remaining balance (invoiceBalance —
   // total + collected surcharges − payments) — the page must display and

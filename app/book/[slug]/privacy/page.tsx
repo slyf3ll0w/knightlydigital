@@ -23,7 +23,7 @@ export default async function BusinessPrivacyPage({ params }: { params: Promise<
       slug={slug}
       title="Privacy Policy"
       sections={(p) => {
-        const contact = [profileAddress(p), p.phone ? fmtPhone(p.phone) : null, p.email].filter(Boolean).join(" · ");
+        const contact = [profileAddress(p), p.phone ? fmtPhone(p.phone) : null, p.shownEmail].filter(Boolean).join(" · ");
         return [
           {
             heading: "Who we are",

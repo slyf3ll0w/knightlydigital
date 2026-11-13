@@ -1,4 +1,5 @@
 import { reportError } from "@/lib/report-error";
+import { publicEmail } from "@/lib/public-email";
 import { prisma } from "@/lib/db";
 import { sendEmail, emailEnabled, bookingConfirmedEmail, type BookingExtras } from "@/lib/email";
 import { sendSms, smsEnabled, canText, bookingConfirmationText, type MeetingKind } from "@/lib/sms";
@@ -43,6 +44,7 @@ export async function sendAppointmentConfirmation(
             id: true,
             name: true,
             email: true,
+            hideEmail: true,
             timezone: true,
             arrivalWindowMinutes: true,
             brandColor: true,
@@ -126,7 +128,7 @@ export async function sendAppointmentConfirmation(
             .join("\n"),
           location: address ?? meetingLink ?? null,
           organizerName: company.name,
-          organizerEmail: company.email,
+          organizerEmail: publicEmail(company),
           status: "CONFIRMED",
           sequence: 0,
         });
