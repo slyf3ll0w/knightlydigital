@@ -186,9 +186,73 @@ final class VoipEngine: NSObject {
             trace("audio-wait", "\(why) category=\(session.category.rawValue)")
             return
         }
-        trace("audio-nudge", why)
         c.enableAudioSession(audioSession: session)
+        if !c.isAudioDeviceEnabled {
+            // The SDK swallows the reason (it only logs it). Ask the session
+            // ourselves so the server log has it; if that goes through, tell
+            // the SDK its audio may run.
+            do {
+                try session.setActive(true)
+                c.isAudioDeviceEnabled = true
+                trace("audio-nudge", "\(why) forced")
+            } catch {
+                trace("audio-failed", "\(why) code=\((error as NSError).code) cat=\(session.category.rawValue)")
+                return
+            }
+        } else {
+            trace("audio-nudge", "\(why) on")
+        }
         if speakerOn { c.setSpeaker() }
+    }
+
+    /// Apple's rule for CallKit: set the session up for a voice call BEFORE
+    /// the action is fulfilled, and let CallKit activate it (didActivate).
+    /// After a call the SDK leaves the category at playback, and a freshly
+    /// woken app has the default one — neither is a call session. Same
+    /// category, mode and options the SDK uses for its media.
+    private func prepareAudioSession(_ why: String) {
+        let session = AVAudioSession.sharedInstance()
+        if session.category == .playAndRecord && session.mode == .voiceChat { return }
+        do {
+            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.duckOthers, .allowBluetooth])
+            trace("audio-prepare", why)
+        } catch {
+            trace("audio-prepare-failed", "\(why) code=\((error as NSError).code)")
+        }
+    }
+
+    /// Answer tapped before the SIP leg arrived (every pushed call on a
+    /// closed app: the leg is 3–5 s behind the ring). The CallKit action is
+    /// held here and fulfilled when the leg lands and is answered — the way
+    /// the SDK's own push flow does it — so CallKit activates the audio
+    /// session AFTER the call's media exists. Fulfilled at the tap (builds
+    /// 8–14), the activation came first and on 2026-11-13 never took: a
+    /// connected call, silence both ways, three nudges all refused.
+    private var pendingAnswers: [String: CXAnswerCallAction] = [:]
+    private var pendingAnswerTimers: [String: Timer] = [:]
+    /// CallKit fails an action it waits on too long; past this, fulfil and let the nudges try.
+    private let pendingAnswerMaxS: TimeInterval = 8
+
+    private func holdAnswer(_ action: CXAnswerCallAction, for callId: String) {
+        pendingAnswers[callId] = action
+        pendingAnswerTimers[callId]?.invalidate()
+        pendingAnswerTimers[callId] = Timer.scheduledTimer(withTimeInterval: pendingAnswerMaxS, repeats: false) { [weak self] _ in
+            guard let self = self, self.pendingAnswers[callId] != nil else { return }
+            self.trace("answer-held-timeout", callId: callId)
+            self.releaseAnswer(callId, fulfill: true)
+        }
+    }
+
+    private func releaseAnswer(_ callId: String, fulfill: Bool) {
+        pendingAnswerTimers[callId]?.invalidate()
+        pendingAnswerTimers[callId] = nil
+        guard let action = pendingAnswers.removeValue(forKey: callId) else { return }
+        if fulfill {
+            prepareAudioSession("answer-release")
+            action.fulfill()
+        } else {
+            action.fail()
+        }
     }
 
     /// Background with no call: a clean disconnect, so Telnyx forgets this
@@ -530,6 +594,11 @@ final class VoipEngine: NSObject {
         if r.answered {
             sdk.answer()
             emit("callAnswered", ["callId": r.callId])
+            // The held Answer goes through now: CallKit activates audio with the media in place.
+            if pendingAnswers[r.callId] != nil {
+                trace("answer-released", callId: r.callId)
+                releaseAnswer(r.callId, fulfill: true)
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) { self.nudgeAudio("after-attach-answer") }
         }
     }
@@ -603,6 +672,8 @@ final class VoipEngine: NSObject {
     private func forget(_ callId: String) {
         unclaimed[callId]?.invalidate()
         unclaimed[callId] = nil
+        // An Answer still waiting on a leg that will never come.
+        releaseAnswer(callId, fulfill: false)
         if let r = calls.removeValue(forKey: callId) {
             byUUID[r.uuid] = nil
             if let id = r.sdk?.callInfo?.callId { bySdk[id] = nil }
@@ -668,13 +739,17 @@ extension VoipEngine: CXProviderDelegate {
         r.answered = true
         calls[id] = r
         trace("callkit-answer", "sdk=\(r.sdk != nil) ready=\(clientReady)", callId: id)
+        prepareAudioSession("answer")
+        emit("callAnswered", ["callId": id])
         if let sdk = r.sdk {
             sdk.answer()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) { self.nudgeAudio("after-callkit-answer") }
+            action.fulfill()
+        } else {
+            // No INVITE yet (pushed call, engine still registering): attach()
+            // answers it on arrival and fulfils this then.
+            holdAnswer(action, for: id)
         }
-        // No INVITE yet (pushed call, engine still registering): attach() answers it on arrival.
-        emit("callAnswered", ["callId": id])
-        action.fulfill()
     }
 
     func provider(_ provider: CXProvider, perform action: CXEndCallAction) {
@@ -705,6 +780,7 @@ extension VoipEngine: CXProviderDelegate {
 
     func provider(_ provider: CXProvider, perform action: CXStartCallAction) {
         guard let id = byUUID[action.callUUID], calls[id] != nil else { return action.fail() }
+        prepareAudioSession("start")
         provider.reportOutgoingCall(with: action.callUUID, startedConnectingAt: Date())
         action.fulfill()
     }
@@ -845,6 +921,7 @@ extension VoipEngine: TxClientDelegate {
             case .ACTIVE:
                 self.nudgeAudio("active")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { self.nudgeAudio("active+1s") }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { self.nudgeAudio("active+3s") }
                 if r.direction == .inbound && !r.connected {
                     r.connected = true
                     self.calls[id] = r

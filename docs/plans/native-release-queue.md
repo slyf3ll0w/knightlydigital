@@ -379,6 +379,37 @@ WorkBench"; the Shortcuts app lists ten WorkBench shortcuts.
 
 ---
 
+## iOS — queued for build 15
+
+1. **Calling engine: silence after answering a pushed call** (branch
+   `call-audio`, `ios/App/App/VoipPlugin.swift`, found 2026-11-13 on build
+   14, call `cmwf718e200nuqxz4ccq0eqfb`). The app was closed, the push rang
+   CallKit, Answer was tapped about four seconds before the SIP leg arrived.
+   The leg attached and went ACTIVE, the server claimed it, and nobody heard
+   anything. The phone's trace shows no `audio-activate` (CallKit never
+   handed over an audio session) and three `audio-nudge` lines in a row,
+   each still finding the SDK's audio off — `enableAudioSession` was refused
+   every time (the SDK swallows the error). Builds 8–14 fulfil the CallKit
+   Answer at the tap; the SDK's own push flow holds it until the INVITE
+   lands. Changed:
+   - Answer with no leg yet is HELD (`holdAnswer`) and fulfilled in
+     `attach()` right after `sdk.answer()`, so CallKit activates audio with
+     the media in place; 8 s cap, then fulfilled anyway; failed if the call
+     is forgotten first.
+   - `prepareAudioSession` sets playAndRecord / voiceChat before an Answer
+     or Start is fulfilled (after a call the SDK leaves the category at
+     playback; a cold app has the default).
+   - `nudgeAudio` reports what happened: `audio-nudge <why> on|forced`, or
+     `audio-failed <why> code=<NSError code> cat=<category>`; one more nudge
+     3 s after ACTIVE.
+   **Not compiled or run** — written on the PC. On the Mac: build, then
+   with the app swiped closed call the line and answer on the FIRST ring
+   from the lock screen; both sides must hear each other. Expected trace:
+   `callkit-answer sdk=false` → `invite-attached answered=true` →
+   `answer-released` → `audio-activate` → `audio-nudge … on` or `audio-ok`.
+   Repeat with the app open, and one outbound call. Until build 15 is on a
+   phone, build 14 can still go silent when Answer beats the leg.
+
 ## iOS — queued for build 14
 
 0. ~~**Talk to Atlas: native speech recognition**~~ **DONE 2026-10-27** — see
