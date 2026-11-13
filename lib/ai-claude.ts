@@ -204,6 +204,9 @@ function reportFailure(where: string, model: string, err: unknown) {
   }
 }
 
+/** Above this answer budget a turn is streamed (the SDKs want streaming for long generations). */
+const STREAM_OVER_TOKENS = 16_000;
+
 /** One Claude turn, same contract as aiChat: parts, or null on failure. */
 export async function aiChatClaude(opts: AIChatOptions, model: string): Promise<AIPart[] | null> {
   if (!claudeEnabled()) {
@@ -214,15 +217,22 @@ export async function aiChatClaude(opts: AIChatOptions, model: string): Promise<
   if (!params) return null;
 
   try {
-    const res = await client().messages.create(params, {
+    const request = {
       timeout: opts.timeoutMs ?? 120_000,
       ...(opts.signal ? { signal: opts.signal } : {}),
-    });
+    };
+    // A big answer budget (the estimate-tool builder) takes minutes to fill:
+    // stream it so the connection is never idle, and collect the same Message.
+    const res =
+      params.max_tokens > STREAM_OVER_TOKENS
+        ? await client().messages.stream(params, request).finalMessage()
+        : await client().messages.create(params, request);
     const usage = usageOf(res.usage);
     recordAiUsage(opts.companyId ?? currentUsageCompany(), usage);
     opts.onUsage?.(usage);
     if (res.stop_reason === "max_tokens") {
-      reportError("aiChatClaude: hit max_tokens — trailing tool calls may be missing", model);
+      // max_tokens covers thinking AND the answer — a turn that thought to the cap comes back with no text at all
+      reportError("aiChatClaude: hit max_tokens — the answer is cut short or missing", model, `max_tokens ${params.max_tokens}`, `output ${res.usage.output_tokens}`);
     } else if (res.stop_reason === "refusal") {
       reportError("aiChatClaude: refusal", model, res.stop_details?.category ?? null);
     }
