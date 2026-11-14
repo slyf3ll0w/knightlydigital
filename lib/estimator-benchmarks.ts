@@ -128,7 +128,7 @@ export const BENCHMARKS: Record<string, TradeBenchmark> = {
     typical: t("Half a truck of household junk from a garage, two people, disposal included", 275, 450, 1.5, 3),
   },
   concrete: {
-    rates: [r("Broom-finish slab or driveway, 4 in", "sq ft", 7, 13), r("Stamped or colored concrete", "sq ft", 12, 20), r("Tear-out and haul-away of old concrete", "sq ft", 2, 5)],
+    rates: [r("Broom-finish slab or driveway, 4 in", "sq ft", 6, 12), r("Stamped or colored concrete", "sq ft", 12, 20), r("Tear-out and haul-away of old concrete", "sq ft", 2, 5)],
     labor: "A four-person crew forms, pours and finishes 600–1,000 sq ft in a day after a day of prep: 0.06–0.1 person-hours per sq ft all in.",
     typical: t("600 sq ft broom-finish driveway, 4 in thick, including tear-out of the old one", 5500, 10000, 40, 70),
   },
@@ -289,6 +289,8 @@ export type CheckSample = { label: string; subtotal: number | null; hours?: numb
 
 /** How far outside the range still passes — the ranges are wide already, and a business may sit at either edge. */
 export const PRICE_SLACK = { under: 0.6, over: 1.6 };
+/** For a tool whose numbers are all the builder's (no rates from the owner): its typical job IS the trade's typical job, so it must land in the range, give or take rounding. */
+export const GUESSED_SLACK = { under: 0.9, over: 1.1 };
 export const HOURS_SLACK = { under: 0.5, over: 2 };
 
 const usd = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
@@ -305,15 +307,15 @@ export function typicalSample<S extends CheckSample>(samples: S[]): S | null {
  * that job goes for? Returns plain sentences for the model to act on — empty
  * when it does, or when there is nothing to compare.
  */
-export function marketCheck(samples: CheckSample[], typical: TypicalJob | null | undefined, where = ""): string[] {
+export function marketCheck(samples: CheckSample[], typical: TypicalJob | null | undefined, where = "", slack: { under: number; over: number } = PRICE_SLACK): string[] {
   if (!typical) return [];
   const s = typicalSample(samples);
   if (!s || s.subtotal === null) return [];
   const out: string[] = [];
   const place = where ? ` around ${where}` : "";
   const job = `this job (${typical.job}) usually sells for ${usd(typical.low)}–${usd(typical.high)}${place}`;
-  if (s.subtotal > typical.high * PRICE_SLACK.over) out.push(`The "${s.label}" sample comes to ${usd(s.subtotal)}, but ${job}. That is too HIGH — a rate, a quantity or a multiplier is off.`);
-  else if (s.subtotal < typical.low * PRICE_SLACK.under) out.push(`The "${s.label}" sample comes to ${usd(s.subtotal)}, but ${job}. That is too LOW — a rate is thin or a line is missing.`);
+  if (s.subtotal > typical.high * slack.over) out.push(`The "${s.label}" sample comes to ${usd(s.subtotal)}, but ${job}. That is too HIGH — a rate, a quantity or a multiplier is off.`);
+  else if (s.subtotal < typical.low * slack.under) out.push(`The "${s.label}" sample comes to ${usd(s.subtotal)}, but ${job}. That is too LOW — a rate is thin or a line is missing.`);
   if (s.hours && s.hours > 0) {
     const span = `${typical.hoursLow}–${typical.hoursHigh} person-hours`;
     if (s.hours > typical.hoursHigh * HOURS_SLACK.over) out.push(`The "${s.label}" sample books ${s.hours} hours of labor; that job normally takes ${span}. The "hours" expressions are too high.`);

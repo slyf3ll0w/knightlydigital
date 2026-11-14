@@ -6,7 +6,7 @@ import { checkSpec, ESTIMATOR_SELECT, estimatorSummary, snapshotEstimator, type 
 import { loadBusinessContext, loadToolStats, toolStatsText } from "./estimator-context";
 import { sanitizePublicConfig, type EstimatorPublicConfig } from "./estimator-public";
 import { ESTIMATOR_PRINCIPLES, guessTrade, playbookByKey, playbookText, PLAYBOOK_INDEX, preferMapInput } from "./estimator-playbook";
-import { driftCheck, marketCheck, minimumCheck } from "./estimator-benchmarks";
+import { driftCheck, GUESSED_SLACK, marketCheck, minimumCheck } from "./estimator-benchmarks";
 import { loadMarket, marketRules, marketText, type MarketRead } from "./estimator-market";
 
 /**
@@ -90,21 +90,6 @@ const THINK_FIX = 4096;
 const THINK_CHANGE = 6144;
 /** After a call that thought its whole budget away and wrote nothing: a lighter level for the retry. */
 const THINK_LEAN = 2048;
-/**
- * On Claude a budget is only an effort LEVEL (lib/ai-claude.ts effortFor), and
- * "high" lets Haiku think until the answer has no room left: on the largest
- * prompts (a no-rates fence tool: full playbook + market numbers) the scorecard
- * runs saw the spec cut off mid-JSON at the 32k cap round after round — five
- * to seven minutes, and one build in three lost outright. "Medium" builds the
- * same tools (scorecard, 2026-11-14) in a fraction of the time. Gemini budgets
- * are real token counts and stay as they are.
- */
-const CLAUDE_MEDIUM = 3072;
-function think(budget: number): number {
-  if (process.env.ESTIMATOR_FULL_EFFORT) return budget; // scorecard A/B only
-  const onClaude = /^claude-/.test(process.env.AI_MODEL_ASSISTANT || (process.env.ANTHROPIC_API_KEY ? "claude-" : ""));
-  return onClaude ? Math.min(budget, CLAUDE_MEDIUM) : budget;
-}
 /**
  * Room for one draft call — thinking AND the spec share it. 16k was too
  * little: a long change request had the model think to the cap and return
@@ -484,7 +469,7 @@ export async function* buildEstimator(
       prompt: userPrompt,
       maxOutputTokens: DRAFT_MAX_TOKENS,
       temperature: 0.2,
-      thinkingBudget: lean ? THINK_LEAN : think(round === 1 ? (currentRow ? THINK_CHANGE : THINK_DRAFT) : THINK_FIX),
+      thinkingBudget: lean ? THINK_LEAN : round === 1 ? (currentRow ? THINK_CHANGE : THINK_DRAFT) : THINK_FIX,
       timeoutMs: DRAFT_TIMEOUT_MS,
       ...(image ? { image } : {}),
       signal: watch.signal,
@@ -544,7 +529,7 @@ export async function* buildEstimator(
     // tool on the owner's own rates prices whatever the owner sells — a gutter
     // CLEANING tool was told its typical job "usually sells for $1,400–$2,600"
     // (installation), a tune-up menu was held against a system replacement.
-    const off = guessing && market?.typical ? marketCheck(audit.samples, market.typical, market.where) : [];
+    const off = guessing && market?.typical ? marketCheck(audit.samples, market.typical, market.where, GUESSED_SLACK) : [];
     if (off.length > 0) audit.errors.push(...off);
     // The same for the minimum: a guessed one far under the trade's goes back; the owner's own is only noted.
     const lowMin = market?.minimum ? minimumCheck(check.compiled.spec.minimumTotal, market.minimum, market.where) : [];
