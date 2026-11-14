@@ -28,7 +28,7 @@ npx tsx scripts/eval-estimator/run.ts [--only id,id] [--concurrency 4] [--label 
 
 The script refuses a Railway database. `AI_MODEL_ASSISTANT` swaps the model being tested (to compare Haiku against Sonnet on the same key); `EVAL_GRADER_MODEL` swaps the grader.
 
-## The cases (21 owners, 60 jobs, one change request)
+## The cases (22 owners, 63 jobs, one change request)
 
 - Fencing, owner's rates: simple cedar, four materials with gate openings deducted, per-foot upgrades, a percent height factor and cash discount, price-book only.
 - Fencing change request: six changes at once to a finished tool (the kind that failed on 2026-11-12).
@@ -41,7 +41,23 @@ The script refuses a Railway database. `AI_MODEL_ASSISTANT` swaps the model bein
 - **Per company (not built yet):** when an owner edits a quote that came from a tool, save the before and after as that company's correction; the builder reads the company's corrections on the next change, and a repeated correction is offered as a rate change. One company's corrections never reach another's.
 - **Across companies (not built yet):** the same kind of correction turning up in many companies is a builder fix and a new case.
 
+## Customer photo and description fill-in
+
+The "add a photo or describe the job and Atlas fills in the form" step (lib/estimator-assist.ts) is part of the standard:
+
+- When the owner asks for it in their words, the tool must come back with fill-in ON and instructions written (`wantsFillIn` on a case).
+- A job can carry `said` — the customer's own words as typed on the web form — and `photo` — a file under `scripts/eval-estimator/photos/`. The job is then priced a second time by the real fill-in and must come to the same answer.
+- Scored today: descriptions (case `fence-fill-in`). **Photos: none yet** — the runner takes them, the answer key has none. Needed: 10–20 real job photos with what each shows (length, material, what is in the way).
+
 ## Status
 
-- 2026-11-14: harness and answer key written. Smoke run of two cases on the staging Gemini key: both built, gutter cleaning 3 of 3 jobs right; the staging key then ran out of quota. **No full run yet** — it needs a model key with room (see the memory file for where this stands).
-- Found before any full run: the builder's market check holds a tool against the trade's one "typical job" whatever the tool is for — a gutter CLEANING tool was told its typical job should sell for $1,400–$2,600 (that is gutter installation), and an HVAC tune-up menu was held against a $8,000–$15,000 system replacement. Those lines reach the owner as warnings.
+- **2026-11-14, Haiku 5.5 builder, Sonnet 5.5 grader.** Baseline: 21 of 22 tools built, 52 of 53 owner-rate jobs right, slowest build about 7 minutes. After the fixes below (full run): 23 of 23 built, 55 of 56 owner-rate jobs right, 5 of 6 market jobs in range, fill-in 3 of 3, slowest about 5 minutes; a re-check of the cases touched by the last fix passed 6 of 6.
+- **What the scorecard found and what was changed:**
+  - A no-rates fence build thought to the 32k cap and came back cut off (the 2026-11-12 ticket's fault). A cut-off answer now retries lean. Capping effort at "medium" was tried and dropped: 49 and 51 of 53 against 52 and 53 at full effort.
+  - `honestSources` turned the owner's own percentages ("10% off for cash") into estimates to confirm — whole numbers under 20 only counted after a "$". Fixed, unit-tested.
+  - The market check held owner-rate tools against the trade's one typical job (gutter cleaning vs installation, a tune-up menu vs a system replacement). It now runs only when the numbers are guesses, and then it is tight (within 10% of the range).
+  - The playbook beat the owner's stated method (gate openings deducted after "full line, gates on top"). New first principle: the owner's way wins.
+  - The minimum written as a rate plus its own line left `minimumTotal` empty, and the owner was told the tool had no minimum. Now sent back (`minimumAsRate`).
+  - Baselines: house cleaning raised to published ranges; "trip minimum" rows became minimums (they were read as an added fee); concrete trimmed.
+- **Still open:** forms that cannot express a real job turn up from run to run (one tree only; a house wash that forces a driveway); the no-rates house-cleaning tool prices by bedrooms and lands just under the national range; a no-rates build sometimes skips its questions to the owner; photo cases need photos. The builder varies from run to run by a job or two — judge a change on two runs, not one.
+- **Running it on this machine:** `--concurrency 2`; three at a time plus the local database has been killed for memory twice. The scorecard is written after every case.
