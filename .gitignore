@@ -12,3 +12,4 @@ e2e/artifacts/
 
 # scripts/ticket.mts output (pulled feedback tickets + pictures)
 .tickets/
+eval-results/
