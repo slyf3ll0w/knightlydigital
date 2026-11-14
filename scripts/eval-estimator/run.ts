@@ -32,6 +32,8 @@ const ONLY = (arg("only") ?? "").split(",").map((s) => s.trim()).filter(Boolean)
 const CONCURRENCY = Math.max(1, Number(arg("concurrency") ?? 4));
 const OUT = arg("out") ?? "eval-results";
 const LABEL = arg("label") ?? "run";
+/** Build every case this many times — the builder varies run to run, so one pass can flatter or slander a change. */
+const REPEAT = Math.max(1, Number(arg("repeat") ?? 1));
 /** The model that fills in forms and answers the builder's questions — deliberately stronger than the one being tested. */
 const GRADER = process.env.EVAL_GRADER_MODEL || "claude-sonnet-5-5";
 const BUILDER = process.env.AI_MODEL_ASSISTANT || (process.env.ANTHROPIC_API_KEY ? "claude-haiku-5-5" : "gemini-2.5-flash");
@@ -252,7 +254,7 @@ function finish(row: Omit<Row, "pass">): Row {
 
 async function runCase(c: EvalCase): Promise<Row[]> {
   const stamp = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-  const company = await prisma.company.create({ data: { name: `Eval ${c.trade} Co`, slug: `eval-${c.id}-${stamp}`, industry: c.company.industry, city: c.company.city, state: c.company.state, assistantEnabled: true }, select: { id: true } });
+  const company = await prisma.company.create({ data: { name: `Eval ${c.trade} Co`, slug: `eval-${c.id.replace(/[^a-z0-9-]/gi, "")}-${stamp}`, industry: c.company.industry, city: c.company.city, state: c.company.state, assistantEnabled: true }, select: { id: true } });
   const user = await prisma.user.create({ data: { email: `owner-${stamp}@eval.test`, name: "Eval Owner", role: "OWNER", companyId: company.id }, select: { id: true } });
   for (const item of c.company.priceBook ?? []) await prisma.workItem.create({ data: { companyId: company.id, name: item.name, unitPrice: item.unitPrice } });
   const actor: Actor = { id: user.id, name: "Eval Owner", role: "OWNER", companyId: company.id, salesSeePayments: true };
@@ -367,7 +369,8 @@ function save(rows: Row[], partial: boolean): void {
 }
 
 async function main() {
-  const cases = CASES.filter((c) => ONLY.length === 0 || ONLY.includes(c.id));
+  const picked = CASES.filter((c) => ONLY.length === 0 || ONLY.includes(c.id));
+  const cases = REPEAT === 1 ? picked : picked.flatMap((c) => Array.from({ length: REPEAT }, (_, i) => ({ ...c, id: `${c.id} #${i + 1}` })));
   console.log(`${cases.length} cases · builder ${BUILDER} · grader ${GRADER} · ${CONCURRENCY} at a time`);
   const rows: Row[] = [];
   const queue = [...cases];

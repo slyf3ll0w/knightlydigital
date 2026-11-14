@@ -115,6 +115,27 @@ export function isColdBuild(o: { ratesOnFile: number; prompt: string; hasImage: 
   return !o.answers.some((a) => /\d/.test(a.answer));
 }
 
+/**
+ * The one question a no-rates build must ask, written from the market read
+ * when the plan call asked nothing: what the owner charges for the most
+ * common thing in the trade, with the market's low / middle / high as
+ * tap-able answers. Pure — scripts/test-estimator-benchmarks.ts.
+ */
+export function fallbackQuestions(market: Pick<MarketRead, "rates"> | null): BuildQuestion[] {
+  const r = market?.rates[0];
+  if (!r) return [];
+  const mid = (r.low + r.high) / 2;
+  const show = (n: number) => "$" + (n < 10 ? n.toFixed(2) : Math.round(n).toLocaleString("en-US"));
+  const what = r.what.charAt(0).toLowerCase() + r.what.slice(1);
+  return [
+    {
+      question: `What do you charge for ${what} (per ${r.unit})?`,
+      why: "It is the main price in the tool",
+      suggestions: [r.low, mid, r.high].map((n) => `${show(n)} per ${r.unit}`),
+    },
+  ];
+}
+
 /** The minimum job charge written as a rate instead of "minimumTotal". Pure — scripts/test-estimator-benchmarks.ts. */
 export function minimumAsRate(spec: Pick<EstimatorSpec, "rates" | "minimumTotal">): string[] {
   if (spec.minimumTotal) return [];
@@ -391,6 +412,16 @@ export async function* buildEstimator(
           .filter((q) => q.question)
           .slice(0, cold ? MAX_QUESTIONS_COLD : MAX_QUESTIONS);
         if (qs.length > 0) {
+          yield { questions: qs, tokens };
+          return;
+        }
+      }
+      // Starting from nothing, the owner is ALWAYS asked for their main rate first — the plan is told to, and
+      // sometimes returns no questions anyway (scorecard, 2026-11-14: the owner's $38 a foot never reached the tool).
+      if (cold && !answered) {
+        const qs = fallbackQuestions(market);
+        if (qs.length > 0) {
+          debug("the plan asked nothing on a no-rates build — asking for the main rate");
           yield { questions: qs, tokens };
           return;
         }
