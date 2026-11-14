@@ -63,7 +63,7 @@ export function cleanTypical(raw: unknown, baseline: TypicalJob | null): Typical
   const job = str(o.job, 200);
   const low = num(o.low), high = num(o.high);
   if (!job || low === null || high === null || high < low || high > low * 6) return null;
-  if (baseline && (low < baseline.low * 0.4 || high > baseline.high * 2.5)) return null;
+  if (baseline && (low < baseline.low * 0.75 || high > baseline.high * 1.6)) return null;
   const hoursLow = num(o.hoursLow), hoursHigh = num(o.hoursHigh);
   const hoursOk = hoursLow !== null && hoursHigh !== null && hoursHigh >= hoursLow && (!baseline || (hoursLow >= baseline.hoursLow * 0.3 && hoursHigh <= baseline.hoursHigh * 3));
   return {
