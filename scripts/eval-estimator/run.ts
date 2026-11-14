@@ -12,13 +12,14 @@
  * Needs a database it may write to (never production — the script refuses a
  * Railway host) and the model keys in the environment. See the plan doc.
  */
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { prisma } from "../../lib/db";
 import { aiChat, extractJsonObject } from "../../lib/ai";
 import { buildEstimator, type BuildAnswer, type BuildEvent, type BuildQuestion } from "../../lib/estimator-build";
 import { runEstimator, type EstimatorSpec, type PriceBookEntry } from "../../lib/estimator";
 import { loadPriceBook } from "../../lib/estimator-server";
+import { runAssist } from "../../lib/estimator-assist";
 import type { Actor } from "../../lib/permissions";
 import { CASES, type EvalCase, type EvalJob, type Expect } from "./cases";
 
@@ -123,9 +124,35 @@ function judge(total: number, e: Expect): { ok: boolean; want: string; offBy: nu
   return { ok, want: e.totals.map(money).join(" or "), offBy: best };
 }
 
-type JobResult = { label: string; ok: boolean; want: string; got: number | null; offBy: number | null; error?: string; noPlace: string[]; inputs?: Record<string, unknown>; lines?: { name: string; amount: number }[]; flags?: string[] };
+/** The same job priced from the customer's own words (and photo) by the tool's Atlas fill-in — the real lib/estimator-assist.ts. */
+type FillInResult = { ok: boolean; got: number | null; offBy: number | null; error?: string; notes?: string; values?: Record<string, unknown> };
+type JobResult = { label: string; ok: boolean; want: string; got: number | null; offBy: number | null; error?: string; noPlace: string[]; inputs?: Record<string, unknown>; lines?: { name: string; amount: number }[]; flags?: string[]; fillIn?: FillInResult };
 
-async function scoreJob(spec: EstimatorSpec, book: PriceBookEntry[], job: EvalJob): Promise<JobResult> {
+type ToolCtx = { actor: Actor; name: string };
+
+async function scoreFillIn(spec: EstimatorSpec, book: PriceBookEntry[], job: EvalJob, ctx: ToolCtx): Promise<FillInResult> {
+  let image: { base64: string; mime: string } | null = null;
+  if (job.photo) {
+    const file = join(__dirname, "photos", job.photo);
+    if (!existsSync(file)) return { ok: false, got: null, offBy: null, error: `Photo not found: ${job.photo}` };
+    image = { base64: readFileSync(file).toString("base64"), mime: /\.png$/i.test(job.photo) ? "image/png" : /\.webp$/i.test(job.photo) ? "image/webp" : "image/jpeg" };
+  }
+  const res = await runAssist(ctx.actor, spec, ctx.name, job.said ?? "", image);
+  if (!res.ok) return { ok: false, got: null, offBy: null, error: res.error };
+  const run = runEstimator(spec, res.values, book);
+  if (!run.ok) return { ok: false, got: null, offBy: null, error: run.errors.join("; "), notes: res.notes, values: res.values };
+  const j = judge(run.total, job.expect);
+  return { ok: j.ok, got: run.total, offBy: j.offBy, notes: res.notes, values: res.values };
+}
+
+async function scoreJob(spec: EstimatorSpec, book: PriceBookEntry[], job: EvalJob, ctx: ToolCtx): Promise<JobResult> {
+  const base = await scoreJobByForm(spec, book, job);
+  if (!job.said && !job.photo) return base;
+  if (!spec.assist) return { ...base, fillIn: { ok: false, got: null, offBy: null, error: "Atlas fill-in is not turned on in this tool." } };
+  return { ...base, fillIn: await scoreFillIn(spec, book, job, ctx) };
+}
+
+async function scoreJobByForm(spec: EstimatorSpec, book: PriceBookEntry[], job: EvalJob): Promise<JobResult> {
   let filled = await fill(spec, job);
   if (!filled) return { label: job.label, ok: false, want: "", got: null, offBy: null, error: "The grader could not fill in the form.", noPlace: [] };
   let run = runEstimator(spec, filled.inputs, book);
@@ -168,7 +195,7 @@ function checkRates(spec: EstimatorSpec, want: (number | number[])[] | undefined
   return { missing, notOwner, falselyOwner, unconfirmed: rates.filter((r) => r.source !== "owner").length };
 }
 
-type BuildOutcome = { ok: true; spec: EstimatorSpec; toolId: string; warnings: string[]; tokens: number; asked: BuildQuestion[] } | { ok: false; error: string; asked: BuildQuestion[] };
+type BuildOutcome = { ok: true; spec: EstimatorSpec; toolId: string; name: string; warnings: string[]; tokens: number; asked: BuildQuestion[] } | { ok: false; error: string; asked: BuildQuestion[] };
 
 async function build(actor: Actor, prompt: string, c: EvalCase, estimatorId?: string): Promise<BuildOutcome> {
   let answers: BuildAnswer[] | undefined;
@@ -183,8 +210,8 @@ async function build(actor: Actor, prompt: string, c: EvalCase, estimatorId?: st
       continue;
     }
     if ("done" in last) {
-      const tool = last.tool as { id: string; spec: EstimatorSpec };
-      return { ok: true, spec: tool.spec, toolId: tool.id, warnings: last.warnings, tokens: last.tokens, asked };
+      const tool = last.tool as { id: string; name?: string; spec: EstimatorSpec };
+      return { ok: true, spec: tool.spec, toolId: tool.id, name: tool.name ?? "Estimate tool", warnings: last.warnings, tokens: last.tokens, asked };
     }
     if ("error" in last) return { ok: false, error: last.error, asked };
     if ("ask" in last) return { ok: false, error: `Asked instead of building: ${last.ask}`, asked };
@@ -203,21 +230,24 @@ type Row = {
   jobs: JobResult[];
   rates?: RateCheck;
   minimum?: { want: number; got: number | null };
+  /** The owner asked for photo / description fill-in: did the builder turn it on (with instructions)? Absent = not asked. */
+  fillInOn?: boolean;
   warnings: string[];
   asked: string[];
   pass: boolean;
   spec?: EstimatorSpec;
 };
 
-async function scoreTool(spec: EstimatorSpec, companyId: string, jobs: EvalJob[]): Promise<JobResult[]> {
-  const book = await loadPriceBook(companyId);
-  return Promise.all(jobs.map((j) => scoreJob(spec, book, j)));
+async function scoreTool(spec: EstimatorSpec, ctx: ToolCtx, jobs: EvalJob[]): Promise<JobResult[]> {
+  const book = await loadPriceBook(ctx.actor.companyId);
+  return Promise.all(jobs.map((j) => scoreJob(spec, book, j, ctx)));
 }
 
 function finish(row: Omit<Row, "pass">): Row {
   const ratesOk = !row.rates || (row.rates.missing.length === 0 && row.rates.notOwner.length === 0 && row.rates.falselyOwner.length === 0);
   const minOk = !row.minimum || row.minimum.got === row.minimum.want;
-  return { ...row, pass: row.built && row.jobs.length > 0 && row.jobs.every((j) => j.ok) && ratesOk && minOk };
+  const fillInOk = row.jobs.every((j) => !j.fillIn || j.fillIn.ok) && row.fillInOn !== false;
+  return { ...row, pass: row.built && row.jobs.length > 0 && row.jobs.every((j) => j.ok) && ratesOk && minOk && fillInOk };
 }
 
 async function runCase(c: EvalCase): Promise<Row[]> {
@@ -244,8 +274,10 @@ async function runCase(c: EvalCase): Promise<Row[]> {
       kind,
       built: true,
       seconds,
-      jobs: await scoreTool(first.spec, company.id, c.jobs),
-      rates: checkRates(first.spec, c.ownerRates, Boolean(c.cold)),
+      jobs: await scoreTool(first.spec, { actor, name: first.name }, first.asked.length > 0 ? c.jobs : c.jobs.map((j) => (j.expectIfNotAsked ? { ...j, expect: j.expectIfNotAsked } : j))),
+      ...(c.wantsFillIn ? { fillInOn: Boolean(first.spec.assist?.instructions?.trim()) } : {}),
+      // an owner who was never asked gave no numbers: nothing of theirs to look for on the card
+      rates: checkRates(first.spec, c.ownerKnows && first.asked.length === 0 ? [] : c.ownerRates, Boolean(c.cold)),
       ...(c.minimum !== undefined ? { minimum: { want: c.minimum, got: first.spec.minimumTotal ?? null } } : {}),
       warnings: first.warnings,
       asked: first.asked.map((q) => q.question),
@@ -265,7 +297,7 @@ async function runCase(c: EvalCase): Promise<Row[]> {
           kind: "change",
           built: true,
           seconds: (Date.now() - t0) / 1000,
-          jobs: await scoreTool(second.spec, company.id, c.change.jobs),
+          jobs: await scoreTool(second.spec, { actor, name: second.name }, c.change.jobs),
           rates: checkRates(second.spec, c.change.ownerRates, false),
           ...(c.change.minimum !== undefined ? { minimum: { want: c.change.minimum, got: second.spec.minimumTotal ?? null } } : {}),
           warnings: second.warnings,
@@ -292,7 +324,12 @@ function report(rows: Row[]): string {
   out.push(`| Tools with every job right | ${rows.filter((r) => r.pass).length} of ${rows.length} (${pct(rows.filter((r) => r.pass).length, rows.length)}) |`);
   out.push(`| Jobs priced right, owner's own rates | ${exactJobs.filter((j) => j.ok).length} of ${exactJobs.length} (${pct(exactJobs.filter((j) => j.ok).length, exactJobs.length)}) |`);
   if (marketJobs.length > 0) out.push(`| Jobs inside the published market range, no rates given | ${marketJobs.filter((j) => j.ok).length} of ${marketJobs.length} (${pct(marketJobs.filter((j) => j.ok).length, marketJobs.length)}) |`);
-  out.push(`| Jobs where the form had no place for something | ${jobs.filter((j) => j.noPlace.length > 0).length} of ${jobs.length} |`, "");
+  out.push(`| Jobs where the form had no place for something | ${jobs.filter((j) => j.noPlace.length > 0).length} of ${jobs.length} |`);
+  const fills = jobs.filter((j) => j.fillIn);
+  if (fills.length > 0) out.push(`| Jobs priced right from the customer's own words or photo (Atlas fill-in) | ${fills.filter((j) => j.fillIn!.ok).length} of ${fills.length} (${pct(fills.filter((j) => j.fillIn!.ok).length, fills.length)}) |`);
+  const asked = rows.filter((r) => r.fillInOn !== undefined);
+  if (asked.length > 0) out.push(`| Fill-in turned on when the owner asked for it | ${asked.filter((r) => r.fillInOn).length} of ${asked.length} |`);
+  out.push("");
   out.push(`| Case | Kind | Built | Jobs right | Owner's rates on the card | Minimum | Seconds |`, `|---|---|---|---|---|---|---|`);
   for (const r of rows) {
     const rates = !r.rates ? "—" : r.rates.missing.length + r.rates.notOwner.length + r.rates.falselyOwner.length === 0 ? "yes" : [r.rates.missing.length ? `missing ${r.rates.missing.join(", ")}` : "", r.rates.notOwner.length ? `not marked theirs: ${r.rates.notOwner.join(", ")}` : "", r.rates.falselyOwner.length ? `passed off as theirs: ${r.rates.falselyOwner.length}` : ""].filter(Boolean).join("; ");
@@ -303,6 +340,13 @@ function report(rows: Row[]): string {
   for (const r of rows.filter((x) => !x.pass)) {
     out.push(`### ${r.id}`);
     if (r.error) out.push(`- Build failed: ${r.error}`);
+    if (r.fillInOn === false) out.push(`- The owner asked for photo / description fill-in and the tool came back without it.`);
+    if (r.rates && r.rates.missing.length + r.rates.notOwner.length + r.rates.falselyOwner.length > 0) out.push(`- Rate card: ${[r.rates.missing.length ? `missing ${r.rates.missing.join(", ")}` : "", r.rates.notOwner.length ? `not marked theirs: ${r.rates.notOwner.join(", ")}` : "", r.rates.falselyOwner.length ? `passed off as theirs: ${r.rates.falselyOwner.join(", ")}` : ""].filter(Boolean).join("; ")}`);
+    if (r.minimum && r.minimum.got !== r.minimum.want) out.push(`- Minimum: wanted ${money(r.minimum.want)}, got ${r.minimum.got === null ? "none" : money(r.minimum.got)}`);
+    for (const j of r.jobs.filter((x) => x.fillIn && !x.fillIn.ok)) {
+      out.push(`- **${j.label}** (Atlas fill-in) — wanted ${j.want}, got ${j.fillIn!.got === null ? "no price" : money(j.fillIn!.got)}${j.fillIn!.error ? ` — ${j.fillIn!.error}` : ""}`);
+      if (j.fillIn!.values) out.push(`  - Atlas filled in: \`${JSON.stringify(j.fillIn!.values)}\`${j.fillIn!.notes ? ` — "${j.fillIn!.notes}"` : ""}`);
+    }
     for (const j of r.jobs.filter((x) => !x.ok || x.noPlace.length > 0)) {
       out.push(`- **${j.label}** — wanted ${j.want}, got ${j.got === null ? "no price" : money(j.got)}${j.offBy ? ` (${j.offBy > 0 ? "+" : ""}${(j.offBy * 100).toFixed(1)}%)` : ""}${j.error ? ` — ${j.error}` : ""}`);
       if (j.lines) out.push(`  - Lines: ${j.lines.map((l) => `${l.name} ${money(l.amount)}`).join(" · ")}`);
@@ -313,6 +357,13 @@ function report(rows: Row[]): string {
     out.push("");
   }
   return out.join("\n");
+}
+
+/** Written after every case, so a run that is interrupted still leaves its scorecard. */
+function save(rows: Row[], partial: boolean): void {
+  mkdirSync(OUT, { recursive: true });
+  writeFileSync(join(OUT, `${LABEL}.json`), JSON.stringify({ label: LABEL, builder: BUILDER, grader: GRADER, at: new Date().toISOString(), partial, rows }, null, 1));
+  writeFileSync(join(OUT, `${LABEL}.md`), `${partial ? "> PARTIAL — the run had not finished when this was written.\n\n" : ""}${report(rows)}`);
 }
 
 async function main() {
@@ -326,6 +377,7 @@ async function main() {
         try {
           const got = await runCase(c);
           rows.push(...got);
+          save(rows, true);
           for (const r of got) console.log(`${r.pass ? "PASS" : "FAIL"} ${r.id} — ${r.built ? `${r.jobs.filter((j) => j.ok).length}/${r.jobs.length} jobs` : `did not build: ${r.error}`} (${Math.round(r.seconds)} s)`);
         } catch (err) {
           console.log(`FAIL ${c.id} — the harness threw: ${err instanceof Error ? err.message : String(err)}`);
@@ -336,9 +388,7 @@ async function main() {
   );
   const order = cases.flatMap((c) => [c.id, `${c.id}:change`]);
   rows.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
-  mkdirSync(OUT, { recursive: true });
-  writeFileSync(join(OUT, `${LABEL}.json`), JSON.stringify({ label: LABEL, builder: BUILDER, grader: GRADER, at: new Date().toISOString(), rows }, null, 1));
-  writeFileSync(join(OUT, `${LABEL}.md`), report(rows));
+  save(rows, false);
   console.log(`\n${rows.filter((r) => r.pass).length}/${rows.length} passed → ${join(OUT, `${LABEL}.md`)}`);
   await new Promise((r) => setTimeout(r, 1500)); // let the usage ledger writes land
   await prisma.$disconnect();

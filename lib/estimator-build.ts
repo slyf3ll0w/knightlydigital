@@ -115,6 +115,14 @@ export function isColdBuild(o: { ratesOnFile: number; prompt: string; hasImage: 
   return !o.answers.some((a) => /\d/.test(a.answer));
 }
 
+/** The minimum job charge written as a rate instead of "minimumTotal". Pure — scripts/test-estimator-benchmarks.ts. */
+export function minimumAsRate(spec: Pick<EstimatorSpec, "rates" | "minimumTotal">): string[] {
+  if (spec.minimumTotal) return [];
+  const rate = (spec.rates ?? []).find((r) => r.kind === "price" && /\bminimum\b/i.test(r.label) && /\b(job|charge|visit|trip|order|service)\b/i.test(r.label));
+  if (!rate) return [];
+  return [`The minimum job charge is written as the rate "${rate.label}" (${rate.value}) and "minimumTotal" is empty. Set "minimumTotal": ${rate.value} and delete that rate and any line, variable or formula of yours that applies it — the app adds the minimum top-up itself.`];
+}
+
 /** Why a round was sent back — printed only for the scorecard runs (scripts/eval-estimator), never in the app. */
 function debug(line: string): void {
   if (process.env.ESTIMATOR_BUILD_DEBUG) console.error(`[build] ${line}`);
@@ -520,6 +528,9 @@ export async function* buildEstimator(
 
     yield { phase: "test", message: "Pricing a small, a typical and a large job…" };
     audit = auditSpec(check.compiled, check.book, { strict: true });
+    // A minimum written as a rate + a top-up line of its own prices right but leaves "minimumTotal" empty: the app then
+    // tells the owner the tool has no minimum, and the rate card's own minimum box stays blank (scorecard, 2026-11-14).
+    audit.errors.push(...minimumAsRate(check.compiled.spec));
     yield { samples: audit.samples };
     // Does the typical job come out anywhere near what it goes for? Guessed
     // numbers that miss are an error (fixed below); the owner's own are theirs
