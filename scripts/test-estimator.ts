@@ -874,6 +874,11 @@ console.log("ok 16: choice arithmetic, yes/no words, discounts, hours, cost");
     assert.equal(honestSources(claimed, { trust: true, said: "" }), claimed);
     // 42 inside "142" or "42.50" is not the owner saying 42
     assert.equal(honestSources(claimed, { trust: false, said: "142 ft at $42.50" }).rates![0].source, "market");
+    // a small whole number is the owner's when they said it as a percent or a multiplier ("10% off for cash") — but "10 ft" is not a rate
+    const pctCard = { ...fs, rates: [{ id: "r_cash", label: "Cash discount", value: 10, unit: "%", kind: "factor" as const, source: "owner" as const }] };
+    assert.equal(honestSources(pctCard, { trust: false, said: "10% off the whole job for paying cash" }).rates![0].source, "owner");
+    assert.equal(honestSources(pctCard, { trust: false, said: "10 percent off for cash" }).rates![0].source, "owner");
+    assert.equal(honestSources(pctCard, { trust: false, said: "most runs are 10 ft or 110% of that" }).rates![0].source, "guess");
     const dsc = describeSpecChanges(built, edited);
     assert.ok(dsc.some((x) => x === 'Rate "Cedar privacy fence, 6 ft tall": $42 per ft → $45 per ft'), dsc.join(" | "));
   }

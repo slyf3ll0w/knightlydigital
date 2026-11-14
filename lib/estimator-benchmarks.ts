@@ -42,7 +42,8 @@ const t = (job: string, low: number, high: number, hoursLow: number, hoursHigh: 
 
 export const BENCHMARKS: Record<string, TradeBenchmark> = {
   pressure_washing: {
-    rates: [r("Driveway / flatwork cleaning", "sq ft", 0.2, 0.45), r("House wash (by home sq ft)", "sq ft", 0.15, 0.4), r("Roof soft wash", "sq ft", 0.25, 0.6), r("Trip minimum", "job", 125, 200)],
+    rates: [r("Driveway / flatwork cleaning", "sq ft", 0.2, 0.45), r("House wash (by home sq ft)", "sq ft", 0.15, 0.4), r("Roof soft wash", "sq ft", 0.25, 0.6)],
+    minimum: { low: 125, high: 200 },
     labor: "One tech cleans 400–700 sq ft of flatwork an hour; a one-story house wash is 1.5–3 person-hours.",
     typical: t("Two-car driveway, about 600 sq ft, cleaning only (no sealant)", 150, 300, 1, 2),
   },
@@ -91,9 +92,9 @@ export const BENCHMARKS: Record<string, TradeBenchmark> = {
     typical: t("Interior repaint of three bedrooms, walls only, two coats, owner's color staying similar", 1200, 2700, 14, 26),
   },
   house_cleaning: {
-    rates: [r("Standard recurring clean", "sq ft", 0.07, 0.14), r("Deep or first-time clean", "sq ft", 0.15, 0.3), r("Hourly, per cleaner", "hour", 35, 65), r("Inside oven or fridge", "each", 25, 50)],
+    rates: [r("Standard recurring clean", "sq ft", 0.1, 0.2), r("Deep or first-time clean", "sq ft", 0.15, 0.3), r("Hourly, per cleaner", "hour", 35, 65), r("Inside oven or fridge", "each", 25, 50)],
     labor: "One cleaner covers 500–700 sq ft an hour on a standard clean; a deep or move-out clean goes at about half that pace.",
-    typical: t("Standard clean of a 2,000 sq ft, 3-bed 2-bath home on an every-two-weeks schedule, price per visit", 140, 240, 3, 5),
+    typical: t("Standard clean of a 2,000 sq ft, 3-bed 2-bath home on an every-two-weeks schedule, price per visit", 190, 380, 3, 5),
   },
   windows: {
     rates: [r("Window, inside and out", "window", 10, 20), r("Window, outside only", "window", 6, 12), r("Screen cleaning", "screen", 3, 6), r("Track detail", "window", 3, 6)],
@@ -116,7 +117,8 @@ export const BENCHMARKS: Record<string, TradeBenchmark> = {
     typical: t("Upgrade a main panel to 200 amps in the same location, permit included", 2200, 4500, 8, 14),
   },
   handyman: {
-    rates: [r("Labor", "hour", 60, 120), r("Half day", "each", 250, 450), r("Full day", "each", 450, 850), r("Minimum visit", "job", 100, 175)],
+    rates: [r("Labor", "hour", 60, 120), r("Half day", "each", 250, 450), r("Full day", "each", 450, 850)],
+    minimum: { low: 100, high: 175 },
     labor: "Priced by time: one person, with materials billed on top.",
     typical: t("Half a day of small repairs by one person, materials extra", 250, 450, 4, 4),
   },
@@ -161,7 +163,8 @@ export const BENCHMARKS: Record<string, TradeBenchmark> = {
     typical: t("Replace both torsion springs on a two-car door, including the service call", 250, 450, 1, 1.5),
   },
   carpet_cleaning: {
-    rates: [r("Room", "room", 40, 75), r("By area", "sq ft", 0.25, 0.5), r("Stairs", "step", 2, 4), r("Sofa", "each", 100, 200), r("Minimum visit", "job", 120, 175)],
+    rates: [r("Room", "room", 40, 75), r("By area", "sq ft", 0.25, 0.5), r("Stairs", "step", 2, 4), r("Sofa", "each", 100, 200)],
+    minimum: { low: 120, high: 175 },
     labor: "One tech steam-cleans 350–500 sq ft an hour including setup.",
     typical: t("Five rooms and a hallway, steam cleaned, about 1,000 sq ft", 220, 400, 2, 3),
   },

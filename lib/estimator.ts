@@ -2590,7 +2590,9 @@ export function honestSources(spec: EstimatorSpec, opts: { trust: boolean; said:
         const before = said[at - 1] ?? " ";
         const after = said[at + f.length] ?? " ";
         if (/[\d.]/.test(before) || /\d/.test(after) || (after === "." && /\d/.test(said[at + f.length + 1] ?? ""))) continue;
-        if (needsDollar && before !== "$") continue;
+        // …or as a percent or a multiplier: "10% off for cash", "15 percent more", "2 times the price", "3x"
+        const rest = said.slice(at + f.length, at + f.length + 9).toLowerCase();
+        if (needsDollar && before !== "$" && !/^(\s?%|\s?percent|\s?times\b|x\b)/.test(rest)) continue;
         return true;
       }
     }
@@ -2765,6 +2767,8 @@ Rules:
   · "label" is plain words naming exactly what the number buys, including what it is priced AT: "Cedar privacy fence, 6 ft tall" — never "base", never "at 4 ft" for something nobody buys at 4 ft. Set each option's rate at the version most customers actually buy, so the owner can hold it against their price sheet.
   · "kind": "price" (dollars the customer pays), "factor" (a multiplier or percent on a price — give it a label like "8 ft height, added to the 6 ft price" and unit "×" or "%"), "time" (person-hours or a crew pace — scheduling), "cost" (the business's own cost).
   · "source": "owner" when the number is theirs (their words, price sheet, price book, what they charged); "market" when you took it from the MARKET NUMBERS (then give low/high); "guess" when nothing backs it. Never mark a number "owner" that they didn't give.
+  · Put the owner's number on the card THE WAY THEY SAID IT. "8 ft is 35% more than 6 ft" is a factor rate of 35 % (source "owner") that the formula applies to the 6 ft rate — never a pre-multiplied "8 ft: $40.50" (that is a number they never said, and it stops following the 6 ft price when they change it). The same for "10% off", "1.5 times", "add 10% for waste".
+  · Only things the owner would change on a price sheet are rates. Counting and bookkeeping numbers (0 / 1 / 2 extra layers, 100 sq ft in a square, a gate being 4 ft wide when it is not priced) are structure: write them bare in the formula or the lookup, never as a rate the owner is asked to confirm.
   · Every option that can vary along a dimension has its scaling on the card: either a rate per combination that is sold (cedar 6 ft, cedar 8 ft), or a base rate plus a labelled factor rate — the SAME way for every option. If an option doesn't vary, its "note" says so ("One height only").
   · An add-on whose cost depends on the main choice (a gate in cedar vs chain link, trim in oak vs MDF, a fixture by finish) is priced per option or per option group — separate rates and a lookup() — never one price for all.
 - Give every variable a "label" in plain words ("Price per foot for the chosen style and height").

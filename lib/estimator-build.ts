@@ -91,6 +91,21 @@ const THINK_CHANGE = 6144;
 /** After a call that thought its whole budget away and wrote nothing: a lighter level for the retry. */
 const THINK_LEAN = 2048;
 /**
+ * On Claude a budget is only an effort LEVEL (lib/ai-claude.ts effortFor), and
+ * "high" lets Haiku think until the answer has no room left: on the largest
+ * prompts (a no-rates fence tool: full playbook + market numbers) the scorecard
+ * runs saw the spec cut off mid-JSON at the 32k cap round after round — five
+ * to seven minutes, and one build in three lost outright. "Medium" builds the
+ * same tools (scorecard, 2026-11-14) in a fraction of the time. Gemini budgets
+ * are real token counts and stay as they are.
+ */
+const CLAUDE_MEDIUM = 3072;
+function think(budget: number): number {
+  if (process.env.ESTIMATOR_FULL_EFFORT) return budget; // scorecard A/B only
+  const onClaude = /^claude-/.test(process.env.AI_MODEL_ASSISTANT || (process.env.ANTHROPIC_API_KEY ? "claude-" : ""));
+  return onClaude ? Math.min(budget, CLAUDE_MEDIUM) : budget;
+}
+/**
  * Room for one draft call — thinking AND the spec share it. 16k was too
  * little: a long change request had the model think to the cap and return
  * no answer at all ("Atlas couldn't answer that just now"), twice running.
@@ -113,6 +128,11 @@ export function isColdBuild(o: { ratesOnFile: number; prompt: string; hasImage: 
   if (o.ratesOnFile > 0 || o.hasImage) return false;
   if (NAMES_A_RATE_RE.test(o.prompt)) return false;
   return !o.answers.some((a) => /\d/.test(a.answer));
+}
+
+/** Why a round was sent back — printed only for the scorecard runs (scripts/eval-estimator), never in the app. */
+function debug(line: string): void {
+  if (process.env.ESTIMATOR_BUILD_DEBUG) console.error(`[build] ${line}`);
 }
 
 /** Questions before a build: two normally, three when starting from nothing. */
@@ -464,7 +484,7 @@ export async function* buildEstimator(
       prompt: userPrompt,
       maxOutputTokens: DRAFT_MAX_TOKENS,
       temperature: 0.2,
-      thinkingBudget: lean ? THINK_LEAN : round === 1 ? (currentRow ? THINK_CHANGE : THINK_DRAFT) : THINK_FIX,
+      thinkingBudget: lean ? THINK_LEAN : think(round === 1 ? (currentRow ? THINK_CHANGE : THINK_DRAFT) : THINK_FIX),
       timeoutMs: DRAFT_TIMEOUT_MS,
       ...(image ? { image } : {}),
       signal: watch.signal,
@@ -472,6 +492,7 @@ export async function* buildEstimator(
     watch.done();
     if (watch.signal.aborted) return;
     if (!res.ok) {
+      debug(`round ${round} call failed: ${res.error}${res.empty ? " (empty answer)" : ""}`);
       tokens += res.atlasTokens ?? 0;
       // The model thought its whole budget away and wrote nothing: one more
       // try on the next round, thinking less. Anything else ends the build.
@@ -486,7 +507,10 @@ export async function* buildEstimator(
     tokens += res.atlasTokens;
     draft = oneShotJson<Draft>(res.text);
     if (!draft) {
-      userPrompt = `${userPrompt}\n\nYour last answer was not a JSON object. Answer with ONLY the JSON object described.`;
+      debug(`round ${round} was not JSON (${res.text.length} chars; ends ${JSON.stringify(res.text.slice(-160))})`);
+      // An answer that starts as JSON and never closes was cut off at the cap, not malformed: think less next time.
+      if (res.text.trimStart().startsWith("{") || res.text.includes('"spec"')) lean = true;
+      userPrompt =`${userPrompt}\n\nYour last answer was not a JSON object. Answer with ONLY the JSON object described.`;
       continue;
     }
     if (typeof draft.question === "string" && draft.question.trim()) {
@@ -500,6 +524,7 @@ export async function* buildEstimator(
     if (!currentRow && trade?.mapMeasure) draft.spec = preferMapInput(draft.spec, trade.mapMeasure);
     const check = await checkSpec(actor.companyId, draft.spec);
     if (!check.ok) {
+      debug(`round ${round} did not compile: ${check.errors.join(" | ")}`);
       const rough = roughPreview(draft);
       if (rough && round === 1) yield { draft: rough };
       userPrompt = `${userPrompt}\n\nYour previous spec was:\n${JSON.stringify(draft.spec)}\nIt failed these checks:\n- ${check.errors.join("\n- ")}\nReturn the corrected FULL JSON object.`;
@@ -514,11 +539,13 @@ export async function* buildEstimator(
     // Does the typical job come out anywhere near what it goes for? Guessed
     // numbers that miss are an error (fixed below); the owner's own are theirs
     // to keep, so the same finding is only a note on the finish card.
-    const off = market?.typical ? marketCheck(audit.samples, market.typical, market.where) : [];
-    if (off.length > 0) {
-      if (guessing) audit.errors.push(...off);
-      else audit.warnings.push(...off);
-    }
+    // Only when the numbers are guesses: the draft is then told to make its
+    // "Typical job" sample BE the trade's typical job, so the two compare. A
+    // tool on the owner's own rates prices whatever the owner sells — a gutter
+    // CLEANING tool was told its typical job "usually sells for $1,400–$2,600"
+    // (installation), a tune-up menu was held against a system replacement.
+    const off = guessing && market?.typical ? marketCheck(audit.samples, market.typical, market.where) : [];
+    if (off.length > 0) audit.errors.push(...off);
     // The same for the minimum: a guessed one far under the trade's goes back; the owner's own is only noted.
     const lowMin = market?.minimum ? minimumCheck(check.compiled.spec.minimumTotal, market.minimum, market.where) : [];
     if (lowMin.length > 0) {
@@ -537,6 +564,7 @@ export async function* buildEstimator(
       }
     }
     const marketFix = guessing && off.length > 0 ? `\nFor the market findings: re-derive those rates and "hours" from the MARKET NUMBERS, and if the Typical job sample isn't that exact job, make it that job.` : "";
+    if (audit.errors.length > 0) debug(`round ${round} audit: ${audit.errors.join(" | ")}`);
     if (!best || audit.errors.length < best.audit.errors.length) best = { draft, check, audit };
     if (audit.errors.length > 0 && round < MAX_ROUNDS) {
       userPrompt = `${userPrompt}\n\nYour spec compiled and ran, but a pro would send it back:\n- ${audit.errors.join("\n- ")}${marketFix}\nFix the spec (or the samples) and return the corrected FULL JSON object:\n${JSON.stringify({ name: draft.name, description: draft.description, spec: check.compiled.spec })}`;
