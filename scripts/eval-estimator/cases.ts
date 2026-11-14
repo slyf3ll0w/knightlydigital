@@ -27,6 +27,17 @@ export type EvalJob = {
   /** Everything a customer or estimator knows about the job, in plain words. */
   facts: string;
   expect: Expect;
+  /**
+   * The same job in the CUSTOMER's own words, as typed into "describe the job"
+   * on the web form. When set (and the tool has Atlas fill-in on), the job is
+   * also priced by the real fill-in (lib/estimator-assist.ts) and must come to
+   * the same answer.
+   */
+  said?: string;
+  /** What counts instead when the builder never asked the owner anything (so the owner's numbers never reached it). */
+  expectIfNotAsked?: Expect;
+  /** A photo of the job for the fill-in, a file under scripts/eval-estimator/photos/ (jpg, png or webp). */
+  photo?: string;
 };
 
 export type EvalCase = {
@@ -50,6 +61,8 @@ export type EvalCase = {
   minimum?: number;
   /** true = the owner gave no rates: every price must be labelled an estimate to confirm, none passed off as theirs. */
   cold?: boolean;
+  /** The owner asked for photo / description fill-in in their words: the tool must come back with it turned on and instructions written. */
+  wantsFillIn?: boolean;
   jobs: EvalJob[];
   /** A follow-up change request on the finished tool, scored as its own row. */
   change?: { prompt: string; ownerRates?: (number | number[])[]; minimum?: number; jobs: EvalJob[] };
@@ -147,6 +160,40 @@ export const CASES: EvalCase[] = [
       // the owner didn't say whether gate openings come out of the footage — either reading is right
       { label: "Cedar, 120 ft, one gate", facts: "120 ft of 6 ft cedar privacy fence with one walk gate. Normal ground, no old fence to remove, not around a pool.", expect: exact(120 * 35 + 425, 116 * 35 + 425) },
       { label: "Vinyl, 200 ft, two gates, tear-out", facts: "200 ft of 6 ft vinyl privacy fence with two walk gates. Remove 150 ft of old wood fence. Normal ground, not around a pool.", expect: exact(200 * 42 + 2 * 425 + 150 * 4.5, 192 * 42 + 2 * 425 + 150 * 4.5) },
+    ],
+  },
+
+  // ── customer photo / description fill-in ──────────────────────────────────
+  // The owner asks for it; each job is priced twice — by the form, and by Atlas reading the customer's own words.
+  // Photos: drop a file in scripts/eval-estimator/photos/ and name it on the job ("photo") — none yet.
+  {
+    id: "fence-fill-in",
+    trade: "Fencing",
+    company: { industry: "Fencing", ...TX },
+    prompt:
+      "I build cedar privacy fences. 6 ft tall is $34 a foot installed, 8 ft tall is $46 a foot. Walk gates are $375 each and double drive gates are $950 each. Tearing out and hauling off an old fence is $4 a foot. My minimum job is $1,200. I charge for the full length of the fence line and gates are added on top. Let customers upload a photo or describe the job and have it fill in the form for them.",
+    ownerRates: [34, 46, 375, 950, 4],
+    minimum: 1200,
+    wantsFillIn: true,
+    jobs: [
+      {
+        label: "150 ft, 6 ft, one walk gate",
+        facts: "150 ft of 6 ft tall cedar privacy fence with one walk gate. Flat normal ground, no old fence to remove, not around a pool.",
+        said: "Need about 150 feet of 6 foot cedar privacy fence along the back of my yard with one walk gate. Yard is flat and there's nothing to tear out.",
+        expect: exact(150 * 34 + 375),
+      },
+      {
+        label: "180 ft, 8 ft, drive gate, tear-out",
+        facts: "180 ft of 8 ft tall cedar privacy fence with one double drive gate and no walk gates. Tear out and haul away 180 ft of old wood fence. Normal ground, not around a pool.",
+        said: "looking to replace my old wood fence, its 180 ft total. want the 8 ft tall cedar this time and a double gate for the driveway. old fence needs to come out and get hauled off",
+        expect: exact(180 * 46 + 950 + 180 * 4),
+      },
+      {
+        label: "Tiny: 20 ft, no gate",
+        facts: "20 ft of 6 ft tall cedar privacy fence, no gates, normal ground, no old fence.",
+        said: "just a short section between me and my neighbor, 20 feet, 6ft tall. no gate, no old fence there",
+        expect: exact(1200),
+      },
     ],
   },
 
@@ -296,7 +343,7 @@ export const CASES: EvalCase[] = [
     prompt: "I need a fence quote tool for my website.",
     ownerKnows: "A 6 ft cedar privacy fence is $38 a foot installed. My three-man crew builds about 150 ft a day. My minimum job is $1,200. I haven't worked out prices for anything else yet.",
     ownerRates: [38],
-    jobs: [{ label: "150 ft of 6 ft cedar, no gate", facts: "150 ft of 6 ft tall cedar privacy fence, side-by-side pickets, no gates, no upgrades, no stain. Normal flat ground, no old fence to remove, not around a pool.", expect: { kind: "exact", totals: [150 * 38], tolerance: 0.06 } }],
+    jobs: [{ label: "150 ft of 6 ft cedar, no gate", facts: "150 ft of 6 ft tall cedar privacy fence, side-by-side pickets, no gates, no upgrades, no stain. Normal flat ground, no old fence to remove, not around a pool.", expect: { kind: "exact", totals: [150 * 38], tolerance: 0.06 }, expectIfNotAsked: { kind: "range", low: 3000, high: 8100 } }],
   },
   {
     id: "cold-lawn",

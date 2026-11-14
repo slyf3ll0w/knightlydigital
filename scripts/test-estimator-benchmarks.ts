@@ -5,6 +5,7 @@
  * Needs a placeholder DATABASE_URL (the builder module imports Prisma; never queried).
  */
 import assert from "node:assert/strict";
+import { minimumAsRate } from "../lib/estimator-build";
 import { BENCHMARKS, benchmarkFor, driftCheck, marketCheck, minimumCheck, regionFactor, typicalSample } from "../lib/estimator-benchmarks";
 import { cleanRates, cleanTypical, marketRules, marketText, mergeMarket } from "../lib/estimator-market";
 import { PLAYBOOK } from "../lib/estimator-playbook";
@@ -177,3 +178,11 @@ async function builderTests() {
 }
 
 builderTests().then(() => console.log(`\n${n} passed`));
+
+test("minimumAsRate: a minimum hidden on the rate card is sent back; a real minimumTotal or a per-stump minimum is fine", () => {
+  const rate = (label: string, value: number) => ({ id: "r", label, value, unit: "flat", kind: "price" as const, source: "owner" as const });
+  assert.match(minimumAsRate({ rates: [rate("Minimum job charge", 1200)] })[0], /"minimumTotal": 1200/);
+  assert.deepEqual(minimumAsRate({ rates: [rate("Minimum job charge", 1200)], minimumTotal: 1200 }), []);
+  assert.deepEqual(minimumAsRate({ rates: [rate("Stump grinding, minimum per stump", 120)] }), []);
+  assert.deepEqual(minimumAsRate({ rates: [rate("Cedar privacy fence, 6 ft tall", 34)] }), []);
+});
