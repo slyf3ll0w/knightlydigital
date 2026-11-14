@@ -96,6 +96,8 @@ const THINK_LEAN = 2048;
  * no answer at all ("Atlas couldn't answer that just now"), twice running.
  */
 const DRAFT_MAX_TOKENS = 32_000;
+/** Room for the plan call — thinking and the plan share it too. */
+const PLAN_MAX_TOKENS = 8000;
 /** Deadline for one draft call. Keep it under STALE_MS in estimator-build-jobs.ts — a row untouched that long reads as interrupted. */
 const DRAFT_TIMEOUT_MS = 210_000;
 
@@ -379,7 +381,9 @@ export async function* buildEstimator(
       kind: "estimator-plan",
       system: planSystem(opts.assistantName, answered, biz.brief, Boolean(image), cold, market ? marketText(market) : null),
       prompt: `The owner's description:\n${prompt || "(see the attached price sheet)"}${answersText(answers)}`,
-      maxOutputTokens: 2000,
+      // Thinking and the answer share this. At 2,000 a no-rates plan (three questions with suggestions, after reading
+      // the market numbers) was cut off about one build in four: no plan, and no questions to the owner (scorecard, 2026-11-14).
+      maxOutputTokens: PLAN_MAX_TOKENS,
       temperature: 0.2,
       thinkingBudget: THINK_PLAN,
       ...(image ? { image } : {}),
@@ -443,6 +447,14 @@ export async function* buildEstimator(
         note: typeof reply.note === "string" ? reply.note.trim().slice(0, 160) : "",
       };
       yield { plan };
+    } else {
+      debug(`the plan was not JSON (${res.text.length} chars)`);
+      // No plan to read — a no-rates build still asks for the main rate before anything is built.
+      const qs = cold && !answered ? fallbackQuestions(market) : [];
+      if (qs.length > 0) {
+        yield { questions: qs, tokens };
+        return;
+      }
     }
   }
 

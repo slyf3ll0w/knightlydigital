@@ -132,7 +132,7 @@ type JobResult = { label: string; ok: boolean; want: string; got: number | null;
 
 type ToolCtx = { actor: Actor; name: string };
 
-async function scoreFillIn(spec: EstimatorSpec, book: PriceBookEntry[], job: EvalJob, ctx: ToolCtx): Promise<FillInResult> {
+async function scoreFillIn(spec: EstimatorSpec, book: PriceBookEntry[], job: EvalJob, ctx: ToolCtx, rest: Record<string, unknown>): Promise<FillInResult> {
   let image: { base64: string; mime: string } | null = null;
   if (job.photo) {
     const file = join(__dirname, "photos", job.photo);
@@ -141,7 +141,10 @@ async function scoreFillIn(spec: EstimatorSpec, book: PriceBookEntry[], job: Eva
   }
   const res = await runAssist(ctx.actor, spec, ctx.name, job.said ?? "", image);
   if (!res.ok) return { ok: false, got: null, offBy: null, error: res.error };
-  const run = runEstimator(spec, res.values, book);
+  // The fill-in is a head start, not the whole form: what the customer's words don't cover (an HOA question, a
+  // property line) the customer still answers. Those come from the form answers; everything Atlas DID fill in wins.
+  let run = runEstimator(spec, res.values, book);
+  if (!run.ok && run.inputProblems) run = runEstimator(spec, { ...rest, ...res.values }, book);
   if (!run.ok) return { ok: false, got: null, offBy: null, error: run.errors.join("; "), notes: res.notes, values: res.values };
   const j = judge(run.total, job.expect);
   return { ok: j.ok, got: run.total, offBy: j.offBy, notes: res.notes, values: res.values };
@@ -151,7 +154,7 @@ async function scoreJob(spec: EstimatorSpec, book: PriceBookEntry[], job: EvalJo
   const base = await scoreJobByForm(spec, book, job);
   if (!job.said && !job.photo) return base;
   if (!spec.assist) return { ...base, fillIn: { ok: false, got: null, offBy: null, error: "Atlas fill-in is not turned on in this tool." } };
-  return { ...base, fillIn: await scoreFillIn(spec, book, job, ctx) };
+  return { ...base, fillIn: await scoreFillIn(spec, book, job, ctx, base.inputs ?? {}) };
 }
 
 async function scoreJobByForm(spec: EstimatorSpec, book: PriceBookEntry[], job: EvalJob): Promise<JobResult> {
