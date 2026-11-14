@@ -161,7 +161,7 @@ export const CASES: EvalCase[] = [
     minimum: 150,
     jobs: [
       { label: "600 sq ft driveway", facts: "Clean a 600 sq ft driveway. No house wash, no oil stains.", expect: exact(600 * 0.3) },
-      { label: "1,500 sq ft driveway + two-story house wash + stains", facts: "Clean a 1,500 sq ft driveway that has oil stains needing treatment, and wash a two-story house.", expect: exact(1500 * 0.22 + 400 + 45) },
+      { label: "1,500 sq ft driveway + two-story house wash + stains", facts: "Clean a 1,500 sq ft driveway that has one oil-stained area needing the oil stain treatment, and wash a two-story house.", expect: exact(1500 * 0.22 + 400 + 45) },
       { label: "Tiny: 300 sq ft patio", facts: "Clean a 300 sq ft patio. No house wash, no oil stains.", expect: exact(150) },
       { label: "House wash only, one story", facts: "Wash a one-story house only. No driveway or other flatwork at all.", expect: exact(275) },
     ],
@@ -256,8 +256,9 @@ export const CASES: EvalCase[] = [
     ownerRates: [525, [10, 0.1, 1.1], 90, [15, 0.15, 1.15], 95],
     jobs: [
       { label: "2,000 sq ft, walkable, one layer", facts: "Replace a roof of 2,000 sq ft of roof area. One existing layer of shingles. Walkable pitch (5/12). No decking needs replacing.", expect: exact(22 * 525) },
-      { label: "2,600 sq ft, steep", facts: "Replace a roof of 2,600 sq ft of roof area. One existing layer. Steep pitch (9/12). No decking needs replacing.", expect: exact(28.6 * 525 * 1.15) },
-      { label: "1,500 sq ft, three sheets of decking", facts: "Replace a roof of 1,500 sq ft of roof area. One existing layer. Walkable pitch. 3 sheets of decking need replacing.", expect: exact(16.5 * 525 + 3 * 95) },
+      // roofers commonly bill whole squares (the roofing playbook rounds up); the owner didn't say, so both readings are right
+      { label: "2,600 sq ft, steep", facts: "Replace a roof of 2,600 sq ft of roof area. One existing layer. Steep pitch (9/12). No decking needs replacing.", expect: exact(28.6 * 525 * 1.15, 29 * 525 * 1.15) },
+      { label: "1,500 sq ft, three sheets of decking", facts: "Replace a roof of 1,500 sq ft of roof area. One existing layer. Walkable pitch. 3 sheets of decking need replacing.", expect: exact(16.5 * 525 + 3 * 95, 17 * 525 + 3 * 95) },
       // the owner didn't say whether the second layer is charged on the waste-added squares — either reading is right
       { label: "2,000 sq ft, two layers", facts: "Replace a roof of 2,000 sq ft of roof area. Two existing layers of shingles to tear off. Walkable pitch. No decking needs replacing.", expect: exact(22 * 525 + 20 * 90, 22 * 525 + 22 * 90) },
     ],

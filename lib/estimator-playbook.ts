@@ -485,6 +485,7 @@ export function playbookText(t: TradePlaybook): string {
 
 /** What every trade has in common — the estimator's interview, in prompt form. */
 export const ESTIMATOR_PRINCIPLES = `HOW A GOOD ESTIMATOR THINKS
+- The owner's way wins. When the owner says how they measure, count, round or charge ("I charge the full line and gates are on top", "over 1,000 sq ft the whole job is at the lower rate", "the discount is off the whole job"), build it exactly that way — even where the trade's playbook or a rule below would do it differently. The playbook is for what they did NOT say.
 - Ask only what changes the price, in the order a pro would ask it: the size first, then the material or level, then the extras, then the things that make the job harder.
 - Homeowners don't know numbers cold. Offer presets ("Two-car — 550 sq ft"), sliders with sane ranges, steppers for counts, and the map for anything you can draw.
 - Packages ONLY when this business sells that way: the owner said tiers / packages / levels / good-better-best, or their price book and past quotes show tiered services (Basic / Plus / Premium, Standard / Deep). A per-unit trade, a flat menu, an hourly trade, a repair — those get ONE clear number. Never invent tiers so the tool has tiers; a fake "Premium" nobody sells makes the tool wrong.
