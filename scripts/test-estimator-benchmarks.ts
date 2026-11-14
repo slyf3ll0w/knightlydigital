@@ -5,7 +5,7 @@
  * Needs a placeholder DATABASE_URL (the builder module imports Prisma; never queried).
  */
 import assert from "node:assert/strict";
-import { minimumAsRate } from "../lib/estimator-build";
+import { fallbackQuestions, minimumAsRate } from "../lib/estimator-build";
 import { BENCHMARKS, benchmarkFor, driftCheck, marketCheck, minimumCheck, regionFactor, typicalSample } from "../lib/estimator-benchmarks";
 import { cleanRates, cleanTypical, marketRules, marketText, mergeMarket } from "../lib/estimator-market";
 import { PLAYBOOK } from "../lib/estimator-playbook";
@@ -185,4 +185,20 @@ test("minimumAsRate: a minimum hidden on the rate card is sent back; a real mini
   assert.deepEqual(minimumAsRate({ rates: [rate("Minimum job charge", 1200)], minimumTotal: 1200 }), []);
   assert.deepEqual(minimumAsRate({ rates: [rate("Stump grinding, minimum per stump", 120)] }), []);
   assert.deepEqual(minimumAsRate({ rates: [rate("Cedar privacy fence, 6 ft tall", 34)] }), []);
+});
+
+test("fallbackQuestions: a no-rates build asks for the main rate with the market's numbers; nothing to ask without a market", () => {
+  const qs = fallbackQuestions({ rates: BENCHMARKS.fencing.rates });
+  assert.equal(qs.length, 1);
+  assert.match(qs[0].question, /wood privacy fence, 6 ft \(per ft\)/);
+  assert.deepEqual(qs[0].suggestions, ["$28 per ft", "$42 per ft", "$55 per ft"]);
+  assert.deepEqual(fallbackQuestions({ rates: [{ what: "Driveway cleaning", unit: "sq ft", low: 0.2, high: 0.45 }] })[0].suggestions, ["$0.20 per sq ft", "$0.33 per sq ft", "$0.45 per sq ft"]);
+  assert.deepEqual(fallbackQuestions(null), []);
+  assert.deepEqual(fallbackQuestions({ rates: [] }), []);
+});
+
+test("cleanTypical: a search read far under the trade's range is dropped", () => {
+  const base = BENCHMARKS.house_cleaning.typical; // $190–380
+  assert.equal(cleanTypical({ job: "standard clean", low: 120, high: 200 }, base), null);
+  assert.ok(cleanTypical({ job: "standard clean", low: 160, high: 300 }, base));
 });
