@@ -9,7 +9,9 @@
  * color, background, button color + roundness) as "workbench:style" so it
  * fits the site. data-match="off" keeps the saved look for that placement.
  * Safe to include more than once; placeholders added later are picked up
- * by calling window.WorkBenchEmbed.scan().
+ * by calling window.WorkBenchEmbed.scan(). When a visitor sends a form the
+ * placeholder fires a bubbling "workbench:submitted" event and the page's
+ * dataLayer gets { event: "workbench_form_submitted" } — for conversion tags.
  */
 (function () {
   "use strict";
@@ -192,6 +194,27 @@
     for (var i = 0; i < els.length; i++) mount(els[i]);
   }
 
+  // The visitor sent the form: tell the site so it can count a conversion.
+  //   el.addEventListener("workbench:submitted", e => e.detail.form)  // or on document
+  //   GTM: Custom Event trigger "workbench_form_submitted"
+  // detail = { form: "booking" | "request" | "estimate", slug, path }.
+  // No visitor details are included.
+  function submitted(f, d) {
+    var kind = /^(booking|request|estimate)$/.test(d.form) ? d.form : "form";
+    var detail = {
+      form: kind,
+      slug: f.el.getAttribute("data-workbench-form") || "",
+      path: f.el.getAttribute("data-path") || "",
+    };
+    try {
+      f.el.dispatchEvent(new CustomEvent("workbench:submitted", { bubbles: true, detail: detail }));
+    } catch (err) {}
+    try {
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({ event: "workbench_form_submitted", workbenchForm: kind, workbenchSlug: detail.slug, workbenchPath: detail.path });
+    } catch (err) {}
+  }
+
   window.addEventListener("message", function (e) {
     if (e.origin !== ORIGIN) return;
     var d = e.data;
@@ -203,6 +226,8 @@
         f.iframe.style.height = Math.min(Math.ceil(d.height), 20000) + "px";
       } else if (d.type === "workbench:style-request") {
         sendStyle(f);
+      } else if (d.type === "workbench:submitted") {
+        submitted(f, d);
       }
       return;
     }

@@ -15,6 +15,7 @@ import { defaultSuccessMessage, estimateLabel, type EstimatorPublicConfig, type 
 import { Breakdown, ChoiceControl, CountsControl, MultiControl, NumberControl, PriceHero, StepRail, ToggleRow, pickedIncludes, publicTheme, wash } from "@/components/EstimatorControls";
 import { fileToAssistPhoto, type AssistPhoto } from "@/lib/image-downscale";
 import type { LatLngTuple } from "@/components/MapMeasure";
+import { notifyEmbedSubmitted } from "@/lib/embed-submitted";
 
 const MapMeasure = dynamic(() => import("@/components/MapMeasure"), { ssr: false, loading: () => <div className="h-80 animate-pulse rounded-lg bg-black/5" /> });
 
@@ -365,6 +366,7 @@ export default function PublicEstimateForm({
       if (data?.outOfArea) setOutOfArea(data.message ?? "That address is outside the area we serve right now.");
       setFinalEstimate(data?.estimate ?? estimate);
       setStep("done");
+      notifyEmbedSubmitted("estimate");
     } catch {
       setError(GENERIC_ERROR);
     } finally {
