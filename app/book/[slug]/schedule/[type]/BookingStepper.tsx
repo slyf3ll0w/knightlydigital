@@ -12,6 +12,7 @@ import { durationLabel } from "@/lib/booking-types";
 import { ADDRESS_DEFAULTS, doneWords, type CustomField } from "@/lib/booking-intake";
 import type { ScheduleAppearance } from "../shell";
 import PaymentStep, { type PaymentHandle } from "./PaymentStep";
+import { notifyEmbedSubmitted } from "@/lib/embed-submitted";
 import type { ClientPayConfig } from "@/lib/pay-config";
 import { derivedQuoteDeposit } from "@/lib/statuses";
 import { encodePrefill, type Prefill } from "@/lib/booking-prefill";
@@ -336,6 +337,7 @@ export default function BookingStepper({
         return;
       }
       setBooked(data?.booking ?? null);
+      notifyEmbedSubmitted("booking");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {

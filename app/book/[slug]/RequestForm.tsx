@@ -10,6 +10,7 @@ import { embedAccent, embedOnAccent, embedWash } from "@/lib/embed-style";
 import type { PublicBookingType } from "@/lib/booking-runtime";
 import { ADDRESS_DEFAULTS, doneWords, type CustomField } from "@/lib/booking-intake";
 import type { ScheduleAppearance } from "./schedule/shell";
+import { notifyEmbedSubmitted } from "@/lib/embed-submitted";
 
 /**
  * The one-step public form for "we'll follow up" items: a message form, an
@@ -131,6 +132,7 @@ export default function RequestForm({
         return;
       }
       setDone(true);
+      notifyEmbedSubmitted("request");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
