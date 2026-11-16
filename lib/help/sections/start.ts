@@ -110,6 +110,10 @@ export const startSection: HelpSection = {
           type: "tip",
           text: "Atlas can do most of this for you. Try \"add a service called Drain cleaning for $189\" or \"build me a booking form for free estimates\".",
         },
+        {
+          type: "p",
+          text: "Stuck, or rather do it with a person? `Book a free setup call` at the bottom of the checklist (and on the payment setup step) picks a time with us, and we set your account up together: payments, services and prices, and your first quote or invoice. You can also [book the call here](/book-a-call).",
+        },
       ],
     },
     {
