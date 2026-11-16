@@ -2805,6 +2805,40 @@ html[data-mode="dark"] .app-ui .card-tool {
     top: 0.5rem;
     z-index: 20;
   }
+  /* The capsule is its own stacking context, so a filter / sort sheet
+     opened from it (BottomSheet, z-70 inside it) painted UNDER the tab bar
+     (z-30) — lift the whole capsule while one is open (ticket #5xecec). */
+  .app-ui .filter-sticky:has([role="dialog"]) {
+    z-index: 80;
+  }
+  /* Scope chips ("Mine") in the phone capsule match the glass triggers
+     beside them: same pill, same 36px height, same type. */
+  .app-ui .filter-sticky [data-filter-chip] {
+    height: 2.25rem;
+    border-radius: 9999px;
+    padding: 0 0.875rem;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .app-ui .filter-sticky [data-filter-chip]:not(.chip-pressed) {
+    background-color: color-mix(in srgb, var(--wb-primary, #0a1428) 5%, rgba(255, 255, 255, 0.58));
+    -webkit-backdrop-filter: saturate(190%) blur(28px);
+    backdrop-filter: saturate(190%) blur(28px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.75),
+      0 1px 2px rgba(15, 23, 42, 0.06),
+      0 10px 30px rgba(15, 23, 42, 0.14);
+  }
+  html[data-mode="dark"] .app-ui .filter-sticky [data-filter-chip]:not(.chip-pressed) {
+    background-color: color-mix(in srgb, var(--wb-primary, #606673) 10%, rgba(26, 31, 38, 0.68));
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.16),
+      0 1px 2px rgba(0, 0, 0, 0.25),
+      0 10px 30px rgba(0, 0, 0, 0.35);
+  }
 }
 
 /* Sticky-hover guard: a tapped glass circle must not turn solid gray from a

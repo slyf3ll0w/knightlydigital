@@ -21,6 +21,7 @@ export default function FilterSelect({
   className = "",
   icon = "filter",
   align = "left",
+  compact = false,
 }: {
   options: FilterOption[];
   value: string;
@@ -30,6 +31,9 @@ export default function FilterSelect({
   icon?: "filter" | "sort";
   /** Which edge the menu hangs from; "right" for a trigger at the far right. */
   align?: "left" | "right";
+  /** Icon-only circle (the label moves to aria-label) — for a phone row
+   *  that also carries scope chips and would otherwise wrap. */
+  compact?: boolean;
 }) {
   const Icon = icon === "sort" ? ArrowUpDown : ListFilter;
   const [open, setOpen] = useState(false);
@@ -57,21 +61,28 @@ export default function FilterSelect({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="listbox"
-        className={`flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-[13px] font-semibold transition-colors ${
+        aria-label={compact ? (icon === "sort" ? `Sort: ${active.label}` : `Show: ${active.label}`) : undefined}
+        className={`flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border text-[13px] font-semibold transition-colors ${
+          compact ? "w-9 justify-center" : "px-3.5"
+        } ${
           filtered ? "glass-tinted border-transparent" : "glass-control border-gray-200 bg-gray-100 text-gray-800"
         }`}
       >
         <Icon size={14} className={filtered ? "" : "text-gray-500"} />
-        {active.label}
-        <ChevronDown
-          size={14}
-          className={`transition-transform ${open ? "rotate-180" : ""} ${
-            filtered ? "" : "text-gray-500"
-          }`}
-        />
+        {!compact && (
+          <>
+            {active.label}
+            <ChevronDown
+              size={14}
+              className={`transition-transform ${open ? "rotate-180" : ""} ${
+                filtered ? "" : "text-gray-500"
+              }`}
+            />
+          </>
+        )}
       </button>
       {open && (
-        <MenuPopover open={open} onClose={() => setOpen(false)} align={align} title="Show">
+        <MenuPopover open={open} onClose={() => setOpen(false)} align={align} title={icon === "sort" ? "Sort" : "Show"}>
           {options.map((o) => {
             const isActive = o.value === active.value;
             return (
