@@ -6,7 +6,6 @@ import {
   PhoneMissed,
   Phone,
   Voicemail,
-  Headphones,
   MessageSquare,
   FileText,
   CalendarClock,
@@ -16,25 +15,23 @@ import {
   BadgeCheck,
   type LucideIcon,
 } from "lucide-react";
-import { fmtPhone, fmtTime } from "@/lib/format";
+import { fmtDayShort, fmtPhone, fmtTime } from "@/lib/format";
 import type { CallEvent, CallEventKind } from "@/lib/call-events";
-import { endingLabel } from "@/lib/call-ending";
 import VoicemailPlayer from "@/components/VoicemailPlayer";
 import CallFromLineButton from "@/components/CallFromLineButton";
-import Monogram from "@/components/Monogram";
 import SwipeRow, { type SwipeRowAction } from "@/components/SwipeRow";
 
 /**
- * One call on the business line — a ROW in a recents list, the way a
- * phone's Recents and the Clients ledger lay theirs out: monogram (or a
- * tinted tile for a number nobody has saved), the name, one quiet line
- * under it saying what happened (incoming · 2:31 · Alex), the time on the
- * right. Rows have no border of their own; the list around them is the
+ * One call on the business line — a ROW in a recents list, laid out the
+ * way a phone's Recents is (ticket #seej3a, 2026-11-16: no avatar, no
+ * icons, no day groups): the name, one quiet line under it saying what
+ * happened (Incoming · 2:31), and on the right the time today, else
+ * Yesterday / the weekday / the date (`recentsStamp`). Rows have no border of their own; the list around them is the
  * `card-ledger divide-y` sheet, so /app/calls, the contact page's "Recent
  * calls" card and the call screen's "Earlier calls" all read the same.
  *
  * iOS conventions carried over: a missed call's name is red, an unseen
- * missed call or voicemail is bold with a dot on the avatar, on a phone
+ * missed call or voicemail is bold with a dot in the left margin, on a phone
  * the whole row opens the call screen (a stretched link under the
  * content), a swipe left reveals Text / Call back (components/SwipeRow.tsx),
  * and a voicemail row stays one line — the call screen plays it. Desktop
@@ -141,38 +138,22 @@ function describe(call: CallRowData): { label: string; Icon: LucideIcon; tone: s
   }
 }
 
-/** The 40px avatar: the client's monogram when the caller is saved; a tinted tile that says what happened otherwise. */
-function Avatar({ call, name, unseen }: { call: CallRowData; name: string; unseen: boolean }) {
-  let inner: React.ReactNode;
-  if (name) {
-    inner = <Monogram name={name} size={40} />;
-  } else {
-    let cls = "bg-gray-100 text-gray-600";
-    let Icon: LucideIcon = call.direction === "INBOUND" ? PhoneIncoming : PhoneOutgoing;
-    if (call.status === "VOICEMAIL") {
-      cls = "bg-blue-50 text-blue-600";
-      Icon = Voicemail;
-    } else if (isMissed(call)) {
-      cls = "bg-red-50 text-red-600";
-      Icon = PhoneMissed;
-    } else if (call.status === "IN_PROGRESS") {
-      cls = "bg-green-500 text-white";
-      Icon = Phone;
-    } else if (call.status === "RINGING") {
-      cls = "bg-amber-50 text-amber-600";
-    }
-    inner = (
-      <span className={`flex h-10 w-10 items-center justify-center rounded-full ${cls}`}>
-        <Icon size={17} />
-      </span>
-    );
-  }
-  return (
-    <span className="relative shrink-0">
-      {inner}
-      {unseen && <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-red-500" aria-label="New" />}
-    </span>
-  );
+/**
+ * The stamp on the right of a row, the way a phone's Recents dates a call:
+ * the time today, "Yesterday", the weekday within the last week, else
+ * "Nov 6" (with the year once it isn't this year). Company-local days.
+ */
+export function recentsStamp(d: Date | string, tz: string | undefined, now: Date = new Date()): string {
+  const at = new Date(d);
+  const key = (x: Date) => x.toLocaleDateString("en-CA", tz ? { timeZone: tz } : {}); // YYYY-MM-DD
+  const k = key(at);
+  const today = key(now);
+  if (k === today) return fmtTime(at, tz);
+  const days = Math.round((Date.parse(today) - Date.parse(k)) / 86_400_000);
+  if (days === 1) return "Yesterday";
+  if (days > 1 && days < 7) return at.toLocaleDateString("en-US", { weekday: "long", ...(tz ? { timeZone: tz } : {}) });
+  if (k.slice(0, 4) !== today.slice(0, 4)) return at.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", ...(tz ? { timeZone: tz } : {}) });
+  return fmtDayShort(at, tz);
 }
 
 export default function CallRow({
@@ -199,23 +180,14 @@ export default function CallRow({
   const live = call.status === "RINGING" || call.status === "IN_PROGRESS";
   const missed = isMissed(call);
   const unseen = !call.seenAt && (call.status === "MISSED" || call.status === "VOICEMAIL");
-  const when = fmtTime(call.createdAt, tz);
-  const { label: kind, Icon: KindIcon, tone } = describe(call);
+  const when = recentsStamp(call.createdAt, tz);
+  const { label: kind, tone } = describe(call);
   const onPhone = phoneTime(call);
-  const first = (n: string) => n.split(" ")[0];
-  const who =
-    call.direction === "OUTBOUND" && call.user
-      ? first(call.user.name)
-      : call.direction === "INBOUND" && call.answeredBy
-        ? first(call.answeredBy.name)
-        : "";
+  // One short line, like a phone's Recents: what happened and how long.
+  // Who answered and who hung up live on the call screen (ticket #seej3a).
   const parts: string[] = [];
   if (onPhone !== null) parts.push(onPhone);
-  if (call.status === "VOICEMAIL" && call.voicemailSec !== null) parts.push(`${fmtDuration(call.voicemailSec)} message`);
-  if (who) parts.push(who);
-  // Which side ended a connected call — "was that them or the line?" answered from the row.
-  const ending = call.status === "COMPLETED" ? endingLabel(call.endedBy) : null;
-  if (ending) parts.push(ending);
+  if (call.status === "VOICEMAIL" && call.voicemailSec !== null) parts.push(fmtDuration(call.voicemailSec));
   const showCallBack = canCall && !live && Boolean(call.customerNumber && call.customerNumber !== "unknown");
   // Once the line can text, a known caller gets a Text button: the thread sends from the business number and replies land back in it.
   const showText = canText && !live && Boolean(call.contact);
@@ -263,7 +235,8 @@ export default function CallRow({
     <div className={`relative flex items-center gap-3 px-4 py-3 transition-colors hover:bg-gray-50 active:bg-gray-100 lg:py-2.5 ${live ? "bg-green-50/40" : ""}`}>
       {/* Phones: the whole row opens the call screen. Sits under the content so the voicemail player still takes taps. */}
       <Link href={href} aria-label={`Open the call with ${title}`} className="absolute inset-0 z-0 lg:hidden" />
-      <Avatar call={call} name={showContact ? name : ""} unseen={unseen} />
+      {/* An unseen missed call or voicemail: a dot in the left margin, as on a phone. */}
+      {unseen && <span className="absolute left-1.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-red-500" aria-label="New" />}
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
           <Link
@@ -283,7 +256,6 @@ export default function CallRow({
           <span className="numeral-ledger ml-auto shrink-0 text-xs tabular-nums text-gray-500">{when}</span>
         </div>
         <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-gray-500">
-          <KindIcon size={13} className={`shrink-0 ${tone}`} aria-hidden />
           <span className={live || missed || call.status === "VOICEMAIL" ? `font-medium ${tone}` : ""}>{kind}</span>
           {parts.map((p) => (
             <span key={p} className="flex items-center gap-1.5">
@@ -291,11 +263,11 @@ export default function CallRow({
               <span className="numeral-ledger">{p}</span>
             </span>
           ))}
-          {call.direction === "OUTBOUND" && call.via === "app" && <Headphones size={12} className="text-gray-400" aria-label="Placed from the browser" />}
+          {/* What got done on the call: desktop only — a phone row stays one line (the call screen lists them). */}
           {events.slice(0, 3).map((e) => {
             const Icon = EVENT_ICON[e.kind];
             return (
-              <span key={`${e.kind}-${e.href}`} className="relative z-10 flex items-center gap-1.5 text-gray-700">
+              <span key={`${e.kind}-${e.href}`} className="relative z-10 hidden items-center gap-1.5 text-gray-700 lg:flex">
                 <span className="text-gray-300">·</span>
                 <Link href={e.href} className="inline-flex items-center gap-1 font-medium hover:underline">
                   <Icon size={12} className="text-gray-500" />
@@ -304,7 +276,7 @@ export default function CallRow({
               </span>
             );
           })}
-          {events.length > 3 && <span className="text-gray-400">+{events.length - 3}</span>}
+          {events.length > 3 && <span className="hidden text-gray-400 lg:inline">+{events.length - 3}</span>}
         </div>
         {/* Desktop plays the voicemail in the row; a phone row stays one line and the call screen plays it. */}
         {call.status === "VOICEMAIL" && (call.voicemailRecordingId || call.voicemailSec !== null) && (
