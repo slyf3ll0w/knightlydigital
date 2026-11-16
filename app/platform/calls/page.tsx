@@ -4,13 +4,12 @@ import { prisma } from "@/lib/db";
 import { requirePageActor, canSell, isManager, contactScope } from "@/lib/permissions";
 import PageTitle from "@/components/PageTitle";
 import EmptyState from "@/components/EmptyState";
-import CallRow, { isMissed, type CallRowData } from "@/components/CallRow";
+import CallRow, { isMissed } from "@/components/CallRow";
 import CallsLive from "@/components/CallsLive";
 import { LinePanel, LineSub, KeypadFab, type LineStats } from "@/components/LineCard";
 import { FilterRow, FilterChip, SegmentedRow, Segment } from "@/components/FilterChips";
 import { markCallsSeen, resolveCallContacts, type ResolvedCallContact } from "@/lib/voice";
 import { loadCallEvents, type CallEvent } from "@/lib/call-events";
-import { fmtDayShort } from "@/lib/format";
 import { hasPlan } from "@/lib/plans";
 import VoicePlanNote from "@/components/VoicePlanNote";
 
@@ -19,11 +18,11 @@ import VoicePlanNote from "@/components/VoicePlanNote";
  *
  *   desktop — the phone on the left (components/LineCard.tsx LinePanel:
  *             number, where it rings, the keypad, mic check, a stat foot),
- *             the recents on the right — filter chips, then every call
- *             grouped by day as ledger rows.
+ *             the recents on the right — filter chips, then one list of
+ *             calls, newest first, each row dating itself.
  *   phones  — iOS Recents: the large title, a one-row line strip, a
  *             segmented All / Missed / Voicemail / Outgoing (with the
- *             unseen counts on the segments), grouped rows, and the green
+ *             unseen counts on the segments), one list of rows, and the green
  *             keypad button above the tab bar (KeypadFab → bottom sheet).
  *
  * Each row opens its call screen (/app/calls/[id]); a voicemail plays in
@@ -44,15 +43,9 @@ const FILTERS: Array<[Filter, string]> = [
   ["out", "Outgoing"],
 ];
 
-/** "Today" / "Yesterday" / "Fri, Sep 19" in the company's zone. */
+/** YYYY-MM-DD in the company's zone (the stat strip's "today"). */
 function dayKey(d: Date, tz: string): string {
   return d.toLocaleDateString("en-CA", { timeZone: tz }); // YYYY-MM-DD
-}
-function dayLabel(d: Date, tz: string, now: Date): string {
-  const k = dayKey(d, tz);
-  if (k === dayKey(now, tz)) return "Today";
-  if (k === dayKey(new Date(now.getTime() - 86_400_000), tz)) return "Yesterday";
-  return `${d.toLocaleDateString("en-US", { weekday: "short", timeZone: tz })}, ${fmtDayShort(d, tz)}`;
 }
 
 export default async function CallsPage({ searchParams }: { searchParams: Promise<{ contact?: string; f?: string }> }) {
@@ -152,15 +145,6 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
   const visible = calls.filter((c) =>
     filter === "missed" ? isMissed(c) : filter === "voicemail" ? c.status === "VOICEMAIL" : filter === "out" ? c.direction === "OUTBOUND" : true
   );
-  // Group by day, newest first (rows are already newest-first).
-  const groups: Array<{ label: string; rows: CallRowData[] }> = [];
-  for (const c of visible) {
-    const label = dayLabel(c.createdAt, tz, now);
-    const row: CallRowData = { ...c, events: events.get(c.id) };
-    const g = groups[groups.length - 1];
-    if (g && g.label === label) g.rows.push(row);
-    else groups.push({ label, rows: [row] });
-  }
   const href = (k: Filter) => `/app/calls${k === "all" ? "" : `?f=${k}`}${contactId ? `${k === "all" ? "?" : "&"}contact=${contactId}` : ""}`;
   // The unseen counts ride the phone's segments (iOS puts the badge on the tab); desktop has the stat foot.
   const badge = (k: Filter) => (k === "missed" ? stats.missedUnseen : k === "voicemail" ? stats.voicemailsUnseen : 0);
@@ -224,26 +208,15 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
           </FilterRow>
         </div>
 
-        {groups.length === 0 ? (
+        {visible.length === 0 ? (
           <div className="ds-card mt-4 px-4 py-10 text-center text-sm text-[color:var(--ds-muted)] lg:mt-0">
             {filter === "missed" ? "No missed calls." : filter === "voicemail" ? "No voicemails." : "No outgoing calls yet."}
           </div>
         ) : (
-          <div className="mt-4 space-y-6 lg:mt-0">
-            {groups.map((g) => (
-              <section key={g.label}>
-                {/* Phones: the grouped-list section label (no rule); desktop keeps the ledger rule. */}
-                <h2 className="mb-1.5 flex items-center gap-3 px-1 text-[13px] font-semibold text-gray-500 lg:mb-2 lg:px-0 lg:text-xs">
-                  {g.label}
-                  <span className="hidden h-px flex-1 bg-gray-200 lg:block" aria-hidden />
-                  <span className="numeral-ledger ml-auto font-normal text-gray-400 lg:ml-0">{g.rows.length}</span>
-                </h2>
-                <div className="ds-card divide-y divide-[color:var(--ds-line)] overflow-hidden">
-                  {g.rows.map((c) => (
-                    <CallRow key={c.id} call={c} tz={tz} canCall={routed} canText={smsReady} />
-                  ))}
-                </div>
-              </section>
+          // One list, newest first, like a phone's Recents: each row dates itself (CallRow recentsStamp), no day groups or counts (ticket #seej3a).
+          <div className="ds-card mt-4 divide-y divide-[color:var(--ds-line)] overflow-hidden lg:mt-0">
+            {visible.map((c) => (
+              <CallRow key={c.id} call={{ ...c, events: events.get(c.id) }} tz={tz} canCall={routed} canText={smsReady} />
             ))}
           </div>
         )}
