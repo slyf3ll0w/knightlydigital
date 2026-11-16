@@ -32,9 +32,8 @@ Off-Railway copy (do monthly until automated): Railway Postgres →
 it in the company Google Drive. A restore from that file is
 `pg_restore -d "$NEW_DATABASE_URL" --no-owner workbench-YYYY-MM-DD.dump`.
 
-CI refuses a schema change that would DROP a table or column on deploy
-(`scripts/check-schema-drops.mjs`, `[allow-drop]` in the commit message
-overrides it on purpose) — the mechanical half of "additive only" below.
+The deploy refuses a schema change that would destroy data — see "Deploy
+safety" below.
 
 ## The moving parts
 
@@ -89,9 +88,24 @@ texting; superadmin company page → Line).
 
 ## Deploy safety (read before a schema change)
 
-`db:predeploy` = `prisma db push --accept-data-loss` + seed + backfills, run
-before the new container is healthy while the old one still serves.
-Until migrations replace it (Phase 1 of the readiness plan):
+`db:predeploy` = `db:push` + seed + backfills, run before the new container
+is healthy while the old one still serves.
+
+**The schema guard (2026-11-16).** `db:push` is `scripts/db-push-guarded.ts`:
+it reads the SQL the push is about to run against the real database
+(`prisma migrate diff`, read-only), prints it in the deploy log, and
+**refuses the deploy** when a statement drops a table, drops a column,
+changes a column's type or drops an enum (`lib/schema-guard.ts`,
+`npx tsx scripts/test-schema-guard.ts`). A refused deploy changes nothing and
+the previous release keeps serving. The refusal prints the lines to add to
+`prisma/approved-drops.txt` (dated, good for 14 days) when the loss is
+intended; commit that with the schema change. CI runs the same rules
+against origin/main's schema (`scripts/check-schema-drops.ts`) so a drop is
+flagged at push time, before any deploy. `npm run db:push -- --check` prints
+the pending SQL and the verdict without pushing. `SCHEMA_GUARD=off` on the
+service skips the guard — emergencies only, and remove it afterwards.
+
+Still true with the guard in place:
 - **Additive only.** Add columns/tables/indexes freely. Never rename or drop
   in the same release that stops using the thing — ship the code change, let
   it deploy, drop in a later release.

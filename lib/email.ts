@@ -25,6 +25,7 @@ import { reportError } from "@/lib/report-error";
 import { prisma } from "@/lib/db";
 import { recordEmailSent } from "@/lib/usage";
 import { emailDomainsEnabled } from "@/lib/email-domains";
+import { SETUP_CALL_LABEL, setupCallUrl } from "@/lib/setup-call";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM = process.env.EMAIL_FROM ?? "WorkBench <notifications@workbenchfsm.com>";
@@ -750,10 +751,77 @@ export function welcomeEmail({
         .map((s) => `<li style="margin:0 0 8px;">${s}</li>`)
         .join("")}</ol>
       ${wbBtn(`${APP_URL}/app/dashboard`, "Open WorkBench")}
+      ${aside(`Rather do it with someone? <a href="${setupCallUrl(APP_URL)}" style="color:${WB_BLUE};font-weight:700;">${SETUP_CALL_LABEL}</a> and we will set your account up with you.`)}
       ${aside(`The Help Center at <a href="${APP_URL}/help" style="color:${WB_BLUE};">workbenchfsm.com/help</a> walks through every feature, and Atlas inside the app can do most of the setup for you. Questions? Reply to this email.`)}`,
     footNote: `Sent because an account for ${esc(companyName)} was opened with this address.`,
   });
   return { subject: `Welcome to WorkBench, ${companyName}`, html };
+}
+
+/**
+ * The stalled-sign-up nudge, to the owner, once (lib/setup-nudge.ts): two
+ * days in and either still at the payment-setup step or in the app with no
+ * client added. One offer, the setup call; nothing to sell.
+ */
+export function setupNudgeEmail({
+  name,
+  companyName,
+  reason,
+}: {
+  name: string | null;
+  companyName: string;
+  reason: "payments" | "no_clients";
+}): { subject: string; html: string } {
+  const where =
+    reason === "payments"
+      ? `${esc(companyName)} is opened on WorkBench, and the last step, connecting Square so clients can pay you online, is still waiting.`
+      : `${esc(companyName)} is open on WorkBench, and it looks like there has not been time to add a first client yet.`;
+  const html = wbShell({
+    inner: `
+      ${hello(name)}
+      ${p(where)}
+      ${p(`If anything got in the way, we can do it with you. A setup call is free and takes about 15 minutes: we ${
+        reason === "payments" ? "connect your payments" : "add your services and prices"
+      }, and send your first quote or invoice together.`)}
+      ${wbBtn(setupCallUrl(APP_URL), SETUP_CALL_LABEL)}
+      ${aside(`Prefer to keep going yourself? <a href="${APP_URL}/app/dashboard" style="color:${WB_BLUE};">Open WorkBench</a> and pick up where you left off. Or reply to this email with a question; a person reads it.`)}`,
+    footNote: `Sent once because an account for ${esc(companyName)} was opened with this address. We will not send this again.`,
+  });
+  return { subject: `Need a hand setting up ${companyName}?`, html };
+}
+
+/** Operator's side of the nudge: who stalled, how to reach them. */
+export function stalledSignupEmail({
+  companyId,
+  companyName,
+  ownerName,
+  ownerEmail,
+  ownerPhone,
+  reason,
+  signedUp,
+}: {
+  companyId: string;
+  companyName: string;
+  ownerName: string | null;
+  ownerEmail: string;
+  ownerPhone: string | null;
+  reason: "payments" | "no_clients";
+  signedUp: string;
+}): { subject: string; html: string } {
+  const rows: [string, string | null][] = [
+    ["Stuck at", reason === "payments" ? "Connecting Square (never got into the app)" : "In the app, no client added yet"],
+    ["Owner", ownerName],
+    ["Email", ownerEmail],
+    ["Phone", ownerPhone],
+    ["Signed up", signedUp],
+  ];
+  const html = wbShell({
+    inner: `
+      ${p(`${esc(companyName)} signed up two days ago and has stalled. They were just emailed the offer of a setup call; a call or text from you is what usually brings a stalled sign-up back.`)}
+      ${facts(rows.filter((r): r is [string, string] => Boolean(r[1])).map(([label, v]) => ({ label, value: esc(v) })))}
+      ${wbBtn(`${APP_URL}/superadmin/company/${encodeURIComponent(companyId)}`, "Open in the console")}`,
+  });
+  return { subject: `Stalled sign-up: ${companyName}`, html };
 }
 
 /** Platform notification — a tenant filed a bug report or suggestion. */

@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { X } from "lucide-react";
+import { CalendarCheck, X } from "lucide-react";
+import { SETUP_CALL_LABEL, SETUP_CALL_PATH } from "@/lib/setup-call";
 
 /**
  * Home-built guided tour (no library). Steps target [data-tour] attributes
@@ -23,6 +24,8 @@ type Step = {
   key: string | null; // data-tour target; null = centered card
   title: string;
   body: string;
+  /** Show the "Book a free setup call" link under the body (lib/setup-call.ts). */
+  setupCall?: boolean;
 };
 
 const allSteps: Step[] = [
@@ -69,7 +72,8 @@ const allSteps: Step[] = [
   {
     key: null,
     title: "You're all set",
-    body: "Stuck on something? The Help Center has step-by-step guides. You can replay this tour anytime from My Profile.",
+    body: "Stuck on something? The Help Center has step-by-step guides, or we can set things up with you on a call. You can replay this tour anytime from My Profile.",
+    setupCall: true,
   },
 ];
 
@@ -205,6 +209,17 @@ export default function TourGuide({ needsTour }: { needsTour: boolean }) {
         </div>
         <h2 className="mb-1 text-lg font-semibold text-[color:var(--ds-ink)]">{step.title}</h2>
         <p className="mb-4 text-sm leading-relaxed text-[color:var(--ds-ink-2)]">{step.body}</p>
+        {step.setupCall && (
+          <a
+            href={SETUP_CALL_PATH}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-setup-call="tour"
+            className="-mt-1 mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[color:var(--ds-primary)] underline-offset-2 hover:underline"
+          >
+            <CalendarCheck size={15} aria-hidden /> {SETUP_CALL_LABEL}
+          </a>
+        )}
         <div className="flex items-center justify-between">
           <button
             type="button"

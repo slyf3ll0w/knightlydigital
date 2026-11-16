@@ -42,6 +42,7 @@ import { runToolSendSweep } from "@/lib/tool-send";
 import { runSearchIndexSweep } from "@/lib/search-index";
 import { adoptUnrecordedSquarePayments } from "@/lib/square-adopt";
 import { runTelnyxBalanceWatch } from "@/lib/telnyx-balance";
+import { runSetupNudgeSweep } from "@/lib/setup-nudge";
 
 /**
  * Hourly billing cron. A scheduler (Railway cron service, or an external
@@ -205,6 +206,9 @@ export async function POST(req: NextRequest) {
     await step("toolDrafts", () => runToolDraftSweep(now));
     // Emailed free-tool documents past their 60 days, and addresses that never verified (lib/tool-send.ts).
     await step("toolSends", () => runToolSendSweep(now));
+    // Sign-ups stalled for two days get one offer of a setup call, and the
+    // operator hears who they are (lib/setup-nudge.ts).
+    await step("setupNudges", () => runSetupNudgeSweep(now));
     // Which sitemap pages Google has indexed, a few URLs an hour through
     // Search Console's URL Inspection API (lib/search-index.ts). No-op
     // without GSC_SERVICE_ACCOUNT_JSON.

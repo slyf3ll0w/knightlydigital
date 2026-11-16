@@ -188,6 +188,8 @@ model Company {
   // otherwise see: the booking link was copied once (Settings → Booking &
   // forms), and the native app has checked in once for this company.
   getStartedHiddenAt        DateTime?
+  // The stalled-sign-up nudge went out (lib/setup-nudge.ts): once per company, ever.
+  setupNudgeSentAt          DateTime?
   bookingLinkSharedAt       DateTime?
   mobileAppSeenAt           DateTime?
   // Display name for the in-app AI assistant; null = the default ("Atlas")

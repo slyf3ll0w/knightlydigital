@@ -1,0 +1,16 @@
+# Schema changes that destroy data and were approved to deploy.
+#
+# Every deploy checks the pending schema change (scripts/db-push-guarded.ts,
+# lib/schema-guard.ts) and refuses to drop a table, drop a column, change a
+# column's type or drop an enum unless that exact change is listed here with
+# a date in the last 14 days. The refusal prints the lines to add.
+#
+# One per line:  YYYY-MM-DD <change exactly as the refusal printed it>
+#
+# Example:
+#   2026-11-16 DROP COLUMN "Company"."surchargeRate"
+#
+# Before approving a drop: is it really a rename? Then keep the column and
+# rename only the field with @map. Is any running code still reading it?
+# Then ship the code change first and drop in a later release. Take a manual
+# Railway backup first (Postgres -> Backups -> Create).

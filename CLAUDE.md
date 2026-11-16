@@ -1854,3 +1854,21 @@ redirect). The company's one look lives on `Company.bookingPage`
 - **Retired** — `lib/web-forms.ts`, `lib/booking-form.ts`, `/api/app/web-forms`,
   the form builder/editor, `BookingForm.tsx`, `lib/booking-slots.ts`,
   `lib/booking-availability.ts`, `/api/public/booking-slots`.
+
+## Setup call + stalled-sign-up nudge, and the deploy schema guard (2026-11-16)
+
+- **"Book a free setup call"** (`lib/setup-call.ts`, links to `/book-a-call`)
+  sits where a self-serve sign-up stalls: the payment-setup step, the foot of
+  the Get started card on Home, the last stop of the welcome tour and the
+  welcome email. Plain `<a target="_blank">` (the page is outside `/app`).
+- **Stalled-sign-up nudge** (`lib/setup-nudge.ts`, cron step `setupNudges`):
+  48 h after sign-up (until 14 days), a company still held at the payment
+  step or with no client gets ONE email offering the call
+  (`Company.setupNudgeSentAt`, claimed before the send) and the operator gets
+  "Stalled sign-up: X" with the owner's phone. Never test accounts, the
+  platform company, suspended ones, or companies opened before `NUDGE_EPOCH`.
+  Email only. Rules are pure: `npx tsx scripts/test-setup-nudge.ts`.
+- **Schema guard**: `npm run db:push` is `scripts/db-push-guarded.ts` — the
+  deploy refuses a schema change that drops a table / column / enum or
+  changes a column type unless it is listed (dated, 14 days) in
+  `prisma/approved-drops.txt`. Details in `docs/runbook.md` → Deploy safety.

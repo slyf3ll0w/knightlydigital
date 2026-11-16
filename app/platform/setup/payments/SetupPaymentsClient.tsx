@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, ArrowUpRight, CheckCircle2, CreditCard, Loader2, Ticket } from "lucide-react";
+import { ArrowRight, ArrowUpRight, CalendarCheck, CheckCircle2, CreditCard, Loader2, Ticket } from "lucide-react";
+import { SETUP_CALL_LABEL, SETUP_CALL_PATH } from "@/lib/setup-call";
 import { appSignOut } from "@/lib/sign-out";
 import { postJson } from "@/lib/safe-fetch";
 import { RATES } from "@/lib/plans";
@@ -354,6 +355,19 @@ export default function SetupPaymentsClient({
                 )}
               </>
             ) : null}
+
+            {/* The one place a self-serve sign-up most often stalls: a way to a person. */}
+            <div className="mt-7 rounded-xl bg-[color:var(--ds-primary-soft)] px-4 py-3.5" data-setup-call="payments">
+              <p className="text-[14px] font-semibold text-gray-900">Stuck, or rather do this with someone?</p>
+              <a
+                href={SETUP_CALL_PATH}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 inline-flex items-center gap-1.5 text-[14px] font-bold text-[color:var(--ds-primary)] underline-offset-2 hover:underline"
+              >
+                <CalendarCheck size={15} /> {SETUP_CALL_LABEL} <ArrowUpRight size={13} />
+              </a>
+            </div>
 
             {required && (
               <div className="mt-7 border-t border-gray-200 pt-5">

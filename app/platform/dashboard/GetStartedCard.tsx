@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ChevronRight } from "lucide-react";
+import { ArrowUpRight, CalendarCheck, Check, ChevronRight } from "lucide-react";
+import { SETUP_CALL_LABEL, SETUP_CALL_PATH } from "@/lib/setup-call";
 import { postJson } from "@/lib/safe-fetch";
 import { Card, InfoTip } from "@/components/ds";
 import type { GetStarted } from "@/lib/get-started";
@@ -98,6 +99,19 @@ export default function GetStartedCard({ data }: { data: GetStarted }) {
           </li>
         ))}
       </ul>
+
+      {/* A way to a person for anyone the list does not carry (lib/setup-call.ts). */}
+      <a
+        href={SETUP_CALL_PATH}
+        target="_blank"
+        rel="noopener noreferrer"
+        data-setup-call="home"
+        className="flex items-center gap-3 border-t border-[color:var(--ds-line)] px-4 py-3 text-[13.5px] font-medium text-[color:var(--ds-primary)] lg:px-5"
+      >
+        <CalendarCheck size={16} className="shrink-0" aria-hidden />
+        <span className="min-w-0 flex-1">Stuck? {SETUP_CALL_LABEL}</span>
+        <ArrowUpRight size={15} className="shrink-0" aria-hidden />
+      </a>
     </Card>
   );
 }
