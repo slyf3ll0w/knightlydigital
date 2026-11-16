@@ -233,6 +233,24 @@
     }
   });
 
+  // The host page scrolled: tell each form so it can close an open dropdown
+  // list, which desktop browsers otherwise leave floating where it opened
+  // (app/embed/[slug]/EmbedClosePickers.tsx). Capture phase catches
+  // scrolling containers too; one message per frame per animation frame.
+  var scrollQueued = false;
+  window.addEventListener(
+    "scroll",
+    function () {
+      if (scrollQueued || !frames.length) return;
+      scrollQueued = true;
+      requestAnimationFrame(function () {
+        scrollQueued = false;
+        for (var i = 0; i < frames.length; i++) post(frames[i], { type: "workbench:scroll" });
+      });
+    },
+    { capture: true, passive: true }
+  );
+
   window.WorkBenchEmbed = { scan: scan };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", scan);
   else scan();
