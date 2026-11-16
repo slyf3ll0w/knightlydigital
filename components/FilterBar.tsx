@@ -62,8 +62,9 @@ export default function FilterBar({
   // "unscheduled" KPI drill-in) lights nothing rather than lying with "All".
   const active = value;
 
-  const sortMenu = sort ? (
+  const sortMenu = (compact = false) => sort ? (
     <FilterSelect
+      compact={compact}
       icon="sort"
       value={sort.value}
       options={sort.options.map((o) => ({ value: o.value, label: o.label, href: sort.href(o.value) }))}
@@ -97,10 +98,10 @@ export default function FilterBar({
                 </Segment>
               ))}
             </SegmentedRow>
-            {(scope || sortMenu) && (
+            {(scope || sort) && (
               <div className="flex items-center gap-2">
                 {scope}
-                {sortMenu}
+                {sortMenu()}
               </div>
             )}
           </>
@@ -108,7 +109,9 @@ export default function FilterBar({
           <div className="flex items-center gap-2">
             {dropdown}
             {scope}
-            {sortMenu}
+            {/* three controls on one phone row: the sort shrinks to its icon
+                so the filter label never wraps (ticket #5xecec) */}
+            {sortMenu(Boolean(scope))}
           </div>
         )}
       </div>
@@ -128,7 +131,7 @@ export default function FilterBar({
             </>
           )}
         </div>
-        {sortMenu}
+        {sortMenu()}
       </div>
     </div>
   );

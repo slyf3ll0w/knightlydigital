@@ -113,13 +113,13 @@ export function FilterChip({
 
   if (href) {
     return (
-      <Link href={href} className={cls}>
+      <Link href={href} className={cls} data-filter-chip="">
         {children}
       </Link>
     );
   }
   return (
-    <button type="button" onClick={onClick} className={cls}>
+    <button type="button" onClick={onClick} className={cls} data-filter-chip="">
       {children}
     </button>
   );
