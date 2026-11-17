@@ -88,6 +88,7 @@ export const COMPANY_DELETE_KEEPS = [
   "EstimatorBuild",
   "EstimatorImage",
   "EstimatorVersion",
+  "EstimatorQuoteRun", // cascades from its quote and its estimator
   "QuickBooksSyncRecord",
 ] as const;
 

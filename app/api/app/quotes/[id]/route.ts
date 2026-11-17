@@ -18,6 +18,7 @@ import { logActivity } from "@/lib/activity";
 import { sanitizeDeposit, syncDepositInvoice } from "@/lib/deposits";
 import { withDocNumberRetry } from "@/lib/doc-numbers";
 import { APPROVABLE_STATUSES, finishQuoteApproval } from "@/lib/quote-approval";
+import { recordQuoteRun } from "@/lib/estimator-corrections-server";
 
 const allowedStatuses = [
   "DRAFT",
@@ -252,6 +253,16 @@ export async function PATCH(
       });
       return saved;
     }));
+    // Lines from an estimate tool were added in this edit. A first run on a
+    // draft is kept; anything else (a second run, a run added after sending)
+    // makes the quote unreadable against one run, so its row goes.
+    const run: unknown = body.estimatorRun;
+    if (run === "mixed" || (run && typeof run === "object" && quote.status !== "DRAFT")) {
+      await prisma.estimatorQuoteRun.deleteMany({ where: { quoteId: quote.id } }).catch(() => {});
+    } else if (run && typeof run === "object") {
+      const r = run as { toolId?: unknown; inputs?: unknown };
+      if (typeof r.toolId === "string") await recordQuoteRun(prisma, { companyId, estimatorId: r.toolId.slice(0, 40), quoteId: quote.id, inputs: r.inputs, source: "app" });
+    }
     return NextResponse.json(updated);
   }
 

@@ -19,6 +19,7 @@ import { QuickMenu, type MenuAnchor, type QuickAction } from "@/components/Quick
 import { moneyExact } from "@/components/EstimatorControls";
 import RatesToConfirm, { confirmGuessedRates } from "@/components/RatesToConfirm";
 import RateCard from "@/components/RateCard";
+import ToolSuggestions from "@/components/ToolSuggestions";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { money, shortDate } from "@/lib/statuses";
 import { useUnsavedWarning } from "@/lib/use-unsaved-warning";
@@ -564,6 +565,7 @@ export default function ToolClient({
                 </div>
               )}
 
+              {spec && manager && <ToolSuggestions toolId={tool.id} version={JSON.stringify(spec.rates ?? []) + String(spec.minimumTotal ?? "")} busy={busy !== null} onApply={(next) => patch({ spec: next }, "rates")} />}
               {spec && (spec.rates?.length ?? 0) > 0 && manager && <RateCard spec={spec} busy={busy === "rates"} onSet={(id, v) => void setRate(id, v)} onSetMinimum={(v) => void setMinimum(v)} />}
               {placeholders.length > 0 && manager && <RatesToConfirm items={placeholders} onDone={(i) => void confirmRate(i)} onOpenPricing={() => go("advanced", "pricing")} />}
 

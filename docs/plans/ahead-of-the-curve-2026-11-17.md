@@ -13,9 +13,8 @@ committing to items 3 and 4.
 ## 1. The estimator scorecard becomes the pattern for every AI worker — IN PROGRESS
 
 The answer key and runner (`estimator-standard-2026-11-14.md`) are live. The
-next step is per-company corrections: each company's fixes make its own
-estimates better. Being worked through first; its plan gets its own doc when
-David agrees the shape.
+next step, per-company corrections, is built: see
+`estimator-corrections-2026-11-17.md`.
 
 ## 2. Back-office workers that draft, with a person sending
 
@@ -33,7 +32,7 @@ estimator before it ships:
 
 ## 3. Let other AIs operate Workbench
 
-Atlas already has about 96 tools. Exposing them through a connector (an MCP
+Atlas has 116 tools (counted 2026-11-17). Exposing them through a connector (an MCP
 server) lets an owner run their business from Claude or ChatGPT. Almost no one
 in field service had this as of mid-2026, and most of the work is already done.
 

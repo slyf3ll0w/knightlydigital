@@ -146,10 +146,15 @@ export default function QuoteEditor({
 
   // The estimate tool the lines came from — saved on the quote so the tool's page lists it
   const [estimatorId, setEstimatorId] = useState("");
+  // The answers that run was given — saved with the quote so the price that
+  // goes out can be held against the tool's (lib/estimator-corrections.ts).
+  // "mixed" = lines from more than one run: nothing can be read from that.
+  const [toolRun, setToolRun] = useState<{ toolId: string; inputs: Record<string, unknown> } | "mixed" | null>(null);
 
   /** Lines from an estimate tool join the list; a blank starter row gets replaced. */
   function applyEstimate(r: EstimatorApply) {
     if (r.toolId) setEstimatorId(r.toolId);
+    setToolRun((cur) => (cur === null && r.toolId && r.inputs ? { toolId: r.toolId, inputs: r.inputs } : "mixed"));
     const fresh: EditorLineItem[] = r.lines.map((l) => ({
       ...emptyEditorLine,
       name: l.name,
@@ -241,6 +246,7 @@ export default function QuoteEditor({
       contactId,
       requestId: requestId || null,
       estimatorId: estimatorId || null,
+      ...(toolRun === "mixed" ? { estimatorRun: "mixed" } : toolRun ? { estimatorRun: toolRun } : {}),
       propertyId: propertyId || null,
       // Blank title → named after the services ("House Wash + Gutters")
       title: title.trim() || titleFromServices(lineItems.map((li) => li.name)) || null,

@@ -14,6 +14,7 @@ import { inPreview, PREVIEW_CAP, previewCapError } from "@/lib/preview";
 import { nextQuoteNumber, withDocNumberRetry } from "@/lib/doc-numbers";
 import { sanitizeDeposit } from "@/lib/deposits";
 import { fireAutomations } from "@/lib/automations-server";
+import { recordQuoteRun } from "@/lib/estimator-corrections-server";
 
 export async function POST(req: NextRequest) {
   const actor = await getActor();
@@ -39,6 +40,7 @@ export async function POST(req: NextRequest) {
     notes,
     validUntil,
     estimatorId: estimatorIdRaw,
+    estimatorRun,
   } = body;
 
   if (!contactId || !lineItems?.length) {
@@ -188,6 +190,11 @@ export async function POST(req: NextRequest) {
   }));
 
   if (converted && requestId) fireAutomations(companyId, "request.converted", requestId);
+  // The tool run the lines came from, kept so the quote that goes out can be
+  // read against it (one run only — "mixed" is lines from several)
+  if (estimatorId && estimatorRun && typeof estimatorRun === "object" && estimatorRun.toolId === estimatorId) {
+    await recordQuoteRun(prisma, { companyId, estimatorId, quoteId: quote.id, inputs: estimatorRun.inputs, source: "app" });
+  }
 
   return NextResponse.json(quote, { status: 201 });
 }

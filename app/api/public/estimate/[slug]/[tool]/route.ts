@@ -120,6 +120,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   const lead = await createEstimateLead({
     pub,
     result,
+    inputs,
     answers,
     customer: { firstName, lastName, email, phone, address, message, smsConsent: phone ? body.smsConsent === true : undefined },
     page: page || undefined,

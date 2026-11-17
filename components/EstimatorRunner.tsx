@@ -56,6 +56,8 @@ export type EstimatorApply = {
   flags?: string[];
   /** The saved tool the lines came from (absent for unsaved previews) — stamped on the quote */
   toolId?: string;
+  /** The answers the tool was given — kept with the quote so what gets SENT can be held against what the tool said (lib/estimator-corrections.ts) */
+  inputs?: Record<string, unknown>;
 };
 
 type RunOk = { ok: true; lines: EstimatorResultLine[]; subtotal: number; discount: number; discounts: { label: string; amount: number }[]; total: number; hours: number; cost: number | null; title?: string; clientMessage?: string; warnings: string[]; /** Things to confirm before the price is final. */ flags?: string[]; drivers?: PriceDriver[] };
@@ -299,14 +301,14 @@ export function EstimatorRunnerPanel({
 
   function apply() {
     if (!result) return;
-    onApply?.({ ...applyPayload(result), ...(tool && !tool.preview ? { toolId: tool.id } : {}) });
+    onApply?.({ ...applyPayload(result), ...(tool && !tool.preview ? { toolId: tool.id, inputs: values } : {}) });
     onClose();
   }
 
   function startQuote() {
     if (!result || !tool) return;
     setStarting(true);
-    stashEstimateDraft({ ...applyPayload(result), toolName: tool.name, toolId: tool.id });
+    stashEstimateDraft({ ...applyPayload(result), toolName: tool.name, toolId: tool.id, inputs: values });
     router.push("/app/quotes/new?fromTool=1");
   }
 

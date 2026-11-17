@@ -1797,6 +1797,11 @@ model Estimator {
   listing  EstimatorListing?
   quotes   Quote[]
 
+  quoteRuns       EstimatorQuoteRun[]
+  // Corrections the owner has answered (lib/estimator-corrections.ts
+  // Dismissal[]): "not now" and "don't suggest this again".
+  suggestionState Json?
+
   @@unique([companyId, publicSlug])
   @@index([companyId])
 }
@@ -1844,6 +1849,31 @@ model EstimatorListingLike {
   createdAt DateTime         @default(now())
 
   @@unique([listingId, companyId])
+}
+
+// The tool run a quote started from: the answers the tool was given and the
+// lines it produced, kept so the quote the owner SENDS can be held against
+// what the tool said (docs/plans/estimator-corrections-2026-11-17.md). What
+// was sent is read from the quote itself (its first revision when it was
+// edited after sending), so nothing is copied at send time. One per quote; a
+// quote that takes lines from a second run loses its row (mixed evidence).
+model EstimatorQuoteRun {
+  id          String    @id @default(cuid())
+  companyId   String
+  estimatorId String
+  estimator   Estimator @relation(fields: [estimatorId], references: [id], onDelete: Cascade)
+  quoteId     String    @unique
+  quote       Quote     @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  source      String // "app" | "atlas" | "website"
+  // Went out without a person looking (a website form set to send its quote):
+  // says nothing about what the owner would charge, so it is never evidence.
+  auto        Boolean   @default(false)
+  inputs      Json
+  toolLines   Json // { name, quantity, unitPrice, isOptional }[]
+  createdAt   DateTime  @default(now())
+
+  @@index([estimatorId, createdAt])
+  @@index([companyId])
 }
 
 // One run of the estimate-tool builder (lib/estimator-build-jobs.ts). The
@@ -2753,6 +2783,7 @@ model Quote {
   lineItems QuoteLineItem[]
   contracts Contract[]
   invoices  Invoice[] // deposit (and any other) invoices issued against this quote
+  toolRun   EstimatorQuoteRun?
   reminders QuoteReminder[]
   revisions QuoteRevision[]
   tasks     Task[]

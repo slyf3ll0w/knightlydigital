@@ -325,8 +325,16 @@ export const estimatorSection: HelpSection = {
           text: "**Crew time** has its own heading. It only sets how long a job is booked for. When your prices are installed prices, the hours are never added on top.",
         },
         {
+          type: "p",
+          text: "**From your quotes** appears above the rates when you keep changing the same thing before sending. It reads the quotes you made from this tool and sent, and names what you charge against what the tool says, like \"Cedar fence: you charge about $34 per ft, the tool says $31\". Press `See the quotes` to check it. Nothing changes until you press the button, and the old rules stay under **History**.",
+        },
+        {
           type: "faq",
           items: [
+            {
+              q: "When does a suggestion show up under From your quotes?",
+              a: "After you change the same price the same way on at least three recent quotes from the tool, and only when the new number would have matched what you sent. Rounding a total, fixing a measurement, a discount for one client, or changes that go up one time and down the next are ignored. `Not now` hides it until three more quotes back it up. `Don't suggest this again` hides it for good. It only ever reads your own company's quotes.",
+            },
             {
               q: "Why does an estimate say \"Confirm before this price is final\"?",
               a: "The customer answered \"Not sure\" to something, or a rule like a pool code or HOA approval applies. The price uses the usual case. The list also goes on the request and in the quote's internal notes.",

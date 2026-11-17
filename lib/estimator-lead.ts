@@ -3,6 +3,7 @@ import { offersSmsConsent } from "@/lib/sms-consent";
 import { randomBytes } from "crypto";
 import { prisma } from "./db";
 import { nextQuoteNumber, withDocNumberRetry } from "./doc-numbers";
+import { recordQuoteRun } from "./estimator-corrections-server";
 import { upsertBookingContact } from "./booking-submit";
 import { enterPipeline, autoAdvance, firePipelineMoves, type PipelineMove } from "./pipeline";
 import { fireAutomations } from "./automations-server";
@@ -39,6 +40,8 @@ export type EstimateCustomer = {
 export type EstimateLeadInput = {
   pub: PublicEstimator;
   result: Extract<EstimatorRun, { ok: true }>;
+  /** The visitor's raw answers — kept with the quote for corrections (lib/estimator-corrections.ts) */
+  inputs?: Record<string, unknown>;
   /** "Driveway size: 800 sq ft" — the answers as the request will record them */
   answers: string[];
   customer: EstimateCustomer;
@@ -221,6 +224,12 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
       return { contact, request, quote, moves, newLead };
     })
   );
+
+  // The run behind the quote, for corrections. Outside the transaction: a
+  // failure here must never cost the lead. A quote that goes out on its own
+  // says nothing about what the owner would charge (auto); a draft the owner
+  // reviews and sends does.
+  if (out.quote && input.inputs) await recordQuoteRun(prisma, { companyId: company.id, estimatorId: row.id, quoteId: out.quote.id, inputs: input.inputs, source: "website", auto: send });
 
   if (out.newLead) fireAutomations(company.id, "lead.created", out.contact.id);
   fireAutomations(company.id, "request.created", out.request.id);

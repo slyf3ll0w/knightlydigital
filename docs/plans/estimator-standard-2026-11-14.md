@@ -38,7 +38,7 @@ The script refuses a Railway database. `AI_MODEL_ASSISTANT` swaps the model bein
 ## Growing it (the continuous part)
 
 - **Every real miss becomes a case.** A ticket about a wrong estimate → the owner's words, the job, the right price, added to `cases.ts`. The fix ships only when the scorecard holds.
-- **Per company (not built yet):** when an owner edits a quote that came from a tool, save the before and after as that company's correction; the builder reads the company's corrections on the next change, and a repeated correction is offered as a rate change. One company's corrections never reach another's.
+- **Per company (built 2026-11-17, see `estimator-corrections-2026-11-17.md`; the builder reading corrections is not built yet):** when an owner edits a quote that came from a tool, save the before and after as that company's correction; the builder reads the company's corrections on the next change, and a repeated correction is offered as a rate change. One company's corrections never reach another's.
 - **Across companies (not built yet):** the same kind of correction turning up in many companies is a builder fix and a new case.
 
 ## Customer photo and description fill-in
