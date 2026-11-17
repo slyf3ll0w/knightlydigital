@@ -17,12 +17,14 @@ import type { EstimatorSpec } from "@/lib/estimator";
  */
 type Row = {
   key: string;
-  kind: "rate" | "minimum" | "add_line" | "drop_line";
+  kind: "rate" | "minimum" | "price_book" | "add_line" | "drop_line";
   title: string;
   detail: string;
   action: string;
   quotes: { id: string; quoteNumber: number | null; at: string; tool: number; sent: number; outcome: "won" | "lost" | "open" }[];
   spec: EstimatorSpec | null;
+  /** A price-book price to change (the tool takes this line's price from the price book). */
+  priceBook: { workItemId: string; unitPrice: number } | null;
   request: string | null;
 };
 
@@ -53,9 +55,10 @@ export default function ToolSuggestions({ toolId, version, busy, onApply }: { to
   }
 
   async function apply(row: Row) {
-    if (!row.spec) return;
+    if (!row.spec && !row.priceBook) return;
     setWorking(row.key);
-    if (await onApply(row.spec)) setRows((rs) => rs.filter((r) => r.key !== row.key));
+    const ok = row.spec ? await onApply(row.spec) : (await postJson(`/api/app/work-items/${row.priceBook!.workItemId}`, { unitPrice: row.priceBook!.unitPrice }, "PATCH")).ok;
+    if (ok) setRows((rs) => rs.filter((r) => r.key !== row.key));
     setWorking(null);
   }
 
@@ -98,7 +101,7 @@ export default function ToolSuggestions({ toolId, version, busy, onApply }: { to
                 </table>
               )}
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                {row.spec ? (
+                {row.spec || row.priceBook ? (
                   <button type="button" disabled={off} onClick={() => void apply(row)} className="btn-primary h-9 justify-center">
                     {row.action}
                   </button>

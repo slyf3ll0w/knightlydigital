@@ -81,6 +81,8 @@ type SuggestionBase = { key: string; quotes: EvidenceQuote[]; proof: Proof };
 
 export type Suggestion =
   | (SuggestionBase & { kind: "rate"; rateId: string; label: string; unit?: string; rateKind: EstimatorRate["kind"]; from: number; to: number })
+  /** A line priced straight from the price book: the change is to the price-book item, not the tool. */
+  | (SuggestionBase & { kind: "price_book"; workItemId: string; name: string; from: number; to: number })
   | (SuggestionBase & { kind: "add_line"; name: string; typical: number; low: number; high: number })
   | (SuggestionBase & { kind: "drop_line"; name: string })
   | (SuggestionBase & { kind: "minimum"; from: number | null; to: number });
@@ -253,7 +255,16 @@ function read(compiled: CompiledSpec, book: PriceBookEntry[], obs: Observation):
     pairs.push(pair(t, s.line));
   }
   let added = sent.filter((s) => !used.has(s.key)).map((s) => s.line);
-  // one line off and one line on = the owner renamed it; read it as the same line
+  // a line off and a line on with the same quantity and price = the same line under another name
+  // (Atlas files a line under its price-book name; an owner retitles one)
+  for (const t of [...removed]) {
+    const i = added.findIndex((s) => Math.abs(s.quantity - t.line.quantity) < 0.001 && Math.abs(s.unitPrice - t.line.unitPrice) < 0.005);
+    if (i < 0) continue;
+    pairs.push(pair(t, added[i]));
+    removed = removed.filter((x) => x !== t);
+    added.splice(i, 1);
+  }
+  // one line off and one line on = the owner renamed it and repriced it; read it as the same line
   if (removed.length === 1 && added.length === 1) {
     pairs.push(pair(removed[0], added[0]));
     removed = [];
@@ -313,8 +324,48 @@ function withRate(spec: EstimatorSpec, rateId: string, value: number): CompiledS
   return c.ok ? c.compiled : null;
 }
 
-function amountsByKey(compiled: CompiledSpec, inputs: Record<string, unknown>, book: PriceBookEntry[]): Map<string, number> | null {
-  const now = linesOf(compiled, inputs, book);
+/** The tool and price book as they would be with one number changed. */
+type World = { compiled: CompiledSpec; book: PriceBookEntry[] };
+
+/**
+ * One number the tool prices with that the owner could change: a rate on the
+ * card, or the price of a price-book item a line sells.
+ */
+type Knob = {
+  /** "rate:cedar_ft" / "book:<workItemId>" — the suggestion key without its direction. */
+  id: string;
+  value: number;
+  /** Ties: a price before a factor. */
+  rank: number;
+  at: (value: number) => World | null;
+  suggest: (to: number, base: SuggestionBase) => Suggestion;
+};
+
+function rateKnob(spec: EstimatorSpec, book: PriceBookEntry[], rate: EstimatorRate): Knob {
+  return {
+    id: `rate:${rate.id}`,
+    value: rate.value,
+    rank: rate.kind === "price" ? 1 : 0,
+    at: (v) => {
+      const compiled = withRate(spec, rate.id, v);
+      return compiled ? { compiled, book } : null;
+    },
+    suggest: (to, base) => ({ ...base, kind: "rate", rateId: rate.id, label: rate.label, unit: rate.unit, rateKind: rate.kind, from: rate.value, to }),
+  };
+}
+
+function bookKnob(compiled: CompiledSpec, book: PriceBookEntry[], entry: PriceBookEntry): Knob {
+  return {
+    id: `book:${entry.id}`,
+    value: entry.unitPrice,
+    rank: 1,
+    at: (v) => ({ compiled, book: book.map((b) => (b.id === entry.id ? { ...b, unitPrice: v } : b)) }),
+    suggest: (to, base) => ({ ...base, kind: "price_book", workItemId: entry.id, name: entry.name, from: entry.unitPrice, to }),
+  };
+}
+
+function amountsByKey(w: World | null, inputs: Record<string, unknown>): Map<string, number> | null {
+  const now = w && linesOf(w.compiled, inputs, w.book);
   if (!now) return null;
   return new Map(keyed(now.lines).map((k) => [k.key, amount(k.line)] as const));
 }
@@ -330,12 +381,11 @@ type RatePoint = {
   implied: number | null;
 };
 
-/** What this rate has to do with this quote, or null when it has nothing to do with it. */
-function ratePoint(spec: EstimatorSpec, base: CompiledSpec, book: PriceBookEntry[], rate: EstimatorRate, r: Read): RatePoint | null {
+/** What this number has to do with this quote, or null when it has nothing to do with it. */
+function ratePoint(base: World, rate: Knob, r: Read): RatePoint | null {
   if (r.atMinimum) return null; // the minimum set this price, not the rate
-  const cur = amountsByKey(base, r.obs.inputs, book);
-  const bumpSpec = withRate(spec, rate.id, rate.value * 1.07);
-  const bump = bumpSpec && amountsByKey(bumpSpec, r.obs.inputs, book);
+  const cur = amountsByKey(base, r.obs.inputs);
+  const bump = amountsByKey(rate.at(rate.value * 1.07), r.obs.inputs);
   if (!cur || !bump) return null;
   const keys = [...new Set([...cur.keys(), ...bump.keys()])].filter((k) => Math.abs((cur.get(k) ?? 0) - (bump.get(k) ?? 0)) > 0.005);
   if (keys.length === 0) return null;
@@ -348,8 +398,7 @@ function ratePoint(spec: EstimatorSpec, base: CompiledSpec, book: PriceBookEntry
 
   // solve for the rate that gives `sent` on these lines: secant from (today, +7%)
   const f = (v: number): number | null => {
-    const c = withRate(spec, rate.id, v);
-    const m = c && amountsByKey(c, r.obs.inputs, book);
+    const m = amountsByKey(rate.at(v), r.obs.inputs);
     return m ? keys.reduce((s, k) => s + (m.get(k) ?? 0), 0) : null;
   };
   let x0 = rate.value;
@@ -378,13 +427,13 @@ function ratePoint(spec: EstimatorSpec, base: CompiledSpec, book: PriceBookEntry
 
 type Candidate = { suggestion: Suggestion; /** share of the recent quotes it gets right, then how many */ score: [number, number, number]; obsIds: Set<string>; lineKeys: Set<string> };
 
-function rateCandidate(spec: EstimatorSpec, base: CompiledSpec, book: PriceBookEntry[], rate: EstimatorRate, reads: Read[], held: Held[]): Candidate | null {
+function rateCandidate(base: World, rate: Knob, reads: Read[], held: Held[]): Candidate | null {
   const B = CORRECTION_BAR;
-  const points = reads.map((r) => ratePoint(spec, base, book, rate, r)).filter((p): p is RatePoint => p != null);
+  const points = reads.map((r) => ratePoint(base, rate, r)).filter((p): p is RatePoint => p != null);
   const edits = points.filter((p) => p.edited);
   if (edits.length === 0) return null;
   const dir = (p: RatePoint) => (p.sent > p.tool ? "up" : "down");
-  const key = `rate:${rate.id}:${dir(edits[edits.length - 1])}`;
+  const key = `${rate.id}:${dir(edits[edits.length - 1])}`;
   if (edits.length < B.minQuotes) {
     held.push({ key, reason: "few" });
     return null;
@@ -415,7 +464,7 @@ function rateCandidate(spec: EstimatorSpec, base: CompiledSpec, book: PriceBookE
     return null;
   }
   // the proof: price the recent jobs again with the change
-  const after = withRate(spec, rate.id, to);
+  const after = rate.at(to);
   if (!after) return null;
   const first = Math.min(idx[0], Math.max(0, points.length - B.window));
   const recent = points.slice(first);
@@ -424,7 +473,7 @@ function rateCandidate(spec: EstimatorSpec, base: CompiledSpec, book: PriceBookE
   let evidenceRight = 0;
   for (const p of recent) {
     if (matches(p.tool, p.sent)) matchBefore++;
-    const m = amountsByKey(after, p.r.obs.inputs, book);
+    const m = amountsByKey(after, p.r.obs.inputs);
     const now = m ? cents(p.keys.reduce((s, k) => s + (m.get(k) ?? 0), 0)) : NaN;
     const ok = Number.isFinite(now) && matches(now, p.sent);
     if (ok) matchAfter++;
@@ -441,19 +490,12 @@ function rateCandidate(spec: EstimatorSpec, base: CompiledSpec, book: PriceBookE
     return null;
   }
   return {
-    suggestion: {
-      kind: "rate",
+    suggestion: rate.suggest(to, {
       key,
-      rateId: rate.id,
-      label: rate.label,
-      unit: rate.unit,
-      rateKind: rate.kind,
-      from: rate.value,
-      to,
       quotes: ev.map((p) => ({ id: p.r.obs.id, quoteNumber: p.r.obs.quoteNumber, at: p.r.obs.at, tool: p.tool, sent: p.sent, outcome: p.r.obs.outcome })),
       proof: { checked: recent.length, matchBefore, matchAfter },
-    },
-    score: [matchAfter / recent.length, evidenceRight, rate.kind === "price" ? 1 : 0],
+    }),
+    score: [matchAfter / recent.length, evidenceRight, rate.rank],
     obsIds: new Set(ev.map((p) => p.r.obs.id)),
     lineKeys: new Set(ev.flatMap((p) => p.keys)),
   };
@@ -631,9 +673,17 @@ export function analyzeCorrections(rawSpec: unknown, priceBook: PriceBookEntry[]
   const candidates: Candidate[] = [];
   const min = minimumCandidate(spec, priceBook, reads, held);
   if (min) candidates.push(min);
+  const base: World = { compiled: c.compiled, book: priceBook };
   for (const rate of spec.rates ?? []) {
     if ((rate.kind !== "price" && rate.kind !== "factor") || !(rate.value > 0)) continue;
-    const cand = rateCandidate(spec, c.compiled, priceBook, rate, reads, held);
+    const cand = rateCandidate(base, rateKnob(spec, priceBook, rate), reads, held);
+    if (cand) candidates.push(cand);
+  }
+  // lines priced straight from the price book: the number to change is the item's price
+  const named = new Set(c.compiled.priceBookNames.map((n) => n.trim().toLowerCase()));
+  for (const entry of priceBook) {
+    if (!named.has(entry.name.trim().toLowerCase()) || !(entry.unitPrice > 0)) continue;
+    const cand = rateCandidate(base, bookKnob(c.compiled, priceBook, entry), reads, held);
     if (cand) candidates.push(cand);
   }
   candidates.push(...addLineCandidates(reads, held), ...dropLineCandidates(reads, held));
@@ -642,8 +692,8 @@ export function analyzeCorrections(rawSpec: unknown, priceBook: PriceBookEntry[]
   candidates.sort(better);
   const kept: Candidate[] = [];
   for (const cand of candidates) {
-    const priced = cand.suggestion.kind === "rate" || cand.suggestion.kind === "minimum";
-    const clash = priced && kept.some((k) => (k.suggestion.kind === "rate" || k.suggestion.kind === "minimum") && overlap(k.obsIds, cand.obsIds) && overlap(k.lineKeys, cand.lineKeys));
+    const isPrice = (s: Suggestion) => s.kind === "rate" || s.kind === "minimum" || s.kind === "price_book";
+    const clash = isPrice(cand.suggestion) && kept.some((k) => isPrice(k.suggestion) && overlap(k.obsIds, cand.obsIds) && overlap(k.lineKeys, cand.lineKeys));
     if (clash) held.push({ key: cand.suggestion.key, reason: "overlap" });
     else kept.push(cand);
   }
@@ -685,6 +735,12 @@ export function suggestionText(s: Suggestion): { title: string; detail: string; 
         detail: `You changed this price on ${of}, the same way each time. With ${rateText(s.to, s)} the tool would have matched ${s.proof.matchAfter} of those ${s.proof.checked}; today it matches ${s.proof.matchBefore}.`,
         action: `Change to ${rateText(s.to, s)}`,
       };
+    case "price_book":
+      return {
+        title: `${s.name}: you charge about ${money(s.to)}, your price book says ${money(s.from)}`,
+        detail: `You changed this price on ${of}, the same way each time. This tool takes the price from your price book, so the change is made there and applies everywhere the item is used. With ${money(s.to)} the tool would have matched ${s.proof.matchAfter} of those ${s.proof.checked}; today it matches ${s.proof.matchBefore}.`,
+        action: `Change the price book to ${money(s.to)}`,
+      };
     case "minimum":
       return {
         title: `Small jobs: you charge at least ${money(s.to)}`,
@@ -704,6 +760,11 @@ export function suggestionText(s: Suggestion): { title: string; detail: string; 
         action: "Change the tool",
       };
   }
+}
+
+/** The proven suggestions as one line each — what the builder is told about how this owner prices. */
+export function correctionFacts(report: CorrectionReport): string[] {
+  return report.suggestions.slice(0, 6).map((s) => `${suggestionText(s).title} (${s.quotes.length} recent quotes).`);
 }
 
 /**

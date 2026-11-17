@@ -58,6 +58,8 @@ export type ToolCtx = {
   navigate?: string;
   /** Clients whose notes were already attached as a clientHeadsUp this turn (lib/assistant/heads-up.ts). */
   headsUpSeen?: Set<string>;
+  /** Set by run_estimator: the tool run this turn's quote is made from, so create_quote can keep it with the quote (lib/estimator-corrections.ts). */
+  lastEstimate?: { toolId: string; inputs: Record<string, unknown>; lines: { name: string; quantity: number; unitPrice: number }[] };
 };
 
 export type Tool = {

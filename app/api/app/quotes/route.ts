@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
   // The tool run the lines came from, kept so the quote that goes out can be
   // read against it (one run only — "mixed" is lines from several)
   if (estimatorId && estimatorRun && typeof estimatorRun === "object" && estimatorRun.toolId === estimatorId) {
-    await recordQuoteRun(prisma, { companyId, estimatorId, quoteId: quote.id, inputs: estimatorRun.inputs, source: "app" });
+    await recordQuoteRun(prisma, { companyId, estimatorId, quoteId: quote.id, inputs: estimatorRun.inputs, source: estimatorRun.via === "atlas" ? "atlas" : "app" });
   }
 
   return NextResponse.json(quote, { status: 201 });

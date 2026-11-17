@@ -448,6 +448,12 @@ export const pipelineTools: Tool[] = [
       const lineItems = resolved.items;
       if (lineItems.length === 0) return { error: "At least one line item with a description is required." };
       const total = lineItems.reduce((s, li) => s + li.quantity * li.unitPrice, 0);
+      // Made from an estimate tool this turn (at least half the tool's lines are on it, by name or by
+      // quantity and price): the quote keeps the run, so what the owner sends can be held against it.
+      const est = ctx.lastEstimate;
+      const fromTool =
+        est &&
+        est.lines.filter((t) => lineItems.some((li) => (li.name ?? "").trim().toLowerCase() === t.name.trim().toLowerCase() || (li.quantity === t.quantity && Math.abs(li.unitPrice - t.unitPrice) < 0.005))).length * 2 >= est.lines.length;
       return stage(ctx, {
         kind: "create_quote",
         title: `Draft quote for ${clientName(contact)} — ${money(total)}`,
@@ -460,6 +466,7 @@ export const pipelineTools: Tool[] = [
           contactId: contact.id,
           title: str(args.title, 120) || undefined,
           lineItems,
+          ...(est && fromTool ? { estimatorId: est.toolId, estimatorRun: { toolId: est.toolId, inputs: est.inputs, via: "atlas" } } : {}),
         },
       });
     },

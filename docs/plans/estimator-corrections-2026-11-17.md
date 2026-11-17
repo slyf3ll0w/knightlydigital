@@ -42,11 +42,12 @@ What is never a correction:
 - A website quote that went out on its own, with no person looking.
 - A quote with lines from more than one tool run.
 
-## The four suggestions
+## The five suggestions
 
 | Kind | Example | How it is applied |
 |---|---|---|
 | A rate | "Cedar fence: you charge about $34 per ft, the tool says $31" | Directly, as a rate-card edit |
+| A price-book price | "Post caps: you charge about $15, your price book says $12" | Directly, on the price-book item (it applies everywhere the item is used) |
 | The minimum | "Small jobs: you charge at least $1,500" | Directly |
 | A line they keep typing in | "You keep adding Haul-away by hand" | Handed to the Atlas builder as a change request (uses Atlas tokens) |
 | A line they keep taking off | "You keep taking Permit handling off" | Handed to the Atlas builder |
@@ -61,11 +62,11 @@ dropped.
 ## The scorecard
 
 `scripts/test-estimator-corrections.ts` (runs with the unit tests, no database,
-no model): 33 simulated owners on a fence tool. 13 are real patterns that must
-be offered with the right number; 19 are traps where the right answer is
+no model): 37 simulated owners on a fence tool. 15 are real patterns that must
+be offered with the right number; 21 are traps where the right answer is
 silence; one checks a dismissed suggestion comes back when it should.
 
-**2026-11-17: 33 of 33 right, silent on 19 of 19 traps.**
+**2026-11-17: 37 of 37 right, silent on 21 of 21 traps.**
 
 Every real miss in production becomes a case here, the same as the estimator
 answer key.
@@ -81,16 +82,27 @@ answer key.
 - Every read is by company. One company's quotes never reach another's tool.
 
 Captured from: the quote editor's "Add to quote" and "Create quote" (new quotes
-and drafts), and website estimate forms that create a draft for review.
+and drafts), website estimate forms that create a draft for review, and quotes
+Atlas makes from a tool run in the same request (`ctx.lastEstimate`).
+
+## Added the same day (second round)
+
+- **Atlas-made quotes are captured.** Atlas files lines under their price-book
+  names, so a line off and a line on with the same quantity and price is now
+  read as the same line renamed, not as one removed and one added.
+- **Price-book prices.** A line priced straight from the price book is checked
+  the same way as a rate; the suggestion changes the price-book item.
+- **The builder reads corrections.** A change request on an existing tool is
+  told what the owner's sent quotes show ("Cedar fence: you charge about $34
+  per ft, the tool says $31"), as facts. It is told not to apply them unless
+  the request asks, and to use the owner's number when the request touches one
+  without giving a value. **The estimator answer key was not re-run for this**
+  (it needs a model key); the text is only added when a proven suggestion exists.
 
 ## Not built yet
 
-- **Atlas-made quotes** are not captured. Atlas can rename lines to match the
-  price book, which would read as lines added and removed.
-- **Price-book prices.** A line priced from the price book has no rate on the
-  card, so edits to it are not offered. The suggestion would be a price-book change.
-- **Rounding as a setting** ("always round to $25"). Rounding is ignored, not offered.
-- **The builder reading corrections** on its next change request.
+- **Rounding as a setting** ("always round to $25"). Rounding is ignored, not
+  offered. Offering it needs a new pricing rule in the tool engine first.
 - **Across companies:** the same correction in many companies as a builder fix.
   Only counts would cross, never a company's data.
 

@@ -494,7 +494,7 @@ const runEstimatorTool: Tool = {
     },
   },
   allowed: (a) => canSell(a.role),
-  run: async (actor, args) => {
+  run: async (actor, args, ctx) => {
     if (!(await featureAllowedFor(actor.companyId, "estimator"))) return { error: ESTIMATOR_GATE_NOTE };
     const rows = await prisma.estimator.findMany({
       where: { companyId: actor.companyId, isActive: true },
@@ -543,6 +543,8 @@ const runEstimatorTool: Tool = {
         note: "Fill in the missing inputs from what the user said, or ask for them (all at once).",
       };
     }
+    // remembered for this turn: a quote made from these lines keeps the run behind it
+    ctx.lastEstimate = { toolId: row.id, inputs, lines: result.lines.map((l) => ({ name: l.name, quantity: l.quantity, unitPrice: l.unitPrice })) };
     return {
       tool: row.name,
       lineItems: result.lines.map((l) => ({

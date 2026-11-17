@@ -43,6 +43,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       ...suggestionText(s),
       quotes: s.quotes.map((q) => ({ id: q.id, quoteNumber: q.quoteNumber ?? null, at: q.at, tool: q.tool, sent: q.sent, outcome: q.outcome })),
       spec: applySuggestion(spec, s),
+      priceBook: s.kind === "price_book" ? { workItemId: s.workItemId, unitPrice: s.to } : null,
       request: builderRequest(s),
     })),
   });

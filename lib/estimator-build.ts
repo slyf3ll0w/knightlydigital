@@ -8,6 +8,8 @@ import { sanitizePublicConfig, type EstimatorPublicConfig } from "./estimator-pu
 import { ESTIMATOR_PRINCIPLES, guessTrade, playbookByKey, playbookText, PLAYBOOK_INDEX, preferMapInput } from "./estimator-playbook";
 import { driftCheck, GUESSED_SLACK, marketCheck, minimumCheck } from "./estimator-benchmarks";
 import { loadMarket, marketRules, marketText, type MarketRead } from "./estimator-market";
+import { correctionFacts } from "./estimator-corrections";
+import { correctionReport } from "./estimator-corrections-server";
 
 /**
  * The Estimates page's builder (docs/plans/ai-estimators-2026-09-19.md,
@@ -202,12 +204,18 @@ function draftSystem(
   playbook: string | null,
   assistantName: string,
   hasImage: boolean,
-  market: MarketRead | null = null
+  market: MarketRead | null = null,
+  /** What the owner's own sent quotes show they charge (lib/estimator-corrections.ts) — facts, not part of the request. */
+  corrections: string[] = []
 ): string {
   return `You are ${assistantName}, building an ESTIMATE TOOL for a field-service business inside Workbench. The owner describes how they price a kind of job in plain words; you return a tool a homeowner can answer in a minute and a pro would trust. Answer with ONLY a JSON object, no prose:
 {"name": "short tool name", "description": "one line (≤ 160 chars) on when to use it", "spec": { ...the spec... }}
 ${current ? `\nThis is a CHANGE to an existing tool. Current tool (JSON):\n${JSON.stringify({ name: current.name, description: current.description, spec: current.spec })}\nApply the owner's change and return the FULL updated tool. Keep ids of unchanged inputs/lines/variables/rates so their history reads cleanly; keep the name unless they ask to rename; keep samples valid (update them if a question changed). A rate the owner gives in this request becomes source "owner"; never change the VALUE of a rate the owner didn't ask you to change, and never turn a source "owner" rate back into an estimate.
-If this tool was built before the rate card existed (no "rates", numbers written inside formulas, a "placeholders" list): bring it up to the current rules as part of this change — move every number onto the rate card with a plain label, keeping each value EXACTLY as it is (a number its "placeholders" list calls an estimate is source "market" or "guess"; the rest are the owner's), then empty "placeholders", give variables labels, state "labor", and add the tiny samples. Fix anything in it that breaks the rules below (three controls on one question, options that don't fit each other, one add-on price for every material) even if the owner didn't mention it — say nothing, just return the corrected tool.\n` : ""}
+If this tool was built before the rate card existed (no "rates", numbers written inside formulas, a "placeholders" list): bring it up to the current rules as part of this change — move every number onto the rate card with a plain label, keeping each value EXACTLY as it is (a number its "placeholders" list calls an estimate is source "market" or "guess"; the rest are the owner's), then empty "placeholders", give variables labels, state "labor", and add the tiny samples. Fix anything in it that breaks the rules below (three controls on one question, options that don't fit each other, one add-on price for every material) even if the owner didn't mention it — say nothing, just return the corrected tool.\n${
+          corrections.length > 0
+            ? `\nWHAT THE OWNER'S OWN SENT QUOTES SHOW (they changed these by hand before sending, the same way each time; checked against their recent quotes):\n${corrections.map((c) => `- ${c}`).join("\n")}\nThese are facts about how this owner prices, NOT part of the request. Do not apply any of them unless this request asks for it. When the request touches one of these numbers without giving a value ("fix my cedar price", "bring the tool up to what I actually charge"), use the owner's number above.\n`
+            : ""
+        }` : ""}
 ${ESTIMATOR_PRINCIPLES}
 
 Design rules for a GOOD tool:
@@ -475,7 +483,9 @@ export async function* buildEstimator(
   }
   /** The numbers are the model's (not the owner's): a typical job priced far off the going range goes back for a fix. */
   const guessing = !currentRow && (cold || !ratesKnown);
-  const system = draftSystem(biz.text, currentRow && currentSpec ? { name: currentRow.name, description: currentRow.description, spec: currentSpec } : null, trade ? playbookText(trade) : null, opts.assistantName, Boolean(image), market);
+  // a change to an existing tool is told what the owner's sent quotes show (never fatal to the build)
+  const corrections = currentRow ? await correctionReport(actor.companyId, currentRow).then(correctionFacts).catch(() => []) : [];
+  const system = draftSystem(biz.text, currentRow && currentSpec ? { name: currentRow.name, description: currentRow.description, spec: currentSpec } : null, trade ? playbookText(trade) : null, opts.assistantName, Boolean(image), market, corrections);
   // A change to a tool that has quoted real jobs: Atlas sees how it has been doing
   const statsText = currentRow ? toolStatsText(await loadToolStats(actor.companyId, currentRow.id), currentRow.name) : "";
   let userPrompt = currentRow ? `The owner's change request:\n${prompt || "(see the attached price sheet)"}${answersText(answers)}${statsText ? `\n\n${statsText}` : ""}` : `The owner's description:\n${prompt || "(see the attached price sheet)"}${answersText(answers)}${plan ? `\n\nThe plan (follow it, then make it real):\n${JSON.stringify(plan)}` : ""}`;

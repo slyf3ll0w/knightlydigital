@@ -6,7 +6,7 @@
  * Run: npx tsx scripts/test-estimator-corrections.ts
  */
 import assert from "node:assert";
-import { runEstimator, type EstimatorSpec } from "../lib/estimator";
+import { runEstimator, type EstimatorSpec, type PriceBookEntry } from "../lib/estimator";
 import { analyzeCorrections, applySuggestion, builderRequest, isRounding, niceNumber, suggestionText, type CorrectionLine, type Dismissal, type Observation, type Suggestion } from "../lib/estimator-corrections";
 
 const SPEC: EstimatorSpec = {
@@ -45,22 +45,33 @@ const SPEC: EstimatorSpec = {
   minimumTotal: 900,
 };
 
-type Job = { length: number; material?: "cedar" | "vinyl"; tall?: boolean; gates?: number; tearout?: boolean };
+type Job = { length: number; material?: "cedar" | "vinyl"; tall?: boolean; gates?: number; tearout?: boolean; caps?: number };
+
+/** The same tool with one line sold straight from the price book (no rate on the card). */
+const BOOK: PriceBookEntry[] = [
+  { id: "wi_caps", name: "Post caps", unitPrice: 12, unitCost: 5 },
+  { id: "wi_other", name: "Stain", unitPrice: 300, unitCost: null },
+];
+const SPEC_BOOK: EstimatorSpec = {
+  ...SPEC,
+  inputs: [...SPEC.inputs, { id: "caps", label: "Post caps", type: "number", min: 0, default: 0 }],
+  lines: [...SPEC.lines, { id: "caps", name: "Post caps", when: "caps > 0", quantity: "caps", workItemName: "Post caps" }],
+};
 type Edit = (lines: CorrectionLine[], job: Job, i: number) => CorrectionLine[];
 
 const NOW = new Date("2026-11-17T12:00:00Z");
 let seq = 0;
 
-function toolLines(spec: EstimatorSpec, job: Job): CorrectionLine[] {
-  const run = runEstimator(spec, { material: "cedar", tall: false, gates: 0, tearout: false, ...job }, []);
+function toolLines(spec: EstimatorSpec, job: Job, book: PriceBookEntry[] = []): CorrectionLine[] {
+  const run = runEstimator(spec, { material: "cedar", tall: false, gates: 0, tearout: false, ...job }, book);
   assert.ok(run.ok, `the test spec must run: ${run.ok ? "" : run.errors.join("; ")}`);
   return run.lines.map((l) => ({ name: l.name, quantity: l.quantity, unitPrice: l.unitPrice, isOptional: l.isOptional }));
 }
 
 /** Quotes, oldest first, one a day ending yesterday. `edit` is what the owner did before sending. */
-function quotes(jobs: Job[], edit: Edit, opts: { spec?: EstimatorSpec; outcome?: (i: number) => Observation["outcome"] } = {}): Observation[] {
+function quotes(jobs: Job[], edit: Edit, opts: { spec?: EstimatorSpec; book?: PriceBookEntry[]; outcome?: (i: number) => Observation["outcome"] } = {}): Observation[] {
   return jobs.map((job, i) => {
-    const tool = toolLines(opts.spec ?? SPEC, job);
+    const tool = toolLines(opts.spec ?? SPEC, job, opts.book);
     return {
       id: `q${++seq}`,
       quoteNumber: 100 + seq,
@@ -92,7 +103,10 @@ const roundTotal = (step: number): Edit => (lines) => {
 
 const JOBS: Job[] = [{ length: 142 }, { length: 96, gates: 1 }, { length: 210, gates: 2 }, { length: 75 }, { length: 180, tearout: true }, { length: 118, gates: 1 }];
 
-type Case = { name: string; obs: Observation[]; spec?: EstimatorSpec; dismissed?: Dismissal[]; expect: string[]; check?: (s: Suggestion[]) => void };
+type Case = { name: string; obs: Observation[]; spec?: EstimatorSpec; book?: PriceBookEntry[]; dismissed?: Dismissal[]; expect: string[]; check?: (s: Suggestion[]) => void };
+const CAP_JOBS: Job[] = [{ length: 142, caps: 18 }, { length: 96, caps: 12 }, { length: 210 }, { length: 75, caps: 10 }, { length: 180, caps: 23 }];
+/** What Atlas does to a quote: files lines under other names, prices untouched. */
+const renamed: Edit = (lines) => lines.map((l) => ({ ...l, name: l.name === "Gates" ? "Gate install" : l.name === "Permit handling" ? "Permit" : l.name }));
 const rate = (s: Suggestion[], id: string) => s.find((x): x is Extract<Suggestion, { kind: "rate" }> => x.kind === "rate" && x.rateId === id)!;
 
 const cedar34 = price("Fence installation", () => 34);
@@ -166,7 +180,23 @@ const cases: Case[] = [
     obs: quotes(JOBS.slice(0, 5), only((_, i) => i !== 0, (lines) => lines.filter((l) => l.name !== "Permit handling"))),
     expect: ["drop:permit handling"],
   },
+  {
+    name: "a price-book line ($12 post caps sent at $15): the price book, not the tool",
+    obs: quotes(CAP_JOBS, price("Post caps", () => 15), { spec: SPEC_BOOK, book: BOOK }),
+    spec: SPEC_BOOK,
+    book: BOOK,
+    expect: ["book:wi_caps:up"],
+    check: (s) => assert.ok(s[0].kind === "price_book" && s[0].to === 15 && s[0].workItemId === "wi_caps"),
+  },
+  {
+    name: "an Atlas-made quote: lines under other names, and cedar raised to $34",
+    obs: quotes(JOBS, then(renamed, cedar34)),
+    expect: ["rate:cedar_ft:up"],
+    check: (s) => assert.equal(rate(s, "cedar_ft").to, 34),
+  },
   // ── traps: the right answer is nothing ──
+  { name: "TRAP an Atlas-made quote: lines under other names, nothing repriced", obs: quotes(JOBS, renamed), expect: [] },
+  { name: "TRAP a price-book line repriced once", obs: quotes(CAP_JOBS, only((_, i) => i === 1, price("Post caps", () => 15)), { spec: SPEC_BOOK, book: BOOK }), spec: SPEC_BOOK, book: BOOK, expect: [] },
   { name: "TRAP nothing edited", obs: quotes(JOBS, keep), expect: [] },
   { name: "TRAP totals rounded to the nearest $50", obs: quotes(JOBS, roundTotal(50)), expect: [] },
   { name: "TRAP totals rounded to the nearest $100", obs: quotes([{ length: 142 }, { length: 196, gates: 1 }, { length: 210, gates: 2 }, { length: 175 }, { length: 180, tearout: true }], roundTotal(100)), expect: [] },
@@ -221,7 +251,7 @@ let wrong = 0;
 let silentRight = 0;
 let silentAll = 0;
 for (const c of cases) {
-  const report = analyzeCorrections(c.spec ?? SPEC, [], c.obs, { dismissed: c.dismissed, now: NOW });
+  const report = analyzeCorrections(c.spec ?? SPEC, c.book ?? [], c.obs, { dismissed: c.dismissed, now: NOW });
   const got = report.suggestions.map((s) => s.key).sort();
   const want = [...c.expect].sort();
   const ok = JSON.stringify(got) === JSON.stringify(want);
@@ -241,7 +271,7 @@ for (const c of cases) {
       const t = suggestionText(s);
       assert.ok(t.title && t.detail && t.action);
       const applied = applySuggestion(SPEC, s);
-      assert.ok(applied || builderRequest(s), "a suggestion must be appliable or have a builder request");
+      assert.ok(applied || builderRequest(s) || s.kind === "price_book", "a suggestion must be appliable, have a builder request, or be a price-book change");
       // the proof holds: applying it leaves nothing more to offer for the same thing
       if (applied) assert.ok(!analyzeCorrections(applied, [], c.obs, { now: NOW }).suggestions.some((x) => x.key === s.key), "after the change, the same suggestion must not come back");
     }

@@ -37,7 +37,7 @@ export function cleanRunInputs(raw: unknown): Record<string, unknown> | null {
  */
 export async function recordQuoteRun(
   db: Db,
-  opts: { companyId: string; estimatorId: string; quoteId: string; inputs: unknown; source: "app" | "website"; auto?: boolean }
+  opts: { companyId: string; estimatorId: string; quoteId: string; inputs: unknown; source: "app" | "atlas" | "website"; auto?: boolean }
 ): Promise<void> {
   try {
     const inputs = cleanRunInputs(opts.inputs);
