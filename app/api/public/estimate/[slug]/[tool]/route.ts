@@ -12,7 +12,7 @@ import { limit, clientIp } from "@/lib/rate-limit";
 // Counts requests that came in from the public (forms, the client hub), not
 // the ones the team files in the app — a busy office must not lock its forms.
 const MAX_REQUESTS_PER_COMPANY_PER_DAY = 200;
-export const PUBLIC_REQUEST_SOURCES = ["booking_form", "estimate_form", "client_hub"];
+const PUBLIC_REQUEST_SOURCES = ["booking_form", "estimate_form", "client_hub"];
 
 /** What a visitor is told when the rules themselves can't price (a renamed price-book item, a formula error) — never the internals. */
 export const PUBLIC_RUN_FAILED = "We can't price this online right now — please send your details and we'll get back to you with a quote.";
