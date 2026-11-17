@@ -5,10 +5,27 @@ import { limit, clientIp } from "@/lib/rate-limit";
 import { SUPERADMIN_COOKIE, verifySuperadminSessionToken } from "@/lib/superadmin-session";
 import { APPLE_USER_COOKIE } from "@/lib/sign-in-options";
 import { hostVerdict } from "@/lib/canonical-host";
+import { authorizationServerMetadata, protectedResourceMetadata } from "@/lib/connector/metadata";
 
 // Per-IP limits on abuse-prone endpoints: { max requests, window }
 // `methods` narrows the rule (default: every non-GET/HEAD method).
 const rateLimits: { match: (path: string) => boolean; max: number; windowMs: number; name: string; methods?: string[] }[] = [
+  {
+    // The connector: an AI app registering itself. Registering grants
+    // nothing (a person still approves on /connect) but each one is a row.
+    match: (p) => p.startsWith("/api/oauth/register"),
+    max: 20,
+    windowMs: 60 * 60_000,
+    name: "oauth-register",
+  },
+  {
+    // The connector: code and refresh-token exchanges. AI apps call from a
+    // few shared addresses, so this is loose; the secrets are 256-bit.
+    match: (p) => p.startsWith("/api/oauth/token") || p.startsWith("/api/oauth/revoke") || p.startsWith("/api/oauth/authorize"),
+    max: 300,
+    windowMs: 10 * 60_000,
+    name: "oauth-token",
+  },
   {
     // Login attempts (NextAuth credentials callback)
     match: (p) => p.startsWith("/api/auth/callback/credentials"),
@@ -322,6 +339,18 @@ export async function middleware(req: NextRequest) {
     ]);
   }
 
+  // The Workbench connector's two discovery documents (lib/connector/oauth.ts,
+  // docs/plans/workbench-connector-2026-11-17.md): an AI app that gets a 401
+  // from /api/mcp reads these to find where to send the person to sign in.
+  // The path-suffixed forms are the ones the OAuth RFCs (9728, 8414) define
+  // for a resource that lives at a path.
+  if (path === "/.well-known/oauth-protected-resource" || path === "/.well-known/oauth-protected-resource/api/mcp") {
+    return NextResponse.json(protectedResourceMetadata(), { headers: { "Cache-Control": "public, max-age=3600", "Access-Control-Allow-Origin": "*" } });
+  }
+  if (path === "/.well-known/oauth-authorization-server" || path === "/.well-known/oauth-authorization-server/api/mcp") {
+    return NextResponse.json(authorizationServerMetadata(), { headers: { "Cache-Control": "public, max-age=3600", "Access-Control-Allow-Origin": "*" } });
+  }
+
   // ── Rate limiting ──────────────────────────────────────────────────────────
   // Rules apply to every non-GET/HEAD method unless they name their own
   // methods — the public PDF rule is the one GET that earns a bucket.
@@ -465,6 +494,9 @@ export const config = {
     "/.well-known/change-password",
     "/.well-known/apple-app-site-association",
     "/.well-known/assetlinks.json",
+    "/.well-known/oauth-protected-resource/:path*",
+    "/.well-known/oauth-authorization-server/:path*",
+    "/api/oauth/:path*",
     "/about",
     "/services",
     "/custom-web-design",

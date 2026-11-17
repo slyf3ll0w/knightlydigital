@@ -249,6 +249,57 @@ export const atlasSection: HelpSection = {
         },
       ],
     },
+    {
+      slug: "connect-an-ai-app",
+      title: "Connect Claude or ChatGPT to WorkBench",
+      summary: "Let an AI app you already use read your account and prepare work. You approve everything in WorkBench.",
+      keywords: ["claude", "chatgpt", "connector", "connected apps", "mcp", "ai app", "outside ai", "integration", "disconnect"],
+      where: { label: "Connected apps", href: "/app/settings/connected-apps" },
+      roles: "Owners and admins",
+      blocks: [
+        {
+          type: "p",
+          text: "If you already use an AI app like Claude or ChatGPT, you can connect it to WorkBench. It can then answer questions from your real data (\"who owes me money?\", \"what's on tomorrow?\") and prepare work for you, like a quote or an email to a client.",
+        },
+        {
+          type: "steps",
+          items: [
+            "Go to **Settings**, then **Connected apps**, and press `Copy` next to the address.",
+            "In the AI app, add a custom connector and paste the address.",
+            "The app sends you to WorkBench. Sign in, read what it will be able to do, and press `Allow`.",
+          ],
+        },
+        {
+          type: "p",
+          text: "The app can read what you can see. It can't save, send, charge or delete anything. When it prepares something, it shows up under **Waiting for your approval** on the Connected apps page, and nothing happens until you press `Approve` there.",
+        },
+        {
+          type: "faq",
+          items: [
+            {
+              q: "Where does my data go?",
+              a: "What the app reads goes to the company that makes it, including your clients' names and details. Only connect apps you trust.",
+            },
+            {
+              q: "How do I disconnect an app?",
+              a: "Press `Disconnect` next to it on the Connected apps page. It stops working right away. Changing your password also disconnects every app you connected.",
+            },
+            {
+              q: "Can I stop everyone at my company from connecting apps?",
+              a: "The owner can untick **Allow connected apps for this company** on the Connected apps page. Every connected app stops until it is ticked again.",
+            },
+            {
+              q: "Does it use Atlas tokens?",
+              a: "No. Reading your data and preparing work this way is free.",
+            },
+            {
+              q: "The app says it created or sent something, but I don't see it.",
+              a: "It only prepared it. Open **Connected apps** and approve it there.",
+            },
+          ],
+        },
+      ],
+    },
   ],
 };
 

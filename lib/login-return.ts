@@ -18,6 +18,10 @@ const OAUTH_CALLBACKS = [
   "/api/app/square/callback",
   "/api/app/quickbooks/callback",
   "/api/app/integrations/google-calendar/callback",
+  // The connector's "Allow this app?" page (app/(auth)/connect): an AI app
+  // sends a signed-out person there, and they must land back on it with the
+  // app's request intact. The page itself re-checks everything in the query.
+  "/connect",
 ];
 
 export function safeLoginReturn(raw: string | null | undefined): string {

@@ -89,6 +89,7 @@ export const COMPANY_DELETE_KEEPS = [
   "EstimatorImage",
   "EstimatorVersion",
   "EstimatorQuoteRun", // cascades from its quote and its estimator
+  "ConnectorToken", // cascades from its grant (the grant cascades from the company)
   "QuickBooksSyncRecord",
 ] as const;
 

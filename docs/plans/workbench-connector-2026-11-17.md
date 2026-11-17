@@ -1,7 +1,9 @@
 # The Workbench connector: other AIs operating Workbench (2026-11-17)
 
 Item 3 of `ahead-of-the-curve-2026-11-17.md`. David: "that is a very
-interesting proposal as well." **Plan only. Nothing is built.**
+interesting proposal as well." Plan written first; David agreed to all four
+recommendations the same day ("i agree with all of your recommendations") and
+phases 1 and 2 were built. **See "What was built" at the end.**
 
 The idea: an owner adds Workbench as a connector in Claude or ChatGPT, signs in
 once, and can then ask that AI about their business and have it prepare work,
@@ -94,3 +96,63 @@ sent to a customer never.
 - **A stolen token** reads the business until it is revoked: short-lived
   access tokens, refresh tokens that rotate, the Connected apps list, and a
   password change that ends every connection (as it ends sessions today).
+
+## What was built (2026-11-17)
+
+Phases 1 and 2. Phase 3 (writes with no trip to Workbench) is not built and
+not planned.
+
+- **The address a person pastes into Claude or ChatGPT:** `<site>/api/mcp`
+  (`app/api/mcp/route.ts`, logic in `lib/connector/server.ts`). Tools only,
+  one JSON answer per request, no sessions. Answers both eras of the protocol:
+  older apps that open with `initialize` (2025-03-26 to 2025-11-25) and newer
+  ones that send their version on every request (2026-07-28, `server/discover`).
+- **Sign-in** (`lib/connector/oauth.ts`): Workbench is the OAuth server.
+  `/connect` is the "Let this app use WorkBench?" page (outside `/app`, so
+  the phone apps do not swallow the link). PKCE (S256) is required. Access
+  tokens last 1 hour, refresh tokens 60 days and work once; a refresh token
+  used twice ends the connection. Only hashes are stored. Apps identify by a
+  metadata URL or by registering (`/api/oauth/register`). Discovery documents
+  are served from `middleware.ts` (`lib/connector/metadata.ts`).
+- **Who:** owners and admins. Every call re-checks the person: active, still
+  an owner or admin, company not suspended, the owner's switch on, and no
+  password change since connecting.
+- **Which tools** (`lib/connector/tools.ts`): 32 read, 75 prepare, 9 never.
+  `scripts/test-connector.ts` fails when an Atlas tool is in none of the
+  three lists, so a new tool reaches an outside AI only when someone files it.
+- **Prepare:** a tool that would change something returns only "waiting for
+  approval" and a link. Its card is stored (`ConnectorAction`) and the person
+  gets a notification. They approve it on **Settings → Connected apps**, where
+  the browser runs the card's own app request with their session, the same
+  way an Atlas card is confirmed. Up to 30 cards can wait per person.
+- **What leaves:** approve, pay and sign links are stripped from every result.
+  Request titles in `list_pipeline` are now fenced. The connector's
+  instructions carry the quoted-text rule and say every value is data.
+- **Cost:** nothing. No model runs. The two tools that spend model money are
+  in the never list. An account with Atlas switched off has the connector off.
+- **Off switches:** Disconnect per app, the owner's company-wide switch, a
+  password change, deactivation, losing the admin role.
+
+### Checked
+
+- `scripts/test-connector.ts` (10 checks, with the unit tests).
+- Live against a local throwaway database, calling the same functions the
+  routes call: PKCE enforced and codes single-use; a tech refused; both
+  protocol eras; a read returned the company's clients; a write created
+  nothing and left one card waiting; refresh rotation; every off switch.
+
+### Not checked yet
+
+- **With a real Claude or ChatGPT connection.** The HTTP routes, the
+  `/connect` page and the approval page have not been driven by a real app
+  or seen in a browser. First real test: add the address as a custom
+  connector in Claude, allow it, ask "who owes me money?", ask it to draft a
+  quote, approve the quote in Connected apps.
+- Whether a given app prefers a metadata URL or registration. Both are served.
+
+### Left open
+
+- Client names and addresses are not fenced (they are everywhere). The
+  connector's instructions cover them; phase 2's approval step is the real guard.
+- No audit log of what a connected app read. `lastUsedAt` is the only trace.
+- `get_document` notes and messages are returned as written.

@@ -126,7 +126,8 @@ export const pipelineTools: Tool[] = [
         });
         return {
           requests: rows.map((r) => ({
-            n: r.requestNumber, title: r.title, status: r.status, source: r.source,
+            // a request's title is often typed by a customer into a public form: fenced as data, as query_records does
+            n: r.requestNumber, title: quoted(r.title, 200), status: r.status, source: r.source,
             client: clientName(r.contact), on: r.createdAt.toISOString().slice(0, 10),
           })),
         };

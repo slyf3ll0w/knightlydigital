@@ -2500,11 +2500,17 @@ export default function SettingsClient({
         {/* Automation rules — the Atlas-built "when this happens, do that"
             list has its own page; this is the one way in from Settings */}
         {show("automations") && (
-        <div className="ds-card overflow-hidden">
+        <div className="ds-card ds-divide overflow-hidden">
           <SettingsLinkRow
             href="/app/automations"
             label="Automations"
             sub="“When this happens, do that” rules — build them as cards or ask Atlas; pause any time"
+            icon={Zap}
+          />
+          <SettingsLinkRow
+            href="/app/settings/connected-apps"
+            label="Connected apps"
+            sub="Let Claude or ChatGPT read your account and prepare work — you approve everything here"
             icon={Zap}
           />
         </div>

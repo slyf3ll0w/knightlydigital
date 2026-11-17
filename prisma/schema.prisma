@@ -360,6 +360,11 @@ model Company {
   webForms              WebForm[]
   bookingTypes          BookingType[]
   estimators            Estimator[]
+  // The Workbench connector (docs/plans/workbench-connector-2026-11-17.md):
+  // the owner's company-wide off switch for outside AI apps.
+  connectorsOff         Boolean               @default(false)
+  connectorGrants       ConnectorGrant[]
+  connectorActions      ConnectorAction[]
   libraryListings       EstimatorListing[]
   libraryLikes          EstimatorListingLike[]
   automations           Automation[]
@@ -685,6 +690,9 @@ model User {
   createdTasks         Task[]                    @relation("TaskCreator")
   stickyNotes          StickyNote[]
   stickyPlacements     StickyNotePlacement[]
+  connectorGrants      ConnectorGrant[]
+  connectorAuthCodes   ConnectorAuthCode[]
+  connectorActions     ConnectorAction[]
 
   // Same address may exist at several companies (one row per membership),
   // but only once within a company.
@@ -1849,6 +1857,93 @@ model EstimatorListingLike {
   createdAt DateTime         @default(now())
 
   @@unique([listingId, companyId])
+}
+
+// ─── The Workbench connector ──────────────────────────────────────────────────
+// Outside AI apps (Claude, ChatGPT) reading Workbench and preparing work
+// through the same tools Atlas uses (docs/plans/workbench-connector-2026-11-17.md).
+// Workbench is the OAuth server: a person approves a connection on /connect,
+// the app gets short-lived tokens, and every call runs as that person.
+
+// An AI app that registered itself (OAuth dynamic client registration — older
+// clients). Apps that identify by a metadata URL have no row.
+model ConnectorClient {
+  id           String   @id @default(cuid())
+  clientId     String   @unique
+  name         String
+  redirectUris Json // string[]
+  createdAt    DateTime @default(now())
+}
+
+// One person's connection to one AI app — a row in Settings → Connected apps.
+// Revoking it (or changing the password, or the owner's off switch) ends it.
+model ConnectorGrant {
+  id         String    @id @default(cuid())
+  companyId  String
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId   String // registered id, or the app's metadata URL
+  clientName String
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  tokens  ConnectorToken[]
+  actions ConnectorAction[]
+
+  @@index([companyId])
+  @@index([userId])
+}
+
+// Access (1 hour) and refresh (60 days, single use) tokens. Only the SHA-256
+// is stored, like password-reset tokens.
+model ConnectorToken {
+  id        String         @id @default(cuid())
+  grantId   String
+  grant     ConnectorGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  kind      String // "access" | "refresh"
+  tokenHash String         @unique
+  expiresAt DateTime
+  usedAt    DateTime? // a refresh token that was exchanged
+  createdAt DateTime       @default(now())
+
+  @@index([grantId])
+}
+
+// The one-time code between "Allow" on /connect and the app's token request.
+model ConnectorAuthCode {
+  id            String    @id @default(cuid())
+  codeHash      String    @unique
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId      String
+  clientName    String
+  redirectUri   String
+  codeChallenge String
+  expiresAt     DateTime
+  usedAt        DateTime?
+  createdAt     DateTime  @default(now())
+}
+
+// Work an outside AI prepared: the same card Atlas would have shown
+// (lib/assistant Proposal), waiting for the person to confirm it in
+// Workbench. Nothing is saved, sent or charged until they do.
+model ConnectorAction {
+  id        String         @id @default(cuid())
+  companyId String
+  company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  grantId   String
+  grant     ConnectorGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  proposal  Json
+  status    String         @default("pending") // pending | done | dismissed
+  createdAt DateTime       @default(now())
+  decidedAt DateTime?
+
+  @@index([userId, status])
+  @@index([companyId])
 }
 
 // The tool run a quote started from: the answers the tool was given and the
