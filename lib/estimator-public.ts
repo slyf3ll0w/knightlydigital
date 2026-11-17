@@ -327,3 +327,6 @@ export function defaultButtonLabel(c: EstimatorPublicConfig): string {
   if (c.buttonLabel) return c.buttonLabel;
   return c.reveal !== "after_contact" && c.showPrice !== "hidden" ? "See my estimate" : "Get my quote";
 }
+
+/** What a visitor is told when the rules themselves can't price (a renamed price-book item, a formula error) — never the internals. */
+export const PUBLIC_RUN_FAILED = "We can't price this online right now — please send your details and we'll get back to you with a quote.";

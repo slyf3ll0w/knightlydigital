@@ -5,7 +5,7 @@ import { parseVariants, runCompiled, runVariants } from "@/lib/estimator";
 import { loadPriceBook, resolvePublicEstimator } from "@/lib/estimator-server";
 import { shapeEstimate, shapeVariants } from "@/lib/estimator-public";
 import { limit, clientIp } from "@/lib/rate-limit";
-import { PUBLIC_RUN_FAILED } from "../route";
+import { PUBLIC_RUN_FAILED } from "@/lib/estimator-public";
 
 /**
  * POST /api/public/estimate/[companySlug]/[toolSlug]/calc  { inputs, variants? }

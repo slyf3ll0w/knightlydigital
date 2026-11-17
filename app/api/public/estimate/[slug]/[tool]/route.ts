@@ -5,6 +5,7 @@ import { verifyCaptcha } from "@/lib/captcha";
 import { runCompiled, formatValue, visibleInputIds, type Value } from "@/lib/estimator";
 import { loadPriceBook, resolvePublicEstimator } from "@/lib/estimator-server";
 import { createEstimateLead } from "@/lib/estimator-lead";
+import { PUBLIC_RUN_FAILED } from "@/lib/estimator-public";
 import { DEFAULT_OUT_OF_AREA, outOfServiceArea } from "@/lib/estimator-public";
 import { limit, clientIp } from "@/lib/rate-limit";
 
@@ -14,8 +15,6 @@ import { limit, clientIp } from "@/lib/rate-limit";
 const MAX_REQUESTS_PER_COMPANY_PER_DAY = 200;
 const PUBLIC_REQUEST_SOURCES = ["booking_form", "estimate_form", "client_hub"];
 
-/** What a visitor is told when the rules themselves can't price (a renamed price-book item, a formula error) — never the internals. */
-export const PUBLIC_RUN_FAILED = "We can't price this online right now — please send your details and we'll get back to you with a quote.";
 
 /**
  * POST /api/public/estimate/[companySlug]/[toolSlug]
