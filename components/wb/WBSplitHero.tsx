@@ -1,116 +1,83 @@
 import Image from "next/image";
 import WBHero from "@/components/wb/WBHero";
-import WBScribble from "@/components/wb/WBScribble";
+import WBKoala, { WBKoalaSays } from "@/components/wb/WBKoala";
 
 /**
- * The home page's hero, reusable: copy on the left; on the right a real
- * job-site photo with the phone app over its corner, a magnified close-up
- * of one spot on that same screenshot, an optional floating status chip,
- * and an optional hand-drawn arrow label pointing at the phone.
+ * The inner pages' hero: copy on the left, one real job-site photo on the
+ * right, set in an offset brand-blue frame with a caption plate along its
+ * bottom edge, the way a trade business shows its work.
  *
- * Screenshots are real App Store captures served at full size
- * (unoptimized) so they stay sharp; `zoom.region` is in the screenshot's own
- * pixels. The close-up's position is derived from the region, so it always
- * sits beside the part of the phone it magnifies.
+ * Redesigned 2026-11-18 (David: the phone screenshot and the floating cards
+ * read as AI-made). `phone` and `note` are still accepted so older callers
+ * compile, but they no longer render: the product itself is shown in the
+ * desktop screenshot section under the hero. `chip` becomes the caption.
  */
 
 type Shot = {
   src: string;
   alt: string;
-  /** Source size of the screenshot (defaults to the 640 x 1385 App Store captures). */
   size?: { w: number; h: number };
   zoom?: { x: number; y: number; w: number; h: number };
 };
 
-const ZOOM_W = 290;
-
 export default function WBSplitHero({
   children,
   photo,
-  phone,
   chip,
-  note,
+  mascot,
   priority = true,
 }: {
   children: React.ReactNode;
   photo: { src: string; alt: string };
-  /** Omit for a photo-only hero (contact, apply). */
+  /** No longer drawn (2026-11-18). */
   phone?: Shot;
   chip?: { icon: React.ReactNode; title: string; sub: string };
+  /** No longer drawn (2026-11-18). */
   note?: React.ReactNode;
+  /** Show the koala mascot on a blue panel instead of the photo, with an optional speech bubble. Contact, book-a-call and 404 only. */
+  mascot?: { say?: React.ReactNode };
   priority?: boolean;
 }) {
-  const size = phone?.size ?? { w: 640, h: 1385 };
-  const ratio = size.h / size.w;
-  const z = phone?.zoom;
-  const zScale = z ? ZOOM_W / z.w : 1;
-  const zH = z ? Math.round(z.h * zScale) : 0;
-  const zFrac = z ? 1 - (z.y + z.h / 2) / size.h : 0;
-
   return (
-    <WBHero className="bg-white" containerClassName="sm:pb-24">
-      <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
+    <WBHero containerClassName="sm:pb-24">
+      <div className="grid items-center gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
         <div className="text-center lg:text-left">{children}</div>
 
-        <div className="relative mx-auto w-full max-w-md [--pw:176px] sm:[--pw:230px] lg:max-w-none xl:[--pw:248px]">
-          <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] shadow-[0_30px_70px_rgba(10,20,40,0.22)] sm:aspect-square lg:aspect-[4/5]">
-            <Image src={photo.src} alt={photo.alt} fill priority={priority} sizes="(min-width: 1024px) 520px, 90vw" className="object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" aria-hidden />
-          </div>
-
-          {chip && (
-            <div
-              className="wb-float absolute right-3 top-5 flex items-center gap-3 rounded-2xl bg-white py-2.5 pl-2.5 pr-4 text-left sm:-right-5 sm:top-8"
-              style={{ "--wb-tilt": "2deg", animationDelay: "-2.2s" } as React.CSSProperties}
-            >
-              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-orange-50">{chip.icon}</span>
-              <span>
-                <span className="block text-[13.5px] font-bold text-gray-900">{chip.title}</span>
-                <span className="block text-[12px] text-gray-500">{chip.sub}</span>
-              </span>
+        {mascot ? (
+          <figure className="relative mx-auto w-full max-w-md pt-10 lg:max-w-none">
+            <div className="wb-dark relative mx-auto aspect-[5/4] w-full overflow-visible rounded-lg">
+              <div className="absolute inset-x-0 bottom-0 h-3 rounded-b-lg bg-[#F86A0A]" aria-hidden />
+              <WBKoala priority={priority} sizes="(min-width: 1024px) 300px, 60vw" className="absolute bottom-3 left-1/2 w-[58%] -translate-x-1/2 drop-shadow-[0_18px_24px_rgba(0,0,0,0.35)]" />
             </div>
-          )}
-
-          {/* the phone, over the photo's corner */}
-          {phone && (
-          <div className="absolute -bottom-10 left-3 rounded-[2.2rem] bg-gray-900 p-[7px] shadow-[0_24px_50px_rgba(10,20,40,0.35)] sm:-bottom-12 sm:-left-8">
-            <div className="relative overflow-hidden rounded-[1.8rem] bg-white" style={{ width: "var(--pw)", aspectRatio: `${size.w} / ${size.h}` }}>
-              <Image src={phone.src} alt={phone.alt} fill unoptimized priority={priority} sizes="248px" className="object-cover" />
+            {mascot.say && <WBKoalaSays className="absolute left-0 top-0 max-w-[15rem] sm:-left-4">{mascot.say}</WBKoalaSays>}
+            {chip && (
+              <figcaption className="absolute -bottom-5 right-0 flex max-w-[85%] items-center gap-3 rounded-l-md border-r-4 border-[#F86A0A] bg-white py-3 pl-4 pr-5 text-left shadow-[0_12px_30px_-14px_rgba(10,20,40,0.45)] sm:-right-6">
+                <span className="flex h-9 w-9 flex-none items-center justify-center rounded-md bg-orange-50">{chip.icon}</span>
+                <span>
+                  <span className="block text-[14px] font-extrabold text-gray-900">{chip.title}</span>
+                  <span className="block text-[12.5px] text-gray-500">{chip.sub}</span>
+                </span>
+              </figcaption>
+            )}
+          </figure>
+        ) : (
+          <figure className="relative mx-auto w-full max-w-md pb-4 pr-4 lg:max-w-none">
+            {/* the offset frame behind the photo */}
+            <div className="absolute bottom-0 right-0 top-6 left-6 rounded-lg bg-[#0B57D8]" aria-hidden />
+            <div className="relative aspect-[4/5] overflow-hidden rounded-lg bg-gray-200 shadow-[0_24px_50px_-24px_rgba(10,20,40,0.45)] sm:aspect-[5/4] lg:aspect-[4/5]">
+              <Image src={photo.src} alt={photo.alt} fill priority={priority} sizes="(min-width: 1024px) 500px, 90vw" className="object-cover" />
             </div>
-          </div>
-          )}
-
-          {/* the same screenshot, magnified on one spot */}
-          {phone && z && (
-            <div
-              className="wb-float absolute hidden overflow-hidden rounded-2xl bg-white p-1.5 sm:block"
-              style={{
-                left: "calc(var(--pw) - 52px)",
-                bottom: `calc(var(--pw) * ${(ratio * zFrac).toFixed(4)} - 48px + 7px - ${Math.round(zH / 2)}px)`,
-              }}
-              aria-hidden
-            >
-              <div
-                className="rounded-xl"
-                style={{
-                  width: ZOOM_W,
-                  height: zH,
-                  backgroundImage: `url(${phone!.src})`,
-                  backgroundSize: `${Math.round(size.w * zScale)}px auto`,
-                  backgroundPosition: `${-Math.round(z.x * zScale)}px ${-Math.round(z.y * zScale)}px`,
-                  backgroundRepeat: "no-repeat",
-                }}
-              />
-            </div>
-          )}
-
-          {phone && note && (
-            <div className="absolute -left-[16.5rem] bottom-6 hidden w-[14rem] items-end gap-1 xl:flex" aria-hidden>
-              <p className="pb-1 text-right text-[15px] font-extrabold leading-snug text-[#10244A]">{note}</p>
-              <WBScribble variant="swoop" delay={0.8} className="h-[50px] w-[96px] flex-none -rotate-[18deg]" />
-            </div>
-          )}
-        </div>
+            {chip && (
+              <figcaption className="absolute bottom-10 left-0 flex max-w-[85%] items-center gap-3 rounded-r-md border-l-4 border-[#F86A0A] bg-white py-3 pl-4 pr-5 text-left shadow-[0_12px_30px_-14px_rgba(10,20,40,0.45)] sm:-left-6">
+                <span className="flex h-9 w-9 flex-none items-center justify-center rounded-md bg-orange-50">{chip.icon}</span>
+                <span>
+                  <span className="block text-[14px] font-extrabold text-gray-900">{chip.title}</span>
+                  <span className="block text-[12.5px] text-gray-500">{chip.sub}</span>
+                </span>
+              </figcaption>
+            )}
+          </figure>
+        )}
       </div>
     </WBHero>
   );

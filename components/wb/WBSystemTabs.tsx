@@ -112,7 +112,7 @@ export default function WBSystemTabs() {
               type="button"
               onClick={() => setIndex(i)}
               onKeyDown={(e) => onKeyDown(e, i)}
-              className={`rounded-full px-5 py-2.5 text-[14px] font-bold transition-colors ${
+              className={`rounded-md px-5 py-2.5 text-[14px] font-bold transition-colors ${
                 active
                   ? "bg-[#0A1428] text-white"
                   : "bg-white text-gray-700 ring-1 ring-inset ring-gray-200 hover:text-gray-900"

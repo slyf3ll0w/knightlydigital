@@ -2107,9 +2107,11 @@ html[data-mode="dark"] .app-ui .card-tool {
 /* ═══════════════════════════════════════════════════════════════════════
    WORKBENCH MARKETING SITE (.wb-site) — /, /features, /pricing, /contact,
    /apply, /vs, legal pages. Nunito headings (the wordmark's face) over Inter
-   body, white pages with #F6F8FB bands, graph-paper heroes under a floating
-   pill nav and a blue→orange keel, rounded-full buttons, rounded-2xl cards,
-   hand-built UI fragments instead of illustrations.
+   body, white pages with #F5F7FA bands. Since the 2026-11-18 redesign
+   (rules: docs/site-design.md): a navy utility bar over a solid sticky
+   header, job-sheet paper heroes, small-caps labels with a two-tone bar
+   under the title, 8px buttons, cards capped at 12px, ruled lists, nothing
+   floating. (.wb-keel and .wb-navpill are no longer used.)
    .wb-site also wraps /roadmap, so only the heading face lives on the scope
    itself — everything else is opt-in wb-*. (The superadmin console left
    this scope on 2026-09-30: it wears the app's .app-ui .ds kit now.)
@@ -2160,7 +2162,7 @@ html[data-mode="dark"] .app-ui .card-tool {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border-radius: 9999px;
+  border-radius: 0.5rem;
   padding: 0.8rem 1.5rem;
   font-size: 15px;
   font-weight: 700;
@@ -2182,35 +2184,114 @@ html[data-mode="dark"] .app-ui .card-tool {
 .wb-pill-ghost { color: #fff; border: 1px solid rgba(255, 255, 255, 0.32); }
 .wb-pill-ghost:hover { background: rgba(255, 255, 255, 0.1); }
 
-/* Section label: small, sentence case, brand dot in front. Never uppercase. */
+/* Section label (2026-11-18 redesign): a plain small-caps line, the way a
+   trade business's site names a section. No dot, no pill, no icon. */
 .wb-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 13px;
-  font-weight: 700;
+  display: inline-block;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: #0B57D8;
 }
-.wb-label::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 9999px;
-  background: #F86A0A;
-  flex: none;
-}
-.wb-label-light { color: #BFD3FB; }
+.wb-label-light { color: #9DBBF7; }
 
-/* Hero backdrop: the two brand colors breathe in from the top corners
-   (blue left, orange right) over a pale sky that is white by the time the
-   copy ends. Weather, not wallpaper. */
-.wb-bloom {
-  background-image:
-    radial-gradient(55% 62% at 14% -12%, rgba(11, 87, 216, 0.24), transparent 70%),
-    radial-gradient(42% 55% at 90% -8%, rgba(248, 106, 10, 0.2), transparent 70%),
-    radial-gradient(75% 40% at 50% 100%, rgba(11, 87, 216, 0.05), transparent 70%),
-    linear-gradient(180deg, #F2F5FC 0%, #FFFFFF 72%);
+/* The heading bar: a short two-tone rule under a section title (blue, then
+   a paler blue), the one ornament a section heading gets. Centered titles
+   use .wb-bar-center. */
+.wb-bar {
+  display: block;
+  width: 72px;
+  height: 4px;
+  margin-top: 1.1rem;
+  background: linear-gradient(90deg, #0B57D8 0 66%, #B7CFFA 66% 100%);
 }
+.wb-bar-center { margin-left: auto; margin-right: auto; }
+.wb-bar-light { background: linear-gradient(90deg, #F86A0A 0 66%, rgba(255, 255, 255, 0.35) 66% 100%); }
+
+/* Every section title that sits under a label gets the bar, so a new page
+   built from label + h2 matches without remembering it. Centered sections
+   center it. A gray second half of a headline (the old "two-tone" title)
+   reads as its own quieter line under the title. */
+.wb-site .wb-label + :is(h1, h2)::after {
+  content: "";
+  display: block;
+  width: 72px;
+  height: 4px;
+  margin-top: 1.1rem;
+  background: linear-gradient(90deg, #0B57D8 0 66%, #B7CFFA 66% 100%);
+}
+.wb-site .text-center > .wb-label + :is(h1, h2)::after,
+.wb-site .text-center .wb-label + :is(h1, h2)::after { margin-left: auto; margin-right: auto; }
+.wb-site .wb-label-light + :is(h1, h2)::after {
+  background: linear-gradient(90deg, #F86A0A 0 66%, rgba(255, 255, 255, 0.3) 66% 100%);
+}
+@media (min-width: 1024px) {
+  .wb-site .lg\:text-left .wb-label + :is(h1, h2)::after,
+  .wb-site .lg\:text-left > .wb-label + :is(h1, h2)::after { margin-left: 0; margin-right: 0; }
+}
+.wb-site :is(h1, h2) > span.text-gray-400 {
+  display: block;
+  margin-top: 0.55rem;
+  font-size: 0.58em;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  color: #6B7280;
+}
+
+/* Corners (2026-11-18): the big soft radii read as a startup template.
+   Every card on the site tops out at 12px. Phone frames keep their curve. */
+.wb-site .rounded-\[1\.25rem\],
+.wb-site .rounded-\[1\.5rem\],
+.wb-site .rounded-2xl,
+.wb-site .rounded-3xl { border-radius: 0.75rem; }
+.wb-site .rounded-\[2rem\],
+.wb-site .rounded-\[2\.2rem\] { border-radius: 0.875rem; }
+
+/* Header: the current page and the hovered link get an orange rule along
+   the bottom edge of the bar. */
+.wb-navlink::after {
+  content: "";
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: -1px;
+  height: 3px;
+  background: #F86A0A;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.2s ease;
+}
+.wb-navlink:hover::after,
+.wb-navlink[data-active]::after { transform: scaleX(1); }
+
+/* Page hero backdrop: plain paper with a faint ruled grid that fades out,
+   like a job sheet. No colored glows. */
+.wb-bloom {
+  background-color: #F7F8FA;
+  background-image:
+    linear-gradient(to right, rgba(10, 20, 40, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(10, 20, 40, 0.045) 1px, transparent 1px);
+  background-size: 40px 40px;
+  -webkit-mask-image: none;
+}
+
+/* Article text (announcements, legal pages): one reading measure, real
+   headings, numbered steps in squares, ruled lists. */
+.wb-prose { font-size: 17px; line-height: 1.75; color: #374151; }
+.wb-prose > * + * { margin-top: 1.1rem; }
+.wb-prose h2 {
+  margin-top: 2.75rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #E5E7EB;
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #0A1428;
+}
+.wb-prose h2:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.wb-prose strong { color: #0A1428; }
 /* The hero screenshot sits in a blue-tinted pool of light */
 .wb-frame-hero {
   box-shadow:
@@ -2219,12 +2300,13 @@ html[data-mode="dark"] .app-ui .card-tool {
     0 24px 60px -24px rgba(10, 20, 40, 0.3);
 }
 
-/* Dark band: navy with a blue breath top-left and a warm one bottom-right. */
+/* Dark band: solid navy with the faint ruled grid, no glows. */
 .wb-dark {
   background-color: #0A1428;
   background-image:
-    radial-gradient(55% 60% at 12% 0%, rgba(46, 111, 242, 0.34), transparent 70%),
-    radial-gradient(40% 45% at 100% 100%, rgba(248, 106, 10, 0.16), transparent 70%);
+    linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 40px 40px;
 }
 
 /* A hand-built UI fragment (chat, table, calendar) sitting inside a card. */
@@ -2248,8 +2330,15 @@ html[data-mode="dark"] .app-ui .card-tool {
   0%, 100% { transform: translateY(0) rotate(var(--wb-tilt, 0deg)); }
   50%      { transform: translateY(-9px) rotate(var(--wb-tilt, 0deg)); }
 }
+/* A card set over a photo: the same lift, sitting still. */
+.wb-card-shadow {
+  box-shadow:
+    0 1px 2px rgba(10, 20, 40, 0.05),
+    0 22px 50px -18px rgba(10, 20, 40, 0.3),
+    0 0 0 1px rgba(10, 20, 40, 0.06);
+}
+/* 2026-11-18: floating cards read as a template; they sit still now. */
 .wb-float {
-  animation: wb-float 6.5s ease-in-out infinite;
   box-shadow:
     0 1px 2px rgba(10, 20, 40, 0.05),
     0 22px 50px -18px rgba(10, 20, 40, 0.3),

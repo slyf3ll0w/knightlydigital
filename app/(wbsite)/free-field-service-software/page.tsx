@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Check, CreditCard, HandCoins, Infinity as InfinityIcon, ShieldCheck, Sparkles, Users, X } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
 import WBSplitHero from "@/components/wb/WBSplitHero";
-import WBFaq from "@/components/wb/WBFaq";
+import { WBFaqSection } from "@/components/wb/WBFaq";
 import WBFaqJsonLd from "@/components/wb/WBFaqJsonLd";
 import WBTestimonials from "@/components/wb/WBTestimonials";
 import WBCta from "@/components/wb/WBCta";
@@ -115,8 +115,8 @@ export default function FreePage() {
         phone={WB_SHOTS.invoices}
         chip={{ icon: <HandCoins className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />, title: `${formatCents(0)} a month on ${FREE_PLAN_NAME}`, sub: `Full access for ${seats} users` }}
       >
-        <span className="inline-block rounded-full bg-blue-50 px-3 py-1 text-[12.5px] font-bold text-[#0B57D8]">The free plan</span>
-        <h1 className="mt-5 text-4xl font-extrabold leading-[1.08] sm:text-5xl">
+        <p className="wb-label">The free plan</p>
+        <h1 className="mt-4 text-4xl font-extrabold leading-[1.08] sm:text-5xl">
           Free field service management software. <span className="text-[#0B57D8]">Not a trial.</span>
         </h1>
         <p className="mx-auto mt-6 max-w-xl text-[17px] leading-relaxed text-gray-600 lg:mx-0">
@@ -351,15 +351,7 @@ export default function FreePage() {
 
       <WBTestimonials />
 
-      {/* ── FAQ ── */}
-      <section className="mx-auto max-w-4xl px-5 py-16 sm:px-8">
-        <AnimateIn>
-          <h2 className="text-2xl font-extrabold sm:text-3xl">Questions about the free plan</h2>
-          <div className="mt-8">
-            <WBFaq items={faq} />
-          </div>
-        </AnimateIn>
-      </section>
+      <WBFaqSection items={faq} title="Questions about the free plan" />
 
       <WBCta
         title={`Free for ${seats} users. Full access, not a trial.`}

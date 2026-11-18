@@ -214,6 +214,38 @@ for (const v of VS_LIST) {
   });
 }
 
+// ── 6. The design standard (docs/site-design.md, David 2026-11-18) ──────────
+// Every page opens with a shared hero, builds its FAQ from WBFaqSection, and
+// stays clear of the patterns David called out as AI-made: floating cards,
+// colored glows, phone mockups in a hero, dotted section labels, pill
+// eyebrows over a title. A new page that copies old markup fails here.
+{
+  const pageFiles = walk(join(process.cwd(), "app", "(wbsite)")).filter((f) => /[\\/]page\.tsx$/.test(f));
+  const HERO = /\b(WBHero|WBSplitHero|WBPageHeader|HelpHome|HelpArticleView|HelpTopicView|WBFeaturePage|WBComparePage|WBAlternativePage|WBFreeSoftwarePage|ToolPage)\b|notFound\(\)/;
+  for (const f of pageFiles) {
+    const src = readFileSync(f, "utf8");
+    const rel = f.slice(process.cwd().length + 1);
+    // The home page builds its own hero (the desktop app on the navy band).
+    if (!/[\\/]wb[\\/]page\.tsx$/.test(f)) check(HERO.test(src), `design: ${rel} opens without a shared hero (use WBPageHeader, WBSplitHero or a page template)`);
+  }
+  const BANNED: { re: RegExp; why: string }[] = [
+    { re: /\bwb-float\b/, why: "floating cards (wb-float)" },
+    { re: /radial-gradient\(/, why: "colored glow (radial-gradient)" },
+    { re: /<WBPhoneReal\b|<WBZoom\b/, why: "phone mockup in a hero (WBPhoneReal / WBZoom)" },
+    { re: /rounded-full px-3 py-1 text-\[12\.5px\] font-bold/, why: "pill eyebrow over a title (use <p className=\"wb-label\">)" },
+    { re: /<details[^>]*>[\s\S]{0,400}<summary/, why: "hand-built FAQ (use WBFaqSection / WBFaq)" },
+  ];
+  const designFiles = [...pageFiles, ...walk(join(process.cwd(), "components", "wb")).filter((f) => !/[\\/]tools[\\/]/.test(f))];
+  for (const f of designFiles) {
+    if (/WBFaq\.tsx$|WBNav\.tsx$|WBPhoneReal\.tsx$/.test(f)) continue; // the shared pieces themselves
+    const src = readFileSync(f, "utf8");
+    const rel = f.slice(process.cwd().length + 1);
+    for (const { re, why } of BANNED) check(!re.test(src), `design: ${rel} uses ${why}`);
+  }
+  const css = readFileSync(join(process.cwd(), "app", "globals.css"), "utf8");
+  check(!/\.wb-label::before/.test(css), "design: .wb-label has its dot back (globals.css)");
+}
+
 if (failed) {
   console.error(`\n${failed} marketing-site check(s) failed`);
   process.exit(1);

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AtSign, Building2, CheckCircle2, Clock4, FileText, ShieldCheck, Smartphone, User } from "lucide-react";
 import WBCta from "@/components/wb/WBCta";
+import WBPageHeader from "@/components/wb/WBPageHeader";
 import { REGISTRATION_CHECKLIST } from "@/lib/business-line-shared";
 
 export const metadata: Metadata = {
@@ -50,26 +51,16 @@ export default function TextingRegistrationPage() {
   const sole = REGISTRATION_CHECKLIST.SOLE_PROPRIETOR;
   return (
     <>
-      <section className="border-b border-gray-200 bg-white">
-        <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-20">
-          <p className="text-[12.5px] font-bold uppercase tracking-[0.14em]" style={{ color: ORANGE }}>
-            Texting
-          </p>
-          <h1 className="mt-3 max-w-2xl text-4xl font-extrabold leading-[1.1] sm:text-5xl">
-            What you&apos;ll need to turn on texting.
-          </h1>
-          <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-gray-600">
-            US carriers require every business that texts from software to register once, under its own legal name,
-            before its messages are delivered. It is the same rule for every product — Jobber, Housecall Pro, and
-            WorkBench included. Gather three things first and the form takes about ten minutes; the carriers then
-            usually approve in one to three business days.
-          </p>
-          <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-gray-600">
-            Calls and voicemail on your number work from day one. Texting from it switches on by itself when the
-            registration clears, and we tell you the moment it does.
-          </p>
-        </div>
-      </section>
+      <WBPageHeader
+        label="Texting"
+        title={<>What you&apos;ll need to turn on texting.</>}
+        intro={
+          <>
+            <p>US carriers require every business that texts from software to register once, under its own legal name, before its messages are delivered. It is the same rule for every product — Jobber, Housecall Pro, and WorkBench included. Gather three things first and the form takes about ten minutes; the carriers then usually approve in one to three business days.</p>
+            <p className="mt-4 text-[15.5px]">Calls and voicemail on your number work from day one. Texting from it switches on by itself when the registration clears, and we tell you the moment it does.</p>
+          </>
+        }
+      />
 
       <section className="bg-[#F5F7FA]">
         <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-16">

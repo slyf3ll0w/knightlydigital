@@ -38,9 +38,9 @@ export default function HelpPageFrame({
   const onTopicPage = sidebar.kind === "topics";
 
   return (
-    <div className="ds help-root">
-      <section className={`help-hero border-b border-gray-200 ${inApp ? "" : "-mt-20 sm:-mt-24"}`}>
-        <div className={`mx-auto max-w-6xl px-5 pb-10 sm:px-8 sm:pb-12 ${inApp ? "pt-8 sm:pt-12" : "pt-[7rem] sm:pt-[8.5rem]"}`}>
+    <div className={`ds help-root ${inApp ? "" : "help-public"}`}>
+      <section className={`help-hero border-b border-gray-200`}>
+        <div className={`mx-auto max-w-6xl px-5 pb-10 sm:px-8 sm:pb-12 ${inApp ? "pt-8 sm:pt-12" : "pt-10 sm:pt-12"}`}>
           {/* Phone: one back link. Desktop: the breadcrumb. */}
           <Link
             prefetch={false}

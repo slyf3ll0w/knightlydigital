@@ -179,8 +179,8 @@ export default function WBSiteLayout({
         // eslint-disable-next-line react/no-danger
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
       />
-      <WBNav />
-      <main className="pt-20 sm:pt-24">{children}</main>
+      <WBNav seats={INCLUDED_SEATS} />
+      <main>{children}</main>
       <WBFooter />
       <WBContactButton />
     </div>

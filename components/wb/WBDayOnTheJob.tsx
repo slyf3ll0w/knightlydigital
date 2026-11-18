@@ -130,7 +130,7 @@ export default function WBDayOnTheJob() {
                     {time}
                   </span>
                 </div>
-                <div className="wb-float absolute bottom-0 right-2 rounded-2xl sm:right-0 md:-right-3" style={{ "--wb-tilt": i === 1 ? "-1.5deg" : "1.5deg", animationDelay: `${-i * 1.7}s` } as React.CSSProperties}>
+                <div className="wb-card-shadow absolute bottom-0 right-2 rounded-2xl sm:right-0 md:-right-3">
                   <Card />
                 </div>
               </div>

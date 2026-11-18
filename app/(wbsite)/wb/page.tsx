@@ -7,27 +7,22 @@ import WBAtlasCards from "@/components/wb/WBAtlasCards";
 import { WBAtlasVoiceSection } from "@/components/wb/WBAtlasVoice";
 import WBCta from "@/components/wb/WBCta";
 import WBDayOnTheJob from "@/components/wb/WBDayOnTheJob";
-import WBFaq from "@/components/wb/WBFaq";
-import WBHero from "@/components/wb/WBHero";
+import { WBFaqSection } from "@/components/wb/WBFaq";
 import WBInAction from "@/components/wb/WBInAction";
 import WBPhoneShowcase from "@/components/wb/WBPhoneShowcase";
-import WBPhoneReal, { WBZoom } from "@/components/wb/WBPhoneReal";
 import WBTestimonials from "@/components/wb/WBTestimonials";
 import WBScribble from "@/components/wb/WBScribble";
 import WBSystemTabs from "@/components/wb/WBSystemTabs";
 import WBTradeCards from "@/components/wb/WBTradeCards";
 import { FREE_PAGE_PATH } from "@/lib/wb-free";
-import { APP_STORE_URL, PLAY_STORE_URL, WB_PHOTOS, WB_PHONE } from "@/lib/wb-site";
+import { APP_STORE_URL, PLAY_STORE_URL, WB_PHONE } from "@/lib/wb-site";
 import { EXTRA_SEAT_CENTS, FREE_PLAN_NAME, INCLUDED_SEATS, PLANS, formatCents } from "@/lib/plans";
 import {
   ArrowRight,
   CalendarClock,
   CalendarDays,
   Check,
-  CheckCircle2,
   Landmark,
-  MapPin,
-  Mic,
   Smartphone,
   WifiOff,
 } from "lucide-react";
@@ -190,174 +185,87 @@ const faqItems = [
 export default function WBHomePage() {
   return (
     <>
-      {/* ── Hero ── */}
-      <WBHero className="bg-white" containerClassName="sm:pb-24">
-        <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
-          <div className="text-center lg:text-left">
-            <h1 className="mx-auto max-w-4xl text-[2.6rem] font-extrabold leading-[1.04] text-gray-900 sm:text-[3.6rem] lg:mx-0 lg:text-[3.55rem] xl:text-[3.8rem]">
-              Run the entire job
-              <br className="hidden sm:block" /> from <span className="text-[#0B57D8]">one place</span>.
-            </h1>
-            <p className="mx-auto mt-6 max-w-2xl lg:mx-0 lg:max-w-xl text-[17px] leading-relaxed text-gray-600 sm:text-[19px]">
-              WorkBench FSM is field service management software: scheduling,
-              quotes, invoicing, and payments for home-service companies, with
-              Atlas, an assistant you can talk to hands-free. The {FREE_PLAN_NAME} plan is free for your
-              first {INCLUDED_SEATS} users, with full access and no trial clock. Add
-              users or add-ons only when you need them.
-            </p>
-            <div className="mt-9 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-              <Link href="/apply" className="wb-pill wb-pill-dark">
-                Get started
-                <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-              </Link>
-              <Link href="/book-a-call" className="wb-pill wb-pill-outline">
-                <CalendarDays className="h-4 w-4 text-[#F86A0A]" strokeWidth={2.25} aria-hidden />
-                Book a call
-              </Link>
+      {/* ── Hero: the promise, then the real desktop app on a navy band ── */}
+      <section className="relative overflow-hidden">
+        <div className="wb-bloom absolute inset-x-0 top-0 h-[78%]" aria-hidden />
+        <div className="absolute inset-x-0 bottom-0 h-[22%] bg-[#0A1428] sm:h-[34%]" aria-hidden />
+        <div className="relative mx-auto max-w-6xl px-5 pt-12 sm:px-8 sm:pt-16 lg:pt-20">
+          <div className="grid gap-8 lg:grid-cols-[1.25fr_1fr] lg:items-end lg:gap-16">
+            <div>
+              <p className="wb-label">Field service management software</p>
+              <h1 className="mt-4 text-[2.6rem] font-extrabold leading-[1.02] text-gray-900 sm:text-[3.6rem] xl:text-[4.1rem]">
+                Run the entire job from <span className="text-[#0B57D8]">one place</span>.
+              </h1>
             </div>
-            <p className="mt-5 text-[13.5px] font-semibold text-gray-500">
-              No credit card. No trial clock. Not a trial.
-            </p>
-          </div>
-
-          {/* On the job: a real field photo with the phone app over it */}
-          <div className="relative mx-auto w-full max-w-md lg:max-w-none">
-            <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] shadow-[0_30px_70px_rgba(10,20,40,0.22)] sm:aspect-[5/5] lg:aspect-[4/5]">
-              <Image
-                src={WB_PHOTOS.hero.src}
-                alt={WB_PHOTOS.hero.alt}
-                fill
-                priority
-                sizes="(min-width: 1024px) 520px, 90vw"
-                className="object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" aria-hidden />
-            </div>
-            <div
-              className="wb-float absolute right-3 top-5 flex items-center gap-3 rounded-2xl bg-white py-2.5 pl-2.5 pr-4 text-left sm:-right-5 sm:top-8"
-              style={{ "--wb-tilt": "2deg", animationDelay: "-2.2s" } as React.CSSProperties}
-            >
-              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-orange-50">
-                <MapPin className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />
-              </span>
-              <span>
-                <span className="block text-[13.5px] font-bold text-gray-900">Clocked in · 8:02 AM</span>
-                <span className="block text-[12px] text-gray-500">Panel upgrade, Ravenwood Dr</span>
-              </span>
-            </div>
-            <WBPhoneReal
-              src="/screens/mobile-01.png"
-              alt="The WorkBench phone app: the week's schedule, one card per job"
-              className="absolute -bottom-10 left-3 sm:-left-8 sm:-bottom-12"
-            />
-            {/* the same screenshot, magnified on one job */}
-            <WBZoom
-              src="/screens/mobile-01.png"
-              region={{ x: 18, y: 922, w: 604, h: 124 }}
-              width={290}
-              className="wb-float absolute bottom-[196px] left-[178px] hidden sm:block xl:left-[196px] xl:bottom-[214px]"
-            />
-            <div
-              className="wb-float absolute bottom-6 right-3 hidden items-center gap-3 rounded-2xl bg-white py-2.5 pl-2.5 pr-4 text-left sm:-right-5 sm:flex"
-              style={{ "--wb-tilt": "-1.5deg", animationDelay: "-4.1s" } as React.CSSProperties}
-            >
-              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-blue-50">
-                <Mic className="h-[18px] w-[18px] text-[#0B57D8]" strokeWidth={2.2} />
-              </span>
-              <span>
-                <span className="block text-[13.5px] font-bold text-gray-900">&ldquo;Move Tuesday&rsquo;s jobs to Friday.&rdquo;</span>
-                <span className="block text-[12px] text-gray-500">Said to Atlas · 3 jobs moved</span>
-              </span>
-            </div>
-            <div className="absolute -left-[16.5rem] bottom-6 hidden w-[14rem] items-end gap-1 xl:flex" aria-hidden>
-              <p className="pb-1 text-right text-[15px] font-extrabold leading-snug text-[#10244A]">
-                What your techs
-                <br />
-                see all day
+            <div className="lg:pb-2">
+              <p className="text-[17px] leading-relaxed text-gray-600 sm:text-[18px]">
+                Scheduling, quotes, invoicing and payments for home-service
+                companies, plus Atlas, an assistant you can talk to hands-free.
+                The {FREE_PLAN_NAME} plan is free for your first {INCLUDED_SEATS} users.
               </p>
-              <WBScribble variant="swoop" delay={0.8} className="h-[50px] w-[96px] flex-none -rotate-[18deg]" />
+              <div className="mt-7 flex flex-wrap items-center gap-3">
+                <Link href="/apply" className="wb-pill wb-pill-primary">
+                  Get started free
+                  <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+                </Link>
+                <Link href="/book-a-call" className="wb-pill wb-pill-outline">
+                  <CalendarDays className="h-4 w-4 text-[#F86A0A]" strokeWidth={2.25} aria-hidden />
+                  Book a call
+                </Link>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Product screenshot with floating notification cards */}
-        <div className="relative mx-auto mt-20 max-w-5xl sm:mt-28">
-          <div className="wb-frame-hero overflow-hidden rounded-2xl bg-white">
-            <div className="flex items-center gap-2 border-b border-gray-200 bg-[#F6F8FB] px-4 py-2.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" aria-hidden />
-              <span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" aria-hidden />
-              <span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" aria-hidden />
-              <span className="ml-3 hidden flex-1 justify-center sm:flex">
-                <span className="rounded-full bg-white px-6 py-1 text-[11.5px] font-semibold text-gray-400 ring-1 ring-inset ring-gray-200">
+          <ul className="mt-9 flex flex-wrap gap-x-7 gap-y-2.5 text-[14.5px] font-semibold text-gray-700">
+            {["No credit card", "No trial clock", "iPhone and Android apps", "A person answers the phone"].map((t) => (
+              <li key={t} className="inline-flex items-center gap-2">
+                <Check className="h-4 w-4 text-[#F86A0A]" strokeWidth={3} aria-hidden />
+                {t}
+              </li>
+            ))}
+          </ul>
+
+          {/* The real desktop app, one clean frame, nothing floating on it */}
+          <div className="relative mt-12 sm:mt-14">
+            <div className="overflow-hidden rounded-t-xl border border-b-0 border-gray-300 bg-white shadow-[0_-6px_60px_-20px_rgba(10,20,40,0.35)] sm:rounded-xl sm:border-b">
+              <div className="flex items-center gap-3 border-b border-gray-200 bg-[#F1F3F6] px-4 py-2.5">
+                <span className="flex gap-1.5" aria-hidden>
+                  <span className="h-2.5 w-2.5 rounded-full bg-gray-300" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-gray-300" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-gray-300" />
+                </span>
+                <span className="mx-auto hidden rounded-md bg-white px-10 py-1 text-[11.5px] font-semibold text-gray-400 ring-1 ring-inset ring-gray-200 sm:block">
                   workbenchfsm.com/app
                 </span>
-              </span>
-              <span className="w-[54px]" aria-hidden />
+                <span className="w-[42px]" aria-hidden />
+              </div>
+              <div className="relative aspect-[1512/791]">
+                <Image
+                  src="/screens/desktop-dashboard.jpg"
+                  alt="The WorkBench dashboard: money collected and outstanding, the Needs-you list, and today's schedule"
+                  fill
+                  priority
+                  sizes="(min-width: 1152px) 1088px, 100vw"
+                  className="object-cover object-top"
+                />
+              </div>
             </div>
-            <div className="relative aspect-[1512/791]">
-              <Image
-                src="/screens/desktop-dashboard.jpg"
-                alt="The WorkBench dashboard: money collected and outstanding, the Needs-you list, and today's schedule"
-                fill
-                priority
-                sizes="(min-width: 1152px) 1024px, 100vw"
-                className="object-cover"
-              />
-            </div>
-          </div>
-
-          <div
-            className="wb-float absolute -left-6 -top-7 hidden items-center gap-3 rounded-2xl bg-white py-3 pl-3 pr-5 text-left lg:flex"
-            style={{ "--wb-tilt": "-2deg", animationDelay: "-1.2s" } as React.CSSProperties}
-          >
-            <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-green-50">
-              <CheckCircle2 className="h-5 w-5 text-green-600" strokeWidth={2.2} />
-            </span>
-            <span>
-              <span className="block text-[14px] font-bold text-gray-900">Invoice #2481</span>
-              <span className="block text-[12.5px] text-gray-500">
-                $1,240.00 · <span className="font-semibold text-green-600">Paid</span>
-              </span>
-            </span>
-          </div>
-
-          <div
-            className="wb-float absolute -right-8 top-[22%] hidden items-center gap-3 rounded-2xl bg-white py-3 pl-3 pr-5 text-left lg:flex"
-            style={{ "--wb-tilt": "2deg", animationDelay: "-3.4s" } as React.CSSProperties}
-          >
-            <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-blue-50">
-              <CalendarDays className="h-5 w-5 text-[#0B57D8]" strokeWidth={2.2} />
-            </span>
-            <span>
-              <span className="block text-[14px] font-bold text-gray-900">Tue · 2:00 PM</span>
-              <span className="block text-[12.5px] text-gray-500">AC repair, Ravenwood Dr</span>
-            </span>
-          </div>
-
-          <div
-            className="wb-float absolute -left-8 bottom-[16%] hidden items-center gap-3 rounded-2xl bg-white py-3 pl-3 pr-5 text-left lg:flex"
-            style={{ "--wb-tilt": "1.5deg", animationDelay: "-5.1s" } as React.CSSProperties}
-          >
-            <Image src="/workbench-icon.png" alt="" width={339} height={296} className="h-10 w-auto flex-none" />
-            <span>
-              <span className="block text-[14px] font-bold text-gray-900">New booking confirmed</span>
-              <span className="block text-[12.5px] text-gray-500">Gutter cleaning · Sat 9:00 AM</span>
-            </span>
           </div>
         </div>
-      </WBHero>
+      </section>
 
-      {/* ── Three facts ── */}
-      <section className="border-y border-gray-200 bg-white">
-        <div className="mx-auto grid max-w-6xl divide-y divide-gray-200 px-5 sm:px-8 md:grid-cols-3 md:divide-x md:divide-y-0">
+      {/* ── Three facts, on the navy ── */}
+      <section className="bg-[#0A1428] text-white">
+        <div className="mx-auto grid max-w-6xl gap-px px-5 pb-14 pt-10 sm:px-8 md:grid-cols-3 md:gap-0">
           {[
-            { title: `Free for your first ${INCLUDED_SEATS} users`, body: `The ${FREE_PLAN_NAME} plan is full access, not a trial. Extra users are ${formatCents(EXTRA_SEAT_CENTS)} a month each.` },
-            { title: "Two ways to pay for processing", body: `${RATES.companyPaid.card} per card transaction when you pay the fee, or a service fee your client pays at checkout. Nothing monthly.` },
-            { title: "iPhone and Android apps", body: "Push notifications, an offline schedule, and invoices sent from the driveway." },
+            { k: "01", title: `Free for your first ${INCLUDED_SEATS} users`, body: `The ${FREE_PLAN_NAME} plan is full access, not a trial. Extra users are ${formatCents(EXTRA_SEAT_CENTS)} a month each.` },
+            { k: "02", title: "Two ways to pay for processing", body: `${RATES.companyPaid.card} per card transaction when you pay the fee, or a service fee your client pays at checkout. Nothing monthly.` },
+            { k: "03", title: "iPhone and Android apps", body: "Push notifications, an offline schedule, and invoices sent from the driveway." },
           ].map((f) => (
-            <div key={f.title} className="py-6 md:px-8 md:first:pl-0 md:last:pr-0">
-              <p className="text-[15.5px] font-bold text-gray-900">{f.title}</p>
-              <p className="mt-1 text-[14px] leading-relaxed text-gray-500">{f.body}</p>
+            <div key={f.title} className="border-t border-white/15 py-6 md:border-l md:border-t-0 md:px-8 md:py-2 md:first:border-l-0 md:first:pl-0">
+              <p className="text-[13px] font-extrabold tracking-[0.12em] text-[#FF8B33]">{f.k}</p>
+              <p className="mt-2 text-[17px] font-extrabold text-white">{f.title}</p>
+              <p className="mt-1.5 text-[14.5px] leading-relaxed text-blue-100/75">{f.body}</p>
             </div>
           ))}
         </div>
@@ -498,8 +406,8 @@ export default function WBHomePage() {
       {/* ── Built for the trades ── */}
       <section className="bg-[#F6F8FB]">
         <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
-          <AnimateIn className="mx-auto max-w-3xl text-center">
-            <p className="wb-label justify-center">Built for the trades</p>
+          <AnimateIn className="max-w-3xl">
+            <p className="wb-label">Built for the trades</p>
             <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
               Made for companies that send people to a customer&rsquo;s home.
             </h2>
@@ -705,20 +613,7 @@ export default function WBHomePage() {
         </div>
       </section>
 
-      {/* ── FAQ ── */}
-      <section className="border-t border-gray-200 bg-white">
-        <div className="mx-auto max-w-3xl px-5 py-20 sm:px-8 sm:py-24">
-          <AnimateIn className="text-center">
-            <p className="wb-label justify-center">Questions</p>
-            <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
-              Frequently asked questions
-            </h2>
-          </AnimateIn>
-          <AnimateIn delay={120} className="mt-10">
-            <WBFaq items={faqItems} />
-          </AnimateIn>
-        </div>
-      </section>
+      <WBFaqSection items={faqItems} title="Questions, answered" />
 
       <WBCta />
     </>

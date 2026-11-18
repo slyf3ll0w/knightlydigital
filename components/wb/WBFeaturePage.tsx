@@ -5,7 +5,7 @@ import WBSplitHero from "@/components/wb/WBSplitHero";
 import WBScribble from "@/components/wb/WBScribble";
 import WBTestimonials from "@/components/wb/WBTestimonials";
 import WBCta from "@/components/wb/WBCta";
-import WBFaq, { FaqItem } from "./WBFaq";
+import { WBFaqSection, type FaqItem } from "./WBFaq";
 import WBScreenshotFrame from "./WBScreenshotFrame";
 import type { FeatureItem } from "@/lib/wb-features";
 import { FREE_PLAN_NAME, INCLUDED_SEATS, PLANS } from "@/lib/plans";
@@ -73,8 +73,8 @@ export default function WBFeaturePage({
     <>
       {/* Hero */}
       <WBSplitHero photo={photo} phone={phone} chip={chip}>
-        <span className={`inline-block rounded-full px-3 py-1 text-[12.5px] font-bold ${c.chip}`}>{eyebrow}</span>
-        <h1 className="mt-5 text-4xl font-extrabold leading-[1.08] sm:text-5xl">{title}</h1>
+        <p className="wb-label">{eyebrow}</p>
+        <h1 className="mt-4 text-4xl font-extrabold leading-[1.08] sm:text-5xl">{title}</h1>
         <p className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed text-gray-600 lg:mx-0">{intro}</p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-4 lg:justify-start">
           <Link href="/apply" className="wb-pill text-white" style={{ backgroundColor: c.hex }}>
@@ -87,8 +87,8 @@ export default function WBFeaturePage({
         </div>
       </WBSplitHero>
 
-      {/* Screenshot (desktop; the phone view is already in the hero) */}
-      {screenshot.kind !== "mobile" && (
+      {/* The real screen (desktop or phone) right under the hero */}
+      {(
         <section className="border-b border-gray-200 bg-[#F6F8FB]">
           <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8">
             <AnimateIn className="relative">
@@ -113,13 +113,14 @@ export default function WBFeaturePage({
         <section className="mx-auto max-w-6xl px-5 py-16 sm:px-8">
           <AnimateIn>
             <h2 className="text-2xl font-extrabold sm:text-3xl">How it works</h2>
+            <span className="wb-bar" aria-hidden />
           </AnimateIn>
           <div className="mt-10 grid gap-8 sm:grid-cols-3">
             {steps.map((s, i) => (
               <AnimateIn key={s.title} delay={i * 90}>
                 <div className="flex gap-4">
                   <span
-                    className="flex h-8 w-8 flex-none items-center justify-center rounded-full text-[13px] font-bold text-white"
+                    className="flex h-8 w-8 flex-none items-center justify-center rounded-md text-[13px] font-bold text-white"
                     style={{ backgroundColor: c.hex }}
                   >
                     {i + 1}
@@ -173,15 +174,7 @@ export default function WBFeaturePage({
 
       <WBTestimonials />
 
-      {/* FAQ */}
-      <section className="mx-auto max-w-4xl px-5 py-16 sm:px-8">
-        <AnimateIn>
-          <h2 className="text-2xl font-extrabold sm:text-3xl">Questions</h2>
-          <div className="mt-8">
-            <WBFaq items={faq} />
-          </div>
-        </AnimateIn>
-      </section>
+      <WBFaqSection items={faq} title="Questions, answered" />
 
       {/* Related */}
       {related.length > 0 && (

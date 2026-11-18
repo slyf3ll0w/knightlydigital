@@ -4,9 +4,8 @@ import { ArrowRight, CalendarCheck, CreditCard, MessageCircle, Phone, Wrench } f
 import { AnimateIn } from "@/components/AnimateIn";
 import WBCta from "@/components/wb/WBCta";
 import WBEmbedForm from "@/components/wb/WBEmbedForm";
-import WBFaq from "@/components/wb/WBFaq";
+import { WBFaqSection } from "@/components/wb/WBFaq";
 import WBSplitHero from "@/components/wb/WBSplitHero";
-import WBScribble from "@/components/wb/WBScribble";
 import { WB_DAY_PHOTOS, WB_PHONE } from "@/lib/wb-site";
 
 export const metadata: Metadata = {
@@ -78,6 +77,7 @@ export default function WBBookCallPage() {
     <>
       <WBSplitHero
         photo={WB_DAY_PHOTOS.arrive}
+        mascot={{ say: <>Bring your questions.<br />WeBring your questions.<br />I&apos;ll bring the coffee.apos;ll set you up.</> }}
         chip={{
           icon: <CalendarCheck className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />,
           title: "Pick a time",
@@ -102,14 +102,6 @@ export default function WBBookCallPage() {
             <Phone className="h-4 w-4 text-[#F86A0A]" strokeWidth={2.25} aria-hidden />
             Call {WB_PHONE.display}
           </a>
-        </div>
-        <div className="mt-6 hidden items-end gap-1 lg:flex" aria-hidden>
-          <p className="pb-2 text-[15px] font-extrabold leading-snug text-[#10244A]">
-            Booked on our own
-            <br />
-            booking page.
-          </p>
-          <WBScribble variant="loop" delay={0.6} className="h-[60px] w-[92px] rotate-[80deg]" />
         </div>
       </WBSplitHero>
 
@@ -146,15 +138,7 @@ export default function WBBookCallPage() {
         </div>
       </section>
 
-      {/* ── FAQ ── */}
-      <section className="border-t border-gray-200 bg-white">
-        <div className="mx-auto max-w-3xl px-5 py-14 sm:px-8 sm:py-16">
-          <h2 className="text-2xl font-extrabold sm:text-3xl">Before you book</h2>
-          <div className="mt-7">
-            <WBFaq items={faq} />
-          </div>
-        </div>
-      </section>
+      <WBFaqSection items={faq} title="Before you book" />
 
       <WBCta
         title="Would rather just start?"

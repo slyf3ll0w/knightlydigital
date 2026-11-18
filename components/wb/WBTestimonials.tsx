@@ -1,7 +1,6 @@
 import Image from "next/image";
 import { Star } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
-import WBScribble from "@/components/wb/WBScribble";
 
 /**
  * Customer testimonials on the home page.
@@ -62,11 +61,6 @@ export default function WBTestimonials() {
           <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
             Owners who run their day on WorkBench.
           </h2>
-          <WBScribble
-            variant="loop"
-            delay={0.5}
-            className="absolute -bottom-16 left-[8%] hidden h-[70px] w-[110px] rotate-[20deg] lg:block"
-          />
         </AnimateIn>
         {/* Edan on an install, walking through the job on his phone. Has sound, so it
             lives here rather than with the silent clips in WBInAction. */}

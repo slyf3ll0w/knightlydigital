@@ -83,12 +83,12 @@ export default function HelpHome({
   const popular = POPULAR_SLUGS.map((s) => findHelpArticle(s)).filter((a) => a !== null);
 
   return (
-    <div className="ds help-root">
+    <div className={`ds help-root ${inApp ? "" : "help-public"}`}>
       {/* ── Hero: title + search ───────────────────────────── */}
-      <section className={`help-hero ${inApp ? "" : "-mt-20 sm:-mt-24"}`}>
+      <section className={`help-hero`}>
         <div
           className={`mx-auto max-w-6xl px-5 pb-12 text-center sm:px-8 sm:pb-16 ${
-            inApp ? "pt-12 sm:pt-16" : "pt-[7.5rem] sm:pt-[9.5rem]"
+            inApp ? "pt-12 sm:pt-16" : "pt-12 sm:pt-16"
           }`}
         >
           <h1 className="text-4xl font-extrabold leading-[1.08] sm:text-5xl">
@@ -210,7 +210,7 @@ export default function HelpHome({
         <>
           {/* ── Topics ──────────────────────────────────────── */}
           <section>
-            <div className="mx-auto max-w-6xl px-5 pb-14 sm:px-8 sm:pb-16">
+            <div className={`mx-auto max-w-6xl px-5 pb-14 sm:px-8 sm:pb-16 ${inApp ? "" : "pt-12 sm:pt-14"}`}>
               <h2 className="ds-rise text-2xl font-extrabold sm:text-[1.75rem]" style={rise(3)}>
                 Browse by topic
               </h2>

@@ -9,7 +9,7 @@ import { WB_TRADE_PHOTOS } from "@/lib/wb-site";
 import WBCta from "@/components/wb/WBCta";
 import WBAgentLink from "@/components/wb/WBAgentLink";
 import { VS_LIST } from "@/lib/wb-vs";
-import WBFaq, { FaqItem } from "./WBFaq";
+import { WBFaqSection, type FaqItem } from "./WBFaq";
 import WBCompareTable, { CompareRow } from "./WBCompareTable";
 import type { FeatureItem } from "@/lib/wb-features";
 import { EXTRA_SEAT_CENTS, INCLUDED_SEATS, formatCents } from "@/lib/plans";
@@ -130,15 +130,7 @@ export default function WBComparePage({
 
       <WBTestimonials />
 
-      {/* FAQ */}
-      <section className="mx-auto max-w-4xl px-5 py-16 sm:px-8">
-        <AnimateIn>
-          <h2 className="text-2xl font-extrabold sm:text-3xl">Questions</h2>
-          <div className="mt-8">
-            <WBFaq items={faq} />
-          </div>
-        </AnimateIn>
-      </section>
+      <WBFaqSection items={faq} title="Questions, answered" />
 
       {/* Related */}
       <section className="border-t border-gray-200 bg-white">

@@ -3,7 +3,7 @@ import { Check } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
 import DocGenerator from "@/components/wb/tools/DocGenerator";
 import WBCta from "@/components/wb/WBCta";
-import WBFaq from "@/components/wb/WBFaq";
+import { WBFaqSection } from "@/components/wb/WBFaq";
 import WBFaqJsonLd from "@/components/wb/WBFaqJsonLd";
 import { FREE_PAGE_PATH } from "@/lib/wb-free";
 import { TRADES, type Trade } from "@/lib/wb-trades";
@@ -165,15 +165,7 @@ export default function ToolPage({ tool, trade }: { tool: ToolMeta; trade?: Trad
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="mx-auto max-w-4xl px-5 py-16 sm:px-8">
-        <AnimateIn>
-          <h2 className="text-2xl font-extrabold sm:text-3xl">Questions</h2>
-          <div className="mt-8">
-            <WBFaq items={faq} />
-          </div>
-        </AnimateIn>
-      </section>
+      <WBFaqSection items={faq} title="Questions, answered" />
 
       {/* Related */}
       <section className="border-t border-gray-200 bg-white">

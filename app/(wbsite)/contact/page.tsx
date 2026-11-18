@@ -4,7 +4,6 @@ import { ArrowRight, Clock4, Mail, MessageSquare, Phone } from "lucide-react";
 import WBCta from "@/components/wb/WBCta";
 import WBEmbedForm from "@/components/wb/WBEmbedForm";
 import WBSplitHero from "@/components/wb/WBSplitHero";
-import WBScribble from "@/components/wb/WBScribble";
 import { WB_DAY_PHOTOS, WB_EMAIL, WB_EMAIL_HREF, WB_PHONE } from "@/lib/wb-site";
 
 export const metadata: Metadata = {
@@ -17,6 +16,7 @@ export default function WBContactPage() {
     <>
       <WBSplitHero
         photo={WB_DAY_PHOTOS.paid}
+        mascot={{ say: <>Yes, a real person<br />picks up.</> }}
         chip={{ icon: <Phone className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />, title: WB_PHONE.display, sub: "Toll-free. A person answers." }}
       >
         <p className="wb-label justify-center lg:justify-start">Contact</p>
@@ -26,12 +26,6 @@ export default function WBContactPage() {
           your trade. Call or email and you reach the people who build and
           support it.
         </p>
-        <div className="mt-6 hidden items-end gap-1 lg:flex" aria-hidden>
-          <p className="pb-2 text-[15px] font-extrabold leading-snug text-[#10244A]">Yes, a real person
-            <br />
-            picks up.</p>
-          <WBScribble variant="loop" delay={0.6} className="h-[60px] w-[92px] rotate-[80deg]" />
-        </div>
       </WBSplitHero>
 
       <section className="bg-[#F6F8FB]">

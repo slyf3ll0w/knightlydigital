@@ -32,7 +32,7 @@ export default function WBContactButton() {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-label={open ? "Close contact form" : "Contact us"}
-        className="fixed bottom-5 right-5 z-40 flex h-14 items-center gap-2.5 rounded-full bg-[#0A1428] pl-4 pr-5 text-[15px] font-bold text-white shadow-[0_12px_32px_-10px_rgba(10,20,40,0.55)] transition-colors hover:bg-[#172647]"
+        className="fixed bottom-5 right-5 z-40 flex h-14 items-center gap-2.5 rounded-lg bg-[#0A1428] pl-4 pr-5 text-[15px] font-bold text-white shadow-[0_12px_32px_-10px_rgba(10,20,40,0.55)] transition-colors hover:bg-[#172647]"
       >
         {open ? <X className="h-5 w-5" strokeWidth={2.25} /> : <MessageCircle className="h-5 w-5 text-[#FF8B33]" strokeWidth={2.25} />}
         <span className="hidden sm:inline">{open ? "Close" : "Contact us"}</span>

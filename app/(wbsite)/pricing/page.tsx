@@ -6,7 +6,7 @@ import { AnimateIn } from "@/components/AnimateIn";
 import WBSplitHero, { WB_SHOTS } from "@/components/wb/WBSplitHero";
 import WBTestimonials from "@/components/wb/WBTestimonials";
 import WBScribble from "@/components/wb/WBScribble";
-import WBFaq from "@/components/wb/WBFaq";
+import { WBFaqSection } from "@/components/wb/WBFaq";
 import WBAgentLink from "@/components/wb/WBAgentLink";
 import WBPricing from "@/components/wb/WBPricing";
 import WBSavings from "@/components/wb/WBSavings";
@@ -443,19 +443,7 @@ export default function WBPricingPage() {
 
       <WBTestimonials />
 
-      {/* ── FAQ ── */}
-      <section className="border-t border-gray-200 bg-white">
-        <div className="mx-auto max-w-3xl px-5 py-20 sm:px-8">
-          <AnimateIn>
-            <h2 className="text-center text-3xl font-extrabold leading-tight sm:text-4xl">
-              Pricing questions, answered
-            </h2>
-          </AnimateIn>
-          <AnimateIn delay={120} className="mt-10">
-            <WBFaq items={pricingFaq} />
-          </AnimateIn>
-        </div>
-      </section>
+      <WBFaqSection items={pricingFaq} title="Pricing questions, answered" />
 
       {/* ── CTA ── */}
       <section className="border-t border-gray-200 bg-white">

@@ -55,6 +55,15 @@ what keeps a save followed by Back from showing stale data. A route handler
 that changes what another page shows must be under `/api/app/` for that to
 hold.
 
+## Marketing site design standard (required, David 2026-11-18)
+
+Every page on workbenchfsm.com follows `docs/site-design.md`: open with a
+shared hero (`WBPageHeader`, `WBSplitHero` or a page template), section
+labels with no dot, FAQs through `WBFaqSection`, no floating cards, glows,
+phone mockups in heroes or pill eyebrows. `scripts/test-wb-site.ts`
+(section 6) fails a page that breaks it. Announcements and Help guides lay
+themselves out from their data; write content, not markup.
+
 ## Help Center upkeep (required, David 2026-09-28)
 
 The Help Center documents every user-facing feature: guides in

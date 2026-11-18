@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, FileText, PenLine } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
 import WBCta from "@/components/wb/WBCta";
+import WBPageHeader from "@/components/wb/WBPageHeader";
 import { TRADES } from "@/lib/wb-trades";
 import { TOOLS, templatePath, toolPath } from "@/lib/wb-tools";
 
@@ -18,15 +19,13 @@ const ICONS = { invoice: FileText, estimate: PenLine } as const;
 export default function ToolsPage() {
   return (
     <>
-      <section className="mx-auto max-w-6xl px-5 pb-10 pt-4 sm:px-8 sm:pt-6">
-        <AnimateIn>
-          <span className="wb-label">Free tools</span>
-          <h1 className="mt-4 max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">Free tools for people who fix things for a living.</h1>
-          <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-gray-600">
-            Make an invoice or an estimate in your browser and download the PDF with your logo on it. No account, no email address, no watermark. Built by WorkBench FSM, the free field service software for home-service companies.
-          </p>
-        </AnimateIn>
-        <div className="mt-10 grid gap-5 sm:grid-cols-2">
+      <WBPageHeader
+        label="Free tools"
+        title="Free tools for people who fix things for a living."
+        intro={<p>Make an invoice or an estimate in your browser and download the PDF with your logo on it. No account, no email address, no watermark. Built by WorkBench FSM, the free field service software for home-service companies.</p>}
+      />
+      <section className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-16">
+        <div className="grid gap-5 sm:grid-cols-2">
           {TOOLS.map((tool, i) => {
             const Icon = ICONS[tool.kind];
             return (

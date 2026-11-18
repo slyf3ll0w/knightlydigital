@@ -3,7 +3,7 @@ import { ArrowRight, Check, ClipboardCheck, Minus } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
 import WBSplitHero from "@/components/wb/WBSplitHero";
 import WBCta from "@/components/wb/WBCta";
-import WBFaq from "@/components/wb/WBFaq";
+import { WBFaqSection } from "@/components/wb/WBFaq";
 import WBAgentLink from "@/components/wb/WBAgentLink";
 import WBFaqJsonLd from "@/components/wb/WBFaqJsonLd";
 import WBTestimonials from "@/components/wb/WBTestimonials";
@@ -211,14 +211,7 @@ export default function WBAlternativePage({ alt }: { alt: Alternative }) {
 
       <WBTestimonials />
 
-      <section className="mx-auto max-w-4xl px-5 py-16 sm:px-8">
-        <AnimateIn>
-          <h2 className="text-2xl font-extrabold sm:text-3xl">Questions</h2>
-          <div className="mt-8">
-            <WBFaq items={faq} />
-          </div>
-        </AnimateIn>
-      </section>
+      <WBFaqSection items={faq} title="Questions, answered" />
 
       <section className="border-t border-gray-200 bg-white">
         <div className="mx-auto max-w-6xl px-5 py-12 sm:px-8">
