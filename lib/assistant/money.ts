@@ -23,6 +23,7 @@ import { itemsPayload } from "./pipeline";
 import { isOnlinePayment } from "../payment-ref";
 import { loadLeadSourceReport } from "../lead-source-report";
 import { loadAdsFeedStatus } from "../ads-conversions-server";
+import { loadAdsConnectStatus } from "../google-ads";
 import { quickChargeIssue } from "../quick-charge";
 
 /** Invoices, payments, subscriptions, expenses, and real email sends. */
@@ -123,13 +124,18 @@ export const moneyTools: Tool[] = [
     decl: {
       name: "get_ads_conversion_feed",
       description:
-        "Reporting paid jobs back to Google Ads: whether the company's private conversions file is on, when it was last fetched, and what it holds right now (payments in the last 90 days from leads who arrived on a Google ad click, their total, and how many were left out and why). Google Ads fetches the file on a schedule the owner sets up once in Google Ads (the page has the steps; Help guide report-paid-jobs-to-google-ads). While the file has no payments, the page can add a temporary sample row, which Google's setup needs to get past its Select data step. The file address itself is shown only on the page.",
+        "Reporting paid jobs back to Google Ads: whether Google Ads is connected (one Google sign-in, after which WorkBench sends payments itself) and when payments were last sent; whether the company's private conversions file (the by-hand route) is on, when it was last fetched, and what it holds right now (payments in the last 90 days from leads who arrived on a Google ad click, their total, and how many were left out and why). Google Ads fetches the file on a schedule the owner sets up once in Google Ads (the page has the steps; Help guide report-paid-jobs-to-google-ads). While the file has no payments, the page can add a temporary sample row, which Google's setup needs to get past its Select data step. The file address itself is shown only on the page.",
       parameters: { type: "object", properties: {} },
     },
     allowed: (a) => isManager(a.role),
     run: async (actor) => {
-      const s = await loadAdsFeedStatus(actor.companyId);
+      const [s, c] = await Promise.all([loadAdsFeedStatus(actor.companyId), loadAdsConnectStatus(actor.companyId)]);
       return {
+        googleAdsConnection: !c.available
+          ? "not offered yet"
+          : !c.connected
+            ? "not connected (the owner presses Connect Google Ads on the page and signs in with Google)"
+            : { account: c.accountName, needsAccountPicked: c.needsAccount, needsReconnect: c.needsReconnect, lastSent: c.lastSyncAt, paymentsLastSent: c.lastSyncCount, lastGoogleError: c.lastError },
         on: s.enabled,
         lastFetched: s.fetchedAt,
         sampleRowInFileUntil: s.sampleUntil,
@@ -151,10 +157,10 @@ export const moneyTools: Tool[] = [
     decl: {
       name: "set_ads_conversion_feed",
       description:
-        "Turn the Google Ads conversions file on or off, or replace its address. 'on' creates the private file address Google Ads fetches. 'new_address' replaces it: the old address stops working at once and Google Ads needs the new one. 'off' stops reporting. Each needs a confirmation card.",
+        "Turn the Google Ads conversions file on or off, replace its address, or disconnect Google Ads. 'on' creates the private file address Google Ads fetches. 'new_address' replaces it: the old address stops working at once and Google Ads needs the new one. 'off' stops the file. 'disconnect' removes the Google Ads sign-in. Each needs a confirmation card. Connecting Google Ads itself is a Google sign-in the person does on the page.",
       parameters: {
         type: "object",
-        properties: { action: { type: "string", enum: ["on", "new_address", "off"] } },
+        properties: { action: { type: "string", enum: ["on", "new_address", "off", "disconnect"] } },
         required: ["action"],
       },
     },
@@ -204,7 +210,21 @@ export const moneyTools: Tool[] = [
           confirmLabel: "Turn off",
         });
       }
-      return { error: "action must be on, new_address or off" };
+      if (action === "disconnect") {
+        const c = await loadAdsConnectStatus(actor.companyId);
+        if (!c.connected) return { error: "Google Ads is not connected." };
+        return stage(ctx, {
+          kind: "set_ads_conversion_feed",
+          title: "Disconnect Google Ads",
+          lines: ["WorkBench stops sending payments to Google Ads.", "What Google has already counted stays counted."],
+          endpoint: "/api/app/ads-connection",
+          method: "DELETE",
+          payload: {},
+          danger: true,
+          confirmLabel: "Disconnect",
+        });
+      }
+      return { error: "action must be on, new_address, off or disconnect" };
     },
   },
   {

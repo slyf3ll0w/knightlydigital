@@ -3,6 +3,7 @@
 // Google fetches, and what the file looks like (lib/ads-conversions.ts).
 import assert from "node:assert/strict";
 import {
+  ADS_ADVISOR_PROMPT,
   ADS_CONVERSION_NAME,
   ADS_FIELD_MAP,
   ADS_SAMPLE_GCLID,
@@ -178,6 +179,14 @@ t("every column of the file is in the field map, once", () => {
 t("headers are plain lower-case names with no spaces, and the name has no comma", () => {
   for (const h of ADS_CSV_HEADERS) assert.match(h, /^[a-z][a-z_]*$/);
   assert.ok(!ADS_CONVERSION_NAME.includes(","));
+});
+t("the Advisor message names the action exactly and fits Advisor's 2,000 characters", () => {
+  assert.ok(ADS_ADVISOR_PROMPT.includes(`Name: ${ADS_CONVERSION_NAME}`));
+  assert.ok(ADS_ADVISOR_PROMPT.length < 2000);
+  // it asks for nothing that touches spend
+  assert.ok(ADS_ADVISOR_PROMPT.includes("Do not change my campaigns, budgets, bidding"));
+  // no file address or password in it: Advisor can't connect the file, and the address is private
+  assert.ok(!/https?:\/\//.test(ADS_ADVISOR_PROMPT));
 });
 t("the address ends in .csv", () => {
   assert.equal(adsFeedUrl("https://workbenchfsm.com/", "tok"), "https://workbenchfsm.com/api/public/ads-conversions/tok/conversions.csv");

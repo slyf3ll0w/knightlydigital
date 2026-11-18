@@ -304,6 +304,23 @@ Select data step on a file with no rows, hence the two-hour sample row
 rows). Steadfast is the first real account; what that test showed, and the
 limits list, are in the plan.
 
+**Connect Google Ads, the one-click route (2026-11-18,
+`docs/plans/ads-connect-2026-11-18.md`).** On the same page, shown only when
+`GOOGLE_ADS_CLIENT_ID` / `GOOGLE_ADS_CLIENT_SECRET` are set: the owner signs
+in with Google (scopes `adwords` + `datamanager`), `lib/google-ads.ts`
+lists the Google Ads accounts that sign-in can reach, finds or creates the
+`WorkBench paid job` conversion action (Google Ads API v26), and the hourly
+cron step `googleAds` sends the same rows the file holds through the Data
+Manager API, each payment's id as `transactionId` so a resend is dropped by
+Google. One `GoogleAdsConnection` per company. Request and response shapes
+are pure in `lib/google-ads-shape.ts` (`npx tsx scripts/test-google-ads-shape.ts`).
+**Written from Google's documentation and never yet run against Google:**
+the plan lists what David sets up in Google Cloud first and what to check
+on the first real connect. The by-hand file route stays as the fallback
+(Part 1: a message for Google's Advisor, `ADS_ADVISOR_PROMPT`; Part 2: the
+Data manager screens), with `Ask for help` (a FeedbackTicket) and the setup
+call at the foot of the page.
+
 ## Authentication
 
 NextAuth v4 with Credentials provider. JWT sessions.
@@ -1364,6 +1381,8 @@ QBO_ENVIRONMENT=sandbox  # "production" once Intuit grants production keys
 # Optional — Google Calendar push (lib/google-calendar.ts); the "Google
 # Calendar" half of My Profile → Calendar sync is hidden until both are set.
 # Redirect URI to register: ${NEXTAUTH_URL}/api/app/integrations/google-calendar/callback
+GOOGLE_ADS_CLIENT_ID=                # Connect Google Ads (lib/google-ads.ts); may be the same OAuth client as Google Calendar. Button hidden until both are set.
+GOOGLE_ADS_CLIENT_SECRET=
 GOOGLE_CALENDAR_CLIENT_ID=
 GOOGLE_CALENDAR_CLIENT_SECRET=
 # Optional — per-company custom sending domains (lib/email-domains.ts). Needs a
