@@ -271,7 +271,7 @@ export const atlasSection: HelpSection = {
         },
         {
           type: "p",
-          text: "The app can read what you can see. It can't save, send, charge or delete anything. When it prepares something, it shows up under **Waiting for your approval** on the Connected apps page, and nothing happens until you press `Approve` there.",
+          text: "The app can read what you can see. It can't save, send or delete anything, and it can't move money at all: refunds, card charges and payouts are only done inside WorkBench. When it prepares something, it shows up under **Waiting for your approval** on the Connected apps page, and nothing happens until you press `Approve` there.",
         },
         {
           type: "faq",
@@ -287,6 +287,10 @@ export const atlasSection: HelpSection = {
             {
               q: "Can I stop everyone at my company from connecting apps?",
               a: "The owner can untick **Allow connected apps for this company** on the Connected apps page. Every connected app stops until it is ticked again.",
+            },
+            {
+              q: "Can I see what a connected app has been doing?",
+              a: "Yes. **Recent activity** on the Connected apps page lists each thing an app did and when. It keeps the action only, never what was read, for 90 days.",
             },
             {
               q: "Does it use Atlas tokens?",
@@ -365,6 +369,7 @@ export const estimatorSection: HelpSection = {
             "Type your number over any that is off. It saves when you leave the box and becomes **Yours**, with today's date.",
             "For a number that is already right, press `Looks right`.",
             "Set the **Minimum job charge** at the bottom, then look at **The smallest jobs** under **What it prices** to see what that minimum does to a tiny job.",
+            "If you send round numbers, set **Round prices** below it. The tool then sends $4,400 instead of $4,402, and the largest line takes the difference.",
           ],
         },
         {

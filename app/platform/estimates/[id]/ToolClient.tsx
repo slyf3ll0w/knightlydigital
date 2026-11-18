@@ -326,6 +326,11 @@ export default function ToolClient({
     await patch({ spec: { ...spec, minimumTotal: value > 0 ? value : undefined } }, "rates");
   }
 
+  async function setRounding(roundTo: number, mode: "nearest" | "up") {
+    if (!spec) return;
+    await patch({ spec: { ...spec, roundTo: roundTo > 0 ? roundTo : undefined, roundMode: roundTo > 0 && mode === "up" ? "up" : undefined } }, "rates");
+  }
+
   /** Overview: tick a rate off — the spec minus that line, saved as a manual edit. */
   async function confirmRate(index: number) {
     if (!spec) return;
@@ -565,8 +570,8 @@ export default function ToolClient({
                 </div>
               )}
 
-              {spec && manager && <ToolSuggestions toolId={tool.id} version={JSON.stringify(spec.rates ?? []) + String(spec.minimumTotal ?? "")} busy={busy !== null} onApply={(next) => patch({ spec: next }, "rates")} />}
-              {spec && (spec.rates?.length ?? 0) > 0 && manager && <RateCard spec={spec} busy={busy === "rates"} onSet={(id, v) => void setRate(id, v)} onSetMinimum={(v) => void setMinimum(v)} />}
+              {spec && manager && <ToolSuggestions toolId={tool.id} version={JSON.stringify(spec.rates ?? []) + String(spec.minimumTotal ?? "") + String(spec.roundTo ?? "") + String(spec.roundMode ?? "")} busy={busy !== null} onApply={(next) => patch({ spec: next }, "rates")} />}
+              {spec && (spec.rates?.length ?? 0) > 0 && manager && <RateCard spec={spec} busy={busy === "rates"} onSet={(id, v) => void setRate(id, v)} onSetMinimum={(v) => void setMinimum(v)} onSetRounding={(step, mode) => void setRounding(step, mode)} />}
               {placeholders.length > 0 && manager && <RatesToConfirm items={placeholders} onDone={(i) => void confirmRate(i)} onOpenPricing={() => go("advanced", "pricing")} />}
 
               {stats && stats.quotes > 0 && (

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
 import { connectorUrl, revokeGrant } from "@/lib/connector/oauth";
+import { toolTitle } from "@/lib/connector/tools";
 
 /**
  * Settings → Connected apps (docs/plans/workbench-connector-2026-11-17.md).
@@ -15,7 +16,7 @@ export async function GET() {
   const actor = await getActor();
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!isManager(actor.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const [company, grants, actions] = await Promise.all([
+  const [company, grants, actions, calls] = await Promise.all([
     prisma.company.findUnique({ where: { id: actor.companyId }, select: { connectorsOff: true } }),
     prisma.connectorGrant.findMany({
       where: { companyId: actor.companyId, revokedAt: null },
@@ -28,6 +29,12 @@ export async function GET() {
       take: 50,
       select: { id: true, proposal: true, createdAt: true, grant: { select: { clientName: true } } },
     }),
+    prisma.connectorCall.findMany({
+      where: { companyId: actor.companyId },
+      orderBy: { createdAt: "desc" },
+      take: 40,
+      select: { id: true, tool: true, outcome: true, createdAt: true, grant: { select: { clientName: true, user: { select: { name: true } } } } },
+    }),
   ]);
   return NextResponse.json({
     url: connectorUrl(),
@@ -35,6 +42,7 @@ export async function GET() {
     owner: actor.role === "OWNER",
     grants: grants.map((g) => ({ id: g.id, app: g.clientName, by: g.user.name, mine: g.userId === actor.id, createdAt: g.createdAt.toISOString(), lastUsedAt: g.lastUsedAt?.toISOString() ?? null })),
     actions: actions.map((a) => ({ id: a.id, app: a.grant.clientName, createdAt: a.createdAt.toISOString(), proposal: a.proposal })),
+    activity: calls.map((c) => ({ id: c.id, app: c.grant.clientName, by: c.grant.user.name, what: toolTitle(c.tool), outcome: c.outcome, at: c.createdAt.toISOString() })),
   });
 }
 

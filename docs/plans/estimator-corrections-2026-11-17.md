@@ -99,11 +99,33 @@ Atlas makes from a tool run in the same request (`ctx.lastEstimate`).
   without giving a value. **The estimator answer key was not re-run for this**
   (it needs a model key); the text is only added when a proven suggestion exists.
 
+## Added the same day (third round)
+
+- **Rounding.** A tool can now round its price (`spec.roundTo`: $5, $10,
+  $25, $50 or $100; nearest or always up). It is applied last, after the
+  minimum and any discount, and the largest line takes the difference. It is
+  on the rate card as **Round prices**. When nearly every recent quote went
+  out with only the total rounded, the same way each time, "You round your
+  prices to the nearest $25" is offered. Rounding is still never read as a
+  rate change. Not offered for tools with discount rules (the quote's
+  discount is not kept with the run, so its total cannot be read).
+- **Across companies.** The platform console has a **Corrections** page
+  (`/superadmin/corrections`): every company's proven corrections, grouped
+  by trade and kind, with the ones seen in more than one company first. It is
+  read-only and for platform staff. Nothing on it reaches another company or
+  changes anyone's tool. A pattern there is a builder fix and a new case on
+  the estimator answer key, done by hand.
+
+Scorecard after this round: **41 of 41, silent on 22 of 22 traps.** Live
+check against a local database: rounding offered, applied, and the tool then
+priced all six quotes to within the cents a quote's unit price can hold; two
+companies with the same correction showed as one pattern.
+
 ## Not built yet
 
-- **Rounding as a setting** ("always round to $25"). Rounding is ignored, not
-  offered. Offering it needs a new pricing rule in the tool engine first.
-- **Across companies:** the same correction in many companies as a builder fix.
+- **Acting on a cross-company pattern automatically.** Deliberately manual.
+- **Rounding on tools with discount rules.**
+- **Across companies (superseded by the note above):** the same correction in many companies as a builder fix.
   Only counts would cross, never a company's data.
 
 ## Checks done

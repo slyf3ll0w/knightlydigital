@@ -10,7 +10,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { compileSpec, runCompiled, specFromJson } from "./estimator";
 import { loadPriceBook } from "./estimator-server";
-import { analyzeCorrections, CORRECTION_BAR, type CorrectionLine, type CorrectionReport, type Dismissal, type Observation } from "./estimator-corrections";
+import { analyzeCorrections, CORRECTION_BAR, suggestionText, type CorrectionLine, type CorrectionReport, type Dismissal, type Observation } from "./estimator-corrections";
 
 type Db = Prisma.TransactionClient | typeof prisma;
 
@@ -128,4 +128,73 @@ export async function correctionReport(companyId: string, tool: { id: string; sp
   const [observations, book] = await Promise.all([loadObservations(companyId, tool.id), loadPriceBook(companyId)]);
   if (observations.length < CORRECTION_BAR.minQuotes) return { suggestions: [], held: [], usable: observations.length, stale: 0 };
   return analyzeCorrections(tool.spec, book, observations, { dismissed: dismissalsFromJson(tool.suggestionState) });
+}
+
+// ── across companies (the platform console) ──────────────────────────────────
+
+export type CorrectionPattern = {
+  /** The trade the companies are in (their onboarding answer), or "Other". */
+  industry: string;
+  /** The correction, without anyone's numbers: "Rate raised: cedar fence". */
+  what: string;
+  companies: number;
+  tools: number;
+  examples: { company: string; tool: string; said: string }[];
+};
+
+const plainWords = (s: string) => s.toLowerCase().replace(/[^a-z]+/g, " ").trim();
+
+/**
+ * The same correction turning up in more than one company — a sign the
+ * BUILDER gets something wrong for a trade, not that one owner prices
+ * differently (docs/plans/estimator-corrections-2026-11-17.md, "Across
+ * companies"). For the platform console only: it reads every company's
+ * proven suggestions and groups them by trade and kind. Nothing here is
+ * shown to another company or fed back into anyone's tool; a pattern that
+ * holds becomes a builder fix and a case on the estimator answer key.
+ */
+export async function crossCompanyCorrections(): Promise<{ patterns: CorrectionPattern[]; toolsRead: number; toolsWithSuggestions: number }> {
+  const since = new Date(Date.now() - CORRECTION_BAR.maxAgeDays * 86_400_000);
+  const busy = await prisma.estimatorQuoteRun.groupBy({
+    by: ["estimatorId"],
+    where: { auto: false, quote: { sentAt: { gte: since } } },
+    _count: { _all: true },
+    orderBy: { _count: { estimatorId: "desc" } },
+    take: 150,
+  });
+  const ids = busy.filter((b) => b._count._all >= CORRECTION_BAR.minQuotes).map((b) => b.estimatorId);
+  const tools = await prisma.estimator.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, spec: true, companyId: true, company: { select: { name: true, industry: true, isTest: true } } } });
+  const groups = new Map<string, { industry: string; what: string; companies: Set<string>; tools: Set<string>; examples: CorrectionPattern["examples"] }>();
+  let toolsWithSuggestions = 0;
+  for (const tool of tools) {
+    // what the quotes show, whether or not the owner dismissed it
+    const report = await correctionReport(tool.companyId, { id: tool.id, spec: tool.spec }).catch(() => null);
+    if (!report || report.suggestions.length === 0) continue;
+    toolsWithSuggestions++;
+    const industry = tool.company.industry?.trim() || "Other";
+    for (const s of report.suggestions) {
+      const what =
+        s.kind === "rate"
+          ? `Rate ${s.to > s.from ? "raised" : "lowered"}: ${plainWords(s.label)}`
+          : s.kind === "price_book"
+            ? `Price-book price ${s.to > s.from ? "raised" : "lowered"}: ${plainWords(s.name)}`
+            : s.kind === "minimum"
+              ? "Minimum raised"
+              : s.kind === "rounding"
+                ? `Prices rounded ${s.mode === "up" ? "up " : ""}to $${s.to}`
+                : s.kind === "add_line"
+                  ? `Line added by hand: ${plainWords(s.name)}`
+                  : `Line taken off: ${plainWords(s.name)}`;
+      const key = `${industry.toLowerCase()}|${what}`;
+      const g = groups.get(key) ?? { industry, what, companies: new Set<string>(), tools: new Set<string>(), examples: [] };
+      g.companies.add(tool.companyId);
+      g.tools.add(tool.id);
+      if (g.examples.length < 5) g.examples.push({ company: `${tool.company.name}${tool.company.isTest ? " (test)" : ""}`, tool: tool.name, said: suggestionText(s).title });
+      groups.set(key, g);
+    }
+  }
+  const patterns = [...groups.values()]
+    .map((g) => ({ industry: g.industry, what: g.what, companies: g.companies.size, tools: g.tools.size, examples: g.examples }))
+    .sort((a, b) => b.companies - a.companies || b.tools - a.tools || a.what.localeCompare(b.what));
+  return { patterns, toolsRead: tools.length, toolsWithSuggestions };
 }

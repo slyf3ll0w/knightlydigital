@@ -17,7 +17,7 @@ import type { EstimatorSpec } from "@/lib/estimator";
  */
 type Row = {
   key: string;
-  kind: "rate" | "minimum" | "price_book" | "add_line" | "drop_line";
+  kind: "rate" | "minimum" | "rounding" | "price_book" | "add_line" | "drop_line";
   title: string;
   detail: string;
   action: string;

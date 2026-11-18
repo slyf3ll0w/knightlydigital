@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check } from "lucide-react";
 import { Input } from "@/components/Input";
-import { rateValueText, type EstimatorRate, type EstimatorSpec } from "@/lib/estimator";
+import { rateValueText, ROUND_STEPS, type EstimatorRate, type EstimatorSpec } from "@/lib/estimator";
 
 /**
  * The tool's rate card: every number it prices with, in the owner's words,
@@ -107,6 +107,7 @@ export default function RateCard({
   busy = false,
   onSet,
   onSetMinimum,
+  onSetRounding,
   onlyToConfirm = false,
   compact = false,
 }: {
@@ -116,6 +117,8 @@ export default function RateCard({
   onSet?: (id: string, value: number) => void;
   /** Set the minimum job charge (0 clears it). Omit to leave it off the card. */
   onSetMinimum?: (value: number) => void;
+  /** Set price rounding (0 turns it off). Omit to leave it off the card. */
+  onSetRounding?: (roundTo: number, mode: "nearest" | "up") => void;
   /** Show only the rates that aren't the owner's yet (the build's finish card). */
   onlyToConfirm?: boolean;
   compact?: boolean;
@@ -182,6 +185,36 @@ export default function RateCard({
               aria-label="Minimum job charge"
             />
           </div>
+        </div>
+      )}
+      {onSetRounding && !onlyToConfirm && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-gray-100 px-4 py-3 sm:flex-nowrap">
+          <div className="min-w-0 flex-1 basis-56">
+            <p className="text-sm font-medium text-gray-900">Round prices</p>
+            <p className="text-xs text-gray-500">Send $4,400 instead of $4,402. The largest line takes the difference.</p>
+          </div>
+          <select
+            value={spec.roundTo ? `${spec.roundTo}:${spec.roundMode === "up" ? "up" : "nearest"}` : "0:nearest"}
+            disabled={busy}
+            onChange={(e) => {
+              const [step, mode] = e.target.value.split(":");
+              onSetRounding(Number(step), mode === "up" ? "up" : "nearest");
+            }}
+            className="h-9 shrink-0 rounded-[10px] border border-gray-300 bg-white px-2 text-sm"
+            aria-label="Round prices"
+          >
+            <option value="0:nearest">Don&apos;t round</option>
+            {ROUND_STEPS.map((s) => (
+              <option key={`n${s}`} value={`${s}:nearest`}>
+                To the nearest ${s}
+              </option>
+            ))}
+            {ROUND_STEPS.map((s) => (
+              <option key={`u${s}`} value={`${s}:up`}>
+                Up to the next ${s}
+              </option>
+            ))}
+          </select>
         </div>
       )}
     </div>

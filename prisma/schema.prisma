@@ -365,6 +365,7 @@ model Company {
   connectorsOff         Boolean               @default(false)
   connectorGrants       ConnectorGrant[]
   connectorActions      ConnectorAction[]
+  connectorCalls        ConnectorCall[]
   libraryListings       EstimatorListing[]
   libraryLikes          EstimatorListingLike[]
   automations           Automation[]
@@ -1891,6 +1892,7 @@ model ConnectorGrant {
 
   tokens  ConnectorToken[]
   actions ConnectorAction[]
+  calls   ConnectorCall[]
 
   @@index([companyId])
   @@index([userId])
@@ -1924,6 +1926,24 @@ model ConnectorAuthCode {
   expiresAt     DateTime
   usedAt        DateTime?
   createdAt     DateTime  @default(now())
+}
+
+// What a connected app did: one row per tool it used. The tool's name and
+// whether it read, prepared a card or failed — never the arguments or the
+// data returned. Shown on Settings → Connected apps; kept 90 days.
+model ConnectorCall {
+  id        String         @id @default(cuid())
+  companyId String
+  company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String
+  grantId   String
+  grant     ConnectorGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  tool      String
+  outcome   String // read | prepared | error
+  createdAt DateTime       @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([grantId])
 }
 
 // Work an outside AI prepared: the same card Atlas would have shown

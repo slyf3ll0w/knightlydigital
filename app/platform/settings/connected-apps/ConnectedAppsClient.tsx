@@ -23,7 +23,8 @@ import type { Proposal } from "@/lib/assistant";
  */
 type Grant = { id: string; app: string; by: string; mine: boolean; createdAt: string; lastUsedAt: string | null };
 type Action = { id: string; app: string; createdAt: string; proposal: Proposal };
-type Data = { url: string; off: boolean; owner: boolean; grants: Grant[]; actions: Action[] };
+type Activity = { id: string; app: string; by: string; what: string; outcome: "read" | "prepared" | "error"; at: string };
+type Data = { url: string; off: boolean; owner: boolean; grants: Grant[]; actions: Action[]; activity: Activity[] };
 
 const when = (iso: string) => new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
@@ -217,6 +218,25 @@ export default function ConnectedAppsClient() {
               </ul>
             )}
           </div>
+
+          {data.activity.length > 0 && (
+            <div className="ds-card overflow-hidden">
+              <SectionHeader className="px-4 pt-4 sm:px-5" title="Recent activity" hint="What connected apps did. Only the action is kept, never what was read. Kept for 90 days." />
+              <ul className="mt-3 max-h-80 divide-y divide-gray-100 overflow-y-auto border-t border-gray-100 text-sm">
+                {data.activity.map((a) => (
+                  <li key={a.id} className="flex flex-wrap items-baseline gap-x-3 px-4 py-2 sm:px-5">
+                    <span className="min-w-0 flex-1 basis-48 text-gray-900">
+                      {a.what}
+                      <span className="text-gray-500"> · {a.outcome === "read" ? "read" : a.outcome === "prepared" ? "prepared for approval" : "didn't work"}</span>
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {a.app} as {a.by} · {when(a.at)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div className="ds-card p-4 sm:p-5">
             <SectionHeader title="Connect an app" hint="In Claude or ChatGPT, add a custom connector and paste this address. You'll be sent here to sign in and allow it." />

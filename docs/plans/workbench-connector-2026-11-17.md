@@ -156,3 +156,24 @@ not planned.
   connector's instructions cover them; phase 2's approval step is the real guard.
 - No audit log of what a connected app read. `lastUsedAt` is the only trace.
 - `get_document` notes and messages are returned as written.
+
+## Second round (2026-11-17, later)
+
+Done so the connector can be listed in the AI apps' own directories (see
+`connector-directory-listing-2026-11-17.md`) and to close what was left open:
+
+- **Money stays in Workbench.** `refund_payment`, `charge_saved_card`,
+  `send_payout` and `run_recurring_billing` moved to the never list. The
+  directories do not accept connectors that transfer money. Now 32 read,
+  71 prepare, 13 never.
+- **Every tool is labelled** the way the directories require: a title, and
+  `readOnlyHint`, `destructiveHint` and `openWorldHint` each stated outright.
+- **Customer-written text is fenced for outside AIs.** Names, addresses,
+  titles, notes, messages and descriptions in every result are wrapped as
+  data (`scrubResult` in `lib/connector/tools.ts`). Tool guidance (`error`,
+  `note`, `next`) is not. Atlas's own results are unchanged.
+- **Activity log.** `ConnectorCall`: which tool an app used, when, and
+  whether it read, prepared or failed. Never the arguments or the data. Shown
+  as **Recent activity** on Connected apps, kept 90 days.
+
+Still not done: a test with a real Claude or ChatGPT connection.

@@ -15,7 +15,7 @@
  * Pure: no database (the endpoint is app/api/mcp/route.ts).
  */
 import type { Tool } from "@/lib/assistant/core";
-import { QUOTED_TEXT_RULE } from "@/lib/assistant/untrusted";
+import { QUOTED_TEXT_RULE, quoted } from "@/lib/assistant/untrusted";
 
 export const CONNECTOR_READ = [
   "query_records", "report", "search_clients", "list_clients", "get_client_activity", "get_client_notes", "get_client_details", "get_statement",
@@ -32,7 +32,7 @@ export const CONNECTOR_PREPARE = [
   "create_job", "update_job", "add_job_line_items", "update_job_status", "add_job_note", "schedule_appointment", "update_appointment", "cancel_appointment",
   "update_checklist_item", "clock", "record_job_signoff", "manage_time_entry", "manage_time_block", "optimize_route", "add_place", "add_stop", "post_team_message",
   "create_invoice", "request_payment", "update_invoice", "email_document", "record_payment", "edit_payment", "manage_subscription", "log_expense", "update_expense",
-  "refund_payment", "charge_saved_card", "duplicate_document", "manage_recurring_expense", "quickbooks", "send_payout", "run_recurring_billing",
+  "duplicate_document", "manage_recurring_expense", "quickbooks",
   "create_agreement_template", "update_agreement_template", "send_agreement", "update_agreement",
   "update_company_settings", "set_business_hours", "create_service", "update_service", "manage_client_fields", "manage_booking_item",
   "add_team_member", "update_team_member", "update_team_policy",
@@ -50,7 +50,16 @@ export const CONNECTOR_NEVER: Record<string, string> = {
   export_data: "its download link only works in a signed-in browser",
   request_ability: "feedback to WorkBench from inside the app",
   place_call: "rings the person's own phone first",
+  // Moving money is done inside Workbench only. The AI apps' directories do not
+  // accept connectors that transfer money, and it is the right line anyway.
+  refund_payment: "moves money",
+  charge_saved_card: "moves money",
+  send_payout: "moves money",
+  run_recurring_billing: "moves money",
 };
+
+/** Prepare tools whose approved effect removes something or cannot be taken back. */
+const DESTRUCTIVE = new Set(["delete_record", "undo_import", "cancel_appointment", "manage_saved_card"]);
 
 const READ = new Set<string>(CONNECTOR_READ);
 const PREPARE = new Set<string>(CONNECTOR_PREPARE);
@@ -73,8 +82,16 @@ export function toolListing(t: Tool) {
     name: t.decl.name,
     description: `${mode === "prepare" ? "PREPARES ONLY — nothing is saved, sent or charged until the person approves it in Workbench. " : ""}${t.decl.description}`.slice(0, 4000),
     inputSchema: { type: "object", properties: {}, ...params },
-    annotations: { readOnlyHint: mode === "read", ...(mode === "prepare" ? { destructiveHint: false } : {}) },
+    // Every hint is stated outright (the AI apps' directories require it). The
+    // data is one private Workbench account, never the open web.
+    annotations: { title: toolTitle(t.decl.name), readOnlyHint: mode === "read", destructiveHint: mode === "prepare" && DESTRUCTIVE.has(t.decl.name), openWorldHint: false },
   };
+}
+
+/** "list_money" → "List money" — the name a person sees in their AI app. */
+export function toolTitle(name: string): string {
+  const words = name.replace(/_/g, " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 // ── what goes back to the outside AI ─────────────────────────────────────────
@@ -97,11 +114,27 @@ export function scrubResult<T>(value: T, depth = 0): T {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
       if (SECRET_KEYS.has(k.toLowerCase())) continue;
-      out[k] = scrubResult(v, depth + 1);
+      out[k] = typeof v === "string" && FENCED_KEYS.has(k.toLowerCase()) ? fence(v) : scrubResult(v, depth + 1);
     }
     return out as T;
   }
   return value;
+}
+
+/**
+ * Fields that hold words a customer may have typed (a name on a booking
+ * form, an address, a message, a note). Inside Workbench, Atlas fences the
+ * riskiest of these and is told what the fence means. An outside AI gets
+ * ALL of them fenced, because a name is as good a place as a note to hide
+ * "ignore your rules". Tool guidance (error, note, next) is never fenced.
+ */
+const FENCED_KEYS = new Set([
+  "client", "clientname", "contact", "name", "firstname", "lastname", "companyname", "address", "street", "city",
+  "title", "subject", "notes", "description", "details", "message", "clientmessage", "body", "text", "reason", "changerequest", "caption",
+]);
+function fence(v: string): string {
+  const clean = v.replace(SECRET_URL, LINK_WITHHELD);
+  return clean.trim() === "" || clean.startsWith("⟪") ? clean : (quoted(clean, 4000) ?? clean);
 }
 
 /** What the outside AI is told about using Workbench — the rules Atlas gets from its own prompt, for a model that never sees that prompt. */

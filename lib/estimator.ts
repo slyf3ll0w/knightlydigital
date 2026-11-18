@@ -121,6 +121,9 @@ export type EstimatorInput =
   | (EstimatorInputBase & { type: "toggle"; default?: boolean })
   | (EstimatorInputBase & { type: "text"; placeholder?: string; default?: string; required?: boolean });
 
+/** The steps a tool may round its price to (spec.roundTo). */
+export const ROUND_STEPS = [5, 10, 25, 50, 100];
+
 export type EstimatorVariable = { id: string; expr: string; /** Plain words for the editor ("Price per foot at the chosen height"). */ label?: string };
 
 /**
@@ -232,6 +235,14 @@ export type EstimatorSpec = {
   discounts?: EstimatorDiscount[];
   /** Job minimum — a "Minimum job charge" line tops the quote up to this. */
   minimumTotal?: number;
+  /**
+   * Round the price to a whole step ($5, $10, $25, $50 or $100) — what an
+   * owner does by hand when $4,402 goes out as $4,400. Applied last, to the
+   * price the client sees (after the minimum and any discount, before tax),
+   * by moving the largest line; "up" always rounds up, otherwise to the nearest.
+   */
+  roundTo?: number;
+  roundMode?: "nearest" | "up";
   /** Templates for the quote header + client note. */
   quoteTitle?: string;
   clientMessage?: string;
@@ -310,6 +321,8 @@ export type EstimatorRun =
       flags: string[];
       /** Dollars the "Minimum job charge" line added (0 when the work cleared the minimum). */
       minimumApplied: number;
+      /** Dollars rounding moved the price by (spec.roundTo); absent when it did not. */
+      roundingApplied?: number;
     }
   | {
       ok: false;
@@ -1464,6 +1477,8 @@ export function compileSpec(raw: unknown): CompileResult {
 
   const minimumTotal = optNum(r.minimumTotal);
   if (minimumTotal !== undefined && (minimumTotal < 0 || minimumTotal > 1_000_000)) errors.push("minimumTotal must be between 0 and 1,000,000");
+  const roundTo = optNum(r.roundTo);
+  if (roundTo !== undefined && roundTo !== 0 && !ROUND_STEPS.includes(roundTo)) errors.push(`roundTo must be one of ${ROUND_STEPS.join(", ")}`);
 
   const quoteTitleSrc = s(r.quoteTitle, ESTIMATOR_LIMITS.templateLen) || undefined;
   const clientMessageSrc = s(r.clientMessage, 1200) || undefined;
@@ -1560,6 +1575,7 @@ export function compileSpec(raw: unknown): CompileResult {
     lines: lines.map((l) => l.rule),
     ...(discountSrc.length > 0 ? { discounts: discountSrc } : {}),
     minimumTotal: minimumTotal && minimumTotal > 0 ? Math.round(minimumTotal * 100) / 100 : undefined,
+    ...(roundTo && ROUND_STEPS.includes(roundTo) ? { roundTo, ...(r.roundMode === "up" ? { roundMode: "up" as const } : {}) } : {}),
     quoteTitle: quoteTitleSrc,
     clientMessage: clientMessageSrc,
     assist,
@@ -1991,7 +2007,30 @@ export function runCompiled(
       discounts.push({ label: d.rule.label, amount });
       discount = cents(discount + amount);
     }
-    const total = cents(subtotal - discount);
+    let total = cents(subtotal - discount);
+    // Rounding, last: the price the client sees lands on a whole step. The
+    // largest committed line absorbs the difference (folded to one unit at
+    // its full price when it had a quantity, the way fractional quantities are).
+    let roundingApplied = 0;
+    if (spec.roundTo && total > 0) {
+      const step = spec.roundTo;
+      const target = spec.roundMode === "up" ? Math.ceil(total / step - 1e-9) * step : Math.round(total / step) * step;
+      const delta = cents(target - total);
+      const big = lines.filter((l) => !l.isOptional).sort((a, b) => b.quantity * b.unitPrice - a.quantity * a.unitPrice)[0];
+      if (delta !== 0 && big && big.quantity * big.unitPrice + delta > 0) {
+        if (big.quantity !== 1) {
+          const each = `${big.quantity} at $${cents(big.unitPrice).toFixed(2)} each`;
+          if (!big.description.includes(String(big.quantity))) big.description = big.description ? `${big.description} — ${each}` : each;
+          big.unitPrice = big.quantity * big.unitPrice;
+          if (big.unitCost != null) big.unitCost = big.quantity * big.unitCost;
+          big.quantity = 1;
+        }
+        big.unitPrice = cents(big.unitPrice + delta);
+        subtotal = cents(subtotal + delta);
+        total = cents(target);
+        roundingApplied = delta;
+      }
+    }
     ctx.vars.quote_total = total;
     ctx.vars.labor_hours = Math.round(hoursTotal * 100) / 100;
     // things to confirm before the price is final — never part of the math
@@ -2014,6 +2053,7 @@ export function runCompiled(
       warnings,
       flags,
       minimumApplied,
+      ...(roundingApplied !== 0 ? { roundingApplied } : {}),
     };
   } catch (e) {
     return { ok: false, errors: [(e as Error).message] };
@@ -2788,6 +2828,7 @@ Rules:
 - Choice answers are TEXT. "3" + "2" adds (5) when both read as numbers, and a yes/no select answered "no" / "none" / "0" is FALSE in a condition — but prefer a toggle for yes/no and compare choices explicitly (stories == '2').
 - workItemName links a line to a price-book item (exact name): it brings the item's cost, id and — when unitPrice is omitted — its price. price("Name") / cost("Name") read the price book inside any expression. Names must exist in the price book (get_price_book) — never invent items; create them with create_service first.
 - Quantity may be fractional (2.5 hours): it folds into one unit at the extended price automatically.
+- "roundTo" (5, 10, 25, 50 or 100; "roundMode": "up" to always round up) rounds the price the client sees to a whole step. Set it ONLY when the owner says they round their prices; never write rounding into a formula.
 - Lines with quantity <= 0 or a false "when" are skipped. minimumTotal adds a "Minimum job charge" top-up line when needed (only against the non-optional lines).
 - Expression language: + - * / % ; comparisons == != < <= > >= ; and/or/not (or && || !) ; cond ? a : b ; strings in quotes; lists [a, b]; tables {small: 100, large: 200}.
   Functions: min max round(x, decimals) floor ceil abs sqrt if(c, a, b) clamp(x, lo, hi) pct(amount, percent) roundTo(x, step) tier(x, [[upTo, value], ...], else) lookup(key, {k: v}, default) price("Name") cost("Name") len(text) contains(text, part) lower(text) number(x) has(picks, value) count(picks) sum(list) join(picks, ", ").
@@ -2891,6 +2932,7 @@ export function describeSpecChanges(from: EstimatorSpec, to: EstimatorSpec): str
   }
   for (const o of from.discounts ?? []) if (!toDisc.has(o.id)) out.push(`Removed discount "${o.label}"`);
 
+  if ((from.roundTo ?? 0) !== (to.roundTo ?? 0) || (from.roundMode ?? "nearest") !== (to.roundMode ?? "nearest")) out.push(to.roundTo ? `Prices rounded ${to.roundMode === "up" ? "up " : ""}to the ${to.roundMode === "up" ? "next" : "nearest"} $${to.roundTo}` : "Prices no longer rounded");
   if ((from.minimumTotal ?? 0) !== (to.minimumTotal ?? 0)) out.push(`Minimum job charge: $${(from.minimumTotal ?? 0).toFixed(2)} → $${(to.minimumTotal ?? 0).toFixed(2)}`);
   const fromPh = from.placeholders?.length ?? 0, toPh = to.placeholders?.length ?? 0;
   if (fromPh > 0 && toPh === 0) out.push("Placeholder prices resolved");

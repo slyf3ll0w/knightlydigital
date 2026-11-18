@@ -16,7 +16,8 @@
  * and scored exactly (scripts/test-estimator-corrections.ts).
  *
  * What is deliberately NOT a correction:
- *   - rounding ($4,402 sent as $4,400)
+ *   - rounding ($4,402 sent as $4,400) — never a RATE change; when it is what
+ *     they do on nearly every quote it is offered as rounding itself
  *   - a changed quantity at the same unit price (the measurement was off, not the rate)
  *   - the quote's discount field (a favour to one client)
  *   - edits that go both ways, or agree with each other by less than 5%
@@ -25,7 +26,7 @@
  *
  * Pure: no database, no network.
  */
-import { compileSpec, runCompiled, type CompiledSpec, type EstimatorRate, type EstimatorSpec, type PriceBookEntry } from "./estimator";
+import { compileSpec, runCompiled, ROUND_STEPS, type CompiledSpec, type EstimatorRate, type EstimatorSpec, type PriceBookEntry } from "./estimator";
 
 // ── what goes in ─────────────────────────────────────────────────────────────
 
@@ -85,7 +86,9 @@ export type Suggestion =
   | (SuggestionBase & { kind: "price_book"; workItemId: string; name: string; from: number; to: number })
   | (SuggestionBase & { kind: "add_line"; name: string; typical: number; low: number; high: number })
   | (SuggestionBase & { kind: "drop_line"; name: string })
-  | (SuggestionBase & { kind: "minimum"; from: number | null; to: number });
+  | (SuggestionBase & { kind: "minimum"; from: number | null; to: number })
+  /** They round every price by hand: the tool can do it (spec.roundTo). */
+  | (SuggestionBase & { kind: "rounding"; to: number; mode: "nearest" | "up" });
 
 /** Why a pattern that looked like something was NOT offered — for the scorecard and for debugging. */
 export type Held = { key: string; reason: "few" | "mixed" | "both_ways" | "scattered" | "tiny" | "unproven" | "not_winning" | "dismissed" | "overlap" };
@@ -549,6 +552,63 @@ function minimumCandidate(spec: EstimatorSpec, book: PriceBookEntry[], reads: Re
   };
 }
 
+// ── rounding ─────────────────────────────────────────────────────────────────
+
+/**
+ * They send round numbers: the quote goes out untouched except that its
+ * total sits on a whole step the tool's total did not. Offered only when
+ * one step and one direction reproduce nearly every recent quote exactly.
+ * A quote with a real edit on it counts against (what was rounded there was
+ * not the tool's price). Tools with discount rules are skipped: the quote's
+ * discount is not kept with the run, so the total cannot be read.
+ */
+function roundingCandidate(spec: EstimatorSpec, reads: Read[], held: Held[]): Candidate | null {
+  const B = CORRECTION_BAR;
+  if (spec.roundTo || (spec.discounts?.length ?? 0) > 0) return null;
+  const recent = reads.slice(-6);
+  // "only the total was rounded": no line added or removed, and at most one line moved (the one they nudged) —
+  // the exact-total test below does the rest
+  const untouched = (r: Read) => r.added.length === 0 && r.removed.length === 0 && r.pairs.filter((p) => Math.abs(p.sent - p.tool) >= 0.5).length <= 1;
+  // A quote keeps unit prices to the cent, so rounding a total by nudging "143 ft at $30.94" lands within
+  // half a cent per unit of the round number, not on it.
+  const slack = (r: Read) => Math.max(0.5, 0.005 * Math.max(1, ...r.obs.sentLines.map((l) => l.quantity)));
+  let best: { step: number; mode: "nearest" | "up"; hits: Read[]; right: number } | null = null;
+  let seen = false;
+  for (const step of [...ROUND_STEPS].sort((a, b) => b - a)) {
+    for (const mode of ["nearest", "up"] as const) {
+      const to = (n: number) => (mode === "up" ? Math.ceil(n / step - 1e-9) * step : Math.round(n / step) * step);
+      const hits: Read[] = [];
+      let right = 0;
+      for (const r of recent) {
+        const want = to(r.toolTotal);
+        const exact = untouched(r) && Math.abs(r.sentTotal - want) <= slack(r);
+        if (exact) right++;
+        if (exact && Math.abs(r.toolTotal - want) > slack(r)) hits.push(r); // the tool's own number was not round: they made it so
+      }
+      if (hits.length > 0) seen = true;
+      if (hits.length >= B.minQuotes && right / recent.length >= B.share && (!best || hits.length > best.hits.length)) best = { step, mode, hits, right };
+    }
+  }
+  if (!best) {
+    if (seen) held.push({ key: "round", reason: "mixed" });
+    return null;
+  }
+  const exactNow = recent.filter((r) => Math.abs(r.sentTotal - r.toolTotal) <= slack(r)).length;
+  return {
+    suggestion: {
+      kind: "rounding",
+      key: `round:${best.step}:${best.mode}`,
+      to: best.step,
+      mode: best.mode,
+      quotes: best.hits.map((r) => ({ id: r.obs.id, quoteNumber: r.obs.quoteNumber, at: r.obs.at, tool: r.toolTotal, sent: r.sentTotal, outcome: r.obs.outcome })),
+      proof: { checked: recent.length, matchBefore: exactNow, matchAfter: best.right },
+    },
+    score: [best.right / recent.length, best.hits.length, -1],
+    obsIds: new Set(best.hits.map((r) => r.obs.id)),
+    lineKeys: new Set(),
+  };
+}
+
 // ── a line they keep typing in, a line they keep taking off ──────────────────
 
 function addLineCandidates(reads: Read[], held: Held[]): Candidate[] {
@@ -652,7 +712,12 @@ const overlap = (a: Set<string>, b: Set<string>) => [...a].some((x) => b.has(x))
  */
 export function analyzeCorrections(rawSpec: unknown, priceBook: PriceBookEntry[], observations: Observation[], opts: { dismissed?: Dismissal[]; now?: Date } = {}): CorrectionReport {
   const B = CORRECTION_BAR;
-  const c = compileSpec(rawSpec);
+  const real = compileSpec(rawSpec);
+  if (!real.ok) return { suggestions: [], held: [], usable: 0, stale: 0 };
+  // Everything but the rounding check reads the tool with its rounding off:
+  // a rounded total moves in steps, which hides what a rate would have to be,
+  // and the comparisons below already forgive rounding.
+  const c = compileSpec({ ...real.compiled.spec, roundTo: undefined, roundMode: undefined });
   if (!c.ok) return { suggestions: [], held: [], usable: 0, stale: 0 };
   const spec = c.compiled.spec;
   const cutoff = (opts.now ?? new Date()).getTime() - B.maxAgeDays * 86_400_000;
@@ -686,6 +751,8 @@ export function analyzeCorrections(rawSpec: unknown, priceBook: PriceBookEntry[]
     const cand = rateCandidate(base, bookKnob(c.compiled, priceBook, entry), reads, held);
     if (cand) candidates.push(cand);
   }
+  const rounding = roundingCandidate(real.compiled.spec, reads, held);
+  if (rounding) candidates.push(rounding);
   candidates.push(...addLineCandidates(reads, held), ...dropLineCandidates(reads, held));
 
   // two explanations for the same edits: keep the one that fits best
@@ -747,6 +814,12 @@ export function suggestionText(s: Suggestion): { title: string; detail: string; 
         detail: `${n} recent quotes went out at ${money(s.to)} when the tool priced them lower${s.from != null ? ` (its minimum is ${money(s.from)})` : " (it has no minimum)"}. With a ${money(s.to)} minimum the tool would have matched ${s.proof.matchAfter} of your last ${s.proof.checked}; today it matches ${s.proof.matchBefore}.`,
         action: `Set the minimum to ${money(s.to)}`,
       };
+    case "rounding":
+      return {
+        title: `You round your prices ${s.mode === "up" ? "up to the next" : "to the nearest"} ${money(s.to)}`,
+        detail: `${n} of your last ${s.proof.checked} quotes from this tool went out with the total rounded by hand and nothing else changed. The tool can round for you; it would have matched ${s.proof.matchAfter} of those ${s.proof.checked} to the dollar, and today it matches ${s.proof.matchBefore}.`,
+        action: `Round ${s.mode === "up" ? "up to the next" : "to the nearest"} ${money(s.to)}`,
+      };
     case "add_line":
       return {
         title: `You keep adding “${s.name}” by hand`,
@@ -777,6 +850,7 @@ export function applySuggestion(spec: EstimatorSpec, s: Suggestion): EstimatorSp
     return { ...spec, rates: (spec.rates ?? []).map((r) => (r.id === s.rateId ? { ...r, value: s.to, source: "owner" as const } : r)) };
   }
   if (s.kind === "minimum") return { ...spec, minimumTotal: s.to };
+  if (s.kind === "rounding") return { ...spec, roundTo: s.to, roundMode: s.mode === "up" ? "up" : undefined };
   return null;
 }
 

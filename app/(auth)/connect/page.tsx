@@ -97,7 +97,8 @@ export default async function ConnectPage({ searchParams }: { searchParams: Prom
         <div>
           <p className="font-medium text-gray-900">It will not be able to</p>
           <ul className="mt-1 list-disc space-y-1 pl-5">
-            <li>Save, send, charge or delete anything. What it prepares waits in WorkBench until you approve it there.</li>
+            <li>Save, send or delete anything. What it prepares waits in WorkBench until you approve it there.</li>
+            <li>Move money. Refunds, card charges and payouts are only done inside WorkBench.</li>
           </ul>
         </div>
         <p className="rounded-[10px] bg-amber-50 px-3 py-2 text-amber-900">

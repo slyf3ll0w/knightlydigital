@@ -101,6 +101,8 @@ const roundTotal = (step: number): Edit => (lines) => {
   return lines.map((l, j) => (j === i ? { ...l, unitPrice: (want - rest) / l.quantity } : l));
 };
 
+/** Lengths whose totals land well away from any round number. */
+const ROUND_JOBS: Job[] = [{ length: 143 }, { length: 97, gates: 1 }, { length: 211, gates: 2 }, { length: 77 }, { length: 183 }, { length: 119, gates: 1 }];
 const JOBS: Job[] = [{ length: 142 }, { length: 96, gates: 1 }, { length: 210, gates: 2 }, { length: 75 }, { length: 180, tearout: true }, { length: 118, gates: 1 }];
 
 type Case = { name: string; obs: Observation[]; spec?: EstimatorSpec; book?: PriceBookEntry[]; dismissed?: Dismissal[]; expect: string[]; check?: (s: Suggestion[]) => void };
@@ -194,12 +196,34 @@ const cases: Case[] = [
     expect: ["rate:cedar_ft:up"],
     check: (s) => assert.equal(rate(s, "cedar_ft").to, 34),
   },
+  {
+    name: "every total rounded to the nearest $25, nothing else touched: rounding, never a rate",
+    obs: quotes(ROUND_JOBS, roundTotal(25)),
+    expect: ["round:25:nearest"],
+    check: (s) => assert.ok(s[0].kind === "rounding" && s[0].proof.matchAfter === 6 && s[0].proof.matchBefore === 0),
+  },
+  {
+    name: "rounded by nudging a per-foot price the quote keeps to the cent (totals land cents off the round number)",
+    obs: quotes(ROUND_JOBS, (lines, job, i) => roundTotal(25)(lines, job, i).map((l) => ({ ...l, unitPrice: Math.round(l.unitPrice * 100) / 100 }))),
+    expect: ["round:25:nearest"],
+  },
+  {
+    name: "every total rounded UP to the next $50",
+    obs: quotes(ROUND_JOBS, (lines) => roundTotalTo(lines, Math.ceil(total(lines) / 50) * 50)),
+    expect: ["round:50:up"],
+  },
+  {
+    name: "a tool that already rounds says nothing more about rounding",
+    obs: quotes(ROUND_JOBS, roundTotal(25)),
+    spec: { ...SPEC, roundTo: 25 },
+    expect: [],
+  },
   // ── traps: the right answer is nothing ──
   { name: "TRAP an Atlas-made quote: lines under other names, nothing repriced", obs: quotes(JOBS, renamed), expect: [] },
   { name: "TRAP a price-book line repriced once", obs: quotes(CAP_JOBS, only((_, i) => i === 1, price("Post caps", () => 15)), { spec: SPEC_BOOK, book: BOOK }), spec: SPEC_BOOK, book: BOOK, expect: [] },
   { name: "TRAP nothing edited", obs: quotes(JOBS, keep), expect: [] },
-  { name: "TRAP totals rounded to the nearest $50", obs: quotes(JOBS, roundTotal(50)), expect: [] },
-  { name: "TRAP totals rounded to the nearest $100", obs: quotes([{ length: 142 }, { length: 196, gates: 1 }, { length: 210, gates: 2 }, { length: 175 }, { length: 180, tearout: true }], roundTotal(100)), expect: [] },
+  { name: "TRAP totals rounded on two quotes only", obs: quotes(JOBS, only((_, i) => i === 1 || i === 4, roundTotal(50))), expect: [] },
+  { name: "TRAP rounded to no one step (the nearest $25 one time, the next $100 another)", obs: quotes(ROUND_JOBS, (lines, job, i) => (i % 2 ? roundTotal(25)(lines, job, i) : roundTotalTo(lines, Math.ceil(total(lines) / 100) * 100 + (i === 0 ? 100 : 0)))), expect: [] },
   { name: "TRAP one big favour to a friend", obs: quotes(JOBS, only((_, i) => i === 3, price("Fence installation", (p) => p * 0.8))), expect: [] },
   { name: "TRAP two edits (not enough)", obs: quotes(JOBS.slice(0, 2), cedar34), expect: [] },
   { name: "TRAP edits go both ways", obs: quotes(JOBS, price("Fence installation", (p, l) => (l.quantity > 120 ? p * 1.1 : p * 0.9))), expect: [] },

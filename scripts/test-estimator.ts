@@ -1007,3 +1007,37 @@ console.log("ok 16: choice arithmetic, yes/no words, discounts, hours, cost");
 }
 console.log("ok 17: one control, answer-dependent options, rate card, labor vs price, flags, tiny jobs, copy");
 console.log("\nestimator: all green");
+
+// price rounding (spec.roundTo): the largest line absorbs the difference; applied after the minimum and discounts
+{
+  const base = {
+    version: 1,
+    inputs: [{ id: "ft", label: "Feet", type: "number", min: 1, required: true }],
+    rates: [{ id: "r", label: "Fence", value: 31, kind: "price", source: "owner" }],
+    variables: [],
+    lines: [
+      { id: "a", name: "Fence", quantity: "ft", unitPrice: "r" },
+      { id: "b", name: "Permit", quantity: "1", unitPrice: "75" },
+    ],
+  };
+  const plain = runEstimator(base, { ft: 142 }, []);
+  assert.ok(plain.ok && plain.total === 4477 && plain.roundingApplied === undefined);
+  const near = runEstimator({ ...base, roundTo: 25 }, { ft: 142 }, []);
+  assert.ok(near.ok && near.total === 4475 && near.subtotal === 4475 && near.roundingApplied === -2, "nearest $25");
+  assert.ok(near.ok && near.lines[0].quantity === 1 && near.lines[0].unitPrice === 4400 && near.lines[0].description.includes("142 at $31.00 each"), "the big line folds to one unit and says what it was");
+  assert.ok(near.ok && near.lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0) === 4475, "the lines still add up to the total");
+  const up = runEstimator({ ...base, roundTo: 50, roundMode: "up" }, { ft: 142 }, []);
+  assert.ok(up.ok && up.total === 4500 && up.roundingApplied === 23, "up to the next $50");
+  const already = runEstimator({ ...base, roundTo: 25 }, { ft: 100 }, []);
+  assert.ok(already.ok && already.total === 3175 && already.roundingApplied === undefined && already.lines[0].quantity === 100, "a price already on the step is left alone");
+  const withMin = runEstimator({ ...base, minimumTotal: 990, roundTo: 100 }, { ft: 10 }, []);
+  assert.ok(withMin.ok && withMin.total === 1000 && withMin.minimumApplied > 0, "rounding comes after the minimum");
+  assert.ok(!compileSpec({ ...base, roundTo: 7 }).ok, "only whole steps are allowed");
+  assert.ok(describeSpecChanges(compileSpecOk(base), compileSpecOk({ ...base, roundTo: 25 })).some((c) => c.includes("nearest $25")));
+}
+function compileSpecOk(raw: unknown) {
+  const c = compileSpec(raw);
+  assert.ok(c.ok);
+  return c.compiled.spec;
+}
+console.log("estimator: rounding green");

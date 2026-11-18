@@ -97,21 +97,38 @@ export async function handleRpc(caller: ConnectorCaller, msg: RpcRequest, header
         result = await tool.run(caller.actor, args, ctx);
       } catch (err) {
         reportError(`connector tool ${name} failed`, err);
+        logCall(caller, name, "error");
         return text({ error: "That didn't work on Workbench's side. Try again in a moment." }, true);
       }
       const mode = connectorMode(name);
       const proposals = mergeBulkProposals(ctx.proposals);
-      if (proposals.length === 0) return text(scrubResult(result), typeof result.error === "string");
+      if (proposals.length === 0) {
+        logCall(caller, name, typeof result.error === "string" ? "error" : "read");
+        return text(scrubResult(result), typeof result.error === "string");
+      }
       // a read tool must never stage anything; if one ever does, it does not get through
       if (mode !== "prepare") {
         reportError(`connector: read tool ${name} staged a card`, new Error(name));
         return text({ error: "That can't be done from a connected app." }, true);
       }
+      logCall(caller, name, "prepared");
       return text(await holdForApproval(caller, proposals));
     }
     default:
       return fail(id, -32601, `Method not found: ${method}`, modern ? 404 : 200);
   }
+}
+
+/**
+ * The activity list on Settings → Connected apps: which tool an app used and
+ * when. Tool names only — never the arguments or what came back. Best
+ * effort; rows older than 90 days are cleared as new ones arrive.
+ */
+function logCall(caller: ConnectorCaller, tool: string, outcome: "read" | "prepared" | "error"): void {
+  void prisma.connectorCall
+    .create({ data: { companyId: caller.actor.companyId, userId: caller.actor.id, grantId: caller.grantId, tool, outcome } })
+    .then(() => (Math.random() < 0.02 ? prisma.connectorCall.deleteMany({ where: { createdAt: { lt: new Date(Date.now() - 90 * 86_400_000) } } }) : null))
+    .catch(() => {});
 }
 
 /** Store the cards a tool staged and tell the outside AI, in plain words, that nothing has happened yet. */
