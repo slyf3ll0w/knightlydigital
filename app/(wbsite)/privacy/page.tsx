@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     "How WorkBench collects, uses, and protects your information — and why we never sell it.",
 };
 
-const LAST_UPDATED = "October 22, 2026";
+const LAST_UPDATED = "November 17, 2026";
 
 /* Public privacy policy for WorkBench. This URL is required by the App Store,
    the Play Store, and our payment processor (Finix) onboarding, so it must stay
@@ -58,9 +58,11 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
     ],
   },
   {
-    heading: "6. AI features",
+    heading: "6. AI features and connected AI apps",
     paragraphs: [
-      "Some features — such as the setup wizard and the built-in assistant — are powered by third-party AI models (currently Google Gemini). When you use these features, the relevant text you provide, and for the assistant the specific business records needed to answer your request, are sent to the AI provider to generate a response. We only send what is needed to power the feature you are using, and we do not use your data to train third-party models.",
+      "Some features — such as the setup wizard, estimate tools, and the built-in assistant — are powered by third-party AI models from Anthropic (Claude) and Google (Gemini). When you use these features, the relevant text you provide, and for the assistant the specific business records needed to answer your request, are sent to the AI provider to generate a response. We only send what is needed to power the feature you are using, and we do not use your data to train third-party models.",
+      "Connected AI apps. An owner or admin can choose to connect a third-party AI app (for example Claude or ChatGPT) to their WorkBench account. This is optional and off until that person turns it on. When they do, the records that person asks the app about are sent to the company that provides that app, including client names, contact details, addresses, jobs, quotes, invoices, and payments. That company’s own terms and privacy policy apply to what it receives.",
+      "A connected app can read what the person who connected it can see, and can prepare changes that the person must approve inside WorkBench. It cannot save, send, or delete anything on its own, and it cannot move money. We keep a record of which actions a connected app took and when, for 90 days, but not the data it read. A connection can be removed at any time in Settings → Connected apps, changing your password ends every connection you made, and the account owner can turn connected apps off for the whole company.",
     ],
   },
   {
@@ -75,7 +77,7 @@ const sections: { heading: string; paragraphs: (string | React.ReactNode)[] }[] 
   {
     heading: "8. Service providers",
     paragraphs: [
-      "We rely on a small number of vendors to run the Service, and they only receive the data required to do their job: cloud hosting and database infrastructure (Railway), payment processing (Square / Block, Inc.), transactional email delivery (Resend), bot and spam protection (Cloudflare Turnstile), push-notification delivery (Apple Push Notification service and Firebase Cloud Messaging), and AI processing (Google). Each vendor is bound by its own terms and privacy commitments.",
+      "We rely on a small number of vendors to run the Service, and they only receive the data required to do their job: cloud hosting and database infrastructure (Railway), payment processing (Square / Block, Inc.), transactional email delivery (Resend), bot and spam protection (Cloudflare Turnstile), push-notification delivery (Apple Push Notification service and Firebase Cloud Messaging), and AI processing (Anthropic and Google). Each vendor is bound by its own terms and privacy commitments.",
     ],
   },
   {

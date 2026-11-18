@@ -351,6 +351,17 @@ export async function middleware(req: NextRequest) {
     return NextResponse.json(authorizationServerMetadata(), { headers: { "Cache-Control": "public, max-age=3600", "Access-Control-Allow-Origin": "*" } });
   }
 
+  // OpenAI's proof that we own this domain, asked for when the connector is
+  // submitted to the ChatGPT directory: their portal shows a token and
+  // fetches it from here as plain text (the token and nothing else). Set
+  // OPENAI_APPS_CHALLENGE to that token; a 404 until then.
+  // (docs/plans/connector-directory-listing-2026-11-17.md)
+  if (path === "/.well-known/openai-apps-challenge") {
+    const token = process.env.OPENAI_APPS_CHALLENGE?.trim();
+    if (!token) return new NextResponse("Not found", { status: 404 });
+    return new NextResponse(token, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
+  }
+
   // ── Rate limiting ──────────────────────────────────────────────────────────
   // Rules apply to every non-GET/HEAD method unless they name their own
   // methods — the public PDF rule is the one GET that earns a bucket.
@@ -494,6 +505,7 @@ export const config = {
     "/.well-known/change-password",
     "/.well-known/apple-app-site-association",
     "/.well-known/assetlinks.json",
+    "/.well-known/openai-apps-challenge",
     "/.well-known/oauth-protected-resource/:path*",
     "/.well-known/oauth-authorization-server/:path*",
     "/api/oauth/:path*",

@@ -1,8 +1,9 @@
-# Getting Workbench listed in Claude, ChatGPT and Grok (2026-11-17)
+# Getting WorkBench listed in Claude, ChatGPT and Grok (2026-11-17)
 
 David: "how can we get it to where i can connect my Claude, ChatGPT, Grok etc.
 without the custom connectors thing, where i can just sign in like i have done
-for Railway for you for example?"
+for Railway for you for example?" and then "can you give me a step-by-step of
+what i need to do to become a partner of those apps?"
 
 ## The short answer
 
@@ -10,98 +11,192 @@ The sign-in part already exists. What you did for Railway (pick it from a
 list, sign in, press Allow) is what a person does on WorkBench's `/connect`
 page today. The only missing piece is the **list**: Railway is in Claude's
 connector directory, and WorkBench is not in anyone's yet. Until it is, a
-person has to paste `https://workbenchfsm.com/api/mcp` once.
+person pastes `https://workbenchfsm.com/api/mcp` once.
 
-Getting listed is a submission to each AI company, made from your accounts.
-It cannot be built from this side. Checked on the web 2026-11-17; these
-programs change, so read each company's current page before submitting.
+There is no "partner program" to join for this. Each AI company has a
+self-serve submission. It is made from your accounts, so it cannot be done
+from this side. Steps below are from each company's own docs, read
+2026-11-17. These programs change; if a screen differs, follow the screen.
 
-## What each one needs
+## Before either submission (do these once)
 
-| | Claude (Anthropic) | ChatGPT (OpenAI) | Grok (xAI) |
-|---|---|---|---|
-| Is there a public list? | Yes, the Connectors Directory | Yes, the ChatGPT directory (apps are submitted as plugins) | Not confirmed. Grok takes a custom connector by address. One third-party guide describes a catalog you ask xAI about directly |
-| Where to submit | A portal inside Claude (their docs name `claude.ai/directory/manage` and the admin settings) | The OpenAI Platform; steps at `developers.openai.com/plugins/deploy/submission` | Contact xAI |
-| Who can submit | A paid Claude plan (an Owner on Team or Enterprise) | A verified individual or organization on the OpenAI Platform | Unknown |
-| What happens | Scanned automatically and listed as a Community connector; they may later review it for the Verified label | Reviewed before it is listed | Unknown |
+1. **Test it for real.** In Claude: Settings → Connectors → Add custom
+   connector → paste `https://workbenchfsm.com/api/mcp` → sign in → Allow.
+   Then ask "who owes me money?", "what's on tomorrow?", and "draft a quote
+   for <a client> for <a job>". Approve the quote under Settings → Connected
+   apps in WorkBench. Do the same in ChatGPT. Both companies ask you to
+   confirm you did this, and anything that breaks should break for you first.
+2. **Make a reviewer account.** A separate WorkBench company with sample
+   data, and an owner login for it that needs no phone code and no email
+   link. Both reviewers will ask for it. Write the email and password down;
+   you paste them into OpenAI's portal and email them to Anthropic only if
+   they ask.
+3. **Have these ready** (all exist today):
+   - Documentation: `https://workbenchfsm.com/help` → "Connect Claude or
+     ChatGPT to WorkBench"
+   - Privacy policy: `https://workbenchfsm.com/privacy` (updated 2026-11-17
+     with a connected-apps section)
+   - Terms: `https://workbenchfsm.com/terms`
+   - Support: `https://workbenchfsm.com/contact`
+   - A square icon (the WorkBench mark), PNG, at least 512 px
+   - The listing copy at the end of this file
 
-## What reviewers check, and where WorkBench stands
+## Claude (Anthropic): the faster one
+
+Needs: any paid Claude plan (on Team or Enterprise, an Owner submits). No fee
+is mentioned in their docs.
+
+1. Go to `https://claude.ai/directory/manage`, press **Submit new**, choose
+   **MCP connector**.
+2. **Connection:** paste `https://workbenchfsm.com/api/mcp` (or pick the
+   custom connector you added while testing).
+3. **Tools:** it reads the tool list from the server. Every tool should show
+   a title and a read-only or write label. If any is flagged, tell me which.
+4. **Listing:** name (100 characters max), one-liner (200), description
+   (2,000), one to five categories, the documentation, privacy and support
+   links, the icon, and a URL slug. **The slug is permanent**; use `workbench`.
+5. **Use cases:** what it is for, what a person needs first (a WorkBench
+   account, owner or admin), and that it both reads and writes.
+6. **Company:** Streamflaire Group LLC, the website, and your email for
+   review updates.
+7. **Authentication:** sign-in is **required**, method **OAuth**. Leave the
+   client ID and secret empty: WorkBench lets Claude identify itself, so
+   there is no client to hand over.
+8. **Data handling:** the API is **your own**. No health data, no sponsored
+   content.
+9. **Test & launch:** confirm you ran every tool (step 1 above). Do not put
+   the reviewer login here; they email you if they want it.
+10. **Compliance:** seven boxes. Two to read carefully: "financial
+    transactions" (WorkBench's connector does not move money; refunds, card
+    charges and payouts were removed from it) and "prompt injection" (tool
+    descriptions must describe, not instruct).
+11. **Review and submit.**
+
+After that: it is scanned automatically and normally listed as a **Community**
+connector with nothing more from you. From then on anyone can pick WorkBench
+from Claude's list. Anthropic may later look at it for the **Verified** label;
+that is when a person tests each tool and asks for the reviewer login. Status
+and feedback show at the same address. If it is stuck:
+`mcp-review@anthropic.com`.
+
+## ChatGPT (OpenAI): more to prepare
+
+Needs: an OpenAI Platform organization where you are the owner, and identity
+or business verification. A person reviews it before it is listed.
+
+1. **Verify.** `https://platform.openai.com/settings/organization/general` →
+   complete business verification as Streamflaire Group LLC (or individual
+   verification under your own name). The directory shows the verified name.
+2. **Build the package.** ChatGPT takes a ZIP, not just an address. It holds
+   a `plugin.json` (the listing: name and subtitle of 30 characters each,
+   description up to 4,000, the four links, up to three starter prompts of
+   128 characters, brand color, logo) and an `mcp.json` (the server address
+   and how it signs in; WorkBench supports both automatic registration and
+   the metadata-document method). **I can build this ZIP**; say the word once
+   step 1 is done, since the file format should be read fresh at that point.
+3. **Write the review material** (goes in the package): five things it should
+   do, each with the prompt, the tools it should use and what should happen;
+   three things it should refuse or ask about; and a short screen recording
+   of those. Drafts of the eight cases are below.
+4. **Upload.** `https://platform.openai.com/plugins` → **Upload new or
+   existing plugin** → pick your verified identity → upload the ZIP → fix
+   anything it flags.
+5. **Connect the server.** Open **MCPs** → **Connect** → confirm the address.
+   It will show a **domain verification token**. Send me that token (or set
+   it yourself as the `OPENAI_APPS_CHALLENGE` variable on Railway). WorkBench
+   then serves it at `https://workbenchfsm.com/.well-known/openai-apps-challenge`,
+   which is where OpenAI looks. Then sign in with the reviewer account when
+   it asks, and wait for its tool scan.
+6. **Review details:** paste the reviewer account's login address
+   (`https://workbenchfsm.com/app/login`), email and password, and press
+   **Save details**.
+7. **Submit for review** and tick the policy boxes. Feedback comes by email;
+   only one review can be open at a time.
+8. **When approved,** open the approved version and press **Publish plugin**.
+   It is not live until you do.
+
+Things OpenAI rejects for that apply to us: a reviewer login that needs a
+code or a new sign-up; a tool missing any of its three labels (done); a
+privacy policy that does not cover it (done); showing or selling subscription
+plans (the connector only shows the owner's own records).
+
+## Grok (xAI)
+
+No public list was found. Grok takes a pasted address today (grok.com →
+Connectors → New connector → Custom), and WorkBench's address works there the
+same way. One third-party guide says xAI keeps a catalog of sign-in
+connectors and that listings are arranged with xAI directly.
+
+1. Test WorkBench in Grok as a custom connector.
+2. Email xAI's developer or partnerships contact, say WorkBench has a
+   production connector with OAuth sign-in, and ask how to be added to the
+   catalog.
+
+## Where WorkBench stands against what reviewers check
 
 | Requirement | Who asks | Status |
 |---|---|---|
-| A public https address for the connector | Both | Done: `https://workbenchfsm.com/api/mcp` |
-| Sign-in with OAuth, on our own domain | Both | Done |
-| Every tool has a title and says whether it only reads | Claude | Done 2026-11-17 |
-| Every tool states all three hints (read-only, destructive, open-world) | ChatGPT | Done 2026-11-17 |
+| A public https address | Both | Done |
+| OAuth sign-in on our own domain | Both | Done |
+| Every tool has a title and says whether it only reads | Claude | Done |
+| Every tool states all three labels | ChatGPT | Done |
 | Tool names 64 characters or fewer | Claude | Done (tested) |
-| Reads and writes are separate tools | Claude | **Mostly.** Some tools take an action argument (`manage_task`, `manage_time_block`, `quickbooks`, `browse_library` and others). Any that both look up and change in one tool may be sent back; splitting them is the fix. Not audited tool by tool yet |
-| Tool descriptions say what the tool does and do not tell the AI how to behave | Both | **Risk.** Atlas's descriptions include guidance written for Atlas ("check get_price_book first", "never invent prices"). A reviewer may want those trimmed for the connector |
-| Does not transfer money | Claude | Done 2026-11-17: refunds, card charges, payouts and billing runs are not offered |
-| Does not show subscription plans or sell digital goods | ChatGPT | Fine: it shows the owner's own business records, sells nothing |
+| Does not transfer money | Claude | Done: refunds, card charges, payouts and billing runs are not offered |
+| Domain verification address | ChatGPT | Done; needs the token from their portal |
+| Public documentation, privacy policy, terms, support link | Both | Done |
+| Reads and writes are separate tools | Claude | **Risk.** Some tools take an action argument (`manage_task`, `manage_time_block`, `quickbooks`, `browse_library` and others). Any that both look up and change in one tool may be sent back; splitting them is the fix. Not audited tool by tool yet |
+| Descriptions describe the tool and do not instruct the AI | Both | **Risk.** Atlas's descriptions include guidance written for Atlas ("check get_price_book first", "never invent prices"). A reviewer may want those trimmed for the connector |
 | Every tool works and gives a clear error | Both | Not tested with a real app yet |
-| Public documentation | Claude | Done: the Help article "Connect Claude or ChatGPT to WorkBench" |
-| A privacy policy that covers it | Both | **Needs your edit**, see below |
-| A demo account with sample data for the reviewer, with a login that works without a new sign-up or a phone code | ChatGPT (Claude asks if they review for Verified) | **To do.** A demo company exists (`streamflare-demo-co`); it needs a reviewer login |
-| A support contact | ChatGPT | You have one; put it in the form |
-| An icon and a short description | Both | To write at submission (copy below) |
-| You tested every tool as a custom connector first | Claude | **To do**, the test in the next section |
-
-## Order to do it in
-
-1. **Test it for real** as a custom connector in Claude: add the address,
-   Allow, ask "who owes me money?", have it draft a quote, approve the quote
-   under Connected apps. Do the same in ChatGPT. Anything that fails gets
-   fixed before a reviewer sees it.
-2. **Update the privacy policy** (text below).
-3. **Make the reviewer's demo login.**
-4. **Submit to Claude first.** It lists you as a Community connector without
-   waiting on a person, so it is the fastest way to "pick WorkBench from the list".
-5. **Verify your organization with OpenAI, then submit to ChatGPT.**
-6. **Email xAI** to ask how catalog listings work. Until then Grok users
-   paste the address.
-
-## Privacy policy: two things to change
-
-Legal text on the live site is yours to approve, so nothing was changed.
-
-**1. Section 6 (AI features) is out of date.** It says the AI is "currently
-Google Gemini" and section on vendors lists "AI processing (Google)". Since
-2026-11-05 the text features run on Anthropic's Claude, with Google as the
-fallback and for speech. Both companies should be named.
-
-**2. Add a section for connected apps.** Suggested wording:
-
-> **Connected AI apps.** An owner or admin can choose to connect a
-> third-party AI app (for example Claude or ChatGPT) to their WorkBench
-> account. When they do, the records that person asks the app about are sent
-> to the company that provides that app, including client names, contact
-> details, addresses, jobs, quotes, invoices and payments. That company's own
-> terms and privacy policy apply to what it receives. A connected app can
-> read what the person who connected it can see, and can prepare changes that
-> the person must approve inside WorkBench; it cannot save, send or delete
-> anything on its own, and it cannot move money. We keep a record of which
-> actions a connected app took and when, for 90 days, but not the data it
-> read. A connection can be removed at any time in Settings → Connected apps,
-> and the account owner can turn connected apps off for the whole company.
+| Reviewer account | ChatGPT; Claude if they review for Verified | To do (you) |
+| The ZIP, eight test cases, demo recording | ChatGPT | To do (me for the ZIP and cases, you for the recording) |
 
 ## Listing copy (edit freely)
 
 - **Name:** WorkBench
+- **Subtitle (30 characters):** Run your service business
 - **One line:** Run your field-service business from your AI app: clients,
   schedule, quotes, invoices and reports.
 - **Description:** WorkBench is software for home-service companies. Connect
   it to ask questions about your business ("who owes me money?", "what's on
   tomorrow?") and to prepare work like quotes, jobs and client emails.
   Anything it prepares waits in WorkBench for your approval; nothing is
-  saved, sent or charged from the AI app. Owners and admins only.
-- **Example prompts:** "Who owes me money?" · "What's on the schedule
-  tomorrow?" · "Draft a quote for the Hendersons for a 140 ft cedar fence." ·
-  "How did we do last month compared with the month before?"
+  saved, sent or charged from the AI app, and it cannot move money. Owners
+  and admins only. Requires a WorkBench account.
+- **Categories:** Business, Productivity
+- **Starter prompts:** "Who owes me money?" · "What's on the schedule
+  tomorrow?" · "Draft a quote for a client"
+
+## The eight test cases for ChatGPT (drafts)
+
+Should work:
+
+1. "Who owes me money?" → `list_money` → a list of unpaid invoices with
+   clients and amounts.
+2. "What's on the schedule tomorrow?" → `get_schedule` → tomorrow's jobs and
+   appointments with times.
+3. "Find the client named Maria and tell me what we've done for her." →
+   `search_clients`, `get_client_activity` → her jobs, quotes and invoices.
+4. "Draft a quote for Maria for a 200A panel upgrade at $2,850." →
+   `search_clients`, `create_quote` → says the quote is waiting for approval
+   in WorkBench and gives the link; nothing is created yet.
+5. "How did we do last month?" → `business_summary` → revenue, jobs and
+   payments for the month.
+
+Should refuse or ask:
+
+6. "Refund Maria's last payment." → no tool does this; it should say refunds
+   are done inside WorkBench.
+7. "Email every client that we're closing." → it should ask which clients and
+   what to say, and anything it prepares waits for approval.
+8. "Delete all my invoices." → it should ask for confirmation of which ones;
+   any delete it prepares waits for approval in WorkBench and needs the typed
+   confirmation there.
 
 ## Sources
 
-- https://claude.com/docs/connectors/building/review-criteria.md
 - https://claude.com/docs/connectors/building/submission.md
+- https://claude.com/docs/connectors/building/review-criteria.md
+- https://developers.openai.com/plugins/deploy/submission
 - https://developers.openai.com/apps-sdk/app-submission-guidelines
 - https://docs.x.ai/developers/tools/remote-mcp
 - https://satsuma.ai/blog/grok-connector-guide (third party; the only source for a Grok catalog)
