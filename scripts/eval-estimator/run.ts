@@ -20,6 +20,8 @@ import { buildEstimator, type BuildAnswer, type BuildEvent, type BuildQuestion }
 import { runEstimator, type EstimatorSpec, type PriceBookEntry } from "../../lib/estimator";
 import { loadPriceBook } from "../../lib/estimator-server";
 import { runAssist } from "../../lib/estimator-assist";
+import { correctionFacts } from "../../lib/estimator-corrections";
+import { correctionReport, recordQuoteRun } from "../../lib/estimator-corrections-server";
 import type { Actor } from "../../lib/permissions";
 import { CASES, type EvalCase, type EvalJob, type Expect } from "./cases";
 
@@ -141,6 +143,10 @@ async function scoreFillIn(spec: EstimatorSpec, book: PriceBookEntry[], job: Eva
   }
   const res = await runAssist(ctx.actor, spec, ctx.name, job.said ?? "", image);
   if (!res.ok) return { ok: false, got: null, offBy: null, error: res.error };
+  // what only the photo could say must be in the fill-in's OWN answers (blanks are topped up from the form below)
+  if (job.photo && job.photoReads && !Object.values(res.values).some((v) => new RegExp(job.photoReads!, "i").test(Array.isArray(v) ? v.join(" ") : String(v)))) {
+    return { ok: false, got: null, offBy: null, error: `The fill-in did not take the kind of fence from the photo (its answers: ${JSON.stringify(res.values).slice(0, 200)}).`, notes: res.notes, values: res.values };
+  }
   // The fill-in is a head start, not the whole form: what the customer's words don't cover (an HOA question, a
   // property line) the customer still answers. Those come from the form answers; everything Atlas DID fill in wins.
   let run = runEstimator(spec, res.values, book);
@@ -291,6 +297,35 @@ async function runCase(c: EvalCase): Promise<Row[]> {
   );
 
   if (c.change) {
+    // quotes the owner sent from the first tool before asking for the change
+    let premise = "";
+    if (c.change.sentQuotes?.length) {
+      const book = await loadPriceBook(company.id);
+      const contact = await prisma.contact.create({ data: { companyId: company.id, firstName: "Eval", lastName: "Client" }, select: { id: true } });
+      let n = 0;
+      for (const sq of c.change.sentQuotes) {
+        const filled = await fill(first.spec, { label: "sent", facts: sq.facts, expect: { kind: "exact", totals: [sq.sentTotal] } });
+        const run = filled ? runEstimator(first.spec, filled.inputs, book) : null;
+        if (!filled || !run || !run.ok) continue;
+        const lines = run.lines.map((l) => ({ name: l.name, description: l.description, quantity: l.quantity, unitPrice: l.unitPrice }));
+        const big = [...lines].sort((a, b) => b.quantity * b.unitPrice - a.quantity * a.unitPrice)[0];
+        const rest = lines.reduce((s, l) => s + (l === big ? 0 : l.quantity * l.unitPrice), 0);
+        big.unitPrice = Math.round(((sq.sentTotal - rest) / big.quantity) * 100) / 100;
+        const subtotal = lines.reduce((s, l) => s + l.quantity * l.unitPrice, 0);
+        const quote = await prisma.quote.create({
+          data: { companyId: company.id, contactId: contact.id, estimatorId: first.toolId, quoteNumber: ++n, publicToken: `eval-${stamp}-${n}`, subtotal, total: subtotal, status: "AWAITING_RESPONSE", sentAt: new Date(Date.now() - (20 - n) * 86_400_000), lineItems: { create: lines.map((l, i) => ({ ...l, total: l.quantity * l.unitPrice, sortOrder: i })) } },
+          select: { id: true },
+        });
+        await recordQuoteRun(prisma, { companyId: company.id, estimatorId: first.toolId, quoteId: quote.id, inputs: filled.inputs, source: "app" });
+      }
+      const row = await prisma.estimator.findUniqueOrThrow({ where: { id: first.toolId }, select: { id: true, spec: true } });
+      const facts = correctionFacts(await correctionReport(company.id, row));
+      premise = facts.length > 0 ? `Corrections the builder was told: ${facts.join(" ")}` : "";
+      if (!premise) {
+        rows.push(finish({ id: `${c.id}:change`, trade: c.trade, kind: "change", built: false, error: `Premise failed: ${n} sent quotes did not add up to a proven correction, so there was nothing for the builder to read.`, seconds: 0, jobs: [], warnings: [], asked: [] }));
+        return rows;
+      }
+    }
     t0 = Date.now();
     const second = await build(actor, c.change.prompt, c, first.toolId);
     if (!second.ok) rows.push(finish({ id: `${c.id}:change`, trade: c.trade, kind: "change", built: false, error: second.error, seconds: (Date.now() - t0) / 1000, jobs: [], warnings: [], asked: [] }));
@@ -305,7 +340,7 @@ async function runCase(c: EvalCase): Promise<Row[]> {
           jobs: await scoreTool(second.spec, { actor, name: second.name }, c.change.jobs),
           rates: checkRates(second.spec, c.change.ownerRates, false),
           ...(c.change.minimum !== undefined ? { minimum: { want: c.change.minimum, got: second.spec.minimumTotal ?? null } } : {}),
-          warnings: second.warnings,
+          warnings: premise ? [premise, ...second.warnings] : second.warnings,
           asked: [],
           spec: second.spec,
         })

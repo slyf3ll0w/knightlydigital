@@ -121,10 +121,38 @@ check against a local database: rounding offered, applied, and the tool then
 priced all six quotes to within the cents a quote's unit price can hold; two
 companies with the same correction showed as one pattern.
 
+## Added the same day (fourth round: closing the open items)
+
+- **Rounding on tools with discount rules.** The quote's own discount is now
+  read with the sent quote, so rounding is judged on the price the client saw
+  (after the discount). A discount the owner changed by hand counts against.
+  Scorecard: **42 of 42, silent on 22 of 22 traps.**
+- **The builder reading corrections is now on the estimator answer key**
+  (`scripts/eval-estimator/cases.ts`, `change.sentQuotes`). The existing
+  cases could not exercise it: none of their tools had sent quotes. Two new
+  cases seed five quotes sent at $37 a foot from a tool that says $34:
+  `fence-corrections-used` ("update my cedar price to what I've actually been
+  charging", no number given: the tool must come back at $37) and
+  `fence-corrections-left-alone` (asked for a haul-off option: cedar must
+  stay $34). A row fails as "premise" when the seeded quotes do not add up to
+  a proven correction.
+- **Photo fill-in has cases** (`fence-photo`): three openly licensed photos
+  (wood privacy, chain link, white vinyl; `scripts/eval-estimator/photos/README.md`)
+  with the customer saying only "like the one in this photo". `photoReads`
+  makes the fill-in's OWN answers carry the kind of fence, so a fill-in that
+  ignored the photo cannot pass on answers taken from the form.
+- **Model run 2026-11-17** (Haiku 5.5 builder, Sonnet 5.5 grader): the five
+  new rows passed 5 of 5; 10 of 10 jobs right; photo fill-in 3 of 3 (it read
+  wood, chain link and vinyl from the photos). **A full pass of the whole
+  answer key (25 cases) was not run**: the machine had about 700 MB free.
+  It needs about 2 GB free and 20 minutes:
+  `bash <scratchpad>/eval.sh --concurrency 2 --label full5 --out <dir>`.
+
 ## Not built yet
 
 - **Acting on a cross-company pattern automatically.** Deliberately manual.
-- **Rounding on tools with discount rules.**
+- **Real customer photos.** The three photos are clean stand-ins; a real
+  phone photo is a harder test.
 - **Across companies (superseded by the note above):** the same correction in many companies as a builder fix.
   Only counts would cross, never a company's data.
 

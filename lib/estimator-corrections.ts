@@ -44,6 +44,8 @@ export type Observation = {
   toolLines: CorrectionLine[];
   /** The lines the owner sent. */
   sentLines: CorrectionLine[];
+  /** The discount on the quote that went out, in dollars (0 or absent = none). Only rounding reads it. */
+  sentDiscount?: number;
   outcome: "won" | "lost" | "open";
 };
 
@@ -223,12 +225,15 @@ type Read = {
   atMinimum: boolean;
   toolTotal: number;
   sentTotal: number;
+  /** The price the client sees: the totals above less the discount (the tool's own rules; the quote's own field). Rounding lands here. */
+  toolNet: number;
+  sentNet: number;
 };
 
-function linesOf(compiled: CompiledSpec, inputs: Record<string, unknown>, book: PriceBookEntry[]): { lines: CorrectionLine[]; minimumApplied: number } | null {
+function linesOf(compiled: CompiledSpec, inputs: Record<string, unknown>, book: PriceBookEntry[]): { lines: CorrectionLine[]; minimumApplied: number; discount: number } | null {
   const run = runCompiled(compiled, inputs, book);
   if (!run.ok) return null;
-  return { lines: run.lines.map((l) => ({ name: l.name, quantity: l.quantity, unitPrice: l.unitPrice, isOptional: l.isOptional })), minimumApplied: run.minimumApplied };
+  return { lines: run.lines.map((l) => ({ name: l.name, quantity: l.quantity, unitPrice: l.unitPrice, isOptional: l.isOptional })), minimumApplied: run.minimumApplied, discount: run.discount };
 }
 
 /**
@@ -274,14 +279,18 @@ function read(compiled: CompiledSpec, book: PriceBookEntry[], obs: Observation):
     added = [];
   }
   const owed = (ls: { optional: boolean; amt: number }[]) => cents(ls.filter((l) => !l.optional).reduce((s, l) => s + l.amt, 0));
+  const toolTotal = owed(tool.map((t) => ({ optional: Boolean(t.line.isOptional), amt: amount(t.line) })));
+  const sentTotal = owed(obs.sentLines.map((l) => ({ optional: Boolean(l.isOptional), amt: amount(l) })));
   return {
     obs,
     pairs,
     added: added.filter((l) => amount(l) > 0),
     removed,
     atMinimum: now.minimumApplied > 0,
-    toolTotal: owed(tool.map((t) => ({ optional: Boolean(t.line.isOptional), amt: amount(t.line) }))),
-    sentTotal: owed(obs.sentLines.map((l) => ({ optional: Boolean(l.isOptional), amt: amount(l) }))),
+    toolTotal,
+    sentTotal,
+    toolNet: cents(toolTotal - now.discount),
+    sentNet: cents(sentTotal - Math.max(0, obs.sentDiscount ?? 0)),
   };
 }
 
@@ -559,12 +568,13 @@ function minimumCandidate(spec: EstimatorSpec, book: PriceBookEntry[], reads: Re
  * total sits on a whole step the tool's total did not. Offered only when
  * one step and one direction reproduce nearly every recent quote exactly.
  * A quote with a real edit on it counts against (what was rounded there was
- * not the tool's price). Tools with discount rules are skipped: the quote's
- * discount is not kept with the run, so the total cannot be read.
+ * not the tool's price). The price that gets rounded is the one the client
+ * sees: after the tool's discount rules on one side and the quote's own
+ * discount on the other, so a discount the owner changed by hand counts against too.
  */
 function roundingCandidate(spec: EstimatorSpec, reads: Read[], held: Held[]): Candidate | null {
   const B = CORRECTION_BAR;
-  if (spec.roundTo || (spec.discounts?.length ?? 0) > 0) return null;
+  if (spec.roundTo) return null;
   const recent = reads.slice(-6);
   // "only the total was rounded": no line added or removed, and at most one line moved (the one they nudged) —
   // the exact-total test below does the rest
@@ -580,10 +590,10 @@ function roundingCandidate(spec: EstimatorSpec, reads: Read[], held: Held[]): Ca
       const hits: Read[] = [];
       let right = 0;
       for (const r of recent) {
-        const want = to(r.toolTotal);
-        const exact = untouched(r) && Math.abs(r.sentTotal - want) <= slack(r);
+        const want = to(r.toolNet);
+        const exact = untouched(r) && Math.abs(r.sentNet - want) <= slack(r);
         if (exact) right++;
-        if (exact && Math.abs(r.toolTotal - want) > slack(r)) hits.push(r); // the tool's own number was not round: they made it so
+        if (exact && Math.abs(r.toolNet - want) > slack(r)) hits.push(r); // the tool's own number was not round: they made it so
       }
       if (hits.length > 0) seen = true;
       if (hits.length >= B.minQuotes && right / recent.length >= B.share && (!best || hits.length > best.hits.length)) best = { step, mode, hits, right };
@@ -593,14 +603,14 @@ function roundingCandidate(spec: EstimatorSpec, reads: Read[], held: Held[]): Ca
     if (seen) held.push({ key: "round", reason: "mixed" });
     return null;
   }
-  const exactNow = recent.filter((r) => Math.abs(r.sentTotal - r.toolTotal) <= slack(r)).length;
+  const exactNow = recent.filter((r) => Math.abs(r.sentNet - r.toolNet) <= slack(r)).length;
   return {
     suggestion: {
       kind: "rounding",
       key: `round:${best.step}:${best.mode}`,
       to: best.step,
       mode: best.mode,
-      quotes: best.hits.map((r) => ({ id: r.obs.id, quoteNumber: r.obs.quoteNumber, at: r.obs.at, tool: r.toolTotal, sent: r.sentTotal, outcome: r.obs.outcome })),
+      quotes: best.hits.map((r) => ({ id: r.obs.id, quoteNumber: r.obs.quoteNumber, at: r.obs.at, tool: r.toolNet, sent: r.sentNet, outcome: r.obs.outcome })),
       proof: { checked: recent.length, matchBefore: exactNow, matchAfter: best.right },
     },
     score: [best.right / recent.length, best.hits.length, -1],

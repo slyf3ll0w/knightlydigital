@@ -95,6 +95,7 @@ export async function loadObservations(companyId: string, estimatorId: string): 
           quoteNumber: true,
           sentAt: true,
           status: true,
+          discount: true,
           lineItems: { orderBy: { sortOrder: "asc" }, select: { name: true, description: true, quantity: true, unitPrice: true, isOptional: true } },
           // edited after it went out: the first revision is what the client first saw
           revisions: { where: { revision: 1 }, select: { snapshot: true } },
@@ -105,7 +106,7 @@ export async function loadObservations(companyId: string, estimatorId: string): 
   return runs
     .filter((r) => r.quote.sentAt)
     .map((r) => {
-      const first = r.quote.revisions[0]?.snapshot as { lineItems?: unknown } | undefined;
+      const first = r.quote.revisions[0]?.snapshot as { lineItems?: unknown; discount?: unknown } | undefined;
       const sentLines = first?.lineItems
         ? linesFromJson(first.lineItems)
         : r.quote.lineItems.map((l) => ({ name: l.name || l.description, quantity: Number(l.quantity), unitPrice: Number(l.unitPrice), isOptional: l.isOptional }));
@@ -117,6 +118,8 @@ export async function loadObservations(companyId: string, estimatorId: string): 
         inputs: (r.inputs ?? {}) as Record<string, unknown>,
         toolLines: linesFromJson(r.toolLines),
         sentLines,
+        // the quote's discount as it first went out (rounding is read on the price the client saw)
+        sentDiscount: Number((first?.lineItems ? first.discount : r.quote.discount) ?? 0) || 0,
         outcome: status === "APPROVED" || status === "CONVERTED" ? ("won" as const) : status === "ARCHIVED" ? ("lost" as const) : ("open" as const),
       };
     });

@@ -51,6 +51,13 @@ The "add a photo or describe the job and Atlas fills in the form" step (lib/esti
 
 ## Status
 
+- **2026-11-17:** three cases added (`fence-corrections-used`,
+  `fence-corrections-left-alone`, `fence-photo` with the first photos; see
+  `estimator-corrections-2026-11-17.md`). Run on their own: 5 of 5 rows, 10 of
+  10 jobs, photo fill-in 3 of 3. The full 25-case pass has not been re-run
+  since the builder started reading corrections and the rounding line was
+  added to the builder's guide.
+
 - **2026-11-14, Haiku 5.5 builder, Sonnet 5.5 grader.** Baseline: 21 of 22 tools built, 52 of 53 owner-rate jobs right, slowest build about 7 minutes. After the fixes below (full run): 23 of 23 built, 55 of 56 owner-rate jobs right, 5 of 6 market jobs in range, fill-in 3 of 3, slowest about 5 minutes; a re-check of the cases touched by the last fix passed 6 of 6.
 - **What the scorecard found and what was changed:**
   - A no-rates fence build thought to the 32k cap and came back cut off (the 2026-11-12 ticket's fault). A cut-off answer now retries lean. Capping effort at "medium" was tried and dropped: 49 and 51 of 53 against 52 and 53 at full effort.

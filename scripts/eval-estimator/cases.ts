@@ -38,6 +38,13 @@ export type EvalJob = {
   expectIfNotAsked?: Expect;
   /** A photo of the job for the fill-in, a file under scripts/eval-estimator/photos/ (jpg, png or webp). */
   photo?: string;
+  /**
+   * What only the photo could tell the fill-in (a pattern, e.g. "wood|cedar"):
+   * one of the answers the fill-in ITSELF gave must match it. Without this a
+   * fill-in that ignored the photo could still pass, because answers it left
+   * blank are taken from the form.
+   */
+  photoReads?: string;
 };
 
 export type EvalCase = {
@@ -65,7 +72,20 @@ export type EvalCase = {
   wantsFillIn?: boolean;
   jobs: EvalJob[];
   /** A follow-up change request on the finished tool, scored as its own row. */
-  change?: { prompt: string; ownerRates?: (number | number[])[]; minimum?: number; jobs: EvalJob[] };
+  change?: {
+    prompt: string;
+    ownerRates?: (number | number[])[];
+    minimum?: number;
+    jobs: EvalJob[];
+    /**
+     * Quotes the owner made from the first tool and SENT before asking for
+     * the change, each at the total they actually charged (the largest line
+     * is repriced to reach it). They become the company's corrections
+     * (lib/estimator-corrections.ts), which the builder is told as facts.
+     * The row fails as "premise" when these do not add up to a proven correction.
+     */
+    sentQuotes?: { facts: string; sentTotal: number }[];
+  };
 };
 
 const exact = (...totals: number[]): Expect => ({ kind: "exact", totals });
@@ -163,9 +183,92 @@ export const CASES: EvalCase[] = [
     ],
   },
 
+  // ── per-company corrections reach the builder (2026-11-17) ────────────────
+  // The owner has been sending cedar at $37 a foot from a tool that says $34.
+  // Asked to bring the tool up to what they charge (no number given), the
+  // builder must use THEIR number. Asked for something else, it must leave
+  // the cedar price alone: corrections are facts, never applied unasked.
+  ...(["used", "left-alone"] as const).map(
+    (which): EvalCase => ({
+      id: `fence-corrections-${which}`,
+      trade: "Fencing",
+      company: { industry: "Fencing", ...TX },
+      prompt: "I build 6 ft cedar privacy fences. $34 a foot installed. Walk gates are $375 each. My minimum job is $1,200. I charge for the full length of the fence line and gates are added on top.",
+      ownerRates: [34, 375],
+      minimum: 1200,
+      jobs: [{ label: "150 ft, one walk gate", facts: "150 ft of 6 ft tall cedar privacy fence with one walk gate. Flat normal ground, no old fence to remove.", expect: exact(150 * 34 + 375) }],
+      change: {
+        sentQuotes: [
+          { facts: "140 ft of 6 ft tall cedar privacy fence, no gates. Normal ground, no old fence.", sentTotal: 140 * 37 },
+          { facts: "96 ft of 6 ft tall cedar privacy fence with one walk gate. Normal ground, no old fence.", sentTotal: 96 * 37 + 375 },
+          { facts: "210 ft of 6 ft tall cedar privacy fence with two walk gates. Normal ground, no old fence.", sentTotal: 210 * 37 + 750 },
+          { facts: "75 ft of 6 ft tall cedar privacy fence, no gates. Normal ground, no old fence.", sentTotal: 75 * 37 },
+          { facts: "180 ft of 6 ft tall cedar privacy fence with one walk gate. Normal ground, no old fence.", sentTotal: 180 * 37 + 375 },
+        ],
+        ...(which === "used"
+          ? {
+              prompt: "Update my cedar price to what I've actually been charging on my quotes. Leave everything else as it is.",
+              ownerRates: [37, 375],
+              minimum: 1200,
+              jobs: [
+                { label: "150 ft, one walk gate, at what they charge", facts: "150 ft of 6 ft tall cedar privacy fence with one walk gate. Flat normal ground, no old fence to remove.", expect: exact(150 * 37 + 375) },
+                { label: "100 ft, no gate", facts: "100 ft of 6 ft tall cedar privacy fence, no gates. Normal ground, no old fence.", expect: exact(100 * 37) },
+                { label: "Tiny: 20 ft", facts: "20 ft of 6 ft tall cedar privacy fence, no gates, normal ground, no old fence.", expect: exact(1200) },
+              ],
+            }
+          : {
+              prompt: "Add tearing out and hauling off an old fence as an option, $4 a foot. Leave everything else exactly as it is.",
+              ownerRates: [34, 375, 4],
+              minimum: 1200,
+              jobs: [
+                { label: "150 ft, one walk gate: cedar price untouched", facts: "150 ft of 6 ft tall cedar privacy fence with one walk gate. Flat normal ground, no old fence to remove.", expect: exact(150 * 34 + 375) },
+                { label: "100 ft with 100 ft of old fence hauled off", facts: "100 ft of 6 ft tall cedar privacy fence, no gates. Tear out and haul off 100 ft of old wood fence. Normal ground.", expect: exact(100 * 34 + 100 * 4) },
+              ],
+            }),
+      },
+    })
+  ),
+
   // ── customer photo / description fill-in ──────────────────────────────────
   // The owner asks for it; each job is priced twice — by the form, and by Atlas reading the customer's own words.
-  // Photos: drop a file in scripts/eval-estimator/photos/ and name it on the job ("photo") — none yet.
+  // Photos: drop a file in scripts/eval-estimator/photos/ and name it on the job ("photo"). The three below are openly
+  // licensed stand-ins (photos/README.md) until there are real customer photos.
+  {
+    id: "fence-photo",
+    trade: "Fencing",
+    company: { industry: "Fencing", ...TX },
+    prompt:
+      "I install 6 ft fences. Wood privacy fence is $34 a foot installed, white vinyl is $45 a foot, chain link is $22 a foot. Walk gates are $375 each. My minimum job is $1,200. I charge for the full length of the fence line and gates are added on top. Let customers upload a photo or describe the job and have it fill in the form for them.",
+    ownerRates: [34, 45, 22, 375],
+    minimum: 1200,
+    wantsFillIn: true,
+    jobs: [
+      {
+        label: "Photo of a wood privacy fence, 120 ft",
+        facts: "120 ft of 6 ft tall wood privacy fence, no gates. Normal ground, no old fence to remove.",
+        said: "I want 120 feet of fence like the one in this photo. No gates.",
+        photo: "wood-privacy.jpg",
+        photoReads: "wood|cedar|privacy",
+        expect: exact(120 * 34),
+      },
+      {
+        label: "Photo of a chain-link fence, 200 ft",
+        facts: "200 ft of 6 ft tall chain link fence, no gates. Normal ground, no old fence to remove.",
+        said: "Need 200 ft of the same kind of fence as in the picture. No gate.",
+        photo: "chain-link.jpg",
+        photoReads: "chain",
+        expect: exact(200 * 22),
+      },
+      {
+        label: "Photo of a white vinyl fence, 90 ft, one gate",
+        facts: "90 ft of 6 ft tall white vinyl fence with one walk gate. Normal ground, no old fence to remove.",
+        said: "90 feet like this picture, with one walk gate.",
+        photo: "vinyl-picket.jpg",
+        photoReads: "vinyl",
+        expect: exact(90 * 45 + 375),
+      },
+    ],
+  },
   {
     id: "fence-fill-in",
     trade: "Fencing",

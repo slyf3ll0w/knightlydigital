@@ -105,6 +105,8 @@ const roundTotal = (step: number): Edit => (lines) => {
 const ROUND_JOBS: Job[] = [{ length: 143 }, { length: 97, gates: 1 }, { length: 211, gates: 2 }, { length: 77 }, { length: 183 }, { length: 119, gates: 1 }];
 const JOBS: Job[] = [{ length: 142 }, { length: 96, gates: 1 }, { length: 210, gates: 2 }, { length: 75 }, { length: 180, tearout: true }, { length: 118, gates: 1 }];
 
+/** The same tool with a discount rule: 10% off when the job has two or more gates. */
+const SPEC_DISC: EstimatorSpec = { ...SPEC, discounts: [{ id: "multi", label: "Two-gate discount", when: "gates >= 2", percent: "10" }] };
 type Case = { name: string; obs: Observation[]; spec?: EstimatorSpec; book?: PriceBookEntry[]; dismissed?: Dismissal[]; expect: string[]; check?: (s: Suggestion[]) => void };
 const CAP_JOBS: Job[] = [{ length: 142, caps: 18 }, { length: 96, caps: 12 }, { length: 210 }, { length: 75, caps: 10 }, { length: 180, caps: 23 }];
 /** What Atlas does to a quote: files lines under other names, prices untouched. */
@@ -211,6 +213,12 @@ const cases: Case[] = [
     name: "every total rounded UP to the next $50",
     obs: quotes(ROUND_JOBS, (lines) => roundTotalTo(lines, Math.ceil(total(lines) / 50) * 50)),
     expect: ["round:50:up"],
+  },
+  {
+    name: "a tool with a discount rule: the price AFTER the 10% is what they round",
+    obs: quotes(ROUND_JOBS, (lines, job) => roundTotalTo(lines, Math.round(((job.gates ?? 0) >= 2 ? total(lines) * 0.9 : total(lines)) / 25) * 25 + ((job.gates ?? 0) >= 2 ? total(lines) * 0.1 : 0)), { spec: SPEC_DISC }).map((o, i) => ({ ...o, sentDiscount: (ROUND_JOBS[i].gates ?? 0) >= 2 ? Math.round(o.toolLines.reduce((s, l) => s + l.quantity * l.unitPrice, 0) * 10) / 100 : 0 })),
+    spec: SPEC_DISC,
+    expect: ["round:25:nearest"],
   },
   {
     name: "a tool that already rounds says nothing more about rounding",
