@@ -115,7 +115,6 @@ export default function FreePage() {
         phone={WB_SHOTS.invoices}
         chip={{ icon: <HandCoins className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />, title: `${formatCents(0)} a month on ${FREE_PLAN_NAME}`, sub: `Full access for ${seats} users` }}
       >
-        <p className="wb-label">The free plan</p>
         <h1 className="mt-4 text-4xl font-extrabold leading-[1.08] sm:text-5xl">
           Free field service management software. <span className="text-[#0B57D8]">Not a trial.</span>
         </h1>
@@ -158,7 +157,6 @@ export default function FreePage() {
       <section className="bg-[#F6F8FB]">
         <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
           <AnimateIn className="max-w-3xl">
-            <p className="wb-label">What&rsquo;s in {FREE_PLAN_NAME}</p>
             <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
               Everything a service business needs to run a day.
             </h2>
@@ -195,7 +193,6 @@ export default function FreePage() {
         <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
           <div className="grid gap-10 lg:grid-cols-[1fr_1.2fr] lg:gap-16">
             <AnimateIn>
-              <p className="wb-label">Free plan, not free trial</p>
               <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
                 Most &ldquo;free&rdquo; software is a countdown.
               </h2>
@@ -254,7 +251,6 @@ export default function FreePage() {
       <section className="bg-[#F6F8FB]">
         <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
           <AnimateIn className="max-w-3xl">
-            <p className="wb-label">What costs money</p>
             <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
               Three things, all optional, all on the pricing page.
             </h2>
@@ -333,7 +329,6 @@ export default function FreePage() {
         <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
           <div className="grid gap-10 lg:grid-cols-[1fr_1.3fr] lg:gap-16">
             <AnimateIn>
-              <p className="wb-label">What you keep</p>
               <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
                 The card fee is the same bill you pay now. The subscription isn&rsquo;t.
               </h2>

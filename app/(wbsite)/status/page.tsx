@@ -50,9 +50,6 @@ export default async function StatusPage() {
       <WBHero>
         <div className="max-w-3xl">
           <AnimateIn>
-            <p className="wb-label mb-4" style={{ color: ACCENT }}>
-              Status
-            </p>
             <h1 className="flex flex-wrap items-center gap-x-3 text-4xl font-extrabold leading-[1.08] sm:text-5xl">
               <span className={`inline-block h-4 w-4 rounded-full ${LOOK[status.overall].dot}`} aria-hidden />
               <span>

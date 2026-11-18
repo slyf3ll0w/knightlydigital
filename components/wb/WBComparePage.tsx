@@ -57,7 +57,6 @@ export default function WBComparePage({
           sub: "From a spreadsheet, in minutes",
         }}
       >
-        <span className="wb-label justify-center lg:justify-start">WorkBench vs. {competitorName}</span>
         <h1 className="mt-5 text-4xl font-extrabold leading-[1.08] sm:text-5xl">{title}</h1>
         <p className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed text-gray-600 lg:mx-0">{intro}</p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-4 lg:justify-start">

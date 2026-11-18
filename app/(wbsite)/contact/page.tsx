@@ -19,7 +19,6 @@ export default function WBContactPage() {
         mascot={{ say: <>Yes, a real person<br />picks up.</> }}
         chip={{ icon: <Phone className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />, title: WB_PHONE.display, sub: "Toll-free. A person answers." }}
       >
-        <p className="wb-label justify-center lg:justify-start">Contact</p>
         <h1 className="mt-3 text-4xl font-extrabold leading-[1.1] sm:text-5xl">Talk to a person.</h1>
         <p className="mx-auto mt-5 max-w-2xl text-[17px] leading-relaxed text-gray-600 lg:mx-0">
           Questions about how WorkBench works, what it costs, or whether it fits

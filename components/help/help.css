@@ -246,7 +246,7 @@ html[data-mode="dark"] .app-ui .help-mark { background: color-mix(in srgb, var(-
   /* the site's brand ribbon, small, in the top-right corner */
   background:
     repeating-linear-gradient(104deg, rgba(255, 255, 255, 0.22) 0 1.5px, transparent 1.5px 11px),
-    linear-gradient(118deg, #0B57D8 0%, #2E6FF2 22%, #7A5CF0 44%, #E2557F 64%, #F86A0A 80%, #FFB27A 100%);
+    linear-gradient(118deg, #0A1428 0%, #0B57D8 30%, #2E6FF2 52%, #F86A0A 53%, #FF8B33 78%, #FFC8A0 100%);
   inset: -40px -40px auto auto;
   width: 34%; height: 260px;
   clip-path: polygon(38% 0, 100% 0, 100% 62%, 74% 100%, 0 100%);

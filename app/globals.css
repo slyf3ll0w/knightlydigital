@@ -2249,7 +2249,7 @@ html[data-mode="dark"] .app-ui .card-tool {
   position: absolute;
   left: 0.75rem;
   right: 0.75rem;
-  bottom: 14px;
+  bottom: 3px;
   height: 2.5px;
   border-radius: 2px;
   background: #F86A0A;
@@ -2271,7 +2271,7 @@ html[data-mode="dark"] .app-ui .card-tool {
   pointer-events: none;
   background:
     repeating-linear-gradient(104deg, rgba(255, 255, 255, 0.22) 0 1.5px, transparent 1.5px 11px),
-    linear-gradient(118deg, #0B57D8 0%, #2E6FF2 22%, #7A5CF0 44%, #E2557F 64%, #F86A0A 80%, #FFB27A 100%);
+    linear-gradient(118deg, #0A1428 0%, #0B57D8 30%, #2E6FF2 52%, #F86A0A 53%, #FF8B33 78%, #FFC8A0 100%);
   clip-path: polygon(38% 0, 100% 0, 100% 62%, 74% 100%, 0 100%);
   -webkit-mask-image: linear-gradient(200deg, #000 35%, rgba(0, 0, 0, 0.55) 70%, transparent 100%);
   mask-image: linear-gradient(200deg, #000 35%, rgba(0, 0, 0, 0.55) 70%, transparent 100%);
@@ -2282,11 +2282,24 @@ html[data-mode="dark"] .app-ui .card-tool {
 @keyframes wb-flow-a { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(-26px, 14px) rotate(-2deg); } }
 @keyframes wb-flow-b { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(18px, -10px) rotate(1.6deg); } }
 @keyframes wb-flow-c { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-12px, 20px); } }
-@keyframes wb-hue { 0%, 100% { filter: hue-rotate(0deg) saturate(1); } 50% { filter: hue-rotate(-14deg) saturate(1.15); } }
-.wb-ribbon-svg { animation: wb-hue 14s ease-in-out infinite; }
 .wb-flow-a { transform-box: fill-box; transform-origin: 100% 0%; animation: wb-flow-a 11s ease-in-out infinite; }
 .wb-flow-b { transform-box: fill-box; transform-origin: 100% 0%; animation: wb-flow-b 9s ease-in-out infinite; }
 .wb-flow-c { transform-box: fill-box; transform-origin: 100% 0%; animation: wb-flow-c 13s ease-in-out infinite; }
+
+/* A light sweep across a button every few seconds (header Get started). */
+.wb-shine { position: relative; overflow: hidden; isolation: isolate; }
+.wb-shine::after {
+  content: "";
+  position: absolute;
+  inset: -20% auto -20% -40%;
+  width: 35%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  transform: skewX(-18deg);
+  animation: wb-shine 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes wb-shine { 0%, 62% { left: -40%; } 100% { left: 130%; } }
+@media (prefers-reduced-motion: reduce) { .wb-shine::after { animation: none; display: none; } }
 
 /* The cycling word in the home headline: the next word rises in. */
 @keyframes wb-word-in { from { opacity: 0; transform: translateY(0.45em); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }

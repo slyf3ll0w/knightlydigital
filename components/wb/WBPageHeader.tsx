@@ -49,7 +49,6 @@ export default function WBPageHeader({
       )}
       <div className={aside ? "grid gap-10 lg:grid-cols-[1.4fr_1fr] lg:items-end lg:gap-16" : ""}>
         <div className="max-w-3xl">
-          <p className="wb-label">{label}</p>
           <h1 className="mt-4 text-4xl font-extrabold leading-[1.06] text-gray-900 sm:text-[3.2rem]">{title}</h1>
           {intro && <div className="mt-6 max-w-2xl text-[17px] leading-relaxed text-gray-600 sm:text-[18px]">{intro}</div>}
           {actions && <div className="mt-8 flex flex-wrap items-center gap-3">{actions}</div>}

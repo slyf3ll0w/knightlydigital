@@ -88,7 +88,6 @@ export default function ToolPage({ tool, trade }: { tool: ToolMeta; trade?: Trad
       <WBFaqJsonLd items={faq} />
       <section className="mx-auto max-w-6xl px-5 pb-8 pt-4 sm:px-8 sm:pt-6">
         <AnimateIn>
-          <span className="wb-label">{trade ? `${trade.eyebrow} · free tool` : "Free tool"}</span>
           <h1 className="mt-4 max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl">{title}</h1>
           <p className="mt-5 max-w-2xl text-[17px] leading-relaxed text-gray-600">{intro}</p>
           <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-[13.5px] font-semibold text-gray-700">

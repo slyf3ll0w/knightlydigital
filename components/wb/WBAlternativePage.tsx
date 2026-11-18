@@ -39,7 +39,6 @@ export default function WBAlternativePage({ alt }: { alt: Alternative }) {
         phone={WB_SHOTS.jobs}
         chip={{ icon: <ClipboardCheck className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />, title: "Client list imported", sub: "From a spreadsheet, in minutes" }}
       >
-        <span className="wb-label justify-center lg:justify-start">{alt.name} alternative</span>
         <h1 className="mt-5 text-4xl font-extrabold leading-[1.08] sm:text-5xl">
           {alt.headline[0]} <span className="text-[#0B57D8]">{alt.headline[1]}</span>
         </h1>

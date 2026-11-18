@@ -234,7 +234,7 @@ for (const v of VS_LIST) {
     { re: /bg-\[size:\d+px|bg-grid|wp-grid/, why: "a grid / graph-paper background (David 2026-11-18: the worst offender)" },
     { re: /<WBPhoneReal\b|<WBZoom\b/, why: "phone mockup in a hero (WBPhoneReal / WBZoom)" },
     { re: /rounded-full px-3 py-1 text-\[12\.5px\] font-bold/, why: "pill eyebrow over a title (use <p className=\"wb-label\">)" },
-    { re: /<details[^>]*>[\s\S]{0,400}<summary/, why: "hand-built FAQ (use WBFaqSection / WBFaq)" },
+    { re: /<details(?![^>]*data-wb-toggle)[^>]*>[\s\S]{0,400}<summary/, why: "hand-built FAQ (use WBFaqSection / WBFaq; a plain show/hide toggle carries data-wb-toggle)" },
   ];
   const designFiles = [...pageFiles, ...walk(join(process.cwd(), "components", "wb")).filter((f) => !/[\\/]tools[\\/]/.test(f))];
   for (const f of designFiles) {

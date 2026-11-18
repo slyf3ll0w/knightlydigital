@@ -1,97 +1,60 @@
-"use client";
-
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { AnimateIn } from "@/components/AnimateIn";
 import { TRADES } from "@/lib/wb-trades";
 
 /**
- * The trades directory (Home and /trades), redesigned 2026-11-18: a
- * numbered, ruled list of every trade like a contractor's service index,
- * beside one large job photo that follows the row you point at, with that
- * trade's sample job on a caption plate. Every row links to its trade page.
- * Phones get the list alone, a small photo on each row.
- *
- * `featured` is kept for older callers; every trade is listed.
+ * The trades, laid out like a contractor's services grid (David
+ * 2026-11-18, round 4: no numbers, no icon chips, no text over photos):
+ * a photo card per trade with the trade's name under it, each linking to
+ * its trade page. `featured` cards show as photos; the rest follow as one
+ * line of plain links ("Also built for …").
  */
-export default function WBTradeCards(_props: { featured?: number }) {
-  const [active, setActive] = useState(0);
-  const t = TRADES[active];
-  const half = Math.ceil(TRADES.length / 2);
-  const cols = [TRADES.slice(0, half), TRADES.slice(half)];
-
+export default function WBTradeCards({ featured = TRADES.length }: { featured?: number }) {
+  const cards = TRADES.slice(0, featured);
+  const rest = TRADES.slice(featured);
   return (
-    <div className="mt-12 grid gap-10 lg:grid-cols-[0.95fr_1.3fr] lg:gap-12">
-      {/* the photo that follows the pointer (desktop) */}
-      <div className="relative hidden lg:block">
-        <div className="sticky top-28">
-          <div className="relative aspect-[4/5] overflow-hidden rounded-lg bg-gray-200">
-            {TRADES.map((tr, i) => (
-              <Image
-                key={tr.slug}
-                src={tr.photo.src}
-                alt={i === active ? tr.photo.alt : ""}
-                fill
-                sizes="460px"
-                className={`object-cover transition-opacity duration-300 ${i === active ? "opacity-100" : "opacity-0"}`}
-                loading={i < 2 ? "eager" : "lazy"}
-              />
-            ))}
-            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#0A1428]/80 to-transparent" aria-hidden />
-            <div className="absolute inset-x-0 bottom-0 p-6">
-              <p className="text-[12.5px] font-extrabold uppercase tracking-[0.12em] text-[#FF8B33]">
-                {String(active + 1).padStart(2, "0")} · {t.name}
-              </p>
-              <p className="mt-1.5 text-[19px] font-extrabold leading-snug text-white">{t.chip.title}</p>
-              <p className="text-[14px] text-white/80">{t.chip.sub}</p>
-            </div>
-          </div>
-          <Link
-            href={`/trades/${t.slug}`}
-            className="mt-4 inline-flex items-center gap-1.5 text-[15px] font-bold text-[#0B57D8] hover:underline"
-          >
-            How a {t.name.toLowerCase()} day runs on WorkBench
-            <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-          </Link>
-        </div>
-      </div>
-
-      {/* the numbered list */}
-      <div className="grid gap-x-10 sm:grid-cols-2">
-        {cols.map((col, c) => (
-          <ul key={c} className={`border-t-2 border-[#0A1428] ${c === 1 ? "max-sm:border-t-0" : ""}`}>
-            {col.map((tr) => {
-              const i = TRADES.indexOf(tr);
-              const on = i === active;
-              return (
-                <li key={tr.slug} className="border-b border-gray-200">
-                  <Link
-                    href={`/trades/${tr.slug}`}
-                    onMouseEnter={() => setActive(i)}
-                    onFocus={() => setActive(i)}
-                    className="group flex items-center gap-4 py-3.5 lg:py-4"
-                  >
-                    <span className="relative h-12 w-12 flex-none overflow-hidden rounded-md bg-gray-200 lg:hidden">
-                      <Image src={tr.photo.src} alt="" fill sizes="48px" className="object-cover" />
-                    </span>
-                    <span className={`hidden w-7 flex-none text-[13px] font-extrabold tabular-nums lg:block ${on ? "text-[#F86A0A]" : "text-gray-400"}`}>
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <span className={`flex-1 text-[17px] font-extrabold transition-colors ${on ? "text-[#0B57D8]" : "text-gray-900 group-hover:text-[#0B57D8]"}`}>
-                      {tr.name}
-                    </span>
-                    <ArrowUpRight
-                      className={`h-5 w-5 flex-none transition-all ${on ? "translate-x-0.5 -translate-y-0.5 text-[#0B57D8]" : "text-gray-300 group-hover:text-[#0B57D8]"}`}
-                      strokeWidth={2.25}
-                    />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+    <>
+      <div className="mt-12 grid grid-cols-2 gap-4 sm:gap-5 lg:grid-cols-4">
+        {cards.map(({ slug, name, photo }, i) => (
+          <AnimateIn key={slug} delay={(i % 4) * 60}>
+            <Link href={`/trades/${slug}`} className="group block overflow-hidden rounded-xl border border-gray-200 bg-white transition-shadow hover:shadow-[0_18px_40px_-20px_rgba(10,20,40,0.35)]">
+              <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+                <Image
+                  src={photo.src}
+                  alt={photo.alt}
+                  fill
+                  sizes="(min-width: 1024px) 270px, 50vw"
+                  className="object-cover transition-transform duration-500 group-hover:scale-[1.05]"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-3 px-4 py-3.5">
+                <span className="text-[16px] font-extrabold text-gray-900">{name}</span>
+                <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#F2F6FE] text-[#0B57D8] transition-colors group-hover:bg-[#0B57D8] group-hover:text-white">
+                  <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+                </span>
+              </div>
+            </Link>
+          </AnimateIn>
         ))}
       </div>
-    </div>
+      {rest.length > 0 && (
+        <p className="mt-8 text-[15.5px] leading-relaxed text-gray-600">
+          Also built for{" "}
+          {rest.map((t, i) => (
+            <span key={t.slug}>
+              <Link href={`/trades/${t.slug}`} className="font-bold text-gray-900 underline decoration-gray-300 underline-offset-4 hover:text-[#0B57D8] hover:decoration-[#0B57D8]">
+                {t.name.toLowerCase()}
+              </Link>
+              {i < rest.length - 2 ? ", " : i === rest.length - 2 ? " and " : "."}
+            </span>
+          ))}{" "}
+          <Link href="/trades" className="font-bold text-[#0B57D8] hover:underline">
+            See every trade
+          </Link>
+        </p>
+      )}
+    </>
   );
 }

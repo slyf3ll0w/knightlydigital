@@ -15,7 +15,6 @@ export default function WBTestimonials() {
     <section className="border-t border-gray-200 bg-[#F5F7FA]">
       <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-20 sm:px-8 sm:py-24 lg:grid-cols-[0.8fr_1.2fr] lg:gap-14">
         <AnimateIn>
-          <p className="wb-label">From the field</p>
           <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
             Hear it from an owner who runs the busy season on WorkBench.
           </h2>

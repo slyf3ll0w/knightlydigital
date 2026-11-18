@@ -40,7 +40,6 @@ export default function AnnouncementsPage() {
       <WBHero>
         <div>
           <div className="max-w-2xl">
-            <p className="wb-label">Announcements</p>
             <h1 className="mt-4 text-4xl font-extrabold leading-[1.06] text-gray-900 sm:text-[3.2rem]">
               What&apos;s new in WorkBench.
             </h1>

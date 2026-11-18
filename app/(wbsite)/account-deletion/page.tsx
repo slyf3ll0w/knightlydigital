@@ -23,12 +23,6 @@ export default function AccountDeletionPage() {
       <WBHero>
         <div className="max-w-3xl">
           <AnimateIn>
-            <p
-              className="wb-label mb-4"
-              style={{ color: ACCENT }}
-            >
-              Your data
-            </p>
             <h1 className="text-4xl font-extrabold leading-[1.08] sm:text-5xl">
               Delete your <span style={{ color: ACCENT }}>account</span>
             </h1>

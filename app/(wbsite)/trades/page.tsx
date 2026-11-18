@@ -20,7 +20,6 @@ export default function TradesPage() {
     <>
       <WBHero className="bg-white" containerClassName="pb-8 sm:pb-10">
         <AnimateIn className="mx-auto max-w-3xl text-center">
-          <p className="wb-label justify-center">Built for the trades</p>
           <h1 className="mt-4 text-4xl font-extrabold leading-[1.08] sm:text-5xl">
             Made for companies that send people to a customer&rsquo;s home.
           </h1>

@@ -1,8 +1,8 @@
 /**
  * The brand ribbon (Stripe-style, David 2026-11-18): layered silky bands
- * of WorkBench blue through violet to orange sweeping in from the top
+ * of WorkBench navy and blue beside a band of WorkBench orange (brand colors only, David 2026-11-18) sweeping in from the top
  * right of a hero. Pure SVG. The bands drift on their own clocks and the
- * colors breathe (globals.css .wb-flow-*, .wb-ribbon-svg; still under
+ * bands drift (globals.css .wb-flow-*; still under
  * reduced motion). `id` must be unique per page when two ribbons show.
  * Decorative only.
  */
@@ -18,19 +18,18 @@ export default function WBRibbon({ className = "", id = "wbr" }: { className?: s
     >
       <defs>
         <linearGradient id={`${id}-a`} x1="0" y1="1" x2="1" y2="0">
-          <stop offset="0" stopColor="#0B57D8" />
-          <stop offset="0.45" stopColor="#5B5BEA" />
-          <stop offset="1" stopColor="#A35CE6" />
+          <stop offset="0" stopColor="#0A1428" />
+          <stop offset="0.45" stopColor="#0B57D8" />
+          <stop offset="1" stopColor="#2E6FF2" />
         </linearGradient>
         <linearGradient id={`${id}-b`} x1="0" y1="1" x2="1" y2="0">
-          <stop offset="0" stopColor="#7A5CF0" />
-          <stop offset="0.5" stopColor="#E2557F" />
-          <stop offset="1" stopColor="#F86A0A" />
+          <stop offset="0" stopColor="#E85D04" />
+          <stop offset="0.5" stopColor="#F86A0A" />
+          <stop offset="1" stopColor="#FF8B33" />
         </linearGradient>
         <linearGradient id={`${id}-c`} x1="0" y1="1" x2="1" y2="0">
-          <stop offset="0" stopColor="#F86A0A" />
-          <stop offset="0.6" stopColor="#FF9A4D" />
-          <stop offset="1" stopColor="#FFD2A8" />
+          <stop offset="0" stopColor="#FF8B33" />
+          <stop offset="1" stopColor="#FFC8A0" />
         </linearGradient>
         <linearGradient id={`${id}-d`} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#2E6FF2" />

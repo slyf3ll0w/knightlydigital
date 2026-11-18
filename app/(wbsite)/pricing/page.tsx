@@ -10,6 +10,7 @@ import { WBFaqSection } from "@/components/wb/WBFaq";
 import WBAgentLink from "@/components/wb/WBAgentLink";
 import WBPricing from "@/components/wb/WBPricing";
 import WBSavings from "@/components/wb/WBSavings";
+import WBCompareSimple from "@/components/wb/WBCompareSimple";
 import { BENCHMARK } from "@/lib/wb-savings";
 import { ArrowRight, Compass, CreditCard, HandCoins, Puzzle, ShieldCheck, Sparkles } from "lucide-react";
 import { ATLAS_FREE_TOKENS, ATLAS_PLAN_TOKENS, formatPlanPrice, tokenCount } from "@/lib/atlas-pricing";
@@ -287,21 +288,30 @@ export default function WBPricingPage() {
       {/* ── You're paying card fees already ── */}
       <section id="savings" className="scroll-mt-24 border-t border-gray-200 bg-[#F6F8FB]">
         <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-24">
-          <AnimateIn className="max-w-3xl">
-            <p className="wb-label">What you keep</p>
-            <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
-              You&rsquo;re paying card fees already. The subscription is what you save.
-            </h2>
-            <p className="mt-5 text-[15.5px] leading-relaxed text-gray-600">
-              Whoever runs your payments takes about {BENCHMARK.label} of every online card payment. On
-              WorkBench it is {RATES.companyPaid.card}, and there is no subscription underneath it. Put in your
-              team, what clients pay you by card in a month, and a typical invoice, and see the whole bill next to
-              the cheapest published plan at the two best-known alternatives.
-            </p>
-          </AnimateIn>
-          <AnimateIn delay={120} className="mt-10">
-            <WBSavings />
-          </AnimateIn>
+          <div className="grid items-center gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">
+            <AnimateIn>
+              <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">
+                You pay card fees anywhere. <span className="text-gray-400">Here, there&rsquo;s no subscription on top.</span>
+              </h2>
+              <p className="mt-5 text-[16.5px] leading-relaxed text-gray-600">
+                Every payments company takes a cut of each card payment. Jobber and Housecall Pro also charge a
+                monthly subscription. On WorkBench the {FREE_PLAN_NAME} plan is free, so the card fee is the bill.
+              </p>
+            </AnimateIn>
+            <AnimateIn delay={120}>
+              <WBCompareSimple />
+            </AnimateIn>
+          </div>
+          <details data-wb-toggle className="group mt-10 rounded-xl border border-gray-200 bg-white">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5 text-[16.5px] font-extrabold text-gray-900 [&::-webkit-details-marker]:hidden">
+              Try your own numbers
+              <span className="text-[14px] font-bold text-[#0B57D8] group-open:hidden">Open the calculator</span>
+              <span className="hidden text-[14px] font-bold text-[#0B57D8] group-open:inline">Close</span>
+            </summary>
+            <div className="border-t border-gray-200 p-5 sm:p-6">
+              <WBSavings />
+            </div>
+          </details>
         </div>
       </section>
 
@@ -365,7 +375,7 @@ export default function WBPricingPage() {
           <div className="mt-10 grid gap-6 lg:grid-cols-2">
             <AnimateIn>
               <div className="flex h-full flex-col rounded-[1.5rem] border border-gray-200 bg-white p-8">
-                <p className="wb-label">
+                <p className="text-[17px] font-extrabold text-gray-900">
                   Atlas Free
                 </p>
                 <p
@@ -399,7 +409,7 @@ export default function WBPricingPage() {
               <div className="relative flex h-full flex-col overflow-hidden rounded-[1.5rem] bg-[#0A1428] p-8 text-white">
                 <div className="relative flex h-full flex-col">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="wb-label wb-label-light">
+                    <p className="text-[17px] font-extrabold text-white">
                       Atlas Full
                     </p>
                     <span className="rounded-full bg-white/15 px-2.5 py-1 text-[11.5px] font-bold text-blue-100">

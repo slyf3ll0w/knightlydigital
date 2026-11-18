@@ -84,7 +84,6 @@ export default function WBBookCallPage() {
           sub: "A person, not a call center",
         }}
       >
-        <p className="wb-label justify-center lg:justify-start">Book a call</p>
         <h1 className="mt-3 text-4xl font-extrabold leading-[1.1] sm:text-5xl">
           Pick a time. We set you up.
         </h1>

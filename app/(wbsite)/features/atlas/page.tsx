@@ -200,7 +200,6 @@ export default function AtlasPage() {
         <section className="border-t border-gray-200 bg-[#F6F8FB]">
           <div className="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-20">
             <AnimateIn className="max-w-3xl">
-              <p className="wb-label">Voice mode</p>
               <h2 className="mt-4 text-2xl font-extrabold leading-[1.1] sm:text-3xl">
                 The talk screen, as it is in the app.{" "}
                 <span className="text-gray-400">Not a mockup.</span>

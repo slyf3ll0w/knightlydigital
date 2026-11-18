@@ -11,7 +11,9 @@ import { WB_PHONE } from "@/lib/wb-site";
  * WorkBench marketing header (David 2026-11-18, round 3): one rounded white
  * bar floating just under the top of the page (Dotcom-style), with the
  * logo, the page links (Features, Compare and Resources open a menu), the
- * phone number, Log in and Get started. It tightens and gains a shadow once
+ * phone number, Log in and Get started. A blue-to-orange edge, link hovers
+ * in WorkBench blue and a light sweep across Get started (round 4: "more
+ * pizzazz"). It tightens and gains a shadow once
  * the page scrolls. The current page gets an orange underline. On the phone
  * the links open in a rounded sheet under the bar. The home is built at
  * /wb; middleware rewrites the site root to it, so links point at "/".
@@ -85,13 +87,13 @@ export default function WBNav() {
 
   return (
     <header className="sticky top-0 z-50 px-2 pt-2 sm:px-3 sm:pt-3">
+      {/* the bar wears a WorkBench blue-to-orange edge */}
       <div
-        className={`mx-auto max-w-[1240px] rounded-2xl border bg-white/95 backdrop-blur-md transition-all duration-300 ${
-          scrolled
-            ? "border-gray-200 shadow-[0_14px_40px_-16px_rgba(10,20,40,0.35)]"
-            : "border-gray-200/70 shadow-[0_8px_30px_-18px_rgba(10,20,40,0.25)]"
+        className={`mx-auto max-w-[1240px] rounded-2xl bg-gradient-to-r from-[#0B57D8] via-[#9DBBF7] to-[#F86A0A] p-[2px] transition-shadow duration-300 ${
+          scrolled ? "shadow-[0_16px_44px_-16px_rgba(11,87,216,0.45)]" : "shadow-[0_10px_34px_-18px_rgba(11,87,216,0.4)]"
         }`}
       >
+        <div className="rounded-[14px] bg-white">
         <div className={`flex items-center gap-5 pl-4 pr-2.5 transition-all duration-300 sm:pl-6 ${scrolled ? "h-[62px]" : "h-[70px] lg:h-[78px]"}`}>
           <Link href={WB_HOME} className="flex shrink-0 items-center" aria-label="WorkBench FSM home">
             <Image
@@ -112,8 +114,8 @@ export default function WBNav() {
                   <Link
                     href={l.href}
                     aria-current={active && pathname === l.href ? "page" : undefined}
-                    className={`wb-navlink relative inline-flex items-center gap-1 px-3 text-[15px] font-bold transition-colors xl:px-3.5 ${
-                      active ? "text-gray-900" : "text-gray-600 hover:text-gray-900"
+                    className={`wb-navlink relative my-3 inline-flex items-center gap-1 rounded-lg px-3 text-[15px] font-bold transition-colors xl:px-3.5 ${
+                      active ? "text-[#0B57D8]" : "text-gray-700 hover:bg-[#F2F6FE] hover:text-[#0B57D8]"
                     }`}
                     data-active={active || undefined}
                   >
@@ -149,7 +151,7 @@ export default function WBNav() {
             <Link href="/app/login" className="hidden px-3 text-[14.5px] font-bold text-gray-700 hover:text-gray-900 sm:block">
               Log in
             </Link>
-            <Link href="/apply" className="wb-pill wb-pill-orange wb-pill-sm">
+            <Link href="/apply" className="wb-pill wb-pill-orange wb-pill-sm wb-shine">
               Get started
               <ArrowRight className="hidden h-4 w-4 sm:block" strokeWidth={2.5} />
             </Link>
@@ -163,6 +165,7 @@ export default function WBNav() {
               {open ? <X className="h-6 w-6" strokeWidth={2.25} /> : <Menu className="h-6 w-6" strokeWidth={2.25} />}
             </button>
           </div>
+        </div>
         </div>
       </div>
 

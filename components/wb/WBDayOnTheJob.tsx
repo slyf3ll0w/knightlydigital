@@ -114,7 +114,6 @@ export default function WBDayOnTheJob() {
     <section className="bg-white">
       <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
         <AnimateIn className="mx-auto max-w-3xl text-center">
-          <p className="wb-label justify-center">A day on the job</p>
           <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
             Built for the truck, not the desk.{" "}
             <span className="text-gray-400">Here is a morning with WorkBench.</span>

@@ -23,7 +23,6 @@ export default function WBNotFound() {
           <div className="wb-bloom absolute inset-0" aria-hidden />
           <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 py-14 sm:px-8 sm:py-20 lg:grid-cols-[1.2fr_1fr]">
             <div>
-              <p className="wb-label">Error 404</p>
               <h1 className="mt-4 text-4xl font-extrabold leading-[1.06] text-gray-900 sm:text-[3.4rem]">
                 This page isn&apos;t on the schedule.
               </h1>
