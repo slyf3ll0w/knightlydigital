@@ -22,6 +22,7 @@ import {
 import { itemsPayload } from "./pipeline";
 import { isOnlinePayment } from "../payment-ref";
 import { loadLeadSourceReport } from "../lead-source-report";
+import { loadAdsFeedStatus } from "../ads-conversions-server";
 import { quickChargeIssue } from "../quick-charge";
 
 /** Invoices, payments, subscriptions, expenses, and real email sends. */
@@ -116,6 +117,93 @@ export const moneyTools: Tool[] = [
         page: "/app/insights/lead-sources",
         ...(report.capped ? { capped: "Only the newest 5,000 leads of the range were read." } : {}),
       };
+    },
+  },
+  {
+    decl: {
+      name: "get_ads_conversion_feed",
+      description:
+        "Reporting paid jobs back to Google Ads: whether the company's private conversions file is on, when it was last fetched, and what it holds right now (payments in the last 90 days from leads who arrived on a Google ad click, their total, and how many were left out and why). Google Ads fetches the file on a schedule the owner sets up once in Google Ads. The file address itself is shown only on the page.",
+      parameters: { type: "object", properties: {} },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor) => {
+      const s = await loadAdsFeedStatus(actor.companyId);
+      return {
+        on: s.enabled,
+        lastFetched: s.fetchedAt,
+        adLeadsLast90Days: s.adLeads,
+        paymentsInFile: s.payments,
+        collected: s.value,
+        clients: s.clients,
+        leftOutClickOlderThan90Days: s.tooLate,
+        leftOutNoClickId: s.noClickId,
+        conversionActionName: s.conversionName,
+        page: "/app/insights/lead-sources/google-ads",
+        note: s.enabled
+          ? "The file address, user name and password to paste into Google Ads are on the page."
+          : "Off. Turning it on creates the file address; the one-time Google Ads setup steps are on the page.",
+      };
+    },
+  },
+  {
+    decl: {
+      name: "set_ads_conversion_feed",
+      description:
+        "Turn the Google Ads conversions file on or off, or replace its address. 'on' creates the private file address Google Ads fetches. 'new_address' replaces it: the old address stops working at once and Google Ads needs the new one. 'off' stops reporting. Each needs a confirmation card.",
+      parameters: {
+        type: "object",
+        properties: { action: { type: "string", enum: ["on", "new_address", "off"] } },
+        required: ["action"],
+      },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor, args, ctx) => {
+      const action = str(args.action, 12);
+      const company = await prisma.company.findUnique({ where: { id: actor.companyId }, select: { adsFeedToken: true } });
+      const on = !!company?.adsFeedToken;
+      const href = "/app/insights/lead-sources/google-ads";
+      if (action === "on") {
+        if (on) return { on: true, note: "Already on. The file address is on the page.", page: href };
+        return stage(ctx, {
+          kind: "set_ads_conversion_feed",
+          title: "Report paid jobs to Google Ads",
+          lines: ["Creates a private file of payments from leads who clicked a Google ad.", "The address and the Google Ads setup steps show on the page after confirming."],
+          endpoint: "/api/app/ads-conversions",
+          method: "POST",
+          payload: {},
+          confirmLabel: "Turn on",
+          href,
+        });
+      }
+      if (action === "new_address") {
+        if (!on) return { error: "It is off. Use action on." };
+        return stage(ctx, {
+          kind: "set_ads_conversion_feed",
+          title: "Make a new Google Ads file address",
+          lines: ["The address Google Ads has now stops working right away.", "Paste the new one into Google Ads or nothing more is reported."],
+          endpoint: "/api/app/ads-conversions",
+          method: "POST",
+          payload: {},
+          danger: true,
+          confirmLabel: "Make new address",
+          href,
+        });
+      }
+      if (action === "off") {
+        if (!on) return { error: "It is already off." };
+        return stage(ctx, {
+          kind: "set_ads_conversion_feed",
+          title: "Stop reporting to Google Ads",
+          lines: ["The file address stops working right away.", "What Google has already counted stays counted."],
+          endpoint: "/api/app/ads-conversions",
+          method: "DELETE",
+          payload: {},
+          danger: true,
+          confirmLabel: "Turn off",
+        });
+      }
+      return { error: "action must be on, new_address or off" };
     },
   },
   {

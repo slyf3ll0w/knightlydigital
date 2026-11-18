@@ -273,10 +273,23 @@ import and the lead webhook do), and people pick from
 free-text box. The report is `/app/insights/lead-sources`
 (`lib/lead-source-report.ts`: leads of the period with quoted / won / win
 rate / collected per source); Atlas reads it with `lead_source_report`.
-Help guide `lead-sources`. What it cannot do yet (paid jobs reported back
-to Google Ads from the saved `gclid`, tracking numbers for calls, ad spend,
-and seven smaller gaps) is the numbered "Limits today, to build later" list
-in the plan: start there before extending it.
+Help guide `lead-sources`. What it cannot do yet (tracking numbers for
+calls, ad spend, and seven smaller gaps) is the numbered "Limits today, to
+build later" list in the plan: start there before extending it.
+
+**Paid jobs reported back to Google Ads (2026-11-18,
+`docs/plans/ads-conversions-2026-11-18.md`).** Insights → Lead sources →
+Report paid jobs to Google Ads turns on a private file
+(`Company.adsFeedToken`, `GET /api/public/ads-conversions/<token>/conversions.csv`)
+that Google Ads fetches on a schedule the owner sets up once: one row per
+payment of the last 90 days from a client whose `leadArrival` has a
+`gclid`. Rules are pure in `lib/ads-conversions.ts`
+(`npx tsx scripts/test-ads-conversions.ts`); nothing records what was sent,
+because Google ignores a row it already counted. The file never holds a
+name, email, phone or address: keep it that way. Atlas:
+`get_ads_conversion_feed` / `set_ads_conversion_feed`. Not yet fetched by a
+real Google Ads account (Steadfast is the first test); its own limits list
+is in the plan.
 
 ## Authentication
 
