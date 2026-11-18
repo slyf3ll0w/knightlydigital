@@ -32,12 +32,15 @@ for (const [name, viewport] of [
       errors.push(e.message);
     });
     // A link tapped while that recovery re-render runs can be swallowed: tap
-    // again until the URL moves.
-    const go = async (loc: ReturnType<typeof page.locator>, url: RegExp) => {
+    // again until the URL moves. `wait` is how long one tap gets before the
+    // next: the URL only moves once the server has rendered the new view, and
+    // a second tap starts that render over, so a view that takes longer than
+    // `wait` to load can never arrive however many times it is tapped.
+    const go = async (loc: ReturnType<typeof page.locator>, url: RegExp, wait = 3_000) => {
       await expect(async () => {
         await loc.click();
-        await expect(page).toHaveURL(url, { timeout: 3_000 });
-      }).toPass({ timeout: 20_000 });
+        await expect(page).toHaveURL(url, { timeout: wait });
+      }).toPass({ timeout: Math.max(20_000, wait * 3) });
     };
 
     await page.goto(`${state.baseUrl}/app/payments`);
@@ -55,8 +58,11 @@ for (const [name, viewport] of [
     await expect(page).toHaveURL(/range=7d/);
     await expect(page.getByText("Every payment through WorkBench")).toBeVisible();
 
-    // Another tab keeps working under the new bar
-    await go(page.getByRole("navigation", { name: "Payments sections" }).getByRole("link", { name: "Reports" }), /tab=reports/);
+    // Another tab keeps working under the new bar. Reports reads twelve
+    // months from the Square sandbox, where this company's payments pile up
+    // run after run — it often takes longer than 3 s, and re-tapping every
+    // 3 s kept restarting it until the step timed out.
+    await go(page.getByRole("navigation", { name: "Payments sections" }).getByRole("link", { name: "Reports" }), /tab=reports/, 15_000);
 
     // No horizontal page scroll on either size
     await page.goto(`${state.baseUrl}/app/payments`);

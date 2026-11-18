@@ -25,6 +25,18 @@ test.describe("schedule tools", () => {
   let api: Api;
   let contactId: string;
 
+  // Optimize saves the company's automatic lunch when a route is applied, and
+  // a day that already has a break gets no second one. The e2e company lives
+  // on between runs, so a lunch left on a day makes a later run that lands on
+  // the same date see "no lunch added". Clear a day's breaks before using it
+  // and again when done.
+  const clearBreaks = async (date: string) => {
+    const plan = await api.get(`/api/app/route-plan?date=${date}`);
+    for (const s of plan.stops as { id: string; kind: string }[]) {
+      if (s.kind === "break") await api.json("DELETE", `/api/app/time-blocks/${s.id}`, undefined, 200).catch(() => {});
+    }
+  };
+
   test.beforeAll(async () => {
     api = Api.forOwnerA(state);
     contactId = (await createContact(api, "Sched")).id;
@@ -236,6 +248,7 @@ test.describe("schedule tools", () => {
         assigneeIds: [state.ownerA.userId],
         ...extra,
       });
+    await clearBreaks(ymd(day));
     const a = await mk("opt A", "6000 W Plano Pkwy, Plano, TX 75093", 0);
     const b = await mk("opt B", "1000 E 15th St, Plano, TX 75074", 2, { arriveAfterMin: 13 * 60 });
     const c = await mk("opt C", "2000 E Spring Creek Pkwy, Plano, TX 75074", 4);
@@ -292,6 +305,8 @@ test.describe("schedule tools", () => {
       const stopA = after.stops.find((s: { id: string }) => s.id === a.id);
       expect(new Date(stopA.scheduledAt).toISOString()).toBe(at(0)); // locked → untouched
     } finally {
+      // The apply above saved a lunch on this day — it used to stay forever
+      await clearBreaks(ymd(day)).catch(() => {});
       for (const j of [a, b, c]) await api.json("DELETE", `/api/app/jobs/${j.id}`, undefined, 200).catch(() => {});
     }
   });
@@ -305,6 +320,7 @@ test.describe("schedule tools", () => {
     const localHour = Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", hour: "numeric", hour12: false }).format(day));
     const shiftMs = (10 - localHour) * 3600_000;
     const at = (h: number) => new Date(day.getTime() + shiftMs + h * 3600_000).toISOString();
+    await clearBreaks(ymd(day));
     const place = await api.post("/api/app/places", { name: `${runTag} Ferguson`, kind: "SUPPLY", address: "3100 W Plano Pkwy, Plano, TX 75075" });
     const a = await api.post("/api/app/jobs", {
       contactId, title: `${runTag} errand A`, address: "6000 W Plano Pkwy, Plano, TX 75093",
