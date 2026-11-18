@@ -1,9 +1,8 @@
 # WorkBench site design standard (workbenchfsm.com)
 
 Set 2026-11-18, when David asked for the site to stop looking AI-made and
-to read like "a software site and a contractor site had a baby". Steadfast
-Outdoor Living's site (steadfastoutdoorco.com) is the reference for the
-contractor half. `scripts/test-wb-site.ts` (section 6) enforces the parts a
+to read like "a software site and a contractor site had a baby". References David gave (second pass, same day): steadfastoutdoorco.com,
+fenceprosoftexas.com, railway.com, dotcomglobalmedia.com, stripe.com. `scripts/test-wb-site.ts` (section 6) enforces the parts a
 script can see; the rest is on whoever builds the page.
 
 ## What stays
@@ -20,13 +19,14 @@ script can see; the rest is on whoever builds the page.
 | Orange dot in front of section labels | `.wb-label`: small caps, blue, no dot |
 | Pill eyebrows over a title (`rounded-full bg-blue-50 …`) | `<p className="wb-label">` |
 | Floating pill header | `WBNav`: navy utility bar + solid sticky white bar, menus, orange underline on the current page |
-| Phone mockup, zoom bubble, floating notification cards in a hero | Home: one desktop screenshot on the navy band. Inner pages: `WBSplitHero` with one photo in an offset frame and a caption plate |
+| Phone mockup, zoom bubble, floating notification cards in a hero | Home: Railway-style framed photo panel, the desktop app rising out of it, a works-with row along its foot. Inner pages with a photo: `WBSplitHero` (photo panel, navy wash, white type, one caption plate) |
 | Bobbing / tilted cards (`wb-float`, `--wb-tilt`) | `wb-card-shadow`, sitting still |
-| Blue/orange glows (`radial-gradient`) | `.wb-bloom` job-sheet paper (faint ruled grid), solid navy `.wb-dark` |
+| Blue/orange glows (`radial-gradient`) and ANY grid/graph-paper background (David: the worst offender) | White heroes with `WBRibbon` (Stripe-style brand ribbon, top right); navy `.wb-dark` bands |
 | Boxed FAQ accordion with chevrons | `WBFaqSection`: title + bar + "call us" on the left, ruled rows with +/− on the right |
 | Big soft radii (`rounded-2xl`, `rounded-[1.5rem]`) and pill buttons | Cards top out at 12 px (clamped in globals.css); buttons `.wb-pill` are 8 px |
 | Photo-tile trade grid with icon chips | `WBTradeCards`: numbered ruled directory beside one photo that follows the pointer |
-| Gray second half of a headline | Allowed in old pages, rendered as a quieter line under the title; don't write new ones |
+| Boxed feature tabs | `WBBento`: tiles with a two-tone title and a slice of the real app on a brand-color wash (Stripe) |
+| Written review cards | The Knight Light video testimonial only (David) |
 
 ## Building a new page
 
@@ -38,16 +38,18 @@ script can see; the rest is on whoever builds the page.
 2. **Section titles:** `<p className="wb-label">…</p>` then the `<h2>`. The
    two-tone bar under the title is drawn by CSS (`.wb-label + h2::after`).
    A title with no label gets `<span className="wb-bar" aria-hidden />`.
-3. **Bands** alternate white and `#F5F7FA`, with navy (`wb-dark`) for one
+3. **Headlines** may be two-tone (Stripe): the second half in a
+   `text-gray-400` span, which renders slate on the same line.
+4. **Bands** alternate white and `#F5F7FA`, with navy (`wb-dark`) for one
    strong band per page at most, plus `WBCta` at the end.
-4. **Lists and specs** are ruled rows under a 2 px navy top rule (see the
+5. **Lists and specs** are ruled rows under a 2 px navy top rule (see the
    FAQ, the trades directory, the announcements list), not grids of
    rounded cards with icon tiles.
-5. **FAQ:** `WBFaqSection` with `WBFaqJsonLd`. Never a hand-built
+6. **FAQ:** `WBFaqSection` with `WBFaqJsonLd`. Never a hand-built
    `<details>` list.
-6. **Copy:** prices, seats and rates come from `lib/plans.ts` (the same test
+7. **Copy:** prices, seats and rates come from `lib/plans.ts` (the same test
    scans for literals). Never a real client's name or logo.
-7. Check it at 390 px wide: no sideways scroll (`.wb-pill` sets its own
+8. Check it at 390 px wide: no sideways scroll (`.wb-pill` sets its own
    `display`, so hide a pill by wrapping it, never with `hidden` on the pill).
 
 ## Content that lays itself out
@@ -58,7 +60,7 @@ script can see; the rest is on whoever builds the page.
   card, older/newer) are templates. Write a `list` block with bold titles
   so the list page has highlights to show.
 - **Help Center guides** (`lib/help/sections/*.ts`): the public copy wears
-  `.help-public` (components/help/help.css): paper hero, squared search,
+  `.help-public` (components/help/help.css): white hero with the ribbon, squared search,
   cards and chips, navy step squares, ruled headings. The in-app Help keeps
   its own look.
 

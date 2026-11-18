@@ -240,15 +240,19 @@ html[data-mode="dark"] .app-ui .help-mark { background: color-mix(in srgb, var(-
    its own look. */
 .help-public .help-hero::before {
   background-image: none;
-  background-color: #F7F8FA;
+  background-color: #FFFFFF;
 }
 .help-public .help-hero::after {
-  background-image:
-    linear-gradient(to right, rgba(10, 20, 40, 0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(10, 20, 40, 0.045) 1px, transparent 1px);
-  background-size: 40px 40px;
-  -webkit-mask-image: none;
-  mask-image: none;
+  /* the site's brand ribbon, small, in the top-right corner */
+  background:
+    repeating-linear-gradient(104deg, rgba(255, 255, 255, 0.22) 0 1.5px, transparent 1.5px 11px),
+    linear-gradient(118deg, #0B57D8 0%, #2E6FF2 22%, #7A5CF0 44%, #E2557F 64%, #F86A0A 80%, #FFB27A 100%);
+  inset: -40px -40px auto auto;
+  width: 34%; height: 260px;
+  clip-path: polygon(38% 0, 100% 0, 100% 62%, 74% 100%, 0 100%);
+  -webkit-mask-image: linear-gradient(200deg, #000 35%, transparent 100%);
+  mask-image: linear-gradient(200deg, #000 35%, transparent 100%);
+  opacity: 0.85;
 }
 .help-public .help-hero { border-bottom: 1px solid #E5E7EB; }
 .help-public .help-search { border-radius: 10px; height: 62px; box-shadow: 0 0 0 1.5px #0A1428, 0 14px 30px -18px rgba(10, 20, 40, 0.35); }

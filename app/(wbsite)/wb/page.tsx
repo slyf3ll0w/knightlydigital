@@ -12,17 +12,18 @@ import WBInAction from "@/components/wb/WBInAction";
 import WBPhoneShowcase from "@/components/wb/WBPhoneShowcase";
 import WBTestimonials from "@/components/wb/WBTestimonials";
 import WBScribble from "@/components/wb/WBScribble";
-import WBSystemTabs from "@/components/wb/WBSystemTabs";
+import WBBento from "@/components/wb/WBBento";
 import WBTradeCards from "@/components/wb/WBTradeCards";
 import { FREE_PAGE_PATH } from "@/lib/wb-free";
-import { APP_STORE_URL, PLAY_STORE_URL, WB_PHONE } from "@/lib/wb-site";
+import { APP_STORE_URL, PLAY_STORE_URL, WB_DAY_PHOTOS, WB_PHONE } from "@/lib/wb-site";
 import { EXTRA_SEAT_CENTS, FREE_PLAN_NAME, INCLUDED_SEATS, PLANS, formatCents } from "@/lib/plans";
 import {
   ArrowRight,
+  BadgeCheck,
   CalendarClock,
   CalendarDays,
   Check,
-  Landmark,
+  Phone,
   Smartphone,
   WifiOff,
 } from "lucide-react";
@@ -185,88 +186,118 @@ const faqItems = [
 export default function WBHomePage() {
   return (
     <>
-      {/* ── Hero: the promise, then the real desktop app on a navy band ── */}
-      <section className="relative overflow-hidden">
-        <div className="wb-bloom absolute inset-x-0 top-0 h-[78%]" aria-hidden />
-        <div className="absolute inset-x-0 bottom-0 h-[22%] bg-[#0A1428] sm:h-[34%]" aria-hidden />
-        <div className="relative mx-auto max-w-6xl px-5 pt-12 sm:px-8 sm:pt-16 lg:pt-20">
-          <div className="grid gap-8 lg:grid-cols-[1.25fr_1fr] lg:items-end lg:gap-16">
-            <div>
-              <p className="wb-label">Field service management software</p>
-              <h1 className="mt-4 text-[2.6rem] font-extrabold leading-[1.02] text-gray-900 sm:text-[3.6rem] xl:text-[4.1rem]">
-                Run the entire job from <span className="text-[#0B57D8]">one place</span>.
-              </h1>
+      {/* ── Hero (Railway-style): one framed panel, a real job photo under a navy
+           wash, the promise in white, and the real desktop app rising out of it,
+           with what WorkBench works with along the bottom. ── */}
+      <section className="bg-white px-2 pt-2 sm:px-3 sm:pt-3">
+        <div className="relative overflow-hidden rounded-2xl bg-[#0A1428]">
+          <Image src={WB_DAY_PHOTOS.morning.src} alt="" fill priority sizes="100vw" className="object-cover object-[50%_40%]" />
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,20,40,0.86)_0%,rgba(10,20,40,0.74)_38%,rgba(10,20,40,0.92)_70%,#0A1428_100%)]" aria-hidden />
+
+          <div className="relative mx-auto max-w-6xl px-5 pt-16 text-center sm:px-8 sm:pt-24">
+            <p className="text-[12.5px] font-extrabold uppercase tracking-[0.14em] text-[#FFB27A]">Field service management software</p>
+            <h1 className="mx-auto mt-5 max-w-4xl text-[2.7rem] font-extrabold leading-[1.02] text-white sm:text-[4rem] xl:text-[4.6rem]">
+              Run the entire job from one place.
+            </h1>
+            <p className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed text-blue-50/85 sm:text-[19px]">
+              Scheduling, quotes, invoicing and payments for home-service companies, plus Atlas, an
+              assistant you can talk to hands-free. Free for your first {INCLUDED_SEATS} users.
+            </p>
+            <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+              <Link href="/apply" className="wb-pill wb-pill-orange">
+                Get started free
+                <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+              </Link>
+              <Link href="/book-a-call" className="wb-pill wb-pill-ghost">
+                <CalendarDays className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+                Book a call
+              </Link>
             </div>
-            <div className="lg:pb-2">
-              <p className="text-[17px] leading-relaxed text-gray-600 sm:text-[18px]">
-                Scheduling, quotes, invoicing and payments for home-service
-                companies, plus Atlas, an assistant you can talk to hands-free.
-                The {FREE_PLAN_NAME} plan is free for your first {INCLUDED_SEATS} users.
-              </p>
-              <div className="mt-7 flex flex-wrap items-center gap-3">
-                <Link href="/apply" className="wb-pill wb-pill-primary">
-                  Get started free
-                  <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-                </Link>
-                <Link href="/book-a-call" className="wb-pill wb-pill-outline">
-                  <CalendarDays className="h-4 w-4 text-[#F86A0A]" strokeWidth={2.25} aria-hidden />
-                  Book a call
-                </Link>
+            <ul className="mt-7 flex flex-wrap justify-center gap-x-6 gap-y-2 text-[14px] font-semibold text-blue-50/80">
+              {["No credit card", "No trial clock", "A person answers the phone"].map((t) => (
+                <li key={t} className="inline-flex items-center gap-1.5">
+                  <Check className="h-4 w-4 text-[#FF8B33]" strokeWidth={3} aria-hidden />
+                  {t}
+                </li>
+              ))}
+            </ul>
+
+            {/* The real desktop app, rising out of the panel */}
+            <div className="relative mx-auto mt-14 max-w-5xl sm:mt-16">
+              <div className="overflow-hidden rounded-t-xl border border-b-0 border-white/15 bg-white shadow-[0_-20px_80px_-20px_rgba(46,111,242,0.55)]">
+                <div className="flex items-center gap-3 border-b border-gray-200 bg-[#F1F3F6] px-4 py-2.5">
+                  <span className="flex gap-1.5" aria-hidden>
+                    <span className="h-2.5 w-2.5 rounded-full bg-gray-300" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-gray-300" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-gray-300" />
+                  </span>
+                  <span className="mx-auto hidden rounded-md bg-white px-10 py-1 text-[11.5px] font-semibold text-gray-400 ring-1 ring-inset ring-gray-200 sm:block">
+                    workbenchfsm.com/app
+                  </span>
+                  <span className="w-[42px]" aria-hidden />
+                </div>
+                <div className="relative aspect-[1512/600] overflow-hidden">
+                  <Image
+                    src="/screens/desktop-dashboard.jpg"
+                    alt="The WorkBench dashboard: money collected and outstanding, the Needs-you list, and today's schedule"
+                    fill
+                    priority
+                    sizes="(min-width: 1152px) 1024px, 100vw"
+                    className="object-cover object-top"
+                  />
+                </div>
               </div>
             </div>
           </div>
 
-          <ul className="mt-9 flex flex-wrap gap-x-7 gap-y-2.5 text-[14.5px] font-semibold text-gray-700">
-            {["No credit card", "No trial clock", "iPhone and Android apps", "A person answers the phone"].map((t) => (
-              <li key={t} className="inline-flex items-center gap-2">
-                <Check className="h-4 w-4 text-[#F86A0A]" strokeWidth={3} aria-hidden />
-                {t}
+          {/* Works with: one ruled row of cells along the panel's foot */}
+          <ul className="relative grid grid-cols-2 border-t border-white/10 bg-[#0A1428] sm:grid-cols-3 lg:grid-cols-6" aria-label="Works with">
+            {[
+              { kind: "img", src: "/brand/quickbooks.svg", label: "QuickBooks Online" },
+              { kind: "img", src: "/brand/google-calendar.svg", label: "Google Calendar" },
+              { kind: "text", label: "Square payments" },
+              { kind: "cards", label: "Visa, Mastercard, Amex, Discover" },
+              { kind: "badge", src: "/app-store-badge.svg", href: APP_STORE_URL, label: "Download on the App Store", w: 120, h: 40 },
+              { kind: "badge", src: "/google-play-badge.svg", href: PLAY_STORE_URL, label: "Get it on Google Play", w: 180, h: 53 },
+            ].map((c) => (
+              <li key={c.label} className="flex h-24 items-center justify-center gap-2.5 border-b border-r border-white/10 px-4 text-[14.5px] font-bold text-white/85 lg:border-b-0 lg:last:border-r-0">
+                {c.kind === "img" && <Image src={c.src!} alt="" width={22} height={22} unoptimized className="h-[22px] w-[22px]" />}
+                {c.kind === "img" || c.kind === "text" ? <span>{c.label}</span> : null}
+                {c.kind === "cards" && (
+                  <span className="flex items-center gap-1.5" aria-label={c.label}>
+                    {["visa", "mastercard", "amex", "discover"].map((b) => (
+                      <span key={b} className="flex h-7 w-11 items-center justify-center rounded bg-white">
+                        <Image src={`/brand/${b}.svg`} alt="" width={30} height={18} unoptimized style={{ width: b === "discover" ? 36 : 26, height: "auto" }} />
+                      </span>
+                    ))}
+                  </span>
+                )}
+                {c.kind === "badge" && (
+                  <a href={c.href} target="_blank" rel="noopener" aria-label={c.label} className="opacity-90 transition-opacity hover:opacity-100">
+                    <Image src={c.src!} alt={c.label} width={c.w!} height={c.h!} unoptimized className="h-[38px] w-auto" />
+                  </a>
+                )}
               </li>
             ))}
           </ul>
-
-          {/* The real desktop app, one clean frame, nothing floating on it */}
-          <div className="relative mt-12 sm:mt-14">
-            <div className="overflow-hidden rounded-t-xl border border-b-0 border-gray-300 bg-white shadow-[0_-6px_60px_-20px_rgba(10,20,40,0.35)] sm:rounded-xl sm:border-b">
-              <div className="flex items-center gap-3 border-b border-gray-200 bg-[#F1F3F6] px-4 py-2.5">
-                <span className="flex gap-1.5" aria-hidden>
-                  <span className="h-2.5 w-2.5 rounded-full bg-gray-300" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-gray-300" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-gray-300" />
-                </span>
-                <span className="mx-auto hidden rounded-md bg-white px-10 py-1 text-[11.5px] font-semibold text-gray-400 ring-1 ring-inset ring-gray-200 sm:block">
-                  workbenchfsm.com/app
-                </span>
-                <span className="w-[42px]" aria-hidden />
-              </div>
-              <div className="relative aspect-[1512/791]">
-                <Image
-                  src="/screens/desktop-dashboard.jpg"
-                  alt="The WorkBench dashboard: money collected and outstanding, the Needs-you list, and today's schedule"
-                  fill
-                  priority
-                  sizes="(min-width: 1152px) 1088px, 100vw"
-                  className="object-cover object-top"
-                />
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
-      {/* ── Three facts, on the navy ── */}
-      <section className="bg-[#0A1428] text-white">
-        <div className="mx-auto grid max-w-6xl gap-px px-5 pb-14 pt-10 sm:px-8 md:grid-cols-3 md:gap-0">
+      {/* ── Contact strip (contractor-site style): three facts, orange icons ── */}
+      <section className="bg-white px-2 sm:px-3">
+        <div className="mx-auto mt-2 grid max-w-none gap-px overflow-hidden rounded-2xl bg-[#111827] sm:mt-3 md:grid-cols-3">
           {[
-            { k: "01", title: `Free for your first ${INCLUDED_SEATS} users`, body: `The ${FREE_PLAN_NAME} plan is full access, not a trial. Extra users are ${formatCents(EXTRA_SEAT_CENTS)} a month each.` },
-            { k: "02", title: "Two ways to pay for processing", body: `${RATES.companyPaid.card} per card transaction when you pay the fee, or a service fee your client pays at checkout. Nothing monthly.` },
-            { k: "03", title: "iPhone and Android apps", body: "Push notifications, an offline schedule, and invoices sent from the driveway." },
-          ].map((f) => (
-            <div key={f.title} className="border-t border-white/15 py-6 md:border-l md:border-t-0 md:px-8 md:py-2 md:first:border-l-0 md:first:pl-0">
-              <p className="text-[13px] font-extrabold tracking-[0.12em] text-[#FF8B33]">{f.k}</p>
-              <p className="mt-2 text-[17px] font-extrabold text-white">{f.title}</p>
-              <p className="mt-1.5 text-[14.5px] leading-relaxed text-blue-100/75">{f.body}</p>
-            </div>
+            { icon: BadgeCheck, k: `Free for ${INCLUDED_SEATS} users`, v: `${FREE_PLAN_NAME} plan, full access`, href: FREE_PAGE_PATH },
+            { icon: Phone, k: "Call us", v: WB_PHONE.display, href: WB_PHONE.href },
+            { icon: CalendarDays, k: "Free setup call", v: "Book a time", href: "/book-a-call" },
+          ].map(({ icon: Icon, k, v, href }) => (
+            <a key={k} href={href} className="group flex items-center justify-center gap-4 bg-[#111827] px-6 py-6 transition-colors hover:bg-[#172036]">
+              <Icon className="h-8 w-8 flex-none text-[#F86A0A]" strokeWidth={2} aria-hidden />
+              <span className="text-left">
+                <span className="block text-[14px] text-white/70">{k}</span>
+                <span className="block text-[18px] font-extrabold text-white">{v}</span>
+              </span>
+            </a>
           ))}
         </div>
       </section>
@@ -299,64 +330,24 @@ export default function WBHomePage() {
         </div>
       </section>
 
-      {/* ── One system, four tabs ── */}
+      {/* ── What WorkBench does: the bento of real screens ── */}
       <section className="bg-white">
         <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
-          <AnimateIn className="mx-auto max-w-3xl text-center">
-            <p className="wb-label justify-center">What WorkBench does</p>
-            <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
+          <AnimateIn className="max-w-3xl">
+            <h2 className="text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
               One system from the first call to the paid invoice.{" "}
-              <span className="text-gray-400">Nothing to bolt on.</span>
+              <span className="text-gray-400">Nothing to bolt on, nothing to stitch together.</span>
             </h2>
           </AnimateIn>
-          <AnimateIn delay={120} className="mt-10">
-            <WBSystemTabs />
-          </AnimateIn>
-          <p className="mt-8 text-center text-[14.5px] text-gray-600">
+          <div className="mt-12">
+            <WBBento />
+          </div>
+          <p className="mt-8 text-[15px] text-gray-600">
             Also included: recurring plans, review requests, a team map, contracts, and one-click refunds.{" "}
             <Link href="/features" className="font-bold text-[#0B57D8] hover:underline">
               See every feature
             </Link>
           </p>
-          <div className="mt-10 flex flex-col items-center gap-4">
-            <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-gray-400">Works with</p>
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              {[
-                { src: "/brand/quickbooks.svg", label: "QuickBooks Online" },
-                { src: "/brand/google-calendar.svg", label: "Google Calendar" },
-              ].map((i) => (
-                <span
-                  key={i.label}
-                  className="inline-flex items-center gap-2.5 rounded-full bg-white px-4 py-2 text-[14px] font-bold text-gray-900 ring-1 ring-inset ring-gray-200"
-                >
-                  <Image src={i.src} alt="" width={22} height={22} unoptimized className="h-[22px] w-[22px]" />
-                  {i.label}
-                </span>
-              ))}
-            </div>
-            <ul
-              aria-label="Accepts Visa, Mastercard, American Express, Discover, and ACH bank transfers"
-              className="flex flex-wrap items-center justify-center gap-2"
-            >
-              {[
-                { src: "/brand/visa.svg", alt: "Visa", w: 30 },
-                { src: "/brand/mastercard.svg", alt: "Mastercard", w: 30 },
-                { src: "/brand/amex.svg", alt: "American Express", w: 28 },
-                { src: "/brand/discover.svg", alt: "Discover", w: 44 },
-              ].map((c) => (
-                <li
-                  key={c.alt}
-                  className="flex h-9 w-14 items-center justify-center rounded-md bg-white ring-1 ring-inset ring-gray-200"
-                >
-                  <Image src={c.src} alt={c.alt} width={c.w} height={20} unoptimized style={{ width: c.w, height: "auto" }} />
-                </li>
-              ))}
-              <li className="flex h-9 items-center justify-center gap-1.5 rounded-md bg-white px-3 text-[12.5px] font-extrabold tracking-wide text-gray-700 ring-1 ring-inset ring-gray-200">
-                <Landmark className="h-4 w-4 text-gray-500" strokeWidth={2.2} aria-hidden />
-                ACH
-              </li>
-            </ul>
-          </div>
         </div>
       </section>
 

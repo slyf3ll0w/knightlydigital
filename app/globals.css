@@ -2230,15 +2230,8 @@ html[data-mode="dark"] .app-ui .card-tool {
   .wb-site .lg\:text-left .wb-label + :is(h1, h2)::after,
   .wb-site .lg\:text-left > .wb-label + :is(h1, h2)::after { margin-left: 0; margin-right: 0; }
 }
-.wb-site :is(h1, h2) > span.text-gray-400 {
-  display: block;
-  margin-top: 0.55rem;
-  font-size: 0.58em;
-  font-weight: 700;
-  line-height: 1.35;
-  letter-spacing: -0.01em;
-  color: #6B7280;
-}
+/* Two-tone headlines (Stripe-style): the second half in slate, same line. */
+.wb-site :is(h1, h2) > span.text-gray-400 { color: #64748B; }
 
 /* Corners (2026-11-18): the big soft radii read as a startup template.
    Every card on the site tops out at 12px. Phone frames keep their curve. */
@@ -2266,16 +2259,34 @@ html[data-mode="dark"] .app-ui .card-tool {
 .wb-navlink:hover::after,
 .wb-navlink[data-active]::after { transform: scaleX(1); }
 
-/* Page hero backdrop: plain paper with a faint ruled grid that fades out,
-   like a job sheet. No colored glows. */
-.wb-bloom {
-  background-color: #F7F8FA;
-  background-image:
-    linear-gradient(to right, rgba(10, 20, 40, 0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(10, 20, 40, 0.045) 1px, transparent 1px);
-  background-size: 40px 40px;
-  -webkit-mask-image: none;
+/* Page hero backdrop: clean white. The color comes from .wb-ribbon. */
+.wb-bloom { background-color: #FFFFFF; }
+
+/* The ribbon (Stripe-style): one sweep of the brand colors, blue through
+   violet to orange, with fine light streaks, cutting across the top right
+   of a hero. Pure CSS; WBRibbon places it. */
+.wb-ribbon {
+  position: absolute;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(104deg, rgba(255, 255, 255, 0.22) 0 1.5px, transparent 1.5px 11px),
+    linear-gradient(118deg, #0B57D8 0%, #2E6FF2 22%, #7A5CF0 44%, #E2557F 64%, #F86A0A 80%, #FFB27A 100%);
+  clip-path: polygon(38% 0, 100% 0, 100% 62%, 74% 100%, 0 100%);
+  -webkit-mask-image: linear-gradient(200deg, #000 35%, rgba(0, 0, 0, 0.55) 70%, transparent 100%);
+  mask-image: linear-gradient(200deg, #000 35%, rgba(0, 0, 0, 0.55) 70%, transparent 100%);
 }
+
+/* Photo panel (Railway-style): a big rounded frame inset from the page
+   edges, a real job photo under a navy wash, white type on top. Children
+   written for a light hero are recolored inside it. */
+.wb-photo-panel h1, .wb-photo-panel h2 { color: #FFFFFF; }
+.wb-photo-panel .text-gray-600, .wb-photo-panel .text-gray-500 { color: rgba(226, 234, 248, 0.88); }
+.wb-photo-panel .text-gray-900 { color: #FFFFFF; }
+.wb-photo-panel :is(h1, h2) .text-\[\#0B57D8\] { color: #8FB3F5; }
+.wb-photo-panel .wb-label { color: #FFB27A; }
+.wb-photo-panel .wb-label + :is(h1, h2)::after { background: linear-gradient(90deg, #F86A0A 0 66%, rgba(255, 255, 255, 0.35) 66% 100%); }
+.wb-photo-panel .wb-pill-outline { background: rgba(255, 255, 255, 0.08); color: #FFFFFF; border-color: rgba(255, 255, 255, 0.45); }
+.wb-photo-panel .wb-pill-outline:hover { background: rgba(255, 255, 255, 0.16); border-color: #FFFFFF; }
 
 /* Article text (announcements, legal pages): one reading measure, real
    headings, numbered steps in squares, ruled lists. */
@@ -2300,13 +2311,10 @@ html[data-mode="dark"] .app-ui .card-tool {
     0 24px 60px -24px rgba(10, 20, 40, 0.3);
 }
 
-/* Dark band: solid navy with the faint ruled grid, no glows. */
+/* Dark band: deep navy with the brand blue rising from the bottom left. */
 .wb-dark {
   background-color: #0A1428;
-  background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-  background-size: 40px 40px;
+  background-image: linear-gradient(160deg, #0A1428 0%, #0A1428 45%, #0C2A66 100%);
 }
 
 /* A hand-built UI fragment (chat, table, calendar) sitting inside a card. */

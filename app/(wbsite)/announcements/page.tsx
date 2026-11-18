@@ -35,12 +35,11 @@ function dateParts(iso: string) {
    the post's tag, title, summary and the bolded points of its first list.
    The rule for when one is due is in CLAUDE.md. */
 export default function AnnouncementsPage() {
-  const [latest] = ANNOUNCEMENTS;
   return (
     <>
       <WBHero>
-        <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr] lg:items-end">
-          <div>
+        <div>
+          <div className="max-w-2xl">
             <p className="wb-label">Announcements</p>
             <h1 className="mt-4 text-4xl font-extrabold leading-[1.06] text-gray-900 sm:text-[3.2rem]">
               What&apos;s new in WorkBench.
@@ -50,17 +49,7 @@ export default function AnnouncementsPage() {
               step-by-step guide that goes with it.
             </p>
           </div>
-          {latest && (
-            <Link href={announcementPath(latest)} className="group block border-y-2 border-[#0A1428] py-5">
-              <span className="block text-[13px] font-extrabold uppercase tracking-[0.12em] text-[#F86A0A]">
-                Latest · {announcementDate(latest.date)}
-              </span>
-              <span className="mt-1.5 flex items-center justify-between gap-3 text-[18px] font-extrabold text-gray-900 group-hover:text-[#0B57D8]">
-                {latest.title}
-                <ArrowRight className="h-5 w-5 flex-none transition-transform group-hover:translate-x-1" strokeWidth={2.5} />
-              </span>
-            </Link>
-          )}
+
         </div>
       </WBHero>
 

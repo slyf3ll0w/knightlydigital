@@ -30,7 +30,7 @@ export default function WBPageHeader({
   aside?: React.ReactNode;
 }) {
   return (
-    <WBHero>
+    <WBHero ribbon={!aside}>
       {crumbs && crumbs.length > 0 && (
         <nav className="mb-8 flex flex-wrap items-center gap-1.5 text-[14px] font-semibold text-gray-500" aria-label="Breadcrumb">
           {crumbs.map((c, i) => (
