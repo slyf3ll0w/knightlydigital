@@ -13,6 +13,7 @@ import { ALTERNATIVES, ALTERNATIVES_PATH } from "./wb-alternatives";
 import { FREE_PAGES } from "./wb-free-pages";
 import { TOOLS, TOOLS_PATH, toolPath } from "./wb-tools";
 import { MARKDOWN_PAGES } from "./wb-markdown";
+import { ANNOUNCEMENTS, ANNOUNCEMENTS_PATH, announcementPath } from "./wb-announcements";
 import {
   ATLAS_FREE,
   ATLAS_FULL,
@@ -103,6 +104,13 @@ ${ALTERNATIVES.map((a) => `- [${a.name} alternative](${BASE}${ALTERNATIVES_PATH}
 Plain-text twins of the pages above, generated from the same data. Prefer these when quoting a price or a comparison.
 
 ${MARKDOWN_PAGES.map((m) => `- [${m.title}](${BASE}${m.md}): Markdown version of ${BASE}${m.page}`).join("\n")}
+
+## Announcements
+
+New features and big changes, newest first.
+
+- [All announcements](${BASE}${ANNOUNCEMENTS_PATH})
+${ANNOUNCEMENTS.map((a) => `- [${a.title}](${BASE}${announcementPath(a)}) (${a.date}): ${a.summary}`).join("\n")}
 
 ## Policies
 

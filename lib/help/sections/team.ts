@@ -234,6 +234,76 @@ export const reportsSection: HelpSection = {
             "Your lead pipeline and **win rate**, plus breakdowns **by lead source**, **by service** and **by area**.",
           ],
         },
+        {
+          type: "p",
+          text: "Press `Lead sources` on the **By lead source** card for the full report: leads, wins and money collected for each source. See [See where your leads come from](/help/lead-sources).",
+        },
+      ],
+    },
+    {
+      slug: "lead-sources",
+      title: "See where your leads come from",
+      summary: "Every lead is filed under a source, and one report shows which sources bring in work.",
+      keywords: ["lead source", "lead sources", "where leads come from", "google ads", "advertising", "marketing", "referral", "attribution", "utm", "ad click", "win rate by source", "which ad"],
+      where: { label: "Overview", href: "/app/business" },
+      roles: "Owners and admins",
+      blocks: [
+        {
+          type: "p",
+          text: "Open **Overview → Insights** and press `Lead sources` on the **By lead source** card. Pick 30 days, 90 days or 12 months. Each source gets one row:",
+        },
+        {
+          type: "list",
+          items: [
+            "**Leads**: how many came in from that source in the period.",
+            "**Quoted**: how many of them were sent a quote.",
+            "**Won**: how many became clients, with the **Win rate** beside it.",
+            "**Collected**: everything those leads have paid so far, including money that came in after the period ended.",
+          ],
+        },
+        {
+          type: "p",
+          text: "Press a source to see the leads behind it, and press a lead to open their page.",
+        },
+        { type: "h", text: "How a lead gets its source" },
+        {
+          type: "list",
+          items: [
+            "**From a form on your website**: filed automatically by how the visitor got to your site. A click on a Google ad is **Google Ads**, a Google search is **Google search**, a link from Facebook is **Facebook**, and someone who typed your address is **Website (direct)**. The lead's page shows what is known under **Lead source**: the campaign, the search term and the first page they saw. It still works when they look around your site first, or come back within 90 days.",
+            "**From your booking page link**: filed the same way when the link says where it was shared; otherwise it reads **Online booking** or **Website estimate**.",
+            "**Added by hand**: pick the source from the list on the client, lead or job form. Pick **Something else…** to type a new one, and it joins your list.",
+            "**From a call**: when you save an unknown caller, tap an answer under **How did they hear about you?** Left alone, the source is **Phone call**.",
+          ],
+        },
+        {
+          type: "tip",
+          text: "Or just ask Atlas: \"where are my leads coming from this month?\"",
+        },
+        {
+          type: "faq",
+          items: [
+            {
+              q: "What does Untracked mean?",
+              a: "Nobody said where that lead came from. Open the lead and pick a source to move it.",
+            },
+            {
+              q: "Why does my Google Business Profile show up as Google search?",
+              a: "A click from your profile looks like any other Google visit. Add `?utm_source=gbp` to the end of the website link in your profile and those leads are filed as **Google Business Profile**.",
+            },
+            {
+              q: "Someone called after seeing my ad. Why isn't that Google Ads?",
+              a: "A phone call doesn't carry the ad click. Ask how they heard about you and tap the answer when you save them.",
+            },
+            {
+              q: "Do my older leads change?",
+              a: "No. They keep the source they had. Spellings of the same source, like \"google ads\" and \"Google Ads\", are counted together.",
+            },
+            {
+              q: "Do I need to change the form code on my website?",
+              a: "No. A form embedded with WorkBench's code does this already.",
+            },
+          ],
+        },
       ],
     },
     {

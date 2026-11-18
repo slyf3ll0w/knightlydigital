@@ -116,10 +116,13 @@ two things go out with it:
 
 1. **An announcement on the WorkBench site**, written like a blog post: what
    is new, who it is for, how to turn it on or find it, with a link to its
-   Help guide. The site has no announcements section yet. The first
-   announcement builds it (a list page and a page per post under the
-   `(wbsite)` group, linked from the footer, in the sitemap, and following
-   the marketing site's own rules), and every later one adds a post.
+   Help guide. The section is `/announcements` (built 2026-11-17 with the
+   first post, lead sources): add an entry at the top of `ANNOUNCEMENTS` in
+   `lib/wb-announcements.ts` and the list page, the post page
+   (`app/(wbsite)/announcements`), the sitemap, `llms.txt` and the footer
+   link follow. `scripts/test-wb-site.ts` checks each post is listed, dated,
+   newest first and links a Help guide that exists. The marketing site's
+   own rules apply (no typed-in prices, never a real client's name).
 2. **The Help Center brought up to date** for the feature (see Help Center
    upkeep above; at release the guides are expected to change, so list what
    will change and make the edits once David says go).
@@ -270,8 +273,10 @@ import and the lead webhook do), and people pick from
 free-text box. The report is `/app/insights/lead-sources`
 (`lib/lead-source-report.ts`: leads of the period with quoted / won / win
 rate / collected per source); Atlas reads it with `lead_source_report`.
-Not built: tracking numbers for calls, reporting paid jobs back to Google
-Ads (the saved `gclid` is what that needs), ad spend.
+Help guide `lead-sources`. What it cannot do yet (paid jobs reported back
+to Google Ads from the saved `gclid`, tracking numbers for calls, ad spend,
+and seven smaller gaps) is the numbered "Limits today, to build later" list
+in the plan: start there before extending it.
 
 ## Authentication
 

@@ -29,6 +29,8 @@ import { ANNUAL_MONTHS, DISPATCH_SETUP_CENTS, EXTRA_SEAT_CENTS, FULL_SHOP, PLANS
 import { existsSync } from "node:fs";
 import { FREE_PAGES } from "../lib/wb-free-pages";
 import { TOOLS, TOOLS_PATH, TRADE_TEMPLATES, templatePath, toolPath } from "../lib/wb-tools";
+import { ANNOUNCEMENTS, ANNOUNCEMENTS_PATH, announcementPath } from "../lib/wb-announcements";
+import { findHelpArticle } from "../lib/help/search";
 
 let failed = 0;
 function check(ok: boolean, msg: string) {
@@ -188,6 +190,28 @@ for (const text of [pricingMd, alternativesMarkdown(), ...VS_LIST.map(vsMarkdown
 for (const v of VS_LIST) {
   const md = vsMarkdown(v);
   for (const r of v.rows) check(md.includes(`**${r.label}**`), `vs/${v.slug}.md: missing the "${r.label}" row`);
+}
+
+// ── 5. Announcements (lib/wb-announcements.ts) ─────────────────────────────
+// Every post is in the sitemap and llms.txt, newest first, dated, with a Help guide that exists.
+{
+  const urls = new Set(sitemap().map((e) => e.url));
+  const llmsText = llmsTxt();
+  check(urls.has(`https://workbenchfsm.com${ANNOUNCEMENTS_PATH}`), `sitemap: missing ${ANNOUNCEMENTS_PATH}`);
+  check(ANNOUNCEMENTS.length > 0, "announcements: the list is empty");
+  const seen = new Set<string>();
+  ANNOUNCEMENTS.forEach((a, i) => {
+    const path = announcementPath(a);
+    check(/^[a-z0-9-]+$/.test(a.slug) && !seen.has(a.slug), `announcements: bad or repeated slug "${a.slug}"`);
+    seen.add(a.slug);
+    check(/^\d{4}-\d{2}-\d{2}$/.test(a.date) && !Number.isNaN(Date.parse(a.date)), `announcements: ${a.slug} needs a YYYY-MM-DD date`);
+    check(i === 0 || ANNOUNCEMENTS[i - 1].date >= a.date, `announcements: ${a.slug} is out of order (newest first)`);
+    check(a.summary.length >= 40 && a.summary.length <= 200, `announcements: ${a.slug} summary should be 40–200 characters (${a.summary.length})`);
+    check(a.blocks.length > 0, `announcements: ${a.slug} has no body`);
+    check(findHelpArticle(a.help.slug) !== null, `announcements: ${a.slug} links a Help guide that does not exist (${a.help.slug})`);
+    check(urls.has(`https://workbenchfsm.com${path}`), `sitemap: missing ${path}`);
+    check(llmsText.includes(`https://workbenchfsm.com${path}`), `llms.txt: missing ${path}`);
+  });
 }
 
 if (failed) {

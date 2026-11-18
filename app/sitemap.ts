@@ -5,6 +5,7 @@ import { TRADES } from "@/lib/wb-trades";
 import { ALTERNATIVES, ALTERNATIVES_PATH } from "@/lib/wb-alternatives";
 import { FREE_PAGES } from "@/lib/wb-free-pages";
 import { TOOLS, TOOLS_PATH, templatePath, toolPath } from "@/lib/wb-tools";
+import { ANNOUNCEMENTS, ANNOUNCEMENTS_PATH, announcementPath } from "@/lib/wb-announcements";
 
 const BASE = "https://workbenchfsm.com";
 
@@ -68,6 +69,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
         priority: 0.5,
       })),
     ),
+    { url: `${BASE}${ANNOUNCEMENTS_PATH}`, changeFrequency: "weekly", priority: 0.6 },
+    ...ANNOUNCEMENTS.map((a) => ({
+      url: `${BASE}${announcementPath(a)}`,
+      lastModified: new Date(`${a.date}T12:00:00Z`),
+      changeFrequency: "yearly" as const,
+      priority: 0.5,
+    })),
     { url: `${BASE}/terms`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${BASE}/privacy`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${BASE}/sms-terms`, changeFrequency: "yearly", priority: 0.3 },
