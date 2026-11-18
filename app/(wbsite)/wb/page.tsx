@@ -179,7 +179,7 @@ export default function WBHomePage() {
            the live app with two notes pointing at what just happened. ── */}
       <section className="relative overflow-hidden bg-white">
         <WBRibbon id="hero-r" className="right-0 top-0 h-[220px] w-[80%] opacity-60 sm:h-[380px] sm:w-[50%] sm:opacity-80 lg:h-[540px] lg:w-[40%] lg:opacity-95" />
-        <WBRibbon id="hero-l" className="left-0 top-0 hidden h-[460px] w-[32%] -scale-x-100 opacity-40 lg:block" />
+        <WBRibbon id="hero-l" className="left-0 top-0 hidden h-[540px] w-[40%] -scale-x-100 opacity-95 lg:block" />
         <div className="relative mx-auto max-w-6xl px-5 pt-[8.5rem] text-center sm:px-8 sm:pt-[11rem]">
           <AnimateIn>
             <h1 className="mx-auto max-w-5xl text-[2.6rem] font-extrabold leading-[1.04] tracking-[-0.03em] text-gray-900 sm:text-[4.2rem] xl:text-[5rem]">
