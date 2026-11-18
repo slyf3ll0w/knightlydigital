@@ -314,7 +314,7 @@ export const reportsSection: HelpSection = {
       slug: "report-paid-jobs-to-google-ads",
       title: "Tell Google Ads which clicks paid",
       summary: "Report the payments from your Google Ads leads back to Google, so it goes after clicks that become paid work.",
-      keywords: ["google ads", "offline conversions", "conversion import", "paid jobs", "gclid", "ad click", "data manager", "https", "conversions.csv", "smart bidding", "advertising", "sample row", "next is grey"],
+      keywords: ["google ads", "connect google ads", "offline conversions", "conversion import", "paid jobs", "gclid", "ad click", "data manager", "https", "conversions.csv", "smart bidding", "advertising", "sample row", "next is grey", "advisor", "conversion action"],
       where: { label: "Overview", href: "/app/business" },
       roles: "Owners and admins",
       blocks: [
@@ -326,35 +326,58 @@ export const reportsSection: HelpSection = {
           type: "p",
           text: "The file holds the ad click ID, the amount and the time of each payment from the last 90 days. It never holds a name, email, phone number or address.",
         },
-        { type: "h", text: "Turn it on" },
-        {
-          type: "steps",
-          items: [
-            "Open **Overview → Insights**, press `Lead sources` on the **By lead source** card, then press **Report paid jobs to Google Ads** at the bottom.",
-            "Press `Turn on`. The page now shows your file address and the steps for Google Ads.",
-          ],
-        },
-        { type: "h", text: "Set it up in Google Ads" },
+        { type: "h", text: "Open the page" },
         {
           type: "p",
-          text: "You do this once, on a computer, signed in to your Google Ads account. Keep the WorkBench page open in another tab: every value you need has a `Copy` button there.",
+          text: "Open **Overview → Insights**, press `Lead sources` on the **By lead source** card, then press **Report paid jobs to Google Ads** at the bottom.",
+        },
+        { type: "h", text: "The quick way: Connect Google Ads" },
+        {
+          type: "p",
+          text: "If the page shows a `Connect Google Ads` button, that is all you need. Press it, sign in with the Google account you use for Google Ads, and tick both boxes on Google's screen. WorkBench adds a conversion action named **WorkBench paid job** to your account and sends the payments by itself, several times a day. If your sign-in can reach more than one Google Ads account, pick the one to report to.",
+        },
+        {
+          type: "p",
+          text: "The page then shows the account, when payments were last sent, and `Send now`. `Disconnect` stops it. If you don't see the button, use the steps below.",
+        },
+        { type: "h", text: "By hand, part 1: create the conversion action" },
+        {
+          type: "p",
+          text: "You do this once, on a computer, signed in to Google Ads. On the WorkBench page press `Turn on` under the by-hand section first: it shows everything below with `Copy` buttons.",
         },
         {
           type: "steps",
           items: [
-            "**Check auto-tagging.** In Google Ads open **Admin → Account settings → Auto-tagging** and make sure it is ticked.",
-            "**Start a conversion action.** Open **Goals → Summary** and press **New conversion action**. Choose **Import**, then **CRMs, files, or other data sources**, then **Track conversions from clicks**. Under Data source choose **Connect a new data source**, search for **HTTPS** and pick it. If asked, choose **Direct connection** and the use **Conversions**. For the goal, pick **Converted lead**.",
-            "**Connect a source.** Paste the **File address**, **User name** and **Password** from the WorkBench page.",
-            "**Select data.** Google shows **conversions.csv**. Leave Filter alone and press **Next**. If Next is grey, see the first question below.",
-            "**Map fields.** Match Google's fields to the file's columns: **GCLID** is `gclid`, **Conversion date and time** is `conversion_time`, **Conversion value** is `conversion_value`. If Google asks for them, **Currency** is `currency` and **Conversion action** is `conversion_name`. Leave the rest empty and press **Next**.",
-            "**Review.** Name the connection, set it to run every day, then press **Finish** and **Save and continue**. If Google asks for the conversion action's name, use **WorkBench paid job**, and choose to use a different value for each conversion.",
+            "In Google Ads open **Advisor**, Google's own assistant.",
+            "On the WorkBench page press `Copy message` under Part 1, paste it into Advisor and send it.",
+            "Advisor shows the conversion action it will create, named **WorkBench paid job**. Press **Apply**.",
           ],
-          note: "Google changes its menus from time to time. If a name here doesn't match your screen, look for the closest one.",
+        },
+        {
+          type: "tip",
+          text: "No Advisor in your account? Press **No Advisor in your account? Do it by hand** on the WorkBench page for the three steps that do the same thing.",
+        },
+        { type: "h", text: "By hand, part 2: connect the file" },
+        {
+          type: "steps",
+          items: [
+            "**Choose the source.** In Google Ads open **Tools → Data manager** and press **Connect a data source**. Search for **HTTPS** and pick it. Choose **Direct connection** and the use **Conversions**.",
+            "**Connect a source.** Paste the **File address**, **User name** and **Password** from the WorkBench page. If asked how to sign in, choose **Basic authentication**. Press **Next**.",
+            "**Select data.** Google shows **conversions.csv**. Leave Filter alone and press **Next**. If Next is grey, see the first question below.",
+            "**Map fields.** Match Google's fields to the file's columns: **Google Click ID (GCLID)** is `gclid`, **Conversion date and time** is `conversion_time`, **Conversion value** is `conversion_value`. If Google asks for them, **Currency** is `currency` and **Conversion action** is `conversion_name`. Leave the rest empty and press **Next**.",
+            "**Schedule and finish.** Set it to run every day, name the connection, and press **Finish**.",
+          ],
+          note: "Google changes its menus from time to time. If a name here doesn't match your screen, look for the closest one, or ask us (see below).",
         },
         { type: "h", text: "Check it is working" },
         {
           type: "p",
-          text: "The WorkBench page shows when the file was last fetched. After Google's first run that time moves forward every day. Payments show in Google Ads under the conversion action about a day after Google reads them.",
+          text: "Connected with the button: the page shows **Last sent** and how many payments went. By hand: the page shows when the file was **Last fetched**, and after Google's first run that time moves forward every day. Either way, payments show in Google Ads under the conversion action about a day later.",
+        },
+        { type: "h", text: "Stuck? Ask us" },
+        {
+          type: "p",
+          text: "At the bottom of the page, `Ask for help` sends us a message with where your setup stands, and we reply by email. `Book a free setup call` puts time on our calendar to do it with you.",
         },
         {
           type: "tip",
@@ -365,7 +388,7 @@ export const reportsSection: HelpSection = {
           items: [
             {
               q: "The Next button is grey on Select data. What do I do?",
-              a: "Your file has no payments in it yet, and Google can't read an empty file. On the WorkBench page press `Add a sample row` under step 4, then in Google press **Replace**, choose the file again, and Next will work. The sample row is one made-up payment of $1.00 with a click ID that isn't real. It leaves the file after 2 hours, and Google counts nothing from it.",
+              a: "Your file has no payments in it yet, and Google can't read an empty file. On the WorkBench page press `Add a sample row` under Select data in Part 2, then in Google press **Replace**, choose the file again, and Next will work. The sample row is one made-up payment of $1.00 with a click ID that isn't real. It leaves the file after 2 hours, and Google counts nothing from it.",
             },
             {
               q: "Which payments are reported?",
@@ -378,6 +401,10 @@ export const reportsSection: HelpSection = {
             {
               q: "What happens when I refund a payment?",
               a: "The file shows the lower amount, but Google keeps the amount it counted first.",
+            },
+            {
+              q: "What does Connect Google Ads let WorkBench do in my account?",
+              a: "Add the one conversion action and send it payments: the ad click ID, the amount and the time. WorkBench does not change your campaigns, budgets or bidding. You can remove its access any time with `Disconnect`, or from your Google account's security page.",
             },
             {
               q: "Someone else has my file address. What now?",

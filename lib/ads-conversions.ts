@@ -38,7 +38,7 @@ export const ADS_CSV_HEADERS = ["gclid", "conversion_name", "conversion_time", "
 
 /** Google's field on its Map fields step → the column in our file. Shown on the setup page and in the Help guide. */
 export const ADS_FIELD_MAP: { google: string; column: (typeof ADS_CSV_HEADERS)[number]; note?: string }[] = [
-  { google: "GCLID", column: "gclid" },
+  { google: "Google Click ID (GCLID)", column: "gclid" },
   { google: "Conversion date and time", column: "conversion_time" },
   { google: "Conversion value", column: "conversion_value" },
   { google: "Currency", column: "currency", note: "if Google asks for it" },
@@ -53,6 +53,26 @@ export const ADS_FIELD_MAP: { google: string; column: (typeof ADS_CSV_HEADERS)[n
  * not a real one, so Google reports that row as unmatched and counts nothing.
  */
 export const ADS_SAMPLE_HOURS = 2;
+
+/**
+ * The message an owner pastes into Google Ads' own assistant (Advisor) so it
+ * creates the conversion action for them. Tested on Steadfast's account
+ * 2026-11-18: Advisor created the action (type Upload clicks, Converted
+ * lead, many per click) and could NOT connect the file, which stays by hand.
+ * Under 2,000 characters: Advisor refuses a longer message.
+ */
+export const ADS_ADVISOR_PROMPT = [
+  "Create a conversion action in this Google Ads account for importing offline conversions from clicks.",
+  `Name: ${ADS_CONVERSION_NAME}`,
+  "Type: upload clicks (import from clicks)",
+  "Goal: Converted lead",
+  "Count: every conversion (many per click)",
+  "Value: use a different value for each conversion. Do not always use a default value.",
+  "Status: enabled",
+  "Also check that auto-tagging is on for this account, and turn it on if it is off.",
+  "Do not change my campaigns, budgets, bidding or any other conversion action.",
+  "When you are done, tell me what you created.",
+].join("\n");
 export const ADS_SAMPLE_GCLID = "SAMPLE_ROW_NOT_A_REAL_CLICK";
 
 const DAY_MS = 86400000;

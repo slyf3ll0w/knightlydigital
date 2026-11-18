@@ -22,6 +22,7 @@ import { runGiftCardActivationSweep } from "@/lib/gift-cards";
 import { runPlanEntitlementSweep } from "@/lib/plan-billing";
 import { runGoogleCalendarSweep } from "@/lib/google-calendar";
 import { runGoogleCalendarPullSweep } from "@/lib/google-calendar-pull";
+import { runGoogleAdsSweep } from "@/lib/google-ads";
 import { runRecurringExpenses } from "@/lib/expenses";
 import { expireApprovalBookings } from "@/lib/approval-bookings";
 import { rollupStorageSnapshots } from "@/lib/usage";
@@ -222,6 +223,10 @@ export async function POST(req: NextRequest) {
     // Google Calendar push: reconciles every connected user's schedule —
     // catches visit-series generation and anything the write trigger missed.
     // No-op unless GOOGLE_CALENDAR_* env vars are set and users have connected.
+    // Connect Google Ads: payments from ad-click leads go to each connected
+    // company's Google Ads account (lib/google-ads.ts). No-op unless
+    // GOOGLE_ADS_* env vars are set and a company has connected.
+    await step("googleAds", () => runGoogleAdsSweep(now));
     await step("googleCalendarPull", () => runGoogleCalendarPullSweep());
     await step("googleCalendar", () => runGoogleCalendarSweep());
     // Business-line 10DLC registrations: poll Telnyx for every pending brand/

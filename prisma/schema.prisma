@@ -393,6 +393,7 @@ model Company {
   locationPings         LocationPing[]
   quickBooks            QuickBooksConnection?
   googleCalendars       GoogleCalendarConnection[]
+  googleAds             GoogleAdsConnection?
   inviteCode            InviteCode?
   application           AccessApplication?
   companyRequest        CompanyRequest?
@@ -3716,6 +3717,33 @@ model GoogleCalendarConnection {
   events GoogleCalendarEvent[]
 
   @@index([companyId])
+}
+
+// Connect Google Ads (lib/google-ads.ts): one Google sign-in per COMPANY, used to
+// report paid jobs to the company's Google Ads account without the fetched file.
+// customerId / conversionActionId stay null until an account is picked (done
+// for the owner when the sign-in can reach exactly one).
+model GoogleAdsConnection {
+  id                   String    @id @default(cuid())
+  companyId            String    @unique
+  company              Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  connectedById        String? // the user who signed in (kept as an id: the connection outlives the person)
+  googleEmail          String
+  accessTokenEnc       String
+  refreshTokenEnc      String
+  accessTokenExpiresAt DateTime
+  scope                String
+  customerId           String? // the Google Ads account, 10 digits
+  loginCustomerId      String? // the account the sign-in goes through: the same one, or a manager account above it
+  accountName          String?
+  conversionActionId   String? // the "WorkBench paid job" action in that account
+  actionCreatedAt      DateTime? // set when WorkBench made the action (Google needs a few hours before it takes payments)
+  lastSyncAt           DateTime?
+  lastSyncCount        Int?
+  lastError            String? // most recent failure in plain words; null = healthy
+  needsReconnect       Boolean   @default(false) // Google refused the sign-in: nothing is sent until the owner connects again
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 }
 
 enum CalendarEventKind {

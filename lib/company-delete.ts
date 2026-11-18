@@ -70,6 +70,7 @@ export const COMPANY_DELETE_ORDER = [
   "quickBooksConnection", // cascades sync records
   "squareConnection",
   "googleCalendarConnection",
+  "googleAdsConnection",
   "user",
 ] as const;
 
