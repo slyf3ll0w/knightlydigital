@@ -7,25 +7,25 @@ import { WBFaqSection } from "@/components/wb/WBFaq";
 import WBFaqJsonLd from "@/components/wb/WBFaqJsonLd";
 import { FREE_PAGE_PATH } from "@/lib/wb-free";
 import { TRADES, type Trade } from "@/lib/wb-trades";
-import { TOOLS, TOOLS_PATH, templateForTrade, templatePath, toolPath, type ToolMeta } from "@/lib/wb-tools";
-import { emptyDoc, newLineId, type ToolDoc } from "@/lib/tool-doc";
+import { TOOLS, TOOLS_PATH, templatePath, toolPath, type ToolMeta } from "@/lib/wb-tools";
+import { emptyDoc, type ToolDoc } from "@/lib/tool-doc";
 
 /**
  * One page per tool (/tools/invoice-generator) and per trade template
  * (/tools/invoice-template/plumbing): the generator with a trade's usual
- * line items filled in, then the copy a search engine needs — what the
+ * blank document, then the copy a search engine needs — what the
  * document should carry, how it works, the questions people ask — and the
  * grid of other trades. The generator is the page; the copy is under it.
  */
 
+/**
+ * Every tool page starts with a blank document: one empty line, the generic
+ * message (David 2026-11-18: no prefilled line items, trade pages included;
+ * the trade only changes the page's wording). The trade argument is kept for callers.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function initialDocFor(tool: ToolMeta, trade?: Trade): ToolDoc {
-  const base = emptyDoc(tool.kind);
-  const template = templateForTrade(trade?.slug ?? "");
-  return {
-    ...base,
-    clientMessage: template.message,
-    lines: template.lines.map((l) => ({ ...l, id: newLineId(), optional: tool.kind === "estimate" && l.optional })),
-  };
+  return emptyDoc(tool.kind);
 }
 
 export function toolFaq(tool: ToolMeta, trade?: Trade): { q: string; a: string }[] {
@@ -78,7 +78,7 @@ export default function ToolPage({ tool, trade }: { tool: ToolMeta; trade?: Trad
   const noun = tool.noun;
   const title = trade ? `Free ${trade.name.toLowerCase()} ${noun} template` : tool.title;
   const intro = trade
-    ? `${noun === "invoice" ? "An" : "A"} ${noun} with the line items ${trade.noun} usually bills, ready to edit, with your logo and colors on the PDF. Change anything, download it free, and send it. The prices are starting points, not ours.`
+    ? `A ${noun} built for ${trade.noun}: add your services and prices, your logo and colors, then download the PDF or send it to your client. No account, no email address, no watermark.`
     : tool.kind === "invoice"
       ? "Fill in the job, download a clean PDF with your logo on it, and send it. No account, no email address, no watermark. If you would rather the client paid by card from a link, the same invoice can open a free WorkBench account."
       : "Price the job, mark the parts the client can choose, ask for a deposit, and download a clean PDF with your logo on it. No account, no email address, no watermark. If you would rather the client signed it on their phone, the same estimate can open a free WorkBench account.";
@@ -101,8 +101,8 @@ export default function ToolPage({ tool, trade }: { tool: ToolMeta; trade?: Trad
         </AnimateIn>
       </section>
 
-      <section className="border-y border-gray-200 bg-[#F6F8FB]">
-        <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8">
+      <section className="border-y border-gray-200 bg-[#F4F5F8]">
+        <div className="mx-auto max-w-6xl px-1 py-4 sm:px-4">
           <DocGenerator initial={initialDocFor(tool, trade)} storageKey={storageKey} />
         </div>
       </section>
@@ -114,7 +114,7 @@ export default function ToolPage({ tool, trade }: { tool: ToolMeta; trade?: Trad
         </AnimateIn>
         <div className="mt-10 grid gap-8 sm:grid-cols-3">
           {[
-            { title: "Fill it in", body: `Your business, the client, and the lines of work. ${trade ? `The ${trade.name.toLowerCase()} lines are already there; edit the prices and delete what does not apply.` : "Add your logo and pick a color so it looks like yours."}` },
+            { title: "Fill it in", body: `Your business, the client, and the lines of work. Add your logo and pick a color so it looks like yours.` },
             { title: "Download the PDF", body: "One click. It is rendered with the same document engine WorkBench uses for real invoices and estimates, so it looks professional on a phone and on paper." },
             {
               title: tool.kind === "invoice" ? "Get paid, if you want" : "Get it signed, if you want",
@@ -142,7 +142,7 @@ export default function ToolPage({ tool, trade }: { tool: ToolMeta; trade?: Trad
         <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8">
           <AnimateIn>
             <h2 className="text-2xl font-extrabold sm:text-3xl">{noun[0].toUpperCase() + noun.slice(1)} templates by trade</h2>
-            <p className="mt-2 max-w-2xl text-[14.5px] text-gray-600">The same generator with the line items each trade usually bills already filled in.</p>
+            <p className="mt-2 max-w-2xl text-[14.5px] text-gray-600">The same builder, with a page for your trade.</p>
           </AnimateIn>
           <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {TRADES.map((t) => {

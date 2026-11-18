@@ -16,7 +16,7 @@ import WBRibbon from "@/components/wb/WBRibbon";
 import WBTestimonials from "@/components/wb/WBTestimonials";
 import WBTradeStrip from "@/components/wb/WBTradeStrip";
 import WBTryIt from "@/components/wb/WBTryIt";
-import { pricebookForIndustry } from "@/lib/pricebooks";
+import { emptyDoc } from "@/lib/tool-doc";
 import { DEMO_BOOKING_PATH, DEMO_HUB_PATH } from "@/lib/demo-company-shared";
 import { FREE_PAGE_PATH } from "@/lib/wb-free";
 import { APP_STORE_URL, PLAY_STORE_URL, WB_PHONE } from "@/lib/wb-site";
@@ -176,16 +176,6 @@ const faqItems = [
  */
 export default function WBHomePage() {
   const card = PROCESSING_RATES.companyPaid;
-  // The demo quote screen gets Brightwire's own electrical price book (the
-  // same starter book the demo company is seeded with) and its one client.
-  const demoWorkItems = pricebookForIndustry("Electrical").map((w, i) => ({
-    id: `demo-${i}`,
-    name: w.name,
-    description: w.description,
-    unitPrice: w.unitPrice,
-    unitCost: w.unitCost ?? null,
-  }));
-  const demoContacts = [{ id: "demo-maria", firstName: "Maria", lastName: "Hernandez" }];
   return (
     <>
       {/* ── 1. Hero: big centered type, a cycling word, the brand ribbons, then
@@ -273,7 +263,7 @@ export default function WBHomePage() {
               Don&apos;t take our word for it. <span className="text-gray-400">Try the real thing.</span>
             </h2>
             <p className="mt-4 text-[17px] leading-relaxed text-gray-600">
-              These are working parts of WorkBench, not pictures of them, set up for a made-up company called Brightwire Electric.
+              These are working parts of WorkBench, not pictures of them. Make a real quote and send it, or book a visit with Brightwire Electric, a made-up company we run for demos.
             </p>
             <div className="absolute -bottom-20 right-[-15rem] z-20 hidden items-end gap-1 xl:flex" aria-hidden>
               <p className="pb-3 text-right text-[15px] font-extrabold leading-snug text-[#10244A]">
@@ -285,14 +275,7 @@ export default function WBHomePage() {
             </div>
           </AnimateIn>
           <AnimateIn delay={120} className="mt-10">
-            <WBTryIt
-              contacts={demoContacts}
-              workItems={demoWorkItems}
-              taxRatePercent="8.25"
-              brand={{ primary: "#10244A", secondary: "#F5B700" }}
-              bookingPath={DEMO_BOOKING_PATH}
-              hubPath={DEMO_HUB_PATH}
-            />
+            <WBTryIt initialQuote={emptyDoc("estimate")} bookingPath={DEMO_BOOKING_PATH} hubPath={DEMO_HUB_PATH} />
           </AnimateIn>
         </div>
       </section>

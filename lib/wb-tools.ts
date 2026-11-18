@@ -4,10 +4,9 @@ import { TRADES, type Trade } from "@/lib/wb-trades";
 /**
  * The free tools on the marketing site (/tools): one generator engine
  * (components/wb/tools/DocGenerator.tsx), two documents, and a template page
- * per trade that opens the generator pre-filled with that trade's usual
- * line items. The sample prices here are illustrative starting points a
- * visitor edits — not WorkBench prices (scripts/test-wb-site.ts scans for
- * those) — and every template page says so.
+ * per trade. Every page starts blank (David 2026-11-18: no prefilled line
+ * items); the trade only changes the page's wording. The per-trade sample
+ * lines below are no longer shown.
  */
 
 export const TOOLS_PATH = "/tools";

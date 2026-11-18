@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: { params: Promise<{ tool: str
   const noun = tool.noun;
   return {
     title: `Free ${trade.name.toLowerCase()} ${noun} template (PDF, editable)`,
-    description: `A free ${trade.name.toLowerCase()} ${noun} template with the line items ${trade.noun} usually bills, ready to edit in your browser. Add your logo and colors, download the PDF. No account, no email, no watermark. From WorkBench FSM.`,
+    description: `A free ${trade.name.toLowerCase()} ${noun} template for ${trade.noun}, ready to fill in your browser. Add your logo and colors, download the PDF. No account, no email, no watermark. From WorkBench FSM.`,
     alternates: { canonical: `https://workbenchfsm.com${templatePath(tool, trade)}` },
   };
 }

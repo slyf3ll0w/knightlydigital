@@ -1,18 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, CalendarDays, CheckCircle2, FileText, RotateCcw, Smartphone } from "lucide-react";
-import QuoteEditor from "@/app/platform/quotes/[id]/QuoteEditor";
-import type { PickerWorkItem } from "@/components/WorkItemPicker";
-import { dsBrandVars } from "@/lib/ds-theme";
+import { CalendarDays, FileText, Smartphone } from "lucide-react";
+import DocGenerator from "@/components/wb/tools/DocGenerator";
+import type { ToolDoc } from "@/lib/tool-doc";
 
 /**
  * "Try the real thing" (David 2026-11-18, option 2): REAL pieces of
  * WorkBench for the made-up demo company Brightwire Electric.
- *   1. Make a quote: the app's own quote screen (QuoteEditor, its `demo`
- *      mode: Save hands the quote back here instead of the API), with
- *      Brightwire's electrical price book, colors and a client.
+ *   1. Make a quote: the free quote builder (components/wb/tools/DocGenerator),
+ *      built from the app's own quote screen parts. It works for real: the
+ *      visitor's own business, a PDF, and Send emails it to their client.
  *   2. Book like a customer: Brightwire's real online booking form
  *      (/embed/brightwire-electric/…), the frame customers put on their sites.
  *   3. What your client sees: the demo client's real portal (/hub/<token>).
@@ -35,7 +33,7 @@ const ALL_TABS: { id: Tab; label: string; icon: typeof FileText; title: string; 
     label: "Make a quote",
     icon: FileText,
     title: "This is the quote screen in WorkBench.",
-    body: "Pick services from Brightwire's price book, change a price, add a deposit, then save it.",
+    body: "Add your business, price the job, and send it to your client for real. Free, no account needed.",
   },
   {
     id: "book",
@@ -54,8 +52,6 @@ const ALL_TABS: { id: Tab; label: string; icon: typeof FileText; title: string; 
 ];
 const TABS = ALL_TABS.filter((t) => SHOW_PORTAL || t.id !== "portal");
 
-type Contact = { id: string; firstName: string; lastName: string; addresses?: [] };
-
 function AutoFrame({ src, title, minHeight = 560 }: { src: string; title: string; minHeight?: number }) {
   const ref = useRef<HTMLIFrameElement>(null);
   const [h, setH] = useState(minHeight);
@@ -71,27 +67,9 @@ function AutoFrame({ src, title, minHeight = 560 }: { src: string; title: string
   return <iframe ref={ref} src={src} title={title} loading="lazy" className="block w-full border-0" style={{ height: h }} />;
 }
 
-const money = (n: number) => n.toLocaleString("en-US", { style: "currency", currency: "USD" });
-
-export default function WBTryIt({
-  contacts,
-  workItems,
-  taxRatePercent,
-  brand,
-  bookingPath,
-  hubPath,
-}: {
-  contacts: Contact[];
-  workItems: PickerWorkItem[];
-  taxRatePercent: string;
-  brand: { primary: string; secondary: string };
-  bookingPath: string;
-  hubPath: string;
-}) {
+export default function WBTryIt({ initialQuote, bookingPath, hubPath }: { initialQuote: ToolDoc; bookingPath: string; hubPath: string }) {
   const [tab, setTab] = useState<Tab>("quote");
   const [opened, setOpened] = useState<Set<Tab>>(new Set(["quote"]));
-  const [saved, setSaved] = useState<{ title: string; total: number; deposit: number; lines: number } | null>(null);
-  const [round, setRound] = useState(0);
   const pick = (t: Tab) => {
     setTab(t);
     setOpened((s) => new Set(s).add(t));
@@ -127,67 +105,12 @@ export default function WBTryIt({
             <p className="text-[16px] font-extrabold text-gray-900">{cur.title}</p>
             <p className="text-[14px] text-gray-600">{cur.body}</p>
           </div>
-          <span className="rounded-md bg-[#FFF4EC] px-2.5 py-1 text-[12px] font-bold text-[#C2410C] ring-1 ring-[#FBD5B5]">Live demo · Brightwire Electric</span>
+          <span className="rounded-md bg-[#FFF4EC] px-2.5 py-1 text-[12px] font-bold text-[#C2410C] ring-1 ring-[#FBD5B5]">{tab === "quote" ? "Works for real · free" : "Live demo · Brightwire Electric"}</span>
         </div>
 
-        {/* 1. the app's own quote screen, in the app's look and Brightwire's colors */}
-        <div className={tab === "quote" ? "block" : "hidden"}>
-          <div
-            className="app-ui ds relative max-h-[820px] overflow-y-auto bg-[#F4F5F8]"
-            style={
-              {
-                ...dsBrandVars(brand.primary, brand.secondary),
-                // the app recolors its green utilities to the company accent (.app-ui bridge, globals.css)
-                "--wb-accent-light": brand.primary,
-                "--wb-accent-strong-light": brand.primary,
-                "--wb-accent-bright-light": brand.primary,
-                "--wb-ink-light": brand.primary,
-                "--wb-ink-strong-light": brand.primary,
-                "--wb-primary-l": brand.primary,
-              } as React.CSSProperties
-            }
-          >
-            {saved ? (
-              <div className="mx-auto max-w-xl px-6 py-16 text-center">
-                <CheckCircle2 className="mx-auto h-12 w-12 text-green-600" strokeWidth={2} />
-                <p className="mt-4 text-[22px] font-semibold text-gray-900">Quote ready to send</p>
-                <p className="mt-2 text-[15px] text-gray-600">
-                  {saved.title} · {saved.lines} item{saved.lines === 1 ? "" : "s"} · <span className="font-semibold text-gray-900">{money(saved.total)}</span>
-                  {saved.deposit > 0 && <> · {money(saved.deposit)} deposit</>}
-                </p>
-                <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-gray-600">
-                  In your own account, saving it gives you a link to send Maria. She approves and signs on her phone
-                  {saved.deposit > 0 ? ", pays the deposit," : ""} and it turns into a job.
-                </p>
-                <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-                  <Link href="/apply" className="wb-pill wb-pill-orange">
-                    Get started free
-                    <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSaved(null);
-                      setRound((n) => n + 1);
-                    }}
-                    className="wb-pill wb-pill-outline"
-                  >
-                    <RotateCcw className="h-4 w-4" strokeWidth={2.25} />
-                    Make another
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <QuoteEditor
-                key={round}
-                contacts={contacts}
-                workItems={workItems}
-                prefilledContactId={contacts[0]?.id ?? ""}
-                defaultTaxRatePercent={taxRatePercent}
-                demo={{ onSave: setSaved }}
-              />
-            )}
-          </div>
+        {/* 1. the quote builder, built from the app's quote screen parts */}
+        <div className={tab === "quote" ? "block max-h-[860px] overflow-y-auto bg-[#F4F5F8]" : "hidden"}>
+          <DocGenerator initial={initialQuote} storageKey="wb-try-quote" />
         </div>
 
         {opened.has("book") && (

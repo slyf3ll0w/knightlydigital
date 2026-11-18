@@ -49,7 +49,7 @@ export default function ToolsPage() {
         <div className="mx-auto max-w-6xl px-5 py-14 sm:px-8">
           <AnimateIn>
             <h2 className="text-2xl font-extrabold sm:text-3xl">Templates by trade</h2>
-            <p className="mt-2 max-w-2xl text-[14.5px] text-gray-600">The generators with each trade&apos;s usual line items already filled in. Edit the prices, delete what does not apply, download.</p>
+            <p className="mt-2 max-w-2xl text-[14.5px] text-gray-600">The same builders, with a page for your trade.</p>
           </AnimateIn>
           <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {TRADES.map((t) => {

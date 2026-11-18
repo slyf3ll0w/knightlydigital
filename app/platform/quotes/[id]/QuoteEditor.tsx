@@ -75,7 +75,6 @@ export default function QuoteEditor({
   requestTitle = "",
   existingQuote,
   defaultTaxRatePercent = "",
-  demo,
 }: {
   contacts: Contact[];
   workItems?: PickerWorkItem[];
@@ -86,13 +85,6 @@ export default function QuoteEditor({
   defaultTaxRatePercent?: string;
   /** Saved estimate tools (active); shows the "Use an estimate tool" button when any exist. */
   estimators?: RunnerEstimator[];
-  /**
-   * The marketing site's "Try the real thing" (components/wb/WBTryIt.tsx)
-   * renders THIS editor for the demo company. Save hands the quote to
-   * onSave instead of the API (a visitor has no account), and the links
-   * back into the app, the leave-page warning and "New client" are hidden.
-   */
-  demo?: { onSave: (q: { title: string; total: number; deposit: number; lines: number }) => void };
 }) {
   const router = useRouter();
   const editing = Boolean(existingQuote);
@@ -226,7 +218,7 @@ export default function QuoteEditor({
 
   // Anything typed since the page opened: leaving asks first (David 2026-10-03).
   const [dirty, setDirty] = useState(false);
-  useUnsavedWarning(dirty && !loading && !demo);
+  useUnsavedWarning(dirty && !loading);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -248,19 +240,6 @@ export default function QuoteEditor({
       return;
     }
     setError("");
-    if (demo) {
-      if (!(total > 0)) {
-        setError("Add a service with a price first. Start typing in the name box to pick one from the price book.");
-        return;
-      }
-      demo.onSave({
-        title: title.trim() || titleFromServices(lineItems.map((li) => li.name)) || "Quote",
-        total,
-        deposit,
-        lines: lineItems.filter((li) => li.name.trim()).length,
-      });
-      return;
-    }
     setLoading(true);
 
     const payload = {
@@ -317,7 +296,7 @@ export default function QuoteEditor({
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        {!demo && <BackLink href={editing ? `/app/quotes/${existingQuote!.id}` : "/app/quotes"} />}
+        <BackLink href={editing ? `/app/quotes/${existingQuote!.id}` : "/app/quotes"} />
         <PageTitle>{editing ? "Edit Quote" : "New Quote"}</PageTitle>
         {requestId && (
           <Chip tone="primary">From request</Chip>
@@ -351,7 +330,6 @@ export default function QuoteEditor({
                 setPropertyId("");
               }}
               disabled={editing}
-              allowCreate={!demo}
               className="w-full sm:max-w-xs"
             />
           </div>
@@ -611,14 +589,12 @@ export default function QuoteEditor({
             {loading && <Loader2 size={14} className="animate-spin" />}
             {editing ? "Save changes" : "Save quote"}
           </button>
-          {!demo && (
-            <Link
-              href="/app/quotes"
-              className="ds-btn ds-btn-outline"
-            >
-              Cancel
-            </Link>
-          )}
+          <Link
+            href="/app/quotes"
+            className="ds-btn ds-btn-outline"
+          >
+            Cancel
+          </Link>
         </div>
       </form>
     </div>
