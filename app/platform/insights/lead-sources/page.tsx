@@ -37,7 +37,7 @@ export default async function LeadSourcesPage({ searchParams }: { searchParams: 
   const [report, picked, company] = await Promise.all([
     loadLeadSourceReport(companyId, { since }),
     sourceKey ? loadLeadsForSource(companyId, { since }, sourceKey) : Promise.resolve(null),
-    prisma.company.findUnique({ where: { id: companyId }, select: { timezone: true } }),
+    prisma.company.findUnique({ where: { id: companyId }, select: { timezone: true, adsFeedToken: true } }),
   ]);
   const timeZone = company?.timezone ?? "America/Chicago";
   const day = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone });
@@ -180,6 +180,12 @@ export default async function LeadSourcesPage({ searchParams }: { searchParams: 
           </div>
         </>
       )}
+
+      {/* Paid jobs reported back to Google Ads (lib/ads-conversions.ts) */}
+      <Link prefetch={false} href="/app/insights/lead-sources/google-ads" className="ds-card mt-5 flex items-center gap-3 px-4 py-3.5 transition-colors active:bg-gray-50 lg:px-5 lg:hover:bg-gray-50" data-testid="ads-feed-link">
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-900">Report paid jobs to Google Ads</span>
+        {company?.adsFeedToken ? <Chip tone="good">On</Chip> : <Chip>Off</Chip>}
+      </Link>
     </div>
   );
 }

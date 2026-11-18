@@ -53,7 +53,9 @@ already take a lead source and go through the same canonicalizing routes.
 David, 2026-11-17: "note our limits for further building later." Each is a
 known gap in what shipped, in the order worth building.
 
-1. **Paid jobs are not reported back to Google Ads** (offline conversions).
+1. **BUILT 2026-11-18, the fetched-file route: see
+   `ads-conversions-2026-11-18.md`.** What follows is the original note.
+   **Paid jobs are not reported back to Google Ads** (offline conversions).
    Google never learns which clicks became money, so its bidding chases
    form fills. The click id saved on `Contact.leadArrival` is what this
    needs. Two routes: a scheduled file Google fetches (small, no approval;
