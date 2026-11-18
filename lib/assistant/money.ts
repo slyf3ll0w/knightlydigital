@@ -123,7 +123,7 @@ export const moneyTools: Tool[] = [
     decl: {
       name: "get_ads_conversion_feed",
       description:
-        "Reporting paid jobs back to Google Ads: whether the company's private conversions file is on, when it was last fetched, and what it holds right now (payments in the last 90 days from leads who arrived on a Google ad click, their total, and how many were left out and why). Google Ads fetches the file on a schedule the owner sets up once in Google Ads. The file address itself is shown only on the page.",
+        "Reporting paid jobs back to Google Ads: whether the company's private conversions file is on, when it was last fetched, and what it holds right now (payments in the last 90 days from leads who arrived on a Google ad click, their total, and how many were left out and why). Google Ads fetches the file on a schedule the owner sets up once in Google Ads (the page has the steps; Help guide report-paid-jobs-to-google-ads). While the file has no payments, the page can add a temporary sample row, which Google's setup needs to get past its Select data step. The file address itself is shown only on the page.",
       parameters: { type: "object", properties: {} },
     },
     allowed: (a) => isManager(a.role),
@@ -132,6 +132,7 @@ export const moneyTools: Tool[] = [
       return {
         on: s.enabled,
         lastFetched: s.fetchedAt,
+        sampleRowInFileUntil: s.sampleUntil,
         adLeadsLast90Days: s.adLeads,
         paymentsInFile: s.payments,
         collected: s.value,

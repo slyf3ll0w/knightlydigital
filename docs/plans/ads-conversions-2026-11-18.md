@@ -16,9 +16,9 @@ reported back against that click.
    (`Company.adsFeedToken`).
 2. The file (`GET /api/public/ads-conversions/<token>/conversions.csv`) is
    built fresh on every fetch: one row per payment, from the last 90 days,
-   by a client whose arrival carries a Google click id. Columns: Google
-   Click ID, Conversion Name (always `WorkBench paid job`), Conversion Time
-   (UTC, `yyyy-MM-dd HH:mm:ss+0000`), Conversion Value, Conversion Currency.
+   by a client whose arrival carries a Google click id. Columns: `gclid`,
+   `conversion_name` (always `WorkBench paid job`), `conversion_time`
+   (UTC, `2026-11-18T14:03:22Z`), `conversion_value`, `currency`.
    No names, emails, phones or addresses.
 3. In Google Ads the owner creates an offline conversion action with that
    name and points an HTTPS data source at the address (user name and
@@ -68,7 +68,47 @@ So the file needs no approval from Google and works for every company
 today. The Connect Google Ads button stays the later step (it also brings
 ad spend, limit 3 of the lead-sources plan).
 
-## Not verified
+## First real test: Steadfast, 2026-11-18 (same day)
+
+David set it up in the Steadfast Google Ads account. What that showed:
+
+- Google's flow is a "Set up connection" wizard with four steps: **Connect a
+  source → Select data → Map fields → Review**. The HTTPS source connected
+  with `workbench` / `workbench` and Google fetched the file
+  (`adsFeedFetchedAt` was stamped), so the placeholder user name and
+  password are accepted.
+- **He was stuck on Select data: "conversions.csv" was selected and Next
+  stayed grey**, however often he pressed Replace and reconnected. The file
+  had a header and no rows (Steadfast had no lead with an arrival yet: lead
+  sources went live the day before). Google's pages do not document this;
+  the reading is that it cannot take a file with no rows.
+
+Changed the same day:
+
+- **Sample row.** While a company has nothing to report, the page's step 4
+  offers "Add a sample row": `Company.adsFeedSampleUntil` = now + 2 hours
+  (also set when the file is turned on or given a new address), and while it
+  is in the future AND there are no real rows the file carries one row,
+  `SAMPLE_ROW_NOT_A_REAL_CLICK`, $1.00. Google cannot match it to a click,
+  so it counts nothing. A file with real rows never carries it.
+- **Headers** are now plain lower-case names with no spaces (the second
+  suspect for the grey Next; the owner maps them on Map fields either way).
+  This drops the older Conversions → Uploads → Schedules page, which wants
+  Google's template names: the Data Manager wizard is where Google's
+  conversion-action flow leads now.
+- **Time** is now `2026-11-18T14:03:22Z`, the form in Google's own Data
+  Manager examples.
+- **The page** was rebuilt around Google's real steps (status card, the
+  numbers, then seven steps with each value to paste inside the step that
+  asks for it and the field-mapping table), and the Help guide
+  `report-paid-jobs-to-google-ads` was added.
+
+Still open after this: whether the sample row gets him past Select data
+(not yet re-tried when written), the exact field names on Map fields, and
+the wording of steps 1, 2 and 6 on the page, which come from Google's help
+pages and not from his screen.
+
+## Not verified (as first written, before the Steadfast test)
 
 **No real Google Ads account has fetched this file yet.** The format follows
 Google's published pages, but these are unproven until Steadfast's account
@@ -104,12 +144,12 @@ result. Auto-tagging must be on in the Google Ads account (it is what puts
    whose click id was lost) is not built. It needs consent wording on the
    forms first.
 8. **No e2e test.** The rules are unit-tested (`scripts/test-ads-conversions.ts`,
-   21 checks, most of them traps); the page and the file were checked by
+   25 checks, most of them traps); the page and the file were checked by
    hand in a local browser.
 
 ## Test recipe
 
-Unit: `npx tsx scripts/test-ads-conversions.ts`.
+Unit: `npx tsx scripts/test-ads-conversions.ts` (25 checks).
 
 1. Open a page of the business's site with `?gclid=TestClick_1234567890` on
    the address and send the quote form. The lead's source reads Google Ads.

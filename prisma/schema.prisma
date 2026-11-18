@@ -328,6 +328,7 @@ model Company {
   // GET /api/public/ads-conversions/[token]/conversions.csv. null = off; a new token kills the old address.
   adsFeedToken              String?           @unique
   adsFeedFetchedAt          DateTime? // last time the file was fetched (shown on the setup page as proof Google is reading it)
+  adsFeedSampleUntil        DateTime? // while in the future and there is nothing real to report, the file carries one sample row so Google's setup can read the columns
   // Hide the board's Converted section (recently-won cards) to save screen space
   hideConvertedLeads        Boolean           @default(false)
   teamSize                  String? // onboarding answers below — analytics/marketing

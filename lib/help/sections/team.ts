@@ -280,6 +280,10 @@ export const reportsSection: HelpSection = {
           text: "Or just ask Atlas: \"where are my leads coming from this month?\"",
         },
         {
+          type: "p",
+          text: "Running Google ads? WorkBench can report the payments from those leads back to Google. See [Tell Google Ads which clicks paid](/help/report-paid-jobs-to-google-ads).",
+        },
+        {
           type: "faq",
           items: [
             {
@@ -301,6 +305,87 @@ export const reportsSection: HelpSection = {
             {
               q: "Do I need to change the form code on my website?",
               a: "No. A form embedded with WorkBench's code does this already.",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "report-paid-jobs-to-google-ads",
+      title: "Tell Google Ads which clicks paid",
+      summary: "Report the payments from your Google Ads leads back to Google, so it goes after clicks that become paid work.",
+      keywords: ["google ads", "offline conversions", "conversion import", "paid jobs", "gclid", "ad click", "data manager", "https", "conversions.csv", "smart bidding", "advertising", "sample row", "next is grey"],
+      where: { label: "Overview", href: "/app/business" },
+      roles: "Owners and admins",
+      blocks: [
+        {
+          type: "p",
+          text: "Google Ads normally only knows that someone clicked your ad and filled in a form. With this on, it also learns which of those clicks paid you, and how much. WorkBench keeps a private file of the payments made by leads who came from a Google ad, and Google Ads reads that file by itself once a day.",
+        },
+        {
+          type: "p",
+          text: "The file holds the ad click ID, the amount and the time of each payment from the last 90 days. It never holds a name, email, phone number or address.",
+        },
+        { type: "h", text: "Turn it on" },
+        {
+          type: "steps",
+          items: [
+            "Open **Overview → Insights**, press `Lead sources` on the **By lead source** card, then press **Report paid jobs to Google Ads** at the bottom.",
+            "Press `Turn on`. The page now shows your file address and the steps for Google Ads.",
+          ],
+        },
+        { type: "h", text: "Set it up in Google Ads" },
+        {
+          type: "p",
+          text: "You do this once, on a computer, signed in to your Google Ads account. Keep the WorkBench page open in another tab: every value you need has a `Copy` button there.",
+        },
+        {
+          type: "steps",
+          items: [
+            "**Check auto-tagging.** In Google Ads open **Admin → Account settings → Auto-tagging** and make sure it is ticked.",
+            "**Start a conversion action.** Open **Goals → Summary** and press **New conversion action**. Choose **Import**, then **CRMs, files, or other data sources**, then **Track conversions from clicks**. Under Data source choose **Connect a new data source**, search for **HTTPS** and pick it. If asked, choose **Direct connection** and the use **Conversions**. For the goal, pick **Converted lead**.",
+            "**Connect a source.** Paste the **File address**, **User name** and **Password** from the WorkBench page.",
+            "**Select data.** Google shows **conversions.csv**. Leave Filter alone and press **Next**. If Next is grey, see the first question below.",
+            "**Map fields.** Match Google's fields to the file's columns: **GCLID** is `gclid`, **Conversion date and time** is `conversion_time`, **Conversion value** is `conversion_value`. If Google asks for them, **Currency** is `currency` and **Conversion action** is `conversion_name`. Leave the rest empty and press **Next**.",
+            "**Review.** Name the connection, set it to run every day, then press **Finish** and **Save and continue**. If Google asks for the conversion action's name, use **WorkBench paid job**, and choose to use a different value for each conversion.",
+          ],
+          note: "Google changes its menus from time to time. If a name here doesn't match your screen, look for the closest one.",
+        },
+        { type: "h", text: "Check it is working" },
+        {
+          type: "p",
+          text: "The WorkBench page shows when the file was last fetched. After Google's first run that time moves forward every day. Payments show in Google Ads under the conversion action about a day after Google reads them.",
+        },
+        {
+          type: "tip",
+          text: "Or just ask Atlas: \"is Google being told about my paid jobs?\"",
+        },
+        {
+          type: "faq",
+          items: [
+            {
+              q: "The Next button is grey on Select data. What do I do?",
+              a: "Your file has no payments in it yet, and Google can't read an empty file. On the WorkBench page press `Add a sample row` under step 4, then in Google press **Replace**, choose the file again, and Next will work. The sample row is one made-up payment of $1.00 with a click ID that isn't real. It leaves the file after 2 hours, and Google counts nothing from it.",
+            },
+            {
+              q: "Which payments are reported?",
+              a: "Payments on invoices for clients who first came in through a form on your website after clicking a Google ad, within 90 days of that click. A deposit and the balance are reported as two payments.",
+            },
+            {
+              q: "Why is a payment missing?",
+              a: "Google only accepts a payment within 90 days of the ad click. Some iPhone clicks hide the click ID, so those can't be reported. And a lead who called you, or who was typed in by hand, has no ad click saved. The page shows how many payments were left out.",
+            },
+            {
+              q: "What happens when I refund a payment?",
+              a: "The file shows the lower amount, but Google keeps the amount it counted first.",
+            },
+            {
+              q: "Someone else has my file address. What now?",
+              a: "Press `New address`. The old address stops working right away. Paste the new one into Google Ads.",
+            },
+            {
+              q: "Does this change what my clients see?",
+              a: "No. Nothing is sent to clients, and nothing about them leaves WorkBench except the ad click ID, the amount and the time.",
             },
           ],
         },

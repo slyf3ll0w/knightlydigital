@@ -287,9 +287,13 @@ payment of the last 90 days from a client whose `leadArrival` has a
 (`npx tsx scripts/test-ads-conversions.ts`); nothing records what was sent,
 because Google ignores a row it already counted. The file never holds a
 name, email, phone or address: keep it that way. Atlas:
-`get_ads_conversion_feed` / `set_ads_conversion_feed`. Not yet fetched by a
-real Google Ads account (Steadfast is the first test); its own limits list
-is in the plan.
+`get_ads_conversion_feed` / `set_ads_conversion_feed`. Help guide
+`report-paid-jobs-to-google-ads`; the page's seven steps and the guide say
+the same thing, so change them together. Google's setup cannot get past its
+Select data step on a file with no rows, hence the two-hour sample row
+(`Company.adsFeedSampleUntil`, only ever written when there are no real
+rows). Steadfast is the first real account; what that test showed, and the
+limits list, are in the plan.
 
 ## Authentication
 

@@ -11,6 +11,7 @@ import {
   ADS_FEED_USERNAME,
   adsFeedUrl,
   buildAdsConversions,
+  sampleRowActive,
   hasGoogleAdClick,
   type AdsConversionSummary,
   type AdsPayment,
@@ -55,6 +56,8 @@ export type AdsFeedStatus = {
   enabled: boolean;
   /** The private file address; null when off. */
   url: string | null;
+  /** While set (ISO), the file carries one sample row so Google's setup can read the columns. Null when not. */
+  sampleUntil: string | null;
   /** Last time anything fetched the file (ISO); null when never. */
   fetchedAt: string | null;
   conversionName: string;
@@ -74,7 +77,7 @@ export type AdsFeedStatus = {
 export async function loadAdsFeedStatus(companyId: string, now = new Date()): Promise<AdsFeedStatus> {
   const since = new Date(now.getTime() - ADS_CLICK_WINDOW_DAYS * 86400000);
   const [company, summary, arrivals] = await Promise.all([
-    prisma.company.findUnique({ where: { id: companyId }, select: { adsFeedToken: true, adsFeedFetchedAt: true } }),
+    prisma.company.findUnique({ where: { id: companyId }, select: { adsFeedToken: true, adsFeedFetchedAt: true, adsFeedSampleUntil: true } }),
     loadAdsConversions(companyId, now),
     prisma.contact.findMany({
       where: { companyId, kind: "CLIENT", placeholder: false, createdAt: { gte: since }, leadArrival: { not: Prisma.AnyNull } },
@@ -88,6 +91,7 @@ export async function loadAdsFeedStatus(companyId: string, now = new Date()): Pr
     enabled: !!token,
     url: token ? adsFeedUrl(baseUrl(), token) : null,
     fetchedAt: token && company?.adsFeedFetchedAt ? company.adsFeedFetchedAt.toISOString() : null,
+    sampleUntil: token && sampleRowActive(company?.adsFeedSampleUntil, summary.rows.length, now) ? company!.adsFeedSampleUntil!.toISOString() : null,
     conversionName: ADS_CONVERSION_NAME,
     username: ADS_FEED_USERNAME,
     password: ADS_FEED_PASSWORD,
