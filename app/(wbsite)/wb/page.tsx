@@ -1,4 +1,4 @@
-import { RATES, RATES_SENTENCE } from "@/lib/plans";
+import { PROCESSING_RATES, RATES, RATES_SENTENCE } from "@/lib/plans";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -13,17 +13,23 @@ import WBPhoneShowcase from "@/components/wb/WBPhoneShowcase";
 import WBTestimonials from "@/components/wb/WBTestimonials";
 import WBScribble from "@/components/wb/WBScribble";
 import WBBento from "@/components/wb/WBBento";
+import WBCountUp from "@/components/wb/WBCountUp";
+import WBCycleWord from "@/components/wb/WBCycleWord";
+import WBIntegrations from "@/components/wb/WBIntegrations";
+import WBLiveApp from "@/components/wb/WBLiveApp";
+import WBNote from "@/components/wb/WBNote";
+import WBRibbon from "@/components/wb/WBRibbon";
+import { TRADES } from "@/lib/wb-trades";
+import { ATLAS_FREE_TOKENS } from "@/lib/atlas-pricing";
 import WBTradeCards from "@/components/wb/WBTradeCards";
 import { FREE_PAGE_PATH } from "@/lib/wb-free";
-import { APP_STORE_URL, PLAY_STORE_URL, WB_DAY_PHOTOS, WB_PHONE } from "@/lib/wb-site";
+import { APP_STORE_URL, PLAY_STORE_URL, WB_PHONE } from "@/lib/wb-site";
 import { EXTRA_SEAT_CENTS, FREE_PLAN_NAME, INCLUDED_SEATS, PLANS, formatCents } from "@/lib/plans";
 import {
   ArrowRight,
-  BadgeCheck,
   CalendarClock,
   CalendarDays,
   Check,
-  Phone,
   Smartphone,
   WifiOff,
 } from "lucide-react";
@@ -186,158 +192,91 @@ const faqItems = [
 export default function WBHomePage() {
   return (
     <>
-      {/* ── Hero (Railway-style): one framed panel, a real job photo under a navy
-           wash, the promise in white, and the real desktop app rising out of it,
-           with what WorkBench works with along the bottom. ── */}
-      <section className="bg-white px-2 pt-2 sm:px-3 sm:pt-3">
-        <div className="relative overflow-hidden rounded-2xl bg-[#0A1428]">
-          <Image src={WB_DAY_PHOTOS.morning.src} alt="" fill priority sizes="100vw" className="object-cover object-[50%_40%]" />
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,20,40,0.86)_0%,rgba(10,20,40,0.74)_38%,rgba(10,20,40,0.92)_70%,#0A1428_100%)]" aria-hidden />
-
-          <div className="relative mx-auto max-w-6xl px-5 pt-16 text-center sm:px-8 sm:pt-24">
-            <p className="text-[12.5px] font-extrabold uppercase tracking-[0.14em] text-[#FFB27A]">Field service management software</p>
-            <h1 className="mx-auto mt-5 max-w-4xl text-[2.7rem] font-extrabold leading-[1.02] text-white sm:text-[4rem] xl:text-[4.6rem]">
-              Run the entire job from one place.
+      {/* ── Hero (Stripe-style): big centered type with a cycling word over a
+           flowing brand ribbon, then the live app with hand-drawn notes. ── */}
+      <section className="relative overflow-hidden bg-white">
+        <WBRibbon id="hero-r" className="right-0 top-0 h-[220px] w-[80%] opacity-60 sm:h-[380px] sm:w-[50%] sm:opacity-80 lg:h-[540px] lg:w-[40%] lg:opacity-95" />
+        <WBRibbon id="hero-l" className="left-0 top-0 hidden h-[460px] w-[32%] -scale-x-100 opacity-35 lg:block" />
+        <div className="relative mx-auto max-w-6xl px-5 pt-14 text-center sm:px-8 sm:pt-20 lg:pt-24">
+          <AnimateIn>
+            <p className="wb-label">Field service management software</p>
+            <h1 className="mx-auto mt-5 max-w-5xl text-[2.6rem] font-extrabold leading-[1.04] tracking-[-0.03em] text-gray-900 sm:text-[4.2rem] xl:text-[5rem]">
+              The one place to run <br className="hidden sm:block" />
+              your{" "}
+              <WBCycleWord
+                label="whole business."
+                words={["quotes.", "schedule.", "crew.", "invoices.", "payments.", "whole business."]}
+                wordClassName="bg-gradient-to-r from-[#0B57D8] via-[#7A5CF0] to-[#F86A0A] bg-clip-text pb-[0.08em] text-transparent"
+              />
             </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed text-blue-50/85 sm:text-[19px]">
+          </AnimateIn>
+          <AnimateIn delay={120}>
+            <p className="mx-auto mt-7 max-w-2xl text-[17px] leading-relaxed text-gray-600 sm:text-[19px]">
               Scheduling, quotes, invoicing and payments for home-service companies, plus Atlas, an
-              assistant you can talk to hands-free. Free for your first {INCLUDED_SEATS} users.
+              assistant you can talk to hands-free. The {FREE_PLAN_NAME} plan is free for your first {INCLUDED_SEATS} users.
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
               <Link href="/apply" className="wb-pill wb-pill-orange">
                 Get started free
                 <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
               </Link>
-              <Link href="/book-a-call" className="wb-pill wb-pill-ghost">
-                <CalendarDays className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+              <Link href="/book-a-call" className="wb-pill wb-pill-outline">
+                <CalendarDays className="h-4 w-4 text-[#F86A0A]" strokeWidth={2.25} aria-hidden />
                 Book a call
               </Link>
             </div>
-            <ul className="mt-7 flex flex-wrap justify-center gap-x-6 gap-y-2 text-[14px] font-semibold text-blue-50/80">
-              {["No credit card", "No trial clock", "A person answers the phone"].map((t) => (
-                <li key={t} className="inline-flex items-center gap-1.5">
-                  <Check className="h-4 w-4 text-[#FF8B33]" strokeWidth={3} aria-hidden />
-                  {t}
-                </li>
-              ))}
-            </ul>
+          </AnimateIn>
 
-            {/* The real desktop app, rising out of the panel */}
-            <div className="relative mx-auto mt-14 max-w-5xl sm:mt-16">
-              <div className="overflow-hidden rounded-t-xl border border-b-0 border-white/15 bg-white shadow-[0_-20px_80px_-20px_rgba(46,111,242,0.55)]">
-                <div className="flex items-center gap-3 border-b border-gray-200 bg-[#F1F3F6] px-4 py-2.5">
-                  <span className="flex gap-1.5" aria-hidden>
-                    <span className="h-2.5 w-2.5 rounded-full bg-gray-300" />
-                    <span className="h-2.5 w-2.5 rounded-full bg-gray-300" />
-                    <span className="h-2.5 w-2.5 rounded-full bg-gray-300" />
-                  </span>
-                  <span className="mx-auto hidden rounded-md bg-white px-10 py-1 text-[11.5px] font-semibold text-gray-400 ring-1 ring-inset ring-gray-200 sm:block">
-                    workbenchfsm.com/app
-                  </span>
-                  <span className="w-[42px]" aria-hidden />
-                </div>
-                <div className="relative aspect-[1512/600] overflow-hidden">
-                  <Image
-                    src="/screens/desktop-dashboard.jpg"
-                    alt="The WorkBench dashboard: money collected and outstanding, the Needs-you list, and today's schedule"
-                    fill
-                    priority
-                    sizes="(min-width: 1152px) 1024px, 100vw"
-                    className="object-cover object-top"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Works with: one ruled row of cells along the panel's foot */}
-          <ul className="relative grid grid-cols-2 border-t border-white/10 bg-[#0A1428] sm:grid-cols-3 lg:grid-cols-6" aria-label="Works with">
-            {[
-              { kind: "img", src: "/brand/quickbooks.svg", label: "QuickBooks Online" },
-              { kind: "img", src: "/brand/google-calendar.svg", label: "Google Calendar" },
-              { kind: "text", label: "Square payments" },
-              { kind: "cards", label: "Visa, Mastercard, Amex, Discover" },
-              { kind: "badge", src: "/app-store-badge.svg", href: APP_STORE_URL, label: "Download on the App Store", w: 120, h: 40 },
-              { kind: "badge", src: "/google-play-badge.svg", href: PLAY_STORE_URL, label: "Get it on Google Play", w: 180, h: 53 },
-            ].map((c) => (
-              <li key={c.label} className="flex h-24 items-center justify-center gap-2.5 border-b border-r border-white/10 px-4 text-[14.5px] font-bold text-white/85 lg:border-b-0 lg:last:border-r-0">
-                {c.kind === "img" && <Image src={c.src!} alt="" width={22} height={22} unoptimized className="h-[22px] w-[22px]" />}
-                {c.kind === "img" || c.kind === "text" ? <span>{c.label}</span> : null}
-                {c.kind === "cards" && (
-                  <span className="flex items-center gap-1.5" aria-label={c.label}>
-                    {["visa", "mastercard", "amex", "discover"].map((b) => (
-                      <span key={b} className="flex h-7 w-11 items-center justify-center rounded bg-white">
-                        <Image src={`/brand/${b}.svg`} alt="" width={30} height={18} unoptimized style={{ width: b === "discover" ? 36 : 26, height: "auto" }} />
-                      </span>
-                    ))}
-                  </span>
-                )}
-                {c.kind === "badge" && (
-                  <a href={c.href} target="_blank" rel="noopener" aria-label={c.label} className="opacity-90 transition-opacity hover:opacity-100">
-                    <Image src={c.src!} alt={c.label} width={c.w!} height={c.h!} unoptimized className="h-[38px] w-auto" />
-                  </a>
-                )}
-              </li>
-            ))}
-          </ul>
+          {/* The live app, with notes pointing at what just happened */}
+          <AnimateIn delay={160} className="relative mx-auto mt-16 max-w-5xl pb-16 sm:mt-20 sm:pb-24">
+            <WBLiveApp />
+            <WBNote arrow="right" delay={1.4} className="absolute -left-[10.5rem] top-[33%] hidden w-[10rem] xl:flex" arrowClassName="rotate-[14deg]">
+              Bookings land
+              <br />
+              on their own
+            </WBNote>
+            <WBNote arrow="left" delay={1.8} className="absolute -right-[10.5rem] top-[22%] hidden w-[10rem] xl:flex" arrowClassName="-rotate-[10deg]">
+              Paid, and counted
+              <br />
+              for you
+            </WBNote>
+          </AnimateIn>
         </div>
       </section>
 
-      {/* ── Contact strip (contractor-site style): three facts, orange icons ── */}
-      <section className="bg-white px-2 sm:px-3">
-        <div className="mx-auto mt-2 grid max-w-none gap-px overflow-hidden rounded-2xl bg-[#111827] sm:mt-3 md:grid-cols-3">
+      {/* ── By the numbers: counts up as it scrolls in ── */}
+      <section className="border-y border-gray-200 bg-[#F5F7FA]">
+        <dl className="mx-auto grid max-w-6xl grid-cols-2 px-5 sm:px-8 lg:grid-cols-4">
           {[
-            { icon: BadgeCheck, k: `Free for ${INCLUDED_SEATS} users`, v: `${FREE_PLAN_NAME} plan, full access`, href: FREE_PAGE_PATH },
-            { icon: Phone, k: "Call us", v: WB_PHONE.display, href: WB_PHONE.href },
-            { icon: CalendarDays, k: "Free setup call", v: "Book a time", href: "/book-a-call" },
-          ].map(({ icon: Icon, k, v, href }) => (
-            <a key={k} href={href} className="group flex items-center justify-center gap-4 bg-[#111827] px-6 py-6 transition-colors hover:bg-[#172036]">
-              <Icon className="h-8 w-8 flex-none text-[#F86A0A]" strokeWidth={2} aria-hidden />
-              <span className="text-left">
-                <span className="block text-[14px] text-white/70">{k}</span>
-                <span className="block text-[18px] font-extrabold text-white">{v}</span>
-              </span>
-            </a>
-          ))}
-        </div>
-      </section>
-
-      {/* ── The 30-second intro (silent loop; the full cut with music is on YouTube).
-           Rendered from ~/workbench-intro (Remotion) — scripts/render.sh writes the web cut. ── */}
-      <section className="bg-white">
-        <div className="mx-auto max-w-5xl px-5 pt-20 sm:px-8 sm:pt-28">
-          <AnimateIn className="mx-auto max-w-3xl text-center">
-            <p className="wb-label justify-center">See it in action</p>
-            <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
-              WorkBench in 30 seconds.
-            </h2>
-          </AnimateIn>
-          <AnimateIn delay={120} className="mt-10">
-            <div className="wb-frame-hero overflow-hidden rounded-2xl bg-[#0A1428]">
-              <video
-                className="block aspect-video w-full"
-                src="/video/workbench-intro.mp4"
-                poster="/video/workbench-intro-poster.jpg"
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="metadata"
-                aria-label="WorkBench FSM in 30 seconds: a quote approved from a phone, jobs dragged onto the schedule, an invoice paid in the driveway, and Atlas sending payment reminders"
-              />
+            { v: <WBCountUp value={INCLUDED_SEATS} />, k: "users free on Core, for good" },
+            { v: <WBCountUp value={PROCESSING_RATES.companyPaid.cardBps / 100} decimals={2} suffix="%" />, k: `per card payment, + ${PROCESSING_RATES.companyPaid.cardFixedCents}¢. Nothing monthly` },
+            { v: <WBCountUp value={ATLAS_FREE_TOKENS} />, k: "Atlas tokens free every month" },
+            { v: <WBCountUp value={TRADES.length} />, k: "trades it is built for" },
+          ].map((s, i) => (
+            <div key={i} className={`py-8 sm:py-10 ${i % 2 === 1 ? "pl-6" : "pr-6"} lg:px-8 lg:first:pl-0 ${i > 0 ? "lg:border-l lg:border-gray-200" : ""} ${i >= 2 ? "border-t border-gray-200 lg:border-t-0" : ""}`}>
+              <dt className="sr-only">{s.k}</dt>
+              <dd>
+                <span className="block text-[2.6rem] font-extrabold leading-none text-gray-900 sm:text-[3.2rem]">{s.v}</span>
+                <span className="mt-2 block text-[14.5px] font-semibold text-gray-500">{s.k}</span>
+              </dd>
             </div>
-          </AnimateIn>
-        </div>
+          ))}
+        </dl>
       </section>
 
       {/* ── What WorkBench does: the bento of real screens ── */}
       <section className="bg-white">
         <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
-          <AnimateIn className="max-w-3xl">
+          <AnimateIn className="relative max-w-3xl">
             <h2 className="text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
               One system from the first call to the paid invoice.{" "}
               <span className="text-gray-400">Nothing to bolt on, nothing to stitch together.</span>
             </h2>
+            <WBNote arrow="down" delay={0.7} className="absolute -bottom-20 right-[-16rem] hidden xl:flex">
+              Real screens.
+              <br />
+              Tap one.
+            </WBNote>
           </AnimateIn>
           <div className="mt-12">
             <WBBento />
@@ -397,7 +336,12 @@ export default function WBHomePage() {
       {/* ── Built for the trades ── */}
       <section className="bg-[#F6F8FB]">
         <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
-          <AnimateIn className="max-w-3xl">
+          <AnimateIn className="relative max-w-3xl">
+            <WBNote arrow="down" delay={0.6} className="absolute -bottom-24 right-[-14rem] hidden xl:flex">
+              Point at
+              <br />
+              your trade
+            </WBNote>
             <p className="wb-label">Built for the trades</p>
             <h2 className="mt-4 text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
               Made for companies that send people to a customer&rsquo;s home.
@@ -504,6 +448,24 @@ export default function WBHomePage() {
 
       {/* ── Testimonials (drafts: preview only until the customers approve) ── */}
       <WBTestimonials />
+
+      {/* ── Works with: one sliding row; add to INTEGRATIONS in WBIntegrations ── */}
+      <section className="border-t border-gray-200 bg-white py-20 sm:py-24">
+        <AnimateIn className="relative mx-auto max-w-6xl px-5 sm:px-8">
+          <p className="wb-label">Works with</p>
+          <h2 className="mt-4 max-w-2xl text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
+            Plugs into what you already use. <span className="text-gray-400">More on the way.</span>
+          </h2>
+          <WBNote arrow="down" delay={0.6} className="absolute bottom-[-4.5rem] right-10 hidden lg:flex">
+            Keeps
+            <br />
+            growing
+          </WBNote>
+        </AnimateIn>
+        <div className="mt-12">
+          <WBIntegrations />
+        </div>
+      </section>
 
       {/* ── Pricing ── */}
       <section className="bg-white">

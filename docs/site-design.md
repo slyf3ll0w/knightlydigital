@@ -18,8 +18,8 @@ script can see; the rest is on whoever builds the page.
 | --- | --- |
 | Orange dot in front of section labels | `.wb-label`: small caps, blue, no dot |
 | Pill eyebrows over a title (`rounded-full bg-blue-50 …`) | `<p className="wb-label">` |
-| Floating pill header | `WBNav`: navy utility bar + solid sticky white bar, menus, orange underline on the current page |
-| Phone mockup, zoom bubble, floating notification cards in a hero | Home: Railway-style framed photo panel, the desktop app rising out of it, a works-with row along its foot. Inner pages with a photo: `WBSplitHero` (photo panel, navy wash, white type, one caption plate) |
+| The old floating pill header and the navy utility strip | `WBNav` (round 3): one rounded white bar floating under the top edge, menus (Features, Compare, Resources), phone, Log in, orange Get started; tightens on scroll |
+| Phone mockup, zoom bubble, floating notification cards in a hero | Home (round 3): big centered headline with a cycling word (`WBCycleWord`) over two flowing ribbons, then `WBLiveApp`, a coded dashboard that works by itself, with hand-drawn notes; numbers that count up (`WBCountUp`) under it. Inner pages with a photo: `WBSplitHero` (photo panel, navy wash, white type, one caption plate) |
 | Bobbing / tilted cards (`wb-float`, `--wb-tilt`) | `wb-card-shadow`, sitting still |
 | Blue/orange glows (`radial-gradient`) and ANY grid/graph-paper background (David: the worst offender) | White heroes with `WBRibbon` (Stripe-style brand ribbon, top right); navy `.wb-dark` bands |
 | Boxed FAQ accordion with chevrons | `WBFaqSection`: title + bar + "call us" on the left, ruled rows with +/− on the right |
@@ -51,6 +51,12 @@ script can see; the rest is on whoever builds the page.
    scans for literals). Never a real client's name or logo.
 8. Check it at 390 px wide: no sideways scroll (`.wb-pill` sets its own
    `display`, so hide a pill by wrapping it, never with `hidden` on the pill).
+
+## Motion
+
+- `WBRibbon` bands drift and the colors breathe; `WBLiveApp` loops a booking, a payment and a text; `WBCycleWord`; `WBCountUp`; the works-with row (`WBIntegrations`) slides forever. All of it stops under reduced motion.
+- Arrow notes: `WBNote` (words + a hand-drawn `WBScribble` arrow) inside an `AnimateIn`, so the arrow draws itself as the section scrolls in. Use them to point at real things (a screen, a row, a number), usually xl screens only.
+- Integrations live in one list, `INTEGRATIONS` in components/wb/WBIntegrations.tsx. Only list what WorkBench really connects to.
 
 ## Content that lays itself out
 

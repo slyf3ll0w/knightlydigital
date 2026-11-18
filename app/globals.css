@@ -2249,8 +2249,9 @@ html[data-mode="dark"] .app-ui .card-tool {
   position: absolute;
   left: 0.75rem;
   right: 0.75rem;
-  bottom: -1px;
-  height: 3px;
+  bottom: 14px;
+  height: 2.5px;
+  border-radius: 2px;
   background: #F86A0A;
   transform: scaleX(0);
   transform-origin: left;
@@ -2274,6 +2275,43 @@ html[data-mode="dark"] .app-ui .card-tool {
   clip-path: polygon(38% 0, 100% 0, 100% 62%, 74% 100%, 0 100%);
   -webkit-mask-image: linear-gradient(200deg, #000 35%, rgba(0, 0, 0, 0.55) 70%, transparent 100%);
   mask-image: linear-gradient(200deg, #000 35%, rgba(0, 0, 0, 0.55) 70%, transparent 100%);
+}
+
+/* The ribbon flows: each band drifts on its own clock and the colors
+   breathe a little, so the hero is never quite still. */
+@keyframes wb-flow-a { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(-26px, 14px) rotate(-2deg); } }
+@keyframes wb-flow-b { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(18px, -10px) rotate(1.6deg); } }
+@keyframes wb-flow-c { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-12px, 20px); } }
+@keyframes wb-hue { 0%, 100% { filter: hue-rotate(0deg) saturate(1); } 50% { filter: hue-rotate(-14deg) saturate(1.15); } }
+.wb-ribbon-svg { animation: wb-hue 14s ease-in-out infinite; }
+.wb-flow-a { transform-box: fill-box; transform-origin: 100% 0%; animation: wb-flow-a 11s ease-in-out infinite; }
+.wb-flow-b { transform-box: fill-box; transform-origin: 100% 0%; animation: wb-flow-b 9s ease-in-out infinite; }
+.wb-flow-c { transform-box: fill-box; transform-origin: 100% 0%; animation: wb-flow-c 13s ease-in-out infinite; }
+
+/* The cycling word in the home headline: the next word rises in. */
+@keyframes wb-word-in { from { opacity: 0; transform: translateY(0.45em); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+.wb-word { display: inline-block; animation: wb-word-in 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+/* The live app in the home hero */
+@keyframes wb-row-in { from { opacity: 0; transform: translateY(-10px); background: #FFF4EB; } to { opacity: 1; transform: none; } }
+.wb-row-in { animation: wb-row-in 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes wb-toast-in { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: none; } }
+.wb-toast-in { animation: wb-toast-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes wb-pop { 0% { transform: scale(1); } 40% { transform: scale(1.12); } 100% { transform: scale(1); } }
+.wb-pop { animation: wb-pop 0.45s ease-out; }
+
+/* Logos that slide across (WBIntegrations): the list is drawn twice and
+   the track moves by exactly one copy, so it loops without a seam. */
+@keyframes wb-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.wb-marquee { animation: wb-marquee var(--wb-marquee-s, 40s) linear infinite; }
+.wb-marquee-wrap:hover .wb-marquee { animation-play-state: paused; }
+.wb-marquee-wrap {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wb-ribbon-svg, .wb-flow-a, .wb-flow-b, .wb-flow-c, .wb-word, .wb-row-in, .wb-toast-in, .wb-pop, .wb-marquee { animation: none !important; }
 }
 
 /* Photo panel (Railway-style): a big rounded frame inset from the page
