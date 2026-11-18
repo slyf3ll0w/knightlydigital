@@ -59,7 +59,7 @@ export default function WBContactButton() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="wb-bubble-in fixed bottom-[6.2rem] right-5 z-40 max-w-[17rem] rounded-2xl rounded-br-sm border-2 border-[#0A1428] bg-white px-4 py-3 text-left shadow-[3px_3px_0_#0A1428]"
+          className="wb-bubble-in fixed bottom-[6.2rem] right-5 z-40 max-w-[17rem] rounded-xl rounded-br-sm border-2 border-[#0A1428] bg-white px-4 py-3 text-left shadow-[3px_3px_0_#0A1428]"
         >
           <span className="block text-[15px] font-extrabold text-[#0A1428]">Questions? Ask a real person.</span>
           <span className="mt-1 block text-[13.5px] leading-snug text-gray-600">Tap me. The form inside is the same one your customers use to reach you on WorkBench.</span>
@@ -87,7 +87,7 @@ export default function WBContactButton() {
         <div
           role="dialog"
           aria-label="Contact WorkBench"
-          className="wb-panel-open fixed bottom-[6.5rem] right-5 z-[60] flex max-h-[calc(100dvh-9rem)] w-[460px] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-[0_40px_90px_-30px_rgba(10,20,40,0.5)]"
+          className="wb-panel-open fixed bottom-[6.5rem] right-5 z-[60] flex max-h-[calc(100dvh-9rem)] w-[460px] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-[0_40px_90px_-30px_rgba(10,20,40,0.5)]"
         >
           <div className="bg-gradient-to-br from-[#0B57D8] to-[#0A1428] px-6 pb-6 pt-6 text-white">
             <div className="flex items-center gap-4">
@@ -98,11 +98,11 @@ export default function WBContactButton() {
               </div>
             </div>
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <a href={WB_PHONE.href} className="flex items-center justify-center gap-2 rounded-xl bg-[#F86A0A] px-4 py-3 text-[15px] font-bold text-white hover:brightness-95">
+              <a href={WB_PHONE.href} className="flex items-center justify-center gap-2 rounded-lg bg-[#F86A0A] px-4 py-3 text-[15px] font-bold text-white hover:brightness-95">
                 <Phone className="h-4 w-4" strokeWidth={2.5} />
                 Call us
               </a>
-              <Link href="/book-a-call" onClick={() => setOpen(false)} className="flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-3 text-[15px] font-bold text-white ring-1 ring-white/30 hover:bg-white/20">
+              <Link href="/book-a-call" onClick={() => setOpen(false)} className="flex items-center justify-center gap-2 rounded-lg bg-white/10 px-4 py-3 text-[15px] font-bold text-white ring-1 ring-white/30 hover:bg-white/20">
                 <CalendarDays className="h-4 w-4" strokeWidth={2.5} />
                 Book a call
               </Link>
@@ -113,7 +113,7 @@ export default function WBContactButton() {
             {/* the mascot explains what this form is */}
             <div className="wb-bubble-in flex items-start gap-3">
               <Image src="/wb/koala-head.webp" alt="" width={36} height={36} className="mt-1 h-9 w-9 flex-none rounded-full bg-[#EEF4FE] ring-2 ring-[#0B57D8]" />
-              <div className="relative rounded-2xl rounded-tl-sm bg-[#F2F6FE] px-4 py-3 text-[14.5px] leading-relaxed text-gray-800">
+              <div className="relative rounded-xl rounded-tl-sm bg-[#F2F6FE] px-4 py-3 text-[14.5px] leading-relaxed text-gray-800">
                 <span className="font-extrabold text-gray-900">Psst, this form is WorkBench.</span> It&apos;s the same one you can put on your own website, so your customers can reach you and every message lands in your leads.{" "}
                 <Link href="/help/online-booking" onClick={() => setOpen(false)} className="font-bold text-[#0B57D8] hover:underline">
                   See how
