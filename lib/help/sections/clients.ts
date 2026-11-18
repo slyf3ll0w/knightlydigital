@@ -135,7 +135,7 @@ export const leadsSection: HelpSection = {
         },
         {
           type: "p",
-          text: "Press `New lead` to add one yourself. Only a first name is needed; the last name is optional. Press `+ More details` to add their email, company, address (`Use my location` fills it from where you're standing), lead source and notes too. Leads in **New** are counted on the Leads badge and under **Needs you** on Home.",
+          text: "Press `New lead` to add one yourself. Only a first name is needed; the last name is optional. Press `+ More details` to add their email, company, address (`Use my location` fills it from where you're standing), lead source (picked from a list) and notes too. Leads in **New** are counted on the Leads badge and under **Needs you** on Home.",
         },
         {
           type: "p",
@@ -205,6 +205,10 @@ export const leadsSection: HelpSection = {
         {
           type: "p",
           text: "A form embedded with that code picks up your website's look on its own: its font, text color, button color and how round the corners are, and it turns dark on a dark site. If a color would be hard to read, the form keeps the look you set under **Look**. To use your saved look in one spot instead, add `data-match=\"off\"` to the code's first tag. Code copied before October 24, 2026 still works but doesn't match your site; copy it again to get the matching.",
+        },
+        {
+          type: "p",
+          text: "A lead from a form on your website is filed by how the visitor got there: a Google ad, a search, Facebook or typing your address. See [See where your leads come from](/help/lead-sources).",
         },
         {
           type: "p",

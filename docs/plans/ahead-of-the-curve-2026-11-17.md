@@ -61,8 +61,10 @@ report that ties an ad click to a paid invoice.
 to see where leads come from): website forms file each lead by how the
 visitor arrived, one pick list of sources, and a Lead sources report with
 leads, won, win rate and money collected per source. See
-`lead-sources-2026-11-17.md`. Still open from this item: reporting paid jobs
-back to Google Ads, tracking numbers for calls, ad spend per source.
+`lead-sources-2026-11-17.md`. Released 2026-11-17 with its Help guide and the
+site's first announcement. What it cannot do yet is a numbered build-later
+list in that plan ("Limits today, to build later"): first paid jobs reported
+back to Google Ads, then tracking numbers for calls, then ad spend per source.
 
 ## 5. Speed where crews feel it
 

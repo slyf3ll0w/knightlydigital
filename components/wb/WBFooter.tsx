@@ -30,6 +30,7 @@ import { TRADES } from "@/lib/wb-trades";
 import { ALTERNATIVES, ALTERNATIVES_PATH } from "@/lib/wb-alternatives";
 import { FREE_PAGES } from "@/lib/wb-free-pages";
 import { TOOLS, TOOLS_PATH, toolPath } from "@/lib/wb-tools";
+import { ANNOUNCEMENTS_PATH } from "@/lib/wb-announcements";
 
 const columns: {
   heading: string;
@@ -81,6 +82,7 @@ const columns: {
       { label: "Book a call", href: "/book-a-call" },
       { label: "Log in", href: "/app/login" },
       { label: "Help Center", href: "/help" },
+      { label: "Announcements", href: ANNOUNCEMENTS_PATH },
       { label: "Contact", href: "/contact" },
       { label: "Facebook", href: WB_FACEBOOK_URL, external: true },
       { label: "Instagram", href: WB_INSTAGRAM_URL, external: true },
