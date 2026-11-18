@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AudioLines, Compass, Mic, Sparkles } from "lucide-react";
+import { AudioLines, Compass, Mic, Plug, Sparkles } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
 import WBFeaturePage from "@/components/wb/WBFeaturePage";
 import { WBAtlasVoiceSection } from "@/components/wb/WBAtlasVoice";
@@ -39,6 +39,11 @@ const atlasFeatures: FeatureItem[] = [
     icon: Compass,
     title: "Clients never get a surprise",
     body: "A text, an email, a quote: anything that reaches a client is read back to you first, out loud or as a card. Money and permanent changes always take a tap.",
+  },
+  {
+    icon: Plug,
+    title: "Works with the AI app you already use",
+    body: "Already asking Claude or ChatGPT about your day? Connect it to WorkBench and it can answer from your real clients, schedule and invoices, and prepare quotes and emails. Whatever it prepares waits in WorkBench for your OK, and it can never move money.",
   },
   {
     icon: Compass,
@@ -85,6 +90,23 @@ const faq = [
         message) gets a confirmation step first. In the chat it is a card you
         approve; out loud, Atlas reads it to you and waits for your yes.
         Changes that move money or can&rsquo;t be undone always need a tap.
+      </p>
+    ),
+  },
+  {
+    q: "Can I use Claude or ChatGPT with WorkBench instead?",
+    a: (
+      <p>
+        Yes, alongside Atlas. An owner or admin can connect an AI app they
+        already use from Settings, then Connected apps. It reads what that
+        person can see and can prepare work like a quote or an email, but
+        nothing is saved or sent until they confirm it inside WorkBench, and it
+        can&rsquo;t refund, charge a card or send a payout. It&rsquo;s free and
+        doesn&rsquo;t use Atlas tokens.{" "}
+        <Link href="/help/connect-an-ai-app" className="font-semibold text-[#0B57D8] hover:underline">
+          How to connect one
+        </Link>
+        .
       </p>
     ),
   },

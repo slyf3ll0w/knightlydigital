@@ -75,6 +75,39 @@ a guide wrong without anyone noticing, so:
    `lib/atlas-pricing.ts`), never typed into a guide. Then run
    `npx tsx scripts/test-help-content.ts`.
 
+## AI tools upkeep (required, David 2026-11-17)
+
+Every user-facing feature should be something Atlas can do and something a
+connected AI app (Claude, ChatGPT; `docs/plans/workbench-connector-2026-11-17.md`)
+can do. A feature that ships without a tool is invisible to both, so:
+
+1. **A new feature, or a new thing a person can do in an existing one, gets
+   its AI tool in the same piece of work**: a new tool in `lib/assistant/*.ts`,
+   or a new action on the tool that already owns that record. Reads return
+   data. Anything that changes data calls `stage(...)` and never writes; the
+   card's `endpoint` is the same `/api/app/...` route the feature's own button
+   calls, so the role and ownership checks run once, in one place.
+2. **File the tool for connected apps** in `lib/connector/tools.ts`:
+   `CONNECTOR_READ`, `CONNECTOR_PREPARE` or `CONNECTOR_NEVER` (with the
+   reason). Anything that moves money, spends model money, or only makes
+   sense inside the app is NEVER. `scripts/test-connector.ts` fails until
+   every tool is in exactly one list.
+3. **Keep a tool to one job.** The AI apps' directories reject a tool that
+   both looks things up and changes them; prefer a read tool and a separate
+   write tool over one tool with an `action` argument. Descriptions say what
+   the tool does, not how the model should behave.
+4. **Update the lists that name every tool:** the owner / tech / sales name
+   lists in `scripts/test-assistant.ts`, the progress labels checked by
+   `scripts/test-assistant-progress.ts`, and the system prompt in
+   `lib/assistant/index.ts` when the model needs to know when to reach for it.
+5. **If a feature really should not have a tool** (a one-time setup screen, a
+   legal acknowledgment), say so in one line when reporting the work, so it
+   is a decision and not an oversight.
+
+A change that removes or renames a feature removes or renames its tool the
+same way. This sits beside the Help Center rule above: one keeps the guides
+true, this one keeps the AI able to do what the app can do.
+
 ## Project structure
 
 This repo has two distinct products:

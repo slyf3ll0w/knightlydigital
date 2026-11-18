@@ -18,6 +18,13 @@ self-serve submission. It is made from your accounts, so it cannot be done
 from this side. Steps below are from each company's own docs, read
 2026-11-17. These programs change; if a screen differs, follow the screen.
 
+## Where things stand (2026-11-17, evening)
+
+- Tested in Claude as a custom connector by David: worked.
+- Reviewer account: the same WorkBench account used for Apple's app review.
+- Claude: submission in progress in the portal.
+- ChatGPT: business verification submitted to OpenAI; they said a few days.
+
 ## Before either submission (do these once)
 
 1. **Test it for real.** In Claude: Settings → Connectors → Add custom
@@ -192,7 +199,53 @@ Should refuse or ask:
    any delete it prepares waits for approval in WorkBench and needs the typed
    confirmation there.
 
+## Their logos: not yet
+
+David asked whether WorkBench can show Claude's and ChatGPT's logos on the
+website and in the app. Read 2026-11-17; not legal advice.
+
+- **Anthropic** (trademark guidelines): "You may only use our trademarks as
+  specifically permitted by us and only in materials we approve beforehand."
+  No altering the marks, nothing that implies sponsorship or affiliation. To
+  ask: `marketing@anthropic.com` (the page says this is for companies with an
+  existing business relationship; a directory listing is the relationship to
+  point to).
+- **OpenAI** (brand guidelines; the page blocked automated reading, so this is
+  from search summaries of it): do not imply endorsement or partnership, do
+  not alter the logo or make it more prominent than your own, do not use
+  "GPT" in a product name. Logo permission requests: `partnercomms@openai.com`.
+- **xAI:** not looked up.
+
+So: **names in plain type are used, logos are not.** The Connected apps page
+and the site say "Claude", "ChatGPT" and "Grok" as words, which is how any
+product says what it works with. Logos go in only after each company says
+yes in writing, using the files they supply, unaltered.
+
+Best moment to ask: right after each directory listing is approved.
+
+Draft to send (change the company name per recipient):
+
+> Subject: Permission to show the Claude logo for our directory connector
+>
+> Hi, I'm David Lessly, owner of WorkBench (workbenchfsm.com), software for
+> home-service businesses, operated by Streamflaire Group LLC. Our connector
+> is listed in the Claude Connectors Directory as "WorkBench".
+>
+> We would like to show the Claude logo in two places, next to the word
+> "Claude", to tell our customers the connection exists: (1) the Connected
+> apps page inside our app, where they connect or disconnect it, and (2) one
+> section of our website describing the integration. We would use your
+> supplied files unaltered, at a size no larger than our own logo, with no
+> wording that suggests sponsorship or partnership.
+>
+> Could you confirm whether this is permitted, and send the approved files
+> and any rules we should follow? Happy to send screenshots for approval
+> before anything goes live.
+
 ## Sources
+
+- https://www.anthropic.com/legal/trademark-guidelines
+- https://openai.com/brand/
 
 - https://claude.com/docs/connectors/building/submission.md
 - https://claude.com/docs/connectors/building/review-criteria.md

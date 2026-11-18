@@ -485,6 +485,12 @@ export default function WBHomePage() {
               More about Atlas
               <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
             </Link>
+            <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-gray-600">
+              Already use Claude or ChatGPT? Connect it to WorkBench and ask it about your business.{" "}
+              <Link href="/help/connect-an-ai-app" className="font-semibold text-[#0B57D8] hover:underline">
+                See how
+              </Link>
+            </p>
           </div>
         </div>
       </section>
