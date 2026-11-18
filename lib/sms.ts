@@ -1,4 +1,5 @@
 import { reportError } from "@/lib/report-error";
+import { isDemoCompanyId } from "@/lib/demo-guard";
 /**
  * Provider-sent (automated) SMS via Telnyx — the paid counterpart to the free
  * sms: deep links in lib/messaging.ts. Env-gated like Resend in lib/email.ts:
@@ -95,6 +96,7 @@ async function companySender(
 
 /** Can this company send provider texts right now? (UI hint; sendSms re-checks.) */
 export async function companyCanSendSms(companyId: string): Promise<boolean> {
+  if (await isDemoCompanyId(companyId)) return false;
   return smsEnabled() && Boolean(await companySender(companyId));
 }
 
@@ -145,6 +147,8 @@ export async function sendSms({
   if (!text && media.length === 0) return false;
   // Every text belongs to a business; there is no platform sender any more.
   if (!companyId) return false;
+  // The marketing site's demo company never texts anyone (lib/demo-company.ts).
+  if (await isDemoCompanyId(companyId)) return false;
   const sender = await companySender(companyId, true);
   if (!sender) return false;
   const { from } = sender;

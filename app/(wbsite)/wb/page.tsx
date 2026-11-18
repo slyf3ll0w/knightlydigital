@@ -15,6 +15,11 @@ import WBNote from "@/components/wb/WBNote";
 import WBRibbon from "@/components/wb/WBRibbon";
 import WBTestimonials from "@/components/wb/WBTestimonials";
 import WBTradeStrip from "@/components/wb/WBTradeStrip";
+import WBTryIt from "@/components/wb/WBTryIt";
+import { initialDocFor } from "@/components/wb/tools/ToolPage";
+import { TOOLS } from "@/lib/wb-tools";
+import { tradeBySlug } from "@/lib/wb-trades";
+import { DEMO_BOOKING_PATH, DEMO_COMPANY_NAME, DEMO_HUB_PATH } from "@/lib/demo-company-shared";
 import { FREE_PAGE_PATH } from "@/lib/wb-free";
 import { APP_STORE_URL, PLAY_STORE_URL, WB_PHONE } from "@/lib/wb-site";
 import { EXTRA_SEAT_CENTS, FREE_PLAN_NAME, INCLUDED_SEATS, PLANS, PROCESSING_RATES, RATES_SENTENCE, formatCents } from "@/lib/plans";
@@ -173,6 +178,13 @@ const faqItems = [
  */
 export default function WBHomePage() {
   const card = PROCESSING_RATES.companyPaid;
+  const estimateTool = TOOLS.find((t) => t.kind === "estimate")!;
+  const base = initialDocFor(estimateTool, tradeBySlug("electrical"));
+  const tryQuote = {
+    ...base,
+    business: { ...base.business, name: DEMO_COMPANY_NAME, city: "Plano", state: "TX" },
+    client: { ...base.client, name: "Maria Hernandez", address: "4521 Cedar Elm Dr", city: "Plano", state: "TX", zip: "75093" },
+  };
   return (
     <>
       {/* ── 1. Hero: big centered type, a cycling word, the brand ribbons, then
@@ -249,6 +261,31 @@ export default function WBHomePage() {
               See every feature
             </Link>
           </p>
+        </div>
+      </section>
+
+      {/* ── 2b. Try the real thing (Brightwire Electric demo; lib/demo-company.ts) ── */}
+      <section id="try-it" className="scroll-mt-24 bg-white">
+        <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
+          <AnimateIn className="relative max-w-3xl">
+            <h2 className="text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
+              Don&apos;t take our word for it. <span className="text-gray-400">Try the real thing.</span>
+            </h2>
+            <p className="mt-4 text-[17px] leading-relaxed text-gray-600">
+              These are working parts of WorkBench, not pictures of them, set up for a made-up company called Brightwire Electric.
+            </p>
+            <div className="absolute -bottom-20 right-[-15rem] z-20 hidden items-end gap-1 xl:flex" aria-hidden>
+              <p className="pb-3 text-right text-[15px] font-extrabold leading-snug text-[#10244A]">
+                Go ahead,
+                <br />
+                click around
+              </p>
+              <WBScribble variant="droop" delay={0.5} className="h-[80px] w-[62px] flex-none" />
+            </div>
+          </AnimateIn>
+          <AnimateIn delay={120} className="mt-10">
+            <WBTryIt initialQuote={tryQuote} bookingPath={DEMO_BOOKING_PATH} hubPath={DEMO_HUB_PATH} />
+          </AnimateIn>
         </div>
       </section>
 

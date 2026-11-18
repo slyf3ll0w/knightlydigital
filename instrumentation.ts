@@ -68,6 +68,22 @@ export async function register() {
       const remindersTimer = setInterval(remindersTick, REMINDER_TICK_MS);
       remindersTimer.unref?.();
     }
+
+    // The marketing site's demo company (lib/demo-company.ts) exists from the
+    // first boot of a deploy, not only after the next hourly cron, and this
+    // process learns its id (the silence check) straight away. Ensure only —
+    // the reset stays on the cron. Production only unless DEMO_COMPANY=1;
+    // DEMO_COMPANY=0 turns it off.
+    const demoOn =
+      process.env.DEMO_COMPANY === "1" || (process.env.DEMO_COMPANY !== "0" && process.env.NODE_ENV === "production");
+    if (demoOn) {
+      const demoTimer = setTimeout(() => {
+        import("@/lib/demo-company")
+          .then((m) => m.ensureDemoCompany())
+          .catch((err) => console.error("[demo-company] boot ensure failed", err));
+      }, 20_000);
+      demoTimer.unref?.();
+    }
   }
 
   Sentry.init({

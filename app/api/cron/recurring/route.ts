@@ -44,6 +44,8 @@ import { runSearchIndexSweep } from "@/lib/search-index";
 import { adoptUnrecordedSquarePayments } from "@/lib/square-adopt";
 import { runTelnyxBalanceWatch } from "@/lib/telnyx-balance";
 import { runSetupNudgeSweep } from "@/lib/setup-nudge";
+import { resetDemoCompany } from "@/lib/demo-company";
+import { demoCompanyEnabled } from "@/lib/demo-company-shared";
 
 /**
  * Hourly billing cron. A scheduler (Railway cron service, or an external
@@ -210,6 +212,10 @@ export async function POST(req: NextRequest) {
     // Sign-ups stalled for two days get one offer of a setup call, and the
     // operator hears who they are (lib/setup-nudge.ts).
     await step("setupNudges", () => runSetupNudgeSweep(now));
+    // The marketing site's demo company (Brightwire Electric, lib/demo-company.ts):
+    // made if missing, then everything visitors added in the last hour is
+    // wiped and the fixtures put back. DEMO_COMPANY=0 turns it off.
+    if (demoCompanyEnabled()) await step("demoCompany", () => resetDemoCompany(now));
     // Which sitemap pages Google has indexed, a few URLs an hour through
     // Search Console's URL Inspection API (lib/search-index.ts). No-op
     // without GSC_SERVICE_ACCOUNT_JSON.

@@ -14,6 +14,7 @@ import { reportError } from "@/lib/report-error";
 import crypto from "crypto";
 import webpush from "web-push";
 import { prisma } from "@/lib/db";
+import { demoCompanyId, isDemoContactId } from "@/lib/demo-guard";
 import { defaultPreference, type NotificationChannel, type NotificationEvent } from "@/lib/notification-events";
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
@@ -226,10 +227,14 @@ export async function notifyUsers(
     // Active people only: a deactivated teammate is still a member of their
     // chats and the lead on old appointments, and kept getting client names
     // and chat lines on their phone after they were let go.
-    const everyone = await prisma.user.findMany({
+    const found = await prisma.user.findMany({
       where: { id: { in: userIds }, isActive: true },
       select: { id: true, accountId: true, companyId: true, email: true, isActive: true, company: { select: { name: true } } },
     });
+    // The marketing site's demo company (lib/demo-company.ts) is nobody's
+    // phone or inbox: its people get no push, bell or alert email.
+    const demoId = await demoCompanyId();
+    const everyone = demoId ? found.filter((t) => t.companyId !== demoId) : found;
     if (everyone.length === 0) return;
     // Each person's switches for this event; no stored row = the default.
     const prefs = opts.event
@@ -387,6 +392,8 @@ async function emailAlert(
  */
 export async function notifyContact(contactId: string, payload: PushPayload): Promise<void> {
   if (!configured) return;
+  // A client of the demo company (a visitor in the public demo hub) gets no push.
+  if (await isDemoContactId(contactId)) return;
   try {
     const subs = await prisma.contactPushSubscription.findMany({ where: { contactId } });
     if (subs.length === 0) return;

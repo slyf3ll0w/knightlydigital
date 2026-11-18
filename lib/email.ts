@@ -26,6 +26,8 @@ import { prisma } from "@/lib/db";
 import { recordEmailSent } from "@/lib/usage";
 import { emailDomainsEnabled } from "@/lib/email-domains";
 import { SETUP_CALL_LABEL, setupCallUrl } from "@/lib/setup-call";
+import { isDemoAddress } from "@/lib/demo-company-shared";
+import { isDemoCompanyId } from "@/lib/demo-guard";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM = process.env.EMAIL_FROM ?? "WorkBench <notifications@workbenchfsm.com>";
@@ -280,6 +282,8 @@ function htmlToText(html: string): string {
  *  Exported so sweeps that CLAIM a one-shot send (reminder stages) can check
  *  before claiming — a claim whose send is blocked is a reminder lost forever. */
 export async function companyEmailBlocked(companyId: string): Promise<boolean> {
+  // The demo company (lib/demo-company.ts) never emails anyone.
+  if (await isDemoCompanyId(companyId)) return true;
   if (process.env.PAYMENT_PROCESSOR !== "finix") return false;
   // Payments onboarding closed (lib/payments-gate.ts, 2026-09-30): accounts are
   // fully usable and only *charging* is held — a company that signed up
@@ -339,6 +343,12 @@ export async function sendEmail({
   // Platform sends (no companyId: password resets, invites, feedback) and
   // approved/waived companies pass straight through.
   if (companyId && (await companyEmailBlocked(companyId))) return false;
+  // The marketing site's demo company (Brightwire Electric, lib/demo-company.ts)
+  // sends nothing, ever: a visitor who books or messages with their real
+  // address must get no mail. Checked by company AND by its inbox (every
+  // client email carries the business email as Reply-To), so a caller that
+  // forgot companyId is still caught.
+  if (isDemoAddress(to) || isDemoAddress(replyTo) || (companyId && (await isDemoCompanyId(companyId)))) return false;
   const text = htmlToText(html);
   // Templates are bare <div>s with light backgrounds and near-black inline
   // text. Without an explicit light-only color-scheme, dark-mode email

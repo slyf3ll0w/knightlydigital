@@ -1,4 +1,5 @@
 import { reportError } from "@/lib/report-error";
+import { isDemoCompanyId } from "@/lib/demo-guard";
 import { randomBytes } from "crypto";
 import { lookup } from "dns/promises";
 import { prisma } from "./db";
@@ -520,6 +521,7 @@ export async function runAction(automation: AutomationRow, compiled: CompiledAut
     }
     case "send_webhook": {
       const url = String(step.url);
+      if (await isDemoCompanyId(companyId)) return "skipped: demo company";
       const problem = await safeWebhookHost(url);
       if (problem) return `skipped: ${problem}`;
       // The context carries links that embed the client's hub token (the

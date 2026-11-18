@@ -1,4 +1,5 @@
 import { reportError } from "@/lib/report-error";
+import { isDemoCompanyId } from "@/lib/demo-guard";
 /**
  * Voice on the business line — Telnyx Call Control (lib/telnyx.ts).
  *
@@ -1412,6 +1413,8 @@ export async function startOutboundCall(
   opts: { via?: "cell" | "app"; device?: SoftphoneDevice } = {}
 ): Promise<{ callId: string; via: "cell" | "app"; agentNumber: string | null; customerNumber: string }> {
   if (!voiceEnabled()) throw new VoiceError("Calling from the app isn't available on this server yet.", 503);
+  // The marketing site's demo company never places a call (lib/demo-company.ts).
+  if (await isDemoCompanyId(companyId)) throw new VoiceError("Calling is off for the demo company.", 403);
   const [company, user] = await Promise.all([
     prisma.company.findUnique({
       where: { id: companyId },

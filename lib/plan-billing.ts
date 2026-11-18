@@ -1,4 +1,5 @@
 import { randomBytes } from "crypto";
+import { isDemoCompanyId } from "@/lib/demo-guard";
 import { prisma } from "@/lib/db";
 import { reportError } from "@/lib/report-error";
 import { SquareError, declineMessage, isTransientSquareError } from "@/lib/square";
@@ -191,6 +192,8 @@ const digitsOf = (phone: string | null | undefined) => {
 export async function ensureBillingContact(companyId: string): Promise<string | null> {
   const platform = await platformCompany();
   if (!platform || platform.id === companyId) return null;
+  // The marketing site's demo company is never a lead or client of WorkBench.
+  if (await isDemoCompanyId(companyId)) return null;
   const company = await prisma.company.findUnique({
     where: { id: companyId },
     select: { id: true, name: true, email: true, phone: true, squareMerchantId: true, billingContactId: true, billingContact: { select: { id: true, companyId: true } } },
