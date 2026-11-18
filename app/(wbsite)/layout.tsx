@@ -5,6 +5,7 @@ import WBNav from "@/components/wb/WBNav";
 import WBFooter from "@/components/wb/WBFooter";
 import WBContactButton from "@/components/wb/WBContactButton";
 import WBAnalytics from "@/components/wb/WBAnalytics";
+import ForceLightTheme from "@/components/ForceLightTheme";
 import { APP_STORE_URL, PLAY_STORE_URL, WB_EMAIL, WB_FACEBOOK_URL, WB_INSTAGRAM_URL, WB_PHONE, WB_TIKTOK_URL } from "@/lib/wb-site";
 import {
   DISPATCH_SETUP_CENTS,
@@ -163,6 +164,9 @@ export default function WBSiteLayout({
       {cfToken && (
         <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon={JSON.stringify({ token: cfToken })} />
       )}
+      {/* The site has no dark mode: app pieces shown on it (the Try-it quote
+          screen, .ds parts) must not follow a dark choice made inside the app. */}
+      <ForceLightTheme />
       <WBAnalytics />
       <script
         type="application/ld+json"

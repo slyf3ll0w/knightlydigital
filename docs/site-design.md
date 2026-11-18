@@ -75,6 +75,10 @@ WorkBench colors only (David round 4): navy #0A1428, blue #0B57D8 / #2E6FF2, ora
   cards and chips, navy step squares, ruled headings. The in-app Help keeps
   its own look.
 
+## Try the real thing (home)
+
+`WBTryIt`: the app's own quote screen (`QuoteEditor` with its `demo` prop: Save hands the quote back, no API) in the app look (`.app-ui .ds`, Brightwire's colors), and Brightwire's real booking form. The client-portal tab is built but OFF (`SHOW_PORTAL`) until the client-facing redesign. The demo company runs itself (lib/demo-company.ts). The site is pinned light (ForceLightTheme in the site layout) so app pieces never go dark.
+
 ## The mascot
 
 David's koala (`public/wb/koala.webp`, `components/wb/WBKoala.tsx`), called

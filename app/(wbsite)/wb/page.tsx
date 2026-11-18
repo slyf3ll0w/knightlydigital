@@ -16,10 +16,8 @@ import WBRibbon from "@/components/wb/WBRibbon";
 import WBTestimonials from "@/components/wb/WBTestimonials";
 import WBTradeStrip from "@/components/wb/WBTradeStrip";
 import WBTryIt from "@/components/wb/WBTryIt";
-import { initialDocFor } from "@/components/wb/tools/ToolPage";
-import { TOOLS } from "@/lib/wb-tools";
-import { tradeBySlug } from "@/lib/wb-trades";
-import { DEMO_BOOKING_PATH, DEMO_COMPANY_NAME, DEMO_HUB_PATH } from "@/lib/demo-company-shared";
+import { pricebookForIndustry } from "@/lib/pricebooks";
+import { DEMO_BOOKING_PATH, DEMO_HUB_PATH } from "@/lib/demo-company-shared";
 import { FREE_PAGE_PATH } from "@/lib/wb-free";
 import { APP_STORE_URL, PLAY_STORE_URL, WB_PHONE } from "@/lib/wb-site";
 import { EXTRA_SEAT_CENTS, FREE_PLAN_NAME, INCLUDED_SEATS, PLANS, PROCESSING_RATES, RATES_SENTENCE, formatCents } from "@/lib/plans";
@@ -178,13 +176,16 @@ const faqItems = [
  */
 export default function WBHomePage() {
   const card = PROCESSING_RATES.companyPaid;
-  const estimateTool = TOOLS.find((t) => t.kind === "estimate")!;
-  const base = initialDocFor(estimateTool, tradeBySlug("electrical"));
-  const tryQuote = {
-    ...base,
-    business: { ...base.business, name: DEMO_COMPANY_NAME, city: "Plano", state: "TX" },
-    client: { ...base.client, name: "Maria Hernandez", address: "4521 Cedar Elm Dr", city: "Plano", state: "TX", zip: "75093" },
-  };
+  // The demo quote screen gets Brightwire's own electrical price book (the
+  // same starter book the demo company is seeded with) and its one client.
+  const demoWorkItems = pricebookForIndustry("Electrical").map((w, i) => ({
+    id: `demo-${i}`,
+    name: w.name,
+    description: w.description,
+    unitPrice: w.unitPrice,
+    unitCost: w.unitCost ?? null,
+  }));
+  const demoContacts = [{ id: "demo-maria", firstName: "Maria", lastName: "Hernandez" }];
   return (
     <>
       {/* ── 1. Hero: big centered type, a cycling word, the brand ribbons, then
@@ -284,7 +285,14 @@ export default function WBHomePage() {
             </div>
           </AnimateIn>
           <AnimateIn delay={120} className="mt-10">
-            <WBTryIt initialQuote={tryQuote} bookingPath={DEMO_BOOKING_PATH} hubPath={DEMO_HUB_PATH} />
+            <WBTryIt
+              contacts={demoContacts}
+              workItems={demoWorkItems}
+              taxRatePercent="8.25"
+              brand={{ primary: "#10244A", secondary: "#F5B700" }}
+              bookingPath={DEMO_BOOKING_PATH}
+              hubPath={DEMO_HUB_PATH}
+            />
           </AnimateIn>
         </div>
       </section>
