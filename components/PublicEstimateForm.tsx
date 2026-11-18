@@ -16,6 +16,7 @@ import { Breakdown, ChoiceControl, CountsControl, MultiControl, NumberControl, P
 import { fileToAssistPhoto, type AssistPhoto } from "@/lib/image-downscale";
 import type { LatLngTuple } from "@/components/MapMeasure";
 import { notifyEmbedSubmitted } from "@/lib/embed-submitted";
+import { getArrival } from "@/lib/arrival-client";
 
 const MapMeasure = dynamic(() => import("@/components/MapMeasure"), { ssr: false, loading: () => <div className="h-80 animate-pulse rounded-lg bg-black/5" /> });
 
@@ -356,7 +357,7 @@ export default function PublicEstimateForm({
       const res = await fetch(apiBase, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inputs: values, ...form, smsConsent: offerSms ? smsConsent : undefined, captchaToken, website: honeypot, elapsedMs: Date.now() - startedAt, page, src: src || undefined, usedPhoto }),
+        body: JSON.stringify({ inputs: values, ...form, smsConsent: offerSms ? smsConsent : undefined, captchaToken, website: honeypot, elapsedMs: Date.now() - startedAt, page, src: src || undefined, arrival: getArrival(), usedPhoto }),
       });
       const data = (await res.json().catch(() => null)) as { success?: boolean; estimate?: PublicEstimate; error?: string; outOfArea?: boolean; message?: string } | null;
       if (!res.ok) {

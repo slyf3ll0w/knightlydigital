@@ -13,7 +13,7 @@ import type { Contact, Prisma } from "@prisma/client";
 export async function namePlaceholder(
   tx: Prisma.TransactionClient,
   contact: Contact,
-  typed: { firstName: string; lastName: string; email?: string | null; address?: string | null; leadSource?: string | null }
+  typed: { firstName: string; lastName: string; email?: string | null; address?: string | null; leadSource?: string | null; leadArrival?: Prisma.InputJsonValue | null }
 ): Promise<Contact> {
   if (!contact.placeholder) return contact;
   return tx.contact.update({
@@ -28,6 +28,7 @@ export async function namePlaceholder(
       ...(!contact.email && typed.email ? { email: typed.email } : {}),
       ...(!contact.address && typed.address ? { address: typed.address } : {}),
       ...(!contact.leadSource && typed.leadSource ? { leadSource: typed.leadSource } : {}),
+      ...(!contact.leadSource && typed.leadSource && typed.leadArrival ? { leadArrival: typed.leadArrival } : {}),
     },
   });
 }

@@ -50,6 +50,64 @@
     return;
   }
 
+  // ── how this visitor arrived ──
+  // Read once per page: the ad click ids and UTM tags on the address, the
+  // site that linked here, and this first page. Kept in the SITE's own
+  // storage for 90 days so a form sent three pages (or three days) later
+  // still knows; a later visit only replaces it when it carries tags of its
+  // own. Handed to each form, which sends it with the submission so the
+  // lead is filed under "Google Ads", "Google search", "Facebook"…
+  // (lib/lead-source.ts). Nothing here identifies the visitor.
+  var ARRIVAL_KEY = "wb_arrival";
+  var ARRIVAL_DAYS = 90;
+  var ARRIVAL_PARAMS = [
+    ["utm_source", "utmSource"],
+    ["utm_medium", "utmMedium"],
+    ["utm_campaign", "utmCampaign"],
+    ["utm_term", "utmTerm"],
+    ["utm_content", "utmContent"],
+    ["gclid", "gclid"],
+    ["gbraid", "gbraid"],
+    ["wbraid", "wbraid"],
+    ["fbclid", "fbclid"],
+    ["msclkid", "msclkid"],
+  ];
+  function readArrival() {
+    var now = Date.now();
+    var saved = null;
+    try {
+      saved = JSON.parse(localStorage.getItem(ARRIVAL_KEY) || "null");
+    } catch (e) {}
+    if (!saved || typeof saved !== "object" || !saved.at || now - saved.at > ARRIVAL_DAYS * 86400000) saved = null;
+
+    var fresh = { at: now, embedded: true };
+    var tagged = false;
+    try {
+      var q = new URLSearchParams(location.search);
+      for (var i = 0; i < ARRIVAL_PARAMS.length; i++) {
+        var v = (q.get(ARRIVAL_PARAMS[i][0]) || "").trim();
+        if (v) {
+          fresh[ARRIVAL_PARAMS[i][1]] = v.slice(0, 300);
+          tagged = true;
+        }
+      }
+    } catch (e) {}
+    if (saved && !tagged) {
+      saved.embedded = true;
+      return saved;
+    }
+    try {
+      var ref = document.referrer ? new URL(document.referrer) : null;
+      if (ref && /^https?:$/.test(ref.protocol) && ref.host !== location.host) fresh.referrer = (ref.origin + ref.pathname).slice(0, 300);
+    } catch (e) {}
+    fresh.landing = (location.origin + location.pathname).slice(0, 300);
+    try {
+      localStorage.setItem(ARRIVAL_KEY, JSON.stringify(fresh));
+    } catch (e) {}
+    return fresh;
+  }
+  var ARRIVAL = readArrival();
+
   var frames = []; // { iframe, el, match }
 
   // ── color helpers ──
@@ -151,6 +209,7 @@
   function sendStyle(f) {
     if (f.match) post(f, sample(f.el));
     post(f, { type: "jobflow:page", href: location.href });
+    post(f, { type: "workbench:arrival", arrival: ARRIVAL });
   }
 
   function mount(el) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { LeadSourceChips } from "@/components/LeadSourceField";
 import Link from "next/link";
 import SectionHeader from "@/components/SectionHeader";
 import { useRouter } from "next/navigation";
@@ -193,6 +194,8 @@ function SaveForm({
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [number, setNumber] = useState(fmtPhone(phone) || phone);
+  // How they heard about the business: one tap. Unanswered stays "Phone call"
+  const [source, setSource] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -210,7 +213,7 @@ function SaveForm({
       phone: number.trim() || null,
       email: email.trim() || null,
       status,
-      leadSource: "Phone call",
+      leadSource: source.trim() || "Phone call",
     });
     if (!r.ok || !r.data?.id) {
       setBusy(false);
@@ -239,6 +242,12 @@ function SaveForm({
         <Input type="tel" placeholder="Phone" value={number} onChange={(e) => setNumber(e.target.value)} className="numeral-ledger" />
         <Input type="email" placeholder="Email (optional)" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" />
       </div>
+      <p className="mb-1.5 mt-3 text-xs font-medium text-gray-600">How did they hear about you?</p>
+      <LeadSourceChips
+        value={source}
+        onChange={setSource}
+        selectClassName="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
+      />
       {error && (
         <p className="mt-2 text-xs text-red-600" role="alert">
           {error}

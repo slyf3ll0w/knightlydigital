@@ -5,6 +5,7 @@ import { prisma } from "./db";
 import { nextQuoteNumber, withDocNumberRetry } from "./doc-numbers";
 import { recordQuoteRun } from "./estimator-corrections-server";
 import { upsertBookingContact } from "./booking-submit";
+import type { Arrival } from "./lead-source";
 import { enterPipeline, autoAdvance, firePipelineMoves, type PipelineMove } from "./pipeline";
 import { fireAutomations } from "./automations-server";
 import { notifyUsers, requestNotifyUserIds } from "./push";
@@ -49,6 +50,8 @@ export type EstimateLeadInput = {
   page?: string;
   /** The owner's per-channel link tag (?src=truck) — lands on the lead's source and the request */
   src?: string;
+  /** How the visitor arrived (ad click, search, another site) — names the lead's source when there is no link tag */
+  arrival?: Arrival | null;
   /** The visitor used the photo fill-in — worth knowing when reading the answers */
   usedPhoto?: boolean;
   /** The service address is outside the company's service ZIPs (form option): request only, no quote, marked on the request */
@@ -84,7 +87,7 @@ export function webLeadPushPayload(input: { contactId: string; contactName: stri
 const cents = (x: number) => Math.round((x + Number.EPSILON) * 100) / 100;
 
 export async function createEstimateLead(input: EstimateLeadInput): Promise<EstimateLeadResult> {
-  const { pub, result, answers, customer, page, src, usedPhoto, outOfArea = false } = input;
+  const { pub, result, answers, customer, page, src, arrival, usedPhoto, outOfArea = false } = input;
   const { company, row, spec, config } = pub;
   // Out of the service area: the lead lands as a request only — no quote for work the business won't do there
   const send = config.onSubmit === "send" && !outOfArea;
@@ -106,7 +109,10 @@ export async function createEstimateLead(input: EstimateLeadInput): Promise<Esti
         notes: null,
         // No business line = no checkbox was shown: record nothing (offersSmsConsent)
         smsConsent: customer.phone && offersSmsConsent(company) ? customer.smsConsent === true : undefined,
-        leadSource: src ? `Website estimate · ${src}` : "Website estimate",
+        // The owner's own link tag wins; otherwise how they arrived, else the door
+        leadSource: src ? `Website estimate · ${src}` : undefined,
+        arrival: arrival ?? null,
+        fallbackSource: "Website estimate",
       });
 
       let quote: { id: string; quoteNumber: number; publicToken: string; total: number; deposit: number } | null = null;

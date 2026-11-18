@@ -21,6 +21,7 @@ import {
 } from "./core";
 import { itemsPayload } from "./pipeline";
 import { isOnlinePayment } from "../payment-ref";
+import { loadLeadSourceReport } from "../lead-source-report";
 import { quickChargeIssue } from "../quick-charge";
 
 /** Invoices, payments, subscriptions, expenses, and real email sends. */
@@ -81,6 +82,39 @@ export const moneyTools: Tool[] = [
             client: i.contact ? clientName(i.contact) : null,
           };
         }),
+      };
+    },
+  },
+  {
+    decl: {
+      name: "lead_source_report",
+      description:
+        "Where leads came from in a date range (max 1 year) and what became of them: one row per lead source (Google Ads, Google search, Referral, Facebook, Untracked...) with leads, how many were sent a quote, how many became clients, the win rate, and the money collected from those leads so far. Website leads are filed by how the visitor arrived (an ad click, a search, another site). Answers 'where are my leads coming from', 'which source wins the most work', 'is Google Ads paying off'.",
+      parameters: {
+        type: "object",
+        properties: {
+          from: { type: "string", description: "YYYY-MM-DD" },
+          to: { type: "string", description: "YYYY-MM-DD" },
+        },
+        required: ["from", "to"],
+      },
+    },
+    allowed: (a) => isManager(a.role),
+    run: async (actor, args) => {
+      const from = day(args.from);
+      const to = day(args.to);
+      if (!from || !to) return { error: "from/to must be YYYY-MM-DD" };
+      const until = new Date(to.getTime() + 86400000);
+      if (until.getTime() - from.getTime() > 370 * 86400000) return { error: "Range too wide — max 1 year." };
+      const report = await loadLeadSourceReport(actor.companyId, { since: from, until });
+      return {
+        from: args.from,
+        to: args.to,
+        totals: report.totals,
+        sources: report.rows.slice(0, 40).map((r) => ({ source: r.source, leads: r.leads, quoted: r.quoted, won: r.won, winRatePct: r.winRate, collected: r.revenue })),
+        note: "collected = everything those leads have paid so far, including after the range ended. Untracked = no source was recorded.",
+        page: "/app/insights/lead-sources",
+        ...(report.capped ? { capped: "Only the newest 5,000 leads of the range were read." } : {}),
       };
     },
   },

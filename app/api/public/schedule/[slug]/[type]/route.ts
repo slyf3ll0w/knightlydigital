@@ -21,6 +21,7 @@ import {
 import { serviceSelection } from "@/lib/booking-services";
 import { createServiceBooking } from "@/lib/booking-checkout";
 import { hubSubmitter } from "@/lib/hub-form";
+import { sanitizeArrival } from "@/lib/lead-source";
 import { limit, clientIp } from "@/lib/rate-limit";
 
 // Generous backstop so one runaway account or bot can't flood a company
@@ -88,6 +89,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     phone: (intake.fields.phone.show ? str(body.phone, 40) : "") || hubContact?.phone || null,
     address: meta.needsAddress ? str(body.address, 300) || null : plainAddress || null,
     contactId: hubContact?.id ?? null,
+    // How they arrived names a new lead's source; a signed-in client is not a lead
+    arrival: hubContact ? null : sanitizeArrival(body.arrival),
     // No business line = no checkbox was shown: record nothing (offersSmsConsent)
     smsConsent: offersSmsConsent(company) ? body.smsConsent === true : undefined,
     notes:

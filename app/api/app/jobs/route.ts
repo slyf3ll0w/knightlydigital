@@ -1,5 +1,6 @@
 import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
+import { canonicalLeadSource } from "@/lib/lead-source";
 import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, jobScope, contactScope } from "@/lib/permissions";
@@ -164,7 +165,7 @@ export async function POST(req: NextRequest) {
         jobNumber: (last?.jobNumber ?? 0) + 1,
         title,
         description: description || null,
-        leadSource: leadSource || contact.leadSource || null,
+        leadSource: canonicalLeadSource(leadSource) || contact.leadSource || null,
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
         scheduledEnd: scheduledEnd ? new Date(scheduledEnd) : null,
         scheduledAnytime: Boolean(scheduledAnytime),

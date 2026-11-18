@@ -1,6 +1,7 @@
 "use client";
 
 import AddressAutocomplete from "@/components/AddressAutocomplete";
+import LeadSourceField from "@/components/LeadSourceField";
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -585,24 +586,7 @@ function NewJobForm({ actorId }: { actorId: string }) {
                 Lead source
                 <InfoTip>Used in Insights to show which sources bring in the most revenue.</InfoTip>
               </div>
-              <input
-                type="text"
-                list="lead-sources"
-                value={form.leadSource}
-                onChange={(e) => set("leadSource", e.target.value)}
-                className={inputCls}
-                placeholder="Where did this job come from?"
-              />
-              <datalist id="lead-sources">
-                <option value="Google" />
-                <option value="Referral" />
-                <option value="Online booking" />
-                <option value="Facebook" />
-                <option value="Nextdoor" />
-                <option value="Yard sign" />
-                <option value="Repeat client" />
-                <option value="Door hanger" />
-              </datalist>
+              <LeadSourceField value={form.leadSource} onChange={(v) => set("leadSource", v)} className={inputCls} emptyLabel="Same as the client" />
             </div>
 
             {!anytime && (

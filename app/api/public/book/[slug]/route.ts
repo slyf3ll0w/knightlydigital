@@ -3,6 +3,8 @@ import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { phoneDigits } from "@/lib/phone";
 import { namePlaceholder } from "@/lib/placeholder-contact";
+import { leadSourceFor, sanitizeArrival } from "@/lib/lead-source";
+import type { Prisma } from "@prisma/client";
 import { verifyCaptcha } from "@/lib/captcha";
 import { sendEmail, newRequestEmail, quoteLinkEmail } from "@/lib/email";
 import { companyNotifyAddress } from "@/lib/notify";
@@ -86,6 +88,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   const address = (intake.fields.address.show ? str(body.address, 300) : "") || hubContact?.address || "";
   const preferredDate = intake.fields.date.show ? str(body.preferredDate, 10) : "";
   const message = intake.message.show ? str(body.message, 5000) : "";
+  // How the visitor arrived (ad click, search, another site) names a new lead's source; a signed-in client is not a lead
+  const arrival = hubContact ? null : sanitizeArrival(body.arrival);
+  const leadSource = leadSourceFor(arrival, "Online booking");
+  const leadArrival = arrival ? (arrival as Prisma.InputJsonValue) : null;
 
   if (!firstName || !lastName) return NextResponse.json({ error: "Name is required." }, { status: 400 });
   if (intake.fields.email.required && !email) return NextResponse.json({ error: `"${intake.fields.email.label}" is required.` }, { status: 400 });
@@ -139,7 +145,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
             orderBy: { placeholder: "asc" },
           });
       // A number that only ever texted in: this form is who they are
-      if (contact?.placeholder && !hubContact) contact = await namePlaceholder(tx, contact, { firstName, lastName, email, address });
+      if (contact?.placeholder && !hubContact) contact = await namePlaceholder(tx, contact, { firstName, lastName, email, address, leadSource, leadArrival });
       if (contact && hubContact) {
         // Keep the record current with anything the form asked for that was missing
         const fill = { ...(!contact.email && email ? { email } : {}), ...(!contact.phone && phone ? { phone } : {}), ...(!contact.address && address ? { address } : {}) };
@@ -166,7 +172,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
             email: email || null,
             phone: phone || null,
             address: address || null,
-            leadSource: "Online booking",
+            leadSource,
+            ...(leadArrival ? { leadArrival } : {}),
             assignedToId,
             customFields: sanitizedMapped,
             ...(smsConsent

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { canonicalLeadSource } from "@/lib/lead-source";
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { getActor, isManager } from "@/lib/permissions";
@@ -131,7 +132,7 @@ export async function POST(req: NextRequest) {
     const email = trim(r.email, 254)?.toLowerCase() ?? null;
     const phone = trim(r.phone, 30);
     const normPhone = normalizePhone(phone);
-    const leadSource = trim(r.leadSource, 80);
+    const leadSource = canonicalLeadSource(r.leadSource);
 
     const data = {
       firstName: firstName ?? companyName ?? "—",

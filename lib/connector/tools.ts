@@ -20,7 +20,7 @@ import { QUOTED_TEXT_RULE, quoted } from "@/lib/assistant/untrusted";
 export const CONNECTOR_READ = [
   "query_records", "report", "search_clients", "list_clients", "get_client_activity", "get_client_notes", "get_client_details", "get_statement",
   "list_pipeline", "get_document", "get_lead_board", "get_schedule", "get_job_checklist", "team_map", "get_route_plan", "list_places", "find_a_time",
-  "list_money", "business_summary", "list_subscriptions", "list_expenses", "list_agreements", "list_agreement_templates", "whats_needing_attention",
+  "list_money", "business_summary", "lead_source_report", "list_subscriptions", "list_expenses", "list_agreements", "list_agreement_templates", "whats_needing_attention",
   "get_price_book", "get_company_settings", "list_team", "list_calls", "run_estimator", "list_job_photos", "read_team_chat", "help_search",
 ] as const;
 

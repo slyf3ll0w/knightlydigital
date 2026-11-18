@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import LeadSourceField from "@/components/LeadSourceField";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -970,7 +971,7 @@ function QuickAdd({
             <input value={extra.state} onChange={(e) => setX("state", e.target.value.slice(0, 2))} placeholder="ST" aria-label="State" className={box} />
             <input value={extra.zip} onChange={(e) => setX("zip", e.target.value.slice(0, 10))} placeholder="ZIP" inputMode="numeric" className={box} />
           </div>
-          <input value={extra.leadSource} onChange={(e) => setX("leadSource", e.target.value)} placeholder="Lead source (Referral, Google…)" className={box} />
+          <LeadSourceField value={extra.leadSource} onChange={(v) => setX("leadSource", v)} className={box} emptyLabel="Lead source" />
           <textarea
             value={extra.notes}
             onChange={(e) => setX("notes", e.target.value)}

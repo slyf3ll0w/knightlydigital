@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { canonicalLeadSource, UNTRACKED_SOURCE } from "@/lib/lead-source";
 import { requirePageActor, isManager } from "@/lib/permissions";
 import Link from "next/link";
 import { BarChart3 } from "lucide-react";
@@ -43,19 +44,27 @@ function BreakdownCard({
   subtitle,
   rows,
   total,
+  more,
 }: {
   title: string;
   subtitle: string;
   rows: (Bucket & { key: string })[];
   total: number;
+  /** A link in the card's header to the full report */
+  more?: { href: string; label: string };
 }) {
   return (
     <div className="ds-card">
-      <div className="border-b border-[color:var(--ds-line)] px-4 py-3.5 lg:px-5 lg:py-4">
+      <div className="flex items-center justify-between gap-3 border-b border-[color:var(--ds-line)] px-4 py-3.5 lg:px-5 lg:py-4">
         <h2 className="flex items-center gap-1.5 text-sm font-semibold text-[color:var(--ds-ink)]">
           {title}
           <InfoTip>{subtitle}</InfoTip>
         </h2>
+        {more && (
+          <Link href={more.href} className="shrink-0 text-xs font-semibold text-[color:var(--ds-primary)] hover:underline">
+            {more.label} →
+          </Link>
+        )}
       </div>
       {rows.length === 0 ? (
         <EmptyState compact title="No paid work in this period yet." />
@@ -175,7 +184,7 @@ export default async function InsightsPage({
   // By lead source (job's source, falling back to the client's)
   const bySource = aggregate(
     payments.map((p) => ({
-      key: p.invoice.job?.leadSource || p.invoice.contact?.leadSource || "Untracked",
+      key: canonicalLeadSource(p.invoice.job?.leadSource || p.invoice.contact?.leadSource) ?? UNTRACKED_SOURCE,
       amount: Number(p.amount),
     }))
   );
@@ -478,9 +487,10 @@ export default async function InsightsPage({
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <BreakdownCard
           title="By lead source"
-          subtitle="Set the lead source on jobs and clients to track this"
+          subtitle="Money collected in this period, by where the job or client came from."
           rows={bySource}
           total={totalRevenue}
+          more={{ href: `/app/insights/lead-sources?range=${activeRange}`, label: "Lead sources" }}
         />
         <BreakdownCard
           title="By service"

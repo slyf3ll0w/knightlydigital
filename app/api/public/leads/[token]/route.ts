@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { canonicalLeadSource } from "@/lib/lead-source";
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { phoneDigits } from "@/lib/phone";
@@ -94,7 +95,7 @@ export async function POST(
     return NextResponse.json({ error: "Daily lead limit reached." }, { status: 429 });
   }
 
-  const source = s(body.source, 60) || "Lead webhook";
+  const source = canonicalLeadSource(body.source) || "Lead webhook";
   const message = s(body.message, 5000);
   const address = s(body.address, 300) || null;
   const assignedToId = await defaultLeadAssignee(company.id);

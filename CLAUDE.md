@@ -253,6 +253,26 @@ Stages are per-company (`PipelineStage`, seeded on first visit, customizable at
   generic JSON webhook for Zapier/Make/ad connectors (Meta, Google lead
   forms). Managed in Settings → Lead Pipeline.
 
+**Lead sources (2026-11-17, `docs/plans/lead-sources-2026-11-17.md`).**
+`Contact.leadSource` is one plain name per source; `lib/lead-source.ts`
+(pure; `npx tsx scripts/test-lead-source.ts`) owns the rules. Website forms
+send how the visitor arrived (`arrival`: ad click ids, UTM tags, referring
+site, first page — gathered by `public/embed.js` on the business's own site
+and kept 90 days in that site's storage, or by `lib/arrival-client.ts` on
+our hosted pages; `components/ArrivalCapture.tsx` is mounted in the /book
+and /embed layouts) and the server files a NEW lead under
+`sourceFromArrival` ("Google Ads", "Google search", "Facebook"…), falling
+back to the door's name ("Online booking", "Website estimate"); the detail
+is kept on `Contact.leadArrival`. Never type a source into a create: go
+through `canonicalLeadSource` (every contacts / jobs write route, the CSV
+import and the lead webhook do), and people pick from
+`components/LeadSourceField.tsx` (`GET /api/app/lead-sources`), never a
+free-text box. The report is `/app/insights/lead-sources`
+(`lib/lead-source-report.ts`: leads of the period with quoted / won / win
+rate / collected per source); Atlas reads it with `lead_source_report`.
+Not built: tracking numbers for calls, reporting paid jobs back to Google
+Ads (the saved `gclid` is what that needs), ad spend.
+
 ## Authentication
 
 NextAuth v4 with Credentials provider. JWT sessions.

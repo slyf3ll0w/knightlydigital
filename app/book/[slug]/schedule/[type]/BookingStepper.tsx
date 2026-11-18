@@ -13,6 +13,7 @@ import { ADDRESS_DEFAULTS, doneWords, type CustomField } from "@/lib/booking-int
 import type { ScheduleAppearance } from "../shell";
 import PaymentStep, { type PaymentHandle } from "./PaymentStep";
 import { notifyEmbedSubmitted } from "@/lib/embed-submitted";
+import { getArrival } from "@/lib/arrival-client";
 import type { ClientPayConfig } from "@/lib/pay-config";
 import { derivedQuoteDeposit } from "@/lib/statuses";
 import { encodePrefill, type Prefill } from "@/lib/booking-prefill";
@@ -322,6 +323,7 @@ export default function BookingStepper({
           captchaToken,
           smsConsent: company.offerSms === false ? undefined : smsConsent,
           hubToken: hub?.token,
+          arrival: hub ? undefined : getArrival(),
           website: honeypot,
           elapsedMs: Date.now() - startedAt,
         }),

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import LeadSourceField from "@/components/LeadSourceField";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
@@ -240,13 +241,7 @@ export default function ContactForm({
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Lead source</label>
-          <input
-            type="text"
-            value={form.leadSource}
-            onChange={(e) => set("leadSource", e.target.value)}
-            placeholder="Referral, Google, yard sign…"
-            className={inputCls}
-          />
+          <LeadSourceField value={form.leadSource} onChange={(v) => set("leadSource", v)} className={inputCls} />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Payment terms (days)</label>

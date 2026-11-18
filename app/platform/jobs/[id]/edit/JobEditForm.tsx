@@ -1,6 +1,7 @@
 "use client";
 
 import AddressAutocomplete from "@/components/AddressAutocomplete";
+import LeadSourceField from "@/components/LeadSourceField";
 import { money } from "@/lib/statuses";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -244,24 +245,11 @@ export default function JobEditForm({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Lead source</label>
-            <input
-              type="text"
-              list="lead-sources"
+            <LeadSourceField
               value={leadSource}
-              onChange={(e) => setLeadSource(e.target.value)}
+              onChange={setLeadSource}
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--ds-primary)]"
-              placeholder="Where did this job come from?"
             />
-            <datalist id="lead-sources">
-              <option value="Google" />
-              <option value="Referral" />
-              <option value="Online booking" />
-              <option value="Facebook" />
-              <option value="Nextdoor" />
-              <option value="Yard sign" />
-              <option value="Repeat client" />
-              <option value="Door hanger" />
-            </datalist>
           </div>
         </div>
 

@@ -1,5 +1,6 @@
 import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
+import { canonicalLeadSource } from "@/lib/lead-source";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
 import { getActiveFieldDefs, sanitizeCustomFields } from "@/lib/contact-fields";
@@ -166,7 +167,7 @@ export async function PATCH(
       ...(body.state !== undefined && { state: opt(body.state) }),
       ...(body.zip !== undefined && { zip: opt(body.zip) }),
       ...(body.notes !== undefined && { notes: opt(body.notes) }),
-      ...(body.leadSource !== undefined && { leadSource: opt(body.leadSource) }),
+      ...(body.leadSource !== undefined && { leadSource: canonicalLeadSource(body.leadSource) }),
       ...(status !== undefined && { status }),
       ...(paymentTermsDays !== undefined && { paymentTermsDays }),
       ...(kind !== undefined && { kind }),

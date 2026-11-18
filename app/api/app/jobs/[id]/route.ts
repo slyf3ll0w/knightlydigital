@@ -1,5 +1,6 @@
 import { reportError } from "@/lib/report-error";
 import { NextRequest, NextResponse } from "next/server";
+import { canonicalLeadSource } from "@/lib/lead-source";
 import type { RecurringInterval } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getActor, isManager, jobScope } from "@/lib/permissions";
@@ -124,7 +125,7 @@ export async function PATCH(
       ...(nextTitle !== null && { title: nextTitle }),
       ...(body.description !== undefined && { description: body.description }),
       ...(body.address !== undefined && { address: body.address }),
-      ...(body.leadSource !== undefined && { leadSource: body.leadSource || null }),
+      ...(body.leadSource !== undefined && { leadSource: canonicalLeadSource(body.leadSource) }),
       ...(propertyPatch ?? {}),
       ...((body.outsourced !== undefined || body.outsourcedTo !== undefined) && {
         outsourced: nextOutsourced,

@@ -1,4 +1,5 @@
 import { fmtPhone } from "@/lib/format";
+import { arrivalLines, sanitizeArrival } from "@/lib/lead-source";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { giftCardsOpenFor } from "@/lib/gift-cards-preview";
@@ -501,6 +502,11 @@ export default async function ContactDetailPage({
               <div>
                 <dt className="text-gray-500 text-xs">Lead source</dt>
                 <dd className="text-gray-800">{contact.leadSource || "—"}</dd>
+                {arrivalLines(sanitizeArrival(contact.leadArrival)).map((l) => (
+                  <dd key={l.label} className="truncate text-xs text-gray-500">
+                    {l.label}: {l.value}
+                  </dd>
+                ))}
               </div>
               {contact.notes && (
                 <div className="col-span-2">

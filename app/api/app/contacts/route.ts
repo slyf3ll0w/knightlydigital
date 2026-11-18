@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { canonicalLeadSource } from "@/lib/lead-source";
 import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { getActor, canSell, contactScope, isManager } from "@/lib/permissions";
@@ -121,7 +122,7 @@ export async function POST(req: NextRequest) {
       state: state || null,
       zip: zip || null,
       notes: notes || null,
-      leadSource: leadSource || null,
+      leadSource: canonicalLeadSource(leadSource),
       ...(paymentTermsDays !== undefined && { paymentTermsDays }),
       // Texts are on by default; the form's "Texts allowed" box unticked = off.
       // The optional note records how the client agreed, when staff know.

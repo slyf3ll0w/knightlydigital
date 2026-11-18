@@ -1,5 +1,6 @@
 import ForceLightTheme from "@/components/ForceLightTheme";
 import SlugRedirect from "@/components/SlugRedirect";
+import ArrivalCapture from "@/components/ArrivalCapture";
 import EmbedClosePickers from "./EmbedClosePickers";
 
 // Client-facing: the embeddable booking form always renders light on a white
@@ -9,6 +10,7 @@ export default async function EmbedLayout({ children, params }: { children: Reac
   return (
     <>
       <ForceLightTheme />
+      <ArrivalCapture />
       <EmbedClosePickers />
       <SlugRedirect slug={slug} prefix="embed" />
       {children}

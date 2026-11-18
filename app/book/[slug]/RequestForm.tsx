@@ -11,6 +11,7 @@ import type { PublicBookingType } from "@/lib/booking-runtime";
 import { ADDRESS_DEFAULTS, doneWords, type CustomField } from "@/lib/booking-intake";
 import type { ScheduleAppearance } from "./schedule/shell";
 import { notifyEmbedSubmitted } from "@/lib/embed-submitted";
+import { getArrival } from "@/lib/arrival-client";
 
 /**
  * The one-step public form for "we'll follow up" items: a message form, an
@@ -122,6 +123,7 @@ export default function RequestForm({
           captchaToken,
           smsConsent: offerSms ? smsConsent : undefined,
           hubToken: hub?.token,
+          arrival: hub ? undefined : getArrival(),
           website: honeypot,
           elapsedMs: Date.now() - startedAt,
         }),

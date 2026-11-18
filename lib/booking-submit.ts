@@ -33,6 +33,7 @@ import { KIND_META } from "@/lib/booking-types";
 import { confirmationNote } from "@/lib/booking-intake";
 import { phoneDigits } from "@/lib/phone";
 import { namePlaceholder } from "@/lib/placeholder-contact";
+import { leadSourceFor, type Arrival } from "@/lib/lead-source";
 
 /**
  * The write side of online scheduling: turn a validated slot pick into a
@@ -69,8 +70,12 @@ export type CustomerInput = {
   contactId?: string | null;
   /** The SMS checkbox on the form (unchecked by default): true = opt-in (texts on + consent stamped); false on a brand-new client = declined (texts off) */
   smsConsent?: boolean;
-  /** Contact.leadSource for a brand-new client; default "Online booking" */
+  /** Contact.leadSource for a brand-new client, when the caller already knows it (an owner's ?src= link tag). Unset = named from `arrival`, else "Online booking" */
   leadSource?: string;
+  /** How the visitor arrived (lib/lead-source.ts); names a brand-new client's lead source and is kept as Contact.leadArrival */
+  arrival?: Arrival | null;
+  /** The door's own name, used when the arrival says nothing; default "Online booking" */
+  fallbackSource?: string;
 };
 
 /**
@@ -126,9 +131,11 @@ export async function upsertBookingContact(
     // A real record wins over a texted-number placeholder with the same phone
     orderBy: { placeholder: "asc" },
   });
+  const leadSource = c.leadSource || leadSourceFor(c.arrival, c.fallbackSource || "Online booking");
+  const leadArrival = c.arrival ? (c.arrival as Prisma.InputJsonValue) : null;
   // A number that only ever texted in: this booking is who they are
   const existing = found?.placeholder
-    ? await namePlaceholder(tx, found, { firstName: c.firstName, lastName: c.lastName, email: c.email, address: c.address })
+    ? await namePlaceholder(tx, found, { firstName: c.firstName, lastName: c.lastName, email: c.email, address: c.address, leadSource, leadArrival })
     : found;
   if (existing) {
     return c.smsConsent && (existing.phone || c.phone) && (!existing.smsConsentAt || existing.smsDisabled)
@@ -152,7 +159,8 @@ export async function upsertBookingContact(
         : c.phone && c.smsConsent === false
           ? { smsDisabled: true, smsConsentSource: "booking_declined" }
           : {}),
-      leadSource: c.leadSource || "Online booking",
+      leadSource,
+      ...(leadArrival ? { leadArrival } : {}),
       assignedToId: await defaultLeadAssignee(companyId),
     },
   });
