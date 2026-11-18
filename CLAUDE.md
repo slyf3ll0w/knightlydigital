@@ -108,6 +108,33 @@ A change that removes or renames a feature removes or renames its tool the
 same way. This sits beside the Help Center rule above: one keeps the guides
 true, this one keeps the AI able to do what the app can do.
 
+## Release announcements (required, David 2026-11-17)
+
+When a big change or a new feature is **fully released** (live on `main`,
+and David has said it is done, not while it is still being built or tested),
+two things go out with it:
+
+1. **An announcement on the WorkBench site**, written like a blog post: what
+   is new, who it is for, how to turn it on or find it, with a link to its
+   Help guide. The site has no announcements section yet. The first
+   announcement builds it (a list page and a page per post under the
+   `(wbsite)` group, linked from the footer, in the sitemap, and following
+   the marketing site's own rules), and every later one adds a post.
+2. **The Help Center brought up to date** for the feature (see Help Center
+   upkeep above; at release the guides are expected to change, so list what
+   will change and make the edits once David says go).
+
+How to apply it: when work reaches "live on main", say in the wrap-up that
+an announcement and a Help Center pass are due, and ask David whether this
+one counts as big and whether to write it now. Do not publish an
+announcement unasked. A small fix or a polish pass does not get one.
+
+**Owed, on hold by David (2026-11-17, "we won't do it yet for this"):** one
+announcement covering estimate tools that learn from your own quotes
+(`docs/plans/estimator-corrections-2026-11-17.md`) and connecting Claude or
+ChatGPT to WorkBench (`docs/plans/workbench-connector-2026-11-17.md`). Raise
+it again when the connector is listed in Claude's directory.
+
 ## Project structure
 
 This repo has two distinct products:

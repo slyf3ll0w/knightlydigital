@@ -264,14 +264,14 @@ export const atlasSection: HelpSection = {
         {
           type: "steps",
           items: [
-            "Go to **Settings**, then **Connected apps**, and press `Copy` next to the address.",
-            "In the AI app, add a custom connector and paste the address.",
+            "Go to **Settings**, then **Connected apps**. Find the app's card (Claude, ChatGPT or Grok) and press `Copy address`.",
+            "In the AI app, follow the steps on that card: add a connector and paste the address.",
             "The app sends you to WorkBench. Sign in, read what it will be able to do, and press `Allow`.",
           ],
         },
         {
           type: "p",
-          text: "The app can read what you can see. It can't save, send or delete anything, and it can't move money at all: refunds, card charges and payouts are only done inside WorkBench. When it prepares something, it shows up under **Waiting for your approval** on the Connected apps page, and nothing happens until you press `Approve` there.",
+          text: "The app can read what you can see. It can't save, send or delete anything, and it can't move money at all: refunds, card charges and payouts are only done inside WorkBench. When it prepares something, it shows up under **Needs your OK** at the top of the Connected apps page as a card, the same kind Atlas shows. Nothing happens until you press the button on the card (`Create`, `Send email`, `Save changes`). `Skip` throws it away.",
         },
         {
           type: "faq",
@@ -282,15 +282,15 @@ export const atlasSection: HelpSection = {
             },
             {
               q: "How do I disconnect an app?",
-              a: "Press `Disconnect` next to it on the Connected apps page. It stops working right away. Changing your password also disconnects every app you connected.",
+              a: "Press `Disconnect` on its card on the Connected apps page. It stops working right away. Changing your password also disconnects every app you connected.",
             },
             {
               q: "Can I stop everyone at my company from connecting apps?",
-              a: "The owner can untick **Allow connected apps for this company** on the Connected apps page. Every connected app stops until it is ticked again.",
+              a: "The owner can turn off **Allow connected apps** on the Connected apps page. Every connected app shows as Paused and stops working until it is turned back on.",
             },
             {
               q: "Can I see what a connected app has been doing?",
-              a: "Yes. **Recent activity** on the Connected apps page lists each thing an app did and when. It keeps the action only, never what was read, for 90 days.",
+              a: "Yes. Each connected app's card shows the last few things it did, and **Activity** at the bottom of the page lists everything by day. It keeps the action only, never what was read, for 90 days.",
             },
             {
               q: "Does it use Atlas tokens?",
@@ -298,7 +298,7 @@ export const atlasSection: HelpSection = {
             },
             {
               q: "The app says it created or sent something, but I don't see it.",
-              a: "It only prepared it. Open **Connected apps** and approve it there.",
+              a: "It only prepared it. Open **Connected apps** and confirm it under **Needs your OK**.",
             },
           ],
         },

@@ -135,6 +135,7 @@ companies with the same correction showed as one pattern.
   raised to $34, the report offered $34 with 6 of 6 matched, another company
   read nothing, a second run on a quote dropped its row, and applying the
   change cleared the suggestion.
-- **Not checked:** the card in a browser. David: make three or more quotes
-  from one tool, change the same price the same way, send them, and open the
-  tool's Overview.
+- **Checked in a browser 2026-11-17** (local app, seeded quotes): the card showed
+  "Cedar fence: you charge about $34 per ft, the tool says $31 per ft" and "You keep
+  adding Haul-away by hand"; pressing Change to $34 per ft updated the rate card
+  and cleared that suggestion. Not yet seen with David's own quotes on production.
