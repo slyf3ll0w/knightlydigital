@@ -135,6 +135,22 @@ announcement covering estimate tools that learn from your own quotes
 ChatGPT to WorkBench (`docs/plans/workbench-connector-2026-11-17.md`). Raise
 it again when the connector is listed in Claude's directory.
 
+## Follow-ups (the first AI worker, 2026-11-17)
+
+`/app/follow-ups`: the quotes and unpaid invoices worth a personal nudge
+today, each with a message a person reads and sends. Plan, rules and both
+scorecards: `docs/plans/ai-workers-follow-ups-2026-11-17.md`. The rule for
+every worker after it: deciding is plain rules scored by a scorecard that is
+mostly traps (`scripts/test-follow-ups.ts`), a model only writes and its
+draft passes `checkDraft` or is thrown away, and a person sends. Who is
+offered lives in `lib/follow-ups.ts` (`FOLLOW_UP_BAR`, pure); the records
+are read in `lib/follow-ups-server.ts`. A sent follow-up is not stored: it
+is the team's own message, email or call. Change a rule or the wording →
+run `npx tsx scripts/test-follow-ups.ts`; change the prompt → also run
+`scripts/eval-follow-ups/run.ts` (needs a model key) and add every miss as a
+case. The automatic reminder emails in `lib/reminders.ts` are separate and
+keep running.
+
 ## Project structure
 
 This repo has two distinct products:

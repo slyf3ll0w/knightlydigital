@@ -16,7 +16,10 @@ The answer key and runner (`estimator-standard-2026-11-14.md`) are live. The
 next step, per-company corrections, is built: see
 `estimator-corrections-2026-11-17.md`.
 
-## 2. Back-office workers that draft, with a person sending
+## 2. Back-office workers that draft, with a person sending — FIRST ONE BUILT
+
+The first worker, Follow-ups, is built: see `ai-workers-follow-ups-2026-11-17.md`,
+which also writes down the pattern the next ones follow.
 
 Keeps David's rule (2026-11-14): AI does not talk to customers, people do.
 

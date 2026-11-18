@@ -42,7 +42,7 @@ assert.deepEqual(
     "edit_payment", "email_client", "email_document", "export_data", "find_a_time", "get_client_activity",
     "get_client_details", "get_client_notes", "get_company_settings", "get_document", "get_job_checklist", "get_lead_board", "get_price_book",
     "get_route_plan", "get_schedule", "get_statement", "help_search", "lead_source_report", "list_agreement_templates", "list_agreements",
-    "list_calls", "list_clients", "list_expenses", "list_job_photos", "list_money", "list_pipeline", "list_places", "list_subscriptions",
+    "list_calls", "list_clients", "list_expenses", "list_follow_ups", "list_job_photos", "list_money", "list_pipeline", "list_places", "list_subscriptions",
     "list_team", "log_expense", "lookup_part_price", "manage_address", "manage_automation", "manage_booking_item",
     "manage_client_fields", "manage_estimator", "manage_lead_webhook", "manage_person", "manage_pipeline_stage", "manage_recurring_expense",
     "manage_saved_card", "manage_sticky_notes", "manage_subscription", "manage_task", "manage_time_block", "manage_time_entry", "move_lead", "optimize_route", "place_call",
@@ -51,7 +51,7 @@ assert.deepEqual(
     "run_recurring_billing", "schedule_appointment", "search_clients", "send_agreement", "send_on_my_way", "send_payout",
     "send_portal_invite", "set_business_hours", "set_client_status", "team_map", "undo_import", "update_agreement",
     "update_agreement_template", "update_appointment", "update_checklist_item", "update_client", "update_client_note", "update_company_settings",
-    "update_expense", "update_invoice", "update_job", "update_job_status", "update_quote", "update_request",
+    "update_expense", "update_follow_up", "update_invoice", "update_job", "update_job_status", "update_quote", "update_request",
     "update_service", "update_team_member", "update_team_policy", "whats_needing_attention",
   ],
   "owner gets all tools"

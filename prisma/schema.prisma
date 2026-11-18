@@ -364,6 +364,7 @@ model Company {
   // the owner's company-wide off switch for outside AI apps.
   connectorsOff         Boolean               @default(false)
   connectorGrants       ConnectorGrant[]
+  followUpSkips FollowUpSkip[]
   connectorActions      ConnectorAction[]
   connectorCalls        ConnectorCall[]
   libraryListings       EstimatorListing[]
@@ -1966,6 +1967,24 @@ model ConnectorAction {
 
   @@index([userId, status])
   @@index([companyId])
+}
+
+// A person's answer to a follow-up the app offered (lib/follow-ups.ts,
+// docs/plans/ai-workers-follow-ups-2026-11-17.md): "not now" (until set) or
+// "do not follow up on this one" (until null). One per quote or invoice.
+// Follow-ups that were SENT are not stored: they are the team's own messages,
+// emails and calls, read where they already live.
+model FollowUpSkip {
+  id        String    @id @default(cuid())
+  companyId String
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  kind      String // "quote" | "invoice"
+  entityId  String
+  until     DateTime?
+  userId    String?
+  createdAt DateTime  @default(now())
+
+  @@unique([companyId, kind, entityId])
 }
 
 // The tool run a quote started from: the answers the tool was given and the
