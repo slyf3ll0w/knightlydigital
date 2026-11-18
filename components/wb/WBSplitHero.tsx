@@ -1,5 +1,6 @@
 import Image from "next/image";
 import WBKoala, { WBKoalaSays } from "@/components/wb/WBKoala";
+import WBScribble from "@/components/wb/WBScribble";
 
 /**
  * The inner pages' photo hero, Railway-style: one big rounded panel inset
@@ -24,6 +25,7 @@ export default function WBSplitHero({
   children,
   photo,
   chip,
+  note,
   mascot,
   priority = true,
 }: {
@@ -32,7 +34,7 @@ export default function WBSplitHero({
   /** Not drawn (2026-11-18). */
   phone?: Shot;
   chip?: { icon: React.ReactNode; title: string; sub: string };
-  /** Not drawn (2026-11-18). */
+  /** A hand-written note with a drawn arrow under the copy (white on the panel). */
   note?: React.ReactNode;
   /** The koala on the navy panel instead of the photo, with an optional speech bubble. */
   mascot?: { say?: React.ReactNode };
@@ -55,6 +57,12 @@ export default function WBSplitHero({
         <div className={`relative mx-auto grid max-w-6xl items-center gap-10 px-5 pt-16 sm:px-8 sm:pt-24 lg:min-h-[560px] lg:grid-cols-[1.1fr_1fr] ${mascot ? "pb-0" : "pb-16 sm:pb-24"}`}>
           <div className={`text-center lg:text-left ${mascot ? "pb-6 lg:pb-24" : ""}`}>
             {children}
+            {note && (
+              <div className="mt-6 hidden items-end gap-1 lg:flex" aria-hidden>
+                <p className="pb-2 text-[15px] font-extrabold leading-snug text-white">{note}</p>
+                <WBScribble variant="loop" tone="chalk" delay={0.6} className="h-[60px] w-[92px] rotate-[80deg]" />
+              </div>
+            )}
             {mascot && chip && <div className="mt-8 flex justify-center lg:justify-start"><Plate chip={chip} /></div>}
           </div>
 

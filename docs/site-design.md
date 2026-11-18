@@ -23,13 +23,13 @@ WorkBench colors only (David round 4): navy #0A1428, blue #0B57D8 / #2E6FF2, ora
 | Small-caps eyebrow labels over titles ("FIELD SERVICE MANAGEMENT SOFTWARE", "PRICING"), with or without a dot | Nothing: the headline carries the section (David round 4). Don't add `.wb-label` back |
 | Pill eyebrows over a title (`rounded-full bg-blue-50 …`) | `<p className="wb-label">` |
 | The old floating pill header and the navy utility strip | `WBNav` (round 3): one rounded white bar floating under the top edge, menus (Features, Compare, Resources), phone, Log in, orange Get started; tightens on scroll |
-| Phone mockup, zoom bubble, floating notification cards in a hero | Home (round 3): big centered headline with a cycling word (`WBCycleWord`) over two flowing ribbons, then `WBLiveApp`, a coded dashboard that works by itself, with hand-drawn notes; numbers that count up (`WBCountUp`) under it. Inner pages with a photo: `WBSplitHero` (photo panel, navy wash, white type, one caption plate) |
+| Phone mockup, zoom bubble, floating notification cards in a hero | Home: big centered headline with a cycling word (`WBCycleWord`) over two flowing ribbons, then `WBLiveApp`, a coded copy of the REAL dashboard (match public/screens/desktop-dashboard.jpg, Lexend) that works by itself, with hand-drawn notes. Inner pages with a photo: `WBSplitHero` (photo panel, navy wash, white type, one caption plate) |
 | Bobbing / tilted cards (`wb-float`, `--wb-tilt`) | `wb-card-shadow`, sitting still |
 | Blue/orange glows (`radial-gradient`) and ANY grid/graph-paper background (David: the worst offender) | White heroes with `WBRibbon` (Stripe-style brand ribbon, top right); navy `.wb-dark` bands |
 | Boxed FAQ accordion with chevrons | `WBFaqSection`: title + bar + "call us" on the left, ruled rows with +/− on the right |
 | Big soft radii (`rounded-2xl`, `rounded-[1.5rem]`) and pill buttons | Cards top out at 12 px (clamped in globals.css); buttons `.wb-pill` are 8 px |
 | Photo tiles with icons, numbered trade directories, counting the trades | `WBTradeCards`: plain photo cards with the name under the photo, then "Also built for …" links |
-| Boxed feature tabs | `WBBento`: tiles with a two-tone title and a slice of the real app on a brand-color wash (Stripe) |
+| Boxed feature tabs, and the busy bento grid | `WBFeatureTabs`: four jobs on the left, one real screen on the right, auto-advancing with an orange progress line (round 5) |
 | Written review cards | The Knight Light video testimonial only (David) |
 
 ## Building a new page
@@ -58,6 +58,9 @@ WorkBench colors only (David round 4): navy #0A1428, blue #0B57D8 / #2E6FF2, ora
 
 - `WBRibbon` bands drift and the colors breathe; `WBLiveApp` loops a booking, a payment and a text; `WBCycleWord`; `WBCountUp`; the works-with row (`WBIntegrations`) slides forever. All of it stops under reduced motion.
 - Arrow notes: `WBNote` (words + an arrow drawn for the job, never CSS-rotated) inside an `AnimateIn`, so it draws as the section scrolls in. Put the arrow TIP on the exact thing named, keep z-20 so nothing covers it, xl screens only, and use few of them.
+- The trades on Home slide (`WBTradeStrip`); /trades keeps the grid (`WBTradeCards`).
+- The live-site hand-drawn notes stay: `WBScribble` + a short bold line, inside an `AnimateIn` so they draw as you scroll there (feature screens, trades, pricing; `note` on `WBSplitHero`). On a photo panel they turn white automatically.
+- The footer is four short columns plus a legal line; trades, free pages and alternatives are reached from their index pages, not listed in the footer.
 - Integrations live in one list, `INTEGRATIONS` in components/wb/WBIntegrations.tsx. Only list what WorkBench really connects to.
 
 ## Content that lays itself out

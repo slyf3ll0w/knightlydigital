@@ -25,8 +25,6 @@ export const INTEGRATIONS: Integration[] = [
   { name: "Google Calendar", note: "Your jobs on your calendar", logo: "/brand/google-calendar.svg" },
   { name: "Zapier", note: "Send in leads from anywhere", logo: "/brand/zapier.svg" },
   { name: "Make", note: "Send in leads from anywhere", logo: "/brand/make.svg" },
-  { name: "Claude", note: "Ask it about your business", logo: "/brand/claude.svg" },
-  { name: "ChatGPT", note: "Ask it about your business", logo: "/brand/openai.svg" },
   { name: "Visa", note: "Cards accepted", logo: "/brand/visa.svg" },
   { name: "Mastercard", note: "Cards accepted", logo: "/brand/mastercard.svg" },
   { name: "American Express", note: "Cards accepted", logo: "/brand/amex.svg" },

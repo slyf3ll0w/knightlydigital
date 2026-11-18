@@ -2286,6 +2286,10 @@ html[data-mode="dark"] .app-ui .card-tool {
 .wb-flow-b { transform-box: fill-box; transform-origin: 100% 0%; animation: wb-flow-b 9s ease-in-out infinite; }
 .wb-flow-c { transform-box: fill-box; transform-origin: 100% 0%; animation: wb-flow-c 13s ease-in-out infinite; }
 
+/* The progress line under the active feature tab (WBFeatureTabs). */
+@keyframes wb-progress { from { width: 0; } to { width: 100%; } }
+.wb-progress { animation: wb-progress linear both; }
+
 /* A light sweep across a button every few seconds (header Get started). */
 .wb-shine { position: relative; overflow: hidden; isolation: isolate; }
 .wb-shine::after {
@@ -2336,6 +2340,9 @@ html[data-mode="dark"] .app-ui .card-tool {
 .wb-photo-panel :is(h1, h2) .text-\[\#0B57D8\] { color: #8FB3F5; }
 .wb-photo-panel .wb-label { color: #FFB27A; }
 .wb-photo-panel .wb-label + :is(h1, h2)::after { background: linear-gradient(90deg, #F86A0A 0 66%, rgba(255, 255, 255, 0.35) 66% 100%); }
+/* hand-drawn notes on a photo panel turn white (chalk) */
+.wb-photo-panel .text-\[\#10244A\] { color: #FFFFFF; }
+.wb-photo-panel .wb-scribble path[stroke="#10244A"] { stroke: #FFFFFF; }
 .wb-photo-panel .wb-pill-outline { background: rgba(255, 255, 255, 0.08); color: #FFFFFF; border-color: rgba(255, 255, 255, 0.45); }
 .wb-photo-panel .wb-pill-outline:hover { background: rgba(255, 255, 255, 0.16); border-color: #FFFFFF; }
 

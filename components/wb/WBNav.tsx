@@ -11,28 +11,30 @@ import { WB_PHONE } from "@/lib/wb-site";
  * WorkBench marketing header (David 2026-11-18, round 3): one rounded white
  * bar floating just under the top of the page (Dotcom-style), with the
  * logo, the page links (Features, Compare and Resources open a menu), the
- * phone number, Log in and Get started. A blue-to-orange edge, link hovers
- * in WorkBench blue and a light sweep across Get started (round 4: "more
- * pizzazz"). It tightens and gains a shadow once
+ * phone number (a pill), Log in and Get started. Frosted glass, link hovers
+ * in WorkBench blue, a light sweep across Get started, and a Features menu
+ * with a small real screenshot beside each feature (round 5). It tightens and gains a shadow once
  * the page scrolls. The current page gets an orange underline. On the phone
  * the links open in a rounded sheet under the bar. The home is built at
  * /wb; middleware rewrites the site root to it, so links point at "/".
  */
 export const WB_HOME = "/";
 
-type NavLink = { href: string; label: string; match?: string[]; menu?: { href: string; label: string; sub?: string }[] };
+type MenuItem = { href: string; label: string; sub?: string; thumb?: string };
+type NavLink = { href: string; label: string; match?: string[]; wide?: boolean; menu?: MenuItem[] };
 
 const links: NavLink[] = [
   {
     href: "/features",
     label: "Features",
+    wide: true,
     menu: [
-      { href: "/features/scheduling-dispatch", label: "Scheduling & dispatch", sub: "Calendar, crews, routes" },
-      { href: "/features/quotes-and-invoicing", label: "Quotes & invoicing", sub: "Signed quotes, one-click invoices" },
-      { href: "/features/payments", label: "Payments", sub: "Card and bank, one flat rate" },
-      { href: "/features/client-portal", label: "Client portal", sub: "Pay, approve, book, message" },
-      { href: "/features/time-tracking", label: "Time tracking", sub: "Clock-in, timesheets, labor cost" },
-      { href: "/features/atlas", label: "Atlas assistant", sub: "Talk or type, it does the work" },
+      { href: "/features/scheduling-dispatch", label: "Scheduling & dispatch", sub: "Calendar, crews, routes", thumb: "/screens/desktop-schedule.jpg" },
+      { href: "/features/quotes-and-invoicing", label: "Quotes & invoicing", sub: "Signed quotes, one-click invoices", thumb: "/screens/desktop-quotes.jpg" },
+      { href: "/features/payments", label: "Payments", sub: "Card and bank, one flat rate", thumb: "/screens/desktop-invoices.jpg" },
+      { href: "/features/client-portal", label: "Client portal", sub: "Pay, approve, book, message", thumb: "/screens/desktop-jobs.jpg" },
+      { href: "/features/time-tracking", label: "Time tracking", sub: "Clock-in, timesheets, labor cost", thumb: "/screens/mobile-timeclock.png" },
+      { href: "/features/atlas", label: "Atlas assistant", sub: "Talk or type, it does the work", thumb: "/screens/mobile-atlas.png" },
       { href: "/features", label: "Every feature" },
     ],
   },
@@ -87,13 +89,13 @@ export default function WBNav() {
 
   return (
     <header className="sticky top-0 z-50 px-2 pt-2 sm:px-3 sm:pt-3">
-      {/* the bar wears a WorkBench blue-to-orange edge */}
+      {/* frosted glass bar (round 5: no gradient edge) */}
       <div
-        className={`mx-auto max-w-[1240px] rounded-2xl bg-gradient-to-r from-[#0B57D8] via-[#9DBBF7] to-[#F86A0A] p-[2px] transition-shadow duration-300 ${
-          scrolled ? "shadow-[0_16px_44px_-16px_rgba(11,87,216,0.45)]" : "shadow-[0_10px_34px_-18px_rgba(11,87,216,0.4)]"
+        className={`mx-auto max-w-[1240px] rounded-2xl border border-white/70 bg-white/80 ring-1 ring-black/[0.06] backdrop-blur-xl backdrop-saturate-150 transition-shadow duration-300 ${
+          scrolled ? "shadow-[0_18px_44px_-18px_rgba(10,20,40,0.35)]" : "shadow-[0_10px_34px_-20px_rgba(10,20,40,0.3)]"
         }`}
       >
-        <div className="rounded-[14px] bg-white">
+        <div>
         <div className={`flex items-center gap-5 pl-4 pr-2.5 transition-all duration-300 sm:pl-6 ${scrolled ? "h-[62px]" : "h-[70px] lg:h-[78px]"}`}>
           <Link href={WB_HOME} className="flex shrink-0 items-center" aria-label="WorkBench FSM home">
             <Image
@@ -126,12 +128,19 @@ export default function WBNav() {
                   </Link>
                   {l.menu && (
                     <div className="invisible absolute left-0 top-full z-50 pt-2 opacity-0 transition-opacity duration-150 group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
-                      <ul className="w-[19rem] rounded-xl border border-gray-200 bg-white p-2 shadow-[0_24px_50px_-18px_rgba(10,20,40,0.35)]">
+                      <ul className={`rounded-2xl border border-gray-200 bg-white p-2 shadow-[0_24px_50px_-18px_rgba(10,20,40,0.35)] ${l.wide ? "grid w-[40rem] grid-cols-2 gap-1" : "w-[19rem]"}`}>
                         {l.menu.map((m) => (
                           <li key={m.href}>
-                            <Link href={m.href} className="block rounded-lg px-4 py-2.5 hover:bg-[#F2F6FE]">
-                              <span className={`block text-[14.5px] font-bold ${m.sub ? "text-gray-900" : "text-[#0B57D8]"}`}>{m.label}</span>
-                              {m.sub && <span className="block text-[13px] text-gray-500">{m.sub}</span>}
+                            <Link href={m.href} className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-[#F2F6FE]">
+                              {m.thumb && (
+                                <span className="relative h-11 w-16 flex-none overflow-hidden rounded-md bg-gray-100 ring-1 ring-gray-200">
+                                  <Image src={m.thumb} alt="" fill sizes="64px" className="object-cover object-left-top" />
+                                </span>
+                              )}
+                              <span>
+                                <span className={`block text-[14.5px] font-bold ${m.sub ? "text-gray-900" : "text-[#0B57D8]"}`}>{m.label}</span>
+                                {m.sub && <span className="block text-[13px] text-gray-500">{m.sub}</span>}
+                              </span>
                             </Link>
                           </li>
                         ))}
@@ -144,7 +153,7 @@ export default function WBNav() {
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
-            <a href={WB_PHONE.href} className="hidden items-center gap-1.5 px-2 text-[14.5px] font-bold text-gray-900 hover:text-[#0B57D8] xl:inline-flex">
+            <a href={WB_PHONE.href} className="hidden items-center gap-1.5 rounded-full bg-[#F2F6FE] px-3.5 py-2 text-[14px] font-bold text-[#0B57D8] ring-1 ring-[#D9E6FC] transition-colors hover:bg-[#0B57D8] hover:text-white xl:inline-flex [&:hover_svg]:text-white">
               <Phone className="h-4 w-4 text-[#F86A0A]" strokeWidth={2.5} aria-hidden />
               {WB_PHONE.display}
             </a>

@@ -3,7 +3,8 @@ import Link from "next/link";
 import { ArrowRight, Mic } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
 import WBAtlasVoice from "@/components/wb/WBAtlasVoice";
-import WBBento from "@/components/wb/WBBento";
+import WBFeatureTabs from "@/components/wb/WBFeatureTabs";
+import WBScribble from "@/components/wb/WBScribble";
 import WBCountUp from "@/components/wb/WBCountUp";
 import WBCta from "@/components/wb/WBCta";
 import WBCycleWord from "@/components/wb/WBCycleWord";
@@ -13,7 +14,7 @@ import WBLiveApp from "@/components/wb/WBLiveApp";
 import WBNote from "@/components/wb/WBNote";
 import WBRibbon from "@/components/wb/WBRibbon";
 import WBTestimonials from "@/components/wb/WBTestimonials";
-import WBTradeCards from "@/components/wb/WBTradeCards";
+import WBTradeStrip from "@/components/wb/WBTradeStrip";
 import { FREE_PAGE_PATH } from "@/lib/wb-free";
 import { APP_STORE_URL, PLAY_STORE_URL, WB_PHONE } from "@/lib/wb-site";
 import { EXTRA_SEAT_CENTS, FREE_PLAN_NAME, INCLUDED_SEATS, PLANS, PROCESSING_RATES, RATES_SENTENCE, formatCents } from "@/lib/plans";
@@ -166,7 +167,7 @@ const faqItems = [
 /**
  * The home page, round 4 (David 2026-11-18: "quite confusing, needs to be
  * simplified"). Eight stops, one idea each:
- *   1. hero (the promise + the live app)  2. what it does (bento)
+ *   1. hero (the promise + the live app)  2. what it does (WBFeatureTabs)
  *   3. Atlas  4. the trades  5. from the field (video)
  *   6. pricing, three numbers  7. works with (slider)  8. FAQ, then the CTA.
  */
@@ -209,12 +210,12 @@ export default function WBHomePage() {
 
           <AnimateIn delay={160} className="relative mx-auto mt-16 max-w-5xl pb-16 sm:mt-20 sm:pb-24">
             <WBLiveApp />
-            <WBNote side="left" delay={1.2} length={260} className="absolute right-[calc(100%-13rem)] top-[196px] z-20 hidden xl:flex">
+            <WBNote side="left" delay={1.2} length={260} className="absolute right-[calc(100%-13rem)] top-[392px] z-20 hidden xl:flex">
               New bookings
               <br />
               show up here
             </WBNote>
-            <WBNote side="right" delay={1.6} length={130} className="absolute left-[calc(100%-4.5rem)] top-[234px] z-20 hidden xl:flex">
+            <WBNote side="right" delay={1.6} length={130} className="absolute left-[calc(100%-4.5rem)] top-[290px] z-20 hidden xl:flex">
               Paid. No
               <br />
               chasing.
@@ -226,14 +227,22 @@ export default function WBHomePage() {
       {/* ── 2. What it does ── */}
       <section className="border-t border-gray-200 bg-[#F5F7FA]">
         <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
-          <AnimateIn className="max-w-3xl">
+          <AnimateIn className="relative max-w-3xl">
             <h2 className="text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
               Everything from the first call to the paid invoice.
             </h2>
           </AnimateIn>
-          <div className="mt-12">
-            <WBBento />
-          </div>
+          <AnimateIn delay={120} className="relative mt-12">
+            <div className="absolute -top-[5.5rem] right-6 z-20 hidden items-end gap-1 xl:flex" aria-hidden>
+              <p className="pb-3 text-right text-[15px] font-extrabold leading-snug text-[#10244A]">
+                The real screens,
+                <br />
+                not mockups
+              </p>
+              <WBScribble variant="down" delay={0.6} className="h-[78px] w-[60px] flex-none" />
+            </div>
+            <WBFeatureTabs />
+          </AnimateIn>
           <p className="mt-8 text-[15px] text-gray-600">
             Plus recurring plans, review requests, a team map, contracts and refunds.{" "}
             <Link href="/features" className="font-bold text-[#0B57D8] hover:underline">
@@ -278,7 +287,7 @@ export default function WBHomePage() {
 
       {/* ── 4. The trades ── */}
       <section className="bg-white">
-        <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
+        <div className="mx-auto max-w-6xl px-5 pt-20 sm:px-8 sm:pt-28">
           <AnimateIn className="flex flex-wrap items-end justify-between gap-6">
             <h2 className="max-w-2xl text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
               Built for the trades that come to the house.
@@ -288,8 +297,22 @@ export default function WBHomePage() {
               <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
             </Link>
           </AnimateIn>
-          <WBTradeCards featured={8} />
         </div>
+        <AnimateIn delay={120} className="relative -mt-8 pb-20 sm:pb-28">
+          <div className="relative mx-auto max-w-6xl px-5 sm:px-8">
+            <div className="absolute -top-[4.5rem] left-[38%] z-20 hidden items-end gap-1 xl:flex" aria-hidden>
+              <p className="pb-3 text-[15px] font-extrabold leading-snug text-[#10244A]">
+                Find yours.
+                <br />
+                Hover to stop it.
+              </p>
+              <WBScribble variant="down" delay={0.5} className="h-[78px] w-[60px] flex-none" />
+            </div>
+          </div>
+          <div className="mt-14">
+            <WBTradeStrip />
+          </div>
+        </AnimateIn>
       </section>
 
       {/* ── 5. From the field ── */}
@@ -300,9 +323,19 @@ export default function WBHomePage() {
         <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
           <AnimateIn className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">Simple pricing.</h2>
-            <p className="mt-4 text-[17px] leading-relaxed text-gray-600">
+            <p className="mx-auto mt-4 max-w-lg text-[17px] leading-relaxed text-gray-600">
               The software is free. You pay a normal card fee when a client pays you, and add-ons only if you want them.
             </p>
+          </AnimateIn>
+          <AnimateIn className="relative">
+            <div className="absolute -top-[5.5rem] -right-8 z-20 hidden items-end gap-1 xl:flex" aria-hidden>
+              <p className="pb-2 text-right text-[15px] font-extrabold leading-snug text-[#10244A]">
+                The whole bill.
+                <br />
+                Nothing hidden.
+              </p>
+              <WBScribble variant="loop" delay={0.4} className="h-[58px] w-[90px] rotate-[62deg]" />
+            </div>
           </AnimateIn>
           <div className="mt-12 grid gap-5 md:grid-cols-3">
             {[
