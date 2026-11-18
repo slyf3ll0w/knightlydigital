@@ -4,6 +4,9 @@
 import assert from "node:assert/strict";
 import {
   ADS_CONVERSION_NAME,
+  ADS_FIELD_MAP,
+  ADS_SAMPLE_GCLID,
+  sampleRowActive,
   ADS_CSV_HEADERS,
   adsConversionsCsv,
   adsFeedUrl,
@@ -135,13 +138,13 @@ t("two clients are counted apart", () => {
 
 console.log("the file");
 t("time is UTC with its offset", () => {
-  assert.equal(conversionTime(new Date("2026-03-04T05:06:07Z")), "2026-03-04 05:06:07+0000");
+  assert.equal(conversionTime(new Date("2026-03-04T05:06:07.890Z")), "2026-03-04T05:06:07Z");
 });
 t("header row first, one line per payment, CRLF", () => {
   const s = buildAdsConversions([pay()], now);
   const csv = adsConversionsCsv(s.rows);
   const lines = csv.split("\r\n");
-  assert.equal(lines[0], "Google Click ID,Conversion Name,Conversion Time,Conversion Value,Conversion Currency");
+  assert.equal(lines[0], "gclid,conversion_name,conversion_time,conversion_value,currency");
   assert.equal(lines[1], `${GCLID},${ADS_CONVERSION_NAME},${conversionTime(ago(2))},500.00,USD`);
   assert.equal(lines[2], "");
   assert.equal(lines.length, 3);
@@ -149,8 +152,31 @@ t("header row first, one line per payment, CRLF", () => {
 t("nothing to report is still a valid file", () => {
   assert.equal(adsConversionsCsv([]), ADS_CSV_HEADERS.join(",") + "\r\n");
 });
-t("every header starts with a letter (Google's rule) and the name has no comma", () => {
-  for (const h of ADS_CSV_HEADERS) assert.match(h, /^[A-Za-z_]/);
+t("the sample row: only when asked, never beside real rows", () => {
+  const at = new Date("2026-11-18T18:00:00Z");
+  const lines = adsConversionsCsv([], { sampleAt: at }).split("\r\n");
+  assert.equal(lines.length, 3);
+  assert.equal(lines[1], `${ADS_SAMPLE_GCLID},${ADS_CONVERSION_NAME},2026-11-18T18:00:00Z,1.00,USD`);
+  const real = buildAdsConversions([pay()], now);
+  assert.ok(!adsConversionsCsv(real.rows, { sampleAt: at }).includes(ADS_SAMPLE_GCLID));
+  assert.equal(adsConversionsCsv([], { sampleAt: null }), ADS_CSV_HEADERS.join(",") + "\r\n");
+});
+t("the sample row is on only while asked for, unexpired, and there is nothing real", () => {
+  const later = new Date(now.getTime() + 3600000);
+  assert.equal(sampleRowActive(later, 0, now), true);
+  assert.equal(sampleRowActive(later, 1, now), false);
+  assert.equal(sampleRowActive(new Date(now.getTime() - 1), 0, now), false);
+  assert.equal(sampleRowActive(null, 0, now), false);
+});
+t("TRAP: the sample click ID can never be mistaken for a real payment's", () => {
+  // a lead whose saved click id IS the sample string is still reported as a real row (it passes the alphabet rule); the sample is only ever written by the file itself
+  assert.match(ADS_SAMPLE_GCLID, /^[A-Za-z0-9_-]{10,300}$/);
+});
+t("every column of the file is in the field map, once", () => {
+  assert.deepEqual([...ADS_FIELD_MAP.map((m) => m.column)].sort(), [...ADS_CSV_HEADERS].sort());
+});
+t("headers are plain lower-case names with no spaces, and the name has no comma", () => {
+  for (const h of ADS_CSV_HEADERS) assert.match(h, /^[a-z][a-z_]*$/);
   assert.ok(!ADS_CONVERSION_NAME.includes(","));
 });
 t("the address ends in .csv", () => {

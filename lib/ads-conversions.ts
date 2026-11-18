@@ -7,8 +7,8 @@
  * work and not form fills. Google calls this an offline conversion import.
  *
  * How it gets there: the company turns on a private file address; Google Ads
- * fetches it on a schedule the owner sets up once (Data Manager → HTTPS, or
- * the older Conversions → Uploads → Schedules). No Google API approval and
+ * fetches it on a schedule the owner sets up once (a conversion action
+ * whose data source is HTTPS, in Google's Data Manager). No Google API approval and
  * no sign-in to Google from WorkBench. The file is always "every payment
  * Google will still accept": Google ignores a row it has already counted
  * (same click, name and time), so nothing has to remember what was sent.
@@ -29,8 +29,31 @@ export const ADS_CLICK_WINDOW_DAYS = 90;
 export const ADS_FEED_USERNAME = "workbench";
 export const ADS_FEED_PASSWORD = "workbench";
 
-/** The header row. Data Manager matches these to its own fields; the older upload page reads them as is. */
-export const ADS_CSV_HEADERS = ["Google Click ID", "Conversion Name", "Conversion Time", "Conversion Value", "Conversion Currency"] as const;
+/**
+ * The header row. Plain lower-case names with no spaces: the owner matches
+ * each to Google's field on the Map fields step (the setup page lists the
+ * pairs, ADS_FIELD_MAP below).
+ */
+export const ADS_CSV_HEADERS = ["gclid", "conversion_name", "conversion_time", "conversion_value", "currency"] as const;
+
+/** Google's field on its Map fields step → the column in our file. Shown on the setup page and in the Help guide. */
+export const ADS_FIELD_MAP: { google: string; column: (typeof ADS_CSV_HEADERS)[number]; note?: string }[] = [
+  { google: "GCLID", column: "gclid" },
+  { google: "Conversion date and time", column: "conversion_time" },
+  { google: "Conversion value", column: "conversion_value" },
+  { google: "Currency", column: "currency", note: "if Google asks for it" },
+  { google: "Conversion action", column: "conversion_name", note: "if Google asks for it" },
+];
+
+/**
+ * Google cannot finish its setup against a file with no rows: with only a
+ * header its Select data step never lets the owner press Next (David,
+ * Steadfast, 2026-11-18). So while a company has nothing to report yet, the
+ * owner can put ONE sample row in the file for this long. Its click ID is
+ * not a real one, so Google reports that row as unmatched and counts nothing.
+ */
+export const ADS_SAMPLE_HOURS = 2;
+export const ADS_SAMPLE_GCLID = "SAMPLE_ROW_NOT_A_REAL_CLICK";
 
 const DAY_MS = 86400000;
 
@@ -50,7 +73,7 @@ export type AdsConversionRow = {
   paymentId: string;
   contactId: string;
   gclid: string;
-  /** "yyyy-MM-dd HH:mm:ss+0000" (UTC) */
+  /** "2026-11-18T14:03:22Z" (UTC) */
   time: string;
   value: number;
 };
@@ -96,9 +119,14 @@ export function clickTime(raw: unknown, contactCreatedAt: Date): Date {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-/** "2026-11-18 14:03:22+0000" */
+/** "2026-11-18T14:03:22Z": the form Google's own Data Manager examples use, time zone included. */
 export function conversionTime(d: Date): string {
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}+0000`;
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}Z`;
+}
+
+/** True while the sample row should be in the file: asked for, not expired, and nothing real to report. */
+export function sampleRowActive(sampleUntil: Date | null | undefined, realRows: number, now: Date): boolean {
+  return realRows === 0 && !!sampleUntil && sampleUntil.getTime() > now.getTime();
 }
 
 /**
@@ -145,10 +173,16 @@ export function buildAdsConversions(payments: AdsPayment[], now: Date): AdsConve
   };
 }
 
-/** The file Google fetches: a header row, then one row per payment. Always has the header, even with nothing to report. */
-export function adsConversionsCsv(rows: AdsConversionRow[], currency = "USD"): string {
+/**
+ * The file Google fetches: a header row, then one row per payment. Always
+ * has the header. `sampleAt` adds the one sample row, and only when there
+ * are no real rows (a real file never carries it).
+ */
+export function adsConversionsCsv(rows: AdsConversionRow[], opts: { currency?: string; sampleAt?: Date | null } = {}): string {
+  const currency = opts.currency ?? "USD";
   const lines = [ADS_CSV_HEADERS.join(",")];
   for (const r of rows) lines.push([r.gclid, ADS_CONVERSION_NAME, r.time, r.value.toFixed(2), currency].join(","));
+  if (rows.length === 0 && opts.sampleAt) lines.push([ADS_SAMPLE_GCLID, ADS_CONVERSION_NAME, conversionTime(opts.sampleAt), "1.00", currency].join(","));
   return lines.join("\r\n") + "\r\n";
 }
 
