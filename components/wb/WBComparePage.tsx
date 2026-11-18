@@ -85,7 +85,7 @@ export default function WBComparePage({
                 <br />
                 no fine print
               </p>
-              <WBScribble variant="loop" delay={0.4} className="h-[56px] w-[88px] rotate-[64deg]" />
+              <WBScribble variant="droop" delay={0.4} className="h-[80px] w-[62px] flex-none" />
             </div>
             <WBCompareTable competitorName={competitorName} rows={rows} />
           </AnimateIn>

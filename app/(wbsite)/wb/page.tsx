@@ -180,7 +180,7 @@ export default function WBHomePage() {
       <section className="relative overflow-hidden bg-white">
         <WBRibbon id="hero-r" className="right-0 top-0 h-[220px] w-[80%] opacity-60 sm:h-[380px] sm:w-[50%] sm:opacity-80 lg:h-[540px] lg:w-[40%] lg:opacity-95" />
         <WBRibbon id="hero-l" className="left-0 top-0 hidden h-[460px] w-[32%] -scale-x-100 opacity-40 lg:block" />
-        <div className="relative mx-auto max-w-6xl px-5 pt-16 text-center sm:px-8 sm:pt-24">
+        <div className="relative mx-auto max-w-6xl px-5 pt-[8.5rem] text-center sm:px-8 sm:pt-[11rem]">
           <AnimateIn>
             <h1 className="mx-auto max-w-5xl text-[2.6rem] font-extrabold leading-[1.04] tracking-[-0.03em] text-gray-900 sm:text-[4.2rem] xl:text-[5rem]">
               The one place to run <br className="hidden sm:block" />
@@ -239,7 +239,7 @@ export default function WBHomePage() {
                 <br />
                 not mockups
               </p>
-              <WBScribble variant="down" delay={0.6} className="h-[78px] w-[60px] flex-none" />
+              <WBScribble variant="droop" delay={0.6} className="h-[78px] w-[60px] flex-none" />
             </div>
             <WBFeatureTabs />
           </AnimateIn>
@@ -306,7 +306,7 @@ export default function WBHomePage() {
                 <br />
                 Hover to stop it.
               </p>
-              <WBScribble variant="down" delay={0.5} className="h-[78px] w-[60px] flex-none" />
+              <WBScribble variant="droop" delay={0.5} className="h-[78px] w-[60px] flex-none" />
             </div>
           </div>
           <div className="mt-14">
@@ -334,7 +334,7 @@ export default function WBHomePage() {
                 <br />
                 Nothing hidden.
               </p>
-              <WBScribble variant="loop" delay={0.4} className="h-[58px] w-[90px] rotate-[62deg]" />
+              <WBScribble variant="droop" delay={0.4} className="h-[80px] w-[62px] flex-none" />
             </div>
           </AnimateIn>
           <div className="mt-12 grid gap-5 md:grid-cols-3">

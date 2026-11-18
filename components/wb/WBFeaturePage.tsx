@@ -97,7 +97,7 @@ export default function WBFeaturePage({
                   <br />
                   not a mockup
                 </p>
-                <WBScribble variant="loop" delay={0.4} className="h-[56px] w-[88px] rotate-[64deg]" />
+                <WBScribble variant="droop" delay={0.4} className="h-[80px] w-[62px] flex-none" />
               </div>
               <div className="mx-auto max-w-4xl">
                 <WBScreenshotFrame {...screenshot} />

@@ -5,7 +5,7 @@ import Image from "next/image";
  * David's art (2026-11-18), background removed, at public/wb/koala.webp
  * (988 x 1536 source, 1000 px tall). He has no name: the site calls him
  * "our mascot". Where he appears (David's pick): the contact page, the book-a-call page
- * and the site's 404. Keep him to those unless David adds a place.
+ * the site's 404, and the floating contact launcher (WBContactButton). Keep him to those unless David adds a place.
  */
 export const KOALA = {
   src: "/wb/koala.webp",

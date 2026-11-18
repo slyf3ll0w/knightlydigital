@@ -25,6 +25,22 @@ const PATHS = {
     head: "M34 86 L44 96 L51 83",
     sparks: ["M9 14 L3 11", "M10 22 L4 24", "M15 28 L12 34"],
   },
+  /** Loop-free, pointing DOWN (from the app's set, components/ds/arrows.ts):
+   *  one easy curve that bows right and lands on its target. Use these on the
+   *  site; "loop" and "down" cross over themselves (David 2026-11-18). */
+  droop: {
+    viewBox: "0 0 80 104",
+    body: "M18 10 C 70 20, 62 70, 42 94",
+    head: "M54.4 90 L42 94 L43.1 79.5",
+    sparks: ["M10 6 L4 3", "M8 14 L2 15", "M12 20 L9 26"],
+  },
+  /** Loop-free, pointing DOWN: a gentle S. */
+  ess: {
+    viewBox: "0 0 80 104",
+    body: "M24 8 C 62 22, 16 62, 40 94",
+    head: "M38.9 81 L40 94 L26.2 89.6",
+    sparks: ["M14 12 L8 9", "M12 20 L6 21", "M16 27 L12 32"],
+  },
   swoop: {
     viewBox: "0 0 140 70",
     body: "M6 50 C 30 18, 76 6, 104 22 C 116 29, 124 38, 130 48",

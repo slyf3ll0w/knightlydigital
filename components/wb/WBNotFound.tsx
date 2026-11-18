@@ -21,7 +21,7 @@ export default function WBNotFound() {
     <>
         <section className="relative overflow-hidden border-b border-gray-200">
           <div className="wb-bloom absolute inset-0" aria-hidden />
-          <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 py-14 sm:px-8 sm:py-20 lg:grid-cols-[1.2fr_1fr]">
+          <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-5 pb-14 pt-[7.5rem] sm:px-8 sm:pb-20 sm:pt-[9.5rem] lg:grid-cols-[1.2fr_1fr]">
             <div>
               <h1 className="mt-4 text-4xl font-extrabold leading-[1.06] text-gray-900 sm:text-[3.4rem]">
                 This page isn&apos;t on the schedule.

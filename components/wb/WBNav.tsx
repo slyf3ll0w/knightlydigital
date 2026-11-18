@@ -69,6 +69,7 @@ export default function WBNav() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [hidden, setHidden] = useState(false);
 
   // Close the phone menu on navigation.
   useEffect(() => {
@@ -76,7 +77,18 @@ export default function WBNav() {
   }, [pathname]);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
+    // Floats over the top of each hero; slides away while reading down the
+    // page and comes back on the first scroll up, so it never sits on top
+    // of what someone is reading (David round 6).
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      setScrolled(y > 24);
+      if (Math.abs(y - last) > 6) {
+        setHidden(y > last && y > 160);
+        last = y;
+      }
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -88,7 +100,10 @@ export default function WBNav() {
   };
 
   return (
-    <header className="sticky top-0 z-50 px-2 pt-2 sm:px-3 sm:pt-3">
+    <header
+      onFocusCapture={() => setHidden(false)}
+      className={`fixed inset-x-0 top-0 z-50 px-2 pt-2 transition-transform duration-300 sm:px-3 sm:pt-3 ${hidden && !open ? "-translate-y-[120%]" : "translate-y-0"}`}
+    >
       {/* frosted glass bar (round 5: no gradient edge) */}
       <div
         className={`mx-auto max-w-[1240px] rounded-2xl border border-white/70 bg-white/80 ring-1 ring-black/[0.06] backdrop-blur-xl backdrop-saturate-150 transition-shadow duration-300 ${

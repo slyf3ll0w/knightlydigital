@@ -121,7 +121,7 @@ export default async function WBApplyPage({ searchParams }: { searchParams: Prom
           <p className="pb-2 text-[15px] font-extrabold leading-snug text-[#10244A]">Three steps,
             <br />
             then you are in</p>
-          <WBScribble variant="loop" delay={0.6} className="h-[60px] w-[92px] rotate-[80deg]" />
+          <WBScribble variant="droop" delay={0.6} className="h-[80px] w-[62px] flex-none" />
         </div>
       </WBSplitHero>
 

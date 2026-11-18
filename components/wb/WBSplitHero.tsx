@@ -54,13 +54,13 @@ export default function WBSplitHero({
         )}
         {mascot && <div className="wb-dark absolute inset-0" aria-hidden />}
 
-        <div className={`relative mx-auto grid max-w-6xl items-center gap-10 px-5 pt-16 sm:px-8 sm:pt-24 lg:min-h-[560px] lg:grid-cols-[1.1fr_1fr] ${mascot ? "pb-0" : "pb-16 sm:pb-24"}`}>
+        <div className={`relative mx-auto grid max-w-6xl items-center gap-10 px-5 pt-28 sm:px-8 sm:pt-36 lg:min-h-[600px] lg:grid-cols-[1.1fr_1fr] ${mascot ? "pb-0" : "pb-16 sm:pb-24"}`}>
           <div className={`text-center lg:text-left ${mascot ? "pb-6 lg:pb-24" : ""}`}>
             {children}
             {note && (
               <div className="mt-6 hidden items-end gap-1 lg:flex" aria-hidden>
                 <p className="pb-2 text-[15px] font-extrabold leading-snug text-white">{note}</p>
-                <WBScribble variant="loop" tone="chalk" delay={0.6} className="h-[60px] w-[92px] rotate-[80deg]" />
+                <WBScribble variant="droop" tone="chalk" delay={0.6} className="h-[80px] w-[62px] flex-none" />
               </div>
             )}
             {mascot && chip && <div className="mt-8 flex justify-center lg:justify-start"><Plate chip={chip} /></div>}

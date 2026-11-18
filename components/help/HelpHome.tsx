@@ -88,7 +88,7 @@ export default function HelpHome({
       <section className={`help-hero`}>
         <div
           className={`mx-auto max-w-6xl px-5 pb-12 text-center sm:px-8 sm:pb-16 ${
-            inApp ? "pt-12 sm:pt-16" : "pt-12 sm:pt-16"
+            inApp ? "pt-12 sm:pt-16" : "pt-[8rem] sm:pt-[10rem]"
           }`}
         >
           <h1 className="text-4xl font-extrabold leading-[1.08] sm:text-5xl">

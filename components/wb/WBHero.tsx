@@ -24,7 +24,7 @@ export default function WBHero({
       {ribbon && (
         <WBRibbon className="right-0 top-0 h-[200px] w-[75%] opacity-60 sm:h-[340px] sm:w-[60%] sm:opacity-80 lg:h-full lg:max-h-[560px] lg:w-[52%] lg:opacity-100" />
       )}
-      <div className={`relative mx-auto max-w-6xl px-5 pb-14 pt-12 sm:px-8 sm:pb-20 sm:pt-16 ${containerClassName}`}>
+      <div className={`relative mx-auto max-w-6xl px-5 pb-14 pt-[7.5rem] sm:px-8 sm:pb-20 sm:pt-[9.5rem] ${containerClassName}`}>
         {children}
       </div>
     </section>

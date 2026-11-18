@@ -78,7 +78,7 @@ WorkBench colors only (David round 4): navy #0A1428, blue #0B57D8 / #2E6FF2, ora
 ## The mascot
 
 David's koala (`public/wb/koala.webp`, `components/wb/WBKoala.tsx`), called
-"our mascot", no name. He appears on the contact page, book-a-call and the
-404 only (David's pick). `WBSplitHero mascot={{ say }}` puts him on the navy
+"our mascot", no name. He appears on the contact page, book-a-call, the 404
+and the floating contact launcher (his face is the button) only. `WBSplitHero mascot={{ say }}` puts him on the navy
 panel with a speech bubble. Transparent PNG for other uses:
 ~/Downloads/WorkBench koala (transparent)/workbench-koala.png.

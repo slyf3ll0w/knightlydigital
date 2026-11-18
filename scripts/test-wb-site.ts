@@ -231,6 +231,7 @@ for (const v of VS_LIST) {
   const BANNED: { re: RegExp; why: string }[] = [
     { re: /\bwb-float\b/, why: "floating cards (wb-float)" },
     { re: /radial-gradient\(/, why: "colored glow (radial-gradient)" },
+    { re: /variant=["{][^>]*"(loop|down)"/, why: "a looping hand-drawn arrow (use droop, ess or swoop; David 2026-11-18: arrows drew over themselves)" },
     { re: /bg-\[size:\d+px|bg-grid|wp-grid/, why: "a grid / graph-paper background (David 2026-11-18: the worst offender)" },
     { re: /<WBPhoneReal\b|<WBZoom\b/, why: "phone mockup in a hero (WBPhoneReal / WBZoom)" },
     { re: /rounded-full px-3 py-1 text-\[12\.5px\] font-bold/, why: "pill eyebrow over a title (use <p className=\"wb-label\">)" },

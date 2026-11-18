@@ -136,7 +136,7 @@ export default function WBDayOnTheJob() {
               {/* the arrow on to the next stop (desktop, where they sit side by side) */}
               {i < stops.length - 1 && (
                 <WBScribble
-                  variant={i === 0 ? "loop" : "swoop"}
+                  variant="swoop"
                   delay={0.6 + i * 0.3}
                   className="absolute -right-[4.2rem] top-[-2.6rem] z-10 hidden h-[64px] w-[100px] md:block lg:-right-[5rem] lg:w-[112px]"
                 />
