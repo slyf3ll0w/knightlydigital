@@ -20,7 +20,7 @@ import { QUOTED_TEXT_RULE, quoted } from "@/lib/assistant/untrusted";
 export const CONNECTOR_READ = [
   "query_records", "report", "search_clients", "list_clients", "get_client_activity", "get_client_notes", "get_client_details", "get_statement",
   "list_pipeline", "get_document", "get_lead_board", "get_schedule", "get_job_checklist", "team_map", "get_route_plan", "list_places", "find_a_time",
-  "list_money", "business_summary", "lead_source_report", "list_subscriptions", "list_expenses", "list_agreements", "list_agreement_templates", "whats_needing_attention", "list_follow_ups",
+  "list_money", "business_summary", "lead_source_report", "list_subscriptions", "list_expenses", "list_agreements", "list_agreement_templates", "whats_needing_attention",
   "get_price_book", "get_company_settings", "list_team", "list_calls", "run_estimator", "list_job_photos", "read_team_chat", "help_search",
 ] as const;
 
@@ -36,7 +36,7 @@ export const CONNECTOR_PREPARE = [
   "create_agreement_template", "update_agreement_template", "send_agreement", "update_agreement",
   "update_company_settings", "set_business_hours", "create_service", "update_service", "manage_client_fields", "manage_booking_item",
   "add_team_member", "update_team_member", "update_team_policy",
-  "delete_record", "manage_sticky_notes", "browse_library", "add_sticky_note", "manage_task", "update_follow_up",
+  "delete_record", "manage_sticky_notes", "browse_library", "add_sticky_note", "manage_task",
 ] as const;
 
 /** Why each of these stays inside Workbench. */

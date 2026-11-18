@@ -1969,6 +1969,10 @@ model ConnectorAction {
   @@index([companyId])
 }
 
+// PARKED 2026-11-17: the Follow-ups feature is archived on branch
+// `follow-ups-archive` and no code reads this table. It stays in the schema
+// because staging already created it, and removing it would be a table drop
+// the deploy guard refuses. Empty and harmless.
 // A person's answer to a follow-up the app offered (lib/follow-ups.ts,
 // docs/plans/ai-workers-follow-ups-2026-11-17.md): "not now" (until set) or
 // "do not follow up on this one" (until null). One per quote or invoice.

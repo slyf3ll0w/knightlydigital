@@ -20,7 +20,6 @@ import {
   Plus,
   SquareKanban,
   ListChecks,
-  MessageSquareReply,
 } from "lucide-react";
 import { money, appointmentTypeLabel } from "@/lib/statuses";
 import { invoiceBalance } from "@/lib/payments";
@@ -37,7 +36,6 @@ import { loadGetStarted } from "@/lib/get-started";
 import { featureAllowedFor } from "@/lib/plan-gate";
 import DashboardTasks from "./DashboardTasks";
 import { dashboardTasks } from "@/lib/tasks";
-import { countFollowUps } from "@/lib/follow-ups-server";
 import UpNextActions from "./UpNextActions";
 import AtlasHomeButton from "@/components/AtlasHomeButton";
 import SwipeRowContact from "@/components/SwipeRowContact";
@@ -141,7 +139,6 @@ export default async function DashboardPage() {
     newLeads,
     taskLists,
     payoutNudge,
-    followUps,
   ] = await Promise.all([
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEW" } }),
     prisma.request.count({ where: { companyId, ...leadScope, status: "NEEDS_APPROVAL" } }),
@@ -268,8 +265,6 @@ export default async function DashboardPage() {
           .findUnique({ where: { companyId }, select: { payoutStatus: true } })
           .then((c) => c?.payoutStatus === "NONE")
       : Promise.resolve(false),
-    // Quotes and unpaid invoices worth a personal nudge today (lib/follow-ups.ts)
-    sell || seeMoney ? countFollowUps(actor) : Promise.resolve(0),
   ]);
   const todayTasks = taskLists.today;
   const overdueTasks = taskLists.overdue;
@@ -330,16 +325,6 @@ export default async function DashboardPage() {
       action: "Send a reminder",
       href: "/app/invoices?status=PAST_DUE",
       urgent: true,
-    },
-    {
-      show: sell || seeMoney,
-      count: followUps,
-      icon: MessageSquareReply,
-      hue: SECTION_HUES.quotes,
-      title: plural(followUps, "Follow-up worth sending", "Follow-ups worth sending"),
-      action: "Read the draft and send it",
-      href: "/app/follow-ups",
-      urgent: false,
     },
     {
       show: true,

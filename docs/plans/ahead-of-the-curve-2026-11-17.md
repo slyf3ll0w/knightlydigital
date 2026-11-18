@@ -16,10 +16,14 @@ The answer key and runner (`estimator-standard-2026-11-14.md`) are live. The
 next step, per-company corrections, is built: see
 `estimator-corrections-2026-11-17.md`.
 
-## 2. Back-office workers that draft, with a person sending — FIRST ONE BUILT
+## 2. Back-office workers that draft, with a person sending
 
-The first worker, Follow-ups, is built: see `ai-workers-follow-ups-2026-11-17.md`,
-which also writes down the pattern the next ones follow.
+The first worker, Follow-ups (stale quotes and unpaid invoices), was built and
+then archived on 2026-11-17 at David's request: he was not sure about it going
+live. Everything is on branch `follow-ups-archive` (tag
+`follow-ups-archive-2026-11-17`), including its plan doc
+`docs/plans/ai-workers-follow-ups-2026-11-17.md` and both scorecards. Nothing of
+it is in the app.
 
 Keeps David's rule (2026-11-14): AI does not talk to customers, people do.
 

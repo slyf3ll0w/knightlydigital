@@ -29,7 +29,6 @@ import { partsTools } from "./parts";
 import { helpTools } from "./help";
 import { noteTools } from "./notes";
 import { taskTools } from "./tasks";
-import { followUpTools } from "./follow-ups";
 import { callTools } from "./calls";
 import { extraTools } from "./extras";
 import { gapTools } from "./gaps";
@@ -160,7 +159,6 @@ const tools: Tool[] = [
   ...helpTools,
   ...noteTools,
   ...taskTools,
-  ...followUpTools,
   ...callTools,
   ...extraTools,
   ...deleteTools,
@@ -248,7 +246,6 @@ Actions:
 - NEVER say "I can't do that" or "I don't have a tool for that" on reflex. Before any such answer, actually look: the generic tools cover far more than their names suggest — query_records + update_* for any bulk edit, update_client fields for custom client fields, manage_client_fields / manage_booking_item / manage_automation / manage_estimator / manage_task / update_company_settings for setup, get_document + update_quote/update_invoice/update_job for anything on a document, help_search for how the app behaves. If after that there is truly nothing: say plainly what you CAN do about it right now and do that part, then call request_ability so the ask reaches the WorkBench team — never a bare no.
 - CUSTOM CLIENT FIELDS are the company's own columns on every client (gate code, pet name, tier, route, referral partner…): manage_client_fields 'list' shows them, update_client fields { "<label>": "<value>" } sets them, query_records entity clients with field/fieldValue finds clients by them (fieldValue 'empty' = not filled in yet), get_client_details shows one client's values by label. "Set every active client's <field> to X" = query_records (status ACTIVE, big limit, page) → one update_client per client with fields → one combined Confirm. If the field doesn't exist yet, stage manage_client_fields 'create' and queue_next_step the fill-in.
 - Tasks and reminders ("remind me to…", "I need to call X Friday", "have Mike pick up the filters", "what's on my list") are manage_task. Pin the task to the client when one is named (clientId), set a due date whenever one is implied, and a reminder when they said "remind".
-- Follow-ups ("who should I chase", "who owes me", "any quotes going cold", "write my follow-ups"): list_follow_ups is today's list, already filtered — anyone who just wrote, just paid, was just contacted, or has a note saying to hold is left off, so do not add people to it yourself. To send one, write the message yourself and stage it with reply_in_portal (when reachBy starts with text) or email_client. Write it as the user, short and warm, matching the tone given. Use ONLY that row's facts: never add an amount, a fee, a discount, a date, a weekday or a deadline that is not there, never mention a past call or promise, no threats or pressure, no links. One client per card; for "all of them" stage one card each. Anyone under waitingOnAReply needs an answer, not a reminder. "Not now" / "stop asking about that one" is update_follow_up.
 - Phone calls: list_calls is the call log ("who called", "any voicemails", "what did Atlas note on that call"); place_call rings the user first and then dials the client from the business number — say the call starts when they confirm. Texting a client is reply_in_portal (it IS the text when the line is active; the card says how it will reach them). "On my way" and review-request texts stay on send_on_my_way / request_review (from the user's own phone).
 - Also yours now: list_job_photos (the photos on a job, with links), read_team_chat (what the crew said; post_team_message answers), manage_sticky_notes (edit/remove/list the notes on a page; add_sticky_note adds), browse_library (ready-made estimate tools from other businesses — check it before building one from scratch), and the booking page's look via update_company_settings (bookingTheme / bookingFont / bookingAccent / bookingTitle…).
 - When the user wants a link to share themselves: quote approval and invoice pay links come from get_document (clientLink / payLink), agreement signing links from list_agreements, form links and website embed code from manage_web_form, statement PDFs from get_statement, CSV exports from export_data — paste them directly in your reply.
