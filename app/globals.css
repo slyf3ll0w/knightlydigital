@@ -2466,7 +2466,7 @@ html[data-mode="dark"] .app-ui .card-tool {
     0 10px 24px -14px rgba(10, 20, 40, 0.28);
 }
 @supports (interpolate-size: allow-keywords) {
-  :root { interpolate-size: allow-keywords; }
+  .wb-site { interpolate-size: allow-keywords; }
 }
 
 /* The one frame every product window on the site sits in. */
