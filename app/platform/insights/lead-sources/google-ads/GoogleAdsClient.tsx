@@ -290,14 +290,16 @@ export default function GoogleAdsClient({
                     {connect.needsReconnect ? <Chip tone="bad">Needs you</Chip> : <Chip tone="good">Connected</Chip>}
                     <span className="min-w-0 truncate text-[14.5px] font-medium text-[color:var(--ds-ink)]">
                       {connect.accountName}
-                      {connect.customerId ? <span className="ds-num font-normal text-[color:var(--ds-muted)]"> · {prettyCustomerId(connect.customerId)}</span> : null}
+                      {connect.customerId && connect.accountName !== prettyCustomerId(connect.customerId) ? <span className="ds-num font-normal text-[color:var(--ds-muted)]"> · {prettyCustomerId(connect.customerId)}</span> : null}
                     </span>
                   </div>
                   <p className="ds-small mt-1">
                     {connect.needsReconnect
                       ? "Google no longer accepts this sign-in. Connect again to keep reporting."
                       : connect.lastSyncAt
-                        ? `Last sent ${at(connect.lastSyncAt)} · ${connect.lastSyncCount ?? 0} ${connect.lastSyncCount === 1 ? "payment" : "payments"}`
+                        ? connect.lastSyncCount
+                          ? `Last sent ${at(connect.lastSyncAt)} · ${connect.lastSyncCount} ${connect.lastSyncCount === 1 ? "payment" : "payments"}`
+                          : `Last checked ${at(connect.lastSyncAt)} · no payments from ad leads to send yet`
                         : "First send is on its way."}
                   </p>
                   {connect.lastError && !connect.needsReconnect && (

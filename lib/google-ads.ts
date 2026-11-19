@@ -29,6 +29,7 @@ import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, 
 import type { GoogleAdsConnection } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { reportError } from "@/lib/report-error";
+import { ADS_SAMPLE_GCLID, conversionTime } from "@/lib/ads-conversions";
 import { loadAdsConversions } from "@/lib/ads-conversions-server";
 import {
   CLIENT_ACCOUNTS_QUERY,
@@ -72,7 +73,9 @@ function redirectUri(): string {
 export class GoogleAdsError extends Error {
   constructor(
     message: string,
-    public readonly reconnect = false
+    public readonly reconnect = false,
+    /** Google's HTTP status, when the refusal came from a Google call. */
+    public readonly status = 0
   ) {
     super(message);
   }
@@ -192,7 +195,7 @@ async function googleJson(url: string, token: string, init: { method?: "GET" | "
     signal: AbortSignal.timeout(30_000),
   });
   const json = (await res.json().catch(() => null)) as unknown;
-  if (!res.ok) throw new GoogleAdsError(googleErrorText(json, res.status), needsReconnect(res.status, json));
+  if (!res.ok) throw new GoogleAdsError(googleErrorText(json, res.status), needsReconnect(res.status, json), res.status);
   return json;
 }
 
@@ -324,14 +327,26 @@ export async function syncCompany(companyId: string, now = new Date()): Promise<
   if (!connection?.customerId || !connection.conversionActionId) return { ok: false, error: "Google Ads isn't fully connected yet." };
   try {
     const summary = await loadAdsConversions(companyId, now);
+    const token = await accessTokenFor(connection);
+    const target = {
+      customerId: connection.customerId,
+      loginCustomerId: connection.loginCustomerId ?? connection.customerId,
+      conversionActionId: connection.conversionActionId,
+    };
     if (summary.rows.length > 0) {
-      const token = await accessTokenFor(connection);
-      const bodies = ingestBodies(summary.rows, {
-        customerId: connection.customerId,
-        loginCustomerId: connection.loginCustomerId ?? connection.customerId,
-        conversionActionId: connection.conversionActionId,
-      });
-      for (const body of bodies) await googleJson(DATA_MANAGER_INGEST_URL, token, { body });
+      for (const body of ingestBodies(summary.rows, target)) await googleJson(DATA_MANAGER_INGEST_URL, token, { body });
+    } else {
+      // Nothing to report yet: still prove the road is open. A validate-only request reaches Google's
+      // Data Manager with this sign-in, account and conversion action, and stores nothing. Refused for
+      // access (401 / 403) = a real problem the owner has to see. Any other refusal is about the made-up
+      // sample event, not the connection, so it is logged for us and not shown.
+      const [check] = ingestBodies([{ paymentId: "workbench-connection-check", contactId: "", gclid: ADS_SAMPLE_GCLID, time: conversionTime(now), value: 1 }], target, { validateOnly: true });
+      try {
+        await googleJson(DATA_MANAGER_INGEST_URL, token, { body: check });
+      } catch (err) {
+        if (err instanceof GoogleAdsError && (err.reconnect || err.status === 401 || err.status === 403)) throw err;
+        console.warn("[google-ads] connection check answered:", err instanceof Error ? err.message : err);
+      }
     }
     await prisma.googleAdsConnection.update({
       where: { id: connection.id },
