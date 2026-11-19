@@ -101,17 +101,22 @@ export default function WBNav() {
     return bases.some((b) => pathname === b || pathname.startsWith(`${b}/`));
   };
 
+  // Direction mockup (/wb/preview, 2026-11-19): the bar docked flush to the
+  // top edge, full width, instead of floating. Decided there, then here.
+  const docked = pathname === "/wb/preview";
+
   return (
     <header
       onFocusCapture={() => setHidden(false)}
-      className={`fixed inset-x-0 top-0 z-50 px-2 pt-2 transition-transform duration-300 sm:px-3 sm:pt-3 ${hidden && !open ? "-translate-y-[120%]" : "translate-y-0"}`}
+      className={`fixed inset-x-0 top-0 z-50 transition-transform duration-300 ${docked ? "" : "px-2 pt-2 sm:px-3 sm:pt-3"} ${hidden && !open ? "-translate-y-[120%]" : "translate-y-0"}`}
     >
-      {/* frosted glass bar (round 5: no gradient edge) */}
       <div
-        className={`mx-auto max-w-[1240px] rounded-xl bg-white transition-shadow duration-300 ${
-          scrolled
+        className={`mx-auto bg-white transition-shadow duration-300 ${
+          docked
+            ? "max-w-none border-b border-gray-200 shadow-[0_1px_2px_rgba(10,20,40,0.06)] [&>div>div]:mx-auto [&>div>div]:max-w-7xl [&>div>div]:px-5 sm:[&>div>div]:px-8"
+            : `max-w-[1240px] rounded-xl ${scrolled
             ? "shadow-[0_0_0_1px_rgba(10,20,40,0.07),0_1px_2px_rgba(10,20,40,0.06),0_18px_40px_-18px_rgba(10,20,40,0.35)]"
-            : "shadow-[0_0_0_1px_rgba(10,20,40,0.06),0_1px_2px_rgba(10,20,40,0.05),0_12px_30px_-18px_rgba(10,20,40,0.28)]"
+            : "shadow-[0_0_0_1px_rgba(10,20,40,0.06),0_1px_2px_rgba(10,20,40,0.05),0_12px_30px_-18px_rgba(10,20,40,0.28)]"}`
         }`}
       >
         <div>

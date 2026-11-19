@@ -225,8 +225,8 @@ for (const v of VS_LIST) {
   for (const f of pageFiles) {
     const src = readFileSync(f, "utf8");
     const rel = f.slice(process.cwd().length + 1);
-    // The home page builds its own hero (the desktop app on the navy band).
-    if (!/[\\/]wb[\\/]page\.tsx$/.test(f)) check(HERO.test(src), `design: ${rel} opens without a shared hero (use WBPageHeader, WBSplitHero or a page template)`);
+    // The home page (and its direction mockup, /wb/preview) builds its own hero.
+    if (!/[\\/]wb[\\/](preview[\\/])?page\.tsx$/.test(f)) check(HERO.test(src), `design: ${rel} opens without a shared hero (use WBPageHeader, WBSplitHero or a page template)`);
   }
   const BANNED: { re: RegExp; why: string }[] = [
     { re: /\bwb-float\b/, why: "floating cards (wb-float)" },
