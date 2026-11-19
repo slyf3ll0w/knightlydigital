@@ -84,7 +84,7 @@ export default function WBTryIt({ initialQuote, bookingPath, hubPath }: { initia
 
   return (
     <div>
-      <div role="tablist" aria-label="Try WorkBench" className="wb-seg max-w-full overflow-x-auto">
+      <div role="tablist" aria-label="Try WorkBench" className="wb-seg flex w-full sm:inline-flex sm:w-auto">
         {thumb && <span className="wb-seg-thumb" style={{ left: thumb.left, width: thumb.width }} aria-hidden />}
         {TABS.map(({ id, label, icon: Icon }) => {
           const on = id === tab;
@@ -98,9 +98,9 @@ export default function WBTryIt({ initialQuote, bookingPath, hubPath }: { initia
               role="tab"
               aria-selected={on}
               onClick={() => pick(id)}
-              className={`wb-seg-btn whitespace-nowrap ${on && !thumb ? "bg-[#0A1428]" : ""}`}
+              className={`wb-seg-btn flex-1 justify-center whitespace-nowrap sm:flex-none ${on && !thumb ? "bg-[#0A1428]" : ""}`}
             >
-              <Icon className={`h-4 w-4 transition-colors duration-300 ${on ? "text-[#FF8B33]" : "text-[#0B57D8]"}`} strokeWidth={2.25} />
+              <Icon className={`h-4 w-4 max-[400px]:hidden transition-colors duration-300 ${on ? "text-[#FF8B33]" : "text-[#0B57D8]"}`} strokeWidth={2.25} />
               {label}
             </button>
           );

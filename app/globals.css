@@ -2505,10 +2505,11 @@ html[data-mode="dark"] .app-ui .card-tool {
 .wb-site .reveal { transform: translateY(14px); transition: opacity 0.7s var(--wb-ease), transform 0.7s var(--wb-ease); }
 
 /* Segmented control (Try it tabs): one track, a thumb that slides. */
-.wb-seg { position: relative; display: inline-flex; gap: 2px; padding: 4px; border-radius: 0.625rem; background: #EDF0F5; box-shadow: inset 0 1px 2px rgba(10, 20, 40, 0.08); }
+.wb-seg { position: relative; gap: 2px; padding: 4px; border-radius: 0.625rem; background: #EDF0F5; box-shadow: inset 0 1px 2px rgba(10, 20, 40, 0.08); }
 .wb-seg-thumb { position: absolute; top: 4px; bottom: 4px; border-radius: 0.5rem; background: #0A1428; box-shadow: 0 1px 2px rgba(10, 20, 40, 0.3), 0 6px 14px -6px rgba(10, 20, 40, 0.5); transition: left 0.35s var(--wb-ease), width 0.35s var(--wb-ease); }
 .wb-seg-btn { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 0.5rem; border-radius: 0.5rem; padding: 0.6rem 1rem; font-size: 15px; font-weight: 700; color: #374151; transition: color 0.25s var(--wb-ease), transform 0.12s var(--wb-ease); }
 .wb-seg-btn:hover { color: #0A1428; }
+@media (max-width: 639px) { .wb-seg-btn { padding: 0.6rem 0.5rem; font-size: 14px; } }
 .wb-seg-btn:active { transform: scale(0.97); }
 .wb-seg-btn[aria-selected="true"] { color: #fff; }
 
