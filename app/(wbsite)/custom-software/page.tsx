@@ -105,7 +105,7 @@ export default function WBCustomSoftwarePage() {
               <WBScribble variant="droop" delay={0.5} className="h-[78px] w-[60px] flex-none" />
             </div>
           </AnimateIn>
-          <div className="mt-14 grid border-t-2 border-[#0A1428] md:grid-cols-2 md:gap-x-14">
+          <div className="mt-14 grid border-t-2 border-[#0A1428] md:grid-cols-2 md:gap-x-14 xl:mt-24">
             {builds.map(({ icon: Icon, title, body }, i) => (
               <AnimateIn key={title} delay={(i % 2) * 90} className="flex gap-5 border-b border-gray-200 py-7">
                 <span className="flex h-11 w-11 flex-none items-center justify-center rounded-lg bg-[#0A1428] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_6px_14px_-6px_rgba(10,20,40,0.5)]">
@@ -185,9 +185,7 @@ export default function WBCustomSoftwarePage() {
             </ul>
           </AnimateIn>
           <AnimateIn delay={110}>
-            <div className="wb-window p-2 sm:p-4">
-              <WBEmbedForm path="custom-software-inquiry" title="Custom Software Inquiry — WorkBench" />
-            </div>
+            <WBEmbedForm path="custom-software-inquiry" title="Custom Software Inquiry — WorkBench" />
           </AnimateIn>
         </div>
       </section>

@@ -133,11 +133,11 @@ export default function WBNav() {
               width={1054}
               height={199}
               priority
-              className={`w-auto transition-all duration-300 ${scrolled ? "h-[26px]" : "h-[28px] lg:h-[34px]"}`}
+              className={`w-auto transition-all duration-300 ${scrolled ? "h-[26px]" : "h-[28px] lg:h-[31px]"}`}
             />
           </Link>
 
-          <nav ref={navRef} onMouseLeave={() => setHl(null)} className="relative ml-2 hidden h-full items-stretch lg:flex" aria-label="Primary">
+          <nav ref={navRef} onMouseLeave={() => setHl(null)} className="relative ml-1 hidden h-full items-stretch lg:flex" aria-label="Primary">
             <span
               aria-hidden
               className={`pointer-events-none absolute top-1/2 h-[40px] -translate-y-1/2 rounded-lg bg-[#EEF3FD] transition-[left,width,opacity] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${hl ? "opacity-100" : "opacity-0"}`}
@@ -152,7 +152,7 @@ export default function WBNav() {
                     onFocus={(e) => hoverLink(e.currentTarget)}
                     href={l.href}
                     aria-current={active && pathname === l.href ? "page" : undefined}
-                    className={`wb-navlink relative my-3 inline-flex items-center gap-1 rounded-lg px-3 text-[15px] font-bold transition-colors xl:px-3.5 ${
+                    className={`wb-navlink relative my-3 inline-flex items-center gap-1 whitespace-nowrap rounded-lg px-2.5 text-[15px] font-bold transition-colors xl:px-3 ${
                       active ? "text-[#0B57D8]" : "text-gray-700 hover:text-[#0B57D8]"
                     }`}
                     data-active={active || undefined}
@@ -188,18 +188,18 @@ export default function WBNav() {
             })}
           </nav>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-2">
             <a href={WB_PHONE.href} className="group/ph hidden items-center gap-2.5 xl:flex">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0A1428] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_4px_10px_-4px_rgba(10,20,40,0.5)] transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] group-hover/ph:-rotate-[14deg]">
                 <Phone className="h-[15px] w-[15px] fill-[#FF8B33] text-[#FF8B33]" strokeWidth={2} aria-hidden />
               </span>
               <span className="leading-tight">
-                <span className="block text-[11.5px] font-semibold text-gray-500">Talk to a person</span>
-                <span className="block text-[15px] font-extrabold tabular-nums text-gray-900 transition-colors group-hover/ph:text-[#0B57D8]">{WB_PHONE.display}</span>
+                <span className="block whitespace-nowrap text-[11.5px] font-semibold text-gray-500">Talk to a person</span>
+                <span className="block whitespace-nowrap text-[15px] font-extrabold tabular-nums text-gray-900 transition-colors group-hover/ph:text-[#0B57D8]">{WB_PHONE.display}</span>
               </span>
             </a>
-            <span className="mx-2.5 hidden h-8 w-px bg-gray-200 xl:block" aria-hidden />
-            <Link href="/app/login" className="hidden px-3 text-[14.5px] font-bold text-gray-700 transition-colors hover:text-[#0B57D8] sm:block">
+            <span className="mx-2 hidden h-8 w-px bg-gray-200 xl:block" aria-hidden />
+            <Link href="/app/login" className="hidden whitespace-nowrap px-2 text-[14.5px] font-bold text-gray-700 transition-colors hover:text-[#0B57D8] sm:block">
               Log in
             </Link>
             <Link href="/apply" className="wb-btn wb-pill wb-pill-orange wb-pill-sm">

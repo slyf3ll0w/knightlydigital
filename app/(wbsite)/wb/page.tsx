@@ -311,7 +311,7 @@ export default function WBHomePage() {
             </Link>
           </AnimateIn>
           <AnimateIn delay={120} className="relative">
-            <div className="absolute -left-36 top-6 z-20 hidden items-start gap-1 xl:flex" aria-hidden>
+            <div className="absolute right-[calc(100%+0.5rem)] top-6 z-20 hidden items-start gap-1 xl:flex" aria-hidden>
               <p className="pt-1 text-right text-[15px] font-extrabold leading-snug text-white">
                 Talk,
                 <br />
@@ -381,7 +381,7 @@ export default function WBHomePage() {
               {[
                 {
                   head: `${FREE_PLAN_NAME} plan`,
-                  big: <WBMarker shape="circle" delay={0.7}>$0</WBMarker>,
+                  big: <span className="mr-1.5"><WBMarker shape="circle" delay={0.7}>$0</WBMarker></span>,
                   unit: "a month",
                   body: `Everything you need, free for ${INCLUDED_SEATS} users. Not a trial. Extra users are ${formatCents(EXTRA_SEAT_CENTS)} a month each.`,
                 },
@@ -400,7 +400,7 @@ export default function WBHomePage() {
               ].map((c) => (
                 <div key={c.head} className="flex flex-col p-7 sm:p-8">
                   <p className="text-[15px] font-bold text-gray-600">{c.head}</p>
-                  <p className="mt-3 flex items-baseline gap-2">
+                  <p className="mt-3 flex items-baseline gap-2.5">
                     <span className="text-[3rem] font-extrabold leading-none tracking-[-0.02em] text-gray-900">{c.big}</span>
                     <span className="text-[15px] font-bold text-gray-500">{c.unit}</span>
                   </p>
