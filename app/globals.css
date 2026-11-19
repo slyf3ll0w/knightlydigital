@@ -2477,6 +2477,9 @@ html[data-mode="dark"] .app-ui .card-tool {
   box-shadow: var(--wb-shadow-window);
 }
 
+/* A card or panel lifted off the page (pricing panel, the active feature). */
+.wb-raised { box-shadow: var(--wb-shadow-raised); }
+
 /* Buttons: hover deepens the shadow, a press sinks a pixel. */
 .wb-pill {
   transition:

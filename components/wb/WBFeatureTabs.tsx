@@ -82,7 +82,7 @@ export default function WBFeatureTabs() {
           return (
             <li key={it.title}>
               <div
-                className={`relative overflow-hidden rounded-xl transition-[background-color,box-shadow] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${on ? "bg-white shadow-[var(--wb-shadow-raised)]" : "hover:bg-white/60"}`}
+                className={`relative overflow-hidden rounded-xl transition-[background-color,box-shadow] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${on ? "bg-white wb-raised" : "hover:bg-white/60"}`}
               >
                 <button
                   type="button"

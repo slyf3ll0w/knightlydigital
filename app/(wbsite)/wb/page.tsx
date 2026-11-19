@@ -328,7 +328,7 @@ export default function WBHomePage() {
             </p>
           </AnimateIn>
           <AnimateIn delay={100}>
-            <div className="mt-12 grid overflow-hidden rounded-xl bg-white shadow-[var(--wb-shadow-raised)] md:grid-cols-3 md:divide-x md:divide-gray-200 max-md:divide-y max-md:divide-gray-200">
+            <div className="mt-12 grid overflow-hidden rounded-xl bg-white wb-raised md:grid-cols-3 md:divide-x md:divide-gray-200 max-md:divide-y max-md:divide-gray-200">
               {[
                 {
                   head: `${FREE_PLAN_NAME} plan`,
@@ -360,7 +360,7 @@ export default function WBHomePage() {
               ))}
             </div>
           </AnimateIn>
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-3">
             <Link href="/apply" className="wb-pill wb-pill-orange">
               Get started free
               <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
