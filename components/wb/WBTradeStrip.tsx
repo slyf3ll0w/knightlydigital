@@ -31,7 +31,7 @@ export default function WBTradeStrip() {
           >
             <Image src={t.photo.src} alt="" fill sizes="280px" className="object-cover transition-transform duration-700 group-hover:scale-[1.06]" />
             <span className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/45 to-transparent" />
-            <span className="absolute bottom-4 left-4 rounded-lg bg-white px-3.5 py-2 text-[15px] font-extrabold text-gray-900 shadow-[0_10px_24px_-10px_rgba(0,0,0,0.5)] transition-colors group-hover:bg-[#0B57D8] group-hover:text-white">
+            <span className="wb-trade-label absolute bottom-4 left-4 rounded-lg bg-white px-3.5 py-2 text-[15px] font-extrabold text-gray-900 shadow-[0_10px_24px_-10px_rgba(0,0,0,0.5)] transition-colors group-hover:bg-[#0B57D8] group-hover:text-white">
               {t.name}
             </span>
           </Link>
