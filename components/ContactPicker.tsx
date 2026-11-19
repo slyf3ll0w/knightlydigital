@@ -39,6 +39,7 @@ export default function ContactPicker({
   className = "",
   allowCreate = true,
   onCreated,
+  createLocal,
 }: {
   contacts: PickerContact[];
   value: string;
@@ -55,6 +56,8 @@ export default function ContactPicker({
   allowCreate?: boolean;
   /** Told about a client created from the sheet (to merge into a parent list). */
   onCreated?: (c: PickerContact) => void;
+  /** Free tools: "New client" keeps the person in the page (see QuickContactSheet). */
+  createLocal?: React.ComponentProps<typeof QuickContactSheet>["onLocalCreate"];
 }) {
   // People created from the sheet, so they are pickable even when the
   // parent never re-fetches its list.
@@ -276,6 +279,7 @@ export default function ContactPicker({
           onClose={() => setCreateOpen(false)}
           onCreated={created}
           initialName={query}
+          onLocalCreate={createLocal}
         />
       )}
     </div>

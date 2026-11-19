@@ -23,6 +23,7 @@ import LineItemsEditor, {
 import EstimatorRunner, { takeEstimateDraft, type RunnerEstimator, type EstimatorApply } from "@/components/EstimatorRunner";
 import { Calculator } from "lucide-react";
 import { DateField } from "@/components/DateField";
+import { newLocalClient, type ToolClient, type ToolEditorMode } from "@/lib/tool-editor";
 
 type Contact = {
   id: string;
@@ -75,6 +76,7 @@ export default function QuoteEditor({
   requestTitle = "",
   existingQuote,
   defaultTaxRatePercent = "",
+  tool,
 }: {
   contacts: Contact[];
   workItems?: PickerWorkItem[];
@@ -85,39 +87,64 @@ export default function QuoteEditor({
   defaultTaxRatePercent?: string;
   /** Saved estimate tools (active); shows the "Use an estimate tool" button when any exist. */
   estimators?: RunnerEstimator[];
+  /** The free tools and the home page (lib/tool-editor.ts): no account, Save hands the quote back. */
+  tool?: ToolEditorMode;
 }) {
   const router = useRouter();
   const editing = Boolean(existingQuote);
+  // Tool mode: a saved draft seeds the form the way an existing quote would, without being an edit.
+  const seed = tool?.initial ?? null;
+  const [toolClients, setToolClients] = useState<ToolClient[]>(seed?.client ? [seed.client] : []);
+  const pickable = tool ? toolClients : contacts;
+  const src: ExistingQuote | undefined =
+    existingQuote ??
+    (seed
+      ? {
+          id: "",
+          contactId: seed.client?.id ?? "",
+          title: seed.title,
+          taxRate: seed.taxRatePercent ? parseFloat(seed.taxRatePercent) / 100 : null,
+          discountType: seed.discountType,
+          discountValue: seed.discountValue ? parseFloat(seed.discountValue) : null,
+          depositType: seed.depositType,
+          depositValue: seed.depositValue ? parseFloat(seed.depositValue) : null,
+          clientMessage: seed.clientMessage,
+          disclaimer: "",
+          notes: "",
+          validUntil: seed.date || null,
+          lineItems: seed.lines.map((l) => ({ ...l, unitCost: null, requiresAgreement: false })),
+        }
+      : undefined);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [contactId, setContactId] = useState(existingQuote?.contactId ?? prefilledContactId);
+  const [contactId, setContactId] = useState(src?.contactId || prefilledContactId);
   const [propertyId, setPropertyId] = useState(existingQuote?.propertyId ?? "");
-  const [title, setTitle] = useState(existingQuote?.title ?? requestTitle);
+  const [title, setTitle] = useState(src?.title || requestTitle);
   // Existing quotes keep their own rate (including "no tax"); new quotes
   // start from the company default
   const [taxRate, setTaxRate] = useState(
-    existingQuote
-      ? existingQuote.taxRate
-        ? String(Math.round(existingQuote.taxRate * 100000) / 1000)
+    src
+      ? src.taxRate
+        ? String(Math.round(src.taxRate * 100000) / 1000)
         : ""
       : defaultTaxRatePercent
   );
   const [discountType, setDiscountType] = useState<"NONE" | "PERCENT" | "FIXED">(
-    existingQuote?.discountType ?? "NONE"
+    src?.discountType ?? "NONE"
   );
   const [discountValue, setDiscountValue] = useState(
-    existingQuote?.discountValue != null ? String(existingQuote.discountValue) : ""
+    src?.discountValue != null ? String(src.discountValue) : ""
   );
   const [depositType, setDepositType] = useState<"NONE" | "PERCENT" | "FIXED" | "FULL">(
-    existingQuote?.depositType ?? "NONE"
+    src?.depositType ?? "NONE"
   );
   const [depositValue, setDepositValue] = useState(
-    existingQuote?.depositValue != null ? String(existingQuote.depositValue) : ""
+    src?.depositValue != null ? String(src.depositValue) : ""
   );
-  const [clientMessage, setClientMessage] = useState(existingQuote?.clientMessage ?? "");
+  const [clientMessage, setClientMessage] = useState(src?.clientMessage ?? "");
   const [disclaimer, setDisclaimer] = useState(existingQuote?.disclaimer ?? "");
   const [notes, setNotes] = useState(existingQuote?.notes ?? "");
-  const [validUntil, setValidUntil] = useState(existingQuote?.validUntil ?? "");
+  const [validUntil, setValidUntil] = useState(src?.validUntil ?? "");
   const [estimatorOpen, setEstimatorOpen] = useState(false);
   // The fold (2026-10-16): a new quote is client + lines + total; title,
   // message, terms, expiry and notes wait behind "More details", and the
@@ -125,11 +152,11 @@ export default function QuoteEditor({
   // set. An edit opens everything, since it was all filled in once.
   const [more, setMore] = useState(editing);
   const [adjust, setAdjust] = useState(
-    editing || (existingQuote?.discountType ?? "NONE") !== "NONE" || (existingQuote?.depositType ?? "NONE") !== "NONE"
+    editing || (src?.discountType ?? "NONE") !== "NONE" || (src?.depositType ?? "NONE") !== "NONE" || Boolean(seed?.taxRatePercent)
   );
   const [lineItems, setLineItems] = useState<EditorLineItem[]>(
-    existingQuote && existingQuote.lineItems.length > 0
-      ? existingQuote.lineItems.map((li) => ({
+    src && src.lineItems.length > 0
+      ? src.lineItems.map((li) => ({
           ...emptyEditorLine,
           name: li.name,
           description: li.description,
@@ -218,7 +245,7 @@ export default function QuoteEditor({
 
   // Anything typed since the page opened: leaving asks first (David 2026-10-03).
   const [dirty, setDirty] = useState(false);
-  useUnsavedWarning(dirty && !loading);
+  useUnsavedWarning(dirty && !loading && !tool);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -240,6 +267,33 @@ export default function QuoteEditor({
       return;
     }
     setError("");
+    if (tool) {
+      if (!lineItems.some((li) => li.name.trim() && (parseInt(li.quantity, 10) || 0) * (parseFloat(li.unitPrice) || 0) > 0)) {
+        setError("Add at least one line item with a price.");
+        return;
+      }
+      tool.onSave({
+        client: toolClients.find((c) => c.id === contactId) ?? null,
+        title: title.trim(),
+        taxRatePercent: taxRate,
+        discountType,
+        discountValue,
+        depositType,
+        depositValue,
+        clientMessage,
+        date: validUntil,
+        lines: lineItems
+          .filter((li) => li.name.trim() || li.description.trim())
+          .map((li) => ({
+            name: li.name,
+            description: li.description,
+            quantity: parseInt(li.quantity, 10) || 1,
+            unitPrice: parseFloat(li.unitPrice) || 0,
+            isOptional: Boolean(li.isOptional),
+          })),
+      });
+      return;
+    }
     setLoading(true);
 
     const payload = {
@@ -296,7 +350,7 @@ export default function QuoteEditor({
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <BackLink href={editing ? `/app/quotes/${existingQuote!.id}` : "/app/quotes"} />
+        {!tool && <BackLink href={editing ? `/app/quotes/${existingQuote!.id}` : "/app/quotes"} />}
         <PageTitle>{editing ? "Edit Quote" : "New Quote"}</PageTitle>
         {requestId && (
           <Chip tone="primary">From request</Chip>
@@ -323,7 +377,16 @@ export default function QuoteEditor({
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Client *</label>
             <ContactPicker
-              contacts={contacts}
+              contacts={pickable}
+              createLocal={
+                tool
+                  ? (d) => {
+                      const c = newLocalClient(d);
+                      setToolClients((list) => [...list, c]);
+                      return c;
+                    }
+                  : undefined
+              }
               value={contactId}
               onChange={(id) => {
                 setContactId(id);
@@ -336,7 +399,7 @@ export default function QuoteEditor({
           {(() => {
             // Multi-property clients pick which service address this quote is
             // for — converting it lands the job at that property
-            const saved = contacts.find((c) => c.id === contactId)?.addresses ?? [];
+            const saved = tool ? [] : contacts.find((c) => c.id === contactId)?.addresses ?? [];
             if (saved.length === 0) return null;
             return (
               <div>
@@ -589,12 +652,14 @@ export default function QuoteEditor({
             {loading && <Loader2 size={14} className="animate-spin" />}
             {editing ? "Save changes" : "Save quote"}
           </button>
-          <Link
-            href="/app/quotes"
-            className="ds-btn ds-btn-outline"
-          >
-            Cancel
-          </Link>
+          {!tool && (
+            <Link
+              href="/app/quotes"
+              className="ds-btn ds-btn-outline"
+            >
+              Cancel
+            </Link>
+          )}
         </div>
       </form>
     </div>

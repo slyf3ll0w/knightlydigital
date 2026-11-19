@@ -8,6 +8,7 @@ import { Button } from "@/components/ds";
 import { postJson, GENERIC_ERROR } from "@/lib/safe-fetch";
 import { formatPhoneAsTyped, splitName, titleCaseName } from "@/lib/phone-input";
 import type { PickerContact } from "@/components/ContactPicker";
+import type { LocalClientDraft } from "@/lib/tool-editor";
 
 /**
  * Add a client without leaving the form. The quote, invoice and job forms
@@ -25,6 +26,7 @@ export default function QuickContactSheet({
   onCreated,
   initialName = "",
   kind = "CLIENT",
+  onLocalCreate,
 }: {
   open: boolean;
   onClose: () => void;
@@ -32,6 +34,12 @@ export default function QuickContactSheet({
   /** What they typed in the picker's search box — becomes the name. */
   initialName?: string;
   kind?: "CLIENT" | "CONTACT";
+  /**
+   * The free tools (lib/tool-editor.ts): no account, so the person is kept
+   * in the page instead of POSTed, and the address is a plain box (the
+   * suggestion endpoint needs a sign-in).
+   */
+  onLocalCreate?: (d: LocalClientDraft) => PickerContact;
 }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -70,9 +78,14 @@ export default function QuickContactSheet({
       setError("Name is required.");
       return;
     }
-    if (kind === "CLIENT" && !address.trim() && !nudged) {
+    if (kind === "CLIENT" && !address.trim() && !nudged && !onLocalCreate) {
       setNudged(true);
       setError("");
+      return;
+    }
+    if (onLocalCreate) {
+      onCreated(onLocalCreate({ firstName, lastName, email: email.trim(), phone: phone.trim(), address: address.trim() }));
+      onClose();
       return;
     }
     setBusy(true);
@@ -145,6 +158,9 @@ export default function QuickContactSheet({
             <label htmlFor="qc-address" className="mb-1 block text-sm font-medium text-gray-700">
               Address
             </label>
+            {onLocalCreate ? (
+              <Input id="qc-address" value={address} onChange={(e) => { setAddress(e.target.value); if (e.target.value.trim()) setNudged(false); }} placeholder="Street, city, state" autoComplete="street-address" />
+            ) : (
             <AddressAutocomplete
               id="qc-address"
               endpoint="/api/app/geocode/suggest"
@@ -160,6 +176,7 @@ export default function QuickContactSheet({
               placeholder="Street, city, state"
               className={inputCls}
             />
+            )}
             {nudged && !address.trim() && (
               <p role="status" className="mt-2 rounded-lg bg-[color:var(--ds-warn-soft)] px-3 py-2 text-[13px] text-[color:var(--ds-warn)]">
                 No address yet — their jobs won&apos;t show on the map or a route until one is on file. Add it here, or save without.

@@ -8,9 +8,9 @@ import type { ToolDoc } from "@/lib/tool-doc";
 /**
  * "Try the real thing" (David 2026-11-18, option 2): REAL pieces of
  * WorkBench for the made-up demo company Brightwire Electric.
- *   1. Make a quote: the free quote builder (components/wb/tools/DocGenerator),
- *      built from the app's own quote screen parts. It works for real: the
- *      visitor's own business, a PDF, and Send emails it to their client.
+ *   1. Make a quote: the app's own New Quote screen through the free tool
+ *      (components/wb/tools/DocGenerator). It works for real: the visitor's
+ *      own business, a PDF, and Send emails it to their client.
  *   2. Book like a customer: Brightwire's real online booking form
  *      (/embed/brightwire-electric/…), the frame customers put on their sites.
  *   3. What your client sees: the demo client's real portal (/hub/<token>).
@@ -27,27 +27,21 @@ const SHOW_PORTAL = false;
 
 type Tab = "quote" | "book" | "portal";
 
-const ALL_TABS: { id: Tab; label: string; icon: typeof FileText; title: string; body: string }[] = [
+const ALL_TABS: { id: Tab; label: string; icon: typeof FileText }[] = [
   {
     id: "quote",
     label: "Make a quote",
     icon: FileText,
-    title: "This is the quote screen in WorkBench.",
-    body: "Add your business, price the job, and send it to your client for real. Free, no account needed.",
   },
   {
     id: "book",
     label: "Book like a customer",
     icon: CalendarDays,
-    title: "This is what your customers see on your website.",
-    body: "Brightwire Electric's real booking form. Pick a time like a homeowner would. It's a demo company, so nothing is sent anywhere.",
   },
   {
     id: "portal",
     label: "What your client sees",
     icon: Smartphone,
-    title: "Every client gets their own portal.",
-    body: "Maria's quote to approve, her invoice, and a way to message Brightwire, all from one link. Tap around; it resets every hour.",
   },
 ];
 const TABS = ALL_TABS.filter((t) => SHOW_PORTAL || t.id !== "portal");
@@ -74,7 +68,6 @@ export default function WBTryIt({ initialQuote, bookingPath, hubPath }: { initia
     setTab(t);
     setOpened((s) => new Set(s).add(t));
   };
-  const cur = TABS.find((t) => t.id === tab)!;
 
   return (
     <div>
@@ -100,16 +93,8 @@ export default function WBTryIt({ initialQuote, bookingPath, hubPath }: { initia
       </div>
 
       <div className="mt-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-[0_30px_70px_-34px_rgba(10,20,40,0.4)]">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-[#F5F7FA] px-5 py-3.5 sm:px-6">
-          <div>
-            <p className="text-[16px] font-extrabold text-gray-900">{cur.title}</p>
-            <p className="text-[14px] text-gray-600">{cur.body}</p>
-          </div>
-          <span className="rounded-md bg-[#FFF4EC] px-2.5 py-1 text-[12px] font-bold text-[#C2410C] ring-1 ring-[#FBD5B5]">{tab === "quote" ? "Works for real · free" : "Live demo · Brightwire Electric"}</span>
-        </div>
-
         {/* 1. the quote builder, built from the app's quote screen parts */}
-        <div className={tab === "quote" ? "block max-h-[860px] overflow-y-auto bg-[#F4F5F8]" : "hidden"}>
+        <div data-tool-scroll className={tab === "quote" ? "block max-h-[860px] overflow-y-auto bg-[#F4F5F8]" : "hidden"}>
           <DocGenerator initial={initialQuote} storageKey="wb-try-quote" />
         </div>
 

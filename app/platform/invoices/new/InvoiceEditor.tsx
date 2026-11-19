@@ -20,6 +20,7 @@ import LineItemsEditor, {
   payloadRecurringInterval,
 } from "@/components/LineItemsEditor";
 import { DateField } from "@/components/DateField";
+import { newLocalClient, type ToolClient, type ToolEditorMode } from "@/lib/tool-editor";
 
 type Contact = { id: string; firstName: string; lastName: string; paymentTermsDays?: number };
 // Present when editing an existing invoice — switches submit to PATCH
@@ -96,6 +97,7 @@ export default function InvoiceEditor({
   prefilledContactId = "",
   editInvoice = null,
   defaultTaxRatePercent = "",
+  tool,
 }: {
   contacts: Contact[];
   workItems?: PickerWorkItem[];
@@ -105,8 +107,13 @@ export default function InvoiceEditor({
   prefilledContactId?: string;
   editInvoice?: EditInvoice | null;
   defaultTaxRatePercent?: string;
+  /** The free tools (lib/tool-editor.ts): no account, Save hands the invoice back. */
+  tool?: ToolEditorMode;
 }) {
   const router = useRouter();
+  // Tool mode: a saved draft seeds the form; clients live in the page.
+  const seed = tool?.initial ?? null;
+  const [toolClients, setToolClients] = useState<ToolClient[]>(seed?.client ? [seed.client] : []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -131,6 +138,14 @@ export default function InvoiceEditor({
         recurringInterval: li.recurringInterval ?? null,
         serviceDate: li.serviceDate ?? null,
       }))
+    : seed && seed.lines.length
+      ? seed.lines.map((li) => ({
+          ...newEditorLine(),
+          name: li.name,
+          description: li.description,
+          quantity: String(li.quantity),
+          unitPrice: String(li.unitPrice),
+        }))
     : sourceLines?.map((li) => ({
         ...newEditorLine(),
         name: li.name ?? "",
@@ -142,11 +157,11 @@ export default function InvoiceEditor({
         recurringInterval: li.recurringInterval ?? null,
       })) ?? [newEditorLine()];
 
-  const [contactId, setContactId] = useState(prefillJob?.contactId ?? prefillAppointment?.contactId ?? prefilledContactId);
+  const [contactId, setContactId] = useState(seed?.client?.id ?? prefillJob?.contactId ?? prefillAppointment?.contactId ?? prefilledContactId);
   const [jobId] = useState(prefillJob?.id ?? "");
-  const [subject, setSubject] = useState(editInvoice?.subject ?? prefillJob?.title ?? prefillAppointment?.title ?? "");
+  const [subject, setSubject] = useState(editInvoice?.subject ?? seed?.title ?? prefillJob?.title ?? prefillAppointment?.title ?? "");
   const [notes, setNotes] = useState(editInvoice?.notes ?? "");
-  const [clientMessage, setClientMessage] = useState(editInvoice?.clientMessage ?? "");
+  const [clientMessage, setClientMessage] = useState(editInvoice?.clientMessage ?? seed?.clientMessage ?? "");
   // Tax carries over from the job's quote — otherwise a quoted 8.25% job
   // silently invoices at 0% and the business under-bills. With no quote in
   // the picture, the company's default rate fills in (a quote that chose no
@@ -155,13 +170,15 @@ export default function InvoiceEditor({
     ? String(Math.round(Number(prefillJob.quote.taxRate) * 100000) / 1000)
     : "";
   const [taxRate, setTaxRate] = useState(
-    editInvoice?.taxRatePercent ?? (prefillJob?.quote ? quoteTaxPercent : defaultTaxRatePercent)
+    editInvoice?.taxRatePercent ?? seed?.taxRatePercent ?? (prefillJob?.quote ? quoteTaxPercent : defaultTaxRatePercent)
   );
   // Quote discounts carry over when invoicing a quoted job
   const quoteDiscount = prefillJob?.quote;
   const [discountType, setDiscountType] = useState<"NONE" | "PERCENT" | "FIXED">(
     editInvoice
       ? editInvoice.discountType
+      : seed
+        ? seed.discountType
       : quoteDiscount?.discountType === "PERCENT" || quoteDiscount?.discountType === "FIXED"
         ? quoteDiscount.discountType
         : "NONE"
@@ -169,6 +186,8 @@ export default function InvoiceEditor({
   const [discountValue, setDiscountValue] = useState(
     editInvoice
       ? editInvoice.discountValue
+      : seed
+        ? seed.discountValue
       : quoteDiscount?.discountValue != null && quoteDiscount.discountValue > 0
         ? String(Number(quoteDiscount.discountValue))
         : ""
@@ -181,7 +200,7 @@ export default function InvoiceEditor({
     return new Date(Date.now() + days * 86400000).toLocaleDateString("en-CA");
   };
   const [dueDate, setDueDate] = useState(
-    editInvoice?.dueDate ?? defaultDueFor(prefillJob?.contactId ?? prefilledContactId)
+    editInvoice?.dueDate ?? (seed?.date || null) ?? defaultDueFor(prefillJob?.contactId ?? prefilledContactId)
   );
   const [dueDateTouched, setDueDateTouched] = useState(Boolean(editInvoice?.dueDate));
   const [lineItems, setLineItems] = useState<EditorLineItem[]>(initLines);
@@ -189,7 +208,7 @@ export default function InvoiceEditor({
   const backHref = editInvoice ? `/app/invoices/${editInvoice.id}` : "/app/invoices";
   // The fold: an edit opens everything; a new invoice keeps the rest tucked away
   const [more, setMore] = useState(Boolean(editInvoice));
-  const [adjust, setAdjust] = useState(Boolean(editInvoice) || discountType !== "NONE");
+  const [adjust, setAdjust] = useState(Boolean(editInvoice) || discountType !== "NONE" || Boolean(seed?.taxRatePercent));
 
   const subtotal = lineItems.reduce((sum, li) => {
     return sum + (parseInt(li.quantity, 10) || 0) * (parseFloat(li.unitPrice) || 0);
@@ -211,12 +230,40 @@ export default function InvoiceEditor({
 
   // Anything typed since the page opened: leaving asks first (David 2026-10-03).
   const [dirty, setDirty] = useState(false);
-  useUnsavedWarning(dirty && !loading);
+  useUnsavedWarning(dirty && !loading && !tool);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!editInvoice && !contactId) { setError("Please select a customer."); return; }
-    setError(""); setLoading(true);
+    setError("");
+    if (tool) {
+      if (!lineItems.some((li) => li.name.trim() && (parseInt(li.quantity, 10) || 0) * (parseFloat(li.unitPrice) || 0) > 0)) {
+        setError("Add at least one line item with a price.");
+        return;
+      }
+      tool.onSave({
+        client: toolClients.find((c) => c.id === contactId) ?? null,
+        title: subject.trim(),
+        taxRatePercent: taxRate,
+        discountType,
+        discountValue,
+        depositType: "NONE",
+        depositValue: "",
+        clientMessage,
+        date: dueDate,
+        lines: lineItems
+          .filter((li) => li.name.trim() || li.description.trim())
+          .map((li) => ({
+            name: li.name,
+            description: li.description,
+            quantity: parseInt(li.quantity, 10) || 1,
+            unitPrice: parseFloat(li.unitPrice) || 0,
+            isOptional: false,
+          })),
+      });
+      return;
+    }
+    setLoading(true);
 
     const payload = {
       // Blank subject → named after the services ("House Wash + Gutters")
@@ -271,7 +318,7 @@ export default function InvoiceEditor({
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
-        <BackLink href={backHref} />
+        {!tool && <BackLink href={backHref} />}
         <PageTitle>{editInvoice ? "Edit Invoice" : "New Invoice"}</PageTitle>
       </div>
 
@@ -312,7 +359,16 @@ export default function InvoiceEditor({
               </p>
             ) : (
               <ContactPicker
-                contacts={contacts}
+                contacts={tool ? toolClients : contacts}
+                createLocal={
+                  tool
+                    ? (d) => {
+                        const c = newLocalClient(d);
+                        setToolClients((list) => [...list, c]);
+                        return c;
+                      }
+                    : undefined
+                }
                 value={contactId}
                 onChange={(id) => {
                   setContactId(id);
@@ -465,10 +521,12 @@ export default function InvoiceEditor({
             {loading && <Loader2 size={14} className="animate-spin" />}
             {editInvoice ? "Save changes" : "Save invoice"}
           </button>
-          <Link href={backHref}
-            className="ds-btn ds-btn-outline">
-            Cancel
-          </Link>
+          {!tool && (
+            <Link href={backHref}
+              className="ds-btn ds-btn-outline">
+              Cancel
+            </Link>
+          )}
         </div>
       </form>
     </div>
