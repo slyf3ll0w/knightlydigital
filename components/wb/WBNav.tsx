@@ -175,7 +175,7 @@ export default function WBNav() {
             <Link href="/app/login" className="hidden px-3 text-[14.5px] font-bold text-gray-700 hover:text-gray-900 sm:block">
               Log in
             </Link>
-            <Link href="/apply" className="wb-btn wb-pill wb-pill-orange wb-pill-sm wb-shine">
+            <Link href="/apply" className="wb-btn wb-pill wb-pill-orange wb-pill-sm">
               Get started
               <ArrowRight className="hidden h-4 w-4 sm:block" strokeWidth={2.5} />
             </Link>

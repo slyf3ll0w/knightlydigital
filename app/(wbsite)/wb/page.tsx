@@ -4,8 +4,6 @@ import { ArrowRight, Mic } from "lucide-react";
 import { AnimateIn } from "@/components/AnimateIn";
 import WBAtlasVoice from "@/components/wb/WBAtlasVoice";
 import WBFeatureTabs from "@/components/wb/WBFeatureTabs";
-import WBScribble from "@/components/wb/WBScribble";
-import WBCountUp from "@/components/wb/WBCountUp";
 import WBCta from "@/components/wb/WBCta";
 import WBCycleWord from "@/components/wb/WBCycleWord";
 import { WBFaqSection } from "@/components/wb/WBFaq";
@@ -236,14 +234,6 @@ export default function WBHomePage() {
             </h2>
           </AnimateIn>
           <AnimateIn delay={120} className="relative mt-12">
-            <div className="absolute -top-[5.5rem] right-6 z-20 hidden items-end gap-1 xl:flex" aria-hidden>
-              <p className="pb-3 text-right text-[15px] font-extrabold leading-snug text-[#10244A]">
-                The real screens,
-                <br />
-                not mockups
-              </p>
-              <WBScribble variant="droop" delay={0.6} className="h-[78px] w-[60px] flex-none" />
-            </div>
             <WBFeatureTabs />
           </AnimateIn>
           <p className="mt-8 text-[15px] text-gray-600">
@@ -265,14 +255,6 @@ export default function WBHomePage() {
             <p className="mt-4 text-[17px] leading-relaxed text-gray-600">
               These are working parts of WorkBench, not pictures of them. Make a real quote and send it, or book a visit with Brightwire Electric, a made-up company we run for demos.
             </p>
-            <div className="absolute -bottom-20 right-[-15rem] z-20 hidden items-end gap-1 xl:flex" aria-hidden>
-              <p className="pb-3 text-right text-[15px] font-extrabold leading-snug text-[#10244A]">
-                Go ahead,
-                <br />
-                click around
-              </p>
-              <WBScribble variant="droop" delay={0.5} className="h-[80px] w-[62px] flex-none" />
-            </div>
           </AnimateIn>
           <AnimateIn delay={120} className="mt-10">
             <WBTryIt initialQuote={emptyDoc("estimate")} bookingPath={DEMO_BOOKING_PATH} hubPath={DEMO_HUB_PATH} />
@@ -326,18 +308,8 @@ export default function WBHomePage() {
             </Link>
           </AnimateIn>
         </div>
-        <AnimateIn delay={120} className="relative -mt-8 pb-20 sm:pb-28">
-          <div className="relative mx-auto max-w-6xl px-5 sm:px-8">
-            <div className="absolute -top-[4.5rem] left-[38%] z-20 hidden items-end gap-1 xl:flex" aria-hidden>
-              <p className="pb-3 text-[15px] font-extrabold leading-snug text-[#10244A]">
-                Find yours.
-                <br />
-                Hover to stop it.
-              </p>
-              <WBScribble variant="droop" delay={0.5} className="h-[78px] w-[60px] flex-none" />
-            </div>
-          </div>
-          <div className="mt-14">
+        <AnimateIn delay={120} className="relative pb-20 sm:pb-28">
+          <div className="mt-10">
             <WBTradeStrip />
           </div>
         </AnimateIn>
@@ -355,56 +327,39 @@ export default function WBHomePage() {
               The software is free. You pay a normal card fee when a client pays you, and add-ons only if you want them.
             </p>
           </AnimateIn>
-          <AnimateIn className="relative">
-            <div className="absolute -top-[5.5rem] -right-8 z-20 hidden items-end gap-1 xl:flex" aria-hidden>
-              <p className="pb-2 text-right text-[15px] font-extrabold leading-snug text-[#10244A]">
-                The whole bill.
-                <br />
-                Nothing hidden.
-              </p>
-              <WBScribble variant="droop" delay={0.4} className="h-[80px] w-[62px] flex-none" />
-            </div>
-          </AnimateIn>
-          <div className="mt-12 grid gap-5 md:grid-cols-3">
-            {[
-              {
-                head: `${FREE_PLAN_NAME} plan`,
-                big: <WBCountUp prefix="$" value={0} />,
-                unit: "a month",
-                body: `Everything you need, free for ${INCLUDED_SEATS} users. Not a trial. Extra users are ${formatCents(EXTRA_SEAT_CENTS)} a month each.`,
-                tone: "blue",
-              },
-              {
-                head: "When a client pays by card",
-                big: <WBCountUp value={card.cardBps / 100} decimals={2} suffix="%" />,
-                unit: `+ ${card.cardFixedCents}¢`,
-                body: "Only when you get paid. Or turn on a service fee and your client covers it.",
-                tone: "orange",
-              },
-              {
-                head: "Add-ons, if you want them",
-                big: <WBCountUp prefix="$" value={PLANS.DISPATCH.monthlyCents / 100} />,
-                unit: "and up, a month",
-                body: "A business phone line, unlimited users, job photos. Turn one on when you need it.",
-                tone: "navy",
-              },
-            ].map((c, i) => (
-              <AnimateIn key={c.head} delay={i * 90}>
-                <div className="flex h-full flex-col rounded-xl border border-gray-200 bg-white p-7">
-                  <span
-                    className={`h-1.5 w-12 rounded-full ${c.tone === "blue" ? "bg-[#0B57D8]" : c.tone === "orange" ? "bg-[#F86A0A]" : "bg-[#0A1428]"}`}
-                    aria-hidden
-                  />
-                  <p className="mt-5 text-[15px] font-bold text-gray-600">{c.head}</p>
-                  <p className="mt-2 flex items-baseline gap-2">
-                    <span className="text-[3rem] font-extrabold leading-none text-gray-900">{c.big}</span>
+          <AnimateIn delay={100}>
+            <div className="mt-12 grid overflow-hidden rounded-xl bg-white shadow-[var(--wb-shadow-raised)] md:grid-cols-3 md:divide-x md:divide-gray-200 max-md:divide-y max-md:divide-gray-200">
+              {[
+                {
+                  head: `${FREE_PLAN_NAME} plan`,
+                  big: "$0",
+                  unit: "a month",
+                  body: `Everything you need, free for ${INCLUDED_SEATS} users. Not a trial. Extra users are ${formatCents(EXTRA_SEAT_CENTS)} a month each.`,
+                },
+                {
+                  head: "When a client pays by card",
+                  big: `${(card.cardBps / 100).toFixed(2)}%`,
+                  unit: `+ ${card.cardFixedCents}¢`,
+                  body: "Only when you get paid. Or turn on a service fee and your client covers it.",
+                },
+                {
+                  head: "Add-ons, if you want them",
+                  big: `$${PLANS.DISPATCH.monthlyCents / 100}`,
+                  unit: "and up, a month",
+                  body: "A business phone line, unlimited users, job photos. Turn one on when you need it.",
+                },
+              ].map((c) => (
+                <div key={c.head} className="flex flex-col p-7 sm:p-8">
+                  <p className="text-[15px] font-bold text-gray-600">{c.head}</p>
+                  <p className="mt-3 flex items-baseline gap-2">
+                    <span className="text-[3rem] font-extrabold leading-none tracking-[-0.02em] text-gray-900">{c.big}</span>
                     <span className="text-[15px] font-bold text-gray-500">{c.unit}</span>
                   </p>
                   <p className="mt-4 text-[15px] leading-relaxed text-gray-600">{c.body}</p>
                 </div>
-              </AnimateIn>
-            ))}
-          </div>
+              ))}
+            </div>
+          </AnimateIn>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
             <Link href="/apply" className="wb-pill wb-pill-orange">
               Get started free

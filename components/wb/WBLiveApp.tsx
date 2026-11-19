@@ -118,7 +118,7 @@ export default function WBLiveApp() {
 
   return (
     <div ref={ref} className="relative select-none text-left" style={{ fontFamily: "var(--font-lexend), Lexend, system-ui, sans-serif" }} aria-hidden>
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-[#F4F5F8] shadow-[0_40px_90px_-30px_rgba(10,20,40,0.45),0_0_0_1px_rgba(10,20,40,0.04)]">
+      <div className="wb-window !bg-[#F4F5F8]">
         <div className="flex">
           {/* sidebar */}
           <aside className="hidden w-[176px] flex-none flex-col border-r border-[#DCE1EA] bg-[#E8ECF3] md:flex">

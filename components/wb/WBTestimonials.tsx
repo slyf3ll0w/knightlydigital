@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { AnimateIn } from "@/components/AnimateIn";
+import WBVideo from "@/components/wb/WBVideo";
 
 /**
  * "From the field": Edan from Knight Light Christmas Lighting walking
@@ -29,15 +30,12 @@ export default function WBTestimonials() {
           </div>
         </AnimateIn>
         <AnimateIn delay={100}>
-          <div className="overflow-hidden rounded-xl bg-[#0A1428] shadow-[0_30px_70px_-24px_rgba(10,20,40,0.45)] ring-1 ring-gray-200/70">
-            <video
-              className="aspect-video w-full"
+          <div className="wb-window">
+            <WBVideo
               src="/video/knight-light-edan.mp4"
               poster="/video/knight-light-edan-poster.jpg"
-              controls
-              preload="none"
-              playsInline
-              aria-label="Edan from Knight Light Christmas Lighting on running installs with WorkBench"
+              label="Edan from Knight Light Christmas Lighting on running installs with WorkBench"
+              caption="Watch Edan's walkthrough"
             />
           </div>
         </AnimateIn>

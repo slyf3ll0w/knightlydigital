@@ -2448,6 +2448,77 @@ html[data-mode="dark"] .app-ui .card-tool {
   .wb-scribble path { animation: none; stroke-dashoffset: 0; }
 }
 
+/* ── "Heavy" (David 2026-11-19: polished, settled, the lead board's feel).
+   Nothing decorates; things respond. One easing, one window frame, buttons
+   that give when pressed, panels that glide instead of snapping. Home page
+   first; the written rules follow once an app screen and a client page
+   match. ── */
+:root {
+  --wb-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --wb-shadow-window:
+    0 0 0 1px rgba(10, 20, 40, 0.07),
+    0 1px 2px rgba(10, 20, 40, 0.06),
+    0 8px 16px -8px rgba(10, 20, 40, 0.12),
+    0 36px 72px -28px rgba(10, 20, 40, 0.34);
+  --wb-shadow-raised:
+    0 0 0 1px rgba(10, 20, 40, 0.06),
+    0 1px 2px rgba(10, 20, 40, 0.06),
+    0 10px 24px -14px rgba(10, 20, 40, 0.28);
+}
+@supports (interpolate-size: allow-keywords) {
+  :root { interpolate-size: allow-keywords; }
+}
+
+/* The one frame every product window on the site sits in. */
+.wb-window {
+  overflow: hidden;
+  border-radius: 0.75rem;
+  background: #fff;
+  box-shadow: var(--wb-shadow-window);
+}
+
+/* Buttons: hover deepens the shadow, a press sinks a pixel. */
+.wb-pill {
+  transition:
+    filter 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease,
+    box-shadow 0.2s var(--wb-ease), transform 0.12s var(--wb-ease);
+}
+.wb-pill:active { transform: translateY(1px) scale(0.985); }
+.wb-pill-orange {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 1px 2px rgba(150, 50, 0, 0.3), 0 8px 18px -8px rgba(248, 106, 10, 0.65);
+}
+.wb-pill-orange:hover { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 1px 2px rgba(150, 50, 0, 0.3), 0 12px 24px -8px rgba(248, 106, 10, 0.7); }
+.wb-pill-orange:active { box-shadow: inset 0 1px 2px rgba(120, 40, 0, 0.3); }
+.wb-pill-primary, .wb-pill-dark {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 1px 2px rgba(10, 20, 40, 0.3), 0 8px 18px -8px rgba(10, 20, 40, 0.5);
+}
+.wb-pill-primary:active, .wb-pill-dark:active { box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3); }
+.wb-pill-outline { box-shadow: 0 1px 2px rgba(10, 20, 40, 0.06); }
+.wb-pill-outline:hover { box-shadow: 0 4px 12px -6px rgba(10, 20, 40, 0.25); }
+.wb-pill-outline:active { box-shadow: inset 0 1px 2px rgba(10, 20, 40, 0.1); }
+@media (prefers-reduced-motion: reduce) { .wb-pill:active { transform: none; } }
+
+/* Reveal on scroll: shorter travel, the shared easing. */
+.wb-site .reveal { transform: translateY(14px); transition: opacity 0.7s var(--wb-ease), transform 0.7s var(--wb-ease); }
+
+/* Segmented control (Try it tabs): one track, a thumb that slides. */
+.wb-seg { position: relative; display: inline-flex; gap: 2px; padding: 4px; border-radius: 0.625rem; background: #EDF0F5; box-shadow: inset 0 1px 2px rgba(10, 20, 40, 0.08); }
+.wb-seg-thumb { position: absolute; top: 4px; bottom: 4px; border-radius: 0.5rem; background: #0A1428; box-shadow: 0 1px 2px rgba(10, 20, 40, 0.3), 0 6px 14px -6px rgba(10, 20, 40, 0.5); transition: left 0.35s var(--wb-ease), width 0.35s var(--wb-ease); }
+.wb-seg-btn { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 0.5rem; border-radius: 0.5rem; padding: 0.6rem 1rem; font-size: 15px; font-weight: 700; color: #374151; transition: color 0.25s var(--wb-ease), transform 0.12s var(--wb-ease); }
+.wb-seg-btn:hover { color: #0A1428; }
+.wb-seg-btn:active { transform: scale(0.97); }
+.wb-seg-btn[aria-selected="true"] { color: #fff; }
+
+/* FAQ answers glide open (browsers without ::details-content just open). */
+.wb-faq::details-content {
+  block-size: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: block-size 0.35s var(--wb-ease), opacity 0.3s ease, content-visibility 0.35s allow-discrete;
+}
+.wb-faq[open]::details-content { block-size: auto; opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .wb-faq::details-content { transition: none; } }
+
 /* ═══════════════════════════════════════════════════════════════════════
    WORKBENCH ACCENT BRIDGE — light mode, app scope (.app-ui). Screens are
    written in the green Tailwind palette from the Streamflaire era; this

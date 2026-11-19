@@ -14,7 +14,7 @@ export default function WBFaq({ items }: { items: FaqItem[] }) {
   return (
     <div className="border-t-2 border-[#0A1428]">
       {items.map(({ q, a }) => (
-        <details key={q} className="group border-b border-gray-200">
+        <details key={q} className="wb-faq group border-b border-gray-200">
           <summary className="flex cursor-pointer list-none items-start justify-between gap-6 py-5 text-[16.5px] font-bold leading-snug text-gray-900 transition-colors hover:text-[#0B57D8] [&::-webkit-details-marker]:hidden">
             {q}
             <span className="relative mt-1 h-4 w-4 flex-none" aria-hidden>

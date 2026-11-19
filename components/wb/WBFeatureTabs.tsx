@@ -76,42 +76,45 @@ export default function WBFeatureTabs() {
 
   return (
     <div ref={ref} className="grid items-center gap-10 lg:grid-cols-[0.85fr_1.4fr] lg:gap-14">
-      <ul className="space-y-2" role="tablist" aria-label="What WorkBench does">
+      <ul className="space-y-1.5" role="tablist" aria-label="What WorkBench does">
         {ITEMS.map((it, n) => {
           const on = n === i;
           return (
             <li key={it.title}>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={on}
-                onClick={() => pick(n)}
-                className={`relative w-full overflow-hidden rounded-xl px-5 py-4 text-left transition-colors ${on ? "bg-white shadow-[0_14px_34px_-18px_rgba(10,20,40,0.3)] ring-1 ring-gray-200" : "hover:bg-white/60"}`}
+              <div
+                className={`relative overflow-hidden rounded-xl transition-[background-color,box-shadow] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${on ? "bg-white shadow-[var(--wb-shadow-raised)]" : "hover:bg-white/60"}`}
               >
-                <span className={`block text-[20px] font-extrabold ${on ? "text-gray-900" : "text-gray-400"}`}>{it.title}</span>
-                <span className={`grid transition-all duration-300 ${on ? "mt-1.5 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
-                  <span className="overflow-hidden">
-                    <span className="block text-[15px] leading-relaxed text-gray-600">{it.body}</span>
-                  </span>
-                </span>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={on}
+                  onClick={() => pick(n)}
+                  className="block w-full px-5 pt-4 text-left"
+                >
+                  <span className={`block text-[20px] font-extrabold transition-colors duration-300 ${on ? "text-gray-900" : "text-gray-400"}`}>{it.title}</span>
+                </button>
+                <div className={`grid transition-[grid-template-rows,opacity] duration-[400ms] ease-[cubic-bezier(0.2,0.8,0.2,1)] ${on ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
+                  <div className="overflow-hidden">
+                    <p className="px-5 pt-1.5 text-[15px] leading-relaxed text-gray-600">{it.body}</p>
+                    <Link href={it.href} tabIndex={on ? 0 : -1} className="ml-5 mt-2 inline-flex items-center gap-1 text-[14px] font-bold text-[#0B57D8] hover:underline">
+                      Learn more about {it.title.toLowerCase()} <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
+                    </Link>
+                  </div>
+                </div>
+                <div className="h-4" />
                 {on && auto && (
                   <span className="absolute inset-x-0 bottom-0 h-[3px] bg-gray-100">
                     <span key={`${i}-${tick}`} className="wb-progress block h-full bg-[#F86A0A]" style={{ animationDuration: `${EACH_MS}ms` }} />
                   </span>
                 )}
-              </button>
-              {on && (
-                <Link href={it.href} className="ml-5 mt-2 inline-flex items-center gap-1 text-[14px] font-bold text-[#0B57D8] hover:underline">
-                  Learn more about {it.title.toLowerCase()} <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
-                </Link>
-              )}
+              </div>
             </li>
           );
         })}
       </ul>
 
-      <div className="relative rounded-2xl bg-gradient-to-br from-[#0B57D8] to-[#0A1428] p-3 sm:p-5">
-        <div className="relative aspect-[1512/791] overflow-hidden rounded-lg bg-white shadow-[0_30px_60px_-24px_rgba(0,0,0,0.6)]">
+      <div className="wb-window">
+        <div className="relative aspect-[1512/791] overflow-hidden bg-white">
           {ITEMS.map((it, n) => (
             <Image
               key={it.title}
@@ -119,7 +122,7 @@ export default function WBFeatureTabs() {
               alt={n === i ? it.shot.alt : ""}
               fill
               sizes="(min-width: 1024px) 680px, 100vw"
-              className={`object-cover object-left-top transition-opacity duration-500 ${n === i ? "opacity-100" : "opacity-0"}`}
+              className={`object-cover object-left-top transition-[opacity,transform] duration-700 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${n === i ? "scale-100 opacity-100" : "scale-[1.015] opacity-0"}`}
             />
           ))}
         </div>

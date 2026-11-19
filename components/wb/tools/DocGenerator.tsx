@@ -187,14 +187,14 @@ export default function DocGenerator({ initial, storageKey }: Props) {
   function goTo(next: "edit" | "send") {
     setStep(next);
     setError("");
-    // Keep the top of the screen in view (the home page frames it in a scroll box).
+    // Keep the top of the screen in view (glide back up to it).
     requestAnimationFrame(() => {
       const el = topRef.current;
       if (!el) return;
       const box = el.closest("[data-tool-scroll]");
       if (box) box.scrollTop = 0;
       const top = el.getBoundingClientRect().top;
-      if (top < 0 || top > window.innerHeight) window.scrollBy({ top: top - 110 });
+      if (top < 0 || top > window.innerHeight) window.scrollBy({ top: top - 110, behavior: "smooth" });
     });
   }
 

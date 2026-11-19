@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CalendarDays, FileText, Smartphone } from "lucide-react";
 import DocGenerator from "@/components/wb/tools/DocGenerator";
 import type { ToolDoc } from "@/lib/tool-doc";
@@ -69,32 +69,47 @@ export default function WBTryIt({ initialQuote, bookingPath, hubPath }: { initia
     setOpened((s) => new Set(s).add(t));
   };
 
+  // The dark thumb slides under the picked tab (measured, so labels can change).
+  const btns = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({});
+  const [thumb, setThumb] = useState<{ left: number; width: number } | null>(null);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = btns.current[tab];
+      if (el) setThumb({ left: el.offsetLeft, width: el.offsetWidth });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [tab]);
+
   return (
     <div>
-      <div role="tablist" aria-label="Try WorkBench" className="flex flex-wrap gap-2">
+      <div role="tablist" aria-label="Try WorkBench" className="wb-seg max-w-full overflow-x-auto">
+        {thumb && <span className="wb-seg-thumb" style={{ left: thumb.left, width: thumb.width }} aria-hidden />}
         {TABS.map(({ id, label, icon: Icon }) => {
           const on = id === tab;
           return (
             <button
               key={id}
+              ref={(el) => {
+                btns.current[id] = el;
+              }}
               type="button"
               role="tab"
               aria-selected={on}
               onClick={() => pick(id)}
-              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-[15px] font-bold transition-colors ${
-                on ? "bg-[#0A1428] text-white" : "bg-white text-gray-700 ring-1 ring-inset ring-gray-200 hover:text-gray-900 hover:ring-gray-400"
-              }`}
+              className={`wb-seg-btn whitespace-nowrap ${on && !thumb ? "bg-[#0A1428]" : ""}`}
             >
-              <Icon className={`h-4 w-4 ${on ? "text-[#FF8B33]" : "text-[#0B57D8]"}`} strokeWidth={2.25} />
+              <Icon className={`h-4 w-4 transition-colors duration-300 ${on ? "text-[#FF8B33]" : "text-[#0B57D8]"}`} strokeWidth={2.25} />
               {label}
             </button>
           );
         })}
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-[0_30px_70px_-34px_rgba(10,20,40,0.4)]">
+      <div className="wb-window mt-6">
         {/* 1. the quote builder, built from the app's quote screen parts */}
-        <div data-tool-scroll className={tab === "quote" ? "block max-h-[860px] overflow-y-auto bg-[#F4F5F8]" : "hidden"}>
+        <div data-tool-scroll className={tab === "quote" ? "block bg-[#F4F5F8]" : "hidden"}>
           <DocGenerator initial={initialQuote} storageKey="wb-try-quote" />
         </div>
 
