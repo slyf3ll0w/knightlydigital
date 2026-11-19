@@ -43,7 +43,9 @@ const ITEMS = [
 
 const EACH_MS = 6000;
 
-export default function WBFeatureTabs() {
+/** `held` (materials preview): the list sits inside one slab and the screen
+ *  is cropped off the slab's bottom-right corner instead of floating. */
+export default function WBFeatureTabs({ held = false }: { held?: boolean }) {
   const [i, setI] = useState(0);
   const [auto, setAuto] = useState(true);
   const [tick, setTick] = useState(0);
@@ -75,8 +77,8 @@ export default function WBFeatureTabs() {
   };
 
   return (
-    <div ref={ref} className="grid items-center gap-10 lg:grid-cols-[0.85fr_1.4fr] lg:gap-14">
-      <ul className="space-y-1.5" role="tablist" aria-label="What WorkBench does">
+    <div ref={ref} className={held ? "wb-hold grid lg:grid-cols-[0.85fr_1.4fr]" : "grid items-center gap-10 lg:grid-cols-[0.85fr_1.4fr] lg:gap-14"}>
+      <ul className={held ? "space-y-1.5 p-4 sm:p-8 lg:py-12 lg:pl-10" : "space-y-1.5"} role="tablist" aria-label="What WorkBench does">
         {ITEMS.map((it, n) => {
           const on = n === i;
           return (
@@ -113,7 +115,8 @@ export default function WBFeatureTabs() {
         })}
       </ul>
 
-      <div className="wb-window">
+      <div className={held ? "self-end pl-4 pt-2 sm:pl-8 lg:pl-0 lg:pt-12" : ""}>
+      <div className={held ? "wb-inset w-[112%] max-w-none rounded-tl-xl" : "wb-window"}>
         <div className="relative aspect-[1512/791] overflow-hidden bg-white">
           {ITEMS.map((it, n) => (
             <Image
@@ -126,6 +129,7 @@ export default function WBFeatureTabs() {
             />
           ))}
         </div>
+      </div>
       </div>
     </div>
   );

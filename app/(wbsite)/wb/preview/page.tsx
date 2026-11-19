@@ -8,12 +8,12 @@ import WBCta from "@/components/wb/WBCta";
 import WBCycleWord from "@/components/wb/WBCycleWord";
 import WBMarker from "@/components/wb/WBMarker";
 import WBScribble from "@/components/wb/WBScribble";
-import WBTilt from "@/components/wb/WBTilt";
 import { WBFaqSection } from "@/components/wb/WBFaq";
 import WBIntegrations from "@/components/wb/WBIntegrations";
 import WBLiveApp from "@/components/wb/WBLiveApp";
 import WBNote from "@/components/wb/WBNote";
-import WBTestimonials from "@/components/wb/WBTestimonials";
+import Image from "next/image";
+import WBVideo from "@/components/wb/WBVideo";
 import WBTradeStrip from "@/components/wb/WBTradeStrip";
 import WBTryIt from "@/components/wb/WBTryIt";
 import { emptyDoc } from "@/lib/tool-doc";
@@ -218,10 +218,10 @@ export default function WBHomePreview() {
             </div>
           </AnimateIn>
 
-          <AnimateIn delay={160} className="relative mx-auto mt-16 max-w-5xl pb-16 sm:mt-20 sm:pb-24">
-            <WBTilt>
+          <AnimateIn delay={160} className="relative mx-auto mt-16 max-w-5xl sm:mt-20">
+            <div className="max-h-[440px] overflow-hidden rounded-t-xl sm:max-h-[560px]">
               <WBLiveApp />
-            </WBTilt>
+            </div>
             <WBNote side="left" delay={1.2} length={260} className="absolute right-[calc(100%-13rem)] top-[392px] z-20 hidden xl:flex">
               New bookings
               <br />
@@ -235,10 +235,10 @@ export default function WBHomePreview() {
           </AnimateIn>
         </div>
       </section>
+      <div className="h-[2px] bg-[#0A1428]" aria-hidden />
 
-      <Perf from="paper" to="paper-2" />
-      {/* ── 2. What it does ── */}
-      <section className="wb-paper-2">
+      {/* ── 2. What it does: held in one slab ── */}
+      <section className="wb-paper">
         <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
           <AnimateIn className="relative max-w-3xl">
             <h2 className="text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
@@ -254,7 +254,7 @@ export default function WBHomePreview() {
               </p>
               <WBScribble variant="droop" delay={0.6} className="h-[78px] w-[60px] flex-none" />
             </div>
-            <WBFeatureTabs />
+            <WBFeatureTabs held />
           </AnimateIn>
           <p className="mt-8 text-[15px] text-gray-600">
             Plus recurring plans, review requests, a team map, contracts and refunds.{" "}
@@ -266,9 +266,8 @@ export default function WBHomePreview() {
       </section>
 
       {/* ── 2b. Try the real thing (Brightwire Electric demo; lib/demo-company.ts) ── */}
-      <Perf from="paper-2" to="paper" />
       <section id="try-it" className="wb-paper scroll-mt-24">
-        <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
+        <div className="mx-auto max-w-6xl px-5 pb-20 sm:px-8 sm:pb-28">
           <AnimateIn className="relative max-w-3xl">
             <h2 className="text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
               Don&apos;t take our word for it. <span className="text-gray-400">Try the <WBMarker>real thing.</WBMarker></span>
@@ -286,7 +285,9 @@ export default function WBHomePreview() {
             </div>
           </AnimateIn>
           <AnimateIn delay={120} className="mt-10">
-            <WBTryIt initialQuote={emptyDoc("estimate")} bookingPath={DEMO_BOOKING_PATH} hubPath={DEMO_HUB_PATH} />
+            <div className="wb-hold p-3 sm:p-5">
+              <WBTryIt initialQuote={emptyDoc("estimate")} bookingPath={DEMO_BOOKING_PATH} hubPath={DEMO_HUB_PATH} />
+            </div>
           </AnimateIn>
         </div>
       </section>
@@ -365,7 +366,34 @@ export default function WBHomePreview() {
       </section>
 
       {/* ── 5. From the field ── */}
-      <WBTestimonials />
+      <section className="wb-paper">
+        <div className="mx-auto max-w-6xl px-5 pb-20 sm:px-8 sm:pb-28">
+          <AnimateIn className="wb-hold wb-hold-navy grid items-stretch lg:grid-cols-[0.85fr_1.15fr]">
+            <div className="flex flex-col justify-center p-8 sm:p-12">
+              <h2 className="text-3xl font-extrabold leading-[1.1] text-white sm:text-[2.4rem]">
+                Hear it from an owner who runs the busy season on WorkBench.
+              </h2>
+              <div className="mt-8 flex items-center gap-4">
+                <span className="flex h-14 w-14 flex-none items-center justify-center overflow-hidden rounded-lg bg-white">
+                  <Image src="/brand/customers/knight-light.png" alt="Knight Light Christmas Lighting logo" width={83} height={70} className="h-full w-full object-contain p-1" />
+                </span>
+                <span>
+                  <span className="block text-[16px] font-extrabold text-white">Edan</span>
+                  <span className="block text-[14px] text-blue-100/75">Owner, Knight Light Christmas Lighting</span>
+                </span>
+              </div>
+            </div>
+            <div className="relative flex min-h-[260px] items-center bg-black">
+              <WBVideo
+                src="/video/knight-light-edan.mp4"
+                poster="/video/knight-light-edan-poster.jpg"
+                label="Edan from Knight Light Christmas Lighting on running installs with WorkBench"
+                caption="Watch Edan's walkthrough"
+              />
+            </div>
+          </AnimateIn>
+        </div>
+      </section>
 
       {/* ── 6. Pricing: three numbers ── */}
       <section className="bg-white">

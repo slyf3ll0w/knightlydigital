@@ -3413,11 +3413,13 @@ html[data-mode="dark"] .app-ui .wb-map-skeleton {
    label-maker tags, flat solid slabs instead of shadowed white cards, heavier
    type and chunkier buttons. Everything is scoped to .wb-mat until decided. ── */
 .wb-mat {
-  --mat-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .05 0 0 0 0 .08 0 0 0 0 .16 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='.32'/%3E%3C/svg%3E");
+  --mat-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .05 0 0 0 0 .08 0 0 0 0 .16 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='.14'/%3E%3C/svg%3E");
   --mat-specks: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='420' height='420'%3E%3Cfilter id='s'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='1' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .04 0 0 0 0 .08 0 0 0 0 .16 0 0 0 14 -9.6'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23s)' opacity='.38'/%3E%3C/svg%3E");
   --mat-chalk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)' opacity='.09'/%3E%3C/svg%3E");
-  --mat-paper: var(--mat-specks) 0 0 / 420px, var(--mat-grain) 0 0 / 240px, #F4F1EA;
-  --mat-paper-2: var(--mat-specks) 0 0 / 420px, var(--mat-grain) 0 0 / 240px, #E9E4D8;
+  /* 2026-11-19 round 2 ("too far on the paper side; still a clean software
+     site"): near-white warm stock, a faint grain only, no speckles. */
+  --mat-paper: var(--mat-grain) 0 0 / 240px, #FBFAF7;
+  --mat-paper-2: var(--mat-grain) 0 0 / 240px, #F1EEE7;
   --mat-navy: var(--mat-chalk) 0 0 / 240px, linear-gradient(160deg, #0A1428 0%, #0A1428 50%, #0C2A66 100%);
   background: var(--mat-paper);
 }
@@ -3430,14 +3432,14 @@ html[data-mode="dark"] .app-ui .wb-map-skeleton {
 /* The work order's perforated edge: punched holes along the top of the
    next sheet, a dashed tear line under them. --from / --to name the two
    materials (paper, paper-2, navy). */
-.wb-perf { position: relative; height: 26px; background: var(--from); }
+.wb-perf { position: relative; height: 20px; background: var(--from); }
 .wb-perf::after {
   content: "";
   position: absolute;
   inset: 0;
   background: var(--to);
-  -webkit-mask: radial-gradient(circle at 50% 0, transparent 6px, #000 6.6px) 0 0 / 22px 100% repeat-x;
-  mask: radial-gradient(circle at 50% 0, transparent 6px, #000 6.6px) 0 0 / 22px 100% repeat-x;
+  -webkit-mask: radial-gradient(circle at 50% 0, transparent 4.5px, #000 5px) 0 0 / 18px 100% repeat-x;
+  mask: radial-gradient(circle at 50% 0, transparent 4.5px, #000 5px) 0 0 / 18px 100% repeat-x;
 }
 .wb-perf::before {
   content: "";
@@ -3445,8 +3447,8 @@ html[data-mode="dark"] .app-ui .wb-map-skeleton {
   z-index: 1;
   left: 0;
   right: 0;
-  top: 15px;
-  border-top: 2px dashed var(--perf-ink, rgba(10, 20, 40, 0.22));
+  top: 11px;
+  border-top: 1.5px dashed var(--perf-ink, rgba(10, 20, 40, 0.18));
 }
 
 /* Label-maker tape: white raised letters on navy tape, set a hair crooked. */
@@ -3467,6 +3469,24 @@ html[data-mode="dark"] .app-ui .wb-map-skeleton {
   transform: rotate(-1.2deg);
 }
 .wb-dymo-orange { background: linear-gradient(180deg, #FF7A1F 0%, #E85D04 100%); }
+
+/* A section's slab: its content held in one solid panel, the product
+   cropped by the panel's edge instead of floating in a halo (round 2:
+   "the sections don't have that heavy look"). */
+.wb-mat .wb-hold {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  background: var(--mat-paper-2);
+  border: 1px solid rgba(10, 20, 40, 0.09);
+}
+.wb-mat .wb-hold-navy { background: var(--mat-navy); border-color: rgba(255, 255, 255, 0.06); color: #fff; }
+/* A screen set into a slab: square to the slab's edge it bleeds off. */
+.wb-mat .wb-inset {
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(10, 20, 40, 0.14), 0 10px 24px -14px rgba(10, 20, 40, 0.4);
+}
 
 /* Flat slab: a solid panel a shade darker than the paper. No float. */
 .wb-mat .wb-slab {
