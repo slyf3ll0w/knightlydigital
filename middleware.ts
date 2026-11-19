@@ -215,7 +215,6 @@ const agencyMoved: Record<string, string> = {
   "/about": "/",
   "/services": "/",
   "/custom-web-design": "/",
-  "/custom-software": "/",
   "/digital-marketing": "/",
   "/crm": "/",
 };
@@ -512,7 +511,6 @@ export const config = {
     "/about",
     "/services",
     "/custom-web-design",
-    "/custom-software",
     "/digital-marketing",
     "/contact",
     "/crm",

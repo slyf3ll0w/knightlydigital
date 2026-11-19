@@ -77,7 +77,7 @@ export default function WBBookCallPage() {
     <>
       <WBSplitHero
         photo={WB_DAY_PHOTOS.arrive}
-        mascot={{ say: <>Bring your questions.<br />WeBring your questions.<br />I&apos;ll bring the coffee.apos;ll set you up.</> }}
+        mascot={{ say: <>Bring your questions.<br />I&apos;ll bring the coffee.</> }}
         chip={{
           icon: <CalendarCheck className="h-[18px] w-[18px] text-[#F86A0A]" strokeWidth={2.2} />,
           title: "Pick a time",

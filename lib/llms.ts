@@ -62,6 +62,7 @@ ${summary()}
 - [The free plan](${BASE}${FREE_PAGE_PATH}): What "free, not a trial" means — full access for ${SEATS_INCLUDED} users, no card, no clock — what is in ${CORE}, and the three optional things that cost money.
 - [Get started](${BASE}/apply): How a company signs up and gets onboarded.
 - [Book a call](${BASE}/book-a-call): Pick a time for a setup call with the people who build WorkBench — a walk through the software with your trade and jobs, account opened and payments connected on the call.
+- [Custom software](${BASE}/custom-software): Workflows and systems built into WorkBench for one business — custom steps, forms, reports, automations and connections to other software. Scoped and priced up front after a call; reach us by phone, through your account manager, or the form on the page.
 ${FREE_PAGES.map((p) => `- [${p.title}](${BASE}${p.path}): ${p.description}`).join("\n")}
 
 ## Free tools (no account needed)

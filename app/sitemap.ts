@@ -31,6 +31,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     })),
     { url: `${BASE}/pricing`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE}/book-a-call`, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${BASE}/custom-software`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE}${FREE_PAGE_PATH}`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE}/trades`, changeFrequency: "monthly", priority: 0.7 },
     ...TRADES.map((t) => ({

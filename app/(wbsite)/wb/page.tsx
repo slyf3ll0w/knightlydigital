@@ -6,6 +6,9 @@ import WBAtlasVoice from "@/components/wb/WBAtlasVoice";
 import WBFeatureTabs from "@/components/wb/WBFeatureTabs";
 import WBCta from "@/components/wb/WBCta";
 import WBCycleWord from "@/components/wb/WBCycleWord";
+import WBMarker from "@/components/wb/WBMarker";
+import WBScribble from "@/components/wb/WBScribble";
+import WBTilt from "@/components/wb/WBTilt";
 import { WBFaqSection } from "@/components/wb/WBFaq";
 import WBIntegrations from "@/components/wb/WBIntegrations";
 import WBLiveApp from "@/components/wb/WBLiveApp";
@@ -210,7 +213,9 @@ export default function WBHomePage() {
           </AnimateIn>
 
           <AnimateIn delay={160} className="relative mx-auto mt-16 max-w-5xl pb-16 sm:mt-20 sm:pb-24">
-            <WBLiveApp />
+            <WBTilt>
+              <WBLiveApp />
+            </WBTilt>
             <WBNote side="left" delay={1.2} length={260} className="absolute right-[calc(100%-13rem)] top-[392px] z-20 hidden xl:flex">
               New bookings
               <br />
@@ -230,10 +235,18 @@ export default function WBHomePage() {
         <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
           <AnimateIn className="relative max-w-3xl">
             <h2 className="text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
-              Everything from the first call to the paid invoice.
+              Everything from the first call to the <WBMarker>paid invoice.</WBMarker>
             </h2>
           </AnimateIn>
           <AnimateIn delay={120} className="relative mt-12">
+            <div className="absolute -top-[5.5rem] right-6 z-20 hidden items-end gap-1 xl:flex" aria-hidden>
+              <p className="pb-3 text-right text-[15px] font-extrabold leading-snug text-[#10244A]">
+                The real screens,
+                <br />
+                not mockups
+              </p>
+              <WBScribble variant="droop" delay={0.6} className="h-[78px] w-[60px] flex-none" />
+            </div>
             <WBFeatureTabs />
           </AnimateIn>
           <p className="mt-8 text-[15px] text-gray-600">
@@ -250,11 +263,19 @@ export default function WBHomePage() {
         <div className="mx-auto max-w-6xl px-5 py-20 sm:px-8 sm:py-28">
           <AnimateIn className="relative max-w-3xl">
             <h2 className="text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
-              Don&apos;t take our word for it. <span className="text-gray-400">Try the real thing.</span>
+              Don&apos;t take our word for it. <span className="text-gray-400">Try the <WBMarker>real thing.</WBMarker></span>
             </h2>
             <p className="mt-4 text-[17px] leading-relaxed text-gray-600">
               These are working parts of WorkBench, not pictures of them. Make a real quote and send it, or book a visit with Brightwire Electric, a made-up company we run for demos.
             </p>
+            <div className="absolute -bottom-20 right-[-15rem] z-20 hidden items-end gap-1 xl:flex" aria-hidden>
+              <p className="pb-3 text-right text-[15px] font-extrabold leading-snug text-[#10244A]">
+                Go ahead,
+                <br />
+                click around
+              </p>
+              <WBScribble variant="droop" delay={0.5} className="h-[80px] w-[62px] flex-none" />
+            </div>
           </AnimateIn>
           <AnimateIn delay={120} className="mt-10">
             <WBTryIt initialQuote={emptyDoc("estimate")} bookingPath={DEMO_BOOKING_PATH} hubPath={DEMO_HUB_PATH} />
@@ -289,7 +310,15 @@ export default function WBHomePage() {
               <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
             </Link>
           </AnimateIn>
-          <AnimateIn delay={120}>
+          <AnimateIn delay={120} className="relative">
+            <div className="absolute -left-36 top-6 z-20 hidden items-start gap-1 xl:flex" aria-hidden>
+              <p className="pt-1 text-right text-[15px] font-extrabold leading-snug text-white">
+                Talk,
+                <br />
+                don&apos;t type
+              </p>
+              <WBScribble variant="swoop" tone="chalk" delay={0.6} className="mt-6 h-[46px] w-[92px] flex-none" />
+            </div>
             <WBAtlasVoice className="mx-auto w-full max-w-[420px]" />
           </AnimateIn>
         </div>
@@ -300,7 +329,7 @@ export default function WBHomePage() {
         <div className="mx-auto max-w-6xl px-5 pt-20 sm:px-8 sm:pt-28">
           <AnimateIn className="flex flex-wrap items-end justify-between gap-6">
             <h2 className="max-w-2xl text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
-              Built for the trades that come to the house.
+              Built for the trades that <WBMarker>come to the house.</WBMarker>
             </h2>
             <Link href="/trades" className="inline-flex items-center gap-1.5 text-[15px] font-bold text-[#0B57D8] hover:underline">
               Every trade
@@ -308,8 +337,18 @@ export default function WBHomePage() {
             </Link>
           </AnimateIn>
         </div>
-        <AnimateIn delay={120} className="relative pb-20 sm:pb-28">
-          <div className="mt-10">
+        <AnimateIn delay={120} className="relative -mt-8 pb-20 sm:pb-28">
+          <div className="relative mx-auto max-w-6xl px-5 sm:px-8">
+            <div className="absolute -top-[4.5rem] left-[38%] z-20 hidden items-end gap-1 xl:flex" aria-hidden>
+              <p className="pb-3 text-[15px] font-extrabold leading-snug text-[#10244A]">
+                Find yours.
+                <br />
+                Hover to stop it.
+              </p>
+              <WBScribble variant="droop" delay={0.5} className="h-[78px] w-[60px] flex-none" />
+            </div>
+          </div>
+          <div className="mt-14">
             <WBTradeStrip />
           </div>
         </AnimateIn>
@@ -327,12 +366,22 @@ export default function WBHomePage() {
               The software is free. You pay a normal card fee when a client pays you, and add-ons only if you want them.
             </p>
           </AnimateIn>
+          <AnimateIn className="relative">
+            <div className="absolute -top-[5.5rem] -right-8 z-20 hidden items-end gap-1 xl:flex" aria-hidden>
+              <p className="pb-2 text-right text-[15px] font-extrabold leading-snug text-[#10244A]">
+                The whole bill.
+                <br />
+                Nothing hidden.
+              </p>
+              <WBScribble variant="droop" delay={0.4} className="h-[80px] w-[62px] flex-none" />
+            </div>
+          </AnimateIn>
           <AnimateIn delay={100}>
             <div className="mt-12 grid overflow-hidden rounded-xl bg-white wb-raised md:grid-cols-3 md:divide-x md:divide-gray-200 max-md:divide-y max-md:divide-gray-200">
               {[
                 {
                   head: `${FREE_PLAN_NAME} plan`,
-                  big: "$0",
+                  big: <WBMarker shape="circle" delay={0.7}>$0</WBMarker>,
                   unit: "a month",
                   body: `Everything you need, free for ${INCLUDED_SEATS} users. Not a trial. Extra users are ${formatCents(EXTRA_SEAT_CENTS)} a month each.`,
                 },

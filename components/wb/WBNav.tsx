@@ -3,18 +3,19 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, ChevronDown, Menu, Phone, X } from "lucide-react";
 import { WB_PHONE } from "@/lib/wb-site";
 
 /**
- * WorkBench marketing header (David 2026-11-18, round 3): one rounded white
- * bar floating just under the top of the page (Dotcom-style), with the
- * logo, the page links (Features, Compare and Resources open a menu), the
- * phone number (a pill), Log in and Get started. Frosted glass, link hovers
- * in WorkBench blue, a light sweep across Get started, and a Features menu
- * with a small real screenshot beside each feature (round 5). It tightens and gains a shadow once
- * the page scrolls. The current page gets an orange underline. On the phone
+ * WorkBench marketing header (David 2026-11-18, round 3; "heavy" pass
+ * 2026-11-19): one solid white bar floating just under the top of the page,
+ * with the logo, the page links (Features, Compare and Resources open a
+ * menu that eases in), the phone number as a person to call (navy disc +
+ * "Talk to a person"; the blue pill read as AI-made), Log in and Get
+ * started. One soft highlight slides between the links under the pointer.
+ * A Features menu shows a small real screenshot beside each feature. It
+ * tightens once the page scrolls. The current page gets an orange underline. On the phone
  * the links open in a rounded sheet under the bar. The home is built at
  * /wb; middleware rewrites the site root to it, so links point at "/".
  */
@@ -54,12 +55,13 @@ const links: NavLink[] = [
   {
     href: "/help",
     label: "Resources",
-    match: ["/help", "/tools", "/announcements"],
+    match: ["/help", "/tools", "/announcements", "/custom-software"],
     menu: [
       { href: "/help", label: "Help Center", sub: "Step-by-step guides" },
       { href: "/tools", label: "Free tools", sub: "Invoice and estimate generators" },
       { href: "/announcements", label: "What's new", sub: "Every release, explained" },
       { href: "/book-a-call", label: "Book a setup call", sub: "Free, with a real person" },
+      { href: "/custom-software", label: "Custom software", sub: "Built around your business" },
     ],
   },
   { href: "/contact", label: "Contact" },
@@ -70,6 +72,16 @@ export default function WBNav() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [hidden, setHidden] = useState(false);
+  // The hover highlight that glides between links (position in the nav).
+  const navRef = useRef<HTMLElement>(null);
+  const [hl, setHl] = useState<{ left: number; width: number } | null>(null);
+  const hoverLink = (el: HTMLElement) => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const a = el.getBoundingClientRect();
+    const n = nav.getBoundingClientRect();
+    setHl({ left: a.left - n.left, width: a.width });
+  };
 
   // Close the phone menu on navigation.
   useEffect(() => {
@@ -106,8 +118,10 @@ export default function WBNav() {
     >
       {/* frosted glass bar (round 5: no gradient edge) */}
       <div
-        className={`mx-auto max-w-[1240px] rounded-2xl border border-white/70 bg-white/80 ring-1 ring-black/[0.06] backdrop-blur-xl backdrop-saturate-150 transition-shadow duration-300 ${
-          scrolled ? "shadow-[0_18px_44px_-18px_rgba(10,20,40,0.35)]" : "shadow-[0_10px_34px_-20px_rgba(10,20,40,0.3)]"
+        className={`mx-auto max-w-[1240px] rounded-xl bg-white transition-shadow duration-300 ${
+          scrolled
+            ? "shadow-[0_0_0_1px_rgba(10,20,40,0.07),0_1px_2px_rgba(10,20,40,0.06),0_18px_40px_-18px_rgba(10,20,40,0.35)]"
+            : "shadow-[0_0_0_1px_rgba(10,20,40,0.06),0_1px_2px_rgba(10,20,40,0.05),0_12px_30px_-18px_rgba(10,20,40,0.28)]"
         }`}
       >
         <div>
@@ -123,16 +137,23 @@ export default function WBNav() {
             />
           </Link>
 
-          <nav className="ml-2 hidden h-full items-stretch lg:flex" aria-label="Primary">
+          <nav ref={navRef} onMouseLeave={() => setHl(null)} className="relative ml-2 hidden h-full items-stretch lg:flex" aria-label="Primary">
+            <span
+              aria-hidden
+              className={`pointer-events-none absolute top-1/2 h-[40px] -translate-y-1/2 rounded-lg bg-[#EEF3FD] transition-[left,width,opacity] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${hl ? "opacity-100" : "opacity-0"}`}
+              style={{ left: hl?.left ?? 0, width: hl?.width ?? 0 }}
+            />
             {links.map((l) => {
               const active = isActive(l);
               return (
                 <div key={l.label} className="group relative flex items-stretch">
                   <Link
+                    onMouseEnter={(e) => hoverLink(e.currentTarget)}
+                    onFocus={(e) => hoverLink(e.currentTarget)}
                     href={l.href}
                     aria-current={active && pathname === l.href ? "page" : undefined}
                     className={`wb-navlink relative my-3 inline-flex items-center gap-1 rounded-lg px-3 text-[15px] font-bold transition-colors xl:px-3.5 ${
-                      active ? "text-[#0B57D8]" : "text-gray-700 hover:bg-[#F2F6FE] hover:text-[#0B57D8]"
+                      active ? "text-[#0B57D8]" : "text-gray-700 hover:text-[#0B57D8]"
                     }`}
                     data-active={active || undefined}
                   >
@@ -142,11 +163,11 @@ export default function WBNav() {
                     )}
                   </Link>
                   {l.menu && (
-                    <div className="invisible absolute left-0 top-full z-50 pt-2 opacity-0 transition-opacity duration-150 group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
-                      <ul className={`rounded-2xl border border-gray-200 bg-white p-2 shadow-[0_24px_50px_-18px_rgba(10,20,40,0.35)] ${l.wide ? "grid w-[40rem] grid-cols-2 gap-1" : "w-[19rem]"}`}>
+                    <div className="invisible absolute left-0 top-full z-50 origin-top-left translate-y-1.5 scale-[0.98] pt-2 opacity-0 transition-[opacity,transform,visibility] duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:scale-100 group-focus-within:opacity-100 group-hover:visible group-hover:translate-y-0 group-hover:scale-100 group-hover:opacity-100">
+                      <ul className={`wb-navmenu rounded-xl bg-white p-2 ${l.wide ? "grid w-[40rem] grid-cols-2 gap-1" : "w-[19rem]"}`}>
                         {l.menu.map((m) => (
                           <li key={m.href}>
-                            <Link href={m.href} className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-[#F2F6FE]">
+                            <Link href={m.href} className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-[#F2F6FE]">
                               {m.thumb && (
                                 <span className="relative h-11 w-16 flex-none overflow-hidden rounded-md bg-gray-100 ring-1 ring-gray-200">
                                   <Image src={m.thumb} alt="" fill sizes="64px" className="object-cover object-left-top" />
@@ -168,11 +189,17 @@ export default function WBNav() {
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
-            <a href={WB_PHONE.href} className="hidden items-center gap-1.5 rounded-full bg-[#F2F6FE] px-3.5 py-2 text-[14px] font-bold text-[#0B57D8] ring-1 ring-[#D9E6FC] transition-colors hover:bg-[#0B57D8] hover:text-white xl:inline-flex [&:hover_svg]:text-white">
-              <Phone className="h-4 w-4 text-[#F86A0A]" strokeWidth={2.5} aria-hidden />
-              {WB_PHONE.display}
+            <a href={WB_PHONE.href} className="group/ph hidden items-center gap-2.5 xl:flex">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0A1428] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_4px_10px_-4px_rgba(10,20,40,0.5)] transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] group-hover/ph:-rotate-[14deg]">
+                <Phone className="h-[15px] w-[15px] fill-[#FF8B33] text-[#FF8B33]" strokeWidth={2} aria-hidden />
+              </span>
+              <span className="leading-tight">
+                <span className="block text-[11.5px] font-semibold text-gray-500">Talk to a person</span>
+                <span className="block text-[15px] font-extrabold tabular-nums text-gray-900 transition-colors group-hover/ph:text-[#0B57D8]">{WB_PHONE.display}</span>
+              </span>
             </a>
-            <Link href="/app/login" className="hidden px-3 text-[14.5px] font-bold text-gray-700 hover:text-gray-900 sm:block">
+            <span className="mx-2.5 hidden h-8 w-px bg-gray-200 xl:block" aria-hidden />
+            <Link href="/app/login" className="hidden px-3 text-[14.5px] font-bold text-gray-700 transition-colors hover:text-[#0B57D8] sm:block">
               Log in
             </Link>
             <Link href="/apply" className="wb-btn wb-pill wb-pill-orange wb-pill-sm">
@@ -195,7 +222,7 @@ export default function WBNav() {
 
       {open && (
         <nav
-          className="mx-auto mt-2 max-h-[calc(100dvh-96px)] max-w-[1240px] overflow-y-auto rounded-2xl border border-gray-200 bg-white px-5 py-2 shadow-[0_24px_50px_-18px_rgba(10,20,40,0.35)] lg:hidden"
+          className="wb-navmenu wb-drop-in mx-auto mt-2 max-h-[calc(100dvh-96px)] max-w-[1240px] overflow-y-auto rounded-xl bg-white px-5 py-2 lg:hidden"
           aria-label="Menu"
         >
           <ul>

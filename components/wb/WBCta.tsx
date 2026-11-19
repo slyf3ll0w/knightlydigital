@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { ArrowRight, Phone } from "lucide-react";
+import WBRibbon from "@/components/wb/WBRibbon";
 import { WB_PHONE } from "@/lib/wb-site";
 
 /**
- * The closing band on every marketing page: navy with a blue breath, the
+ * The closing band on every marketing page: navy with a blue breath and the
+ * brand ribbon sweeping in from the left (2026-11-19, "more pizzazz"), the
  * headline, one orange pill, one ghost pill, and the phone number.
  */
 export default function WBCta({
@@ -16,10 +18,11 @@ export default function WBCta({
   secondary?: { label: string; href: string } | null;
 }) {
   return (
-    <section className="wb-dark text-white">
-      <div className="mx-auto grid max-w-6xl gap-8 px-5 py-16 sm:px-8 sm:py-20 lg:grid-cols-[1.3fr_1fr] lg:items-center">
+    <section className="wb-dark relative overflow-hidden text-white">
+      <WBRibbon id="cta-r" className="bottom-0 left-0 h-[150%] w-[70%] -scale-100 opacity-40 sm:w-[44%] sm:opacity-55" />
+      <div className="relative mx-auto grid max-w-6xl gap-8 px-5 py-20 sm:px-8 sm:py-28 lg:grid-cols-[1.3fr_1fr] lg:items-center">
         <div>
-          <h2 className="max-w-xl text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">{title}</h2>
+          <h2 className="max-w-xl text-3xl font-extrabold leading-[1.05] sm:text-[3rem]">{title}</h2>
           <p className="mt-4 max-w-lg text-[15.5px] leading-relaxed text-blue-100/80">{body}</p>
         </div>
         <div className="flex flex-col items-start gap-4 lg:items-end">

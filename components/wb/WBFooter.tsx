@@ -69,6 +69,7 @@ const columns: { heading: string; links: { label: string; href: string }[] }[] =
     links: [
       { label: "Contact", href: "/contact" },
       { label: "Book a call", href: "/book-a-call" },
+      { label: "Custom software", href: "/custom-software" },
       { label: "Get started", href: "/apply" },
       { label: "Log in", href: "/app/login" },
     ],
