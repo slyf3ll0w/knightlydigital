@@ -268,7 +268,7 @@ export default function WBHomePreview() {
       {/* ── 2b. Try the real thing (Brightwire Electric demo; lib/demo-company.ts) ── */}
       <section id="try-it" className="wb-paper scroll-mt-24">
         <div className="mx-auto max-w-6xl px-5 pb-20 sm:px-8 sm:pb-28">
-          <AnimateIn className="relative max-w-3xl">
+          <AnimateIn className="relative z-10 max-w-3xl">
             <h2 className="text-3xl font-extrabold leading-[1.1] sm:text-[2.6rem]">
               Don&apos;t take our word for it. <span className="text-gray-400">Try the <WBMarker>real thing.</WBMarker></span>
             </h2>
