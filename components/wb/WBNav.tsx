@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, ChevronDown, Menu, Phone, X } from "lucide-react";
 import { WB_PHONE } from "@/lib/wb-site";
 
@@ -13,7 +13,7 @@ import { WB_PHONE } from "@/lib/wb-site";
  * with the logo, the page links (Features, Compare and Resources open a
  * menu that eases in), the phone number as a person to call (navy disc +
  * "Talk to a person"; the blue pill read as AI-made), Log in and Get
- * started. One soft highlight slides between the links under the pointer.
+ * started (no hover animation on the links: David 2026-11-19).
  * A Features menu shows a small real screenshot beside each feature. It
  * tightens once the page scrolls. The current page gets an orange underline. On the phone
  * the links open in a rounded sheet under the bar. The home is built at
@@ -72,16 +72,6 @@ export default function WBNav() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [hidden, setHidden] = useState(false);
-  // The hover highlight that glides between links (position in the nav).
-  const navRef = useRef<HTMLElement>(null);
-  const [hl, setHl] = useState<{ left: number; width: number } | null>(null);
-  const hoverLink = (el: HTMLElement) => {
-    const nav = navRef.current;
-    if (!nav) return;
-    const a = el.getBoundingClientRect();
-    const n = nav.getBoundingClientRect();
-    setHl({ left: a.left - n.left, width: a.width });
-  };
 
   // Close the phone menu on navigation.
   useEffect(() => {
@@ -137,19 +127,12 @@ export default function WBNav() {
             />
           </Link>
 
-          <nav ref={navRef} onMouseLeave={() => setHl(null)} className="relative ml-1 hidden h-full items-stretch lg:flex" aria-label="Primary">
-            <span
-              aria-hidden
-              className={`pointer-events-none absolute top-1/2 h-[40px] -translate-y-1/2 rounded-lg bg-[#EEF3FD] transition-[left,width,opacity] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${hl ? "opacity-100" : "opacity-0"}`}
-              style={{ left: hl?.left ?? 0, width: hl?.width ?? 0 }}
-            />
+          <nav className="relative ml-1 hidden h-full items-stretch lg:flex" aria-label="Primary">
             {links.map((l) => {
               const active = isActive(l);
               return (
                 <div key={l.label} className="group relative flex items-stretch">
                   <Link
-                    onMouseEnter={(e) => hoverLink(e.currentTarget)}
-                    onFocus={(e) => hoverLink(e.currentTarget)}
                     href={l.href}
                     aria-current={active && pathname === l.href ? "page" : undefined}
                     className={`wb-navlink relative my-3 inline-flex items-center gap-1 whitespace-nowrap rounded-lg px-2.5 text-[15px] font-bold transition-colors xl:px-3 ${
@@ -190,7 +173,7 @@ export default function WBNav() {
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
             <a href={WB_PHONE.href} className="group/ph hidden items-center gap-2.5 xl:flex">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0A1428] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_4px_10px_-4px_rgba(10,20,40,0.5)] transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] group-hover/ph:-rotate-[14deg]">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0A1428] shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_4px_10px_-4px_rgba(10,20,40,0.5)]">
                 <Phone className="h-[15px] w-[15px] fill-[#FF8B33] text-[#FF8B33]" strokeWidth={2} aria-hidden />
               </span>
               <span className="leading-tight">

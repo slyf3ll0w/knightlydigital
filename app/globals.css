@@ -2242,8 +2242,9 @@ html[data-mode="dark"] .app-ui .card-tool {
 .wb-site .rounded-\[2rem\],
 .wb-site .rounded-\[2\.2rem\] { border-radius: 0.875rem; }
 
-/* Header: the current page and the hovered link get an orange rule along
-   the bottom edge of the bar. */
+/* Header: the current page gets an orange rule along the bottom edge of
+   the bar. Hover is a color change only (David 2026-11-19: no hover
+   animation). */
 .wb-navlink::after {
   content: "";
   position: absolute;
@@ -2253,12 +2254,9 @@ html[data-mode="dark"] .app-ui .card-tool {
   height: 2.5px;
   border-radius: 2px;
   background: #F86A0A;
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.2s ease;
+  display: none;
 }
-.wb-navlink:hover::after,
-.wb-navlink[data-active]::after { transform: scaleX(1); }
+.wb-navlink[data-active]::after { display: block; }
 
 /* Page hero backdrop: clean white. The color comes from .wb-ribbon. */
 .wb-bloom { background-color: #FFFFFF; }
