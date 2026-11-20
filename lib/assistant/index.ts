@@ -426,6 +426,13 @@ export async function runAssistant(
       }
     : systemPrompt(actor, company.name, company.timezone, assistantName);
   if (opts.voice && !opts.scope) prompt.volatile += `\n\n${VOICE_MODE_RULES}`;
+  // The Client pages Atlas (scope "client-pages"): a reply that SAYS it
+  // changed the look without saving a draft is the worst answer it can give
+  // (seen on staging 2026-11-20: "I made the band dark green", no tool call,
+  // nothing changed). When it answers in plain text without a saved draft and
+  // without asking a question, it gets one more round with a firm note.
+  let designSaved = false;
+  let designNudged = false;
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
     const callOpts = {
       system: prompt.stable,
@@ -481,6 +488,26 @@ export async function runAssistant(
         ...(ctx.navigate ? { navigate: ctx.navigate } : {}),
         ...(recapLines.length > 0 ? { recap: recapLines.join("\n").slice(0, 1500) } : {}),
       });
+      if (
+        opts.scope &&
+        !designSaved &&
+        !designNudged &&
+        round < MAX_TOOL_ROUNDS - 1 &&
+        !text.trim().endsWith("?")
+      ) {
+        designNudged = true;
+        contents.push({ role: "model", parts: [{ text: text || "(no reply)" }] });
+        contents.push({
+          role: "user",
+          parts: [
+            {
+              text:
+                "(Note from WorkBench, not from the person: nothing was saved. If the person asked for a change, call draft_client_theme now to save it, then tell them in one or two sentences what changed. If their request is unclear, ask them one short question instead. Never say something changed unless draft_client_theme saved it.)",
+            },
+          ],
+        });
+        continue;
+      }
       if (text) return done(text);
       // model went silent (rare) — if it staged something, still surface it
       return ctx.proposals.length > 0
@@ -516,6 +543,7 @@ export async function runAssistant(
         } else {
           try {
             response = await tool.run(actor, call.functionCall.args ?? {}, ctx);
+            if (tool.decl.name === "draft_client_theme" && response && typeof response === "object" && !("error" in (response as Record<string, unknown>))) designSaved = true;
             // A client's notes ride along with cards staged for them (and the
             // reads that precede an action) — once per client per turn.
             response = await withClientHeadsUp(actor, tool.decl.name, call.functionCall.args ?? {}, response, ctx);
