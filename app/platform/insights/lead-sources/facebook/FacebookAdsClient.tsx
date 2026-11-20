@@ -20,17 +20,20 @@ import type { MetaLeadsStatus } from "@/lib/meta-leads";
  *   Get leads from Facebook forms — Connect Facebook, one sign-in (only when
  *     the server has it set up). Connected: the Page, when a lead last came,
  *     Disconnect.
- *   Tell Facebook which leads became jobs — off: three steps and two boxes to
+ *   Tell Facebook which leads became jobs — signed in with Facebook: pick the
+ *     dataset from a list (one dataset is picked for them), nothing to paste.
+ *     Not signed in, or "Paste a token instead": three steps and two boxes to
  *     paste into. On: the dataset, when steps last went, Send now, a test
  *     event, Turn off.
  *   What Facebook is being told — the numbers.
  *   Stuck? — ask WorkBench for help from right here, or book a setup call.
  */
 type Page = { id: string; name: string };
-type LeadsData = MetaLeadsStatus & { pages?: Page[] };
+type Dataset = { id: string; name: string };
+type LeadsData = MetaLeadsStatus & { pages?: Page[]; datasets?: Dataset[] };
 
 const OUTCOMES: Record<string, { tone: "ok" | "err"; text: string }> = {
-  connected: { tone: "ok", text: "Facebook is connected. Leads from your Facebook and Instagram forms land on your Leads board from now on." },
+  connected: { tone: "ok", text: "Facebook is connected. Leads from your Facebook and Instagram forms land on your Leads board from now on, and Facebook is told what they turn into." },
   pick_page: { tone: "ok", text: "Signed in. Pick the Facebook Page your lead forms are on." },
   no_pages: { tone: "err", text: "That Facebook sign-in has no Page it can advertise for. Sign in as someone who manages your business's Page." },
   denied: { tone: "err", text: "Facebook connection cancelled. Nothing was changed." },
@@ -55,20 +58,25 @@ export default function FacebookAdsClient({
   const [leads, setLeads] = useState<LeadsData>(initialLeads);
   const flash = outcome ? OUTCOMES[outcome] ?? null : null;
 
-  // several Pages under one sign-in: fetch the list to pick from
+  // several Pages under one sign-in, or no dataset picked yet: fetch the lists to pick from
+  const wantLists = initialLeads.needsPage || (initialLeads.signedIn && !initial.on);
+  const [listsLoaded, setListsLoaded] = useState(!wantLists);
   useEffect(() => {
-    if (!initialLeads.needsPage) return;
+    if (!wantLists) return;
     let live = true;
     fetch("/api/app/meta-leads", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d: LeadsData | null) => {
         if (live && d) setLeads(d);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (live) setListsLoaded(true);
+      });
     return () => {
       live = false;
     };
-  }, [initialLeads.needsPage]);
+  }, [wantLists]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -77,7 +85,10 @@ export default function FacebookAdsClient({
   const [testCode, setTestCode] = useState("");
   // the two boxes show while off, and again when the owner asks to replace the token
   const [editing, setEditing] = useState(false);
-  const showForm = !status.on || editing;
+  // signed in with Facebook = pick a dataset from a list; pasting is the fallback behind a link
+  const [manual, setManual] = useState(false);
+  const canPick = leads.signedIn && !status.on && !manual;
+  const showForm = (!status.on && !canPick) || editing;
 
   type Answer = { received: number | null; messages: string[]; trace: string | null; datasetId: string };
   type CallResult = MetaAdsStatus & { tested?: boolean; facebook?: Answer };
@@ -125,14 +136,40 @@ export default function FacebookAdsClient({
     setBusy(null);
   }
 
+  /** Report results to one of the sign-in's datasets: nothing to paste. */
+  async function pickDataset(id: string) {
+    setBusy(`ds-${id}`);
+    setError(null);
+    setNotice(null);
+    const picked = await postJson<LeadsData>("/api/app/meta-leads", { datasetId: id });
+    if (!picked.ok || !picked.data) {
+      setBusy(null);
+      setError(picked.data?.error ?? "That didn't work. Try again.");
+      return;
+    }
+    setLeads(picked.data);
+    const fresh = await fetch("/api/app/meta-ads", { cache: "no-store" })
+      .then((r) => (r.ok ? (r.json() as Promise<MetaAdsStatus>) : null))
+      .catch(() => null);
+    setBusy(null);
+    if (fresh) setStatus(fresh);
+    setNotice("On. Steps your Facebook leads take are sent to Facebook within the hour.");
+  }
+
   async function disconnect() {
     const yes = await confirmSheet({
       title: "Disconnect Facebook?",
-      message: "Leads from your Facebook forms stop arriving in WorkBench. Leads already on your board stay.",
+      message: status.via === "connect" ? "Leads from your Facebook forms stop arriving in WorkBench, and Facebook is no longer told what your leads did. Leads already on your board stay." : "Leads from your Facebook forms stop arriving in WorkBench. Leads already on your board stay.",
       confirmLabel: "Disconnect",
       destructive: true,
     });
-    if (yes) void connection("disconnect", "DELETE");
+    if (!yes) return;
+    await connection("disconnect", "DELETE");
+    // reporting that ran on this sign-in stops with it
+    const fresh = await fetch("/api/app/meta-ads", { cache: "no-store" })
+      .then((r) => (r.ok ? (r.json() as Promise<MetaAdsStatus>) : null))
+      .catch(() => null);
+    if (fresh) setStatus(fresh);
   }
 
   async function save() {
@@ -171,6 +208,13 @@ export default function FacebookAdsClient({
       setEditing(false);
       setDatasetId("");
       setToken("");
+      // back to the list of datasets, when signed in
+      if (leads.signedIn) {
+        void fetch("/api/app/meta-leads", { cache: "no-store" })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d: LeadsData | null) => d && setLeads(d))
+          .catch(() => {});
+      }
     }
   }
 
@@ -348,7 +392,9 @@ export default function FacebookAdsClient({
                   </div>
                   <p className="ds-small mt-1">
                     {status.needsToken
-                      ? "Facebook no longer accepts this access token. Generate a new one in Events Manager and paste it here."
+                      ? status.via === "connect"
+                        ? "Facebook no longer accepts this sign-in. Connect Facebook again to keep reporting."
+                        : "Facebook no longer accepts this access token. Generate a new one in Events Manager and paste it here."
                       : status.lastSendAt
                         ? `Last sent ${at(status.lastSendAt)} · ${status.lastSendCount ?? 0} ${status.lastSendCount === 1 ? "step" : "steps"}`
                         : "Nothing to send yet. Steps go out within the hour after a Facebook lead takes one."}
@@ -356,7 +402,11 @@ export default function FacebookAdsClient({
                   {status.lastError && <p className="mt-1.5 text-[13.5px] text-[color:var(--ds-bad)]">Facebook said: {status.lastError}</p>}
                 </div>
                 <div className="flex flex-wrap items-center gap-1">
-                  {status.needsToken ? (
+                  {status.needsToken && status.via === "connect" ? (
+                    <Button loading={busy === "connect"} onClick={() => void startConnect()}>
+                      Connect again
+                    </Button>
+                  ) : status.needsToken ? (
                     <Button onClick={() => setEditing(true)} disabled={editing}>
                       New token
                     </Button>
@@ -365,7 +415,7 @@ export default function FacebookAdsClient({
                       Send now
                     </Button>
                   )}
-                  {!status.needsToken && !editing && (
+                  {!status.needsToken && !editing && status.via !== "connect" && (
                     <Button variant="ghost" size="sm" disabled={!!busy} onClick={() => setEditing(true)}>
                       Change
                     </Button>
@@ -390,6 +440,34 @@ export default function FacebookAdsClient({
                   </Button>
                 </div>
               )}
+            </Card>
+          )}
+
+          {canPick && (
+            <Card className="p-5" data-testid="fb-datasets">
+              <p className="flex items-center gap-1 text-[14.5px] font-semibold text-[color:var(--ds-ink)]">
+                Which dataset?
+                <InfoTip>A dataset is where Facebook keeps what your ads lead to (it also calls it a pixel). Pick the one your ads use. These are the datasets your Facebook sign-in can use.</InfoTip>
+              </p>
+              <ul className="ds-divide mt-3 overflow-hidden rounded-[12px] border border-[color:var(--ds-line)]">
+                {(leads.datasets ?? []).map((d) => (
+                  <li key={d.id} className="flex items-center gap-3 px-3.5 py-2.5">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[14.5px] font-medium text-[color:var(--ds-ink)]">{d.name}</span>
+                      <span className="ds-small ds-num block">{d.id}</span>
+                    </span>
+                    <Button variant="soft" size="sm" loading={busy === `ds-${d.id}`} disabled={!!busy} onClick={() => void pickDataset(d.id)}>
+                      Use this one
+                    </Button>
+                  </li>
+                ))}
+                {(leads.datasets ?? []).length === 0 && (
+                  <li className="ds-small px-3.5 py-3">{listsLoaded ? "Your Facebook sign-in has no dataset yet. Make one in Events Manager (Connect data, then Web), then reload this page." : "Reading your datasets…"}</li>
+                )}
+              </ul>
+              <Button variant="ghost" size="sm" className="mt-3" disabled={!!busy} onClick={() => setManual(true)} data-testid="fb-manual">
+                Paste a token instead
+              </Button>
             </Card>
           )}
 
@@ -446,6 +524,11 @@ export default function FacebookAdsClient({
                 {status.on && (
                   <Button variant="ghost" disabled={!!busy} onClick={() => setEditing(false)}>
                     Cancel
+                  </Button>
+                )}
+                {!status.on && manual && (
+                  <Button variant="ghost" disabled={!!busy} onClick={() => setManual(false)}>
+                    Pick from my Facebook sign-in
                   </Button>
                 )}
               </div>

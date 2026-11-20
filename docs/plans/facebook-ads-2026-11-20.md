@@ -131,42 +131,153 @@ steps are reported like any other lead's.
 Turning either half on has no tool: one needs a pasted secret, the other a
 Facebook sign-in in a browser.
 
-## What David does at Meta (only for lead forms)
+## The seamless route: one sign-in, nothing pasted (2026-11-20)
 
-Results back needs none of this.
+David, after pasting a dataset ID and token by hand on Steadfast: "i'd like it
+to be a seamless integration". So **Connect Facebook** now does both halves:
 
-1. developers.facebook.com → **Create app** → type **Business**, in
-   WorkBench's business portfolio. Add the products **Facebook Login for
-   Business** and **Webhooks**.
-2. Facebook Login for Business → **Configurations** → create one (user
-   access token) with these permissions: `leads_retrieval`,
-   `pages_show_list`, `pages_manage_metadata`, `pages_read_engagement`,
-   `pages_manage_ads`, `ads_management`, `business_management`. Copy its
-   **Configuration ID**.
-3. Facebook Login for Business → Settings → **Valid OAuth Redirect URIs**:
+1. Sign in with Facebook (Facebook's own screen lists the Pages and datasets
+   the person is giving WorkBench).
+2. One Page → picked. Several → pick one. Leads from its forms start arriving.
+3. One dataset → picked. Several → **Which dataset?** lists them. Results
+   start going back. No Events Manager, no token, no business-portfolio trap.
+
+How: `connectCompany` keeps the sign-in's token (`userTokenEnc`, scope
+`meta-user`) and the business it acts for (`businessId`, from
+`GET /me?fields=client_business_id`). `datasetsFor` reads
+`/{business}/owned_pixels` and `/client_pixels` (a personal sign-in falls
+back to `/me/adaccounts?fields=adspixels`). `chooseDataset` stores the pick
+with `datasetVia = "connect"`, and `lib/meta-ads.ts` then sends with the
+sign-in's token instead of a pasted one. A pasted token still wins when one
+is on file, and "Paste a token instead" keeps the by-hand route as the
+fallback (and the only route while the Connect button is not offered).
+Disconnecting Facebook stops reporting that ran on the sign-in.
+
+It is built for a Facebook Login for Business configuration of type
+**System-user access token**: that token does not expire and is what Meta
+means for server-to-server use. A **User access token** configuration also
+works, but its token lasts about 60 days, after which the page shows "Needs
+you: Connect again". Use the system-user type.
+
+Meta publishes a "Conversions API partner integration template" for exactly
+this (developers.facebook.com → Facebook Login for Business → Conversions API
+integration template); start the configuration from it.
+
+## What David does at Meta
+
+Results back by pasting needs none of this. Everything below is for the
+Connect Facebook button. Steps 1 to 6 let YOU use it (anyone with a role on
+the app can). Steps 7 to 10 are what lets your customers use it.
+
+### A. Make the app and test it yourself
+
+1. **Business portfolio.** business.facebook.com → use (or create) the
+   WorkBench portfolio, the one your ads will run from. You must have full
+   control of it.
+2. **Create the app.** developers.facebook.com → My Apps → **Create app** →
+   type **Business** → attach it to that portfolio. Add the products
+   **Facebook Login for Business**, **Webhooks** and **Marketing API**.
+   In App settings → Basic fill in: app icon, Privacy Policy URL
+   `https://workbenchfsm.com/privacy`, Terms URL `https://workbenchfsm.com/terms`,
+   category Business, and a data deletion instructions URL (the privacy
+   page, section 11, says how).
+3. **Login configuration.** Facebook Login for Business → **Configurations**
+   → Create → start from the **Conversions API** template if offered → token
+   type **System-user access token**, expiration **Never** → assets: Pages,
+   ad accounts, datasets (pixels) → permissions:
+   `ads_read`, `ads_management`, `business_management`,
+   `pages_show_list`, `pages_read_engagement`, `pages_manage_metadata`,
+   `pages_manage_ads`, `leads_retrieval`. Copy the **Configuration ID**.
+4. **Redirect addresses.** Facebook Login for Business → Settings → Valid
+   OAuth Redirect URIs:
    `https://workbenchfsm.com/api/app/integrations/meta/callback` and
    `https://streamflaire-staging.up.railway.app/api/app/integrations/meta/callback`.
-4. Railway **staging**: set `META_APP_ID`, `META_APP_SECRET` (App settings →
-   Basic), `META_LOGIN_CONFIG_ID`, and `META_WEBHOOK_VERIFY_TOKEN` (any long
-   string you make up). The Connect card appears once the first three are
-   set.
-5. Webhooks → object **Page** → **Subscribe to this object**: callback
+5. **Railway, staging first.** Set `META_APP_ID`, `META_APP_SECRET` (App
+   settings → Basic), `META_LOGIN_CONFIG_ID`, and
+   `META_WEBHOOK_VERIFY_TOKEN` (any long string you make up). Then
+   Webhooks → object **Page** → Subscribe: callback
    `https://streamflaire-staging.up.railway.app/api/public/webhooks/meta`,
-   the verify token from step 4. Then subscribe the **leadgen** field. (One
-   app has one callback address: point it at staging to test, then at
-   `https://workbenchfsm.com/api/public/webhooks/meta` for production, or use
-   a second app for staging.)
-6. Test on staging: Connect Facebook as yourself with WorkBench's Page, then
-   https://developers.facebook.com/tools/lead-ads-testing → pick the Page
-   and a form → **Create lead**. It should be on the Leads board within
-   seconds. "Track status" there shows Facebook's side.
-7. **Business Verification** (Business settings → Security Center), then
-   **App Review** for the permissions in step 2 with Advanced Access. The
-   reviewers want a screen recording of the connect and of a lead arriving,
-   and a test login. Meta says about a week. Until it passes, only people
-   with a role on the app can connect.
-8. When approved: set the four variables on production and move the webhook
-   callback to production.
+   that verify token → subscribe the **leadgen** field. (An app has one
+   callback address: staging while testing, production after.)
+6. **Test it as yourself** on staging, signed into WorkBench's own company:
+   Insights → Lead sources → Facebook ads → **Connect Facebook**. Pick the
+   Page and dataset. Then: Send a test event (Test events tab), and
+   developers.facebook.com/tools/lead-ads-testing → your Page and a form →
+   **Create lead** → it should be on the Leads board in seconds. Tell me
+   every "Facebook said: …" line you see; this is the first time this code
+   meets Facebook.
+
+### B. Get it approved for your customers
+
+7. **Business Verification.** Business settings → Security Center → Start
+   verification (only a portfolio admin can). Meta wants documents showing
+   the legal business name plus address or phone: business licence, articles
+   of organization, or an IRS/tax document for Streamflaire Group LLC. A
+   utility bill alone is usually not enough for the name. Do this first; it
+   can take days and everything below waits on it.
+8. **Become a Tech Provider.** In the app dashboard, complete the Tech
+   Provider onboarding (Meta's term for an app that acts for other
+   businesses; the system-user sign-in requires it). Meta retired the
+   separate "access verification" step in October 2026, so this is now
+   Business Verification plus the dashboard steps plus App Review.
+9. **App Review.** App dashboard → App Review → Permissions and Features →
+   request **Advanced (Full) Access** for each of the eight permissions in
+   step 3. For every one Meta wants:
+   - **Its own written description** of how WorkBench uses it (not copied
+     between permissions). Drafts are in "What to tell the reviewers" below.
+   - **Its own screen recording**: 1080p, no sound, English screens, with
+     captions, showing someone granting the permission on Facebook's screen
+     and then WorkBench using it. Recordings to make, each from the staging
+     site: (a) Connect Facebook start to finish, including the Page list and
+     the dataset list; (b) a test lead created in Meta's Lead Ads Testing
+     Tool appearing on the Leads board; (c) Send a test event and it showing
+     on the dataset's Test events tab; (d) Disconnect.
+   - **A way in for the reviewers**: a WorkBench login on production or
+     staging made just for them (never your own), with a short "how to reach
+     the page" note. They use their own Facebook test accounts.
+   - **A real API call in the last 30 days** for each permission (step 6
+     makes them; Meta takes about 2 days to log them and the Request button
+     stays grey until it has).
+   - The **data handling questions** (who processes the data: Railway,
+     Cloudflare, Resend; country: United States; the legal entity).
+   Meta says a decision usually comes within a week. A rejection names the
+   permission and the reason; fix that one and resubmit.
+10. **Marketing API access tier → Full.** Same page, feature "Marketing API
+    Access Tier" → Upgrade. Meta asks for 500 successful Marketing API calls
+    in the last 15 days with under 15% errors (one of its pages still says
+    1,500). WorkBench alone will not reach that at first; listing datasets
+    is the only Marketing API call it makes. **If this blocks approval, tell
+    me**: I will add a small read (the ad account's spend, which is limit 2
+    below anyway) so real use produces the calls.
+11. **Go live.** Switch the app from Development to **Live**, set the four
+    variables on Railway production, move the webhook callback to
+    `https://workbenchfsm.com/api/public/webhooks/meta`, and complete the
+    yearly **Data Use Checkup** when Meta asks.
+
+### What to tell the reviewers (drafts)
+
+- `pages_show_list`: "After signing in, the business owner sees the list of
+  Facebook Pages they manage and picks the one whose lead forms should feed
+  their WorkBench account."
+- `pages_manage_metadata`: "WorkBench subscribes to the chosen Page's leadgen
+  webhook so it is told when someone submits a lead form."
+- `pages_read_engagement` and `pages_manage_ads`: "Required by Meta to read
+  leads from the Page's lead ad forms. WorkBench does not create or edit ads
+  or read Page content."
+- `leads_retrieval`: "When a lead form is submitted, WorkBench reads that
+  lead's answers and files it as a new lead in the business's own WorkBench
+  account, so the business can call them back within minutes."
+- `ads_read`: "WorkBench sends the business's own conversion events (lead,
+  appointment booked, quote sent, job won, payment) to the business's own
+  dataset through the Conversions API, so its ads can optimise for real
+  jobs. Events carry Meta's click ID or lead ID only; no name, email, phone
+  or address."
+- `business_management`: "WorkBench lists the datasets in the business
+  portfolio that signed in, so the owner can pick which one receives those
+  events."
+- `ads_management`: "Required by Meta as a dependency of leads_retrieval and
+  of sending events for a client business. WorkBench does not create, edit
+  or pause campaigns, ad sets or ads."
 
 ## Not verified: this code has never talked to Facebook
 
@@ -195,6 +306,18 @@ The first real use has to confirm, in this order:
    ordinary website events, which a campaign can optimise for either way.
 8. Whether an Events Manager token ever expires (Meta does not say). A dead
    one shows as "Needs you" with Facebook's words.
+9. **The seamless route, all of it.** That the system-user sign-in's code
+   exchange answers with a token `GET /me?fields=client_business_id` accepts;
+   that this token can call `/me/accounts` for Page tokens (Meta shows it
+   only for another kind of system user); that `owned_pixels` /
+   `client_pixels` answer with `id,name` (Meta names no permission for them,
+   and error 270 suggests they are refused until the app has Full access);
+   and that the token can post to `/{dataset}/events` (Meta's `ads_read`
+   entry is the only one that mentions it). Each failure shows on the page
+   in Facebook's words, and "Paste a token instead" still works.
+10. Whether Meta wants a `partner_agent` name on events from a platform
+    (its platform pages say to agree one with a Meta representative; none is
+    sent today).
 
 ## Limits today, to build later
 
@@ -208,8 +331,8 @@ The first real use has to confirm, in this order:
 5. **No "Limited Data Use" flags** for the US states that have them.
 6. **A step reached more than 7 days before turn-on is never sent.**
 7. **"Contact made" is not a step** (WorkBench keeps no time for it).
-8. **The dataset ID and token are pasted by hand.** After App Review the
-   Connect sign-in could list datasets and mint the token itself.
+8. ~~The dataset ID and token are pasted by hand.~~ Built 2026-11-20: see
+   "The seamless route". Unproven until the Meta app exists.
 9. **A lead's campaign and ad names are not stored**, only the ad id.
 10. **The webhook's rate limit** is the shared `/api/public/webhooks/`
     bucket (300 an hour per sender). Fine now; revisit with many Pages.
@@ -219,6 +342,12 @@ The first real use has to confirm, in this order:
 
 ## Test recipes for David
 
+0. **Confirmed 2026-11-20 (David, signed into Steadfast, by-hand route):**
+   recipe 1 works. Facebook accepted the pasted token and the test event
+   showed on the dataset's Test events tab. What tripped him is now on the
+   page: cancel the pixel wizard, the token is under Settings → Set up
+   direct integration, the dataset must be in a business portfolio he
+   controls, and the test code must come from the same dataset.
 1. **A test event.** Insights → Lead sources → Facebook ads → follow the
    three steps (Events Manager → your dataset → Settings: Dataset ID, then
    Generate access token) → Turn on. In Events Manager open **Test events**,

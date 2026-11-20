@@ -165,6 +165,38 @@ export function parsePages(json: unknown): FacebookPage[] {
   return out.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export type FacebookDataset = { id: string; name: string };
+
+/**
+ * Datasets (pixels) from any of the three shapes Facebook lists them in:
+ * a business's owned_pixels / client_pixels ({ data: [{ id, name }] }), or ad
+ * accounts with their pixels nested ({ data: [{ adspixels: { data: [...] } }] }).
+ * One row per id, by name.
+ */
+export function parseDatasets(...answers: unknown[]): FacebookDataset[] {
+  const out = new Map<string, FacebookDataset>();
+  const take = (rows: unknown) => {
+    if (!Array.isArray(rows)) return;
+    for (const r of rows as { id?: unknown; name?: unknown; adspixels?: { data?: unknown }; is_unavailable?: unknown }[]) {
+      if (!r) continue;
+      if (r.adspixels) {
+        take(r.adspixels.data);
+        continue;
+      }
+      const id = digits(r.id);
+      if (!id || r.is_unavailable === true || out.has(id)) continue;
+      out.set(id, { id, name: clean(r.name, 120) || `Dataset ${id}` });
+    }
+  };
+  for (const a of answers) take((a as { data?: unknown } | null)?.data);
+  return [...out.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** The business portfolio a system-user sign-in acts for (GET /me?fields=client_business_id), or null. */
+export function parseClientBusinessId(json: unknown): string | null {
+  return digits((json as { client_business_id?: unknown } | null)?.client_business_id) || null;
+}
+
 /** Facebook's "you may not read this Page's leads" refusals: the Page's business has to give WorkBench leads access. */
 export function isLeadsAccessRefusal(json: unknown): boolean {
   const err = (json as { error?: { code?: unknown; message?: unknown } } | null)?.error;

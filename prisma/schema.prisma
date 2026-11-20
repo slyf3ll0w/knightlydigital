@@ -3791,7 +3791,9 @@ model MetaConnection {
   // lead forms in
   connectedById  String?
   fbUserName     String?
-  userTokenEnc   String? // sealed long-lived user token, kept only until a Page is picked
+  userTokenEnc   String? // sealed sign-in token (scope "meta-user"): lists Pages and datasets, and sends results when datasetVia = "connect"
+  businessId     String? // the Facebook business portfolio the sign-in acts for (a system-user sign-in names it; null for a personal one)
+  datasetVia     String? // "connect" = picked from the sign-in's datasets and sent with userTokenEnc; "paste" = id + token pasted (capiTokenEnc)
   pageId         String?   @unique
   pageName       String?
   pageTokenEnc   String? // sealed (scope "meta-page")

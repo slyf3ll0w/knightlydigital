@@ -233,7 +233,7 @@ export const moneyTools: Tool[] = [
     decl: {
       name: "get_facebook_ads",
       description:
-        "Facebook ads: whether a Facebook Page is connected so leads from Facebook and Instagram lead forms land on the Leads board by themselves (the Page, when a lead last came, how many in 30 days, any that could not be read), and whether WorkBench is reporting lead steps back to Facebook (new lead, appointment booked, quote sent, job won, paid) for leads who came from Facebook or Instagram, when steps were last sent, Facebook's last refusal if any, how many Facebook leads arrived in the last 90 days, how many steps were sent this week and how many are waiting. Reporting is turned on from the page by pasting a dataset ID and an access token from Facebook's Events Manager; connecting a Page is a Facebook sign-in the person does on the page.",
+        "Facebook ads: whether a Facebook Page is connected so leads from Facebook and Instagram lead forms land on the Leads board by themselves (the Page, when a lead last came, how many in 30 days, any that could not be read), and whether WorkBench is reporting lead steps back to Facebook (new lead, appointment booked, quote sent, job won, paid) for leads who came from Facebook or Instagram, when steps were last sent, Facebook's last refusal if any, how many Facebook leads arrived in the last 90 days, how many steps were sent this week and how many are waiting. Both are turned on from the page: Connect Facebook is one sign-in that brings the leads in and lets the owner pick the dataset to report to; where that button is not offered, reporting is turned on by pasting a dataset ID and an access token from Facebook's Events Manager.",
       parameters: { type: "object", properties: {} },
     },
     allowed: (a) => isManager(a.role),
@@ -248,6 +248,7 @@ export const moneyTools: Tool[] = [
               : "not connected (the owner presses Connect Facebook on the page and signs in)"
             : { page: l.pageName, needsReconnect: l.needsReconnect, lastLead: l.lastLeadAt, leadsLast30Days: l.leads30, leadsNotReadYet: l.unread, lastFacebookError: l.lastLeadError },
         reportingToFacebook: s.on,
+        reportingThrough: s.via === "connect" ? "the Facebook sign-in (nothing pasted)" : s.via === "paste" ? "a pasted dataset ID and access token" : null,
         needsNewAccessToken: s.needsToken,
         lastSent: s.lastSendAt,
         stepsLastSent: s.lastSendCount,

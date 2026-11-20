@@ -8,6 +8,8 @@ import {
   formLeadSource,
   isLeadsAccessRefusal,
   leadFromFacebook,
+  parseClientBusinessId,
+  parseDatasets,
   parseLeadgenNotices,
   parsePages,
   verifyMetaSignature,
@@ -157,6 +159,29 @@ t("Facebook's leads-access refusal is told apart from an ordinary one", () => {
   assert.equal(isLeadsAccessRefusal({ error: { code: 200, message: "(#200) Requires leads_retrieval permission to read the lead" } }), true);
   assert.equal(isLeadsAccessRefusal({ error: { code: 100, message: "Unsupported get request." } }), false);
   assert.equal(isLeadsAccessRefusal(null), false);
+});
+
+console.log("datasets from the sign-in");
+t("a business's own and shared datasets are one list by name, each once", () => {
+  const owned = { data: [{ id: "2239432240308646", name: "Zed Roofing" }, { id: "1105339769000952", name: "Acme Fence" }] };
+  const shared = { data: [{ id: "1105339769000952", name: "Acme Fence (shared)" }, { id: "3300000000000001" }] };
+  assert.deepEqual(parseDatasets(owned, shared), [
+    { id: "1105339769000952", name: "Acme Fence" },
+    { id: "3300000000000001", name: "Dataset 3300000000000001" },
+    { id: "2239432240308646", name: "Zed Roofing" },
+  ]);
+});
+t("a personal sign-in's datasets come nested under its ad accounts", () => {
+  const accounts = { data: [{ id: "act_1", adspixels: { data: [{ id: "1105339769000952", name: "Acme Fence" }] } }, { id: "act_2" }, { id: "act_3", adspixels: { data: [{ id: "1105339769000952", name: "Acme Fence" }] } }] };
+  assert.deepEqual(parseDatasets(accounts), [{ id: "1105339769000952", name: "Acme Fence" }]);
+});
+t("TRAP: an unavailable dataset, a junk id and a refused list are left out", () => {
+  assert.deepEqual(parseDatasets({ data: [{ id: "1105339769000952", name: "Gone", is_unavailable: true }, { id: "act_12", name: "Not a dataset" }, null] }, null, { error: { code: 200 } }), []);
+});
+t("a system-user sign-in names its business; a personal one does not", () => {
+  assert.equal(parseClientBusinessId({ client_business_id: "998877665544332", id: "17841400000000" }), "998877665544332");
+  assert.equal(parseClientBusinessId({ id: "17841400000000" }), null);
+  assert.equal(parseClientBusinessId(null), null);
 });
 
 console.log(`\n${n} checks passed`);
