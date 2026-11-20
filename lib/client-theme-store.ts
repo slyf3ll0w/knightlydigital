@@ -1,8 +1,8 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { limit } from "@/lib/rate-limit";
-import { invalidateClientTheme, themeContextFor } from "@/lib/client-theme-load";
-import { mergeThemePatch, parseClientTheme, type ClientThemeSpec, type ThemeProblem } from "@/lib/client-theme-spec";
+import { invalidateClientTheme, resolveStoredSpec, themeContextFor } from "@/lib/client-theme-load";
+import { mergeThemePatch, parseClientTheme, type ClientThemeSpec, type ResolvedClientTheme, type ThemeProblem } from "@/lib/client-theme-spec";
 
 /**
  * Drafts, publishing and history for a company's client-page theme (the AI
@@ -153,14 +153,20 @@ export async function discardDraft(companyId: string): Promise<void> {
  * (as a NEW version, so history only grows), or go back to the default
  * look. Archives the previously published row and prunes history.
  */
-export type PublishTarget = { draft: true } | { version: number } | { reset: true };
+/** `expect` = specFingerprint of the draft a confirmation card showed: Confirm publishes that draft or nothing. */
+export type PublishTarget = { draft: true; expect?: string } | { version: number } | { reset: true };
+
+/** A short fingerprint of a spec, so a card can say exactly which draft it publishes. */
+export function specFingerprint(spec: unknown): string {
+  return createHash("sha256").update(JSON.stringify(spec ?? null)).digest("hex").slice(0, 16);
+}
 
 export async function publishTheme(
   companyId: string,
   target: PublishTarget,
-  opts: { userId?: string | null; source?: ThemeSource } = {},
+  opts: { userId?: string | null; source?: ThemeSource; /** The superadmin console's Reset theme: never refused by the daily cap. */ skipLimit?: boolean } = {},
 ): Promise<{ published: ThemeRow | null; problems: ThemeProblem[] }> {
-  const rl = await limit(`client-theme:publish:${companyId}`, THEME_LIMITS.publishesPerDay, 24 * 60 * 60 * 1000);
+  const rl = opts.skipLimit ? { ok: true } : await limit(`client-theme:publish:${companyId}`, THEME_LIMITS.publishesPerDay, 24 * 60 * 60 * 1000);
   if (!rl.ok) throw new ThemeError("That's the most publishes for one day. Try again tomorrow.", 429, "RATE_LIMITED");
 
   if ("reset" in target) {
@@ -177,6 +183,9 @@ export async function publishTheme(
   if ("draft" in target) {
     sourceRow = await prisma.clientTheme.findFirst({ where: { companyId, status: "draft" }, select: { id: true, spec: true, note: true, status: true } });
     if (!sourceRow) throw new ThemeError("There is no draft to publish.", 404, "NOT_FOUND");
+    if (target.expect && specFingerprint(sourceRow.spec) !== target.expect) {
+      throw new ThemeError("The draft changed after this was prepared. Look at the preview again and publish the new version.", 409, "INVALID");
+    }
   } else {
     sourceRow = await prisma.clientTheme.findFirst({ where: { companyId, version: target.version, status: { not: "draft" } }, select: { id: true, spec: true, note: true, status: true } });
     if (!sourceRow) throw new ThemeError(`Version ${target.version} isn't in this company's history.`, 404, "NOT_FOUND");
@@ -215,4 +224,54 @@ export async function publishTheme(
 
   invalidateClientTheme(companyId);
   return { published: row(published), problems: parsed.problems };
+}
+
+/** The client-safe shape of a theme row (Settings page, the routes' JSON). */
+export type ThemeRowJson = Omit<ThemeRow, "createdAt" | "publishedAt" | "previewExpiresAt"> & {
+  createdAt: string;
+  publishedAt: string | null;
+  previewExpiresAt: string | null;
+};
+
+export function themeRowJson(r: ThemeRow): ThemeRowJson {
+  return {
+    ...r,
+    createdAt: r.createdAt.toISOString(),
+    publishedAt: r.publishedAt?.toISOString() ?? null,
+    previewExpiresAt: r.previewExpiresAt?.toISOString() ?? null,
+  };
+}
+
+export type ThemeStateJson = { published: ThemeRowJson | null; draft: ThemeRowJson | null; versions: ThemeRowJson[] };
+
+export function themeStateJson(s: ThemeState): ThemeStateJson {
+  return {
+    published: s.published ? themeRowJson(s.published) : null,
+    draft: s.draft ? themeRowJson(s.draft) : null,
+    // History without the draft token (only the draft carries one)
+    versions: s.versions.map((v) => themeRowJson({ ...v, previewToken: null })),
+  };
+}
+
+/**
+ * A draft for /client-preview and the owner booking preview, by its token.
+ * Anyone holding an unexpired token may look (the link for a phone or a
+ * partner, 7 days, noindex); a signed-in manager of that company may open
+ * it after the token expired too. Null = not a draft / not allowed.
+ */
+export async function draftForPreview(
+  previewToken: string,
+  viewer: { companyId: string; manager: boolean } | null,
+): Promise<{ companyId: string; theme: ResolvedClientTheme; problems: ThemeProblem[]; viaToken: boolean } | null> {
+  if (!previewToken || previewToken.length > 200) return null;
+  const r = await prisma.clientTheme.findUnique({
+    where: { previewToken },
+    select: { id: true, companyId: true, spec: true, status: true, previewExpiresAt: true },
+  });
+  if (!r || r.status !== "draft") return null;
+  const fresh = Boolean(r.previewExpiresAt && r.previewExpiresAt.getTime() > Date.now());
+  const owner = Boolean(viewer?.manager && viewer.companyId === r.companyId);
+  if (!fresh && !owner) return null;
+  const { theme, parsed } = resolveStoredSpec(r.spec, await themeContextFor(r.companyId), r.companyId, `draft ${r.id}`);
+  return { companyId: r.companyId, theme, problems: parsed.problems, viaToken: !owner };
 }

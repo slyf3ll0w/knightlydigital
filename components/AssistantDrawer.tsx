@@ -237,6 +237,8 @@ export default function AssistantDrawer({
   pricing = DEFAULT_PRICING,
   startVoice = false,
   onVoiceStarted,
+  prefill = null,
+  onPrefillUsed,
 }: {
   open: boolean;
   onClose: () => void;
@@ -255,6 +257,9 @@ export default function AssistantDrawer({
    *  already called launchVoice()). The shell clears it via onVoiceStarted. */
   startVoice?: boolean;
   onVoiceStarted?: () => void;
+  /** Text a page asked to start the message with (AssistantContext open(prompt)); put in the box, never sent. */
+  prefill?: string | null;
+  onPrefillUsed?: () => void;
 }) {
   const router = useRouter();
   const storageKey = `sf-assistant-chat:${storageScope || "shared"}`;
@@ -266,6 +271,12 @@ export default function AssistantDrawer({
     messagesRef.current = messages;
   }, [messages]);
   const [input, setInput] = useState("");
+  useEffect(() => {
+    if (!open || !prefill) return;
+    setInput(prefill.slice(0, 4000));
+    onPrefillUsed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, prefill]);
   const [loading, setLoading] = useState(false);
   // What Atlas is doing right now ("Looking up clients…") — streamed from the
   // route as each tool round starts, so a long turn reads as work, not a hang

@@ -18,6 +18,10 @@ const VERBS: [RegExp, string][] = [
 const SPECIAL: Record<string, string> = {
   help_search: "Checking the Help Center…",
   queue_next_step: "Lining up the next step…",
+  get_client_theme: "Looking at your client pages…",
+  draft_client_theme: "Drafting a new look…",
+  publish_client_theme: "Preparing to publish the new look…",
+  revert_client_theme: "Preparing to put a look back…",
 };
 
 /** "quote_line_items" → "quote line items" */

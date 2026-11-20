@@ -9,6 +9,8 @@ import {
 } from "@/lib/booking-runtime";
 import { appearanceFor, type AppearanceOverrides, type ScheduleAppearance } from "@/app/book/[slug]/schedule/shell";
 import { loadClientTheme } from "@/lib/client-theme-load";
+import { draftForPreview } from "@/lib/client-theme-store";
+import { isDraftToken } from "@/lib/client-theme-requests";
 import { orderBookingItems, themeBookingItem, type ResolvedClientTheme } from "@/lib/client-theme-spec";
 
 /**
@@ -35,8 +37,21 @@ async function previewOpts(preview: boolean): Promise<{ opts: ResolveOpts; actor
   return { opts: { includeInactive: true, skipGate: true }, actorCompanyId: actor.companyId };
 }
 
+/**
+ * The theme a page renders with: the published one, or — only for the owner
+ * previewing their own page with ?theme=<draft token> (Settings → Client
+ * pages) — that draft. A token for another company is ignored.
+ */
+async function themeFor(companyId: string, previewing: boolean, themeToken: string | undefined): Promise<ResolvedClientTheme> {
+  if (previewing && isDraftToken(themeToken)) {
+    const draft = await draftForPreview(themeToken, { companyId, manager: true });
+    if (draft && draft.companyId === companyId) return draft.theme;
+  }
+  return loadClientTheme(companyId);
+}
+
 /** The company's booking page: every active item + the ones the menu shows. */
-export async function loadBookingPage(companySlug: string, params: { preview?: boolean; overrides?: AppearanceOverrides } = {}) {
+export async function loadBookingPage(companySlug: string, params: { preview?: boolean; overrides?: AppearanceOverrides; themeToken?: string } = {}) {
   const { opts, actorCompanyId } = await previewOpts(Boolean(params.preview));
   const listed = await listPublicBookingTypes(companySlug, opts);
   if (!listed) return null;
@@ -48,7 +63,7 @@ export async function loadBookingPage(companySlug: string, params: { preview?: b
     const theme = await loadClientTheme(pub.company.id);
     return { company: pub.company, appearance: appearanceFor(pub.company, params.overrides, theme), types: pub.types, menu: themedMenu(pub.types, theme), previewing: false };
   }
-  const theme = await loadClientTheme(listed.company.id);
+  const theme = await themeFor(listed.company.id, previewing, params.themeToken);
   return {
     company: listed.company,
     appearance: appearanceFor(listed.company, params.overrides, theme),
@@ -72,7 +87,7 @@ export type LoadedItem = {
 export async function loadBookingItem(
   companySlug: string,
   itemSlug: string,
-  params: { preview?: boolean; overrides?: AppearanceOverrides } = {}
+  params: { preview?: boolean; overrides?: AppearanceOverrides; themeToken?: string } = {}
 ): Promise<LoadedItem | null> {
   const { opts, actorCompanyId } = await previewOpts(Boolean(params.preview));
   let resolved = await resolvePublicBookingType(companySlug, itemSlug, opts);
@@ -83,7 +98,7 @@ export async function loadBookingItem(
   }
   if (!resolved) return null;
   const listed = await listPublicBookingTypes(companySlug, previewing ? opts : {});
-  const theme = await loadClientTheme(resolved.company.id);
+  const theme = await themeFor(resolved.company.id, previewing, params.themeToken);
   return {
     company: resolved.company,
     type: resolved.type,

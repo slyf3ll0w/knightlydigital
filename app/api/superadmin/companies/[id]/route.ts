@@ -11,6 +11,7 @@ import { pushIncomingCall, voipTargetsFor } from "@/lib/voip";
 import { PLAN_IDS, isPlanId, normalizeGrants } from "@/lib/plans";
 import { resetPlatformCompanyCache } from "@/lib/plan-billing";
 import type { Prisma } from "@prisma/client";
+import { ThemeError, publishTheme } from "@/lib/client-theme-store";
 
 /**
  * Superadmin account controls.
@@ -63,6 +64,7 @@ const ACTIONS = new Set([
   "plan-revoke",
   "mark-platform",
   "unmark-platform",
+  "theme-reset",
 ]);
 
 /** Real-data threshold: above this the delete gate demands the typed phrase. */
@@ -158,6 +160,20 @@ export async function PATCH(
     );
     audit(`${body.plan === "ALL" ? "everything (Max)" : target.join("+")} → now ${planGrants.join(", ") || "none"}`);
     return NextResponse.json({ success: true, planGrants });
+  }
+
+  // Page designer: put the company's client pages back on the default look
+  // (colors + logo). Every version stays in its History; the owner can re-publish.
+  if (action === "theme-reset") {
+    try {
+      await publishTheme(id, { reset: true }, { source: "app", skipLimit: true });
+    } catch (err) {
+      if (err instanceof ThemeError) return NextResponse.json({ error: err.message }, { status: err.status });
+      throw err;
+    }
+    console.warn(`[superadmin] client pages theme RESET for "${company.name}" (${id}) by ${admin.email}`);
+    audit();
+    return NextResponse.json({ success: true });
   }
 
   // WorkBench's own company (Company.isPlatform): plan billing runs through

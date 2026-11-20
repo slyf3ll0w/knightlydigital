@@ -38,7 +38,7 @@ export default async function ItemView({
   /** Rendered AS the business's home page (/book/<slug> with one item): carries the full About + contact footer. */
   home?: boolean;
 }) {
-  const item = loaded ?? (await loadBookingItem(companySlug, itemSlug, { preview: searchParams.preview === "1", overrides: searchParams }));
+  const item = loaded ?? (await loadBookingItem(companySlug, itemSlug, { preview: searchParams.preview === "1", overrides: searchParams, themeToken: searchParams.preview === "1" ? searchParams.theme : undefined }));
   if (!item) notFound();
   const { company, type, pub, previewing, menuCount } = item;
   // Hosted pages always sit on the heavy frame: "transparent" only means something inside a host

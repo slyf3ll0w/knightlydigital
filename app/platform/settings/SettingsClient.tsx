@@ -295,6 +295,7 @@ const LINK_ICONS: Record<SettingsLink["icon"], LucideIcon> = {
   Sparkles,
   MonitorSmartphone,
   Gift,
+  Palette,
 };
 
 /** Desktop rail entry for a standalone page. */

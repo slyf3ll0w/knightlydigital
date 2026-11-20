@@ -92,7 +92,7 @@ export type SettingsLink = {
   /** lib/section-colors SECTION_HUES key */
   hueKey: "services" | "contracts" | "clients" | "leads" | "forms" | "team" | "business" | "payments";
   /** lucide-react icon name */
-  icon: "Package" | "FileSignature" | "Tags" | "Filter" | "Globe" | "Users" | "Upload" | "UserRound" | "RefreshCw" | "Sparkles" | "MonitorSmartphone" | "Gift";
+  icon: "Package" | "FileSignature" | "Tags" | "Filter" | "Globe" | "Users" | "Upload" | "UserRound" | "RefreshCw" | "Sparkles" | "MonitorSmartphone" | "Gift" | "Palette";
   /** Test accounts only (Company.isTest) while the page is unfinished. */
   testOnly?: boolean;
 };
@@ -125,6 +125,14 @@ export const SETTINGS_LINK_GROUPS: readonly SettingsLinkGroup[] = [
         sub: "Your booking page and website forms, each with its own link",
         hueKey: "forms",
         icon: "Globe",
+      },
+      {
+        // The AI page designer (Pro, page_designer): the page shows the upsell off Pro
+        href: "/app/settings/client-pages",
+        label: "Client pages",
+        sub: "The look of your portal, sign-in, booking page and forms — or ask Atlas to design it",
+        hueKey: "forms",
+        icon: "Palette",
       },
       {
         href: "/app/settings/website",
