@@ -128,7 +128,7 @@ export default async function PublicMessagePage({
         </div>
 
         <p className="mt-6 text-center text-xs text-gray-400">
-          Sent by {message.company.name} · Powered by WorkBench
+          Sent by {message.company.name}
         </p>
       </main>
     </div>
