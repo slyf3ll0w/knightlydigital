@@ -18,7 +18,7 @@ import {
   type UndoStack,
 } from "../lib/client-theme-presets";
 import { parseClientTheme, type ClientThemeSpec } from "../lib/client-theme-spec";
-import { DESIGN_SCOPE_TOOLS, designScopeStable, isAssistantScope } from "../lib/assistant/design-scope";
+import { DESIGN_SCOPE_TOOLS, designHonestReply, designScopeStable, isAssistantScope } from "../lib/assistant/design-scope";
 import { designTools } from "../lib/assistant/design";
 
 const ctx = { bookingItemIds: ["item1"], assetIds: ["photo1", "photo2"], defaultBand: "#0B57D8" };
@@ -119,3 +119,14 @@ const many = Array.from({ length: 20 }, (_, i) => ({ role: (i % 2 ? "assistant" 
 assert.ok(designTurnsToSend(many).length <= 8, "only the last few turns");
 
 console.log("client-theme-presets: all checks passed");
+
+// The page's Atlas never claims an unsaved change: WorkBench's own words.
+{
+  const none = designHonestReply(false, []);
+  if (!/couldn't save/.test(none)) throw new Error("honest reply: nothing saved");
+  const color = designHonestReply(true, ["colors.accent"]);
+  if (!/button color/.test(color) || !/darker/.test(color)) throw new Error("honest reply: refused color " + color);
+  const two = designHonestReply(true, ["colors.band", "portal.welcome"]);
+  if (!/band color and the welcome line/.test(two)) throw new Error("honest reply: two pieces " + two);
+  console.log("client-theme-presets: honest replies ok");
+}

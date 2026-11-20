@@ -33,7 +33,7 @@ import { callTools } from "./calls";
 import { extraTools } from "./extras";
 import { gapTools } from "./gaps";
 import { designTools } from "./design";
-import { DESIGN_SCOPE_TOOLS, designScopeStable, designScopeVolatile, type AssistantScope } from "./design-scope";
+import { DESIGN_SCOPE_TOOLS, designHonestReply, designScopeStable, designScopeVolatile, type AssistantScope } from "./design-scope";
 
 export type { Proposal, BatchItem, Tool, ToolCtx } from "./core";
 
@@ -512,6 +512,11 @@ export async function runAssistant(
           ],
         });
         continue;
+      }
+      // Still nothing saved (or pieces still refused) after the extra round:
+      // the person gets WorkBench's own honest words, never the model's claim.
+      if (opts.scope && !text.trim().endsWith("?") && (!designSaved || designRefused.length > 0)) {
+        return done(designHonestReply(designSaved, designRefused));
       }
       if (text) return done(text);
       // model went silent (rare) — if it staged something, still surface it
