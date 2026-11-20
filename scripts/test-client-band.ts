@@ -4,7 +4,7 @@
  *   npx tsx scripts/test-client-band.ts
  */
 import assert from "node:assert/strict";
-import { clientBand } from "../lib/client-band";
+import { clientBand, clientBandVars } from "../lib/client-band";
 import { contrastRatio } from "../lib/branding";
 
 let passed = 0;
@@ -47,6 +47,17 @@ test("the button reads on white and its label reads on the button", () => {
     const c = clientBand(b);
     assert.ok((contrastRatio(c.accent, "#FFFFFF") ?? 0) >= 3, `${k}: button on white`);
     assert.ok((contrastRatio(c.onAccent, c.accent) ?? 0) >= 3, `${k}: button label`);
+  }
+});
+
+test("booking page, forms and login read the same band as the portal (clientBandVars)", () => {
+  for (const b of Object.values(brands)) {
+    const c = clientBand(b);
+    const v = clientBandVars(c);
+    assert.equal(v["--ch-band"], c.band);
+    assert.equal(v["--ch-on-band"], c.onBand);
+    assert.equal(v["--ch-accent"], c.accent);
+    assert.equal(v["--ch-on-accent"], c.onAccent);
   }
 });
 

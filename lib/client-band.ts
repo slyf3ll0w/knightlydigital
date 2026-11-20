@@ -80,3 +80,20 @@ export function clientBand(brand: Omit<ClientBrand, "name"> & { name?: string })
     accentStrong: shade(accent, 0.14).toUpperCase(),
   };
 }
+
+/**
+ * The band as CSS custom properties for a `.ch-page` root
+ * (app/client-heavy.css): booking page, its forms and the portal login read
+ * them, so every client page brands the same way as the portal home.
+ */
+export function clientBandVars(b: ClientBand): Record<`--ch-${string}`, string> {
+  return {
+    "--ch-band": b.band,
+    "--ch-on-band": b.onBand,
+    "--ch-on-band-quiet": b.onBandQuiet,
+    "--ch-band-edge": b.bandEdge,
+    "--ch-accent": b.accent,
+    "--ch-on-accent": b.onAccent,
+    "--ch-accent-strong": b.accentStrong,
+  };
+}

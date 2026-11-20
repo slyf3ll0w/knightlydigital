@@ -1,9 +1,7 @@
-import Link from "next/link";
-import { ChevronRight } from "lucide-react";
 import type { PublicBookingType } from "@/lib/booking-runtime";
 import { durationLabel } from "@/lib/booking-types";
 import type { ScheduleAppearance } from "./shell";
-import { embedAccent, embedWash } from "@/lib/embed-style";
+import ClientMenuRow from "@/components/client/ClientMenuRow";
 import { withEmbedQuery } from "@/lib/embed-query";
 
 import { KIND_ICON } from "@/lib/booking-icons";
@@ -23,10 +21,8 @@ export default function ScheduleMenu({
   /** Inside an embed: the frame's own query (?theme/?match…, lib/embed-query.ts) every row carries along. */
   hrefQuery?: string;
 }) {
-  const { dark, accent: savedAccent, transparent } = appearance;
-  // Saved accent, or the host website's once an embed matches it (lib/embed-style.ts)
-  const accent = embedAccent(savedAccent);
-  const card = transparent ? "border" : dark ? "bg-[#101410] border border-white/10" : "card-ledger";
+  const { dark, transparent } = appearance;
+  const card = transparent ? "border" : dark ? "bg-[#101410] border border-white/10" : "ch-card";
   if (types.length === 0) {
     return (
       <div className={`${card} rounded-lg p-6 text-center text-sm ${dark ? "text-gray-400" : "text-gray-500"}`}>
@@ -35,8 +31,8 @@ export default function ScheduleMenu({
     );
   }
   return (
-    <div className="space-y-3">
-      {types.map((t) => {
+    <div className={dark || transparent ? "space-y-3" : "space-y-3.5"}>
+      {types.map((t, i) => {
         const Icon = KIND_ICON[t.kind];
         const line =
           t.mode === "REQUEST"
@@ -53,24 +49,7 @@ export default function ScheduleMenu({
               ]
                 .filter(Boolean)
                 .join(" · ");
-        return (
-          <Link
-            key={t.id}
-            href={withEmbedQuery(`${hrefBase}/${t.slug}`, hrefQuery)}
-            className={`${card} flex items-center gap-4 rounded-lg p-4 transition-opacity hover:opacity-90 ${dark ? "border-white/10" : ""}`}
-            style={transparent ? { borderColor: embedWash(savedAccent, 33) } : undefined}
-          >
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: embedWash(savedAccent, 13), color: accent }}>
-              <Icon size={20} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className={`block text-base font-semibold ${dark ? "text-white" : "text-gray-900"}`}>{t.heading}</span>
-              {t.description && <span className={`mt-0.5 block text-sm ${dark ? "text-gray-400" : "text-gray-600"}`}>{t.description}</span>}
-              <span className={`mt-1 block text-xs ${dark ? "text-gray-500" : "text-gray-400"}`}>{line}</span>
-            </span>
-            <ChevronRight size={18} className={dark ? "text-gray-600" : "text-gray-300"} />
-          </Link>
-        );
+        return <ClientMenuRow key={t.id} index={i} href={withEmbedQuery(`${hrefBase}/${t.slug}`, hrefQuery)} icon={Icon} title={t.heading} description={t.description} meta={line} appearance={appearance} />;
       })}
     </div>
   );

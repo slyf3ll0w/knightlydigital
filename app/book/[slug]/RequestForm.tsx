@@ -12,6 +12,8 @@ import { ADDRESS_DEFAULTS, doneWords, type CustomField } from "@/lib/booking-int
 import type { ScheduleAppearance } from "./schedule/shell";
 import { notifyEmbedSubmitted } from "@/lib/embed-submitted";
 import { getArrival } from "@/lib/arrival-client";
+import { clientFormStyle } from "@/lib/client-form-style";
+import "@/app/client-heavy.css";
 
 /**
  * The one-step public form for "we'll follow up" items: a message form, an
@@ -83,17 +85,13 @@ export default function RequestForm({
   const [honeypot, setHoneypot] = useState("");
   const [startedAt] = useState(() => Date.now());
 
-  const card = transparent ? "bg-transparent" : dark ? "bg-[#101410] border border-white/10 rounded-lg p-6 shadow-sm" : "card-ledger p-6 shadow-sm";
-  const ink = dark ? "text-white" : "text-gray-900";
-  const muted = dark ? "text-gray-400" : "text-gray-500";
-  const label = dark ? "block text-sm font-medium text-gray-300 mb-1" : "block text-sm font-medium text-gray-700 mb-1";
-  const input = dark
-    ? "w-full px-3 py-2.5 bg-white/5 border border-white/15 rounded text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-white/30"
-    : "w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
-  const choice = dark
-    ? "flex items-start gap-3 px-4 py-3 bg-white/5 border rounded cursor-pointer transition-colors"
-    : "flex items-start gap-3 px-4 py-3 border rounded cursor-pointer transition-colors";
-  const choiceIdle = dark ? "border-white/15 hover:border-white/30" : "border-gray-300 hover:border-gray-400";
+  // One recipe with the stepper (lib/client-form-style.ts): heavy on light, the saved dark/transparent looks as they were
+  const st = clientFormStyle(appearance);
+  const card = `${st.card} ${transparent ? "" : "p-5 sm:p-7"}`;
+  const { ink, muted, label, input } = st;
+  // The picked tile's edge: the heavy tiles read --ch-accent, the others an inline border
+  const pickedEdge = (on: boolean) => (on && !st.heavy ? { borderColor: accent } : undefined);
+  const accentVars = { "--ch-accent": accent, "--ch-on-accent": onAccent } as React.CSSProperties;
 
   const set = (field: string, value: string) => setForm((s) => ({ ...s, [field]: value }));
 
@@ -148,7 +146,7 @@ export default function RequestForm({
         {options.map((o) => {
           const selected = value === o.label;
           return (
-            <label key={o.label} className={`${choice} ${selected ? "" : choiceIdle}`} style={selected ? { borderColor: accent } : undefined}>
+            <label key={o.label} className={st.choice(selected)} style={pickedEdge(selected)}>
               <input type="radio" name={name} value={o.label} checked={selected} required={required} onChange={() => onChange(o.label)} className="mt-0.5 shrink-0" style={{ accentColor: accent }} />
               <span className="min-w-0">
                 <span className={`block text-sm font-semibold ${ink}`}>{o.label}</span>
@@ -215,15 +213,21 @@ export default function RequestForm({
     const title = words.heading;
     const text = words.body;
     return (
-      <div className={`${card} py-10 text-center`}>
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: embedWash(savedAccent, 13) }}>
-          <CheckCircle size={28} style={{ color: accent }} />
-        </div>
-        <h2 className={`mb-2 text-xl font-bold ${ink}`}>{title}</h2>
+      <div className={`${card} py-10 text-center`} style={accentVars}>
+        {st.heavy ? (
+          <div className="ch-done-mark mb-5">
+            <CheckCircle size={30} />
+          </div>
+        ) : (
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: embedWash(savedAccent, 13) }}>
+            <CheckCircle size={28} style={{ color: accent }} />
+          </div>
+        )}
+        <h2 className={st.heavy ? "ch-h2 mb-2 text-gray-900" : `mb-2 text-xl font-bold ${ink}`}>{title}</h2>
         <p className={`text-sm ${muted}`}>{text}</p>
         {words.note && <p className={`mt-3 whitespace-pre-line text-sm ${muted}`}>{words.note}</p>}
         {doneHref && (
-          <Link href={doneHref} className="mt-5 inline-block text-sm font-medium hover:underline" style={{ color: accent }}>
+          <Link href={doneHref} className={st.heavy ? "ch-btn-2 is-auto mt-6" : "mt-5 inline-block text-sm font-medium hover:underline"} style={st.heavy ? undefined : { color: accent }}>
             See your requests
           </Link>
         )}
@@ -234,14 +238,14 @@ export default function RequestForm({
   const sq = intake.serviceQuestion;
 
   return (
-    <form onSubmit={handleSubmit} className={`${card} relative space-y-4`}>
+    <form onSubmit={handleSubmit} className={`${card} relative ${st.heavy ? "space-y-5" : "space-y-4"}`} style={accentVars}>
       {showHeader && (
         <div className="pb-1">
-          <h2 className={`text-lg font-bold ${ink}`}>{item.heading}</h2>
-          {item.description && <p className={`mt-0.5 text-sm ${muted}`}>{item.description}</p>}
+          <h2 className={st.heading}>{item.heading}</h2>
+          {item.description && <p className={`mt-1 text-sm ${muted}`}>{item.description}</p>}
         </div>
       )}
-      {error && <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {error && <div className={st.error}>{error}</div>}
       {/* Honeypot — humans never see it, bots fill it */}
       <div aria-hidden="true" className="absolute -left-[9999px] top-0 h-0 overflow-hidden">
         <label>
@@ -290,8 +294,8 @@ export default function RequestForm({
         </div>
       )}
       {askPhone && offerSms && (
-        <label className={`flex items-start gap-2 text-[11px] leading-snug ${dark ? "text-gray-400" : "text-gray-500"}`}>
-          <input type="checkbox" checked={smsConsent} onChange={(e) => setSmsConsent(e.target.checked)} className="mt-px h-3.5 w-3.5 shrink-0 rounded" style={{ accentColor: accent }} />
+        <label className={`flex items-start gap-2 leading-snug ${st.heavy ? "text-[12px]" : "text-[11px]"} ${dark ? "text-gray-400" : "text-gray-500"}`}>
+          <input type="checkbox" checked={smsConsent} onChange={(e) => setSmsConsent(e.target.checked)} className={`shrink-0 rounded ${st.heavy ? "mt-0.5 h-4 w-4" : "mt-px h-3.5 w-3.5"}`} style={{ accentColor: accent }} />
           <span>
             {smsConsentLabel(businessName || "this business")}{" "}
             <a href={businessSmsTermsUrl(companySlug)} target="_blank" rel="noreferrer" className="underline">
@@ -322,7 +326,7 @@ export default function RequestForm({
             {item.services.map((s) => {
               const selected = selectedServices.includes(s.id);
               return (
-                <label key={s.id} className={`${choice} ${selected ? "" : choiceIdle}`} style={selected ? { borderColor: accent } : undefined}>
+                <label key={s.id} className={st.choice(selected)} style={pickedEdge(selected)}>
                   <input
                     type={intake.allowMultiple ? "checkbox" : "radio"}
                     name="services"
@@ -395,7 +399,7 @@ export default function RequestForm({
       <button
         type="submit"
         disabled={loading || preview}
-        className="flex w-full items-center justify-center gap-2 rounded py-3 text-sm font-semibold transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-50"
+        className={st.primaryBtn}
         style={{ backgroundColor: accent, color: onAccent }}
       >
         {loading && <Loader2 size={14} className="animate-spin" />}

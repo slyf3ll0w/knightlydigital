@@ -8,6 +8,7 @@ import EmbedScheduleShell from "./schedule/EmbedScheduleShell";
 import EstimateMenu from "@/app/book/[slug]/estimate/EstimateMenu";
 import { publicEstimatorsFor } from "@/lib/estimator-server";
 import { embedQuery } from "@/lib/embed-query";
+import { ClientSectionTitle } from "@/components/client/ClientFrame";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -50,7 +51,7 @@ export default async function EmbedBookingPage({ params, searchParams }: { param
       )}
       {estimateTools.length > 0 && (
         <div className={page.menu.length > 0 ? "mt-6" : ""}>
-          {page.menu.length > 0 && <p className={`mb-2 text-xs font-semibold uppercase tracking-wide ${page.appearance.dark ? "text-gray-500" : "text-gray-400"}`}>Instant estimates</p>}
+          {page.menu.length > 0 && <ClientSectionTitle className={`mb-3 ${page.appearance.dark ? "!text-white" : ""}`}>Instant estimates</ClientSectionTitle>}
           <EstimateMenu companySlug={slug} tools={estimateTools} appearance={page.appearance} hrefBase={`/embed/${slug}`} hrefQuery={hrefQuery} />
         </div>
       )}

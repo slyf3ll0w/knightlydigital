@@ -1,14 +1,12 @@
 import { notFound } from "next/navigation";
 import { publicEmail } from "@/lib/public-email";
-import Link from "next/link";
 import { offersSmsConsent } from "@/lib/sms-consent";
-import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { bookingPaymentConfig } from "@/lib/booking-payment-config";
 import { hubFormAppearance, loadHubForm } from "@/lib/hub-form";
 import BookingStepper from "@/app/book/[slug]/schedule/[type]/BookingStepper";
 import RequestForm from "@/app/book/[slug]/RequestForm";
-import HubRequestForm from "./HubRequestForm";
+import HubRequestForm, { HubFormHeader } from "./HubRequestForm";
 
 const APP_URL = process.env.NEXTAUTH_URL ?? "https://workbenchfsm.com";
 
@@ -61,17 +59,7 @@ export default async function HubNewRequestPage({
 
   return (
     <div>
-      <div className="mb-6 flex items-start gap-3">
-        <Link href={base} className="mt-1 text-gray-400 hover:text-gray-600" aria-label="Back to your hub">
-          <ArrowLeft size={18} />
-        </Link>
-        <div className="min-w-0">
-          <h2 className="numeral-ledger relative w-fit text-[22px] font-bold text-gray-900">
-            {pub.heading}
-          </h2>
-          {pub.description && <p className="mt-1.5 text-sm text-gray-500">{pub.description}</p>}
-        </div>
-      </div>
+      <HubFormHeader base={base} title={pub.heading} description={pub.description} />
 
       {pub.mode === "SCHEDULE" ? (
         <BookingStepper

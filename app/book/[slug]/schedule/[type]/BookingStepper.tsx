@@ -17,6 +17,8 @@ import { getArrival } from "@/lib/arrival-client";
 import type { ClientPayConfig } from "@/lib/pay-config";
 import { derivedQuoteDeposit } from "@/lib/statuses";
 import { encodePrefill, type Prefill } from "@/lib/booking-prefill";
+import { clientFormStyle } from "@/lib/client-form-style";
+import "@/app/client-heavy.css";
 
 /**
  * Public booking page for one booking type — a stepper: services (SERVICE)
@@ -25,8 +27,28 @@ import { encodePrefill, type Prefill } from "@/lib/booking-prefill";
  * with whom, when); phones stack it. Themed like the company's forms.
  */
 
-type SlotDay = { date: string; label: string; slots: { start: string; end: string; windowEnd: string; label: string }[] };
-type Booked = {
+export type SlotDay = { date: string; label: string; slots: { start: string; end: string; windowEnd: string; label: string }[] };
+
+/**
+ * Review frames only (/client-preview): open times handed in instead of
+ * fetched, and which step / time / confirmation to open on. Never set on a
+ * real page.
+ */
+export type StepperDemo = { days: SlotDay[]; step?: number; slotStart?: string; booked?: Booked };
+
+/** "2026-11-24" → weekday / day / month for the day tile (the date is already the shown zone's day). */
+function dayParts(key: string) {
+  const [y, m, d] = key.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  const dt = new Date(Date.UTC(y, m - 1, d, 12));
+  return {
+    w: dt.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" }),
+    d: String(d),
+    m: dt.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }),
+  };
+}
+
+export type Booked = {
   start: string;
   end: string;
   windowEnd: string;
@@ -90,6 +112,7 @@ export default function BookingStepper({
   prefill,
   preview = false,
   hub = null,
+  demo = null,
 }: {
   companySlug: string;
   type: PublicBookingType;
@@ -106,6 +129,8 @@ export default function BookingStepper({
   preview?: boolean;
   /** Client hub: the signed-in client is on file (prefill carries their details) — no captcha */
   hub?: { token: string } | null;
+  /** Review frames only — see StepperDemo. */
+  demo?: StepperDemo | null;
 }) {
   const { dark, accent: savedAccent, transparent } = appearance;
   // Saved accent, or the host website's once an embed matches it (lib/embed-style.ts)
@@ -126,7 +151,13 @@ export default function BookingStepper({
     s.push("time", "details");
     return s;
   }, [type.kind, type.needsAddress]);
-  const [stepIdx, setStepIdx] = useState(0);
+  const [stepIdx, setStepIdxRaw] = useState(() => Math.min(Math.max(demo?.step ?? 0, 0), steps.length - 1));
+  // Which way the step slides in: forward from the right, Back from the left
+  const [stepDir, setStepDir] = useState(1);
+  const setStepIdx = (i: number) => {
+    setStepDir(i < stepIdx ? -1 : 1);
+    setStepIdxRaw(i);
+  };
   const step = steps[stepIdx];
 
   const [services, setServices] = useState<string[]>(
@@ -135,12 +166,14 @@ export default function BookingStepper({
   const [address, setAddress] = useState(prefill?.address ?? "");
   // A handed-off slot: selected once the fresh slot list confirms it's still open
   const [pendingStart, setPendingStart] = useState<string | null>(prefill?.start ?? null);
-  const [days, setDays] = useState<SlotDay[] | null>(null);
+  const [days, setDays] = useState<SlotDay[] | null>(demo?.days ?? null);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [outOfArea, setOutOfArea] = useState(false);
   const [unavailable, setUnavailable] = useState(false);
   const [activeDay, setActiveDay] = useState("");
-  const [slot, setSlot] = useState<SlotDay["slots"][number] | null>(null);
+  const [slot, setSlot] = useState<SlotDay["slots"][number] | null>(
+    () => (demo?.slotStart ? (demo.days.flatMap((d) => d.slots).find((s) => s.start === demo.slotStart) ?? null) : null)
+  );
   const [slotsEpoch, setSlotsEpoch] = useState(0);
   const [form, setForm] = useState({
     firstName: prefill?.firstName ?? "",
@@ -159,7 +192,7 @@ export default function BookingStepper({
   const [smsConsent, setSmsConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [booked, setBooked] = useState<Booked | null>(null);
+  const [booked, setBooked] = useState<Booked | null>(demo?.booked ?? null);
   const paymentRef = useRef<PaymentHandle>(null);
   const [cardReady, setCardReady] = useState(false);
 
@@ -187,6 +220,7 @@ export default function BookingStepper({
   const addressParam = type.needsAddress ? (zip ? address.trim() : "") : "";
   const servicesParam = services.join(",");
   useEffect(() => {
+    if (demo) return; // review frames carry their own open times
     if (type.needsAddress && !addressParam) {
       setDays(null);
       return;
@@ -354,26 +388,29 @@ export default function BookingStepper({
   const askPhone = intake.fields.phone.show && !knownPhone;
 
   // ── Styling (matches BookingForm's themed recipe) ─────────────────────────
-  const ink = dark ? "text-white" : "text-gray-900";
-  const muted = dark ? "text-gray-400" : "text-gray-500";
-  const card = transparent ? "bg-transparent" : dark ? "bg-[#101410] border border-white/10 rounded-lg shadow-sm" : "card-ledger shadow-sm";
-  const label = dark ? "block text-sm font-medium text-gray-300 mb-1" : "block text-sm font-medium text-gray-700 mb-1";
-  const input = dark
-    ? "w-full px-3 py-2.5 bg-white/5 border border-white/15 rounded text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-white/30"
-    : "w-full px-3 py-2.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
+  // One recipe with RequestForm (lib/client-form-style.ts): heavy on light, the saved dark/transparent looks as they were
+  const st = clientFormStyle(appearance);
+  const heavy = st.heavy;
+  const { ink, muted, label, input, primaryBtn } = st;
+  const card = st.card;
   const chip = (selected: boolean) =>
-    `px-2 py-2 rounded border text-xs font-medium transition-colors ${
-      selected ? "" : dark ? "border-white/15 text-gray-200 hover:border-white/30" : "border-gray-300 text-gray-700 hover:border-gray-400"
-    }`;
-  const primaryBtn = "w-full py-3 font-semibold text-sm rounded transition-opacity hover:opacity-90 active:opacity-80 flex items-center justify-center gap-2 disabled:opacity-50";
-  const choiceCls = (on: boolean) =>
-    `flex cursor-pointer items-start gap-3 rounded border px-4 py-3 transition-colors ${dark ? "bg-white/5" : ""} ${on ? "" : dark ? "border-white/15 hover:border-white/30" : "border-gray-300 hover:border-gray-400"}`;
+    heavy
+      ? `ch-time${selected ? " is-on" : ""}`
+      : `px-2 py-2 rounded border text-xs font-medium transition-colors ${
+          selected ? "" : dark ? "border-white/15 text-gray-200 hover:border-white/30" : "border-gray-300 text-gray-700 hover:border-gray-400"
+        }`;
+  const choiceCls = st.choice;
+  // The picked tile's edge: heavy tiles read --ch-accent, the others an inline border
+  const pickedEdge = (on: boolean) => (on && !heavy ? { borderColor: accent } : undefined);
+  // Inline accent for the non-heavy chips; heavy ones paint from --ch-accent
+  const pickedFill = (on: boolean) => (on && !heavy ? { backgroundColor: accent, borderColor: accent, color: onAccent } : undefined);
+  const accentVars = { "--ch-accent": accent, "--ch-on-accent": onAccent } as React.CSSProperties;
   const choices = (name: string, options: { label: string; description?: string }[], value: string, required: boolean, onChange: (v: string) => void) => (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
       {options.map((o) => {
         const on = value === o.label;
         return (
-          <label key={o.label} className={choiceCls(on)} style={on ? { borderColor: accent } : undefined}>
+          <label key={o.label} className={choiceCls(on)} style={pickedEdge(on)}>
             <input type="radio" name={name} value={o.label} checked={on} required={required} onChange={() => onChange(o.label)} className="mt-0.5 shrink-0" style={{ accentColor: accent }} />
             <span className="min-w-0">
               <span className={`block text-sm font-semibold ${ink}`}>{o.label}</span>
@@ -425,13 +462,19 @@ export default function BookingStepper({
     const where = booked.address ?? booked.meetingLink ?? null;
     const whenLabel = type.exactTime ? slotLabelIn(booked) : booked.label;
     return (
-      <div className={`${card} mx-auto max-w-lg px-6 py-10 text-center`}>
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: embedWash(savedAccent, 13) }}>
-          <CheckCircle size={28} style={{ color: accent }} />
-        </div>
-        <h2 className={`mb-1 text-xl font-bold ${ink}`}>{words.heading}</h2>
+      <div className={`${card} mx-auto max-w-lg px-6 py-10 text-center`} style={accentVars}>
+        {heavy ? (
+          <div className="ch-done-mark mb-5">
+            <CheckCircle size={30} />
+          </div>
+        ) : (
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: embedWash(savedAccent, 13) }}>
+            <CheckCircle size={28} style={{ color: accent }} />
+          </div>
+        )}
+        <h2 className={heavy ? "ch-h2 mb-3 text-gray-900" : `mb-1 text-xl font-bold ${ink}`}>{words.heading}</h2>
         <p className={`text-sm font-semibold ${dark ? "text-gray-200" : "text-gray-800"}`}>{booked.typeName}</p>
-        <p className={`mt-1 text-lg font-bold ${ink}`}>{whenLabel}</p>
+        <p className={heavy ? "mt-1 text-[24px] font-extrabold leading-tight tracking-[-0.02em] text-gray-900" : `mt-1 text-lg font-bold ${ink}`}>{whenLabel}</p>
         {type.exactTime && <p className={`text-xs ${muted}`}>{tz.replace(/_/g, " ")}</p>}
         {booked.withName && <p className={`mt-2 text-sm ${muted}`}>with {booked.withName}</p>}
         {booked.address && <p className={`mt-1 text-sm ${muted}`}>{booked.address}</p>}
@@ -443,11 +486,11 @@ export default function BookingStepper({
         {booked.paidNote && <p className="mt-2 text-sm font-semibold text-green-600">{booked.paidNote}</p>}
         <p className={`mt-3 text-sm ${muted}`}>{words.body}</p>
         {words.note && <p className={`mt-3 whitespace-pre-line text-sm ${muted}`}>{words.note}</p>}
-        <div className="mt-5 flex flex-wrap items-center justify-center gap-4 text-sm font-medium">
-          <a href={googleUrl(summary, booked.start, booked.end, where)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:underline" style={{ color: accent }}>
+        <div className={heavy ? "mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2" : "mt-5 flex flex-wrap items-center justify-center gap-4 text-sm font-medium"}>
+          <a href={googleUrl(summary, booked.start, booked.end, where)} target="_blank" rel="noopener noreferrer" className={heavy ? "ch-btn-2" : "inline-flex items-center gap-1.5 hover:underline"} style={heavy ? undefined : { color: accent }}>
             <CalendarPlus size={14} /> Google Calendar
           </a>
-          <a href={icsHref(summary, booked.start, booked.end, where)} download="appointment.ics" className="inline-flex items-center gap-1.5 hover:underline" style={{ color: accent }}>
+          <a href={icsHref(summary, booked.start, booked.end, where)} download="appointment.ics" className={heavy ? "ch-btn-2" : "inline-flex items-center gap-1.5 hover:underline"} style={heavy ? undefined : { color: accent }}>
             <CalendarPlus size={14} /> Apple / Outlook
           </a>
         </div>
@@ -465,17 +508,23 @@ export default function BookingStepper({
 
   // ── Summary rail ──────────────────────────────────────────────────────────
   const rail = (
-    <aside className={`${card} p-5 lg:sticky lg:top-6`}>
+    <aside className={`${card} p-5 lg:sticky lg:top-6`} style={accentVars}>
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: embedWash(savedAccent, 13), color: accent }}>
-          <Icon size={18} />
-        </span>
+        {heavy ? (
+          <span className="ch-tile">
+            <Icon size={20} />
+          </span>
+        ) : (
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: embedWash(savedAccent, 13), color: accent }}>
+            <Icon size={18} />
+          </span>
+        )}
         <div className="min-w-0">
-          <p className={`truncate text-sm font-semibold ${ink}`}>{type.name}</p>
+          <p className={heavy ? "ch-h3 truncate text-gray-900" : `truncate text-sm font-semibold ${ink}`}>{type.name}</p>
           <p className={`text-xs ${muted}`}>{company.name}</p>
         </div>
       </div>
-      <dl className={`mt-4 space-y-2 text-sm ${dark ? "text-gray-300" : "text-gray-700"}`}>
+      <dl className={heavy ? "ch-facts mt-3" : `mt-4 space-y-2 text-sm ${dark ? "text-gray-300" : "text-gray-700"}`}>
         <div className="flex items-center gap-2">
           <Clock size={14} className={muted} />
           <span>
@@ -499,9 +548,10 @@ export default function BookingStepper({
           </div>
         )}
         {slot && (
-          <div className="flex items-start gap-2">
+          // keyed on the time: the line locks in again when the pick changes
+          <div key={slot.start} className="is-new flex items-start gap-2">
             <CalendarPlus size={14} className={`mt-0.5 ${muted}`} />
-            <span className="font-medium">{slotLabelIn(slot)}</span>
+            <span className={heavy ? "font-bold text-gray-900" : "font-medium"}>{slotLabelIn(slot)}</span>
           </div>
         )}
         {type.exactTime && (
@@ -530,27 +580,35 @@ export default function BookingStepper({
     step === "services" ? "What do you need done?" : step === "address" ? "Where is it?" : step === "time" ? "Pick a time" : "Your details";
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
+    <div className={`grid grid-cols-1 gap-4 lg:items-start ${heavy ? "lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-5" : "lg:grid-cols-[280px_minmax(0,1fr)]"}`} style={accentVars}>
       {rail}
-      <form onSubmit={submit} className={`${card} relative space-y-4 p-5 lg:p-6`}>
+      <form onSubmit={submit} className={`${card} relative ${heavy ? "space-y-5 p-5 lg:p-7" : "space-y-4 p-5 lg:p-6"}`}>
         {/* Stepper header */}
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
             {stepIdx > 0 && (
-              <button type="button" onClick={() => setStepIdx(stepIdx - 1)} className={`rounded-full p-1.5 ${muted} hover:opacity-80`} aria-label="Back">
-                <ArrowLeft size={16} />
+              <button type="button" onClick={() => setStepIdx(stepIdx - 1)} className={heavy ? "-ml-1.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900" : `rounded-full p-1.5 ${muted} hover:opacity-80`} aria-label="Back">
+                <ArrowLeft size={heavy ? 18 : 16} />
               </button>
             )}
-            <h2 className={`text-base font-semibold ${ink}`}>{stepTitle}</h2>
+            <h2 className={heavy ? "ch-h2 text-gray-900" : `text-base font-semibold ${ink}`}>{stepTitle}</h2>
           </div>
-          <div className="flex items-center gap-1" aria-label={`Step ${stepIdx + 1} of ${steps.length}`}>
-            {steps.map((s, i) => (
-              <span key={s} className="h-1.5 w-5 rounded-full" style={{ backgroundColor: i <= stepIdx ? accent : dark ? "#ffffff22" : "#e5e7eb" }} />
-            ))}
-          </div>
+          {heavy ? (
+            <div className="ch-steps shrink-0" aria-label={`Step ${stepIdx + 1} of ${steps.length}`}>
+              {steps.map((s, i) => (
+                <span key={s} className={i <= stepIdx ? "is-on" : ""} />
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center gap-1" aria-label={`Step ${stepIdx + 1} of ${steps.length}`}>
+              {steps.map((s, i) => (
+                <span key={s} className="h-1.5 w-5 rounded-full" style={{ backgroundColor: i <= stepIdx ? accent : dark ? "#ffffff22" : "#e5e7eb" }} />
+              ))}
+            </div>
+          )}
         </div>
 
-        {error && <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+        {error && <div className={st.error}>{error}</div>}
         <div aria-hidden="true" className="absolute -left-[9999px] top-0 h-0 overflow-hidden">
           <label>
             Website
@@ -558,6 +616,8 @@ export default function BookingStepper({
           </label>
         </div>
 
+        {/* Each step slides in when it changes (forward from the right, Back from the left) */}
+        <div key={step} className={stepDir < 0 ? "ch-step-back" : "ch-step-in"}>
         {step === "services" && (
           <div className="space-y-2">
             {type.services.map((s) => {
@@ -565,8 +625,8 @@ export default function BookingStepper({
               return (
                 <label
                   key={s.id}
-                  className={`flex cursor-pointer items-start gap-3 rounded border px-4 py-3 transition-colors ${dark ? "bg-white/5" : ""} ${on ? "" : dark ? "border-white/15 hover:border-white/30" : "border-gray-300 hover:border-gray-400"}`}
-                  style={on ? { borderColor: accent } : undefined}
+                  className={choiceCls(on)}
+                  style={pickedEdge(on)}
                 >
                   <input
                     type="checkbox"
@@ -576,9 +636,9 @@ export default function BookingStepper({
                     style={{ accentColor: accent }}
                   />
                   <span className="min-w-0 flex-1">
-                    <span className={`flex items-baseline justify-between gap-3 text-sm font-semibold ${ink}`}>
+                    <span className={`flex items-baseline justify-between gap-3 font-semibold ${heavy ? "text-[15px]" : "text-sm"} ${ink}`}>
                       <span>{s.name}</span>
-                      <span className={`shrink-0 text-xs font-medium ${muted}`}>{s.priceLabel}</span>
+                      <span className={heavy ? "shrink-0 text-[15px] font-bold text-gray-900" : `shrink-0 text-xs font-medium ${muted}`}>{s.priceLabel}</span>
                     </span>
                     {s.description && <span className={`mt-0.5 block text-xs ${muted}`}>{s.description}</span>}
                     {s.durationMinutes != null && <span className={`mt-0.5 block text-xs ${muted}`}>About {durationLabel(s.durationMinutes)}</span>}
@@ -629,9 +689,20 @@ export default function BookingStepper({
               </p>
             ) : (
               <div className={slotsLoading ? "opacity-60" : ""}>
-                <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-2">
+                <div className={heavy ? "-mx-1 flex gap-2 overflow-x-auto px-1 pt-1 pb-3" : "-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-2"}>
                   {shownDays.map((d) => {
                     const active = d.date === activeDay;
+                    const parts = heavy ? dayParts(d.date) : null;
+                    if (parts) {
+                      // Heavy: a date tile (weekday over a big day), like the portal's visit date block
+                      return (
+                        <button key={d.date} type="button" onClick={() => setActiveDay(d.date)} className={`ch-day${active ? " is-on" : ""}`} aria-pressed={active} aria-label={d.label}>
+                          <span className="ch-day-w">{parts.w}</span>
+                          <span className="ch-day-d">{parts.d}</span>
+                          <span className="ch-day-m">{parts.m}</span>
+                        </button>
+                      );
+                    }
                     return (
                       <button key={d.date} type="button" onClick={() => setActiveDay(d.date)} className={`shrink-0 rounded border px-3 py-1.5 text-xs font-semibold transition-colors ${active ? "" : dark ? "border-white/15 text-gray-300 hover:border-white/30" : "border-gray-300 text-gray-600 hover:border-gray-400"}`} style={active ? { backgroundColor: accent, borderColor: accent, color: onAccent } : undefined}>
                         {d.label}
@@ -639,11 +710,11 @@ export default function BookingStepper({
                     );
                   })}
                 </div>
-                <div className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className={heavy ? "mt-2 grid grid-cols-2 gap-2.5 sm:grid-cols-3" : "mt-1 grid grid-cols-2 gap-2 sm:grid-cols-3"}>
                   {(shownDays.find((d) => d.date === activeDay)?.slots ?? []).map((s) => {
                     const selected = slot?.start === s.start;
                     return (
-                      <button key={s.start} type="button" onClick={() => setSlot(s)} className={chip(selected)} style={selected ? { backgroundColor: accent, borderColor: accent, color: onAccent } : undefined}>
+                      <button key={s.start} type="button" onClick={() => setSlot(s)} className={chip(selected)} style={pickedFill(selected)} aria-pressed={selected}>
                         {s.label}
                       </button>
                     );
@@ -697,8 +768,8 @@ export default function BookingStepper({
             </div>
             )}
             {askPhone && company.offerSms !== false && (
-              <label className={`flex items-start gap-2 text-[11px] leading-snug ${dark ? "text-gray-400" : "text-gray-500"}`}>
-                <input type="checkbox" checked={smsConsent} onChange={(e) => setSmsConsent(e.target.checked)} className="mt-px h-3.5 w-3.5 shrink-0 rounded" style={{ accentColor: accent }} />
+              <label className={`flex items-start gap-2 leading-snug ${heavy ? "text-[12px]" : "text-[11px]"} ${dark ? "text-gray-400" : "text-gray-500"}`}>
+                <input type="checkbox" checked={smsConsent} onChange={(e) => setSmsConsent(e.target.checked)} className={`shrink-0 rounded ${heavy ? "mt-0.5 h-4 w-4" : "mt-px h-3.5 w-3.5"}`} style={{ accentColor: accent }} />
                 <span>
                   {smsConsentLabel(company.name)}{" "}
                   <a href={businessSmsTermsUrl(companySlug)} target="_blank" rel="noreferrer" className="underline">
@@ -752,7 +823,7 @@ export default function BookingStepper({
               </div>
             )}
             {handoff && (
-              <div className={`rounded border px-4 py-3 text-sm ${dark ? "border-white/15 text-gray-300" : "border-gray-200 text-gray-700"}`}>
+              <div className={heavy ? "rounded-[10px] bg-[#F3F5F8] px-4 py-3 text-sm text-gray-700 shadow-[inset_0_0_0_1px_rgba(10,20,40,0.06)]" : `rounded border px-4 py-3 text-sm ${dark ? "border-white/15 text-gray-300" : "border-gray-200 text-gray-700"}`}>
                 <p className="font-semibold">Pay now · ${(type.paymentMode === "FULL" ? total : (depositAmount ?? 0)).toFixed(2)}</p>
                 <p className={`mt-1 text-xs ${muted}`}>Card payment opens in a secure window on {new URL(hostedUrl!).hostname} with everything you've entered here.</p>
               </div>
@@ -773,6 +844,7 @@ export default function BookingStepper({
             {!preview && !hub && <TurnstileWidget onToken={setCaptchaToken} action="booking" />}
           </div>
         )}
+        </div>
 
         {step === "details" && handoff ? (
           <a

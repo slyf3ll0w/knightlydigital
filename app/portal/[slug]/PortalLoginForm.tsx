@@ -17,7 +17,7 @@ export default function PortalLoginForm({
 }: {
   slug: string;
   companyName: string;
-  /** the page's one brand color (already contrast-checked against white) */
+  /** the button color (lib/client-band.ts accent: readable on the white card) */
   brand: string;
   onBrand: string;
 }) {
@@ -47,22 +47,18 @@ export default function PortalLoginForm({
   if (sentTo) {
     return (
       <div className="anim-portal" aria-live="polite">
-        <span
-          className="mb-4 flex h-11 w-11 items-center justify-center rounded-full"
-          style={{ background: `color-mix(in srgb, ${brand} 12%, white)`, color: brand }}
-        >
-          <MailCheck size={20} />
+        <span className="ch-tile mb-5" style={{ background: brand, color: onBrand }}>
+          <MailCheck size={22} />
         </span>
-        <h2 className="text-[18px] font-semibold text-gray-900">Check your email</h2>
-        <p className="mt-2 text-[15px] leading-relaxed text-gray-600 md:text-[14px]">
+        <h2 className="ch-h2 text-gray-900">Check your email</h2>
+        <p className="mt-2.5 text-[15px] leading-relaxed text-gray-600">
           If <span className="break-all font-medium text-gray-900">{sentTo}</span> is on file with {companyName}, your
           sign-in link is on its way. It can take a minute, so check spam too.
         </p>
         <button
           type="button"
           onClick={() => setSentTo(null)}
-          className="mt-4 py-1 text-[14px] font-medium hover:underline"
-          style={{ color: brand }}
+          className="ch-btn-2 is-auto mt-6"
         >
           Use a different email
         </button>
@@ -72,13 +68,13 @@ export default function PortalLoginForm({
 
   return (
     <div>
-      <h2 className="hidden text-[18px] font-semibold text-gray-900 md:block">Sign in with your email</h2>
-      <p className="text-[15px] leading-relaxed text-gray-600 md:mt-2 md:text-[14px]">
+      <h2 className="ch-h2 hidden text-gray-900 md:block">Sign in with your email</h2>
+      <p className="text-[15px] leading-relaxed text-gray-600 md:mt-2.5">
         Use the email {companyName} has on file. We&apos;ll send you a link that signs you in.
       </p>
 
       <form onSubmit={submit} className="mt-5 space-y-2.5 md:mt-6">
-        <label htmlFor="portal-email" className="block text-[13px] font-medium text-gray-700">
+        <label htmlFor="portal-email" className="ch-label">
           Email
         </label>
         <input
@@ -92,14 +88,13 @@ export default function PortalLoginForm({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
-          className="block h-12 w-full rounded-xl border border-gray-300 bg-white px-3.5 text-[16px] text-gray-900 outline-none transition-shadow placeholder:text-gray-400 focus:border-transparent"
-          onFocus={(e) => (e.currentTarget.style.boxShadow = `0 0 0 2px ${brand}`)}
-          onBlur={(e) => (e.currentTarget.style.boxShadow = "")}
+          className="ch-input"
+          style={{ "--ch-accent": brand } as React.CSSProperties}
         />
         <button
           type="submit"
           disabled={busy}
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[15px] font-semibold transition-[filter] hover:brightness-110 active:brightness-95 disabled:opacity-70"
+          className="ch-btn !mt-4"
           style={{ background: brand, color: onBrand }}
         >
           {busy && <Loader2 size={16} className="animate-spin" />}

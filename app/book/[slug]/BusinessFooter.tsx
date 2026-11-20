@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { loadBusinessProfile, aboutLine, profileAddress } from "@/lib/business-profile";
+import { loadBusinessProfile, aboutLine, profileAddress, type BusinessProfile } from "@/lib/business-profile";
 import { fmtPhone } from "@/lib/format";
 
 /**
@@ -21,7 +21,22 @@ import { fmtPhone } from "@/lib/format";
 export default async function BusinessFooter({ slug, dark = false, variant = "slim" }: { slug: string; dark?: boolean; variant?: "full" | "slim" | "about" }) {
   const p = await loadBusinessProfile(slug);
   if (!p) return null;
-  const muted = dark ? "text-gray-400" : "text-gray-500";
+  return <BusinessFooterView profile={p} slug={slug} dark={dark} variant={variant} />;
+}
+
+/** The footer itself, pure (the /client-preview frames feed it a fixture profile). Same words, same links. */
+export function BusinessFooterView({
+  profile: p,
+  slug,
+  dark = false,
+  variant = "slim",
+}: {
+  profile: BusinessProfile;
+  slug: string;
+  dark?: boolean;
+  variant?: "full" | "slim" | "about";
+}) {
+  const muted = dark ? "text-gray-400" : "text-gray-600";
   const rule = dark ? "border-white/10" : "border-gray-200";
   const link = "underline-offset-2 hover:underline";
 

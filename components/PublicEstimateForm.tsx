@@ -17,6 +17,8 @@ import { fileToAssistPhoto, type AssistPhoto } from "@/lib/image-downscale";
 import type { LatLngTuple } from "@/components/MapMeasure";
 import { notifyEmbedSubmitted } from "@/lib/embed-submitted";
 import { getArrival } from "@/lib/arrival-client";
+import { clientFormStyle } from "@/lib/client-form-style";
+import "@/app/client-heavy.css";
 
 const MapMeasure = dynamic(() => import("@/components/MapMeasure"), { ssr: false, loading: () => <div className="h-80 animate-pulse rounded-lg bg-black/5" /> });
 
@@ -228,13 +230,15 @@ export default function PublicEstimateForm({
     };
   }, [instant, step, values, spec, apiBase, previewQs]);
 
-  const card = transparent ? "bg-transparent" : dark ? "bg-[#101410] border border-white/10 rounded-lg p-6 shadow-sm" : "card-ledger p-6 shadow-sm";
+  // Light theme = the heavy look shared with the booking forms (lib/client-form-style.ts)
+  const heavy = clientFormStyle(appearance).heavy;
+  const card = transparent ? "bg-transparent" : dark ? "bg-[#101410] border border-white/10 rounded-lg p-6 shadow-sm" : "ch-card p-5 sm:p-7";
   const ink = theme.ink;
   const muted = theme.faint;
-  const label = dark ? "block text-sm font-medium text-gray-300 mb-1.5" : "block text-sm font-medium text-gray-700 mb-1.5";
-  const input = theme.input;
+  const label = heavy ? "ch-label" : dark ? "block text-sm font-medium text-gray-300 mb-1.5" : "block text-sm font-medium text-gray-700 mb-1.5";
+  const input = heavy ? "ch-input" : theme.input;
   const rowBox = theme.border;
-  const primary = "flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-50";
+  const primary = heavy ? "ch-btn" : "flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm font-semibold transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-50";
   const secondary = `inline-flex items-center justify-center gap-1.5 rounded-lg border px-4 py-3 text-sm font-medium ${rowBox} ${ink} hover:opacity-80`;
 
   const set = (k: string, v: string) => setForm((s) => ({ ...s, [k]: v }));
@@ -492,7 +496,7 @@ export default function PublicEstimateForm({
                   Add photo
                 </button>
               )}
-              <button type="button" disabled={photoBusy || (!photo && about.trim().length < 8)} onClick={() => void fillFromAtlas()} className={`${primary} w-auto px-4 py-2`} style={{ backgroundColor: accent, color: onAccent }}>
+              <button type="button" disabled={photoBusy || (!photo && about.trim().length < 8)} onClick={() => void fillFromAtlas()} className={heavy ? `${primary} is-auto` : `${primary} w-auto px-4 py-2`} style={{ backgroundColor: accent, color: onAccent }}>
                 {photoBusy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
                 {assessed.length > 0 ? "Assess & fill in" : "Fill in for me"}
               </button>

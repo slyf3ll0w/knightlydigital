@@ -1,13 +1,19 @@
 import type { ScheduleAppearance } from "./shell";
 import BusinessFooter from "../BusinessFooter";
+import { ClientBandHeader, ClientPage, type ClientBrandInput } from "@/components/client/ClientFrame";
+
+export type FrameCompany = ClientBrandInput & { logoUrl: string | null; slug?: string };
 
 /**
- * Page chrome shared by the hosted booking pages (menu, item, manage):
- * company logo + name on top, themed ground, Google Font + zoom from the
- * company's booking page look. Embeds render the same children without
- * this frame (see /embed/[slug]). The business footer (About, contact,
- * privacy + text terms) makes /book/<slug> stand as the business's website
- * on its texting registration.
+ * Page chrome shared by the hosted booking pages (menu, item, manage, about,
+ * legal, shop) in the heavy look: ONE solid band in the company's color
+ * (lib/client-band.ts, the same resolver as the portal home) with the logo
+ * tile, the name and the big title, then the tinted ground with the page's
+ * white cards. Font + zoom from the company's booking page look; its dark
+ * theme keeps the band over a dark ground. Embeds render the same children
+ * without this frame (see /embed/[slug]). The business footer (About,
+ * contact, privacy + text terms) makes /book/<slug> stand as the business's
+ * website on its texting registration.
  */
 export default function ScheduleFrame({
   company,
@@ -18,7 +24,7 @@ export default function ScheduleFrame({
   footer = "slim",
   children,
 }: {
-  company: { name: string; logoUrl: string | null; slug?: string };
+  company: FrameCompany;
   appearance: ScheduleAppearance;
   title?: string;
   subtitle?: string | null;
@@ -27,32 +33,51 @@ export default function ScheduleFrame({
   footer?: "full" | "slim" | "about";
   children: React.ReactNode;
 }) {
-  const { dark, fontName, fontHref, zoom } = appearance;
   return (
-    <div
-      className={`app-ui min-h-screen px-4 py-8 lg:py-12 ${dark ? "bg-[#0C0F0C]" : "bg-gray-50"}`}
-      style={{ zoom, ...(fontName ? { fontFamily: `"${fontName}", sans-serif` } : {}) }}
+    <BookingFrame
+      company={company}
+      appearance={appearance}
+      title={title}
+      subtitle={subtitle}
+      wide={wide}
+      footer={company.slug ? <BusinessFooter slug={company.slug} dark={appearance.dark} variant={footer} /> : null}
     >
-      {fontHref && (
-        <>
-          {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-          {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-          <link rel="stylesheet" href={fontHref} />
-        </>
-      )}
-      <div className={`mx-auto ${wide ? "max-w-4xl" : "max-w-lg"}`}>
-        <div className="mb-6 text-center">
-          {company.logoUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={company.logoUrl} alt={`${company.name} logo`} className="mx-auto mb-3 h-14 w-auto max-w-[220px] object-contain" />
-          )}
-          <h1 className={`text-2xl font-bold ${dark ? "text-white" : "text-gray-900"}`}>{title ?? company.name}</h1>
-          {subtitle && <p className={`mt-1 text-sm ${dark ? "text-gray-400" : "text-gray-500"}`}>{subtitle}</p>}
-        </div>
-        {children}
-        {company.slug && <BusinessFooter slug={company.slug} dark={dark} variant={footer} />}
-      </div>
-    </div>
+      {children}
+    </BookingFrame>
+  );
+}
+
+/** The frame itself, pure: the footer comes in as a node (/client-preview hands it a fixture one). */
+export function BookingFrame({
+  company,
+  appearance,
+  title,
+  subtitle,
+  wide = false,
+  footer,
+  children,
+}: {
+  company: FrameCompany;
+  appearance: Pick<ScheduleAppearance, "dark" | "fontName" | "fontHref" | "zoom">;
+  title?: string;
+  subtitle?: string | null;
+  wide?: boolean;
+  footer?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const width = wide ? "wide" : "narrow";
+  return (
+    <ClientPage
+      brand={company}
+      dark={appearance.dark}
+      fontName={appearance.fontName}
+      fontHref={appearance.fontHref}
+      zoom={appearance.zoom}
+      width={width}
+      footer={footer}
+      band={<ClientBandHeader name={company.name} logoUrl={company.logoUrl} title={title ?? company.name} subtitle={subtitle} width={width} />}
+    >
+      {children}
+    </ClientPage>
   );
 }
