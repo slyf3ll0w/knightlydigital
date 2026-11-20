@@ -47,15 +47,16 @@ const PaymentStep = forwardRef<
 
   if (!pay) {
     return (
-      <div className={`rounded border border-dashed px-4 py-3 text-sm ${dark ? "border-white/20 text-gray-400" : "border-gray-300 text-gray-500"}`}>
+      <div className={dark ? "rounded border border-dashed border-white/20 px-4 py-3 text-sm text-gray-400" : "rounded-[10px] bg-[#F3F5F8] px-4 py-3 text-sm text-gray-600"}>
         Online payment isn&apos;t available right now — you can still book and pay after the visit.
       </div>
     );
   }
   return (
-    <div className={`rounded border p-4 ${dark ? "border-white/15" : "border-gray-200"}`}>
+    // Light: a solid tinted panel inside the white card (never an outlined-only box)
+    <div className={dark ? "rounded border border-white/15 p-4" : "rounded-[10px] bg-[#F3F5F8] p-4 shadow-[inset_0_0_0_1px_rgba(10,20,40,0.06)]"}>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <p className={`text-sm font-semibold ${dark ? "text-white" : "text-gray-900"}`}>
+        <p className={dark ? "text-sm font-semibold text-white" : "text-[16px] font-bold tracking-[-0.01em] text-gray-900"}>
           {mode === "FULL" ? "Pay now" : "Deposit"} · ${due.toFixed(2)}
           {fee > 0 && <span className={`font-normal ${muted}`}> + ${fee.toFixed(2)} service fee</span>}
         </p>

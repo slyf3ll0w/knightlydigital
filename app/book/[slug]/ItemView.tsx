@@ -40,12 +40,15 @@ export default async function ItemView({
 }) {
   const item = loaded ?? (await loadBookingItem(companySlug, itemSlug, { preview: searchParams.preview === "1", overrides: searchParams }));
   if (!item) notFound();
-  const { company, type, pub, appearance, previewing, menuCount } = item;
+  const { company, type, pub, previewing, menuCount } = item;
+  // Hosted pages always sit on the heavy frame: "transparent" only means something inside a host
+  // website's iframe, so the hosted page renders the light look's solid cards instead.
+  const appearance = embed ? item.appearance : { ...item.appearance, transparent: false };
   const scheduled = pub.mode === "SCHEDULE";
   const base = embed ? `/embed/${companySlug}` : `/book/${companySlug}`;
   const menuHref = menuCount > 1 ? base : "";
   const previewNote = previewing && (
-    <div className={`mb-4 rounded border px-3 py-2 text-center text-xs ${appearance.dark ? "border-white/15 text-gray-400" : "border-gray-200 bg-white text-gray-500"}`}>
+    <div className={embed && appearance.transparent ? "mb-4 rounded border border-gray-200 px-3 py-2 text-center text-xs text-gray-500" : "ch-note mb-4"}>
       Preview — this is what customers see{type.isActive ? "" : " once it's turned on"}. Nothing submits from here.
     </div>
   );
@@ -85,7 +88,7 @@ export default async function ItemView({
     );
   }
   return (
-    <ScheduleFrame company={company} appearance={appearance} title={pub.heading} subtitle={pub.description ?? company.name} wide={scheduled} footer={home ? "full" : "slim"}>
+    <ScheduleFrame company={company} appearance={appearance} title={pub.heading} subtitle={pub.description} wide={scheduled} footer={home ? "full" : "slim"}>
       {previewNote}
       {body}
     </ScheduleFrame>

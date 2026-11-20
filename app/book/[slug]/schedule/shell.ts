@@ -1,4 +1,5 @@
-import { brandAccent, readableAccent } from "@/lib/branding";
+import { readableAccent } from "@/lib/branding";
+import { clientBand } from "@/lib/client-band";
 import { FONT_SIZE_ZOOM, GOOGLE_FONT_RE, googleFontHref, sanitizeBookingPage } from "@/lib/booking-page";
 import { resolvePublicCompany } from "@/lib/public-company";
 import { companyBySlug } from "@/lib/company-slug";
@@ -25,7 +26,7 @@ export type ScheduleAppearance = {
 export type AppearanceOverrides = { theme?: string; transparent?: string; accent?: string; font?: string };
 
 export function appearanceFor(
-  company: { name: string; brandColor: string | null; brandColorSecondary: string | null; bookingPage: unknown },
+  company: { name: string; brandColor: string | null; brandColorSecondary: string | null; documentColor?: string | null; bookingPage: unknown },
   overrides: AppearanceOverrides = {}
 ): ScheduleAppearance {
   const look = sanitizeBookingPage(company.bookingPage);
@@ -37,7 +38,8 @@ export function appearanceFor(
         : look.theme;
   const chosen = /^#?[0-9a-fA-F]{6}$/.test(overrides.accent ?? "")
     ? `#${(overrides.accent as string).replace("#", "")}`
-    : (look.accent ?? brandAccent(company));
+    : // No saved accent: the client pages' button color (lib/client-band.ts), same as the portal
+      (look.accent ?? clientBand(company).accent);
   const dark = theme === "dark";
   // Black-and-white brands (or any accent near the page ground) would otherwise
   // paint icons, links and selected chips in an invisible color.

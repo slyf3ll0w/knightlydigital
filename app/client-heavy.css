@@ -1,0 +1,366 @@
+/* ── Client-facing pages, the "heavy" look (2026-11-20) ────────────────────
+   The booking page, its forms (hosted, embedded, inside the portal) and the
+   client-portal login, matching the portal home (app/hub/[token]/hub-heavy.css).
+   docs/site-design.md → "Carrying it into the client-facing pieces".
+
+   One solid band in the company's color (lib/client-band.ts), white cards
+   with the ring + deep soft shadow on the #F3F5F8 ground, Lexend 700–800
+   with tight tracking, one big primary button. Motion only for real state
+   changes: a step slides in, the chosen time locks in, the confirmation
+   lands. No patterns, glows, chips-as-decoration or eyebrow labels.
+
+   Colors arrive as --ch-* custom properties on the root's style
+   (clientBandVars in lib/client-band.ts); forms set --ch-accent from the
+   booking look's accent. Every class works without a parent scope so a form
+   reads the same in the frame, an embed or the portal.
+   ──────────────────────────────────────────────────────────────────────── */
+
+.ch-page {
+  --ch-ground: #f3f5f8;
+  --ch-ink: #0a1428;
+  --ch-muted: #5b6474;
+  background: var(--ch-ground);
+  color: var(--ch-ink);
+}
+.ch-page.is-dark {
+  --ch-ground: #0c0f0c;
+  color: #fff;
+}
+.app-ui.ch-font,
+.ch-font {
+  font-family: var(--ch-font, var(--font-lexend), "Lexend", system-ui, sans-serif);
+}
+
+/* ── The band ─────────────────────────────────────────────────────────── */
+.ch-band {
+  background: var(--ch-band, #0b57d8);
+  color: var(--ch-on-band, #fff);
+  padding-top: env(safe-area-inset-top);
+}
+.ch-logo {
+  height: 44px;
+  width: auto;
+  max-width: 160px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 0 0 1px rgba(10, 20, 40, 0.08);
+}
+.ch-company {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ch-on-band-quiet, rgba(255, 255, 255, 0.78));
+}
+.ch-band a.ch-band-link {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ch-on-band, #fff);
+  text-underline-offset: 3px;
+}
+.ch-band a.ch-band-link:hover { text-decoration: underline; }
+.ch-title {
+  font-size: 34px;
+  line-height: 1.05;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+@media (min-width: 1024px) {
+  .ch-title { font-size: 44px; }
+}
+.ch-sub {
+  font-size: 16px;
+  line-height: 1.45;
+  font-weight: 500;
+  color: var(--ch-on-band-quiet, rgba(255, 255, 255, 0.78));
+}
+
+/* ── Cards ────────────────────────────────────────────────────────────── */
+.ch-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px rgba(10, 20, 40, 0.08), 0 2px 0 rgba(10, 20, 40, 0.05),
+    0 18px 34px -22px rgba(10, 20, 40, 0.35);
+  color: #0a1428;
+}
+.ch-h2 {
+  font-size: 22px;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+.ch-h3 {
+  font-size: 17px;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+.ch-section {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ch-ink, #0a1428);
+}
+.is-dark .ch-section { color: #fff; }
+
+/* A tappable row (booking page menu): solid card, the icon on a solid tile */
+.ch-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 18px;
+  min-height: 76px;
+  transition: background-color 0.12s ease, box-shadow 0.15s ease;
+}
+.ch-row.ch-card:hover {
+  background: #fafbfc;
+  box-shadow: 0 0 0 1px rgba(10, 20, 40, 0.12), 0 2px 0 rgba(10, 20, 40, 0.05),
+    0 20px 36px -22px rgba(10, 20, 40, 0.45);
+}
+.ch-row.ch-card:active { background: #f3f5f8; }
+.ch-tile {
+  display: flex;
+  height: 48px;
+  width: 48px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--ch-accent, #0b57d8);
+  color: var(--ch-on-accent, #fff);
+}
+
+/* ── Fields ───────────────────────────────────────────────────────────── */
+.ch-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+.ch-input {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  padding: 11px 14px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #d5dae2;
+  font-size: 16px; /* 16px: iOS doesn't zoom the page on focus */
+  color: #0a1428;
+  box-shadow: inset 0 1px 0 rgba(10, 20, 40, 0.03);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.ch-input::placeholder { color: #9aa3b2; }
+.ch-input:focus {
+  outline: none;
+  border-color: var(--ch-accent, #0b57d8);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ch-accent, #0b57d8) 22%, transparent);
+}
+textarea.ch-input { min-height: 96px; }
+
+/* A choice the visitor picks (radio / checkbox): solid tile, the picked one
+   takes the accent edge and a faint wash */
+.ch-choice {
+  display: flex;
+  cursor: pointer;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 0 0 1px #d5dae2;
+  transition: box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.ch-choice:hover { box-shadow: 0 0 0 1px #aeb6c3; }
+.ch-choice.is-on {
+  background: color-mix(in srgb, var(--ch-accent, #0b57d8) 6%, #fff);
+  box-shadow: 0 0 0 2px var(--ch-accent, #0b57d8);
+}
+
+/* ── Buttons ──────────────────────────────────────────────────────────── */
+.ch-btn {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 0 20px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  background: var(--ch-accent, #0b57d8);
+  color: var(--ch-on-accent, #fff);
+  box-shadow: 0 1px 0 rgba(10, 20, 40, 0.12), 0 8px 18px -12px rgba(10, 20, 40, 0.5);
+  transition: filter 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
+}
+.ch-btn:hover { filter: brightness(0.94); }
+.ch-btn:active { transform: scale(0.985); }
+.ch-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; filter: none; }
+.ch-btn-2 {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  background: #eef0f4;
+  color: #0a1428;
+  transition: background-color 0.15s ease;
+}
+.ch-btn-2:hover { background: #e4e7ec; }
+/* Full width on phones; .is-auto sizes to its words from 640 px (utilities can't
+   override these unlayered rules, so the switch lives here) */
+@media (min-width: 640px) {
+  .ch-btn.is-auto,
+  .ch-btn-2.is-auto { display: inline-flex; width: auto; min-width: 200px; }
+}
+
+/* ── Booking: steps, days, times ──────────────────────────────────────── */
+.ch-steps {
+  display: flex;
+  gap: 4px;
+}
+.ch-steps > span {
+  height: 4px;
+  width: 22px;
+  border-radius: 2px;
+  background: #e3e7ed;
+  transition: background-color 0.25s ease;
+}
+.ch-steps > span.is-on { background: var(--ch-accent, #0b57d8); }
+
+/* Day tile: weekday over a big date, like the portal's visit date block */
+.ch-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 72px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: #fff;
+  color: #0a1428;
+  box-shadow: 0 0 0 1px #d5dae2;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+}
+.ch-day:hover { box-shadow: 0 0 0 1px #aeb6c3; }
+.ch-day-w { font-size: 12px; font-weight: 600; line-height: 1; opacity: 0.75; }
+.ch-day-d { margin-top: 4px; font-size: 24px; font-weight: 800; line-height: 1; letter-spacing: -0.02em; }
+.ch-day-m { margin-top: 3px; font-size: 11px; font-weight: 600; line-height: 1; opacity: 0.7; }
+.ch-day.is-on {
+  background: var(--ch-ink, #0a1428);
+  color: #fff;
+  box-shadow: none;
+}
+
+.ch-time {
+  min-height: 48px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 0 0 1px #d5dae2;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0a1428;
+  transition: box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.ch-time:hover { box-shadow: 0 0 0 1px #aeb6c3; }
+.ch-time.is-on {
+  background: var(--ch-accent, #0b57d8);
+  color: var(--ch-on-accent, #fff);
+  box-shadow: 0 8px 18px -12px rgba(10, 20, 40, 0.6);
+  animation: ch-lock 0.32s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* Summary rail: a quiet list of what's chosen */
+.ch-facts > div {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #374151;
+}
+.ch-facts > div + div { border-top: 1px solid #e8ebf0; }
+.ch-facts .is-new { animation: ch-lock 0.32s cubic-bezier(0.2, 0.7, 0.2, 1); }
+
+/* The confirmation's check */
+.ch-done-mark {
+  display: flex;
+  height: 64px;
+  width: 64px;
+  margin-left: auto;
+  margin-right: auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--ch-accent, #0b57d8);
+  color: var(--ch-on-accent, #fff);
+  animation: ch-land 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.25) backwards;
+}
+
+.ch-error {
+  border-radius: 8px;
+  background: #fef2f2;
+  box-shadow: inset 3px 0 0 #b91c1c;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: #991b1b;
+}
+.ch-note {
+  border-radius: 8px;
+  background: #eef0f4;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #374151;
+  text-align: center;
+}
+.is-dark .ch-note { background: rgba(255, 255, 255, 0.06); color: #9ca3af; }
+
+/* ── Motion: real state changes only ──────────────────────────────────── */
+@keyframes ch-step-in {
+  from { opacity: 0; transform: translateX(18px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ch-step-back {
+  from { opacity: 0; transform: translateX(-18px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ch-lock {
+  0% { transform: scale(0.94); }
+  60% { transform: scale(1.03); }
+  100% { transform: none; }
+}
+@keyframes ch-land {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ch-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+.ch-step-in { animation: ch-step-in 0.28s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
+.ch-step-back { animation: ch-step-back 0.28s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
+.ch-rise {
+  animation: ch-rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ch-step-in,
+  .ch-step-back,
+  .ch-rise,
+  .ch-time.is-on,
+  .ch-facts .is-new,
+  .ch-done-mark {
+    animation: none;
+  }
+}

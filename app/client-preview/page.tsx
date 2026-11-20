@@ -7,16 +7,19 @@ import HubShell from "@/app/hub/[token]/HubShell";
 import HubHome from "@/app/hub/[token]/HubHome";
 import QuoteAcceptPage from "@/app/quote/[token]/QuoteAcceptPage";
 import PayPage from "@/app/pay/[token]/PayPage";
+import BookingPreview, { BOOKING_DOCS, type BookingDoc } from "./BookingPreview";
 
 /**
  * One client-facing surface on the fake Brightwire Electric account, for
  * review: the frames on /app/design/client point here. Query:
- *   doc   = quote | invoice | hub
+ *   doc   = quote | invoice | hub, or the booking page / forms / portal
+ *           login: book | form | stepper | embed | login | hubform
+ *           (BookingPreview.tsx; stepper state = services | time | details | done)
  *   state = quote: open | approved | expired | withdrawn
  *           invoice: open | paid | partial | withdrawn
  *           hub: open | clear (the client portal home, Maria Hernandez)
  *   brand = default | navy | orange | yellow | black
- *   logo  = 1 (hub only: a stand-in logo mark)
+ *   logo  = 1 (hub, booking and login: a stand-in logo mark)
  * Demo mode: Approve / Pay succeed locally so the stamp moment can be seen.
  * Signed-in only outside development — it shows nothing real either way.
  */
@@ -32,6 +35,9 @@ export default async function ClientPreviewPage({
   if (process.env.NODE_ENV === "production" && !(await getActor())) notFound();
   const sp = await searchParams;
   const brand = (["default", "navy", "orange", "yellow", "black"].includes(sp.brand ?? "") ? sp.brand : "navy") as FixtureBrand;
+  if ((BOOKING_DOCS as readonly string[]).includes(sp.doc ?? "")) {
+    return <BookingPreview doc={sp.doc as BookingDoc} state={sp.state} brand={brand} logoUrl={sp.logo === "1" ? FIXTURE_LOGO : null} />;
+  }
   if (sp.doc === "hub") {
     const hub = fixtureHub(sp.state === "clear" ? "clear" : "open", brand);
     // logo=1: a stand-in mark, to see the band with a logo tile

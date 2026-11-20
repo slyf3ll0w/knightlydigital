@@ -35,7 +35,8 @@ export default async function EstimateView({
   const pub = await resolvePublicEstimator(companySlug, toolSlug, { preview: searchParams.preview === "1" });
   if (!pub) notFound();
   const { company, row, spec, config, previewing } = pub;
-  const appearance = appearanceFor(company, searchParams);
+  // Hosted pages sit on the heavy frame: "transparent" only means something inside a host website's iframe
+  const appearance = embed ? appearanceFor(company, searchParams) : { ...appearanceFor(company, searchParams), transparent: false };
   // A view is a person: previews, thumbnails, crawlers and link-preview fetchers don't count
   if (!previewing && searchParams.thumb !== "1" && !isBotUserAgent((await headers()).get("user-agent"))) {
     void prisma.estimator.update({ where: { id: row.id }, data: { publicViews: { increment: 1 } } }).catch(() => {});
@@ -53,7 +54,7 @@ export default async function EstimateView({
   const heading = config.heading || row.name;
   const intro = config.intro || spec.intro || "";
   const previewNote = previewing && (
-    <div className={`mb-4 rounded border px-3 py-2 text-center text-xs ${appearance.dark ? "border-white/15 text-gray-400" : "border-gray-200 bg-white text-gray-500"}`}>
+    <div className={embed && appearance.transparent ? "mb-4 rounded border border-gray-200 px-3 py-2 text-center text-xs text-gray-500" : "ch-note mb-4"}>
       Preview — this is what visitors see{row.isPublic ? "" : " once it's on your website"}. Nothing submits from here.
     </div>
   );
@@ -88,7 +89,7 @@ export default async function EstimateView({
     );
   }
   return (
-    <ScheduleFrame company={company} appearance={appearance} title={heading} subtitle={intro || company.name}>
+    <ScheduleFrame company={company} appearance={appearance} title={heading} subtitle={intro || null}>
       {previewNote}
       {form}
     </ScheduleFrame>

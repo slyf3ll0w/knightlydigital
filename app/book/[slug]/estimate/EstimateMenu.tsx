@@ -1,7 +1,6 @@
-import Link from "next/link";
-import { Calculator, ChevronRight } from "lucide-react";
+import { Calculator } from "lucide-react";
+import ClientMenuRow from "@/components/client/ClientMenuRow";
 import type { ScheduleAppearance } from "../schedule/shell";
-import { embedAccent, embedWash } from "@/lib/embed-style";
 import { withEmbedQuery } from "@/lib/embed-query";
 
 export type EstimateMenuItem = { id: string; slug: string; heading: string; description: string | null; showPrice: "exact" | "range" | "hidden" };
@@ -22,31 +21,19 @@ export default function EstimateMenu({
   hrefQuery?: string;
 }) {
   if (tools.length === 0) return null;
-  const { dark, accent: savedAccent, transparent } = appearance;
-  // Saved accent, or the host website's once an embed matches it (lib/embed-style.ts)
-  const accent = embedAccent(savedAccent);
-  const card = transparent ? "border" : dark ? "bg-[#101410] border border-white/10" : "card-ledger";
   return (
     <div className="space-y-3">
-      {tools.map((t) => (
-        <Link
+      {tools.map((t, i) => (
+        <ClientMenuRow
           key={t.id}
+          index={i}
           href={withEmbedQuery(`${hrefBase}/estimate/${t.slug}`, hrefQuery)}
-          className={`${card} flex items-center gap-4 rounded-lg p-4 transition-opacity hover:opacity-90 ${dark ? "border-white/10" : ""}`}
-          style={transparent ? { borderColor: embedWash(savedAccent, 33) } : undefined}
-        >
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: embedWash(savedAccent, 13), color: accent }}>
-            <Calculator size={20} />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className={`block text-base font-semibold ${dark ? "text-white" : "text-gray-900"}`}>{t.heading}</span>
-            {t.description && <span className={`mt-0.5 block text-sm ${dark ? "text-gray-400" : "text-gray-600"}`}>{t.description}</span>}
-            <span className={`mt-1 block text-xs ${dark ? "text-gray-500" : "text-gray-400"}`}>
-              {t.showPrice === "hidden" ? "answer a few questions · we'll send a quote" : t.showPrice === "range" ? "answer a few questions · instant estimate range" : "answer a few questions · instant estimate"}
-            </span>
-          </span>
-          <ChevronRight size={18} className={dark ? "text-gray-600" : "text-gray-300"} />
-        </Link>
+          icon={Calculator}
+          title={t.heading}
+          description={t.description}
+          meta={t.showPrice === "hidden" ? "answer a few questions · we'll send a quote" : t.showPrice === "range" ? "answer a few questions · instant estimate range" : "answer a few questions · instant estimate"}
+          appearance={appearance}
+        />
       ))}
     </div>
   );

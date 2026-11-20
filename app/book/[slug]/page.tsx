@@ -8,6 +8,7 @@ import EstimateMenu from "./estimate/EstimateMenu";
 import { publicEstimatorsFor } from "@/lib/estimator-server";
 import { storeProducts } from "@/lib/store";
 import ShopRow from "./shop/ShopRow";
+import { ClientSectionTitle } from "@/components/client/ClientFrame";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -32,18 +33,20 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
     const item = await loadBookingItem(slug, page.menu[0].slug, { preview });
     if (item) return <ItemView companySlug={slug} itemSlug={item.pub.slug} searchParams={sp} loaded={item} home />;
   }
-  const { company, appearance } = page;
+  const { company } = page;
+  // Hosted: "transparent" only means something inside a host website's iframe (see ItemView)
+  const appearance = { ...page.appearance, transparent: false };
   return (
     <ScheduleFrame company={company} appearance={appearance} title={appearance.title || undefined} subtitle={appearance.description || "Pick what you'd like to book"} footer="full">
       {page.previewing && sp.thumb !== "1" && (
-        <div className={`mb-4 rounded border px-3 py-2 text-center text-xs ${appearance.dark ? "border-white/15 text-gray-400" : "border-gray-200 bg-white text-gray-500"}`}>
+        <div className="ch-note mb-4">
           Preview — this is your booking page as customers see it.
         </div>
       )}
       {(page.menu.length > 0 || (estimateTools.length === 0 && products.length === 0)) && <ScheduleMenu companySlug={slug} types={page.menu} appearance={appearance} />}
       {estimateTools.length > 0 && (
-        <div className={page.menu.length > 0 ? "mt-6" : ""}>
-          {page.menu.length > 0 && <p className={`mb-2 text-xs font-semibold uppercase tracking-wide ${appearance.dark ? "text-gray-500" : "text-gray-400"}`}>Instant estimates</p>}
+        <div className={page.menu.length > 0 ? "mt-8" : ""}>
+          {page.menu.length > 0 && <ClientSectionTitle className="mb-3">Instant estimates</ClientSectionTitle>}
           <EstimateMenu companySlug={slug} tools={estimateTools} appearance={appearance} />
         </div>
       )}

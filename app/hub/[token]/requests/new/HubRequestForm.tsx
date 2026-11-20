@@ -3,7 +3,25 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Loader2, CheckCircle, ArrowLeft } from "lucide-react";
-import { Input, Textarea } from "@/components/Input";
+import "@/app/client-heavy.css";
+
+/** Inside the portal the heavy pieces take the portal's own button color (hub-heavy.css --hh-accent). */
+const HUB_ACCENT = { "--ch-accent": "var(--hh-accent)", "--ch-on-accent": "var(--hh-on-accent)" } as React.CSSProperties;
+
+/** Back arrow + the form's title, on the portal ground. */
+export function HubFormHeader({ base, title, description }: { base: string; title: string; description?: string | null }) {
+  return (
+    <div className="mb-5 flex items-start gap-2">
+      <Link href={base} className="-ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-white hover:text-gray-900" aria-label="Back to your hub">
+        <ArrowLeft size={20} />
+      </Link>
+      <div className="min-w-0 pt-1">
+        <h2 className="ch-h2 text-gray-900">{title}</h2>
+        {description && <p className="mt-1.5 text-[15px] text-gray-600">{description}</p>}
+      </div>
+    </div>
+  );
+}
 
 export default function HubRequestForm({ token }: { token: string }) {
   const [loading, setLoading] = useState(false);
@@ -37,18 +55,13 @@ export default function HubRequestForm({ token }: { token: string }) {
 
   if (done) {
     return (
-      <div className="card-ledger p-10 text-center">
-        <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <CheckCircle size={28} className="text-green-600" />
+      <div className="ch-card px-6 py-10 text-center" style={HUB_ACCENT}>
+        <div className="ch-done-mark mb-5">
+          <CheckCircle size={30} />
         </div>
-        <h2 className="text-xl font-bold text-gray-900 mb-2">Request received!</h2>
-        <p className="text-sm text-gray-500 mb-5">
-          We&apos;ll review the details and get back to you shortly.
-        </p>
-        <Link
-          href={`/hub/${token}`}
-          className="text-sm text-green-600 hover:underline font-medium"
-        >
+        <h2 className="ch-h2 mb-2 text-gray-900">Request received!</h2>
+        <p className="mb-6 text-[15px] text-gray-600">We&apos;ll review the details and get back to you shortly.</p>
+        <Link href={`/hub/${token}`} className="ch-btn-2 is-auto">
           Back to your hub
         </Link>
       </div>
@@ -56,51 +69,40 @@ export default function HubRequestForm({ token }: { token: string }) {
   }
 
   return (
-    <div>
-      <div className="flex items-center gap-3 mb-6">
-        <Link href={`/hub/${token}`} className="text-gray-400 hover:text-gray-600">
-          <ArrowLeft size={18} />
-        </Link>
-        <h2 className="numeral-ledger relative w-fit text-[22px] font-bold text-gray-900">
-          New request
-        </h2>
-      </div>
+    <div style={HUB_ACCENT}>
+      <HubFormHeader base={`/hub/${token}`} title="New request" />
 
-      <form onSubmit={handleSubmit} className="card-ledger p-6 space-y-4">
-        {error && (
-          <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-            {error}
-          </div>
-        )}
+      <form onSubmit={handleSubmit} className="ch-card space-y-5 p-5 sm:p-7">
+        {error && <div className="ch-error">{error}</div>}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="hub-request-title" className="ch-label">
             What do you need done? *
           </label>
-          <Input
+          <input
+            id="hub-request-title"
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
             placeholder="e.g. Driveway and patio pressure wash"
-            className="w-full"
+            className="ch-input"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Details</label>
-          <Textarea
+          <label htmlFor="hub-request-details" className="ch-label">
+            Details
+          </label>
+          <textarea
+            id="hub-request-details"
             value={details}
             onChange={(e) => setDetails(e.target.value)}
             rows={5}
             placeholder="Please provide as much information as you can..."
-            className="w-full resize-none"
+            className="ch-input resize-none"
           />
         </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="flex items-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 active:bg-green-700 text-white text-sm font-semibold rounded-[10px] btn-tool transition-colors disabled:opacity-50"
-        >
-          {loading && <Loader2 size={14} className="animate-spin" />}
+        <button type="submit" disabled={loading} className="ch-btn is-auto">
+          {loading && <Loader2 size={16} className="animate-spin" />}
           Send request
         </button>
       </form>

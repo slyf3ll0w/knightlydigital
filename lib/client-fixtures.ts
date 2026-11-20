@@ -1,3 +1,10 @@
+import type { PublicBookingType } from "@/lib/booking-runtime";
+import type { ScheduleAppearance } from "@/app/book/[slug]/schedule/shell";
+import type { SlotDay, Booked } from "@/app/book/[slug]/schedule/[type]/BookingStepper";
+import type { BusinessProfile } from "@/lib/business-profile";
+import { defaultButtonLabel, defaultIntake, effectiveIntake } from "@/lib/booking-intake";
+import { clientBand } from "@/lib/client-band";
+import type { BookingKind, BookingMode } from "@/lib/booking-types";
 import type { PublicQuote } from "@/app/quote/[token]/QuoteAcceptPage";
 import type { PublicInvoice } from "@/app/pay/[token]/PayPage";
 import type { HubHomeData } from "@/app/hub/[token]/HubHome";
@@ -180,5 +187,152 @@ export function fixtureHub(state: "open" | "clear" = "open", brand: FixtureBrand
       signedContracts: [{ id: "c1", title: "Service agreement", when: w2.long }],
       form: { heading: "Get work done", description: "Send us a request and fill us in on the details.", buttonLabel: "New request" },
     },
+  };
+}
+
+// ── Booking page, its forms and the portal login (2026-11-20) ────────────
+
+/** The light booking look in the brand's colors (no saved accent, default font). */
+export function fixtureAppearance(brand: FixtureBrand = "navy"): ScheduleAppearance {
+  const c = fixtureCompany(brand);
+  return { dark: false, transparent: false, accent: clientBand(c).accent, fontName: null, fontHref: null, zoom: 1, title: "", description: "" };
+}
+
+function item(
+  id: string,
+  name: string,
+  kind: BookingKind,
+  mode: BookingMode,
+  extra: Partial<PublicBookingType> = {}
+): PublicBookingType {
+  const confirmation = extra.confirmation ?? "INSTANT";
+  const intake = effectiveIntake(defaultIntake(kind, mode), { kind, mode });
+  return {
+    id,
+    slug: id,
+    name,
+    description: null,
+    kind,
+    mode,
+    showOnPage: true,
+    exactTime: kind === "PHONE_CALL" || kind === "VIDEO_CALL",
+    needsAddress: false,
+    durationMinutes: 30,
+    arrivalWindowMinutes: 0,
+    confirmation,
+    paymentMode: "NONE",
+    clientCanReschedule: true,
+    clientCanCancel: true,
+    cutoffHours: 2,
+    bookable: true,
+    intake,
+    heading: name,
+    buttonLabel: defaultButtonLabel({ kind, mode, confirmation }),
+    services: [],
+    ...extra,
+  };
+}
+
+/** The booking page menu on Brightwire: a call, a visit, a paid service, a message. */
+export function fixtureBookingItems(): PublicBookingType[] {
+  return [
+    item("free-phone-estimate", "Free phone estimate", "PHONE_CALL", "SCHEDULE", { description: "A quick call to talk through the job and a ballpark price." }),
+    item("in-home-estimate", "In-home estimate", "IN_PERSON", "SCHEDULE", { description: "We come out, look at the panel and wiring, and leave a written quote.", durationMinutes: 60, arrivalWindowMinutes: 120, confirmation: "APPROVAL" }),
+    fixtureServiceItem(),
+    fixtureRequestItem(),
+  ];
+}
+
+export function fixtureServiceItem(): PublicBookingType {
+  return item("book-a-service", "Book a service", "SERVICE", "SCHEDULE", {
+    description: "Fixed-price jobs you can book and pay for online.",
+    durationMinutes: 90,
+    arrivalWindowMinutes: 120,
+    paymentMode: "FULL",
+    services: [
+      { id: "s1", name: "Ceiling fan install", description: "Existing box, fan supplied by you.", price: 185, priceLabel: "$185.00", priceDisplay: "FIXED", durationMinutes: 90 },
+      { id: "s2", name: "Outlet to GFCI swap", description: "Up to 3 outlets in one room.", price: 140, priceLabel: "$140.00", priceDisplay: "FIXED", durationMinutes: 60 },
+      { id: "s3", name: "Whole-home surge protector", description: "Installed at the panel.", price: 320, priceLabel: "$320.00", priceDisplay: "FIXED", durationMinutes: 60 },
+    ],
+  });
+}
+
+export function fixtureRequestItem(): PublicBookingType {
+  return item("request-service", "Request service", "SERVICE", "REQUEST", {
+    description: "Tell us what you need and we'll send a quote.",
+    services: [
+      { id: "r1", name: "Panel upgrade", description: null, price: 2400, priceLabel: "From $2,400.00", priceDisplay: "STARTING_AT", durationMinutes: null },
+      { id: "r2", name: "EV charger circuit", description: null, price: 650, priceLabel: "From $650.00", priceDisplay: "STARTING_AT", durationMinutes: null },
+      { id: "r3", name: "Lighting and fixtures", description: null, price: 0, priceLabel: "Quoted on site", priceDisplay: "QUOTE", durationMinutes: null },
+      { id: "r4", name: "Something else", description: null, price: 0, priceLabel: "Quoted on site", priceDisplay: "QUOTE", durationMinutes: null },
+    ],
+  });
+}
+
+/** Five open days from tomorrow, a few calls each (company time, America/Chicago). */
+export function fixtureSlotDays(): SlotDay[] {
+  const tz = "America/Chicago";
+  const keyFmt = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" });
+  const dayFmt = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short", month: "short", day: "numeric" });
+  const timeFmt = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit" });
+  const out: SlotDay[] = [];
+  for (let i = 1; out.length < 5; i++) {
+    const noon = new Date(Date.now() + i * DAY);
+    const wd = noon.toLocaleDateString("en-US", { weekday: "short", timeZone: tz });
+    if (wd === "Sun") continue;
+    const key = keyFmt.format(noon);
+    const base = new Date(`${key}T14:00:00Z`); // 8:00 AM Central (standard time)
+    const hours = out.length % 2 === 0 ? [0, 1, 2.5, 4, 5, 6.5] : [1, 1.5, 3, 5.5];
+    out.push({
+      date: key,
+      label: dayFmt.format(base),
+      slots: hours.map((h) => {
+        const s = new Date(base.getTime() + h * 3_600_000);
+        const e = new Date(s.getTime() + 30 * 60_000);
+        return { start: s.toISOString(), end: e.toISOString(), windowEnd: s.toISOString(), label: timeFmt.format(s) };
+      }),
+    });
+  }
+  return out;
+}
+
+export function fixtureBooked(days: SlotDay[]): Booked {
+  const s = days[0].slots[2];
+  return {
+    start: s.start,
+    end: s.end,
+    windowEnd: s.windowEnd,
+    label: s.label,
+    typeName: "Free phone estimate",
+    exactTime: true,
+    tentative: false,
+    withName: "Derek Olsen",
+    meetingLink: null,
+    manageUrl: "#",
+    address: null,
+  };
+}
+
+/** The business footer's facts (the full variant shows them). */
+export function fixtureBusinessProfile(brand: FixtureBrand = "navy"): BusinessProfile {
+  const c = fixtureCompany(brand);
+  return {
+    id: "fixture",
+    name: c.name,
+    slug: "brightwire-electric",
+    phone: "4695550142",
+    email: c.email,
+    shownEmail: c.email,
+    address: c.address,
+    city: c.city,
+    state: c.state,
+    zip: c.zip,
+    website: null,
+    about: null,
+    industry: "Electrical",
+    logoUrl: null,
+    services: ["Panel upgrades", "EV chargers", "Lighting"],
+    showDetails: true,
+    detailsForced: false,
   };
 }

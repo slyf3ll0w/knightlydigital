@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { brandAccent, readableAccent } from "@/lib/branding";
+import { clientBand } from "@/lib/client-band";
 import { loadBookingItem, type LoadedItem } from "@/lib/booking-public";
 import { bookingTypeInclude, toPublicBookingType } from "@/lib/booking-runtime";
 import type { ScheduleAppearance } from "@/app/book/[slug]/schedule/shell";
@@ -46,8 +46,9 @@ export async function hubFormWords(
 }
 
 /** The hub wears the company's hub chrome, not the booking page's saved look. */
-export function hubFormAppearance(company: { name: string; brandColor: string | null; brandColorSecondary: string | null }): ScheduleAppearance {
-  return { dark: false, transparent: false, accent: readableAccent(brandAccent(company), [company.brandColor], false), fontName: null, fontHref: null, zoom: 1, title: "", description: "" };
+export function hubFormAppearance(company: { name: string; brandColor: string | null; brandColorSecondary: string | null; documentColor?: string | null }): ScheduleAppearance {
+  // The portal home's button color (lib/client-band.ts), so the form's button matches the hub around it
+  return { dark: false, transparent: false, accent: clientBand(company).accent, fontName: null, fontHref: null, zoom: 1, title: "", description: "" };
 }
 
 /**
