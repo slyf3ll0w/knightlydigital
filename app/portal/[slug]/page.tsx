@@ -5,6 +5,7 @@ import { companyMeta } from "@/lib/client-meta";
 import { loadBookingPage } from "@/lib/booking-public";
 import { publicEmail } from "@/lib/public-email";
 import ForceLightTheme from "@/components/ForceLightTheme";
+import { loadClientTheme } from "@/lib/client-theme-load";
 import PortalLogin from "./PortalLogin";
 
 /**
@@ -38,7 +39,7 @@ export default async function PortalLoginPage({ params }: { params: Promise<{ sl
   const found = await prisma.company.findFirst({
     where: slugWhere(slug),
     select: {
-      name: true, slug: true, logoUrl: true, phone: true, email: true, hideEmail: true,
+      id: true, name: true, slug: true, logoUrl: true, phone: true, email: true, hideEmail: true,
       brandColor: true, documentColor: true, brandColorSecondary: true,
     },
   });
@@ -49,11 +50,13 @@ export default async function PortalLoginPage({ params }: { params: Promise<{ sl
   // Booking page reachable with something on it → new customers can ask for work
   const booking = await loadBookingPage(company.slug).catch(() => null);
   const requestHref = booking && booking.menu.length > 0 ? `/book/${company.slug}` : null;
+  // The page-designer theme (Pro): default look otherwise
+  const theme = await loadClientTheme(found.id);
 
   return (
     <>
       <ForceLightTheme />
-      <PortalLogin company={company} requestHref={requestHref} />
+      <PortalLogin company={company} requestHref={requestHref} theme={theme} />
     </>
   );
 }

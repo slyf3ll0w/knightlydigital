@@ -2,6 +2,7 @@ import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
 import { resolvePublicCompany } from "@/lib/public-company";
 import { appearanceFor } from "@/app/book/[slug]/schedule/shell";
+import { loadClientTheme } from "@/lib/client-theme-load";
 import { nextInvoiceNumber, withDocNumberRetry } from "@/lib/doc-numbers";
 import { phoneDigits } from "@/lib/phone";
 import { defaultLeadAssignee } from "@/lib/permissions";
@@ -68,7 +69,7 @@ export async function loadStore(companySlug: string) {
   const company = await resolvePublicCompany(companySlug);
   if (!company) return null;
   const products = await storeProducts(company.id);
-  return { company, appearance: appearanceFor(company), products };
+  return { company, appearance: appearanceFor(company, {}, await loadClientTheme(company.id)), products };
 }
 
 /** One product's page; null when it isn't for sale. */
@@ -80,7 +81,7 @@ export async function loadStoreProduct(companySlug: string, itemId: string) {
     select: PRODUCT_SELECT,
   });
   if (!row) return null;
-  return { company, appearance: appearanceFor(company), product: toProduct(row), taxRate: company.defaultTaxRate == null ? null : Number(company.defaultTaxRate) };
+  return { company, appearance: appearanceFor(company, {}, await loadClientTheme(company.id)), product: toProduct(row), taxRate: company.defaultTaxRate == null ? null : Number(company.defaultTaxRate) };
 }
 
 export type StoreOrderResult = { invoiceId: string; invoiceNumber: number; publicToken: string; total: number; contactId: string };

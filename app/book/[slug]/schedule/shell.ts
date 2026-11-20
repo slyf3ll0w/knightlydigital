@@ -4,6 +4,8 @@ import { FONT_SIZE_ZOOM, GOOGLE_FONT_RE, googleFontHref, sanitizeBookingPage } f
 import { resolvePublicCompany } from "@/lib/public-company";
 import { companyBySlug } from "@/lib/company-slug";
 import { prisma } from "@/lib/db";
+import type { ResolvedClientTheme } from "@/lib/client-theme-spec";
+import { loadClientTheme } from "@/lib/client-theme-load";
 
 /**
  * Appearance for every public booking surface: the company's booking page
@@ -21,13 +23,19 @@ export type ScheduleAppearance = {
   /** Menu heading ("" = company name) and the line under it */
   title: string;
   description: string;
+  /**
+   * The company's published page-designer theme (Pro; lib/client-theme-load.ts),
+   * when the page loaded one. Absent / default = today's look.
+   */
+  theme?: ResolvedClientTheme;
 };
 
 export type AppearanceOverrides = { theme?: string; transparent?: string; accent?: string; font?: string };
 
 export function appearanceFor(
   company: { name: string; brandColor: string | null; brandColorSecondary: string | null; documentColor?: string | null; bookingPage: unknown },
-  overrides: AppearanceOverrides = {}
+  overrides: AppearanceOverrides = {},
+  clientTheme?: ResolvedClientTheme
 ): ScheduleAppearance {
   const look = sanitizeBookingPage(company.bookingPage);
   const theme =
@@ -39,7 +47,8 @@ export function appearanceFor(
   const chosen = /^#?[0-9a-fA-F]{6}$/.test(overrides.accent ?? "")
     ? `#${(overrides.accent as string).replace("#", "")}`
     : // No saved accent: the client pages' button color (lib/client-band.ts), same as the portal
-      (look.accent ?? clientBand(company).accent);
+      // A published theme's button color comes first: it is the one way a Pro company styles these pages
+      (clientTheme?.colors.accent ?? look.accent ?? clientBand(company).accent);
   const dark = theme === "dark";
   // Black-and-white brands (or any accent near the page ground) would otherwise
   // paint icons, links and selected chips in an invisible color.
@@ -54,16 +63,22 @@ export function appearanceFor(
     zoom: FONT_SIZE_ZOOM[look.fontSize],
     title: look.title,
     description: look.description,
+    ...(clientTheme && !clientTheme.isDefault ? { theme: clientTheme } : {}),
   };
 }
 
-/** Company gate + appearance, for pages that have no item of their own (manage). */
+/**
+ * Company gate + appearance, for pages that have no item of their own
+ * (manage, about, legal). `theme` = wear the page-designer theme (about,
+ * manage); legal pages leave it off (locked: they stay as they are).
+ */
 export async function resolveScheduleAppearance(
   companySlug: string,
   overrides: AppearanceOverrides = {},
-  opts: { skipGate?: boolean } = {}
+  opts: { skipGate?: boolean; theme?: boolean } = {}
 ) {
   const company = opts.skipGate ? await companyBySlug(companySlug) : await resolvePublicCompany(companySlug);
   if (!company) return null;
-  return { company, appearance: appearanceFor(company, overrides) };
+  const clientTheme = opts.theme ? await loadClientTheme(company.id) : undefined;
+  return { company, appearance: appearanceFor(company, overrides, clientTheme) };
 }

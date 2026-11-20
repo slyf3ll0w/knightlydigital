@@ -37,7 +37,7 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
   // Hosted: "transparent" only means something inside a host website's iframe (see ItemView)
   const appearance = { ...page.appearance, transparent: false };
   return (
-    <ScheduleFrame company={company} appearance={appearance} title={appearance.title || undefined} subtitle={appearance.description || "Pick what you'd like to book"} footer="full">
+    <ScheduleFrame company={company} appearance={appearance} title={appearance.title || undefined} subtitle={appearance.description || "Pick what you'd like to book"} footer="full" home>
       {page.previewing && sp.thumb !== "1" && (
         <div className="ch-note mb-4">
           Preview — this is your booking page as customers see it.

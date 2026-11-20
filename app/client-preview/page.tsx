@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import "@/app/client.css";
 import ForceLightTheme from "@/components/ForceLightTheme";
 import { getActor } from "@/lib/permissions";
-import { fixtureBalance, fixtureHub, fixtureInvoice, fixtureQuote, type FixtureBrand } from "@/lib/client-fixtures";
+import { FIXTURE_THEMES, FIXTURE_THEME_PHOTOS, fixtureBalance, fixtureHub, fixtureInvoice, fixtureQuote, fixtureThemeContext, type FixtureBrand } from "@/lib/client-fixtures";
+import { parseClientTheme, portalSectionOrder, resolveTheme, type ResolvedClientTheme, type ThemeProblem } from "@/lib/client-theme-spec";
 import HubShell from "@/app/hub/[token]/HubShell";
 import HubHome from "@/app/hub/[token]/HubHome";
 import QuoteAcceptPage from "@/app/quote/[token]/QuoteAcceptPage";
@@ -20,6 +21,11 @@ import BookingPreview, { BOOKING_DOCS, type BookingDoc } from "./BookingPreview"
  *           hub: open | clear (the client portal home, Maria Hernandez)
  *   brand = default | navy | orange | yellow | black
  *   logo  = 1 (hub, booking and login: a stand-in logo mark)
+ *   theme = fixture:<name> (lib/client-fixtures.ts FIXTURE_THEMES: green-photo |
+ *           warm-orange | minimal-mono): the page-designer theme on the portal,
+ *           login, booking page and forms (quote + invoice never read a theme)
+ *   themeSpec = a theme spec as JSON (checked by parseClientTheme against
+ *           Brightwire; photo ids fx_crew / fx_yard; problems listed at the foot)
  * Demo mode: Approve / Pay succeed locally so the stamp moment can be seen.
  * Signed-in only outside development — it shows nothing real either way.
  */
@@ -30,13 +36,20 @@ export const metadata = { title: "Client page preview — WorkBench", robots: { 
 export default async function ClientPreviewPage({
   searchParams,
 }: {
-  searchParams: Promise<{ doc?: string; state?: string; brand?: string; logo?: string }>;
+  searchParams: Promise<{ doc?: string; state?: string; brand?: string; logo?: string; theme?: string; themeSpec?: string }>;
 }) {
   if (process.env.NODE_ENV === "production" && !(await getActor())) notFound();
   const sp = await searchParams;
   const brand = (["default", "navy", "orange", "yellow", "black"].includes(sp.brand ?? "") ? sp.brand : "navy") as FixtureBrand;
+  const { theme, problems } = previewTheme(sp, brand);
+  const notes = problems.length ? <ThemeProblems problems={problems} /> : null;
   if ((BOOKING_DOCS as readonly string[]).includes(sp.doc ?? "")) {
-    return <BookingPreview doc={sp.doc as BookingDoc} state={sp.state} brand={brand} logoUrl={sp.logo === "1" ? FIXTURE_LOGO : null} />;
+    return (
+      <>
+        <BookingPreview doc={sp.doc as BookingDoc} state={sp.state} brand={brand} logoUrl={sp.logo === "1" ? FIXTURE_LOGO : null} theme={theme} />
+        {notes}
+      </>
+    );
   }
   if (sp.doc === "hub") {
     const hub = fixtureHub(sp.state === "clear" ? "clear" : "open", brand);
@@ -45,9 +58,10 @@ export default async function ClientPreviewPage({
     return (
       <>
         <ForceLightTheme />
-        <HubShell company={company} firstName={hub.firstName} base={hub.data.base} unreadMessages={hub.unread} currentPath={hub.data.base}>
-          <HubHome d={hub.data} />
+        <HubShell company={company} firstName={hub.firstName} base={hub.data.base} unreadMessages={hub.unread} currentPath={hub.data.base} theme={theme}>
+          <HubHome d={hub.data} sections={theme && !theme.isDefault ? portalSectionOrder(theme) : undefined} />
         </HubShell>
+        {notes}
       </>
     );
   }
@@ -70,5 +84,38 @@ export default async function ClientPreviewPage({
       <ForceLightTheme />
       <QuoteAcceptPage quote={quote} expired={state === "expired"} demo />
     </>
+  );
+}
+
+/**
+ * The page-designer theme for this preview: a fixture by name or a spec passed
+ * as JSON, checked against Brightwire like a real company's would be. No
+ * theme = null = today's look. (Phase 2 adds draft tokens: ?theme=<token>.)
+ */
+function previewTheme(sp: { theme?: string; themeSpec?: string }, brand: FixtureBrand): { theme: ResolvedClientTheme | null; problems: ThemeProblem[] } {
+  let raw: unknown = null;
+  if (sp.theme?.startsWith("fixture:")) {
+    const name = sp.theme.slice("fixture:".length);
+    raw = FIXTURE_THEMES[name] ?? null;
+    if (!raw) return { theme: null, problems: [{ path: "theme", message: `No fixture theme named ${name}. Fixtures: ${Object.keys(FIXTURE_THEMES).join(", ")}` }] };
+  } else if (sp.themeSpec) {
+    raw = sp.themeSpec;
+  }
+  if (raw === null) return { theme: null, problems: [] };
+  const parsed = parseClientTheme(raw, fixtureThemeContext(brand));
+  return { theme: resolveTheme(parsed.theme, { imageUrl: (id) => FIXTURE_THEME_PHOTOS[id] ?? null }), problems: parsed.problems };
+}
+
+/** What the checker refused, listed under the page (review frames only). */
+function ThemeProblems({ problems }: { problems: ThemeProblem[] }) {
+  return (
+    <div data-theme-problems className="mx-auto my-6 max-w-2xl rounded-lg bg-red-50 px-4 py-3 text-[13px] text-red-800">
+      <p className="font-semibold">Theme problems ({problems.length})</p>
+      <ul className="mt-1 list-disc pl-5">
+        {problems.map((p, i) => (
+          <li key={i}>{p.message}</li>
+        ))}
+      </ul>
+    </div>
   );
 }

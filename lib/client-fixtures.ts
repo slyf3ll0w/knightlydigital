@@ -8,6 +8,7 @@ import type { BookingKind, BookingMode } from "@/lib/booking-types";
 import type { PublicQuote } from "@/app/quote/[token]/QuoteAcceptPage";
 import type { PublicInvoice } from "@/app/pay/[token]/PayPage";
 import type { HubHomeData } from "@/app/hub/[token]/HubHome";
+import type { ClientThemeSpec, ResolvedClientTheme, ThemeContext } from "@/lib/client-theme-spec";
 
 /**
  * Brightwire Electric — the FAKE company every client-facing surface is
@@ -193,9 +194,11 @@ export function fixtureHub(state: "open" | "clear" = "open", brand: FixtureBrand
 // ── Booking page, its forms and the portal login (2026-11-20) ────────────
 
 /** The light booking look in the brand's colors (no saved accent, default font). */
-export function fixtureAppearance(brand: FixtureBrand = "navy"): ScheduleAppearance {
+export function fixtureAppearance(brand: FixtureBrand = "navy", theme?: ResolvedClientTheme | null): ScheduleAppearance {
   const c = fixtureCompany(brand);
-  return { dark: false, transparent: false, accent: clientBand(c).accent, fontName: null, fontHref: null, zoom: 1, title: "", description: "" };
+  // Same order as appearanceFor: a published theme's accent first
+  const accent = theme?.colors.accent ?? clientBand(c).accent;
+  return { dark: false, transparent: false, accent, fontName: null, fontHref: null, zoom: 1, title: "", description: "", ...(theme && !theme.isDefault ? { theme } : {}) };
 }
 
 function item(
@@ -336,3 +339,77 @@ export function fixtureBusinessProfile(brand: FixtureBrand = "navy"): BusinessPr
     detailsForced: false,
   };
 }
+
+// ── Page-designer themes on Brightwire (AI page designer, 2026-11-20) ─────
+
+/** Stand-in "photos" (inline SVG, nothing fetched) under fixture ThemeAsset ids. */
+function fixturePhoto(sky: string, sky2: string, hill: string, hill2: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${sky}"/><stop offset="1" stop-color="${sky2}"/></linearGradient></defs><rect width="1200" height="800" fill="url(#s)"/><circle cx="930" cy="190" r="70" fill="#FFF3C4" opacity="0.85"/><path d="M0 520 C220 430 420 470 640 520 S1020 600 1200 500 V800 H0Z" fill="${hill}"/><path d="M0 640 C260 560 560 600 820 650 S1100 700 1200 660 V800 H0Z" fill="${hill2}"/><path d="M300 600 h170 v-110 l-85 -70 l-85 70Z" fill="#F1EDE4"/><rect x="365" y="540" width="40" height="60" fill="#7A4E2D"/><rect x="320" y="520" width="34" height="28" fill="#9CC3E6"/><rect x="415" y="520" width="34" height="28" fill="#9CC3E6"/></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+export const FIXTURE_THEME_PHOTOS: Record<string, string> = {
+  fx_crew: fixturePhoto("#7FB2D9", "#D8ECF7", "#4E8B3A", "#2F6B2A"),
+  fx_yard: fixturePhoto("#F2A65A", "#FBE3C2", "#8A5A3B", "#5B3A26"),
+};
+
+/** The context a fixture spec is checked against (Brightwire's items + the stand-in photos). */
+export function fixtureThemeContext(brand: FixtureBrand = "navy"): ThemeContext {
+  return {
+    bookingItemIds: [...fixtureBookingItems().map((t) => t.id), fixtureRequestItem().id].filter((v, i, a) => a.indexOf(v) === i),
+    assetIds: Object.keys(FIXTURE_THEME_PHOTOS),
+    defaultBand: clientBand(fixtureCompany(brand)).band,
+  };
+}
+
+/** Three looks that exercise every themeable piece (/client-preview?theme=fixture:<name>). */
+export const FIXTURE_THEMES: Record<string, ClientThemeSpec> = {
+  // Dark green truck-wrap look: photo band, big logo, split login, photo-left booking hero
+  "green-photo": {
+    v: 1,
+    colors: { band: "#14532D", accent: "#B45309", ground: "#F4F6F2" },
+    font: "Archivo",
+    logo: { size: "lg", placement: "band-left" },
+    band: { style: "photo", imageId: "fx_crew", overlay: 0.55 },
+    buttons: "solid",
+    corners: "soft",
+    portal: { sections: ["balance", "todo", "comingUp", "requestWork", "completedWork", "records"], welcome: "Everything for your project, in one place." },
+    login: { layout: "split", imageId: "fx_yard", heading: "Sign in to your project" },
+    booking: {
+      hero: "photo-left",
+      items: [
+        { id: "request-service", show: true },
+        { id: "free-phone-estimate", show: true },
+        { id: "book-a-service", show: false },
+      ],
+      heading: "Book your free estimate",
+      line: "Licensed and insured in Collin County since 2009.",
+      thankYou: "Thanks! We'll reach out within the hour.",
+    },
+    itemWords: { "free-phone-estimate": { description: "Fifteen minutes on the phone about your project.", button: "Pick a time" } },
+  },
+  // Warm orange: gradient band, centered logo, pill buttons, a serif display font, photo-full login
+  "warm-orange": {
+    v: 1,
+    colors: { band: "#C2410C", accent: "#9A3412", ground: "#FFF8F1" },
+    font: "Fraunces",
+    logo: { size: "md", placement: "band-center" },
+    band: { style: "gradient", imageId: "fx_crew", overlay: 0.5 },
+    buttons: "pill",
+    corners: "round",
+    portal: { sections: ["balance", "todo", "completedWork", "requestWork", "comingUp", "agreements", "records"] },
+    login: { layout: "photo-full", imageId: "fx_yard" },
+    booking: { hero: "photo-behind", heading: "Let's get you on the schedule" },
+  },
+  // Minimal mono: black band, outline buttons, square corners, small logo, plain hero
+  "minimal-mono": {
+    v: 1,
+    colors: { band: "#111111", accent: "#111111", ground: "#FFFFFF" },
+    font: "Space Grotesk",
+    logo: { size: "sm" },
+    buttons: "outline",
+    corners: "square",
+    portal: { sections: ["balance", "todo", "records"], welcome: "Your bills, visits and records." },
+    login: { heading: "Client sign-in" },
+    booking: { line: "Pick a time that works for you." },
+  },
+};

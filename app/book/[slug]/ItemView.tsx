@@ -88,7 +88,7 @@ export default async function ItemView({
     );
   }
   return (
-    <ScheduleFrame company={company} appearance={appearance} title={pub.heading} subtitle={pub.description} wide={scheduled} footer={home ? "full" : "slim"}>
+    <ScheduleFrame company={company} appearance={appearance} title={pub.heading} subtitle={pub.description} wide={scheduled} footer={home ? "full" : "slim"} home={home}>
       {previewNote}
       {body}
     </ScheduleFrame>

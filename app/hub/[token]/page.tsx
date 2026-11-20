@@ -7,6 +7,8 @@ import { arrivalTimeLabel, resolveArrivalWindowMinutes } from "@/lib/arrival-win
 import { hubFormWords } from "@/lib/hub-form";
 import { galleryStateFor } from "@/lib/gallery-preview";
 import { hubPhotoSrc } from "@/lib/photos-shared";
+import { loadClientTheme } from "@/lib/client-theme-load";
+import { portalSectionOrder } from "@/lib/client-theme-spec";
 import HubHome, { type HubHomeData } from "./HubHome";
 
 export default async function HubHomePage({
@@ -190,5 +192,7 @@ export default async function HubHomePage({
     },
   };
 
-  return <HubHome d={data} />;
+  // The page-designer theme (Pro) may reorder / hide sections; Balance due and the to-do cards stay first
+  const theme = await loadClientTheme(contact.companyId);
+  return <HubHome d={data} sections={theme.isDefault ? undefined : portalSectionOrder(theme)} />;
 }

@@ -1,4 +1,6 @@
+import { Fragment } from "react";
 import Link from "next/link";
+import { PORTAL_SECTIONS, type PortalSectionId } from "@/lib/client-theme-spec";
 import { ChevronRight, Mail } from "lucide-react";
 import { money } from "@/lib/statuses";
 import ResendContractButton from "./ResendContractButton";
@@ -43,7 +45,15 @@ export type HubHomeData = {
 /** Cards rise in one after another (`--i` = their place). */
 const rise = (i: number) => ({ "--i": i }) as React.CSSProperties;
 
-export default function HubHome({ d }: { d: HubHomeData }) {
+export default function HubHome({
+  d,
+  sections = PORTAL_SECTIONS,
+}: {
+  d: HubHomeData;
+  /** Section order from the page-designer theme (already pinned by portalSectionOrder); default = today's order. */
+  sections?: readonly PortalSectionId[];
+}) {
+  const order = sections;
   const nextVisit = d.visits[0];
   const laterVisits = d.visits.slice(1);
 
@@ -117,147 +127,177 @@ export default function HubHome({ d }: { d: HubHomeData }) {
   ];
 
   let i = 0;
-  return (
-    <div className="hh-home space-y-4 lg:space-y-5">
-      {/* 1 · What's due — the one big number */}
-      {d.balance ? (
-        <section className="hh-rise hh-card p-5 lg:p-7" style={rise(i++)}>
-          <div className="lg:flex lg:items-end lg:justify-between lg:gap-6">
-            <div className="min-w-0">
-              <p className="hh-label">Balance due</p>
-              <HubCountUp value={d.balance.amount} className="hh-big mt-2 block" />
-              <p className="hh-line mt-3 text-[15px]">
-                {d.balance.what}
-                {d.balance.due ? (
-                  <>
-                    {" · "}
-                    <span className={d.balance.overdue ? "font-semibold text-[color:var(--hh-bad)]" : ""}>{d.balance.due}</span>
-                  </>
-                ) : null}
-              </p>
-            </div>
-            <div className="mt-5 lg:mt-0 lg:shrink-0">
-              <Link href={d.balance.href} className="hh-btn lg:min-w-[200px]">
-                {d.balance.payable ? (d.balance.count === 1 ? "Pay now" : "See invoices") : d.balance.count === 1 ? "View invoice" : "See invoices"}
-              </Link>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {/* 2 · The rest of what needs them — two across on desktop; an odd last card spans */}
-      {todo.length > 0 ? (
-        <div className="grid grid-cols-1 gap-4 lg:gap-5 lg:grid-cols-2 lg:[&>*:last-child:nth-child(odd)]:col-span-2">
-          {todo.map((card, n) => (
-            <div key={n} className="hh-rise flex min-w-0 flex-col" style={rise(i++)}>
-              {card}
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      {!d.balance && todo.length === 0 ? (
-        <section className="hh-rise hh-card p-5 lg:p-7" style={rise(i++)}>
-          <p className="hh-title">You&apos;re all caught up</p>
-          <p className="hh-line mt-1">Nothing needs you right now.</p>
-        </section>
-      ) : null}
-
-      {/* 3 · Ask for work */}
-      <section className="hh-rise hh-card p-5 lg:p-7 lg:flex lg:items-center lg:justify-between lg:gap-6" style={rise(i++)}>
-        <div className="min-w-0">
-          <p className="hh-title">{d.form.heading}</p>
-          <p className="hh-line mt-1">{d.form.description}</p>
-        </div>
-        <div className="mt-4 lg:mt-0 lg:shrink-0">
-          <Link href={`${d.base}/requests/new`} className="hh-btn-2">
-            {d.form.buttonLabel}
-          </Link>
-        </div>
-      </section>
-
-      {/* 4 · History */}
-      {laterVisits.length > 0 ? (
-        <section className="hh-rise pt-3" style={rise(i++)}>
-          <h2 className="hh-section mb-3">Coming up</h2>
-          <div className="hh-card overflow-hidden">
-            {laterVisits.map((v) => (
-              <div key={v.id} className="hh-row">
-                <div className="hh-date is-small" aria-hidden>
-                  <span className="hh-date-m">{v.month}</span>
-                  <span className="hh-date-d">{v.day}</span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[15px] font-semibold truncate">{v.title}</p>
-                  <p className="hh-line">{v.when}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {d.recentWork.length > 0 ? (
-        <section className="hh-rise pt-3" style={rise(i++)}>
-          <div className="mb-3 flex items-baseline justify-between gap-3">
-            <h2 className="hh-section">Completed work</h2>
-            <Link href={`${d.base}/work`} className="text-[14px] font-semibold text-[color:var(--hh-accent)] hover:underline">
-              See all
-            </Link>
-          </div>
-          <div className="hh-card overflow-hidden">
-            {d.recentWork.map((w) => (
-              <Link key={w.id} href={`${d.base}/work/${w.id}`} className="hh-row">
-                {w.thumb ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={w.thumb} alt="" className="h-12 w-11 shrink-0 rounded-lg bg-gray-100 object-cover" />
-                ) : (
-                  <div className="hh-date is-small" aria-hidden>
-                    <span className="hh-date-m">{w.month ?? ""}</span>
-                    <span className="hh-date-d">{w.day ?? "·"}</span>
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="text-[15px] font-semibold truncate">{w.title}</p>
-                  <p className="hh-line">{w.when}</p>
-                </div>
-                <ChevronRight size={18} className="shrink-0 text-gray-400" />
-              </Link>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {d.signedContracts.length > 0 ? (
-        <section className="hh-rise pt-3" style={rise(i++)}>
-          <h2 className="hh-section mb-3">Agreements</h2>
-          <div className="hh-card overflow-hidden">
-            {d.signedContracts.map((c) => (
-              <div key={c.id} className="hh-row">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[15px] font-semibold truncate">{c.title}</p>
-                  <p className="hh-line">
-                    <span className="font-semibold text-[color:var(--hh-good)]">Signed</span>
-                    {c.when ? ` ${c.when}` : ""}
+  // Each section renders in the theme's order (lib/client-theme-spec.ts portalSectionOrder):
+  // Balance due and the to-do cards always first; the rest may be moved or hidden.
+  const render: Record<PortalSectionId, () => React.ReactNode> = {
+    balance: () => (
+      <>
+          {/* 1 · What's due — the one big number */}
+          {d.balance ? (
+            <section className="hh-rise hh-card p-5 lg:p-7" style={rise(i++)}>
+              <div className="lg:flex lg:items-end lg:justify-between lg:gap-6">
+                <div className="min-w-0">
+                  <p className="hh-label">Balance due</p>
+                  <HubCountUp value={d.balance.amount} className="hh-big mt-2 block" />
+                  <p className="hh-line mt-3 text-[15px]">
+                    {d.balance.what}
+                    {d.balance.due ? (
+                      <>
+                        {" · "}
+                        <span className={d.balance.overdue ? "font-semibold text-[color:var(--hh-bad)]" : ""}>{d.balance.due}</span>
+                      </>
+                    ) : null}
                   </p>
                 </div>
+                <div className="mt-5 lg:mt-0 lg:shrink-0">
+                  <Link href={d.balance.href} className="hh-btn lg:min-w-[200px]">
+                    {d.balance.payable ? (d.balance.count === 1 ? "Pay now" : "See invoices") : d.balance.count === 1 ? "View invoice" : "See invoices"}
+                  </Link>
+                </div>
               </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
+            </section>
+          ) : null}
+      </>
+    ),
+    todo: () => (
+      <>
+          {/* 2 · The rest of what needs them — two across on desktop; an odd last card spans */}
+          {todo.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4 lg:gap-5 lg:grid-cols-2 lg:[&>*:last-child:nth-child(odd)]:col-span-2">
+              {todo.map((card, n) => (
+                <div key={n} className="hh-rise flex min-w-0 flex-col" style={rise(i++)}>
+                  {card}
+                </div>
+              ))}
+            </div>
+          ) : null}
 
-      <section className="hh-rise pt-3" style={rise(i++)}>
-        <h2 className="hh-section mb-3">Your records</h2>
-        <div className="hh-card overflow-hidden">
-          {history.map((h) => (
-            <Link key={h.href} href={h.href} className="hh-row">
-              <span className="min-w-0 flex-1 text-[15px] font-semibold truncate">{h.label}</span>
-              <ChevronRight size={18} className="shrink-0 text-gray-400" />
-            </Link>
-          ))}
-        </div>
-      </section>
+          {!d.balance && todo.length === 0 ? (
+            <section className="hh-rise hh-card p-5 lg:p-7" style={rise(i++)}>
+              <p className="hh-title">You&apos;re all caught up</p>
+              <p className="hh-line mt-1">Nothing needs you right now.</p>
+            </section>
+          ) : null}
+      </>
+    ),
+    requestWork: () => (
+      <>
+          {/* 3 · Ask for work */}
+          <section className="hh-rise hh-card p-5 lg:p-7 lg:flex lg:items-center lg:justify-between lg:gap-6" style={rise(i++)}>
+            <div className="min-w-0">
+              <p className="hh-title">{d.form.heading}</p>
+              <p className="hh-line mt-1">{d.form.description}</p>
+            </div>
+            <div className="mt-4 lg:mt-0 lg:shrink-0">
+              <Link href={`${d.base}/requests/new`} className="hh-btn-2">
+                {d.form.buttonLabel}
+              </Link>
+            </div>
+          </section>
+      </>
+    ),
+    comingUp: () => (
+      <>
+          {/* 4 · History */}
+          {laterVisits.length > 0 ? (
+            <section className="hh-rise pt-3" style={rise(i++)}>
+              <h2 className="hh-section mb-3">Coming up</h2>
+              <div className="hh-card overflow-hidden">
+                {laterVisits.map((v) => (
+                  <div key={v.id} className="hh-row">
+                    <div className="hh-date is-small" aria-hidden>
+                      <span className="hh-date-m">{v.month}</span>
+                      <span className="hh-date-d">{v.day}</span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[15px] font-semibold truncate">{v.title}</p>
+                      <p className="hh-line">{v.when}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+      </>
+    ),
+    completedWork: () => (
+      <>
+          {d.recentWork.length > 0 ? (
+            <section className="hh-rise pt-3" style={rise(i++)}>
+              <div className="mb-3 flex items-baseline justify-between gap-3">
+                <h2 className="hh-section">Completed work</h2>
+                <Link href={`${d.base}/work`} className="text-[14px] font-semibold text-[color:var(--hh-accent)] hover:underline">
+                  See all
+                </Link>
+              </div>
+              <div className="hh-card overflow-hidden">
+                {d.recentWork.map((w) => (
+                  <Link key={w.id} href={`${d.base}/work/${w.id}`} className="hh-row">
+                    {w.thumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={w.thumb} alt="" className="h-12 w-11 shrink-0 rounded-lg bg-gray-100 object-cover" />
+                    ) : (
+                      <div className="hh-date is-small" aria-hidden>
+                        <span className="hh-date-m">{w.month ?? ""}</span>
+                        <span className="hh-date-d">{w.day ?? "·"}</span>
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[15px] font-semibold truncate">{w.title}</p>
+                      <p className="hh-line">{w.when}</p>
+                    </div>
+                    <ChevronRight size={18} className="shrink-0 text-gray-400" />
+                  </Link>
+                ))}
+              </div>
+            </section>
+          ) : null}
+      </>
+    ),
+    agreements: () => (
+      <>
+          {d.signedContracts.length > 0 ? (
+            <section className="hh-rise pt-3" style={rise(i++)}>
+              <h2 className="hh-section mb-3">Agreements</h2>
+              <div className="hh-card overflow-hidden">
+                {d.signedContracts.map((c) => (
+                  <div key={c.id} className="hh-row">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[15px] font-semibold truncate">{c.title}</p>
+                      <p className="hh-line">
+                        <span className="font-semibold text-[color:var(--hh-good)]">Signed</span>
+                        {c.when ? ` ${c.when}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+      </>
+    ),
+    records: () => (
+      <>
+          <section className="hh-rise pt-3" style={rise(i++)}>
+            <h2 className="hh-section mb-3">Your records</h2>
+            <div className="hh-card overflow-hidden">
+              {history.map((h) => (
+                <Link key={h.href} href={h.href} className="hh-row">
+                  <span className="min-w-0 flex-1 text-[15px] font-semibold truncate">{h.label}</span>
+                  <ChevronRight size={18} className="shrink-0 text-gray-400" />
+                </Link>
+              ))}
+            </div>
+          </section>
+      </>
+    ),
+  };
+
+  return (
+    <div className="hh-home space-y-4 lg:space-y-5">
+      {order.map((id) => (
+        <Fragment key={id}>{render[id]()}</Fragment>
+      ))}
     </div>
   );
 }

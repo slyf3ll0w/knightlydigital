@@ -4,6 +4,7 @@ import { companyMeta } from "@/lib/client-meta";
 import ForceLightTheme from "@/components/ForceLightTheme";
 import ViewBeacon from "@/components/ViewBeacon";
 import HubPwa from "@/components/HubPwa";
+import { loadClientTheme } from "@/lib/client-theme-load";
 import HubShell from "./HubShell";
 
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }) {
@@ -42,9 +43,13 @@ export default async function HubLayout({
   });
   if (!contact) notFound();
 
-  const unreadMessages = await prisma.portalMessage.count({
-    where: { contactId: contact.id, direction: "OUTBOUND", readByClientAt: null },
-  });
+  const [unreadMessages, theme] = await Promise.all([
+    prisma.portalMessage.count({
+      where: { contactId: contact.id, direction: "OUTBOUND", readByClientAt: null },
+    }),
+    // The page-designer theme (Pro): default look otherwise
+    loadClientTheme(contact.companyId),
+  ]);
 
   // The heavy shell (HubShell): the company's color as one solid band with
   // the greeting and desktop tabs, white cards on a tinted ground, the
@@ -56,7 +61,7 @@ export default async function HubLayout({
       <ForceLightTheme />
       <ViewBeacon kind="hub" token={token} />
       <HubPwa />
-      <HubShell company={contact.company} firstName={contact.firstName} base={`/hub/${token}`} unreadMessages={unreadMessages}>
+      <HubShell company={contact.company} firstName={contact.firstName} base={`/hub/${token}`} unreadMessages={unreadMessages} theme={theme}>
         {children}
       </HubShell>
     </>

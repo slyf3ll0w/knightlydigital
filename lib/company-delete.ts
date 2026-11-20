@@ -74,6 +74,7 @@ export const COMPANY_DELETE_ORDER = [
   "metaEventSent",
   "metaLead",
   "metaConnection",
+  "themeAsset", // page-designer photos (no FK; the R2 objects under themes/<companyId>/ are left)
   "user",
 ] as const;
 

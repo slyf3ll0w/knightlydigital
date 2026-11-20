@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function ManageBookingPage({ params }: { params: Promise<{ slug: string; token: string }> }) {
   const { slug, token } = await params;
   const [shell, appt] = await Promise.all([
-    resolveScheduleAppearance(slug),
+    resolveScheduleAppearance(slug, {}, { theme: true }),
     prisma.appointment.findUnique({ where: { manageToken: token }, select: { id: true, company: { select: { slug: true } } } }),
   ]);
   if (!shell || !appt || appt.company.slug !== slug) notFound();
