@@ -43,7 +43,7 @@ export default function HelpTopicView({ section, base, inApp }: { section: HelpS
               {inApp ? (
                 <ChevronRight className="h-4 w-4 flex-none text-gray-300 group-hover:text-gray-500" strokeWidth={2.5} />
               ) : (
-                <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-[#F5F7FA] text-[#F86A0A] transition-colors group-hover:bg-[#F86A0A] group-hover:text-white">
+                <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-[#F5F7FA] text-[#F86A0A] transition-colors group-hover:bg-[#F86A0A] group-hover:text-white"> {/* theme-ok: public site only, the marketing site is light-only */}
                   <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
                 </span>
               )}

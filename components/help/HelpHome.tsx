@@ -95,7 +95,7 @@ export default function HelpHome({
           <h1 className={inApp ? "text-4xl font-extrabold leading-[1.08] sm:text-5xl" : "text-[2.8rem] leading-[1] tracking-[-0.04em] sm:text-[4.2rem]"}>
             <span className="ds-wipe">
               <span className="ds-wipe-text">
-                {inApp ? "How can we help?" : <>How can we <span className="text-[#FF8B33]">help?</span></>}
+                {inApp ? "How can we help?" : <>How can we <span className="text-[#FF8B33]">help?</span></>} {/* theme-ok: public site only (inApp false), brand orange on the navy hero */}
               </span>
               <span className="ds-wipe-bar" aria-hidden />
             </span>
