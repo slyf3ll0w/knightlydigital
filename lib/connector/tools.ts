@@ -20,7 +20,7 @@ import { QUOTED_TEXT_RULE, quoted } from "@/lib/assistant/untrusted";
 export const CONNECTOR_READ = [
   "query_records", "report", "search_clients", "list_clients", "get_client_activity", "get_client_notes", "get_client_details", "get_statement",
   "list_pipeline", "get_document", "get_lead_board", "get_schedule", "get_job_checklist", "team_map", "get_route_plan", "list_places", "find_a_time",
-  "list_money", "business_summary", "lead_source_report", "get_ads_conversion_feed", "list_subscriptions", "list_expenses", "list_agreements", "list_agreement_templates", "whats_needing_attention",
+  "list_money", "business_summary", "lead_source_report", "get_ads_conversion_feed", "get_facebook_ads", "list_subscriptions", "list_expenses", "list_agreements", "list_agreement_templates", "whats_needing_attention",
   "get_price_book", "get_company_settings", "list_team", "list_calls", "run_estimator", "list_job_photos", "read_team_chat", "help_search",
 ] as const;
 
@@ -28,7 +28,7 @@ export const CONNECTOR_PREPARE = [
   "create_client", "update_client", "set_client_status", "assign_client", "add_client_note", "update_client_note", "send_portal_invite", "undo_import",
   "manage_address", "manage_person", "email_client", "reply_in_portal", "manage_saved_card",
   "create_request", "update_request", "respond_to_booking", "create_quote", "update_quote", "convert_quote", "collect_deposit",
-  "move_lead", "close_lead", "manage_pipeline_stage", "manage_lead_webhook", "set_ads_conversion_feed",
+  "move_lead", "close_lead", "manage_pipeline_stage", "manage_lead_webhook", "set_ads_conversion_feed", "set_facebook_ads",
   "create_job", "update_job", "add_job_line_items", "update_job_status", "add_job_note", "schedule_appointment", "update_appointment", "cancel_appointment",
   "update_checklist_item", "clock", "record_job_signoff", "manage_time_entry", "manage_time_block", "optimize_route", "add_place", "add_stop", "post_team_message",
   "create_invoice", "request_payment", "update_invoice", "email_document", "record_payment", "edit_payment", "manage_subscription", "log_expense", "update_expense",

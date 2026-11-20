@@ -12,7 +12,7 @@ import { saveCredential } from "@/lib/save-credential";
 import { browserTimezone } from "@/lib/timezone";
 import { CORE_FREE_LINE } from "@/lib/help/plan-copy";
 import IndustrySelect, { industryValue } from "@/components/IndustrySelect";
-import { getAttribution, trackSiteEvent } from "@/lib/site-track";
+import { getArrival, getAttribution, trackSiteEvent } from "@/lib/site-track";
 
 /**
  * The sign-up form. One submit opens the account (login + company + owner),
@@ -182,6 +182,7 @@ export default function ApplyForm({
           smsConsent,
           // How this visitor arrived (UTM / referrer) and the free-tool draft, if any
           attribution: getAttribution(),
+          arrival: getArrival(),
           draftId: draftId || undefined,
         }),
       });

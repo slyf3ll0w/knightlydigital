@@ -23,6 +23,7 @@ import { runPlanEntitlementSweep } from "@/lib/plan-billing";
 import { runGoogleCalendarSweep } from "@/lib/google-calendar";
 import { runGoogleCalendarPullSweep } from "@/lib/google-calendar-pull";
 import { runGoogleAdsSweep } from "@/lib/google-ads";
+import { runMetaAdsSweep } from "@/lib/meta-ads";
 import { runRecurringExpenses } from "@/lib/expenses";
 import { expireApprovalBookings } from "@/lib/approval-bookings";
 import { rollupStorageSnapshots } from "@/lib/usage";
@@ -233,6 +234,10 @@ export async function POST(req: NextRequest) {
     // company's Google Ads account (lib/google-ads.ts). No-op unless
     // GOOGLE_ADS_* env vars are set and a company has connected.
     await step("googleAds", () => runGoogleAdsSweep(now));
+    // Facebook ads: each step a Facebook lead reached (lead, appointment, quote,
+    // won, paid) goes to the company's own dataset (lib/meta-ads.ts). Every hour:
+    // Facebook only takes a step for 7 days. No-op until a company turns it on.
+    await step("metaAds", () => runMetaAdsSweep(now));
     await step("googleCalendarPull", () => runGoogleCalendarPullSweep());
     await step("googleCalendar", () => runGoogleCalendarSweep());
     // Business-line 10DLC registrations: poll Telnyx for every pending brand/

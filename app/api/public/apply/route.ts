@@ -16,6 +16,7 @@ import { paymentsGateEnabled, paymentsSetupGateEnabled } from "@/lib/payments-ga
 import { claimToolDraft } from "@/lib/tool-drafts";
 import { linkSenderToCompany, senderFromCookie } from "@/lib/tool-send";
 import { describeAttribution, recordSiteEvent, sanitizeAttribution } from "@/lib/site-events";
+import { sanitizeArrival, withUserAgent } from "@/lib/lead-source";
 
 // Where new sign-up notices land.
 const APPLICATION_INBOX = process.env.APPLICATION_INBOX ?? "info@streamflaire.com";
@@ -255,6 +256,8 @@ export async function POST(req: NextRequest) {
       referralSource: referral,
       phone: String(phone ?? "").trim() || null,
       applicationId: application.id,
+      // How they reached the site (ad click id, tags, referrer): kept on their lead in the WorkBench account
+      arrival: withUserAgent(sanitizeArrival(body.arrival), req.headers.get("user-agent")),
     });
   } catch (e) {
     // The company never opened — remove the application so a retry doesn't
