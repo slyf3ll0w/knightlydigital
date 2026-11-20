@@ -25,6 +25,7 @@ import { loadLeadSourceReport } from "../lead-source-report";
 import { loadAdsFeedStatus } from "../ads-conversions-server";
 import { loadAdsConnectStatus } from "../google-ads";
 import { loadMetaAdsStatus } from "../meta-ads";
+import { loadMetaLeadsStatus } from "../meta-leads";
 import { quickChargeIssue } from "../quick-charge";
 
 /** Invoices, payments, subscriptions, expenses, and real email sends. */
@@ -232,13 +233,20 @@ export const moneyTools: Tool[] = [
     decl: {
       name: "get_facebook_ads",
       description:
-        "Facebook ads: whether WorkBench is reporting lead steps back to Facebook (new lead, appointment booked, quote sent, job won, paid) for leads who came from Facebook or Instagram, when steps were last sent, Facebook's last refusal if any, how many Facebook leads arrived in the last 90 days, how many steps were sent this week and how many are waiting. Turning it on is done on the page by pasting a dataset ID and an access token from Facebook's Events Manager.",
+        "Facebook ads: whether a Facebook Page is connected so leads from Facebook and Instagram lead forms land on the Leads board by themselves (the Page, when a lead last came, how many in 30 days, any that could not be read), and whether WorkBench is reporting lead steps back to Facebook (new lead, appointment booked, quote sent, job won, paid) for leads who came from Facebook or Instagram, when steps were last sent, Facebook's last refusal if any, how many Facebook leads arrived in the last 90 days, how many steps were sent this week and how many are waiting. Reporting is turned on from the page by pasting a dataset ID and an access token from Facebook's Events Manager; connecting a Page is a Facebook sign-in the person does on the page.",
       parameters: { type: "object", properties: {} },
     },
     allowed: (a) => isManager(a.role),
     run: async (actor) => {
-      const s = await loadMetaAdsStatus(actor.companyId);
+      const [s, l] = await Promise.all([loadMetaAdsStatus(actor.companyId), loadMetaLeadsStatus(actor.companyId)]);
       return {
+        leadForms: !l.available
+          ? "not offered yet"
+          : !l.connected
+            ? l.needsPage
+              ? "signed in, but no Facebook Page picked yet (pick one on the page)"
+              : "not connected (the owner presses Connect Facebook on the page and signs in)"
+            : { page: l.pageName, needsReconnect: l.needsReconnect, lastLead: l.lastLeadAt, leadsLast30Days: l.leads30, leadsNotReadYet: l.unread, lastFacebookError: l.lastLeadError },
         reportingToFacebook: s.on,
         needsNewAccessToken: s.needsToken,
         lastSent: s.lastSendAt,
@@ -258,17 +266,31 @@ export const moneyTools: Tool[] = [
     decl: {
       name: "set_facebook_ads",
       description:
-        "Stop reporting lead steps to Facebook. 'off' removes the saved dataset and access token; what Facebook already counted stays counted. Needs a confirmation card. Turning it on is done on the page, because it needs an access token pasted from Facebook's Events Manager.",
+        "Turn a Facebook ads connection off. 'off' stops reporting lead steps to Facebook and removes the saved dataset and access token; what Facebook already counted stays counted. 'disconnect_page' disconnects the Facebook Page, so leads from Facebook forms stop arriving; leads already on the board stay. Each needs a confirmation card. Turning either on is done on the page (a pasted access token, a Facebook sign-in).",
       parameters: {
         type: "object",
-        properties: { action: { type: "string", enum: ["off"] } },
+        properties: { action: { type: "string", enum: ["off", "disconnect_page"] } },
         required: ["action"],
       },
     },
     allowed: (a) => isManager(a.role),
     run: async (actor, args, ctx) => {
-      const action = str(args.action, 12);
-      if (action !== "off") return { error: "action must be off. Turning it on is done on the page: /app/insights/lead-sources/facebook" };
+      const action = str(args.action, 20);
+      if (action === "disconnect_page") {
+        const l = await loadMetaLeadsStatus(actor.companyId);
+        if (!l.connected && !l.needsPage) return { error: "No Facebook Page is connected." };
+        return stage(ctx, {
+          kind: "set_facebook_ads",
+          title: "Disconnect Facebook",
+          lines: ["Leads from your Facebook forms stop arriving in WorkBench.", "Leads already on your board stay."],
+          endpoint: "/api/app/meta-leads",
+          method: "DELETE",
+          payload: {},
+          danger: true,
+          confirmLabel: "Disconnect",
+        });
+      }
+      if (action !== "off") return { error: "action must be off or disconnect_page. Turning either on is done on the page: /app/insights/lead-sources/facebook" };
       const s = await loadMetaAdsStatus(actor.companyId);
       if (!s.on) return { error: "It is already off." };
       return stage(ctx, {

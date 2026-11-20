@@ -1,17 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { canonicalLeadSource } from "@/lib/lead-source";
-import { randomBytes } from "crypto";
 import { prisma } from "@/lib/db";
-import { phoneDigits } from "@/lib/phone";
-import { namePlaceholder } from "@/lib/placeholder-contact";
-import { defaultLeadAssignee } from "@/lib/permissions";
-import { sendEmail, newRequestEmail } from "@/lib/email";
-import { companyNotifyAddress } from "@/lib/notify";
-import { notifyUsers, requestNotifyUserIds } from "@/lib/push";
-import { enterPipeline, autoAdvance, firePipelineMoves } from "@/lib/pipeline";
-import { fireAutomations } from "@/lib/automations-server";
 import { limit } from "@/lib/rate-limit";
-import { withDocNumberRetry } from "@/lib/doc-numbers";
+import { createInboundLead } from "@/lib/lead-intake";
 
 // Webhook leads get their own daily cap (counted by source, so a leaky
 // integration can't eat the booking forms' backstop) plus an hourly limiter.
@@ -95,98 +86,19 @@ export async function POST(
     return NextResponse.json({ error: "Daily lead limit reached." }, { status: 429 });
   }
 
-  const source = canonicalLeadSource(body.source) || "Lead webhook";
-  const message = s(body.message, 5000);
-  const address = s(body.address, 300) || null;
-  const assignedToId = await defaultLeadAssignee(company.id);
+  const result = await createInboundLead(company, {
+    firstName,
+    lastName,
+    email,
+    phone,
+    address: s(body.address, 300) || null,
+    city: s(body.city, 100) || null,
+    state: s(body.state, 40) || null,
+    zip: s(body.zip, 20) || null,
+    source: canonicalLeadSource(body.source) || "Lead webhook",
+    message: s(body.message, 5000),
+    door: "webhook",
+  });
 
-  const result = await withDocNumberRetry(() =>
-    prisma.$transaction(async (tx) => {
-      // Same dedupe as the public booking forms: match by phone or email
-      let contact = await tx.contact.findFirst({
-        where: {
-          companyId: company.id,
-          OR: [...(phoneDigits(phone) ? [{ phoneDigits: phoneDigits(phone) }] : []), ...(email ? [{ email: { equals: email, mode: "insensitive" as const } }] : [])],
-        },
-        // A real record wins over a texted-number placeholder with the same phone
-        orderBy: { placeholder: "asc" },
-      });
-      // A number that only ever texted in: this form is who they are
-      const named = Boolean(contact?.placeholder);
-      if (contact?.placeholder) contact = await namePlaceholder(tx, contact, { firstName, lastName, email, address, leadSource: source });
-      const newLead = !contact || named;
-      if (!contact) {
-        contact = await tx.contact.create({
-          data: {
-            companyId: company.id,
-            hubToken: randomBytes(24).toString("hex"),
-            firstName,
-            lastName,
-            email,
-            phone,
-            address,
-            city: s(body.city, 100) || null,
-            state: s(body.state, 40) || null,
-            zip: s(body.zip, 20) || null,
-            leadSource: source,
-            assignedToId,
-          },
-        });
-      }
-
-      const last = await tx.request.findFirst({
-        where: { companyId: company.id },
-        orderBy: { requestNumber: "desc" },
-      });
-      const request = await tx.request.create({
-        data: {
-          companyId: company.id,
-          contactId: contact.id,
-          requestNumber: (last?.requestNumber ?? 0) + 1,
-          title: `${source} lead`,
-          details: [message, address ? `Address: ${address}` : null, `Source: ${source}`]
-            .filter(Boolean)
-            .join("\n"),
-          source: "webhook",
-        },
-      });
-
-      // Onto the board: new leads land on the first stage; existing clients
-      // re-enter as repeat business; archived leads resurrect.
-      const moves = [await enterPipeline(tx, company.id, contact.id), await autoAdvance(tx, company.id, contact.id, "REQUEST_CREATED")];
-
-      return { contact, request, moves, newLead };
-    })
-  );
-
-  if (result.newLead) fireAutomations(company.id, "lead.created", result.contact.id);
-  fireAutomations(company.id, "request.created", result.request.id);
-  firePipelineMoves(company.id, result.moves);
-
-  await notifyUsers(await requestNotifyUserIds(company.id), {
-    title: `New ${source} lead: ${firstName} ${lastName}`.slice(0, 80),
-    body: result.request.title,
-    // `?lead=` names the card so the bell can retire this notice once the
-    // lead leaves the first column (app/api/app/notifications/route.ts).
-    url: `/app/leads?lead=${result.contact.id}`,
-    tag: `request-${result.request.id}`,
-  }, { event: "requests" });
-
-  const notifyTo = await companyNotifyAddress(company.id, company.email);
-  if (notifyTo) {
-    const { subject, html } = newRequestEmail({
-      companyName: company.name,
-      requestId: result.request.id,
-      requestNumber: result.request.requestNumber,
-      title: result.request.title,
-      details: result.request.details,
-      contactName: `${firstName} ${lastName}`,
-      contactPhone: phone,
-      contactEmail: email,
-      source: "webhook",
-    });
-    await sendEmail({ companyId: company.id, to: notifyTo, subject, html, replyTo: email || undefined });
-  }
-
-  return NextResponse.json({ success: true, leadId: result.contact.id }, { status: 201 });
+  return NextResponse.json({ success: true, leadId: result.contactId }, { status: 201 });
 }

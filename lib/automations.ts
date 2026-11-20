@@ -275,7 +275,7 @@ export const COMMON_FIELDS: readonly FieldDef[] = [
 ];
 
 export const ENTITY_FIELDS: Record<EntityType, readonly FieldDef[]> = {
-  request: [f("request_number", "Request #", "number"), f("request_title", "Request title"), f("request_details", "Request details"), f("request_source", "Request source", "enum", { options: ["internal", "client_hub", "booking_form", "estimate_form", "webhook"] })],
+  request: [f("request_number", "Request #", "number"), f("request_title", "Request title"), f("request_details", "Request details"), f("request_source", "Request source", "enum", { options: ["internal", "client_hub", "booking_form", "estimate_form", "webhook", "facebook_form"] })],
   appointment: [
     f("appointment_number", "Appointment #", "number"), f("appointment_title", "Appointment title"),
     f("appointment_type", "Appointment type", "enum", { options: ["PHONE_CALL", "VIDEO_CALL", "IN_PERSON"] }),

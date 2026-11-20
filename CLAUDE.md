@@ -270,7 +270,8 @@ Stages are per-company (`PipelineStage`, seeded on first visit, customizable at
   lead's only footprint (see requests/[id] DELETE).
 - External intake: `POST /api/public/leads/[Company.leadWebhookToken]` —
   generic JSON webhook for Zapier/Make/ad connectors (Meta, Google lead
-  forms). Managed in Settings → Lead Pipeline.
+  forms). Managed in Settings → Lead Pipeline. The write itself is
+  `lib/lead-intake.ts` `createInboundLead`, shared with Facebook lead forms.
 
 **Lead sources (2026-11-17, `docs/plans/lead-sources-2026-11-17.md`).**
 `Contact.leadSource` is one plain name per source; `lib/lead-source.ts`
@@ -327,6 +328,37 @@ on the first real connect. The by-hand file route stays as the fallback
 (Part 1: a message for Google's Advisor, `ADS_ADVISOR_PROMPT`; Part 2: the
 Data manager screens), with `Ask for help` (a FeedbackTicket) and the setup
 call at the foot of the page.
+
+**Facebook ads (2026-11-20, `docs/plans/facebook-ads-2026-11-20.md`).**
+Insights → Lead sources → Facebook ads, two halves on one `MetaConnection`
+per company. *Results back* (`lib/meta-ads.ts`, pure rules
+`lib/meta-ads-shape.ts`, `npx tsx scripts/test-meta-ads-shape.ts`): the
+owner pastes a dataset ID and an access token from Facebook's Events
+Manager (no Meta approval needed), and the hourly cron step `metaAds` sends
+each STEP a Facebook lead reaches (lead, appointment booked, quote sent, job
+won, paid) through the Conversions API. Steps, not only payments, because
+Facebook credits an ad for 7 days after the click and refuses an event more
+than 7 days old. A lead is matchable by its saved `fbclid` (a website
+event with `fbc`, the landing page and `Arrival.ua`, which only
+`withUserAgent` sets) or by Facebook's own lead id (a form lead, CRM
+shape). **No name, email, phone or address is sent, hashed or not: keep it
+that way.** Every step sent is a `MetaEventSent` row (unique on contact +
+step + payment id), because Facebook does not drop a repeat. *Lead forms in*
+(`lib/meta-leads.ts`, pure rules `lib/meta-leads-shape.ts`,
+`npx tsx scripts/test-meta-leads-shape.ts`; shown only when `META_APP_ID` /
+`META_APP_SECRET` / `META_LOGIN_CONFIG_ID` are set): Connect Facebook →
+pick a Page → WorkBench subscribes to its `leadgen` webhook
+(`/api/public/webhooks/meta`: signature first, then the notice is only a
+hint and the lead is read from Facebook with the Page's token; one
+`MetaLead` per Facebook lead id) and files each lead through
+`lib/lead-intake.ts` `createInboundLead`, the same code the lead webhook
+uses. Cron step `metaLeads` retries unread leads. WorkBench's own company
+uses the feature like any customer; the only supporting change is that a
+sign-up now keeps how it arrived (`lib/site-track.ts` `getArrival` →
+`ensureBillingContact`). Atlas: `get_facebook_ads` / `set_facebook_ads`.
+**Written from Meta's documentation and never yet run against Facebook:**
+the plan lists what David sets up at Meta, what the first real use must
+confirm, the limits, and six test recipes.
 
 ## Authentication
 
@@ -1390,6 +1422,13 @@ QBO_ENVIRONMENT=sandbox  # "production" once Intuit grants production keys
 # Redirect URI to register: ${NEXTAUTH_URL}/api/app/integrations/google-calendar/callback
 GOOGLE_ADS_CLIENT_ID=                # Connect Google Ads (lib/google-ads.ts); may be the same OAuth client as Google Calendar. Button hidden until both are set.
 GOOGLE_ADS_CLIENT_SECRET=
+# Optional — Connect Facebook: leads from Facebook lead forms (lib/meta-leads.ts). The card is hidden until the first three are set.
+# Reporting lead steps back to Facebook (lib/meta-ads.ts) needs NO env: each company pastes its own dataset ID and token.
+# Redirect to register: ${NEXTAUTH_URL}/api/app/integrations/meta/callback ; webhook: ${NEXTAUTH_URL}/api/public/webhooks/meta (Page → leadgen)
+META_APP_ID=                         # WorkBench's Meta app (type Business), developers.facebook.com
+META_APP_SECRET=                     # also signs the webhook: unset = every lead notice refused 401
+META_LOGIN_CONFIG_ID=                # the Facebook Login for Business configuration (it names the permissions)
+META_WEBHOOK_VERIFY_TOKEN=           # any long string; typed into the app's Webhooks page too
 GOOGLE_CALENDAR_CLIENT_ID=
 GOOGLE_CALENDAR_CLIENT_SECRET=
 # Optional — per-company custom sending domains (lib/email-domains.ts). Needs a

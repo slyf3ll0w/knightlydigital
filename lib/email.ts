@@ -444,10 +444,10 @@ export function newRequestEmail({
   contactName: string;
   contactPhone: string | null;
   contactEmail: string | null;
-  source: "booking_form" | "client_hub" | "webhook";
+  source: "booking_form" | "client_hub" | "webhook" | "facebook_form";
 }): { subject: string; html: string } {
   const sourceLabel =
-    source === "client_hub" ? "your client portal" : source === "webhook" ? "your lead integration" : "your booking form";
+    source === "client_hub" ? "your client portal" : source === "webhook" ? "your lead integration" : source === "facebook_form" ? "your Facebook form" : "your booking form";
   const html = wbShell({
     footNote: `Sent to ${esc(companyName)}`,
     inner: `
